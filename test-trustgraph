@@ -1,0 +1,82 @@
+
+from trustgraph import TrustGraph
+
+t = TrustGraph()
+
+t.clear()
+
+t.insert(
+    "http://example.com",
+    "http://example.org",
+    "http://example.net"
+)
+
+t.insert(
+    "http://example.com/2",
+    "http://example.org/2",
+    "http://example.net/1"
+)
+
+t.insert(
+    "http://example.com",
+    "http://example.org/2",
+    "http://example.net"
+)
+
+print("====")
+
+print("====")
+
+rows = t.get_all()
+for s, p, o in rows:
+    print(s, p, o)
+
+print("====")
+
+rows = t.get_s("http://example.com/2")
+for p, o in rows:
+    print(p, o)
+
+print("====")
+
+rows = t.get_p("http://example.org/2")
+for s, o in rows:
+    print(s, o)
+
+print("====")
+
+rows = t.get_o("http://example.net")
+for s, p in rows:
+    print(s, p)
+
+print("====")
+
+rows = t.get_sp("http://example.com", "http://example.org/2")
+for o, in rows:
+    print(o)
+
+print("====")
+
+rows = t.get_po("http://example.com", "http://example.org/2")
+for s, in rows:
+    print(s)
+
+print("====")
+
+rows = t.get_os("http://example.com", "http://example.org/2")
+for p, in rows:
+    print(p)
+
+print("====")
+
+rows = t.get_spo(
+    "http://example.com",
+    "http://example.org",
+    "http://example.net"
+)
+
+for p, in rows:
+    print(p)
+
+print("====")
+

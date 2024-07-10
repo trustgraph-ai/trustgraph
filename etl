@@ -1,0 +1,74 @@
+#!/usr/bin/env python3
+
+import pulsar
+from pulsar.schema import JsonSchema, Bytes
+from schema import Chunk, Triple, Value
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.llms import Ollama
+from trustgraphETL import scholar, callmixtral, build_graph_robust
+import sys
+import rdflib
+
+g = rdflib.Graph()
+g.parse("out2.ttl")
+
+client = pulsar.Client("pulsar://localhost:6650")
+
+consumer = client.subscribe(
+    'chunk-load', 'etl',
+    schema=JsonSchema(Chunk),
+)
+
+producer = client.create_producer(
+    topic='graph-load',
+    schema=JsonSchema(Triple),
+)
+
+while True:
+
+    msg = consumer.receive()
+
+    try:
+
+        v = msg.value()
+        print("Indexing {} {}...".format(v.path, v.num))
+
+        chunk = v.chunk.decode("utf-8")
+
+        s = scholar(chunk)
+        resp = callmixtral(s)
+
+        try:
+            g = build_graph_robust([resp])
+
+            for s, p, o in g:
+
+                sv = Value(value=str(s), is_uri=True)
+                pv = Value(value=str(p), is_uri=True)
+
+                if isinstance(o, rdflib.term.URIRef):
+                    ov = Value(value=str(o), is_uri=True)
+                else:
+                    ov = Value(value=str(o), is_uri=False)
+
+                t = Triple(s=sv, p=pv, o=ov)
+
+                producer.send(t)
+
+        except Exception as e:
+            print("Exception: ", e)
+
+        print("Done.")
+
+        # Acknowledge successful processing of the message
+        consumer.acknowledge(msg)
+
+    except Exception as e:
+
+        print(e)
+        
+        # Message failed to be processed
+        consumer.negative_acknowledge(msg)
+
+client.close()
+

@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+
+import pulsar
+from pulsar.schema import JsonSchema, Bytes
+from schema import Chunk, Triple
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.llms import Ollama
+from trustgraphETL import scholar, callmixtral, build_graph_robust
+import sys
+import rdflib
+
+g = rdflib.Graph()
+g.parse("out2.ttl")
+
+client = pulsar.Client("pulsar://localhost:6650")
+
+consumer = client.subscribe(
+    'graph-load', 'graph-dump',
+    schema=JsonSchema(Triple),
+)
+
+while True:
+
+    msg = consumer.receive()
+
+    try:
+
+        v = msg.value()
+
+        print(
+            v.s.value,
+            v.p.value,
+            v.o.value,
+        )
+
+        # Acknowledge successful processing of the message
+        consumer.acknowledge(msg)
+
+    except Exception as e:
+
+        print(e)
+        
+        # Message failed to be processed
+        consumer.negative_acknowledge(msg)
+
+client.close()
+

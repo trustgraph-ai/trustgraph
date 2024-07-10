@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+
+from langchain_huggingface import HuggingFaceEmbeddings
+
+from edge_map import VectorStore
+
+client = VectorStore()
+
+embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+
+text="""A cat is a small animal.  A dog is a large animal.
+Cats say miaow.  Dogs go woof.
+"""
+
+embeds = embeddings.embed_documents([text])[0]
+
+text2="""If you couldn't download the model due to network issues, as a walkaround, you can use random vectors to represent the text and still finish the example. Just note that the search result won't reflect semantic similarity as the vectors are fake ones.
+"""
+
+embeds2 = embeddings.embed_documents([text2])[0]
+
+client.insert(embeds, "animals")
+client.insert(embeds, "vectors")
+
+query="""What noise does a cat make?"""
+
+qembeds = embeddings.embed_documents([query])[0]
+
+res = client.search(
+    qembeds,
+    limit=2
+)
+
+print(res)
+

@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+
+import os
+import rdflib
+
+dir="graph"
+g = rdflib.Graph()
+
+files = os.listdir(dir)
+
+for file in files:
+
+    try:
+        cg = rdflib.Graph()
+        file = dir + "/" + file
+        cg.parse(file, format="turtle")
+
+        for t in cg:
+            g.add(t)
+    except Exception as e:
+        print(f"{file}: {str(e)}")
+
+g.serialize(destination="graph.ttl")
+

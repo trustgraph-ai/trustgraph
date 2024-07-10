@@ -1,0 +1,8 @@
+#!/usr/bin/env python3
+
+from trustgraph import TrustGraph
+
+t = TrustGraph()
+
+t.clear()
+

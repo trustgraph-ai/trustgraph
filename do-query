@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+
+from trustgraph.graph_rag import GraphRag
+
+gr = GraphRag()
+
+query="""This knowledge graph describes the Space Shuttle disaster.
+Present 20 facts which are present in the knowledge graph."""
+
+# embed = gr.get_vector(query)
+# print(embed)
+
+#entities = gr.get_entities(query)
+#for ent in entities:
+#    print(ent)
+
+# nodes = gr.get_nodes(query)
+# for node in nodes:
+#     print(node)
+
+#sg = gr.get_subgraph(query)
+#for edge in sg:
+#    print(edge)
+
+#lg = gr.get_labelgraph(query)
+#for edge in lg:
+#    print(edge)
+
+# oc = gr.get_cypher(query)
+# print(oc)
+
+# pr = gr.get_graph_prompt(query)
+# print(pr)
+
+resp = gr.query(query)
+
+print(resp)
+

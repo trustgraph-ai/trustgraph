@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+
+from trustgraph.chunker.recursive import run
+
+run()
+

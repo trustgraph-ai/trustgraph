@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+
+import pulsar
+from pulsar.schema import JsonSchema
+from schema import Triple, Value
+
+client = pulsar.Client("pulsar://localhost:6650")
+
+consumer = client.subscribe(
+    'my-topic2', 'my-subscription',
+    schema=JsonSchema(Triple),
+)
+
+while True:
+    msg = consumer.receive()
+    try:
+
+#         print("Received message '{}' id='{}'".format(
+#             msg.data(), msg.message_id()
+#         ))
+
+        v = msg.value()
+
+        print(
+            "{} -- {} --> {}".format(
+                v.s.value,
+                v.p.value,
+                v.o.value,
+            )
+        )
+
+        # Acknowledge successful processing of the message
+        consumer.acknowledge(msg)
+    except Exception:
+        # Message failed to be processed
+        consumer.negative_acknowledge(msg)
+
+client.close()
+

@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+
+import pulsar
+from pulsar.schema import JsonSchema
+from schema import Triple, Value
+
+client = pulsar.Client("pulsar://localhost:6650")
+
+producer = client.create_producer(
+    topic='my-topic2',
+    schema=JsonSchema(Triple),
+)
+
+for i in range(10):
+
+    r = Triple(
+        s = Value(is_uri=True, value="https://example.org"),
+        p = Value(is_uri=True, value="https://example.org"),
+        o = Value(is_uri=True, value="https://example.org"),
+    )
+
+    producer.send(r)
+
+client.close()
+

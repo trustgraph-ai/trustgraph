@@ -1,0 +1,128 @@
+#!/usr/bin/env python3
+
+from langchain_huggingface import HuggingFaceEmbeddings
+from edge_map import VectorStore
+from trustgraph import TrustGraph
+from llm_ollama import Llm
+
+LABEL="http://www.w3.org/2000/01/rdf-schema#label"
+DEFINITION="http://www.w3.org/2004/02/skos/core#definition"
+
+embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+
+client = VectorStore()
+
+tg = TrustGraph()
+
+entity_limit=50
+query_limit=30
+max_sg_size=3000
+
+query = """Explain how CISA contributes to incident management in the
+US government economy"""
+
+# query = """Explain in a step-by-step form how CISA helps new legislation to emerge for national security"""
+
+query = """An insider threat has been discovered inside CISA.
+The employee has been discovered to be stealing data using admin credentials.
+Provide 3 theories as to the cause of the failure in hiring this individual,
+referencing oversight information in the knowledge graph provided.
+"""
+
+query = """An insider threat has been discovered inside CISA.
+Their job title is Protective Security Advisor.  What threats are posed
+to to CISA by the compromise of somoene in this role?
+Provide 3 hypothetical compromise scenarios which could be cause by
+someone in such a role being compromised as an inside threat.
+"""
+
+query = """Provide three hypothetical causes for the space shuttle
+disaster.  For each hypothesis, provided a set of step-by-step events
+which lead to the disaster.
+"""
+
+qembeds = embeddings.embed_documents([query])[0]
+
+res = client.search(
+    qembeds,
+    limit=entity_limit
+)
+
+entities = set([
+    item["entity"]["entity"]
+    for item in res
+])
+
+subgraph = set()
+
+for e in entities:
+
+    res = tg.get_s(e, limit=query_limit)
+    for p, o in res:
+        subgraph.add((e, p, o))
+
+    res = tg.get_p(e, limit=query_limit)
+    for s, o in res:
+        subgraph.add((s, e, o))
+
+    res = tg.get_o(e, limit=query_limit)
+    for s, p in res:
+        subgraph.add((s, p, e))
+
+subgraph = list(subgraph)
+
+subgraph = subgraph[0:max_sg_size]
+
+cache = {}
+
+def maybe_label(e):
+
+    if e in cache:
+        return cache[e]
+
+    res = tg.get_sp(e, LABEL)
+    res = list(res)
+
+    if len(res) == 0:
+        cache[e] = e
+        return e
+
+    cache[e] = res[0][0]
+    return cache[e]
+
+sg2 = []
+
+for edge in subgraph:
+
+    if edge[1] == LABEL:
+        continue
+
+    s = maybe_label(edge[0])
+    p = maybe_label(edge[1])
+    o = maybe_label(edge[2])
+
+    sg2.append(f"({s})-[{p}]->({o})")
+
+prompt=f"""<instructions>Study the knowledge graph provided, and use
+the information to answer the question.  The question should be answered
+in plain English only.
+</instructions>
+<knowledge-graph>
+{"\n".join(sg2)}
+</knowledge-graph>
+<question>
+{query}
+</question>
+"""
+
+print(prompt)
+
+print(len(prompt))
+
+# llm = Llm("deepseek-v2")
+# llm = Llm("gemma2")
+llm = Llm("phi3:14b")
+resp = llm(prompt)
+
+print(resp)
+

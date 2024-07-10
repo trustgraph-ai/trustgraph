@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+
+from trustgraph.llm.azure_text import run
+
+run()
+

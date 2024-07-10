@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+
+from trustgraph.rag.graph import run
+
+run()
+

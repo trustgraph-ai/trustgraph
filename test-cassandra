@@ -1,0 +1,93 @@
+
+from cassandra.cluster import Cluster
+from cassandra.auth import PlainTextAuthProvider
+
+import sys
+
+def init():
+
+    cluster = Cluster(["localhost"])
+
+    session = cluster.connect()
+
+    session.execute("""
+        drop keyspace if exists trustgraph;
+    """);
+
+    print(1/0)
+
+    session.execute("""
+        create keyspace if not exists trustgraph
+            with replication = { 
+               'class' : 'SimpleStrategy', 
+               'replication_factor' : 1 
+            };
+    """);
+
+    session.set_keyspace('trustgraph')
+
+    session.execute("""
+        create table if not exists triples (
+            s text,
+            p text,
+            o text,
+            PRIMARY KEY (s, p)
+        );
+    """);
+
+    session.execute("""
+        create index if not exists triples_p
+            ON triples (p);
+    """);
+
+    session.execute("""
+        create index if not exists triples_o
+            ON triples (o);
+    """);
+
+    return session
+
+try:
+    session = init()
+    
+    session.execute(
+        "insert into triples (s, p, o) values (%s, %s, %s)",
+        (
+            "http://example.com",
+            "http://example.org",
+            "http://example.net",
+        )
+    )
+
+    session.execute(
+        "insert into triples (s, p, o) values (%s, %s, %s)",
+        (
+            "http://example.com/2",
+            "http://example.org/2",
+            "http://example.net/1",
+        )
+    )
+
+    session.execute(
+        "insert into triples (s, p, o) values (%s, %s, %s)",
+        (
+            "http://example.com",
+            "http://example.org/2",
+            "http://example.net/3",
+        )
+    )
+
+    rows = session.execute(
+        "select s, p, o from triples"
+    )
+
+    for s, p, o in rows:
+        print(s, p, o)
+
+except Exception as e:
+
+    print("Exception: ", e)
+
+    sys.exit(1)
+
+    

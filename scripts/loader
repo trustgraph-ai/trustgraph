@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+
+import pulsar
+from pulsar.schema import JsonSchema, Bytes, String
+from trustgraph.schema import Document, Source
+import base64
+import hashlib
+
+# client = pulsar.Client("pulsar://localhost:6650")
+host="10.89.1.246"
+host="localhost"
+client = pulsar.Client(f"pulsar://{host}:6650")
+
+producer = client.create_producer(
+    topic='document-load',
+    schema=JsonSchema(Document),
+    chunking_enabled=True,
+)
+
+files=[
+    "Challenger-Report-Vol1.pdf",
+#     "columbia-accident-investigation-board-report-volume-1.pdf",
+#     "Proposed_CIRCIA_Rules.pdf",
+]
+
+for file in files:
+
+    path = "sources/" + file
+    data = open(path, "rb").read()
+
+    id = hashlib.sha256(path.encode("utf-8")).hexdigest()[0:8]
+
+    r = Document(
+        source=Source(
+            source=path,
+            title=path,
+            id=id,
+        ),
+        data=base64.b64encode(data),
+    )
+
+    resp = producer.send(r)
+
+    print(resp)
+
+client.close()
+
