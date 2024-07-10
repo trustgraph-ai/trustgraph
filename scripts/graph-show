@@ -1,0 +1,10 @@
+#!/usr/bin/env python3
+
+from trustgraph.trustgraph import TrustGraph
+
+t = TrustGraph()
+
+rows = t.get_all(limit=100_000_000)
+for s, p, o in rows:
+    print(s, p, o)
+

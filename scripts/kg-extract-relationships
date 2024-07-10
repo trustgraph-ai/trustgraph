@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+
+from trustgraph.kg.extract_relationships import run
+
+run()
+

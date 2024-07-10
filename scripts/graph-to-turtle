@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+
+from trustgraph.trustgraph import TrustGraph
+import rdflib
+import sys
+import io
+
+t = TrustGraph()
+
+g = rdflib.Graph()
+
+rows = t.get_all(limit=100_000_000)
+for s, p, o in rows:
+
+#     print(s, p, o)
+    sv = rdflib.term.URIRef(s)
+    pv = rdflib.term.URIRef(p)
+
+    if o.startswith("https://") or o.startswith("http://"):
+
+        # Skip malformed URLs with spaces in
+        if " " in o:
+            continue
+
+        ov = rdflib.term.URIRef(o)
+    else:
+        ov = rdflib.term.Literal(o)
+
+    g.add((sv, pv, ov))
+
+g.serialize(destination="output.ttl", format="turtle")
+
+buf = io.BytesIO()
+
+g.serialize(destination=buf, format="turtle")
+
+sys.stdout.write(buf.getvalue().decode("utf-8"))

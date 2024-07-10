@@ -1,0 +1,16 @@
+torch
+urllib3
+transformers
+sentence-transformers
+rdflib
+pymilvus
+langchain
+langchain-core
+langchain-huggingface
+langchain-text-splitters
+langchain-community
+huggingface-hub
+cassandra-driver
+pulsar-client
+anthropic
+google-cloud-aiplatform

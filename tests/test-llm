@@ -1,0 +1,15 @@
+#!/usr/bin/env python3
+
+import pulsar
+from trustgraph.llm_client import LlmClient
+
+llm = LlmClient(pulsar_host="pulsar://localhost:6650")
+
+prompt="Write a funny limerick about a llama"
+
+resp = llm.request(prompt)
+
+print(resp)
+
+llm.close()
+
