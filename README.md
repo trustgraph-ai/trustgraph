@@ -79,6 +79,14 @@ Pulsar provides two types of connectivity:
   to answer prompts.
 - `loader` - Takes a document and loads into the processing pipeline.  Used
   e.g. to add PDF documents.
-- `pdf-decoder` - 
-- `vector-write-milvus` - 
+- `pdf-decoder` - Takes a PDF doc and emits text extracted from the document.
+  Text extraction from PDF is not a perfect science as PDF is a printable
+  format.  For instance, the wrapping of text between lines in a PDF document
+  is not semantically encoded, so the decoder will see wrapped lines as
+  space-separated.
+- `vector-write-milvus` - Takes vector-entity mappings and records them
+  in the graph.
 
+## Getting started
+
+TBD
