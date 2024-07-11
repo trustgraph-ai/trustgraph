@@ -85,8 +85,32 @@ Pulsar provides two types of connectivity:
   is not semantically encoded, so the decoder will see wrapped lines as
   space-separated.
 - `vector-write-milvus` - Takes vector-entity mappings and records them
-  in the graph.
+  in the vector embeddings store.
 
 ## Getting started
 
+A good starting point is to try to run one of the Docker Compose files.
+This can be run on Linux or a Macbook (maybe Windows - not tested).
+
+There are 4 docker compose files to get you started with one of the
+following LLM types:
+- VertexAI on Google Cloud
+- Claud Anthropic
+- Azure serverless endpoint
+- An Ollama-hosted LLM for an LLM running on local hardware
+
+Using the Docker Compose you should be able to...
+- Run enough components to start a Graph RAG indexing pipeline.  This includes
+  stores, LLM interfaces and processing components.
+- Check the logs to ensure that things started up correctly
+- Load some test data and starting indexing
+- Check the graph to see that some data has started to load
+- Run a query which uses the vector and graph stores to produce a prompt
+  which is answered using an LLM.
+
+If you get a Graph RAG response to the query, everything is working
+
+### Docker compose
+
 TBD
+
