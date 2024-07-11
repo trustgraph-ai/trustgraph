@@ -39,6 +39,17 @@ by deploying multiple containers.
 
 ![architecture](architecture.png)
 
+A set of modules are executed which use Apache Pulsar as a pub/sub system.
+This means that Pulsar provides input the modules and accept output.
+
+Pulsar provides two types of connectivity:
+- For processing flows, Pulsar accepts the output of a processing module
+  and queues it for input to the next module.
+- For services such as LLMs and embeddings, Pulsar provides a client/server
+  model.  A Pulsar queue is used as the input to the service.  When
+  processed, the output is delivered to a separate queue so that the caller
+  can collect the data.
+
 ## Included modules
 
 - `chunker-recursive` - Accepts text documents and uses LangChain recurse
