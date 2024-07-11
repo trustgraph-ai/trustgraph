@@ -35,6 +35,10 @@ by deploying multiple containers.
 - Containers, so can be deployed using Docker Compose or Kubernetes
 - Plug'n'play, switch different LLM modules to suit your LLM options
 
+## Architecture
+
+![architecture](architecture.png)
+
 ## Included modules
 
 - `chunker-recursive` - Accepts text documents and uses LangChain recurse
