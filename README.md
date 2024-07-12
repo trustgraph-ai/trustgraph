@@ -50,6 +50,10 @@ Pulsar provides two types of connectivity:
   processed, the output is delivered to a separate queue so that the caller
   can collect the data.
 
+All the code is bundled into a single Python package which can be used to
+use all the functionality.  There is also a container image with the
+package installed which can be used to run everything.
+
 ## Included modules
 
 - `chunker-recursive` - Accepts text documents and uses LangChain recurse
@@ -108,9 +112,63 @@ Using the Docker Compose you should be able to...
 - Run a query which uses the vector and graph stores to produce a prompt
   which is answered using an LLM.
 
-If you get a Graph RAG response to the query, everything is working
+If you get a Graph RAG response to the query, everything is working.
 
-### Docker compose
+### Docker compose files
 
-TBD
+There are 4 docker compose files to choose from depending on the LLM you
+wish to use:
+
+- `docker-compose-azure.yaml`.  This is for a serverless AI endpoint
+  hosted on Azure.  Set `AZURE_TOKEN` to the secret token and
+  `AZURE_ENDPOINT` to the endpoint address.
+- `docker-compose-claude.yaml`.  This is for using Anthropic Claude LLM.
+  Set `CLAUDE_KEY` to the API key.
+- `docker-compose-ollama.yaml`.  This is for a local LLM - gemma2 hosted
+  using Ollama.  Set `OLLAMA_HOST` to the host running Ollama (e.g. 
+  `localhost` to talk to a locally hosted Ollama.
+- `docker-compose-vertexai.yaml`.  This is for using Google Cloud VertexAI.
+  You need a private.json authentication file for your Google Cloud.
+  Should be at path `vertexai/private.json`.
+
+### docker-compose-azure.yaml
+
+```
+export AZURE_ENDPOINT=https://ENDPOINT.HOST.GOES.HERE/
+export AZURE_TOKEN=TOKEN-GOES-HERE
+docker-compose -f docker-compose-azure.yaml up -d
+```
+
+### docker-compose-claude.yaml
+
+```
+export CLAUDE_KEY=TOKEN-GOES-HERE
+docker-compose -f docker-compose-claude.yaml up -d
+```
+
+### docker-compose-ollama.yaml
+
+```
+export OLLAMA_HOST=localhost # Set to hostname of Ollama host
+docker-compose -f docker-compose-ollama.yaml up -d
+```
+
+
+### docker-compose-azure.yaml
+
+```
+mkdir -p vertexai
+cp {whatever} vertexai/private.json
+docker-compose -f docker-compose-vertexai.yaml up -d
+```
+
+On Linux if running SELinux you may need to set the permissions on the
+VertexAI directory so that the key file can be mounted on a docker
+container...
+
+```
+chcon -Rt svirt_sandbox_file_t vertexai/
+```
+
+
 
