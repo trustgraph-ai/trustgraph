@@ -1,7 +1,7 @@
 
 """
-Simple LLM service, performs text prompt completion using an Ollama service.
-Input is prompt, output is response.
+Simple LLM service, performs text prompt completion using VertexAI on
+Google Cloud.   Input is prompt, output is response.
 """
 
 import pulsar

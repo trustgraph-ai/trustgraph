@@ -1,7 +1,7 @@
 
 """
-Simple LLM service, performs text prompt completion using an Ollama service.
-Input is prompt, output is response.
+Embeddings service, applies an embeddings model selected from HuggingFace.
+Input is text, output is embeddings vector.
 """
 
 import pulsar

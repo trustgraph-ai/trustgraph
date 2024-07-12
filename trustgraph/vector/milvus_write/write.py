@@ -1,7 +1,6 @@
 
 """
-Simple decoder, accepts PDF documents on input, outputs pages from the
-PDF document as text as separate output objects.
+Accepts entity/vector pairs and writes them to a Milvus store.
 """
 
 import pulsar

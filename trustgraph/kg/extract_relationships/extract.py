@@ -1,7 +1,8 @@
 
 """
-Simple decoder, accepts PDF documents on input, outputs pages from the
-PDF document as text as separate output objects.
+Simple decoder, accepts vector+text chunks input, applies entity
+relationship analysis to get entity relationship edges which are output as
+graph edges.
 """
 
 import pulsar

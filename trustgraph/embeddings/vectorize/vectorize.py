@@ -1,7 +1,7 @@
 
 """
-Vectorizer, applies an embedding algorithm to a chunk.  Input is a chunk,
-output is chunk and vectors.
+Vectorizer, calls the embeddings service to get embeddings for a chunk.
+Input is text chunk, output is chunk and vectors.
 """
 
 import pulsar

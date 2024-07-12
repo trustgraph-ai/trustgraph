@@ -1,7 +1,6 @@
 
 """
-Simple decoder, accepts PDF documents on input, outputs pages from the
-PDF document as text as separate output objects.
+Graph writer.  Input is graph edge.  Writes edges to Cassandra graph.
 """
 
 import pulsar
