@@ -190,6 +190,18 @@ have exited unexpectedly - look at the STATUS field.
 ```docker ps -a
 ```
 
+### Wait
+
+Before proceeding, you should leave enough time for the system to
+settle into a working state.  On my Macbook, it takes about 30 seconds
+for Pulsar to start, before which, nothing works.
+
+The system uses Cassandra for a Graph store, takes around 60-70 seconds
+to achieve a working state.  For your first go, I would advise just letting
+everything settle for a couple of minutes before doing anything else, so
+that if there are errors you know it's not just that the system is starting
+up.
+
 ### Install requirements
 
 ```
@@ -374,7 +386,7 @@ If it looks like something isn't working, try following the graph-rag
 logs:
 
 ```
-podman logs -f trustgraph_graph-rag_1
+docker logs -f trustgraph_graph-rag_1
 ```
 
 If you get an answer to your query, Graph RAG is working!
