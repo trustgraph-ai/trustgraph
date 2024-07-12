@@ -181,13 +181,15 @@ chcon -Rt svirt_sandbox_file_t vertexai/
 
 Check that you have a set of containers running...
 
-```docker ps
+```
+docker ps
 ```
 
 You might want to look at containers which are down to see if any
 have exited unexpectedly - look at the STATUS field.
 
-```docker ps -a
+```
+docker ps -a
 ```
 
 ### Wait
@@ -223,7 +225,7 @@ curl -o sources/Challenger-Report-Vol1.pdf https://sma.nasa.gov/SignificantIncid
 Then load the file...
 
 ```
-scripts/loader
+scripts/loader -f sources/Challenger-Report-Vol1.pdf
 ```
 
 You get some output on the screen, if nothing looks like errors (has the
@@ -393,4 +395,25 @@ If you get an answer to your query, Graph RAG is working!
 
 If you want to try different queries try modifying the
 script you ran at `tests/test-graph-rag`.
+
+### Clearing everything down
+
+```
+docker-compose -f docker-compose-ollama.yaml down
+```
+
+You should also clean out unwanted volumes...
+
+```
+docker volume ls
+```
+
+And delete anything you don't need...
+
+```
+docker volume rm -f <id>
+```
+
+If you want to experiment with your own data set, it would be best
+to clear down everything created so far and start from scratch.
 
