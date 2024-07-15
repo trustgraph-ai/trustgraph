@@ -90,52 +90,42 @@ package installed can also run the entire architecture.
 - `llm-ollama-text` -  Sends request to LM running using Ollama
 - `llm-vertexai-text` -  Sends request to model available through VertexAI API
 
-## Getting started
+## Getting Started
 
-A good starting point is to try to run one of the Docker Compose files.
-This can be run on Linux or a Macbook (maybe Windows - not tested).
+The `Docker Compose` files have been tested on `Linux` and `MacOS`. There are currently
+no plans for `Windows` support in the immediate future.
 
-There are 4 docker compose files to get you started with one of the
-following LLM types:
-- VertexAI on Google Cloud
-- Claud Anthropic
-- Azure serverless endpoint
-- An Ollama-hosted LLM for an LLM running on local hardware
+There are 4 `Docker Compose` files depending on the desired LM deployment:
+- `VertexAI` through Google Cloud
+- `Claude` through Anthropic's API
+- `AzureAI` serverless endpoint
+- Local LM deployment through `Ollama`
 
-Using the Docker Compose you should be able to...
-- Run enough components to start a Graph RAG indexing pipeline.  This includes
-  stores, LLM interfaces and processing components.
-- Check the logs to ensure that things started up correctly
-- Load some test data and starting indexing
-- Check the graph to see that some data has started to load
-- Run a query which uses the vector and graph stores to produce a prompt
-  which is answered using an LLM.
+Docker Compose enables the following functions:
+- Run the required components for full e2e `Graph RAG` knowledge pipeline
+- Check processing logs
+- Load test text corpus and begin knowledge extraction
+- Verify extracted graph edges and number of edges
+- Run a query against the vector and graph stores to generate a response
+  using the chosen LM
 
-If you get a Graph RAG response to the query, everything is working.
-
-### Clone the Github repo
+### Clone the Repo
 
 ```
 git clone https://github.com/trustgraph-ai/trustgraph trustgraph
 cd trustgraph
 ```
 
-### Docker compose files
+### Docker Compose files
 
-There are 4 docker compose files to choose from depending on the LLM you
-wish to use:
+Depending on your desired LM deployment, you will choose from one of the 
+following `Docker Compose` files.
 
-- `docker-compose-azure.yaml`.  This is for a serverless AI endpoint
-  hosted on Azure.  Set `AZURE_TOKEN` to the secret token and
-  `AZURE_ENDPOINT` to the endpoint address.
-- `docker-compose-claude.yaml`.  This is for using Anthropic Claude LLM.
-  Set `CLAUDE_KEY` to the API key.
-- `docker-compose-ollama.yaml`.  This is for a local LLM - gemma2 hosted
-  using Ollama.  Set `OLLAMA_HOST` to the host running Ollama (e.g. 
-  `localhost` to talk to a locally hosted Ollama.
-- `docker-compose-vertexai.yaml`.  This is for using Google Cloud VertexAI.
-  You need a private.json authentication file for your Google Cloud.
-  Should be at path `vertexai/private.json`.
+- `docker-compose-azure.yaml`: AzureAI endpoint. Set `AZURE_TOKEN` to the secret token and
+  `AZURE_ENDPOINT` to the URL endpoint address for the deployed model.
+- `docker-compose-claude.yaml`: Anthropic's API. Set `CLAUDE_KEY` to your API key.
+- `docker-compose-ollama.yaml`: Local LM (currently using [Gemma2](https://ollama.com/library/gemma2) deployed through Ollama.  Set `OLLAMA_HOST` to the machine running Ollama (e.g. `localhost` for Ollama running locally on your machine)
+- `docker-compose-vertexai.yaml`: VertexAI API. Requires a `private.json` authentication file to authenticate with your GCP project. Filed should stored be at path `vertexai/private.json`.
 
 
 #### docker-compose-azure.yaml
