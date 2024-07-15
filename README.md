@@ -52,9 +52,10 @@ managing inputs and outputs between modules.
   processed, the output is then delivered to a separate queue where a client
   subscriber can request that output.
 
-:note
+:::note
 The entire architecture, the pub/sub backbone and set of modules, is bundled into a single Python. A container image with the
 package installed can also run the entire architecture.
+:::
 
 ## Included modules
 
