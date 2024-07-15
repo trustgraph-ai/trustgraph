@@ -5,7 +5,12 @@ import sys
 
 query = " ".join(sys.argv[1:])
 
-gr = GraphRag(verbose=True)
+gr = GraphRag(
+    verbose=True,
+    vector_store="http://localhost:19530",
+    pulsar_host="pulsar://localhost:6650",
+    graph_hosts=["localhost"],
+)
 
 if query == "":
     query="""This knowledge graph describes the Space Shuttle disaster.

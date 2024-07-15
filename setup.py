@@ -4,17 +4,17 @@ import os
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-version = "0.2.1"
+version = "0.2.2"
 
 setuptools.setup(
     name="trustgraph",
     version=version,
     author="trustgraph.ai",
     author_email="security@trustgraph.ai",
-    description="trustgraph.ai",
+    description="TrustGraph provides a means to run a pipeline of flexible AI processing components in a flexible means to achieve a processing pipeline.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/trustgraph.ai/FIXME.git",
+    url="https://github.com/trustgraph-ai/trustgraph",
     packages=setuptools.find_packages(),
     classifiers=[ 
         "Programming Language :: Python :: 3",
@@ -22,7 +22,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.8',
-    download_url = "https://github.com/trustgraph.ai/FIXME.git/archive/refs/tags/v" + version + ".tar.gz",
+    download_url = "https://github.com/trustgraph-ai/trustgraph/archive/refs/tags/v" + version + ".tar.gz",
     install_requires=[
         "torch",
         "urllib3",
