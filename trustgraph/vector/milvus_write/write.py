@@ -16,16 +16,23 @@ from ... schema import VectorsAssociation
 from ... log_level import LogLevel
 from ... edge_map import VectorStore
 
+default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
+default_input_queue = 'vectors-load'
+default_subscriber = 'vector-write-milvus'
+default_store_uri = 'http://localhost:19530'
+
 class Processor:
 
     def __init__(
             self,
-            pulsar_host,
-            input_queue,
-            subscriber,
-            store_uri,
-            log_level,
+            pulsar_host=default_pulsar_host,
+            input_queue=default_input_queue,
+            subscriber=default_subscriber,
+            store_uri=default_store_uri,
+            log_level=LogLevel.INFO,
     ):
+
+        self.client = None
 
         self.client = pulsar.Client(
             pulsar_host,
@@ -64,7 +71,9 @@ class Processor:
                 self.consumer.negative_acknowledge(msg)
 
     def __del__(self):
-        self.client.close()
+
+        if self.client:
+            self.client.close()
 
 def run():
 
@@ -72,10 +81,6 @@ def run():
         prog='pdf-decoder',
         description=__doc__,
     )
-
-    default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
-    default_input_queue = 'vectors-load'
-    default_subscriber = 'vector-write-milvus'
 
     parser.add_argument(
         '-p', '--pulsar-host',
@@ -105,8 +110,8 @@ def run():
 
     parser.add_argument(
         '-t', '--store-uri',
-        default="http://localhost:19530",
-        help=f'Milvus store URI (default: http://localhost:19530)'
+        default="http://milvus:19530",
+        help=f'Milvus store URI (default: http://milvus:19530)'
     )
 
     args = parser.parse_args()

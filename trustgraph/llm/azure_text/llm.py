@@ -18,15 +18,20 @@ import json
 from ... schema import TextCompletionRequest, TextCompletionResponse
 from ... log_level import LogLevel
 
+default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
+default_input_queue = 'llm-complete-text'
+default_output_queue = 'llm-complete-text-response'
+default_subscriber = 'llm-azure-text'
+
 class Processor:
 
     def __init__(
             self,
-            pulsar_host,
-            input_queue,
-            output_queue,
-            subscriber,
-            log_level,
+            pulsar_host=default_pulsar_host,
+            input_queue=default_input_queue,
+            output_queue=default_output_queue,
+            subscriber=default_subscriber,
+            log_level=LogLevel.INFO,
             endpoint,
             token,
     ):
@@ -137,11 +142,6 @@ def run():
         prog='llm-ollama-text',
         description=__doc__,
     )
-
-    default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
-    default_input_queue = 'llm-complete-text'
-    default_output_queue = 'llm-complete-text-response'
-    default_subscriber = 'llm-ollama-text'
 
     parser.add_argument(
         '-p', '--pulsar-host',

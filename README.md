@@ -211,6 +211,7 @@ python3 -m venv env
 . env/bin/activate
 pip3 install pulsar-client
 pip3 install cassandra-driver
+export PYTHON_PATH=.
 ```
 
 ### Load some data
@@ -236,7 +237,7 @@ ERROR tag) you should be good.
 Look at the PDF decoder...
 
 ```
-docker logs trustgraph_pdf-decoder_1
+docker logs trustgraph-pdf-decoder-1
 ```
 
 which should contain some text like...
@@ -248,7 +249,7 @@ Done.
 Look at the chunker output...
 
 ```
-docker logs trustgraph_chunker_1
+docker logs trustgraph-chunker-1
 ```
 
 You will see similar output, except many entries instead of 1.
@@ -256,7 +257,7 @@ You will see similar output, except many entries instead of 1.
 Look at the vectorizer output...
 
 ```
-docker logs trustgraph_vectorize_1
+docker logs trustgraph-vectorize-1
 ```
 
 You will see similar output, except many entries instead of 1.
@@ -264,7 +265,7 @@ You will see similar output, except many entries instead of 1.
 Look at the LLM output...
 
 ```
-docker logs trustgraph_llm_1
+docker logs trustgraph-llm-1
 ```
 
 You will see output like this...
@@ -277,8 +278,8 @@ Done.
 Two more log outputs to look at...
 
 ```
-docker logs trustgraph_kg-extract-definitions_1
-docker logs trustgraph_kg-extract-relationships_1
+docker logs trustgraph-kg-extract-definitions-1
+docker logs trustgraph-kg-extract-relationships-1
 ```
 
 Definitions output similar to this should be visible 
@@ -388,7 +389,7 @@ If it looks like something isn't working, try following the graph-rag
 logs:
 
 ```
-docker logs -f trustgraph_graph-rag_1
+docker logs -f trustgraph-graph-rag-1
 ```
 
 If you get an answer to your query, Graph RAG is working!

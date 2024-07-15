@@ -16,17 +16,25 @@ import time
 from ... schema import EmbeddingsRequest, EmbeddingsResponse
 from ... log_level import LogLevel
 
+default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
+default_input_queue = 'embeddings'
+default_output_queue = 'embeddings-response'
+default_subscriber = 'embeddings-hf'
+default_model="all-MiniLM-L6-v2"
+
 class Processor:
 
     def __init__(
             self,
-            pulsar_host,
-            input_queue,
-            output_queue,
-            subscriber,
-            log_level,
-            model,
+            pulsar_host=default_pulsar_host,
+            input_queue=default_input_queue,
+            output_queue=default_output_queue,
+            subscriber=default_subscriber,
+            log_level=LogLevel.INFO,
+            model=default_model,
     ):
+
+        self.client = None
 
         self.client = pulsar.Client(
             pulsar_host,
@@ -81,8 +89,9 @@ class Processor:
                 self.consumer.negative_acknowledge(msg)
 
     def __del__(self):
-        print("Closing", flush=True)
-        self.client.close()
+
+        if self.client:
+            self.client.close()
 
 def run():
 
@@ -90,11 +99,6 @@ def run():
         prog='llm-ollama-text',
         description=__doc__,
     )
-
-    default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
-    default_input_queue = 'embeddings'
-    default_output_queue = 'embeddings-response'
-    default_subscriber = 'embeddings-hf'
 
     parser.add_argument(
         '-p', '--pulsar-host',

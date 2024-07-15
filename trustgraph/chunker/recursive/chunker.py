@@ -16,17 +16,24 @@ import time
 from ... schema import TextDocument, Chunk, Source
 from ... log_level import LogLevel
 
+default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
+default_input_queue = 'text-doc-load'
+default_output_queue = 'chunk-load'
+default_subscriber = 'chunker-recursive'
+
 class Processor:
 
     def __init__(
             self,
-            pulsar_host,
-            input_queue,
-            output_queue,
-            subscriber,
-            log_level,
+            pulsar_host=default_pulsar_host,
+            input_queue=default_input_queue,
+            output_queue=default_output_queue,
+            subscriber=default_subscriber,
+            log_level=LogLevel.INFO,
     ):
 
+        self.client = None
+        
         self.client = pulsar.Client(
             pulsar_host,
             logger=pulsar.ConsoleLogger(log_level.to_pulsar())
@@ -49,11 +56,16 @@ class Processor:
             is_separator_regex=False,
         )
 
+        print("Chunker inited")
+
     def run(self):
+
+        print("Chunker running")
 
         while True:
 
             msg = self.consumer.receive()
+            print("Chunker message received")
 
             try:
 
@@ -91,7 +103,9 @@ class Processor:
                 self.consumer.negative_acknowledge(msg)
 
     def __del__(self):
-        self.client.close()
+
+        if self.client:
+            self.client.close()
 
 def run():
 
@@ -99,11 +113,6 @@ def run():
         prog='pdf-decoder',
         description=__doc__,
     )
-
-    default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
-    default_input_queue = 'text-doc-load'
-    default_output_queue = 'chunk-load'
-    default_subscriber = 'chunker-recursive'
 
     parser.add_argument(
         '-p', '--pulsar-host',

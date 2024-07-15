@@ -16,18 +16,26 @@ import time
 from ... schema import TextCompletionRequest, TextCompletionResponse
 from ... log_level import LogLevel
 
+default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
+default_input_queue = 'llm-complete-text'
+default_output_queue = 'llm-complete-text-response'
+default_subscriber = 'llm-claude-text'
+default_model = 'claude-3-5-sonnet-20240620'
+
 class Processor:
 
     def __init__(
             self,
-            pulsar_host,
-            input_queue,
-            output_queue,
-            subscriber,
-            log_level,
-            model,
+            pulsar_host=default_pulsar_host,
+            input_queue=default_input_queue,
+            output_queue=default_output_queue,
+            subscriber=default_subscriber,
+            log_level=LogLevel.INFO,
+            model=default_model,
             api_key,
     ):
+
+        self.client = None
 
         self.client = pulsar.Client(
             pulsar_host,
@@ -114,11 +122,6 @@ def run():
         description=__doc__,
     )
 
-    default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
-    default_input_queue = 'llm-complete-text'
-    default_output_queue = 'llm-complete-text-response'
-    default_subscriber = 'llm-claude-text'
-
     parser.add_argument(
         '-p', '--pulsar-host',
         default=default_pulsar_host,
@@ -186,5 +189,4 @@ def run():
             print("Will retry...", flush=True)
 
         time.sleep(10)
-
 

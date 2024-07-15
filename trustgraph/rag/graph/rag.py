@@ -16,18 +16,27 @@ from ... schema import GraphRagQuery, GraphRagResponse
 from ... log_level import LogLevel
 from ... graph_rag import GraphRag
 
+default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
+default_input_queue = 'graph-rag-query'
+default_output_queue = 'graph-rag-response'
+default_subscriber = 'graph-rag'
+default_graph_hosts = [ 'localhost' ]
+default_vector_store = 'http://localhost:19530'
+
 class Processor:
 
     def __init__(
             self,
-            pulsar_host,
-            input_queue,
-            output_queue,
-            subscriber,
-            log_level,
-            graph_hosts,
-            vector_store,
+            pulsar_host=default_pulsar_host,
+            input_queue=default_input_queue,
+            output_queue=default_output_queue,
+            subscriber=default_subscriber,
+            log_level=LogLevel.INFO,
+            graph_hosts=default_graph_hosts,
+            vector_store=default_vector_store,
     ):
+
+        self.client = None
 
         self.client = pulsar.Client(
             pulsar_host,
@@ -86,8 +95,9 @@ class Processor:
                 self.consumer.negative_acknowledge(msg)
 
     def __del__(self):
-        print("Closing", flush=True)
-        self.client.close()
+
+        if self.client:
+            self.client.close()
 
 def run():
 
@@ -95,11 +105,6 @@ def run():
         prog='llm-ollama-text',
         description=__doc__,
     )
-
-    default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
-    default_input_queue = 'graph-rag-query'
-    default_output_queue = 'graph-rag-response'
-    default_subscriber = 'graph-rag'
 
     parser.add_argument(
         '-p', '--pulsar-host',

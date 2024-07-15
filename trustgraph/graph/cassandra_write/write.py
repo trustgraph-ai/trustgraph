@@ -15,16 +15,23 @@ from ... trustgraph import TrustGraph
 from ... schema import Triple
 from ... log_level import LogLevel
 
+default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
+default_input_queue = 'graph-load'
+default_subscriber = 'graph-write-cassandra'
+default_graph_host='localhost'
+
 class Processor:
 
     def __init__(
             self,
-            pulsar_host,
-            input_queue,
-            subscriber,
-            log_level,
-            graph_host,
+            pulsar_host=default_pulsar_host,
+            input_queue=default_input_queue,
+            subscriber=default_subscriber,
+            graph_host=default_graph_host,
+            log_level=LogLevel.INFO,
     ):
+
+        self.client = None
 
         self.client = pulsar.Client(
             pulsar_host,
@@ -72,7 +79,9 @@ class Processor:
                 self.consumer.negative_acknowledge(msg)
 
     def __del__(self):
-        self.client.close()
+
+        if self.client:
+            self.client.close()
 
 def run():
 
@@ -80,10 +89,6 @@ def run():
         prog='graph-write-cassandra',
         description=__doc__,
     )
-
-    default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
-    default_input_queue = 'graph-load'
-    default_subscriber = 'graph-write-cassandra'
 
     parser.add_argument(
         '-p', '--pulsar-host',

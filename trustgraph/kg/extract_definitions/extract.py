@@ -24,16 +24,23 @@ from ... rdf import TRUSTGRAPH_ENTITIES, DEFINITION
 
 DEFINITION_VALUE = Value(value=DEFINITION, is_uri=True)
 
+default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
+default_input_queue = 'vectors-chunk-load'
+default_output_queue = 'graph-load'
+default_subscriber = 'kg-extract-definitions'
+
 class Processor:
 
     def __init__(
             self,
-            pulsar_host,
-            input_queue,
-            output_queue,
-            subscriber,
-            log_level,
+            pulsar_host=default_pulsar_host,
+            input_queue=default_input_queue,
+            output_queue=default_output_queue,
+            subscriber=default_subscriber,
+            log_level=LogLevel.INFO,
     ):
+
+        self.client = None
 
         self.client = pulsar.Client(
             pulsar_host,
@@ -122,7 +129,9 @@ class Processor:
                 self.consumer.negative_acknowledge(msg)
 
     def __del__(self):
-        self.client.close()
+
+        if self.client:
+            self.client.close()
 
 def run():
 
@@ -130,11 +139,6 @@ def run():
         prog='pdf-decoder',
         description=__doc__,
     )
-
-    default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
-    default_input_queue = 'vectors-chunk-load'
-    default_output_queue = 'graph-load'
-    default_subscriber = 'kg-extract-definitions'
 
     parser.add_argument(
         '-p', '--pulsar-host',

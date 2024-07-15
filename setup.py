@@ -42,6 +42,7 @@ setuptools.setup(
         "pypdf",
         "anthropic",
         "google-cloud-aiplatform",
+        "pyyaml",
     ],
     scripts=[
         "scripts/chunker-recursive",

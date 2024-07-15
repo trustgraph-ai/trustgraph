@@ -11,5 +11,5 @@ resp = llm.request(prompt)
 
 print(resp)
 
-llm.close()
+
 

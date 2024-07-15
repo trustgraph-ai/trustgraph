@@ -1,0 +1,34 @@
+
+services:
+
+  pdf-decoder:
+    module: trustgraph.decoder.pdf
+
+  chunker:
+    module: trustgraph.chunker.recursive
+
+  vectorize:
+    module: trustgraph.embeddings.vectorize
+    
+  embeddings:
+    module: trustgraph.embeddings.hf
+    
+  kg-extract-definitions:
+    module: trustgraph.kg.extract_definitions
+
+  kg-extract-relationships:
+    module: trustgraph.kg.extract_relationships
+    
+  vector-write:
+    module: trustgraph.vector.milvus_write
+    
+  graph-write:
+    module: trustgraph.graph.cassandra_write
+    
+  llm:
+    module: trustgraph.llm.ollama_text
+    parameters:
+      ollama: http://monster:11434
+  graph-rag:
+    module: trustgraph.rag.graph
+

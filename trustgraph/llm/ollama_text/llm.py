@@ -16,18 +16,27 @@ import time
 from ... schema import TextCompletionRequest, TextCompletionResponse
 from ... log_level import LogLevel
 
+default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
+default_input_queue = 'llm-complete-text'
+default_output_queue = 'llm-complete-text-response'
+default_subscriber = 'llm-ollama-text'
+default_model = 'gemma2'
+default_ollama = 'http://localhost:11434'
+
 class Processor:
 
     def __init__(
             self,
-            pulsar_host,
-            input_queue,
-            output_queue,
-            subscriber,
-            log_level,
-            model,
-            ollama,
+            pulsar_host=default_pulsar_host,
+            input_queue=default_input_queue,
+            output_queue=default_output_queue,
+            subscriber=default_subscriber,
+            log_level=LogLevel.INFO,
+            model=default_model,
+            ollama=default_ollama,
     ):
+
+        self.client = None
 
         self.client = pulsar.Client(
             pulsar_host,
@@ -82,8 +91,9 @@ class Processor:
                 self.consumer.negative_acknowledge(msg)
 
     def __del__(self):
-        print("Closing")
-        self.client.close()
+
+        if self.client:
+            self.client.close()
 
 def run():
 
@@ -91,11 +101,6 @@ def run():
         prog='llm-ollama-text',
         description=__doc__,
     )
-
-    default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
-    default_input_queue = 'llm-complete-text'
-    default_output_queue = 'llm-complete-text-response'
-    default_subscriber = 'llm-ollama-text'
 
     parser.add_argument(
         '-p', '--pulsar-host',

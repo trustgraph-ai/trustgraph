@@ -25,16 +25,22 @@ from ... rdf import RDF_LABEL, TRUSTGRAPH_ENTITIES
 
 RDF_LABEL_VALUE = Value(value=RDF_LABEL, is_uri=True)
 
+default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
+default_input_queue = 'vectors-chunk-load'
+default_output_queue = 'graph-load'
+default_subscriber = 'kg-extract-relationships'
+default_vector_queue='vectors-load'
+
 class Processor:
 
     def __init__(
             self,
-            pulsar_host,
-            input_queue,
-            output_queue,
-            vec_queue,
-            subscriber,
-            log_level,
+            pulsar_host=default_pulsar_host,
+            input_queue=default_input_queue,
+            vector_queue=default_vector_queue,
+            output_queue=default_output_queue,
+            subscriber=default_subscriber,
+            log_level=LogLevel.INFO,
     ):
 
         self.client = pulsar.Client(
@@ -53,7 +59,7 @@ class Processor:
         )
 
         self.vec_prod = self.client.create_producer(
-            topic=vec_queue,
+            topic=vector_queue,
             schema=JsonSchema(VectorsAssociation),
         )
 
@@ -182,12 +188,6 @@ def run():
         description=__doc__,
     )
 
-    default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
-    default_input_queue = 'vectors-chunk-load'
-    default_output_queue = 'graph-load'
-    default_subscriber = 'kg-extract-relationships'
-    default_vector_queue='vectors-load'
-
     parser.add_argument(
         '-p', '--pulsar-host',
         default=default_pulsar_host,
@@ -236,7 +236,7 @@ def run():
                 pulsar_host=args.pulsar_host,
                 input_queue=args.input_queue,
                 output_queue=args.output_queue,
-                vec_queue=args.vector_queue,
+                vector_queue=args.vector_queue,
                 subscriber=args.subscriber,
                 log_level=args.log_level,
             )
