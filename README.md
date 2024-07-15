@@ -401,17 +401,17 @@ script you ran at `tests/test-graph-rag`.
 
 It's best to shut down all Docker containers and volumes.
 
-```bash
+```
 docker-compose -f docker-compose-<azure/ollama/claude/vertexai>.yaml down --volumes
 ```
 
 To confirm all Docker containers have been shut down, check that the following list is empty:
-```bash
+```
 docker ps
 ```
 
-To confirm all Docker volumens have been removed, check that the following list is empty:
-```bash
+To confirm all Docker volumes have been removed, check that the following list is empty:
+```
 docker volume ls
 ```
 
