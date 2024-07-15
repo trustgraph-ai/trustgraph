@@ -380,10 +380,13 @@ If you want to try different RAG queries, modify the `query` in the [test script
 
 ### Shutting Down
 
-When shutting down the pipeline, it's best to shut down all Docker containers and volumes.
+When shutting down the pipeline, it's best to shut down all Docker containers and volumes. Run the `docker compose down` command that corresponds to your model deployment:
 
 ```
-docker-compose -f docker-compose-<azure/ollama/claude/vertexai>.yaml down --volumes
+docker-compose -f docker-compose-azure.yaml down --volumes
+docker-compose -f docker-compose-claude.yaml down --volumes
+docker-compose -f docker-compose-ollama.yaml down --volumes
+docker-compose -f docker-compose-vertexai.yaml down --volumes
 ```
 
 To confirm all Docker containers have been shut down, check that the following list is empty:
