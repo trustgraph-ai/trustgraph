@@ -161,7 +161,7 @@ export OLLAMA_HOST=localhost # Set to hostname of Ollama host
 docker-compose -f docker-compose-ollama.yaml up -d
 ```
 
-#### docker-compose-azure.yaml
+#### docker-compose-vertexai.yaml
 
 ```
 mkdir -p vertexai
@@ -397,24 +397,21 @@ If you get an answer to your query, Graph RAG is working!
 If you want to try different queries try modifying the
 script you ran at `tests/test-graph-rag`.
 
-### Clearing everything down
+### Shutting Down
 
-```
-docker-compose -f docker-compose-ollama.yaml down
+It's best to shut down all Docker containers and volumes.
+
+```bash
+docker-compose -f docker-compose-<azure/ollama/claude/vertexai>.yaml down --volumes
 ```
 
-You should also clean out unwanted volumes...
-
+To confirm all Docker containers have been shut down, check that the following list is empty:
+```bash
+docker ps
 ```
+
+To confirm all Docker volumens have been removed, check that the following list is empty:
+```bash
 docker volume ls
 ```
-
-And delete anything you don't need...
-
-```
-docker volume rm -f <id>
-```
-
-If you want to experiment with your own data set, it would be best
-to clear down everything created so far and start from scratch.
 
