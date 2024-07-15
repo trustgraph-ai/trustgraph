@@ -28,7 +28,8 @@ services:
   llm:
     module: trustgraph.llm.ollama_text
     parameters:
-      ollama: http://monster:11434
+      ollama: http://ollama:11434
+
   graph-rag:
     module: trustgraph.rag.graph
 

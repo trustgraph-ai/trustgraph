@@ -1,6 +1,6 @@
 
 # VERSION=$(shell git describe | sed 's/^v//')
-VERSION=0.1.16
+VERSION=0.2.0
 
 all: container
 
@@ -27,4 +27,5 @@ stop:
 clean:
 	rm -rf wheels/
 
-# sed -i 's/0.1.15/0.1.16/' docker-compose*.yaml
+set-version:
+	sed -i 's/trustgraph-flow:[0-9]*\.[0-9]*\.[0-9]*/trustgraph-flow:'${VERSION}'/' docker-compose*.yaml

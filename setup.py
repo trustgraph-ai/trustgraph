@@ -55,6 +55,7 @@ setuptools.setup(
         "scripts/llm-vertexai-text",
         "scripts/llm-claude-text",
         "scripts/llm-azure-text",
+        "scripts/run-processing",
         "scripts/loader",
         "scripts/pdf-decoder",
         "scripts/query",
