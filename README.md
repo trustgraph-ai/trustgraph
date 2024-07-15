@@ -116,83 +116,6 @@ git clone https://github.com/trustgraph-ai/trustgraph trustgraph
 cd trustgraph
 ```
 
-### Docker Compose files
-
-Depending on your desired LM deployment, you will choose from one of the 
-following `Docker Compose` files.
-
-- `docker-compose-azure.yaml`: AzureAI endpoint. Set `AZURE_TOKEN` to the secret token and
-  `AZURE_ENDPOINT` to the URL endpoint address for the deployed model.
-- `docker-compose-claude.yaml`: Anthropic's API. Set `CLAUDE_KEY` to your API key.
-- `docker-compose-ollama.yaml`: Local LM (currently using [Gemma2](https://ollama.com/library/gemma2) deployed through Ollama.  Set `OLLAMA_HOST` to the machine running Ollama (e.g. `localhost` for Ollama running locally on your machine)
-- `docker-compose-vertexai.yaml`: VertexAI API. Requires a `private.json` authentication file to authenticate with your GCP project. Filed should stored be at path `vertexai/private.json`.
-
-
-#### docker-compose-azure.yaml
-
-```
-export AZURE_ENDPOINT=https://ENDPOINT.HOST.GOES.HERE/
-export AZURE_TOKEN=TOKEN-GOES-HERE
-docker-compose -f docker-compose-azure.yaml up -d
-```
-
-#### docker-compose-claude.yaml
-
-```
-export CLAUDE_KEY=TOKEN-GOES-HERE
-docker-compose -f docker-compose-claude.yaml up -d
-```
-
-#### docker-compose-ollama.yaml
-
-```
-export OLLAMA_HOST=localhost # Set to hostname of Ollama host
-docker-compose -f docker-compose-ollama.yaml up -d
-```
-
-#### docker-compose-vertexai.yaml
-
-```
-mkdir -p vertexai
-cp {whatever} vertexai/private.json
-docker-compose -f docker-compose-vertexai.yaml up -d
-```
-
-On Linux if running SELinux you may need to set the permissions on the
-VertexAI directory so that the key file can be mounted on a docker
-container...
-
-```
-chcon -Rt svirt_sandbox_file_t vertexai/
-```
-
-### Check things are running
-
-Check that you have a set of containers running...
-
-```
-docker ps
-```
-
-You might want to look at containers which are down to see if any
-have exited unexpectedly - look at the STATUS field.
-
-```
-docker ps -a
-```
-
-### Wait
-
-Before proceeding, you should leave enough time for the system to
-settle into a working state.  On my Macbook, it takes about 30 seconds
-for Pulsar to start, before which, nothing works.
-
-The system uses Cassandra for a Graph store, takes around 60-70 seconds
-to achieve a working state.  For your first go, I would advise just letting
-everything settle for a couple of minutes before doing anything else, so
-that if there are errors you know it's not just that the system is starting
-up.
-
 ### Install requirements
 
 ```
@@ -203,75 +126,148 @@ pip3 install cassandra-driver
 export PYTHON_PATH=.
 ```
 
-### Load some data
+### Docker Compose files
 
-Create a sources directory and get a test file...
+Depending on your desired LM deployment, you will choose from one of the 
+following `Docker Compose` files:
+
+- `docker-compose-azure.yaml`: AzureAI endpoint. Set `AZURE_TOKEN` to the secret token and
+  `AZURE_ENDPOINT` to the URL endpoint address for the deployed model.
+- `docker-compose-claude.yaml`: Anthropic's API. Set `CLAUDE_KEY` to your API key.
+- `docker-compose-ollama.yaml`: Local LM (currently using [Gemma2](https://ollama.com/library/gemma2) deployed through Ollama.  Set `OLLAMA_HOST` to the machine running Ollama (e.g. `localhost` for Ollama running locally on your machine)
+- `docker-compose-vertexai.yaml`: VertexAI API. Requires a `private.json` authentication file to authenticate with your GCP project. Filed should stored be at path `vertexai/private.json`.
+
+**NOTE**: All tokens, paths, and authentication files must be set **PRIOR** to launching a `Docker Compose` file.
+
+
+#### AzureAI Serverless Model Deployment
+
+```
+export AZURE_ENDPOINT=https://ENDPOINT.HOST.GOES.HERE/
+export AZURE_TOKEN=TOKEN-GOES-HERE
+docker-compose -f docker-compose-azure.yaml up -d
+```
+
+#### Claude through Anthropic API
+
+```
+export CLAUDE_KEY=TOKEN-GOES-HERE
+docker-compose -f docker-compose-claude.yaml up -d
+```
+
+#### Ollama Hosted Model Deployment
+
+```
+export OLLAMA_HOST=localhost # Set to hostname of Ollama host
+docker-compose -f docker-compose-ollama.yaml up -d
+```
+
+#### VertexAI through GCP
+
+```
+mkdir -p vertexai
+cp {whatever} vertexai/private.json
+docker-compose -f docker-compose-vertexai.yaml up -d
+```
+
+If you're running `SELinux` on Linux you may need to set the permissions on the
+VertexAI directory so that the key file can be mounted on a Docker container using
+the following command:
+
+```
+chcon -Rt svirt_sandbox_file_t vertexai/
+```
+
+### Verify Docker Containers
+
+On first running a `Docker Compose` file, it may take a while (depending on your network connection) to pull all the necessary components. Once all of the components have been pulled, check that the TrustGraph containers are running:
+
+```
+docker ps
+```
+
+Any containers that have exited unexpectedly can be found by checking the `STATUS` field
+using the following:
+
+```
+docker ps -a
+```
+
+### Warm-Up
+
+Before proceeding, allow the system to enter a stable a working state. In general
+`30 seconds` should be enough time for Pulsar to stablize.
+
+The system uses Cassandra for a Graph store. Cassandra can take `60-70 seconds`
+to achieve a working state.
+
+### Load a Text Corpus
+
+Create a sources directory and get a test PDF file. To demonstrate the power of TrustGraph, we're using a PDF
+of the [Roger's Commision Report](https://sma.nasa.gov/SignificantIncidents/assets/rogers_commission_report.pdf) from the NASA Challenger disaster. This PDF includes
+complex formatting, extremely unique terms, complex concepts, unique concepts, and knowledge not commonly found in typical public knowledge sources.
 
 ```
 mkdir sources
 curl -o sources/Challenger-Report-Vol1.pdf https://sma.nasa.gov/SignificantIncidents/assets/rogers_commission_report.pdf
 ```
 
-Then load the file...
+Load the file for knowledge extraction:
 
 ```
 scripts/loader -f sources/Challenger-Report-Vol1.pdf
 ```
 
-You get some output on the screen, if nothing looks like errors (has the
-ERROR tag) you should be good.
+`File loaded.` indicates the PDF has been sucessfully loaded to the processing queues and extraction will begin.
 
-### Check logs
+### Processing Logs
 
-Look at the PDF decoder...
+At this point, many processing services are running concurrently. You can check the status of these processes with the following logs:
 
+`PDF Decoder`:
 ```
 docker logs trustgraph-pdf-decoder-1
 ```
 
-which should contain some text like...
+Output should look:
 ```
 Decoding 1f7b7055...
 Done.
 ```
 
-Look at the chunker output...
-
+`Chunker`:
 ```
 docker logs trustgraph-chunker-1
 ```
 
-You will see similar output, except many entries instead of 1.
+The output should be similiar to the output of the `Decode`, except it should be a sequence of many entries.
 
-Look at the vectorizer output...
-
+`Vectorizer`:
 ```
 docker logs trustgraph-vectorize-1
 ```
 
-You will see similar output, except many entries instead of 1.
+Similar output to above processes, except many entries instead.
 
-Look at the LLM output...
 
+`Language Model Inference`:
 ```
 docker logs trustgraph-llm-1
 ```
 
-You will see output like this...
+Output should be a sequence of entries:
 ```
 Handling prompt fa1b98ae-70ef-452b-bcbe-21a867c5e8e2...
 Send response...
 Done.
 ```
 
-Two more log outputs to look at...
-
+`Knowledge Graph Definitions`:
 ```
 docker logs trustgraph-kg-extract-definitions-1
-docker logs trustgraph-kg-extract-relationships-1
 ```
 
-Definitions output similar to this should be visible 
+Output should be an array of JSON objects with keys `entity` and `definition`:
 
 ```
 Indexing 1f7b7055-p11-c1...
@@ -292,8 +288,12 @@ Indexing 1f7b7055-p11-c1...
 Done.
 ```
 
-and Relationships output...
+`Knowledge Graph Relationshps`:
+```
+docker logs trustgraph-kg-extract-relationships-1
+```
 
+Output should be an array of JSON objects with keys `subject`, `predicate`, `object`, and `object-entity`:
 ```
 Indexing 1f7b7055-p11-c3...
 [
@@ -313,41 +313,37 @@ Indexing 1f7b7055-p11-c3...
 Done.
 ```
 
-### Check graph is loading
+### Graph Parsing
+
+To check that the knowledge graph is successfully parsing data:
 
 ```
 scripts/graph-show
 ```
 
-You should see some output along the lines of a load of lines like this...
+The output should be a set of semantic triples in [N-Triples](https://www.w3.org/TR/rdf12-n-triples/) format.
 
 ```
-http://trustgraph.ai/e/enterprise http://trustgraph.ai/e/was-carried to altitude and released for a gliding approach and landing at the Mojave Desert test center
-http://trustgraph.ai/e/enterprise http://www.w3.org/2000/01/rdf-schema#label Enterprise
+http://trustgraph.ai/e/enterprise http://trustgraph.ai/e/was-carried to altitude and released for a gliding approach and landing at the Mojave Desert test center.
+http://trustgraph.ai/e/enterprise http://www.w3.org/2000/01/rdf-schema#label Enterprise.
 http://trustgraph.ai/e/enterprise http://www.w3.org/2004/02/skos/core#definition A prototype space shuttle orbiter used for atmospheric flight testing.
 ```
 
-Any output at all is a good sign - indicates the graph is loading.
+### Number of Graph Edges
 
-### Query time
-
-With the graph loading, you should be able to see the number of graph edges
-loaded...
+N-Triples format is not particularly human readable. It's more useful to know how many graph edges have successfully been extracted from the text corpus:
 ```
 scripts/graph-show  | wc -l
 ```
 
-You need a good few hundred edges to be loaded for the query to work on that
-particular document, because it's the point where the indexer has passed
-the mundane intro parts of the document and got into the interesting
-parts.
+The test report has quite a long introduction and adminstrative text commonly found in official reports. The first few hundred graph edges mostly capture this more
+document formatting knowledge. To fully test the ability to extract complex knowledge, wait until at least `1000` graph edges have been extracted. The full extraction for this PDF will extract many thousand graph edges.
 
+### RAG Test Script
 ```
-tests/graph/rag
+tests/test-graph-rag
 ```
-
-You should give the command at least a minute to run before being
-concerned.  The output should look like this...
+This script forms a LM prompt asking for 20 facts regarding the Challenger disaster. Depending on how many graph edges have been extracted, the response will be similar to:
 
 ```
 Here are 20 facts from the provided knowledge graph about the Space Shuttle disaster:
@@ -374,21 +370,17 @@ Here are 20 facts from the provided knowledge graph about the Space Shuttle disa
 20. **The Commission focused its attention on safety aspects of future flights.** 
 ```
 
-If it looks like something isn't working, try following the graph-rag
-logs:
-
+For an errors with the `RAG` proces, check the following log:
 ```
 docker logs -f trustgraph-graph-rag-1
 ```
+### More RAG Test Queries
 
-If you get an answer to your query, Graph RAG is working!
-
-If you want to try different queries try modifying the
-script you ran at `tests/test-graph-rag`.
+If you want to try different RAG queries, modify the `tests/test-graph-rag` script.
 
 ### Shutting Down
 
-It's best to shut down all Docker containers and volumes.
+When shutting down the pipeline, it's best to shut down all Docker containers and volumes.
 
 ```
 docker-compose -f docker-compose-<azure/ollama/claude/vertexai>.yaml down --volumes
