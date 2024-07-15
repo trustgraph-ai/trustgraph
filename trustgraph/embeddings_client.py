@@ -20,6 +20,8 @@ class EmbeddingsClient:
             pulsar_host="pulsar://pulsar:6650",
     ):
 
+        self.client = None
+
         if client_id == None:
             client_id = str(uuid.uuid4())
 
@@ -64,7 +66,6 @@ class EmbeddingsClient:
 
     def __del__(self):
 
-        self.producer.close()
-        self.consumer.close()
-        self.client.close()
+        if self.client:
+            self.client.close()
 
