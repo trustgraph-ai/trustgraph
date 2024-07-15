@@ -39,20 +39,22 @@ by deploying multiple containers.
 
 ![architecture](architecture.png)
 
-A set of modules are executed which use Apache Pulsar as a pub/sub system.
-This means that Pulsar provides input the modules and accept output.
+TrustGraph is designed to be modular to support as many Language Models and environments as possible. A natural
+fit for a modular architecture is to decompose functions into a set modules connected through a pub/sub backbone.
+[Apache Pulsar](https://github.com/apache/pulsar/) serves as this pub/sub backbone. Pulsar acts as the data broker
+managing inputs and outputs between modules.
 
-Pulsar provides two types of connectivity:
+**Pulsar Workflows**:
 - For processing flows, Pulsar accepts the output of a processing module
-  and queues it for input to the next module.
+  and queues it for input to the next subscribed module.
 - For services such as LLMs and embeddings, Pulsar provides a client/server
   model.  A Pulsar queue is used as the input to the service.  When
-  processed, the output is delivered to a separate queue so that the caller
-  can collect the data.
+  processed, the output is then delivered to a separate queue where a client
+  subscriber can request that output.
 
-All the code is bundled into a single Python package which can be used to
-use all the functionality.  There is also a container image with the
-package installed which can be used to run everything.
+:note
+The entire architecture, the pub/sub backbone and set of modules, is bundled into a single Python. A container image with the
+package installed can also run the entire architecture.
 
 ## Included modules
 
