@@ -51,7 +51,7 @@ managing inputs and outputs between modules.
   processed, the output is then delivered to a separate queue where a client
   subscriber can request that output.
 
-The entire architecture, the pub/sub backbone and set of modules, is bundled into a single Python. A container image with the
+The entire architecture, the pub/sub backbone and set of modules, is bundled into a single Python package. A container image with the
 package installed can also run the entire architecture.
 
 ## Core Modules
@@ -203,9 +203,7 @@ to achieve a working state.
 
 ### Load a Text Corpus
 
-Create a sources directory and get a test PDF file. To demonstrate the power of TrustGraph, we're using a PDF
-of the [Roger's Commision Report](https://sma.nasa.gov/SignificantIncidents/assets/rogers_commission_report.pdf) from the NASA Challenger disaster. This PDF includes
-complex formatting, extremely unique terms, complex concepts, unique concepts, and knowledge not commonly found in typical public knowledge sources.
+Create a sources directory and get a test PDF file. To demonstrate the power of TrustGraph, we're using a PDF of the public [Roger's Commision Report](https://sma.nasa.gov/SignificantIncidents/assets/rogers_commission_report.pdf) from the NASA Challenger disaster. This PDF includes complex formatting, unique terms, complex concepts, unique concepts, and information not commonly found in public knowledge sources.
 
 ```
 mkdir sources
@@ -336,8 +334,7 @@ N-Triples format is not particularly human readable. It's more useful to know ho
 scripts/graph-show  | wc -l
 ```
 
-The test report has quite a long introduction and adminstrative text commonly found in official reports. The first few hundred graph edges mostly capture this more
-document formatting knowledge. To fully test the ability to extract complex knowledge, wait until at least `1000` graph edges have been extracted. The full extraction for this PDF will extract many thousand graph edges.
+The Challenger report has a long introduction with quite a bit of adminstrative text commonly found in official reports. The first few hundred graph edges mostly capture this document formatting knowledge. To fully test the ability to extract complex knowledge, wait until at least `1000` graph edges have been extracted. The full extraction for this PDF will extract many thousand graph edges.
 
 ### RAG Test Script
 ```
@@ -370,7 +367,7 @@ Here are 20 facts from the provided knowledge graph about the Space Shuttle disa
 20. **The Commission focused its attention on safety aspects of future flights.** 
 ```
 
-For an errors with the `RAG` proces, check the following log:
+For any errors with the `RAG` proces, check the following log:
 ```
 docker logs -f trustgraph-graph-rag-1
 ```
@@ -384,8 +381,14 @@ When shutting down the pipeline, it's best to shut down all Docker containers an
 
 ```
 docker-compose -f docker-compose-azure.yaml down --volumes
+```
+```
 docker-compose -f docker-compose-claude.yaml down --volumes
+```
+```
 docker-compose -f docker-compose-ollama.yaml down --volumes
+```
+```
 docker-compose -f docker-compose-vertexai.yaml down --volumes
 ```
 
