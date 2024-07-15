@@ -43,10 +43,10 @@ class LlmClient:
 
         id = str(uuid.uuid4())
 
-
         r = TextCompletionRequest(
             prompt=prompt
         )
+
         self.producer.send(r, properties={ "id": id })
 
         while True:
