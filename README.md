@@ -3,37 +3,36 @@
 
 ## Introduction
 
-TrustGraph provides a means to run a pipeline of flexible AI processing
-components in a flexible means to achieve a processing pipeline.
+TrustGraph is a true end-to-end (e2e) knowledge pipeline that performs a `naive extraction` on a text corpus
+to build a RDF style knowledge graph coupled with a `RAG` service compatible with cloud LLMs and open-source
+SLMs (Small Language Models).
 
-The processing components are interconnected with a pub/sub engine to
-make it easier to switch different procesing components in and out, or
-to construct different kinds of processing.  The processing components
-do things like, decode documents, chunk text, perform embeddings,
-apply a local SLM/LLM, call an LLM API, and invoke LLM predictions.
+The pipeline processing components are interconnected with a pub/sub engine to
+maximize modularity and enable new knowledge processing functions. The core processing components decode documents, 
+chunk text, perform embeddings, apply a local SLM/LLM, call a LLM API, and generate LM predictions.
 
-The processing showcases Graph RAG algorithms which can be used to
-produce a knowledge graph from documents, which can then be queried by
-a Graph RAG query service.
+The processing showcases the reliability and efficiences of Graph RAG algorithms which can capture
+contextual language flags that are missed in conventional RAG approaches. Graph querying algorithms enable retrieving
+not just relevant knowledge but language cues essential to understanding semantic uses unique to a text corpus.
 
-Processing items are executed in containers.  Processing can be scaled-up
+Processing modules are executed in containers.  Processing can be scaled-up
 by deploying multiple containers.
 
 ### Features
 
 - PDF decoding
 - Text chunking
-- Invocation of LLMs hosted in Ollama
-- Invocation of LLMs: Claude, VertexAI and Azure serverless endpoints
-- Application of a HuggingFace embeddings algorithm
-- Knowledge graph extraction
-- Graph edge loading into Cassandra
-- Storing embeddings in Milvus
+- Inference of LMs deployed with [Ollama](https://ollama.com)
+- Inference of LLMs: Claude, VertexAI and AzureAI serverless endpoints
+- Application of a [HuggingFace](https://hf.co) embeddings models
+- [RDF](https://www.w3.org/TR/rdf12-schema/)-aligned Knowledge Graph extraction
+- Graph edge loading into [Apache Cassandra](https://github.com/apache/cassandra)
+- Storing embeddings in [Milvus](https://github.com/milvus-io/milvus)
 - Embedding query service
 - Graph RAG query service
-- All procesing integrates with Apache Pulsar
+- All procesing integrates with [Apache Pulsar](https://github.com/apache/pulsar/)
 - Containers, so can be deployed using Docker Compose or Kubernetes
-- Plug'n'play, switch different LLM modules to suit your LLM options
+- Plug'n'play architecture: switch different LLM modules to suit your needs
 
 ## Architecture
 
@@ -52,14 +51,12 @@ managing inputs and outputs between modules.
   processed, the output is then delivered to a separate queue where a client
   subscriber can request that output.
 
-:::note
 The entire architecture, the pub/sub backbone and set of modules, is bundled into a single Python. A container image with the
 package installed can also run the entire architecture.
-:::
 
-## Included modules
+## Core Modules
 
-- `chunker-recursive` - Accepts text documents and uses LangChain recurse
+- `chunker-recursive` - Accepts text documents and uses LangChain recursive
   chunking algorithm to produce smaller text chunks.
 - `embeddings-hf` - A service which analyses text and returns a vector
   embedding using one of the HuggingFace embeddings models.
@@ -76,14 +73,6 @@ package installed can also run the entire architecture.
 - `kg-extract-relationships` - knowledge extractor - examines text and
   produces graph edges describing the relationships between discovered
   terms.
-- `llm-azure-text` - An LLM service which uses an Azure serverless endpoint
-  to answer prompts.
-- `llm-claude-text` - An LLM service which uses Anthropic Claude
-  to answer prompts.
-- `llm-ollama-text` -  An LLM service which uses an Ollama service to answer
-  prompts.
-- `llm-vertexai-text` -  An LLM service which uses VertexAI
-  to answer prompts.
 - `loader` - Takes a document and loads into the processing pipeline.  Used
   e.g. to add PDF documents.
 - `pdf-decoder` - Takes a PDF doc and emits text extracted from the document.
@@ -93,6 +82,13 @@ package installed can also run the entire architecture.
   space-separated.
 - `vector-write-milvus` - Takes vector-entity mappings and records them
   in the vector embeddings store.
+
+## LM Specific Modules
+
+- `llm-azure-text` - Sends request to AzureAI serverless endpoint
+- `llm-claude-text` - Sends request to Anthropic's API
+- `llm-ollama-text` -  Sends request to LM running using Ollama
+- `llm-vertexai-text` -  Sends request to model available through VertexAI API
 
 ## Getting started
 
