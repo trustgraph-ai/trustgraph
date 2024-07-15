@@ -376,7 +376,7 @@ docker logs -f trustgraph-graph-rag-1
 ```
 ### More RAG Test Queries
 
-If you want to try different RAG queries, modify the `tests/test-graph-rag` script.
+If you want to try different RAG queries, modify the `query` in the [test script](https://github.com/trustgraph-ai/trustgraph/blob/master/tests/test-graph-rag).
 
 ### Shutting Down
 
