@@ -168,3 +168,11 @@ services:
       - ${CLAUDE_KEY}
     restart: on-failure:100
 
+  graph-rag:
+    image: docker.io/trustgraph/trustgraph-flow:0.2.0
+    command:
+      - "graph-rag"
+      - "-p"
+      - "pulsar://pulsar:6650"
+    restart: on-failure:100
+
