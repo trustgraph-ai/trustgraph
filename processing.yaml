@@ -10,9 +10,19 @@ services:
   vectorize:
     module: trustgraph.embeddings.vectorize
     
+#   embeddings:
+#     module: trustgraph.embeddings.hf
+
+  # embeddings:
+  #   module: trustgraph.embeddings.ollama 
+  #   parameters:
+  #     ollama: http://ollama:11434
+   
   embeddings:
     module: trustgraph.embeddings.hf
-    
+    parameters:
+      model: mixedbread-ai/mxbai-embed-large-v1
+   
   kg-extract-definitions:
     module: trustgraph.kg.extract_definitions
 
