@@ -1,5 +1,6 @@
 
 from pymilvus import MilvusClient, CollectionSchema, FieldSchema, DataType
+import time
 
 class TripleVectors:
 
@@ -13,11 +14,12 @@ class TripleVectors:
         # one are created.
         self.collections = {}
 
-#         self.collection = "edges"
-#         self.dimension = 384
+        # Time between reloads
+        self.reload_time = 90
 
-#         if not self.client.has_collection(collection_name=self.collection):
-#             self.init_collection()
+        # Next time to reload - this forces a reload at next window
+        self.next_reload = time.time() + self.reload_time
+        print("Reload at", self.next_reload)
 
     def init_collection(self, dimension):
 
@@ -106,9 +108,12 @@ class TripleVectors:
             }
         }
 
+        print("Loading...")
         self.client.load_collection(
             collection_name=coll,
         )
+
+        print("Searching...")
 
         res = self.client.search(
             collection_name=coll,
@@ -118,11 +123,14 @@ class TripleVectors:
             search_params=search_params,
         )[0]
 
-        # FIXME: a lot of loading/unloading going on.  How about using a
-        # time window?
-        self.client.release_collection(
-            collection_name=coll,
-        )
+
+        # If reload time has passed, unload collection
+        if time.time() > self.next_reload:
+            print("Unloading, reload at", self.next_reload)
+            self.client.release_collection(
+                collection_name=coll,
+            )
+            self.next_reload = time.time() + self.reload_time
 
         return res
 

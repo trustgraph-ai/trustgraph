@@ -39,7 +39,7 @@ class TrustGraph:
                 s text,
                 p text,
                 o text,
-                PRIMARY KEY (s, p)
+                PRIMARY KEY (s, p, o)
             );
         """);
 

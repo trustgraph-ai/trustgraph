@@ -74,6 +74,8 @@ class GraphRag:
                 limit=self.entity_limit
             )
 
+            print("Obtained", len(res), "entities")
+
             entities = set([
                 item["entity"]["entity"]
                 for item in res
