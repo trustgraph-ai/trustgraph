@@ -99,7 +99,7 @@ class Processor:
 def run():
 
     parser = argparse.ArgumentParser(
-        prog='llm-ollama-text',
+        prog='embeddings-ollama',
         description=__doc__,
     )
 
@@ -138,7 +138,7 @@ def run():
     parser.add_argument(
         '-m', '--model',
         default=default_model,
-        help=f'LLM model (default: {default_model})'
+        help=f'Embeddings model (default: {default_model})'
     )
 
     parser.add_argument(
