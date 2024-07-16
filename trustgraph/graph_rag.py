@@ -15,7 +15,10 @@ class GraphRag:
             graph_hosts=None,
             pulsar_host="pulsar://pulsar:6650",
             vector_store="http://milvus:19530",
-            verbose=False
+            verbose=False,
+            entity_limit=50,
+            triple_limit=30,
+            max_sg_size=3000,
     ):
 
         self.verbose=verbose
@@ -32,9 +35,9 @@ class GraphRag:
 
         self.vecstore = TripleVectors(vector_store)
 
-        self.entity_limit=50
-        self.query_limit=30
-        self.max_sg_size=3000
+        self.entity_limit=entity_limit
+        self.query_limit=triple_limit
+        self.max_sg_size=max_sg_size
 
         self.label_cache = {}
 

@@ -34,6 +34,9 @@ class Processor:
             log_level=LogLevel.INFO,
             graph_hosts=default_graph_hosts,
             vector_store=default_vector_store,
+            entity_limit=50,
+            triple_limit=30,
+            max_sg_size=3000,
     ):
 
         self.client = None
@@ -58,6 +61,9 @@ class Processor:
             graph_hosts=graph_hosts,
             vector_store=vector_store,
             verbose=True,
+            entity_limit=entity_limit,
+            triple_limit=triple_limit,
+            max_sg_size=max_sg_size,
         )
 
     def run(self):
@@ -102,7 +108,7 @@ class Processor:
 def run():
 
     parser = argparse.ArgumentParser(
-        prog='llm-ollama-text',
+        prog='graph-rag',
         description=__doc__,
     )
 
@@ -150,6 +156,27 @@ def run():
         help=f'Vector host (default: http://milvus:19530)'
     )
 
+    parser.add_argument(
+        '-e', '--entity-limit',
+        type=int,
+        default=50,
+        help=f'Entity vector fetch limit (default: 50)'
+    )
+
+    parser.add_argument(
+        '-t', '--triple-limit',
+        type=int,
+        default=30,
+        help=f'Triple query limit, per query (default: 30)'
+    )
+
+    parser.add_argument(
+        '-u', '--max-subgraph-size',
+        type=int,
+        default=3000,
+        help=f'Max subgraph size (default: 3000)'
+    )
+
     args = parser.parse_args()
     
     while True:
@@ -164,6 +191,9 @@ def run():
                 log_level=args.log_level,
                 graph_hosts=args.graph_hosts.split(","),
                 vector_store=args.vector_store,
+                entity_limit=args.entity_limit,
+                triple_limit=args.triple_limit,
+                max_sg_size=args.max_subgraph_size,
             )
 
             p.run()
