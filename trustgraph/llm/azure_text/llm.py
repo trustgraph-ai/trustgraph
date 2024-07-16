@@ -32,9 +32,11 @@ class Processor:
             output_queue=default_output_queue,
             subscriber=default_subscriber,
             log_level=LogLevel.INFO,
-            endpoint,
-            token,
+            endpoint=None,
+            token=None,
     ):
+
+        self.client = None
 
         self.client = pulsar.Client(
             pulsar_host,
