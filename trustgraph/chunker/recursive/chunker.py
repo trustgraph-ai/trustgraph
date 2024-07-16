@@ -30,6 +30,8 @@ class Processor:
             output_queue=default_output_queue,
             subscriber=default_subscriber,
             log_level=LogLevel.INFO,
+            chunk_size=2000,
+            chunk_overlap=100,
     ):
 
         self.client = None
@@ -50,8 +52,8 @@ class Processor:
         )
 
         self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=20,
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
             length_function=len,
             is_separator_regex=False,
         )
@@ -146,6 +148,20 @@ def run():
         help=f'Output queue (default: info)'
     )
 
+    parser.add_argument(
+        '-z', '--chunk-size',
+        type=int,
+        default=2000,
+        help=f'Chunk size (default: 2000)'
+    )
+
+    parser.add_argument(
+        '-v', '--chunk-overlap',
+        type=int,
+        default=100,
+        help=f'Chunk overlap (default: 100)'
+    )
+
     args = parser.parse_args()
 
 
@@ -159,6 +175,8 @@ def run():
                 output_queue=args.output_queue,
                 subscriber=args.subscriber,
                 log_level=args.log_level,
+                chunk_size=args.chunk_size,
+                chunk_overlap=args.chunk_overlap,
             )
 
             p.run()
