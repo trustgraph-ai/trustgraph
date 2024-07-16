@@ -1,6 +1,6 @@
 
 from trustgraph.trustgraph import TrustGraph
-from trustgraph.edge_map import VectorStore
+from trustgraph.triple_vectors import TripleVectors
 from trustgraph.trustgraph import TrustGraph
 from trustgraph.llm_client import LlmClient
 from trustgraph.embeddings_client import EmbeddingsClient
@@ -30,7 +30,7 @@ class GraphRag:
 
         self.embeddings = EmbeddingsClient(pulsar_host=pulsar_host)
 
-        self.vecstore = VectorStore(vector_store)
+        self.vecstore = TripleVectors(vector_store)
 
         self.entity_limit=50
         self.query_limit=30

@@ -1,7 +1,7 @@
 
 from pymilvus import MilvusClient, CollectionSchema, FieldSchema, DataType
 
-class VectorStore:
+class TripleVectors:
 
     def __init__(self, uri="http://localhost:19530"):
 

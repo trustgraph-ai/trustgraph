@@ -14,7 +14,7 @@ import time
 
 from ... schema import VectorsAssociation
 from ... log_level import LogLevel
-from ... edge_map import VectorStore
+from ... triple_vectors import TripleVectors
 
 default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
 default_input_queue = 'vectors-load'
@@ -44,7 +44,7 @@ class Processor:
             schema=JsonSchema(VectorsAssociation),
         )
 
-        self.vecstore = VectorStore(store_uri)
+        self.vecstore = TripleVectors(store_uri)
 
     def run(self):
 

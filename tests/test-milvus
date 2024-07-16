@@ -2,9 +2,9 @@
 
 from langchain_huggingface import HuggingFaceEmbeddings
 
-from edge_map import VectorStore
+from trustgraph.triple_vectors import TripleVectors
 
-client = VectorStore()
+client = TripleVectors()
 
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
