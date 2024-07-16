@@ -1,7 +1,7 @@
 
 """
-Simple LLM service, performs text prompt completion using an Ollama service.
-Input is prompt, output is response.
+Embeddings service, applies an embeddings model selected from HuggingFace.
+Input is text, output is embeddings vector.
 """
 
 import pulsar
@@ -10,17 +10,17 @@ import tempfile
 import base64
 import os
 import argparse
-from langchain_community.llms import Ollama
+from langchain_community.embeddings import OllamaEmbeddings
 import time
 
-from ... schema import TextCompletionRequest, TextCompletionResponse
+from ... schema import EmbeddingsRequest, EmbeddingsResponse
 from ... log_level import LogLevel
 
 default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
-default_input_queue = 'llm-complete-text'
-default_output_queue = 'llm-complete-text-response'
-default_subscriber = 'llm-ollama-text'
-default_model = 'gemma2'
+default_input_queue = 'embeddings'
+default_output_queue = 'embeddings-response'
+default_subscriber = 'embeddings-ollama'
+default_model="mxbai-embed-large"
 default_ollama = 'http://localhost:11434'
 
 class Processor:
@@ -45,15 +45,15 @@ class Processor:
 
         self.consumer = self.client.subscribe(
             input_queue, subscriber,
-            schema=JsonSchema(TextCompletionRequest),
+            schema=JsonSchema(EmbeddingsRequest),
         )
 
         self.producer = self.client.create_producer(
             topic=output_queue,
-            schema=JsonSchema(TextCompletionResponse),
+            schema=JsonSchema(EmbeddingsResponse),
         )
 
-        self.llm = Ollama(base_url=ollama, model=model)
+        self.embeddings = OllamaEmbeddings(base_url=ollama, model=model)
 
     def run(self):
 
@@ -69,13 +69,14 @@ class Processor:
 
                 id = msg.properties()["id"]
 
-                print(f"Handling prompt {id}...", flush=True)
+                print(f"Handling input {id}...", flush=True)
 
-                prompt = v.prompt
-                response = self.llm.invoke(prompt)
+                text = v.text
+                embeds = self.embeddings.embed_query([text])
 
                 print("Send response...", flush=True)
-                r = TextCompletionResponse(response=response)
+                r = EmbeddingsResponse(vectors=[embeds])
+
                 self.producer.send(r, properties={"id": id})
 
                 print("Done.", flush=True)
@@ -136,8 +137,8 @@ def run():
 
     parser.add_argument(
         '-m', '--model',
-        default="gemma2",
-        help=f'LLM model (default: gemma2)'
+        default=default_model,
+        help=f'LLM model (default: {default_model})'
     )
 
     parser.add_argument(
