@@ -92,5 +92,11 @@ package installed can also run the entire architecture.
 
 ## Getting start
 
-See (Quickstart using Docker Compose)[docs/README.quickstart-docker-compose.md]
+See [Quickstart on Docker Compose](docs/README.quickstart-docker-compose.md)
+
+## Development
+
+See [Development on trustgraph](docs/README.development.md)
+
+
 
