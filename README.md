@@ -90,11 +90,11 @@ package installed can also run the entire architecture.
 - `llm-ollama-text` -  Sends request to LM running using Ollama
 - `llm-vertexai-text` -  Sends request to model available through VertexAI API
 
-## Getting start
+## Quickstart Guide
 
 See [Quickstart on Docker Compose](docs/README.quickstart-docker-compose.md)
 
-## Development
+## Development Guide
 
 See [Development on trustgraph](docs/README.development.md)
 
