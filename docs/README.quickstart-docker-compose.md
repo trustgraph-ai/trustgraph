@@ -288,15 +288,22 @@ If you want to try different RAG queries, modify the `query` in the [test script
 
 When shutting down the pipeline, it's best to shut down all Docker containers and volumes. Run the `docker compose down` command that corresponds to your model deployment:
 
+`AzureAI Endpoint`:
 ```
 docker-compose -f docker-compose-azure.yaml down --volumes
 ```
+
+`Anthropic API`:
 ```
 docker-compose -f docker-compose-claude.yaml down --volumes
 ```
+
+`Ollama`:
 ```
 docker-compose -f docker-compose-ollama.yaml down --volumes
 ```
+
+`VertexAI API`:
 ```
 docker-compose -f docker-compose-vertexai.yaml down --volumes
 ```
