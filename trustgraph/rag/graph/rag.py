@@ -4,30 +4,22 @@ Simple RAG service, performs query using graph RAG an LLM.
 Input is query, output is response.
 """
 
-import pulsar
-from pulsar.schema import JsonSchema
-import tempfile
-import base64
-import os
-import argparse
-import time
-
 from ... schema import GraphRagQuery, GraphRagResponse
 from ... log_level import LogLevel
 from ... graph_rag import GraphRag
+from ... base import ConsumerProducer
 
-default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
 default_input_queue = 'graph-rag-query'
 default_output_queue = 'graph-rag-response'
 default_subscriber = 'graph-rag'
 default_graph_hosts = [ 'localhost' ]
 default_vector_store = 'http://localhost:19530'
 
-class Processor:
+class Processor(ConsumerProducer):
 
     def __init__(
             self,
-            pulsar_host=default_pulsar_host,
+            pulsar_host=None,
             input_queue=default_input_queue,
             output_queue=default_output_queue,
             subscriber=default_subscriber,
@@ -39,21 +31,14 @@ class Processor:
             max_sg_size=3000,
     ):
 
-        self.client = None
-
-        self.client = pulsar.Client(
-            pulsar_host,
-            logger=pulsar.ConsoleLogger(log_level.to_pulsar())
-        )
-
-        self.consumer = self.client.subscribe(
-            input_queue, subscriber,
-            schema=JsonSchema(GraphRagQuery),
-        )
-
-        self.producer = self.client.create_producer(
-            topic=output_queue,
-            schema=JsonSchema(GraphRagResponse),
+        super(Processor, self).__init__(
+            pulsar_host=pulsar_host,
+            log_level=log_level,
+            input_queue=input_queue,
+            output_queue=output_queue,
+            subscriber=subscriber,
+            input_schema=TextCompletionRequest,
+            output_schema=TextCompletionResponse,
         )
 
         self.rag = GraphRag(
@@ -66,142 +51,67 @@ class Processor:
             max_sg_size=max_sg_size,
         )
 
-    def run(self):
+    def handle(self, msg):
 
-        while True:
+        v = msg.value()
 
-            msg = self.consumer.receive()
+        # Sender-produced ID
 
-            try:
+        id = msg.properties()["id"]
 
-                v = msg.value()
+        print(f"Handling input {id}...", flush=True)
 
-	        # Sender-produced ID
+        response = self.rag.query(v.query)
 
-                id = msg.properties()["id"]
+        print("Send response...", flush=True)
+        r = GraphRagResponse(response = response)
+        self.producer.send(r, properties={"id": id})
 
-                print(f"Handling input {id}...", flush=True)
+        print("Done.", flush=True)
 
-                response = self.rag.query(v.query)
+    @staticmethod
+    def add_args(parser):
 
-                print("Send response...", flush=True)
-                r = GraphRagResponse(response = response)
-                self.producer.send(r, properties={"id": id})
+        ConsumerProducer.add_args(
+            parser, default_input_queue, default_subscriber,
+            default_output_queue,
+        )
 
-                print("Done.", flush=True)
+        parser.add_argument(
+            '-g', '--graph-hosts',
+            default='cassandra',
+            help=f'Graph hosts, comma separated (default: cassandra)'
+        )
 
-                # Acknowledge successful processing of the message
-                self.consumer.acknowledge(msg)
+        parser.add_argument(
+            '-v', '--vector-store',
+            default='http://milvus:19530',
+            help=f'Vector host (default: http://milvus:19530)'
+        )
 
-            except Exception as e:
+        parser.add_argument(
+            '-e', '--entity-limit',
+            type=int,
+            default=50,
+            help=f'Entity vector fetch limit (default: 50)'
+        )
 
-                print("Exception:", e, flush=True)
+        parser.add_argument(
+            '-t', '--triple-limit',
+            type=int,
+            default=30,
+            help=f'Triple query limit, per query (default: 30)'
+        )
 
-                # Message failed to be processed
-                self.consumer.negative_acknowledge(msg)
-
-    def __del__(self):
-
-        if self.client:
-            self.client.close()
+        parser.add_argument(
+            '-u', '--max-subgraph-size',
+            type=int,
+            default=3000,
+            help=f'Max subgraph size (default: 3000)'
+        )
 
 def run():
 
-    parser = argparse.ArgumentParser(
-        prog='graph-rag',
-        description=__doc__,
-    )
+    Processor.start('graph-rag', __doc__)
 
-    parser.add_argument(
-        '-p', '--pulsar-host',
-        default=default_pulsar_host,
-        help=f'Pulsar host (default: {default_pulsar_host})',
-    )
-
-    parser.add_argument(
-        '-i', '--input-queue',
-        default=default_input_queue,
-        help=f'Input queue (default: {default_input_queue})'
-    )
-
-    parser.add_argument(
-        '-s', '--subscriber',
-        default=default_subscriber,
-        help=f'Queue subscriber name (default: {default_subscriber})'
-    )
-
-    parser.add_argument(
-        '-o', '--output-queue',
-        default=default_output_queue,
-        help=f'Output queue (default: {default_output_queue})'
-    )
-
-    parser.add_argument(
-        '-l', '--log-level',
-        type=LogLevel,
-        default=LogLevel.INFO,
-        choices=list(LogLevel),
-        help=f'Output queue (default: info)'
-    )
-
-    parser.add_argument(
-        '-g', '--graph-hosts',
-        default='cassandra',
-        help=f'Graph hosts, comma separated (default: cassandra)'
-    )
-
-    parser.add_argument(
-        '-v', '--vector-store',
-        default='http://milvus:19530',
-        help=f'Vector host (default: http://milvus:19530)'
-    )
-
-    parser.add_argument(
-        '-e', '--entity-limit',
-        type=int,
-        default=50,
-        help=f'Entity vector fetch limit (default: 50)'
-    )
-
-    parser.add_argument(
-        '-t', '--triple-limit',
-        type=int,
-        default=30,
-        help=f'Triple query limit, per query (default: 30)'
-    )
-
-    parser.add_argument(
-        '-u', '--max-subgraph-size',
-        type=int,
-        default=3000,
-        help=f'Max subgraph size (default: 3000)'
-    )
-
-    args = parser.parse_args()
     
-    while True:
-
-        try:
-
-            p = Processor(
-                pulsar_host=args.pulsar_host,
-                input_queue=args.input_queue,
-                output_queue=args.output_queue,
-                subscriber=args.subscriber,
-                log_level=args.log_level,
-                graph_hosts=args.graph_hosts.split(","),
-                vector_store=args.vector_store,
-                entity_limit=args.entity_limit,
-                triple_limit=args.triple_limit,
-                max_sg_size=args.max_subgraph_size,
-            )
-
-            p.run()
-
-        except Exception as e:
-
-            print("Exception:", e, flush=True)
-            print("Will retry...", flush=True)
-
-        time.sleep(10)
-
