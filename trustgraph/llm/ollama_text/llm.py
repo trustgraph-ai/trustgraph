@@ -53,7 +53,6 @@ class Processor(ConsumerProducer):
         v = msg.value()
 
         # Sender-produced ID
-
         id = msg.properties()["id"]
 
         print(f"Handling prompt {id}...", flush=True)
