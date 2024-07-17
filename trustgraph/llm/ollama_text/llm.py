@@ -4,30 +4,23 @@ Simple LLM service, performs text prompt completion using an Ollama service.
 Input is prompt, output is response.
 """
 
-import pulsar
-from pulsar.schema import JsonSchema
-import tempfile
-import base64
-import os
-import argparse
 from langchain_community.llms import Ollama
-import time
 
 from ... schema import TextCompletionRequest, TextCompletionResponse
 from ... log_level import LogLevel
+from ... base import ConsumerProducer
 
-default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
 default_input_queue = 'llm-complete-text'
 default_output_queue = 'llm-complete-text-response'
 default_subscriber = 'llm-ollama-text'
 default_model = 'gemma2'
 default_ollama = 'http://localhost:11434'
 
-class Processor:
+class Processor(ConsumerProducer):
 
     def __init__(
             self,
-            pulsar_host=default_pulsar_host,
+            pulsar_host=None,
             input_queue=default_input_queue,
             output_queue=default_output_queue,
             subscriber=default_subscriber,
@@ -36,139 +29,60 @@ class Processor:
             ollama=default_ollama,
     ):
 
-        self.client = None
-
-        self.client = pulsar.Client(
-            pulsar_host,
-            logger=pulsar.ConsoleLogger(log_level.to_pulsar())
-        )
-
-        self.consumer = self.client.subscribe(
-            input_queue, subscriber,
-            schema=JsonSchema(TextCompletionRequest),
-        )
-
-        self.producer = self.client.create_producer(
-            topic=output_queue,
-            schema=JsonSchema(TextCompletionResponse),
+        super(Processor, self).__init__(
+            pulsar_host=pulsar_host,
+            log_level=log_level,
+            input_queue=input_queue,
+            output_queue=output_queue,
+            subscriber=subscriber,
+            input_schema=TextCompletionRequest,
+            output_schema=TextCompletionResponse,
         )
 
         self.llm = Ollama(base_url=ollama, model=model)
 
-    def run(self):
+    def handle(self, msg):
 
-        while True:
+        v = msg.value()
 
-            msg = self.consumer.receive()
+        # Sender-produced ID
+        id = msg.properties()["id"]
 
-            try:
+        print(f"Handling prompt {id}...", flush=True)
 
-                v = msg.value()
+        prompt = v.prompt
+        response = self.llm.invoke(prompt)
 
-	        # Sender-produced ID
+        print("Send response...", flush=True)
 
-                id = msg.properties()["id"]
+        r = TextCompletionResponse(response=response)
 
-                print(f"Handling prompt {id}...", flush=True)
+        self.send(r, properties={"id": id})
 
-                prompt = v.prompt
-                response = self.llm.invoke(prompt)
+        print("Done.", flush=True)
 
-                print("Send response...", flush=True)
-                r = TextCompletionResponse(response=response)
-                self.producer.send(r, properties={"id": id})
+    @staticmethod
+    def add_args(parser):
 
-                print("Done.", flush=True)
+        ConsumerProducer.add_args(
+            parser, default_input_queue, default_subscriber,
+            default_output_queue,
+        )
 
-                # Acknowledge successful processing of the message
-                self.consumer.acknowledge(msg)
+        parser.add_argument(
+            '-m', '--model',
+            default="gemma2",
+            help=f'LLM model (default: gemma2)'
+        )
 
-            except Exception as e:
-
-                print("Exception:", e, flush=True)
-
-                # Message failed to be processed
-                self.consumer.negative_acknowledge(msg)
-
-    def __del__(self):
-
-        if self.client:
-            self.client.close()
+        parser.add_argument(
+            '-r', '--ollama',
+            default=default_ollama,
+            help=f'ollama (default: {default_ollama})'
+        )
 
 def run():
 
-    parser = argparse.ArgumentParser(
-        prog='llm-ollama-text',
-        description=__doc__,
-    )
-
-    parser.add_argument(
-        '-p', '--pulsar-host',
-        default=default_pulsar_host,
-        help=f'Pulsar host (default: {default_pulsar_host})',
-    )
-
-    parser.add_argument(
-        '-i', '--input-queue',
-        default=default_input_queue,
-        help=f'Input queue (default: {default_input_queue})'
-    )
-
-    parser.add_argument(
-        '-s', '--subscriber',
-        default=default_subscriber,
-        help=f'Queue subscriber name (default: {default_subscriber})'
-    )
-
-    parser.add_argument(
-        '-o', '--output-queue',
-        default=default_output_queue,
-        help=f'Output queue (default: {default_output_queue})'
-    )
-
-    parser.add_argument(
-        '-l', '--log-level',
-        type=LogLevel,
-        default=LogLevel.INFO,
-        choices=list(LogLevel),
-        help=f'Output queue (default: info)'
-    )
-
-    parser.add_argument(
-        '-m', '--model',
-        default="gemma2",
-        help=f'LLM model (default: gemma2)'
-    )
-
-    parser.add_argument(
-        '-r', '--ollama',
-        default=default_ollama,
-        help=f'ollama (default: {default_ollama})'
-    )
-
-    args = parser.parse_args()
+    Processor.start("llm-ollama-text", __doc__)
 
     
-    while True:
-
-        try:
-
-            p = Processor(
-                pulsar_host=args.pulsar_host,
-                input_queue=args.input_queue,
-                output_queue=args.output_queue,
-                subscriber=args.subscriber,
-                log_level=args.log_level,
-                model=args.model,
-                ollama=args.ollama,
-            )
-
-            p.run()
-
-        except Exception as e:
-
-            print("Exception:", e, flush=True)
-            print("Will retry...", flush=True)
-
-        time.sleep(10)
-
