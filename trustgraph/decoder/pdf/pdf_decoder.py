@@ -4,6 +4,8 @@ Simple decoder, accepts PDF documents on input, outputs pages from the
 PDF document as text as separate output objects.
 """
 
+import tempfile
+import base64
 from langchain_community.document_loaders import PyPDFLoader
 
 from ... schema import Document, TextDocument, Source

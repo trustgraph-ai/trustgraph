@@ -37,8 +37,8 @@ class Processor(ConsumerProducer):
             input_queue=input_queue,
             output_queue=output_queue,
             subscriber=subscriber,
-            input_schema=TextCompletionRequest,
-            output_schema=TextCompletionResponse,
+            input_schema=GraphRagQuery,
+            output_schema=GraphRagResponse,
         )
 
         self.rag = GraphRag(

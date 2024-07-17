@@ -4,6 +4,9 @@ Simple decoder, accepts vector+text chunks input, applies entity analysis to
 get entity definitions which are output as graph edges.
 """
 
+import urllib.parse
+import json
+
 from ... schema import VectorsChunk, Triple, Source, Value
 from ... log_level import LogLevel
 from ... llm_client import LlmClient

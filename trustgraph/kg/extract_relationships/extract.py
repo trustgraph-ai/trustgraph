@@ -5,6 +5,8 @@ relationship analysis to get entity relationship edges which are output as
 graph edges.
 """
 
+import urllib.parse
+import json
 from pulsar.schema import JsonSchema
 
 from ... schema import VectorsChunk, Triple, VectorsAssociation, Source, Value
@@ -83,8 +85,6 @@ class Processor(ConsumerProducer):
         print(f"Indexing {v.source.id}...", flush=True)
 
         chunk = v.chunk.decode("utf-8")
-
-        g = rdflib.Graph()
 
         try:
 

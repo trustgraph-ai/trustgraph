@@ -4,6 +4,9 @@ Simple decoder, accepts text documents on input, outputs chunks from the
 as text as separate output objects.
 """
 
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+
 from ... schema import TextDocument, Chunk, Source
 from ... log_level import LogLevel
 from ... base import ConsumerProducer
