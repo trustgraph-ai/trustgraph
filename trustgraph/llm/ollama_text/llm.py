@@ -4,14 +4,7 @@ Simple LLM service, performs text prompt completion using an Ollama service.
 Input is prompt, output is response.
 """
 
-import pulsar
-from pulsar.schema import JsonSchema
-import tempfile
-import base64
-import os
-import argparse
 from langchain_community.llms import Ollama
-import time
 
 from ... schema import TextCompletionRequest, TextCompletionResponse
 from ... log_level import LogLevel
@@ -42,8 +35,8 @@ class Processor(ConsumerProducer):
             input_queue=input_queue,
             output_queue=output_queue,
             subscriber=subscriber,
-            request_schema=TextCompletionRequest,
-            response_schema=TextCompletionResponse,
+            input_schema=TextCompletionRequest,
+            output_schema=TextCompletionResponse,
         )
 
         self.llm = Ollama(base_url=ollama, model=model)

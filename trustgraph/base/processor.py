@@ -196,7 +196,6 @@ class ConsumerProducer(BaseProcessor):
 
     def send(self, msg, properties={}):
 
-        print(msg)
         self.producer.send(msg, properties)
 
     @staticmethod
@@ -250,7 +249,6 @@ class Producer(BaseProcessor):
 
     def send(self, msg, properties={}):
 
-        print(msg)
         self.producer.send(msg, properties)
 
     @staticmethod
