@@ -3,15 +3,6 @@
 Accepts entity/vector pairs and writes them to a Milvus store.
 """
 
-import pulsar
-from pulsar.schema import JsonSchema
-from langchain_community.document_loaders import PyPDFLoader
-import tempfile
-import base64
-import os
-import argparse
-import time
-
 from ... schema import VectorsAssociation
 from ... log_level import LogLevel
 from ... triple_vectors import TripleVectors
