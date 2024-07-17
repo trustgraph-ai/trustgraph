@@ -15,7 +15,7 @@ import time
 
 from ... schema import TextCompletionRequest, TextCompletionResponse
 from ... log_level import LogLevel
-from ... base import BaseProcessor
+from ... base import Consumer
 
 default_input_queue = 'llm-complete-text'
 default_output_queue = 'llm-complete-text-response'
@@ -23,7 +23,7 @@ default_subscriber = 'llm-ollama-text'
 default_model = 'gemma2'
 default_ollama = 'http://localhost:11434'
 
-class Processor(BaseProcessor):
+class Processor(Consumer):
 
     def __init__(
             self,
@@ -37,12 +37,11 @@ class Processor(BaseProcessor):
     ):
 
         super(Processor, self).__init__(
-            pulsar_host=pulsar_host
-        )
-
-        self.consumer = self.client.subscribe(
-            input_queue, subscriber,
-            schema=JsonSchema(TextCompletionRequest),
+            pulsar_host=pulsar_host,
+            log_level=log_level,
+            input_queue=default_input_queue,
+            subscriber=default_subscriber,
+            request_schema=TextCompletionRequest,
         )
 
         self.producer = self.client.create_producer(
@@ -52,57 +51,29 @@ class Processor(BaseProcessor):
 
         self.llm = Ollama(base_url=ollama, model=model)
 
-    def run(self):
+    def handle(self, msg):
 
-        while True:
+        v = msg.value()
 
-            msg = self.consumer.receive()
+        # Sender-produced ID
 
-            try:
+        id = msg.properties()["id"]
 
-                v = msg.value()
+        print(f"Handling prompt {id}...", flush=True)
 
-	        # Sender-produced ID
+        prompt = v.prompt
+        response = self.llm.invoke(prompt)
 
-                id = msg.properties()["id"]
+        print("Send response...", flush=True)
+        r = TextCompletionResponse(response=response)
+        self.producer.send(r, properties={"id": id})
 
-                print(f"Handling prompt {id}...", flush=True)
-
-                prompt = v.prompt
-                response = self.llm.invoke(prompt)
-
-                print("Send response...", flush=True)
-                r = TextCompletionResponse(response=response)
-                self.producer.send(r, properties={"id": id})
-
-                print("Done.", flush=True)
-
-                # Acknowledge successful processing of the message
-                self.consumer.acknowledge(msg)
-
-            except Exception as e:
-
-                print("Exception:", e, flush=True)
-
-                # Message failed to be processed
-                self.consumer.negative_acknowledge(msg)
+        print("Done.", flush=True)
 
     @staticmethod
     def add_args(parser):
 
-        BaseProcessor.add_args(parser)
-
-        parser.add_argument(
-            '-i', '--input-queue',
-            default=default_input_queue,
-            help=f'Input queue (default: {default_input_queue})'
-        )
-
-        parser.add_argument(
-            '-s', '--subscriber',
-            default=default_subscriber,
-            help=f'Queue subscriber name (default: {default_subscriber})'
-        )
+        Consumer.add_args(parser, default_input_queue, default_subscriber)
 
         parser.add_argument(
             '-o', '--output-queue',
