@@ -5,6 +5,7 @@ serverless endpoint service.  Input is prompt, output is response.
 """
 
 import requests
+import json
 
 from ... schema import TextCompletionRequest, TextCompletionResponse
 from ... log_level import LogLevel
