@@ -15,7 +15,7 @@ import time
 
 from ... schema import TextCompletionRequest, TextCompletionResponse
 from ... log_level import LogLevel
-from ... base import Consumer
+from ... base import ConsumerProducer
 
 default_input_queue = 'llm-complete-text'
 default_output_queue = 'llm-complete-text-response'
@@ -23,7 +23,7 @@ default_subscriber = 'llm-ollama-text'
 default_model = 'gemma2'
 default_ollama = 'http://localhost:11434'
 
-class Processor(Consumer):
+class Processor(ConsumerProducer):
 
     def __init__(
             self,
@@ -39,14 +39,11 @@ class Processor(Consumer):
         super(Processor, self).__init__(
             pulsar_host=pulsar_host,
             log_level=log_level,
-            input_queue=default_input_queue,
-            subscriber=default_subscriber,
+            input_queue=input_queue,
+            output_queue=output_queue,
+            subscriber=subscriber,
             request_schema=TextCompletionRequest,
-        )
-
-        self.producer = self.client.create_producer(
-            topic=output_queue,
-            schema=JsonSchema(TextCompletionResponse),
+            response_schema=TextCompletionResponse,
         )
 
         self.llm = Ollama(base_url=ollama, model=model)
@@ -65,20 +62,19 @@ class Processor(Consumer):
         response = self.llm.invoke(prompt)
 
         print("Send response...", flush=True)
+
         r = TextCompletionResponse(response=response)
-        self.producer.send(r, properties={"id": id})
+
+        self.send(r, properties={"id": id})
 
         print("Done.", flush=True)
 
     @staticmethod
     def add_args(parser):
 
-        Consumer.add_args(parser, default_input_queue, default_subscriber)
-
-        parser.add_argument(
-            '-o', '--output-queue',
-            default=default_output_queue,
-            help=f'Output queue (default: {default_output_queue})'
+        ConsumerProducer.add_args(
+            parser, default_input_queue, default_subscriber,
+            default_output_queue,
         )
 
         parser.add_argument(
