@@ -12,7 +12,7 @@ from ... base import ConsumerProducer
 default_input_queue = 'graph-rag-query'
 default_output_queue = 'graph-rag-response'
 default_subscriber = 'graph-rag'
-default_graph_hosts = [ 'localhost' ]
+default_graph_hosts = 'localhost'
 default_vector_store = 'http://localhost:19530'
 
 class Processor(ConsumerProducer):
@@ -43,7 +43,7 @@ class Processor(ConsumerProducer):
 
         self.rag = GraphRag(
             pulsar_host=pulsar_host,
-            graph_hosts=graph_hosts,
+            graph_hosts=graph_hosts.split(","),
             vector_store=vector_store,
             verbose=True,
             entity_limit=entity_limit,
@@ -114,4 +114,3 @@ def run():
 
     Processor.start('graph-rag', __doc__)
 
-    
