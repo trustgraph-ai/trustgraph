@@ -57,27 +57,29 @@ class BaseProcessor:
     @classmethod
     def start(cls, prog, doc):
 
-        parser = argparse.ArgumentParser(
-            prog=prog,
-            description=doc
-        )
+        while True:
 
-        cls.add_args(parser)
+            parser = argparse.ArgumentParser(
+                prog=prog,
+                description=doc
+            )
 
-        args = parser.parse_args()
-        args = vars(args)
+            cls.add_args(parser)
 
-        try:
+            args = parser.parse_args()
+            args = vars(args)
 
-            p = cls(**args)
-            p.run()
+            try:
 
-        except Exception as e:
+                p = cls(**args)
+                p.run()
 
-            print("Exception:", e, flush=True)
-            print("Will retry...", flush=True)
+            except Exception as e:
 
-            time.sleep(10)
+                print("Exception:", e, flush=True)
+                print("Will retry...", flush=True)
+
+                time.sleep(10)
 
 class Consumer(BaseProcessor):
 
