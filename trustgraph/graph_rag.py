@@ -18,7 +18,7 @@ class GraphRag:
             verbose=False,
             entity_limit=50,
             triple_limit=30,
-            max_sg_size=3000,
+            max_subgraph_size=3000,
     ):
 
         self.verbose=verbose
@@ -37,7 +37,7 @@ class GraphRag:
 
         self.entity_limit=entity_limit
         self.query_limit=triple_limit
-        self.max_sg_size=max_sg_size
+        self.max_subgraph_size=max_subgraph_size
 
         self.label_cache = {}
 
@@ -149,7 +149,7 @@ class GraphRag:
 
         subgraph = list(subgraph)
 
-        subgraph = subgraph[0:self.max_sg_size]
+        subgraph = subgraph[0:self.max_subgraph_size]
 
         if self.verbose:
             print("Subgraph:", flush=True)

@@ -28,7 +28,7 @@ class Processor(ConsumerProducer):
             vector_store=default_vector_store,
             entity_limit=50,
             triple_limit=30,
-            max_sg_size=3000,
+            max_subgraph_size=3000,
     ):
 
         super(Processor, self).__init__(
@@ -48,7 +48,7 @@ class Processor(ConsumerProducer):
             verbose=True,
             entity_limit=entity_limit,
             triple_limit=triple_limit,
-            max_sg_size=max_sg_size,
+            max_subgraph_size=max_subgraph_size,
         )
 
     def handle(self, msg):
