@@ -17,32 +17,32 @@ default_vector_store = 'http://localhost:19530'
 
 class Processor(ConsumerProducer):
 
-    def __init__(
-            self,
-            pulsar_host=None,
-            input_queue=default_input_queue,
-            output_queue=default_output_queue,
-            subscriber=default_subscriber,
-            log_level=LogLevel.INFO,
-            graph_hosts=default_graph_hosts,
-            vector_store=default_vector_store,
-            entity_limit=50,
-            triple_limit=30,
-            max_subgraph_size=3000,
-    ):
+    def __init__(self, **params):
+
+        input_queue = params.get("input_queue", default_input_queue)
+        output_queue = params.get("output_queue", default_output_queue)
+        subscriber = params.get("subscriber", default_subscriber)
+        graph_hosts = params.get("graph_hosts", default_graph_hosts)
+        vector_store = params.get("vector_store", default_vector_store)
+        entity_limit = params.get("entity_limit", 50)
+        triple_limit = params.get("triple_limit", 30)
+        max_subgraph_size = params.get("max_subgraph_size", 3000)
 
         super(Processor, self).__init__(
-            pulsar_host=pulsar_host,
-            log_level=log_level,
-            input_queue=input_queue,
-            output_queue=output_queue,
-            subscriber=subscriber,
-            input_schema=GraphRagQuery,
-            output_schema=GraphRagResponse,
+            **params | {
+                "input_queue": input_queue,
+                "output_queue": output_queue,
+                "subscriber": subscriber,
+                "input_schema": GraphRagQuery,
+                "output_schema": GraphRagResponse,
+                "entity_limit": entity_limit,
+                "triple_limit": triple_limit,
+                "max_subgraph_size": max_subgraph_size,
+            }
         )
 
         self.rag = GraphRag(
-            pulsar_host=pulsar_host,
+            pulsar_host=self.pulsar_host,
             graph_hosts=graph_hosts.split(","),
             vector_store=vector_store,
             verbose=True,

@@ -20,26 +20,21 @@ default_graph_host='localhost'
 
 class Processor(Consumer):
 
-    def __init__(
-            self,
-            pulsar_host=None,
-            input_queue=default_input_queue,
-            subscriber=default_subscriber,
-            graph_host=default_graph_host,
-            log_level=LogLevel.INFO,
-    ):
+    def __init__(self, **params):
+        
+        input_queue = params.get("input_queue", default_input_queue)
+        subscriber = params.get("subscriber", default_subscriber)
+        graph_host = params.get("graph_host", default_graph_host)
 
         super(Processor, self).__init__(
-            pulsar_host=pulsar_host,
-            log_level=log_level,
-            input_queue=input_queue,
-            subscriber=subscriber,
-            input_schema=Triple,
+            **params | {
+                "input_queue": input_queue,
+                "subscriber": subscriber,
+                "input_schema": Triple,
+            }
         )
 
         self.tg = TrustGraph([graph_host])
-
-        self.count = 0
 
     def handle(self, msg):
 
@@ -50,11 +45,6 @@ class Processor(Consumer):
             v.p.value,
             v.o.value
         )
-
-        self.count += 1
-
-        if (self.count % 1000) == 0:
-            print(self.count, "...", flush=True)
 
     @staticmethod
     def add_args(parser):
