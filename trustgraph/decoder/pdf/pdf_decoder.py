@@ -18,23 +18,20 @@ default_subscriber = 'pdf-decoder'
 
 class Processor(ConsumerProducer):
 
-    def __init__(
-            self,
-            pulsar_host=None,
-            input_queue=default_input_queue,
-            output_queue=default_output_queue,
-            subscriber=default_subscriber,
-            log_level=LogLevel.INFO,
-    ):
+    def __init__(self, **params):
+
+        input_queue = params.get("input_queue", default_input_queue)
+        output_queue = params.get("output_queue", default_output_queue)
+        subscriber = params.get("subscriber", default_subscriber)
 
         super(Processor, self).__init__(
-            pulsar_host=pulsar_host,
-            log_level=log_level,
-            input_queue=input_queue,
-            output_queue=output_queue,
-            subscriber=subscriber,
-            input_schema=Document,
-            output_schema=TextDocument,
+            **params | {
+                "input_queue": input_queue,
+                "output_queue": output_queue,
+                "subscriber": subscriber,
+                "input_schema": Document,
+                "output_schema": TextDocument,
+            }
         )
 
         print("PDF inited")

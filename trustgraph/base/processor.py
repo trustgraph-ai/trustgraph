@@ -2,8 +2,10 @@
 import os
 import argparse
 import pulsar
+import _pulsar
 import time
 from pulsar.schema import JsonSchema
+from prometheus_client import start_http_server, Histogram, Info, Counter
 
 from .. log_level import LogLevel
 
@@ -11,16 +13,23 @@ class BaseProcessor:
 
     default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
 
-    def __init__(
-            self,
-            pulsar_host=default_pulsar_host,
-            log_level=LogLevel.INFO,
-    ):
+    def __init__(self, **params):
 
         self.client = None
 
-        if pulsar_host == None:
-            pulsar_host = default_pulsar_host
+        if not hasattr(__class__, "params_metric"):
+            __class__.params_metric = Info(
+                'params', 'Parameters configuration'
+            )
+
+        # FIXME: Maybe outputs information it should not
+        __class__.params_metric.info({
+            k: str(params[k])
+            for k in params
+        })
+
+        pulsar_host = params.get("pulsar_host", self.default_pulsar_host)
+        log_level = params.get("log_level", LogLevel.INFO)
 
         self.pulsar_host = pulsar_host
 
@@ -51,6 +60,20 @@ class BaseProcessor:
             help=f'Output queue (default: info)'
         )
 
+        parser.add_argument(
+            '-M', '--metrics-enabled',
+            type=bool,
+            default=True,
+            help=f'Pulsar host (default: true)',
+        )
+
+        parser.add_argument(
+            '-P', '--metrics-port',
+            type=int,
+            default=8000,
+            help=f'Pulsar host (default: 8000)',
+        )
+
     def run(self):
         raise RuntimeError("Something should have implemented the run method")
 
@@ -69,12 +92,25 @@ class BaseProcessor:
             args = parser.parse_args()
             args = vars(args)
 
+            if args["metrics_enabled"]:
+                start_http_server(args["metrics_port"])
+
             try:
 
                 p = cls(**args)
                 p.run()
 
+            except KeyboardInterrupt:
+                print("Keyboard interrupt.")
+                return
+
+            except _pulsar.Interrupted:
+                print("Pulsar Interrupted.")
+                return
+
             except Exception as e:
+
+                print(type(e))
 
                 print("Exception:", e, flush=True)
                 print("Will retry...", flush=True)
@@ -83,22 +119,37 @@ class BaseProcessor:
 
 class Consumer(BaseProcessor):
 
-    def __init__(
-            self,
-            pulsar_host=None,
-            log_level=LogLevel.INFO,
-            input_queue="input",
-            subscriber="subscriber",
-            input_schema=None,
-    ):
+    def __init__(self, **params):
 
-        super(Consumer, self).__init__(
-            pulsar_host=pulsar_host,
-            log_level=log_level,
-        )
+        super(Consumer, self).__init__(**params)
+
+        input_queue = params.get("input_queue")
+        subscriber = params.get("subscriber")
+        input_schema = params.get("input_schema")
 
         if input_schema == None:
             raise RuntimeError("input_schema must be specified")
+
+        if not hasattr(__class__, "request_metric"):
+            __class__.request_metric = Histogram(
+                'request_latency', 'Request latency (seconds)'
+            )
+
+        if not hasattr(__class__, "pubsub_metric"):
+            __class__.pubsub_metric = Info(
+                'pubsub', 'Pub/sub configuration'
+            )
+
+        if not hasattr(__class__, "processing_metric"):
+            __class__.processing_metric = Counter(
+                'processing_count', 'Processing count', ["status"]
+            )
+
+        __class__.pubsub_metric.info({
+            "input_queue": input_queue,
+            "subscriber": subscriber,
+            "input_schema": input_schema.__name__,
+        })
 
         self.consumer = self.client.subscribe(
             input_queue, subscriber,
@@ -113,10 +164,13 @@ class Consumer(BaseProcessor):
 
             try:
 
-                self.handle(msg)
+                with __class__.request_metric.time():
+                    self.handle(msg)
 
                 # Acknowledge successful processing of the message
                 self.consumer.acknowledge(msg)
+
+                __class__.processing_metric.labels(status="success").inc()
 
             except Exception as e:
 
@@ -124,6 +178,8 @@ class Consumer(BaseProcessor):
 
                 # Message failed to be processed
                 self.consumer.negative_acknowledge(msg)
+
+                __class__.processing_metric.labels(status="error").inc()
 
     @staticmethod
     def add_args(parser, default_input_queue, default_subscriber):
@@ -144,21 +200,43 @@ class Consumer(BaseProcessor):
 
 class ConsumerProducer(BaseProcessor):
 
-    def __init__(
-            self,
-            pulsar_host=None,
-            log_level=LogLevel.INFO,
-            input_queue="input",
-            output_queue="output",
-            subscriber="subscriber",
-            input_schema=None,
-            output_schema=None,
-    ):
+    def __init__(self, **params):
 
-        super(ConsumerProducer, self).__init__(
-            pulsar_host=pulsar_host,
-            log_level=log_level,
-        )
+        input_queue = params.get("input_queue")
+        output_queue = params.get("output_queue")
+        subscriber = params.get("subscriber")
+        input_schema = params.get("input_schema")
+        output_schema = params.get("output_schema")
+
+        if not hasattr(__class__, "request_metric"):
+            __class__.request_metric = Histogram(
+                'request_latency', 'Request latency (seconds)'
+            )
+
+        if not hasattr(__class__, "output_metric"):
+            __class__.output_metric = Counter(
+                'output_count', 'Output items created'
+            )
+
+        if not hasattr(__class__, "pubsub_metric"):
+            __class__.pubsub_metric = Info(
+                'pubsub', 'Pub/sub configuration'
+            )
+
+        if not hasattr(__class__, "processing_metric"):
+            __class__.processing_metric = Counter(
+                'processing_count', 'Processing count', ["status"]
+            )
+
+        __class__.pubsub_metric.info({
+            "input_queue": input_queue,
+            "output_queue": output_queue,
+            "subscriber": subscriber,
+            "input_schema": input_schema.__name__,
+            "output_schema": output_schema.__name__,
+        })
+
+        super(ConsumerProducer, self).__init__(**params)
 
         if input_schema == None:
             raise RuntimeError("input_schema must be specified")
@@ -184,10 +262,13 @@ class ConsumerProducer(BaseProcessor):
 
             try:
 
-                resp = self.handle(msg)
+                with __class__.request_metric.time():
+                    resp = self.handle(msg)
 
                 # Acknowledge successful processing of the message
                 self.consumer.acknowledge(msg)
+
+                __class__.processing_metric.labels(status="success").inc()
 
             except Exception as e:
 
@@ -196,9 +277,11 @@ class ConsumerProducer(BaseProcessor):
                 # Message failed to be processed
                 self.consumer.negative_acknowledge(msg)
 
-    def send(self, msg, properties={}):
+                __class__.processing_metric.labels(status="error").inc()
 
+    def send(self, msg, properties={}):
         self.producer.send(msg, properties)
+        __class__.output_metric.inc()
 
     @staticmethod
     def add_args(
@@ -228,18 +311,27 @@ class ConsumerProducer(BaseProcessor):
 
 class Producer(BaseProcessor):
 
-    def __init__(
-            self,
-            pulsar_host=None,
-            log_level=LogLevel.INFO,
-            output_queue="output",
-            output_schema=None,
-    ):
+    def __init__(self, **params):
 
-        super(Producer, self).__init__(
-            pulsar_host=pulsar_host,
-            log_level=log_level,
-        )
+        output_queue = params.get("output_queue")
+        output_schema = params.get("output_schema")
+
+        if not hasattr(__class__, "output_metric"):
+            __class__.output_metric = Counter(
+                'output_count', 'Output items created'
+            )
+
+        if not hasattr(__class__, "pubsub_metric"):
+            __class__.pubsub_metric = Info(
+                'pubsub', 'Pub/sub configuration'
+            )
+
+        __class__.pubsub_metric.info({
+            "output_queue": output_queue,
+            "output_schema": output_schema.__name__,
+        })
+
+        super(Producer, self).__init__(**params)
 
         if output_schema == None:
             raise RuntimeError("output_schema must be specified")
@@ -250,8 +342,8 @@ class Producer(BaseProcessor):
         )
 
     def send(self, msg, properties={}):
-
         self.producer.send(msg, properties)
+        __class__.output_metric.inc()
 
     @staticmethod
     def add_args(

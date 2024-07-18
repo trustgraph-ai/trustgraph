@@ -1,0 +1,17 @@
+
+apiVersion: 1
+
+providers:
+
+  - name: 'trustgraph.ai'
+    orgId: 1
+    folder: 'TrustGraph'
+    folderUid: 'b6c5be90-d432-4df8-aeab-737c7b151228'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false
+

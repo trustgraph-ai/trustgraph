@@ -15,27 +15,25 @@ default_output_queue = 'llm-complete-text-response'
 default_subscriber = 'llm-claude-text'
 default_model = 'claude-3-5-sonnet-20240620'
 
-class Processor:
+class Processor(ConsumerProducer):
 
-    def __init__(
-            self,
-            pulsar_host=None,
-            input_queue=default_input_queue,
-            output_queue=default_output_queue,
-            subscriber=default_subscriber,
-            log_level=LogLevel.INFO,
-            model=default_model,
-            api_key="",
-    ):
+    def __init__(self, **params):
+    
+        input_queue = params.get("input_queue", default_input_queue)
+        output_queue = params.get("output_queue", default_output_queue)
+        subscriber = params.get("subscriber", default_subscriber)
+        model = params.get("model", default_model)
+        api_key = params.get("api_key")
 
         super(Processor, self).__init__(
-            pulsar_host=pulsar_host,
-            log_level=log_level,
-            input_queue=input_queue,
-            output_queue=output_queue,
-            subscriber=subscriber,
-            input_schema=TextCompletionRequest,
-            output_schema=TextCompletionResponse,
+            **params | {
+                "input_queue": input_queue,
+                "output_queue": output_queue,
+                "subscriber": subscriber,
+                "input_schema": TextCompletionRequest,
+                "output_schema": TextCompletionResponse,
+                "model": model,
+            }
         )
 
         self.model = model
