@@ -111,14 +111,15 @@ services:
       - "./grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml"
       - "./grafana/dashboard.json:/var/lib/grafana/dashboards/dashboard.json"
     environment:
-      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
-      GF_AUTH_ANONYMOUS_ENABLED: true
+#       GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+#       GF_AUTH_ANONYMOUS_ENABLED: true
+#       GF_ORG_ROLE: Admin
       GF_ORG_NAME: trustgraph.ai
 #     GF_SERVER_ROOT_URL: https://example.com
     restart: on-failure:100
 
   pdf-decoder:
-    image: docker.io/trustgraph/trustgraph-flow:0.4.0
+    image: docker.io/trustgraph/trustgraph-flow:0.4.1
     command:
       - "pdf-decoder"
       - "-p"
@@ -126,7 +127,7 @@ services:
     restart: on-failure:100
 
   chunker:
-    image: docker.io/trustgraph/trustgraph-flow:0.4.0
+    image: docker.io/trustgraph/trustgraph-flow:0.4.1
     command:
       - "chunker-recursive"
       - "-p"
@@ -134,7 +135,7 @@ services:
     restart: on-failure:100
 
   vectorize:
-    image: docker.io/trustgraph/trustgraph-flow:0.4.0
+    image: docker.io/trustgraph/trustgraph-flow:0.4.1
     command:
       - "embeddings-vectorize"
       - "-p"
@@ -142,7 +143,7 @@ services:
     restart: on-failure:100
     
   embeddings:
-    image: docker.io/trustgraph/trustgraph-flow:0.4.0
+    image: docker.io/trustgraph/trustgraph-flow:0.4.1
     command:
       - "embeddings-hf"
       - "-p"
@@ -152,7 +153,7 @@ services:
     restart: on-failure:100
     
   kg-extract-definitions:
-    image: docker.io/trustgraph/trustgraph-flow:0.4.0
+    image: docker.io/trustgraph/trustgraph-flow:0.4.1
     command:
       - "kg-extract-definitions"
       - "-p"
@@ -160,7 +161,7 @@ services:
     restart: on-failure:100
     
   kg-extract-relationships:
-    image: docker.io/trustgraph/trustgraph-flow:0.4.0
+    image: docker.io/trustgraph/trustgraph-flow:0.4.1
     command:
       - "kg-extract-relationships"
       - "-p"
@@ -168,7 +169,7 @@ services:
     restart: on-failure:100
     
   vector-write:
-    image: docker.io/trustgraph/trustgraph-flow:0.4.0
+    image: docker.io/trustgraph/trustgraph-flow:0.4.1
     command:
       - "vector-write-milvus"
       - "-p"
@@ -178,7 +179,7 @@ services:
     restart: on-failure:100
     
   graph-write:
-    image: docker.io/trustgraph/trustgraph-flow:0.4.0
+    image: docker.io/trustgraph/trustgraph-flow:0.4.1
     command:
       - "graph-write-cassandra"
       - "-p"
@@ -188,7 +189,7 @@ services:
     restart: on-failure:100
     
   llm:
-    image: docker.io/trustgraph/trustgraph-flow:0.4.0
+    image: docker.io/trustgraph/trustgraph-flow:0.4.1
     command:
       - "llm-ollama-text"
       - "-p"
@@ -198,7 +199,7 @@ services:
     restart: on-failure:100
 
   graph-rag:
-    image: docker.io/trustgraph/trustgraph-flow:0.4.0
+    image: docker.io/trustgraph/trustgraph-flow:0.4.1
     command:
       - "graph-rag"
       - "-p"

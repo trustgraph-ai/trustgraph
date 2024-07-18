@@ -25,7 +25,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "b7a520e5-9efe-4e0b-961b-9d1d3854800d"
+        "uid": "f6b18033-5918-4e05-a1ca-4cb30343b129"
       },
       "fieldConfig": {
         "defaults": {
@@ -79,7 +79,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "b7a520e5-9efe-4e0b-961b-9d1d3854800d"
+            "uid": "f6b18033-5918-4e05-a1ca-4cb30343b129"
           },
           "editorMode": "builder",
           "expr": "avg(rate(request_latency_bucket{instance=\"llm:8000\"}[5m]))",
@@ -94,7 +94,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "b7a520e5-9efe-4e0b-961b-9d1d3854800d"
+        "uid": "f6b18033-5918-4e05-a1ca-4cb30343b129"
       },
       "fieldConfig": {
         "defaults": {
@@ -171,7 +171,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "b7a520e5-9efe-4e0b-961b-9d1d3854800d"
+            "uid": "f6b18033-5918-4e05-a1ca-4cb30343b129"
           },
           "editorMode": "builder",
           "expr": "sum by(status) (rate(processing_count_total[5m]))",
@@ -188,7 +188,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "b7a520e5-9efe-4e0b-961b-9d1d3854800d"
+        "uid": "f6b18033-5918-4e05-a1ca-4cb30343b129"
       },
       "fieldConfig": {
         "defaults": {
@@ -265,7 +265,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "b7a520e5-9efe-4e0b-961b-9d1d3854800d"
+            "uid": "f6b18033-5918-4e05-a1ca-4cb30343b129"
           },
           "editorMode": "builder",
           "expr": "rate(request_latency_count[1m])",
@@ -291,7 +291,7 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "Trustgraph",
+  "title": "Overview",
   "uid": "b5c8abf8-fe79-496b-b028-10bde917d1f0",
   "version": 7,
   "weekStart": ""
