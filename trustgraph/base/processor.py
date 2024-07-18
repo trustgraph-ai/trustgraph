@@ -130,6 +130,27 @@ class Consumer(BaseProcessor):
         if input_schema == None:
             raise RuntimeError("input_schema must be specified")
 
+        if not hasattr(__class__, "request_metric"):
+            __class__.request_metric = Histogram(
+                'request_latency', 'Request latency (seconds)'
+            )
+
+        if not hasattr(__class__, "pubsub_metric"):
+            __class__.pubsub_metric = Info(
+                'pubsub', 'Pub/sub configuration'
+            )
+
+        if not hasattr(__class__, "processing_metric"):
+            __class__.processing_metric = Counter(
+                'processing_count', 'Processing count', ["status"]
+            )
+
+        __class__.pubsub_metric.info({
+            "input_queue": input_queue,
+            "subscriber": subscriber,
+            "input_schema": input_schema.__name__,
+        })
+
         self.consumer = self.client.subscribe(
             input_queue, subscriber,
             schema=JsonSchema(input_schema),
@@ -143,10 +164,13 @@ class Consumer(BaseProcessor):
 
             try:
 
-                self.handle(msg)
+                with __class__.request_metric.time():
+                    self.handle(msg)
 
                 # Acknowledge successful processing of the message
                 self.consumer.acknowledge(msg)
+
+                __class__.processing_metric.labels(status="success").inc()
 
             except Exception as e:
 
@@ -154,6 +178,8 @@ class Consumer(BaseProcessor):
 
                 # Message failed to be processed
                 self.consumer.negative_acknowledge(msg)
+
+                __class__.processing_metric.labels(status="error").inc()
 
     @staticmethod
     def add_args(parser, default_input_queue, default_subscriber):
@@ -185,6 +211,11 @@ class ConsumerProducer(BaseProcessor):
         if not hasattr(__class__, "request_metric"):
             __class__.request_metric = Histogram(
                 'request_latency', 'Request latency (seconds)'
+            )
+
+        if not hasattr(__class__, "output_metric"):
+            __class__.output_metric = Counter(
+                'output_count', 'Output items created'
             )
 
         if not hasattr(__class__, "pubsub_metric"):
@@ -249,8 +280,8 @@ class ConsumerProducer(BaseProcessor):
                 __class__.processing_metric.labels(status="error").inc()
 
     def send(self, msg, properties={}):
-
         self.producer.send(msg, properties)
+        __class__.output_metric.inc()
 
     @staticmethod
     def add_args(
@@ -285,6 +316,21 @@ class Producer(BaseProcessor):
         output_queue = params.get("output_queue")
         output_schema = params.get("output_schema")
 
+        if not hasattr(__class__, "output_metric"):
+            __class__.output_metric = Counter(
+                'output_count', 'Output items created'
+            )
+
+        if not hasattr(__class__, "pubsub_metric"):
+            __class__.pubsub_metric = Info(
+                'pubsub', 'Pub/sub configuration'
+            )
+
+        __class__.pubsub_metric.info({
+            "output_queue": output_queue,
+            "output_schema": output_schema.__name__,
+        })
+
         super(Producer, self).__init__(**params)
 
         if output_schema == None:
@@ -296,8 +342,8 @@ class Producer(BaseProcessor):
         )
 
     def send(self, msg, properties={}):
-
         self.producer.send(msg, properties)
+        __class__.output_metric.inc()
 
     @staticmethod
     def add_args(
