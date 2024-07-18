@@ -32,4 +32,5 @@ scrape_configs:
         - 'graph-write:8000'
         - 'llm:8000'
         - 'graph-rag:8000'
+        - 'pulsar:8080'
 
