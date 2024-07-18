@@ -43,6 +43,7 @@ setuptools.setup(
         "anthropic",
         "google-cloud-aiplatform",
         "pyyaml",
+        "prometheus-client",
     ],
     scripts=[
         "scripts/chunker-recursive",
