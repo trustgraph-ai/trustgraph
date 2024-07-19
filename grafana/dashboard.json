@@ -30,17 +30,37 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
           "custom": {
-            "fillOpacity": 80,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
-            "lineWidth": 1
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "thresholds": {
@@ -65,16 +85,20 @@
         "x": 0,
         "y": 0
       },
-      "id": 4,
+      "id": 7,
       "options": {
-        "bucketOffset": 0,
         "legend": {
           "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
         }
       },
+      "pluginVersion": "10.0.0",
       "targets": [
         {
           "datasource": {
@@ -82,14 +106,41 @@
             "uid": "f6b18033-5918-4e05-a1ca-4cb30343b129"
           },
           "editorMode": "builder",
-          "expr": "avg(rate(request_latency_bucket{instance=\"llm:8000\"}[5m]))",
+          "expr": "histogram_quantile(0.99, sum by(le) (rate(request_latency_bucket{instance=\"llm:8000\"}[$__rate_interval])))",
           "instant": false,
+          "legendFormat": "99%",
           "range": true,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "f6b18033-5918-4e05-a1ca-4cb30343b129"
+          },
+          "editorMode": "builder",
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(request_latency_bucket{instance=\"llm:8000\"}[$__rate_interval])))",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "95%",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "f6b18033-5918-4e05-a1ca-4cb30343b129"
+          },
+          "editorMode": "builder",
+          "expr": "histogram_quantile(0.75, sum by(le) (rate(request_latency_bucket{instance=\"llm:8000\"}[$__rate_interval])))",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "75%",
+          "range": true,
+          "refId": "C"
         }
       ],
       "title": "LLM latency",
-      "type": "histogram"
+      "type": "timeseries"
     },
     {
       "datasource": {
@@ -99,7 +150,8 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "continuous-RdYlGr"
+            "fixedColor": "red",
+            "mode": "fixed"
           },
           "custom": {
             "axisCenteredZero": false,
@@ -108,7 +160,7 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 39,
+            "fillOpacity": 21,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -125,12 +177,13 @@
             "spanNulls": false,
             "stacking": {
               "group": "A",
-              "mode": "percent"
+              "mode": "none"
             },
             "thresholdsStyle": {
               "mode": "off"
             }
           },
+          "displayName": "error rate",
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -174,7 +227,7 @@
             "uid": "f6b18033-5918-4e05-a1ca-4cb30343b129"
           },
           "editorMode": "builder",
-          "expr": "sum by(status) (rate(processing_count_total[5m]))",
+          "expr": "rate(processing_count_total{status=\"error\"}[$__rate_interval])",
           "format": "time_series",
           "instant": false,
           "interval": "",
@@ -270,6 +323,7 @@
           "editorMode": "builder",
           "expr": "rate(request_latency_count[1m])",
           "instant": false,
+          "legendFormat": "{{instance}}",
           "range": true,
           "refId": "A"
         }
@@ -363,6 +417,7 @@
           "editorMode": "builder",
           "expr": "pulsar_msg_backlog",
           "instant": false,
+          "legendFormat": "{{topic}}",
           "range": true,
           "refId": "A"
         }
@@ -379,7 +434,7 @@
     "list": []
   },
   "time": {
-    "from": "now-3h",
+    "from": "now-30m",
     "to": "now"
   },
   "timepicker": {},
