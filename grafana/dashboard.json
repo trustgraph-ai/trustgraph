@@ -296,7 +296,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 11,
+        "h": 9,
         "w": 12,
         "x": 0,
         "y": 8
@@ -389,7 +389,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 11,
+        "h": 9,
         "w": 12,
         "x": 12,
         "y": 8
@@ -424,6 +424,35 @@
       ],
       "title": "Pub/sub backlog",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "f6b18033-5918-4e05-a1ca-4cb30343b129"
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "id": 8,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "f6b18033-5918-4e05-a1ca-4cb30343b129"
+          },
+          "editorMode": "code",
+          "expr": "label_replace(label_replace(label_replace(label_replace(pubsub_info * on (subscriber) group_left()  label_replace(last_over_time(pulsar_subscription_back_log{namespace=\"public/default\"}[1h]), \"subscriber\", \"$1\", \"subscription\", \"(.*)\"), \"source\", \"$1\", \"input_queue\", \"(.*)\"), \"target\", \"$1\", \"output_queue\", \"(.*)\"), \"id\", \"$1\", \"subscriber\", \"(.*)\"), \"mainstat\", \"$1\", \"Value\", \"(.*)\")\n",
+          "format": "table",
+          "instant": false,
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Pub/sub configuration",
+      "type": "nodeGraph"
     }
   ],
   "refresh": "10s",
