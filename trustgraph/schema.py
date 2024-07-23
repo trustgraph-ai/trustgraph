@@ -79,3 +79,6 @@ class GraphRagResponse(Record):
 graph_rag_request_queue = 'graph-rag'
 graph_rag_response_queue = 'graph-rag-response'
 
+embeddings_request_queue = 'embeddings'
+embeddings_response_queue = 'embeddings-response'
+

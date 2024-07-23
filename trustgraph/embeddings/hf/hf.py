@@ -7,13 +7,14 @@ Input is text, output is embeddings vector.
 from langchain_huggingface import HuggingFaceEmbeddings
 
 from ... schema import EmbeddingsRequest, EmbeddingsResponse
+from ... schema import embeddings_request_queue, embeddings_response_queue
 from ... log_level import LogLevel
 from ... base import ConsumerProducer
 
 module = ".".join(__name__.split(".")[1:-1])
 
-default_input_queue = 'embeddings'
-default_output_queue = 'embeddings-response'
+default_input_queue = embeddings_request_queue
+default_output_queue = embeddings_response_queue
 default_subscriber = module
 default_model="all-MiniLM-L6-v2"
 
