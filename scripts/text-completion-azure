@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+
+from trustgraph.model.text_completion.azure import run
+
+run()
+

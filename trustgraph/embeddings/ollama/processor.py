@@ -9,9 +9,11 @@ from ... schema import EmbeddingsRequest, EmbeddingsResponse
 from ... log_level import LogLevel
 from ... base import ConsumerProducer
 
+module = ".".join(__name__.split(".")[1:-1])
+
 default_input_queue = 'embeddings'
 default_output_queue = 'embeddings-response'
-default_subscriber = 'embeddings-ollama'
+default_subscriber = module
 default_model="mxbai-embed-large"
 default_ollama = 'http://localhost:11434'
 
@@ -77,5 +79,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start('embeddings-ollama', __doc__)
+    Processor.start(module, __doc__)
 

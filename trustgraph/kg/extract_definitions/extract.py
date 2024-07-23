@@ -1,13 +1,14 @@
 
 """
-Simple decoder, accepts vector+text chunks input, applies entity analysis to
+Simple decoder, accepts embeddings+text chunks input, applies entity analysis to
 get entity definitions which are output as graph edges.
 """
 
 import urllib.parse
 import json
 
-from ... schema import VectorsChunk, Triple, Source, Value
+from ... schema import ChunkEmbeddings, Triple, Source, Value
+from ... schema import chunk_embeddings_ingest_queue, triple_ingest_queue
 from ... log_level import LogLevel
 from ... llm_client import LlmClient
 from ... prompts import to_definitions
@@ -16,9 +17,11 @@ from ... base import ConsumerProducer
 
 DEFINITION_VALUE = Value(value=DEFINITION, is_uri=True)
 
-default_input_queue = 'vectors-chunk-load'
-default_output_queue = 'graph-load'
-default_subscriber = 'kg-extract-definitions'
+module = ".".join(__name__.split(".")[1:-1])
+
+default_input_queue = chunk_embeddings_ingest_queue
+default_output_queue = triple_ingest_queue
+default_subscriber = module
 
 class Processor(ConsumerProducer):
 
@@ -33,7 +36,7 @@ class Processor(ConsumerProducer):
                 "input_queue": input_queue,
                 "output_queue": output_queue,
                 "subscriber": subscriber,
-                "input_schema": VectorsChunk,
+                "input_schema": ChunkEmbeddings,
                 "output_schema": Triple,
             }
         )
@@ -101,5 +104,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start("kg-extract-definitions", __doc__)
+    Processor.start(module, __doc__)
 

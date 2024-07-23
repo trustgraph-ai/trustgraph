@@ -10,7 +10,8 @@ import json
 import os
 from pulsar.schema import JsonSchema
 
-from ... schema import VectorsChunk, Triple, VectorsAssociation, Source, Value
+from ... schema import ChunkEmbeddings, Triple, GraphEmbeddings, Source, Value
+from ... schema import chunk_embeddings_ingest_queue, triples_store_queue, graph_embeddings_store_queue
 from ... log_level import LogLevel
 from ... llm_client import LlmClient
 from ... prompts import to_relationships
@@ -19,10 +20,12 @@ from ... base import ConsumerProducer
 
 RDF_LABEL_VALUE = Value(value=RDF_LABEL, is_uri=True)
 
-default_input_queue = 'vectors-chunk-load'
-default_output_queue = 'graph-load'
-default_subscriber = 'kg-extract-relationships'
-default_vector_queue='vectors-load'
+module = ".".join(__name__.split(".")[1:-1])
+
+default_input_queue = chunk_embeddings_ingest_queue
+default_output_queue = triples_store_queue
+default_vector_queue = graph_embeddings_store_queue
+default_subscriber = module
 
 class Processor(ConsumerProducer):
 
@@ -171,5 +174,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start("kg-extract-relationships", __doc__)
+    Processor.start(module, __doc__)
 

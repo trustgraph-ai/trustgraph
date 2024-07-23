@@ -10,9 +10,11 @@ from ... schema import EmbeddingsRequest, EmbeddingsResponse
 from ... log_level import LogLevel
 from ... base import ConsumerProducer
 
+module = ".".join(__name__.split(".")[1:-1])
+
 default_input_queue = 'embeddings'
 default_output_queue = 'embeddings-response'
-default_subscriber = 'embeddings-hf'
+default_subscriber = module
 default_model="all-MiniLM-L6-v2"
 
 class Processor(ConsumerProducer):
@@ -70,5 +72,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start("embeddings-hf", __doc__)
+    Processor.start(module, __doc__)
 

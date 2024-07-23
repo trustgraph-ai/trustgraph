@@ -3,11 +3,7 @@ from pulsar.schema import Record, Bytes, String, Boolean, Integer, Array, Double
 
 from enum import Enum
 
-#class Command(Enum):
-#    reindex = 1
-
-#class IndexCommand(Record):
-#    command = Command
+############################################################################
 
 class Value(Record):
     value = String()
@@ -23,20 +19,27 @@ class Document(Record):
     source = Source()
     data = Bytes()
 
+document_ingest_queue = 'document-load'
+text_ingest_queue = 'text-document-load'
+
 class TextDocument(Record):
     source = Source()
     text = Bytes()
+
+chunk_ingest_queue = 'chunk-load'
 
 class Chunk(Record):
     source = Source()
     chunk = Bytes()
 
-class VectorsChunk(Record):
+class ChunkEmbeddings(Record):
     source = Source()
     vectors = Array(Array(Double()))
     chunk = Bytes()
 
-class VectorsAssociation(Record):
+chunk_embeddings_ingest_queue = 'chunk-embeddings-load'
+
+class GraphEmbeddings(Record):
     source = Source()
     vectors = Array(Array(Double()))
     entity = Value()
@@ -46,6 +49,14 @@ class Triple(Record):
     s = Value()
     p = Value()
     o = Value()
+
+triples_store_queue = 'triples-store'
+
+# chunk_embeddings_store_queue = 'chunk-embeddings-store'
+graph_embeddings_store_queue = 'graph-embeddings-store'
+
+text_completion_request_queue = 'text-completion'
+text_completion_response_queue = 'text-completion-response'
 
 class TextCompletionRequest(Record):
     prompt = String()
@@ -64,4 +75,7 @@ class GraphRagQuery(Record):
 
 class GraphRagResponse(Record):
     response = String()
+
+graph_rag_request_queue = 'graph-rag'
+graph_rag_response_queue = 'graph-rag-response'
 

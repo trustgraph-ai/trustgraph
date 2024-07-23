@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+
+from trustgraph.model.text_completion.ollama import run
+
+run()
+
