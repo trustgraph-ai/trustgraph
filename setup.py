@@ -67,5 +67,7 @@ setuptools.setup(
         "scripts/text-completion-ollama",
         "scripts/text-completion-vertexai",
         "scripts/triples-write-cassandra",
+        "scripts/dump-parquet",
+        "scripts/triples-dump-parquet",
     ]
 )

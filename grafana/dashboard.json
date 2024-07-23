@@ -106,7 +106,7 @@
             "uid": "f6b18033-5918-4e05-a1ca-4cb30343b129"
           },
           "editorMode": "builder",
-          "expr": "histogram_quantile(0.99, sum by(le) (rate(request_latency_bucket{instance=\"llm:8000\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, sum by(le) (rate(request_latency_bucket{instance=\"text-completion:8000\"}[$__rate_interval])))",
           "instant": false,
           "legendFormat": "99%",
           "range": true,
@@ -118,7 +118,7 @@
             "uid": "f6b18033-5918-4e05-a1ca-4cb30343b129"
           },
           "editorMode": "builder",
-          "expr": "histogram_quantile(0.95, sum by(le) (rate(request_latency_bucket{instance=\"llm:8000\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(request_latency_bucket{instance=\"text-completion:8000\"}[$__rate_interval])))",
           "hide": false,
           "instant": false,
           "legendFormat": "95%",
@@ -131,7 +131,7 @@
             "uid": "f6b18033-5918-4e05-a1ca-4cb30343b129"
           },
           "editorMode": "builder",
-          "expr": "histogram_quantile(0.75, sum by(le) (rate(request_latency_bucket{instance=\"llm:8000\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.75, sum by(le) (rate(request_latency_bucket{instance=\"text-completion:8000\"}[$__rate_interval])))",
           "hide": false,
           "instant": false,
           "legendFormat": "75%",
