@@ -41,7 +41,10 @@ class Processor(ConsumerProducer):
             }
         )
 
-        self.llm = LlmClient(pulsar_host=self.pulsar_host)
+        self.llm = LlmClient(
+            pulsar_host=self.pulsar_host,
+            subscriber = module + "-llm",
+        )
 
     def to_uri(self, text):
 

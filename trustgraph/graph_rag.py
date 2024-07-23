@@ -19,6 +19,7 @@ class GraphRag:
             entity_limit=50,
             triple_limit=30,
             max_subgraph_size=3000,
+            module="test",
     ):
 
         self.verbose=verbose
@@ -31,7 +32,10 @@ class GraphRag:
 
         self.graph = TrustGraph(graph_hosts)
 
-        self.embeddings = EmbeddingsClient(pulsar_host=pulsar_host)
+        self.embeddings = EmbeddingsClient(
+            pulsar_host=pulsar_host,
+            subscriber=module + "-emb",
+        )
 
         self.vecstore = TripleVectors(vector_store)
 
@@ -41,7 +45,10 @@ class GraphRag:
 
         self.label_cache = {}
 
-        self.llm = LlmClient(pulsar_host=pulsar_host)
+        self.llm = LlmClient(
+            pulsar_host=pulsar_host,
+            subscriber=module + "-llm",
+        )
 
         if self.verbose:
             print("Initialised", flush=True)

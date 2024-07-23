@@ -34,7 +34,10 @@ class Processor(ConsumerProducer):
             }
         )
 
-        self.embeddings = EmbeddingsClient(pulsar_host=self.pulsar_host)
+        self.embeddings = EmbeddingsClient(
+            pulsar_host=self.pulsar_host,
+            subscriber=module + "emb",
+        )
 
     def emit(self, source, chunk, vectors):
 

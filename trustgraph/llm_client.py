@@ -19,12 +19,12 @@ DEBUG=_pulsar.LoggerLevel.Debug
 class LlmClient:
 
     def __init__(
-            self, log_level=ERROR, client_id=None,
+            self, log_level=ERROR, subscriber=None,
             pulsar_host="pulsar://pulsar:6650",
     ):
 
-        if client_id == None:
-            client_id = str(uuid.uuid4())
+        if subscriber == None:
+            subscriber = str(uuid.uuid4())
 
         self.client = pulsar.Client(
             pulsar_host,
@@ -38,7 +38,7 @@ class LlmClient:
         )
 
         self.consumer = self.client.subscribe(
-            text_completion_response_queue, client_id,
+            text_completion_response_queue, subscriber,
             schema=JsonSchema(TextCompletionResponse),
         )
 
@@ -69,7 +69,7 @@ class LlmClient:
     def __del__(self):
 
         if hasattr(self, "consumer"):
-            self.consumer.unsubscribe()
+#             self.consumer.unsubscribe()
             self.consumer.close()
             
         if hasattr(self, "producer"):
