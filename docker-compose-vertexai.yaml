@@ -148,8 +148,8 @@ services:
       - "embeddings-hf"
       - "-p"
       - "pulsar://pulsar:6650"
-      - "-m"
-      - "mixedbread-ai/mxbai-embed-large-v1"
+#       - "-m"
+#       - "mixedbread-ai/mxbai-embed-large-v1"
     restart: on-failure:100
     
   kg-extract-definitions:
@@ -168,30 +168,30 @@ services:
       - "pulsar://pulsar:6650"
     restart: on-failure:100
     
-  vector-write:
+  store-graph-embeddings:
     image: docker.io/trustgraph/trustgraph-flow:0.5.0
     command:
-      - "vector-write-milvus"
+      - "ge-write-milvus"
       - "-p"
       - "pulsar://pulsar:6650"
       - "-t"
       - "http://milvus:19530"
     restart: on-failure:100
     
-  graph-write:
+  store-triples:
     image: docker.io/trustgraph/trustgraph-flow:0.5.0
     command:
-      - "graph-write-cassandra"
+      - "triples-write-cassandra"
       - "-p"
       - "pulsar://pulsar:6650"
       - "-g"
       - "cassandra"
     restart: on-failure:100
     
-  llm:
+  text-completion:
     image: docker.io/trustgraph/trustgraph-flow:0.5.0
     command:
-      - "llm-vertexai-text"
+      - "text-completion-ollama"
       - "-p"
       - "pulsar://pulsar:6650"
       - "-k"
