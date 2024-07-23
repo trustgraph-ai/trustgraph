@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from trustgraph.rag.graph import run
+from trustgraph.retrieval.graph_rag import run
 
 run()
 

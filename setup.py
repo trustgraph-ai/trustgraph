@@ -4,7 +4,7 @@ import os
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-version = "0.4.2"
+version = "0.5.1"
 
 setuptools.setup(
     name="trustgraph",
@@ -50,21 +50,21 @@ setuptools.setup(
         "scripts/embeddings-hf",
         "scripts/embeddings-ollama",
         "scripts/embeddings-vectorize",
+        "scripts/ge-write-milvus",
         "scripts/graph-rag",
         "scripts/graph-show",
         "scripts/graph-to-turtle",
-        "scripts/graph-write-cassandra",
         "scripts/init-pulsar-manager",
         "scripts/kg-extract-definitions",
         "scripts/kg-extract-relationships",
-        "scripts/llm-azure-text",
-        "scripts/llm-claude-text",
-        "scripts/llm-ollama-text",
-        "scripts/llm-vertexai-text",
         "scripts/loader",
         "scripts/pdf-decoder",
         "scripts/query",
         "scripts/run-processing",
-        "scripts/vector-write-milvus",
+        "scripts/text-completion-azure",
+        "scripts/text-completion-claude",
+        "scripts/text-completion-ollama",
+        "scripts/text-completion-vertexai",
+        "scripts/triples-write-cassandra",
     ]
 )

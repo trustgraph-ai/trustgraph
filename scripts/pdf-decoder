@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from trustgraph.decoder.pdf import run
+from trustgraph.decoding.pdf import run
 
 run()
 

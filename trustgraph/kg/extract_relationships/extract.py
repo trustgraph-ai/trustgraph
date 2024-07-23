@@ -10,7 +10,8 @@ import json
 import os
 from pulsar.schema import JsonSchema
 
-from ... schema import VectorsChunk, Triple, VectorsAssociation, Source, Value
+from ... schema import ChunkEmbeddings, Triple, GraphEmbeddings, Source, Value
+from ... schema import chunk_embeddings_ingest_queue, triples_store_queue, graph_embeddings_store_queue
 from ... log_level import LogLevel
 from ... llm_client import LlmClient
 from ... prompts import to_relationships
@@ -19,10 +20,12 @@ from ... base import ConsumerProducer
 
 RDF_LABEL_VALUE = Value(value=RDF_LABEL, is_uri=True)
 
-default_input_queue = 'vectors-chunk-load'
-default_output_queue = 'graph-load'
-default_subscriber = 'kg-extract-relationships'
-default_vector_queue='vectors-load'
+module = ".".join(__name__.split(".")[1:-1])
+
+default_input_queue = chunk_embeddings_ingest_queue
+default_output_queue = triples_store_queue
+default_vector_queue = graph_embeddings_store_queue
+default_subscriber = module
 
 class Processor(ConsumerProducer):
 
@@ -38,14 +41,14 @@ class Processor(ConsumerProducer):
                 "input_queue": input_queue,
                 "output_queue": output_queue,
                 "subscriber": subscriber,
-                "input_schema": VectorsChunk,
+                "input_schema": ChunkEmbeddings,
                 "output_schema": Triple,
             }
         )
 
         self.vec_prod = self.client.create_producer(
             topic=vector_queue,
-            schema=JsonSchema(VectorsAssociation),
+            schema=JsonSchema(GraphEmbeddings),
         )
 
         __class__.pubsub_metric.info({
@@ -53,9 +56,9 @@ class Processor(ConsumerProducer):
             "output_queue": output_queue,
             "vector_queue": vector_queue,
             "subscriber": subscriber,
-            "input_schema": VectorsChunk.__name__,
+            "input_schema": ChunkEmbeddings.__name__,
             "output_schema": Triple.__name__,
-            "vector_schema": VectorsAssociation.__name__,
+            "vector_schema": GraphEmbeddings.__name__,
         })
 
         self.llm = LlmClient(pulsar_host=self.pulsar_host)
@@ -84,7 +87,7 @@ class Processor(ConsumerProducer):
 
     def emit_vec(self, ent, vec):
 
-        r = VectorsAssociation(entity=ent, vectors=vec)
+        r = GraphEmbeddings(entity=ent, vectors=vec)
         self.vec_prod.send(r)
 
     def handle(self, msg):
@@ -171,5 +174,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start("kg-extract-relationships", __doc__)
+    Processor.start(module, __doc__)
 

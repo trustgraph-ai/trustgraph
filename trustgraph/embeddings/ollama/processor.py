@@ -6,12 +6,15 @@ Input is text, output is embeddings vector.
 from langchain_community.embeddings import OllamaEmbeddings
 
 from ... schema import EmbeddingsRequest, EmbeddingsResponse
+from ... schema import embeddings_request_queue, embeddings_response_queue
 from ... log_level import LogLevel
 from ... base import ConsumerProducer
 
-default_input_queue = 'embeddings'
-default_output_queue = 'embeddings-response'
-default_subscriber = 'embeddings-ollama'
+module = ".".join(__name__.split(".")[1:-1])
+
+default_input_queue = embeddings_request_queue
+default_output_queue = embeddings_response_queue
+default_subscriber = module
 default_model="mxbai-embed-large"
 default_ollama = 'http://localhost:11434'
 
@@ -77,5 +80,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start('embeddings-ollama', __doc__)
+    Processor.start(module, __doc__)
 

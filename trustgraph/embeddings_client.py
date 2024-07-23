@@ -3,7 +3,8 @@
 import pulsar
 import _pulsar
 from pulsar.schema import JsonSchema
-from trustgraph.schema import EmbeddingsRequest, EmbeddingsResponse
+from . schema import EmbeddingsRequest, EmbeddingsResponse
+from . schema import embeddings_request_queue, embeddings_response_queue
 import hashlib
 import uuid
 
@@ -31,13 +32,13 @@ class EmbeddingsClient:
         )
 
         self.producer = self.client.create_producer(
-            topic='embeddings',
+            topic=embeddings_request_queue,
             schema=JsonSchema(EmbeddingsRequest),
             chunking_enabled=True,
         )
 
         self.consumer = self.client.subscribe(
-            'embeddings-response', client_id,
+            embeddings_response_queue, client_id,
             schema=JsonSchema(EmbeddingsResponse),
         )
 

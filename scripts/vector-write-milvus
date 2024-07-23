@@ -1,6 +1,0 @@
-#!/usr/bin/env python3
-
-from trustgraph.vector.milvus_write import run
-
-run()
-

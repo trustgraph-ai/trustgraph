@@ -3,7 +3,9 @@
 import pulsar
 import _pulsar
 from pulsar.schema import JsonSchema
-from trustgraph.schema import GraphRagQuery, GraphRagResponse
+from . schema import GraphRagQuery, GraphRagResponse
+from . schema import graph_rag_request_queue, graph_rag_response_queue
+
 import hashlib
 import uuid
 
@@ -29,13 +31,13 @@ class GraphRagClient:
         )
 
         self.producer = self.client.create_producer(
-            topic='graph-rag-query',
+            topic=graph_rag_request_queue,
             schema=JsonSchema(GraphRagQuery),
             chunking_enabled=True,
         )
 
         self.consumer = self.client.subscribe(
-            'graph-rag-response', client_id,
+            graph_rag_response_queue, client_id,
             schema=JsonSchema(GraphRagResponse),
         )
 

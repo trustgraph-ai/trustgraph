@@ -4,14 +4,17 @@ Vectorizer, calls the embeddings service to get embeddings for a chunk.
 Input is text chunk, output is chunk and vectors.
 """
 
-from ... schema import Chunk, VectorsChunk
+from ... schema import Chunk, ChunkEmbeddings
+from ... schema import chunk_ingest_queue, chunk_embeddings_ingest_queue
 from ... embeddings_client import EmbeddingsClient
 from ... log_level import LogLevel
 from ... base import ConsumerProducer
 
-default_input_queue = 'chunk-load'
-default_output_queue = 'vectors-chunk-load'
-default_subscriber = 'embeddings-vectorizer'
+module = ".".join(__name__.split(".")[1:-1])
+
+default_input_queue = chunk_ingest_queue
+default_output_queue = chunk_embeddings_ingest_queue
+default_subscriber = module
 
 class Processor(ConsumerProducer):
 
@@ -27,7 +30,7 @@ class Processor(ConsumerProducer):
                 "output_queue": output_queue,
                 "subscriber": subscriber,
                 "input_schema": Chunk,
-                "output_schema": VectorsChunk,
+                "output_schema": ChunkEmbeddings,
             }
         )
 
@@ -35,7 +38,7 @@ class Processor(ConsumerProducer):
 
     def emit(self, source, chunk, vectors):
 
-        r = VectorsChunk(source=source, chunk=chunk, vectors=vectors)
+        r = ChunkEmbeddings(source=source, chunk=chunk, vectors=vectors)
         self.producer.send(r)
 
     def handle(self, msg):
@@ -70,5 +73,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start("embeddings-vectorize", __doc__)
+    Processor.start(module, __doc__)
 

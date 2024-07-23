@@ -119,7 +119,7 @@ services:
     restart: on-failure:100
 
   pdf-decoder:
-    image: docker.io/trustgraph/trustgraph-flow:0.4.2
+    image: docker.io/trustgraph/trustgraph-flow:0.5.1
     command:
       - "pdf-decoder"
       - "-p"
@@ -127,7 +127,7 @@ services:
     restart: on-failure:100
 
   chunker:
-    image: docker.io/trustgraph/trustgraph-flow:0.4.2
+    image: docker.io/trustgraph/trustgraph-flow:0.5.1
     command:
       - "chunker-recursive"
       - "-p"
@@ -135,7 +135,7 @@ services:
     restart: on-failure:100
 
   vectorize:
-    image: docker.io/trustgraph/trustgraph-flow:0.4.2
+    image: docker.io/trustgraph/trustgraph-flow:0.5.1
     command:
       - "embeddings-vectorize"
       - "-p"
@@ -143,17 +143,17 @@ services:
     restart: on-failure:100
     
   embeddings:
-    image: docker.io/trustgraph/trustgraph-flow:0.4.2
+    image: docker.io/trustgraph/trustgraph-flow:0.5.1
     command:
       - "embeddings-hf"
       - "-p"
       - "pulsar://pulsar:6650"
-      - "-m"
-      - "mixedbread-ai/mxbai-embed-large-v1"
+#       - "-m"
+#       - "mixedbread-ai/mxbai-embed-large-v1"
     restart: on-failure:100
     
   kg-extract-definitions:
-    image: docker.io/trustgraph/trustgraph-flow:0.4.2
+    image: docker.io/trustgraph/trustgraph-flow:0.5.1
     command:
       - "kg-extract-definitions"
       - "-p"
@@ -161,37 +161,37 @@ services:
     restart: on-failure:100
     
   kg-extract-relationships:
-    image: docker.io/trustgraph/trustgraph-flow:0.4.2
+    image: docker.io/trustgraph/trustgraph-flow:0.5.1
     command:
       - "kg-extract-relationships"
       - "-p"
       - "pulsar://pulsar:6650"
     restart: on-failure:100
     
-  vector-write:
-    image: docker.io/trustgraph/trustgraph-flow:0.4.2
+  store-graph-embeddings:
+    image: docker.io/trustgraph/trustgraph-flow:0.5.1
     command:
-      - "vector-write-milvus"
+      - "ge-write-milvus"
       - "-p"
       - "pulsar://pulsar:6650"
       - "-t"
       - "http://milvus:19530"
     restart: on-failure:100
     
-  graph-write:
-    image: docker.io/trustgraph/trustgraph-flow:0.4.2
+  store-triples:
+    image: docker.io/trustgraph/trustgraph-flow:0.5.1
     command:
-      - "graph-write-cassandra"
+      - "triples-write-cassandra"
       - "-p"
       - "pulsar://pulsar:6650"
       - "-g"
       - "cassandra"
     restart: on-failure:100
     
-  llm:
-    image: docker.io/trustgraph/trustgraph-flow:0.4.2
+  text-completion:
+    image: docker.io/trustgraph/trustgraph-flow:0.5.1
     command:
-      - "llm-claude-text"
+      - "text-completion-claude"
       - "-p"
       - "pulsar://pulsar:6650"
       - "-k"
@@ -199,7 +199,7 @@ services:
     restart: on-failure:100
 
   graph-rag:
-    image: docker.io/trustgraph/trustgraph-flow:0.4.2
+    image: docker.io/trustgraph/trustgraph-flow:0.5.1
     command:
       - "graph-rag"
       - "-p"
