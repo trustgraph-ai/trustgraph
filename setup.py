@@ -69,5 +69,6 @@ setuptools.setup(
         "scripts/triples-write-cassandra",
         "scripts/dump-parquet",
         "scripts/triples-dump-parquet",
+        "scripts/ge-dump-parquet",
     ]
 )
