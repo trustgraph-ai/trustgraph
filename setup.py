@@ -44,6 +44,7 @@ setuptools.setup(
         "google-cloud-aiplatform",
         "pyyaml",
         "prometheus-client",
+        "pyarrow",
     ],
     scripts=[
         "scripts/chunker-recursive",
