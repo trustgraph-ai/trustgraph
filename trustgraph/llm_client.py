@@ -3,9 +3,12 @@
 import pulsar
 import _pulsar
 from pulsar.schema import JsonSchema
-from trustgraph.schema import TextCompletionRequest, TextCompletionResponse
 import hashlib
 import uuid
+
+from . schema import TextCompletionRequest, TextCompletionResponse
+from . schema import text_completion_request_queue
+from . schema import text_completion_response_queue
 
 # Ugly
 ERROR=_pulsar.LoggerLevel.Error
@@ -29,13 +32,13 @@ class LlmClient:
         )
 
         self.producer = self.client.create_producer(
-            topic='llm-complete-text',
+            topic=text_completion_request_queue,
             schema=JsonSchema(TextCompletionRequest),
             chunking_enabled=True,
         )
 
         self.consumer = self.client.subscribe(
-            'llm-complete-text-response', client_id,
+            text_completion_response_queue, client_id,
             schema=JsonSchema(TextCompletionResponse),
         )
 

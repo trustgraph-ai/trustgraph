@@ -8,7 +8,7 @@ import urllib.parse
 import json
 
 from ... schema import ChunkEmbeddings, Triple, Source, Value
-from ... schema import chunk_embeddings_ingest_queue, triple_ingest_queue
+from ... schema import chunk_embeddings_ingest_queue, triples_store_queue
 from ... log_level import LogLevel
 from ... llm_client import LlmClient
 from ... prompts import to_definitions
@@ -20,7 +20,7 @@ DEFINITION_VALUE = Value(value=DEFINITION, is_uri=True)
 module = ".".join(__name__.split(".")[1:-1])
 
 default_input_queue = chunk_embeddings_ingest_queue
-default_output_queue = triple_ingest_queue
+default_output_queue = triples_store_queue
 default_subscriber = module
 
 class Processor(ConsumerProducer):

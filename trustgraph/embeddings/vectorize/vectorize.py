@@ -38,7 +38,7 @@ class Processor(ConsumerProducer):
 
     def emit(self, source, chunk, vectors):
 
-        r = VectorsChunk(source=source, chunk=chunk, vectors=vectors)
+        r = ChunkEmbeddings(source=source, chunk=chunk, vectors=vectors)
         self.producer.send(r)
 
     def handle(self, msg):

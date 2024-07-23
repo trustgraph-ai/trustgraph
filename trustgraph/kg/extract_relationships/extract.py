@@ -41,14 +41,14 @@ class Processor(ConsumerProducer):
                 "input_queue": input_queue,
                 "output_queue": output_queue,
                 "subscriber": subscriber,
-                "input_schema": VectorsChunk,
+                "input_schema": ChunkEmbeddings,
                 "output_schema": Triple,
             }
         )
 
         self.vec_prod = self.client.create_producer(
             topic=vector_queue,
-            schema=JsonSchema(VectorsAssociation),
+            schema=JsonSchema(GraphEmbeddings),
         )
 
         __class__.pubsub_metric.info({
@@ -56,9 +56,9 @@ class Processor(ConsumerProducer):
             "output_queue": output_queue,
             "vector_queue": vector_queue,
             "subscriber": subscriber,
-            "input_schema": VectorsChunk.__name__,
+            "input_schema": ChunkEmbeddings.__name__,
             "output_schema": Triple.__name__,
-            "vector_schema": VectorsAssociation.__name__,
+            "vector_schema": GraphEmbeddings.__name__,
         })
 
         self.llm = LlmClient(pulsar_host=self.pulsar_host)
