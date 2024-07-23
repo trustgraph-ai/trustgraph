@@ -24,7 +24,7 @@ default_subscriber = module
 default_graph_host='localhost'
 default_directory = "."
 default_file_template = "triples-{id}.parquet"
-default_rotation_time = 30
+default_rotation_time = 60
         
 class Processor(Consumer):
 

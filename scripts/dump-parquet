@@ -1,0 +1,12 @@
+#!/usr/bin/env python3
+
+import pyarrow.parquet as pq
+import sys
+
+for file in sys.argv[1:]:
+
+    table = pq.read_table(file).to_pandas()
+    print(table)
+
+
+

@@ -68,7 +68,13 @@ class LlmClient:
 
     def __del__(self):
 
-        self.producer.close()
-        self.consumer.close()
+        if hasattr(self, "consumer"):
+            self.consumer.unsubscribe()
+            self.consumer.close()
+            
+        if hasattr(self, "producer"):
+            self.producer.flush()
+            self.producer.close()
+            
         self.client.close()
 
