@@ -48,7 +48,6 @@ following `Docker Compose` files:
 
 **NOTE**: All tokens, paths, and authentication files must be set **PRIOR** to launching a `Docker Compose` file.
 
-
 #### AzureAI Serverless Model Deployment
 
 ```
@@ -159,7 +158,7 @@ Similar output to above processes, except many entries instead.
 
 `Language Model Inference`:
 ```
-docker logs trustgraph-llm-1
+docker logs trustgraph-text-completion-1
 ```
 
 Output should be a sequence of entries:

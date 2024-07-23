@@ -60,11 +60,13 @@ package installed can also run the entire architecture.
   chunking algorithm to produce smaller text chunks.
 - `embeddings-hf` - A service which analyses text and returns a vector
   embedding using one of the HuggingFace embeddings models.
+- `embeddings-ollama` - A service which analyses text and returns a vector
+  embedding using an Ollama embeddings model.
 - `embeddings-vectorize` - Uses an embeddings service to get a vector
   embedding which is added to the processor payload.
 - `graph-rag` - A query service which applies a Graph RAG algorithm to
   provide a response to a text prompt.
-- `graph-write-cassandra` - Takes knowledge graph edges and writes them to
+- `triples-write-cassandra` - Takes knowledge graph edges and writes them to
   a Cassandra store.
 - `kg-extract-definitions` - knowledge extractor - examines text and
   produces graph edges.
@@ -80,15 +82,15 @@ package installed can also run the entire architecture.
   format.  For instance, the wrapping of text between lines in a PDF document
   is not semantically encoded, so the decoder will see wrapped lines as
   space-separated.
-- `vector-write-milvus` - Takes vector-entity mappings and records them
+- `ge-write-milvus` - Takes graph embeddings mappings and records them
   in the vector embeddings store.
 
 ## LM Specific Modules
 
-- `llm-azure-text` - Sends request to AzureAI serverless endpoint
-- `llm-claude-text` - Sends request to Anthropic's API
-- `llm-ollama-text` -  Sends request to LM running using Ollama
-- `llm-vertexai-text` -  Sends request to model available through VertexAI API
+- `text-completion-azure` - Sends request to AzureAI serverless endpoint
+- `text-completion-claude` - Sends request to Anthropic's API
+- `text-completion-ollama` -  Sends request to LM running using Ollama
+- `text-completion-vertexai` -  Sends request to model available through VertexAI API
 
 ## Quickstart Guide
 
