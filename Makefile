@@ -1,6 +1,6 @@
 
 # VERSION=$(shell git describe | sed 's/^v//')
-VERSION=0.5.0
+VERSION=0.5.1
 
 all: container
 
