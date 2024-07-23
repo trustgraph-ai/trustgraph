@@ -30,7 +30,7 @@ scrape_configs:
         - 'kg-extract-relationships:8000'
         - 'vector-write:8000'
         - 'graph-write:8000'
-        - 'llm:8000'
+        - 'text-completion:8000'
         - 'graph-rag:8000'
         - 'pulsar:8080'
 
