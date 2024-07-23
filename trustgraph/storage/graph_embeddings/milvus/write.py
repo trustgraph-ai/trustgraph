@@ -3,7 +3,7 @@
 Accepts entity/vector pairs and writes them to a Milvus store.
 """
 
-from .... schema import VectorsAssociation
+from .... schema import GraphEmbeddings
 from .... schema import graph_embeddings_store_queue
 from .... log_level import LogLevel
 from .... triple_vectors import TripleVectors
@@ -27,7 +27,7 @@ class Processor(Consumer):
             **params | {
                 "input_queue": input_queue,
                 "subscriber": subscriber,
-                "input_schema": VectorsAssociation,
+                "input_schema": GraphEmbeddings,
                 "store_uri": store_uri,
             }
         )

@@ -87,7 +87,7 @@ class Processor(ConsumerProducer):
 
     def emit_vec(self, ent, vec):
 
-        r = VectorsAssociation(entity=ent, vectors=vec)
+        r = GraphEmbeddings(entity=ent, vectors=vec)
         self.vec_prod.send(r)
 
     def handle(self, msg):
