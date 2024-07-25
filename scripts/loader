@@ -5,8 +5,8 @@ Loads a PDF documented into TrustGraph processing.
 """
 
 import pulsar
-from pulsar.schema import JsonSchema, document_ingest_queue
-from trustgraph.schema import Document, Source
+from pulsar.schema import JsonSchema
+from trustgraph.schema import Document, Source, document_ingest_queue
 import base64
 import hashlib
 import argparse
