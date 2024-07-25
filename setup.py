@@ -4,7 +4,7 @@ import os
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-version = "0.5.2"
+version = "0.5.3"
 
 setuptools.setup(
     name="trustgraph",
@@ -48,9 +48,12 @@ setuptools.setup(
     ],
     scripts=[
         "scripts/chunker-recursive",
+        "scripts/concat-parquet",
+        "scripts/dump-parquet",
         "scripts/embeddings-hf",
         "scripts/embeddings-ollama",
         "scripts/embeddings-vectorize",
+        "scripts/ge-dump-parquet",
         "scripts/ge-write-milvus",
         "scripts/graph-rag",
         "scripts/graph-show",
@@ -58,6 +61,8 @@ setuptools.setup(
         "scripts/init-pulsar-manager",
         "scripts/kg-extract-definitions",
         "scripts/kg-extract-relationships",
+        "scripts/load-graph-embeddings",
+        "scripts/load-triples",
         "scripts/loader",
         "scripts/pdf-decoder",
         "scripts/query",
@@ -66,9 +71,7 @@ setuptools.setup(
         "scripts/text-completion-claude",
         "scripts/text-completion-ollama",
         "scripts/text-completion-vertexai",
-        "scripts/triples-write-cassandra",
-        "scripts/dump-parquet",
         "scripts/triples-dump-parquet",
-        "scripts/ge-dump-parquet",
+        "scripts/triples-write-cassandra",
     ]
 )

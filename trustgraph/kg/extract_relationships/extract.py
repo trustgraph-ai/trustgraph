@@ -111,6 +111,10 @@ class Processor(ConsumerProducer):
                 p = rel["predicate"]
                 o = rel["object"]
 
+                if s == "": continue
+                if p == "": continue
+                if o == "": continue
+
                 s_uri = self.to_uri(s)
                 s_value = Value(value=str(s_uri), is_uri=True)
 
