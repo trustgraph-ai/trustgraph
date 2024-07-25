@@ -79,20 +79,20 @@ class BaseProcessor:
     @classmethod
     def start(cls, prog, doc):
 
+        parser = argparse.ArgumentParser(
+            prog=prog,
+            description=doc
+        )
+
+        cls.add_args(parser)
+
+        args = parser.parse_args()
+        args = vars(args)
+
+        if args["metrics_enabled"]:
+            start_http_server(args["metrics_port"])
+
         while True:
-
-            parser = argparse.ArgumentParser(
-                prog=prog,
-                description=doc
-            )
-
-            cls.add_args(parser)
-
-            args = parser.parse_args()
-            args = vars(args)
-
-            if args["metrics_enabled"]:
-                start_http_server(args["metrics_port"])
 
             try:
 
