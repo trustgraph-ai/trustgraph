@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 
 """
-Loads a PDF documented into TrustGraph processing.
+Loads Graph embeddings into TrustGraph processing.
 """
 
 import pulsar
-from pulsar.schema import JsonSchema, document_ingest_queue
-from trustgraph.schema import Document, Source
-import base64
-import hashlib
+from pulsar.schema import JsonSchema
+from trustgraph.schema import Triple, Value
+from trustgraph.schema import triples_store_queue
 import argparse
 import os
 import time
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 from trustgraph.log_level import LogLevel
 
@@ -32,7 +33,7 @@ class Loader:
 
         self.producer = self.client.create_producer(
             topic=output_queue,
-            schema=JsonSchema(Document),
+            schema=JsonSchema(Triple),
             chunking_enabled=True,
         )
 
@@ -43,20 +44,35 @@ class Loader:
         try:
 
             path = self.file
-            data = open(path, "rb").read()
 
-            id = hashlib.sha256(path.encode("utf-8")).hexdigest()[0:8]
+            print("Reading file...")
+            table = pq.read_table(path)
+            print("Loaded.")
 
-            r = Document(
-                source=Source(
-                    source=path,
-                    title=path,
-                    id=id,
-                ),
-                data=base64.b64encode(data),
-            )
+            names = set(table.column_names)
 
-            self.producer.send(r)
+            if "s" not in names:
+                print("No 's' column")
+
+            if "p" not in names:
+                print("No 'p' column")
+
+            if "o" not in names:
+                print("No 'o' column")
+
+            sc = table.column("s")
+            pc = table.column("p")
+            oc = table.column("o")
+
+            for s, p, o in zip(sc, pc, oc):
+
+                r = Triple(
+                    s=Value(value=s.as_py(), is_uri=True),
+                    p=Value(value=p.as_py(), is_uri=True),
+                    o=Value(value=o.as_py(), is_uri=o.as_py().startswith("https:"))
+                )
+
+                self.producer.send(r)
 
         except Exception as e:
             print(e, flush=True)
@@ -72,7 +88,7 @@ def main():
     )
 
     default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://localhost:6650')
-    default_output_queue = document_ingest_queue
+    default_output_queue = triples_store_queue
 
     parser.add_argument(
         '-p', '--pulsar-host',
