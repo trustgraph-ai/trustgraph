@@ -60,10 +60,10 @@ class BaseProcessor:
         )
 
         parser.add_argument(
-            '-M', '--metrics-enabled',
-            type=bool,
+            '--metrics',
+            action=argparse.BooleanOptionalAction,
             default=True,
-            help=f'Pulsar host (default: true)',
+            help=f'Metrics enabled (default: true)',
         )
 
         parser.add_argument(
@@ -89,7 +89,9 @@ class BaseProcessor:
         args = parser.parse_args()
         args = vars(args)
 
-        if args["metrics_enabled"]:
+        print(args)
+
+        if args["metrics"]:
             start_http_server(args["metrics_port"])
 
         while True:
