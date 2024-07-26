@@ -52,6 +52,7 @@ class Processor(ConsumerProducer):
             entity_limit=entity_limit,
             triple_limit=triple_limit,
             max_subgraph_size=max_subgraph_size,
+            module=module,
         )
 
     def handle(self, msg):
