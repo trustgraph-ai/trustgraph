@@ -59,9 +59,8 @@ class Processor(ConsumerProducer):
 
         prompt = v.prompt
 
-        stream = self.cohere.chat_stream( 
+        output = self.cohere.chat( 
         model=self.model,
-        #model='c4ai-aya-23-8b',
         message=prompt,
         preamble = "You are an AI-assistant chatbot. You are trained to read text and find entities in that text. You respond only with well-formed JSON.",
         temperature=0.0,
@@ -70,10 +69,8 @@ class Processor(ConsumerProducer):
         connectors=[]
         ) 
 
-        for event in stream:
-            if event.event_type == "text-generation":
-                resp = event.text
-                print(resp, flush=True)
+        resp = output.text
+        print(resp, flush=True)
 
         # Parse output for ```json``` delimiters
         pattern = r'```json\s*([\s\S]*?)\s*```'
