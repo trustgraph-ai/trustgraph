@@ -5,6 +5,7 @@ Input is prompt, output is response.
 """
 
 import cohere
+import re
 
 from .... schema import TextCompletionRequest, TextCompletionResponse
 from .... schema import text_completion_request_queue
@@ -62,6 +63,7 @@ class Processor(ConsumerProducer):
         model=self.model,
         #model='c4ai-aya-23-8b',
         message=prompt,
+        preamble = "You are an AI-assistant chatbot. You are trained to read text and find entities in that text. You respond only with well-formed JSON.",
         temperature=0.0,
         chat_history=[],
         prompt_truncation='auto',
@@ -72,9 +74,22 @@ class Processor(ConsumerProducer):
             if event.event_type == "text-generation":
                 resp = event.text
                 print(resp, flush=True)
-                
+
+        # Parse output for ```json``` delimiters
+        pattern = r'```json\s*([\s\S]*?)\s*```'
+        match = re.search(pattern, resp)
+
+        if match:
+            # If delimiters are found, extract the JSON content
+            json_content = match.group(1)
+            json_resp = json_content.strip()
+        
+        else:
+            # If no delimiters are found, return the original text
+            json_resp = resp.strip()
+        
         print("Send response...", flush=True)
-        r = TextCompletionResponse(response=resp)
+        r = TextCompletionResponse(response=json_resp)
         self.send(r, properties={"id": id})
 
         print("Done.", flush=True)

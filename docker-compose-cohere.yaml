@@ -143,6 +143,10 @@ services:
       - "chunker-recursive"
       - "-p"
       - "pulsar://pulsar:6650"
+      - "--chunk-size"
+      - "1000"
+      - "--chunk-overlap"
+      - "50"
     restart: on-failure:100
 
   vectorize:
