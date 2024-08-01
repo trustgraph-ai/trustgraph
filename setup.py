@@ -45,6 +45,7 @@ setuptools.setup(
         "pyyaml",
         "prometheus-client",
         "pyarrow",
+        "cohere",
     ],
     scripts=[
         "scripts/chunker-recursive",
@@ -71,6 +72,7 @@ setuptools.setup(
         "scripts/text-completion-claude",
         "scripts/text-completion-ollama",
         "scripts/text-completion-vertexai",
+        "scripts/text-completion-cohere",
         "scripts/triples-dump-parquet",
         "scripts/triples-write-cassandra",
     ]
