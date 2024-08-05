@@ -6,6 +6,10 @@ Input is query, output is response.
 
 from ... schema import GraphRagQuery, GraphRagResponse
 from ... schema import graph_rag_request_queue, graph_rag_response_queue
+from ... schema import text_completion_request_queue
+from ... schema import text_completion_response_queue
+from ... schema import embeddings_request_queue
+from ... schema import embeddings_response_queue
 from ... log_level import LogLevel
 from ... graph_rag import GraphRag
 from ... base import ConsumerProducer
@@ -30,6 +34,18 @@ class Processor(ConsumerProducer):
         entity_limit = params.get("entity_limit", 50)
         triple_limit = params.get("triple_limit", 30)
         max_subgraph_size = params.get("max_subgraph_size", 3000)
+        tc_request_queue = params.get(
+            "text_completion_request_queue", text_completion_request_queue
+        )
+        tc_response_queue = params.get(
+            "text_completion_response_queue", text_completion_response_queue
+        )
+        emb_request_queue = params.get(
+            "embeddings_request_queue", embeddings_request_queue
+        )
+        emb_response_queue = params.get(
+            "embeddings_response_queue", embeddings_response_queue
+        )
 
         super(Processor, self).__init__(
             **params | {
@@ -41,12 +57,20 @@ class Processor(ConsumerProducer):
                 "entity_limit": entity_limit,
                 "triple_limit": triple_limit,
                 "max_subgraph_size": max_subgraph_size,
+                "text_completion_request_queue": tc_request_queue,
+                "text_completion_response_queue": tc_response_queue,
+                "embeddings_request_queue": emb_request_queue,
+                "embeddings_response_queue": emb_response_queue,
             }
         )
 
         self.rag = GraphRag(
             pulsar_host=self.pulsar_host,
             graph_hosts=graph_hosts.split(","),
+            completion_request_queue=tc_request_queue,
+            completion_response_queue=tc_response_queue,
+            emb_request_queue=emb_request_queue,
+            emb_response_queue=emb_response_queue,
             vector_store=vector_store,
             verbose=True,
             entity_limit=entity_limit,
@@ -112,6 +136,30 @@ class Processor(ConsumerProducer):
             type=int,
             default=3000,
             help=f'Max subgraph size (default: 3000)'
+        )
+
+        parser.add_argument(
+            '--text-completion-request-queue',
+            default=text_completion_request_queue,
+            help=f'Text completion request queue (default: {text_completion_request_queue})',
+        )
+
+        parser.add_argument(
+            '--text-completion-response-queue',
+            default=text_completion_response_queue,
+            help=f'Text completion response queue (default: {text_completion_response_queue})',
+        )
+
+        parser.add_argument(
+            '--embeddings-request-queue',
+            default=embeddings_request_queue,
+            help=f'Embeddings request queue (default: {embeddings_request_queue})',
+        )
+
+        parser.add_argument(
+            '--embeddings-response-queue',
+            default=embeddings_response_queue,
+            help=f'Embeddings request queue (default: {embeddings_response_queue})',
         )
 
 def run():
