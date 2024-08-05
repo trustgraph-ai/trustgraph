@@ -17,11 +17,20 @@ DEBUG=_pulsar.LoggerLevel.Debug
 class EmbeddingsClient:
 
     def __init__(
-            self, log_level=ERROR, subscriber=None,
+            self, log_level=ERROR,
+            input_queue=None,
+            output_queue=None,
+            subscriber=None,
             pulsar_host="pulsar://pulsar:6650",
     ):
 
         self.client = None
+
+        if input_queue == None:
+            input_queue=embeddings_request_queue
+
+        if output_queue == None:
+            output_queue=embeddings_response_queue
 
         if subscriber == None:
             subscriber = str(uuid.uuid4())
@@ -32,13 +41,13 @@ class EmbeddingsClient:
         )
 
         self.producer = self.client.create_producer(
-            topic=embeddings_request_queue,
+            topic=input_queue,
             schema=JsonSchema(EmbeddingsRequest),
             chunking_enabled=True,
         )
 
         self.consumer = self.client.subscribe(
-            embeddings_response_queue, subscriber,
+            output_queue, subscriber,
             schema=JsonSchema(EmbeddingsResponse),
         )
 
