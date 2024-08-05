@@ -4,6 +4,8 @@ from trustgraph.triple_vectors import TripleVectors
 from trustgraph.trustgraph import TrustGraph
 from trustgraph.llm_client import LlmClient
 from trustgraph.embeddings_client import EmbeddingsClient
+from . schema import text_completion_request_queue
+from . schema import text_completion_response_queue
 
 LABEL="http://www.w3.org/2000/01/rdf-schema#label"
 DEFINITION="http://www.w3.org/2004/02/skos/core#definition"
@@ -15,6 +17,10 @@ class GraphRag:
             graph_hosts=None,
             pulsar_host="pulsar://pulsar:6650",
             vector_store="http://milvus:19530",
+            completion_request_queue=None,
+            completion_response_queue=None,
+            emb_request_queue=None,
+            emb_response_queue=None,
             verbose=False,
             entity_limit=50,
             triple_limit=30,
@@ -23,6 +29,18 @@ class GraphRag:
     ):
 
         self.verbose=verbose
+
+        if completion_request_queue == None:
+            completion_request_queue = text_completion_request_queue
+
+        if completion_response_queue == None:
+            completion_response_queue = text_completion_response_queue
+
+        if emb_request_queue == None:
+            emb_request_queue = embeddings_request_queue
+
+        if emb_response_queue == None:
+            emb_response_queue = embeddings_response_queue
 
         if graph_hosts == None:
             graph_hosts = ["cassandra"]
@@ -34,6 +52,8 @@ class GraphRag:
 
         self.embeddings = EmbeddingsClient(
             pulsar_host=pulsar_host,
+            input_queue=emb_request_queue,
+            output_queue=emb_response_queue,
             subscriber=module + "-emb",
         )
 
@@ -47,6 +67,8 @@ class GraphRag:
 
         self.llm = LlmClient(
             pulsar_host=pulsar_host,
+            input_queue=completion_request_queue,
+            output_queue=completion_response_queue,
             subscriber=module + "-llm",
         )
 

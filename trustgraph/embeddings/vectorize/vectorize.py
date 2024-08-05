@@ -6,6 +6,7 @@ Input is text chunk, output is chunk and vectors.
 
 from ... schema import Chunk, ChunkEmbeddings
 from ... schema import chunk_ingest_queue, chunk_embeddings_ingest_queue
+from ... schema import embeddings_request_queue, embeddings_response_queue
 from ... embeddings_client import EmbeddingsClient
 from ... log_level import LogLevel
 from ... base import ConsumerProducer
@@ -23,11 +24,19 @@ class Processor(ConsumerProducer):
         input_queue = params.get("input_queue", default_input_queue)
         output_queue = params.get("output_queue", default_output_queue)
         subscriber = params.get("subscriber", default_subscriber)
+        emb_request_queue = params.get(
+            "embeddings_request_queue", embeddings_request_queue
+        )
+        emb_response_queue = params.get(
+            "embeddings_response_queue", embeddings_response_queue
+        )
 
         super(Processor, self).__init__(
             **params | {
                 "input_queue": input_queue,
                 "output_queue": output_queue,
+                "embeddings_request_queue": emb_request_queue,
+                "embeddings_response_queue": emb_response_queue,
                 "subscriber": subscriber,
                 "input_schema": Chunk,
                 "output_schema": ChunkEmbeddings,
@@ -36,6 +45,8 @@ class Processor(ConsumerProducer):
 
         self.embeddings = EmbeddingsClient(
             pulsar_host=self.pulsar_host,
+            input_queue=emb_request_queue,
+            output_queue=emb_response_queue,
             subscriber=module + "-emb",
         )
 
@@ -72,6 +83,18 @@ class Processor(ConsumerProducer):
         ConsumerProducer.add_args(
             parser, default_input_queue, default_subscriber,
             default_output_queue,
+        )
+
+        parser.add_argument(
+            '--embeddings-request-queue',
+            default=embeddings_request_queue,
+            help=f'Embeddings request queue (default: {embeddings_request_queue})',
+        )
+
+        parser.add_argument(
+            '--embeddings-response-queue',
+            default=embeddings_response_queue,
+            help=f'Embeddings request queue (default: {embeddings_response_queue})',
         )
 
 def run():

@@ -10,7 +10,12 @@ langchain-huggingface
 langchain-text-splitters
 langchain-community
 huggingface-hub
+requests
 cassandra-driver
 pulsar-client
+pypdf
 anthropic
 google-cloud-aiplatform
+pyyaml
+prometheus-client
+pyarrow
