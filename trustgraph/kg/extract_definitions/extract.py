@@ -9,6 +9,8 @@ import json
 
 from ... schema import ChunkEmbeddings, Triple, Source, Value
 from ... schema import chunk_embeddings_ingest_queue, triples_store_queue
+from ... schema import text_completion_request_queue
+from ... schema import text_completion_response_queue
 from ... log_level import LogLevel
 from ... llm_client import LlmClient
 from ... prompts import to_definitions
@@ -30,6 +32,12 @@ class Processor(ConsumerProducer):
         input_queue = params.get("input_queue", default_input_queue)
         output_queue = params.get("output_queue", default_output_queue)
         subscriber = params.get("subscriber", default_subscriber)
+        tc_request_queue = params.get(
+            "text_completion_request_queue", text_completion_request_queue
+        )
+        tc_response_queue = params.get(
+            "text_completion_response_queue", text_completion_response_queue
+        )
 
         super(Processor, self).__init__(
             **params | {
@@ -38,11 +46,15 @@ class Processor(ConsumerProducer):
                 "subscriber": subscriber,
                 "input_schema": ChunkEmbeddings,
                 "output_schema": Triple,
+                "text_completion_request_queue": tc_request_queue,
+                "text_completion_response_queue": tc_response_queue,
             }
         )
 
         self.llm = LlmClient(
             pulsar_host=self.pulsar_host,
+            input_queue=tc_request_queue,
+            output_queue=tc_response_queue,
             subscriber = module + "-llm",
         )
 
@@ -106,6 +118,18 @@ class Processor(ConsumerProducer):
         ConsumerProducer.add_args(
             parser, default_input_queue, default_subscriber,
             default_output_queue,
+        )
+
+        parser.add_argument(
+            '--text-completion-request-queue',
+            default=text_completion_request_queue,
+            help=f'Text completion request queue (default: {text_completion_request_queue})',
+        )
+
+        parser.add_argument(
+            '--text-completion-response-queue',
+            default=text_completion_response_queue,
+            help=f'Text completion response queue (default: {text_completion_response_queue})',
         )
 
 def run():
