@@ -209,10 +209,8 @@ services:
       - "text-completion-bedrock"
       - "-p"
       - "pulsar://pulsar:6650"
-    #  - "-k"
-    #  - ${COHERE_KEY}
-      - "-m"
-      - "c4ai-aya-23-35b"
+  #    - "-m"
+  #    - "mistral.mistral-large-2407-v1:0"
     restart: on-failure:100
     
   text-completion-rag:
@@ -221,10 +219,8 @@ services:
       - "text-completion-bedrock"
       - "-p"
       - "pulsar://pulsar:6650"
-    #  - "-k"
-    #  - ${COHERE_KEY}
-      - "-m"
-      - "c4ai-aya-23-8b"
+  #    - "-m"
+  #    - "mistral.mistral-large-2407-v1:0"
       - "-i"
       - "non-persistent://tg/request/text-completion-rag"
       - "-o"
