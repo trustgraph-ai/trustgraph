@@ -46,6 +46,7 @@ setuptools.setup(
         "prometheus-client",
         "pyarrow",
         "cohere",
+        "boto3",
     ],
     scripts=[
         "scripts/chunker-recursive",
@@ -69,6 +70,7 @@ setuptools.setup(
         "scripts/query",
         "scripts/run-processing",
         "scripts/text-completion-azure",
+        "scripts/text-completion-bedrock",
         "scripts/text-completion-claude",
         "scripts/text-completion-ollama",
         "scripts/text-completion-vertexai",
