@@ -28,7 +28,8 @@ class Processor(ConsumerProducer):
         output_queue = params.get("output_queue", default_output_queue)
         subscriber = params.get("subscriber", default_subscriber)
         model = params.get("model", default_model)
-        api_key = params.get("api_key")
+        aws_id = params.get("aws_id_key")
+        aws_secret = params.get("aws_secret")
 
         super(Processor, self).__init__(
             **params | {
@@ -43,7 +44,13 @@ class Processor(ConsumerProducer):
 
         self.model = model
 
-        self.bedrock = boto3.client(service_name='bedrock-runtime', region_name="us-west-2")
+        self.session = boto3.Session(
+            aws_access_key_id=aws_id,
+            aws_secret_access_key=aws_secret,
+            region_name='us-west-2'  # e.g., 'us-west-2'
+        )
+
+        self.bedrock = self.session.client(service_name='bedrock-runtime')
 
         print("Initialised", flush=True)
 
@@ -113,6 +120,16 @@ class Processor(ConsumerProducer):
             '-m', '--model',
             default="mistral.mistral-large-2407-v1:0",
             help=f'Bedrock model (default: Mistral-Large-2407)'
+        )
+
+        parser.add_argument(
+            '-z', '--aws-id-key',
+            help=f'AWS ID Key'
+        )
+
+        parser.add_argument(
+            '-k', '--aws-secret',
+            help=f'AWS Secret Key'
         )
 
 def run():

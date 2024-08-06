@@ -209,8 +209,10 @@ services:
       - "text-completion-bedrock"
       - "-p"
       - "pulsar://pulsar:6650"
-  #    - "-m"
-  #    - "mistral.mistral-large-2407-v1:0"
+      - "-z"
+      - "{AWS_ID_KEY}"
+      - "-k"
+      - "{AWS_SECRET_KEY}"
     restart: on-failure:100
     
   text-completion-rag:
@@ -221,6 +223,10 @@ services:
       - "pulsar://pulsar:6650"
   #    - "-m"
   #    - "mistral.mistral-large-2407-v1:0"
+      - "-z"
+      - "{AWS_ID_KEY}"
+      - "-k"
+      - "{AWS_SECRET_KEY}"
       - "-i"
       - "non-persistent://tg/request/text-completion-rag"
       - "-o"
