@@ -5,7 +5,7 @@ from trustgraph.graph_rag_client import GraphRagClient
 
 rag = GraphRagClient(pulsar_host="pulsar://localhost:6650")
 
-query="""Write a blog post describing the key points desribing the researcher's methodology for finding Leo VI.
+query="""List 20 key points to describe the research that led to the discovery of Leo VI.
 """
 
 resp = rag.request(query)
