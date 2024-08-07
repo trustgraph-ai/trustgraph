@@ -228,16 +228,13 @@ class GraphRag:
 
         kg =  self.get_cypher(query)
 
-        prompt=f"""<instructions>Study the knowledge graph provided, and use
-the information to answer the question.  The question should be answered
-in plain English only.
-</instructions>
-<knowledge-graph>
+        prompt=f"""Study the following set of knowledge statements. The statements are written in Cypher format that has been extracted from a knowledge graph. Use only the provided set of knowledge statements in your response. Do not speculate if the answer is not found in the provided set of knowledge statements.
+
+Here's the knowledge statements:
 {kg}
-</knowledge-graph>
-<question>
+
+Use only the provided knowledge statements to respond to the following:
 {query}
-</question>
 """
 
         return prompt

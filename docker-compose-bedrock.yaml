@@ -1,0 +1,267 @@
+
+volumes:
+  cassandra:
+  pulsar-conf:
+  pulsar-data:
+  etcd:
+  minio-data:
+  milvus:
+  prometheus-data:
+  grafana-storage:
+
+services:
+
+  cassandra:
+    image: docker.io/cassandra:4.1.5
+    ports:
+      - "9042:9042"
+    volumes:
+      - "cassandra:/var/lib/cassandra"
+    restart: on-failure:100
+
+  pulsar:
+    image: docker.io/apachepulsar/pulsar:3.3.0
+    command: bin/pulsar standalone
+    ports:
+      - "6650:6650"
+      - "8080:8080"
+    volumes:
+      - "pulsar-conf:/pulsar/conf"
+      - "pulsar-data:/pulsar/data"
+    restart: on-failure:100
+
+  init-pulsar:
+    image: docker.io/apachepulsar/pulsar:3.3.0
+    command:
+      - "sh"
+      - "-c"
+      - "pulsar-admin --admin-url http://pulsar:8080 tenants create tg && pulsar-admin --admin-url http://pulsar:8080 namespaces create tg/flow && pulsar-admin --admin-url http://pulsar:8080 namespaces create tg/request && pulsar-admin --admin-url http://pulsar:8080 namespaces create tg/response && pulsar-admin --admin-url http://pulsar:8080 namespaces set-retention --size -1 --time 3m tg/response"
+    depends_on:
+      pulsar:
+        condition: service_started
+    restart: on-failure:100
+
+  pulsar-manager:
+    image: docker.io/apachepulsar/pulsar-manager:v0.3.0
+    ports:
+      - "9527:9527"
+      - "7750:7750"
+    environment:
+      SPRING_CONFIGURATION_FILE: /pulsar-manager/pulsar-manager/application.properties
+    restart: on-failure:100
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    command:
+      - "etcd"
+      - "-advertise-client-urls=http://127.0.0.1:2379"
+      - "-listen-client-urls"
+      - "http://0.0.0.0:2379"
+      - "--data-dir"
+      - "/etcd"
+    environment:
+      ETCD_AUTO_COMPACTION_MODE: revision
+      ETCD_AUTO_COMPACTION_RETENTION: "1000"
+      ETCD_QUOTA_BACKEND_BYTES: "4294967296"
+      ETCD_SNAPSHOT_COUNT: "50000"
+    ports:
+      - "2379:2379"
+    volumes:
+      - "etcd:/etcd"
+    restart: on-failure:100
+    
+  minio:
+    image: docker.io/minio/minio:RELEASE.2024-07-04T14-25-45Z
+    command:
+      - "minio"
+      - "server"
+      - "/minio_data"
+      - "--console-address"
+      - ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9001:9001"
+    volumes:
+      - "minio-data:/minio_data"
+    restart: on-failure:100
+
+  milvus:
+    image: docker.io/milvusdb/milvus:v2.4.5
+    command:
+      - "milvus"
+      - "run"
+      - "standalone"
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+    ports:
+      - "9091:9091"
+      - "19530:19530"
+    volumes:
+      - "milvus:/var/lib/milvus"
+    restart: on-failure:100
+
+  prometheus:
+    image: docker.io/prom/prometheus:v2.53.1
+    ports:
+      - "9090:9090"
+    volumes:
+      - "./prometheus:/etc/prometheus"
+      - "prometheus-data:/prometheus"
+    restart: on-failure:100
+
+  grafana:
+    image: docker.io/grafana/grafana:10.0.0
+    ports:
+      - "3000:3000"
+    volumes:
+      - "grafana-storage:/var/lib/grafana"
+      - "./grafana/dashboard.yml:/etc/grafana/provisioning/dashboards/dashboard.yml"
+      - "./grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml"
+      - "./grafana/dashboard.json:/var/lib/grafana/dashboards/dashboard.json"
+    environment:
+#       GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+#       GF_AUTH_ANONYMOUS_ENABLED: true
+#       GF_ORG_ROLE: Admin
+      GF_ORG_NAME: trustgraph.ai
+#     GF_SERVER_ROOT_URL: https://example.com
+    restart: on-failure:100
+
+  pdf-decoder:
+    image: docker.io/trustgraph/trustgraph-flow:0.5.6
+    command:
+      - "pdf-decoder"
+      - "-p"
+      - "pulsar://pulsar:6650"
+    restart: on-failure:100
+
+  chunker:
+    image: docker.io/trustgraph/trustgraph-flow:0.5.6
+    command:
+      - "chunker-recursive"
+      - "-p"
+      - "pulsar://pulsar:6650"
+      - "--chunk-size"
+      - "2000"
+      - "--chunk-overlap"
+      - "100"
+    restart: on-failure:100
+
+  vectorize:
+    image: docker.io/trustgraph/trustgraph-flow:0.5.6
+    command:
+      - "embeddings-vectorize"
+      - "-p"
+      - "pulsar://pulsar:6650"
+    restart: on-failure:100
+    
+  embeddings:
+    image: docker.io/trustgraph/trustgraph-flow:0.5.6
+    command:
+      - "embeddings-hf"
+      - "-p"
+      - "pulsar://pulsar:6650"
+#       - "-m"
+#       - "mixedbread-ai/mxbai-embed-large-v1"
+    restart: on-failure:100
+    
+  kg-extract-definitions:
+    image: docker.io/trustgraph/trustgraph-flow:0.5.6
+    command:
+      - "kg-extract-definitions"
+      - "-p"
+      - "pulsar://pulsar:6650"
+    restart: on-failure:100
+    
+  kg-extract-relationships:
+    image: docker.io/trustgraph/trustgraph-flow:0.5.6
+    command:
+      - "kg-extract-relationships"
+      - "-p"
+      - "pulsar://pulsar:6650"
+    restart: on-failure:100
+    
+  store-graph-embeddings:
+    image: docker.io/trustgraph/trustgraph-flow:0.5.6
+    command:
+      - "ge-write-milvus"
+      - "-p"
+      - "pulsar://pulsar:6650"
+      - "-t"
+      - "http://milvus:19530"
+    restart: on-failure:100
+    
+  store-triples:
+    image: docker.io/trustgraph/trustgraph-flow:0.5.6
+    command:
+      - "triples-write-cassandra"
+      - "-p"
+      - "pulsar://pulsar:6650"
+      - "-g"
+      - "cassandra"
+    restart: on-failure:100
+    
+  text-completion:
+    image: docker.io/trustgraph/trustgraph-flow:0.5.6
+    command:
+      - "text-completion-bedrock"
+      - "-p"
+      - "pulsar://pulsar:6650"
+      - "-z"
+      - "${AWS_ID_KEY}"
+      - "-k"
+      - "${AWS_SECRET_KEY}"
+      - "-r"
+      - "us-west-2"
+    restart: on-failure:100
+    
+  text-completion-rag:
+    image: docker.io/trustgraph/trustgraph-flow:0.5.6
+    command:
+      - "text-completion-bedrock"
+      - "-p"
+      - "pulsar://pulsar:6650"
+  #    - "-m"
+  #    - "mistral.mistral-large-2407-v1:0"
+      - "-z"
+      - "${AWS_ID_KEY}"
+      - "-k"
+      - "${AWS_SECRET_KEY}"
+      - "-r"
+      - "us-west-2" 
+      - "-i"
+      - "non-persistent://tg/request/text-completion-rag"
+      - "-o"
+      - "non-persistent://tg/response/text-completion-rag-response"
+    restart: on-failure:100
+  
+  #text-completion-rag:
+  #  image: docker.io/trustgraph/trustgraph-flow:0.5.6
+  #  command:
+  #    - "text-completion-ollama"
+  #    - "-p"
+  #    - "pulsar://pulsar:6650"
+  #    - "-r"
+  #    - "http://${OLLAMA_HOST}:11434/"
+  #    - "-i"
+  #    - "non-persistent://tg/request/text-completion-rag"
+  #    - "-o"
+  #    - "non-persistent://tg/response/text-completion-rag-response"
+  #    - "-m"
+  #    - "gemma2:2b"
+  #  restart: on-failure:100
+
+  graph-rag:
+    image: docker.io/trustgraph/trustgraph-flow:0.5.6
+    command:
+      - "graph-rag"
+      - "-p"
+      - "pulsar://pulsar:6650"
+      - "--text-completion-request-queue"
+      - "non-persistent://tg/request/text-completion-rag"
+      - "--text-completion-response-queue"
+      - "non-persistent://tg/response/text-completion-rag-response"
+    restart: on-failure:100
+

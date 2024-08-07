@@ -4,7 +4,7 @@ import os
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-version = "0.5.6"
+version = "0.5.7"
 
 setuptools.setup(
     name="trustgraph",
@@ -45,6 +45,8 @@ setuptools.setup(
         "pyyaml",
         "prometheus-client",
         "pyarrow",
+        "cohere",
+        "boto3",
     ],
     scripts=[
         "scripts/chunker-recursive",
@@ -68,9 +70,11 @@ setuptools.setup(
         "scripts/query",
         "scripts/run-processing",
         "scripts/text-completion-azure",
+        "scripts/text-completion-bedrock",
         "scripts/text-completion-claude",
         "scripts/text-completion-ollama",
         "scripts/text-completion-vertexai",
+        "scripts/text-completion-cohere",
         "scripts/triples-dump-parquet",
         "scripts/triples-write-cassandra",
     ]

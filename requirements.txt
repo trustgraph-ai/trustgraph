@@ -19,3 +19,4 @@ google-cloud-aiplatform
 pyyaml
 prometheus-client
 pyarrow
+boto3
