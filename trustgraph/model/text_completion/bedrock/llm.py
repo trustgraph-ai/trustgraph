@@ -6,6 +6,7 @@ Input is prompt, output is response. Mistral is default.
 
 import boto3
 import json
+import re
 
 from .... schema import TextCompletionRequest, TextCompletionResponse
 from .... schema import text_completion_request_queue
@@ -19,6 +20,7 @@ default_input_queue = text_completion_request_queue
 default_output_queue = text_completion_response_queue
 default_subscriber = module
 default_model = 'mistral.mistral-large-2407-v1:0'
+default_region = 'us-west-2'
 
 class Processor(ConsumerProducer):
 
@@ -30,6 +32,7 @@ class Processor(ConsumerProducer):
         model = params.get("model", default_model)
         aws_id = params.get("aws_id_key")
         aws_secret = params.get("aws_secret")
+        aws_region = params.get("aws_region", default_region)
 
         super(Processor, self).__init__(
             **params | {
@@ -47,7 +50,7 @@ class Processor(ConsumerProducer):
         self.session = boto3.Session(
             aws_access_key_id=aws_id,
             aws_secret_access_key=aws_secret,
-            region_name='us-west-2'  # e.g., 'us-west-2'
+            region_name=aws_region
         )
 
         self.bedrock = self.session.client(service_name='bedrock-runtime')
@@ -99,11 +102,23 @@ class Processor(ConsumerProducer):
             response_body = json.loads(response.get("body").read())
             outputtext = response_body['outputs'][0]['text']            
  
-        resp = outputtext
-        print(resp, flush=True)
+        print(outputtext, flush=True)
+       
+        # Parse output for ```json``` delimiters
+        pattern = r'```json\s*([\s\S]*?)\s*```'
+        match = re.search(pattern, outputtext)
+
+        if match:
+            # If delimiters are found, extract the JSON content
+            json_content = match.group(1)
+            json_resp = json_content.strip()
+        
+        else:
+            # If no delimiters are found, return the original text
+            json_resp = outputtext.strip()
         
         print("Send response...", flush=True)
-        r = TextCompletionResponse(response=resp)
+        r = TextCompletionResponse(response=json_resp)
         self.send(r, properties={"id": id})
 
         print("Done.", flush=True)
@@ -130,6 +145,11 @@ class Processor(ConsumerProducer):
         parser.add_argument(
             '-k', '--aws-secret',
             help=f'AWS Secret Key'
+        )
+
+        parser.add_argument(
+            '-r', '--aws-region',
+            help=f'AWS Region (default: us-west-2)'
         )
 
 def run():

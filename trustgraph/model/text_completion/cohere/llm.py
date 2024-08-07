@@ -62,7 +62,7 @@ class Processor(ConsumerProducer):
         output = self.cohere.chat( 
         model=self.model,
         message=prompt,
-        preamble = "You are an AI-assistant chatbot. You are trained to read text and find entities in that text. You respond only with well-formed JSON.",
+        preamble = "You are a helpful AI-assistant."
         temperature=0.0,
         chat_history=[],
         prompt_truncation='auto',
