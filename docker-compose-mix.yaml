@@ -130,7 +130,7 @@ services:
     restart: on-failure:100
 
   pdf-decoder:
-    image: docker.io/trustgraph/trustgraph-flow:0.5.6
+    image: docker.io/trustgraph/trustgraph-flow:0.5.8
     command:
       - "pdf-decoder"
       - "-p"
@@ -138,7 +138,7 @@ services:
     restart: on-failure:100
 
   chunker:
-    image: docker.io/trustgraph/trustgraph-flow:0.5.6
+    image: docker.io/trustgraph/trustgraph-flow:0.5.8
     command:
       - "chunker-recursive"
       - "-p"
@@ -150,7 +150,7 @@ services:
     restart: on-failure:100
 
   vectorize:
-    image: docker.io/trustgraph/trustgraph-flow:0.5.6
+    image: docker.io/trustgraph/trustgraph-flow:0.5.8
     command:
       - "embeddings-vectorize"
       - "-p"
@@ -158,7 +158,7 @@ services:
     restart: on-failure:100
     
   embeddings:
-    image: docker.io/trustgraph/trustgraph-flow:0.5.6
+    image: docker.io/trustgraph/trustgraph-flow:0.5.8
     command:
       - "embeddings-hf"
       - "-p"
@@ -168,7 +168,7 @@ services:
     restart: on-failure:100
     
   kg-extract-definitions:
-    image: docker.io/trustgraph/trustgraph-flow:0.5.6
+    image: docker.io/trustgraph/trustgraph-flow:0.5.8
     command:
       - "kg-extract-definitions"
       - "-p"
@@ -176,7 +176,7 @@ services:
     restart: on-failure:100
     
   kg-extract-relationships:
-    image: docker.io/trustgraph/trustgraph-flow:0.5.6
+    image: docker.io/trustgraph/trustgraph-flow:0.5.8
     command:
       - "kg-extract-relationships"
       - "-p"
@@ -184,7 +184,7 @@ services:
     restart: on-failure:100
     
   store-graph-embeddings:
-    image: docker.io/trustgraph/trustgraph-flow:0.5.6
+    image: docker.io/trustgraph/trustgraph-flow:0.5.8
     command:
       - "ge-write-milvus"
       - "-p"
@@ -194,7 +194,7 @@ services:
     restart: on-failure:100
     
   store-triples:
-    image: docker.io/trustgraph/trustgraph-flow:0.5.6
+    image: docker.io/trustgraph/trustgraph-flow:0.5.8
     command:
       - "triples-write-cassandra"
       - "-p"
@@ -204,7 +204,7 @@ services:
     restart: on-failure:100
     
   text-completion:
-    image: docker.io/trustgraph/trustgraph-flow:0.5.6
+    image: docker.io/trustgraph/trustgraph-flow:0.5.8
     command:
       - "text-completion-cohere"
       - "-p"
@@ -216,7 +216,7 @@ services:
     restart: on-failure:100
     
   text-completion-rag:
-    image: docker.io/trustgraph/trustgraph-flow:0.5.6
+    image: docker.io/trustgraph/trustgraph-flow:0.5.8
     command:
       - "text-completion-cohere"
       - "-p"
@@ -232,7 +232,7 @@ services:
     restart: on-failure:100
   
   #text-completion-rag:
-  #  image: docker.io/trustgraph/trustgraph-flow:0.5.6
+  #  image: docker.io/trustgraph/trustgraph-flow:0.5.8
   #  command:
   #    - "text-completion-ollama"
   #    - "-p"
@@ -248,7 +248,7 @@ services:
   #  restart: on-failure:100
 
   graph-rag:
-    image: docker.io/trustgraph/trustgraph-flow:0.5.6
+    image: docker.io/trustgraph/trustgraph-flow:0.5.8
     command:
       - "graph-rag"
       - "-p"
