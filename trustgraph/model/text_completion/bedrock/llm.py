@@ -69,13 +69,54 @@ class Processor(ConsumerProducer):
 
         prompt = v.prompt
 
-        promptbody = json.dumps({
-            "prompt": prompt,
-            "max_tokens": 8192,
-            "temperature": 0.0,
-            "top_p": 0.99,
-            "top_k": 40
-        })
+       # Mistral Input Format
+        if self.model.startswith("mistral"):
+            promptbody = json.dumps({
+                "prompt": prompt,
+                "max_tokens": 8192,
+                "temperature": 0.0,
+                "top_p": 0.99,
+                "top_k": 40
+            })
+
+        # Llama 3.1 Input Format
+        elif self.model.startswith("meta"):
+            promptbody = json.dumps({
+                "prompt": prompt,
+                "max_gen_len": 2048,
+                "temperature": 0.0,
+                "top_p": 0.95,
+            })
+
+        # Anthropic Input Format
+        elif self.model.startswith("anthropic"):
+            promptbody = json.dumps({
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 8192,
+                "temperature": 0,
+                "top_p": 0.999,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": prompt
+                            }
+                        ]
+                    }
+                ]
+            })
+
+            # Use Mistral format as defualt
+        else:
+            promptbody = json.dumps({
+                "prompt": prompt,
+                "max_tokens": 8192,
+                "temperature": 0.0,
+                "top_p": 0.99,
+                "top_k": 40
+            })
 
         accept = 'application/json'
         contentType = 'application/json'
