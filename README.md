@@ -23,7 +23,8 @@ by deploying multiple containers.
 - PDF decoding
 - Text chunking
 - Inference of LMs deployed with [Ollama](https://ollama.com)
-- Inference of LLMs: Claude, VertexAI and AzureAI serverless endpoints
+- Inference of Cloud LLMs: `AWS Bedrock`, `AzureAI`, `Anthropic`, `Cohere`, and `VertexAI`
+- Mixed model deployments
 - Application of a [HuggingFace](https://hf.co) embeddings models
 - [RDF](https://www.w3.org/TR/rdf12-schema/)-aligned Knowledge Graph extraction
 - Graph edge loading into [Apache Cassandra](https://github.com/apache/cassandra)
@@ -87,10 +88,12 @@ package installed can also run the entire architecture.
 
 ## LM Specific Modules
 
-- `text-completion-azure` - Sends request to AzureAI serverless endpoint
-- `text-completion-claude` - Sends request to Anthropic's API
-- `text-completion-ollama` -  Sends request to LM running using Ollama
-- `text-completion-vertexai` -  Sends request to model available through VertexAI API
+- text-completion-azure - Sends request to AzureAI serverless endpoint
+- text-completion-bedrock - Send request to AWS Bedrock API
+- text-completion-claude - Sends request to Anthropic's API
+- text-completion-cohere - Send request to Cohere's API
+- text-completion-ollama - Sends request to LM running using Ollama
+- text-completion-vertexai - Sends request to model available through VertexAI API
 
 ## Quickstart Guide
 
@@ -99,6 +102,3 @@ See [Quickstart on Docker Compose](docs/README.quickstart-docker-compose.md)
 ## Development Guide
 
 See [Development on trustgraph](docs/README.development.md)
-
-
-
