@@ -88,12 +88,12 @@ package installed can also run the entire architecture.
 
 ## LM Specific Modules
 
-- text-completion-azure - Sends request to AzureAI serverless endpoint
-- text-completion-bedrock - Send request to AWS Bedrock API
-- text-completion-claude - Sends request to Anthropic's API
-- text-completion-cohere - Send request to Cohere's API
-- text-completion-ollama - Sends request to LM running using Ollama
-- text-completion-vertexai - Sends request to model available through VertexAI API
+- `text-completion-azure` - Sends request to AzureAI serverless endpoint
+- `text-completion-bedrock` - Send request to AWS Bedrock API
+- `text-completion-claude` - Sends request to Anthropic's API
+- `text-completion-cohere` - Send request to Cohere's API
+- `text-completion-ollama` - Sends request to LM running using Ollama
+- `text-completion-vertexai` - Sends request to model available through VertexAI API
 
 ## Quickstart Guide
 

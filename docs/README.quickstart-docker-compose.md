@@ -1,11 +1,11 @@
 
 # Getting Started
 
-[!TIP]
-Before launching `TrustGraph` with `Docker Compose`, be sure to have the `Docker Engine` installed and running on the host machine. Installation instructions for the `Docker Engine` can be found [here](https://docs.docker.com/engine/install/).
+> [!TIP]
+> Before launching `TrustGraph` with `Docker Compose`, be sure to have the `Docker Engine` installed and running on the host machine. Installation instructions for the `Docker Engine` can be found [here](https://docs.docker.com/engine/install/).
 
-[!NOTE]
-The `Docker Compose` files have been tested on `Linux` and `MacOS`. `Windows` deployments have not been tested.
+> [!NOTE]
+> The `Docker Compose` files have been tested on `Linux` and `MacOS`. `Windows` deployments have not been tested.
 
 All `TrustGraph` components are deployed through a `Docker Compose` file. There are **7** `Docker Compose` files to choose from, depending on the desired model deployment:
 
@@ -58,8 +58,8 @@ Depending on your desired model deployment, you will choose from one of the foll
 - `docker-compose-ollama.yaml`: Local LM (currently using [Gemma2](https://ollama.com/library/gemma2) deployed through Ollama.  Set `OLLAMA_HOST` to the machine running Ollama (e.g. `localhost` for Ollama running locally on your machine)
 - `docker-compose-vertexai.yaml`: VertexAI API. Requires a `private.json` authentication file to authenticate with your GCP project. Filed should stored be at path `vertexai/private.json`.
 
-[!CAUTION]
-All tokens, paths, and authentication files must be set **PRIOR** to launching a `Docker Compose` file.
+> [!CAUTION]
+> All tokens, paths, and authentication files must be set **PRIOR** to launching a `Docker Compose` file.
 
 ## Chunk Size
 
@@ -84,8 +84,8 @@ export AWS_SECRET_KEY=<TOKEN-GOES-HERE>
 docker compose -f docker-compose-bedrock.yaml up -d
 ```
 
-[!NOTE]
-The current defaults for `AWS Bedrock` are `Mistral Large 2 (24.07)` in `US-West-2`.
+> [!NOTE]
+> The current defaults for `AWS Bedrock` are `Mistral Large 2 (24.07)` in `US-West-2`.
 
 To change the model and region, go the sections for `text-completion` and `text-completion-rag` in the `docker-compose-bedrock.yaml` file. Add the following lines under the `command` section:
 
@@ -96,8 +96,8 @@ To change the model and region, go the sections for `text-completion` and `text-
 - "<bedrock-api-model-name-here>
 ```
 
-[!TIP]
-Having two separate modules for `text-completion` and `text-completion-rag` allows for using one model for extraction and a different model for RAG.
+> [!TIP]
+> Having two separate modules for `text-completion` and `text-completion-rag` allows for using one model for extraction and a different model for RAG.
 
 ### AzureAI Serverless Model Deployment
 
@@ -123,19 +123,19 @@ docker compose -f docker-compose-cohere.yaml up -d
 
 ### Ollama Hosted Model Deployment
 
-[!TIP]
-The power of `Ollama` is the flexibility it provides in Language Model deployments. Being able to run LMs with `Ollama` enables fully secure AI `TrustGraph` pipelines that aren't relying on any external APIs. No data is leaving the host environment or network. More information on `Ollama` deployments can be found [here](https://trustgraph.ai/docs/deploy/localnetwork).
+> [!TIP]
+> The power of `Ollama` is the flexibility it provides in Language Model deployments. Being able to run LMs with `Ollama` enables fully secure AI `TrustGraph` pipelines that aren't relying on any external APIs. No data is leaving the host environment or network. More information on `Ollama` deployments can be found [here](https://trustgraph.ai/docs/deploy/localnetwork).
 
-[!NOTE]
-The current default model for an `Ollama` deployment is `Gemma2:9B`. 
+> [!NOTE]
+> The current default model for an `Ollama` deployment is `Gemma2:9B`. 
 
 ```
 export OLLAMA_HOST=<localhost> # Set to hostname or IP address of Ollama host
 docker compose -f docker-compose-ollama.yaml up -d
 ```
 
-[!NOTE]
-On `MacOS`, if running `Ollama` locally set `OLLAMA_HOST=host.docker.internal`.
+> [!NOTE]
+> On `MacOS`, if running `Ollama` locally set `OLLAMA_HOST=host.docker.internal`.
 
 To change the `Ollama` model, first make sure the desired model has been pulled and fully downloaded. In the `docker-compose-ollama.yaml` file, go to the section for `text-completion`. Under `commands`, add the following two lines:
 
@@ -152,11 +152,12 @@ cp <your config> vertexai/private.json
 docker compose -f docker-compose-vertexai.yaml up -d
 ```
 
-If you're running `SELinux` on Linux you may need to set the permissions on the VertexAI directory so that the key file can be mounted on a Docker container using the following command:
-
-```
-chcon -Rt svirt_sandbox_file_t vertexai/
-```
+> [!TIP]
+> If you're running `SELinux` on Linux you may need to set the permissions on the VertexAI directory so that the key file can be mounted on a Docker container using the following command:
+>
+> ```
+> chcon -Rt svirt_sandbox_file_t vertexai/
+> ```
 
 ## Mixing Models
 
@@ -181,8 +182,8 @@ For the `text-completion` and `text-completion-rag` modules in the `docker-compo
 docker compose -f docker-compose-mix.yaml up -d
 ```
 
-[!TIP]
-Any of the `YAML` files can be modified for a "split" deployment by adding the `text-completion-rag` module.
+> [!TIP]
+> Any of the `YAML` files can be modified for a "split" deployment by adding the `text-completion-rag` module.
 
 ## Running TrustGraph
 
@@ -202,8 +203,8 @@ Any containers that have exited unexpectedly can be found by checking the `STATU
 docker ps -a
 ```
 
-[!TIP]
-Before proceeding, allow the system to enter a stable a working state. In general `30 seconds` should be enough time for Pulsar to stablize. The system uses Cassandra for a Graph store. Cassandra can take `60-70 seconds` to achieve a working state.
+> [!TIP]
+> Before proceeding, allow the system to enter a stable a working state. In general `30 seconds` should be enough time for Pulsar to stablize. The system uses Cassandra for a Graph store. Cassandra can take `60-70 seconds` to achieve a working state.
 
 ### Load a Text Corpus
 
@@ -425,12 +426,13 @@ docker compose -f docker-compose-ollama.yaml down --volumes
 docker compose -f docker-compose-vertexai.yaml down --volumes
 ```
 
-To confirm all Docker containers have been shut down, check that the following list is empty:
-```
-docker ps
-```
-
-To confirm all Docker volumes have been removed, check that the following list is empty:
-```
-docker volume ls
-```
+> [!TIP]
+> To confirm all Docker containers have been shut down, check that the following list is empty:
+> ```
+> docker ps
+> ```
+>
+> To confirm all Docker volumes have been removed, check that the following list is empty:
+> ```
+> docker volume ls
+> ```
