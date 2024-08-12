@@ -1,6 +1,9 @@
 
 # TrustGraph
 
+> [!TIP]
+> Full `TrustGraph` documentation can be found at [trustgraph.ai](https://trustgraph.ai/docs/TrustGraph).
+
 ## Introduction
 
 TrustGraph is a true end-to-end (e2e) knowledge pipeline that performs a `naive extraction` on a text corpus
@@ -29,6 +32,7 @@ by deploying multiple containers.
 - [RDF](https://www.w3.org/TR/rdf12-schema/)-aligned Knowledge Graph extraction
 - Graph edge loading into [Apache Cassandra](https://github.com/apache/cassandra)
 - Storing embeddings in [Milvus](https://github.com/milvus-io/milvus)
+- Build and load [Knowledge Cores](https://trustgraph.ai/docs/category/knowledge-cores)
 - Embedding query service
 - Graph RAG query service
 - All procesing integrates with [Apache Pulsar](https://github.com/apache/pulsar/)
