@@ -1,0 +1,23 @@
+#!/usr/bin/env python3
+
+import pulsar
+from trustgraph.graph_embeddings_client import GraphEmbeddingsClient
+from trustgraph.embeddings_client import EmbeddingsClient
+
+ec = EmbeddingsClient(pulsar_host="pulsar://localhost:6650")
+
+vectors = ec.request("What caused the space shuttle to explode?")
+
+print(vectors)
+
+llm = GraphEmbeddingsClient(pulsar_host="pulsar://localhost:6650")
+
+limit=10
+
+resp = llm.request(vectors, limit)
+
+print("Response...")
+for val in resp:
+    print(val.value)
+
+

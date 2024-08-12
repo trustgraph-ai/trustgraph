@@ -4,11 +4,11 @@ Graph embeddings query service.  Input is vector, output is list of
 e
 """
 
-from ... direct.milvus import TripleVectors
-from ... schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
-from ... schema import graph_embeddings_request_queue
-from ... schema import graph_embeddings_response_queue
-from ... base import ConsumerProducer
+from .... direct.milvus import TripleVectors
+from .... schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse, Value
+from .... schema import graph_embeddings_request_queue
+from .... schema import graph_embeddings_response_queue
+from .... base import ConsumerProducer
 
 module = ".".join(__name__.split(".")[1:-1])
 
@@ -55,7 +55,21 @@ class Processor(ConsumerProducer):
             resp = self.vecstore.search(vec, limit=v.limit)
 
             for r in resp:
-                entities.add(r)
+                ent = r["entity"]["entity"]
+                entities.add(ent)
+
+        # Convert set to list
+        entities = list(entities)
+
+        ents2 = []
+
+        for ent in entities:
+            if ent.startswith("http://") or ent.startswith("https://"):
+                ents2.append(Value(value=ent, is_uri=True))
+            else:
+                ents2.append(Value(value=ent, is_uri=False))
+
+        entities = ents2
 
         print("Send response...", flush=True)
         r = GraphEmbeddingsResponse(entities=entities)
