@@ -1,7 +1,7 @@
 
 """
 Graph embeddings query service.  Input is vector, output is list of
-e
+entities
 """
 
 from .... direct.milvus import TripleVectors
@@ -39,6 +39,12 @@ class Processor(ConsumerProducer):
 
         self.vecstore = TripleVectors(store_uri)
 
+    def create_value(self, ent):
+        if ent.startswith("http://") or ent.startswith("https://"):
+            return Value(value=ent, is_uri=True)
+        else:
+            return Value(value=ent, is_uri=False)
+        
     def handle(self, msg):
 
         v = msg.value()
@@ -64,10 +70,7 @@ class Processor(ConsumerProducer):
         ents2 = []
 
         for ent in entities:
-            if ent.startswith("http://") or ent.startswith("https://"):
-                ents2.append(Value(value=ent, is_uri=True))
-            else:
-                ents2.append(Value(value=ent, is_uri=False))
+            ents2.append(self.create_value(ent))
 
         entities = ents2
 

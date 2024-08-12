@@ -34,6 +34,7 @@ class Processor(Consumer):
                 "input_queue": input_queue,
                 "subscriber": subscriber,
                 "input_schema": Triple,
+                "graph_host": graph_host,
             }
         )
 

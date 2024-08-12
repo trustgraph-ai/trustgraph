@@ -20,4 +20,3 @@ print("Response...")
 for val in resp:
     print(val.value)
 
-

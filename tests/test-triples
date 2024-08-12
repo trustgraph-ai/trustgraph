@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+
+import pulsar
+from trustgraph.triples_query_client import TriplesQueryClient
+
+tq = TriplesQueryClient(pulsar_host="pulsar://localhost:6650")
+
+e = "http://trustgraph.ai/e/shuttle"
+
+limit=3
+
+def dump(resp):
+    print("Response...")
+    for t in resp:
+        print(t.s.value, t.p.value, t.o.value)
+
+print("-- * ---------------------------")
+
+resp = tq.request(None, None, None, limit)
+dump(resp)
+
+print("-- s ---------------------------")
+
+resp = tq.request("http://trustgraph.ai/e/shuttle", None, None, limit)
+dump(resp)
+
+print("-- p ---------------------------")
+
+resp = tq.request(None, "http://trustgraph.ai/e/landed", None, limit)
+dump(resp)
+
+print("-- p ---------------------------")
+
+resp = tq.request(None, None, "President", limit)
+dump(resp)
+
+print("-- sp ---------------------------")
+
+resp = tq.request(
+    "http://trustgraph.ai/e/shuttle", "http://trustgraph.ai/e/landed", None,
+    limit
+)
+dump(resp)
+
+print("-- so ---------------------------")
+
+resp = tq.request(
+    "http://trustgraph.ai/e/shuttle", None, "the tower",
+    limit
+)
+dump(resp)
+
+print("-- po ---------------------------")
+
+resp = tq.request(
+    "http://trustgraph.ai/e/shuttle", "http://trustgraph.ai/e/landed",
+    None,
+    limit
+)
+dump(resp)
+
+print("-- spo ---------------------------")
+
+resp = tq.request(
+    "http://trustgraph.ai/e/shuttle", "http://trustgraph.ai/e/landed",
+    "on the concrete runway at Kennedy Space Center",
+    limit
+)
+dump(resp)
+
