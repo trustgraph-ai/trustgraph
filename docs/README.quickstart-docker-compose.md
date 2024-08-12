@@ -7,7 +7,7 @@
 > [!NOTE]
 > The `Docker Compose` files have been tested on `Linux` and `MacOS`. `Windows` deployments have not been tested.
 
-All `TrustGraph` components are deployed through a `Docker Compose` file. There are **7** `Docker Compose` files to choose from, depending on the desired model deployment:
+All `TrustGraph` components are deployed through a `Docker Compose` file. There are **8** `Docker Compose` files to choose from, depending on the desired model deployment:
 
 - `AzureAI` serverless endpoint for deployed models in Azure
 - `Bedrock` API for models deployed in AWS Bedrock
@@ -15,6 +15,7 @@ All `TrustGraph` components are deployed through a `Docker Compose` file. There 
 - `Cohere` through Cohere's API
 - `Mix` for mixed model deployments
 - `Ollama` for local model deployments
+- `OpenAI` through OpenAI's API
 - `VertexAI` for models deployed in Google Cloud
 
 `Docker Compose` enables the following functions:
@@ -56,6 +57,7 @@ Depending on your desired model deployment, you will choose from one of the foll
 - `docker-compose-cohere.yaml`: Cohere's API. Set `COHERE_KEY` to your API key.
 - `docker-compose-mix.yaml`: Special deployment that allows two separate model deployments for the extraction and RAG processes.
 - `docker-compose-ollama.yaml`: Local LM (currently using [Gemma2](https://ollama.com/library/gemma2) deployed through Ollama.  Set `OLLAMA_HOST` to the machine running Ollama (e.g. `localhost` for Ollama running locally on your machine)
+- `docker-compose-openai.yaml`: OpenAI's API. Set `OPENAI_KEY` to your API key.
 - `docker-compose-vertexai.yaml`: VertexAI API. Requires a `private.json` authentication file to authenticate with your GCP project. Filed should stored be at path `vertexai/private.json`.
 
 > [!CAUTION]
@@ -144,6 +146,13 @@ To change the `Ollama` model, first make sure the desired model has been pulled 
 - "<model-name-here>"
 ```
 
+### OpenAI API
+
+```
+export OPENAI_KEY=<TOKEN-GOES-HERE>
+docker compose -f docker-compose-openai.yaml up -d
+```
+
 ### VertexAI through GCP
 
 ```
@@ -174,6 +183,7 @@ Before launching the `Docker Compose` file, the desired model deployments must b
 - `text-completion-claude`
 - `text-completion-cohere`
 - `text-completion-ollama`
+- `text-completion-openai`
 - `text-completion-vertexai`
 
 For the `text-completion` and `text-completion-rag` modules in the `docker-compose-mix.yaml`file, choose one of the above deployment options and enter that line as the first line under `command` for each `text-completion` and `text-completion-rag` module. Depending on the model deployment, other variables such as endpoints, keys, and model names must specified under the `command` section as well. Once all variables and commands have been set, the `mix` deployment can be lauched with:
@@ -387,43 +397,49 @@ When shutting down `TrustGraph`, it's best to shut down all Docker containers an
 #### AWS Bedrock API
 
 ```
-docker compose -f docker-compose-bedrock.yaml down --volumes
+docker compose -f docker-compose-bedrock.yaml down -v
 ```
 
 #### AzureAI Endpoint
 
 ```
-docker compose -f docker-compose-azure.yaml down --volumes
+docker compose -f docker-compose-azure.yaml down -v
 ```
 
 #### Anthropic API
 
 ```
-docker compose -f docker-compose-claude.yaml down --volumes
+docker compose -f docker-compose-claude.yaml down -v
 ```
 
 #### Cohere API
 
 ```
-docker compose -f docker-compose-cohere.yaml down --volumes
+docker compose -f docker-compose-cohere.yaml down -v
 ```
 
 #### Mixed Deployment
 
 ```
-docker compose -f docker-compose-mix.yaml down --volumes
+docker compose -f docker-compose-mix.yaml down -v
 ```
 
 #### Ollama
 
 ```
-docker compose -f docker-compose-ollama.yaml down --volumes
+docker compose -f docker-compose-ollama.yaml down -v
+```
+
+#### OpenAI API
+
+```
+docker compose -f docker-compose-openai.yaml down -v
 ```
 
 #### VertexAI API
 
 ```
-docker compose -f docker-compose-vertexai.yaml down --volumes
+docker compose -f docker-compose-vertexai.yaml down -v
 ```
 
 > [!TIP]

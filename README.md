@@ -23,7 +23,7 @@ by deploying multiple containers.
 - PDF decoding
 - Text chunking
 - Inference of LMs deployed with [Ollama](https://ollama.com)
-- Inference of Cloud LLMs: `AWS Bedrock`, `AzureAI`, `Anthropic`, `Cohere`, and `VertexAI`
+- Inference of Cloud LLMs: `AWS Bedrock`, `AzureAI`, `Anthropic`, `Cohere`, `OpenAI`, and `VertexAI`
 - Mixed model deployments
 - Application of a [HuggingFace](https://hf.co) embeddings models
 - [RDF](https://www.w3.org/TR/rdf12-schema/)-aligned Knowledge Graph extraction
@@ -93,6 +93,7 @@ package installed can also run the entire architecture.
 - `text-completion-claude` - Sends request to Anthropic's API
 - `text-completion-cohere` - Send request to Cohere's API
 - `text-completion-ollama` - Sends request to LM running using Ollama
+- `text-completion-openai` - Sends request to OpenAI's API
 - `text-completion-vertexai` - Sends request to model available through VertexAI API
 
 ## Quickstart Guide
