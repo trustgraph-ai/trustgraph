@@ -75,9 +75,10 @@ graph_embeddings_store_queue = topic('graph-embeddings-store')
 
 class GraphEmbeddingsQueryRequest(Record):
     vectors = Array(Array(Double()))
+    limit = Integer()
 
 class GraphEmbeddingsQueryResponse(Record):
-    vectors = Array(Value())
+    entities = Array(Value())
 
 graph_embeddings_request_queue = topic(
     'graph-embeddings', kind='non-persistent', namespace='request'

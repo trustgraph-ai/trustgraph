@@ -57,6 +57,7 @@ setuptools.setup(
         "scripts/embeddings-ollama",
         "scripts/embeddings-vectorize",
         "scripts/ge-dump-parquet",
+        "scripts/ge-query-milvus",
         "scripts/ge-write-milvus",
         "scripts/graph-rag",
         "scripts/graph-show",

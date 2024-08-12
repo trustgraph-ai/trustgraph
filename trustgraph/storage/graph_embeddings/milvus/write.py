@@ -51,8 +51,8 @@ class Processor(Consumer):
 
         parser.add_argument(
             '-t', '--store-uri',
-            default="http://milvus:19530",
-            help=f'Milvus store URI (default: http://milvus:19530)'
+            default=default_store_uri,
+            help=f'Milvus store URI (default: {default_store_uri})'
         )
 
 def run():
