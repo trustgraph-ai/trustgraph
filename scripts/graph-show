@@ -7,7 +7,7 @@ Connects to the trustgraph graph hosts and dumps all graph edges.
 import argparse
 import time
 
-from trustgraph.trustgraph import TrustGraph
+from trustgraph.direct.cassandra import TrustGraph
 
 def show_graph(graph_hosts):
 
