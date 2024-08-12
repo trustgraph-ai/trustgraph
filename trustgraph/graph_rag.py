@@ -1,9 +1,8 @@
 
-from trustgraph.trustgraph import TrustGraph
+from . direct.cassandra import TrustGraph
 from . direct.milvus import TripleVectors
-from trustgraph.trustgraph import TrustGraph
-from trustgraph.llm_client import LlmClient
-from trustgraph.embeddings_client import EmbeddingsClient
+from . llm_client import LlmClient
+from . embeddings_client import EmbeddingsClient
 from . schema import text_completion_request_queue
 from . schema import text_completion_response_queue
 from . schema import embeddings_request_queue
