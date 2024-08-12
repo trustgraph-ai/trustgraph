@@ -100,6 +100,26 @@ triples_store_queue = topic('triples-store')
 
 ############################################################################
 
+# Triples query
+
+class TriplesQueryRequest(Record):
+    s = Value()
+    p = Value()
+    o = Value()
+    limit = Integer()
+
+class TriplesQueryResponse(Record):
+    triples = Array(Triple())
+
+triples_request_queue = topic(
+    'triples', kind='non-persistent', namespace='request'
+)
+triples_response_queue = topic(
+    'triples-response', kind='non-persistent', namespace='response',
+)
+
+############################################################################
+
 # chunk_embeddings_store_queue = topic('chunk-embeddings-store')
 
 ############################################################################
