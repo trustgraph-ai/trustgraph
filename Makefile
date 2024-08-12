@@ -2,19 +2,21 @@
 # VERSION=$(shell git describe | sed 's/^v//')
 VERSION=0.5.9
 
+DOCKER=podman
+
 all: container
 
 CONTAINER=docker.io/trustgraph/trustgraph-flow
 
 container:
-	podman build -f Containerfile -t ${CONTAINER}:${VERSION} \
+	${DOCKER} build -f Containerfile -t ${CONTAINER}:${VERSION} \
 	    --format docker
 
 push:
-	podman push ${CONTAINER}:${VERSION}
+	${DOCKER} push ${CONTAINER}:${VERSION}
 
 start:
-	podman run -i -t --name ${NAME} \
+	${DOCKER} run -i -t --name ${NAME} \
 	    -i -t \
 	    -p 8081:8081 \
 	    -v $$(pwd)/keys:/keys \
@@ -22,7 +24,7 @@ start:
 	    ${CONTAINER}:${VERSION}
 
 stop:
-	podman rm -f ${NAME}
+	${DOCKER} rm -f ${NAME}
 
 clean:
 	rm -rf wheels/
