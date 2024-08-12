@@ -1,6 +1,6 @@
 
 from trustgraph.trustgraph import TrustGraph
-from trustgraph.triple_vectors import TripleVectors
+from . direct.milvus import TripleVectors
 from trustgraph.trustgraph import TrustGraph
 from trustgraph.llm_client import LlmClient
 from trustgraph.embeddings_client import EmbeddingsClient

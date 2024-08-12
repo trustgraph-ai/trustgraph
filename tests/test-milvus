@@ -2,7 +2,7 @@
 
 from langchain_huggingface import HuggingFaceEmbeddings
 
-from trustgraph.triple_vectors import TripleVectors
+from trustgraph.direct.milvus import TripleVectors
 
 client = TripleVectors()
 
