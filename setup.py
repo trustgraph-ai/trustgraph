@@ -79,6 +79,7 @@ setuptools.setup(
         "scripts/text-completion-vertexai",
         "scripts/text-completion-cohere",
         "scripts/triples-dump-parquet",
+        "scripts/triples-query-cassandra",
         "scripts/triples-write-cassandra",
     ]
 )
