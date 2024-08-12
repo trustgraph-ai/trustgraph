@@ -71,6 +71,23 @@ graph_embeddings_store_queue = topic('graph-embeddings-store')
 
 ############################################################################
 
+# Graph embeddings query
+
+class GraphEmbeddingsQueryRequest(Record):
+    vectors = Array(Array(Double()))
+
+class GraphEmbeddingsQueryResponse(Record):
+    vectors = Array(Value())
+
+graph_embeddings_request_queue = topic(
+    'graph-embeddings', kind='non-persistent', namespace='request'
+)
+graph_embeddings_response_queue = topic(
+    'graph-embeddings-response', kind='non-persistent', namespace='response', 
+)
+
+############################################################################
+
 # Graph triples
 
 class Triple(Record):
