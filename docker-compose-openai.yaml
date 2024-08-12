@@ -143,10 +143,6 @@ services:
       - "chunker-recursive"
       - "-p"
       - "pulsar://pulsar:6650"
-      - "--chunk-size"
-      - "2000"
-      - "--chunk-overlap"
-      - "100"
     restart: on-failure:100
 
   vectorize:
@@ -206,52 +202,26 @@ services:
   text-completion:
     image: docker.io/trustgraph/trustgraph-flow:0.5.9
     command:
-      - "text-completion-bedrock"
+      - "text-completion-openai"
       - "-p"
       - "pulsar://pulsar:6650"
-      - "-z"
-      - "${AWS_ID_KEY}"
       - "-k"
-      - "${AWS_SECRET_KEY}"
-      - "-r"
-      - "us-west-2"
+      - ${OPENAI_KEY}
     restart: on-failure:100
-    
+
   text-completion-rag:
     image: docker.io/trustgraph/trustgraph-flow:0.5.9
     command:
-      - "text-completion-bedrock"
+      - "text-completion-openai"
       - "-p"
       - "pulsar://pulsar:6650"
-  #    - "-m"
-  #    - "mistral.mistral-large-2407-v1:0"
-      - "-z"
-      - "${AWS_ID_KEY}"
       - "-k"
-      - "${AWS_SECRET_KEY}"
-      - "-r"
-      - "us-west-2" 
+      - ${OPENAI_KEY}
       - "-i"
       - "non-persistent://tg/request/text-completion-rag"
       - "-o"
       - "non-persistent://tg/response/text-completion-rag-response"
     restart: on-failure:100
-  
-  #text-completion-rag:
-  #  image: docker.io/trustgraph/trustgraph-flow:0.5.9
-  #  command:
-  #    - "text-completion-ollama"
-  #    - "-p"
-  #    - "pulsar://pulsar:6650"
-  #    - "-r"
-  #    - "http://${OLLAMA_HOST}:11434/"
-  #    - "-i"
-  #    - "non-persistent://tg/request/text-completion-rag"
-  #    - "-o"
-  #    - "non-persistent://tg/response/text-completion-rag-response"
-  #    - "-m"
-  #    - "gemma2:2b"
-  #  restart: on-failure:100
 
   graph-rag:
     image: docker.io/trustgraph/trustgraph-flow:0.5.9
@@ -264,4 +234,3 @@ services:
       - "--text-completion-response-queue"
       - "non-persistent://tg/response/text-completion-rag-response"
     restart: on-failure:100
-

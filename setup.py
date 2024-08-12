@@ -4,7 +4,7 @@ import os
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-version = "0.5.8"
+version = "0.5.9"
 
 setuptools.setup(
     name="trustgraph",
@@ -47,6 +47,7 @@ setuptools.setup(
         "pyarrow",
         "cohere",
         "boto3",
+        "openai",
     ],
     scripts=[
         "scripts/chunker-recursive",
@@ -73,6 +74,7 @@ setuptools.setup(
         "scripts/text-completion-bedrock",
         "scripts/text-completion-claude",
         "scripts/text-completion-ollama",
+        "scripts/text-completion-openai",
         "scripts/text-completion-vertexai",
         "scripts/text-completion-cohere",
         "scripts/triples-dump-parquet",

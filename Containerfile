@@ -13,7 +13,7 @@ RUN dnf install -y python3 python3-pip python3-wheel python3-aiohttp \
 
 RUN pip3 install torch --index-url https://download.pytorch.org/whl/cpu
 
-RUN pip3 install anthropic boto3 cohere google-cloud-aiplatform langchain langchain-core \
+RUN pip3 install anthropic boto3 cohere openai google-cloud-aiplatform langchain langchain-core \
     langchain-huggingface langchain-text-splitters langchain-community \
     pymilvus sentence-transformers transformers huggingface-hub \
     pulsar-client && \
