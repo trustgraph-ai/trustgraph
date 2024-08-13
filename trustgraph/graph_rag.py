@@ -271,6 +271,7 @@ Use only the provided knowledge statements to respond to the following:
 
         if self.verbose:
             print("Invoke LLM...", flush=True)
+            print(prompt)
 
         resp = self.llm.request(prompt)
 

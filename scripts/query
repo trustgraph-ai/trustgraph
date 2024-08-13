@@ -8,6 +8,8 @@ query = " ".join(sys.argv[1:])
 gr = GraphRag(
     verbose=True,
     pulsar_host="pulsar://localhost:6650",
+    completion_request_queue="non-persistent://tg/request/text-completion-rag",
+    completion_response_queue="non-persistent://tg/response/text-completion-rag-response",
 )
 
 if query == "":
