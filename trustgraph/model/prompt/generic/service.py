@@ -5,14 +5,14 @@ Language service abstracts prompt engineering from LLM.
 
 import json
 
-from ..... schema import Definition, Relationship, Triple
-from ..... schema import PromptRequest, PromptResponse
-from ..... schema import TextCompletionRequest, TextCompletionResponse
-from ..... schema import text_completion_request_queue
-from ..... schema import text_completion_response_queue
-from ..... schema import prompt_request_queue, prompt_response_queue
-from ..... base import ConsumerProducer
-from ..... llm_client import LlmClient
+from .... schema import Definition, Relationship, Triple
+from .... schema import PromptRequest, PromptResponse
+from .... schema import TextCompletionRequest, TextCompletionResponse
+from .... schema import text_completion_request_queue
+from .... schema import text_completion_response_queue
+from .... schema import prompt_request_queue, prompt_response_queue
+from .... base import ConsumerProducer
+from .... llm_client import LlmClient
 
 from . prompts import to_definitions, to_relationships, to_kg_query
 

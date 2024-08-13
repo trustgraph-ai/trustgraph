@@ -116,6 +116,36 @@ local cassandra_hosts = "cassandra";
 		"graph-rag",
 		"-p",
 		url.pulsar,
+		"--prompt-request-queue",
+		"non-persistent://tg/request/prompt-rag",
+		"--prompt-response-queue",
+		"non-persistent://tg/response/prompt-rag-response",
+	    ],
+	},
+
+	"prompt": base + {
+	    image: images.trustgraph,
+	    command: [
+		"prompt-generic",
+		"-p",
+		url.pulsar,
+		"--text-completion-request-queue",
+		"non-persistent://tg/request/text-completion",
+		"--text-completion-response-queue",
+		"non-persistent://tg/response/text-completion-response",
+	    ],
+	},
+
+	"prompt-rag": base + {
+	    image: images.trustgraph,
+	    command: [
+		"prompt-generic",
+		"-p",
+		url.pulsar,
+                "-i",
+		"non-persistent://tg/request/prompt-rag",
+                "-o",
+		"non-persistent://tg/response/prompt-rag-response",
 		"--text-completion-request-queue",
 		"non-persistent://tg/request/text-completion-rag",
 		"--text-completion-response-queue",
@@ -126,3 +156,4 @@ local cassandra_hosts = "cassandra";
     },
 
 }
+

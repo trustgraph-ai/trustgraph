@@ -9,11 +9,10 @@ import json
 
 from ... schema import ChunkEmbeddings, Triple, Source, Value
 from ... schema import chunk_embeddings_ingest_queue, triples_store_queue
-from ... schema import text_completion_request_queue
-from ... schema import text_completion_response_queue
+from ... schema import prompt_request_queue
+from ... schema import prompt_response_queue
 from ... log_level import LogLevel
-from ... llm_client import LlmClient
-from ... prompts import to_definitions
+from ... prompt_client import PromptClient
 from ... rdf import TRUSTGRAPH_ENTITIES, DEFINITION
 from ... base import ConsumerProducer
 
@@ -32,11 +31,11 @@ class Processor(ConsumerProducer):
         input_queue = params.get("input_queue", default_input_queue)
         output_queue = params.get("output_queue", default_output_queue)
         subscriber = params.get("subscriber", default_subscriber)
-        tc_request_queue = params.get(
-            "text_completion_request_queue", text_completion_request_queue
+        pr_request_queue = params.get(
+            "prompt_request_queue", prompt_request_queue
         )
-        tc_response_queue = params.get(
-            "text_completion_response_queue", text_completion_response_queue
+        pr_response_queue = params.get(
+            "prompt_response_queue", prompt_response_queue
         )
 
         super(Processor, self).__init__(
@@ -46,16 +45,16 @@ class Processor(ConsumerProducer):
                 "subscriber": subscriber,
                 "input_schema": ChunkEmbeddings,
                 "output_schema": Triple,
-                "text_completion_request_queue": tc_request_queue,
-                "text_completion_response_queue": tc_response_queue,
+                "prompt_request_queue": pr_request_queue,
+                "prompt_response_queue": pr_response_queue,
             }
         )
 
-        self.llm = LlmClient(
+        self.prompt = PromptClient(
             pulsar_host=self.pulsar_host,
-            input_queue=tc_request_queue,
-            output_queue=tc_response_queue,
-            subscriber = module + "-llm",
+            input_queue=pr_request_queue,
+            output_queue=pr_response_queue,
+            subscriber = module + "-prompt",
         )
 
     def to_uri(self, text):
@@ -68,12 +67,7 @@ class Processor(ConsumerProducer):
 
     def get_definitions(self, chunk):
 
-        prompt = to_definitions(chunk)
-        resp = self.llm.request(prompt)
-
-        defs = json.loads(resp)
-
-        return defs
+        return self.prompt.request_definitions(chunk)
 
     def emit_edge(self, s, p, o):
 
@@ -90,14 +84,13 @@ class Processor(ConsumerProducer):
         try:
 
             defs = self.get_definitions(chunk)
-            print(json.dumps(defs, indent=4), flush=True)
 
             for defn in defs:
 
-                s = defn["entity"]
+                s = defn.name
                 s_uri = self.to_uri(s)
 
-                o = defn["definition"]
+                o = defn.definition
 
                 if s == "": continue
                 if o == "": continue
@@ -121,15 +114,15 @@ class Processor(ConsumerProducer):
         )
 
         parser.add_argument(
-            '--text-completion-request-queue',
-            default=text_completion_request_queue,
-            help=f'Text completion request queue (default: {text_completion_request_queue})',
+            '--prompt-request-queue',
+            default=prompt_request_queue,
+            help=f'Prompt request queue (default: {prompt_request_queue})',
         )
 
         parser.add_argument(
-            '--text-completion-response-queue',
-            default=text_completion_response_queue,
-            help=f'Text completion response queue (default: {text_completion_response_queue})',
+            '--prompt-completion-response-queue',
+            default=prompt_response_queue,
+            help=f'Prompt response queue (default: {prompt_response_queue})',
         )
 
 def run():
