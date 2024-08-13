@@ -13,6 +13,9 @@ local images = import "images.jsonnet";
 	    ],
 	    environment: {
 		NEO4J_AUTH: "neo4j/password",
+//		NEO4J_server_bolt_listen__address: "0.0.0.0:7687",
+//		NEO4J_server_default__listen__address: "0.0.0.0",
+//		NEO4J_server_http_listen__address: "0.0.0.0:7474",
 	    },
 	    volumes: [
 		"neo4j:/data"

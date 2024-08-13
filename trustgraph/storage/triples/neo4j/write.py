@@ -21,7 +21,7 @@ module = ".".join(__name__.split(".")[1:-1])
 default_input_queue = triples_store_queue
 default_subscriber = module
 
-default_graph_host = 'bolt://localhost:7687'
+default_graph_host = 'bolt://neo4j:7687'
 default_username = 'neo4j'
 default_password = 'password'
 

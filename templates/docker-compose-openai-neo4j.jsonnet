@@ -46,7 +46,7 @@ local config = neo4j + pulsar + milvus + grafana + trustgraph + {
 		"-p",
 		url.pulsar,
 		"-g",
-		"http://neo4j:7474",
+		"bolt://neo4j:7687",
 	    ],
 	},
 
@@ -57,7 +57,7 @@ local config = neo4j + pulsar + milvus + grafana + trustgraph + {
 		"-p",
 		url.pulsar,
 		"-g",
-		"http://neo4j:7474",
+		"bolt://neo4j:7687",
 	    ],
 	}
 

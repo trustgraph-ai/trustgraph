@@ -18,7 +18,7 @@ default_input_queue = triples_request_queue
 default_output_queue = triples_response_queue
 default_subscriber = module
 
-default_graph_host = 'bolt://localhost:7687'
+default_graph_host = 'bolt://neo4j:7687'
 default_username = 'neo4j'
 default_password = 'password'
 
