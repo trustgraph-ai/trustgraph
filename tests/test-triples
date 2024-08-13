@@ -53,8 +53,8 @@ dump(resp)
 print("-- po ---------------------------")
 
 resp = tq.request(
-    "http://trustgraph.ai/e/shuttle", "http://trustgraph.ai/e/landed",
-    None,
+    None, "http://trustgraph.ai/e/landed",
+    "on the concrete runway at Kennedy Space Center",
     limit
 )
 dump(resp)

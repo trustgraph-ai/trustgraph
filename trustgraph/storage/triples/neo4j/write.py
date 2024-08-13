@@ -111,6 +111,7 @@ class Processor(Consumer):
             nodes_created=summary.counters.nodes_created,
             time=summary.result_available_after
         ))
+
     def handle(self, msg):
 
         v = msg.value()
