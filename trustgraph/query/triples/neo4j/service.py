@@ -180,24 +180,106 @@ class Processor(ConsumerProducer):
                 if v.o is not None:
 
                     # PO
-                    pass
+
+                    records, summary, keys = self.io.execute_query(
+                        "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Literal {value: $value}) "
+                        "RETURN src.uri as src",
+                        uri=v.p.value, value=v.o.value,
+                        database_=self.db,
+                    )
+
+                    for rec in records:
+                        data = rec.data()
+                        triples.append((data["src"], v.p.value, v.o.value))
+                    
+                    records, summary, keys = self.io.execute_query(
+                        "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Node {uri: $uri}) "
+                        "RETURN src.uri as src",
+                        uri=v.p.value, dest=v.o.value,
+                        database_=self.db,
+                    )
+
+                    for rec in records:
+                        data = rec.data()
+                        triples.append((data["src"], v.p.value, v.o.value))
 
                 else:
 
                     # P
-                    pass
+
+                    records, summary, keys = self.io.execute_query(
+                        "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Literal) "
+                        "RETURN src.uri as src, dest.value as dest",
+                        uri=v.p.value,
+                        database_=self.db,
+                    )
+
+                    for rec in records:
+                        data = rec.data()
+                        triples.append((data["src"], v.p.value, data["dest"]))
+                    
+                    records, summary, keys = self.io.execute_query(
+                        "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Node) "
+                        "RETURN src.uri as src, dest.uri as dest",
+                        uri=v.p.value,
+                        database_=self.db,
+                    )
+
+                    for rec in records:
+                        data = rec.data()
+                        triples.append((data["src"], v.p.value, data["dest"]))
 
             else:
 
                 if v.o is not None:
 
                     # O
-                    pass
+
+                    records, summary, keys = self.io.execute_query(
+                        "MATCH (src:Node)-[rel:Rel]->(dest:Literal {value: $value}) "
+                        "RETURN src.uri as src, rel.uri as rel",
+                        value=v.o.value,
+                        database_=self.db,
+                    )
+
+                    for rec in records:
+                        data = rec.data()
+                        triples.append((data["src"], data["rel"], v.o.value))
+                    
+                    records, summary, keys = self.io.execute_query(
+                        "MATCH (src:Node)-[rel:Rel]->(dest:Node {uri: $uri}) "
+                        "RETURN src.uri as src, rel.uri as rel",
+                        uri=v.o.value,
+                        database_=self.db,
+                    )
+
+                    for rec in records:
+                        data = rec.data()
+                        triples.append((data["src"], data["rel"], v.o.value))
 
                 else:
 
                     # *
-                    pass
+
+                    records, summary, keys = self.io.execute_query(
+                        "MATCH (src:Node)-[rel:Rel]->(dest:Literal) "
+                        "RETURN src.uri as src, rel.uri as rel, dest.value as dest",
+                        database_=self.db,
+                    )
+
+                    for rec in records:
+                        data = rec.data()
+                        triples.append((data["src"], data["rel"], data["dest"]))
+                    
+                    records, summary, keys = self.io.execute_query(
+                        "MATCH (src:Node)-[rel:Rel]->(dest:Node) "
+                        "RETURN src.uri as src, rel.uri as rel, dest.uri as dest",
+                        database_=self.db,
+                    )
+
+                    for rec in records:
+                        data = rec.data()
+                        triples.append((data["src"], data["rel"], data["dest"]))
 
         triples = [
             Triple(
