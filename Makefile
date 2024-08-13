@@ -33,7 +33,7 @@ set-version:
 # 	sed -i 's/trustgraph-flow:[0-9]*\.[0-9]*\.[0-9]*/trustgraph-flow:'${VERSION}'/' docker-compose*.yaml
 	echo '"${VERSION}"' > templates/version.jsonnet
 
-TEMPLATES=azure bedrock claude cohere mix ollama openai vertexai
+TEMPLATES=azure bedrock claude cohere mix ollama openai vertexai openai-neo4j
 DCS=$(foreach template,${TEMPLATES},${template:%=docker-compose-%.yaml})
 
 update-templates: set-version ${DCS}
