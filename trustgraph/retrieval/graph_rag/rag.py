@@ -6,8 +6,8 @@ Input is query, output is response.
 
 from ... schema import GraphRagQuery, GraphRagResponse
 from ... schema import graph_rag_request_queue, graph_rag_response_queue
-from ... schema import text_completion_request_queue
-from ... schema import text_completion_response_queue
+from ... schema import prompt_request_queue
+from ... schema import prompt_response_queue
 from ... schema import embeddings_request_queue
 from ... schema import embeddings_response_queue
 from ... schema import graph_embeddings_request_queue
@@ -34,11 +34,11 @@ class Processor(ConsumerProducer):
         entity_limit = params.get("entity_limit", 50)
         triple_limit = params.get("triple_limit", 30)
         max_subgraph_size = params.get("max_subgraph_size", 3000)
-        tc_request_queue = params.get(
-            "text_completion_request_queue", text_completion_request_queue
+        pr_request_queue = params.get(
+            "prompt_request_queue", prompt_request_queue
         )
-        tc_response_queue = params.get(
-            "text_completion_response_queue", text_completion_response_queue
+        pr_response_queue = params.get(
+            "prompt_response_queue", prompt_response_queue
         )
         emb_request_queue = params.get(
             "embeddings_request_queue", embeddings_request_queue
@@ -69,8 +69,8 @@ class Processor(ConsumerProducer):
                 "entity_limit": entity_limit,
                 "triple_limit": triple_limit,
                 "max_subgraph_size": max_subgraph_size,
-                "text_completion_request_queue": tc_request_queue,
-                "text_completion_response_queue": tc_response_queue,
+                "prompt_request_queue": pr_request_queue,
+                "prompt_response_queue": pr_response_queue,
                 "embeddings_request_queue": emb_request_queue,
                 "embeddings_response_queue": emb_response_queue,
                 "graph_embeddings_request_queue": ge_request_queue,
@@ -82,8 +82,8 @@ class Processor(ConsumerProducer):
 
         self.rag = GraphRag(
             pulsar_host=self.pulsar_host,
-            completion_request_queue=tc_request_queue,
-            completion_response_queue=tc_response_queue,
+            pr_request_queue=pr_request_queue,
+            pr_response_queue=pr_response_queue,
             emb_request_queue=emb_request_queue,
             emb_response_queue=emb_response_queue,
             ge_request_queue=ge_request_queue,
@@ -157,15 +157,15 @@ class Processor(ConsumerProducer):
         )
 
         parser.add_argument(
-            '--text-completion-request-queue',
-            default=text_completion_request_queue,
-            help=f'Text completion request queue (default: {text_completion_request_queue})',
+            '--prompt-request-queue',
+            default=prompt_request_queue,
+            help=f'Prompt request queue (default: {prompt_request_queue})',
         )
 
         parser.add_argument(
-            '--text-completion-response-queue',
-            default=text_completion_response_queue,
-            help=f'Text completion response queue (default: {text_completion_response_queue})',
+            '--prompt-response-queue',
+            default=prompt_response_queue,
+            help=f'Prompt response queue (default: {prompt_response_queue})',
         )
 
         parser.add_argument(

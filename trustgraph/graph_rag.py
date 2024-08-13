@@ -1,13 +1,13 @@
 
 from . graph_embeddings_client import GraphEmbeddingsClient
 from . triples_query_client import TriplesQueryClient
-from . llm_client import LlmClient
 from . embeddings_client import EmbeddingsClient
+from . prompt_client import PromptClient
 
 from . schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
 from . schema import TriplesQueryRequest, TriplesQueryResponse
-from . schema import text_completion_request_queue
-from . schema import text_completion_response_queue
+from . schema import prompt_request_queue
+from . schema import prompt_response_queue
 from . schema import embeddings_request_queue
 from . schema import embeddings_response_queue
 from . schema import graph_embeddings_request_queue
@@ -23,8 +23,8 @@ class GraphRag:
     def __init__(
             self,
             pulsar_host="pulsar://pulsar:6650",
-            completion_request_queue=None,
-            completion_response_queue=None,
+            pr_request_queue=None,
+            pr_response_queue=None,
             emb_request_queue=None,
             emb_response_queue=None,
             ge_request_queue=None,
@@ -40,11 +40,11 @@ class GraphRag:
 
         self.verbose=verbose
 
-        if completion_request_queue is None:
-            completion_request_queue = text_completion_request_queue
+        if pr_request_queue is None:
+            pr_request_queue = prompt_request_queue
 
-        if completion_response_queue is None:
-            completion_response_queue = text_completion_response_queue
+        if pr_response_queue is None:
+            pr_response_queue = prompt_response_queue
 
         if emb_request_queue is None:
             emb_request_queue = embeddings_request_queue
@@ -94,11 +94,11 @@ class GraphRag:
 
         self.label_cache = {}
 
-        self.llm = LlmClient(
+        self.lang = PromptClient(
             pulsar_host=pulsar_host,
-            input_queue=completion_request_queue,
-            output_queue=completion_response_queue,
-            subscriber=module + "-llm",
+            input_queue=prompt_request_queue,
+            output_queue=prompt_response_queue,
+            subscriber=module + "-prompt",
         )
 
         if self.verbose:
@@ -229,51 +229,19 @@ class GraphRag:
 
         return sg2
 
-    def get_cypher(self, query):
-
-        sg = self.get_labelgraph(query)
-
-        sg2 = []
-
-        for s, p, o in sg:
-
-            sg2.append(f"({s})-[{p}]->({o})")
-
-        kg = "\n".join(sg2)
-        kg = kg.replace("\\", "-")
-
-        if self.verbose:
-            print(kg)
-
-        return kg
-
-    def get_graph_prompt(self, query):
-
-        kg =  self.get_cypher(query)
-
-        prompt=f"""Study the following set of knowledge statements. The statements are written in Cypher format that has been extracted from a knowledge graph. Use only the provided set of knowledge statements in your response. Do not speculate if the answer is not found in the provided set of knowledge statements.
-
-Here's the knowledge statements:
-{kg}
-
-Use only the provided knowledge statements to respond to the following:
-{query}
-"""
-
-        return prompt
-
     def query(self, query):
 
         if self.verbose:
             print("Construct prompt...", flush=True)
 
-        prompt = self.get_graph_prompt(query)
+        kg = self.get_labelgraph(query)
 
         if self.verbose:
             print("Invoke LLM...", flush=True)
-            print(prompt)
+            print(kg)
+            print(query)
 
-        resp = self.llm.request(prompt)
+        resp = self.lang.request_kg_prompt(query, kg)
 
         if self.verbose:
             print("Done", flush=True)
