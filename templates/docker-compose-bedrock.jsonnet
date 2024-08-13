@@ -1,13 +1,13 @@
 
-local base = import "base.jsonnet";
-local url = import "url.jsonnet";
-local images = import "images.jsonnet";
+local base = import "components/base.jsonnet";
+local url = import "components/url.jsonnet";
+local images = import "components/images.jsonnet";
 
-local cassandra = import "cassandra.jsonnet";
-local pulsar = import "pulsar.jsonnet";
-local milvus = import "milvus.jsonnet";
-local grafana = import "grafana.jsonnet";
-local trustgraph = import "trustgraph.jsonnet";
+local cassandra = import "components/cassandra.jsonnet";
+local pulsar = import "components/pulsar.jsonnet";
+local milvus = import "components/milvus.jsonnet";
+local grafana = import "components/grafana.jsonnet";
+local trustgraph = import "components/trustgraph.jsonnet";
 
 local config = cassandra + pulsar + milvus + grafana + trustgraph + {
     services +: {
