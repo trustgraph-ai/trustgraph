@@ -176,3 +176,47 @@ graph_rag_response_queue = topic(
 
 ############################################################################
 
+# Prompt services, abstract the prompt generation
+
+class Definition(Record):
+    name = String()
+    definition = String()
+
+class Relationship(Record):
+    s = String()
+    p = String()
+    o = String()
+    o_entity = Boolean()
+
+class Fact(Record):
+    s = String()
+    p = String()
+    o = String()
+
+# extract-definitions:
+#   chunk -> definitions
+# extract-relationships:
+#   chunk -> relationships
+# prompt-rag:
+#   query, triples -> answer
+
+class PromptRequest(Record):
+    kind = String()
+    chunk = String()
+    query = String()
+    kg = Array(Fact())
+
+class PromptResponse(Record):
+    answer = String()
+    definitions = Array(Definition())
+    relationships = Array(Relationship())
+
+prompt_request_queue = topic(
+    'prompt', kind='non-persistent', namespace='request'
+)
+prompt_response_queue = topic(
+    'prompt-response', kind='non-persistent', namespace='response'
+)
+
+############################################################################
+

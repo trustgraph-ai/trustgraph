@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+
+import pulsar
+from trustgraph.prompt_client import PromptClient
+
+p = PromptClient(pulsar_host="pulsar://localhost:6650")
+
+facts = [
+      ("accident", "evoked", "a wide range of deeply felt public responses"),
+      ("Space Shuttle concept", "had", "genesis"),
+      ("Commission", "had", "a mandate to develop recommendations for corrective or other action based upon the Commission's findings and determinations"),
+      ("Commission", "established", "teams of persons"),
+      ("Space Shuttle Challenger", "http://www.w3.org/2004/02/skos/core#definition", "A space shuttle that was destroyed in an accident during mission 51-L."),
+      ("The mid fuselage", "contains", "the payload bay"),
+      ("Volume I", "contains", "Chapter IX"),
+      ("accident", "resulted in", "firm national resolve that those men and women be forever enshrined in the annals of American heroes"),
+      ("Volume I", "contains", "Chapter IV"),
+      ("Volume I", "contains", "Appendix A"),
+      ("Volume I", "contains", "Appendix B"),
+      ("Volume I", "contains", "The Staff"),
+      ("Commission", "required", "detailed investigation"),
+      ("Commission", "focused", "safety aspects of future flights"),
+      ("Commission", "http://www.w3.org/2004/02/skos/core#definition", "An independent group appointed to investigate the Space Shuttle Challenger accident."),
+      ("Commission", "moved forward with", "its investigation"),
+      ("President", "appointed", "an independent Commission"),
+      ("accident", "interrupted", "one of the most productive engineering, scientific and exploratory programs in history"),
+      ("Volume I", "contains", "Preface"),
+      ("Commission", "believes", "investigation"),
+      ("Volume I", "contains", "Chapter I"),
+      ("President", "was moved and troubled", "by this accident in a very personal way"),
+      ("PRESIDENTIAL COMMISSION", "Report to", "President"),
+      ("Volume I", "contains", "Chapter VI"),
+      ("Commission", "held", "public hearings dealing with the facts leading up to the accident"),
+      ("Volume I", "http://www.w3.org/2004/02/skos/core#definition", "The first volume of a multi-volume publication."),
+      ("Space Shuttle Challenger", "was involved in", "an accident"),
+      ("Volume I", "contains", "Chapter VII"),
+      ("Volume I", "contains", "Chapter II"),
+      ("Volume I", "contains", "Chapter V"),
+      ("Commission", "believes", "its investigation and report have been responsive to the request of the President and hopes that they will serve the best interests of the nation in restoring the United States space program to its preeminent position in the world"),
+      ("Commission", "supported", "panels"),
+      ("Volume I", "contains", "Chapter VIII"),
+      ("NASA", "cooperated", "Commission"),
+      ("liquid oxygen tank", "contains", "oxidizer"),
+      ("President", "http://www.w3.org/2004/02/skos/core#definition", "The head of state of the United States."),
+      ("Volume I", "contains", "Chapter III"),
+      ("Apollo lunar landing spacecraft", "had", "not yet flown"),
+      ("Commission", "construe", "mandate"),
+      ("accident", "became", "a milestone on the way to achieving the full potential that space offers to mankind"),
+      ("Volume I", "contains", "The Commission"),
+      ("Commission", "focused", "attention"),
+      ("Commission", "learned", "lessons"),
+      ("Commission", "required", "interfere with or supersede Congress"),
+      ("Commission", "was made up of", "persons not connected with the mission"),
+      ("Commission", "required", "review budgetary matters"),
+      ("Space Shuttle", "became", "focus of NASA's near-term future"),
+      ("Volume I", "contains", "Appendix C"),
+      ("accident", "caused", "grief and sadness for the loss of seven brave members of the crew"),
+      ("Commission", "http://www.w3.org/2004/02/skos/core#definition", "A group established to investigate the space shuttle accident"),
+      ("Volume I", "contains", "Appendix D"),
+      ("Commission", "had", "a mandate to review the circumstances surrounding the accident to establish the probable cause or causes of the accident"),
+      ("Volume I", "contains", "Recommendations")
+]
+
+query="Present 20 facts which are present in the knowledge graph."
+
+resp = p.request_kg_prompt(
+    query=query,
+    kg=facts,
+)
+
+print(resp)
+
