@@ -71,6 +71,24 @@ graph_embeddings_store_queue = topic('graph-embeddings-store')
 
 ############################################################################
 
+# Graph embeddings query
+
+class GraphEmbeddingsRequest(Record):
+    vectors = Array(Array(Double()))
+    limit = Integer()
+
+class GraphEmbeddingsResponse(Record):
+    entities = Array(Value())
+
+graph_embeddings_request_queue = topic(
+    'graph-embeddings', kind='non-persistent', namespace='request'
+)
+graph_embeddings_response_queue = topic(
+    'graph-embeddings-response', kind='non-persistent', namespace='response', 
+)
+
+############################################################################
+
 # Graph triples
 
 class Triple(Record):
@@ -80,6 +98,26 @@ class Triple(Record):
     o = Value()
 
 triples_store_queue = topic('triples-store')
+
+############################################################################
+
+# Triples query
+
+class TriplesQueryRequest(Record):
+    s = Value()
+    p = Value()
+    o = Value()
+    limit = Integer()
+
+class TriplesQueryResponse(Record):
+    triples = Array(Triple())
+
+triples_request_queue = topic(
+    'triples', kind='non-persistent', namespace='request'
+)
+triples_response_queue = topic(
+    'triples-response', kind='non-persistent', namespace='response',
+)
 
 ############################################################################
 
@@ -134,6 +172,50 @@ graph_rag_request_queue = topic(
 )
 graph_rag_response_queue = topic(
     'graph-rag-response', kind='non-persistent', namespace='response'
+)
+
+############################################################################
+
+# Prompt services, abstract the prompt generation
+
+class Definition(Record):
+    name = String()
+    definition = String()
+
+class Relationship(Record):
+    s = String()
+    p = String()
+    o = String()
+    o_entity = Boolean()
+
+class Fact(Record):
+    s = String()
+    p = String()
+    o = String()
+
+# extract-definitions:
+#   chunk -> definitions
+# extract-relationships:
+#   chunk -> relationships
+# prompt-rag:
+#   query, triples -> answer
+
+class PromptRequest(Record):
+    kind = String()
+    chunk = String()
+    query = String()
+    kg = Array(Fact())
+
+class PromptResponse(Record):
+    answer = String()
+    definitions = Array(Definition())
+    relationships = Array(Relationship())
+
+prompt_request_queue = topic(
+    'prompt', kind='non-persistent', namespace='request'
+)
+prompt_response_queue = topic(
+    'prompt-response', kind='non-persistent', namespace='response'
 )
 
 ############################################################################

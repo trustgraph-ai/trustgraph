@@ -6,8 +6,8 @@ from trustgraph.graph_rag_client import GraphRagClient
 rag = GraphRagClient(pulsar_host="pulsar://localhost:6650")
 
 query="""
-Identify any facts which provide an explanation of the explosion of the
-space shuttle rocket boosters"""
+This knowledge graph describes the Space Shuttle disaster.
+Present 20 facts which are present in the knowledge graph."""
 
 resp = rag.request(query)
 

@@ -6,18 +6,16 @@ graph edges.
 """
 
 import urllib.parse
-import json
 import os
 from pulsar.schema import JsonSchema
 
 from ... schema import ChunkEmbeddings, Triple, GraphEmbeddings, Source, Value
 from ... schema import chunk_embeddings_ingest_queue, triples_store_queue
 from ... schema import graph_embeddings_store_queue
-from ... schema import text_completion_request_queue
-from ... schema import text_completion_response_queue
+from ... schema import prompt_request_queue
+from ... schema import prompt_response_queue
 from ... log_level import LogLevel
-from ... llm_client import LlmClient
-from ... prompts import to_relationships
+from ... prompt_client import PromptClient
 from ... rdf import RDF_LABEL, TRUSTGRAPH_ENTITIES
 from ... base import ConsumerProducer
 
@@ -38,11 +36,11 @@ class Processor(ConsumerProducer):
         output_queue = params.get("output_queue", default_output_queue)
         vector_queue = params.get("vector_queue", default_vector_queue)
         subscriber = params.get("subscriber", default_subscriber)
-        tc_request_queue = params.get(
-            "text_completion_request_queue", text_completion_request_queue
+        pr_request_queue = params.get(
+            "prompt_request_queue", prompt_request_queue
         )
-        tc_response_queue = params.get(
-            "text_completion_response_queue", text_completion_response_queue
+        pr_response_queue = params.get(
+            "prompt_response_queue", prompt_response_queue
         )
 
         super(Processor, self).__init__(
@@ -52,8 +50,8 @@ class Processor(ConsumerProducer):
                 "subscriber": subscriber,
                 "input_schema": ChunkEmbeddings,
                 "output_schema": Triple,
-                "text_completion_request_queue": tc_request_queue,
-                "text_completion_response_queue": tc_response_queue,
+                "prompt_request_queue": pr_request_queue,
+                "prompt_response_queue": pr_response_queue,
             }
         )
 
@@ -66,19 +64,19 @@ class Processor(ConsumerProducer):
             "input_queue": input_queue,
             "output_queue": output_queue,
             "vector_queue": vector_queue,
-            "text_completion_request_queue": tc_request_queue,
-            "text_completion_response_queue": tc_response_queue,
+            "prompt_request_queue": pr_request_queue,
+            "prompt_response_queue": pr_response_queue,
             "subscriber": subscriber,
             "input_schema": ChunkEmbeddings.__name__,
             "output_schema": Triple.__name__,
             "vector_schema": GraphEmbeddings.__name__,
         })
 
-        self.llm = LlmClient(
-            pulsar_host = self.pulsar_host,
-            input_queue=tc_request_queue,
-            output_queue=tc_response_queue,
-            subscriber = module + "-llm",
+        self.prompt = PromptClient(
+            pulsar_host=self.pulsar_host,
+            input_queue=pr_request_queue,
+            output_queue=pr_response_queue,
+            subscriber = module + "-prompt",
         )
 
     def to_uri(self, text):
@@ -91,12 +89,7 @@ class Processor(ConsumerProducer):
 
     def get_relationships(self, chunk):
 
-        prompt = to_relationships(chunk)
-        resp = self.llm.request(prompt)
-
-        rels = json.loads(resp)
-
-        return rels
+        return self.prompt.request_relationships(chunk)
 
     def emit_edge(self, s, p, o):
 
@@ -118,13 +111,12 @@ class Processor(ConsumerProducer):
         try:
 
             rels = self.get_relationships(chunk)
-            print(json.dumps(rels, indent=4), flush=True)
 
             for rel in rels:
 
-                s = rel["subject"]
-                p = rel["predicate"]
-                o = rel["object"]
+                s = rel.s
+                p = rel.p
+                o = rel.o
 
                 if s == "": continue
                 if p == "": continue
@@ -136,7 +128,7 @@ class Processor(ConsumerProducer):
                 p_uri = self.to_uri(p)
                 p_value = Value(value=str(p_uri), is_uri=True)
 
-                if rel["object-entity"]: 
+                if rel.o_entity: 
                     o_uri = self.to_uri(o)
                     o_value = Value(value=str(o_uri), is_uri=True)
                 else:
@@ -162,7 +154,7 @@ class Processor(ConsumerProducer):
                     Value(value=str(p), is_uri=False)
                 )
 
-                if rel["object-entity"]: 
+                if rel.o_entity:
                     # Label for o
                     self.emit_edge(
                         o_value,
@@ -172,7 +164,7 @@ class Processor(ConsumerProducer):
 
                 self.emit_vec(s_value, v.vectors)
                 self.emit_vec(p_value, v.vectors)
-                if rel["object-entity"]: 
+                if rel.o_entity:
                     self.emit_vec(o_value, v.vectors)
 
         except Exception as e:
@@ -195,15 +187,15 @@ class Processor(ConsumerProducer):
         )
 
         parser.add_argument(
-            '--text-completion-request-queue',
-            default=text_completion_request_queue,
-            help=f'Text completion request queue (default: {text_completion_request_queue})',
+            '--prompt-request-queue',
+            default=prompt_request_queue,
+            help=f'Prompt request queue (default: {prompt_request_queue})',
         )
 
         parser.add_argument(
-            '--text-completion-response-queue',
-            default=text_completion_response_queue,
-            help=f'Text completion response queue (default: {text_completion_response_queue})',
+            '--prompt-response-queue',
+            default=prompt_response_queue,
+            help=f'Prompt response queue (default: {prompt_response_queue})',
         )
 
 def run():

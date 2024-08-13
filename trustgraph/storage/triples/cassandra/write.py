@@ -9,7 +9,7 @@ import os
 import argparse
 import time
 
-from .... trustgraph import TrustGraph
+from .... direct.cassandra import TrustGraph
 from .... schema import Triple
 from .... schema import triples_store_queue
 from .... log_level import LogLevel
@@ -34,6 +34,7 @@ class Processor(Consumer):
                 "input_queue": input_queue,
                 "subscriber": subscriber,
                 "input_schema": Triple,
+                "graph_host": graph_host,
             }
         )
 

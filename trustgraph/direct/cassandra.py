@@ -67,7 +67,7 @@ class TrustGraph:
 
     def get_s(self, s, limit=10):
         return self.session.execute(
-            f"select p, o from triples where s = %s",
+            f"select p, o from triples where s = %s limit {limit}",
             (s,)
         )
 
@@ -97,7 +97,7 @@ class TrustGraph:
 
     def get_os(self, o, s, limit=10):
         return self.session.execute(
-            f"select s from triples where o = %s and s = %s limit {limit}",
+            f"select p from triples where o = %s and s = %s limit {limit}",
             (o, s)
         )
 

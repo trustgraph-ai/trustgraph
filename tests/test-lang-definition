@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+
+import pulsar
+from trustgraph.prompt_client import PromptClient
+
+p = PromptClient(pulsar_host="pulsar://localhost:6650")
+
+chunk = """I noticed a cat in my garden.  It is a four-legged animal
+which is a mammal and can be tame or wild.  I wonder if it will be friends
+with me.  I think the cat's name is Fred and it has 4 legs"""
+
+resp = p.request_definitions(
+    chunk=chunk,
+)
+
+for d in resp:
+    print(d.name, ":", d.definition)
+

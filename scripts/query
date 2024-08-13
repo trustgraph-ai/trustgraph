@@ -7,9 +7,9 @@ query = " ".join(sys.argv[1:])
 
 gr = GraphRag(
     verbose=True,
-    vector_store="http://localhost:19530",
     pulsar_host="pulsar://localhost:6650",
-    graph_hosts=["localhost"],
+    pr_request_queue="non-persistent://tg/request/prompt",
+    pr_response_queue="non-persistent://tg/response/prompt-response",
 )
 
 if query == "":

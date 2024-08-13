@@ -1,11 +1,19 @@
 
-from trustgraph.trustgraph import TrustGraph
-from trustgraph.triple_vectors import TripleVectors
-from trustgraph.trustgraph import TrustGraph
-from trustgraph.llm_client import LlmClient
-from trustgraph.embeddings_client import EmbeddingsClient
-from . schema import text_completion_request_queue
-from . schema import text_completion_response_queue
+from . graph_embeddings_client import GraphEmbeddingsClient
+from . triples_query_client import TriplesQueryClient
+from . embeddings_client import EmbeddingsClient
+from . prompt_client import PromptClient
+
+from . schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
+from . schema import TriplesQueryRequest, TriplesQueryResponse
+from . schema import prompt_request_queue
+from . schema import prompt_response_queue
+from . schema import embeddings_request_queue
+from . schema import embeddings_response_queue
+from . schema import graph_embeddings_request_queue
+from . schema import graph_embeddings_response_queue
+from . schema import triples_request_queue
+from . schema import triples_response_queue
 
 LABEL="http://www.w3.org/2000/01/rdf-schema#label"
 DEFINITION="http://www.w3.org/2004/02/skos/core#definition"
@@ -14,13 +22,15 @@ class GraphRag:
 
     def __init__(
             self,
-            graph_hosts=None,
             pulsar_host="pulsar://pulsar:6650",
-            vector_store="http://milvus:19530",
-            completion_request_queue=None,
-            completion_response_queue=None,
+            pr_request_queue=None,
+            pr_response_queue=None,
             emb_request_queue=None,
             emb_response_queue=None,
+            ge_request_queue=None,
+            ge_response_queue=None,
+            tpl_request_queue=None,
+            tpl_response_queue=None,
             verbose=False,
             entity_limit=50,
             triple_limit=30,
@@ -30,25 +40,46 @@ class GraphRag:
 
         self.verbose=verbose
 
-        if completion_request_queue == None:
-            completion_request_queue = text_completion_request_queue
+        if pr_request_queue is None:
+            pr_request_queue = prompt_request_queue
 
-        if completion_response_queue == None:
-            completion_response_queue = text_completion_response_queue
+        if pr_response_queue is None:
+            pr_response_queue = prompt_response_queue
 
-        if emb_request_queue == None:
+        if emb_request_queue is None:
             emb_request_queue = embeddings_request_queue
 
-        if emb_response_queue == None:
+        if emb_response_queue is None:
             emb_response_queue = embeddings_response_queue
 
-        if graph_hosts == None:
-            graph_hosts = ["cassandra"]
+        if ge_request_queue is None:
+            ge_request_queue = graph_embeddings_request_queue
+
+        if ge_response_queue is None:
+            ge_response_queue = graph_embeddings_response_queue
+
+        if tpl_request_queue is None:
+            tpl_request_queue = triples_request_queue
+
+        if tpl_response_queue is None:
+            tpl_response_queue = triples_response_queue
 
         if self.verbose:
             print("Initialising...", flush=True)
 
-        self.graph = TrustGraph(graph_hosts)
+        self.ge_client = GraphEmbeddingsClient(
+            pulsar_host=pulsar_host,
+            subscriber=module + "-ge",
+            input_queue=ge_request_queue,
+            output_queue=ge_response_queue,
+        )            
+
+        self.triples_client = TriplesQueryClient(
+            pulsar_host=pulsar_host,
+            subscriber=module + "-tpl",
+            input_queue=tpl_request_queue,
+            output_queue=tpl_response_queue
+        )
 
         self.embeddings = EmbeddingsClient(
             pulsar_host=pulsar_host,
@@ -57,19 +88,17 @@ class GraphRag:
             subscriber=module + "-emb",
         )
 
-        self.vecstore = TripleVectors(vector_store)
-
         self.entity_limit=entity_limit
         self.query_limit=triple_limit
         self.max_subgraph_size=max_subgraph_size
 
         self.label_cache = {}
 
-        self.llm = LlmClient(
+        self.lang = PromptClient(
             pulsar_host=pulsar_host,
-            input_queue=completion_request_queue,
-            output_queue=completion_response_queue,
-            subscriber=module + "-llm",
+            input_queue=prompt_request_queue,
+            output_queue=prompt_response_queue,
+            subscriber=module + "-prompt",
         )
 
         if self.verbose:
@@ -89,69 +118,42 @@ class GraphRag:
 
     def get_entities(self, query):
 
-        everything = []
-
         vectors = self.get_vector(query)
 
         if self.verbose:
             print("Get entities...", flush=True)
 
-        for vector in vectors:
+        entities = self.ge_client.request(
+            vectors, self.entity_limit
+        )
 
-            res = self.vecstore.search(
-                vector,
-                limit=self.entity_limit
-            )
-
-            print("Obtained", len(res), "entities")
-
-            entities = set([
-                item["entity"]["entity"]
-                for item in res
-            ])
-
-            everything.extend(entities)
+        entities = [
+            e.value
+            for e in entities
+        ]
 
         if self.verbose:
             print("Entities:", flush=True)
-            for ent in everything:
+            for ent in entities:
                 print(" ", ent, flush=True)
 
-        return everything
+        return entities
         
     def maybe_label(self, e):
 
         if e in self.label_cache:
             return self.label_cache[e]
 
-        res = self.graph.get_sp(e, LABEL)
-        res = list(res)
+        res = self.triples_client.request(
+            e, LABEL, None, limit=1
+        )
 
         if len(res) == 0:
             self.label_cache[e] = e
             return e
 
-        self.label_cache[e] = res[0][0]
+        self.label_cache[e] = res[0].o.value
         return self.label_cache[e]
-
-    def get_nodes(self, query):
-
-        ents = self.get_entities(query)
-
-        if self.verbose:
-            print("Get labels...", flush=True)
-
-        nodes = [
-            self.maybe_label(e)
-            for e in ents
-        ]
-
-        if self.verbose:
-            print("Nodes:", flush=True)
-            for node in nodes:
-                print(" ", node, flush=True)
-
-        return nodes
 
     def get_subgraph(self, query):
 
@@ -164,17 +166,35 @@ class GraphRag:
 
         for e in entities:
 
-            res = self.graph.get_s(e, limit=self.query_limit)
-            for p, o in res:
-                subgraph.add((e, p, o))
+            res = self.triples_client.request(
+                e, None, None,
+                limit=self.query_limit
+            )
 
-            res = self.graph.get_p(e, limit=self.query_limit)
-            for s, o in res:
-                subgraph.add((s, e, o))
+            for triple in res:
+                subgraph.add(
+                    (triple.s.value, triple.p.value, triple.o.value)
+                )
 
-            res = self.graph.get_o(e, limit=self.query_limit)
-            for s, p in res:
-                subgraph.add((s, p, e))
+            res = self.triples_client.request(
+                None, e, None,
+                limit=self.query_limit
+            )
+
+            for triple in res:
+                subgraph.add(
+                    (triple.s.value, triple.p.value, triple.o.value)
+                )
+
+            res = self.triples_client.request(
+                None, None, e,
+                limit=self.query_limit
+            )
+
+            for triple in res:
+                subgraph.add(
+                    (triple.s.value, triple.p.value, triple.o.value)
+                )
 
         subgraph = list(subgraph)
 
@@ -209,47 +229,19 @@ class GraphRag:
 
         return sg2
 
-    def get_cypher(self, query):
-
-        sg = self.get_labelgraph(query)
-
-        sg2 = []
-
-        for s, p, o in sg:
-
-            sg2.append(f"({s})-[{p}]->({o})")
-
-        kg = "\n".join(sg2)
-        kg = kg.replace("\\", "-")
-
-        return kg
-
-    def get_graph_prompt(self, query):
-
-        kg =  self.get_cypher(query)
-
-        prompt=f"""Study the following set of knowledge statements. The statements are written in Cypher format that has been extracted from a knowledge graph. Use only the provided set of knowledge statements in your response. Do not speculate if the answer is not found in the provided set of knowledge statements.
-
-Here's the knowledge statements:
-{kg}
-
-Use only the provided knowledge statements to respond to the following:
-{query}
-"""
-
-        return prompt
-
     def query(self, query):
 
         if self.verbose:
             print("Construct prompt...", flush=True)
 
-        prompt = self.get_graph_prompt(query)
+        kg = self.get_labelgraph(query)
 
         if self.verbose:
             print("Invoke LLM...", flush=True)
+            print(kg)
+            print(query)
 
-        resp = self.llm.request(prompt)
+        resp = self.lang.request_kg_prompt(query, kg)
 
         if self.verbose:
             print("Done", flush=True)

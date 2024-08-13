@@ -6,10 +6,14 @@ Input is query, output is response.
 
 from ... schema import GraphRagQuery, GraphRagResponse
 from ... schema import graph_rag_request_queue, graph_rag_response_queue
-from ... schema import text_completion_request_queue
-from ... schema import text_completion_response_queue
+from ... schema import prompt_request_queue
+from ... schema import prompt_response_queue
 from ... schema import embeddings_request_queue
 from ... schema import embeddings_response_queue
+from ... schema import graph_embeddings_request_queue
+from ... schema import graph_embeddings_response_queue
+from ... schema import triples_request_queue
+from ... schema import triples_response_queue
 from ... log_level import LogLevel
 from ... graph_rag import GraphRag
 from ... base import ConsumerProducer
@@ -19,8 +23,6 @@ module = ".".join(__name__.split(".")[1:-1])
 default_input_queue = graph_rag_request_queue
 default_output_queue = graph_rag_response_queue
 default_subscriber = module
-default_graph_hosts = 'localhost'
-default_vector_store = 'http://localhost:19530'
 
 class Processor(ConsumerProducer):
 
@@ -29,22 +31,32 @@ class Processor(ConsumerProducer):
         input_queue = params.get("input_queue", default_input_queue)
         output_queue = params.get("output_queue", default_output_queue)
         subscriber = params.get("subscriber", default_subscriber)
-        graph_hosts = params.get("graph_hosts", default_graph_hosts)
-        vector_store = params.get("vector_store", default_vector_store)
         entity_limit = params.get("entity_limit", 50)
         triple_limit = params.get("triple_limit", 30)
         max_subgraph_size = params.get("max_subgraph_size", 3000)
-        tc_request_queue = params.get(
-            "text_completion_request_queue", text_completion_request_queue
+        pr_request_queue = params.get(
+            "prompt_request_queue", prompt_request_queue
         )
-        tc_response_queue = params.get(
-            "text_completion_response_queue", text_completion_response_queue
+        pr_response_queue = params.get(
+            "prompt_response_queue", prompt_response_queue
         )
         emb_request_queue = params.get(
             "embeddings_request_queue", embeddings_request_queue
         )
         emb_response_queue = params.get(
             "embeddings_response_queue", embeddings_response_queue
+        )
+        ge_request_queue = params.get(
+            "graph_embeddings_request_queue", graph_embeddings_request_queue
+        )
+        ge_response_queue = params.get(
+            "graph_embeddings_response_queue", graph_embeddings_response_queue
+        )
+        tpl_request_queue = params.get(
+            "triples_request_queue", triples_request_queue
+        )
+        tpl_response_queue = params.get(
+            "triples_response_queue", triples_response_queue
         )
 
         super(Processor, self).__init__(
@@ -57,21 +69,27 @@ class Processor(ConsumerProducer):
                 "entity_limit": entity_limit,
                 "triple_limit": triple_limit,
                 "max_subgraph_size": max_subgraph_size,
-                "text_completion_request_queue": tc_request_queue,
-                "text_completion_response_queue": tc_response_queue,
+                "prompt_request_queue": pr_request_queue,
+                "prompt_response_queue": pr_response_queue,
                 "embeddings_request_queue": emb_request_queue,
                 "embeddings_response_queue": emb_response_queue,
+                "graph_embeddings_request_queue": ge_request_queue,
+                "graph_embeddings_response_queue": ge_response_queue,
+                "triples_request_queue": triples_request_queue,
+                "triples_response_queue": triples_response_queue,
             }
         )
 
         self.rag = GraphRag(
             pulsar_host=self.pulsar_host,
-            graph_hosts=graph_hosts.split(","),
-            completion_request_queue=tc_request_queue,
-            completion_response_queue=tc_response_queue,
+            pr_request_queue=pr_request_queue,
+            pr_response_queue=pr_response_queue,
             emb_request_queue=emb_request_queue,
             emb_response_queue=emb_response_queue,
-            vector_store=vector_store,
+            ge_request_queue=ge_request_queue,
+            ge_response_queue=ge_response_queue,
+            tpl_request_queue=triples_request_queue,
+            tpl_response_queue=triples_response_queue,
             verbose=True,
             entity_limit=entity_limit,
             triple_limit=triple_limit,
@@ -139,15 +157,15 @@ class Processor(ConsumerProducer):
         )
 
         parser.add_argument(
-            '--text-completion-request-queue',
-            default=text_completion_request_queue,
-            help=f'Text completion request queue (default: {text_completion_request_queue})',
+            '--prompt-request-queue',
+            default=prompt_request_queue,
+            help=f'Prompt request queue (default: {prompt_request_queue})',
         )
 
         parser.add_argument(
-            '--text-completion-response-queue',
-            default=text_completion_response_queue,
-            help=f'Text completion response queue (default: {text_completion_response_queue})',
+            '--prompt-response-queue',
+            default=prompt_response_queue,
+            help=f'Prompt response queue (default: {prompt_response_queue})',
         )
 
         parser.add_argument(
@@ -159,7 +177,31 @@ class Processor(ConsumerProducer):
         parser.add_argument(
             '--embeddings-response-queue',
             default=embeddings_response_queue,
-            help=f'Embeddings request queue (default: {embeddings_response_queue})',
+            help=f'Embeddings response queue (default: {embeddings_response_queue})',
+        )
+
+        parser.add_argument(
+            '--graph-embeddings-request-queue',
+            default=graph_embeddings_request_queue,
+            help=f'Graph embeddings request queue (default: {graph_embeddings_request_queue})',
+        )
+
+        parser.add_argument(
+            '--graph_embeddings-response-queue',
+            default=graph_embeddings_response_queue,
+            help=f'Graph embeddings response queue (default: {graph_embeddings_response_queue})',
+        )
+
+        parser.add_argument(
+            '--triples-request-queue',
+            default=triples_request_queue,
+            help=f'Triples request queue (default: {triples_request_queue})',
+        )
+
+        parser.add_argument(
+            '--triples-response-queue',
+            default=triples_response_queue,
+            help=f'Triples response queue (default: {triples_response_queue})',
         )
 
 def run():

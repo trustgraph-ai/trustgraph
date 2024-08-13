@@ -9,10 +9,8 @@ import os
 import argparse
 import time
 
-from .... trustgraph import TrustGraph
 from .... schema import Triple
 from .... schema import triples_store_queue
-from .... log_level import LogLevel
 from .... base import Consumer
 
 from . writer import ParquetWriter

@@ -6,7 +6,7 @@ Accepts entity/vector pairs and writes them to a Milvus store.
 from .... schema import GraphEmbeddings
 from .... schema import graph_embeddings_store_queue
 from .... log_level import LogLevel
-from .... triple_vectors import TripleVectors
+from .... direct.milvus import TripleVectors
 from .... base import Consumer
 
 module = ".".join(__name__.split(".")[1:-1])
@@ -51,8 +51,8 @@ class Processor(Consumer):
 
         parser.add_argument(
             '-t', '--store-uri',
-            default="http://milvus:19530",
-            help=f'Milvus store URI (default: http://milvus:19530)'
+            default=default_store_uri,
+            help=f'Milvus store URI (default: {default_store_uri})'
         )
 
 def run():
