@@ -6,7 +6,7 @@
 
 ## Introduction
 
-TrustGraph is a true end-to-end (e2e) knowledge pipeline that performs a `naive extraction` on a text corpus
+TrustGraph is a true end-to-end (e2e) knowledge pipeline that performs a `Naive Extraction` on a text corpus
 to build a RDF style knowledge graph coupled with a `RAG` service compatible with cloud LLMs and open-source
 SLMs (Small Language Models).
 
@@ -30,7 +30,7 @@ by deploying multiple containers.
 - Mixed model deployments
 - Application of a [HuggingFace](https://hf.co) embeddings models
 - [RDF](https://www.w3.org/TR/rdf12-schema/)-aligned Knowledge Graph extraction
-- Graph edge loading into [Apache Cassandra](https://github.com/apache/cassandra)
+- Graph edge loading into [Apache Cassandra](https://github.com/apache/cassandra) or [Neo4j](https://neo4j.com/)
 - Storing embeddings in [Milvus](https://github.com/milvus-io/milvus)
 - Build and load [Knowledge Cores](https://trustgraph.ai/docs/category/knowledge-cores)
 - Embedding query service
@@ -73,6 +73,8 @@ package installed can also run the entire architecture.
   provide a response to a text prompt.
 - `triples-write-cassandra` - Takes knowledge graph edges and writes them to
   a Cassandra store.
+- `triples-write-neo4j` - Takes knowledge graph edges and writes them to
+  a Neo4j store.
 - `kg-extract-definitions` - knowledge extractor - examines text and
   produces graph edges.
   describing discovered terms and also their defintions.  Definitions are
