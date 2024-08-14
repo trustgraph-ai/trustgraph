@@ -1,6 +1,6 @@
 
 # VERSION=$(shell git describe | sed 's/^v//')
-VERSION=0.6.1
+VERSION=0.6.2
 
 DOCKER=podman
 
@@ -38,6 +38,6 @@ DCS=$(foreach template,${TEMPLATES},${template:%=docker-compose-%.yaml})
 
 update-templates: set-version ${DCS}
 
-docker-compose-%.yaml: templates/docker-compose-%.jsonnet templates/version.jsonnet
+docker-compose-%.yaml: templates/docker-compose-%.jsonnet templates/components/version.jsonnet
 	jsonnet -S ${@:docker-compose-%.yaml=templates/docker-compose-%.jsonnet} > $@
 

@@ -5,8 +5,6 @@ local images = import "images.jsonnet";
 
 local url = import "url.jsonnet";
 
-local cassandra_hosts = "cassandra";
-
 {
     services +: {
 
@@ -85,28 +83,6 @@ local cassandra_hosts = "cassandra";
 		url.pulsar,
 		"-t",
 		url.milvus,
-	    ],
-	},
-
-	"store-triples": base + {
-	    image: images.trustgraph,
-	    command: [
-		"triples-write-cassandra",
-		"-p",
-		url.pulsar,
-		"-g",
-		cassandra_hosts,
-	    ],
-	},
-
-	"query-triples": base + {
-	    image: images.trustgraph,
-	    command: [
-		"triples-query-cassandra",
-		"-p",
-		url.pulsar,
-		"-g",
-		cassandra_hosts,
 	    ],
 	},
 

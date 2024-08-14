@@ -1,10 +1,14 @@
 local base = import "base.jsonnet";
 local images = import "images.jsonnet";
+local url = import "url.jsonnet";
 {
+
     volumes +: {
 	neo4j: {},
     },
+
     services +: {
+
 	neo4j: base + {
 	    image: images.neo4j,
 	    ports: [
@@ -20,6 +24,30 @@ local images = import "images.jsonnet";
 	    volumes: [
 		"neo4j:/data"
 	    ],
+	},
+
+	"query-triples": base + {
+	    image: images.trustgraph,
+	    command: [
+		"triples-query-neo4j",
+		"-p",
+		url.pulsar,
+		"-g",
+		"bolt://neo4j:7687",
+	    ],
+	},
+
+	"store-triples": base + {
+	    image: images.trustgraph,
+	    command: [
+		"triples-write-neo4j",
+		"-p",
+		url.pulsar,
+		"-g",
+		"bolt://neo4j:7687",
+	    ],
 	}
+
     },
+
 }
