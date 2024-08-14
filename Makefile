@@ -38,6 +38,6 @@ DCS=$(foreach template,${TEMPLATES},${template:%=docker-compose-%.yaml})
 
 update-templates: set-version ${DCS}
 
-docker-compose-%.yaml: templates/docker-compose-%.jsonnet templates/version.jsonnet
+docker-compose-%.yaml: templates/docker-compose-%.jsonnet templates/components/version.jsonnet
 	jsonnet -S ${@:docker-compose-%.yaml=templates/docker-compose-%.jsonnet} > $@
 
