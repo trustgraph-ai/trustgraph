@@ -15,14 +15,14 @@
     - "4000"
     - "--chunk-overlap"
     - "120"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.2"
     "restart": "on-failure:100"
   "embeddings":
     "command":
     - "embeddings-hf"
     - "-p"
     - "pulsar://pulsar:6650"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.2"
     "restart": "on-failure:100"
   "etcd":
     "command":
@@ -64,7 +64,7 @@
     - "non-persistent://tg/request/prompt-rag"
     - "--prompt-response-queue"
     - "non-persistent://tg/response/prompt-rag-response"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.2"
     "restart": "on-failure:100"
   "init-pulsar":
     "command":
@@ -81,14 +81,14 @@
     - "kg-extract-definitions"
     - "-p"
     - "pulsar://pulsar:6650"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.2"
     "restart": "on-failure:100"
   "kg-extract-relationships":
     "command":
     - "kg-extract-relationships"
     - "-p"
     - "pulsar://pulsar:6650"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.2"
     "restart": "on-failure:100"
   "milvus":
     "command":
@@ -126,7 +126,7 @@
     - "pdf-decoder"
     - "-p"
     - "pulsar://pulsar:6650"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.2"
     "restart": "on-failure:100"
   "prometheus":
     "image": "docker.io/prom/prometheus:v2.53.1"
@@ -145,7 +145,7 @@
     - "non-persistent://tg/request/text-completion"
     - "--text-completion-response-queue"
     - "non-persistent://tg/response/text-completion-response"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.2"
     "restart": "on-failure:100"
   "prompt-rag":
     "command":
@@ -160,7 +160,7 @@
     - "non-persistent://tg/request/text-completion-rag"
     - "--text-completion-response-queue"
     - "non-persistent://tg/response/text-completion-rag-response"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.2"
     "restart": "on-failure:100"
   "pulsar":
     "command": "bin/pulsar standalone"
@@ -187,7 +187,7 @@
     - "pulsar://pulsar:6650"
     - "-t"
     - "http://milvus:19530"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.2"
     "restart": "on-failure:100"
   "query-triples":
     "command":
@@ -196,7 +196,7 @@
     - "pulsar://pulsar:6650"
     - "-g"
     - "cassandra"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.2"
     "restart": "on-failure:100"
   "store-graph-embeddings":
     "command":
@@ -205,7 +205,7 @@
     - "pulsar://pulsar:6650"
     - "-t"
     - "http://milvus:19530"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.2"
     "restart": "on-failure:100"
   "store-triples":
     "command":
@@ -214,7 +214,7 @@
     - "pulsar://pulsar:6650"
     - "-g"
     - "cassandra"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.2"
     "restart": "on-failure:100"
   "text-completion":
     "command":
@@ -225,7 +225,7 @@
     - "${COHERE_KEY}"
     - "-m"
     - "c4ai-aya-23-35b"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.2"
     "restart": "on-failure:100"
   "text-completion-rag":
     "command":
@@ -240,14 +240,14 @@
     - "non-persistent://tg/response/text-completion-rag-response"
     - "-m"
     - "c4ai-aya-23-8b"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.2"
     "restart": "on-failure:100"
   "vectorize":
     "command":
     - "embeddings-vectorize"
     - "-p"
     - "pulsar://pulsar:6650"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.2"
     "restart": "on-failure:100"
 "volumes":
   "cassandra": {}
