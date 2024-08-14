@@ -29,7 +29,7 @@ print("-- p ---------------------------")
 resp = tq.request(None, "http://trustgraph.ai/e/landed", None, limit)
 dump(resp)
 
-print("-- p ---------------------------")
+print("-- o ---------------------------")
 
 resp = tq.request(None, None, "President", limit)
 dump(resp)
@@ -53,8 +53,8 @@ dump(resp)
 print("-- po ---------------------------")
 
 resp = tq.request(
-    "http://trustgraph.ai/e/shuttle", "http://trustgraph.ai/e/landed",
-    None,
+    None, "http://trustgraph.ai/e/landed",
+    "on the concrete runway at Kennedy Space Center",
     limit
 )
 dump(resp)

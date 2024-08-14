@@ -4,7 +4,7 @@ import os
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-version = "0.6.0"
+version = "0.6.1"
 
 setuptools.setup(
     name="trustgraph",
@@ -48,6 +48,7 @@ setuptools.setup(
         "cohere",
         "boto3",
         "openai",
+        "neo4j",
     ],
     scripts=[
         "scripts/chunker-recursive",
@@ -82,5 +83,7 @@ setuptools.setup(
         "scripts/triples-dump-parquet",
         "scripts/triples-query-cassandra",
         "scripts/triples-write-cassandra",
+        "scripts/triples-query-neo4j",
+        "scripts/triples-write-neo4j",
     ]
 )
