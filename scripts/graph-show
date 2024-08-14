@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
 
 """
-Connects to the trustgraph graph hosts and dumps all graph edges.
+Connects to the graph query service and dumps all graph edges.
 """
 
 import argparse
-import time
+import os
+from trustgraph.triples_query_client import TriplesQueryClient
 
-from trustgraph.direct.cassandra import TrustGraph
+default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
 
-def show_graph(graph_hosts):
+def show_graph(pulsar):
 
-    t = TrustGraph(hosts=graph_hosts)
+    tq = TriplesQueryClient(pulsar_host="pulsar://localhost:6650")
 
-    rows = t.get_all(limit=100_000_000)
-    for s, p, o in rows:
-        print(s, p, o)
+    rows = tq.request(None, None, None, limit=10_000_000)
 
+    for row in rows:
+        print(row.s.value, row.p.value, row.o.value)
 
 def main():
 
@@ -26,16 +27,16 @@ def main():
     )
 
     parser.add_argument(
-        '-g', '--graph-hosts',
-        default="localhost",
-        help=f'Graph host (default: localhost)',
+        '-p', '--pulsar-host',
+        default=default_pulsar_host,
+        help=f'Pulsar host (default: {default_pulsar_host})',
     )
 
     args = parser.parse_args()
 
     try:
 
-        show_graph(graph_hosts=args.graph_hosts.split(","))
+        show_graph(args.pulsar_host)
 
     except Exception as e:
 
