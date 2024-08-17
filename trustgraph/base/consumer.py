@@ -1,8 +1,10 @@
 
 from pulsar.schema import JsonSchema
 from prometheus_client import start_http_server, Histogram, Info, Counter
+import time
 
 from . base_processor import BaseProcessor
+from .. exceptions import TooManyRequests
 
 class Consumer(BaseProcessor):
 
@@ -59,6 +61,13 @@ class Consumer(BaseProcessor):
 
                 __class__.processing_metric.labels(status="success").inc()
 
+            except TooManyRequests:
+                self.consumer.negative_acknowledge(msg)
+                print("TooManyRequests: will retry")
+                __class__.processing_metric.labels(status="rate-limit").inc()
+                time.sleep(15)
+                continue
+                
             except Exception as e:
 
                 print("Exception:", e, flush=True)

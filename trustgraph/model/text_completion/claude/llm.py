@@ -57,6 +57,8 @@ class Processor(ConsumerProducer):
         print(f"Handling prompt {id}...", flush=True)
 
         prompt = v.prompt
+
+        # FIXME: Rate limits?
         response = message = self.claude.messages.create(
             model=self.model,
             max_tokens=1000,

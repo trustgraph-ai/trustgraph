@@ -26,6 +26,7 @@ from .... schema import text_completion_request_queue
 from .... schema import text_completion_response_queue
 from .... log_level import LogLevel
 from .... base import ConsumerProducer
+from .... exceptions import TooManyRequests
 
 module = ".".join(__name__.split(".")[1:-1])
 
@@ -139,9 +140,8 @@ class Processor(ConsumerProducer):
 
         except google.api_core.exceptions.ResourceExhausted:
 
-            print("429, resource busy, sleeping", flush=True)
-            time.sleep(15)
-            self.consumer.negative_acknowledge(msg)
+            # 429 / rate limits case
+            raise TooManyRequests
 
         # Let other exceptions fall through
 

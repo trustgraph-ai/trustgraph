@@ -12,6 +12,7 @@ from .... schema import text_completion_request_queue
 from .... schema import text_completion_response_queue
 from .... log_level import LogLevel
 from .... base import ConsumerProducer
+from .... exceptions import TooManyRequests
 
 module = ".".join(__name__.split(".")[1:-1])
 
@@ -76,6 +77,10 @@ class Processor(ConsumerProducer):
         }
 
         resp = requests.post(url, data=body, headers=headers)
+
+        if resp.status_code == 429:
+            raise TooManyRequests()
+
         result = resp.json()
 
         message_content = result['choices'][0]['message']['content']

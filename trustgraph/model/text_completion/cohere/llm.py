@@ -59,15 +59,16 @@ class Processor(ConsumerProducer):
 
         prompt = v.prompt
 
+        # FIXME: Deal with rate limits?
         output = self.cohere.chat( 
-        model=self.model,
-        message=prompt,
-        preamble = "You are a helpful AI-assistant.",
-        temperature=0.0,
-        chat_history=[],
-        prompt_truncation='auto',
-        connectors=[]
-        ) 
+            model=self.model,
+            message=prompt,
+            preamble = "You are a helpful AI-assistant.",
+            temperature=0.0,
+            chat_history=[],
+            prompt_truncation='auto',
+            connectors=[]
+        )
 
         resp = output.text
         print(resp, flush=True)
