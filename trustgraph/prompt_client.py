@@ -51,7 +51,7 @@ class PromptClient:
             schema=JsonSchema(PromptResponse),
         )
 
-    def request_definitions(self, chunk, timeout=500):
+    def request_definitions(self, chunk, timeout=30):
 
         id = str(uuid.uuid4())
 

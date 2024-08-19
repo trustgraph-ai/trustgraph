@@ -51,7 +51,7 @@ class LlmClient:
             schema=JsonSchema(TextCompletionResponse),
         )
 
-    def request(self, prompt, timeout=500):
+    def request(self, prompt, timeout=30):
 
         id = str(uuid.uuid4())
 

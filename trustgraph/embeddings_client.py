@@ -51,7 +51,7 @@ class EmbeddingsClient:
             schema=JsonSchema(EmbeddingsResponse),
         )
 
-    def request(self, text, timeout=500):
+    def request(self, text, timeout=10):
 
         id = str(uuid.uuid4())
 

@@ -1,8 +1,10 @@
 
 from pulsar.schema import JsonSchema
 from prometheus_client import Histogram, Info, Counter
+import time
 
 from . base_processor import BaseProcessor
+from .. exceptions import TooManyRequests
 
 # FIXME: Derive from consumer?  And producer?
 
@@ -77,6 +79,13 @@ class ConsumerProducer(BaseProcessor):
                 self.consumer.acknowledge(msg)
 
                 __class__.processing_metric.labels(status="success").inc()
+
+            except TooManyRequests:
+                self.consumer.negative_acknowledge(msg)
+                print("TooManyRequests: will retry")
+                __class__.processing_metric.labels(status="rate-limit").inc()
+                time.sleep(5)
+                continue
 
             except Exception as e:
 

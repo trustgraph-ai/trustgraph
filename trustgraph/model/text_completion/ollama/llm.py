@@ -65,6 +65,8 @@ class Processor(ConsumerProducer):
         print(f"Handling prompt {id}...", flush=True)
 
         prompt = v.prompt
+
+        # FIXME: Rate limits?
         response = self.llm.invoke(prompt)
 
         print("Send response...", flush=True)

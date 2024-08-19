@@ -57,6 +57,8 @@ class Processor(ConsumerProducer):
         print(f"Handling prompt {id}...", flush=True)
 
         prompt = v.prompt
+
+        # FIXME: Rate limits
         resp = self.openai.chat.completions.create(
             model=self.model,
             messages=[

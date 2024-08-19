@@ -13,6 +13,7 @@ from .... schema import text_completion_request_queue
 from .... schema import text_completion_response_queue
 from .... log_level import LogLevel
 from .... base import ConsumerProducer
+from .... exceptions import TooManyRequests
 
 module = ".".join(__name__.split(".")[1:-1])
 
@@ -121,6 +122,8 @@ class Processor(ConsumerProducer):
         accept = 'application/json'
         contentType = 'application/json'
 
+        # FIXME: Consider catching request limits and raise TooManyRequests
+        # See https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html
         response = self.bedrock.invoke_model(body=promptbody, modelId=self.model, accept=accept, contentType=contentType)
         
         # Mistral Response Structure
