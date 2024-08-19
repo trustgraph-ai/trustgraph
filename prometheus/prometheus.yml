@@ -31,6 +31,11 @@ scrape_configs:
         - 'store-graph-embeddings:8000'
         - 'store-triples:8000'
         - 'text-completion:8000'
+        - 'text-completion-rag:8000'
         - 'graph-rag:8000'
+        - 'prompt:8000'
+        - 'prompt-rag:8000'
+        - 'query-graph-embeddings:8000'
+        - 'query-triples:8000'
         - 'pulsar:8080'
 
