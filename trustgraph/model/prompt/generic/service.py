@@ -91,13 +91,14 @@ class Processor(ConsumerProducer):
 
         prompt = to_definitions(v.chunk)
 
-        print(prompt)
-
         ans = self.llm.request(prompt)
 
-        print(ans)
-
-        defs = json.loads(ans)
+        # Silently ignore JSON parse error
+        try:
+            defs = json.loads(ans)
+        except:
+            print("JSON parse error, ignored", flush=True)
+            defs = []
 
         output = []
 
@@ -114,7 +115,7 @@ class Processor(ConsumerProducer):
                 )
 
             except:
-                pass
+                print("definition fields missing, ignored", flush=True)
 
         print("Send response...", flush=True)
         r = PromptResponse(definitions=output)
@@ -128,7 +129,12 @@ class Processor(ConsumerProducer):
 
         ans = self.llm.request(prompt)
 
-        defs = json.loads(ans)
+        # Silently ignore JSON parse error
+        try:
+            defs = json.loads(ans)
+        except:
+            print("JSON parse error, ignored", flush=True)
+            defs = []
 
         output = []
 
@@ -145,7 +151,7 @@ class Processor(ConsumerProducer):
                 )
 
             except Exception as e:
-                print(e)
+                print("relationship fields missing, ignored", flush=True)
 
         print("Send response...", flush=True)
         r = PromptResponse(relationships=output)
