@@ -83,7 +83,7 @@ class PromptClient:
 
         raise TimeoutError("Timed out waiting for response")
 
-    def request_relationships(self, chunk, timeout=500):
+    def request_relationships(self, chunk, timeout=30):
 
         id = str(uuid.uuid4())
 
@@ -94,9 +94,14 @@ class PromptClient:
 
         self.producer.send(r, properties={ "id": id })
 
-        while True:
+        end_time = time.time() + timeout
 
-            msg = self.consumer.receive(timeout_millis=timeout * 1000)
+        while time.time() < end_time:
+
+            try:
+                msg = self.consumer.receive(timeout_millis=5000)
+            except pulsar.exceptions.Timeout:
+                continue
 
             mid = msg.properties()["id"]
 
@@ -108,7 +113,9 @@ class PromptClient:
             # Ignore messages with wrong ID
             self.consumer.acknowledge(msg)
 
-    def request_kg_prompt(self, query, kg, timeout=500):
+        raise TimeoutError("Timed out waiting for response")
+
+    def request_kg_prompt(self, query, kg, timeout=30):
 
         id = str(uuid.uuid4())
 
@@ -123,9 +130,14 @@ class PromptClient:
 
         self.producer.send(r, properties={ "id": id })
 
-        while True:
+        end_time = time.time() + timeout
 
-            msg = self.consumer.receive(timeout_millis=timeout * 1000)
+        while time.time() < end_time:
+
+            try:
+                msg = self.consumer.receive(timeout_millis=5000)
+            except pulsar.exceptions.Timeout:
+                continue
 
             mid = msg.properties()["id"]
 
@@ -136,6 +148,8 @@ class PromptClient:
 
             # Ignore messages with wrong ID
             self.consumer.acknowledge(msg)
+
+        raise TimeoutError("Timed out waiting for response")
 
     def __del__(self):
 
