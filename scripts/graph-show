@@ -6,7 +6,7 @@ Connects to the graph query service and dumps all graph edges.
 
 import argparse
 import os
-from trustgraph.triples_query_client import TriplesQueryClient
+from trustgraph.clients.triples_query_client import TriplesQueryClient
 
 default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
 

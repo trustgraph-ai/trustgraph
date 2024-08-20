@@ -1,8 +1,8 @@
 
-from . graph_embeddings_client import GraphEmbeddingsClient
-from . triples_query_client import TriplesQueryClient
-from . embeddings_client import EmbeddingsClient
-from . prompt_client import PromptClient
+from . clients.graph_embeddings_client import GraphEmbeddingsClient
+from . clients.triples_query_client import TriplesQueryClient
+from . clients.embeddings_client import EmbeddingsClient
+from . clients.prompt_client import PromptClient
 
 from . schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
 from . schema import TriplesQueryRequest, TriplesQueryResponse

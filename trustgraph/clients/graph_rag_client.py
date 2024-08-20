@@ -1,12 +1,13 @@
-#!/usr/bin/env python3
 
 import pulsar
 import _pulsar
 from pulsar.schema import JsonSchema
-from . schema import EmbeddingsRequest, EmbeddingsResponse
-from . schema import embeddings_request_queue, embeddings_response_queue
+from .. schema import GraphRagQuery, GraphRagResponse
+from .. schema import graph_rag_request_queue, graph_rag_response_queue
+
 import hashlib
 import uuid
+import time
 
 # Ugly
 ERROR=_pulsar.LoggerLevel.Error
@@ -14,23 +15,12 @@ WARN=_pulsar.LoggerLevel.Warn
 INFO=_pulsar.LoggerLevel.Info
 DEBUG=_pulsar.LoggerLevel.Debug
 
-class EmbeddingsClient:
+class GraphRagClient:
 
     def __init__(
-            self, log_level=ERROR,
-            input_queue=None,
-            output_queue=None,
-            subscriber=None,
+            self, log_level=ERROR, subscriber=None,
             pulsar_host="pulsar://pulsar:6650",
     ):
-
-        self.client = None
-
-        if input_queue == None:
-            input_queue=embeddings_request_queue
-
-        if output_queue == None:
-            output_queue=embeddings_response_queue
 
         if subscriber == None:
             subscriber = str(uuid.uuid4())
@@ -41,38 +31,45 @@ class EmbeddingsClient:
         )
 
         self.producer = self.client.create_producer(
-            topic=input_queue,
-            schema=JsonSchema(EmbeddingsRequest),
+            topic=graph_rag_request_queue,
+            schema=JsonSchema(GraphRagQuery),
             chunking_enabled=True,
         )
 
         self.consumer = self.client.subscribe(
-            output_queue, subscriber,
-            schema=JsonSchema(EmbeddingsResponse),
+            graph_rag_response_queue, subscriber,
+            schema=JsonSchema(GraphRagResponse),
         )
 
-    def request(self, text, timeout=10):
+    def request(self, query, timeout=500):
 
         id = str(uuid.uuid4())
 
-        r = EmbeddingsRequest(
-            text=text
+        r = GraphRagQuery(
+            query=query
         )
         self.producer.send(r, properties={ "id": id })
 
-        while True:
+        end_time = time.time() + timeout
 
-            msg = self.consumer.receive(timeout_millis=timeout * 1000)
+        while time.time() < end_time:
+
+            try:
+                msg = self.consumer.receive(timeout_millis=5000)
+            except pulsar.exceptions.Timeout:
+                continue
 
             mid = msg.properties()["id"]
 
             if mid == id:
-                resp = msg.value().vectors
+                resp = msg.value().response
                 self.consumer.acknowledge(msg)
                 return resp
 
             # Ignore messages with wrong ID
             self.consumer.acknowledge(msg)
+
+        raise TimeoutError("Timed out waiting for response")
 
     def __del__(self):
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import pulsar
-from trustgraph.triples_query_client import TriplesQueryClient
+from trustgraph.clients.triples_query_client import TriplesQueryClient
 
 tq = TriplesQueryClient(pulsar_host="pulsar://localhost:6650")
 

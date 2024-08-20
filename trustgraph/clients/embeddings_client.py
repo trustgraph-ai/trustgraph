@@ -1,14 +1,12 @@
-#!/usr/bin/env python3
 
 import pulsar
 import _pulsar
 from pulsar.schema import JsonSchema
+from .. schema import EmbeddingsRequest, EmbeddingsResponse
+from .. schema import embeddings_request_queue, embeddings_response_queue
 import hashlib
 import uuid
-
-from . schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
-from . schema import graph_embeddings_request_queue
-from . schema import graph_embeddings_response_queue
+import time
 
 # Ugly
 ERROR=_pulsar.LoggerLevel.Error
@@ -16,21 +14,23 @@ WARN=_pulsar.LoggerLevel.Warn
 INFO=_pulsar.LoggerLevel.Info
 DEBUG=_pulsar.LoggerLevel.Debug
 
-class GraphEmbeddingsClient:
+class EmbeddingsClient:
 
     def __init__(
             self, log_level=ERROR,
-            subscriber=None,
             input_queue=None,
             output_queue=None,
+            subscriber=None,
             pulsar_host="pulsar://pulsar:6650",
     ):
 
+        self.client = None
+
         if input_queue == None:
-            input_queue = graph_embeddings_request_queue
+            input_queue=embeddings_request_queue
 
         if output_queue == None:
-            output_queue = graph_embeddings_response_queue
+            output_queue=embeddings_response_queue
 
         if subscriber == None:
             subscriber = str(uuid.uuid4())
@@ -42,43 +42,49 @@ class GraphEmbeddingsClient:
 
         self.producer = self.client.create_producer(
             topic=input_queue,
-            schema=JsonSchema(GraphEmbeddingsRequest),
+            schema=JsonSchema(EmbeddingsRequest),
             chunking_enabled=True,
         )
 
         self.consumer = self.client.subscribe(
             output_queue, subscriber,
-            schema=JsonSchema(GraphEmbeddingsResponse),
+            schema=JsonSchema(EmbeddingsResponse),
         )
 
-    def request(self, vectors, limit=10, timeout=500):
+    def request(self, text, timeout=10):
 
         id = str(uuid.uuid4())
 
-        r = GraphEmbeddingsRequest(
-            vectors=vectors,
-            limit=limit,
+        r = EmbeddingsRequest(
+            text=text
         )
-
         self.producer.send(r, properties={ "id": id })
 
-        while True:
+        end_time = time.time() + timeout
 
-            msg = self.consumer.receive(timeout_millis=timeout * 1000)
+        while time.time() < end_time:
+
+            try:
+                msg = self.consumer.receive(timeout_millis=5000)
+            except pulsar.exceptions.Timeout:
+                continue
 
             mid = msg.properties()["id"]
 
             if mid == id:
-                resp = msg.value().entities
+                resp = msg.value().vectors
                 self.consumer.acknowledge(msg)
                 return resp
 
             # Ignore messages with wrong ID
             self.consumer.acknowledge(msg)
 
+        raise TimeoutError("Timed out waiting for response")
+
     def __del__(self):
 
         if hasattr(self, "consumer"):
+#             self.consumer.unsubscribe()
             self.consumer.close()
             
         if hasattr(self, "producer"):

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import pulsar
-from trustgraph.graph_rag_client import GraphRagClient
+from trustgraph.clients.graph_rag_client import GraphRagClient
 
 rag = GraphRagClient(pulsar_host="pulsar://localhost:6650")
 

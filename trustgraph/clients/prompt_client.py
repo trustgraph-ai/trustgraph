@@ -1,14 +1,14 @@
-#!/usr/bin/env python3
 
 import pulsar
 import _pulsar
 from pulsar.schema import JsonSchema
 import hashlib
 import uuid
+import time
 
-from . schema import PromptRequest, PromptResponse, Fact
-from . schema import prompt_request_queue
-from . schema import prompt_response_queue
+from .. schema import PromptRequest, PromptResponse, Fact
+from .. schema import prompt_request_queue
+from .. schema import prompt_response_queue
 
 # Ugly
 ERROR=_pulsar.LoggerLevel.Error
@@ -62,9 +62,14 @@ class PromptClient:
 
         self.producer.send(r, properties={ "id": id })
 
-        while True:
+        end_time = time.time() + timeout
 
-            msg = self.consumer.receive(timeout_millis=timeout * 1000)
+        while time.time() < end_time:
+
+            try:
+                msg = self.consumer.receive(timeout_millis=5000)
+            except pulsar.exceptions.Timeout:
+                continue
 
             mid = msg.properties()["id"]
 
@@ -75,6 +80,8 @@ class PromptClient:
 
             # Ignore messages with wrong ID
             self.consumer.acknowledge(msg)
+
+        raise TimeoutError("Timed out waiting for response")
 
     def request_relationships(self, chunk, timeout=500):
 

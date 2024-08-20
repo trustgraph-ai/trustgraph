@@ -7,7 +7,7 @@ Input is text chunk, output is chunk and vectors.
 from ... schema import Chunk, ChunkEmbeddings
 from ... schema import chunk_ingest_queue, chunk_embeddings_ingest_queue
 from ... schema import embeddings_request_queue, embeddings_response_queue
-from ... embeddings_client import EmbeddingsClient
+from ... clients.embeddings_client import EmbeddingsClient
 from ... log_level import LogLevel
 from ... base import ConsumerProducer
 

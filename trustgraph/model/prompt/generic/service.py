@@ -12,7 +12,7 @@ from .... schema import text_completion_request_queue
 from .... schema import text_completion_response_queue
 from .... schema import prompt_request_queue, prompt_response_queue
 from .... base import ConsumerProducer
-from .... llm_client import LlmClient
+from .... clients.llm_client import LlmClient
 
 from . prompts import to_definitions, to_relationships, to_kg_query
 

@@ -1,14 +1,14 @@
-#!/usr/bin/env python3
 
 import pulsar
 import _pulsar
 from pulsar.schema import JsonSchema
 import hashlib
 import uuid
+import time
 
-from . schema import TextCompletionRequest, TextCompletionResponse
-from . schema import text_completion_request_queue
-from . schema import text_completion_response_queue
+from .. schema import TextCompletionRequest, TextCompletionResponse
+from .. schema import text_completion_request_queue
+from .. schema import text_completion_response_queue
 
 # Ugly
 ERROR=_pulsar.LoggerLevel.Error
@@ -59,11 +59,16 @@ class LlmClient:
             prompt=prompt
         )
 
+        end_time = time.time() + timeout
+
         self.producer.send(r, properties={ "id": id })
 
-        while True:
+        while time.time() < end_time:
 
-            msg = self.consumer.receive(timeout_millis=timeout * 1000)
+            try:
+                msg = self.consumer.receive(timeout_millis=5000)
+            except pulsar.exceptions.Timeout:
+                continue
 
             mid = msg.properties()["id"]
 
@@ -74,6 +79,8 @@ class LlmClient:
 
             # Ignore messages with wrong ID
             self.consumer.acknowledge(msg)
+
+        raise TimeoutError("Timed out waiting for response")
 
     def __del__(self):
 

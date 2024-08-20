@@ -12,7 +12,7 @@ from ... schema import chunk_embeddings_ingest_queue, triples_store_queue
 from ... schema import prompt_request_queue
 from ... schema import prompt_response_queue
 from ... log_level import LogLevel
-from ... prompt_client import PromptClient
+from ... clients.prompt_client import PromptClient
 from ... rdf import TRUSTGRAPH_ENTITIES, DEFINITION
 from ... base import ConsumerProducer
 

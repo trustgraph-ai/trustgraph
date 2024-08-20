@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 import pulsar
-from trustgraph.graph_embeddings_client import GraphEmbeddingsClient
-from trustgraph.embeddings_client import EmbeddingsClient
+from trustgraph.clients.graph_embeddings_client import GraphEmbeddingsClient
+from trustgraph.clients.embeddings_client import EmbeddingsClient
 
 ec = EmbeddingsClient(pulsar_host="pulsar://localhost:6650")
 

@@ -15,7 +15,7 @@ from ... schema import graph_embeddings_store_queue
 from ... schema import prompt_request_queue
 from ... schema import prompt_response_queue
 from ... log_level import LogLevel
-from ... prompt_client import PromptClient
+from ... clients.prompt_client import PromptClient
 from ... rdf import RDF_LABEL, TRUSTGRAPH_ENTITIES
 from ... base import ConsumerProducer
 

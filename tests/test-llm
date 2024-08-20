@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import pulsar
-from trustgraph.llm_client import LlmClient
+from trustgraph.clients.llm_client import LlmClient
 
 llm = LlmClient(pulsar_host="pulsar://localhost:6650")
 
