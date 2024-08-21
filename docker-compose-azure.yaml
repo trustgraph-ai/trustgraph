@@ -8,9 +8,13 @@
     - "cassandra:/var/lib/cassandra"
   "chunker":
     "command":
-    - "chunker-recursive"
+    - "${CHUNKER:-chunker-token}"
     - "-p"
     - "pulsar://pulsar:6650"
+    - "--chunk-size"
+    - "250"
+    - "--chunk-overlap"
+    - "15"
     "image": "docker.io/trustgraph/trustgraph-flow:0.6.8"
     "restart": "on-failure:100"
   "embeddings":
@@ -18,6 +22,8 @@
     - "embeddings-hf"
     - "-p"
     - "pulsar://pulsar:6650"
+    - "-m"
+    - "all-MiniLM-L6-v2"
     "image": "docker.io/trustgraph/trustgraph-flow:0.6.8"
     "restart": "on-failure:100"
   "etcd":
@@ -60,6 +66,12 @@
     - "non-persistent://tg/request/prompt-rag"
     - "--prompt-response-queue"
     - "non-persistent://tg/response/prompt-rag-response"
+    - "--entity-limit"
+    - "50"
+    - "--triple-limit"
+    - "30"
+    - "--max-subgraph-size"
+    - "3000"
     "image": "docker.io/trustgraph/trustgraph-flow:0.6.8"
     "restart": "on-failure:100"
   "init-pulsar":

@@ -20,9 +20,13 @@ local url = import "url.jsonnet";
 	chunker: base + {
 	    image: images.trustgraph,
 	    command: [
-		"chunker-recursive",
+		"${CHUNKER:-chunker-token}",
 		"-p",
 		url.pulsar,
+                "--chunk-size",
+                "250",
+                "--chunk-overlap",
+                "15",
 	    ],
 	},
 
@@ -41,8 +45,8 @@ local url = import "url.jsonnet";
 		"embeddings-hf",
 		"-p",
 		url.pulsar,
-		// "-m",
-		// "mixedbread-ai/mxbai-embed-large-v1",
+                "-m",
+		"all-MiniLM-L6-v2",
 	    ],
 	},
 
@@ -74,6 +78,12 @@ local url = import "url.jsonnet";
 		"non-persistent://tg/request/prompt-rag",
 		"--prompt-response-queue",
 		"non-persistent://tg/response/prompt-rag-response",
+		"--entity-limit",
+		"50",
+		"--triple-limit",
+		"30",
+		"--max-subgraph-size",
+		"3000",
 	    ],
 	},
 
