@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+
+"""
+Accepts entity/vector pairs and writes them to a Milvus store.
+"""
+
+from trustgraph.schema import Chunk
+from trustgraph.schema import chunk_ingest_queue
+from trustgraph.log_level import LogLevel
+from trustgraph.base import Consumer
+from threading import Thread, Lock
+import time
+
+module = "test-chunk-size"
+
+default_input_queue = chunk_ingest_queue
+default_subscriber = module
+default_store_uri = 'http://localhost:19530'
+
+class Processor(Consumer):
+
+    def __init__(self, **params):
+
+        input_queue = params.get("input_queue", default_input_queue)
+        subscriber = params.get("subscriber", default_subscriber)
+        width = params.get("width", 200)
+
+        super(Processor, self).__init__(
+            **params | {
+                "input_queue": input_queue,
+                "subscriber": subscriber,
+                "input_schema": Chunk,
+            }
+        )
+
+        self.sizes = {}
+        self.width = width
+        self.lock = Lock()
+
+        Thread(target=self.report).start()
+
+    def report(self):
+
+        while True:
+            time.sleep(1)
+
+            print()
+
+            with self.lock:
+                tot = 0
+                for i in range(0, 20000, self.width):
+                    k = (i, i + self.width)
+                    if k in self.sizes:
+                        print(f"{i:5d} ..{i+self.width:5d}: {self.sizes[k]}")
+                        tot += self.sizes[k]
+                print(f"{'Total':13s}: {tot}")
+
+                    
+                
+
+    def handle(self, msg):
+
+        v = msg.value()
+
+        chunk = v.chunk.decode("utf-8")
+
+        l = len(chunk)
+
+
+        low = int(l / self.width) * self.width
+        high = low + self.width
+        key = (low, high)
+
+        with self.lock:
+
+            if key not in self.sizes:
+                self.sizes[key] = 0
+
+            self.sizes[key] += 1
+
+    @staticmethod
+    def add_args(parser):
+
+        Consumer.add_args(
+            parser, default_input_queue, default_subscriber,
+        )
+
+        parser.add_argument(
+            '--width',
+            type=int,
+            default=200,
+            help=f'Histogram width (default: 200)',
+        )
+
+def run():
+
+    Processor.start(module, __doc__)
+
+run()
+

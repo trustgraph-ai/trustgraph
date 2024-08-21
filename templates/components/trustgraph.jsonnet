@@ -64,28 +64,6 @@ local url = import "url.jsonnet";
 	    ],
 	},
 
-	"store-graph-embeddings": base + {
-	    image: images.trustgraph,
-	    command: [
-		"ge-write-milvus",
-		"-p",
-		url.pulsar,
-		"-t",
-		url.milvus,
-	    ],
-	},
-
-	"query-graph-embeddings": base + {
-	    image: images.trustgraph,
-	    command: [
-		"ge-query-milvus",
-		"-p",
-		url.pulsar,
-		"-t",
-		url.milvus,
-	    ],
-	},
-
 	"graph-rag": base + {
 	    image: images.trustgraph,
 	    command: [
