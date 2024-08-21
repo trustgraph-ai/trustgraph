@@ -5,7 +5,6 @@ Input is prompt, output is response.
 """
 
 import cohere
-import re
 
 from .... schema import TextCompletionRequest, TextCompletionResponse
 from .... schema import text_completion_request_queue
@@ -19,6 +18,7 @@ default_input_queue = text_completion_request_queue
 default_output_queue = text_completion_response_queue
 default_subscriber = module
 default_model = 'c4ai-aya-23-8b'
+default_temperature = 0.0
 
 class Processor(ConsumerProducer):
 
@@ -29,6 +29,7 @@ class Processor(ConsumerProducer):
         subscriber = params.get("subscriber", default_subscriber)
         model = params.get("model", default_model)
         api_key = params.get("api_key")
+        temperature = params.get("temperature", default_temperature)
 
         super(Processor, self).__init__(
             **params | {
@@ -38,11 +39,12 @@ class Processor(ConsumerProducer):
                 "input_schema": TextCompletionRequest,
                 "output_schema": TextCompletionResponse,
                 "model": model,
+                "temperature": temperature,
             }
         )
 
         self.model = model
-
+        self.temperature = temperature
         self.cohere = cohere.Client(api_key=api_key)
 
         print("Initialised", flush=True)
@@ -64,7 +66,7 @@ class Processor(ConsumerProducer):
             model=self.model,
             message=prompt,
             preamble = "You are a helpful AI-assistant.",
-            temperature=0.0,
+            temperature=self.temperature,
             chat_history=[],
             prompt_truncation='auto',
             connectors=[]
@@ -73,21 +75,11 @@ class Processor(ConsumerProducer):
         resp = output.text
         print(resp, flush=True)
 
-        # Parse output for ```json``` delimiters
-        pattern = r'```json\s*([\s\S]*?)\s*```'
-        match = re.search(pattern, resp)
-
-        if match:
-            # If delimiters are found, extract the JSON content
-            json_content = match.group(1)
-            json_resp = json_content.strip()
-        
-        else:
-            # If no delimiters are found, return the original text
-            json_resp = resp.strip()
+        resp = resp.replace("```json", "")
+        resp = resp.replace("```", "")
         
         print("Send response...", flush=True)
-        r = TextCompletionResponse(response=json_resp)
+        r = TextCompletionResponse(response=resp)
         self.send(r, properties={"id": id})
 
         print("Done.", flush=True)
@@ -109,6 +101,13 @@ class Processor(ConsumerProducer):
         parser.add_argument(
             '-k', '--api-key',
             help=f'Cohere API key'
+        )
+
+        parser.add_argument(
+            '-t', '--temperature',
+            type=float,
+            default=default_temperature,
+            help=f'LLM temperature parameter (default: {default_temperature})'
         )
 
 def run():
