@@ -5,7 +5,7 @@ as text as separate output objects.
 """
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-
+from prometheus_client import Histogram
 
 from ... schema import TextDocument, Chunk, Source
 from ... schema import text_ingest_queue, chunk_ingest_queue
@@ -38,6 +38,13 @@ class Processor(ConsumerProducer):
             }
         )
 
+        if not hasattr(__class__, "chunk_metric"):
+            __class__.chunk_metric = Histogram(
+                'chunk_size', 'Chunk size',
+                buckets=[100, 160, 250, 400, 650, 1000, 1600,
+                         2500, 4000, 6400, 10000, 16000]
+            )
+
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
@@ -66,6 +73,8 @@ class Processor(ConsumerProducer):
                 ),
                 chunk=chunk.page_content.encode("utf-8"),
             )
+
+            __class__.chunk_metric.observe(len(chunk.page_content))
 
             self.send(r)
 
