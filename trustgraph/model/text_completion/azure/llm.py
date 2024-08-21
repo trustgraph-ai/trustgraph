@@ -148,7 +148,7 @@ class Processor(ConsumerProducer):
         )
 
         parser.add_argument(
-            '-l', '--max-output',
+            '-x', '--max-output',
             type=int,
             default=default_max_output,
             help=f'LLM max output tokens (default: {default_max_output})'

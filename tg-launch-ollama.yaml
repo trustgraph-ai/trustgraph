@@ -231,6 +231,8 @@
     - "pulsar://pulsar:6650"
     - "-r"
     - "${OLLAMA_HOST}"
+  #  - "-m"
+  #  - "phi3.5:latest"
     "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
     "restart": "on-failure:100"
   "text-completion-rag":
@@ -240,6 +242,8 @@
     - "pulsar://pulsar:6650"
     - "-r"
     - "${OLLAMA_HOST}"
+  # - "-m"
+  #  - "phi3.5:latest"
     - "-i"
     - "non-persistent://tg/request/text-completion-rag"
     - "-o"
