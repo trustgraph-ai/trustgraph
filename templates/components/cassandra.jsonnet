@@ -2,21 +2,11 @@ local base = import "base.jsonnet";
 local images = import "images.jsonnet";
 local url = import "url.jsonnet";
 local cassandra_hosts = "cassandra";
-{
-    volumes +: {
-	cassandra: {},
-    },
-    services +: {
+local cassandra = import "stores/cassandra.jsonnet";
 
-	cassandra: base + {
-	    image: images.cassandra,
-	    ports: [
-		"9042:9042"
-	    ],
-	    volumes: [
-		"cassandra:/var/lib/cassandra"
-	    ],
-	},
+cassandra + {
+
+    services +: {
 
 	"store-triples": base + {
 	    image: images.trustgraph,

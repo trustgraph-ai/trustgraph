@@ -1,6 +1,6 @@
 
 # VERSION=$(shell git describe | sed 's/^v//')
-VERSION=0.6.6
+VERSION=0.6.7
 
 DOCKER=podman
 
@@ -33,7 +33,9 @@ set-version:
 # 	sed -i 's/trustgraph-flow:[0-9]*\.[0-9]*\.[0-9]*/trustgraph-flow:'${VERSION}'/' docker-compose*.yaml
 	echo '"${VERSION}"' > templates/components/version.jsonnet
 
-TEMPLATES=azure bedrock claude cohere mix ollama openai vertexai openai-neo4j
+TEMPLATES=azure bedrock claude cohere mix ollama openai vertexai \
+    openai-neo4j storage
+
 DCS=$(foreach template,${TEMPLATES},${template:%=docker-compose-%.yaml})
 
 update-templates: set-version ${DCS}
