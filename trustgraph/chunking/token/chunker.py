@@ -4,8 +4,7 @@ Simple decoder, accepts text documents on input, outputs chunks from the
 as text as separate output objects.
 """
 
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-
+from langchain_text_splitters import TokenTextSplitter
 
 from ... schema import TextDocument, Chunk, Source
 from ... schema import text_ingest_queue, chunk_ingest_queue
@@ -25,8 +24,8 @@ class Processor(ConsumerProducer):
         input_queue = params.get("input_queue", default_input_queue)
         output_queue = params.get("output_queue", default_output_queue)
         subscriber = params.get("subscriber", default_subscriber)
-        chunk_size = params.get("chunk_size", 2000)
-        chunk_overlap = params.get("chunk_overlap", 100)
+        chunk_size = params.get("chunk_size", 250)
+        chunk_overlap = params.get("chunk_overlap", 15)
         
         super(Processor, self).__init__(
             **params | {
@@ -38,11 +37,10 @@ class Processor(ConsumerProducer):
             }
         )
 
-        self.text_splitter = RecursiveCharacterTextSplitter(
+        self.text_splitter = TokenTextSplitter(
+            encoding_name="cl100k_base",
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
-            length_function=len,
-            is_separator_regex=False,
         )
 
     def handle(self, msg):
@@ -82,15 +80,15 @@ class Processor(ConsumerProducer):
         parser.add_argument(
             '-z', '--chunk-size',
             type=int,
-            default=2000,
-            help=f'Chunk size (default: 2000)'
+            default=250,
+            help=f'Chunk size (default: 250)'
         )
 
         parser.add_argument(
             '-v', '--chunk-overlap',
             type=int,
-            default=100,
-            help=f'Chunk overlap (default: 100)'
+            default=15,
+            help=f'Chunk overlap (default: 15)'
         )
 
 def run():

@@ -4,7 +4,7 @@ import os
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-version = "0.6.7"
+version = "0.6.8"
 
 setuptools.setup(
     name="trustgraph",
@@ -49,9 +49,11 @@ setuptools.setup(
         "boto3",
         "openai",
         "neo4j",
+        "tiktoken",
     ],
     scripts=[
         "scripts/chunker-recursive",
+        "scripts/chunker-token",
         "scripts/concat-parquet",
         "scripts/dump-parquet",
         "scripts/embeddings-hf",
