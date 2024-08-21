@@ -20,7 +20,7 @@ default_input_queue = text_completion_request_queue
 default_output_queue = text_completion_response_queue
 default_subscriber = module
 default_temperature = 0.0
-default_max = 4192
+default_max_output = 4192
 
 class Processor(ConsumerProducer):
 
@@ -32,7 +32,7 @@ class Processor(ConsumerProducer):
         endpoint = params.get("endpoint")
         token = params.get("token")
         temperature = params.get("temperature", default_temperature)
-        max_tokens = params.get("max_output", default_max)
+        max_output = params.get("max_output", default_max_output)
 
         super(Processor, self).__init__(
             **params | {
@@ -41,11 +41,15 @@ class Processor(ConsumerProducer):
                 "subscriber": subscriber,
                 "input_schema": TextCompletionRequest,
                 "output_schema": TextCompletionResponse,
+                "temperature": temperature,
+                "max_output": max_output,
             }
         )
 
         self.endpoint = endpoint
         self.token = token
+        self.temperature = temperature
+        self.max_output = max_output
 
     def build_prompt(self, system, content):
 
@@ -58,8 +62,8 @@ class Processor(ConsumerProducer):
                     "role": "user", "content": content
                 }
             ],
-            "max_tokens": max_tokens,
-            "temperature": temperature,
+            "max_tokens": self.max_output,
+            "temperature": self.temperature,
             "top_p": 1
         }
 
@@ -109,7 +113,11 @@ class Processor(ConsumerProducer):
         response = self.call_llm(prompt)
 
         print("Send response...", flush=True)
-        r = TextCompletionResponse(response=response)
+
+        resp = response.replace("```json", "")
+        resp = response.replace("```", "")
+
+        r = TextCompletionResponse(response=resp)
         self.producer.send(r, properties={"id": id})
 
         print("Done.", flush=True)
@@ -134,14 +142,16 @@ class Processor(ConsumerProducer):
 
         parser.add_argument(
             '-t', '--temperature',
-            default=f"temp=0.0",
-            help=f'LLM temperature parameter'
+            type=float,
+            default=default_temperature,
+            help=f'LLM temperature parameter (default: {default_temperature})'
         )
 
         parser.add_argument(
             '-l', '--max-output',
-            default=f"max_tokens=4192",
-            help=f'LLM max output tokens'
+            type=int,
+            default=default_max_output,
+            help=f'LLM max output tokens (default: {default_max_output})'
         )
 
 def run():

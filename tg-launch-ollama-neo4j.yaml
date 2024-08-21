@@ -1,0 +1,259 @@
+"services":
+  "neo4j":
+    "environment":
+      "NEO4J_AUTH": "neo4j/password"
+    "image": "docker.io/neo4j:5.22.0-community-bullseye"
+    "ports":
+    - "7474:7474"
+    - "7687:7687"
+    "restart": "on-failure:100"
+    "volumes":
+    - "neo4j:/data"
+  "chunker":
+    "command":
+    - "chunker-recursive"
+    - "-p"
+    - "pulsar://pulsar:6650"
+    - "--chunk-size"
+    - "2000"
+    - "--chunk-overlap"
+    - "100"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
+    "restart": "on-failure:100"
+  "embeddings":
+    "command":
+    - "embeddings-hf"
+    - "-p"
+    - "pulsar://pulsar:6650"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
+    "restart": "on-failure:100"
+  "etcd":
+    "command":
+    - "etcd"
+    - "-advertise-client-urls=http://127.0.0.1:2379"
+    - "-listen-client-urls"
+    - "http://0.0.0.0:2379"
+    - "--data-dir"
+    - "/etcd"
+    "environment":
+      "ETCD_AUTO_COMPACTION_MODE": "revision"
+      "ETCD_AUTO_COMPACTION_RETENTION": "1000"
+      "ETCD_QUOTA_BACKEND_BYTES": "4294967296"
+      "ETCD_SNAPSHOT_COUNT": "50000"
+    "image": "quay.io/coreos/etcd:v3.5.5"
+    "ports":
+    - "2379:2379"
+    "restart": "on-failure:100"
+    "volumes":
+    - "etcd:/etcd"
+  "grafana":
+    "environment":
+      "GF_ORG_NAME": "trustgraph.ai"
+    "image": "docker.io/grafana/grafana:10.0.0"
+    "ports":
+    - "3000:3000"
+    "restart": "on-failure:100"
+    "volumes":
+    - "grafana-storage:/var/lib/grafana"
+    - "./grafana/dashboard.yml:/etc/grafana/provisioning/dashboards/dashboard.yml"
+    - "./grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml"
+    - "./grafana/dashboard.json:/var/lib/grafana/dashboards/dashboard.json"
+  "graph-rag":
+    "command":
+    - "graph-rag"
+    - "-p"
+    - "pulsar://pulsar:6650"
+    - "--prompt-request-queue"
+    - "non-persistent://tg/request/prompt-rag"
+    - "--prompt-response-queue"
+    - "non-persistent://tg/response/prompt-rag-response"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
+    "restart": "on-failure:100"
+  "init-pulsar":
+    "command":
+    - "sh"
+    - "-c"
+    - "pulsar-admin --admin-url http://pulsar:8080 tenants create tg && pulsar-admin --admin-url http://pulsar:8080 namespaces create tg/flow && pulsar-admin --admin-url http://pulsar:8080 namespaces create tg/request && pulsar-admin --admin-url http://pulsar:8080 namespaces create tg/response && pulsar-admin --admin-url http://pulsar:8080 namespaces set-retention --size -1 --time 3m tg/response"
+    "depends_on":
+      "pulsar":
+        "condition": "service_started"
+    "image": "docker.io/apachepulsar/pulsar:3.3.0"
+    "restart": "on-failure:100"
+  "kg-extract-definitions":
+    "command":
+    - "kg-extract-definitions"
+    - "-p"
+    - "pulsar://pulsar:6650"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
+    "restart": "on-failure:100"
+  "kg-extract-relationships":
+    "command":
+    - "kg-extract-relationships"
+    - "-p"
+    - "pulsar://pulsar:6650"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
+    "restart": "on-failure:100"
+  "milvus":
+    "command":
+    - "milvus"
+    - "run"
+    - "standalone"
+    "environment":
+      "ETCD_ENDPOINTS": "etcd:2379"
+      "MINIO_ADDRESS": "minio:9000"
+    "image": "docker.io/milvusdb/milvus:v2.4.5"
+    "ports":
+    - "9091:9091"
+    - "19530:19530"
+    "restart": "on-failure:100"
+    "volumes":
+    - "milvus:/var/lib/milvus"
+  "minio":
+    "command":
+    - "minio"
+    - "server"
+    - "/minio_data"
+    - "--console-address"
+    - ":9001"
+    "environment":
+      "MINIO_ROOT_PASSWORD": "minioadmin"
+      "MINIO_ROOT_USER": "minioadmin"
+    "image": "docker.io/minio/minio:RELEASE.2024-07-04T14-25-45Z"
+    "ports":
+    - "9001:9001"
+    "restart": "on-failure:100"
+    "volumes":
+    - "minio-data:/minio_data"
+  "pdf-decoder":
+    "command":
+    - "pdf-decoder"
+    - "-p"
+    - "pulsar://pulsar:6650"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
+    "restart": "on-failure:100"
+  "prometheus":
+    "image": "docker.io/prom/prometheus:v2.53.1"
+    "ports":
+    - "9090:9090"
+    "restart": "on-failure:100"
+    "volumes":
+    - "./prometheus:/etc/prometheus"
+    - "prometheus-data:/prometheus"
+  "prompt":
+    "command":
+    - "prompt-generic"
+    - "-p"
+    - "pulsar://pulsar:6650"
+    - "--text-completion-request-queue"
+    - "non-persistent://tg/request/text-completion"
+    - "--text-completion-response-queue"
+    - "non-persistent://tg/response/text-completion-response"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
+    "restart": "on-failure:100"
+  "prompt-rag":
+    "command":
+    - "prompt-generic"
+    - "-p"
+    - "pulsar://pulsar:6650"
+    - "-i"
+    - "non-persistent://tg/request/prompt-rag"
+    - "-o"
+    - "non-persistent://tg/response/prompt-rag-response"
+    - "--text-completion-request-queue"
+    - "non-persistent://tg/request/text-completion-rag"
+    - "--text-completion-response-queue"
+    - "non-persistent://tg/response/text-completion-rag-response"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
+    "restart": "on-failure:100"
+  "pulsar":
+    "command": "bin/pulsar standalone"
+    "image": "docker.io/apachepulsar/pulsar:3.3.0"
+    "ports":
+    - "6650:6650"
+    - "8080:8080"
+    "restart": "on-failure:100"
+    "volumes":
+    - "pulsar-conf:/pulsar/conf"
+    - "pulsar-data:/pulsar/data"
+  "pulsar-manager":
+    "environment":
+      "SPRING_CONFIGURATION_FILE": "/pulsar-manager/pulsar-manager/application.properties"
+    "image": "docker.io/apachepulsar/pulsar-manager:v0.3.0"
+    "ports":
+    - "9527:9527"
+    - "7750:7750"
+    "restart": "on-failure:100"
+  "query-graph-embeddings":
+    "command":
+    - "ge-query-milvus"
+    - "-p"
+    - "pulsar://pulsar:6650"
+    - "-t"
+    - "http://milvus:19530"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
+    "restart": "on-failure:100"
+  "query-triples":
+    "command":
+    - "triples-query-neo4j"
+    - "-p"
+    - "pulsar://pulsar:6650"
+    - "-g"
+    - "neo4j"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
+    "restart": "on-failure:100"
+  "store-graph-embeddings":
+    "command":
+    - "ge-write-milvus"
+    - "-p"
+    - "pulsar://pulsar:6650"
+    - "-t"
+    - "http://milvus:19530"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
+    "restart": "on-failure:100"
+  "store-triples":
+    "command":
+    - "triples-write-neo4j"
+    - "-p"
+    - "pulsar://pulsar:6650"
+    - "-g"
+    - "neo4j"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
+    "restart": "on-failure:100"
+  "text-completion":
+    "command":
+    - "text-completion-ollama"
+    - "-p"
+    - "pulsar://pulsar:6650"
+    - "-r"
+    - "${OLLAMA_HOST}"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
+    "restart": "on-failure:100"
+  "text-completion-rag":
+    "command":
+    - "text-completion-ollama"
+    - "-p"
+    - "pulsar://pulsar:6650"
+    - "-r"
+    - "${OLLAMA_HOST}"
+    - "-i"
+    - "non-persistent://tg/request/text-completion-rag"
+    - "-o"
+    - "non-persistent://tg/response/text-completion-rag-response"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
+    "restart": "on-failure:100"
+  "vectorize":
+    "command":
+    - "embeddings-vectorize"
+    - "-p"
+    - "pulsar://pulsar:6650"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
+    "restart": "on-failure:100"
+"volumes":
+  "neo4j": {}
+  "etcd": {}
+  "grafana-storage": {}
+  "milvus": {}
+  "minio-data": {}
+  "prometheus-data": {}
+  "pulsar-conf": {}
+  "pulsar-data": {}

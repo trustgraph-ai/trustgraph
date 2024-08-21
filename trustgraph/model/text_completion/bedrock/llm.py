@@ -6,7 +6,6 @@ Input is prompt, output is response. Mistral is default.
 
 import boto3
 import json
-import re
 
 from .... schema import TextCompletionRequest, TextCompletionResponse
 from .... schema import text_completion_request_queue
@@ -23,7 +22,7 @@ default_subscriber = module
 default_model = 'mistral.mistral-large-2407-v1:0'
 default_region = 'us-west-2'
 default_temperature = 0.0
-default_max = 2048
+default_max_output = 2048
 
 
 class Processor(ConsumerProducer):
@@ -38,7 +37,7 @@ class Processor(ConsumerProducer):
         aws_secret = params.get("aws_secret")
         aws_region = params.get("aws_region", default_region)
         temperature = params.get("temperature", default_temperature)
-        max_tokens = params.get("max_output", default_max)
+        max_output = params.get("max_output", default_max_output)
 
         super(Processor, self).__init__(
             **params | {
@@ -48,10 +47,14 @@ class Processor(ConsumerProducer):
                 "input_schema": TextCompletionRequest,
                 "output_schema": TextCompletionResponse,
                 "model": model,
+                "temperature": temperature,
+                "max_output": max_output,
             }
         )
 
         self.model = model
+        self.temperature = temperature
+        self.max_output = max_output
 
         self.session = boto3.Session(
             aws_access_key_id=aws_id,
@@ -79,8 +82,8 @@ class Processor(ConsumerProducer):
         if self.model.startswith("mistral"):
             promptbody = json.dumps({
                 "prompt": prompt,
-                "max_tokens": max_tokens,
-                "temperature": temperature,
+                "max_tokens": self.max_output,
+                "temperature": self.temperature,
                 "top_p": 0.99,
                 "top_k": 40
             })
@@ -89,8 +92,8 @@ class Processor(ConsumerProducer):
         elif self.model.startswith("meta"):
             promptbody = json.dumps({
                 "prompt": prompt,
-                "max_gen_len": max_tokens,
-                "temperature": temperature,
+                "max_gen_len": self.max_output,
+                "temperature": self.temperature,
                 "top_p": 0.95,
             })
 
@@ -98,8 +101,8 @@ class Processor(ConsumerProducer):
         elif self.model.startswith("anthropic"):
             promptbody = json.dumps({
                 "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": max_tokens,
-                "temperature": temperature,
+                "max_tokens": self.max_output,
+                "temperature": self.temperature,
                 "top_p": 0.999,
                 "messages": [
                     {
@@ -118,8 +121,8 @@ class Processor(ConsumerProducer):
         else:
             promptbody = json.dumps({
                 "prompt": prompt,
-                "max_tokens": max_tokens,
-                "temperature": temperature,
+                "max_tokens": self.max_output,
+                "temperature": self.temperature,
                 "top_p": 0.99,
                 "top_k": 40
             })
@@ -152,22 +155,12 @@ class Processor(ConsumerProducer):
             outputtext = response_body['outputs'][0]['text']            
  
         print(outputtext, flush=True)
-       
-        # Parse output for ```json``` delimiters
-        pattern = r'```json\s*([\s\S]*?)\s*```'
-        match = re.search(pattern, outputtext)
 
-        if match:
-            # If delimiters are found, extract the JSON content
-            json_content = match.group(1)
-            json_resp = json_content.strip()
-        
-        else:
-            # If no delimiters are found, return the original text
-            json_resp = outputtext.strip()
-        
+        resp = outputtext.replace("```json", "")
+        resp = outputtext.replace("```", "")    
+    
         print("Send response...", flush=True)
-        r = TextCompletionResponse(response=json_resp)
+        r = TextCompletionResponse(response=resp)
         self.send(r, properties={"id": id})
 
         print("Done.", flush=True)
@@ -203,14 +196,16 @@ class Processor(ConsumerProducer):
 
         parser.add_argument(
             '-t', '--temperature',
-            default=f"temp=0.0",
-            help=f'LLM temperature parameter'
+            type=float,
+            default=default_temperature,
+            help=f'LLM temperature parameter (default: {default_temperature})'
         )
 
         parser.add_argument(
             '-l', '--max-output',
-            default=f"max_tokens=2048",
-            help=f'LLM max output tokens'
+            type=int,
+            default=default_max_output,
+            help=f'LLM max output tokens (default: {default_max_output})'
         )
 
 def run():

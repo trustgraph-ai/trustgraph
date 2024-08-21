@@ -33,6 +33,10 @@ module = ".".join(__name__.split(".")[1:-1])
 default_input_queue = text_completion_request_queue
 default_output_queue = text_completion_response_queue
 default_subscriber = module
+default_model = 'gemini-1.0-pro-001'
+default_region = 'us-central1'
+default_temperature = 0.0
+default_max_output = 8192
 
 class Processor(ConsumerProducer):
 
@@ -41,9 +45,11 @@ class Processor(ConsumerProducer):
         input_queue = params.get("input_queue", default_input_queue)
         output_queue = params.get("output_queue", default_output_queue)
         subscriber = params.get("subscriber", default_subscriber)
-        region = params.get("region", "us-west1")
-        model = params.get("model", "gemini-1.0-pro-001")
+        region = params.get("region", default_region)
+        model = params.get("model", default_model)
         private_key = params.get("private_key")
+        temperature = params.get("temperature", default_temperature)
+        max_output = params.get("max_output", default_max_output)
 
         super(Processor, self).__init__(
             **params | {
@@ -56,19 +62,19 @@ class Processor(ConsumerProducer):
         )
 
         self.parameters = {
-            "temperature": 0.2,
+            "temperature": temperature,
             "top_p": 1.0,
             "top_k": 32,
             "candidate_count": 1,
-            "max_output_tokens": 8192,
+            "max_output_tokens": max_output,
         }
 
         self.generation_config = GenerationConfig(
-            temperature=0.2,
+            temperature=temperature,
             top_p=1.0,
             top_k=10,
             candidate_count=1,
-            max_output_tokens=8191,
+            max_output_tokens=max_output,
         )
 
         # Block none doesn't seem to work
@@ -155,8 +161,8 @@ class Processor(ConsumerProducer):
 
         parser.add_argument(
             '-m', '--model',
-            default="gemini-1.0-pro-001",
-            help=f'LLM model (default: gemini-1.0-pro-001)'
+            default=default_model,
+            help=f'LLM model (default: {default_model})'
         )
         # Also: text-bison-32k
 
@@ -167,8 +173,22 @@ class Processor(ConsumerProducer):
 
         parser.add_argument(
             '-r', '--region',
-            default='us-west1',
-            help=f'Google Cloud region (default: us-west1)',
+            default=default_region,
+            help=f'Google Cloud region (default: {default_region})',
+        )
+
+        parser.add_argument(
+            '-t', '--temperature',
+            type=float,
+            default=default_temperature,
+            help=f'LLM temperature parameter (default: {default_temperature})'
+        )
+
+        parser.add_argument(
+            '-l', '--max-output',
+            type=int,
+            default=default_max_output,
+            help=f'LLM max output tokens (default: {default_max_output})'
         )
 
 def run():

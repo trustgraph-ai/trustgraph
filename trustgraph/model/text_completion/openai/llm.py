@@ -18,6 +18,8 @@ default_input_queue = text_completion_request_queue
 default_output_queue = text_completion_response_queue
 default_subscriber = module
 default_model = 'gpt-3.5-turbo'
+default_temperature = 0.0
+default_max_output = 4096
 
 class Processor(ConsumerProducer):
 
@@ -28,6 +30,8 @@ class Processor(ConsumerProducer):
         subscriber = params.get("subscriber", default_subscriber)
         model = params.get("model", default_model)
         api_key = params.get("api_key")
+        temperature = params.get("temperature", default_temperature)
+        max_output = params.get("max_output", default_max_output)
 
         super(Processor, self).__init__(
             **params | {
@@ -37,11 +41,14 @@ class Processor(ConsumerProducer):
                 "input_schema": TextCompletionRequest,
                 "output_schema": TextCompletionResponse,
                 "model": model,
+                "temperature": temperature,
+                "max_output": max_output,
             }
         )
 
         self.model = model
-
+        self.temperature = temperature
+        self.max_output = max_output
         self.openai = OpenAI(api_key=api_key)
 
         print("Initialised", flush=True)
@@ -72,8 +79,8 @@ class Processor(ConsumerProducer):
                     ]
                 }
             ],
-            temperature=0,
-            max_tokens=4096,
+            temperature=self.temperature,
+            max_tokens=self.max_output,
             top_p=1,
             frequency_penalty=0,
             presence_penalty=0,
@@ -107,6 +114,20 @@ class Processor(ConsumerProducer):
         parser.add_argument(
             '-k', '--api-key',
             help=f'OpenAI API key'
+        )
+
+        parser.add_argument(
+            '-t', '--temperature',
+            type=float,
+            default=default_temperature,
+            help=f'LLM temperature parameter (default: {default_temperature})'
+        )
+
+        parser.add_argument(
+            '-l', '--max-output',
+            type=int,
+            default=default_max_output,
+            help=f'LLM max output tokens (default: {default_max_output})'
         )
 
 def run():

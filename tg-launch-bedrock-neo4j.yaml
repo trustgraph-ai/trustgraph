@@ -1,30 +1,31 @@
 "services":
-  "cassandra":
-    "image": "docker.io/cassandra:4.1.5"
+  "neo4j":
+    "environment":
+      "NEO4J_AUTH": "neo4j/password"
+    "image": "docker.io/neo4j:5.22.0-community-bullseye"
     "ports":
-    - "9042:9042"
+    - "7474:7474"
+    - "7687:7687"
     "restart": "on-failure:100"
     "volumes":
-    - "cassandra:/var/lib/cassandra"
+    - "neo4j:/data"
   "chunker":
     "command":
     - "chunker-recursive"
     - "-p"
     - "pulsar://pulsar:6650"
     - "--chunk-size"
-    - "4000"
+    - "2000"
     - "--chunk-overlap"
-    - "120"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.8"
+    - "100"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
     "restart": "on-failure:100"
   "embeddings":
     "command":
     - "embeddings-hf"
     - "-p"
     - "pulsar://pulsar:6650"
-    - "-m"
-    - "all-MiniLM-L6-v2"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.8"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
     "restart": "on-failure:100"
   "etcd":
     "command":
@@ -66,13 +67,7 @@
     - "non-persistent://tg/request/prompt-rag"
     - "--prompt-response-queue"
     - "non-persistent://tg/response/prompt-rag-response"
-    - "--entity-limit"
-    - "50"
-    - "--triple-limit"
-    - "30"
-    - "--max-subgraph-size"
-    - "3000"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.8"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
     "restart": "on-failure:100"
   "init-pulsar":
     "command":
@@ -89,14 +84,14 @@
     - "kg-extract-definitions"
     - "-p"
     - "pulsar://pulsar:6650"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.8"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
     "restart": "on-failure:100"
   "kg-extract-relationships":
     "command":
     - "kg-extract-relationships"
     - "-p"
     - "pulsar://pulsar:6650"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.8"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
     "restart": "on-failure:100"
   "milvus":
     "command":
@@ -134,7 +129,7 @@
     - "pdf-decoder"
     - "-p"
     - "pulsar://pulsar:6650"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.8"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
     "restart": "on-failure:100"
   "prometheus":
     "image": "docker.io/prom/prometheus:v2.53.1"
@@ -153,7 +148,7 @@
     - "non-persistent://tg/request/text-completion"
     - "--text-completion-response-queue"
     - "non-persistent://tg/response/text-completion-response"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.8"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
     "restart": "on-failure:100"
   "prompt-rag":
     "command":
@@ -168,7 +163,7 @@
     - "non-persistent://tg/request/text-completion-rag"
     - "--text-completion-response-queue"
     - "non-persistent://tg/response/text-completion-rag-response"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.8"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
     "restart": "on-failure:100"
   "pulsar":
     "command": "bin/pulsar standalone"
@@ -195,16 +190,16 @@
     - "pulsar://pulsar:6650"
     - "-t"
     - "http://milvus:19530"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.8"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
     "restart": "on-failure:100"
   "query-triples":
     "command":
-    - "triples-query-cassandra"
+    - "triples-query-neo4j"
     - "-p"
     - "pulsar://pulsar:6650"
     - "-g"
-    - "cassandra"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.8"
+    - "neo4j"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
     "restart": "on-failure:100"
   "store-graph-embeddings":
     "command":
@@ -213,52 +208,68 @@
     - "pulsar://pulsar:6650"
     - "-t"
     - "http://milvus:19530"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.8"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
     "restart": "on-failure:100"
   "store-triples":
     "command":
-    - "triples-write-cassandra"
+    - "triples-write-neo4j"
     - "-p"
     - "pulsar://pulsar:6650"
     - "-g"
-    - "cassandra"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.8"
+    - "neo4j"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
     "restart": "on-failure:100"
   "text-completion":
     "command":
-    - "text-completion-cohere"
+    - "text-completion-bedrock"
     - "-p"
     - "pulsar://pulsar:6650"
+  #  - "-l"
+  #  - "4096"
+  #  - "-t"
+  #  - "0.0"
+  #  - "-m"
+  #  - "mistral.mixtral-8x7b-instruct-v0:1"
+    - "-z"
+    - "${AWS_ID_KEY}"
     - "-k"
-    - "${COHERE_KEY}"
-    - "-m"
-    - "c4ai-aya-23-35b"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.8"
+    - "${AWS_SECRET_KEY}"
+    - "-r"
+    - "us-west-2"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
     "restart": "on-failure:100"
   "text-completion-rag":
     "command":
-    - "text-completion-cohere"
+    - "text-completion-bedrock"
     - "-p"
     - "pulsar://pulsar:6650"
+  #  - "-l"
+  #  - "4096"
+  #  - "-t"
+  #  - "0.0"
+  #  - "-m"
+  #  - "mistral.mixtral-8x7b-instruct-v0:1"
+    - "-z"
+    - "${AWS_ID_KEY}"
     - "-k"
-    - "${COHERE_KEY}"
+    - "${AWS_SECRET_KEY}"
+    - "-r"
+    - "us-west-2"
     - "-i"
     - "non-persistent://tg/request/text-completion-rag"
     - "-o"
     - "non-persistent://tg/response/text-completion-rag-response"
-    - "-m"
-    - "c4ai-aya-23-8b"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.8"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
     "restart": "on-failure:100"
   "vectorize":
     "command":
     - "embeddings-vectorize"
     - "-p"
     - "pulsar://pulsar:6650"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.6.8"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.6.9"
     "restart": "on-failure:100"
 "volumes":
-  "cassandra": {}
+  "neo4j": {}
   "etcd": {}
   "grafana-storage": {}
   "milvus": {}
