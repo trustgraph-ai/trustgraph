@@ -7,13 +7,13 @@ local url = import "url.jsonnet";
 	chunker: base + {
 	    image: images.trustgraph,
 	    command: [
-		"chunker-recursive",
+		"${CHUNKER:-chunker-token}",
 		"-p",
 		url.pulsar,
 		"--chunk-size",
-		"1000",
+		"150",
 		"--chunk-overlap",
-		"50",
+		"10",
 	    ],
 	},
 
@@ -25,6 +25,8 @@ local url = import "url.jsonnet";
 		url.pulsar,
 		"-k",
 		"${COHERE_KEY}",
+                "-t",
+                "0.0",
 	    ],
 	},
 
@@ -36,6 +38,8 @@ local url = import "url.jsonnet";
 		url.pulsar,
 		"-k",
 		"${COHERE_KEY}",
+                "-t",
+                "0.0",
 		"-i",
 		"non-persistent://tg/request/text-completion-rag",
 		"-o",

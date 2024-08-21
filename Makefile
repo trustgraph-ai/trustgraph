@@ -36,10 +36,10 @@ set-version:
 TEMPLATES=azure bedrock claude cohere mix ollama openai vertexai \
     openai-neo4j storage
 
-DCS=$(foreach template,${TEMPLATES},${template:%=docker-compose-%.yaml})
+DCS=$(foreach template,${TEMPLATES},${template:%=tg-launch-%.yaml})
 
 update-templates: set-version ${DCS}
 
-docker-compose-%.yaml: templates/docker-compose-%.jsonnet templates/components/version.jsonnet
-	jsonnet -S ${@:docker-compose-%.yaml=templates/docker-compose-%.jsonnet} > $@
+tg-launch-%.yaml: templates/%.jsonnet templates/components/version.jsonnet
+	jsonnet -S ${@:tg-launch-%.yaml=templates/%.jsonnet} > $@
 
