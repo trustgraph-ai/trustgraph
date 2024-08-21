@@ -19,6 +19,8 @@ module = ".".join(__name__.split(".")[1:-1])
 default_input_queue = text_completion_request_queue
 default_output_queue = text_completion_response_queue
 default_subscriber = module
+default_temperature = 0.0
+default_max = 4192
 
 class Processor(ConsumerProducer):
 
@@ -29,6 +31,8 @@ class Processor(ConsumerProducer):
         subscriber = params.get("subscriber", default_subscriber)
         endpoint = params.get("endpoint")
         token = params.get("token")
+        temperature = params.get("temperature", default_temperature)
+        max_tokens = params.get("max_output", default_max)
 
         super(Processor, self).__init__(
             **params | {
@@ -54,8 +58,8 @@ class Processor(ConsumerProducer):
                     "role": "user", "content": content
                 }
             ],
-            "max_tokens": 4192,
-            "temperature": 0.2,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
             "top_p": 1
         }
 
@@ -126,6 +130,18 @@ class Processor(ConsumerProducer):
         parser.add_argument(
             '-k', '--token',
             help=f'LLM model token'
+        )
+
+        parser.add_argument(
+            '-t', '--temperature',
+            default=f"temp=0.0",
+            help=f'LLM temperature parameter'
+        )
+
+        parser.add_argument(
+            '-l', '--max-output',
+            default=f"max_tokens=4192",
+            help=f'LLM max output tokens'
         )
 
 def run():

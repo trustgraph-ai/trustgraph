@@ -22,6 +22,9 @@ default_output_queue = text_completion_response_queue
 default_subscriber = module
 default_model = 'mistral.mistral-large-2407-v1:0'
 default_region = 'us-west-2'
+default_temperature = 0.0
+default_max = 2048
+
 
 class Processor(ConsumerProducer):
 
@@ -34,6 +37,8 @@ class Processor(ConsumerProducer):
         aws_id = params.get("aws_id_key")
         aws_secret = params.get("aws_secret")
         aws_region = params.get("aws_region", default_region)
+        temperature = params.get("temperature", default_temperature)
+        max_tokens = params.get("max_output", default_max)
 
         super(Processor, self).__init__(
             **params | {
@@ -74,8 +79,8 @@ class Processor(ConsumerProducer):
         if self.model.startswith("mistral"):
             promptbody = json.dumps({
                 "prompt": prompt,
-                "max_tokens": 8192,
-                "temperature": 0.0,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
                 "top_p": 0.99,
                 "top_k": 40
             })
@@ -84,8 +89,8 @@ class Processor(ConsumerProducer):
         elif self.model.startswith("meta"):
             promptbody = json.dumps({
                 "prompt": prompt,
-                "max_gen_len": 2048,
-                "temperature": 0.0,
+                "max_gen_len": max_tokens,
+                "temperature": temperature,
                 "top_p": 0.95,
             })
 
@@ -93,8 +98,8 @@ class Processor(ConsumerProducer):
         elif self.model.startswith("anthropic"):
             promptbody = json.dumps({
                 "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 8192,
-                "temperature": 0,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
                 "top_p": 0.999,
                 "messages": [
                     {
@@ -113,8 +118,8 @@ class Processor(ConsumerProducer):
         else:
             promptbody = json.dumps({
                 "prompt": prompt,
-                "max_tokens": 8192,
-                "temperature": 0.0,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
                 "top_p": 0.99,
                 "top_k": 40
             })
@@ -194,6 +199,18 @@ class Processor(ConsumerProducer):
         parser.add_argument(
             '-r', '--aws-region',
             help=f'AWS Region (default: us-west-2)'
+        )
+
+        parser.add_argument(
+            '-t', '--temperature',
+            default=f"temp=0.0",
+            help=f'LLM temperature parameter'
+        )
+
+        parser.add_argument(
+            '-l', '--max-output',
+            default=f"max_tokens=2048",
+            help=f'LLM max output tokens'
         )
 
 def run():

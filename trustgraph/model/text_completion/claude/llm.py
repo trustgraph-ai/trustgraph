@@ -18,6 +18,8 @@ default_input_queue = text_completion_request_queue
 default_output_queue = text_completion_response_queue
 default_subscriber = module
 default_model = 'claude-3-5-sonnet-20240620'
+default_temperature = 0.0
+default_max = 8192
 
 class Processor(ConsumerProducer):
 
@@ -28,6 +30,8 @@ class Processor(ConsumerProducer):
         subscriber = params.get("subscriber", default_subscriber)
         model = params.get("model", default_model)
         api_key = params.get("api_key")
+        temperature = params.get("temperature", default_temperature)
+        max_tokens = params.get("max_output", default_max)
 
         super(Processor, self).__init__(
             **params | {
@@ -61,8 +65,8 @@ class Processor(ConsumerProducer):
         # FIXME: Rate limits?
         response = message = self.claude.messages.create(
             model=self.model,
-            max_tokens=1000,
-            temperature=0.1,
+            max_tokens=max_tokens,
+            temperature=temperature,
             system = "You are a helpful chatbot.",
             messages=[
                 {
@@ -103,6 +107,18 @@ class Processor(ConsumerProducer):
         parser.add_argument(
             '-k', '--api-key',
             help=f'Claude API key'
+        )
+
+        parser.add_argument(
+            '-t', '--temperature',
+            default=f"temp=0.0",
+            help=f'LLM temperature parameter'
+        )
+
+        parser.add_argument(
+            '-l', '--max-output',
+            default=f"max_tokens=2048",
+            help=f'LLM max output tokens'
         )
 
 def run():
