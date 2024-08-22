@@ -17,6 +17,18 @@ cassandra + {
 		"-g",
 		cassandra_hosts,
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	},
 
 	"query-triples": base + {
@@ -28,6 +40,18 @@ cassandra + {
 		"-g",
 		cassandra_hosts,
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '512M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '512M'
+		    }
+		}
+	    },
 	},
 
     },

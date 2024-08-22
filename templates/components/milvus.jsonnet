@@ -16,6 +16,18 @@ milvus + {
 		"-t",
 		url.milvus,
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	},
 
 	"query-graph-embeddings": base + {
@@ -27,6 +39,18 @@ milvus + {
 		"-t",
 		url.milvus,
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	},
 
     }

@@ -11,9 +11,24 @@ local images = import "../images.jsonnet";
 	    ports: [
 		"9042:9042"
 	    ],
+	    environment: {
+		JVM_OPTS: "-Xms256M -Xmx256M",
+	    },
 	    volumes: [
 		"cassandra:/var/lib/cassandra"
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '1.0',
+			memory: '512M'
+		    },
+		    reservations: {
+			cpus: '0.5',
+			memory: '512M'
+		    }
+		}
+            },
 	},
 
     },

@@ -23,6 +23,18 @@ local images = import "../images.jsonnet";
 	    volumes: [
 		"neo4j:/data"
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '1.0',
+			memory: '256M'
+		    },
+		    reservations: {
+			cpus: '0.5',
+			memory: '256M'
+		    }
+		}
+            },
 	},
 
     },

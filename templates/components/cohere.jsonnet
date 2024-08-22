@@ -15,6 +15,18 @@ local url = import "url.jsonnet";
 		"--chunk-overlap",
 		"10",
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	},
 
 	"text-completion": base + {
@@ -28,6 +40,18 @@ local url = import "url.jsonnet";
                 "-t",
                 "0.0",
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	},
 
 	"text-completion-rag": base + {
@@ -45,6 +69,18 @@ local url = import "url.jsonnet";
 		"-o",
 		"non-persistent://tg/response/text-completion-rag-response",
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	},
 
     },

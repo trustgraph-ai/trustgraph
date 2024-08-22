@@ -13,10 +13,25 @@ local images = import "images.jsonnet";
 		"6650:6650",
 		"8080:8080",
 	    ],
+	    environment: {
+                "PULSAR_MEM": "-Xms300M -Xmx300M"
+	    },
 	    volumes: [
 		"pulsar-conf:/pulsar/conf",
 		"pulsar-data:/pulsar/data",
-	    ]
+	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '1.0',
+			memory: '900M'
+		    },
+		    reservations: {
+			cpus: '0.5',
+			memory: '900M'
+		    }
+		}
+            },
 	},
 	"init-pulsar": base + {
 	    image: images.pulsar,
@@ -30,6 +45,18 @@ local images = import "images.jsonnet";
 		    condition: "service_started",
 		}
 	    },	
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	},
 	"pulsar-manager": base + {
 	    image: images.pulsar_manager,
@@ -39,7 +66,19 @@ local images = import "images.jsonnet";
 	    ],
 	    environment: {
 		SPRING_CONFIGURATION_FILE: "/pulsar-manager/pulsar-manager/application.properties",
-	    },	
+	    },
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	},
     }
 }

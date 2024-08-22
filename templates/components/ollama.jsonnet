@@ -15,6 +15,18 @@ local url = import "url.jsonnet";
 		"-r",
 		"${OLLAMA_HOST}",
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	},
 
 	"text-completion-rag": base + {
@@ -32,6 +44,18 @@ local url = import "url.jsonnet";
 		"-o",
 		"non-persistent://tg/response/text-completion-rag-response",
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	},
 	
     },

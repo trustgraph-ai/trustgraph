@@ -15,6 +15,18 @@ local images = import "images.jsonnet";
 		"./prometheus:/etc/prometheus",
 		"prometheus-data:/prometheus",
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	},
 	grafana: base + {
 	    image: images.grafana,
@@ -34,6 +46,18 @@ local images = import "images.jsonnet";
 		GF_ORG_NAME: "trustgraph.ai",
 		// GF_SERVER_ROOT_URL: "https://example.com",
 	    },
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '1.0',
+			memory: '256M'
+		    },
+		    reservations: {
+			cpus: '0.5',
+			memory: '256M'
+		    }
+		}
+            },
 	},
     },
 }

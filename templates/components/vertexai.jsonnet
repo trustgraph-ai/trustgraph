@@ -22,6 +22,18 @@ local url = import "url.jsonnet";
 	    volumes: [
 		"./vertexai:/vertexai"
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	},
 
 	"text-completion-rag": base + {
@@ -46,6 +58,18 @@ local url = import "url.jsonnet";
 	    volumes: [
 		"./vertexai:/vertexai"
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	},
 
     },
