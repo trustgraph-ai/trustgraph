@@ -2,3 +2,5 @@
 __pycache__/
 env/
 *.egg_info/
+*.parquet
+templates/components/version.jsonnet
