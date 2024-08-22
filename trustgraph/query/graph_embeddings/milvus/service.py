@@ -78,7 +78,7 @@ class Processor(ConsumerProducer):
             entities = ents2
 
             print("Send response...", flush=True)
-            r = GraphEmbeddingsResponse(entities=entities)
+            r = GraphEmbeddingsResponse(entities=entities, error=None)
             self.producer.send(r, properties={"id": id})
 
             print("Done.", flush=True)

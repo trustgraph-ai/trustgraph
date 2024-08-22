@@ -33,7 +33,7 @@ class GraphEmbeddingsClient(BaseClient):
         if output_queue == None:
             output_queue = graph_embeddings_response_queue
             
-        super(EmbeddingsClient, self).__init__(
+        super(GraphEmbeddingsClient, self).__init__(
             log_level=log_level,
             subscriber=subscriber,
             input_queue=input_queue,

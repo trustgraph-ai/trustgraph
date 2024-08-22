@@ -16,7 +16,7 @@ WARN=_pulsar.LoggerLevel.Warn
 INFO=_pulsar.LoggerLevel.Info
 DEBUG=_pulsar.LoggerLevel.Debug
 
-class GraphRagClient:
+class GraphRagClient(BaseClient):
 
     def __init__(
             self,
@@ -31,9 +31,9 @@ class GraphRagClient:
             input_queue = graph_rag_request_queue
 
         if output_queue == None:
-            output_queue = graph_rag_request_queue
+            output_queue = graph_rag_response_queue
   
-        super(EmbeddingsClient, self).__init__(
+        super(GraphRagClient, self).__init__(
             log_level=log_level,
             subscriber=subscriber,
             input_queue=input_queue,
@@ -47,5 +47,5 @@ class GraphRagClient:
 
         return self.call(
             query=query, timeout=timeout
-        ).entities
+        ).response
 

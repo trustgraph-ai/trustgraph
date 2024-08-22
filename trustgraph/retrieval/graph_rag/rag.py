@@ -111,7 +111,7 @@ class Processor(ConsumerProducer):
             response = self.rag.query(v.query)
 
             print("Send response...", flush=True)
-            r = GraphRagResponse(response = response)
+            r = GraphRagResponse(response = response, error=None)
             self.producer.send(r, properties={"id": id})
 
             print("Done.", flush=True)
