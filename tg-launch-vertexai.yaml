@@ -28,12 +28,12 @@
     "deploy":
       "resources":
         "limits":
-          "cpus": "0.1"
+          "cpus": "0.5"
           "memory": "128M"
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
     "restart": "on-failure:100"
   "embeddings":
     "command":
@@ -50,7 +50,7 @@
         "reservations":
           "cpus": "0.5"
           "memory": "256M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
     "restart": "on-failure:100"
   "etcd":
     "command":
@@ -60,6 +60,14 @@
     - "http://0.0.0.0:2379"
     - "--data-dir"
     - "/etcd"
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "1.0"
+          "memory": "128M"
+        "reservations":
+          "cpus": "0.25"
+          "memory": "128M"
     "environment":
       "ETCD_AUTO_COMPACTION_MODE": "revision"
       "ETCD_AUTO_COMPACTION_RETENTION": "1000"
@@ -68,13 +76,6 @@
     "image": "quay.io/coreos/etcd:v3.5.15"
     "ports":
     - "2379:2379"
-    "resources":
-      "limits":
-        "cpus": "0.25"
-        "memory": "128M"
-      "reservations":
-        "cpus": "0.25"
-        "memory": "128M"
     "restart": "on-failure:100"
     "volumes":
     - "etcd:/etcd"
@@ -116,12 +117,12 @@
     "deploy":
       "resources":
         "limits":
-          "cpus": "0.1"
+          "cpus": "0.5"
           "memory": "128M"
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
     "restart": "on-failure:100"
   "init-pulsar":
     "command":
@@ -134,7 +135,7 @@
     "deploy":
       "resources":
         "limits":
-          "cpus": "0.1"
+          "cpus": "0.5"
           "memory": "128M"
         "reservations":
           "cpus": "0.1"
@@ -149,12 +150,12 @@
     "deploy":
       "resources":
         "limits":
-          "cpus": "0.1"
+          "cpus": "0.5"
           "memory": "128M"
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
     "restart": "on-failure:100"
   "kg-extract-relationships":
     "command":
@@ -164,12 +165,12 @@
     "deploy":
       "resources":
         "limits":
-          "cpus": "0.1"
+          "cpus": "0.5"
           "memory": "128M"
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
     "restart": "on-failure:100"
   "milvus":
     "command":
@@ -204,7 +205,7 @@
     "deploy":
       "resources":
         "limits":
-          "cpus": "0.25"
+          "cpus": "0.5"
           "memory": "128M"
         "reservations":
           "cpus": "0.25"
@@ -226,18 +227,18 @@
     "deploy":
       "resources":
         "limits":
-          "cpus": "0.1"
+          "cpus": "0.5"
           "memory": "128M"
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
     "restart": "on-failure:100"
   "prometheus":
     "deploy":
       "resources":
         "limits":
-          "cpus": "0.1"
+          "cpus": "0.5"
           "memory": "128M"
         "reservations":
           "cpus": "0.1"
@@ -261,12 +262,12 @@
     "deploy":
       "resources":
         "limits":
-          "cpus": "0.1"
+          "cpus": "0.5"
           "memory": "128M"
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
     "restart": "on-failure:100"
   "prompt-rag":
     "command":
@@ -284,12 +285,12 @@
     "deploy":
       "resources":
         "limits":
-          "cpus": "0.1"
+          "cpus": "0.5"
           "memory": "128M"
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
     "restart": "on-failure:100"
   "pulsar":
     "command": "bin/pulsar standalone"
@@ -302,7 +303,7 @@
           "cpus": "0.5"
           "memory": "900M"
     "environment":
-      "PULSAR_MEM": "-Xms300M -Xmx300M"
+      "PULSAR_MEM": "-Xms700M -Xmx700M"
     "image": "docker.io/apachepulsar/pulsar:3.3.1"
     "ports":
     - "6650:6650"
@@ -315,7 +316,7 @@
     "deploy":
       "resources":
         "limits":
-          "cpus": "0.1"
+          "cpus": "0.5"
           "memory": "128M"
         "reservations":
           "cpus": "0.1"
@@ -337,12 +338,12 @@
     "deploy":
       "resources":
         "limits":
-          "cpus": "0.1"
+          "cpus": "0.5"
           "memory": "128M"
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
     "restart": "on-failure:100"
   "query-triples":
     "command":
@@ -354,12 +355,12 @@
     "deploy":
       "resources":
         "limits":
-          "cpus": "0.1"
+          "cpus": "0.5"
           "memory": "512M"
         "reservations":
           "cpus": "0.1"
           "memory": "512M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
     "restart": "on-failure:100"
   "store-graph-embeddings":
     "command":
@@ -371,12 +372,12 @@
     "deploy":
       "resources":
         "limits":
-          "cpus": "0.1"
+          "cpus": "0.5"
           "memory": "128M"
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
     "restart": "on-failure:100"
   "store-triples":
     "command":
@@ -388,12 +389,12 @@
     "deploy":
       "resources":
         "limits":
-          "cpus": "0.1"
+          "cpus": "0.5"
           "memory": "128M"
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
     "restart": "on-failure:100"
   "text-completion":
     "command":
@@ -411,12 +412,12 @@
     "deploy":
       "resources":
         "limits":
-          "cpus": "0.1"
+          "cpus": "0.5"
           "memory": "128M"
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
     "restart": "on-failure:100"
     "volumes":
     - "./vertexai:/vertexai"
@@ -440,12 +441,12 @@
     "deploy":
       "resources":
         "limits":
-          "cpus": "0.1"
+          "cpus": "0.5"
           "memory": "128M"
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
     "restart": "on-failure:100"
     "volumes":
     - "./vertexai:/vertexai"
@@ -457,12 +458,12 @@
     "deploy":
       "resources":
         "limits":
-          "cpus": "0.1"
+          "cpus": "0.5"
           "memory": "128M"
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
     "restart": "on-failure:100"
 "volumes":
   "cassandra": {}

@@ -18,7 +18,7 @@ local images = import "images.jsonnet";
             deploy: {
 		resources: {
 		    limits: {
-			cpus: '0.1',
+			cpus: '0.5',
 			memory: '128M'
 		    },
 		    reservations: {
