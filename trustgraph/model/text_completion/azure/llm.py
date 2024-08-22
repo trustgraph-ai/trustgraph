@@ -7,7 +7,7 @@ serverless endpoint service.  Input is prompt, output is response.
 import requests
 import json
 
-from .... schema import TextCompletionRequest, TextCompletionResponse
+from .... schema import TextCompletionRequest, TextCompletionResponse, Error
 from .... schema import text_completion_request_queue
 from .... schema import text_completion_response_queue
 from .... log_level import LogLevel
@@ -89,6 +89,9 @@ class Processor(ConsumerProducer):
         if resp.status_code == 429:
             raise TooManyRequests()
 
+        if resp.status_code != 200:
+            raise RuntimeError("LLM failure")
+
         result = resp.json()
 
         message_content = result['choices'][0]['message']['content']
@@ -110,15 +113,49 @@ class Processor(ConsumerProducer):
             v.prompt
         )
 
-        response = self.call_llm(prompt)
+        try:
 
-        print("Send response...", flush=True)
+            response = self.call_llm(prompt)
 
-        resp = response.replace("```json", "")
-        resp = response.replace("```", "")
+            print("Send response...", flush=True)
 
-        r = TextCompletionResponse(response=resp)
-        self.producer.send(r, properties={"id": id})
+            resp = response.replace("```json", "")
+            resp = response.replace("```", "")
+
+            r = TextCompletionResponse(response=resp)
+            self.producer.send(r, properties={"id": id})
+
+        except TooManyRequests:
+
+            print("Send rate limit response...", flush=True)
+
+            r = TextCompletionResponse(
+                error=Error(
+                    type = "rate-limit",
+                    message = str(e),
+                )
+            )
+
+            self.producer.send(r, properties={"id": id})
+
+            self.consumer.acknowledge(msg)
+
+        except Exception as e:
+
+            print(f"Exception: {e}")
+
+            print("Send error response...", flush=True)
+
+            r = TextCompletionResponse(
+                error=Error(
+                    type = "llm-error",
+                    message = str(e),
+                )
+            )
+
+            self.producer.send(r, properties={"id": id})
+
+            self.consumer.acknowledge(msg)
 
         print("Done.", flush=True)
 

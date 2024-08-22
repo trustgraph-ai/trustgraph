@@ -5,7 +5,8 @@ entities
 """
 
 from .... direct.milvus import TripleVectors
-from .... schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse, Value
+from .... schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
+from .... schema import Error, Value
 from .... schema import graph_embeddings_request_queue
 from .... schema import graph_embeddings_response_queue
 from .... base import ConsumerProducer
@@ -47,38 +48,58 @@ class Processor(ConsumerProducer):
         
     def handle(self, msg):
 
-        v = msg.value()
+        try:
 
-        # Sender-produced ID
-        id = msg.properties()["id"]
+            v = msg.value()
 
-        print(f"Handling input {id}...", flush=True)
+            # Sender-produced ID
+            id = msg.properties()["id"]
 
-        entities = set()
+            print(f"Handling input {id}...", flush=True)
 
-        for vec in v.vectors:
+            entities = set()
 
-            resp = self.vecstore.search(vec, limit=v.limit)
+            for vec in v.vectors:
 
-            for r in resp:
-                ent = r["entity"]["entity"]
-                entities.add(ent)
+                resp = self.vecstore.search(vec, limit=v.limit)
 
-        # Convert set to list
-        entities = list(entities)
+                for r in resp:
+                    ent = r["entity"]["entity"]
+                    entities.add(ent)
 
-        ents2 = []
+            # Convert set to list
+            entities = list(entities)
 
-        for ent in entities:
-            ents2.append(self.create_value(ent))
+            ents2 = []
 
-        entities = ents2
+            for ent in entities:
+                ents2.append(self.create_value(ent))
 
-        print("Send response...", flush=True)
-        r = GraphEmbeddingsResponse(entities=entities)
-        self.producer.send(r, properties={"id": id})
+            entities = ents2
 
-        print("Done.", flush=True)
+            print("Send response...", flush=True)
+            r = GraphEmbeddingsResponse(entities=entities)
+            self.producer.send(r, properties={"id": id})
+
+            print("Done.", flush=True)
+
+        except Exception as e:
+
+            print(f"Exception: {e}")
+
+            print("Send error response...", flush=True)
+
+            r = GraphEmbeddingsResponse(
+                error=Error(
+                    type = "llm-error",
+                    message = str(e),
+                ),
+                response=None,
+            )
+
+            self.producer.send(r, properties={"id": id})
+
+            self.consumer.acknowledge(msg)
 
     @staticmethod
     def add_args(parser):

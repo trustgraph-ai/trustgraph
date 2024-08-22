@@ -5,7 +5,7 @@ null.  Output is a list of triples.
 """
 
 from .... direct.cassandra import TrustGraph
-from .... schema import TriplesQueryRequest, TriplesQueryResponse
+from .... schema import TriplesQueryRequest, TriplesQueryResponse, Error
 from .... schema import Value, Triple
 from .... schema import triples_request_queue
 from .... schema import triples_response_queue
@@ -48,90 +48,110 @@ class Processor(ConsumerProducer):
 
     def handle(self, msg):
 
-        v = msg.value()
+        try:
 
-        # Sender-produced ID
-        id = msg.properties()["id"]
+            v = msg.value()
 
-        print(f"Handling input {id}...", flush=True)
+            # Sender-produced ID
+            id = msg.properties()["id"]
 
-        triples = []
+            print(f"Handling input {id}...", flush=True)
 
-        if v.s is not None:
-            if v.p is not None:
-                if v.o is not None:
-                    resp = self.tg.get_spo(
-                        v.s.value, v.p.value, v.o.value,
-                        limit=v.limit
-                    )
-                    triples.append((v.s.value, v.p.value, v.o.value))
+            triples = []
+
+            if v.s is not None:
+                if v.p is not None:
+                    if v.o is not None:
+                        resp = self.tg.get_spo(
+                            v.s.value, v.p.value, v.o.value,
+                            limit=v.limit
+                        )
+                        triples.append((v.s.value, v.p.value, v.o.value))
+                    else:
+                        resp = self.tg.get_sp(
+                            v.s.value, v.p.value,
+                            limit=v.limit
+                        )
+                        for t in resp:
+                            triples.append((v.s.value, v.p.value, t.o))
                 else:
-                    resp = self.tg.get_sp(
-                        v.s.value, v.p.value,
-                        limit=v.limit
-                    )
-                    for t in resp:
-                        triples.append((v.s.value, v.p.value, t.o))
+                    if v.o is not None:
+                        resp = self.tg.get_os(
+                            v.o.value, v.s.value, 
+                            limit=v.limit
+                        )
+                        for t in resp:
+                            triples.append((v.s.value, t.p, v.o.value))
+                    else:
+                        resp = self.tg.get_s(
+                            v.s.value,
+                            limit=v.limit
+                        )
+                        for t in resp:
+                            triples.append((v.s.value, t.p, t.o))
             else:
-                if v.o is not None:
-                    resp = self.tg.get_os(
-                        v.o.value, v.s.value, 
-                        limit=v.limit
-                    )
-                    for t in resp:
-                        triples.append((v.s.value, t.p, v.o.value))
+                if v.p is not None:
+                    if v.o is not None:
+                        resp = self.tg.get_po(
+                            v.p.value, v.o.value,
+                            limit=v.limit
+                        )
+                        for t in resp:
+                            triples.append((t.s, v.p.value, v.o.value))
+                    else:
+                        resp = self.tg.get_p(
+                            v.p.value,
+                            limit=v.limit
+                        )
+                        for t in resp:
+                            triples.append((t.s, v.p.value, t.o))
                 else:
-                    resp = self.tg.get_s(
-                        v.s.value,
-                        limit=v.limit
-                    )
-                    for t in resp:
-                        triples.append((v.s.value, t.p, t.o))
-        else:
-            if v.p is not None:
-                if v.o is not None:
-                    resp = self.tg.get_po(
-                        v.p.value, v.o.value,
-                        limit=v.limit
-                    )
-                    for t in resp:
-                        triples.append((t.s, v.p.value, v.o.value))
-                else:
-                    resp = self.tg.get_p(
-                        v.p.value,
-                        limit=v.limit
-                    )
-                    for t in resp:
-                        triples.append((t.s, v.p.value, t.o))
-            else:
-                if v.o is not None:
-                    resp = self.tg.get_o(
-                        v.o.value,
-                        limit=v.limit
-                    )
-                    for t in resp:
-                        triples.append((t.s, t.p, v.o.value))
-                else:
-                    resp = self.tg.get_all(
-                        limit=v.limit
-                    )
-                    for t in resp:
-                        triples.append((t.s, t.p, t.o))
+                    if v.o is not None:
+                        resp = self.tg.get_o(
+                            v.o.value,
+                            limit=v.limit
+                        )
+                        for t in resp:
+                            triples.append((t.s, t.p, v.o.value))
+                    else:
+                        resp = self.tg.get_all(
+                            limit=v.limit
+                        )
+                        for t in resp:
+                            triples.append((t.s, t.p, t.o))
 
-        triples = [
-            Triple(
-                s=self.create_value(t[0]),
-                p=self.create_value(t[1]), 
-                o=self.create_value(t[2])
+            triples = [
+                Triple(
+                    s=self.create_value(t[0]),
+                    p=self.create_value(t[1]), 
+                    o=self.create_value(t[2])
+                )
+                for t in triples
+            ]
+
+            print("Send response...", flush=True)
+            r = TriplesQueryResponse(triples=triples)
+            self.producer.send(r, properties={"id": id})
+
+            print("Done.", flush=True)
+
+        except Exception as e:
+
+            print(f"Exception: {e}")
+
+            print("Send error response...", flush=True)
+
+            r = TriplesQueryResponse(
+                error=Error(
+                    type = "llm-error",
+                    message = str(e),
+                ),
+                response=None,
             )
-            for t in triples
-        ]
 
-        print("Send response...", flush=True)
-        r = TriplesQueryResponse(triples=triples)
-        self.producer.send(r, properties={"id": id})
+            self.producer.send(r, properties={"id": id})
 
-        print("Done.", flush=True)
+            self.consumer.acknowledge(msg)
 
     @staticmethod
     def add_args(parser):

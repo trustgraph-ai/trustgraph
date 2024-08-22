@@ -6,7 +6,7 @@ Input is text, output is embeddings vector.
 
 from langchain_huggingface import HuggingFaceEmbeddings
 
-from ... schema import EmbeddingsRequest, EmbeddingsResponse
+from ... schema import EmbeddingsRequest, EmbeddingsResponse, Error
 from ... schema import embeddings_request_queue, embeddings_response_queue
 from ... log_level import LogLevel
 from ... base import ConsumerProducer
@@ -48,14 +48,36 @@ class Processor(ConsumerProducer):
 
         print(f"Handling input {id}...", flush=True)
 
-        text = v.text
-        embeds = self.embeddings.embed_documents([text])
+        try:
 
-        print("Send response...", flush=True)
-        r = EmbeddingsResponse(vectors=embeds)
-        self.producer.send(r, properties={"id": id})
+            text = v.text
+            embeds = self.embeddings.embed_documents([text])
 
-        print("Done.", flush=True)
+            print("Send response...", flush=True)
+            r = EmbeddingsResponse(vectors=embeds, error=None)
+            self.producer.send(r, properties={"id": id})
+
+            print("Done.", flush=True)
+
+
+        except Exception as e:
+
+            print(f"Exception: {e}")
+
+            print("Send error response...", flush=True)
+
+            r = EmbeddingsResponse(
+                error=Error(
+                    type = "llm-error",
+                    message = str(e),
+                ),
+                response=None,
+            )
+
+            self.producer.send(r, properties={"id": id})
+
+            self.consumer.acknowledge(msg)
+            
 
     @staticmethod
     def add_args(parser):

@@ -6,7 +6,7 @@ Language service abstracts prompt engineering from LLM.
 import json
 
 from .... schema import Definition, Relationship, Triple
-from .... schema import PromptRequest, PromptResponse
+from .... schema import PromptRequest, PromptResponse, Error
 from .... schema import TextCompletionRequest, TextCompletionResponse
 from .... schema import text_completion_request_queue
 from .... schema import text_completion_response_queue
@@ -89,91 +89,151 @@ class Processor(ConsumerProducer):
 
     def handle_extract_definitions(self, id, v):
 
-        prompt = to_definitions(v.chunk)
-
-        ans = self.llm.request(prompt)
-
-        # Silently ignore JSON parse error
         try:
-            defs = json.loads(ans)
-        except:
-            print("JSON parse error, ignored", flush=True)
-            defs = []
 
-        output = []
+            prompt = to_definitions(v.chunk)
 
-        for defn in defs:
+            ans = self.llm.request(prompt)
 
+            # Silently ignore JSON parse error
             try:
-                e = defn["entity"]
-                d = defn["definition"]
-
-                output.append(
-                    Definition(
-                        name=e, definition=d
-                    )
-                )
-
+                defs = json.loads(ans)
             except:
-                print("definition fields missing, ignored", flush=True)
+                print("JSON parse error, ignored", flush=True)
+                defs = []
 
-        print("Send response...", flush=True)
-        r = PromptResponse(definitions=output)
-        self.producer.send(r, properties={"id": id})
+            output = []
 
-        print("Done.", flush=True)
+            for defn in defs:
+
+                try:
+                    e = defn["entity"]
+                    d = defn["definition"]
+
+                    output.append(
+                        Definition(
+                            name=e, definition=d
+                        )
+                    )
+
+                except:
+                    print("definition fields missing, ignored", flush=True)
+
+            print("Send response...", flush=True)
+            r = PromptResponse(definitions=output, error=None)
+            self.producer.send(r, properties={"id": id})
+
+            print("Done.", flush=True)
         
+        except Exception as e:
+
+            print(f"Exception: {e}")
+
+            print("Send error response...", flush=True)
+
+            r = PromptResponse(
+                error=Error(
+                    type = "llm-error",
+                    message = str(e),
+                ),
+                response=None,
+            )
+
+            self.producer.send(r, properties={"id": id})
+
+            self.consumer.acknowledge(msg)
+
     def handle_extract_relationships(self, id, v):
 
-        prompt = to_relationships(v.chunk)
-
-        ans = self.llm.request(prompt)
-
-        # Silently ignore JSON parse error
         try:
-            defs = json.loads(ans)
-        except:
-            print("JSON parse error, ignored", flush=True)
-            defs = []
 
-        output = []
+            prompt = to_relationships(v.chunk)
 
-        for defn in defs:
+            ans = self.llm.request(prompt)
 
+            # Silently ignore JSON parse error
             try:
-                output.append(
-                    Relationship(
-                        s = defn["subject"],
-                        p = defn["predicate"],
-                        o = defn["object"],
-                        o_entity = defn["object-entity"],
+                defs = json.loads(ans)
+            except:
+                print("JSON parse error, ignored", flush=True)
+                defs = []
+
+            output = []
+
+            for defn in defs:
+
+                try:
+                    output.append(
+                        Relationship(
+                            s = defn["subject"],
+                            p = defn["predicate"],
+                            o = defn["object"],
+                            o_entity = defn["object-entity"],
+                        )
                     )
-                )
 
-            except Exception as e:
-                print("relationship fields missing, ignored", flush=True)
+                except Exception as e:
+                    print("relationship fields missing, ignored", flush=True)
 
-        print("Send response...", flush=True)
-        r = PromptResponse(relationships=output)
-        self.producer.send(r, properties={"id": id})
+            print("Send response...", flush=True)
+            r = PromptResponse(relationships=output, error=None)
+            self.producer.send(r, properties={"id": id})
 
-        print("Done.", flush=True)
+            print("Done.", flush=True)
+
+        except Exception as e:
+
+            print(f"Exception: {e}")
+
+            print("Send error response...", flush=True)
+
+            r = PromptResponse(
+                error=Error(
+                    type = "llm-error",
+                    message = str(e),
+                ),
+                response=None,
+            )
+
+            self.producer.send(r, properties={"id": id})
+
+            self.consumer.acknowledge(msg)
         
     def handle_kg_prompt(self, id, v):
 
-        prompt = to_kg_query(v.query, v.kg)
+        try:
 
-        print(prompt)
+            prompt = to_kg_query(v.query, v.kg)
 
-        ans = self.llm.request(prompt)
+            print(prompt)
 
-        print(ans)
+            ans = self.llm.request(prompt)
 
-        print("Send response...", flush=True)
-        r = PromptResponse(answer=ans)
-        self.producer.send(r, properties={"id": id})
+            print(ans)
 
-        print("Done.", flush=True)
+            print("Send response...", flush=True)
+            r = PromptResponse(answer=ans, error=None)
+            self.producer.send(r, properties={"id": id})
+
+            print("Done.", flush=True)
+
+        except Exception as e:
+
+            print(f"Exception: {e}")
+
+            print("Send error response...", flush=True)
+
+            r = PromptResponse(
+                error=Error(
+                    type = "llm-error",
+                    message = str(e),
+                ),
+                response=None,
+            )
+
+            self.producer.send(r, properties={"id": id})
+
+            self.consumer.acknowledge(msg)
         
     @staticmethod
     def add_args(parser):

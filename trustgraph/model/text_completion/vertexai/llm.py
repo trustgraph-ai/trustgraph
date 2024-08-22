@@ -21,7 +21,7 @@ from vertexai.preview.generative_models import (
     Tool,
 )
 
-from .... schema import TextCompletionRequest, TextCompletionResponse
+from .... schema import TextCompletionRequest, TextCompletionResponse, Error
 from .... schema import text_completion_request_queue
 from .... schema import text_completion_response_queue
 from .... log_level import LogLevel
@@ -136,7 +136,12 @@ class Processor(ConsumerProducer):
             resp = resp.replace("```", "")
 
             print("Send response...", flush=True)
-            r = TextCompletionResponse(response=resp)
+
+            r = TextCompletionResponse(
+                error=None,
+                response=resp,
+            )
+
             self.producer.send(r, properties={"id": id})
 
             print("Done.", flush=True)
@@ -144,12 +149,39 @@ class Processor(ConsumerProducer):
             # Acknowledge successful processing of the message
             self.consumer.acknowledge(msg)
 
-        except google.api_core.exceptions.ResourceExhausted:
+        except google.api_core.exceptions.ResourceExhausted as e:
 
-            # 429 / rate limits case
-            raise TooManyRequests
+            print("Send rate limit response...", flush=True)
 
-        # Let other exceptions fall through
+            r = TextCompletionResponse(
+                error=Error(
+                    type = "rate-limit",
+                    message = str(e),
+                ),
+                response=None,
+            )
+
+            self.producer.send(r, properties={"id": id})
+
+            self.consumer.acknowledge(msg)
+
+        except Exception as e:
+
+            print(f"Exception: {e}")
+
+            print("Send error response...", flush=True)
+
+            r = TextCompletionResponse(
+                error=Error(
+                    type = "llm-error",
+                    message = str(e),
+                ),
+                response=None,
+            )
+
+            self.producer.send(r, properties={"id": id})
+
+            self.consumer.acknowledge(msg)
 
     @staticmethod
     def add_args(parser):

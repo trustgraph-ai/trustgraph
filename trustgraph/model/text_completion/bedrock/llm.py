@@ -7,7 +7,7 @@ Input is prompt, output is response. Mistral is default.
 import boto3
 import json
 
-from .... schema import TextCompletionRequest, TextCompletionResponse
+from .... schema import TextCompletionRequest, TextCompletionResponse, Error
 from .... schema import text_completion_request_queue
 from .... schema import text_completion_response_queue
 from .... log_level import LogLevel
@@ -130,40 +130,81 @@ class Processor(ConsumerProducer):
         accept = 'application/json'
         contentType = 'application/json'
 
-        # FIXME: Consider catching request limits and raise TooManyRequests
-        # See https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html
-        response = self.bedrock.invoke_model(body=promptbody, modelId=self.model, accept=accept, contentType=contentType)
-        
-        # Mistral Response Structure
-        if self.model.startswith("mistral"):
-            response_body = json.loads(response.get("body").read())
-            outputtext = response_body['outputs'][0]['text']
+        try:
 
-        # Claude Response Structure
-        elif self.model.startswith("anthropic"):
-            model_response = json.loads(response["body"].read())
-            outputtext = model_response['content'][0]['text']
+            # FIXME: Consider catching request limits and raise TooManyRequests
+            # See https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html
+            response = self.bedrock.invoke_model(body=promptbody, modelId=self.model, accept=accept, contentType=contentType)
 
-        # Llama 3.1 Response Structure
-        elif self.model.startswith("meta"):
-            model_response = json.loads(response["body"].read())
-            outputtext = model_response["generation"]
+            # Mistral Response Structure
+            if self.model.startswith("mistral"):
+                response_body = json.loads(response.get("body").read())
+                outputtext = response_body['outputs'][0]['text']
 
-        # Use Mistral as default
-        else:
-            response_body = json.loads(response.get("body").read())
-            outputtext = response_body['outputs'][0]['text']            
- 
-        print(outputtext, flush=True)
+            # Claude Response Structure
+            elif self.model.startswith("anthropic"):
+                model_response = json.loads(response["body"].read())
+                outputtext = model_response['content'][0]['text']
 
-        resp = outputtext.replace("```json", "")
-        resp = outputtext.replace("```", "")    
-    
-        print("Send response...", flush=True)
-        r = TextCompletionResponse(response=resp)
-        self.send(r, properties={"id": id})
+            # Llama 3.1 Response Structure
+            elif self.model.startswith("meta"):
+                model_response = json.loads(response["body"].read())
+                outputtext = model_response["generation"]
 
-        print("Done.", flush=True)
+            # Use Mistral as default
+            else:
+                response_body = json.loads(response.get("body").read())
+                outputtext = response_body['outputs'][0]['text']            
+
+            print(outputtext, flush=True)
+
+            resp = outputtext.replace("```json", "")
+            resp = outputtext.replace("```", "")    
+
+            print("Send response...", flush=True)
+            r = TextCompletionResponse(
+                error=None,
+                response=resp
+            )
+
+            self.send(r, properties={"id": id})
+
+            print("Done.", flush=True)
+
+
+        # FIXME: Wrong exception, don't know what Bedrock throws
+        # for a rate limit
+        except TooManyRequests:
+
+            print("Send rate limit response...", flush=True)
+
+            r = TextCompletionResponse(
+                error=Error(
+                    type = "rate-limit",
+                    message = str(e),
+                ),
+                response=None,
+            )
+
+            self.producer.send(r, properties={"id": id})
+
+            self.consumer.acknowledge(msg)
+
+        except Exception as e:
+
+            print(f"Exception: {e}")
+
+            print("Send error response...", flush=True)
+
+            r = TextCompletionResponse(
+                error=Error(
+                    type = "llm-error",
+                    message = str(e),
+                ),
+                response=None,
+            )
+
+            self.consumer.acknowledge(msg)
 
     @staticmethod
     def add_args(parser):
