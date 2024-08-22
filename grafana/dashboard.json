@@ -743,7 +743,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
-            "axisLabel": "",
+            "axisLabel": "GB",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
@@ -815,7 +815,7 @@
           },
           "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "process_virtual_memory_bytes",
+          "expr": "process_resident_memory_bytes / 1073741824",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "instant": false,
@@ -903,7 +903,7 @@
           "useBackend": false
         }
       ],
-      "title": "Panel Title",
+      "title": "Model parameters",
       "transformations": [
         {
           "id": "filterFieldsByName",
