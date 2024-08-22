@@ -33,15 +33,17 @@ local images = import "../images.jsonnet";
 	    volumes: [
 		"etcd:/etcd"
 	    ],
-	    resources: {
-		limits: {
-		    cpus: '0.25',
-		    memory: '128M'
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '1.0',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.25',
+			memory: '128M'
+		    }
 		},
-		reservations: {
-		    cpus: '0.25',
-		    memory: '128M'
-		}
 	    },
         },
 
@@ -67,7 +69,7 @@ local images = import "../images.jsonnet";
             deploy: {
 		resources: {
 		    limits: {
-			cpus: '0.25',
+			cpus: '0.5',
 			memory: '128M'
 		    },
 		    reservations: {

@@ -14,7 +14,7 @@ local images = import "images.jsonnet";
 		"8080:8080",
 	    ],
 	    environment: {
-                "PULSAR_MEM": "-Xms300M -Xmx300M"
+                "PULSAR_MEM": "-Xms700M -Xmx700M"
 	    },
 	    volumes: [
 		"pulsar-conf:/pulsar/conf",
@@ -48,7 +48,7 @@ local images = import "images.jsonnet";
             deploy: {
 		resources: {
 		    limits: {
-			cpus: '0.1',
+			cpus: '0.5',
 			memory: '128M'
 		    },
 		    reservations: {
@@ -70,7 +70,7 @@ local images = import "images.jsonnet";
             deploy: {
 		resources: {
 		    limits: {
-			cpus: '0.1',
+			cpus: '0.5',
 			memory: '128M'
 		    },
 		    reservations: {

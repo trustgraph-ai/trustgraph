@@ -19,7 +19,7 @@ neo4j + {
             deploy: {
 		resources: {
 		    limits: {
-			cpus: '0.1',
+			cpus: '0.5',
 			memory: '128M'
 		    },
 		    reservations: {
@@ -42,7 +42,7 @@ neo4j + {
             deploy: {
 		resources: {
 		    limits: {
-			cpus: '0.1',
+			cpus: '0.5',
 			memory: '128M'
 		    },
 		    reservations: {

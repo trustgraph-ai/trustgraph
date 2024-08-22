@@ -18,7 +18,7 @@ local url = import "url.jsonnet";
             deploy: {
 		resources: {
 		    limits: {
-			cpus: '0.1',
+			cpus: '0.5',
 			memory: '128M'
 		    },
 		    reservations: {
@@ -47,7 +47,7 @@ local url = import "url.jsonnet";
             deploy: {
 		resources: {
 		    limits: {
-			cpus: '0.1',
+			cpus: '0.5',
 			memory: '128M'
 		    },
 		    reservations: {
