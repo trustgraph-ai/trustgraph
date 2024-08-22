@@ -1,9 +1,11 @@
 
-import pulsar
-import _pulsar
 from pulsar.schema import JsonSchema
 from .. schema import EmbeddingsRequest, EmbeddingsResponse
 from .. schema import embeddings_request_queue, embeddings_response_queue
+from . base import BaseClient
+
+import pulsar
+import _pulsar
 import hashlib
 import uuid
 import time
@@ -14,7 +16,7 @@ WARN=_pulsar.LoggerLevel.Warn
 INFO=_pulsar.LoggerLevel.Info
 DEBUG=_pulsar.LoggerLevel.Debug
 
-class EmbeddingsClient:
+class EmbeddingsClient(BaseClient):
 
     def __init__(
             self, log_level=ERROR,
@@ -24,72 +26,23 @@ class EmbeddingsClient:
             pulsar_host="pulsar://pulsar:6650",
     ):
 
-        self.client = None
-
         if input_queue == None:
             input_queue=embeddings_request_queue
 
         if output_queue == None:
             output_queue=embeddings_response_queue
 
-        if subscriber == None:
-            subscriber = str(uuid.uuid4())
-
-        self.client = pulsar.Client(
-            pulsar_host,
-            logger=pulsar.ConsoleLogger(log_level),
+        super(EmbeddingsClient, self).__init__(
+            log_level=log_level,
+            subscriber=subscriber,
+            input_queue=input_queue,
+            output_queue=output_queue,
+            pulsar_host=pulsar_host,
+            input_schema=EmbeddingsRequest,
+            output_schema=EmbeddingsResponse,
         )
 
-        self.producer = self.client.create_producer(
-            topic=input_queue,
-            schema=JsonSchema(EmbeddingsRequest),
-            chunking_enabled=True,
-        )
+    def request(self, text, timeout=30):
+        return self.call(text=text, timeout=timeout).vectors
 
-        self.consumer = self.client.subscribe(
-            output_queue, subscriber,
-            schema=JsonSchema(EmbeddingsResponse),
-        )
-
-    def request(self, text, timeout=10):
-
-        id = str(uuid.uuid4())
-
-        r = EmbeddingsRequest(
-            text=text
-        )
-        self.producer.send(r, properties={ "id": id })
-
-        end_time = time.time() + timeout
-
-        while time.time() < end_time:
-
-            try:
-                msg = self.consumer.receive(timeout_millis=5000)
-            except pulsar.exceptions.Timeout:
-                continue
-
-            mid = msg.properties()["id"]
-
-            if mid == id:
-                resp = msg.value().vectors
-                self.consumer.acknowledge(msg)
-                return resp
-
-            # Ignore messages with wrong ID
-            self.consumer.acknowledge(msg)
-
-        raise TimeoutError("Timed out waiting for response")
-
-    def __del__(self):
-
-        if hasattr(self, "consumer"):
-#             self.consumer.unsubscribe()
-            self.consumer.close()
-            
-        if hasattr(self, "producer"):
-            self.producer.flush()
-            self.producer.close()
-            
-        self.client.close()
 

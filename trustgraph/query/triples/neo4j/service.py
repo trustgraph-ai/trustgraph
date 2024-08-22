@@ -6,7 +6,7 @@ null.  Output is a list of triples.
 
 from neo4j import GraphDatabase
 
-from .... schema import TriplesQueryRequest, TriplesQueryResponse
+from .... schema import TriplesQueryRequest, TriplesQueryResponse, Error
 from .... schema import Value, Triple
 from .... schema import triples_request_queue
 from .... schema import triples_response_queue
@@ -57,245 +57,265 @@ class Processor(ConsumerProducer):
 
     def handle(self, msg):
 
-        v = msg.value()
+        try:
 
-        # Sender-produced ID
-        id = msg.properties()["id"]
+            v = msg.value()
 
-        print(f"Handling input {id}...", flush=True)
+            # Sender-produced ID
+            id = msg.properties()["id"]
 
-        triples = []
+            print(f"Handling input {id}...", flush=True)
 
-        if v.s is not None:
-            if v.p is not None:
-                if v.o is not None:
+            triples = []
 
-                    # SPO
+            if v.s is not None:
+                if v.p is not None:
+                    if v.o is not None:
 
-                    records, summary, keys = self.io.execute_query(
-                        "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Literal {value: $value}) "
-                        "RETURN $src as src",
-                        src=v.s.value, rel=v.p.value, value=v.o.value,
-                        database_=self.db,
-                    )
+                        # SPO
 
-                    for rec in records:
-                        triples.append((v.s.value, v.p.value, v.o.value))
-                    
-                    records, summary, keys = self.io.execute_query(
-                        "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Node {uri: $uri}) "
-                        "RETURN $src as src",
-                        src=v.s.value, rel=v.p.value, uri=v.o.value,
-                        database_=self.db,
-                    )
+                        records, summary, keys = self.io.execute_query(
+                            "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Literal {value: $value}) "
+                            "RETURN $src as src",
+                            src=v.s.value, rel=v.p.value, value=v.o.value,
+                            database_=self.db,
+                        )
 
-                    for rec in records:
-                        triples.append((v.s.value, v.p.value, v.o.value))
+                        for rec in records:
+                            triples.append((v.s.value, v.p.value, v.o.value))
+
+                        records, summary, keys = self.io.execute_query(
+                            "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Node {uri: $uri}) "
+                            "RETURN $src as src",
+                            src=v.s.value, rel=v.p.value, uri=v.o.value,
+                            database_=self.db,
+                        )
+
+                        for rec in records:
+                            triples.append((v.s.value, v.p.value, v.o.value))
+
+                    else:
+
+                        # SP
+
+                        records, summary, keys = self.io.execute_query(
+                            "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Literal) "
+                            "RETURN dest.value as dest",
+                            src=v.s.value, rel=v.p.value,
+                            database_=self.db,
+                        )
+
+                        for rec in records:
+                            data = rec.data()
+                            triples.append((v.s.value, v.p.value, data["dest"]))
+
+                        records, summary, keys = self.io.execute_query(
+                            "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Node) "
+                            "RETURN dest.uri as dest",
+                            src=v.s.value, rel=v.p.value,
+                            database_=self.db,
+                        )
+
+                        for rec in records:
+                            data = rec.data()
+                            triples.append((v.s.value, v.p.value, data["dest"]))
 
                 else:
 
-                    # SP
-                    
-                    records, summary, keys = self.io.execute_query(
-                        "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Literal) "
-                        "RETURN dest.value as dest",
-                        src=v.s.value, rel=v.p.value,
-                        database_=self.db,
-                    )
+                    if v.o is not None:
 
-                    for rec in records:
-                        data = rec.data()
-                        triples.append((v.s.value, v.p.value, data["dest"]))
-                    
-                    records, summary, keys = self.io.execute_query(
-                        "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Node) "
-                        "RETURN dest.uri as dest",
-                        src=v.s.value, rel=v.p.value,
-                        database_=self.db,
-                    )
+                        # SO
 
-                    for rec in records:
-                        data = rec.data()
-                        triples.append((v.s.value, v.p.value, data["dest"]))
+                        records, summary, keys = self.io.execute_query(
+                            "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Literal {value: $value}) "
+                            "RETURN rel.uri as rel",
+                            src=v.s.value, value=v.o.value,
+                            database_=self.db,
+                        )
+
+                        for rec in records:
+                            data = rec.data()
+                            triples.append((v.s.value, data["rel"], v.o.value))
+
+                        records, summary, keys = self.io.execute_query(
+                            "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Node {uri: $uri}) "
+                            "RETURN rel.uri as rel",
+                            src=v.s.value, uri=v.o.value,
+                            database_=self.db,
+                        )
+
+                        for rec in records:
+                            data = rec.data()
+                            triples.append((v.s.value, data["rel"], v.o.value))
+
+                    else:
+
+                        # S
+
+                        records, summary, keys = self.io.execute_query(
+                            "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Literal) "
+                            "RETURN rel.uri as rel, dest.value as dest",
+                            src=v.s.value,
+                            database_=self.db,
+                        )
+
+                        for rec in records:
+                            data = rec.data()
+                            triples.append((v.s.value, data["rel"], data["dest"]))
+
+                        records, summary, keys = self.io.execute_query(
+                            "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Node) "
+                            "RETURN rel.uri as rel, dest.uri as dest",
+                            src=v.s.value,
+                            database_=self.db,
+                        )
+
+                        for rec in records:
+                            data = rec.data()
+                            triples.append((v.s.value, data["rel"], data["dest"]))
+
 
             else:
 
-                if v.o is not None:
+                if v.p is not None:
 
-                    # SO
+                    if v.o is not None:
 
-                    records, summary, keys = self.io.execute_query(
-                        "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Literal {value: $value}) "
-                        "RETURN rel.uri as rel",
-                        src=v.s.value, value=v.o.value,
-                        database_=self.db,
-                    )
+                        # PO
 
-                    for rec in records:
-                        data = rec.data()
-                        triples.append((v.s.value, data["rel"], v.o.value))
-                    
-                    records, summary, keys = self.io.execute_query(
-                        "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Node {uri: $uri}) "
-                        "RETURN rel.uri as rel",
-                        src=v.s.value, uri=v.o.value,
-                        database_=self.db,
-                    )
+                        records, summary, keys = self.io.execute_query(
+                            "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Literal {value: $value}) "
+                            "RETURN src.uri as src",
+                            uri=v.p.value, value=v.o.value,
+                            database_=self.db,
+                        )
 
-                    for rec in records:
-                        data = rec.data()
-                        triples.append((v.s.value, data["rel"], v.o.value))
+                        for rec in records:
+                            data = rec.data()
+                            triples.append((data["src"], v.p.value, v.o.value))
 
-                else:
+                        records, summary, keys = self.io.execute_query(
+                            "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Node {uri: $uri}) "
+                            "RETURN src.uri as src",
+                            uri=v.p.value, dest=v.o.value,
+                            database_=self.db,
+                        )
 
-                    # S
+                        for rec in records:
+                            data = rec.data()
+                            triples.append((data["src"], v.p.value, v.o.value))
 
-                    records, summary, keys = self.io.execute_query(
-                        "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Literal) "
-                        "RETURN rel.uri as rel, dest.value as dest",
-                        src=v.s.value,
-                        database_=self.db,
-                    )
+                    else:
 
-                    for rec in records:
-                        data = rec.data()
-                        triples.append((v.s.value, data["rel"], data["dest"]))
-                    
-                    records, summary, keys = self.io.execute_query(
-                        "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Node) "
-                        "RETURN rel.uri as rel, dest.uri as dest",
-                        src=v.s.value,
-                        database_=self.db,
-                    )
+                        # P
 
-                    for rec in records:
-                        data = rec.data()
-                        triples.append((v.s.value, data["rel"], data["dest"]))
+                        records, summary, keys = self.io.execute_query(
+                            "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Literal) "
+                            "RETURN src.uri as src, dest.value as dest",
+                            uri=v.p.value,
+                            database_=self.db,
+                        )
 
+                        for rec in records:
+                            data = rec.data()
+                            triples.append((data["src"], v.p.value, data["dest"]))
 
-        else:
+                        records, summary, keys = self.io.execute_query(
+                            "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Node) "
+                            "RETURN src.uri as src, dest.uri as dest",
+                            uri=v.p.value,
+                            database_=self.db,
+                        )
 
-            if v.p is not None:
-
-                if v.o is not None:
-
-                    # PO
-
-                    records, summary, keys = self.io.execute_query(
-                        "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Literal {value: $value}) "
-                        "RETURN src.uri as src",
-                        uri=v.p.value, value=v.o.value,
-                        database_=self.db,
-                    )
-
-                    for rec in records:
-                        data = rec.data()
-                        triples.append((data["src"], v.p.value, v.o.value))
-                    
-                    records, summary, keys = self.io.execute_query(
-                        "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Node {uri: $uri}) "
-                        "RETURN src.uri as src",
-                        uri=v.p.value, dest=v.o.value,
-                        database_=self.db,
-                    )
-
-                    for rec in records:
-                        data = rec.data()
-                        triples.append((data["src"], v.p.value, v.o.value))
+                        for rec in records:
+                            data = rec.data()
+                            triples.append((data["src"], v.p.value, data["dest"]))
 
                 else:
 
-                    # P
+                    if v.o is not None:
 
-                    records, summary, keys = self.io.execute_query(
-                        "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Literal) "
-                        "RETURN src.uri as src, dest.value as dest",
-                        uri=v.p.value,
-                        database_=self.db,
-                    )
+                        # O
 
-                    for rec in records:
-                        data = rec.data()
-                        triples.append((data["src"], v.p.value, data["dest"]))
-                    
-                    records, summary, keys = self.io.execute_query(
-                        "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Node) "
-                        "RETURN src.uri as src, dest.uri as dest",
-                        uri=v.p.value,
-                        database_=self.db,
-                    )
+                        records, summary, keys = self.io.execute_query(
+                            "MATCH (src:Node)-[rel:Rel]->(dest:Literal {value: $value}) "
+                            "RETURN src.uri as src, rel.uri as rel",
+                            value=v.o.value,
+                            database_=self.db,
+                        )
 
-                    for rec in records:
-                        data = rec.data()
-                        triples.append((data["src"], v.p.value, data["dest"]))
+                        for rec in records:
+                            data = rec.data()
+                            triples.append((data["src"], data["rel"], v.o.value))
 
-            else:
+                        records, summary, keys = self.io.execute_query(
+                            "MATCH (src:Node)-[rel:Rel]->(dest:Node {uri: $uri}) "
+                            "RETURN src.uri as src, rel.uri as rel",
+                            uri=v.o.value,
+                            database_=self.db,
+                        )
 
-                if v.o is not None:
+                        for rec in records:
+                            data = rec.data()
+                            triples.append((data["src"], data["rel"], v.o.value))
 
-                    # O
+                    else:
 
-                    records, summary, keys = self.io.execute_query(
-                        "MATCH (src:Node)-[rel:Rel]->(dest:Literal {value: $value}) "
-                        "RETURN src.uri as src, rel.uri as rel",
-                        value=v.o.value,
-                        database_=self.db,
-                    )
+                        # *
 
-                    for rec in records:
-                        data = rec.data()
-                        triples.append((data["src"], data["rel"], v.o.value))
-                    
-                    records, summary, keys = self.io.execute_query(
-                        "MATCH (src:Node)-[rel:Rel]->(dest:Node {uri: $uri}) "
-                        "RETURN src.uri as src, rel.uri as rel",
-                        uri=v.o.value,
-                        database_=self.db,
-                    )
+                        records, summary, keys = self.io.execute_query(
+                            "MATCH (src:Node)-[rel:Rel]->(dest:Literal) "
+                            "RETURN src.uri as src, rel.uri as rel, dest.value as dest",
+                            database_=self.db,
+                        )
 
-                    for rec in records:
-                        data = rec.data()
-                        triples.append((data["src"], data["rel"], v.o.value))
+                        for rec in records:
+                            data = rec.data()
+                            triples.append((data["src"], data["rel"], data["dest"]))
 
-                else:
+                        records, summary, keys = self.io.execute_query(
+                            "MATCH (src:Node)-[rel:Rel]->(dest:Node) "
+                            "RETURN src.uri as src, rel.uri as rel, dest.uri as dest",
+                            database_=self.db,
+                        )
 
-                    # *
+                        for rec in records:
+                            data = rec.data()
+                            triples.append((data["src"], data["rel"], data["dest"]))
 
-                    records, summary, keys = self.io.execute_query(
-                        "MATCH (src:Node)-[rel:Rel]->(dest:Literal) "
-                        "RETURN src.uri as src, rel.uri as rel, dest.value as dest",
-                        database_=self.db,
-                    )
+            triples = [
+                Triple(
+                    s=self.create_value(t[0]),
+                    p=self.create_value(t[1]), 
+                    o=self.create_value(t[2])
+                )
+                for t in triples
+            ]
 
-                    for rec in records:
-                        data = rec.data()
-                        triples.append((data["src"], data["rel"], data["dest"]))
-                    
-                    records, summary, keys = self.io.execute_query(
-                        "MATCH (src:Node)-[rel:Rel]->(dest:Node) "
-                        "RETURN src.uri as src, rel.uri as rel, dest.uri as dest",
-                        database_=self.db,
-                    )
+            print("Send response...", flush=True)
+            r = TriplesQueryResponse(triples=triples)
+            self.producer.send(r, properties={"id": id})
 
-                    for rec in records:
-                        data = rec.data()
-                        triples.append((data["src"], data["rel"], data["dest"]))
+            print("Done.", flush=True)
 
-        triples = [
-            Triple(
-                s=self.create_value(t[0]),
-                p=self.create_value(t[1]), 
-                o=self.create_value(t[2])
+        except Exception as e:
+
+            print(f"Exception: {e}")
+
+            print("Send error response...", flush=True)
+
+            r = TriplesQueryResponse(
+                error=Error(
+                    type = "llm-error",
+                    message = str(e),
+                ),
+                response=None,
             )
-            for t in triples
-        ]
 
-        print("Send response...", flush=True)
-        r = TriplesQueryResponse(triples=triples)
-        self.producer.send(r, properties={"id": id})
+            self.producer.send(r, properties={"id": id})
 
-        print("Done.", flush=True)
-
+            self.consumer.acknowledge(msg)
+            
     @staticmethod
     def add_args(parser):
 

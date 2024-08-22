@@ -10,6 +10,7 @@ import time
 from .. schema import TriplesQueryRequest, TriplesQueryResponse, Value
 from .. schema import triples_request_queue
 from .. schema import triples_response_queue
+from . base import BaseClient
 
 # Ugly
 ERROR=_pulsar.LoggerLevel.Error
@@ -17,7 +18,7 @@ WARN=_pulsar.LoggerLevel.Warn
 INFO=_pulsar.LoggerLevel.Info
 DEBUG=_pulsar.LoggerLevel.Debug
 
-class TriplesQueryClient:
+class TriplesQueryClient(BaseClient):
 
     def __init__(
             self, log_level=ERROR,
@@ -33,23 +34,14 @@ class TriplesQueryClient:
         if output_queue == None:
             output_queue = triples_response_queue
 
-        if subscriber == None:
-            subscriber = str(uuid.uuid4())
-
-        self.client = pulsar.Client(
-            pulsar_host,
-            logger=pulsar.ConsoleLogger(log_level),
-        )
-
-        self.producer = self.client.create_producer(
-            topic=input_queue,
-            schema=JsonSchema(TriplesQueryRequest),
-            chunking_enabled=True,
-        )
-
-        self.consumer = self.client.subscribe(
-            output_queue, subscriber,
-            schema=JsonSchema(TriplesQueryResponse),
+        super(TriplesQueryClient, self).__init__(
+            log_level=log_level,
+            subscriber=subscriber,
+            input_queue=input_queue,
+            output_queue=output_queue,
+            pulsar_host=pulsar_host,
+            input_schema=TriplesQueryRequest,
+            output_schema=TriplesQueryResponse,
         )
 
     def create_value(self, ent):
@@ -61,48 +53,12 @@ class TriplesQueryClient:
 
         return Value(value=ent, is_uri=False)
 
-    def request(self, s, p, o, limit=10, timeout=500):
-
-        id = str(uuid.uuid4())
-
-        r = TriplesQueryRequest(
+    def request(self, s, p, o, limit=10, timeout=30):
+        return self.call(
             s=self.create_value(s),
             p=self.create_value(p),
             o=self.create_value(o),
             limit=limit,
-        )
-
-        self.producer.send(r, properties={ "id": id })
-
-        end_time = time.time() + timeout
-
-        while time.time() < end_time:
-
-            try:
-                msg = self.consumer.receive(timeout_millis=5000)
-            except pulsar.exceptions.Timeout:
-                continue
-
-            mid = msg.properties()["id"]
-
-            if mid == id:
-                resp = msg.value().triples
-                self.consumer.acknowledge(msg)
-                return resp
-
-            # Ignore messages with wrong ID
-            self.consumer.acknowledge(msg)
-
-        raise TimeoutError("Timed out waiting for response")
-
-    def __del__(self):
-
-        if hasattr(self, "consumer"):
-            self.consumer.close()
-            
-        if hasattr(self, "producer"):
-            self.producer.flush()
-            self.producer.close()
-            
-        self.client.close()
+            timeout=timeout,
+        ).triples
 

@@ -4,7 +4,7 @@ Simple RAG service, performs query using graph RAG an LLM.
 Input is query, output is response.
 """
 
-from ... schema import GraphRagQuery, GraphRagResponse
+from ... schema import GraphRagQuery, GraphRagResponse, Error
 from ... schema import graph_rag_request_queue, graph_rag_response_queue
 from ... schema import prompt_request_queue
 from ... schema import prompt_response_queue
@@ -99,21 +99,40 @@ class Processor(ConsumerProducer):
 
     def handle(self, msg):
 
-        v = msg.value()
+        try:
 
-        # Sender-produced ID
+            v = msg.value()
 
-        id = msg.properties()["id"]
+            # Sender-produced ID
+            id = msg.properties()["id"]
 
-        print(f"Handling input {id}...", flush=True)
+            print(f"Handling input {id}...", flush=True)
 
-        response = self.rag.query(v.query)
+            response = self.rag.query(v.query)
 
-        print("Send response...", flush=True)
-        r = GraphRagResponse(response = response)
-        self.producer.send(r, properties={"id": id})
+            print("Send response...", flush=True)
+            r = GraphRagResponse(response = response, error=None)
+            self.producer.send(r, properties={"id": id})
 
-        print("Done.", flush=True)
+            print("Done.", flush=True)
+
+        except Exception as e:
+
+            print(f"Exception: {e}")
+
+            print("Send error response...", flush=True)
+
+            r = GraphRagResponse(
+                error=Error(
+                    type = "llm-error",
+                    message = str(e),
+                ),
+                response=None,
+            )
+
+            self.producer.send(r, properties={"id": id})
+
+            self.consumer.acknowledge(msg)
 
     @staticmethod
     def add_args(parser):

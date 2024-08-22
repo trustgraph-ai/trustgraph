@@ -6,11 +6,12 @@ Input is prompt, output is response.
 
 import anthropic
 
-from .... schema import TextCompletionRequest, TextCompletionResponse
+from .... schema import TextCompletionRequest, TextCompletionResponse, Error
 from .... schema import text_completion_request_queue
 from .... schema import text_completion_response_queue
 from .... log_level import LogLevel
 from .... base import ConsumerProducer
+from .... exceptions import TooManyRequests
 
 module = ".".join(__name__.split(".")[1:-1])
 
@@ -65,33 +66,71 @@ class Processor(ConsumerProducer):
 
         prompt = v.prompt
 
-        # FIXME: Rate limits?
-        response = message = self.claude.messages.create(
-            model=self.model,
-            max_tokens=self.max_output,
-            temperature=self.temperature,
-            system = "You are a helpful chatbot.",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": prompt
-                        }
-                    ]
-                }
-            ]
-        )
+        try:
 
-        resp = response.content[0].text
-        print(resp, flush=True)
+            # FIXME: Rate limits?
+            response = message = self.claude.messages.create(
+                model=self.model,
+                max_tokens=self.max_output,
+                temperature=self.temperature,
+                system = "You are a helpful chatbot.",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": prompt
+                            }
+                        ]
+                    }
+                ]
+            )
 
-        print("Send response...", flush=True)
-        r = TextCompletionResponse(response=resp)
-        self.send(r, properties={"id": id})
+            resp = response.content[0].text
+            print(resp, flush=True)
 
-        print("Done.", flush=True)
+            print("Send response...", flush=True)
+            r = TextCompletionResponse(response=resp)
+            self.send(r, properties={"id": id})
+
+            print("Done.", flush=True)
+
+        # FIXME: Wrong exception, don't know what this LLM throws
+        # for a rate limit
+        except TooManyRequests:
+
+            print("Send rate limit response...", flush=True)
+
+            r = TextCompletionResponse(
+                error=Error(
+                    type = "rate-limit",
+                    message = str(e),
+                ),
+                response=None,
+            )
+
+            self.producer.send(r, properties={"id": id})
+
+            self.consumer.acknowledge(msg)
+
+        except Exception as e:
+
+            print(f"Exception: {e}")
+
+            print("Send error response...", flush=True)
+
+            r = TextCompletionResponse(
+                error=Error(
+                    type = "llm-error",
+                    message = str(e),
+                ),
+                response=None,
+            )
+
+            self.producer.send(r, properties={"id": id})
+
+            self.consumer.acknowledge(msg)
 
     @staticmethod
     def add_args(parser):

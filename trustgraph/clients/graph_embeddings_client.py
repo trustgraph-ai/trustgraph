@@ -9,6 +9,7 @@ import time
 from .. schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
 from .. schema import graph_embeddings_request_queue
 from .. schema import graph_embeddings_response_queue
+from . base import BaseClient
 
 # Ugly
 ERROR=_pulsar.LoggerLevel.Error
@@ -16,7 +17,7 @@ WARN=_pulsar.LoggerLevel.Warn
 INFO=_pulsar.LoggerLevel.Info
 DEBUG=_pulsar.LoggerLevel.Debug
 
-class GraphEmbeddingsClient:
+class GraphEmbeddingsClient(BaseClient):
 
     def __init__(
             self, log_level=ERROR,
@@ -31,66 +32,19 @@ class GraphEmbeddingsClient:
 
         if output_queue == None:
             output_queue = graph_embeddings_response_queue
-
-        if subscriber == None:
-            subscriber = str(uuid.uuid4())
-
-        self.client = pulsar.Client(
-            pulsar_host,
-            logger=pulsar.ConsoleLogger(log_level),
-        )
-
-        self.producer = self.client.create_producer(
-            topic=input_queue,
-            schema=JsonSchema(GraphEmbeddingsRequest),
-            chunking_enabled=True,
-        )
-
-        self.consumer = self.client.subscribe(
-            output_queue, subscriber,
-            schema=JsonSchema(GraphEmbeddingsResponse),
-        )
-
-    def request(self, vectors, limit=10, timeout=500):
-
-        id = str(uuid.uuid4())
-
-        r = GraphEmbeddingsRequest(
-            vectors=vectors,
-            limit=limit,
-        )
-
-        self.producer.send(r, properties={ "id": id })
-
-        end_time = time.time() + timeout
-
-        while time.time() < end_time:
-
-            try:
-                msg = self.consumer.receive(timeout_millis=5000)
-            except pulsar.exceptions.Timeout:
-                continue
-
-            mid = msg.properties()["id"]
-
-            if mid == id:
-                resp = msg.value().entities
-                self.consumer.acknowledge(msg)
-                return resp
-
-            # Ignore messages with wrong ID
-            self.consumer.acknowledge(msg)
-
-        raise TimeoutError("Timed out waiting for response")
-
-    def __del__(self):
-
-        if hasattr(self, "consumer"):
-            self.consumer.close()
             
-        if hasattr(self, "producer"):
-            self.producer.flush()
-            self.producer.close()
-            
-        self.client.close()
+        super(GraphEmbeddingsClient, self).__init__(
+            log_level=log_level,
+            subscriber=subscriber,
+            input_queue=input_queue,
+            output_queue=output_queue,
+            pulsar_host=pulsar_host,
+            input_schema=GraphEmbeddingsRequest,
+            output_schema=GraphEmbeddingsResponse,
+        )
+
+    def request(self, vectors, limit=10, timeout=30):
+        return self.call(
+            vectors=vectors, limit=limit, timeout=timeout
+        ).entities
 

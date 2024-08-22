@@ -8,6 +8,12 @@ def topic(topic, kind='persistent', tenant='tg', namespace='flow'):
 
 ############################################################################
 
+class Error(Record):
+    type = String()
+    message = String()
+
+############################################################################
+
 class Value(Record):
     value = String()
     is_uri = Boolean()
@@ -78,6 +84,7 @@ class GraphEmbeddingsRequest(Record):
     limit = Integer()
 
 class GraphEmbeddingsResponse(Record):
+    error = Error()
     entities = Array(Value())
 
 graph_embeddings_request_queue = topic(
@@ -110,6 +117,7 @@ class TriplesQueryRequest(Record):
     limit = Integer()
 
 class TriplesQueryResponse(Record):
+    error = Error()
     triples = Array(Triple())
 
 triples_request_queue = topic(
@@ -131,6 +139,7 @@ class TextCompletionRequest(Record):
     prompt = String()
 
 class TextCompletionResponse(Record):
+    error = Error()
     response = String()
 
 text_completion_request_queue = topic(
@@ -148,6 +157,7 @@ class EmbeddingsRequest(Record):
     text = String()
 
 class EmbeddingsResponse(Record):
+    error = Error()
     vectors = Array(Array(Double()))
 
 embeddings_request_queue = topic(
@@ -165,6 +175,7 @@ class GraphRagQuery(Record):
     query = String()
 
 class GraphRagResponse(Record):
+    error = Error()
     response = String()
 
 graph_rag_request_queue = topic(
@@ -207,6 +218,7 @@ class PromptRequest(Record):
     kg = Array(Fact())
 
 class PromptResponse(Record):
+    error = Error()
     answer = String()
     definitions = Array(Definition())
     relationships = Array(Relationship())

@@ -6,11 +6,12 @@ Input is prompt, output is response.
 
 import cohere
 
-from .... schema import TextCompletionRequest, TextCompletionResponse
+from .... schema import TextCompletionRequest, TextCompletionResponse, Error
 from .... schema import text_completion_request_queue
 from .... schema import text_completion_response_queue
 from .... log_level import LogLevel
 from .... base import ConsumerProducer
+from .... exceptions import TooManyRequests
 
 module = ".".join(__name__.split(".")[1:-1])
 
@@ -61,28 +62,65 @@ class Processor(ConsumerProducer):
 
         prompt = v.prompt
 
-        # FIXME: Deal with rate limits?
-        output = self.cohere.chat( 
-            model=self.model,
-            message=prompt,
-            preamble = "You are a helpful AI-assistant.",
-            temperature=self.temperature,
-            chat_history=[],
-            prompt_truncation='auto',
-            connectors=[]
-        )
+        try:
 
-        resp = output.text
-        print(resp, flush=True)
+            output = self.cohere.chat( 
+                model=self.model,
+                message=prompt,
+                preamble = "You are a helpful AI-assistant.",
+                temperature=self.temperature,
+                chat_history=[],
+                prompt_truncation='auto',
+                connectors=[]
+            )
 
-        resp = resp.replace("```json", "")
-        resp = resp.replace("```", "")
-        
-        print("Send response...", flush=True)
-        r = TextCompletionResponse(response=resp)
-        self.send(r, properties={"id": id})
+            resp = output.text
+            print(resp, flush=True)
 
-        print("Done.", flush=True)
+            resp = resp.replace("```json", "")
+            resp = resp.replace("```", "")
+
+            print("Send response...", flush=True)
+            r = TextCompletionResponse(response=resp)
+            self.send(r, properties={"id": id})
+
+            print("Done.", flush=True)
+
+        # FIXME: Wrong exception, don't know what this LLM throws
+        # for a rate limit
+        except TooManyRequests:
+
+            print("Send rate limit response...", flush=True)
+
+            r = TextCompletionResponse(
+                error=Error(
+                    type = "rate-limit",
+                    message = str(e),
+                ),
+                response=None,
+            )
+
+            self.producer.send(r, properties={"id": id})
+
+            self.consumer.acknowledge(msg)
+
+        except Exception as e:
+
+            print(f"Exception: {e}")
+
+            print("Send error response...", flush=True)
+
+            r = TextCompletionResponse(
+                error=Error(
+                    type = "llm-error",
+                    message = str(e),
+                ),
+                response=None,
+            )
+
+            self.producer.send(r, properties={"id": id})
+
+            self.consumer.acknowledge(msg)
 
     @staticmethod
     def add_args(parser):
