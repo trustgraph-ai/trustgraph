@@ -33,6 +33,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -46,6 +47,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -171,7 +173,10 @@
       "id": 2,
       "options": {
         "calculate": false,
-        "cellGap": 1,
+        "cellGap": 5,
+        "cellValues": {
+          "unit": ""
+        },
         "color": {
           "exponent": 0.5,
           "fill": "dark-orange",
@@ -194,28 +199,36 @@
           "layout": "auto"
         },
         "tooltip": {
-          "show": true,
+          "mode": "single",
+          "showColorScale": false,
           "yHistogram": false
         },
         "yAxis": {
+          "axisLabel": "processing status",
           "axisPlacement": "left",
           "reverse": false
         }
       },
-      "pluginVersion": "10.0.0",
+      "pluginVersion": "11.1.4",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "f6b18033-5918-4e05-a1ca-4cb30343b129"
           },
+          "disableTextWrap": false,
           "editorMode": "builder",
+          "exemplar": false,
           "expr": "sum by(status) (rate(processing_count_total{status!=\"success\"}[$__rate_interval]))",
-          "format": "time_series",
+          "format": "heatmap",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
           "instant": false,
           "interval": "",
+          "legendFormat": "{{status}}",
           "range": true,
-          "refId": "A"
+          "refId": "A",
+          "useBackend": false
         }
       ],
       "title": "Error rate",
@@ -232,6 +245,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -245,6 +259,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -311,7 +326,7 @@
           "refId": "A"
         }
       ],
-      "title": "Request count",
+      "title": "Request rate",
       "type": "timeseries"
     },
     {
@@ -325,6 +340,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -338,6 +354,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -415,114 +432,204 @@
       },
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "fixedColor": "semi-dark-green",
+            "mode": "palette-classic-by-name"
+          },
           "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
+            "lineWidth": 1,
             "scaleDistribution": {
               "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
             }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
           }
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 6,
+        "h": 7,
         "w": 12,
         "x": 0,
         "y": 17
       },
-      "id": 9,
+      "id": 10,
       "options": {
-        "calculate": false,
-        "cellGap": 1,
-        "color": {
-          "exponent": 0.5,
-          "fill": "dark-orange",
-          "mode": "scheme",
-          "reverse": false,
-          "scale": "exponential",
-          "scheme": "Greys",
-          "steps": 64
-        },
-        "exemplars": {
-          "color": "rgba(255,0,255,0.7)"
-        },
-        "filterValues": {
-          "le": 1e-9
-        },
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
         "legend": {
-          "show": true
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
-        "rowsFrame": {
-          "layout": "auto"
-        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
         "tooltip": {
-          "show": true,
-          "yHistogram": false
+          "mode": "single",
+          "sort": "none"
         },
-        "yAxis": {
-          "axisPlacement": "left",
-          "reverse": false
-        }
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
       },
-      "pluginVersion": "10.0.0",
+      "pluginVersion": "11.1.4",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "f6b18033-5918-4e05-a1ca-4cb30343b129"
           },
+          "disableTextWrap": false,
           "editorMode": "builder",
           "exemplar": false,
-          "expr": "rate(chunk_size_bucket[$__rate_interval])",
+          "expr": "max by(le) (chunk_size_bucket)",
           "format": "heatmap",
-          "hide": false,
-          "instant": false,
-          "interval": "",
+          "fullMetaSearch": false,
+          "includeNullMetadata": false,
+          "instant": true,
           "legendFormat": "{{le}}",
-          "range": true,
-          "refId": "A"
+          "range": false,
+          "refId": "A",
+          "useBackend": false
         }
       ],
       "title": "Chunk size",
-      "type": "heatmap"
+      "type": "barchart"
     },
     {
       "datasource": {
         "type": "prometheus",
         "uid": "f6b18033-5918-4e05-a1ca-4cb30343b129"
       },
-      "gridPos": {
-        "h": 11,
-        "w": 24,
-        "x": 0,
-        "y": 23
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
       },
-      "id": 8,
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 17
+      },
+      "id": 11,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.1.4",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "f6b18033-5918-4e05-a1ca-4cb30343b129"
           },
-          "editorMode": "code",
-          "expr": "label_replace(label_replace(label_replace(label_replace(pubsub_info * on (subscriber) group_left()  label_replace(last_over_time(pulsar_subscription_back_log{namespace=\"public/default\"}[1h]), \"subscriber\", \"$1\", \"subscription\", \"(.*)\"), \"source\", \"$1\", \"input_queue\", \"(.*)\"), \"target\", \"$1\", \"output_queue\", \"(.*)\"), \"id\", \"$1\", \"subscriber\", \"(.*)\"), \"mainstat\", \"$1\", \"Value\", \"(.*)\")\n",
-          "format": "table",
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "exemplar": false,
+          "expr": "increase(processing_count_total{status!=\"success\"}[$__rate_interval])",
+          "format": "time_series",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
           "instant": false,
+          "legendFormat": "{{instance}}",
           "range": true,
-          "refId": "A"
+          "refId": "A",
+          "useBackend": false
         }
       ],
-      "title": "Pub/sub configuration",
-      "type": "nodeGraph"
+      "title": "Errors",
+      "type": "timeseries"
     }
   ],
   "refresh": "5s",
-  "schemaVersion": 38,
-  "style": "dark",
+  "schemaVersion": 39,
   "tags": [],
   "templating": {
     "list": []
@@ -535,6 +642,6 @@
   "timezone": "",
   "title": "Overview",
   "uid": "b5c8abf8-fe79-496b-b028-10bde917d1f0",
-  "version": 2,
+  "version": 1,
   "weekStart": ""
 }
