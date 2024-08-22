@@ -16,6 +16,18 @@ neo4j + {
 		"-g",
 		"bolt://neo4j:7687",
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	},
 
 	"store-triples": base + {
@@ -27,6 +39,18 @@ neo4j + {
 		"-g",
 		"bolt://neo4j:7687",
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	}
 
     },

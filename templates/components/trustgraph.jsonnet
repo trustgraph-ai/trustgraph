@@ -15,6 +15,18 @@ local url = import "url.jsonnet";
 		"-p",
 		url.pulsar,
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+            },
 	},
 
 	chunker: base + {
@@ -28,6 +40,18 @@ local url = import "url.jsonnet";
                 "--chunk-overlap",
                 "15",
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	},
 
 	vectorize: base + {
@@ -37,6 +61,18 @@ local url = import "url.jsonnet";
 		"-p",
 		url.pulsar,
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	},
 
 	embeddings: base + {
@@ -48,6 +84,18 @@ local url = import "url.jsonnet";
                 "-m",
 		"all-MiniLM-L6-v2",
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '1.0',
+			memory: '256M'
+		    },
+		    reservations: {
+			cpus: '0.5',
+			memory: '256M'
+		    }
+		}
+            },
 	},
 
 	"kg-extract-definitions": base + {
@@ -57,6 +105,18 @@ local url = import "url.jsonnet";
 		"-p",
 		url.pulsar,
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	},
 
 	"kg-extract-relationships": base + {
@@ -66,6 +126,18 @@ local url = import "url.jsonnet";
 		"-p",
 		url.pulsar,
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	},
 
 	"graph-rag": base + {
@@ -85,6 +157,18 @@ local url = import "url.jsonnet";
 		"--max-subgraph-size",
 		"3000",
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	},
 
 	"prompt": base + {
@@ -98,6 +182,18 @@ local url = import "url.jsonnet";
 		"--text-completion-response-queue",
 		"non-persistent://tg/response/text-completion-response",
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	},
 
 	"prompt-rag": base + {
@@ -115,6 +211,18 @@ local url = import "url.jsonnet";
 		"--text-completion-response-queue",
 		"non-persistent://tg/response/text-completion-rag-response",
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	},
 
     },

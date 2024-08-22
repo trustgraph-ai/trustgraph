@@ -1,6 +1,16 @@
 "services":
   "cassandra":
-    "image": "docker.io/cassandra:4.1.5"
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "1.0"
+          "memory": "512M"
+        "reservations":
+          "cpus": "0.5"
+          "memory": "512M"
+    "environment":
+      "JVM_OPTS": "-Xms256M -Xmx256M"
+    "image": "docker.io/cassandra:4.1.6"
     "ports":
     - "9042:9042"
     "restart": "on-failure:100"
@@ -15,7 +25,15 @@
     - "250"
     - "--chunk-overlap"
     - "15"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.0"
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "0.1"
+          "memory": "128M"
+        "reservations":
+          "cpus": "0.1"
+          "memory": "128M"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
     "restart": "on-failure:100"
   "embeddings":
     "command":
@@ -24,7 +42,15 @@
     - "pulsar://pulsar:6650"
     - "-m"
     - "all-MiniLM-L6-v2"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.0"
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "1.0"
+          "memory": "256M"
+        "reservations":
+          "cpus": "0.5"
+          "memory": "256M"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
     "restart": "on-failure:100"
   "etcd":
     "command":
@@ -39,16 +65,31 @@
       "ETCD_AUTO_COMPACTION_RETENTION": "1000"
       "ETCD_QUOTA_BACKEND_BYTES": "4294967296"
       "ETCD_SNAPSHOT_COUNT": "50000"
-    "image": "quay.io/coreos/etcd:v3.5.5"
+    "image": "quay.io/coreos/etcd:v3.5.15"
     "ports":
     - "2379:2379"
+    "resources":
+      "limits":
+        "cpus": "0.25"
+        "memory": "128M"
+      "reservations":
+        "cpus": "0.25"
+        "memory": "128M"
     "restart": "on-failure:100"
     "volumes":
     - "etcd:/etcd"
   "grafana":
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "1.0"
+          "memory": "256M"
+        "reservations":
+          "cpus": "0.5"
+          "memory": "256M"
     "environment":
       "GF_ORG_NAME": "trustgraph.ai"
-    "image": "docker.io/grafana/grafana:10.0.0"
+    "image": "docker.io/grafana/grafana:11.1.4"
     "ports":
     - "3000:3000"
     "restart": "on-failure:100"
@@ -72,7 +113,15 @@
     - "30"
     - "--max-subgraph-size"
     - "3000"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.0"
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "0.1"
+          "memory": "128M"
+        "reservations":
+          "cpus": "0.1"
+          "memory": "128M"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
     "restart": "on-failure:100"
   "init-pulsar":
     "command":
@@ -82,31 +131,63 @@
     "depends_on":
       "pulsar":
         "condition": "service_started"
-    "image": "docker.io/apachepulsar/pulsar:3.3.0"
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "0.1"
+          "memory": "128M"
+        "reservations":
+          "cpus": "0.1"
+          "memory": "128M"
+    "image": "docker.io/apachepulsar/pulsar:3.3.1"
     "restart": "on-failure:100"
   "kg-extract-definitions":
     "command":
     - "kg-extract-definitions"
     - "-p"
     - "pulsar://pulsar:6650"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.0"
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "0.1"
+          "memory": "128M"
+        "reservations":
+          "cpus": "0.1"
+          "memory": "128M"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
     "restart": "on-failure:100"
   "kg-extract-relationships":
     "command":
     - "kg-extract-relationships"
     - "-p"
     - "pulsar://pulsar:6650"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.0"
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "0.1"
+          "memory": "128M"
+        "reservations":
+          "cpus": "0.1"
+          "memory": "128M"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
     "restart": "on-failure:100"
   "milvus":
     "command":
     - "milvus"
     - "run"
     - "standalone"
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "1.0"
+          "memory": "256M"
+        "reservations":
+          "cpus": "0.5"
+          "memory": "256M"
     "environment":
       "ETCD_ENDPOINTS": "etcd:2379"
       "MINIO_ADDRESS": "minio:9000"
-    "image": "docker.io/milvusdb/milvus:v2.4.5"
+    "image": "docker.io/milvusdb/milvus:v2.4.9"
     "ports":
     - "9091:9091"
     - "19530:19530"
@@ -120,10 +201,18 @@
     - "/minio_data"
     - "--console-address"
     - ":9001"
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "0.25"
+          "memory": "128M"
+        "reservations":
+          "cpus": "0.25"
+          "memory": "128M"
     "environment":
       "MINIO_ROOT_PASSWORD": "minioadmin"
       "MINIO_ROOT_USER": "minioadmin"
-    "image": "docker.io/minio/minio:RELEASE.2024-07-04T14-25-45Z"
+    "image": "docker.io/minio/minio:RELEASE.2024-08-17T01-24-54Z"
     "ports":
     - "9001:9001"
     "restart": "on-failure:100"
@@ -134,10 +223,26 @@
     - "pdf-decoder"
     - "-p"
     - "pulsar://pulsar:6650"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.0"
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "0.1"
+          "memory": "128M"
+        "reservations":
+          "cpus": "0.1"
+          "memory": "128M"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
     "restart": "on-failure:100"
   "prometheus":
-    "image": "docker.io/prom/prometheus:v2.53.1"
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "0.1"
+          "memory": "128M"
+        "reservations":
+          "cpus": "0.1"
+          "memory": "128M"
+    "image": "docker.io/prom/prometheus:v2.53.2"
     "ports":
     - "9090:9090"
     "restart": "on-failure:100"
@@ -153,7 +258,15 @@
     - "non-persistent://tg/request/text-completion"
     - "--text-completion-response-queue"
     - "non-persistent://tg/response/text-completion-response"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.0"
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "0.1"
+          "memory": "128M"
+        "reservations":
+          "cpus": "0.1"
+          "memory": "128M"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
     "restart": "on-failure:100"
   "prompt-rag":
     "command":
@@ -168,11 +281,29 @@
     - "non-persistent://tg/request/text-completion-rag"
     - "--text-completion-response-queue"
     - "non-persistent://tg/response/text-completion-rag-response"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.0"
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "0.1"
+          "memory": "128M"
+        "reservations":
+          "cpus": "0.1"
+          "memory": "128M"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
     "restart": "on-failure:100"
   "pulsar":
     "command": "bin/pulsar standalone"
-    "image": "docker.io/apachepulsar/pulsar:3.3.0"
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "1.0"
+          "memory": "900M"
+        "reservations":
+          "cpus": "0.5"
+          "memory": "900M"
+    "environment":
+      "PULSAR_MEM": "-Xms300M -Xmx300M"
+    "image": "docker.io/apachepulsar/pulsar:3.3.1"
     "ports":
     - "6650:6650"
     - "8080:8080"
@@ -181,9 +312,17 @@
     - "pulsar-conf:/pulsar/conf"
     - "pulsar-data:/pulsar/data"
   "pulsar-manager":
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "0.1"
+          "memory": "128M"
+        "reservations":
+          "cpus": "0.1"
+          "memory": "128M"
     "environment":
       "SPRING_CONFIGURATION_FILE": "/pulsar-manager/pulsar-manager/application.properties"
-    "image": "docker.io/apachepulsar/pulsar-manager:v0.3.0"
+    "image": "docker.io/apachepulsar/pulsar-manager:v0.4.0"
     "ports":
     - "9527:9527"
     - "7750:7750"
@@ -195,7 +334,15 @@
     - "pulsar://pulsar:6650"
     - "-t"
     - "http://milvus:19530"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.0"
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "0.1"
+          "memory": "128M"
+        "reservations":
+          "cpus": "0.1"
+          "memory": "128M"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
     "restart": "on-failure:100"
   "query-triples":
     "command":
@@ -204,7 +351,15 @@
     - "pulsar://pulsar:6650"
     - "-g"
     - "cassandra"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.0"
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "0.1"
+          "memory": "512M"
+        "reservations":
+          "cpus": "0.1"
+          "memory": "512M"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
     "restart": "on-failure:100"
   "store-graph-embeddings":
     "command":
@@ -213,7 +368,15 @@
     - "pulsar://pulsar:6650"
     - "-t"
     - "http://milvus:19530"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.0"
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "0.1"
+          "memory": "128M"
+        "reservations":
+          "cpus": "0.1"
+          "memory": "128M"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
     "restart": "on-failure:100"
   "store-triples":
     "command":
@@ -222,7 +385,15 @@
     - "pulsar://pulsar:6650"
     - "-g"
     - "cassandra"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.0"
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "0.1"
+          "memory": "128M"
+        "reservations":
+          "cpus": "0.1"
+          "memory": "128M"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
     "restart": "on-failure:100"
   "text-completion":
     "command":
@@ -233,7 +404,15 @@
     - "gemma2:9b"
     - "-r"
     - "${OLLAMA_HOST}"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.0"
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "0.1"
+          "memory": "128M"
+        "reservations":
+          "cpus": "0.1"
+          "memory": "128M"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
     "restart": "on-failure:100"
   "text-completion-rag":
     "command":
@@ -248,14 +427,30 @@
     - "non-persistent://tg/request/text-completion-rag"
     - "-o"
     - "non-persistent://tg/response/text-completion-rag-response"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.0"
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "0.1"
+          "memory": "128M"
+        "reservations":
+          "cpus": "0.1"
+          "memory": "128M"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
     "restart": "on-failure:100"
   "vectorize":
     "command":
     - "embeddings-vectorize"
     - "-p"
     - "pulsar://pulsar:6650"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.0"
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "0.1"
+          "memory": "128M"
+        "reservations":
+          "cpus": "0.1"
+          "memory": "128M"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.1"
     "restart": "on-failure:100"
 "volumes":
   "cassandra": {}

@@ -15,6 +15,18 @@ local url = import "url.jsonnet";
 		"--chunk-overlap",
 		"100",
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	},
 
 	"text-completion": base + {
@@ -36,6 +48,18 @@ local url = import "url.jsonnet";
 		"-m",
 		"mistral.mixtral-8x7b-instruct-v0:1",
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	},
 
 	"text-completion-rag": base + {
@@ -63,6 +87,18 @@ local url = import "url.jsonnet";
 		"-o",
 		"non-persistent://tg/response/text-completion-rag-response",
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.1',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
 	},
 	
     },

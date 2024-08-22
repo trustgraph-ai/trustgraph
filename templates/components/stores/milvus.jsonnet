@@ -33,7 +33,17 @@ local images = import "../images.jsonnet";
 	    volumes: [
 		"etcd:/etcd"
 	    ],
-	},
+	    resources: {
+		limits: {
+		    cpus: '0.25',
+		    memory: '128M'
+		},
+		reservations: {
+		    cpus: '0.25',
+		    memory: '128M'
+		}
+	    },
+        },
 
 	minio: base + {
 	    image: images.minio,
@@ -54,6 +64,18 @@ local images = import "../images.jsonnet";
 	    volumes: [
 		"minio-data:/minio_data",
 	    ],	
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.25',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.25',
+			memory: '128M'
+		    }
+		}
+            },
 	},
 
 	milvus: base + {
@@ -72,6 +94,18 @@ local images = import "../images.jsonnet";
 	    volumes: [
 		"milvus:/var/lib/milvus"
 	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '1.0',
+			memory: '256M'
+		    },
+		    reservations: {
+			cpus: '0.5',
+			memory: '256M'
+		    }
+		}
+            },
 	},
 
     },
