@@ -63,6 +63,7 @@ package installed can also run the entire architecture.
 
 - `chunker-recursive` - Accepts text documents and uses LangChain recursive
   chunking algorithm to produce smaller text chunks.
+- `chunker-token` - Chunks texts documents by a chosen amount of tokens.
 - `embeddings-hf` - A service which analyses text and returns a vector
   embedding using one of the HuggingFace embeddings models.
 - `embeddings-ollama` - A service which analyses text and returns a vector

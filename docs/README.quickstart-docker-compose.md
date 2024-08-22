@@ -51,30 +51,49 @@ cd trustgraph
 
 Depending on your desired model deployment, you will choose from one of the following `Docker Compose` files:
 
-- `docker-compose-azure.yaml`: AzureAI endpoint. Set `AZURE_TOKEN` to the secret token and `AZURE_ENDPOINT` to the URL endpoint address for the deployed model.
-- `docker-compose-bedrock.yaml`: AWS Bedrock API. Set `AWS_ID_KEY` and `AWS_SECRET_KEY` to credentials enabled for `AWS Bedrock` access.
-- `docker-compose-claude.yaml`: Anthropic's API. Set `CLAUDE_KEY` to your API key.
-- `docker-compose-cohere.yaml`: Cohere's API. Set `COHERE_KEY` to your API key.
-- `docker-compose-mix.yaml`: Special deployment that allows two separate model deployments for the extraction and RAG processes.
-- `docker-compose-ollama.yaml`: Local LM (currently using [Gemma2](https://ollama.com/library/gemma2) deployed through Ollama.  Set `OLLAMA_HOST` to the machine running Ollama (e.g. `localhost` for Ollama running locally on your machine)
-- `docker-compose-openai.yaml`: OpenAI's API. Set `OPENAI_KEY` to your API key.
-- `docker-compose-vertexai.yaml`: VertexAI API. Requires a `private.json` authentication file to authenticate with your GCP project. Filed should stored be at path `vertexai/private.json`.
+- `tg-launch-azure.yaml`: AzureAI endpoint. Set `AZURE_TOKEN` to the secret token and `AZURE_ENDPOINT` to the URL endpoint address for the deployed model.
+- `tg-launch-bedrock.yaml`: AWS Bedrock API. Set `AWS_ID_KEY` and `AWS_SECRET_KEY` to credentials enabled for `AWS Bedrock` access.
+- `tg-launch-claude.yaml`: Anthropic's API. Set `CLAUDE_KEY` to your API key.
+- `tg-launch-cohere.yaml`: Cohere's API. Set `COHERE_KEY` to your API key.
+- `tg-launch-mix.yaml`: Special deployment that allows two separate model deployments for the extraction and RAG processes.
+- `tg-launch-ollama.yaml`: Local LM (currently using [Gemma2](https://ollama.com/library/gemma2) deployed through Ollama.  Set `OLLAMA_HOST` to the machine running Ollama (e.g. `localhost` for Ollama running locally on your machine)
+- `tg-launch-openai.yaml`: OpenAI's API. Set `OPENAI_KEY` to your API key.
+- `tg-launch-vertexai.yaml`: VertexAI API. Requires a `private.json` authentication file to authenticate with your GCP project. Filed should stored be at path `vertexai/private.json`.
 
 > [!CAUTION]
 > All tokens, paths, and authentication files must be set **PRIOR** to launching a `Docker Compose` file.
 
-## Chunk Size
+## Chunking
 
-Extraction performance can vary signficantly with chunk size. The default chunk size is `2000` tokens. Decreasing the chunk size may increase the amount of extracted graph edges at the cost of taking longer to complete the extraction process. Adjusting the chunk size is as simple as adding 4 lines to the selected `YAML` file. In the selected `YAML` file, find the section for `chunker`. Under the commands list, add the following lines:
+Extraction performance can vary signficantly with chunk size. The default chunk size is `2000` characters using a recursive method. Decreasing the chunk size may increase the amount of extracted graph edges at the cost of taking longer to complete the extraction process. The chunking method and sizes can be adjusted in the selected `YAML` file. In the selected `YAML` file, find the section for `chunker`. Under the commands list, modify the follwing parameters:
 
 ```
+- "chunker-recursive" # recursive text splitter in characters
+- "chunker-token" # recursive style token splitter
 - "--chunk-size"
-- "<number-of-tokens-per-chunk>"
+- "<number-of-characters/tokens-per-chunk>"
 - "--chunk-overlap"
-- "<number-of-tokens-to-overlap-per-chunk>"
+- "<number-of-characters/tokens-to-overlap-per-chunk>"
 ```
+
+## Model Parameters
+
+Most configurations allow adjusting some model parameters. For configurations with adjustable parameters, the `temperature` and `max_output` tokens can be set in the selected `YAML` file:
+
+```
+- "-x"
+- <max_model_output_tokens>
+- "-t"
+- <model_temperature>
+```
+
+> [!TIP]
+> The default `temperature` in `TrustGraph` is set to `0.0`. Even for models with long input contexts, the max output might only be 2048 (like some intances of Llama3.>1). Make sure `max_output` is not set higher than allowed for a given model.
 
 ## Choose a TrustGraph Configuration
+
+> [!NOTE]
+> The default graph store for `TrustGraph` is `Cassandra`. `TrustGraph` also supports `Neo4j`. Adding "neo4j" to a `Docker Compose` file `tg-launch-<configuration>-neo4j.yaml` will select `Neo4j` instead of `Cassandra`.
 
 Choose one of the `Docker Compose` files that meets your preferred model deployments. Each deployment will require setting some `environment variables` and commands in the chosen `YAML` file. All variables and commands must be set prior to running the chosen `Docker Compose` file.
 
@@ -83,13 +102,13 @@ Choose one of the `Docker Compose` files that meets your preferred model deploym
 ```
 export AWS_ID_KEY=<ID-KEY-HERE>
 export AWS_SECRET_KEY=<TOKEN-GOES-HERE>
-docker compose -f docker-compose-bedrock.yaml up -d
+docker compose -f tg-launch-bedrock.yaml up -d
 ```
 
 > [!NOTE]
 > The current defaults for `AWS Bedrock` are `Mistral Large 2 (24.07)` in `US-West-2`.
 
-To change the model and region, go the sections for `text-completion` and `text-completion-rag` in the `docker-compose-bedrock.yaml` file. Add the following lines under the `command` section:
+To change the model and region, go the sections for `text-completion` and `text-completion-rag` in the `tg-launch-bedrock.yaml` file. Add the following lines under the `command` section:
 
 ```
 - "-r"
@@ -106,21 +125,21 @@ To change the model and region, go the sections for `text-completion` and `text-
 ```
 export AZURE_ENDPOINT=<https://ENDPOINT.HOST.GOES.HERE/>
 export AZURE_TOKEN=<TOKEN-GOES-HERE>
-docker compose -f docker-compose-azure.yaml up -d
+docker compose -f tg-launch-azure.yaml up -d
 ```
 
 ### Claude through Anthropic API
 
 ```
 export CLAUDE_KEY=<TOKEN-GOES-HERE>
-docker compose -f docker-compose-claude.yaml up -d
+docker compose -f tg-launch-claude.yaml up -d
 ```
 
 ### Cohere API
 
 ```
 export COHERE_KEY=<TOKEN-GOES-HERE>
-docker compose -f docker-compose-cohere.yaml up -d
+docker compose -f tg-launch-cohere.yaml up -d
 ```
 
 ### Ollama Hosted Model Deployment
@@ -133,13 +152,13 @@ docker compose -f docker-compose-cohere.yaml up -d
 
 ```
 export OLLAMA_HOST=<localhost> # Set to hostname or IP address of Ollama host
-docker compose -f docker-compose-ollama.yaml up -d
+docker compose -f tg-launch-ollama.yaml up -d
 ```
 
 > [!NOTE]
 > On `MacOS`, if running `Ollama` locally set `OLLAMA_HOST=host.docker.internal`.
 
-To change the `Ollama` model, first make sure the desired model has been pulled and fully downloaded. In the `docker-compose-ollama.yaml` file, go to the section for `text-completion`. Under `commands`, add the following two lines:
+To change the `Ollama` model, first make sure the desired model has been pulled and fully downloaded. In the `tg-launch-ollama.yaml` file, go to the section for `text-completion`. Under `commands`, add the following two lines:
 
 ```
 - "-m"
@@ -150,7 +169,7 @@ To change the `Ollama` model, first make sure the desired model has been pulled 
 
 ```
 export OPENAI_KEY=<TOKEN-GOES-HERE>
-docker compose -f docker-compose-openai.yaml up -d
+docker compose -f tg-launch-openai.yaml up -d
 ```
 
 ### VertexAI through GCP
@@ -158,7 +177,7 @@ docker compose -f docker-compose-openai.yaml up -d
 ```
 mkdir -p vertexai
 cp <your config> vertexai/private.json
-docker compose -f docker-compose-vertexai.yaml up -d
+docker compose -f tg-launch-vertexai.yaml up -d
 ```
 
 > [!TIP]
@@ -172,7 +191,7 @@ docker compose -f docker-compose-vertexai.yaml up -d
 
 One of the most powerful features of `TrustGraph` is the ability to use one model deployment for the `Naive Extraction` process and a different model for `RAG`. Since the `Naive Extraction` can be a one time process, it makes sense to use a more performant model to generate the most comprehensive set of graph edges and embeddings as possible. With a high-quality extraction, it's possible to use a much smaller model for `RAG` and still achieve "big" model performance.
 
-A "split" model deployment uses `docker-compose-mix.yaml`. There are two modules: `text-completion` and `text-completion-rag`. The `text-completion` module is called only for extraction while `text-completion-rag` is called only for RAG. 
+A "split" model deployment uses `tg-launch-mix.yaml`. There are two modules: `text-completion` and `text-completion-rag`. The `text-completion` module is called only for extraction while `text-completion-rag` is called only for RAG. 
 
 ### Choosing Model Deployments
 
@@ -186,10 +205,10 @@ Before launching the `Docker Compose` file, the desired model deployments must b
 - `text-completion-openai`
 - `text-completion-vertexai`
 
-For the `text-completion` and `text-completion-rag` modules in the `docker-compose-mix.yaml`file, choose one of the above deployment options and enter that line as the first line under `command` for each `text-completion` and `text-completion-rag` module. Depending on the model deployment, other variables such as endpoints, keys, and model names must specified under the `command` section as well. Once all variables and commands have been set, the `mix` deployment can be lauched with:
+For the `text-completion` and `text-completion-rag` modules in the `tg-launch-mix.yaml`file, choose one of the above deployment options and enter that line as the first line under `command` for each `text-completion` and `text-completion-rag` module. Depending on the model deployment, other variables such as endpoints, keys, and model names must specified under the `command` section as well. Once all variables and commands have been set, the `mix` deployment can be lauched with:
 
 ```
-docker compose -f docker-compose-mix.yaml up -d
+docker compose -f tg-launch-mix.yaml up -d
 ```
 
 > [!TIP]
@@ -397,49 +416,49 @@ When shutting down `TrustGraph`, it's best to shut down all Docker containers an
 #### AWS Bedrock API
 
 ```
-docker compose -f docker-compose-bedrock.yaml down -v
+docker compose -f tg-launch-bedrock.yaml down -v
 ```
 
 #### AzureAI Endpoint
 
 ```
-docker compose -f docker-compose-azure.yaml down -v
+docker compose -f tg-launch-azure.yaml down -v
 ```
 
 #### Anthropic API
 
 ```
-docker compose -f docker-compose-claude.yaml down -v
+docker compose -f tg-launch-claude.yaml down -v
 ```
 
 #### Cohere API
 
 ```
-docker compose -f docker-compose-cohere.yaml down -v
+docker compose -f tg-launch-cohere.yaml down -v
 ```
 
 #### Mixed Deployment
 
 ```
-docker compose -f docker-compose-mix.yaml down -v
+docker compose -f tg-launch-mix.yaml down -v
 ```
 
 #### Ollama
 
 ```
-docker compose -f docker-compose-ollama.yaml down -v
+docker compose -f tg-launch-ollama.yaml down -v
 ```
 
 #### OpenAI API
 
 ```
-docker compose -f docker-compose-openai.yaml down -v
+docker compose -f tg-launch-openai.yaml down -v
 ```
 
 #### VertexAI API
 
 ```
-docker compose -f docker-compose-vertexai.yaml down -v
+docker compose -f tg-launch-vertexai.yaml down -v
 ```
 
 > [!TIP]
