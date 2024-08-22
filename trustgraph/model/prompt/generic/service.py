@@ -141,8 +141,6 @@ class Processor(ConsumerProducer):
 
             self.producer.send(r, properties={"id": id})
 
-            self.consumer.acknowledge(msg)
-
     def handle_extract_relationships(self, id, v):
 
         try:
@@ -196,8 +194,6 @@ class Processor(ConsumerProducer):
             )
 
             self.producer.send(r, properties={"id": id})
-
-            self.consumer.acknowledge(msg)
         
     def handle_kg_prompt(self, id, v):
 
@@ -232,8 +228,6 @@ class Processor(ConsumerProducer):
             )
 
             self.producer.send(r, properties={"id": id})
-
-            self.consumer.acknowledge(msg)
         
     @staticmethod
     def add_args(parser):
