@@ -1,10 +1,12 @@
 
 import pulsar
 import _pulsar
-from pulsar.schema import JsonSchema
 import hashlib
 import uuid
 import time
+from pulsar.schema import JsonSchema
+
+from .. exceptions import *
 
 # Ugly
 ERROR=_pulsar.LoggerLevel.Error
