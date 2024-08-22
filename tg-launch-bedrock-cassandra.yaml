@@ -1,4 +1,21 @@
 "services":
+  "cassandra":
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "1.0"
+          "memory": "512M"
+        "reservations":
+          "cpus": "0.5"
+          "memory": "512M"
+    "environment":
+      "JVM_OPTS": "-Xms256M -Xmx256M"
+    "image": "docker.io/cassandra:4.1.6"
+    "ports":
+    - "9042:9042"
+    "restart": "on-failure:100"
+    "volumes":
+    - "cassandra:/var/lib/cassandra"
   "chunker":
     "command":
     - "chunker-recursive"
@@ -16,7 +33,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.3"
     "restart": "on-failure:100"
   "embeddings":
     "command":
@@ -33,7 +50,7 @@
         "reservations":
           "cpus": "0.5"
           "memory": "256M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.3"
     "restart": "on-failure:100"
   "etcd":
     "command":
@@ -105,7 +122,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.3"
     "restart": "on-failure:100"
   "init-pulsar":
     "command":
@@ -138,7 +155,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.3"
     "restart": "on-failure:100"
   "kg-extract-relationships":
     "command":
@@ -153,7 +170,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.3"
     "restart": "on-failure:100"
   "milvus":
     "command":
@@ -202,24 +219,6 @@
     "restart": "on-failure:100"
     "volumes":
     - "minio-data:/minio_data"
-  "neo4j":
-    "deploy":
-      "resources":
-        "limits":
-          "cpus": "1.0"
-          "memory": "256M"
-        "reservations":
-          "cpus": "0.5"
-          "memory": "256M"
-    "environment":
-      "NEO4J_AUTH": "neo4j/password"
-    "image": "docker.io/neo4j:5.22.0-community-bullseye"
-    "ports":
-    - "7474:7474"
-    - "7687:7687"
-    "restart": "on-failure:100"
-    "volumes":
-    - "neo4j:/data"
   "pdf-decoder":
     "command":
     - "pdf-decoder"
@@ -233,7 +232,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.3"
     "restart": "on-failure:100"
   "prometheus":
     "deploy":
@@ -268,7 +267,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.3"
     "restart": "on-failure:100"
   "prompt-rag":
     "command":
@@ -291,7 +290,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.3"
     "restart": "on-failure:100"
   "pulsar":
     "command": "bin/pulsar standalone"
@@ -344,24 +343,24 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.3"
     "restart": "on-failure:100"
   "query-triples":
     "command":
-    - "triples-query-neo4j"
+    - "triples-query-cassandra"
     - "-p"
     - "pulsar://pulsar:6650"
     - "-g"
-    - "bolt://neo4j:7687"
+    - "cassandra"
     "deploy":
       "resources":
         "limits":
           "cpus": "0.5"
-          "memory": "128M"
+          "memory": "512M"
         "reservations":
           "cpus": "0.1"
-          "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
+          "memory": "512M"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.3"
     "restart": "on-failure:100"
   "store-graph-embeddings":
     "command":
@@ -378,15 +377,15 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.3"
     "restart": "on-failure:100"
   "store-triples":
     "command":
-    - "triples-write-neo4j"
+    - "triples-write-cassandra"
     - "-p"
     - "pulsar://pulsar:6650"
     - "-g"
-    - "bolt://neo4j:7687"
+    - "cassandra"
     "deploy":
       "resources":
         "limits":
@@ -395,7 +394,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.3"
     "restart": "on-failure:100"
   "text-completion":
     "command":
@@ -422,7 +421,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.3"
     "restart": "on-failure:100"
   "text-completion-rag":
     "command":
@@ -453,7 +452,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.3"
     "restart": "on-failure:100"
   "vectorize":
     "command":
@@ -468,14 +467,14 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.2"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.3"
     "restart": "on-failure:100"
 "volumes":
+  "cassandra": {}
   "etcd": {}
   "grafana-storage": {}
   "milvus": {}
   "minio-data": {}
-  "neo4j": {}
   "prometheus-data": {}
   "pulsar-conf": {}
   "pulsar-data": {}

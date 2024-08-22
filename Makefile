@@ -46,7 +46,7 @@ tg-launch-%.yaml: templates/%.jsonnet templates/components/version.jsonnet
 update-templates: set-version
 	for model in ${MODELS}; do \
 	  for graph in ${GRAPHS}; do \
-	    cm=$${graph},cassandra,pulsar,milvus,grafana,trustgraph,$${model}; \
+	    cm=$${graph},pulsar,milvus,grafana,trustgraph,$${model}; \
 	    input=templates/main.jsonnet; \
 	    output=tg-launch-$${model}-$${graph}.yaml; \
 	    echo $${model} + $${graph} '->' $${output}; \

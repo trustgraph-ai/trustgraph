@@ -1,6 +1,6 @@
 local components = {
     neo4j: import "components/neo4j.jsonnet",
-    cassandra: import "components/neo4j.jsonnet",
+    cassandra: import "components/cassandra.jsonnet",
     pulsar: import "components/pulsar.jsonnet",
     milvus: import "components/milvus.jsonnet",
     grafana: import "components/grafana.jsonnet",
@@ -22,6 +22,4 @@ local add = function(state, name) state + components[name];
 local config = std.foldl(add, options, {});
 
 std.manifestYamlDoc(config)
-
-
 
