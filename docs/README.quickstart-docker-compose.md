@@ -88,7 +88,7 @@ Most configurations allow adjusting some model parameters. For configurations wi
 ```
 
 > [!TIP]
-> The default `temperature` in `TrustGraph` is set to `0.0`. Even for models with long input contexts, the max output might only be 2048 (like some intances of Llama3.>1). Make sure `max_output` is not set higher than allowed for a given model.
+> The default `temperature` in `TrustGraph` is set to `0.0`. Even for models with long input contexts, the max output might only be 2048 (like some intances of Llama3.1). Make sure `max_output` is not set higher than allowed for a given model.
 
 ## Choose a TrustGraph Configuration
 
