@@ -1,14 +1,9 @@
 
-import pulsar
 import _pulsar
-from pulsar.schema import JsonSchema
+
 from .. schema import GraphRagQuery, GraphRagResponse
 from .. schema import graph_rag_request_queue, graph_rag_response_queue
 from . base import BaseClient
-
-import hashlib
-import uuid
-import time
 
 # Ugly
 ERROR=_pulsar.LoggerLevel.Error

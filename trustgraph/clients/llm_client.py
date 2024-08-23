@@ -1,15 +1,9 @@
 
-import pulsar
 import _pulsar
-from pulsar.schema import JsonSchema
-import hashlib
-import uuid
-import time
 
 from .. schema import TextCompletionRequest, TextCompletionResponse
 from .. schema import text_completion_request_queue
 from .. schema import text_completion_response_queue
-from .. exceptions import *
 from . base import BaseClient
 
 # Ugly

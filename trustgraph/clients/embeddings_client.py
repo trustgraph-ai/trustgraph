@@ -4,11 +4,7 @@ from .. schema import EmbeddingsRequest, EmbeddingsResponse
 from .. schema import embeddings_request_queue, embeddings_response_queue
 from . base import BaseClient
 
-import pulsar
 import _pulsar
-import hashlib
-import uuid
-import time
 
 # Ugly
 ERROR=_pulsar.LoggerLevel.Error

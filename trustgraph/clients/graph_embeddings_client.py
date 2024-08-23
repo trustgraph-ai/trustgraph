@@ -1,10 +1,5 @@
 
-import pulsar
 import _pulsar
-from pulsar.schema import JsonSchema
-import hashlib
-import uuid
-import time
 
 from .. schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
 from .. schema import graph_embeddings_request_queue
