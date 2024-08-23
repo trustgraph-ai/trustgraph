@@ -91,7 +91,7 @@ class Processor(ConsumerProducer):
             print(resp, flush=True)
 
             print("Send response...", flush=True)
-            r = TextCompletionResponse(response=resp)
+            r = TextCompletionResponse(response=resp, error=None)
             self.send(r, properties={"id": id})
 
             print("Done.", flush=True)
