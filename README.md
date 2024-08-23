@@ -1,8 +1,7 @@
 
 # TrustGraph
 
-> [!TIP]
-> Full `TrustGraph` documentation can be found at [trustgraph.ai](https://trustgraph.ai/docs/TrustGraph).
+![TrustGraph banner](trustgraph_banner.png)
 
 🚀 [Get Started](https://trustgraph.ai/docs/getstarted)
 💬 [Join the Discord](https://discord.gg/AXpxVjwzAw)
