@@ -4,6 +4,10 @@
 > [!TIP]
 > Full `TrustGraph` documentation can be found at [trustgraph.ai](https://trustgraph.ai/docs/TrustGraph).
 
+🚀 [Get Started](https://trustgraph.ai/docs/getstarted)
+💬 [Join the Discord](https://discord.gg/AXpxVjwzAw)
+📖 [Read the Blog](https://blog.trustgraph.ai)
+
 ## Introduction
 
 TrustGraph is a true end-to-end (e2e) knowledge pipeline that performs a `Naive Extraction` on a text corpus
