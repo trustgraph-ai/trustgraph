@@ -4,7 +4,7 @@ import os
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-version = "0.7.9"
+version = "0.7.10"
 
 setuptools.setup(
     name="trustgraph",
@@ -73,6 +73,7 @@ setuptools.setup(
         "scripts/loader",
         "scripts/pdf-decoder",
         "scripts/prompt-generic",
+        "scripts/prompt-template",
         "scripts/query",
         "scripts/run-processing",
         "scripts/text-completion-azure",
