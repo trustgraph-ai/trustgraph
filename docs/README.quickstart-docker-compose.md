@@ -7,7 +7,7 @@
 > [!NOTE]
 > The `Docker Compose` files have been tested on `Linux` and `MacOS`. `Windows` deployments have not been tested.
 
-All `TrustGraph` components are deployed through a `Docker Compose` file. There are **8** `Docker Compose` files to choose from, depending on the desired model deployment:
+All `TrustGraph` components are deployed through a `Docker Compose` file. There are **16** `Docker Compose` files to choose from, depending on the desired model deployment and choosing between the graph stores `Cassandra` or `Neo4j`:
 
 - `AzureAI` serverless endpoint for deployed models in Azure
 - `Bedrock` API for models deployed in AWS Bedrock
@@ -15,7 +15,7 @@ All `TrustGraph` components are deployed through a `Docker Compose` file. There 
 - `Cohere` through Cohere's API
 - `Mix` for mixed model deployments
 - `Ollama` for local model deployments
-- `OpenAI` through OpenAI's API
+- `OpenAI` for OpenAI's API
 - `VertexAI` for models deployed in Google Cloud
 
 `Docker Compose` enables the following functions:
@@ -49,16 +49,26 @@ cd trustgraph
 
 ## TrustGraph as Docker Compose Files
 
-Depending on your desired model deployment, you will choose from one of the following `Docker Compose` files:
+Launching `TrustGraph` is a simple as running a single `Docker Compose` file. There are `Docker Compose` files for each possible model deployment and graph store configuration. Depending on your chosen model ang graph store deployment, chose one of the following launch files:
 
-- `tg-launch-azure.yaml`: AzureAI endpoint. Set `AZURE_TOKEN` to the secret token and `AZURE_ENDPOINT` to the URL endpoint address for the deployed model.
-- `tg-launch-bedrock.yaml`: AWS Bedrock API. Set `AWS_ID_KEY` and `AWS_SECRET_KEY` to credentials enabled for `AWS Bedrock` access.
-- `tg-launch-claude.yaml`: Anthropic's API. Set `CLAUDE_KEY` to your API key.
-- `tg-launch-cohere.yaml`: Cohere's API. Set `COHERE_KEY` to your API key.
-- `tg-launch-mix.yaml`: Special deployment that allows two separate model deployments for the extraction and RAG processes.
-- `tg-launch-ollama.yaml`: Local LM (currently using [Gemma2](https://ollama.com/library/gemma2) deployed through Ollama.  Set `OLLAMA_HOST` to the machine running Ollama (e.g. `localhost` for Ollama running locally on your machine)
-- `tg-launch-openai.yaml`: OpenAI's API. Set `OPENAI_KEY` to your API key.
-- `tg-launch-vertexai.yaml`: VertexAI API. Requires a `private.json` authentication file to authenticate with your GCP project. Filed should stored be at path `vertexai/private.json`.
+| Model Deployment | Graph Store | Launch File |
+| ---------------- | ------------ | ----------- |
+| AWS Bedrock | Cassandra | `tg-launch-bedrock-cassandra.yaml` |
+| AWS Bedrock | Neo4j | `tg-launch-bedrock-neo4j.yaml` |
+| AzureAI Serverless Endpoint | Cassandra | `tg-launch-azure-cassandra.yaml` |
+| AzureAI Serverless Endpoint | Neo4j | `tg-launch-azure-neo4j.yaml` |
+| Anthropic API | Cassandra | `tg-launch-claude-cassandra.yaml` |
+| Anthropic API | Neo4j | `tg-launch-claude-neo4j.yaml` |
+| Cohere API | Cassandra | `tg-launch-cohere-cassandra.yaml` |
+| Cohere API | Neo4j | `tg-launch-cohere-neo4j.yaml` |
+| Mixed Depoloyment | Cassandra | `tg-launch-mix-cassandra.yaml` |
+| Mixed Depoloyment | Neo4j | `tg-launch-mix-neo4j.yaml` |
+| Ollama | Cassandra | `tg-launch-ollama-cassandra.yaml` |
+| Ollama | Neo4j | `tg-launch-ollama-neo4j.yaml` |
+| OpenAI | Cassandra | `tg-launch-openai-cassandra.yaml` |
+| OpenAI | Neo4j | `tg-launch-openai-neo4j.yaml` |
+| VertexAI | Cassandra | `tg-launch-vertexai-cassandra.yaml` |
+| VertexAI | Neo4j | `tg-launch-vertexai-neo4j.yaml` |
 
 > [!CAUTION]
 > All tokens, paths, and authentication files must be set **PRIOR** to launching a `Docker Compose` file.
@@ -92,17 +102,15 @@ Most configurations allow adjusting some model parameters. For configurations wi
 
 ## Choose a TrustGraph Configuration
 
-> [!NOTE]
-> The default graph store for `TrustGraph` is `Cassandra`. `TrustGraph` also supports `Neo4j`. Adding "neo4j" to a `Docker Compose` file `tg-launch-<configuration>-neo4j.yaml` will select `Neo4j` instead of `Cassandra`.
-
-Choose one of the `Docker Compose` files that meets your preferred model deployments. Each deployment will require setting some `environment variables` and commands in the chosen `YAML` file. All variables and commands must be set prior to running the chosen `Docker Compose` file.
+Choose one of the `Docker Compose` files that meets your preferred model and graph store deployments. Each deployment will require setting some `environment variables` and commands in the chosen `YAML` file. All variables and commands must be set prior to running the chosen `Docker Compose` file.
 
 ### AWS Bedrock API
 
 ```
 export AWS_ID_KEY=<ID-KEY-HERE>
 export AWS_SECRET_KEY=<TOKEN-GOES-HERE>
-docker compose -f tg-launch-bedrock.yaml up -d
+docker compose -f tg-launch-bedrock-cassandra.yaml up -d # Using Cassandra as the graph store
+docker compose -f tg-launch-bedrock-neo4j.yaml up -d # Using Neo4j as the graph store
 ```
 
 > [!NOTE]
@@ -125,21 +133,24 @@ To change the model and region, go the sections for `text-completion` and `text-
 ```
 export AZURE_ENDPOINT=<https://ENDPOINT.HOST.GOES.HERE/>
 export AZURE_TOKEN=<TOKEN-GOES-HERE>
-docker compose -f tg-launch-azure.yaml up -d
+docker compose -f tg-launch-azure-cassandra.yaml up -d # Using Cassandra as the graph store
+docker compsoe -f tg-launch-azure-neo4j.yaml up -d # Using Neo4j as the graph store
 ```
 
 ### Claude through Anthropic API
 
 ```
 export CLAUDE_KEY=<TOKEN-GOES-HERE>
-docker compose -f tg-launch-claude.yaml up -d
+docker compose -f tg-launch-claude-cassandra.yaml up -d # Using Cassandra as the graph store
+docker compose -f tg-launch-claude-neo4j.yaml up -d # Using Neo4j as the graph store
 ```
 
 ### Cohere API
 
 ```
 export COHERE_KEY=<TOKEN-GOES-HERE>
-docker compose -f tg-launch-cohere.yaml up -d
+docker compose -f tg-launch-cohere-cassandra.yaml up -d # Using Cassandra as the graph store
+docker compose -f tg-launch-cohere-neo4j.yaml up -d # Using Neo4j as the graph store
 ```
 
 ### Ollama Hosted Model Deployment
@@ -148,17 +159,18 @@ docker compose -f tg-launch-cohere.yaml up -d
 > The power of `Ollama` is the flexibility it provides in Language Model deployments. Being able to run LMs with `Ollama` enables fully secure AI `TrustGraph` pipelines that aren't relying on any external APIs. No data is leaving the host environment or network. More information on `Ollama` deployments can be found [here](https://trustgraph.ai/docs/deploy/localnetwork).
 
 > [!NOTE]
-> The current default model for an `Ollama` deployment is `Gemma2:9B`. 
+> The current default model for an `Ollama` deployment is `Gemma2:9B`.
 
 ```
-export OLLAMA_HOST=<localhost> # Set to hostname or IP address of Ollama host
-docker compose -f tg-launch-ollama.yaml up -d
+export OLLAMA_HOST=<hostname> # Set to location of machine running Ollama such as http://localhost:11434
+docker compose -f tg-launch-ollama-cassandra.yaml up -d # Using Cassandra as the graph store
+docker compose -f tg-launch-ollama-neo4j.yaml up -d # Using Neo4j as the graph store
 ```
 
 > [!NOTE]
-> On `MacOS`, if running `Ollama` locally set `OLLAMA_HOST=host.docker.internal`.
+> On `MacOS`, if running `Ollama` locally set `OLLAMA_HOST=http://host.docker.internal:11434`.
 
-To change the `Ollama` model, first make sure the desired model has been pulled and fully downloaded. In the `tg-launch-ollama.yaml` file, go to the section for `text-completion`. Under `commands`, add the following two lines:
+To change the `Ollama` model, first make sure the desired model has been pulled and fully downloaded. In the `YAML` file, go to the section for `text-completion` and `text-completion-rag`. Under `commands`, add the following two lines:
 
 ```
 - "-m"
@@ -169,7 +181,8 @@ To change the `Ollama` model, first make sure the desired model has been pulled 
 
 ```
 export OPENAI_KEY=<TOKEN-GOES-HERE>
-docker compose -f tg-launch-openai.yaml up -d
+docker compose -f tg-launch-openai-cassandra.yaml up -d # Using Cassandra as the graph store
+docker compose -f tg-launch-openai-neo4j.yaml up -d # Using Neo4j as the graph store
 ```
 
 ### VertexAI through GCP
@@ -177,12 +190,13 @@ docker compose -f tg-launch-openai.yaml up -d
 ```
 mkdir -p vertexai
 cp <your config> vertexai/private.json
-docker compose -f tg-launch-vertexai.yaml up -d
+docker compose -f tg-launch-vertexai-cassandra.yaml up -d # Using Cassandra as the graph store
+docker compose -f tg-launch-vertexai-neo4j.yaml up -d # Using Neo4j as the graph store
 ```
 
 > [!TIP]
 > If you're running `SELinux` on Linux you may need to set the permissions on the VertexAI directory so that the key file can be mounted on a Docker container using the following command:
->
+> 
 > ```
 > chcon -Rt svirt_sandbox_file_t vertexai/
 > ```
@@ -191,7 +205,7 @@ docker compose -f tg-launch-vertexai.yaml up -d
 
 One of the most powerful features of `TrustGraph` is the ability to use one model deployment for the `Naive Extraction` process and a different model for `RAG`. Since the `Naive Extraction` can be a one time process, it makes sense to use a more performant model to generate the most comprehensive set of graph edges and embeddings as possible. With a high-quality extraction, it's possible to use a much smaller model for `RAG` and still achieve "big" model performance.
 
-A "split" model deployment uses `tg-launch-mix.yaml`. There are two modules: `text-completion` and `text-completion-rag`. The `text-completion` module is called only for extraction while `text-completion-rag` is called only for RAG. 
+A "split" model deployment uses `tg-launch-mix.yaml`. There are two modules: `text-completion` and `text-completion-rag`. The `text-completion` module is called only for extraction while `text-completion-rag` is called only for RAG.
 
 ### Choosing Model Deployments
 
@@ -208,7 +222,8 @@ Before launching the `Docker Compose` file, the desired model deployments must b
 For the `text-completion` and `text-completion-rag` modules in the `tg-launch-mix.yaml`file, choose one of the above deployment options and enter that line as the first line under `command` for each `text-completion` and `text-completion-rag` module. Depending on the model deployment, other variables such as endpoints, keys, and model names must specified under the `command` section as well. Once all variables and commands have been set, the `mix` deployment can be lauched with:
 
 ```
-docker compose -f tg-launch-mix.yaml up -d
+docker compose -f tg-launch-mix-cassandra.yaml up -d # Using Cassandra as the graph store
+docker compose -f tg-launch-mix-neo4j.yaml up -d # Using Neo4j as the graph store
 ```
 
 > [!TIP]
@@ -233,7 +248,7 @@ docker ps -a
 ```
 
 > [!TIP]
-> Before proceeding, allow the system to enter a stable a working state. In general `30 seconds` should be enough time for Pulsar to stablize. The system uses Cassandra for a Graph store. Cassandra can take `60-70 seconds` to achieve a working state.
+> Before proceeding, allow the system to stabilize. A safe warm up period is `120 seconds`. If services seem to be "stuck", it could be because services did not have time to initialize correctly and are trying to restart. Waiting `120 seconds` before launching any scripts should provide much more reliable operation.
 
 ### Load a Text Corpus
 
@@ -411,54 +426,10 @@ If you want to try different RAG queries, modify the `query` in the [test script
 
 ### Shutting Down TrustGraph
 
-When shutting down `TrustGraph`, it's best to shut down all Docker containers and volumes. Run the `docker compose down` command that corresponds to your model deployment:
-
-#### AWS Bedrock API
+When shutting down `TrustGraph`, it's best to shut down all Docker containers and volumes. Run the `docker compose down` command that corresponds to your model and graph store deployment:
 
 ```
-docker compose -f tg-launch-bedrock.yaml down -v
-```
-
-#### AzureAI Endpoint
-
-```
-docker compose -f tg-launch-azure.yaml down -v
-```
-
-#### Anthropic API
-
-```
-docker compose -f tg-launch-claude.yaml down -v
-```
-
-#### Cohere API
-
-```
-docker compose -f tg-launch-cohere.yaml down -v
-```
-
-#### Mixed Deployment
-
-```
-docker compose -f tg-launch-mix.yaml down -v
-```
-
-#### Ollama
-
-```
-docker compose -f tg-launch-ollama.yaml down -v
-```
-
-#### OpenAI API
-
-```
-docker compose -f tg-launch-openai.yaml down -v
-```
-
-#### VertexAI API
-
-```
-docker compose -f tg-launch-vertexai.yaml down -v
+docker compose -f tg-launch-<model-deployment>-<graph-store>.yaml down -v
 ```
 
 > [!TIP]
