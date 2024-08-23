@@ -1,11 +1,6 @@
 #!/usr/bin/env python3
 
-import pulsar
 import _pulsar
-from pulsar.schema import JsonSchema
-import hashlib
-import uuid
-import time
 
 from .. schema import TriplesQueryRequest, TriplesQueryResponse, Value
 from .. schema import triples_request_queue

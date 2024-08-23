@@ -1,10 +1,5 @@
 
-import pulsar
 import _pulsar
-from pulsar.schema import JsonSchema
-import hashlib
-import uuid
-import time
 
 from .. schema import PromptRequest, PromptResponse, Fact
 from .. schema import prompt_request_queue
