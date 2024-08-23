@@ -81,7 +81,7 @@ class Processor(ConsumerProducer):
             resp = resp.replace("```", "")
 
             print("Send response...", flush=True)
-            r = TextCompletionResponse(response=resp)
+            r = TextCompletionResponse(response=resp, error=None)
             self.send(r, properties={"id": id})
 
             print("Done.", flush=True)

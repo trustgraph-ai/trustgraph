@@ -1,6 +1,6 @@
 
 # VERSION=$(shell git describe | sed 's/^v//')
-VERSION=0.7.7
+VERSION=0.7.8
 
 DOCKER=podman
 
