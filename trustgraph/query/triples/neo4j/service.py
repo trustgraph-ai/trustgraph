@@ -293,7 +293,7 @@ class Processor(ConsumerProducer):
             ]
 
             print("Send response...", flush=True)
-            r = TriplesQueryResponse(triples=triples)
+            r = TriplesQueryResponse(triples=triples, error=None)
             self.producer.send(r, properties={"id": id})
 
             print("Done.", flush=True)
