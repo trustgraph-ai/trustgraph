@@ -1,6 +1,7 @@
 local base = import "base.jsonnet";
 local images = import "images.jsonnet";
 local url = import "url.jsonnet";
+local prompts = import "../prompts/slm.jsonnet";
 {
     services +: {
 
@@ -59,4 +60,4 @@ local url = import "url.jsonnet";
 	},
 	
     },
-}
+} + prompts

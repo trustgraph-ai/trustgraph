@@ -1,6 +1,7 @@
 local base = import "base.jsonnet";
 local images = import "images.jsonnet";
 local url = import "url.jsonnet";
+local prompts = import "../prompts/mixtral.jsonnet";
 {
     services +: {
 
@@ -67,4 +68,6 @@ local url = import "url.jsonnet";
 	},
 	
     },
-}
+} + prompts
+
+
