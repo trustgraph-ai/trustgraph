@@ -95,7 +95,10 @@ class Processor(ConsumerProducer):
             print(resp.choices[0].message.content, flush=True)
 
             print("Send response...", flush=True)
-            r = TextCompletionResponse(response=resp.choices[0].message.content)
+            r = TextCompletionResponse(
+                response=resp.choices[0].message.content,
+                error=None,
+            )
             self.send(r, properties={"id": id})
 
             print("Done.", flush=True)
