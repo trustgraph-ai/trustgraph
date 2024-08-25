@@ -38,7 +38,7 @@ class EmbeddingsClient(BaseClient):
             output_schema=EmbeddingsResponse,
         )
 
-    def request(self, text, timeout=30):
+    def request(self, text, timeout=300):
         return self.call(text=text, timeout=timeout).vectors
 
 

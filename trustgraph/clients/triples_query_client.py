@@ -48,7 +48,7 @@ class TriplesQueryClient(BaseClient):
 
         return Value(value=ent, is_uri=False)
 
-    def request(self, s, p, o, limit=10, timeout=30):
+    def request(self, s, p, o, limit=10, timeout=60):
         return self.call(
             s=self.create_value(s),
             p=self.create_value(p),

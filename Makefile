@@ -1,6 +1,6 @@
 
 # VERSION=$(shell git describe | sed 's/^v//')
-VERSION=0.7.12
+VERSION=0.7.13
 
 DOCKER=podman
 
@@ -44,6 +44,13 @@ tg-launch-%.yaml: templates/%.jsonnet templates/components/version.jsonnet
 	jsonnet -S ${@:tg-launch-%.yaml=templates/%.jsonnet} > $@
 
 update-templates: set-version
+	for graph in ${GRAPHS}; do \
+	    cm=$${graph},pulsar,milvus,grafana; \
+	    input=templates/main.jsonnet; \
+	    output=tg-storage-$${graph}.yaml; \
+	    echo $${graph} '->' $${output}; \
+	    jsonnet --ext-str options=$${cm} -S $${input} > $${output}; \
+	done
 	for model in ${MODELS}; do \
 	  for graph in ${GRAPHS}; do \
 	    cm=$${graph},pulsar,milvus,grafana,trustgraph,$${model}; \

@@ -1,40 +1,21 @@
 "services":
-  "chunker":
-    "command":
-    - "${CHUNKER:-chunker-token}"
-    - "-p"
-    - "pulsar://pulsar:6650"
-    - "--chunk-size"
-    - "250"
-    - "--chunk-overlap"
-    - "15"
-    "deploy":
-      "resources":
-        "limits":
-          "cpus": "0.5"
-          "memory": "128M"
-        "reservations":
-          "cpus": "0.1"
-          "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.13"
-    "restart": "on-failure:100"
-  "embeddings":
-    "command":
-    - "embeddings-hf"
-    - "-p"
-    - "pulsar://pulsar:6650"
-    - "-m"
-    - "all-MiniLM-L6-v2"
+  "cassandra":
     "deploy":
       "resources":
         "limits":
           "cpus": "1.0"
-          "memory": "256M"
+          "memory": "800M"
         "reservations":
           "cpus": "0.5"
-          "memory": "256M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.13"
+          "memory": "800M"
+    "environment":
+      "JVM_OPTS": "-Xms256M -Xmx256M"
+    "image": "docker.io/cassandra:4.1.6"
+    "ports":
+    - "9042:9042"
     "restart": "on-failure:100"
+    "volumes":
+    - "cassandra:/var/lib/cassandra"
   "etcd":
     "command":
     - "etcd"
@@ -82,31 +63,6 @@
     - "./grafana/dashboard.yml:/etc/grafana/provisioning/dashboards/dashboard.yml"
     - "./grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml"
     - "./grafana/dashboard.json:/var/lib/grafana/dashboards/dashboard.json"
-  "graph-rag":
-    "command":
-    - "graph-rag"
-    - "-p"
-    - "pulsar://pulsar:6650"
-    - "--prompt-request-queue"
-    - "non-persistent://tg/request/prompt-rag"
-    - "--prompt-response-queue"
-    - "non-persistent://tg/response/prompt-rag-response"
-    - "--entity-limit"
-    - "50"
-    - "--triple-limit"
-    - "30"
-    - "--max-subgraph-size"
-    - "3000"
-    "deploy":
-      "resources":
-        "limits":
-          "cpus": "0.5"
-          "memory": "128M"
-        "reservations":
-          "cpus": "0.1"
-          "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.13"
-    "restart": "on-failure:100"
   "init-pulsar":
     "command":
     - "sh"
@@ -124,36 +80,6 @@
           "cpus": "0.1"
           "memory": "128M"
     "image": "docker.io/apachepulsar/pulsar:3.3.1"
-    "restart": "on-failure:100"
-  "kg-extract-definitions":
-    "command":
-    - "kg-extract-definitions"
-    - "-p"
-    - "pulsar://pulsar:6650"
-    "deploy":
-      "resources":
-        "limits":
-          "cpus": "0.5"
-          "memory": "128M"
-        "reservations":
-          "cpus": "0.1"
-          "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.13"
-    "restart": "on-failure:100"
-  "kg-extract-relationships":
-    "command":
-    - "kg-extract-relationships"
-    - "-p"
-    - "pulsar://pulsar:6650"
-    "deploy":
-      "resources":
-        "limits":
-          "cpus": "0.5"
-          "memory": "128M"
-        "reservations":
-          "cpus": "0.1"
-          "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.13"
     "restart": "on-failure:100"
   "milvus":
     "command":
@@ -202,39 +128,6 @@
     "restart": "on-failure:100"
     "volumes":
     - "minio-data:/minio_data"
-  "neo4j":
-    "deploy":
-      "resources":
-        "limits":
-          "cpus": "1.0"
-          "memory": "768M"
-        "reservations":
-          "cpus": "0.5"
-          "memory": "768M"
-    "environment":
-      "NEO4J_AUTH": "neo4j/password"
-    "image": "docker.io/neo4j:5.22.0-community-bullseye"
-    "ports":
-    - "7474:7474"
-    - "7687:7687"
-    "restart": "on-failure:100"
-    "volumes":
-    - "neo4j:/data"
-  "pdf-decoder":
-    "command":
-    - "pdf-decoder"
-    - "-p"
-    - "pulsar://pulsar:6650"
-    "deploy":
-      "resources":
-        "limits":
-          "cpus": "0.5"
-          "memory": "128M"
-        "reservations":
-          "cpus": "0.1"
-          "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.13"
-    "restart": "on-failure:100"
   "prometheus":
     "deploy":
       "resources":
@@ -251,48 +144,6 @@
     "volumes":
     - "./prometheus:/etc/prometheus"
     - "prometheus-data:/prometheus"
-  "prompt":
-    "command":
-    - "prompt-generic"
-    - "-p"
-    - "pulsar://pulsar:6650"
-    - "--text-completion-request-queue"
-    - "non-persistent://tg/request/text-completion"
-    - "--text-completion-response-queue"
-    - "non-persistent://tg/response/text-completion-response"
-    "deploy":
-      "resources":
-        "limits":
-          "cpus": "0.5"
-          "memory": "128M"
-        "reservations":
-          "cpus": "0.1"
-          "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.13"
-    "restart": "on-failure:100"
-  "prompt-rag":
-    "command":
-    - "prompt-generic"
-    - "-p"
-    - "pulsar://pulsar:6650"
-    - "-i"
-    - "non-persistent://tg/request/prompt-rag"
-    - "-o"
-    - "non-persistent://tg/response/prompt-rag-response"
-    - "--text-completion-request-queue"
-    - "non-persistent://tg/request/text-completion-rag"
-    - "--text-completion-response-queue"
-    - "non-persistent://tg/response/text-completion-rag-response"
-    "deploy":
-      "resources":
-        "limits":
-          "cpus": "0.5"
-          "memory": "128M"
-        "reservations":
-          "cpus": "0.1"
-          "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.13"
-    "restart": "on-failure:100"
   "pulsar":
     "command": "bin/pulsar standalone"
     "deploy":
@@ -348,19 +199,19 @@
     "restart": "on-failure:100"
   "query-triples":
     "command":
-    - "triples-query-neo4j"
+    - "triples-query-cassandra"
     - "-p"
     - "pulsar://pulsar:6650"
     - "-g"
-    - "bolt://neo4j:7687"
+    - "cassandra"
     "deploy":
       "resources":
         "limits":
           "cpus": "0.5"
-          "memory": "128M"
+          "memory": "512M"
         "reservations":
           "cpus": "0.1"
-          "memory": "128M"
+          "memory": "512M"
     "image": "docker.io/trustgraph/trustgraph-flow:0.7.13"
     "restart": "on-failure:100"
   "store-graph-embeddings":
@@ -382,11 +233,11 @@
     "restart": "on-failure:100"
   "store-triples":
     "command":
-    - "triples-write-neo4j"
+    - "triples-write-cassandra"
     - "-p"
     - "pulsar://pulsar:6650"
     - "-g"
-    - "bolt://neo4j:7687"
+    - "cassandra"
     "deploy":
       "resources":
         "limits":
@@ -395,71 +246,14 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.13"
-    "restart": "on-failure:100"
-  "text-completion":
-    "command":
-    - "text-completion-ollama"
-    - "-p"
-    - "pulsar://pulsar:6650"
-    - "-m"
-    - "gemma2:9b"
-    - "-r"
-    - "${OLLAMA_HOST}"
-    "deploy":
-      "resources":
-        "limits":
-          "cpus": "0.5"
-          "memory": "128M"
-        "reservations":
-          "cpus": "0.1"
-          "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.13"
-    "restart": "on-failure:100"
-  "text-completion-rag":
-    "command":
-    - "text-completion-ollama"
-    - "-p"
-    - "pulsar://pulsar:6650"
-    - "-m"
-    - "gemma2:9b"
-    - "-r"
-    - "${OLLAMA_HOST}"
-    - "-i"
-    - "non-persistent://tg/request/text-completion-rag"
-    - "-o"
-    - "non-persistent://tg/response/text-completion-rag-response"
-    "deploy":
-      "resources":
-        "limits":
-          "cpus": "0.5"
-          "memory": "128M"
-        "reservations":
-          "cpus": "0.1"
-          "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.13"
-    "restart": "on-failure:100"
-  "vectorize":
-    "command":
-    - "embeddings-vectorize"
-    - "-p"
-    - "pulsar://pulsar:6650"
-    "deploy":
-      "resources":
-        "limits":
-          "cpus": "1.0"
-          "memory": "512M"
-        "reservations":
-          "cpus": "0.5"
-          "memory": "512M"
     "image": "docker.io/trustgraph/trustgraph-flow:0.7.13"
     "restart": "on-failure:100"
 "volumes":
+  "cassandra": {}
   "etcd": {}
   "grafana-storage": {}
   "milvus": {}
   "minio-data": {}
-  "neo4j": {}
   "prometheus-data": {}
   "pulsar-conf": {}
   "pulsar-data": {}

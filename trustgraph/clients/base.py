@@ -74,7 +74,7 @@ class BaseClient:
         while time.time() < end_time:
 
             try:
-                msg = self.consumer.receive(timeout_millis=5000)
+                msg = self.consumer.receive(timeout_millis=2500)
             except pulsar.exceptions.Timeout:
                 continue
 
