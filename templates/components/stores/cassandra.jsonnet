@@ -21,11 +21,11 @@ local images = import "../images.jsonnet";
 		resources: {
 		    limits: {
 			cpus: '1.0',
-			memory: '512M'
+			memory: '800M'
 		    },
 		    reservations: {
 			cpus: '0.5',
-			memory: '512M'
+			memory: '800M'
 		    }
 		}
             },
