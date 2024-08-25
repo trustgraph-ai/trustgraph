@@ -8,6 +8,9 @@ from pulsar.schema import JsonSchema
 
 from .. exceptions import *
 
+# Default timeout for a request/response.  In seconds.
+DEFAULT_TIMEOUT=300
+
 # Ugly
 ERROR=_pulsar.LoggerLevel.Error
 WARN=_pulsar.LoggerLevel.Warn
@@ -55,7 +58,7 @@ class BaseClient:
 
     def call(self, **args):
 
-        timeout = args.get("timeout", 30)
+        timeout = args.get("timeout", DEFAULT_TIMEOUT)
 
         if "timeout" in args:
             del args["timeout"]
@@ -112,7 +115,6 @@ class BaseClient:
     def __del__(self):
 
         if hasattr(self, "consumer"):
-#             self.consumer.unsubscribe()
             self.consumer.close()
             
         if hasattr(self, "producer"):
