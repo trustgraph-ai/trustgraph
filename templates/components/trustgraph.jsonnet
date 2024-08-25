@@ -64,12 +64,12 @@ local url = import "url.jsonnet";
             deploy: {
 		resources: {
 		    limits: {
-			cpus: '0.5',
-			memory: '128M'
+			cpus: '1.0',
+			memory: '512M'
 		    },
 		    reservations: {
-			cpus: '0.1',
-			memory: '128M'
+			cpus: '0.5',
+			memory: '512M'
 		    }
 		}
 	    },
