@@ -38,17 +38,21 @@ class PromptClient(BaseClient):
             output_schema=PromptResponse,
         )
 
-    def request_definitions(self, chunk, timeout=30):
+    def request_definitions(self, chunk, timeout=300):
 
-        return self.call(kind="extract-definitions", chunk=chunk,
-                         timeout=timeout).definitions
+        return self.call(
+            kind="extract-definitions", chunk=chunk,
+            timeout=timeout
+        ).definitions
 
-    def request_relationships(self, chunk, timeout=30):
+    def request_relationships(self, chunk, timeout=300):
 
-        return self.call(kind="extract-relationships", chunk=chunk,
-                         timeout=timeout).relationships
+        return self.call(
+            kind="extract-relationships", chunk=chunk,
+            timeout=timeout
+        ).relationships
 
-    def request_kg_prompt(self, query, kg, timeout=30):
+    def request_kg_prompt(self, query, kg, timeout=300):
 
         return self.call(
             kind="kg-prompt",

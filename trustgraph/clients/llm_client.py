@@ -35,6 +35,6 @@ class LlmClient(BaseClient):
             output_schema=TextCompletionResponse,
         )
 
-    def request(self, prompt, timeout=30):
+    def request(self, prompt, timeout=300):
         return self.call(prompt=prompt, timeout=timeout).response
 

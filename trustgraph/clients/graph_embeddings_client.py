@@ -38,7 +38,7 @@ class GraphEmbeddingsClient(BaseClient):
             output_schema=GraphEmbeddingsResponse,
         )
 
-    def request(self, vectors, limit=10, timeout=30):
+    def request(self, vectors, limit=10, timeout=300):
         return self.call(
             vectors=vectors, limit=limit, timeout=timeout
         ).entities
