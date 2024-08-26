@@ -110,6 +110,11 @@ class Processor(ConsumerProducer):
                     e = defn["entity"]
                     d = defn["definition"]
 
+                    if e == "": continue
+                    if e is None: continue
+                    if d == "": continue
+                    if d is None: continue
+
                     output.append(
                         Definition(
                             name=e, definition=d
@@ -161,12 +166,30 @@ class Processor(ConsumerProducer):
             for defn in defs:
 
                 try:
+
+                    s = defn["subject"]
+                    p = defn["predicate"]
+                    o = defn["object"]
+                    o_entity = defn["object-entity"]
+
+                    if s == "": continue
+                    if s is None: continue
+
+                    if p == "": continue
+                    if p is None: continue
+
+                    if o == "": continue
+                    if o is None: continue
+
+                    if o_entity == "" or o_entity is None:
+                        o_entity = False
+
                     output.append(
                         Relationship(
-                            s = defn["subject"],
-                            p = defn["predicate"],
-                            o = defn["object"],
-                            o_entity = defn["object-entity"],
+                            s = s,
+                            p = p,
+                            o = o,
+                            o_entity = o_entity,
                         )
                     )
 
