@@ -29,54 +29,15 @@
       },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
           "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
             }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
           }
         },
         "overrides": []
@@ -89,60 +50,58 @@
       },
       "id": 7,
       "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "color": {
+          "exponent": 0.5,
+          "fill": "dark-orange",
+          "mode": "scheme",
+          "reverse": false,
+          "scale": "exponential",
+          "scheme": "Oranges",
+          "steps": 64
+        },
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-9
+        },
         "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
+          "show": true
+        },
+        "rowsFrame": {
+          "layout": "auto"
         },
         "tooltip": {
           "mode": "single",
-          "sort": "none"
+          "showColorScale": false,
+          "yHistogram": false
+        },
+        "yAxis": {
+          "axisPlacement": "left",
+          "reverse": false
         }
       },
-      "pluginVersion": "10.0.0",
+      "pluginVersion": "11.1.4",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "f6b18033-5918-4e05-a1ca-4cb30343b129"
           },
-          "editorMode": "builder",
-          "expr": "histogram_quantile(0.99, sum by(le) (rate(request_latency_bucket{instance=\"text-completion:8000\"}[$__rate_interval])))",
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "max by(le) (text_completion_duration_bucket)",
+          "format": "heatmap",
           "instant": false,
           "legendFormat": "99%",
           "range": true,
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "f6b18033-5918-4e05-a1ca-4cb30343b129"
-          },
-          "editorMode": "builder",
-          "expr": "histogram_quantile(0.95, sum by(le) (rate(request_latency_bucket{instance=\"text-completion:8000\"}[$__rate_interval])))",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "95%",
-          "range": true,
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "f6b18033-5918-4e05-a1ca-4cb30343b129"
-          },
-          "editorMode": "builder",
-          "expr": "histogram_quantile(0.75, sum by(le) (rate(request_latency_bucket{instance=\"text-completion:8000\"}[$__rate_interval])))",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "75%",
-          "range": true,
-          "refId": "C"
         }
       ],
       "title": "LLM latency",
-      "type": "timeseries"
+      "type": "heatmap"
     },
     {
       "datasource": {
@@ -952,6 +911,6 @@
   "timezone": "",
   "title": "Overview",
   "uid": "b5c8abf8-fe79-496b-b028-10bde917d1f0",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }
