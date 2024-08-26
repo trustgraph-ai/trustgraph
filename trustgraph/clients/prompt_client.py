@@ -64,3 +64,12 @@ class PromptClient(BaseClient):
             timeout=timeout
         ).answer
 
+    def request_document_prompt(self, query, documents, timeout=300):
+
+        return self.call(
+            kind="document-prompt",
+            query=query,
+            documents=documents,
+            timeout=timeout
+        ).answer
+

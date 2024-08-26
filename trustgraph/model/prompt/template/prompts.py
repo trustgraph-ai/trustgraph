@@ -17,3 +17,7 @@ def to_kg_query(template, query, kg):
     cypher =  get_cypher(kg)
     return template.format(query=query, graph=cypher)
 
+def to_document_query(template, query, docs):
+    docs = "\n\n".join(docs)
+    return template.format(query=query, documents=docs)
+

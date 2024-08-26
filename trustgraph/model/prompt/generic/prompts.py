@@ -79,3 +79,18 @@ Use only the provided knowledge statements to respond to the following:
 """
 
     return prompt
+
+def to_document_query(query, documents):
+
+    documents = "\n\n".join(documents)
+
+    prompt=f"""Study the following context. Use only the information provided in the context in your response. Do not speculate if the answer is not found in the provided set of knowledge statements.
+
+Here is the context:
+{documents}
+
+Use only the provided knowledge statements to respond to the following:
+{query}
+"""
+
+    return prompt
