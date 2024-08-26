@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+
+from trustgraph.query.doc_embeddings.milvus import run
+
+run()
+

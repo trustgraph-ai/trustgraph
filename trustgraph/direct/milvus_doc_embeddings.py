@@ -2,9 +2,9 @@
 from pymilvus import MilvusClient, CollectionSchema, FieldSchema, DataType
 import time
 
-class TripleVectors:
+class DocVectors:
 
-    def __init__(self, uri="http://localhost:19530"):
+    def __init__(self, uri="http://localhost:19530", prefix='doc'):
 
         self.client = MilvusClient(uri=uri)
 
@@ -13,6 +13,8 @@ class TripleVectors:
         # hard-code the dimension anywhere, and no big deal if more than
         # one are created.
         self.collections = {}
+
+        self.prefix = prefix
 
         # Time between reloads
         self.reload_time = 90
@@ -23,7 +25,7 @@ class TripleVectors:
 
     def init_collection(self, dimension):
 
-        collection_name = "triples_" + str(dimension)
+        collection_name = self.prefix + "_" + str(dimension)
 
         pkey_field = FieldSchema(
             name="id",
@@ -38,15 +40,15 @@ class TripleVectors:
             dim=dimension,
         )
 
-        entity_field = FieldSchema(
-            name="entity",
+        doc_field = FieldSchema(
+            name="doc",
             dtype=DataType.VARCHAR,
             max_length=65535,
         )
 
         schema = CollectionSchema(
-            fields = [pkey_field, vec_field, entity_field],
-            description = "Edge map schema",
+            fields = [pkey_field, vec_field, doc_field],
+            description = "Document embedding schema",
         )
 
         self.client.create_collection(
@@ -72,7 +74,7 @@ class TripleVectors:
 
         self.collections[dimension] = collection_name
 
-    def insert(self, embeds, entity):
+    def insert(self, embeds, doc):
 
         dim = len(embeds)
 
@@ -82,7 +84,7 @@ class TripleVectors:
         data = [
             {
                 "vector": embeds,
-                "entity": entity,
+                "doc": doc,
             }
         ]
 
@@ -91,7 +93,7 @@ class TripleVectors:
             data=data
         )
 
-    def search(self, embeds, fields=["entity"], limit=10):
+    def search(self, embeds, fields=["doc"], limit=10):
 
         dim = len(embeds)
 

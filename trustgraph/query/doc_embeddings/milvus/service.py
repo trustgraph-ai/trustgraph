@@ -1,20 +1,20 @@
 
 """
-Graph embeddings query service.  Input is vector, output is list of
-entities
+Document embeddings query service.  Input is vector, output is an array
+of chunks
 """
 
-from .... direct.milvus_graph_embeddings import EntityVectors
-from .... schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
+from .... direct.milvus_doc_embeddings import DocVectors
+from .... schema import DocumentEmbeddingsRequest, DocumentEmbeddingsResponse
 from .... schema import Error, Value
-from .... schema import graph_embeddings_request_queue
-from .... schema import graph_embeddings_response_queue
+from .... schema import document_embeddings_request_queue
+from .... schema import document_embeddings_response_queue
 from .... base import ConsumerProducer
 
 module = ".".join(__name__.split(".")[1:-1])
 
-default_input_queue = graph_embeddings_request_queue
-default_output_queue = graph_embeddings_response_queue
+default_input_queue = document_embeddings_request_queue
+default_output_queue = document_embeddings_response_queue
 default_subscriber = module
 default_store_uri = 'http://localhost:19530'
 
@@ -32,20 +32,14 @@ class Processor(ConsumerProducer):
                 "input_queue": input_queue,
                 "output_queue": output_queue,
                 "subscriber": subscriber,
-                "input_schema": GraphEmbeddingsRequest,
-                "output_schema": GraphEmbeddingsResponse,
+                "input_schema": DocumentEmbeddingsRequest,
+                "output_schema": DocumentEmbeddingsResponse,
                 "store_uri": store_uri,
             }
         )
 
-        self.vecstore = EntityVectors(store_uri)
+        self.vecstore = DocVectors(store_uri)
 
-    def create_value(self, ent):
-        if ent.startswith("http://") or ent.startswith("https://"):
-            return Value(value=ent, is_uri=True)
-        else:
-            return Value(value=ent, is_uri=False)
-        
     def handle(self, msg):
 
         try:
@@ -57,28 +51,19 @@ class Processor(ConsumerProducer):
 
             print(f"Handling input {id}...", flush=True)
 
-            entities = set()
+            chunks = []
 
             for vec in v.vectors:
 
                 resp = self.vecstore.search(vec, limit=v.limit)
 
                 for r in resp:
-                    ent = r["entity"]["entity"]
-                    entities.add(ent)
-
-            # Convert set to list
-            entities = list(entities)
-
-            ents2 = []
-
-            for ent in entities:
-                ents2.append(self.create_value(ent))
-
-            entities = ents2
+                    chunk = r["entity"]["doc"]
+                    chunk = chunk.encode("utf-8")
+                    chunks.append(chunk)
 
             print("Send response...", flush=True)
-            r = GraphEmbeddingsResponse(entities=entities, error=None)
+            r = DocumentEmbeddingsResponse(documents=chunks, error=None)
             self.producer.send(r, properties={"id": id})
 
             print("Done.", flush=True)
@@ -89,12 +74,12 @@ class Processor(ConsumerProducer):
 
             print("Send error response...", flush=True)
 
-            r = GraphEmbeddingsResponse(
+            r = DocumentEmbeddingsResponse(
                 error=Error(
                     type = "llm-error",
                     message = str(e),
                 ),
-                entities=None,
+                documents=None,
             )
 
             self.producer.send(r, properties={"id": id})

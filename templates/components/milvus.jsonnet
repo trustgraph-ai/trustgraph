@@ -53,8 +53,59 @@ milvus + {
 	    },
 	},
 
+/*
+
+// Document embeddings writer & query service.  Not currently enabled.
+
+	"store-doc-embeddings": base + {
+	    image: images.trustgraph,
+	    command: [
+		"de-write-milvus",
+		"-p",
+		url.pulsar,
+		"-t",
+		url.milvus,
+	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.5',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
+	},
+
+	"query-doc-embeddings": base + {
+	    image: images.trustgraph,
+	    command: [
+		"de-query-milvus",
+		"-p",
+		url.pulsar,
+		"-t",
+		url.milvus,
+	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.5',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
+	},
+
+*/
+
     }
 
 }
-
 

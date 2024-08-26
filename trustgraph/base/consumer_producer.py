@@ -84,7 +84,7 @@ class ConsumerProducer(BaseProcessor):
                 self.consumer.negative_acknowledge(msg)
                 print("TooManyRequests: will retry")
                 __class__.processing_metric.labels(status="rate-limit").inc()
-                time.sleep(5)
+                time.sleep(2)
                 continue
 
             except Exception as e:

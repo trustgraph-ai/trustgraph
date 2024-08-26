@@ -14,7 +14,8 @@ from .... schema import prompt_request_queue, prompt_response_queue
 from .... base import ConsumerProducer
 from .... clients.llm_client import LlmClient
 
-from . prompts import to_definitions, to_relationships, to_kg_query
+from . prompts import to_definitions, to_relationships
+from . prompts import to_kg_query, to_document_query
 
 module = ".".join(__name__.split(".")[1:-1])
 
@@ -38,6 +39,7 @@ class Processor(ConsumerProducer):
         definition_template = params.get("definition_template")
         relationship_template = params.get("relationship_template")
         knowledge_query_template = params.get("knowledge_query_template")
+        document_query_template = params.get("document_query_template")
 
         super(Processor, self).__init__(
             **params | {
@@ -48,9 +50,6 @@ class Processor(ConsumerProducer):
                 "output_schema": PromptResponse,
                 "text_completion_request_queue": tc_request_queue,
                 "text_completion_response_queue": tc_response_queue,
-                "definition_template": definition_template,
-                "relationship_template": relationship_template,
-                "knowledge_query_template": knowledge_query_template,
             }
         )
 
@@ -64,6 +63,7 @@ class Processor(ConsumerProducer):
         self.definition_template = definition_template
         self.relationship_template = relationship_template
         self.knowledge_query_template = knowledge_query_template
+        self.document_query_template = document_query_template
 
     def handle(self, msg):
 
@@ -90,6 +90,11 @@ class Processor(ConsumerProducer):
         elif kind == "kg-prompt":
 
             self.handle_kg_prompt(id, v)
+            return
+
+        elif kind == "document-prompt":
+
+            self.handle_document_prompt(id, v)
             return
 
         else:
@@ -119,6 +124,11 @@ class Processor(ConsumerProducer):
                 try:
                     e = defn["entity"]
                     d = defn["definition"]
+
+                    if e == "": continue
+                    if e is None: continue
+                    if d == "": continue
+                    if d is None: continue
 
                     output.append(
                         Definition(
@@ -171,12 +181,30 @@ class Processor(ConsumerProducer):
             for defn in defs:
 
                 try:
+
+                    s = defn["subject"]
+                    p = defn["predicate"]
+                    o = defn["object"]
+                    o_entity = defn["object-entity"]
+
+                    if s == "": continue
+                    if s is None: continue
+
+                    if p == "": continue
+                    if p is None: continue
+
+                    if o == "": continue
+                    if o is None: continue
+
+                    if o_entity == "" or o_entity is None:
+                        o_entity = False
+
                     output.append(
                         Relationship(
-                            s = defn["subject"],
-                            p = defn["predicate"],
-                            o = defn["object"],
-                            o_entity = defn["object-entity"],
+                            s = s,
+                            p = p,
+                            o = o,
+                            o_entity = o_entity,
                         )
                     )
 
@@ -210,6 +238,42 @@ class Processor(ConsumerProducer):
         try:
 
             prompt = to_kg_query(self.knowledge_query_template, v.query, v.kg)
+
+            print(prompt)
+
+            ans = self.llm.request(prompt)
+
+            print(ans)
+
+            print("Send response...", flush=True)
+            r = PromptResponse(answer=ans, error=None)
+            self.producer.send(r, properties={"id": id})
+
+            print("Done.", flush=True)
+
+        except Exception as e:
+
+            print(f"Exception: {e}")
+
+            print("Send error response...", flush=True)
+
+            r = PromptResponse(
+                error=Error(
+                    type = "llm-error",
+                    message = str(e),
+                ),
+                response=None,
+            )
+
+            self.producer.send(r, properties={"id": id})
+        
+    def handle_document_prompt(self, id, v):
+
+        try:
+
+            prompt = to_document_query(
+                self.document_query_template, v.query, v.documents
+            )
 
             print(prompt)
 
@@ -275,6 +339,12 @@ class Processor(ConsumerProducer):
             '--knowledge-query-template',
             required=True,
             help=f'Knowledge query template',
+        )
+
+        parser.add_argument(
+            '--document-query-template',
+            required=True,
+            help=f'Document query template',
         )
 
 def run():

@@ -96,6 +96,25 @@ graph_embeddings_response_queue = topic(
 
 ############################################################################
 
+# Doc embeddings query
+
+class DocumentEmbeddingsRequest(Record):
+    vectors = Array(Array(Double()))
+    limit = Integer()
+
+class DocumentEmbeddingsResponse(Record):
+    error = Error()
+    documents = Array(Bytes())
+
+document_embeddings_request_queue = topic(
+    'doc-embeddings', kind='non-persistent', namespace='request'
+)
+document_embeddings_response_queue = topic(
+    'doc-embeddings-response', kind='non-persistent', namespace='response', 
+)
+
+############################################################################
+
 # Graph triples
 
 class Triple(Record):
@@ -187,6 +206,24 @@ graph_rag_response_queue = topic(
 
 ############################################################################
 
+# Document RAG text retrieval
+
+class DocumentRagQuery(Record):
+    query = String()
+
+class DocumentRagResponse(Record):
+    error = Error()
+    response = String()
+
+document_rag_request_queue = topic(
+    'doc-rag', kind='non-persistent', namespace='request'
+)
+document_rag_response_queue = topic(
+    'doc-rag-response', kind='non-persistent', namespace='response'
+)
+
+############################################################################
+
 # Prompt services, abstract the prompt generation
 
 class Definition(Record):
@@ -208,14 +245,17 @@ class Fact(Record):
 #   chunk -> definitions
 # extract-relationships:
 #   chunk -> relationships
-# prompt-rag:
+# kg-prompt:
 #   query, triples -> answer
+# document-prompt:
+#   query, documents -> answer
 
 class PromptRequest(Record):
     kind = String()
     chunk = String()
     query = String()
     kg = Array(Fact())
+    documents = Array(Bytes())
 
 class PromptResponse(Record):
     error = Error()

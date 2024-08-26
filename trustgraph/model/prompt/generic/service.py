@@ -1,4 +1,3 @@
-
 """
 Language service abstracts prompt engineering from LLM.
 """
@@ -14,7 +13,8 @@ from .... schema import prompt_request_queue, prompt_response_queue
 from .... base import ConsumerProducer
 from .... clients.llm_client import LlmClient
 
-from . prompts import to_definitions, to_relationships, to_kg_query
+from . prompts import to_definitions, to_relationships
+from . prompts import to_kg_query, to_document_query
 
 module = ".".join(__name__.split(".")[1:-1])
 
@@ -80,6 +80,11 @@ class Processor(ConsumerProducer):
         elif kind == "kg-prompt":
 
             self.handle_kg_prompt(id, v)
+            return
+
+        elif kind == "document-prompt":
+
+            self.handle_document_prompt(id, v)
             return
 
         else:
@@ -225,6 +230,43 @@ class Processor(ConsumerProducer):
             prompt = to_kg_query(v.query, v.kg)
 
             print(prompt)
+
+            ans = self.llm.request(prompt)
+
+            print(ans)
+
+            print("Send response...", flush=True)
+            r = PromptResponse(answer=ans, error=None)
+            self.producer.send(r, properties={"id": id})
+
+            print("Done.", flush=True)
+
+        except Exception as e:
+
+            print(f"Exception: {e}")
+
+            print("Send error response...", flush=True)
+
+            r = PromptResponse(
+                error=Error(
+                    type = "llm-error",
+                    message = str(e),
+                ),
+                response=None,
+            )
+
+            self.producer.send(r, properties={"id": id})
+        
+    def handle_document_prompt(self, id, v):
+
+        try:
+
+            prompt = to_document_query(v.query, v.documents)
+
+            print("prompt")
+            print(prompt)
+
+            print("Call LLM...")
 
             ans = self.llm.request(prompt)
 
