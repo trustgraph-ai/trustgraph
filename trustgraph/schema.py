@@ -96,6 +96,25 @@ graph_embeddings_response_queue = topic(
 
 ############################################################################
 
+# Doc embeddings query
+
+class DocumentEmbeddingsRequest(Record):
+    vectors = Array(Array(Double()))
+    limit = Integer()
+
+class DocumentEmbeddingsResponse(Record):
+    error = Error()
+    documents = Array(Bytes())
+
+document_embeddings_request_queue = topic(
+    'doc-embeddings', kind='non-persistent', namespace='request'
+)
+document_embeddings_response_queue = topic(
+    'doc-embeddings-response', kind='non-persistent', namespace='response', 
+)
+
+############################################################################
+
 # Graph triples
 
 class Triple(Record):

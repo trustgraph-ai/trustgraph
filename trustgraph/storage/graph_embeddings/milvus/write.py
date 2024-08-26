@@ -6,7 +6,7 @@ Accepts entity/vector pairs and writes them to a Milvus store.
 from .... schema import GraphEmbeddings
 from .... schema import graph_embeddings_store_queue
 from .... log_level import LogLevel
-from .... direct.milvus import TripleVectors
+from .... direct.milvus_graph_embeddings import EntityVectors
 from .... base import Consumer
 
 module = ".".join(__name__.split(".")[1:-1])
@@ -32,7 +32,7 @@ class Processor(Consumer):
             }
         )
 
-        self.vecstore = TripleVectors(store_uri)
+        self.vecstore = EntityVectors(store_uri)
 
     def handle(self, msg):
 

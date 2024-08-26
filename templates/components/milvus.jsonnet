@@ -30,6 +30,29 @@ milvus + {
 	    },
 	},
 
+	"store-doc-embeddings": base + {
+	    image: images.trustgraph,
+	    command: [
+		"de-write-milvus",
+		"-p",
+		url.pulsar,
+		"-t",
+		url.milvus,
+	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.5',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
+	},
+
 	"query-graph-embeddings": base + {
 	    image: images.trustgraph,
 	    command: [
