@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+
+import pulsar
+from trustgraph.clients.prompt_client import PromptClient
+
+p = PromptClient(pulsar_host="pulsar://localhost:6650")
+
+docs = [
+    "In our house there is a big cat and a small cat.",
+    "The small cat is black.",
+    "The big cat is called Fred.",
+    "The orange stripey cat is big.",
+    "The black cat pounces on the big cat.",
+    "The black cat is called Hope."
+]
+
+query="What is the name of the cat who pounces on Fred?  Provide a full explanation."
+
+resp = p.request_document_prompt(
+    query=query,
+    documents=docs,
+)
+
+print(resp)
+

@@ -1,0 +1,15 @@
+#!/usr/bin/env python3
+
+import pulsar
+from trustgraph.clients.document_rag_client import DocumentRagClient
+
+rag = DocumentRagClient(pulsar_host="pulsar://localhost:6650")
+
+query="""
+This knowledge graph describes the Space Shuttle disaster.
+Present 20 facts which are present in the knowledge graph."""
+
+resp = rag.request(query)
+
+print(resp)
+

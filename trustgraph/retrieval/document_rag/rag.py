@@ -1,27 +1,25 @@
 
 """
-Simple RAG service, performs query using graph RAG an LLM.
+Simple RAG service, performs query using document RAG an LLM.
 Input is query, output is response.
 """
 
-from ... schema import GraphRagQuery, GraphRagResponse, Error
-from ... schema import graph_rag_request_queue, graph_rag_response_queue
+from ... schema import DocumentRagQuery, DocumentRagResponse, Error
+from ... schema import document_rag_request_queue, document_rag_response_queue
 from ... schema import prompt_request_queue
 from ... schema import prompt_response_queue
 from ... schema import embeddings_request_queue
 from ... schema import embeddings_response_queue
-from ... schema import graph_embeddings_request_queue
-from ... schema import graph_embeddings_response_queue
-from ... schema import triples_request_queue
-from ... schema import triples_response_queue
+from ... schema import document_embeddings_request_queue
+from ... schema import document_embeddings_response_queue
 from ... log_level import LogLevel
-from ... graph_rag import GraphRag
+from ... document_rag import DocumentRag
 from ... base import ConsumerProducer
 
 module = ".".join(__name__.split(".")[1:-1])
 
-default_input_queue = graph_rag_request_queue
-default_output_queue = graph_rag_response_queue
+default_input_queue = document_rag_request_queue
+default_output_queue = document_rag_response_queue
 default_subscriber = module
 
 class Processor(ConsumerProducer):
@@ -33,7 +31,6 @@ class Processor(ConsumerProducer):
         subscriber = params.get("subscriber", default_subscriber)
         entity_limit = params.get("entity_limit", 50)
         triple_limit = params.get("triple_limit", 30)
-        max_subgraph_size = params.get("max_subgraph_size", 3000)
         pr_request_queue = params.get(
             "prompt_request_queue", prompt_request_queue
         )
@@ -46,17 +43,13 @@ class Processor(ConsumerProducer):
         emb_response_queue = params.get(
             "embeddings_response_queue", embeddings_response_queue
         )
-        ge_request_queue = params.get(
-            "graph_embeddings_request_queue", graph_embeddings_request_queue
+        de_request_queue = params.get(
+            "document_embeddings_request_queue",
+            document_embeddings_request_queue
         )
-        ge_response_queue = params.get(
-            "graph_embeddings_response_queue", graph_embeddings_response_queue
-        )
-        tpl_request_queue = params.get(
-            "triples_request_queue", triples_request_queue
-        )
-        tpl_response_queue = params.get(
-            "triples_response_queue", triples_response_queue
+        de_response_queue = params.get(
+            "document_embeddings_response_queue",
+            document_embeddings_response_queue
         )
 
         super(Processor, self).__init__(
@@ -64,36 +57,26 @@ class Processor(ConsumerProducer):
                 "input_queue": input_queue,
                 "output_queue": output_queue,
                 "subscriber": subscriber,
-                "input_schema": GraphRagQuery,
-                "output_schema": GraphRagResponse,
-                "entity_limit": entity_limit,
-                "triple_limit": triple_limit,
-                "max_subgraph_size": max_subgraph_size,
+                "input_schema": DocumentRagQuery,
+                "output_schema": DocumentRagResponse,
                 "prompt_request_queue": pr_request_queue,
                 "prompt_response_queue": pr_response_queue,
                 "embeddings_request_queue": emb_request_queue,
                 "embeddings_response_queue": emb_response_queue,
-                "graph_embeddings_request_queue": ge_request_queue,
-                "graph_embeddings_response_queue": ge_response_queue,
-                "triples_request_queue": triples_request_queue,
-                "triples_response_queue": triples_response_queue,
+                "document_embeddings_request_queue": de_request_queue,
+                "document_embeddings_response_queue": de_response_queue,
             }
         )
 
-        self.rag = GraphRag(
+        self.rag = DocumentRag(
             pulsar_host=self.pulsar_host,
             pr_request_queue=pr_request_queue,
             pr_response_queue=pr_response_queue,
             emb_request_queue=emb_request_queue,
             emb_response_queue=emb_response_queue,
-            ge_request_queue=ge_request_queue,
-            ge_response_queue=ge_response_queue,
-            tpl_request_queue=triples_request_queue,
-            tpl_response_queue=triples_response_queue,
+            de_request_queue=de_request_queue,
+            de_response_queue=de_response_queue,
             verbose=True,
-            entity_limit=entity_limit,
-            triple_limit=triple_limit,
-            max_subgraph_size=max_subgraph_size,
             module=module,
         )
 
@@ -111,7 +94,7 @@ class Processor(ConsumerProducer):
             response = self.rag.query(v.query)
 
             print("Send response...", flush=True)
-            r = GraphRagResponse(response = response, error=None)
+            r = DocumentRagResponse(response = response, error=None)
             self.producer.send(r, properties={"id": id})
 
             print("Done.", flush=True)
@@ -140,12 +123,6 @@ class Processor(ConsumerProducer):
         ConsumerProducer.add_args(
             parser, default_input_queue, default_subscriber,
             default_output_queue,
-        )
-
-        parser.add_argument(
-            '-g', '--graph-hosts',
-            default='cassandra',
-            help=f'Graph hosts, comma separated (default: cassandra)'
         )
 
         parser.add_argument(
@@ -200,27 +177,15 @@ class Processor(ConsumerProducer):
         )
 
         parser.add_argument(
-            '--graph-embeddings-request-queue',
-            default=graph_embeddings_request_queue,
-            help=f'Graph embeddings request queue (default: {graph_embeddings_request_queue})',
+            '--document-embeddings-request-queue',
+            default=document_embeddings_request_queue,
+            help=f'Document embeddings request queue (default: {document_embeddings_request_queue})',
         )
 
         parser.add_argument(
-            '--graph-embeddings-response-queue',
-            default=graph_embeddings_response_queue,
-            help=f'Graph embeddings response queue (default: {graph_embeddings_response_queue})',
-        )
-
-        parser.add_argument(
-            '--triples-request-queue',
-            default=triples_request_queue,
-            help=f'Triples request queue (default: {triples_request_queue})',
-        )
-
-        parser.add_argument(
-            '--triples-response-queue',
-            default=triples_response_queue,
-            help=f'Triples response queue (default: {triples_response_queue})',
+            '--document-embeddings-response-queue',
+            default=document_embeddings_response_queue,
+            help=f'Document embeddings response queue (default: {document_embeddings_response_queue})',
         )
 
 def run():

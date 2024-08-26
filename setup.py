@@ -57,6 +57,7 @@ setuptools.setup(
         "scripts/concat-parquet",
         "scripts/de-query-milvus",
         "scripts/de-write-milvus",
+        "scripts/document-rag",
         "scripts/dump-parquet",
         "scripts/embeddings-hf",
         "scripts/embeddings-ollama",

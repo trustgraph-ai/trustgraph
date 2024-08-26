@@ -215,10 +215,10 @@ class DocumentRagResponse(Record):
     error = Error()
     response = String()
 
-graph_rag_request_queue = topic(
+document_rag_request_queue = topic(
     'doc-rag', kind='non-persistent', namespace='request'
 )
-graph_rag_response_queue = topic(
+document_rag_response_queue = topic(
     'doc-rag-response', kind='non-persistent', namespace='response'
 )
 
