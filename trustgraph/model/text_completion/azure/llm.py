@@ -6,6 +6,7 @@ serverless endpoint service.  Input is prompt, output is response.
 
 import requests
 import json
+from prometheus_client import Histogram
 
 from .... schema import TextCompletionRequest, TextCompletionResponse, Error
 from .... schema import text_completion_request_queue
@@ -45,6 +46,19 @@ class Processor(ConsumerProducer):
                 "max_output": max_output,
             }
         )
+
+        if not hasattr(__class__, "text_completion_metric"):
+            __class__.text_completion_metric = Histogram(
+                'text_completion_duration',
+                'Text completion duration (seconds)',
+                buckets=[
+                    0.25, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0,
+                    8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0,
+                    17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0, 25.0,
+                    30.0, 35.0, 40.0, 45.0, 50.0, 60.0, 80.0, 100.0,
+                    120.0
+                ]
+            )
 
         self.endpoint = endpoint
         self.token = token
@@ -108,14 +122,15 @@ class Processor(ConsumerProducer):
 
         print(f"Handling prompt {id}...", flush=True)
 
-        prompt = self.build_prompt(
-            "You are a helpful chatbot",
-            v.prompt
-        )
-
         try:
 
-            response = self.call_llm(prompt)
+            prompt = self.build_prompt(
+                "You are a helpful chatbot",
+                v.prompt
+            )
+
+            with __class__.text_completion_metric.time():
+                response = self.call_llm(prompt)
 
             print("Send response...", flush=True)
 

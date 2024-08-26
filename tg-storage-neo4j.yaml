@@ -196,7 +196,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.15"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.16"
     "restart": "on-failure:100"
   "query-triples":
     "command":
@@ -213,7 +213,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.15"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.16"
     "restart": "on-failure:100"
   "store-graph-embeddings":
     "command":
@@ -230,7 +230,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.15"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.16"
     "restart": "on-failure:100"
   "store-triples":
     "command":
@@ -247,7 +247,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.15"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.16"
     "restart": "on-failure:100"
 "volumes":
   "etcd": {}

@@ -6,6 +6,7 @@ Input is prompt, output is response. Mistral is default.
 
 import boto3
 import json
+from prometheus_client import Histogram
 
 from .... schema import TextCompletionRequest, TextCompletionResponse, Error
 from .... schema import text_completion_request_queue
@@ -52,6 +53,19 @@ class Processor(ConsumerProducer):
             }
         )
 
+        if not hasattr(__class__, "text_completion_metric"):
+            __class__.text_completion_metric = Histogram(
+                'text_completion_duration',
+                'Text completion duration (seconds)',
+                buckets=[
+                    0.25, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0,
+                    8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0,
+                    17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0, 25.0,
+                    30.0, 35.0, 40.0, 45.0, 50.0, 60.0, 80.0, 100.0,
+                    120.0
+                ]
+            )
+
         self.model = model
         self.temperature = temperature
         self.max_output = max_output
@@ -78,85 +92,90 @@ class Processor(ConsumerProducer):
 
         prompt = v.prompt
 
-       # Mistral Input Format
-        if self.model.startswith("mistral"):
-            promptbody = json.dumps({
-                "prompt": prompt,
-                "max_tokens": self.max_output,
-                "temperature": self.temperature,
-                "top_p": 0.99,
-                "top_k": 40
-            })
-
-        # Llama 3.1 Input Format
-        elif self.model.startswith("meta"):
-            promptbody = json.dumps({
-                "prompt": prompt,
-                "max_gen_len": self.max_output,
-                "temperature": self.temperature,
-                "top_p": 0.95,
-            })
-
-        # Anthropic Input Format
-        elif self.model.startswith("anthropic"):
-            promptbody = json.dumps({
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": self.max_output,
-                "temperature": self.temperature,
-                "top_p": 0.999,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": prompt
-                            }
-                        ]
-                    }
-                ]
-            })
-
-        # Jamba Input Format
-        elif self.model.startswith("ai21"):
-            promptbody = json.dumps({
-                "max_tokens": self.max_output,
-                "temperature": self.temperature,
-                "top_p": 0.9,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
-            })
-
-        # Cohere Input Format
-        elif self.model.startswith("cohere"):
-            promptbody = json.dumps({
-                "max_tokens": self.max_output,
-                "temperature": self.temperature,
-                "message": prompt
-            })
-
-        # Use Mistral format as defualt
-        else:
-            promptbody = json.dumps({
-                "prompt": prompt,
-                "max_tokens": self.max_output,
-                "temperature": self.temperature,
-                "top_p": 0.99,
-                "top_k": 40
-            })
-
-        accept = 'application/json'
-        contentType = 'application/json'
-
         try:
+
+            # Mistral Input Format
+            if self.model.startswith("mistral"):
+                promptbody = json.dumps({
+                    "prompt": prompt,
+                    "max_tokens": self.max_output,
+                    "temperature": self.temperature,
+                    "top_p": 0.99,
+                    "top_k": 40
+                })
+
+            # Llama 3.1 Input Format
+            elif self.model.startswith("meta"):
+                promptbody = json.dumps({
+                    "prompt": prompt,
+                    "max_gen_len": self.max_output,
+                    "temperature": self.temperature,
+                    "top_p": 0.95,
+                })
+
+            # Anthropic Input Format
+            elif self.model.startswith("anthropic"):
+                promptbody = json.dumps({
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "max_tokens": self.max_output,
+                    "temperature": self.temperature,
+                    "top_p": 0.999,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": prompt
+                                }
+                            ]
+                        }
+                    ]
+                })
+
+            # Jamba Input Format
+            elif self.model.startswith("ai21"):
+                promptbody = json.dumps({
+                    "max_tokens": self.max_output,
+                    "temperature": self.temperature,
+                    "top_p": 0.9,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ]
+                })
+
+            # Cohere Input Format
+            elif self.model.startswith("cohere"):
+                promptbody = json.dumps({
+                    "max_tokens": self.max_output,
+                    "temperature": self.temperature,
+                    "message": prompt
+                })
+
+            # Use Mistral format as defualt
+            else:
+                promptbody = json.dumps({
+                    "prompt": prompt,
+                    "max_tokens": self.max_output,
+                    "temperature": self.temperature,
+                    "top_p": 0.99,
+                    "top_k": 40
+                })
+
+            accept = 'application/json'
+            contentType = 'application/json'
 
             # FIXME: Consider catching request limits and raise TooManyRequests
             # See https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html
-            response = self.bedrock.invoke_model(body=promptbody, modelId=self.model, accept=accept, contentType=contentType)
+
+            with __class__.text_completion_metric.time():
+                response = self.bedrock.invoke_model(
+                    body=promptbody, modelId=self.model, accept=accept,
+                    contentType=contentType
+                )
 
             # Mistral Response Structure
             if self.model.startswith("mistral"):
