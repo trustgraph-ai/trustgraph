@@ -6,6 +6,7 @@ Google Cloud.   Input is prompt, output is response.
 
 import vertexai
 import time
+from prometheus_client import Histogram
 
 from google.oauth2 import service_account
 import google
@@ -60,6 +61,19 @@ class Processor(ConsumerProducer):
                 "output_schema": TextCompletionResponse,
             }
         )
+
+        if not hasattr(__class__, "text_completion_metric"):
+            __class__.text_completion_metric = Histogram(
+                'text_completion_duration',
+                'Text completion duration (seconds)',
+                buckets=[
+                    0.25, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0,
+                    8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0,
+                    17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0, 25.0,
+                    30.0, 35.0, 40.0, 45.0, 50.0, 60.0, 80.0, 100.0,
+                    120.0
+                ]
+            )
 
         self.parameters = {
             "temperature": temperature,
@@ -125,10 +139,12 @@ class Processor(ConsumerProducer):
 
             prompt = v.prompt
 
-            resp = self.llm.generate_content(
-                prompt, generation_config=self.generation_config,
-                safety_settings=self.safety_settings
-            )
+            with __class__.text_completion_metric.time():
+
+                resp = self.llm.generate_content(
+                    prompt, generation_config=self.generation_config,
+                    safety_settings=self.safety_settings
+                )
 
             resp = resp.text
 
