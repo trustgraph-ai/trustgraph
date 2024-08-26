@@ -122,6 +122,10 @@ class Processor(ConsumerProducer):
                 if p == "": continue
                 if o == "": continue
 
+                if s is None: continue
+                if p is None: continue
+                if o is None: continue
+
                 s_uri = self.to_uri(s)
                 s_value = Value(value=str(s_uri), is_uri=True)
 
