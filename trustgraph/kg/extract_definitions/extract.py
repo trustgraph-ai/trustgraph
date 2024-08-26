@@ -87,13 +87,16 @@ class Processor(ConsumerProducer):
 
             for defn in defs:
 
+                if s == "": continue
+                if o == "": continue
+
+                if s is None: continue
+                if o is None: continue
+
                 s = defn.name
                 s_uri = self.to_uri(s)
 
                 o = defn.definition
-
-                if s == "": continue
-                if o == "": continue
 
                 s_value = Value(value=str(s_uri), is_uri=True)
                 o_value = Value(value=str(o), is_uri=False)
