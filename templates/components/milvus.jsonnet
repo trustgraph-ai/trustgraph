@@ -30,6 +30,33 @@ milvus + {
 	    },
 	},
 
+	"query-graph-embeddings": base + {
+	    image: images.trustgraph,
+	    command: [
+		"ge-query-milvus",
+		"-p",
+		url.pulsar,
+		"-t",
+		url.milvus,
+	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.5',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+	    },
+	},
+
+/*
+
+// Document embeddings writer & query service.  Not currently enabled.
+
 	"store-doc-embeddings": base + {
 	    image: images.trustgraph,
 	    command: [
@@ -53,10 +80,10 @@ milvus + {
 	    },
 	},
 
-	"query-graph-embeddings": base + {
+	"query-doc-embeddings": base + {
 	    image: images.trustgraph,
 	    command: [
-		"ge-query-milvus",
+		"de-query-milvus",
 		"-p",
 		url.pulsar,
 		"-t",
@@ -75,6 +102,8 @@ milvus + {
 		}
 	    },
 	},
+
+*/
 
     }
 

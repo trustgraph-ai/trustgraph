@@ -4,7 +4,7 @@ import os
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-version = "0.7.16"
+version = "0.7.17"
 
 setuptools.setup(
     name="trustgraph",
@@ -55,6 +55,8 @@ setuptools.setup(
         "scripts/chunker-recursive",
         "scripts/chunker-token",
         "scripts/concat-parquet",
+        "scripts/de-query-milvus",
+        "scripts/de-write-milvus",
         "scripts/dump-parquet",
         "scripts/embeddings-hf",
         "scripts/embeddings-ollama",
