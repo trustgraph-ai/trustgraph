@@ -14,7 +14,7 @@ from .... schema import prompt_request_queue, prompt_response_queue
 from .... base import ConsumerProducer
 from .... clients.llm_client import LlmClient
 
-from . prompts import to_definitions, to_relationships
+from . prompts import to_definitions, to_relationships, to_rows
 from . prompts import to_kg_query, to_document_query
 
 module = ".".join(__name__.split(".")[1:-1])
@@ -38,6 +38,7 @@ class Processor(ConsumerProducer):
         )
         definition_template = params.get("definition_template")
         relationship_template = params.get("relationship_template")
+        rows_template = params.get("rows_template")
         knowledge_query_template = params.get("knowledge_query_template")
         document_query_template = params.get("document_query_template")
 
@@ -62,6 +63,7 @@ class Processor(ConsumerProducer):
 
         self.definition_template = definition_template
         self.relationship_template = relationship_template
+        self.rows_template = rows_template
         self.knowledge_query_template = knowledge_query_template
         self.document_query_template = document_query_template
 
@@ -85,6 +87,11 @@ class Processor(ConsumerProducer):
         elif kind == "extract-relationships":
 
             self.handle_extract_relationships(id, v)
+            return
+
+        elif kind == "extract-rows":
+
+            self.handle_extract_rows(id, v)
             return
 
         elif kind == "kg-prompt":
@@ -232,6 +239,77 @@ class Processor(ConsumerProducer):
             )
 
             self.producer.send(r, properties={"id": id})
+
+    def handle_extract_rows(self, id, v):
+
+        try:
+
+            fields = v.row_schema.fields
+
+            prompt = to_rows(self.rows_template, v.row_schema, v.chunk)
+
+            print(prompt)
+
+            ans = self.llm.request(prompt)
+
+            print(ans)
+
+            # Silently ignore JSON parse error
+            try:
+                objs = json.loads(ans)
+            except:
+                print("JSON parse error, ignored", flush=True)
+                objs = []
+
+            output = []
+
+            for obj in objs:
+
+                try:
+
+                    row = {}
+
+                    for f in fields:
+
+                        if f.name not in obj:
+                            print(f"Object ignored, missing field {f.name}")
+                            row = {}
+                            break
+
+                        row[f.name] = obj[f.name]
+
+                    if row == {}:
+                        continue
+
+                    output.append(row)
+
+                except Exception as e:
+                    print("row fields missing, ignored", flush=True)
+
+            for row in output:
+                print(row)
+
+            print("Send response...", flush=True)
+            r = PromptResponse(rows=output, error=None)
+            self.producer.send(r, properties={"id": id})
+
+            print("Done.", flush=True)
+
+        except Exception as e:
+
+            print(f"Exception: {e}")
+
+            print("Send error response...", flush=True)
+
+            r = PromptResponse(
+                error=Error(
+                    type = "llm-error",
+                    message = str(e),
+                ),
+                response=None,
+            )
+
+            self.producer.send(r, properties={"id": id})
         
     def handle_kg_prompt(self, id, v):
 
@@ -327,6 +405,12 @@ class Processor(ConsumerProducer):
             '--definition-template',
             required=True,
             help=f'Definition extraction template',
+        )
+
+        parser.add_argument(
+            '--rows-template',
+            required=True,
+            help=f'Rows extraction template',
         )
 
         parser.add_argument(
