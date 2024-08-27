@@ -9,6 +9,7 @@ import os
 from pulsar.schema import JsonSchema
 
 from .... schema import ChunkEmbeddings, Rows, ObjectEmbeddings, Source
+from .... schema import RowSchema, Field
 from .... schema import chunk_embeddings_ingest_queue, rows_store_queue
 from .... schema import object_embeddings_store_queue
 from .... schema import prompt_request_queue
@@ -17,7 +18,7 @@ from .... log_level import LogLevel
 from .... clients.prompt_client import PromptClient
 from .... base import ConsumerProducer
 
-from .... objects.field import FieldType, Field
+from .... objects.field import Field as FieldParser
 from .... objects.object import Schema
 
 module = ".".join(__name__.split(".")[1:-1])
@@ -97,6 +98,18 @@ class Processor(ConsumerProducer):
             fields = flds
         )
 
+        self.row_schema=RowSchema(
+            name=self.schema.name,
+            description=self.schema.description,
+            fields=[
+                Field(
+                     name=f.name, type=str(f.type), size=f.size,
+                     primary=f.primary, description=f.description,
+                )
+                for f in self.schema.fields
+            ]
+        )
+
         self.prompt = PromptClient(
             pulsar_host=self.pulsar_host,
             input_queue=pr_request_queue,
@@ -106,12 +119,20 @@ class Processor(ConsumerProducer):
 
     @staticmethod
     def parse_fields(fields):
-        return [ Field.parse(f) for f in fields ]
+        return [ FieldParser.parse(f) for f in fields ]
 
     def get_rows(self, chunk):
         return self.prompt.request_rows(self.schema, chunk)
 
+    def emit_rows(self, source, rows):
+
+        t = Rows(
+            source=source, row_schema=self.row_schema, rows=rows
+        )
+        self.producer.send(t)
+
     def emit_vec(self, source, vec, key_name, key):
+
         r = ObjectEmbeddings(
             source=source, vectors=vec, key_name=key_name, id=key
         )
@@ -126,9 +147,20 @@ class Processor(ConsumerProducer):
 
         try:
 
-#             print(chunk)
-
             rows = self.get_rows(chunk)
+
+            print(rows)
+
+            self.emit_rows(
+                source=v.source,
+                rows=rows
+            )
+
+            for row in rows:
+                self.emit_vec(
+                    source=v.source, vec=v.vectors,
+                    key_name=self.primary.name, key=row[self.primary.name]
+                )
 
             for row in rows:
                 print(row)
