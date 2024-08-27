@@ -1,6 +1,6 @@
 
 # VERSION=$(shell git describe | sed 's/^v//')
-VERSION=0.7.19
+VERSION=0.7.20
 
 DOCKER=podman
 
@@ -43,9 +43,12 @@ GRAPHS=cassandra neo4j
 tg-launch-%.yaml: templates/%.jsonnet templates/components/version.jsonnet
 	jsonnet -S ${@:tg-launch-%.yaml=templates/%.jsonnet} > $@
 
+VECTORDB=milvus
+# VECTORDB=qdrant
+
 update-templates: set-version
 	for graph in ${GRAPHS}; do \
-	    cm=$${graph},pulsar,milvus,grafana; \
+	    cm=$${graph},pulsar,${VECTORDB},grafana; \
 	    input=templates/main.jsonnet; \
 	    output=tg-storage-$${graph}.yaml; \
 	    echo $${graph} '->' $${output}; \
@@ -53,7 +56,7 @@ update-templates: set-version
 	done
 	for model in ${MODELS}; do \
 	  for graph in ${GRAPHS}; do \
-	    cm=$${graph},pulsar,milvus,grafana,trustgraph,$${model}; \
+	    cm=$${graph},pulsar,${VECTORDB},grafana,trustgraph,$${model}; \
 	    input=templates/main.jsonnet; \
 	    output=tg-launch-$${model}-$${graph}.yaml; \
 	    echo $${model} + $${graph} '->' $${output}; \
