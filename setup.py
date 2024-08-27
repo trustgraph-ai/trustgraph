@@ -4,7 +4,7 @@ import os
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-version = "0.7.19"
+version = "0.7.20"
 
 setuptools.setup(
     name="trustgraph",
@@ -40,6 +40,7 @@ setuptools.setup(
         "cassandra-driver",
         "pulsar-client",
         "pypdf",
+        "qdrant-client",
         "anthropic",
         "google-cloud-aiplatform",
         "pyyaml",
@@ -65,6 +66,8 @@ setuptools.setup(
         "scripts/ge-dump-parquet",
         "scripts/ge-query-milvus",
         "scripts/ge-write-milvus",
+        "scripts/ge-query-qdrant",
+        "scripts/ge-write-qdrant",
         "scripts/graph-rag",
         "scripts/graph-show",
         "scripts/graph-to-turtle",

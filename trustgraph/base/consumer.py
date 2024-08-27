@@ -10,7 +10,6 @@ class Consumer(BaseProcessor):
 
     def __init__(self, **params):
 
-        print("HERE2")
         super(Consumer, self).__init__(**params)
 
         input_queue = params.get("input_queue")
@@ -30,7 +29,6 @@ class Consumer(BaseProcessor):
                 'pubsub', 'Pub/sub configuration'
             )
 
-        print("HERE")
         if not hasattr(__class__, "processing_metric"):
             __class__.processing_metric = Counter(
                 'processing_count', 'Processing count', ["status"]
