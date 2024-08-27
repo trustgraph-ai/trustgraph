@@ -1,7 +1,7 @@
 
 import _pulsar
 
-from .. schema import PromptRequest, PromptResponse, Fact
+from .. schema import PromptRequest, PromptResponse, Fact, RowSchema, Field
 from .. schema import prompt_request_queue
 from .. schema import prompt_response_queue
 from . base import BaseClient
@@ -51,6 +51,24 @@ class PromptClient(BaseClient):
             kind="extract-relationships", chunk=chunk,
             timeout=timeout
         ).relationships
+
+    def request_rows(self, schema, chunk, timeout=300):
+
+        return self.call(
+            kind="extract-rows", chunk=chunk,
+            row_schema=RowSchema(
+                name=schema.name,
+                description=schema.description,
+                fields=[
+                    Field(
+                        name=f.name, type=str(f.type), size=f.size,
+                        primary=f.primary, description=f.description,
+                    )
+                    for f in schema.fields
+                ]
+            ),
+            timeout=timeout
+        ).rows
 
     def request_kg_prompt(self, query, kg, timeout=300):
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from trustgraph.kg.extract_definitions import run
+from trustgraph.extract.kg.definitions import run
 
 run()
 

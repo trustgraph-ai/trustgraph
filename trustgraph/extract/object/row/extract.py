@@ -1,23 +1,25 @@
 
 """
-Simple decoder, accepts vector+text chunks input, applies entity
-relationship analysis to get entity relationship edges which are output as
-graph edges.
+Simple decoder, accepts vector+text chunks input, applies analysis to pull
+out a row of fields.  Output as a vector plus object.
 """
 
 import urllib.parse
 import os
 from pulsar.schema import JsonSchema
 
-from ... schema import ChunkEmbeddings, Triple, GraphEmbeddings, Source, Value
-from ... schema import chunk_embeddings_ingest_queue, triples_store_queue
-from ... schema import graph_embeddings_store_queue
-from ... schema import prompt_request_queue
-from ... schema import prompt_response_queue
-from ... log_level import LogLevel
-from ... clients.prompt_client import PromptClient
-from ... rdf import RDF_LABEL, TRUSTGRAPH_ENTITIES
-from ... base import ConsumerProducer
+from .... schema import ChunkEmbeddings, Triple, GraphEmbeddings, Source, Value
+from .... schema import chunk_embeddings_ingest_queue, triples_store_queue
+from .... schema import graph_embeddings_store_queue
+from .... schema import prompt_request_queue
+from .... schema import prompt_response_queue
+from .... log_level import LogLevel
+from .... clients.prompt_client import PromptClient
+from .... rdf import RDF_LABEL, TRUSTGRAPH_ENTITIES
+from .... base import ConsumerProducer
+
+from .... objects.field import FieldType, Field
+from .... objects.object import Schema
 
 RDF_LABEL_VALUE = Value(value=RDF_LABEL, is_uri=True)
 
@@ -72,6 +74,13 @@ class Processor(ConsumerProducer):
             "vector_schema": GraphEmbeddings.__name__,
         })
 
+        flds = __class__.parse_fields(params["field"])
+
+        for fld in flds:
+            print(fld)
+
+        return
+
         self.prompt = PromptClient(
             pulsar_host=self.pulsar_host,
             input_queue=pr_request_queue,
@@ -79,26 +88,15 @@ class Processor(ConsumerProducer):
             subscriber = module + "-prompt",
         )
 
-    def to_uri(self, text):
+    @staticmethod
+    def parse_fields(fields):
+        return [ Field.parse(f) for f in fields ]
 
-        part = text.replace(" ", "-").lower().encode("utf-8")
-        quoted = urllib.parse.quote(part)
-        uri = TRUSTGRAPH_ENTITIES + quoted
-
-        return uri
-
-    def get_relationships(self, chunk):
-
-        return self.prompt.request_relationships(chunk)
-
-    def emit_edge(self, s, p, o):
-
-        t = Triple(s=s, p=p, o=o)
-        self.producer.send(t)
+    def get_rows(self, chunk):
+        return self.prompt.request_rows(chunk)
 
     def emit_vec(self, ent, vec):
-
-        r = GraphEmbeddings(entity=ent, vectors=vec)
+        r = ObjectEmbeddings(entity=ent, vectors=vec)
         self.vec_prod.send(r)
 
     def handle(self, msg):
@@ -200,6 +198,13 @@ class Processor(ConsumerProducer):
             '--prompt-response-queue',
             default=prompt_response_queue,
             help=f'Prompt response queue (default: {prompt_response_queue})',
+        )
+
+        parser.add_argument(
+            '-f', '--field',
+            required=True,
+            action='append',
+            help=f'Field definition, format name:type:size:pri:descriptionn',
         )
 
 def run():
