@@ -78,7 +78,6 @@ class Processor(Consumer):
 
                 stmt += "PRIMARY KEY (" + ", ".join(pkey) + "));"
 
-                print(stmt)
                 self.session.execute(stmt)
 
                 self.tables.add(name);
@@ -97,7 +96,6 @@ class Processor(Consumer):
                     "insert into " + name + " (" + ", ".join(field_names) +
                     ") values (" + ",".join(["%s"] * len(values)) + ")"
                 )
-                print(stmt, values)
 
                 self.session.execute(stmt, values)
 
