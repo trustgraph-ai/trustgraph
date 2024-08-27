@@ -40,7 +40,6 @@ class Processor(Consumer):
 
         if v.id != "" and v.id is not None:
             for vec in v.vectors:
-                print(vec, v.id)
                 self.vecstore.insert(vec, v.name, v.key_name, v.id)
 
     @staticmethod

@@ -75,6 +75,7 @@ setuptools.setup(
         "scripts/load-triples",
         "scripts/loader",
         "scripts/object-extract-row",
+        "scripts/oe-write-milvus",
         "scripts/pdf-decoder",
         "scripts/prompt-generic",
         "scripts/prompt-template",
