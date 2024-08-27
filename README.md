@@ -39,7 +39,7 @@ by deploying multiple containers.
 - Embedding query service
 - Graph RAG query service
 - All procesing integrates with [Apache Pulsar](https://github.com/apache/pulsar/)
-- Containers, so can be deployed using Docker Compose or Kubernetes
+- Containers, can be deployed using `Docker` or [Podman](http://podman.io/)
 - Plug'n'play architecture: switch different LLM modules to suit your needs
 
 ## Architecture
@@ -108,7 +108,7 @@ package installed can also run the entire architecture.
 
 ## Quickstart Guide
 
-See [Quickstart on Docker Compose](docs/README.quickstart-docker-compose.md)
+[🚀 Quickstart](docs/README.quickstart-docker-compose.md)
 
 ## Development Guide
 

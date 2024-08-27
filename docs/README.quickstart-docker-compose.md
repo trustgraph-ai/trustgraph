@@ -2,10 +2,16 @@
 # Getting Started
 
 > [!TIP]
-> Before launching `TrustGraph` with `Docker Compose`, be sure to have the `Docker Engine` installed and running on the host machine. Installation instructions for the `Docker Engine` can be found [here](https://docs.docker.com/engine/install/).
+> Before launching `TrustGraph`, be sure to have the `Docker Engine`  or `Podman Machine` installed and running on the host machine. 
+> 
+> - [Install the Docker Engine](https://docs.docker.com/engine/install/)
+> - [Install the Podman Machine](http://podman.io/)
 
 > [!NOTE]
-> The `Docker Compose` files have been tested on `Linux` and `MacOS`. `Windows` deployments have not been tested.
+> `TrustGraph` has been tested on `Linux` and `MacOS` with `Docker` and `Podman`. `Windows` deployments have not been tested.
+
+> [!TIP]
+> If using `Podman`, the only change will be to substitute `podman` instead of `docker` in all commands.
 
 All `TrustGraph` components are deployed through a `Docker Compose` file. There are **16** `Docker Compose` files to choose from, depending on the desired model deployment and choosing between the graph stores `Cassandra` or `Neo4j`:
 
