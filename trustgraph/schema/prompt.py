@@ -2,7 +2,7 @@
 from pulsar.schema import Record, Bytes, String, Boolean, Array, Map, Integer
 
 from . topic import topic
-from . types import Error
+from . types import Error, RowSchema
 
 ############################################################################
 
@@ -33,19 +33,6 @@ class Fact(Record):
 #   query, documents -> answer
 # extract-rows
 #   schema, chunk -> rows
-
-class Field(Record):
-    name = String()
-    # int, string, long, bool, float, double
-    type = String()
-    size = Integer()
-    primary = Boolean()
-    description = String()
-
-class RowSchema(Record):
-    name = String()
-    description = String()
-    fields = Array(Field())
 
 class PromptRequest(Record):
     kind = String()

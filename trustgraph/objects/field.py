@@ -39,6 +39,8 @@ class Field:
 
         name, type, size, pri, description = parts
 
+        size = int(size)
+
         try:
             type = FieldType[type.upper()]
         except:

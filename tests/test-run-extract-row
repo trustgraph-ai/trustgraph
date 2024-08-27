@@ -1,0 +1,13 @@
+
+scripts/object-extract-row \
+    -p pulsar://localhost:6650 \
+    --field 'name:string:100:pri:Name of the person in the story' \
+    --field 'job:string:100::Job title or role' \
+    --field 'date:string:20::Date entered into role if known' \
+    --field 'supervisor:string:100::Supervisor or manager of this person, if known' \
+    --field 'location:string:100::Main base or location of work, if known' \
+    --field 'notes:string:1000::Additional notes or observations about this animal or person' \
+    --no-metrics \
+    --name actors \
+    --description 'Relevant people'
+

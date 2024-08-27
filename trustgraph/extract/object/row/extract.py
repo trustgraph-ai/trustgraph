@@ -8,26 +8,23 @@ import urllib.parse
 import os
 from pulsar.schema import JsonSchema
 
-from .... schema import ChunkEmbeddings, Triple, GraphEmbeddings, Source, Value
-from .... schema import chunk_embeddings_ingest_queue, triples_store_queue
-from .... schema import graph_embeddings_store_queue
+from .... schema import ChunkEmbeddings, Rows, ObjectEmbeddings, Source
+from .... schema import chunk_embeddings_ingest_queue, rows_store_queue
+from .... schema import object_embeddings_store_queue
 from .... schema import prompt_request_queue
 from .... schema import prompt_response_queue
 from .... log_level import LogLevel
 from .... clients.prompt_client import PromptClient
-from .... rdf import RDF_LABEL, TRUSTGRAPH_ENTITIES
 from .... base import ConsumerProducer
 
 from .... objects.field import FieldType, Field
 from .... objects.object import Schema
 
-RDF_LABEL_VALUE = Value(value=RDF_LABEL, is_uri=True)
-
 module = ".".join(__name__.split(".")[1:-1])
 
 default_input_queue = chunk_embeddings_ingest_queue
-default_output_queue = triples_store_queue
-default_vector_queue = graph_embeddings_store_queue
+default_output_queue = rows_store_queue
+default_vector_queue = object_embeddings_store_queue
 default_subscriber = module
 
 class Processor(ConsumerProducer):
@@ -51,7 +48,7 @@ class Processor(ConsumerProducer):
                 "output_queue": output_queue,
                 "subscriber": subscriber,
                 "input_schema": ChunkEmbeddings,
-                "output_schema": Triple,
+                "output_schema": Rows,
                 "prompt_request_queue": pr_request_queue,
                 "prompt_response_queue": pr_response_queue,
             }
@@ -59,7 +56,7 @@ class Processor(ConsumerProducer):
 
         self.vec_prod = self.client.create_producer(
             topic=vector_queue,
-            schema=JsonSchema(GraphEmbeddings),
+            schema=JsonSchema(ObjectEmbeddings),
         )
 
         __class__.pubsub_metric.info({
@@ -70,8 +67,8 @@ class Processor(ConsumerProducer):
             "prompt_response_queue": pr_response_queue,
             "subscriber": subscriber,
             "input_schema": ChunkEmbeddings.__name__,
-            "output_schema": Triple.__name__,
-            "vector_schema": GraphEmbeddings.__name__,
+            "output_schema": Rows.__name__,
+            "vector_schema": ObjectEmbeddings.__name__,
         })
 
         flds = __class__.parse_fields(params["field"])
@@ -79,7 +76,26 @@ class Processor(ConsumerProducer):
         for fld in flds:
             print(fld)
 
-        return
+        self.primary = None
+
+        for f in flds:
+            if f.primary:
+                if self.primary:
+                    raise RuntimeError(
+                        "Only one primary key field is supported"
+                    )
+                self.primary = f
+
+        if self.primary == None:
+            raise RuntimeError(
+                "Must have exactly one primary key field"
+            )
+
+        self.schema = Schema(
+            name = params["name"],
+            description = params["description"],
+            fields = flds
+        )
 
         self.prompt = PromptClient(
             pulsar_host=self.pulsar_host,
@@ -93,10 +109,12 @@ class Processor(ConsumerProducer):
         return [ Field.parse(f) for f in fields ]
 
     def get_rows(self, chunk):
-        return self.prompt.request_rows(chunk)
+        return self.prompt.request_rows(self.schema, chunk)
 
-    def emit_vec(self, ent, vec):
-        r = ObjectEmbeddings(entity=ent, vectors=vec)
+    def emit_vec(self, source, vec, key_name, key):
+        r = ObjectEmbeddings(
+            source=source, vectors=vec, key_name=key_name, id=key
+        )
         self.vec_prod.send(r)
 
     def handle(self, msg):
@@ -108,66 +126,12 @@ class Processor(ConsumerProducer):
 
         try:
 
-            rels = self.get_relationships(chunk)
+#             print(chunk)
 
-            for rel in rels:
+            rows = self.get_rows(chunk)
 
-                s = rel.s
-                p = rel.p
-                o = rel.o
-
-                if s == "": continue
-                if p == "": continue
-                if o == "": continue
-
-                if s is None: continue
-                if p is None: continue
-                if o is None: continue
-
-                s_uri = self.to_uri(s)
-                s_value = Value(value=str(s_uri), is_uri=True)
-
-                p_uri = self.to_uri(p)
-                p_value = Value(value=str(p_uri), is_uri=True)
-
-                if rel.o_entity: 
-                    o_uri = self.to_uri(o)
-                    o_value = Value(value=str(o_uri), is_uri=True)
-                else:
-                    o_value = Value(value=str(o), is_uri=False)
-
-                self.emit_edge(
-                    s_value,
-                    p_value,
-                    o_value
-                )
-
-                # Label for s
-                self.emit_edge(
-                    s_value,
-                    RDF_LABEL_VALUE,
-                    Value(value=str(s), is_uri=False)
-                )
-
-                # Label for p
-                self.emit_edge(
-                    p_value,
-                    RDF_LABEL_VALUE,
-                    Value(value=str(p), is_uri=False)
-                )
-
-                if rel.o_entity:
-                    # Label for o
-                    self.emit_edge(
-                        o_value,
-                        RDF_LABEL_VALUE,
-                        Value(value=str(o), is_uri=False)
-                    )
-
-                self.emit_vec(s_value, v.vectors)
-                self.emit_vec(p_value, v.vectors)
-                if rel.o_entity:
-                    self.emit_vec(o_value, v.vectors)
+            for row in rows:
+                print(row)
 
         except Exception as e:
             print("Exception: ", e, flush=True)
@@ -205,6 +169,18 @@ class Processor(ConsumerProducer):
             required=True,
             action='append',
             help=f'Field definition, format name:type:size:pri:descriptionn',
+        )
+
+        parser.add_argument(
+            '-n', '--name',
+            required=True,
+            help=f'Name of row object',
+        )
+
+        parser.add_argument(
+            '-d', '--description',
+            required=True,
+            help=f'Description of object',
         )
 
 def run():
