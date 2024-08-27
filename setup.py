@@ -80,6 +80,7 @@ setuptools.setup(
         "scripts/prompt-generic",
         "scripts/prompt-template",
         "scripts/query",
+        "scripts/rows-write-cassandra",
         "scripts/run-processing",
         "scripts/text-completion-azure",
         "scripts/text-completion-bedrock",
