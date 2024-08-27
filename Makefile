@@ -43,8 +43,8 @@ GRAPHS=cassandra neo4j
 tg-launch-%.yaml: templates/%.jsonnet templates/components/version.jsonnet
 	jsonnet -S ${@:tg-launch-%.yaml=templates/%.jsonnet} > $@
 
-VECTORDB=milvus
-# VECTORDB=qdrant
+# VECTORDB=milvus
+VECTORDB=qdrant
 
 update-templates: set-version
 	for graph in ${GRAPHS}; do \

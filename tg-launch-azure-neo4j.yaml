@@ -35,33 +35,6 @@
           "memory": "256M"
     "image": "docker.io/trustgraph/trustgraph-flow:0.7.20"
     "restart": "on-failure:100"
-  "etcd":
-    "command":
-    - "etcd"
-    - "-advertise-client-urls=http://127.0.0.1:2379"
-    - "-listen-client-urls"
-    - "http://0.0.0.0:2379"
-    - "--data-dir"
-    - "/etcd"
-    "deploy":
-      "resources":
-        "limits":
-          "cpus": "1.0"
-          "memory": "128M"
-        "reservations":
-          "cpus": "0.25"
-          "memory": "128M"
-    "environment":
-      "ETCD_AUTO_COMPACTION_MODE": "revision"
-      "ETCD_AUTO_COMPACTION_RETENTION": "1000"
-      "ETCD_QUOTA_BACKEND_BYTES": "4294967296"
-      "ETCD_SNAPSHOT_COUNT": "50000"
-    "image": "quay.io/coreos/etcd:v3.5.15"
-    "ports":
-    - "2379:2379"
-    "restart": "on-failure:100"
-    "volumes":
-    - "etcd:/etcd"
   "grafana":
     "deploy":
       "resources":
@@ -155,53 +128,6 @@
           "memory": "128M"
     "image": "docker.io/trustgraph/trustgraph-flow:0.7.20"
     "restart": "on-failure:100"
-  "milvus":
-    "command":
-    - "milvus"
-    - "run"
-    - "standalone"
-    "deploy":
-      "resources":
-        "limits":
-          "cpus": "1.0"
-          "memory": "256M"
-        "reservations":
-          "cpus": "0.5"
-          "memory": "256M"
-    "environment":
-      "ETCD_ENDPOINTS": "etcd:2379"
-      "MINIO_ADDRESS": "minio:9000"
-    "image": "docker.io/milvusdb/milvus:v2.4.9"
-    "ports":
-    - "9091:9091"
-    - "19530:19530"
-    "restart": "on-failure:100"
-    "volumes":
-    - "milvus:/var/lib/milvus"
-  "minio":
-    "command":
-    - "minio"
-    - "server"
-    - "/minio_data"
-    - "--console-address"
-    - ":9001"
-    "deploy":
-      "resources":
-        "limits":
-          "cpus": "0.5"
-          "memory": "128M"
-        "reservations":
-          "cpus": "0.25"
-          "memory": "128M"
-    "environment":
-      "MINIO_ROOT_PASSWORD": "minioadmin"
-      "MINIO_ROOT_USER": "minioadmin"
-    "image": "docker.io/minio/minio:RELEASE.2024-08-17T01-24-54Z"
-    "ports":
-    - "9001:9001"
-    "restart": "on-failure:100"
-    "volumes":
-    - "minio-data:/minio_data"
   "neo4j":
     "deploy":
       "resources":
@@ -377,13 +303,29 @@
     - "9527:9527"
     - "7750:7750"
     "restart": "on-failure:100"
+  "qdrant":
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "1.0"
+          "memory": "256M"
+        "reservations":
+          "cpus": "0.5"
+          "memory": "256M"
+    "image": "docker.io/qdrant/qdrant:v1.11.1"
+    "ports":
+    - "6333:6333"
+    - "6334:6334"
+    "restart": "on-failure:100"
+    "volumes":
+    - "qdrant:/qdrant/storage"
   "query-graph-embeddings":
     "command":
-    - "ge-query-milvus"
+    - "ge-query-qdrant"
     - "-p"
     - "pulsar://pulsar:6650"
     - "-t"
-    - "http://milvus:19530"
+    - "http://qdrant:6333"
     "deploy":
       "resources":
         "limits":
@@ -413,11 +355,11 @@
     "restart": "on-failure:100"
   "store-graph-embeddings":
     "command":
-    - "ge-write-milvus"
+    - "ge-write-qdrant"
     - "-p"
     - "pulsar://pulsar:6650"
     - "-t"
-    - "http://milvus:19530"
+    - "http://qdrant:6333"
     "deploy":
       "resources":
         "limits":
@@ -511,11 +453,9 @@
     "image": "docker.io/trustgraph/trustgraph-flow:0.7.20"
     "restart": "on-failure:100"
 "volumes":
-  "etcd": {}
   "grafana-storage": {}
-  "milvus": {}
-  "minio-data": {}
   "neo4j": {}
   "prometheus-data": {}
   "pulsar-conf": {}
   "pulsar-data": {}
+  "qdrant": {}
