@@ -14,6 +14,7 @@ from . topic import topic
 class ObjectEmbeddings(Record):
     source = Source()
     vectors = Array(Array(Double()))
+    name = String()
     key_name = String()
     id = String()
 

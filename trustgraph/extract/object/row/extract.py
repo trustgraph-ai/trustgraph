@@ -131,10 +131,10 @@ class Processor(ConsumerProducer):
         )
         self.producer.send(t)
 
-    def emit_vec(self, source, vec, key_name, key):
+    def emit_vec(self, source, name, vec, key_name, key):
 
         r = ObjectEmbeddings(
-            source=source, vectors=vec, key_name=key_name, id=key
+            source=source, vectors=vec, name=name, key_name=key_name, id=key
         )
         self.vec_prod.send(r)
 
@@ -149,8 +149,6 @@ class Processor(ConsumerProducer):
 
             rows = self.get_rows(chunk)
 
-            print(rows)
-
             self.emit_rows(
                 source=v.source,
                 rows=rows
@@ -159,7 +157,8 @@ class Processor(ConsumerProducer):
             for row in rows:
                 self.emit_vec(
                     source=v.source, vec=v.vectors,
-                    key_name=self.primary.name, key=row[self.primary.name]
+                    name=self.schema.name, key_name=self.primary.name,
+                    key=row[self.primary.name]
                 )
 
             for row in rows:
