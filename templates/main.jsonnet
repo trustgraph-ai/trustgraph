@@ -3,6 +3,7 @@ local components = {
     cassandra: import "components/cassandra.jsonnet",
     pulsar: import "components/pulsar.jsonnet",
     milvus: import "components/milvus.jsonnet",
+    qdrant: import "components/qdrant.jsonnet",
     grafana: import "components/grafana.jsonnet",
     trustgraph: import "components/trustgraph.jsonnet",
     azure: import "components/azure.jsonnet",
