@@ -7,14 +7,14 @@ get entity definitions which are output as graph edges.
 import urllib.parse
 import json
 
-from ... schema import ChunkEmbeddings, Triple, Source, Value
-from ... schema import chunk_embeddings_ingest_queue, triples_store_queue
-from ... schema import prompt_request_queue
-from ... schema import prompt_response_queue
-from ... log_level import LogLevel
-from ... clients.prompt_client import PromptClient
-from ... rdf import TRUSTGRAPH_ENTITIES, DEFINITION
-from ... base import ConsumerProducer
+from .... schema import ChunkEmbeddings, Triple, Source, Value
+from .... schema import chunk_embeddings_ingest_queue, triples_store_queue
+from .... schema import prompt_request_queue
+from .... schema import prompt_response_queue
+from .... log_level import LogLevel
+from .... clients.prompt_client import PromptClient
+from .... rdf import TRUSTGRAPH_ENTITIES, DEFINITION
+from .... base import ConsumerProducer
 
 DEFINITION_VALUE = Value(value=DEFINITION, is_uri=True)
 

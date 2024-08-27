@@ -116,4 +116,4 @@ class BaseProcessor:
                 print("Exception:", e, flush=True)
                 print("Will retry...", flush=True)
 
-                time.sleep(10)
+                time.sleep(4)

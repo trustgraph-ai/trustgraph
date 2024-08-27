@@ -48,6 +48,44 @@ or headers or prefixes.  Do not include null or unknown definitions.
     
     return prompt
 
+def to_rows(schema, text):
+
+    field_schema = [
+        f"- Name: {f.name}\n  Type: {f.type}\n  Definition: {f.description}"
+        for f in schema.fields
+    ]
+
+    field_schema = "\n".join(field_schema)
+
+    schema = f"""Object name: {schema.name}
+Description: {schema.description}
+
+Fields:
+{field_schema}"""
+
+    prompt = f"""<instructions>
+Study the following text and derive objects which match the schema provided.
+
+You must output an array of JSON objects for each object you discover
+which matches the schema.  For each object, output a JSON object whose fields
+carry the name field specified in the schema.
+</instructions>
+
+<schema>
+{schema}
+</schema>
+
+<text>
+{text}
+</text>
+
+<requirements>
+You will respond only with raw JSON format data. Do not provide
+explanations. Do not add markdown formatting or headers or prefixes.
+</requirements>"""
+    
+    return prompt
+    
 def get_cypher(kg):
 
     sg2 = []

@@ -5,6 +5,27 @@ def to_relationships(template, text):
 def to_definitions(template, text):
     return template.format(text=text)
 
+def to_rows(template, schema, text):
+
+    field_schema = [
+        f"- Name: {f.name}\n  Type: {f.type}\n  Definition: {f.description}"
+        for f in schema.fields
+    ]
+
+    field_schema = "\n".join(field_schema)
+
+    return template.format(schema=schema, text=text)
+
+    schema = f"""Object name: {schema.name}
+Description: {schema.description}
+
+Fields:
+{schema}"""
+
+    prompt = f""""""
+    
+    return prompt
+    
 def get_cypher(kg):
     sg2 = []
     for f in kg:

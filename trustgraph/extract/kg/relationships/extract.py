@@ -9,15 +9,15 @@ import urllib.parse
 import os
 from pulsar.schema import JsonSchema
 
-from ... schema import ChunkEmbeddings, Triple, GraphEmbeddings, Source, Value
-from ... schema import chunk_embeddings_ingest_queue, triples_store_queue
-from ... schema import graph_embeddings_store_queue
-from ... schema import prompt_request_queue
-from ... schema import prompt_response_queue
-from ... log_level import LogLevel
-from ... clients.prompt_client import PromptClient
-from ... rdf import RDF_LABEL, TRUSTGRAPH_ENTITIES
-from ... base import ConsumerProducer
+from .... schema import ChunkEmbeddings, Triple, GraphEmbeddings, Source, Value
+from .... schema import chunk_embeddings_ingest_queue, triples_store_queue
+from .... schema import graph_embeddings_store_queue
+from .... schema import prompt_request_queue
+from .... schema import prompt_response_queue
+from .... log_level import LogLevel
+from .... clients.prompt_client import PromptClient
+from .... rdf import RDF_LABEL, TRUSTGRAPH_ENTITIES
+from .... base import ConsumerProducer
 
 RDF_LABEL_VALUE = Value(value=RDF_LABEL, is_uri=True)
 

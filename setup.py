@@ -4,7 +4,7 @@ import os
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-version = "0.7.17"
+version = "0.7.19"
 
 setuptools.setup(
     name="trustgraph",
@@ -74,10 +74,13 @@ setuptools.setup(
         "scripts/load-graph-embeddings",
         "scripts/load-triples",
         "scripts/loader",
+        "scripts/object-extract-row",
+        "scripts/oe-write-milvus",
         "scripts/pdf-decoder",
         "scripts/prompt-generic",
         "scripts/prompt-template",
         "scripts/query",
+        "scripts/rows-write-cassandra",
         "scripts/run-processing",
         "scripts/text-completion-azure",
         "scripts/text-completion-bedrock",
@@ -88,8 +91,8 @@ setuptools.setup(
         "scripts/text-completion-vertexai",
         "scripts/triples-dump-parquet",
         "scripts/triples-query-cassandra",
-        "scripts/triples-write-cassandra",
         "scripts/triples-query-neo4j",
+        "scripts/triples-write-cassandra",
         "scripts/triples-write-neo4j",
     ]
 )

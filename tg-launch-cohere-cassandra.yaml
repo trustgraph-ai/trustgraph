@@ -33,7 +33,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.17"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.19"
     "restart": "on-failure:100"
   "embeddings":
     "command":
@@ -50,7 +50,7 @@
         "reservations":
           "cpus": "0.5"
           "memory": "256M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.17"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.19"
     "restart": "on-failure:100"
   "etcd":
     "command":
@@ -122,7 +122,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.17"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.19"
     "restart": "on-failure:100"
   "init-pulsar":
     "command":
@@ -155,7 +155,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.17"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.19"
     "restart": "on-failure:100"
   "kg-extract-relationships":
     "command":
@@ -170,7 +170,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.17"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.19"
     "restart": "on-failure:100"
   "milvus":
     "command":
@@ -232,7 +232,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.17"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.19"
     "restart": "on-failure:100"
   "prometheus":
     "deploy":
@@ -280,7 +280,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.17"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.19"
     "restart": "on-failure:100"
   "prompt-rag":
     "command":
@@ -317,6 +317,8 @@
       
       Use only the provided knowledge statements to respond to the following:
       {query}
+    - "--rows-template"
+    - "<instructions>\nStudy the following text and derive objects which match the schema provided.\n\nYou must output an array of JSON objects for each object you discover\nwhich matches the schema.  For each object, output a JSON object whose fields\ncarry the name field specified in the schema.\n</instructions>\n\n<schema>\n{schema}\n</schema>\n\n<text>\n{text}\n</text>\n\n<requirements>\nYou will respond only with raw JSON format data. Do not provide\nexplanations. Do not add markdown formatting or headers or prefixes.\n</requirements>"
     "deploy":
       "resources":
         "limits":
@@ -325,7 +327,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.17"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.19"
     "restart": "on-failure:100"
   "pulsar":
     "command": "bin/pulsar standalone"
@@ -378,7 +380,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.17"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.19"
     "restart": "on-failure:100"
   "query-triples":
     "command":
@@ -395,7 +397,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "512M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.17"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.19"
     "restart": "on-failure:100"
   "store-graph-embeddings":
     "command":
@@ -412,7 +414,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.17"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.19"
     "restart": "on-failure:100"
   "store-triples":
     "command":
@@ -429,7 +431,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.17"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.19"
     "restart": "on-failure:100"
   "text-completion":
     "command":
@@ -448,7 +450,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.17"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.19"
     "restart": "on-failure:100"
   "text-completion-rag":
     "command":
@@ -471,7 +473,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.17"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.19"
     "restart": "on-failure:100"
   "vectorize":
     "command":
@@ -486,7 +488,7 @@
         "reservations":
           "cpus": "0.5"
           "memory": "512M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.7.17"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.7.19"
     "restart": "on-failure:100"
 "volumes":
   "cassandra": {}
