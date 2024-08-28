@@ -1,5 +1,5 @@
-local base = import "../base.jsonnet";
-local images = import "../images.jsonnet";
+local base = import "base/base.jsonnet";
+local images = import "values/images.jsonnet";
 {
     volumes +: {
 	cassandra: {},

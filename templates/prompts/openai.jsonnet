@@ -1,9 +1,9 @@
 
 // For OpenAI LLMs
 
-local base = import "../components/base.jsonnet";
-local images = import "../components/images.jsonnet";
-local url = import "../components/url.jsonnet";
+local base = import "base/base.jsonnet";
+local images = import "values/images.jsonnet";
+local url = import "values/url.jsonnet";
 
 {
 

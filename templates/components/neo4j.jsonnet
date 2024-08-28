@@ -1,6 +1,6 @@
-local base = import "base.jsonnet";
-local images = import "images.jsonnet";
-local url = import "url.jsonnet";
+local base = import "base/base.jsonnet";
+local images = import "values/images.jsonnet";
+local url = import "values/url.jsonnet";
 local neo4j = import "stores/neo4j.jsonnet";
 
 neo4j + {

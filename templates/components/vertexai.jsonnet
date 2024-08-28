@@ -1,7 +1,7 @@
-local base = import "base.jsonnet";
-local images = import "images.jsonnet";
-local url = import "url.jsonnet";
-local prompts = import "../prompts/gemini.jsonnet";
+local base = import "base/base.jsonnet";
+local images = import "values/images.jsonnet";
+local url = import "values/url.jsonnet";
+local prompts = import "prompts/gemini.jsonnet";
 {
     services +: {
 
