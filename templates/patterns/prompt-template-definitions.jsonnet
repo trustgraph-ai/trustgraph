@@ -17,5 +17,5 @@
 	    }
 	]
     },
-    module: import "prompts/gemini.jsonnet",
+    module: "prompts/gemini.jsonnet",
 }

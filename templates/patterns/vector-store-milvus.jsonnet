@@ -9,5 +9,5 @@
 	args: [
 	]
     },
-    module: import "components/milvus.jsonnet",
+    module: "components/milvus.jsonnet",
 }

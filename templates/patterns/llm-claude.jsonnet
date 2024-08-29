@@ -9,5 +9,5 @@
 	args: [
 	]
     },
-    module: import "components/claude.jsonnet",
+    module: "components/claude.jsonnet",
 }

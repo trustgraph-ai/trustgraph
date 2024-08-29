@@ -9,5 +9,5 @@
 	args: [
 	]
     },
-    module: import "components/azure.jsonnet",
+    module: "components/azure.jsonnet",
 }

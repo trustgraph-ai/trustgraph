@@ -16,5 +16,5 @@
 	    }
 	]
     },
-    module: import "components/neo4j.jsonnet",
+    module: "components/neo4j.jsonnet",
 }

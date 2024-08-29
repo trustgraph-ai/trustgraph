@@ -9,5 +9,5 @@
 	args: [
 	]
     },
-    module: import "components/vertexai.jsonnet",
+    module: "components/vertexai.jsonnet",
 }

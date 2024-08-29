@@ -9,5 +9,5 @@
 	args: [
 	]
     },
-    module: import "components/qdrant.jsonnet",
+    module: "components/qdrant.jsonnet",
 }

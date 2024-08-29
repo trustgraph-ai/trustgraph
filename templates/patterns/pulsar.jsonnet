@@ -9,5 +9,5 @@
 	args: [
 	]
     },
-    module: import "components/pulsar.jsonnet",
+    module: "components/pulsar.jsonnet",
 }

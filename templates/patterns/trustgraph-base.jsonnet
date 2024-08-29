@@ -16,5 +16,5 @@
 	    }
 	]
     },
-    module: import "components/trustgraph.jsonnet",
+    module: "components/trustgraph.jsonnet",
 }

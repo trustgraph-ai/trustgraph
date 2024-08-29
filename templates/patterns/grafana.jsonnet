@@ -9,5 +9,5 @@
 	args: [
 	]
     },
-    module: import "components/grafana.jsonnet",
+    module: "components/grafana.jsonnet",
 }

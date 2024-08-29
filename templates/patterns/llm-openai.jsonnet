@@ -9,5 +9,5 @@
 	args: [
 	]
     },
-    module: import "components/openai.jsonnet",
+    module: "components/openai.jsonnet",
 }

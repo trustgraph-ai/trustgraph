@@ -9,5 +9,5 @@
 	args: [
 	]
     },
-    module: import "components/bedrock.jsonnet",
+    module: "components/bedrock.jsonnet",
 }

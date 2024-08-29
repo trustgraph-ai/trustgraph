@@ -16,5 +16,5 @@
 	    }
 	]
     },
-    module: import "components/cassandra.jsonnet",
+    module: "components/cassandra.jsonnet",
 }

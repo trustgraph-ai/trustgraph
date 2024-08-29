@@ -9,5 +9,5 @@
 	args: [
 	]
     },
-    module: import "components/cohere.jsonnet",
+    module: "components/cohere.jsonnet",
 }

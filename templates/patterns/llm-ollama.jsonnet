@@ -9,5 +9,5 @@
 	args: [
 	]
     },
-    module: import "components/ollama.jsonnet",
+    module: "components/ollama.jsonnet",
 }
