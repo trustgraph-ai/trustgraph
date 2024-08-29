@@ -1,6 +1,6 @@
 {
     pattern: {
-	name: "graph-rag-cassandra",
+	name: "graph-rag-neo4j",
 	description: "Adds Neo4j community edition and Graph RAG components",
         title: "Deploys GraphRAG indexing and querying using a Neo4j community edition store",
         requires: ["pulsar", "trustgraph"],
