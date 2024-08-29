@@ -2,8 +2,8 @@
     pattern: {
 	name: "override-recursive-chunker",
         icon: "✂️🪚",
-        title: "Recursive chunker configuration override",
-	description: "Configuration values for recursive chunker",
+        title: "Replace default chunker with recursive chunker",
+	description: "The default chunker used in Trustgraph core is a token-based chunker.  This pattern replaces that with a recursive chunker, and allows ou to configure the chunking parameters.",
         requires: ["pulsar", "trustgraph"],
         features: [],
 	args: [

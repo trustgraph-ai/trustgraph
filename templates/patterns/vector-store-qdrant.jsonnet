@@ -2,8 +2,8 @@
     pattern: {
 	name: "vector-store-qdrant",
         icon: "❓🌐",
-        title: "Deploy a vector store using Qdrant",
-	description: "Adds the Qdrant open-source vector DB",
+        title: "Adds Qdrant, a vector embeddings store",
+	description: "The Trustgraph core does not include a vector store by default.  This configuration pattern adds a simple Qdrant store and integrates with embeddings handling.",
         requires: ["pulsar", "trustgraph"],
         features: ["qdrant", "vectordb"],
 	args: [

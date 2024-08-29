@@ -2,8 +2,8 @@
     pattern: {
 	name: "bedrock",
         icon: "🤖💬",
-        title: "Deploy AWS Bedrock LLM endpoint support",
-	description: "This pattern uses an AWS Bedrock LLM hosted in the AWS cloud service.  You need an AWS subscription to be able to use this service.",
+        title: "Add AWS Bedrock for text completion",
+	description: "This pattern integrates an AWS Bedrock LLM service hosted in the AWS cloud for text completion operations.  You need an AWS cloud subscription and to have Bedrock configured to be able to use this service.",
         requires: ["pulsar", "trustgraph"],
         features: ["llm"],
 	args: [

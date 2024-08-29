@@ -1,9 +1,9 @@
 {
     pattern: {
-	name: "extraction-definition-prompt",
+	name: "prompt-template-definitions",
         icon: "📜️️💬",
-        title: "Specify definition extraction prompt",
-	description: "Prompt for definition extraction",
+        title: "Override definition extraction prompt",
+	description: "This pattern overrides the default definition extraction LLM prompt allowing you to provide your own prompt.",
         requires: ["pulsar", "trustgraph"],
         features: ["extract-definition-prompt"],
 	args: [

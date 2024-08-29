@@ -2,8 +2,8 @@
     pattern: {
 	name: "vertexai",
         icon: "🤖💬",
-        title: "Deploy Google Cloud VertexAI LLM support",
-	description: "This pattern uses an VertexAI LLM hosted in Google Cloud.  You need a Google Cloud subscription to be able to use this service.",
+        title: "Add Google Cloud VertexAI LLM for text completion",
+	description: "This pattern integrates a VertexAI endpoint hosted in Google Cloud for text completion operations.  You need a GCP subscription and to have VertexAI enabled to be able to use this service.",
         requires: ["pulsar", "trustgraph"],
         features: ["llm"],
 	args: [

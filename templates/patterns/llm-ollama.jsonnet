@@ -2,8 +2,8 @@
     pattern: {
 	name: "ollama",
         icon: "🤖💬",
-        title: "Deploy Ollama LLM support",
-	description: "This pattern uses an Ollama LLM hosting service.  You need an Ollama service to be running and have LLM models pulled using ollama pull.",
+        title: "Add Ollama LLM for text completion",
+	description: "This pattern integrates an Ollama service for text completion operations.  You need to have a running Ollama service with the necessary models added in order to be able to use this service.",
         requires: ["pulsar", "trustgraph"],
         features: ["llm"],
 	args: [

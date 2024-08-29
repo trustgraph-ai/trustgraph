@@ -2,8 +2,8 @@
     pattern: {
 	name: "prompt-template-rows-template",
         icon: "📜️️💬",
-        title: "Specify tablular data / row data extraction prompt",
-	description: "Prompt for tableular / row data extraction",
+        title: "Override table/row extraction prompt",
+	description: "This pattern overrides the default table/row extraction prompt to be changed.  This is used for DatabaseRAG pipelines.",
         requires: ["pulsar", "trustgraph"],
         features: ["extract-rows-prompt"],
 	args: [

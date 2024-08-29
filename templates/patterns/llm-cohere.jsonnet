@@ -2,8 +2,8 @@
     pattern: {
 	name: "cohere",
         icon: "🤖💬",
-        title: "Deploy Cohere LLM endpoint support",
-	description: "This pattern uses a Cohere LLM hosted in the Cohere service.  You need a Cohere subscription to be able to use this service.",
+        title: "Add Cohere LLM endpoint for text completion",
+	description: "This pattern integrates the Cohere LLM service for text completion operations.  You need a Cohere subscription and API keys to be able to use this service.",
         requires: ["pulsar", "trustgraph"],
         features: ["llm"],
 	args: [

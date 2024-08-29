@@ -1,9 +1,9 @@
 {
     pattern: {
-	name: "kq-query-prompt",
+	name: "prompt-template-kq-query",
         icon: "📜️️💬",
-        title: "Specify knowledge query prompt",
-	description: "Prompt for definition extraction",
+        title: "Override knowledge query prompt",
+	description: "This pattern overrides the default knowledge query LLM prompt allowing you to provide your own prompt.",
         requires: ["pulsar", "trustgraph"],
         features: ["kg-query-prompt"],
 	args: [

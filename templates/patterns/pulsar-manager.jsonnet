@@ -2,8 +2,8 @@
     pattern: {
 	name: "pulsar-manager",
         icon: "🏻🛃",
-        title: "Deploy Pulsar manager",
-	description: "Adds Pulsar Manager which provides a web interface to manage Pulsar.  Pulsar Manager is a large container and deployment requiring over 1GB of RAM, so is not deployed by default",
+        title: "Add Pulsar Manager",
+	description: "Adds Pulsar Manager which provides a web interface to manage Pulsar.  Pulsar Manager is a large container and deployment requiring over 1GB of RAM, so is not deployed by default.  This is not a required component, it may be useful to help manage a large operational deployment.",
         requires: ["pulsar"],
         features: ["pulsar-manager"],
 	args: [

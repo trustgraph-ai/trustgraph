@@ -2,8 +2,8 @@
     pattern: {
 	name: "prompt-template-document-query",
         icon: "📜️️💬",
-        title: "Specify document query prompt",
-	description: "Prompt for document query / unstructured RAG",
+        title: "Override document query prompt",
+	description: "This pattern overrides the default document query prompt used for DocumentRAG allowing you to specify your own prompt.",
         requires: ["pulsar", "trustgraph"],
         features: ["document-query-prompt"],
 	args: [
