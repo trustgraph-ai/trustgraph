@@ -1,6 +1,7 @@
 {
     pattern: {
 	name: "prompt-template-rows-template",
+        icon: "📜️️💬",
         title: "Specify tablular data / row data extraction prompt",
 	description: "Prompt for tableular / row data extraction",
         requires: ["pulsar", "trustgraph"],

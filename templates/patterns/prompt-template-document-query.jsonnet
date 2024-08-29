@@ -1,6 +1,7 @@
 {
     pattern: {
 	name: "prompt-template-document-query",
+        icon: "📜️️💬",
         title: "Specify document query prompt",
 	description: "Prompt for document query / unstructured RAG",
         requires: ["pulsar", "trustgraph"],

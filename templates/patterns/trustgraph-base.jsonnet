@@ -1,6 +1,7 @@
 {
     pattern: {
 	name: "trustgraph-base",
+        icon: "🤝😂",
         title: "Core Trustgraph processing flows",
 	description: "Adds core Trustgraph flows",
         requires: ["pulsar"],

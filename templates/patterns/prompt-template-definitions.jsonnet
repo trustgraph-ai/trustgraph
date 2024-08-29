@@ -1,6 +1,7 @@
 {
     pattern: {
 	name: "extraction-definition-prompt",
+        icon: "📜️️💬",
         title: "Specify definition extraction prompt",
 	description: "Prompt for definition extraction",
         requires: ["pulsar", "trustgraph"],

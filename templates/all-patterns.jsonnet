@@ -1,5 +1,6 @@
 [
     import "patterns/pulsar.jsonnet",
+    import "patterns/pulsar-manager.jsonnet",
     import "patterns/trustgraph-base.jsonnet",
     import "patterns/graph-rag-cassandra.jsonnet",
     import "patterns/graph-rag-neo4j.jsonnet",
@@ -16,7 +17,7 @@
     import "patterns/llm-ollama.jsonnet",
     import "patterns/llm-openai.jsonnet",
     import "patterns/llm-vertexai.jsonnet",
-    import "patterns/pulsar-manager.jsonnet",
     import "patterns/vector-store-milvus.jsonnet",
     import "patterns/vector-store-qdrant.jsonnet",
+    import "patterns/grafana.jsonnet",
 ]

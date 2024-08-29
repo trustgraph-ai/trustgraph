@@ -1,6 +1,7 @@
 {
     pattern: {
 	name: "extraction-relationship-prompt",
+        icon: "📜️️💬",
         title: "Specify relationship extraction prompt",
 	description: "Prompt for relationship extraction",
         requires: ["pulsar", "trustgraph"],

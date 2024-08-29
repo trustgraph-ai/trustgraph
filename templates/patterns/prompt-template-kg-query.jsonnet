@@ -1,6 +1,7 @@
 {
     pattern: {
 	name: "kq-query-prompt",
+        icon: "📜️️💬",
         title: "Specify knowledge query prompt",
 	description: "Prompt for definition extraction",
         requires: ["pulsar", "trustgraph"],

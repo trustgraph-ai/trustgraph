@@ -1,6 +1,7 @@
 {
     pattern: {
 	name: "graph-rag-cassandra",
+        icon: "🖇️🙋‍♀️",
         title: "Deploys GraphRAG indexing and querying using Cassandra",
 	description: "Adds Cassandra and Graph RAG components for query and indexing of data.",
         requires: ["pulsar", "trustgraph"],

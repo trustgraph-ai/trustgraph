@@ -1,6 +1,7 @@
 {
     pattern: {
 	name: "override-recursive-chunker",
+        icon: "✂️🪚",
         title: "Recursive chunker configuration override",
 	description: "Configuration values for recursive chunker",
         requires: ["pulsar", "trustgraph"],

@@ -1,6 +1,7 @@
 {
     pattern: {
 	name: "graph-rag-neo4j",
+        icon: "🖇️🙋‍♀️",
 	description: "Adds Neo4j community edition and Graph RAG components",
         title: "Deploys GraphRAG indexing and querying using a Neo4j community edition store",
         requires: ["pulsar", "trustgraph"],
