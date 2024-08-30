@@ -1,34 +1,17 @@
-local base = import "base.jsonnet";
-local images = import "images.jsonnet";
-local url = import "url.jsonnet";
-local prompts = import "../prompts/mixtral.jsonnet";
+local base = import "base/base.jsonnet";
+local images = import "values/images.jsonnet";
+local url = import "values/url.jsonnet";
+local prompts = import "prompts/mixtral.jsonnet";
+local chunker = import "chunker-recursive.jsonnet";
 {
-    services +: {
+    "aws-id-key":: "${AWS_ID_KEY}",
+    "aws-secret-key":: "${AWS_SECRET_KEY}",
+    "aws-region":: "us-west-2",
+    "bedrock-max-output-tokens":: 4096,
+    "bedrock-temperature":: 0.0,
+    "bedrock-model":: "mistral.mixtral-8x7b-instruct-v0:1",
 
-	chunker: base + {
-	    image: images.trustgraph,
-	    command: [
-		"chunker-recursive",
-		"-p",
-		url.pulsar,
-		"--chunk-size",
-		"2000",
-		"--chunk-overlap",
-		"100",
-	    ],
-            deploy: {
-		resources: {
-		    limits: {
-			cpus: '0.5',
-			memory: '128M'
-		    },
-		    reservations: {
-			cpus: '0.1',
-			memory: '128M'
-		    }
-		}
-	    },
-	},
+    services +: {
 
 	"text-completion": base + {
 	    image: images.trustgraph,
@@ -37,17 +20,17 @@ local prompts = import "../prompts/mixtral.jsonnet";
 		"-p",
 		url.pulsar,
 		"-z",
-		"${AWS_ID_KEY}",
+		$["aws-id-key"],
 		"-k",
-		"${AWS_SECRET_KEY}",
+		$["aws-secret-key"],
 		"-r",
-		"us-west-2",
+		$["aws-region"],
                 "-x",
-		"4096",
+                std.toString($["bedrock-max-output-tokens"]),
 		"-t",
-		"0.0",
+                std.toString($["bedrock-temperature"]),
 		"-m",
-		"mistral.mixtral-8x7b-instruct-v0:1",
+		$["bedrock-model"],
 	    ],
             deploy: {
 		resources: {
@@ -69,20 +52,18 @@ local prompts = import "../prompts/mixtral.jsonnet";
 		"text-completion-bedrock",
 		"-p",
 		url.pulsar,
-		// "-m",
-		// "mistral.mistral-large-2407-v1:0",
 		"-z",
-		"${AWS_ID_KEY}",
+		$["aws-id-key"],
 		"-k",
-		"${AWS_SECRET_KEY}",
+		$["aws-secret-key"],
 		"-r",
-		"us-west-2",
+		$["aws-region"],
                 "-x",
-		"4096",
+                std.toString($["bedrock-max-output-tokens"]),
 		"-t",
-		"0.0",
+                std.toString($["bedrock-temperature"]),
 		"-m",
-		"mistral.mixtral-8x7b-instruct-v0:1",
+		$["bedrock-model"],
 		"-i",
 		"non-persistent://tg/request/text-completion-rag",
 		"-o",
@@ -103,6 +84,5 @@ local prompts = import "../prompts/mixtral.jsonnet";
 	},
 	
     },
-} + prompts
-
+} + prompts + chunker
 

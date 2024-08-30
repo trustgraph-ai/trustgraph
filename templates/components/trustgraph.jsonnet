@@ -1,11 +1,17 @@
-
-local base = import "base.jsonnet";
-
-local images = import "images.jsonnet";
-
-local url = import "url.jsonnet";
+local base = import "base/base.jsonnet";
+local images = import "values/images.jsonnet";
+local url = import "values/url.jsonnet";
+local prompts = import "prompt-template.jsonnet";
 
 {
+
+    "chunk-size":: 250,
+    "chunk-overlap":: 15,
+    "embeddings-model":: "all-MiniLM-L6-v2",
+    "graph-rag-entity-limit":: 50,
+    "graph-rag-triple-limit":: 30,
+    "graph-rag-max-subgraph-size":: 3000,
+
     services +: {
 
 	"pdf-decoder": base + {
@@ -32,13 +38,13 @@ local url = import "url.jsonnet";
 	chunker: base + {
 	    image: images.trustgraph,
 	    command: [
-		"${CHUNKER:-chunker-token}",
+                "chunker-token",
 		"-p",
 		url.pulsar,
                 "--chunk-size",
-                "250",
+                std.toString($["chunk-size"]),
                 "--chunk-overlap",
-                "15",
+                std.toString($["chunk-overlap"]),
 	    ],
             deploy: {
 		resources: {
@@ -82,7 +88,7 @@ local url = import "url.jsonnet";
 		"-p",
 		url.pulsar,
                 "-m",
-		"all-MiniLM-L6-v2",
+		$["embeddings-model"],
 	    ],
             deploy: {
 		resources: {
@@ -151,11 +157,11 @@ local url = import "url.jsonnet";
 		"--prompt-response-queue",
 		"non-persistent://tg/response/prompt-rag-response",
 		"--entity-limit",
-		"50",
+                std.toString($["graph-rag-entity-limit"]),
 		"--triple-limit",
-		"30",
+                std.toString($["graph-rag-triple-limit"]),
 		"--max-subgraph-size",
-		"3000",
+                std.toString($["graph-rag-max-subgraph-size"]),
 	    ],
             deploy: {
 		resources: {
@@ -173,5 +179,7 @@ local url = import "url.jsonnet";
 
     }
 
-}
+} + prompts
+
+
 

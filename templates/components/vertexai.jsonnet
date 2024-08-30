@@ -1,8 +1,15 @@
-local base = import "base.jsonnet";
-local images = import "images.jsonnet";
-local url = import "url.jsonnet";
-local prompts = import "../prompts/gemini.jsonnet";
+local base = import "base/base.jsonnet";
+local images = import "values/images.jsonnet";
+local url = import "values/url.jsonnet";
+local prompts = import "prompts/gemini.jsonnet";
 {
+
+    "vertexai-model":: "gemini-1.0-pro-001",
+    "vertexai-private-key":: "/vertexai/private.json",
+    "vertexai-region":: "us-central1",
+    "vertexai-max-output-tokens":: 4096,
+    "vertexai-temperature":: 0.0,
+
     services +: {
 
 	"text-completion": base + {
@@ -12,13 +19,15 @@ local prompts = import "../prompts/gemini.jsonnet";
 		"-p",
 		url.pulsar,
 		"-k",
-		"/vertexai/private.json",
+                $["vertexai-private-key"],
 		"-r",
-		"us-central1",
+                $["vertexai-region"],
                 "-x",
-                "4096",
+                std.toString($["vertexai-max-output-tokens"]),
                 "-t",
-                "0.0",
+                std.toString($["vertexai-temperature"]),
+                "-m",
+                $["vertexai-model"],
 	    ],
 	    volumes: [
 		"./vertexai:/vertexai"
@@ -44,13 +53,15 @@ local prompts = import "../prompts/gemini.jsonnet";
 		"-p",
 		url.pulsar,
 		"-k",
-		"/vertexai/private.json",
+                $["vertexai-private-key"],
 		"-r",
-		"us-central1",
+                $["vertexai-region"],
                 "-x",
-                "4096",
+                std.toString($["vertexai-max-output-tokens"]),
                 "-t",
-                "0.0",
+                std.toString($["vertexai-temperature"]),
+                "-m",
+                $["vertexai-model"],
 		"-i",
 		"non-persistent://tg/request/text-completion-rag",
 		"-o",
@@ -75,5 +86,4 @@ local prompts = import "../prompts/gemini.jsonnet";
 
     },
 } + prompts
-
 

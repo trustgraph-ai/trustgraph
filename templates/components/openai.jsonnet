@@ -1,8 +1,13 @@
-local base = import "base.jsonnet";
-local images = import "images.jsonnet";
-local url = import "url.jsonnet";
-local prompts = import "../prompts/openai.jsonnet";
+local base = import "base/base.jsonnet";
+local images = import "values/images.jsonnet";
+local url = import "values/url.jsonnet";
+local prompts = import "prompts/openai.jsonnet";
 {
+
+    "openai-key":: "${OPENAI_KEY}",
+    "openai-max-output-tokens":: 4096,
+    "openai-temperature":: 0.0,
+
     services +: {
 
 	"text-completion": base + {
@@ -12,11 +17,11 @@ local prompts = import "../prompts/openai.jsonnet";
 		"-p",
 		url.pulsar,
 		"-k",
-		"${OPENAI_KEY}",
+		$["openai-key"],
                 "-x",
-                "4096",
+                std.toString($["openai-max-output-tokens"]),
                 "-t",
-                "0.0",
+                std.toString($["openai-temperature"]),
 	    ],
             deploy: {
 		resources: {
@@ -39,11 +44,11 @@ local prompts = import "../prompts/openai.jsonnet";
 		"-p",
 		url.pulsar,
 		"-k",
-		"${OPENAI_KEY}",
+		$["openai-key"],
                 "-x",
-                "4096",
+                std.toString($["openai-max-output-tokens"]),
                 "-t",
-                "0.0",
+                std.toString($["openai-temperature"]),
 		"-i",
 		"non-persistent://tg/request/text-completion-rag",
 		"-o",

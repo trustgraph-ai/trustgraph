@@ -1,6 +1,6 @@
 
 # VERSION=$(shell git describe | sed 's/^v//')
-VERSION=0.8.0
+VERSION=0.8.1
 
 DOCKER=podman
 
@@ -30,7 +30,7 @@ clean:
 	rm -rf wheels/
 
 set-version:
-	echo '"${VERSION}"' > templates/components/version.jsonnet
+	echo '"${VERSION}"' > templates/values/version.jsonnet
 
 TEMPLATES=azure bedrock claude cohere mix ollama openai vertexai \
     openai-neo4j storage
@@ -40,11 +40,14 @@ DCS=$(foreach template,${TEMPLATES},${template:%=tg-launch-%.yaml})
 MODELS=azure bedrock claude cohere ollama openai vertexai
 GRAPHS=cassandra neo4j
 
-tg-launch-%.yaml: templates/%.jsonnet templates/components/version.jsonnet
-	jsonnet -S ${@:tg-launch-%.yaml=templates/%.jsonnet} > $@
+# tg-launch-%.yaml: templates/%.jsonnet templates/components/version.jsonnet
+# 	jsonnet -Jtemplates \
+# 	    -S ${@:tg-launch-%.yaml=templates/%.jsonnet} > $@
 
 # VECTORDB=milvus
 VECTORDB=qdrant
+
+JSONNET_FLAGS=-J templates -J .
 
 update-templates: set-version
 	for graph in ${GRAPHS}; do \
@@ -52,7 +55,8 @@ update-templates: set-version
 	    input=templates/main.jsonnet; \
 	    output=tg-storage-$${graph}.yaml; \
 	    echo $${graph} '->' $${output}; \
-	    jsonnet --ext-str options=$${cm} -S $${input} > $${output}; \
+	    jsonnet ${JSONNET_FLAGS} \
+	         --ext-str options=$${cm} -S $${input} > $${output}; \
 	done
 	for model in ${MODELS}; do \
 	  for graph in ${GRAPHS}; do \
@@ -60,6 +64,7 @@ update-templates: set-version
 	    input=templates/main.jsonnet; \
 	    output=tg-launch-$${model}-$${graph}.yaml; \
 	    echo $${model} + $${graph} '->' $${output}; \
-	    jsonnet --ext-str options=$${cm} -S $${input} > $${output}; \
+	    jsonnet ${JSONNET_FLAGS} \
+	         --ext-str options=$${cm} -S $${input} > $${output}; \
 	  done; \
 	done

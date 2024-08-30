@@ -1,34 +1,17 @@
-local base = import "base.jsonnet";
-local images = import "images.jsonnet";
-local url = import "url.jsonnet";
-local prompts = import "../prompts/mixtral.jsonnet";
+local base = import "base/base.jsonnet";
+local images = import "values/images.jsonnet";
+local url = import "values/url.jsonnet";
+local prompts = import "prompts/cohere.jsonnet";
 {
-    services +: {
 
-	chunker: base + {
-	    image: images.trustgraph,
-	    command: [
-		"${CHUNKER:-chunker-token}",
-		"-p",
-		url.pulsar,
-		"--chunk-size",
-		"150",
-		"--chunk-overlap",
-		"10",
-	    ],
-            deploy: {
-		resources: {
-		    limits: {
-			cpus: '0.5',
-			memory: '128M'
-		    },
-		    reservations: {
-			cpus: '0.1',
-			memory: '128M'
-		    }
-		}
-	    },
-	},
+    // Override chunking
+    "chunk-size":: 150,
+    "chunk-overlap":: 10,
+
+    "cohere-key":: "${COHERE_KEY}",
+    "cohere-temperature":: 0.0,
+
+    services +: {
 
 	"text-completion": base + {
 	    image: images.trustgraph,
@@ -37,9 +20,9 @@ local prompts = import "../prompts/mixtral.jsonnet";
 		"-p",
 		url.pulsar,
 		"-k",
-		"${COHERE_KEY}",
+		$["cohere-key"],
                 "-t",
-                "0.0",
+                $["cohere-temperature"],
 	    ],
             deploy: {
 		resources: {
@@ -62,9 +45,9 @@ local prompts = import "../prompts/mixtral.jsonnet";
 		"-p",
 		url.pulsar,
 		"-k",
-		"${COHERE_KEY}",
+		$["cohere-key"],
                 "-t",
-                "0.0",
+                $["cohere-temperature"],
 		"-i",
 		"non-persistent://tg/request/text-completion-rag",
 		"-o",
