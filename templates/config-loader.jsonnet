@@ -8,7 +8,7 @@ local components = {
    "graph-rag-neo4j": import "components/neo4j.jsonnet",
    "ollama": import "components/ollama.jsonnet",
    "openai": import "components/openai.jsonnet",
-   "override-recursive-chunker": import "components/cassandra.jsonnet",
+   "override-recursive-chunker": import "components/chunker-recursive.jsonnet",
    "prompt-template-definitions": import "components/null.jsonnet",
    "prompt-template-document-query": import "components/null.jsonnet",
    "prompt-template-kq-query": import "components/null.jsonnet",
