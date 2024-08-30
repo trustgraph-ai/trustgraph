@@ -10,7 +10,6 @@ local prompts = import "prompts/gemini.jsonnet";
     "vertexai-max-output-tokens":: 4096,
     "vertexai-temperature":: 0.0,
 
-
     services +: {
 
 	"text-completion": base + {
