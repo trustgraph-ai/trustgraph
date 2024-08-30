@@ -3,6 +3,8 @@ local images = import "values/images.jsonnet";
 local url = import "values/url.jsonnet";
 local prompts = import "prompts/mixtral.jsonnet";
 {
+
+    // Override chunking
     "chunk-size":: 150,
     "chunk-overlap":: 10,
 
@@ -10,31 +12,6 @@ local prompts = import "prompts/mixtral.jsonnet";
     "cohere-temperature":: 0.0,
 
     services +: {
-
-	chunker: base + {
-	    image: images.trustgraph,
-	    command: [
-		"chunker-token",
-		"-p",
-		url.pulsar,
-		"--chunk-size",
-                std.toString($["chunk-size"]),
-		"--chunk-overlap",
-		std.toString($["chunk-overlap"]),
-	    ],
-            deploy: {
-		resources: {
-		    limits: {
-			cpus: '0.5',
-			memory: '128M'
-		    },
-		    reservations: {
-			cpus: '0.1',
-			memory: '128M'
-		    }
-		}
-	    },
-	},
 
 	"text-completion": base + {
 	    image: images.trustgraph,
