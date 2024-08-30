@@ -3,18 +3,24 @@ local images = import "values/images.jsonnet";
 local url = import "values/url.jsonnet";
 local prompts = import "prompts/mixtral.jsonnet";
 {
+    "chunk-size":: 150,
+    "chunk-overlap":: 10,
+
+    "cohere-key":: "${COHERE_KEY}",
+    "cohere-temperature":: 0.0,
+
     services +: {
 
 	chunker: base + {
 	    image: images.trustgraph,
 	    command: [
-		"${CHUNKER:-chunker-token}",
+		"chunker-token",
 		"-p",
 		url.pulsar,
 		"--chunk-size",
-		"150",
+                std.toString($["chunk-size"]),
 		"--chunk-overlap",
-		"10",
+		std.toString($["chunk-overlap"]),
 	    ],
             deploy: {
 		resources: {
@@ -37,9 +43,9 @@ local prompts = import "prompts/mixtral.jsonnet";
 		"-p",
 		url.pulsar,
 		"-k",
-		"${COHERE_KEY}",
+		$["cohere-key"],
                 "-t",
-                "0.0",
+                $["cohere-temperature"],
 	    ],
             deploy: {
 		resources: {
@@ -62,9 +68,9 @@ local prompts = import "prompts/mixtral.jsonnet";
 		"-p",
 		url.pulsar,
 		"-k",
-		"${COHERE_KEY}",
+		$["cohere-key"],
                 "-t",
-                "0.0",
+                $["cohere-temperature"],
 		"-i",
 		"non-persistent://tg/request/text-completion-rag",
 		"-o",

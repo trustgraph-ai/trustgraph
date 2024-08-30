@@ -22,30 +22,21 @@ local components = {
    "vertexai": import "components/vertexai.jsonnet"
 };
 
-local config = function(p) {
+local config = function(p)
+    (components[p.name] + {
 
-    name: p.name,
+        with:: function(k, v) self + {
+            [k]:: v
+        },
 
-    with:: function(k, v) self + {
-        [k]: v
-    },
+        with_params:: function(pars)
+            self + std.foldl(
+                function(obj, par) obj.with(par.key, par.value),
+                std.objectKeysValues(pars),
+                self
+            ),
 
-    with_params:: function(pars)
-        self + std.foldl(
-//            function(obj, par) obj + { [par.key]: par.value },
-            function(obj, par) obj.with(par.key, par.value),
-            std.objectKeysValues(pars),
-            self
-        ),
-
-
-//self + {
-//        params: pars
-//    }
-
-}.with_params(p.parameters);
-
-//("a", "b");
+        }).with_params(p.parameters);
 
 local options = import "config.json";
 

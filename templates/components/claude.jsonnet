@@ -3,6 +3,11 @@ local images = import "values/images.jsonnet";
 local url = import "values/url.jsonnet";
 local prompts = import "prompts/mixtral.jsonnet";
 {
+
+    "claude-key":: "${CLAUDE_KEY}",
+    "claude-max-output-tokens":: 4096,
+    "claude-temperature":: 0.0,
+
     services +: {
 
 	"text-completion": base + {
@@ -12,11 +17,11 @@ local prompts = import "prompts/mixtral.jsonnet";
 		"-p",
 		url.pulsar,
 		"-k",
-		"${CLAUDE_KEY}",
+		$["claude-key"],
                 "-x",
-                "4096",
+                std.toString($["claude-max-output-tokens"]),
                 "-t",
-                "0.0",
+                std.toString($["claude-temperature"]),
 	    ],
             deploy: {
 		resources: {
@@ -39,11 +44,11 @@ local prompts = import "prompts/mixtral.jsonnet";
 		"-p",
 		url.pulsar,
 		"-k",
-		"${CLAUDE_KEY}",
+		$["claude-key"],
                 "-x",
-                "4096",
+                std.toString($["claude-max-output-tokens"]),
                 "-t",
-                "0.0",
+                std.toString($["claude-temperature"]),
 		"-i",
 		"non-persistent://tg/request/text-completion-rag",
 		"-o",

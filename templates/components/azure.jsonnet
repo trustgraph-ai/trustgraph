@@ -3,6 +3,12 @@ local images = import "values/images.jsonnet";
 local url = import "values/url.jsonnet";
 local prompts = import "prompts/mixtral.jsonnet";
 {
+
+    "azure-token":: "${AZURE_TOKEN}",
+    "azure-endpoint":: "${AZURE_ENDPOINT}",
+    "azure-max-output":: 4096,
+    "azure-temperature":: 0.0,
+
     services +: {
 
 	"text-completion": base + {
@@ -12,13 +18,13 @@ local prompts = import "prompts/mixtral.jsonnet";
 		"-p",
 		url.pulsar,
 		"-k",
-		"${AZURE_TOKEN}",
+		$["azure-token"],
 		"-e",
-		"${AZURE_ENDPOINT}",
+		$["azure-endpoint"],
                 "-x",
-                "4096",
+                std.toString($["azure-max-output"]),
                 "-t",
-                "0.0",
+                std.toString($["azure-temperature"]),
 	    ],
             deploy: {
 		resources: {
@@ -41,14 +47,14 @@ local prompts = import "prompts/mixtral.jsonnet";
 		"-p",
 		url.pulsar,
 		"-k",
-		"${AZURE_TOKEN}",
+		$["azure-token"],
 		"-e",
-		"${AZURE_ENDPOINT}",
+		$["azure-endpoint"],
 		"-i",
                 "-x",
-                "4096",
+                std.toString($["azure-max-output"]),
                 "-t",
-                "0.0",
+                std.toString($["azure-temperature"]),
 		"non-persistent://tg/request/text-completion-rag",
 		"-o",
 		"non-persistent://tg/response/text-completion-rag-response",
