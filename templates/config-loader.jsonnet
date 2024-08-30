@@ -19,7 +19,8 @@ local components = {
    "trustgraph-base": import "components/trustgraph.jsonnet",
    "vector-store-milvus": import "components/milvus.jsonnet",
    "vector-store-qdrant": import "components/qdrant.jsonnet",
-   "vertexai": import "components/vertexai.jsonnet"
+   "vertexai": import "components/vertexai.jsonnet",
+   "null": {}
 };
 
 local config = function(p)
