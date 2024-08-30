@@ -8,7 +8,7 @@
         features: ["extract-definition-prompt"],
 	args: [
 	    {
-		name: "prompt",
+		name: "prompt-definition-template",
 		type: "string",
 		width: 2000,
 		description: "Definition extraction prompt",

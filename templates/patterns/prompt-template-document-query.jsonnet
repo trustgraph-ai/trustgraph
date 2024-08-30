@@ -8,7 +8,7 @@
         features: ["document-query-prompt"],
 	args: [
 	    {
-		name: "prompt",
+		name: "prompt-document-query-template",
 		type: "string",
 		width: 2000,
 		description: "Document query prompt",

@@ -8,7 +8,7 @@
         features: ["extract-relationship-prompt"],
 	args: [
 	    {
-		name: "prompt",
+		name: "prompt-relationship-template",
 		type: "string",
 		width: 2000,
 		description: "Relationship extraction prompt",

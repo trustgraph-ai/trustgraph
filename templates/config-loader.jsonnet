@@ -40,7 +40,7 @@ local config = function(p)
 
 local options = import "config.json";
 
-local add = function(state, p) state + { [p.name]: config(p) };
+local add = function(state, p) state + config(p);
 
 local output = std.foldl(add, options, {});
 

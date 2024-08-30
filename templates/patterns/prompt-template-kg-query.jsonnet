@@ -8,7 +8,7 @@
         features: ["kg-query-prompt"],
 	args: [
 	    {
-		name: "prompt",
+		name: "prompt-knowledge-query-template",
 		type: "string",
 		width: 2000,
 		description: "Knowledge graph extraction prompt",

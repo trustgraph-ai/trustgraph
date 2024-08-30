@@ -8,7 +8,7 @@
         features: ["extract-rows-prompt"],
 	args: [
 	    {
-		name: "prompt",
+		name: "prompt-rows-template",
 		type: "string",
 		width: 2000,
 		description: "Row data extraction prompt",
