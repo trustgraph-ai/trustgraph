@@ -7,7 +7,7 @@
         requires: ["pulsar", "trustgraph"],
         features: ["prometheus", "grafana"],
 	args: [
-	]
+	],
     },
     module: "components/grafana.jsonnet",
 }

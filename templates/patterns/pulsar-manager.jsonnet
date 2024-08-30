@@ -12,7 +12,7 @@
 		type: "string",
 		width: 20,
 		description: "Admin password to apply",
-                default: "admin98414",
+                default: "pulsaradmin",
 		required: true,
 	    }
 	]

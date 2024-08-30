@@ -6,15 +6,7 @@
 	description: "The core Trustgraph deployment does not include a GraphRag store; this pattern adds the Neo4j store, and adds GraphRAG adapters so that Neo4j is integrated with GraphRag indexing and querying.",
         requires: ["pulsar", "trustgraph"],
         features: ["neo4j", "rag"],
-	args: [
-	    {
-		name: "example",
-		type: "string",
-		width: 20,
-		description: "An example argument",
-		required: false,
-	    }
-	]
+	args: [],
     },
     module: "components/neo4j.jsonnet",
 }
