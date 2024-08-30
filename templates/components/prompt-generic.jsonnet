@@ -1,28 +1,21 @@
 local base = import "base/base.jsonnet";
 local images = import "values/images.jsonnet";
 local url = import "values/url.jsonnet";
-local prompts = import "prompts/cohere.jsonnet";
+
 {
-
-    // Override chunking
-    "chunk-size":: 150,
-    "chunk-overlap":: 10,
-
-    "cohere-key":: "${COHERE_KEY}",
-    "cohere-temperature":: 0.0,
 
     services +: {
 
-	"text-completion": base + {
+	"prompt": base + {
 	    image: images.trustgraph,
 	    command: [
-		"text-completion-cohere",
+		"prompt-generic",
 		"-p",
 		url.pulsar,
-		"-k",
-		$["cohere-key"],
-                "-t",
-                $["cohere-temperature"],
+		"--text-completion-request-queue",
+		"non-persistent://tg/request/text-completion",
+		"--text-completion-response-queue",
+		"non-persistent://tg/response/text-completion-response",
 	    ],
             deploy: {
 		resources: {
@@ -38,19 +31,19 @@ local prompts = import "prompts/cohere.jsonnet";
 	    },
 	},
 
-	"text-completion-rag": base + {
+	"prompt-rag": base + {
 	    image: images.trustgraph,
 	    command: [
-		"text-completion-cohere",
+		"prompt-generic",
 		"-p",
 		url.pulsar,
-		"-k",
-		$["cohere-key"],
-                "-t",
-                $["cohere-temperature"],
-		"-i",
+                "-i",
+		"non-persistent://tg/request/prompt-rag",
+                "-o",
+		"non-persistent://tg/response/prompt-rag-response",
+		"--text-completion-request-queue",
 		"non-persistent://tg/request/text-completion-rag",
-		"-o",
+		"--text-completion-response-queue",
 		"non-persistent://tg/response/text-completion-rag-response",
 	    ],
             deploy: {
@@ -64,8 +57,11 @@ local prompts = import "prompts/cohere.jsonnet";
 			memory: '128M'
 		    }
 		}
+            
 	    },
 	},
 
-    },
-} + prompts
+    }
+
+}
+
