@@ -4,6 +4,7 @@ local url = import "values/url.jsonnet";
 local prompts = import "prompts/slm.jsonnet";
 {
     services +: {
+        "ollama-model":: "gemma2:9b",
 
 	"text-completion": base + {
 	    image: images.trustgraph,
@@ -12,7 +13,7 @@ local prompts = import "prompts/slm.jsonnet";
 		"-p",
 		url.pulsar,
                 "-m",
-                "gemma2:9b",
+                $["ollama-model"],
 		"-r",
 		"${OLLAMA_HOST}",
 	    ],
@@ -37,7 +38,7 @@ local prompts = import "prompts/slm.jsonnet";
 		"-p",
 		url.pulsar,
                 "-m",
-                "gemma2:9b",
+                $["ollama-model"],
 		"-r",
 		"${OLLAMA_HOST}",
 		"-i",

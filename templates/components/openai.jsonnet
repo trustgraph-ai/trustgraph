@@ -7,6 +7,7 @@ local prompts = import "prompts/openai.jsonnet";
     "openai-key":: "${OPENAI_KEY}",
     "openai-max-output-tokens":: 4096,
     "openai-temperature":: 0.0,
+    "openai-model":: "GPT-3.5-Turbo",
 
     services +: {
 
@@ -22,6 +23,8 @@ local prompts = import "prompts/openai.jsonnet";
                 std.toString($["openai-max-output-tokens"]),
                 "-t",
                 std.toString($["openai-temperature"]),
+                "-m",
+                $["openai-model"],
 	    ],
             deploy: {
 		resources: {
@@ -49,6 +52,8 @@ local prompts = import "prompts/openai.jsonnet";
                 std.toString($["openai-max-output-tokens"]),
                 "-t",
                 std.toString($["openai-temperature"]),
+                "-m",
+                $["openai-model"],
 		"-i",
 		"non-persistent://tg/request/text-completion-rag",
 		"-o",
