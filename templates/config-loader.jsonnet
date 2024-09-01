@@ -15,7 +15,7 @@ local components = {
    "prompt-template-relationships": import "components/null.jsonnet",
    "prompt-template-rows-template": import "components/null.jsonnet",
    "pulsar": import "components/pulsar.jsonnet",
-   "pulsar-manager": import "components/pulsar.jsonnet",
+   "pulsar-manager": import "components/pulsar-manager.jsonnet",
    "trustgraph-base": import "components/trustgraph.jsonnet",
    "vector-store-milvus": import "components/milvus.jsonnet",
    "vector-store-qdrant": import "components/qdrant.jsonnet",
