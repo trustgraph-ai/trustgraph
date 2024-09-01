@@ -8,13 +8,14 @@
         features: ["pulsar-manager"],
 	args: [
 	    {
-		name: "default-admin-password",
+		name: "initial-admin-password",
+                label: "Password",
 		type: "text",
-		width: 20,
-		description: "Admin password to apply",
+		width: 40,
+		description: "Admin password to apply at initialisation",
                 default: "pulsaradmin",
 		required: true,
-	    }
+	    },
 	],
         category: [ "foundation" ],
     },
