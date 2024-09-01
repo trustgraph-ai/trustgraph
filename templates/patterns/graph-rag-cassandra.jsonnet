@@ -7,6 +7,7 @@
         requires: ["pulsar", "trustgraph"],
         features: ["cassandra", "rag"],
         args: [],
+        category: ["knowledge-graph"],
     },
     module: "components/cassandra.jsonnet",
 }

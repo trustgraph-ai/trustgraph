@@ -7,7 +7,9 @@
         requires: ["pulsar", "trustgraph"],
         features: ["milvus", "vectordb"],
 	args: [
-	]
+	],
+        category: [ "vector-store" ],
     },
     module: "components/milvus.jsonnet",
 }
+

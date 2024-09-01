@@ -7,7 +7,8 @@
         requires: [],
         features: ["pulsar"],
 	args: [
-	]
+	],
+        category: [ "foundation" ],
     },
     module: "components/pulsar.jsonnet",
 }

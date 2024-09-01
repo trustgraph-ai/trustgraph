@@ -6,7 +6,7 @@ local prompts = import "prompts/mixtral.jsonnet";
 
     "azure-token":: "${AZURE_TOKEN}",
     "azure-endpoint":: "${AZURE_ENDPOINT}",
-    "azure-max-output":: 4096,
+    "azure-max-output-tokens":: 4096,
     "azure-temperature":: 0.0,
 
     services +: {
@@ -22,7 +22,7 @@ local prompts = import "prompts/mixtral.jsonnet";
 		"-e",
 		$["azure-endpoint"],
                 "-x",
-                std.toString($["azure-max-output"]),
+                std.toString($["azure-max-output-tokens"]),
                 "-t",
                 std.toString($["azure-temperature"]),
 	    ],
@@ -52,7 +52,7 @@ local prompts = import "prompts/mixtral.jsonnet";
 		$["azure-endpoint"],
 		"-i",
                 "-x",
-                std.toString($["azure-max-output"]),
+                std.toString($["azure-max-output-tokens"]),
                 "-t",
                 std.toString($["azure-temperature"]),
 		"non-persistent://tg/request/text-completion-rag",
