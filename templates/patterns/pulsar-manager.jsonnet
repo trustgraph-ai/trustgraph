@@ -9,13 +9,14 @@
 	args: [
 	    {
 		name: "default-admin-password",
-		type: "string",
+		type: "text",
 		width: 20,
 		description: "Admin password to apply",
                 default: "pulsaradmin",
 		required: true,
 	    }
-	]
+	],
+        category: [ "foundation" ],
     },
     module: "components/pulsar.jsonnet",
 }

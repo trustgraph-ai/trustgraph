@@ -8,6 +8,7 @@
         features: ["prometheus", "grafana"],
 	args: [
 	],
+        category: ["monitoring"],
     },
     module: "components/grafana.jsonnet",
 }

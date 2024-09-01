@@ -7,7 +7,8 @@
         requires: ["pulsar", "trustgraph"],
         features: ["llm"],
 	args: [
-	]
+	],
+        category: [ "llm" ],
     },
     module: "components/claude.jsonnet",
 }

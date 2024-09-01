@@ -9,19 +9,20 @@
 	args: [
 	    {
 		name: "chunk-size",
-		type: "int",
+		type: "integer",
 		description: "Chunk size value",
                 default: 2000,
 		required: true,
 	    },
 	    {
 		name: "chunk-overlap",
-		type: "int",
+		type: "integer",
 		description: "Overlap size value",
                 default: 100,
 		required: true,
 	    }            
-	]
+	],
+        category: [ "chunking" ],
     },
     module: "components/cassandra.jsonnet",
 }

@@ -7,7 +7,8 @@
         requires: ["pulsar", "trustgraph"],
         features: ["qdrant", "vectordb"],
 	args: [
-	]
+	],
+        category: [ "vector-store" ],
     },
     module: "components/qdrant.jsonnet",
 }

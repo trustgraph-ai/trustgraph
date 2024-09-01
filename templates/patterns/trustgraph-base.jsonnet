@@ -7,7 +7,8 @@
         requires: ["pulsar"],
         features: ["trustgraph"],
 	args: [
-	]
+	],
+        category: [ "foundation" ],
     },
     module: "components/trustgraph.jsonnet",
 }

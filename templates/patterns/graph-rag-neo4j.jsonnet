@@ -7,6 +7,7 @@
         requires: ["pulsar", "trustgraph"],
         features: ["neo4j", "rag"],
 	args: [],
+        category: [ "knowledge-graph" ],
     },
     module: "components/neo4j.jsonnet",
 }
