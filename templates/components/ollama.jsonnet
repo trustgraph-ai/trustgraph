@@ -3,8 +3,11 @@ local images = import "values/images.jsonnet";
 local url = import "values/url.jsonnet";
 local prompts = import "prompts/slm.jsonnet";
 {
+
+    "ollama-model":: "gemma2:9b",
+    "ollama-url":: "${OLLAMA_HOST}",
+
     services +: {
-        "ollama-model":: "gemma2:9b",
 
 	"text-completion": base + {
 	    image: images.trustgraph,
@@ -15,7 +18,7 @@ local prompts = import "prompts/slm.jsonnet";
                 "-m",
                 $["ollama-model"],
 		"-r",
-		"${OLLAMA_HOST}",
+                $["ollama-url"],
 	    ],
             deploy: {
 		resources: {
@@ -40,7 +43,7 @@ local prompts = import "prompts/slm.jsonnet";
                 "-m",
                 $["ollama-model"],
 		"-r",
-		"${OLLAMA_HOST}",
+                $["ollama-url"],
 		"-i",
 		"non-persistent://tg/request/text-completion-rag",
 		"-o",

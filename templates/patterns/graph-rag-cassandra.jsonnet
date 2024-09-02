@@ -5,7 +5,7 @@
         title: "Add GraphRAG indexing and querying using Cassandra",
 	description: "The core Trustgraph deployment does not include a GraphRag store; this pattern adds the Cassandra store, and adds GraphRAG adapters so that Cassandra is integrated with GraphRag indexing and querying.",
         requires: ["pulsar", "trustgraph"],
-        features: ["cassandra", "rag"],
+        features: ["cassandra", "triples-store"],
         args: [],
         category: ["knowledge-graph"],
     },

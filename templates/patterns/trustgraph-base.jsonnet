@@ -8,17 +8,6 @@
         features: ["trustgraph"],
 	args: [
 	    {
-		name: "embeddings-model",
-                label: "Embeddings model",
-		type: "select",
-		description: "Embeddings model for sentence analysis",
-                options: [
-                  { id: "all-MiniLM-L6-v2", description: "all-MiniLM-L6-v2" },
-                ],
-                default: "all-MiniLM-L6-v2",
-		required: true,
-	    },
-	    {
 		name: "graph-rag-entity-limit",
                 label: "GraphRAG entity query limit",
 		type: "integer",

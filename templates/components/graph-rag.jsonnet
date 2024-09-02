@@ -1,20 +1,22 @@
 local base = import "base/base.jsonnet";
 local images = import "values/images.jsonnet";
 local url = import "values/url.jsonnet";
-local milvus = import "stores/milvus.jsonnet";
+local prompts = import "prompt-template.jsonnet";
 
-milvus + {
+{
+
+    "graph-rag-entity-limit":: 50,
+    "graph-rag-triple-limit":: 30,
+    "graph-rag-max-subgraph-size":: 3000,
 
     services +: {
 
-	"store-graph-embeddings": base + {
+	"kg-extract-definitions": base + {
 	    image: images.trustgraph,
 	    command: [
-		"ge-write-milvus",
+		"kg-extract-definitions",
 		"-p",
 		url.pulsar,
-		"-t",
-		url.milvus,
 	    ],
             deploy: {
 		resources: {
@@ -30,14 +32,12 @@ milvus + {
 	    },
 	},
 
-	"query-graph-embeddings": base + {
+	"kg-extract-relationships": base + {
 	    image: images.trustgraph,
 	    command: [
-		"ge-query-milvus",
+		"kg-extract-relationships",
 		"-p",
 		url.pulsar,
-		"-t",
-		url.milvus,
 	    ],
             deploy: {
 		resources: {
@@ -53,38 +53,22 @@ milvus + {
 	    },
 	},
 
-        // Document embeddings writer & query service.
-	"store-doc-embeddings": base + {
+	"graph-rag": base + {
 	    image: images.trustgraph,
 	    command: [
-		"de-write-milvus",
+		"graph-rag",
 		"-p",
 		url.pulsar,
-		"-t",
-		url.milvus,
-	    ],
-            deploy: {
-		resources: {
-		    limits: {
-			cpus: '0.5',
-			memory: '128M'
-		    },
-		    reservations: {
-			cpus: '0.1',
-			memory: '128M'
-		    }
-		}
-	    },
-	},
-
-	"query-doc-embeddings": base + {
-	    image: images.trustgraph,
-	    command: [
-		"de-query-milvus",
-		"-p",
-		url.pulsar,
-		"-t",
-		url.milvus,
+		"--prompt-request-queue",
+		"non-persistent://tg/request/prompt-rag",
+		"--prompt-response-queue",
+		"non-persistent://tg/response/prompt-rag-response",
+		"--entity-limit",
+                std.toString($["graph-rag-entity-limit"]),
+		"--triple-limit",
+                std.toString($["graph-rag-triple-limit"]),
+		"--max-subgraph-size",
+                std.toString($["graph-rag-max-subgraph-size"]),
 	    ],
             deploy: {
 		resources: {
@@ -102,5 +86,7 @@ milvus + {
 
     }
 
-}
+} + prompts
+
+
 

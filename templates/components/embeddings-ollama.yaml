@@ -1,0 +1,41 @@
+local base = import "base/base.jsonnet";
+local images = import "values/images.jsonnet";
+local url = import "values/url.jsonnet";
+local prompts = import "prompt-template.jsonnet";
+
+{
+
+    "embeddings-model":: "mxbai-embed-large",
+    "ollama-url":: "${OLLAMA_HOST}",
+
+    services +: {
+
+	embeddings: base + {
+	    image: images.trustgraph,
+	    command: [
+		"embeddings-ollama",
+		"-p",
+		url.pulsar,
+                "-m",
+		$["embeddings-model"],
+		"-r",
+                $["ollama-url"],
+	    ],
+            deploy: {
+		resources: {
+		    limits: {
+			cpus: '0.5',
+			memory: '128M'
+		    },
+		    reservations: {
+			cpus: '0.1',
+			memory: '128M'
+		    }
+		}
+            },
+	},
+
+    }
+
+} + prompts
+
