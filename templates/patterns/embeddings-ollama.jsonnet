@@ -28,7 +28,7 @@
 		required: true,
 	    },
 	],
-        category: [ "llm" ],
+        category: [ "embeddings" ],
     },
     module: "components/embeddings-hf.jsonnet",
 }
