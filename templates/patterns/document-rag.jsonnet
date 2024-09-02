@@ -10,5 +10,5 @@
 	],
         category: [ "processing" ],
     },
-    module: "components/trustgraph.jsonnet",
+    module: "components/document-rag.jsonnet",
 }

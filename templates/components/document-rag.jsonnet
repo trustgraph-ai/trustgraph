@@ -10,7 +10,7 @@ local prompts = import "prompt-template.jsonnet";
 	"document-rag": base + {
 	    image: images.trustgraph,
 	    command: [
-		"graph-rag",
+		"document-rag",
 		"-p",
 		url.pulsar,
 		"--prompt-request-queue",
