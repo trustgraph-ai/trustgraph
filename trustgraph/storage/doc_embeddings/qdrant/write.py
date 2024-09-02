@@ -79,7 +79,7 @@ class Processor(Consumer):
                         id=str(uuid.uuid4()),
                         vector=vec,
                         payload={
-                            "chunk": chunk,
+                            "doc": chunk,
                         }
                     )
                 ]

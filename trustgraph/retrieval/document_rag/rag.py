@@ -103,7 +103,7 @@ class Processor(ConsumerProducer):
 
             print("Send error response...", flush=True)
 
-            r = GraphRagResponse(
+            r = DocumentRagResponse(
                 error=Error(
                     type = "llm-error",
                     message = str(e),
