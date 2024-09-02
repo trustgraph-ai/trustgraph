@@ -53,9 +53,7 @@ qdrant + {
 	    },
 	},
 
-/*
-
-// Document embeddings writer & query service.  Not currently enabled.
+        // Document embeddings writer & query service.
 
 	"store-doc-embeddings": base + {
 	    image: images.trustgraph,
@@ -102,8 +100,6 @@ qdrant + {
 		}
 	    },
 	},
-
-*/
 
     }
 

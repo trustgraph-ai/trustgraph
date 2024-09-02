@@ -143,18 +143,6 @@ class Processor(ConsumerProducer):
         )
 
         parser.add_argument(
-            '-g', '--graph-hosts',
-            default='cassandra',
-            help=f'Graph hosts, comma separated (default: cassandra)'
-        )
-
-        parser.add_argument(
-            '-v', '--vector-store',
-            default='http://milvus:19530',
-            help=f'Vector host (default: http://milvus:19530)'
-        )
-
-        parser.add_argument(
             '-e', '--entity-limit',
             type=int,
             default=50,

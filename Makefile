@@ -1,6 +1,6 @@
 
 # VERSION=$(shell git describe | sed 's/^v//')
-VERSION=0.8.1
+VERSION=0.8.2
 
 DOCKER=podman
 
@@ -60,7 +60,7 @@ update-templates: set-version
 	done
 	for model in ${MODELS}; do \
 	  for graph in ${GRAPHS}; do \
-	    cm=$${graph},pulsar,${VECTORDB},grafana,trustgraph,$${model}; \
+	    cm=$${graph},pulsar,${VECTORDB},embeddings-hf,graph-rag,grafana,trustgraph,$${model}; \
 	    input=templates/main.jsonnet; \
 	    output=tg-launch-$${model}-$${graph}.yaml; \
 	    echo $${model} + $${graph} '->' $${output}; \

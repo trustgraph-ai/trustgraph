@@ -4,7 +4,7 @@ import os
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-version = "0.8.1"
+version = "0.8.2"
 
 setuptools.setup(
     name="trustgraph",
@@ -58,6 +58,8 @@ setuptools.setup(
         "scripts/concat-parquet",
         "scripts/de-query-milvus",
         "scripts/de-write-milvus",
+        "scripts/de-query-qdrant",
+        "scripts/de-write-qdrant",
         "scripts/document-rag",
         "scripts/dump-parquet",
         "scripts/embeddings-hf",

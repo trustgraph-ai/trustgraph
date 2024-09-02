@@ -6,8 +6,7 @@ from trustgraph.clients.document_rag_client import DocumentRagClient
 rag = DocumentRagClient(pulsar_host="pulsar://localhost:6650")
 
 query="""
-This knowledge graph describes the Space Shuttle disaster.
-Present 20 facts which are present in the knowledge graph."""
+What was the cause of the space shuttle disaster?"""
 
 resp = rag.request(query)
 

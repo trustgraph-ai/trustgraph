@@ -29,8 +29,6 @@ class Processor(ConsumerProducer):
         input_queue = params.get("input_queue", default_input_queue)
         output_queue = params.get("output_queue", default_output_queue)
         subscriber = params.get("subscriber", default_subscriber)
-        entity_limit = params.get("entity_limit", 50)
-        triple_limit = params.get("triple_limit", 30)
         pr_request_queue = params.get(
             "prompt_request_queue", prompt_request_queue
         )
@@ -105,7 +103,7 @@ class Processor(ConsumerProducer):
 
             print("Send error response...", flush=True)
 
-            r = GraphRagResponse(
+            r = DocumentRagResponse(
                 error=Error(
                     type = "llm-error",
                     message = str(e),
@@ -123,33 +121,6 @@ class Processor(ConsumerProducer):
         ConsumerProducer.add_args(
             parser, default_input_queue, default_subscriber,
             default_output_queue,
-        )
-
-        parser.add_argument(
-            '-v', '--vector-store',
-            default='http://milvus:19530',
-            help=f'Vector host (default: http://milvus:19530)'
-        )
-
-        parser.add_argument(
-            '-e', '--entity-limit',
-            type=int,
-            default=50,
-            help=f'Entity vector fetch limit (default: 50)'
-        )
-
-        parser.add_argument(
-            '-t', '--triple-limit',
-            type=int,
-            default=30,
-            help=f'Triple query limit, per query (default: 30)'
-        )
-
-        parser.add_argument(
-            '-u', '--max-subgraph-size',
-            type=int,
-            default=3000,
-            help=f'Max subgraph size (default: 3000)'
         )
 
         parser.add_argument(

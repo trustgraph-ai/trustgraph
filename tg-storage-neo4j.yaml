@@ -107,6 +107,23 @@
     "restart": "on-failure:100"
     "volumes":
     - "qdrant:/qdrant/storage"
+  "query-doc-embeddings":
+    "command":
+    - "de-query-qdrant"
+    - "-p"
+    - "pulsar://pulsar:6650"
+    - "-t"
+    - "http://qdrant:6333"
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "0.5"
+          "memory": "128M"
+        "reservations":
+          "cpus": "0.1"
+          "memory": "128M"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.8.2"
+    "restart": "on-failure:100"
   "query-graph-embeddings":
     "command":
     - "ge-query-qdrant"
@@ -122,7 +139,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.8.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.8.2"
     "restart": "on-failure:100"
   "query-triples":
     "command":
@@ -139,7 +156,24 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.8.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.8.2"
+    "restart": "on-failure:100"
+  "store-doc-embeddings":
+    "command":
+    - "de-write-qdrant"
+    - "-p"
+    - "pulsar://pulsar:6650"
+    - "-t"
+    - "http://qdrant:6333"
+    "deploy":
+      "resources":
+        "limits":
+          "cpus": "0.5"
+          "memory": "128M"
+        "reservations":
+          "cpus": "0.1"
+          "memory": "128M"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.8.2"
     "restart": "on-failure:100"
   "store-graph-embeddings":
     "command":
@@ -156,7 +190,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.8.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.8.2"
     "restart": "on-failure:100"
   "store-triples":
     "command":
@@ -173,7 +207,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.8.1"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.8.2"
     "restart": "on-failure:100"
 "volumes":
   "grafana-storage": {}
