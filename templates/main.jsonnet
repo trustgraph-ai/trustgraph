@@ -14,6 +14,10 @@ local components = {
     openai: import "components/openai.jsonnet",
     mix: import "components/mix.jsonnet",
     vertexai: import "components/vertexai.jsonnet",
+    "embeddings-hf": import "components/embeddings-hf.jsonnet",
+    "embeddings-ollama": import "components/embeddings-ollama.jsonnet",
+    "graph-rag": import "components/graph-rag.jsonnet",
+    "document-rag": import "components/document-rag.jsonnet",
 };
 
 local options = std.split(std.extVar("options"), ",");

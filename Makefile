@@ -60,7 +60,7 @@ update-templates: set-version
 	done
 	for model in ${MODELS}; do \
 	  for graph in ${GRAPHS}; do \
-	    cm=$${graph},pulsar,${VECTORDB},grafana,trustgraph,$${model}; \
+	    cm=$${graph},pulsar,${VECTORDB},embeddings-hf,graph-rag,grafana,trustgraph,$${model}; \
 	    input=templates/main.jsonnet; \
 	    output=tg-launch-$${model}-$${graph}.yaml; \
 	    echo $${model} + $${graph} '->' $${output}; \
