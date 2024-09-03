@@ -98,7 +98,6 @@ class Processor(ConsumerProducer):
 
                 s_uri = self.to_uri(s)
 
-
                 s_value = Value(value=str(s_uri), is_uri=True)
                 o_value = Value(value=str(o), is_uri=False)
 
