@@ -4,7 +4,7 @@ local url = import "values/url.jsonnet";
 local cassandra_hosts = "cassandra";
 local cassandra = import "stores/cassandra.jsonnet";
 
-{
+cassandra + {
 
     "store-triples" +: {
     

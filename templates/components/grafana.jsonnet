@@ -1,73 +1,70 @@
 local base = import "base/base.jsonnet";
 local images = import "values/images.jsonnet";
+
 {
-    volumes +: {
-        "prometheus-data": {},
-        "grafana-storage": {},
+
+    "prometheus" +: {
+    
+        create:: function(engine)
+
+            local vol = engine.volume("prometheus-data").with_size("20G");
+            local FIXME = engine.volume("./prometheus").with_size("20G");
+
+            local container =
+                engine.container("prometheus")
+                    .with_image(images.prometheus)
+                    .with_limits("0.5", "128M")
+                    .with_reservations("0.1", "128M")
+                    .with_port(9042, 9042, "cassandra")
+                    .with_volume_mount(vol, "/prometheus")
+                    .with_volume_mount(FIXME, "/etc/prometheus");
+
+            local containerSet = engine.containers(
+                "prometheus", [ container ]
+            );
+
+            engine.resources([
+                containerSet,
+            ])
+
     },
-    services +: {
-	prometheus: base + {
-	    image: images.prometheus,
-	    ports: [
-                {
-                    src: 9090,
-                    dest: 9090,
-                    name: "http",
-                }
-	    ],
-	    volumes: [
-		"./prometheus:/etc/prometheus",
-		"prometheus-data:/prometheus",
-	    ],
-            deploy: {
-		resources: {
-		    limits: {
-			cpus: '0.5',
-			memory: '128M'
-		    },
-		    reservations: {
-			cpus: '0.1',
-			memory: '128M'
-		    }
-		}
-	    },
-	},
-	grafana: base + {
-	    image: images.grafana,
-	    ports: [
-                {
-                    src: 3000,
-                    dest: 3000,
-                    name: "http",
-                }
-	    ],
-	    volumes: [
-		"grafana-storage:/var/lib/grafana",
-		"./grafana/dashboard.yml:/etc/grafana/provisioning/dashboards/dashboard.yml",
-		"./grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml",
-		"./grafana/dashboard.json:/var/lib/grafana/dashboards/dashboard.json",
-	    ], 
-	    environment: {
-		// GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin",
-		// GF_AUTH_ANONYMOUS_ENABLED: "true",
-		// GF_ORG_ROLE: "Admin",
-		GF_ORG_NAME: "trustgraph.ai",
-		// GF_SERVER_ROOT_URL: "https://example.com",
-	    },
-            deploy: {
-		resources: {
-		    limits: {
-			cpus: '1.0',
-			memory: '256M'
-		    },
-		    reservations: {
-			cpus: '0.5',
-			memory: '256M'
-		    }
-		}
-            },
-	},
+
+    "grafana" +: {
+    
+        create:: function(engine)
+
+            local vol = engine.volume("grafana").with_size("20G");
+            local FIXME1 = engine.volume("./grafana/dashboard.yml").with_size("20G");
+            local FIXME2 = engine.volume("./grafana/datasource.yml").with_size("20G");
+            local FIXME3 = engine.volume("./grafana/dashboard.json").with_size("20G");
+
+            local container =
+                engine.container("grafana")
+                    .with_image(images.grafana)
+                    .with_environment({
+                        // GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin",
+                        // GF_AUTH_ANONYMOUS_ENABLED: "true",
+                        // GF_ORG_ROLE: "Admin",
+                        GF_ORG_NAME: "trustgraph.ai",
+                        // GF_SERVER_ROOT_URL: "https://example.com",
+                    })
+                    .with_limits("1.0", "256M")
+                    .with_reservations("0.5", "256M")
+                    .with_port(3000, 3000, "cassandra")
+                    .with_volume_mount(vol, "/var/lib/grafana")
+                    .with_volume_mount(FIXME1, "/etc/grafana/provisioning/dashboards/dashboard.yml")
+                    .with_volume_mount(FIXME2, "/etc/grafana/provisioning/datasources/datasource.yml")
+                    .with_volume_mount(FIXME3, "/var/lib/grafana/dashboards/dashboard.json");
+
+            local containerSet = engine.containers(
+                "grafana", [ container ]
+            );
+
+            engine.resources([
+                containerSet,
+            ])
+
     },
+
 }
 
-    

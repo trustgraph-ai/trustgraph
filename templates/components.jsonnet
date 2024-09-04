@@ -24,5 +24,11 @@
    "vector-store-milvus": import "components/milvus.jsonnet",
    "vector-store-qdrant": import "components/qdrant.jsonnet",
    "vertexai": import "components/vertexai.jsonnet",
-   "null": {}
+   "null": {},
+
+   // FIXME: Dupes
+   "cassandra": import "components/cassandra.jsonnet",
+   "neo4j": import "components/neo4j.jsonnet",
+   "qdrant": import "components/qdrant.jsonnet",
+
 }
