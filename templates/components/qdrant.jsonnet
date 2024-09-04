@@ -101,8 +101,8 @@ qdrant + {
                         "-t",
                         url.qdrant,
                     ])
-                    .with_limits("0.5", "512M")
-                    .with_reservations("0.1", "512M");
+                    .with_limits("0.5", "128M")
+                    .with_reservations("0.1", "128M");
 
             local containerSet = engine.containers(
                 "query-doc-embeddings", [ container ]

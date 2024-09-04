@@ -12,7 +12,7 @@ neo4j + {
         create:: function(engine)
 
             local container =
-                engine.container("triples-write-neo4j")
+                engine.container("store-triples")
                     .with_image(images.trustgraph)
                     .with_command([
                         "triples-write-neo4j",
@@ -25,7 +25,7 @@ neo4j + {
                     .with_reservations("0.1", "128M");
 
             local containerSet = engine.containers(
-                "neo4j", [ container ]
+                "store-triples", [ container ]
             );
 
             engine.resources([
@@ -39,7 +39,7 @@ neo4j + {
         create:: function(engine)
 
             local container =
-                engine.container("triples-query-neo4j")
+                engine.container("query-triples")
                     .with_image(images.trustgraph)
                     .with_command([
                         "triples-query-neo4j",
@@ -52,7 +52,7 @@ neo4j + {
                     .with_reservations("0.1", "128M");
 
             local containerSet = engine.containers(
-                "neo4j", [ container ]
+                "query-triples", [ container ]
             );
 
             engine.resources([

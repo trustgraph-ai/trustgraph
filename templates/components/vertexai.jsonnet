@@ -15,6 +15,8 @@ local prompts = import "prompts/mixtral.jsonnet";
     
         create:: function(engine)
 
+            local cfgVol = engine.configVolume("./vertexai");
+
             local container =
                 engine.container("text-completion")
                     .with_image(images.trustgraph)
@@ -34,13 +36,15 @@ local prompts = import "prompts/mixtral.jsonnet";
                         $["vertexai-model"],
                     ])
                     .with_limits("0.5", "128M")
-                    .with_reservations("0.1", "128M");
+                    .with_reservations("0.1", "128M")
+                    .with_volume_mount(cfgVol, "/vertexai");
 
             local containerSet = engine.containers(
                 "text-completion", [ container ]
             );
 
             engine.resources([
+                cfgVol,
                 containerSet,
             ])
 
@@ -49,6 +53,8 @@ local prompts = import "prompts/mixtral.jsonnet";
     "text-completion-rag" +: {
     
         create:: function(engine)
+
+            local cfgVol = engine.configVolume("./vertexai");
 
             local container =
                 engine.container("text-completion-rag")
@@ -73,13 +79,15 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "non-persistent://tg/response/text-completion-rag-response",
                     ])
                     .with_limits("0.5", "128M")
-                    .with_reservations("0.1", "128M");
+                    .with_reservations("0.1", "128M")
+                    .with_volume_mount(cfgVol, "/vertexai");
 
             local containerSet = engine.containers(
                 "text-completion-rag", [ container ]
             );
 
             engine.resources([
+                cfgVol,
                 containerSet,
             ])
 

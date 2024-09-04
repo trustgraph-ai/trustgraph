@@ -6,10 +6,10 @@
         local container = self,
 
         name: name,
-        environment: {},
         limits: {},
         reservations: {},
         ports: [],
+        volumes: [],
 
         with_image:: function(x) self + { image: x },
 
@@ -17,13 +17,18 @@
 
         with_environment:: function(x) self + { environment: x },
 
-        with_limits:: function(c, m) self + { limits: { cpu: c, mem: m } },
+        with_limits:: function(c, m) self + { limits: { cpus: c, memory: m } },
 
         with_reservations::
-            function(c, m) self + { reservations: { cpu: c, mem: m } },
+            function(c, m) self + { reservations: { cpus: c, memory: m } },
 
-        with_volume_mount:: function(id, mnt)
-            self + { vol: [id, mnt] },
+        with_volume_mount::
+            function(vol, mnt)
+                self + {
+                    volumes: super.volumes + [{
+                        volume: vol.name, mount: mnt
+                    }]
+                },
 
         with_port::
             function(src, dest, name) self + {
@@ -36,20 +41,41 @@
             services +: {
                 [container.name]: {
                     image: container.image,
-                    environment: container.environment,
                     deploy: {
-                        limits: container.limits,
-                        reservations: container.reservations,
+                        resources: {
+                            limits: container.limits,
+                            reservations: container.reservations,
+                        }
                     },
-                    ports: [
-                        "%d:%d" % [port.src, port.dest]
-                        for port in container.ports
-                    ],
                     restart: "on-failure:100",
                 } +
-                if std.objectHas(container, "command") then
+
+                (if std.objectHas(container, "command") then
                 { command: container.command }
-                else {}
+                else {}) +
+
+                (if std.objectHas(container, "environment") then
+                { environment: container.environment }
+                else {}) +
+
+                (if std.length(container.ports) > 0 then
+                {
+                    ports:  [
+                        "%d:%d" % [port.src, port.dest]
+                        for port in container.ports
+                    ]
+                }
+                else {}) +
+
+                (if std.length(container.volumes) > 0 then
+                {
+                    volumes:  [
+                        "%s:%s" % [vol.volume, vol.mount]
+                        for vol in container.volumes
+                    ]
+                }
+                else {})
+
             }
         }
 
@@ -82,6 +108,21 @@
             volumes +: {
                 [volume.name]: {}
             }
+        }
+
+    },
+
+    // FIXME: For K8s
+    configVolume:: function(name)
+    {
+
+        local volume = self,
+
+        name: name,
+
+        with_size:: function(size) self + { size: size },
+
+        add:: function() {
         }
 
     },

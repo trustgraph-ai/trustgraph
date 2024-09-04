@@ -5,8 +5,8 @@ local prompt = import "prompt-template.jsonnet";
 
 {
 
-    "chunk-size":: 2000,
-    "chunk-overlap":: 100,
+    "chunk-size":: 250,
+    "chunk-overlap":: 15,
 
     "chunker" +: {
     

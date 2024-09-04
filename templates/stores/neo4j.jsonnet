@@ -29,6 +29,7 @@ local images = import "values/images.jsonnet";
             );
 
             engine.resources([
+                vol,
                 containerSet,
             ])
 

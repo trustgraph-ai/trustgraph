@@ -11,7 +11,7 @@ cassandra + {
         create:: function(engine)
 
             local container =
-                engine.container("triples-write-cassandra")
+                engine.container("store-triples")
                     .with_image(images.trustgraph)
                     .with_command([
                         "triples-write-cassandra",
@@ -24,7 +24,7 @@ cassandra + {
                     .with_reservations("0.1", "128M");
 
             local containerSet = engine.containers(
-                "cassandra", [ container ]
+                "stop-triples", [ container ]
             );
 
             engine.resources([
@@ -38,7 +38,7 @@ cassandra + {
         create:: function(engine)
 
             local container =
-                engine.container("triples-query-cassandra")
+                engine.container("query-triples")
                     .with_image(images.trustgraph)
                     .with_command([
                         "triples-query-cassandra",
@@ -51,13 +51,12 @@ cassandra + {
                     .with_reservations("0.1", "512M");
 
             local containerSet = engine.containers(
-                "cassandra", [ container ]
+                "query-triples", [ container ]
             );
 
             engine.resources([
                 containerSet,
             ])
-
 
     }
 
