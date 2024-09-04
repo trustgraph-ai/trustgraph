@@ -3,15 +3,11 @@ local engine = import "docker-compose.jsonnet";
 local decode = import "decode-config.jsonnet";
 local components = import "components.jsonnet";
 
-// Options
-local options = std.split(std.extVar("options"), ",");
+// Import config
+local config = import "config.json";
 
 // Produce patterns from config
-local patterns = std.foldl(
-    function(state, p) state + components[p][p],
-    options,
-    {}
-);
+local patterns = decode(config);
 
 // Extract resources usnig the engine
 local resources = std.foldl(
@@ -20,5 +16,5 @@ local resources = std.foldl(
     {}
 );
 
-std.manifestYamlDoc(resources)
+resources
 

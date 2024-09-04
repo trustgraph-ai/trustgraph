@@ -12,8 +12,16 @@ local images = import "values/images.jsonnet";
 	qdrant: base + {
 	    image: images.qdrant,
 	    ports: [
-		"6333:6333",
-		"6334:6334",
+                {
+                    src: 6333,
+                    dest: 6333,
+                    name: "api",
+                },
+                {
+                    src: 6334,
+                    dest: 6334,
+                    name: "api2",
+                }
 	    ],
 	    volumes: [
 		"qdrant:/qdrant/storage"

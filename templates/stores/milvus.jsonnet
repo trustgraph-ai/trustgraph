@@ -28,7 +28,11 @@ local images = import "values/images.jsonnet";
 		ETCD_SNAPSHOT_COUNT: "50000"
 	    },
 	    ports: [
-		"2379:2379",
+                {
+                    src: 2379,
+                    dest: 2379,
+                    name: "api",
+                }
 	    ],
 	    volumes: [
 		"etcd:/etcd"
@@ -61,7 +65,11 @@ local images = import "values/images.jsonnet";
 		MINIO_ROOT_PASSWORD: "minioadmin",
 	    },
 	    ports: [
-		"9001:9001",
+                {
+                    src: 9001,
+                    dest: 9001,
+                    name: "api",
+                }
 	    ],
 	    volumes: [
 		"minio-data:/minio_data",
@@ -90,8 +98,16 @@ local images = import "values/images.jsonnet";
 		MINIO_ADDRESS: "minio:9000",
 	    },
 	    ports: [
-		"9091:9091",
-		"19530:19530",
+                {
+                    src: 9091,
+                    dest: 9091,
+                    name: "api",
+                },
+                {
+                    src: 19530,
+                    dest: 19530,
+                    name: "api2",
+                }
 	    ],
 	    volumes: [
 		"milvus:/var/lib/milvus"

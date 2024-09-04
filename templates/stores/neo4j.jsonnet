@@ -11,8 +11,16 @@ local images = import "values/images.jsonnet";
 	neo4j: base + {
 	    image: images.neo4j,
 	    ports: [
-		"7474:7474",
-                "7687:7687",
+                {
+                    src: 7474,
+                    dest: 7474,
+                    name: "api",
+                },
+                {
+                    src: 7687,
+                    dest: 7687,
+                    name: "api2",
+                }
 	    ],
 	    environment: {
 		NEO4J_AUTH: "neo4j/password",

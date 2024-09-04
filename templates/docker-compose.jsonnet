@@ -1,0 +1,113 @@
+{
+
+    container:: function(name)
+    {
+
+        local container = self,
+
+        name: name,
+        environment: {},
+        limits: {},
+        reservations: {},
+        ports: [],
+
+        with_image:: function(x) self + { image: x },
+
+        with_command:: function(x) self + { command: x },
+
+        with_environment:: function(x) self + { environment: x },
+
+        with_limits:: function(c, m) self + { limits: { cpu: c, mem: m } },
+
+        with_reservations::
+            function(c, m) self + { reservations: { cpu: c, mem: m } },
+
+        with_volume_mount:: function(id, mnt)
+            self + { vol: [id, mnt] },
+
+        with_port::
+            function(src, dest, name) self + {
+                ports: super.ports + [
+                    { src: src, dest: dest, name : name }
+                ]
+            },
+
+        add:: function() {
+            services +: {
+                [container.name]: {
+                    image: container.image,
+                    environment: container.environment,
+                    deploy: {
+                        limits: container.limits,
+                        reservations: container.reservations,
+                    },
+                    ports: [
+                        "%d:%d" % [port.src, port.dest]
+                        for port in container.ports
+                    ],
+                    restart: "on-failure:100",
+                } +
+                if std.objectHas(container, "command") then
+                { command: container.command }
+                else {}
+            }
+        }
+
+    },
+
+    service:: function(containers)
+    {
+
+        local service = self,
+
+        name: containers.name,
+
+        with_port:: function(src, dest) self + { port: [src, dest] },
+
+        add:: function() {
+        }
+
+    },
+
+    volume:: function(name)
+    {
+
+        local volume = self,
+
+        name: name,
+
+        with_size:: function(size) self + { size: size },
+
+        add:: function() {
+            volumes +: {
+                [volume.name]: {}
+            }
+        }
+
+    },
+
+    containers:: function(name, containers)
+    {
+
+        local cont = self,
+
+        name: name,
+        containers: containers,
+
+        add:: function() std.foldl(
+            function(state, c) state + c.add(),
+            cont.containers,
+            {}
+        ),
+
+    },
+
+    resources:: function(res)
+        std.foldl(
+            function(state, c) state + c.add(),
+            res,
+            {}
+        ),
+
+}
+

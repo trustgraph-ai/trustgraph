@@ -9,7 +9,11 @@ local images = import "values/images.jsonnet";
 	prometheus: base + {
 	    image: images.prometheus,
 	    ports: [
-		"9090:9090",
+                {
+                    src: 9090,
+                    dest: 9090,
+                    name: "http",
+                }
 	    ],
 	    volumes: [
 		"./prometheus:/etc/prometheus",
@@ -31,7 +35,11 @@ local images = import "values/images.jsonnet";
 	grafana: base + {
 	    image: images.grafana,
 	    ports: [
-		"3000:3000",
+                {
+                    src: 3000,
+                    dest: 3000,
+                    name: "http",
+                }
 	    ],
 	    volumes: [
 		"grafana-storage:/var/lib/grafana",
