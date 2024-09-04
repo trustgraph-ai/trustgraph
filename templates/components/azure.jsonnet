@@ -81,6 +81,5 @@ local prompts = import "prompts/mixtral.jsonnet";
 
     }
 
-}
-
+} + prompts
 

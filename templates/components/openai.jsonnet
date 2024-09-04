@@ -1,7 +1,8 @@
 local base = import "base/base.jsonnet";
 local images = import "values/images.jsonnet";
 local url = import "values/url.jsonnet";
-local prompts = import "prompts/openai.jsonnet";
+local prompts = import "prompts/mixtral.jsonnet";
+
 {
 
     "openai-key":: "${OPENAI_KEY}",
@@ -9,69 +10,76 @@ local prompts = import "prompts/openai.jsonnet";
     "openai-temperature":: 0.0,
     "openai-model":: "GPT-3.5-Turbo",
 
-    services +: {
+    "text-completion" +: {
+    
+        create:: function(engine)
 
-	"text-completion": base + {
-	    image: images.trustgraph,
-	    command: [
-		"text-completion-openai",
-		"-p",
-		url.pulsar,
-		"-k",
-		$["openai-key"],
-                "-x",
-                std.toString($["openai-max-output-tokens"]),
-                "-t",
-                std.toString($["openai-temperature"]),
-                "-m",
-                $["openai-model"],
-	    ],
-            deploy: {
-		resources: {
-		    limits: {
-			cpus: '0.5',
-			memory: '128M'
-		    },
-		    reservations: {
-			cpus: '0.1',
-			memory: '128M'
-		    }
-		}
-	    },
-	},
+            local container =
+                engine.container("text-completion")
+                    .with_image(images.trustgraph)
+                    .with_command([
+                        "text-completion-openai",
+                        "-p",
+                        url.pulsar,
+                        "-k",
+                        $["openai-key"],
+                        "-x",
+                        std.toString($["openai-max-output-tokens"]),
+                        "-t",
+                        std.toString($["openai-temperature"]),
+                        "-m",
+                        $["openai-model"],
+                    ])
+                    .with_limits("0.5", "128M")
+                    .with_reservations("0.1", "128M");
 
-	"text-completion-rag": base + {
-	    image: images.trustgraph,
-	    command: [
-		"text-completion-openai",
-		"-p",
-		url.pulsar,
-		"-k",
-		$["openai-key"],
-                "-x",
-                std.toString($["openai-max-output-tokens"]),
-                "-t",
-                std.toString($["openai-temperature"]),
-                "-m",
-                $["openai-model"],
-		"-i",
-		"non-persistent://tg/request/text-completion-rag",
-		"-o",
-		"non-persistent://tg/response/text-completion-rag-response",
-	    ],
-            deploy: {
-		resources: {
-		    limits: {
-			cpus: '0.5',
-			memory: '128M'
-		    },
-		    reservations: {
-			cpus: '0.1',
-			memory: '128M'
-		    }
-		}
-	    },
-	},
-	
+            local containerSet = engine.containers(
+                "text-completion", [ container ]
+            );
+
+            engine.resources([
+                containerSet,
+            ])
+
     },
+
+    "text-completion-rag" +: {
+    
+        create:: function(engine)
+
+            local container =
+                engine.container("text-completion-rag")
+                    .with_image(images.trustgraph)
+                    .with_command([
+                        "text-completion-openai",
+                        "-p",
+                        url.pulsar,
+                        "-k",
+                        $["openai-key"],
+                        "-x",
+                        std.toString($["openai-max-output-tokens"]),
+                        "-t",
+                        std.toString($["openai-temperature"]),
+                        "-m",
+                        $["openai-model"],
+                        "-i",
+                        "non-persistent://tg/request/text-completion-rag",
+                        "-o",
+                        "non-persistent://tg/response/text-completion-rag-response",
+                    ])
+                    .with_limits("0.5", "128M")
+                    .with_reservations("0.1", "128M");
+
+            local containerSet = engine.containers(
+                "text-completion-rag", [ container ]
+            );
+
+            engine.resources([
+                containerSet,
+            ])
+
+
+    }
+
 } + prompts
+

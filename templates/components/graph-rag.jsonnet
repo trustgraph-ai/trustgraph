@@ -13,7 +13,7 @@ local url = import "values/url.jsonnet";
         create:: function(engine)
 
             local container =
-                engine.container("kg-extract-definitions"")
+                engine.container("kg-extract-definitions")
                     .with_image(images.trustgraph)
                     .with_command([
                         "kg-extract-definitions",
@@ -24,7 +24,7 @@ local url = import "values/url.jsonnet";
                     .with_reservations("0.1", "128M");
 
             local containerSet = engine.containers(
-                "kg-extract-definitions"", [ container ]
+                "kg-extract-definitions", [ container ]
             );
 
             engine.resources([
@@ -38,7 +38,7 @@ local url = import "values/url.jsonnet";
         create:: function(engine)
 
             local container =
-                engine.container("kg-extract-relationships"")
+                engine.container("kg-extract-relationships")
                     .with_image(images.trustgraph)
                     .with_command([
                         "kg-extract-relationships",
@@ -49,7 +49,7 @@ local url = import "values/url.jsonnet";
                     .with_reservations("0.1", "128M");
 
             local containerSet = engine.containers(
-                "kg-extract-relationships"", [ container ]
+                "kg-extract-relationships", [ container ]
             );
 
             engine.resources([
@@ -63,7 +63,7 @@ local url = import "values/url.jsonnet";
         create:: function(engine)
 
             local container =
-                engine.container("graph-rag"")
+                engine.container("graph-rag")
                     .with_image(images.trustgraph)
                     .with_command([
                         "graph-rag",

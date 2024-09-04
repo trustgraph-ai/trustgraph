@@ -1,6 +1,7 @@
 local base = import "base/base.jsonnet";
 local images = import "values/images.jsonnet";
 local url = import "values/url.jsonnet";
+local prompt = import "prompt-template.jsonnet";
 
 {
 
@@ -86,5 +87,5 @@ local url = import "values/url.jsonnet";
 
     },
 
-}
+} + prompt
 
