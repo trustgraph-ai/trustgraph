@@ -8,7 +8,7 @@ local options = std.split(std.extVar("options"), ",");
 
 // Produce patterns from config
 local patterns = std.foldl(
-    function(state, p) state + components[p][p],
+    function(state, p) state + components[p],
     options,
     {}
 );
