@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Loads a PDF documented into TrustGraph processing.
+Loads a PDF document into TrustGraph processing.
 """
 
 import pulsar
