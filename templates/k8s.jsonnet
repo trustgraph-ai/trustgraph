@@ -197,13 +197,13 @@
 
         volRef:: function() {
             name: volume.name,
-            persistentVolumeClaim: { name: volume.name },
+            persistentVolumeClaim: { name: volume.name + "-pvc" },
         }
 
     },
 
     // FIXME: For K8s
-    configVolume:: function(name)
+    configVolume:: function(name, dir)
     {
 
         local volume = self,
@@ -213,11 +213,24 @@
         with_size:: function(size) self + { size: size },
 
         add:: function() {
+            resources +: {
+                [volume.name + "-cm"]: {
+                    apiVersion: "v1",
+                    kind: "ConfigMap",
+                    metadata: {
+                        name: volume.name,
+                        namespace: "trustgraph",
+                    },
+                    data: {
+                        thing: "asldkajsdj"
+                    }
+                },
+            }
         },
 
         volRef:: function() {
             name: volume.name,
-            ASDpersistentVolumeClaim: { name: volume.name },
+            configMap: { name: volume.name + "-cm" },
         }
 
     },
