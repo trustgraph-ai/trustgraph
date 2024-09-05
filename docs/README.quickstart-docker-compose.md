@@ -268,7 +268,7 @@ curl -o sources/Challenger-Report-Vol1.pdf https://sma.nasa.gov/SignificantIncid
 Load the file for knowledge extraction:
 
 ```
-scripts/loader -f sources/Challenger-Report-Vol1.pdf
+scripts/load-pdf -f sources/Challenger-Report-Vol1.pdf
 ```
 
 The console output `File loaded.` indicates the PDF has been sucessfully loaded to the processing queues and extraction will begin.
@@ -391,9 +391,9 @@ scripts/graph-show  | wc -l
 
 The Challenger report has a long introduction with quite a bit of adminstrative text commonly found in official reports. The first few hundred graph edges mostly capture this document formatting knowledge. To fully test the ability to extract complex knowledge, wait until at least `1000` graph edges have been extracted. The full extraction for this PDF will extract many thousand graph edges.
 
-### RAG Test Script
+### RAG Test
 ```
-tests/test-graph-rag
+scripts/query-graph-rag -q 'Give me 20 facts about the space shuttle Challenger'
 ```
 This script forms a LM prompt asking for 20 facts regarding the Challenger disaster. Depending on how many graph edges have been extracted, the response will be similar to:
 
@@ -428,7 +428,8 @@ docker logs -f trustgraph-graph-rag-1
 ```
 ### More RAG Test Queries
 
-If you want to try different RAG queries, modify the `query` in the [test script](https://github.com/trustgraph-ai/trustgraph/blob/master/tests/test-graph-rag).
+If you want to try different RAG queries, modify the parameter to the `-q`
+option.
 
 ### Shutting Down TrustGraph
 

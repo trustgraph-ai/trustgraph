@@ -1,37 +1,74 @@
 #!/usr/bin/env python3
 
-from trustgraph.trustgraph import TrustGraph
+"""
+Connects to the graph query service and dumps all graph edges.
+"""
+
+import argparse
+import os
+from trustgraph.clients.triples_query_client import TriplesQueryClient
 import rdflib
-import sys
 import io
+import sys
 
-t = TrustGraph()
+default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
 
-g = rdflib.Graph()
+def show_graph(pulsar):
 
-rows = t.get_all(limit=100_000_000)
-for s, p, o in rows:
+    tq = TriplesQueryClient(pulsar_host="pulsar://localhost:6650")
 
-#     print(s, p, o)
-    sv = rdflib.term.URIRef(s)
-    pv = rdflib.term.URIRef(p)
+    rows = tq.request(None, None, None, limit=10_000_000)
 
-    if o.startswith("https://") or o.startswith("http://"):
+    g = rdflib.Graph()
 
-        # Skip malformed URLs with spaces in
-        if " " in o:
-            continue
+    for row in rows:
 
-        ov = rdflib.term.URIRef(o)
-    else:
-        ov = rdflib.term.Literal(o)
+        sv = rdflib.term.URIRef(row.s.value)
+        pv = rdflib.term.URIRef(row.p.value)
 
-    g.add((sv, pv, ov))
+        if row.o.is_uri:
 
-g.serialize(destination="output.ttl", format="turtle")
+            # Skip malformed URLs with spaces in
+            if " " in row.o.value:
+                continue
 
-buf = io.BytesIO()
+            ov = rdflib.term.URIRef(row.o.value)
+        else:
+            ov = rdflib.term.Literal(row.o.value)
 
-g.serialize(destination=buf, format="turtle")
+        g.add((sv, pv, ov))
 
-sys.stdout.write(buf.getvalue().decode("utf-8"))
+    g.serialize(destination="output.ttl", format="turtle")
+
+    buf = io.BytesIO()
+
+    g.serialize(destination=buf, format="turtle")
+
+    sys.stdout.write(buf.getvalue().decode("utf-8"))
+
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        prog='graph-show',
+        description=__doc__,
+    )
+
+    parser.add_argument(
+        '-p', '--pulsar-host',
+        default=default_pulsar_host,
+        help=f'Pulsar host (default: {default_pulsar_host})',
+    )
+
+    args = parser.parse_args()
+
+    try:
+
+        show_graph(args.pulsar_host)
+
+    except Exception as e:
+
+        print("Exception:", e, flush=True)
+
+main()
+
