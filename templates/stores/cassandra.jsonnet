@@ -24,9 +24,14 @@ local images = import "values/images.jsonnet";
                 "cassandra", [ container ]
             );
 
+            local service =
+                engine.service(containerSet)
+                .with_port(9042, 9042);
+
             engine.resources([
                 vol,
                 containerSet,
+                service,
             ])
 
     },

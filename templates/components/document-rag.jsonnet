@@ -10,7 +10,7 @@ local prompts = import "prompts/mixtral.jsonnet";
         create:: function(engine)
 
             local container =
-                engine.container("document-rag"")
+                engine.container("document-rag")
                     .with_image(images.trustgraph)
                     .with_command([
                         "document-rag",
@@ -25,7 +25,7 @@ local prompts = import "prompts/mixtral.jsonnet";
                     .with_reservations("0.1", "128M");
 
             local containerSet = engine.containers(
-                "document-rag"", [ container ]
+                "document-rag", [ container ]
             );
 
             engine.resources([
