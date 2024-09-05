@@ -3,128 +3,127 @@ local images = import "values/images.jsonnet";
 
 {
 
-    volumes +: {
-	etcd: {},
-	"minio-data": {},
-	milvus: {},
+    etcd +: {
+    
+        create:: function(engine)
+
+            local vol = engine.volume("etcd").with_size("20G");
+
+            local container =
+                engine.container("etcd")
+                    .with_image(images.etcd)
+                    .with_command([
+                        "etcd",
+                        "-advertise-client-urls=http://127.0.0.1:2379",
+                        "-listen-client-urls",
+                        "http://0.0.0.0:2379",
+                        "--data-dir",
+                        "/etcd",
+                    ])
+                    .with_environment({
+                        ETCD_AUTO_COMPACTION_MODE: "revision",
+                        ETCD_AUTO_COMPACTION_RETENTION: "1000",
+                        ETCD_QUOTA_BACKEND_BYTES: "4294967296",
+                        ETCD_SNAPSHOT_COUNT: "50000"
+                    })
+                    .with_limits("1.0", "128M")
+                    .with_reservations("0.25", "128M")
+                    .with_port(2379, 2379, "api")
+                    .with_volume_mount(vol, "/etcd");
+
+            local containerSet = engine.containers(
+                "etcd", [ container ]
+            );
+
+            local service =
+                engine.service(containerSet)
+                .with_port(2379, 2379);
+
+            engine.resources([
+                vol,
+                containerSet,
+                service,
+            ])
+
     },
 
-    services +: {
+    mino +: {
+    
+        create:: function(engine)
 
-	etcd: base + {
-	    image: images.etcd,
-	    command: [
-		"etcd",
-		"-advertise-client-urls=http://127.0.0.1:2379",
-		"-listen-client-urls",
-		"http://0.0.0.0:2379",
-		"--data-dir",
-		"/etcd",
-	    ],
-	    environment: {
-		ETCD_AUTO_COMPACTION_MODE: "revision",
-		ETCD_AUTO_COMPACTION_RETENTION: "1000",
-		ETCD_QUOTA_BACKEND_BYTES: "4294967296",
-		ETCD_SNAPSHOT_COUNT: "50000"
-	    },
-	    ports: [
-                {
-                    src: 2379,
-                    dest: 2379,
-                    name: "api",
-                }
-	    ],
-	    volumes: [
-		"etcd:/etcd"
-	    ],
-            deploy: {
-		resources: {
-		    limits: {
-			cpus: '1.0',
-			memory: '128M'
-		    },
-		    reservations: {
-			cpus: '0.25',
-			memory: '128M'
-		    }
-		},
-	    },
-        },
+            local vol = engine.volume("minio-data").with_size("20G");
 
-	minio: base + {
-	    image: images.minio,
-	    command: [
-		"minio",
-		"server",
-		"/minio_data",
-		"--console-address",
-		":9001",
-	    ],
-	    environment: {
-		MINIO_ROOT_USER: "minioadmin",
-		MINIO_ROOT_PASSWORD: "minioadmin",
-	    },
-	    ports: [
-                {
-                    src: 9001,
-                    dest: 9001,
-                    name: "api",
-                }
-	    ],
-	    volumes: [
-		"minio-data:/minio_data",
-	    ],	
-            deploy: {
-		resources: {
-		    limits: {
-			cpus: '0.5',
-			memory: '128M'
-		    },
-		    reservations: {
-			cpus: '0.25',
-			memory: '128M'
-		    }
-		}
-            },
-	},
+            local container =
+                engine.container("minio")
+                    .with_image(images.minio)
+                    .with_command([
+                        "minio",
+                        "server",
+                        "/minio_data",
+                        "--console-address",
+                        ":9001",
+                    ])
+                    .with_environment({
+                        MINIO_ROOT_USER: "minioadmin",
+                        MINIO_ROOT_PASSWORD: "minioadmin",
+                    })
+                    .with_limits("0.5", "128M")
+                    .with_reservations("0.25", "128M")
+                    .with_port(9001, 9001, "api")
+                    .with_volume_mount(vol, "/minio_data");
 
-	milvus: base + {
-	    image: images.milvus,
-	    command: [
-		"milvus", "run", "standalone"
-	    ],
-	    environment: {
-		ETCD_ENDPOINTS: "etcd:2379",
-		MINIO_ADDRESS: "minio:9000",
-	    },
-	    ports: [
-                {
-                    src: 9091,
-                    dest: 9091,
-                    name: "api",
-                },
-                {
-                    src: 19530,
-                    dest: 19530,
-                    name: "api2",
-                }
-	    ],
-	    volumes: [
-		"milvus:/var/lib/milvus"
-	    ],
-            deploy: {
-		resources: {
-		    limits: {
-			cpus: '1.0',
-			memory: '256M'
-		    },
-		    reservations: {
-			cpus: '0.5',
-			memory: '256M'
-		    }
-		}
-            },
-	},
+            local containerSet = engine.containers(
+                "etcd", [ container ]
+            );
+
+            local service =
+                engine.service(containerSet)
+                .with_port(9001, 9001);
+
+            engine.resources([
+                vol,
+                containerSet,
+                service,
+            ])
+
+    },
+
+    milvus +: {
+    
+        create:: function(engine)
+
+            local vol = engine.volume("milvus").with_size("20G");
+
+            local container =
+                engine.container("milvus")
+                    .with_image(images.milvus)
+                    .with_command([
+                        "milvus", "run", "standalone"
+                    ])
+                    .with_environment({
+                        ETCD_ENDPOINTS: "etcd:2379",
+                        MINIO_ADDRESS: "minio:9000",
+                    })
+                    .with_limits("1.0", "256M")
+                    .with_reservations("0.5", "256M")
+                    .with_port(9091, 9091, "api")
+                    .with_port(19530, 19530, "api2")
+                    .with_volume_mount(vol, "/var/lib/milvus");
+
+            local containerSet = engine.containers(
+                "milvus", [ container ]
+            );
+
+            local service =
+                engine.service(containerSet)
+                .with_port(9091, 9091)
+                .with_port(19530, 19530);
+
+            engine.resources([
+                vol,
+                containerSet,
+                service,
+            ])
 
     },
 
