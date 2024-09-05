@@ -67,6 +67,14 @@ class Processor(ConsumerProducer):
         self.knowledge_query_template = knowledge_query_template
         self.document_query_template = document_query_template
 
+    def parse_json(self, text):
+        
+        # Hacky, workaround temperamental JSON markdown
+        text = text.replace("```json", "")
+        text = text.replace("```", "")
+
+        return json.loads(text)
+
     def handle(self, msg):
 
         v = msg.value()
@@ -119,7 +127,7 @@ class Processor(ConsumerProducer):
 
             # Silently ignore JSON parse error
             try:
-                defs = json.loads(ans)
+                defs = self.parse_json(ans)
             except:
                 print("JSON parse error, ignored", flush=True)
                 defs = []
@@ -178,7 +186,7 @@ class Processor(ConsumerProducer):
 
             # Silently ignore JSON parse error
             try:
-                defs = json.loads(ans)
+                defs = self.parse_json(ans)
             except:
                 print("JSON parse error, ignored", flush=True)
                 defs = []
@@ -256,7 +264,7 @@ class Processor(ConsumerProducer):
 
             # Silently ignore JSON parse error
             try:
-                objs = json.loads(ans)
+                objs = self.parse_json(ans)
             except:
                 print("JSON parse error, ignored", flush=True)
                 objs = []
