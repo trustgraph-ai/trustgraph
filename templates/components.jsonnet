@@ -30,6 +30,7 @@
    "cassandra": import "components/cassandra.jsonnet",
    "neo4j": import "components/neo4j.jsonnet",
    "qdrant": import "components/qdrant.jsonnet",
+   "milvus": import "components/milvus.jsonnet",
    "trustgraph": import "components/trustgraph.jsonnet",
 
 }
