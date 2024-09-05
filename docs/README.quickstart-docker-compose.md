@@ -271,7 +271,14 @@ Load the file for knowledge extraction:
 scripts/load-pdf -f sources/Challenger-Report-Vol1.pdf
 ```
 
-The console output `File loaded.` indicates the PDF has been sucessfully loaded to the processing queues and extraction will begin.
+> [!NOTE]
+> To load a text file, use the following script:
+>
+> ```
+> scripts/load-text -f sources/<txt-file.txt>
+> ```
+
+The console output `File loaded.` indicates the text corpus has been sucessfully loaded to the processing queues and extraction will begin.
 
 ### Processing Logs
 
@@ -426,10 +433,13 @@ For any errors with the `RAG` proces, check the following log:
 ```
 docker logs -f trustgraph-graph-rag-1
 ```
-### More RAG Test Queries
+### Custom RAG Queries
 
-If you want to try different RAG queries, modify the parameter to the `-q`
-option.
+At any point, a RAG request can be generated and run with the following script:
+
+```
+scripts/query-graph-rag -q "RAG request here"
+```
 
 ### Shutting Down TrustGraph
 
