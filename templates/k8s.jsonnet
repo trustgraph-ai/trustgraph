@@ -26,7 +26,7 @@
             function(vol, mnt)
                 self + {
                     volumes: super.volumes + [{
-                        volume: vol.name, mount: mnt
+                        volume: vol, mount: mnt
                     }]
                 },
 
@@ -99,24 +99,32 @@
                                         )
                                         ]
                                         }
-                                else {})
+                                else {}) + 
+
+                (if std.length(container.volumes) > 0 then
+                {
+                    volumes: [
+                        {
+                            mountPath: vol.mount,
+                            name: vol.volume.name,
+                        }
+                        for vol in container.volumes
+                    ]
+                }
+
+                else
+                {}
+                )
+                            ],
+                            volumes: [
+                        vol.volume.volRef()
+                        for vol in container.volumes
 
                             ]
                         }
                     },
                 } + {} 
-/*
 
-
-                (if std.length(container.volumes) > 0 then
-                {
-                    volumes:  [
-                        "%s:%s" % [vol.volume, vol.mount]
-                        for vol in container.volumes
-                    ]
-                }
-                else {})
-*/
             }
         }
 
@@ -146,9 +154,50 @@
         with_size:: function(size) self + { size: size },
 
         add:: function() {
-            volumes +: {
-                [volume.name]: {}
+            resources +: {
+                [volume.name + "-pv"]: {
+                    apiVersion: "v1",
+                    kind: "PersistentVolume",
+                    metadata: {
+                        name: volume.name,
+                        labels: {
+                            type: "local",
+                        }
+                    },
+                    spec: {
+                        storageClassName: "manual",
+                        capacity: {
+                            storage: volume.size,
+                        },
+                        accessModes: [ "ReadWriteOnce" ],
+                        hostPath: {
+                            path: "/mnt/" + volume.name,
+                        }
+                    }
+                },
+                [volume.name + "-pvc"]: {
+                    apiVersion: "v1",
+                    kind: "PersistentVolumeClaim",
+                    metadata: {
+                        name: volume.name,
+                    },
+                    spec: {
+                        storageClassName: "manual",
+                        accessModes: [ "ReadWriteOnce" ],
+                        resources: {
+                            requests: {
+                                storage: volume.size,
+                            }
+                        },
+                        volumeName: volume.name + "-pv",
+                    }
+                }
             }
+        },
+
+        volRef:: function() {
+            name: volume.name,
+            persistentVolumeClaim: { name: volume.name },
         }
 
     },
@@ -164,6 +213,11 @@
         with_size:: function(size) self + { size: size },
 
         add:: function() {
+        },
+
+        volRef:: function() {
+            name: volume.name,
+            ASDpersistentVolumeClaim: { name: volume.name },
         }
 
     },

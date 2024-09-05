@@ -18,7 +18,8 @@ local images = import "values/images.jsonnet";
                     .with_reservations("0.1", "128M")
                     .with_port(9090, 9090, "http")
                     .with_volume_mount(cfgVol, "/etc/prometheus")
-                    .with_volume_mount(vol, "/prometheus");
+                    .with_volume_mount(vol, "/prometheus")
+;
 
             local containerSet = engine.containers(
                 "prometheus", [ container ]
@@ -57,10 +58,11 @@ local images = import "values/images.jsonnet";
                     .with_limits("1.0", "256M")
                     .with_reservations("0.5", "256M")
                     .with_port(3000, 3000, "cassandra")
-                    .with_volume_mount(vol, "/var/lib/grafana")
-                    .with_volume_mount(cv1, "/etc/grafana/provisioning/dashboards/dashboard.yml")
-                    .with_volume_mount(cv2, "/etc/grafana/provisioning/datasources/datasource.yml")
-                    .with_volume_mount(cv3, "/var/lib/grafana/dashboards/dashboard.json");
+//                    .with_volume_mount(vol, "/var/lib/grafana")
+//                    .with_volume_mount(cv1, "/etc/grafana/provisioning/dashboards/dashboard.yml")
+//                    .with_volume_mount(cv2, "/etc/grafana/provisioning/datasources/datasource.yml")
+//                    .with_volume_mount(cv3, "/var/lib/grafana/dashboards/dashboard.json")
+;
 
             local containerSet = engine.containers(
                 "grafana", [ container ]
