@@ -135,7 +135,7 @@ class Processor(ConsumerProducer):
             print("Send response...", flush=True)
 
             resp = response.replace("```json", "")
-            resp = response.replace("```", "")
+            resp = resp.replace("```", "")
 
             r = TextCompletionResponse(response=resp, error=None)
             self.producer.send(r, properties={"id": id})
