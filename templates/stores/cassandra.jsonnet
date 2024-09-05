@@ -1,35 +1,35 @@
 local base = import "base/base.jsonnet";
 local images = import "values/images.jsonnet";
+
 {
-    volumes +: {
-	cassandra: {},
-    },
-    services +: {
 
-	cassandra: base + {
-	    image: images.cassandra,
-	    ports: [
-		"9042:9042"
-	    ],
-	    environment: {
-		JVM_OPTS: "-Xms256M -Xmx256M",
-	    },
-	    volumes: [
-		"cassandra:/var/lib/cassandra"
-	    ],
-            deploy: {
-		resources: {
-		    limits: {
-			cpus: '1.0',
-			memory: '800M'
-		    },
-		    reservations: {
-			cpus: '0.5',
-			memory: '800M'
-		    }
-		}
-            },
-	},
+    "cassandra" +: {
+    
+        create:: function(engine)
+
+            local vol = engine.volume("cassandra").with_size("20G");
+
+            local container =
+                engine.container("cassandra")
+                    .with_image(images.cassandra)
+                    .with_environment({
+                        JVM_OPTS: "-Xms256M -Xmx256M",
+                    })
+                    .with_limits("1.0", "800M")
+                    .with_reservations("0.5", "800M")
+                    .with_port(9042, 9042, "cassandra")
+                    .with_volume_mount(vol, "/var/lib/cassandra");
+
+            local containerSet = engine.containers(
+                "cassandra", [ container ]
+            );
+
+            engine.resources([
+                vol,
+                containerSet,
+            ])
 
     },
+
 }
+

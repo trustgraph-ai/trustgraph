@@ -1,4 +1,4 @@
-local components = {
+{
    "azure": import "components/azure.jsonnet",
    "bedrock": import "components/bedrock.jsonnet",
    "claude": import "components/claude.jsonnet",
@@ -24,32 +24,12 @@ local components = {
    "vector-store-milvus": import "components/milvus.jsonnet",
    "vector-store-qdrant": import "components/qdrant.jsonnet",
    "vertexai": import "components/vertexai.jsonnet",
-   "null": {}
-};
+   "null": {},
 
-local config = function(p)
-    (components[p.name] + {
+   // FIXME: Dupes
+   "cassandra": import "components/cassandra.jsonnet",
+   "neo4j": import "components/neo4j.jsonnet",
+   "qdrant": import "components/qdrant.jsonnet",
+   "trustgraph": import "components/trustgraph.jsonnet",
 
-        with:: function(k, v) self + {
-            [k]:: v
-        },
-
-        with_params:: function(pars)
-            self + std.foldl(
-                function(obj, par) obj.with(par.key, par.value),
-                std.objectKeysValues(pars),
-                self
-            ),
-
-        }).with_params(p.parameters);
-
-local options = import "config.json";
-
-local add = function(state, p) state + config(p);
-
-local output = std.foldl(add, options, {});
-
-//std.manifestYamlDoc(config)
-
-output
-
+}

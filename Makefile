@@ -49,6 +49,7 @@ VECTORDB=qdrant
 
 JSONNET_FLAGS=-J templates -J .
 
+
 update-templates: set-version
 	for graph in ${GRAPHS}; do \
 	    cm=$${graph},pulsar,${VECTORDB},grafana; \

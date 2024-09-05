@@ -3,35 +3,31 @@ local images = import "values/images.jsonnet";
 
 {
 
-    volumes +: {
-	qdrant: {},
-    },
+    "qdrant" +: {
+    
+        create:: function(engine)
 
-    services +: {
+            local vol = engine.volume("qdrant").with_size("20G");
 
-	qdrant: base + {
-	    image: images.qdrant,
-	    ports: [
-		"6333:6333",
-		"6334:6334",
-	    ],
-	    volumes: [
-		"qdrant:/qdrant/storage"
-	    ],
-            deploy: {
-		resources: {
-		    limits: {
-			cpus: '1.0',
-			memory: '256M'
-		    },
-		    reservations: {
-			cpus: '0.5',
-			memory: '256M'
-		    }
-		}
-            },
-	},
+            local container =
+                engine.container("qdrant")
+                    .with_image(images.qdrant)
+                    .with_limits("1.0", "256M")
+                    .with_reservations("0.5", "256M")
+                    .with_port(6333, 6333, "api")
+                    .with_port(6334, 6334, "api2")
+                    .with_volume_mount(vol, "/qdrant/storage");
+
+            local containerSet = engine.containers(
+                "qdrant", [ container ]
+            );
+
+            engine.resources([
+                vol,
+                containerSet,
+            ])
 
     },
 
 }
+

@@ -41,9 +41,6 @@
     - "sh"
     - "-c"
     - "pulsar-admin --admin-url http://pulsar:8080 tenants create tg && pulsar-admin --admin-url http://pulsar:8080 namespaces create tg/flow && pulsar-admin --admin-url http://pulsar:8080 namespaces create tg/request && pulsar-admin --admin-url http://pulsar:8080 namespaces create tg/response && pulsar-admin --admin-url http://pulsar:8080 namespaces set-retention --size -1 --time 3m tg/response"
-    "depends_on":
-      "pulsar":
-        "condition": "service_started"
     "deploy":
       "resources":
         "limits":

@@ -1,85 +1,91 @@
 local base = import "base/base.jsonnet";
 local images = import "values/images.jsonnet";
 local url = import "values/url.jsonnet";
-local prompts = import "prompt-template.jsonnet";
+local prompt = import "prompt-template.jsonnet";
 
 {
 
     "chunk-size":: 250,
     "chunk-overlap":: 15,
 
-    services +: {
+    "chunker" +: {
+    
+        create:: function(engine)
 
-	"pdf-decoder": base + {
-	    image: images.trustgraph,
-	    command: [
-		"pdf-decoder",
-		"-p",
-		url.pulsar,
-	    ],
-            deploy: {
-		resources: {
-		    limits: {
-			cpus: '0.5',
-			memory: '128M'
-		    },
-		    reservations: {
-			cpus: '0.1',
-			memory: '128M'
-		    }
-		}
-            },
-	},
+            local container =
+                engine.container("chunker")
+                    .with_image(images.trustgraph)
+                    .with_command([
+                        "chunker-token",
+                        "-p",
+                        url.pulsar,
+                        "--chunk-size",
+                        std.toString($["chunk-size"]),
+                        "--chunk-overlap",
+                        std.toString($["chunk-overlap"]),
+                    ])
+                    .with_limits("0.5", "128M")
+                    .with_reservations("0.1", "128M");
 
-	chunker: base + {
-	    image: images.trustgraph,
-	    command: [
-                "chunker-token",
-		"-p",
-		url.pulsar,
-                "--chunk-size",
-                std.toString($["chunk-size"]),
-                "--chunk-overlap",
-                std.toString($["chunk-overlap"]),
-	    ],
-            deploy: {
-		resources: {
-		    limits: {
-			cpus: '0.5',
-			memory: '128M'
-		    },
-		    reservations: {
-			cpus: '0.1',
-			memory: '128M'
-		    }
-		}
-	    },
-	},
+            local containerSet = engine.containers(
+                "chunker", [ container ]
+            );
 
-	vectorize: base + {
-	    image: images.trustgraph,
-	    command: [
-		"embeddings-vectorize",
-		"-p",
-		url.pulsar,
-	    ],
-            deploy: {
-		resources: {
-		    limits: {
-			cpus: '1.0',
-			memory: '512M'
-		    },
-		    reservations: {
-			cpus: '0.5',
-			memory: '512M'
-		    }
-		}
-	    },
-	},
+            engine.resources([
+                containerSet,
+            ])
 
-    }
+    },
 
-} + prompts
+    "pdf-decoder" +: {
+    
+        create:: function(engine)
 
+            local container =
+                engine.container("pdf-decoder")
+                    .with_image(images.trustgraph)
+                    .with_command([
+                        "pdf-decoder",
+                        "-p",
+                        url.pulsar,
+                    ])
+                    .with_limits("0.5", "128M")
+                    .with_reservations("0.1", "128M");
 
+            local containerSet = engine.containers(
+                "pdf-decoder", [ container ]
+            );
+
+            engine.resources([
+                containerSet,
+            ])
+
+    },
+
+    "vectorize" +: {
+    
+        create:: function(engine)
+
+            local container =
+                engine.container("vectorize")
+                    .with_image(images.trustgraph)
+                    .with_command([
+                        "embeddings-vectorize",
+                        "-p",
+                        url.pulsar,
+                    ])
+                    .with_limits("1.0", "512M")
+                    .with_reservations("0.5", "512M");
+
+            local containerSet = engine.containers(
+                "vectorize", [ container ]
+            );
+
+            engine.resources([
+                containerSet,
+            ])
+
+    },
+
+} + prompt
 

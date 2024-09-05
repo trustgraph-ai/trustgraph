@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
 """
-Loads a PDF document into TrustGraph processing.
+Loads a text document into TrustGraph processing.
 """
 
 import pulsar
 from pulsar.schema import JsonSchema
-from trustgraph.schema import Document, Source, document_ingest_queue
+from trustgraph.schema import TextDocument, Source, text_ingest_queue
 import base64
 import hashlib
 import argparse
@@ -32,7 +32,7 @@ class Loader:
 
         self.producer = self.client.create_producer(
             topic=output_queue,
-            schema=JsonSchema(Document),
+            schema=JsonSchema(TextDocument),
             chunking_enabled=True,
         )
 
@@ -47,13 +47,13 @@ class Loader:
 
             id = hashlib.sha256(path.encode("utf-8")).hexdigest()[0:8]
 
-            r = Document(
+            r = TextDocument(
                 source=Source(
                     source=path,
                     title=path,
                     id=id,
                 ),
-                data=base64.b64encode(data),
+                text=data,
             )
 
             self.producer.send(r)
@@ -72,7 +72,7 @@ def main():
     )
 
     default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://localhost:6650')
-    default_output_queue = document_ingest_queue
+    default_output_queue = text_ingest_queue
 
     parser.add_argument(
         '-p', '--pulsar-host',

@@ -1,67 +1,71 @@
 local base = import "base/base.jsonnet";
 local images = import "values/images.jsonnet";
 local url = import "values/url.jsonnet";
+local prompts = import "prompts/mixtral.jsonnet";
 
 {
 
-    services +: {
+    "prompt" +: {
+    
+        create:: function(engine)
 
-	"prompt": base + {
-	    image: images.trustgraph,
-	    command: [
-		"prompt-generic",
-		"-p",
-		url.pulsar,
-		"--text-completion-request-queue",
-		"non-persistent://tg/request/text-completion",
-		"--text-completion-response-queue",
-		"non-persistent://tg/response/text-completion-response",
-	    ],
-            deploy: {
-		resources: {
-		    limits: {
-			cpus: '0.5',
-			memory: '128M'
-		    },
-		    reservations: {
-			cpus: '0.1',
-			memory: '128M'
-		    }
-		}
-	    },
-	},
+            local container =
+                engine.container("prompt")
+                    .with_image(images.trustgraph)
+                    .with_command([
+                        "prompt-generic",
+                        "-p",
+                        url.pulsar,
+                        "--text-completion-request-queue",
+                        "non-persistent://tg/request/text-completion",
+                        "--text-completion-response-queue",
+                        "non-persistent://tg/response/text-completion-response",
+                    ])
+                    .with_limits("0.5", "128M")
+                    .with_reservations("0.1", "128M");
 
-	"prompt-rag": base + {
-	    image: images.trustgraph,
-	    command: [
-		"prompt-generic",
-		"-p",
-		url.pulsar,
-                "-i",
-		"non-persistent://tg/request/prompt-rag",
-                "-o",
-		"non-persistent://tg/response/prompt-rag-response",
-		"--text-completion-request-queue",
-		"non-persistent://tg/request/text-completion-rag",
-		"--text-completion-response-queue",
-		"non-persistent://tg/response/text-completion-rag-response",
-	    ],
-            deploy: {
-		resources: {
-		    limits: {
-			cpus: '0.5',
-			memory: '128M'
-		    },
-		    reservations: {
-			cpus: '0.1',
-			memory: '128M'
-		    }
-		}
-            
-	    },
-	},
+            local containerSet = engine.containers(
+                "prompt", [ container ]
+            );
 
-    }
+            engine.resources([
+                containerSet,
+            ])
+
+    },
+
+    "prompt-rag" +: {
+    
+        create:: function(engine)
+
+            local container =
+                engine.container("prompt-rag")
+                    .with_image(images.trustgraph)
+                    .with_command([
+                        "prompt-generic",
+                        "-p",
+                        url.pulsar,
+                        "-i",
+                        "non-persistent://tg/request/prompt-rag",
+                        "-o",
+                        "non-persistent://tg/response/prompt-rag-response",
+                        "--text-completion-request-queue",
+                        "non-persistent://tg/request/text-completion-rag",
+                        "--text-completion-response-queue",
+                        "non-persistent://tg/response/text-completion-rag-response",
+                    ])
+                    .with_limits("0.5", "128M")
+                    .with_reservations("0.1", "128M");
+
+            local containerSet = engine.containers(
+                "prompt-rag", [ container ]
+            );
+
+            engine.resources([
+                containerSet,
+            ])
+
+    },
 
 }
 
