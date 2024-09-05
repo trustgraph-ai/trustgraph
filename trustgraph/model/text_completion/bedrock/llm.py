@@ -214,7 +214,7 @@ class Processor(ConsumerProducer):
             print(outputtext, flush=True)
 
             resp = outputtext.replace("```json", "")
-            resp = outputtext.replace("```", "")    
+            resp = resp.replace("```", "")    
 
             print("Send response...", flush=True)
             r = TextCompletionResponse(
