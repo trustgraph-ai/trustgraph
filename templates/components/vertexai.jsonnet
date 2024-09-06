@@ -15,7 +15,13 @@ local prompts = import "prompts/mixtral.jsonnet";
     
         create:: function(engine)
 
-            local cfgVol = engine.configVolume("./vertexai");
+            local cfgVol = engine.configVolume(
+	        "vertexai-creds",
+	        "./vertexai",
+		{
+		    "private.json": importstr "vertexai/private.json",
+		}
+            );
 
             local container =
                 engine.container("text-completion")

@@ -203,7 +203,7 @@
     },
 
     // FIXME: For K8s
-    configVolume:: function(name, dir)
+    configVolume:: function(name, dir, parts)
     {
 
         local volume = self,
@@ -221,9 +221,7 @@
                         name: volume.name,
                         namespace: "trustgraph",
                     },
-                    data: {
-                        thing: "asldkajsdj"
-                    }
+                    data: parts
                 },
             }
         },

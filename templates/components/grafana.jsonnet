@@ -9,7 +9,10 @@ local images = import "values/images.jsonnet";
 
             local vol = engine.volume("prometheus-data").with_size("20G");
             local cfgVol = engine.configVolume(
-                "prometheus-cfg", "./prometheus"
+                "prometheus-cfg", "./prometheus",
+		{
+		    "prometheus.cfg": importstr "prometheus/prometheus.yml",
+		}
             );
 
             local container =
@@ -38,14 +41,21 @@ local images = import "values/images.jsonnet";
         create:: function(engine)
 
             local vol = engine.volume("grafana-storage").with_size("20G");
-            local cv1 = engine.configVolume(
-                "dashboard-yml", "./grafana/dashboard.yml"
+
+            local provVol = engine.configVolume(
+                "provisioning", "./grafana/",
+		{
+		    "dashboard.yml": importstr "grafana/dashboard.yml",
+		    "datasource.yml": importstr "grafana/datasource.yml",
+		}
+		
             );
-            local cv2 = engine.configVolume(
-                "datasource-yml", "./grafana/datasource.yml"
-            );
-            local cv3 = engine.configVolume(
-                "dashboard-json", "./grafana/dashboard.json"
+            local dashVol = engine.configVolume(
+                "dashboards", "./grafana/",
+		{
+		    "dashboard.json": importstr "grafana/dashboard.json",
+		}
+		
             );
 
             local container =
@@ -62,19 +72,16 @@ local images = import "values/images.jsonnet";
                     .with_reservations("0.5", "256M")
                     .with_port(3000, 3000, "cassandra")
                     .with_volume_mount(vol, "/var/lib/grafana")
-                    .with_volume_mount(cv1, "/etc/grafana/provisioning/dashboards/dashboard.yml")
-                    .with_volume_mount(cv2, "/etc/grafana/provisioning/datasources/datasource.yml")
-                    .with_volume_mount(cv3, "/var/lib/grafana/dashboards/dashboard.json");
+                    .with_volume_mount(provVol, "/etc/grafana/provisioning/dashboards/")
+                    .with_volume_mount(dashVol, "/etc/grafana/provisioning/dash/");
 
             local containerSet = engine.containers(
                 "grafana", [ container ]
             );
 
             engine.resources([
-                vol,
-                cv1,
-                cv2,
-                cv3,
+	        provVol,
+		dashVol,
                 containerSet,
             ])
 
