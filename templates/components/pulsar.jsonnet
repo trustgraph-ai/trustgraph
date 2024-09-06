@@ -13,7 +13,7 @@ local images = import "values/images.jsonnet";
             local container =
                 engine.container("pulsar")
                     .with_image(images.pulsar)
-                    .with_command("bin/pulsar standalone")
+                    .with_command(["bin/pulsar", "standalone"])
                     .with_environment({
                         "PULSAR_MEM": "-Xms700M -Xmx700M"
                     })
@@ -44,8 +44,8 @@ local images = import "values/images.jsonnet";
 
             local service =
                 engine.service(containerSet)
-                .with_port(6650, 6650)
-                .with_port(8080, 8080);
+                .with_port(6650, 6650, "bookie")
+                .with_port(8080, 8080, "http");
 
             engine.resources([
                 confVolume,

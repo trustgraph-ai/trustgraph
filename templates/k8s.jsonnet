@@ -17,10 +17,10 @@
 
         with_environment:: function(x) self + { environment: x },
 
-        with_limits:: function(c, m) self + { limits: { cpus: c, memory: m } },
+        with_limits:: function(c, m) self + { limits: { cpu: c, memory: m } },
 
         with_reservations::
-            function(c, m) self + { reservations: { cpus: c, memory: m } },
+            function(c, m) self + { reservations: { cpu: c, memory: m } },
 
         with_volume_mount::
             function(vol, mnt)
@@ -56,54 +56,53 @@
                             matchLabels: {
                                 app: container.name,
                             }
-                        }
-                    },
-                    template: {
-                        metadata: {
-                            labels: {
-                                app: container.name,
-                            }
                         },
-                        spec: {
-                            containers: [
-                                {
-                                    name: container.name,
-                                    image: container.image,
-                                    resources: {
-                                        requests: container.reservations,
-                                        limits: container.limits
-                                    },
-                                } + (
-                                if std.length(container.ports) > 0 then
-                                {
-                                    ports:  [
-                                        {
-                                            hostPort: port.src,
-                                            containerPort: port.dest,
-                                        }
-                                        for port in container.ports
-                                    ]
-                                } else
-                                {}) + 
-
-                                (if std.objectHas(container, "command") then
-                                { command: container.command }
-                                else {}) + 
-                                (if std.objectHas(container, "environment") then
-                                { environment: [ {
-                                    name: e.key, value: e.value
-                                    }
-                                    for e in 
-                                    std.objectKeysValues(
-                                        container.environment
-                                        )
+                        template: {
+                            metadata: {
+                                labels: {
+                                    app: container.name,
+                                }
+                            },
+                            spec: {
+                                containers: [
+                                    {
+                                        name: container.name,
+                                        image: container.image,
+                                        resources: {
+                                            requests: container.reservations,
+                                            limits: container.limits
+                                        },
+                                    } + (
+                                    if std.length(container.ports) > 0 then
+                                    {
+                                        ports:  [
+                                            {
+                                                hostPort: port.src,
+                                                containerPort: port.dest,
+                                            }
+                                            for port in container.ports
                                         ]
+                                    } else
+                                    {}) + 
+
+                                    (if std.objectHas(container, "command") then
+                                    { command: container.command }
+                                    else {}) + 
+                                    (if std.objectHas(container, "environment") then
+                                    { env: [ {
+                                        name: e.key, value: e.value
                                         }
-                                else {}) + 
+                                        for e in 
+                                        std.objectKeysValues(
+                                            container.environment
+                                            )
+                                            ]
+                                            }
+                                    else {}) + 
 
                 (if std.length(container.volumes) > 0 then
                 {
-                    volumes: [
+                    volumeMounts: [
                         {
                             mountPath: vol.mount,
                             name: vol.volume.name,
@@ -123,7 +122,9 @@
                             ]
                         }
                     },
-                } + {} 
+                } + {}
+
+                }
 
             }
         }
@@ -137,9 +138,39 @@
 
         name: containers.name,
 
-        with_port:: function(src, dest) self + { port: [src, dest] },
+        ports: [],
+
+        with_port::
+            function(src, dest, name) self + {
+                ports: super.ports + [
+                    { src: src, dest: dest, name: name }
+                ]
+            },
 
         add:: function() {
+            resources +: {
+                [service.name + "-service"]: {
+                    apiVersion: "v1",
+                    kind: "Service",
+                    metadata: {
+                        name: service.name,
+                        namespace: "trustgraph",
+                    },
+                    spec: {
+                        selector: {
+                            app: service.name,
+                        },
+                        ports: [
+                            {
+                                port: port.src,
+                                targetPort: port.dest,
+                                name: port.name,
+                            }
+                            for port in service.ports
+                        ],
+                    }
+                }
+            }
         }
 
     },
@@ -171,7 +202,7 @@
                         },
                         accessModes: [ "ReadWriteOnce" ],
                         hostPath: {
-                            path: "/mnt/" + volume.name,
+                            path: "/data/k8s/" + volume.name,
                         }
                     }
                 },
@@ -180,6 +211,7 @@
                     kind: "PersistentVolumeClaim",
                     metadata: {
                         name: volume.name,
+                        namespace: "trustgraph",
                     },
                     spec: {
                         storageClassName: "manual",
@@ -197,7 +229,7 @@
 
         volRef:: function() {
             name: volume.name,
-            persistentVolumeClaim: { name: volume.name + "-pvc" },
+            persistentVolumeClaim: { claimName: volume.name + "-pvc" },
         }
 
     },
@@ -250,7 +282,10 @@
                         name: volume.name,
                         namespace: "trustgraph",
                     },
-                    data: parts
+                    data: {
+                        [item.key]: std.base64(item.value)
+                        for item in std.objectKeysValues(parts)
+                    }
                 },
             }
         },
@@ -279,6 +314,7 @@
     },
 
     resources:: function(res)
+
         std.foldl(
             function(state, c) state + c.add(),
             res,

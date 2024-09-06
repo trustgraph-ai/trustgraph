@@ -29,10 +29,15 @@ local images = import "values/images.jsonnet";
                 "prometheus", [ container ]
             );
 
+            local service =
+                engine.service(containerSet)
+                .with_port(9090, 9090, "http");
+
             engine.resources([
                 cfgVol,
                 vol,
                 containerSet,
+                service,
             ])
 
     },
@@ -86,6 +91,10 @@ local images = import "values/images.jsonnet";
             local containerSet = engine.containers(
                 "grafana", [ container ]
             );
+
+            local service =
+                engine.service(containerSet)
+                .with_port(3000, 3000, "http");
 
             engine.resources([
 	        provVol,

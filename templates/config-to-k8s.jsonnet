@@ -9,6 +9,16 @@ local config = import "config.json";
 // Produce patterns from config
 local patterns = decode(config);
 
+local ns = {
+    apiVersion: "v1",
+    kind: "Namespace",
+    metadata: {
+        name: "trustgraph",
+    },
+    "spec": {
+    },
+};
+
 // Extract resources usnig the engine
 local resources = std.foldl(
     function(state, p) state + p.create(engine),
@@ -16,4 +26,10 @@ local resources = std.foldl(
     {}
 );
 
-std.manifestYamlDoc(resources, quote_keys=false)
+local resourceList = {
+    apiVersion: "v1",
+    kind: "List",
+    items: [ns] + std.objectValues(resources.resources),
+};
+
+std.manifestYamlDoc(resourceList, quote_keys=false)
