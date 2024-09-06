@@ -88,7 +88,7 @@
 
         name: containers.name,
 
-        with_port:: function(src, dest) self + { port: [src, dest] },
+        with_port:: function(src, dest, name) self + { port: [src, dest] },
 
         add:: function() {
         }
