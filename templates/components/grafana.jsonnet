@@ -8,6 +8,7 @@ local images = import "values/images.jsonnet";
         create:: function(engine)
 
             local vol = engine.volume("prometheus-data").with_size("20G");
+
             local cfgVol = engine.configVolume(
                 "prometheus-cfg", "./prometheus",
 		{

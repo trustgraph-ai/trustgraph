@@ -202,7 +202,6 @@
 
     },
 
-    // FIXME: For K8s
     configVolume:: function(name, dir, parts)
     {
 
@@ -229,6 +228,36 @@
         volRef:: function() {
             name: volume.name,
             configMap: { name: volume.name + "-cm" },
+        }
+
+    },
+
+    secretVolume:: function(name, dir, parts)
+    {
+
+        local volume = self,
+
+        name: name,
+
+        with_size:: function(size) self + { size: size },
+
+        add:: function() {
+            resources +: {
+                [volume.name + "-cm"]: {
+                    apiVersion: "v1",
+                    kind: "Secret",
+                    metadata: {
+                        name: volume.name,
+                        namespace: "trustgraph",
+                    },
+                    data: parts
+                },
+            }
+        },
+
+        volRef:: function() {
+            name: volume.name,
+            secret: { secretName: volume.name + "-cm" },
         }
 
     },

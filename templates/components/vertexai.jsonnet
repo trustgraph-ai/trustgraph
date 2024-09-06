@@ -15,7 +15,7 @@ local prompts = import "prompts/mixtral.jsonnet";
     
         create:: function(engine)
 
-            local cfgVol = engine.configVolume(
+            local cfgVol = engine.secretVolume(
 	        "vertexai-creds",
 	        "./vertexai",
 		{
@@ -60,7 +60,13 @@ local prompts = import "prompts/mixtral.jsonnet";
     
         create:: function(engine)
 
-            local cfgVol = engine.configVolume("./vertexai");
+            local cfgVol = engine.secretVolume(
+	        "vertexai-creds",
+	        "./vertexai",
+		{
+		    "private.json": importstr "vertexai/private.json",
+		}
+            );
 
             local container =
                 engine.container("text-completion-rag")
