@@ -44,17 +44,20 @@ local images = import "values/images.jsonnet";
             local vol = engine.volume("grafana-storage").with_size("20G");
 
             local provVol = engine.configVolume(
-                "provisioning", "./grafana/",
+                "provisioning", "./grafana/provisioning/",
 		{
-		    "dashboard.yml": importstr "grafana/dashboard.yml",
-		    "datasource.yml": importstr "grafana/datasource.yml",
+		    "dashboard.yml":
+                        importstr "grafana/provisioning/dashboard.yml",
+		    "datasource.yml":
+                        importstr "grafana/provisioning/datasource.yml",
 		}
 		
             );
             local dashVol = engine.configVolume(
-                "dashboards", "./grafana/",
+                "dashboards", "./grafana/dashboards/",
 		{
-		    "dashboard.json": importstr "grafana/dashboard.json",
+		    "dashboard.json":
+                        importstr "grafana/dashboards/dashboard.json",
 		}
 		
             );
@@ -73,8 +76,12 @@ local images = import "values/images.jsonnet";
                     .with_reservations("0.5", "256M")
                     .with_port(3000, 3000, "cassandra")
                     .with_volume_mount(vol, "/var/lib/grafana")
-                    .with_volume_mount(provVol, "/etc/grafana/provisioning/dashboards/")
-                    .with_volume_mount(dashVol, "/etc/grafana/provisioning/dash/");
+                    .with_volume_mount(
+                        provVol, "/etc/grafana/provisioning/dashboards/"
+                    )
+                    .with_volume_mount(
+                        dashVol, "/var/lib/grafana/dashboards/"
+                    );
 
             local containerSet = engine.containers(
                 "grafana", [ container ]
