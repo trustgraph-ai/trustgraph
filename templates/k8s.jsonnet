@@ -149,11 +149,12 @@
         ports: [],
 
         with_port::
-            function(src, dest, name) self + {
-                ports: super.ports + [
-                    { src: src, dest: dest, name: name }
-                ]
-            },
+            function(src, dest, name)
+                self + {
+                    ports: super.ports + [
+                        { src: src, dest: dest, name: name  }
+                    ]
+                },
 
         add:: function() [
 
@@ -166,6 +167,7 @@
                         namespace: "trustgraph",
                     },
                     spec: {
+//                        type: "NodePort",
                         selector: {
                             app: service.name,
                         },
@@ -173,6 +175,7 @@
                             {
                                 port: port.src,
                                 targetPort: port.dest,
+//                                nodePort: port.nodeport,
                                 name: port.name,
                             }
                             for port in service.ports

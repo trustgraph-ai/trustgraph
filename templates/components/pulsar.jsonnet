@@ -31,15 +31,23 @@ local images = import "values/images.jsonnet";
                     .with_command([
                         "sh",
                         "-c",
-                        "pulsar-admin --admin-url http://pulsar:8080 tenants create tg && pulsar-admin --admin-url http://pulsar:8080 namespaces create tg/flow && pulsar-admin --admin-url http://pulsar:8080 namespaces create tg/request && pulsar-admin --admin-url http://pulsar:8080 namespaces create tg/response && pulsar-admin --admin-url http://pulsar:8080 namespaces set-retention --size -1 --time 3m tg/response",
+                        "sleep 1000000",
+//                        "pulsar-admin --admin-url http://pulsar:8080 tenants create tg && pulsar-admin --admin-url http://pulsar:8080 namespaces create tg/flow && pulsar-admin --admin-url http://pulsar:8080 namespaces create tg/request && pulsar-admin --admin-url http://pulsar:8080 namespaces create tg/response && pulsar-admin --admin-url http://pulsar:8080 namespaces set-retention --size -1 --time 3m tg/response",
                     ])
-                    .with_limits("0.1", "256M")
+                    .with_limits("2", "256M")
                     .with_reservations("0.1", "256M");
 
             local containerSet = engine.containers(
                 "pulsar",
                 [
-                    container, adminContainer
+                    container
+                ]
+            );
+
+            local adminContainerSet = engine.containers(
+                "init-pulsar",
+                [
+                    adminContainer
                 ]
             );
 
@@ -52,6 +60,7 @@ local images = import "values/images.jsonnet";
 //                confVolume,
                 dataVolume,
                 containerSet,
+                adminContainerSet,
                 service,
             ])
 
