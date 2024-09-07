@@ -30,17 +30,21 @@ local sc = {
     volumeBindingMode: "Immediate",
 };
 
+//patterns["pulsar"].create(engine)
+
 // Extract resources usnig the engine
-local resources = std.foldl(
-    function(state, p) state + p.create(engine),
-    std.objectValues(patterns),
-    {}
-);
+local resources = std.flattenArrays([
+    p.create(engine) for p in std.objectValues(patterns)
+]);
 
 local resourceList = {
     apiVersion: "v1",
     kind: "List",
-    items: [ns, sc] + std.objectValues(resources.resources),
+    items: [ns, sc] + resources,
 };
 
-std.manifestYamlDoc(resourceList, quote_keys=false)
+
+resourceList
+
+
+

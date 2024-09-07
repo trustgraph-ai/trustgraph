@@ -10,16 +10,6 @@
         reservations: {},
         ports: [],
         volumes: [],
-        securityContext: {
-            fsGroup: 1234
-//            runAsUser: 65534
-//            runAsGroup: 65534
-//            runAsNonRoot: true
-//            runAsUser: 0,
-//            runAsGroup: 0,
-//            runAsNonRoot: true,
-//            readOnlyRootFilesystem: true,
-        },
 
         with_image:: function(x) self + { image: x },
 
@@ -47,10 +37,9 @@
                 ]
             },
 
-        add:: function() {
+        add:: function() [
 
-            resources +: {
-                [container.name]: {
+                {
                     apiVersion: "apps/v1",
                     kind: "Deployment",
                     metadata: {
@@ -78,6 +67,16 @@
                                     {
                                         name: container.name,
                                         image: container.image,
+                                        securityContext: {
+                              //            fsGroup: 1234
+                              //            runAsUser: 65534
+                              //            runAsGroup: 65534
+                              //            runAsNonRoot: true
+                                          runAsUser: 0,
+                                          runAsGroup: 0,
+                              //            runAsNonRoot: true,
+                              //            readOnlyRootFilesystem: true,
+                                      },
                                         resources: {
                                             requests: container.reservations,
                                             limits: container.limits
@@ -136,8 +135,7 @@
 
                 }
 
-            }
-        }
+            ]
 
     },
 
@@ -157,9 +155,10 @@
                 ]
             },
 
-        add:: function() {
-            resources +: {
-                [service.name + "-service"]: {
+        add:: function() [
+
+                {
+
                     apiVersion: "v1",
                     kind: "Service",
                     metadata: {
@@ -180,8 +179,7 @@
                         ],
                     }
                 }
-            }
-        }
+            ],
 
     },
 
@@ -194,9 +192,10 @@
 
         with_size:: function(size) self + { size: size },
 
-        add:: function() {
-            resources +: {
-                [volume.name + "-pv"]: {
+        add:: function() [
+
+                {
+
                     apiVersion: "v1",
                     kind: "PersistentVolume",
                     metadata: {
@@ -211,12 +210,13 @@
                             storage: volume.size,
                         },
                         accessModes: [ "ReadWriteOnce" ],
+                        persistentVolumeReclaimPolicy: "Delete",
                         hostPath: {
                             path: "/data/k8s/" + volume.name,
                         }
                     }
                 },
-                [volume.name + "-pvc"]: {
+                {
                     apiVersion: "v1",
                     kind: "PersistentVolumeClaim",
                     metadata: {
@@ -234,8 +234,7 @@
                         volumeName: volume.name,
                     }
                 }
-            }
-        },
+            ],
 
         volRef:: function() {
             name: volume.name,
@@ -253,9 +252,8 @@
 
         with_size:: function(size) self + { size: size },
 
-        add:: function() {
-            resources +: {
-                [volume.name + "-cm"]: {
+        add:: function() [
+                {
                     apiVersion: "v1",
                     kind: "ConfigMap",
                     metadata: {
@@ -264,12 +262,12 @@
                     },
                     data: parts
                 },
-            }
-        },
+            ],
+
 
         volRef:: function() {
             name: volume.name,
-            configMap: { name: volume.name + "-cm" },
+            configMap: { name: volume.name },
         }
 
     },
@@ -283,9 +281,8 @@
 
         with_size:: function(size) self + { size: size },
 
-        add:: function() {
-            resources +: {
-                [volume.name + "-cm"]: {
+        add:: function() [
+                {
                     apiVersion: "v1",
                     kind: "Secret",
                     metadata: {
@@ -297,12 +294,11 @@
                         for item in std.objectKeysValues(parts)
                     }
                 },
-            }
-        },
+            ],
 
         volRef:: function() {
             name: volume.name,
-            secret: { secretName: volume.name + "-cm" },
+            secret: { secretName: volume.name },
         }
 
     },
@@ -315,20 +311,16 @@
         name: name,
         containers: containers,
 
-        add:: function() std.foldl(
-            function(state, c) state + c.add(),
-            cont.containers,
-            {}
+        add:: function() std.flattenArrays(
+            [ c.add() for c in cont.containers ]
         ),
 
     },
 
     resources:: function(res)
 
-        std.foldl(
-            function(state, c) state + c.add(),
-            res,
-            {}
+        std.flattenArrays(
+            [ c.add() for c in res ]
         ),
 
 }
