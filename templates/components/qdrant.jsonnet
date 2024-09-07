@@ -27,8 +27,13 @@ qdrant + {
                 "store-graph-embeddings", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8080, 8080, "metrics");
+
             engine.resources([
                 containerSet,
+                service,
             ])
 
     },
@@ -54,8 +59,13 @@ qdrant + {
                 "query-graph-embeddings", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8080, 8080, "metrics");
+
             engine.resources([
                 containerSet,
+                service,
             ])
 
     },
@@ -81,8 +91,13 @@ qdrant + {
                 "store-doc-embeddings", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8080, 8080, "metrics");
+
             engine.resources([
                 containerSet,
+                service,
             ])
 
     },
@@ -108,8 +123,13 @@ qdrant + {
                 "query-doc-embeddings", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8080, 8080, "metrics");
+
             engine.resources([
                 containerSet,
+                service,
             ])
 
 

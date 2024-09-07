@@ -69,3 +69,10 @@ update-templates: set-version
 	         --ext-str options=$${cm} -S $${input} > $${output}; \
 	  done; \
 	done
+
+config.yaml: config.json FORCE
+	jsonnet -J . -J templates/ templates/config-to-k8s.jsonnet | \
+	    python3 -c 'import sys, yaml, json; j=json.loads(sys.stdin.read()); print(yaml.safe_dump(j))' > $@
+
+FORCE:
+

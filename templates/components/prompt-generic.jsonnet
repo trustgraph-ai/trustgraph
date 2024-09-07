@@ -28,8 +28,13 @@ local prompts = import "prompts/mixtral.jsonnet";
                 "prompt", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8080, 8080, "metrics");
+
             engine.resources([
                 containerSet,
+                service,
             ])
 
     },
@@ -61,8 +66,13 @@ local prompts = import "prompts/mixtral.jsonnet";
                 "prompt-rag", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8080, 8080, "metrics");
+
             engine.resources([
                 containerSet,
+                service,
             ])
 
     },

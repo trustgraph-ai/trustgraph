@@ -27,8 +27,13 @@ cassandra + {
                 "stop-triples", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8080, 8080, "metrics");
+
             engine.resources([
                 containerSet,
+                service,
             ])
 
     },
@@ -54,8 +59,13 @@ cassandra + {
                 "query-triples", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8080, 8080, "metrics");
+
             engine.resources([
                 containerSet,
+                service,
             ])
 
     }

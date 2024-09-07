@@ -27,8 +27,13 @@ local url = import "values/url.jsonnet";
                 "kg-extract-definitions", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8000, 8000, "metrics");
+
             engine.resources([
                 containerSet,
+                service,
             ])
 
     },
@@ -52,8 +57,13 @@ local url = import "values/url.jsonnet";
                 "kg-extract-relationships", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8000, 8000, "metrics");
+
             engine.resources([
                 containerSet,
+                service,
             ])
 
     },
@@ -87,8 +97,13 @@ local url = import "values/url.jsonnet";
                 "graph-rag", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8000, 8000, "metrics");
+
             engine.resources([
                 containerSet,
+                service,
             ])
 
     },

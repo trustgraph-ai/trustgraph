@@ -22,9 +22,15 @@ local images = import "values/images.jsonnet";
                 "qdrant", [ container ]
             );
 
+            local service =
+                engine.service(containerSet)
+                .with_port(6333, 6333, "api")
+                .with_port(6334, 6334, "api2");
+
             engine.resources([
                 vol,
                 containerSet,
+                service,
             ])
 
     },

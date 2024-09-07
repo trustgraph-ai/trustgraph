@@ -21,15 +21,20 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "-m",
                         $["embeddings-model"],
                     ])
-                    .with_limits("1.0", "256M")
-                    .with_reservations("0.5", "256M");
+                    .with_limits("1.0", "400M")
+                    .with_reservations("0.5", "400M");
 
             local containerSet = engine.containers(
                 "embeddings", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8000, 8000, "metrics");
+
             engine.resources([
                 containerSet,
+                service,
             ])
 
     },

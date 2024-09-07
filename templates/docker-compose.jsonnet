@@ -26,7 +26,7 @@
             function(vol, mnt)
                 self + {
                     volumes: super.volumes + [{
-                        volume: vol.name, mount: mnt
+                        volume: vol, mount: mnt
                     }]
                 },
 
@@ -70,13 +70,28 @@
                 (if std.length(container.volumes) > 0 then
                 {
                     volumes:  [
-                        "%s:%s" % [vol.volume, vol.mount]
+                        "%s:%s" % [vol.volume.name, vol.mount]
                         for vol in container.volumes
                     ]
                 }
                 else {})
 
             }
+        }
+
+    },
+
+    internalService:: function(containers)
+    {
+
+        local service = self,
+
+        name: containers.name,
+
+        with_port:: function(src, dest, name)
+            self + { port: [src, dest] },
+
+        add:: function() {
         }
 
     },
@@ -88,7 +103,8 @@
 
         name: containers.name,
 
-        with_port:: function(src, dest) self + { port: [src, dest] },
+        with_port:: function(src, dest, name)
+            self + { port: [src, dest] },
 
         add:: function() {
         }
@@ -112,13 +128,26 @@
 
     },
 
-    // FIXME: For K8s
-    configVolume:: function(name)
+    configVolume:: function(name, dir, parts)
     {
 
         local volume = self,
 
-        name: name,
+        name: dir,
+
+        with_size:: function(size) self + { size: size },
+
+        add:: function() {
+        }
+
+    },
+
+    secretVolume:: function(name, dir, parts)
+    {
+
+        local volume = self,
+
+        name: dir,
 
         with_size:: function(size) self + { size: size },
 

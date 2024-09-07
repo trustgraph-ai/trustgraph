@@ -29,10 +29,10 @@
       "resources":
         "limits":
           "cpus": "1.0"
-          "memory": "256M"
+          "memory": "400M"
         "reservations":
           "cpus": "0.5"
-          "memory": "256M"
+          "memory": "400M"
     "image": "docker.io/trustgraph/trustgraph-flow:0.9.3"
     "restart": "on-failure:100"
   "grafana":
@@ -52,9 +52,9 @@
     "restart": "on-failure:100"
     "volumes":
     - "grafana-storage:/var/lib/grafana"
-    - "./grafana/dashboard.yml:/etc/grafana/provisioning/dashboards/dashboard.yml"
-    - "./grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml"
-    - "./grafana/dashboard.json:/var/lib/grafana/dashboards/dashboard.json"
+    - "./grafana/provisioning/:/etc/grafana/provisioning/dashboards/"
+    - "./grafana/provisioning/:/etc/grafana/provisioning/datasources/"
+    - "./grafana/dashboards/:/var/lib/grafana/dashboards/"
   "graph-rag":
     "command":
     - "graph-rag"
@@ -84,15 +84,15 @@
     "command":
     - "sh"
     - "-c"
-    - "pulsar-admin --admin-url http://pulsar:8080 tenants create tg && pulsar-admin --admin-url http://pulsar:8080 namespaces create tg/flow && pulsar-admin --admin-url http://pulsar:8080 namespaces create tg/request && pulsar-admin --admin-url http://pulsar:8080 namespaces create tg/response && pulsar-admin --admin-url http://pulsar:8080 namespaces set-retention --size -1 --time 3m tg/response"
+    - "while true; do pulsar-admin --admin-url http://pulsar:8080 tenants create tg ; pulsar-admin --admin-url http://pulsar:8080 namespaces create tg/flow ; pulsar-admin --admin-url http://pulsar:8080 namespaces create tg/request ; pulsar-admin --admin-url http://pulsar:8080 namespaces create tg/response ; pulsar-admin --admin-url http://pulsar:8080 namespaces set-retention --size -1 --time 3m tg/response; sleep 20; done"
     "deploy":
       "resources":
         "limits":
-          "cpus": "0.5"
-          "memory": "128M"
+          "cpus": "1"
+          "memory": "400M"
         "reservations":
           "cpus": "0.1"
-          "memory": "128M"
+          "memory": "400M"
     "image": "docker.io/apachepulsar/pulsar:3.3.1"
     "restart": "on-failure:100"
   "kg-extract-definitions":
@@ -172,7 +172,7 @@
     - "9090:9090"
     "restart": "on-failure:100"
     "volumes":
-    - "./prometheus:/etc/prometheus"
+    - "./prometheus:/etc/prometheus/"
     - "prometheus-data:/prometheus"
   "prompt":
     "command":
@@ -265,24 +265,25 @@
     "image": "docker.io/trustgraph/trustgraph-flow:0.9.3"
     "restart": "on-failure:100"
   "pulsar":
-    "command": "bin/pulsar standalone"
+    "command":
+    - "bin/pulsar"
+    - "standalone"
     "deploy":
       "resources":
         "limits":
-          "cpus": "1.0"
-          "memory": "900M"
+          "cpus": "2.0"
+          "memory": "1500M"
         "reservations":
-          "cpus": "0.5"
-          "memory": "900M"
+          "cpus": "1.0"
+          "memory": "1500M"
     "environment":
-      "PULSAR_MEM": "-Xms700M -Xmx700M"
+      "PULSAR_MEM": "-Xms600M -Xmx600M"
     "image": "docker.io/apachepulsar/pulsar:3.3.1"
     "ports":
     - "6650:6650"
     - "8080:8080"
     "restart": "on-failure:100"
     "volumes":
-    - "pulsar-conf:/pulsar/conf"
     - "pulsar-data:/pulsar/data"
   "qdrant":
     "deploy":
@@ -467,6 +468,5 @@
   "grafana-storage": {}
   "neo4j": {}
   "prometheus-data": {}
-  "pulsar-conf": {}
   "pulsar-data": {}
   "qdrant": {}

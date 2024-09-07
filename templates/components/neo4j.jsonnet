@@ -28,8 +28,13 @@ neo4j + {
                 "store-triples", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8080, 8080, "metrics");
+
             engine.resources([
                 containerSet,
+                service,
             ])
 
     },
@@ -55,8 +60,13 @@ neo4j + {
                 "query-triples", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8080, 8080, "metrics");
+
             engine.resources([
                 containerSet,
+                service,
             ])
 
 
