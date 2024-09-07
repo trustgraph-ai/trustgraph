@@ -31,8 +31,13 @@ local prompt = import "prompt-template.jsonnet";
                 "chunker", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8000, 8000, "metrics");
+
             engine.resources([
                 containerSet,
+                service,
             ])
 
     },
@@ -56,8 +61,13 @@ local prompt = import "prompt-template.jsonnet";
                 "pdf-decoder", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8000, 8000, "metrics");
+
             engine.resources([
                 containerSet,
+                service,
             ])
 
     },
@@ -81,8 +91,13 @@ local prompt = import "prompt-template.jsonnet";
                 "vectorize", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8000, 8000, "metrics");
+
             engine.resources([
                 containerSet,
+                service,
             ])
 
     },

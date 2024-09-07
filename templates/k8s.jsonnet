@@ -139,6 +139,9 @@
 
     },
 
+    // Just an alias
+    internalService:: self.service,
+
     service:: function(containers)
     {
 
@@ -167,7 +170,6 @@
                         namespace: "trustgraph",
                     },
                     spec: {
-//                        type: "NodePort",
                         selector: {
                             app: service.name,
                         },
@@ -175,7 +177,6 @@
                             {
                                 port: port.src,
                                 targetPort: port.dest,
-//                                nodePort: port.nodeport,
                                 name: port.name,
                             }
                             for port in service.ports
@@ -196,7 +197,7 @@
         with_size:: function(size) self + { size: size },
 
         add:: function() [
-
+/*
                 {
 
                     apiVersion: "v1",
@@ -209,16 +210,15 @@
                     },
                     spec: {
                         storageClassName: "tg",
+                        volumeMode: "Filesystem",
                         capacity: {
                             storage: volume.size,
                         },
                         accessModes: [ "ReadWriteOnce" ],
                         persistentVolumeReclaimPolicy: "Delete",
-                        hostPath: {
-                            path: "/data/k8s/" + volume.name,
-                        }
                     }
                 },
+*/
                 {
                     apiVersion: "v1",
                     kind: "PersistentVolumeClaim",
@@ -234,7 +234,7 @@
                                 storage: volume.size,
                             }
                         },
-                        volumeName: volume.name,
+//                        volumeName: volume.name,
                     }
                 }
             ],

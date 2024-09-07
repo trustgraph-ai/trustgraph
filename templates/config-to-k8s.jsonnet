@@ -25,9 +25,13 @@ local sc = {
     metadata: {
         name: "tg",
     },
-    provisioner: "k8s.io/minikube-hostpath",
+    provisioner: "pd.csi.storage.gke.io",
+    parameters: {
+        type: "pd-balanced",
+        "csi.storage.k8s.io/fstype": "ext4",
+    },
     reclaimPolicy: "Delete",
-    volumeBindingMode: "Immediate",
+    volumeBindingMode: "WaitForFirstConsumer",
 };
 
 //patterns["pulsar"].create(engine)
@@ -45,6 +49,4 @@ local resourceList = {
 
 
 resourceList
-
-
 
