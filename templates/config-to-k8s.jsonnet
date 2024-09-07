@@ -19,6 +19,17 @@ local ns = {
     },
 };
 
+local sc = {
+    apiVersion: "storage.k8s.io/v1",
+    kind: "StorageClass",
+    metadata: {
+        name: "tg",
+    },
+    provisioner: "k8s.io/minikube-hostpath",
+    reclaimPolicy: "Delete",
+    volumeBindingMode: "Immediate",
+};
+
 // Extract resources usnig the engine
 local resources = std.foldl(
     function(state, p) state + p.create(engine),
@@ -29,7 +40,7 @@ local resources = std.foldl(
 local resourceList = {
     apiVersion: "v1",
     kind: "List",
-    items: [ns] + std.objectValues(resources.resources),
+    items: [ns, sc] + std.objectValues(resources.resources),
 };
 
 std.manifestYamlDoc(resourceList, quote_keys=false)

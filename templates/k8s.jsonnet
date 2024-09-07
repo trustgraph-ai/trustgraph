@@ -10,6 +10,16 @@
         reservations: {},
         ports: [],
         volumes: [],
+        securityContext: {
+            fsGroup: 1234
+//            runAsUser: 65534
+//            runAsGroup: 65534
+//            runAsNonRoot: true
+//            runAsUser: 0,
+//            runAsGroup: 0,
+//            runAsNonRoot: true,
+//            readOnlyRootFilesystem: true,
+        },
 
         with_image:: function(x) self + { image: x },
 
@@ -196,7 +206,7 @@
                         }
                     },
                     spec: {
-                        storageClassName: "manual",
+                        storageClassName: "tg",
                         capacity: {
                             storage: volume.size,
                         },
@@ -214,14 +224,14 @@
                         namespace: "trustgraph",
                     },
                     spec: {
-                        storageClassName: "manual",
+                        storageClassName: "tg",
                         accessModes: [ "ReadWriteOnce" ],
                         resources: {
                             requests: {
                                 storage: volume.size,
                             }
                         },
-                        volumeName: volume.name + "-pv",
+                        volumeName: volume.name,
                     }
                 }
             }
@@ -229,7 +239,7 @@
 
         volRef:: function() {
             name: volume.name,
-            persistentVolumeClaim: { claimName: volume.name + "-pvc" },
+            persistentVolumeClaim: { claimName: volume.name },
         }
 
     },

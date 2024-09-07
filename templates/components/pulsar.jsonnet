@@ -7,19 +7,20 @@ local images = import "values/images.jsonnet";
 
         create:: function(engine)
 
-            local confVolume = engine.volume("pulsar-conf").with_size("2G");
+//            local confVolume = engine.volume("pulsar-conf").with_size("2G");
             local dataVolume = engine.volume("pulsar-data").with_size("20G");
 
             local container =
                 engine.container("pulsar")
                     .with_image(images.pulsar)
-                    .with_command(["bin/pulsar", "standalone"])
+//                    .with_command(["bin/pulsar", "standalone"])
+                    .with_command(["bin/sh", "-c", "sleep 1000000"])
                     .with_environment({
                         "PULSAR_MEM": "-Xms700M -Xmx700M"
                     })
                     .with_limits("1.0", "900M")
                     .with_reservations("0.5", "900M")
-                    .with_volume_mount(confVolume, "/pulsar/conf")
+//                    .with_volume_mount(confVolume, "/pulsar/conf")
                     .with_volume_mount(dataVolume, "/pulsar/data")
                     .with_port(6650, 6650, "bookie")
                     .with_port(8080, 8080, "http");
@@ -48,7 +49,7 @@ local images = import "values/images.jsonnet";
                 .with_port(8080, 8080, "http");
 
             engine.resources([
-                confVolume,
+//                confVolume,
                 dataVolume,
                 containerSet,
                 service,

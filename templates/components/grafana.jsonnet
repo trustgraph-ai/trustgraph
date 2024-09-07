@@ -97,6 +97,7 @@ local images = import "values/images.jsonnet";
                 .with_port(3000, 3000, "http");
 
             engine.resources([
+                vol,
 	        provVol,
 		dashVol,
                 containerSet,
