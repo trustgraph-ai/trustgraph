@@ -81,6 +81,21 @@
 
     },
 
+    internalService:: function(containers)
+    {
+
+        local service = self,
+
+        name: containers.name,
+
+        with_port:: function(src, dest, name)
+            self + { port: [src, dest] },
+
+        add:: function() {
+        }
+
+    },
+
     service:: function(containers)
     {
 
