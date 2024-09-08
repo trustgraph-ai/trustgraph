@@ -1,5 +1,13 @@
 {
 
+    // Extract resources usnig the engine
+    package:: function(patterns)
+        std.foldl(
+            function(state, p) state + p.create(self),
+            std.objectValues(patterns),
+            {}
+        ),
+
     container:: function(name)
     {
 

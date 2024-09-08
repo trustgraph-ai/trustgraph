@@ -1,13 +1,5 @@
 
-local k8sEngine = import "mini-kubek8s.jsonnet";
-local decode = import "decode-config.jsonnet";
-local components = import "components.jsonnet";
-
-// Import config
-local config = import "config.json";
-
-// Produce patterns from config
-local patterns = decode(config);
+local k8s = import "k8s.jsonnet";
 
 local ns = {
     apiVersion: "v1",
@@ -19,7 +11,20 @@ local ns = {
     },
 };
 
-local engine = k8sEngine + {
+k8s + {
+
+    // Extract resources usnig the engine
+    package:: function(patterns)
+        local resources = [ns] + std.flattenArrays([
+            p.create(self) for p in std.objectValues(patterns)
+        ]);
+        local resourceList = {
+            apiVersion: "v1",
+            kind: "List",
+            items: resources,
+        };
+        resourceList,
+
     volume:: function(name)
     {
         local volume = self,
@@ -106,23 +111,5 @@ local engine = k8sEngine + {
         ],
     },
 
-};
-
-//patterns["pulsar"].create(engine)
-
-// Extract resources using the engine
-local resources = std.flattenArrays([
-    p.create(engine) for p in std.objectValues(patterns)
-]);
-
-local resourceList = {
-    apiVersion: "v1",
-    kind: "List",
-    items: [
-        ns,
-    ] + resources,
-};
-
-
-resourceList
+}
 
