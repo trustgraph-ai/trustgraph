@@ -26,12 +26,12 @@ local sc = {
     volumeBindingMode: "WaitForFirstConsumer",
 };
 
-return k8s + {
+k8s + {
 
     // Extract resources usnig the engine
     package:: function(patterns)
         local resources = [sc, ns] + std.flattenArrays([
-            p.create(engine) for p in std.objectValues(patterns)
+            p.create(self) for p in std.objectValues(patterns)
         ]);
         local resourceList = {
             apiVersion: "v1",
