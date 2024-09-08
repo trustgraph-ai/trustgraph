@@ -70,9 +70,12 @@ update-templates: set-version
 	  done; \
 	done
 
-config.yaml: config.json FORCE
-	jsonnet -J . -J templates/ templates/config-to-k8s.jsonnet | \
-	    python3 -c 'import sys, yaml, json; j=json.loads(sys.stdin.read()); print(yaml.safe_dump(j))' > $@
-
 FORCE:
 
+IGNOREconfig.yaml: config.json FORCE
+	jsonnet -J . -J templates/ templates/config-to-gcp-k8s.jsonnet | \
+	    python3 -c 'import sys, yaml, json; j=json.loads(sys.stdin.read()); print(yaml.safe_dump(j))' > $@
+
+config.yaml: config.json FORCE
+	jsonnet -J . -J templates/ templates/config-to-minikube-k8s.jsonnet | \
+	    python3 -c 'import sys, yaml, json; j=json.loads(sys.stdin.read()); print(yaml.safe_dump(j))' > $@
