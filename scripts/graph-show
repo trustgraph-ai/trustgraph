@@ -12,7 +12,7 @@ default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
 
 def show_graph(pulsar):
 
-    tq = TriplesQueryClient(pulsar_host="pulsar://localhost:6650")
+    tq = TriplesQueryClient(pulsar_host=pulsar)
 
     rows = tq.request(None, None, None, limit=10_000_000)
 

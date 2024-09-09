@@ -1,6 +1,6 @@
 
 # VERSION=$(shell git describe | sed 's/^v//')
-VERSION=0.9.3
+VERSION=0.10.0
 
 DOCKER=podman
 
@@ -50,29 +50,54 @@ VECTORDB=qdrant
 JSONNET_FLAGS=-J templates -J .
 
 
-update-templates: set-version
+update-templates: update-dcs update-minikubes
+
+JSON_TO_YAML=python3 -c 'import sys, yaml, json; j=json.loads(sys.stdin.read()); print(yaml.safe_dump(j))'
+# JSON_TO_YAML=cat
+
+update-dcs: set-version
+	rm -rf deploy
+	mkdir -p deploy/docker-compose deploy/minikube
 	for graph in ${GRAPHS}; do \
 	    cm=$${graph},pulsar,${VECTORDB},grafana; \
-	    input=templates/main.jsonnet; \
-	    output=tg-storage-$${graph}.yaml; \
+	    input=templates/opts-to-docker-compose.jsonnet; \
+	    output=deploy/docker-compose/tg-storage-$${graph}.yaml; \
 	    echo $${graph} '->' $${output}; \
 	    jsonnet ${JSONNET_FLAGS} \
-	         --ext-str options=$${cm} -S $${input} > $${output}; \
+	         --ext-str options=$${cm} $${input} | \
+	         ${JSON_TO_YAML} > $${output}; \
 	done
 	for model in ${MODELS}; do \
 	  for graph in ${GRAPHS}; do \
 	    cm=$${graph},pulsar,${VECTORDB},embeddings-hf,graph-rag,grafana,trustgraph,$${model}; \
-	    input=templates/main.jsonnet; \
-	    output=tg-launch-$${model}-$${graph}.yaml; \
+	    input=templates/opts-to-docker-compose.jsonnet; \
+	    output=deploy/docker-compose/tg-launch-$${model}-$${graph}.yaml; \
 	    echo $${model} + $${graph} '->' $${output}; \
 	    jsonnet ${JSONNET_FLAGS} \
-	         --ext-str options=$${cm} -S $${input} > $${output}; \
+	         --ext-str options=$${cm} $${input} | \
+                 ${JSON_TO_YAML} > $${output}; \
 	  done; \
 	done
 
-config.yaml: config.json FORCE
-	jsonnet -J . -J templates/ templates/config-to-k8s.jsonnet | \
-	    python3 -c 'import sys, yaml, json; j=json.loads(sys.stdin.read()); print(yaml.safe_dump(j))' > $@
+update-minikubes: set-version
+	for model in ${MODELS}; do \
+	  for graph in ${GRAPHS}; do \
+	    cm=$${graph},pulsar,${VECTORDB},embeddings-hf,graph-rag,grafana,trustgraph,$${model}; \
+	    input=templates/opts-to-minikube-k8s.jsonnet; \
+	    output=deploy/minikube/tg-launch-$${model}-$${graph}.yaml; \
+	    echo $${model} + $${graph} '->' $${output}; \
+	    jsonnet ${JSONNET_FLAGS} \
+	        --ext-str options=$${cm} $${input} | \
+	        ${JSON_TO_YAML} > $${output}; \
+	  done; \
+	done
 
 FORCE:
 
+IGNOREconfig.yaml: config.json FORCE
+	jsonnet -J . -J templates/ templates/config-to-gcp-k8s.jsonnet | \
+	    python3 -c 'import sys, yaml, json; j=json.loads(sys.stdin.read()); print(yaml.safe_dump(j))' > $@
+
+config.yaml: config.json FORCE
+	jsonnet -J . -J templates/ templates/config-to-minikube-k8s.jsonnet | \
+	    python3 -c 'import sys, yaml, json; j=json.loads(sys.stdin.read()); print(yaml.safe_dump(j))' > $@

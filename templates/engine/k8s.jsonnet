@@ -67,16 +67,16 @@
                                     {
                                         name: container.name,
                                         image: container.image,
+
+                                        // FIXME: Make everything run as
+                                        // root.  Needed to get filesystems
+                                        // to be accessible.  There's a
+                                        // better way of doing this?
                                         securityContext: {
-                              //            fsGroup: 1234
-                              //            runAsUser: 65534
-                              //            runAsGroup: 65534
-                              //            runAsNonRoot: true
-                                          runAsUser: 0,
-                                          runAsGroup: 0,
-                              //            runAsNonRoot: true,
-                              //            readOnlyRootFilesystem: true,
-                                      },
+                                            runAsUser: 0,
+                                            runAsGroup: 0,
+                                        },
+
                                         resources: {
                                             requests: container.reservations,
                                             limits: container.limits
@@ -197,28 +197,6 @@
         with_size:: function(size) self + { size: size },
 
         add:: function() [
-/*
-                {
-
-                    apiVersion: "v1",
-                    kind: "PersistentVolume",
-                    metadata: {
-                        name: volume.name,
-                        labels: {
-                            type: "local",
-                        }
-                    },
-                    spec: {
-                        storageClassName: "tg",
-                        volumeMode: "Filesystem",
-                        capacity: {
-                            storage: volume.size,
-                        },
-                        accessModes: [ "ReadWriteOnce" ],
-                        persistentVolumeReclaimPolicy: "Delete",
-                    }
-                },
-*/
                 {
                     apiVersion: "v1",
                     kind: "PersistentVolumeClaim",
@@ -234,7 +212,6 @@
                                 storage: volume.size,
                             }
                         },
-//                        volumeName: volume.name,
                     }
                 }
             ],

@@ -1,6 +1,5 @@
 
-local engine = import "docker-compose.jsonnet";
-local decode = import "decode-config.jsonnet";
+local engine = import "engine/minikube-k8s.jsonnet";
 local components = import "components.jsonnet";
 
 // Options
@@ -14,11 +13,7 @@ local patterns = std.foldl(
 );
 
 // Extract resources usnig the engine
-local resources = std.foldl(
-    function(state, p) state + p.create(engine),
-    std.objectValues(patterns),
-    {}
-);
+local resources = engine.package(patterns);
 
-std.manifestYamlDoc(resources)
+resources
 
