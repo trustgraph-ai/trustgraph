@@ -10,7 +10,7 @@ local images = import "values/images.jsonnet";
             local vol = engine.volume("prometheus-data").with_size("20G");
 
             local cfgVol = engine.configVolume(
-                "prometheus-cfg", "./prometheus",
+                "prometheus-cfg", "prometheus",
 		{
 		    "prometheus.yml": importstr "prometheus/prometheus.yml",
 		}
@@ -50,7 +50,7 @@ local images = import "values/images.jsonnet";
             local vol = engine.volume("grafana-storage").with_size("20G");
 
             local provDashVol = engine.configVolume(
-                "prov-dash", "./grafana/provisioning/",
+                "prov-dash", "grafana/provisioning/",
 		{
 		    "dashboard.yml":
                         importstr "grafana/provisioning/dashboard.yml",
@@ -59,7 +59,7 @@ local images = import "values/images.jsonnet";
             );
 
             local provDataVol = engine.configVolume(
-                "prov-data", "./grafana/provisioning/",
+                "prov-data", "grafana/provisioning/",
 		{
 		    "datasource.yml":
                         importstr "grafana/provisioning/datasource.yml",
@@ -68,7 +68,7 @@ local images = import "values/images.jsonnet";
             );
 
             local dashVol = engine.configVolume(
-                "dashboards", "./grafana/dashboards/",
+                "dashboards", "grafana/dashboards/",
 		{
 		    "dashboard.json":
                         importstr "grafana/dashboards/dashboard.json",

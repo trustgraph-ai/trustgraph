@@ -78,7 +78,7 @@
                 (if std.length(container.volumes) > 0 then
                 {
                     volumes:  [
-                        "%s:%s" % [vol.volume.name, vol.mount]
+                        "%s:%s" % [vol.volume.volid, vol.mount]
                         for vol in container.volumes
                     ]
                 }
@@ -126,6 +126,8 @@
 
         name: name,
 
+        volid:: name,
+
         with_size:: function(size) self + { size: size },
 
         add:: function() {
@@ -143,6 +145,8 @@
 
         name: dir,
 
+        volid:: "${CONFIGDIR}/" + dir,
+
         with_size:: function(size) self + { size: size },
 
         add:: function() {
@@ -156,6 +160,8 @@
         local volume = self,
 
         name: dir,
+
+        volid:: "${CONFIGDIR}/" + dir,
 
         with_size:: function(size) self + { size: size },
 

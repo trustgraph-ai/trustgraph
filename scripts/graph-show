@@ -8,7 +8,7 @@ import argparse
 import os
 from trustgraph.clients.triples_query_client import TriplesQueryClient
 
-default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
+default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://localhost:6650')
 
 def show_graph(pulsar):
 
