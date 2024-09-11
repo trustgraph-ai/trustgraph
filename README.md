@@ -1,7 +1,7 @@
 
 # TrustGraph
 
-![TrustGraph banner](trustgraph_banner.png)
+![TrustGraph banner](TG_Banner.png)
 
 🚀 [Get Started](https://trustgraph.ai/docs/getstarted)
 💬 [Join the Discord](https://discord.gg/AXpxVjwzAw)
@@ -9,11 +9,11 @@
 
 ## Introduction
 
-TrustGraph is a true end-to-end (e2e) knowledge pipeline that performs a `Naive Extraction` on a text corpus to build a RDF style knowledge graph coupled with a `RAG` service compatible with cloud LLMs and open-source SLMs (Small Language Models).
+TrustGraph deploys private GraphRAG pipelines to unlock the wisdom buried in your data. TrustGraph ingests data to build a RDF style knowledge graph to enable accurate and secure `RAG` requests compatible with cloud LLMs and open-source SLMs (Small Language Models).
 
-The pipeline processing components are interconnected with a pub/sub engine to maximize modularity and enable new knowledge processing functions. The core processing components decode documents, chunk text, perform embeddings, apply a local SLM/LLM, call a LLM API, and generate LM predictions.
+The pipeline processing components are interconnected with a pub/sub engine to maximize modularity for agent integration. The core processing components decode documents, chunk text, perform embeddings, apply a local SLM/LLM, call a LLM API, and generate LM predictions.
 
-The processing showcases the reliability and efficiences of Graph RAG algorithms which can capture contextual language flags that are missed in conventional RAG approaches. Graph querying algorithms enable retrieving not just relevant knowledge but language cues essential to understanding semantic uses unique to a text corpus.
+The processing showcases the reliability and efficiences of GraphRAG algorithms which can capture contextual language flags that are missed in conventional RAG approaches. Graph querying algorithms enable retrieving not just relevant knowledge but language cues essential to understanding semantic uses unique to a text corpus.
 
 Processing modules are executed in containers.  Processing can be scaled-up by deploying multiple containers.
 
@@ -30,7 +30,7 @@ Processing modules are executed in containers.  Processing can be scaled-up by d
 - Storing embeddings in [Qdrant](https://qdrant.tech/)
 - Build and load [Knowledge Cores](https://trustgraph.ai/docs/category/knowledge-cores)
 - Embedding query service
-- Graph RAG query service
+- GraphRAG query service
 - All procesing integrates with [Apache Pulsar](https://github.com/apache/pulsar/)
 - Containers deployed using `Docker` or [Podman](http://podman.io/)
 - Plug'n'play architecture: switch different LLM modules to suit your needs
@@ -55,7 +55,7 @@ The entire architecture, the pub/sub backbone and set of modules, is bundled int
 - `embeddings-hf` - A service which analyses text and returns a vector embedding using one of the HuggingFace embeddings models.
 - `embeddings-ollama` - A service which analyses text and returns a vector embedding using an Ollama embeddings model.
 - `embeddings-vectorize` - Uses an embeddings service to get a vector embedding which is added to the processor payload.
-- `graph-rag` - A query service which applies a Graph RAG algorithm to provide a response to a text prompt.
+- `graph-rag` - A query service which applies a GraphRAG algorithm to provide a response to a text prompt.
 - `triples-write-cassandra` - Takes knowledge graph edges and writes them to a Cassandra store.
 - `triples-write-neo4j` - Takes knowledge graph edges and writes them to a Neo4j store.
 - `kg-extract-definitions` - knowledge extractor - examines text and produces graph edges. describing discovered terms and also their defintions.  Definitions are derived using the input  documents.
