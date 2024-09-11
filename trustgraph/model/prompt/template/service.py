@@ -7,6 +7,7 @@ import json
 import re
 
 from .... schema import Definition, Relationship, Triple
+from .... schema import Topic
 from .... schema import PromptRequest, PromptResponse, Error
 from .... schema import TextCompletionRequest, TextCompletionResponse
 from .... schema import text_completion_request_queue
@@ -216,7 +217,7 @@ class Processor(ConsumerProducer):
                     if d is None: continue
 
                     output.append(
-                        Definition(
+                        Topic(
                             name=e, definition=d
                         )
                     )
