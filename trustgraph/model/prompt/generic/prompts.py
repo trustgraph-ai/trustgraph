@@ -3,64 +3,90 @@ def to_relationships(text):
 
     prompt = f"""You are a helpful assistant that performs information extraction tasks for a provided text.
 
-Read the provided text. You will model the text as an information network for a RDF knowledge graph.
+Read the provided text. You will model the text as an information network for a RDF knowledge graph in JSON.
 
-Information network rules:
+Information Network Rules:
 - An information network has subjects connected by predicates to objects.
-- A subject can have many predicates and objects.
+- A subject is a named-entity or a conceptual topic.
+- One subject can have many predicates and objects.
+- An object is a property or attribute of a subject.
 - A subject can be connected by a predicate to another subject.
-- Objects shall be either nouns or adjectives.
 
-Here is the provided text: 
+Reading Instructions:
+- Ignore document formatting in the provided text.
+- Study the provided text carefully.
+
+Here is the text: 
 {text}
 
-Instructions:
-- Obey the information network rules.
-- Ignore document formatting. 
-- Do not provide explanations or any additional text. 
-- Do not use special characters.
-- The key "object-entity" is true if it is a Named-Entity.
-- Respond only with a well-formed JSON using the following example:
+Response Instructions:
+- Obey the information network rules. 
+- Do not return special characters.
+- Respond only with well-formed JSON.
+- The JSON response shall be an array of JSON objects with keys "subject", "predicate", "object", and "object-entity".
+- The JSON response shall use the following structure:
 
-JSON example: [{{"subject": string, "predicate": string, "object": string, "object-entity": boolean}}]
+```json
+[{{"subject": string, "predicate": string, "object": string, "object-entity": boolean}}]
+```
+
+- The key "object-entity" is TRUE only if the "object" is a subject.
+- Do not write any additional text or explanations.
 """
     
     return prompt
 
 def to_topics(text):
 
-    prompt = f"""You are a helpful assistant that performs information extraction tasks for a provided text.\nRead the provided text. You will identify topics and their definitions.
+    prompt = f"""You are a helpful assistant that performs information extraction tasks for a provided text.\nRead the provided text. You will identify topics and their definitions in JSON.
 
-Here is the provided text: 
+Reading Instructions:
+- Ignore document formatting in the provided text.
+- Study the provided text carefully.
+
+Here is the text:
 {text}
 
-Instructions:
-- Ignore document formatting. 
-- Do not provide explanations or any additional text. 
-- Do not use special characters.
-- Identify only topics that are unique to the provided text.
-- Respond only with a well-formed JSON using the following example:
+Response Instructions: 
+- Do not respond with special characters.
+- Return only topics that are concepts and unique to the provided text.
+- Respond only with well-formed JSON.
+- The JSON response shall be an array of objects with keys "topic" and "definition". 
+- The JSON response shall use the following structure:
 
-JSON example: [{{"topic": string, "definition": string}}]
+```json
+[{{"topic": string, "definition": string}}]
+```
+
+- Do not write any additional text or explanations.
 """
     
     return prompt
     
 def to_definitions(text):
 
-    prompt = f"""You are a helpful assistant that performs information extraction tasks for a provided text.\nRead the provided text. You will identify named-entities and their definitions.
+    prompt = f"""You are a helpful assistant that performs information extraction tasks for a provided text.\nRead the provided text. You will identify entities and their definitions in JSON.
 
-Here is the provided text: 
+Reading Instructions:
+- Ignore document formatting in the provided text.
+- Study the provided text carefully.
+
+Here is the text:
 {text}
 
-Instructions:
-- Ignore document formatting. 
-- Do not provide explanations or any additional text. 
-- Do not use special characters.
-- Identity only entities that are named-entities.
-- Respond only with a well-formed JSON using the following example:
+Response Instructions:
+- Do not respond with special characters.
+- Return only entities that are named-entities such as: people, organizations, physical objects, locations, animals, products, commodotities, or substances.
+- Respond only with well-formed JSON. 
+- The JSON response shall be an array of objects with keys "entity" and "definition".
+- The JSON response shall use the following structure: 
 
-JSON example: [{{"entity": string, "definition": string}}]"""
+```json
+[{{"entity": string, "definition": string}}]
+```
+
+- Do not write any additional text or explanations.
+"""
     
     return prompt
 

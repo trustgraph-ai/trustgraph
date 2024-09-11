@@ -3,6 +3,7 @@ Language service abstracts prompt engineering from LLM.
 """
 
 import json
+import re
 
 from .... schema import Definition, Relationship, Triple
 from .... schema import PromptRequest, PromptResponse, Error
@@ -56,12 +57,15 @@ class Processor(ConsumerProducer):
         )
 
     def parse_json(self, text):
-        
-        # Hacky, workaround temperamental JSON markdown
-        text = text.replace("```json", "")
-        text = text.replace("```", "")
+        json_match = re.search(r'```(?:json)?(.*?)```', text, re.DOTALL)
+    
+        if json_match:
+            json_str = json_match.group(1).strip()
+        else:
+            # If no delimiters, assume the entire output is JSON
+            json_str = text.strip()
 
-        return json.loads(text)
+        return json.loads(json_str)
 
     def handle(self, msg):
 
