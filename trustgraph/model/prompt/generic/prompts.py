@@ -1,50 +1,66 @@
 
 def to_relationships(text):
 
-    prompt = f"""<instructions>
-Study the following text and derive entity relationships.  For each
-relationship, derive the subject, predicate and object of the relationship.
-Output relationships in JSON format as an arary of objects with fields:
-- subject: the subject of the relationship
-- predicate: the predicate
-- object: the object of the relationship
-- object-entity: false if the object is a simple data type: name, value or date.  true if it is an entity.
-</instructions>
+    prompt = f"""You are a helpful assistant that performs information extraction tasks for a provided text.
 
-<text>
+Read the provided text. You will model the text as an information network for a RDF knowledge graph.
+
+Information network rules:
+- An information network has subjects connected by predicates to objects.
+- A subject can have many predicates and objects.
+- A subject can be connected by a predicate to another subject.
+- Objects shall be either nouns or adjectives.
+
+Here is the provided text: 
 {text}
-</text>
 
-<requirements>
-You will respond only with raw JSON format data. Do not provide
-explanations. Do not use special characters in the abstract text. The
-abstract must be written as plain text.  Do not add markdown formatting
-or headers or prefixes.
-</requirements>"""
+Instructions:
+- Obey the information network rules.
+- Ignore document formatting. 
+- Do not provide explanations or any additional text. 
+- Do not use special characters.
+- The key "object-entity" is true if it is a Named-Entity.
+- Respond only with a well-formed JSON using the following example:
+
+JSON example: [{{"subject": string, "predicate": string, "object": string, "object-entity": boolean}}]
+"""
+    
+    return prompt
+
+def to_topics(text):
+
+    prompt = f"""You are a helpful assistant that performs information extraction tasks for a provided text.\nRead the provided text. You will identify topics and their definitions.
+
+Here is the provided text: 
+{text}
+
+Instructions:
+- Ignore document formatting. 
+- Do not provide explanations or any additional text. 
+- Do not use special characters.
+- Identify only topics that are unique to the provided text.
+- Respond only with a well-formed JSON using the following example:
+
+JSON example: [{{"topic": string, "definition": string}}]
+"""
     
     return prompt
     
 def to_definitions(text):
 
-    prompt = f"""<instructions>
-Study the following text and derive definitions for any discovered entities.
-Do not provide definitions for entities whose definitions are incomplete
-or unknown.
-Output relationships in JSON format as an arary of objects with fields:
-- entity: the name of the entity
-- definition: English text which defines the entity
-</instructions>
+    prompt = f"""You are a helpful assistant that performs information extraction tasks for a provided text.\nRead the provided text. You will identify named-entities and their definitions.
 
-<text>
+Here is the provided text: 
 {text}
-</text>
 
-<requirements>
-You will respond only with raw JSON format data. Do not provide
-explanations. Do not use special characters in the abstract text. The
-abstract will be written as plain text.  Do not add markdown formatting
-or headers or prefixes.  Do not include null or unknown definitions.
-</requirements>"""
+Instructions:
+- Ignore document formatting. 
+- Do not provide explanations or any additional text. 
+- Do not use special characters.
+- Identity only entities that are named-entities.
+- Respond only with a well-formed JSON using the following example:
+
+JSON example: [{{"entity": string, "definition": string}}]"""
     
     return prompt
 

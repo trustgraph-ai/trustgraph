@@ -27,6 +27,7 @@ scrape_configs:
         - 'vectorize:8000'
         - 'embeddings:8000'
         - 'kg-extract-definitions:8000'
+        - 'kg-extract-topics:8000'
         - 'kg-extract-relationships:8000'
         - 'store-graph-embeddings:8000'
         - 'store-triples:8000'
