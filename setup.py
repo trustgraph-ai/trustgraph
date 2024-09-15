@@ -4,7 +4,7 @@ import os
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-version = "0.9.3"
+version = "0.9.4"
 
 setuptools.setup(
     name="trustgraph",
