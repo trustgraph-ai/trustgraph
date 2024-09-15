@@ -5,6 +5,9 @@ def to_relationships(template, text):
 def to_definitions(template, text):
     return template.format(text=text)
 
+def to_topics(template, text):
+    return template.format(text=text)
+
 def to_rows(template, schema, text):
 
     field_schema = [

@@ -12,6 +12,10 @@ class Definition(Record):
     name = String()
     definition = String()
 
+class Topic(Record):
+    name = String()
+    definition = String()
+
 class Relationship(Record):
     s = String()
     p = String()
@@ -46,6 +50,7 @@ class PromptResponse(Record):
     error = Error()
     answer = String()
     definitions = Array(Definition())
+    topics = Array(Topic())
     relationships = Array(Relationship())
     rows = Array(Map(String()))
 

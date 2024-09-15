@@ -75,6 +75,7 @@ setuptools.setup(
         "scripts/graph-to-turtle",
         "scripts/init-pulsar-manager",
         "scripts/kg-extract-definitions",
+        "scripts/kg-extract-topics",
         "scripts/kg-extract-relationships",
         "scripts/load-graph-embeddings",
         "scripts/load-pdf",
