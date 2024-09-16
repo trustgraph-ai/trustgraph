@@ -10,6 +10,7 @@
    "graph-rag": import "components/graph-rag.jsonnet",
    "triple-store-cassandra": import "components/cassandra.jsonnet",
    "triple-store-neo4j": import "components/neo4j.jsonnet",
+   "llamafile": import "components/llamafile.jsonnet",
    "ollama": import "components/ollama.jsonnet",
    "openai": import "components/openai.jsonnet",
    "override-recursive-chunker": import "components/chunker-recursive.jsonnet",

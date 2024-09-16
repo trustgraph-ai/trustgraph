@@ -1,0 +1,41 @@
+{
+    pattern: {
+	name: "llamafile",
+        icon: "🤖💬",
+        title: "Add Llamafile-invoked LLMs for text completion",
+	description: "This pattern integrates a Llamafile service for text completion operations.  You need to have a running Llamafile implementation executing the necessary model in order to be able to use this service.",
+        requires: ["pulsar", "trustgraph"],
+        features: ["llm"],
+	args: [
+	    {
+		name: "llamafile-max-output-tokens",
+                label: "Maximum output tokens",
+		type: "integer",
+		description: "Limit on number tokens to generate",
+                default: 4096,
+		required: true,
+            },
+	    {
+		name: "llamafile-temperature",
+                label: "Temperature",
+		type: "slider",
+		description: "Controlling predictability / creativity balance",
+                min: 0,
+                max: 1,
+                step: 0.05,
+                default: 0.5,
+            },
+	    {
+		name: "llamafile-url",
+                label: "URL",
+		type: "text",
+		width: 120,
+		description: "URL of the Llamafile service",
+                default: "http://llamafile:8080",
+		required: true,
+	    },
+	],
+        category: [ "llm" ],
+    },
+    module: "components/llamafile.jsonnet",
+}

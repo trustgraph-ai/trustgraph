@@ -10,6 +10,7 @@
     import "patterns/llm-bedrock.jsonnet",
     import "patterns/llm-claude.jsonnet",
     import "patterns/llm-cohere.jsonnet",
+    import "patterns/llm-llamafile.jsonnet",
     import "patterns/llm-ollama.jsonnet",
     import "patterns/llm-openai.jsonnet",
     import "patterns/llm-vertexai.jsonnet",
