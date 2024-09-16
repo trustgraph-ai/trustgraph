@@ -21,7 +21,7 @@ Processing modules are executed in containers.  Processing can be scaled-up by d
 
 - PDF decoding
 - Text chunking
-- Inference of LMs deployed with [Ollama](https://ollama.com)
+- Inference of LMs deployed locally with [Ollama](https://ollama.com) or [Llamafile](https://github.com/Mozilla-Ocho/llamafile)
 - Inference of Cloud LLMs: `AWS Bedrock`, `AzureAI`, `Anthropic`, `Cohere`, `OpenAI`, and `VertexAI`
 - Mixed model deployments
 - Application of a [HuggingFace](https://hf.co) embeddings models
@@ -58,9 +58,11 @@ The entire architecture, the pub/sub backbone and set of modules, is bundled int
 - `graph-rag` - A query service which applies a GraphRAG algorithm to provide a response to a text prompt.
 - `triples-write-cassandra` - Takes knowledge graph edges and writes them to a Cassandra store.
 - `triples-write-neo4j` - Takes knowledge graph edges and writes them to a Neo4j store.
-- `kg-extract-definitions` - knowledge extractor - examines text and produces graph edges. describing discovered terms and also their defintions.  Definitions are derived using the input  documents.
+- `kg-extract-definitions` - knowledge extractor - examines text and produces graph edges. describing discovered terms and also their defintions.  Definitions are derived using the input documents.
 - `kg-extract-relationships` - knowledge extractor - examines text and produces graph edges describing the relationships between discovered terms.
-- `loader` - Takes a document and loads into the processing pipeline.  Used e.g. to add PDF documents.
+- `kg-extract-topics` - knowledge extractor - examines text and produces graph edges describing conceptual terms.
+- `load-pdf` - Takes a PDF and loads into the processing pipeline.
+- `load-text` - Takes a .txt file and loads into the processing pipeline.
 - `pdf-decoder` - Takes a PDF doc and emits text extracted from the document. Text extraction from PDF is not a perfect science as PDF is a printable format.  For instance, the wrapping of text between lines in a PDF document is not semantically encoded, so the decoder will see wrapped lines as space-separated.
 - `ge-write-qdrant` - Takes graph embeddings mappings and records them in the vector embeddings store.
 
@@ -70,13 +72,14 @@ The entire architecture, the pub/sub backbone and set of modules, is bundled int
 - `text-completion-bedrock` - Send request to AWS Bedrock API
 - `text-completion-claude` - Sends request to Anthropic's API
 - `text-completion-cohere` - Send request to Cohere's API
+- `text-completion-llamafile` - Sends request to running Llamafile
 - `text-completion-ollama` - Sends request to LM running using Ollama
 - `text-completion-openai` - Sends request to OpenAI's API
 - `text-completion-vertexai` - Sends request to model available through VertexAI API
 
 ## Quickstart Guide
 
-[🚀 Quickstart](docs/README.quickstart-docker-compose.md)
+[🚀 Quickstart](https://trustgraph.ai/docs/getstarted)
 
 ## Development Guide
 
