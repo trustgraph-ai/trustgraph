@@ -33,7 +33,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.9.4"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.9.5"
     "restart": "on-failure:100"
   "embeddings":
     "command":
@@ -50,7 +50,7 @@
         "reservations":
           "cpus": "0.5"
           "memory": "256M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.9.4"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.9.5"
     "restart": "on-failure:100"
   "grafana":
     "deploy":
@@ -95,7 +95,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.9.4"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.9.5"
     "restart": "on-failure:100"
   "init-pulsar":
     "command":
@@ -125,7 +125,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.9.4"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.9.5"
     "restart": "on-failure:100"
   "kg-extract-relationships":
     "command":
@@ -140,7 +140,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.9.4"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.9.5"
     "restart": "on-failure:100"
   "kg-extract-topics":
     "command":
@@ -155,7 +155,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.9.4"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.9.5"
     "restart": "on-failure:100"
   "pdf-decoder":
     "command":
@@ -170,7 +170,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.9.4"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.9.5"
     "restart": "on-failure:100"
   "prometheus":
     "deploy":
@@ -231,7 +231,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.9.4"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.9.5"
     "restart": "on-failure:100"
   "prompt-rag":
     "command":
@@ -280,7 +280,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.9.4"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.9.5"
     "restart": "on-failure:100"
   "pulsar":
     "command": "bin/pulsar standalone"
@@ -333,7 +333,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.9.4"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.9.5"
     "restart": "on-failure:100"
   "query-graph-embeddings":
     "command":
@@ -350,7 +350,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.9.4"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.9.5"
     "restart": "on-failure:100"
   "query-triples":
     "command":
@@ -367,7 +367,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "512M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.9.4"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.9.5"
     "restart": "on-failure:100"
   "store-doc-embeddings":
     "command":
@@ -384,7 +384,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.9.4"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.9.5"
     "restart": "on-failure:100"
   "store-graph-embeddings":
     "command":
@@ -401,7 +401,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.9.4"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.9.5"
     "restart": "on-failure:100"
   "store-triples":
     "command":
@@ -418,7 +418,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.9.4"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.9.5"
     "restart": "on-failure:100"
   "text-completion":
     "command":
@@ -439,7 +439,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.9.4"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.9.5"
     "restart": "on-failure:100"
   "text-completion-rag":
     "command":
@@ -464,7 +464,7 @@
         "reservations":
           "cpus": "0.1"
           "memory": "128M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.9.4"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.9.5"
     "restart": "on-failure:100"
   "vectorize":
     "command":
@@ -479,7 +479,7 @@
         "reservations":
           "cpus": "0.5"
           "memory": "512M"
-    "image": "docker.io/trustgraph/trustgraph-flow:0.9.4"
+    "image": "docker.io/trustgraph/trustgraph-flow:0.9.5"
     "restart": "on-failure:100"
 "volumes":
   "cassandra": {}

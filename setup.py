@@ -4,7 +4,7 @@ import os
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-version = "0.9.4"
+version = "0.9.5"
 
 setuptools.setup(
     name="trustgraph",
@@ -94,6 +94,7 @@ setuptools.setup(
         "scripts/text-completion-bedrock",
         "scripts/text-completion-claude",
         "scripts/text-completion-cohere",
+        "scripts/text-completion-llamafile",
         "scripts/text-completion-ollama",
         "scripts/text-completion-openai",
         "scripts/text-completion-vertexai",
