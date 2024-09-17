@@ -9,7 +9,7 @@
 
 ## Introduction
 
-TrustGraph deploys a full E2E (end-to-end) AI solution with native GraphRAG in minutes. TrustGraph is designed for maximimum flexibility and modularity whether it's calling Cloud LLMs or deploying SLMs On-Device. TrustGraph ingests data to build a RDF style knowledge graph to enable accurate and private `RAG` responses using only the knowledge you want, when you want.
+TrustGraph deploys a full E2E (end-to-end) AI solution with native GraphRAG in minutes. TrustGraph is designed for maximum flexibility and modularity whether it's calling Cloud LLMs or deploying SLMs On-Device. TrustGraph ingests data to build a RDF style knowledge graph to enable accurate and private `RAG` responses using only the knowledge you want, when you want.
 
 The pipeline processing components are interconnected with a pub/sub engine to maximize modularity for agent integration. The core processing components decode documents, chunk text, perform embeddings, apply an On-Device SLM/LLM, call a LLM API, and generate LM predictions.
 
@@ -72,7 +72,7 @@ The entire architecture, the pub/sub backbone and set of modules, is bundled int
 - `text-completion-bedrock` - Send request to AWS Bedrock API
 - `text-completion-claude` - Sends request to Anthropic's API
 - `text-completion-cohere` - Send request to Cohere's API
-- `text-completion-llamafile` - Sends request On-Device Llamafile
+- `text-completion-llamafile` - Sends request to On-Device Llamafile
 - `text-completion-ollama` - Sends request to On-Device LM running using Ollama
 - `text-completion-openai` - Sends request to OpenAI's API
 - `text-completion-vertexai` - Sends request to model available through VertexAI API
