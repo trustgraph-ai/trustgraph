@@ -9,9 +9,9 @@
 
 ## Introduction
 
-TrustGraph deploys private GraphRAG pipelines to unlock the wisdom buried in your data. TrustGraph ingests data to build a RDF style knowledge graph to enable accurate and secure `RAG` requests compatible with cloud LLMs and open-source SLMs (Small Language Models).
+TrustGraph deploys a full E2E (end-to-end) AI solution with native GraphRAG in minutes. TrustGraph is designed for maximimum flexibility and modularity whether it's calling Cloud LLMs or deploying SLMs On-Device. TrustGraph ingests data to build a RDF style knowledge graph to enable accurate and private `RAG` responses using only the knowledge you want, when you want.
 
-The pipeline processing components are interconnected with a pub/sub engine to maximize modularity for agent integration. The core processing components decode documents, chunk text, perform embeddings, apply a local SLM/LLM, call a LLM API, and generate LM predictions.
+The pipeline processing components are interconnected with a pub/sub engine to maximize modularity for agent integration. The core processing components decode documents, chunk text, perform embeddings, apply an On-Device SLM/LLM, call a LLM API, and generate LM predictions.
 
 The processing showcases the reliability and efficiences of GraphRAG algorithms which can capture contextual language flags that are missed in conventional RAG approaches. Graph querying algorithms enable retrieving not just relevant knowledge but language cues essential to understanding semantic uses unique to a text corpus.
 
@@ -21,11 +21,11 @@ Processing modules are executed in containers.  Processing can be scaled-up by d
 
 - PDF decoding
 - Text chunking
-- Inference of LMs deployed locally with [Ollama](https://ollama.com) or [Llamafile](https://github.com/Mozilla-Ocho/llamafile)
+- Inference of On-Device SLMs deployed with [Ollama](https://ollama.com) or [Llamafile](https://github.com/Mozilla-Ocho/llamafile)
 - Inference of Cloud LLMs: `AWS Bedrock`, `AzureAI`, `Anthropic`, `Cohere`, `OpenAI`, and `VertexAI`
 - Mixed model deployments
 - Application of a [HuggingFace](https://hf.co) embeddings models
-- [RDF](https://www.w3.org/TR/rdf12-schema/)-aligned Knowledge Graph extraction
+- [RDF](https://www.w3.org/TR/rdf12-schema/) aligned Knowledge Graph extraction
 - Graph edge loading into [Apache Cassandra](https://github.com/apache/cassandra) or [Neo4j](https://neo4j.com/)
 - Storing embeddings in [Qdrant](https://qdrant.tech/)
 - Build and load [Knowledge Cores](https://trustgraph.ai/docs/category/knowledge-cores)
@@ -33,7 +33,7 @@ Processing modules are executed in containers.  Processing can be scaled-up by d
 - GraphRAG query service
 - All procesing integrates with [Apache Pulsar](https://github.com/apache/pulsar/)
 - Containers deployed using `Docker` or [Podman](http://podman.io/)
-- Plug'n'play architecture: switch different LLM modules to suit your needs
+- Maximum modularity: switch different LM modules to suit your needs
 
 ## Architecture
 
@@ -72,15 +72,15 @@ The entire architecture, the pub/sub backbone and set of modules, is bundled int
 - `text-completion-bedrock` - Send request to AWS Bedrock API
 - `text-completion-claude` - Sends request to Anthropic's API
 - `text-completion-cohere` - Send request to Cohere's API
-- `text-completion-llamafile` - Sends request to running Llamafile
-- `text-completion-ollama` - Sends request to LM running using Ollama
+- `text-completion-llamafile` - Sends request On-Device Llamafile
+- `text-completion-ollama` - Sends request to On-Device LM running using Ollama
 - `text-completion-openai` - Sends request to OpenAI's API
 - `text-completion-vertexai` - Sends request to model available through VertexAI API
 
-## Quickstart Guide
+## Deploy TrustGraph
 
-[🚀 Quickstart](https://trustgraph.ai/docs/getstarted)
+[🚀 Quickstart 🚀](https://trustgraph.ai/docs/getstarted)
 
-## Development Guide
+## TrustGraph Developer's Guide
 
 See [Development on trustgraph](docs/README.development.md)
