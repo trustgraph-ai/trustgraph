@@ -1,7 +1,7 @@
 
 # TrustGraph
 
-![TrustGraph banner](TG_Banner.png)
+![TrustGraph banner](TG_Banner_readme.png)
 
 🚀 [Get Started](https://trustgraph.ai/docs/getstarted)
 💬 [Join the Discord](https://discord.gg/AXpxVjwzAw)
@@ -83,4 +83,4 @@ The entire architecture, the pub/sub backbone and set of modules, is bundled int
 
 ## TrustGraph Developer's Guide
 
-See [Development on trustgraph](docs/README.development.md)
+See [Development on TrustGraph](docs/README.development.md)
