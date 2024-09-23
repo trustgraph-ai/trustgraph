@@ -101,10 +101,15 @@ TrustGraph extracts knowledge from a text corpus (PDF or text) to a knowledge gr
 - Entities
 - Semantic Relationships
 
-The extraction prompts are built through templates, enabling customized extraction processes for a specific use case. The extraction process is launched automatically with either of following commands pointing to the path of a desired text corpus or the included sample file:
+The extraction prompts are built through templates, enabling customized extraction processes for a specific use case. The extraction process is launched automatically with either of following commands pointing to the path of a desired text corpus or the included sample files:
 
+PDF file:
 ```
 scripts/load-pdf -f sample-text-corpus.pdf
+```
+
+Text file:
+```
 scripts/load-text -f sample-text-corpus.txt
 ```
 
