@@ -3,7 +3,7 @@
 
 ![TrustGraph banner](TG_Banner_readme.png)
 
-🚀 [Get Started](https://trustgraph.ai/docs/getstarted)
+🚀 [Full Documentation](https://trustgraph.ai/docs/getstarted)
 💬 [Join the Discord](https://discord.gg/AXpxVjwzAw)
 📖 [Read the Blog](https://blog.trustgraph.ai)
 📺 [YouTube](https://www.youtube.com/@TrustGraph)
