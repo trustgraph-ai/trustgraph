@@ -18,7 +18,26 @@ The processing showcases the reliability and efficiences of GraphRAG algorithms 
 
 ## Deploy in Minutes
 
-TrustGraph is fully containerized and is launched with a Docker Compose file. These files have already been prebuilt. Simply select a file that matches your desired model deployment and graph store configuration.
+TrustGraph is designed to deploy all the services and stores needed for a scalable GraphRAG infrastructure as quickly and simply as possible.
+
+### Install Requirements
+
+```
+python3 -m venv env
+. env/bin/activate
+pip3 install pulsar-client
+pip3 install cassandra-driver
+export PYTHON_PATH=.
+```
+
+### Download TrustGraph
+
+```
+git clone https://github.com/trustgraph-ai/trustgraph trustgraph
+cd trustgraph
+```
+
+TrustGraph is fully containerized and is launched with a Docker Compose `YAML` file. These files are prebuilt and included in the download main directory. Simply select the file that matches your desired model deployment and graph store configuration.
 
 | Model Deployment | Graph Store | Launch File |
 | ---------------- | ------------ | ----------- |
