@@ -59,6 +59,7 @@ docker compose -f <launch-file> up -d
 - [Qdrant](https://qdrant.tech/) as the VectorDB
 - Build and load [Knowledge Cores](https://trustgraph.ai/docs/category/knowledge-cores)
 - GraphRAG query service
+- [Grafana](https://github.com/grafana/) telemetry dashboard
 - Module integration with [Apache Pulsar](https://github.com/apache/pulsar/)
 - Container orchestration with `Docker` or [Podman](http://podman.io/)
 
@@ -91,9 +92,9 @@ Once the knowledge graph has been built or a knowledge core has been loaded, Gra
 scripts/query-graph-rag -q "Write a blog post about the 5 key takeaways from SB1047 and how they will impact AI development."
 ```
 
-## Deploy TrustGraph
+## Deploy and Manage TrustGraph
 
-[🚀 Deployment Guide 🚀](https://trustgraph.ai/docs/getstarted)
+[🚀 Full Deployment Guide 🚀](https://trustgraph.ai/docs/getstarted)
 
 ## TrustGraph Developer's Guide
 
