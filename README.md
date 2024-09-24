@@ -10,7 +10,7 @@
 
 ## Introduction
 
-TrustGraph deploys a full E2E (end-to-end) AI solution with native GraphRAG in minutes. TrustGraph is designed for maximum flexibility and modularity whether it's calling Cloud LLMs or deploying SLMs On-Device. TrustGraph ingests data to build a RDF style knowledge graph to enable accurate and private `RAG` responses using only the knowledge you want, when you want.
+TrustGraph deploys a full E2E (end-to-end) AI solution with native GraphRAG in minutes. Autonomous Knowledge Agents build ultra-dense knowlege graphs to fully capture all knowledge context. TrustGraph is designed for maximum flexibility and modularity whether it's calling Cloud LLMs or deploying SLMs On-Device. TrustGraph ingests data to build a RDF style knowledge graph to enable accurate and private `RAG` responses using only the knowledge you want, when you want.
 
 The pipeline processing components are interconnected with a pub/sub engine to maximize modularity for agent integration. The core processing components decode documents, chunk text, create mapped embeddings, generate a RDF knowledge graph, generate AI predictions from either a Cloud LLM or On-Device SLM.
 
@@ -73,7 +73,7 @@ docker compose -f <launch-file> up -d
 - On-Device SLM inference with [Ollama](https://ollama.com) or [Llamafile](https://github.com/Mozilla-Ocho/llamafile)
 - Cloud LLM infernece: `AWS Bedrock`, `AzureAI`, `Anthropic`, `Cohere`, `OpenAI`, and `VertexAI`
 - Chunk-mapped vector embeddings with [HuggingFace](https://hf.co) models
-- [RDF](https://www.w3.org/TR/rdf12-schema/) style Knowledge Graph extraction
+- [RDF](https://www.w3.org/TR/rdf12-schema/) Knowledge Extraction Agents
 - [Apache Cassandra](https://github.com/apache/cassandra) or [Neo4j](https://neo4j.com/) as the graph store
 - [Qdrant](https://qdrant.tech/) as the VectorDB
 - Build and load [Knowledge Cores](https://trustgraph.ai/docs/category/knowledge-cores)
@@ -93,15 +93,15 @@ TrustGraph is designed to be modular to support as many Language Models and envi
 - For processing flows, Pulsar accepts the output of a processing module and queues it for input to the next subscribed module.
 - For services such as LLMs and embeddings, Pulsar provides a client/server model.  A Pulsar queue is used as the input to the service.  When processed, the output is then delivered to a separate queue where a client subscriber can request that output.
 
-## Naive Knowledge Extraction
+## Knowledge Agents
 
-TrustGraph extracts knowledge from a text corpus (PDF or text) to a knowledge graph using 3 parallel processes. These processes focus on individual elements needed to build a rich RDF knowledge graph. The extraction focuses on:
+TrustGraph extracts knowledge from a text corpus (PDF or text) to an ultra-dense knowledge graph using 3 automonous knowledge agents. These agents focus on individual elements needed to build the RDF knowledge graph. The agents are:
 
-- Topics
-- Entities
-- Semantic Relationships
+- Topic Extraction Agent
+- Entity Extraction Agent
+- Node Connection Agent
 
-The extraction prompts are built through templates, enabling customized extraction processes for a specific use case. The extraction process is launched automatically with either of following commands pointing to the path of a desired text corpus or the included sample files:
+The agent prompts are built through templates, enabling customized extraction agents for a specific use case. The extraction agents are launched automatically with either of following commands pointing to the path of a desired text corpus or the included sample files:
 
 PDF file:
 ```
