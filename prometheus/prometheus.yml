@@ -29,6 +29,7 @@ scrape_configs:
         - 'kg-extract-definitions:8000'
         - 'kg-extract-topics:8000'
         - 'kg-extract-relationships:8000'
+        - 'metering:8000'
         - 'store-graph-embeddings:8000'
         - 'store-triples:8000'
         - 'text-completion:8000'

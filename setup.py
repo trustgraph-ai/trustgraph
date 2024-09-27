@@ -81,6 +81,7 @@ setuptools.setup(
         "scripts/load-pdf",
         "scripts/load-text",
         "scripts/load-triples",
+        "scripts/metering",
         "scripts/object-extract-row",
         "scripts/oe-write-milvus",
         "scripts/pdf-decoder",
