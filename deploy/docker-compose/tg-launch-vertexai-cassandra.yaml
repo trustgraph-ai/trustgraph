@@ -69,9 +69,9 @@ services:
     restart: on-failure:100
     volumes:
     - grafana-storage:/var/lib/grafana
-    - ${CONFIGDIR}/grafana/provisioning/:/etc/grafana/provisioning/dashboards/
-    - ${CONFIGDIR}/grafana/provisioning/:/etc/grafana/provisioning/datasources/
-    - ${CONFIGDIR}/grafana/dashboards/:/var/lib/grafana/dashboards/
+    - grafana/provisioning/:/etc/grafana/provisioning/dashboards/
+    - grafana/provisioning/:/etc/grafana/provisioning/datasources/
+    - grafana/dashboards/:/var/lib/grafana/dashboards/
   graph-rag:
     command:
     - graph-rag
@@ -191,7 +191,7 @@ services:
     - 9090:9090
     restart: on-failure:100
     volumes:
-    - ${CONFIGDIR}/prometheus:/etc/prometheus/
+    - prometheus:/etc/prometheus/
     - prometheus-data:/prometheus
   prompt:
     command:
@@ -710,7 +710,7 @@ services:
     image: docker.io/trustgraph/trustgraph-flow:0.10.1
     restart: on-failure:100
     volumes:
-    - ${CONFIGDIR}/./vertexai:/vertexai
+    - ./vertexai:/vertexai
   text-completion-rag:
     command:
     - text-completion-vertexai
@@ -741,7 +741,7 @@ services:
     image: docker.io/trustgraph/trustgraph-flow:0.10.1
     restart: on-failure:100
     volumes:
-    - ${CONFIGDIR}/./vertexai:/vertexai
+    - ./vertexai:/vertexai
   vectorize:
     command:
     - embeddings-vectorize
