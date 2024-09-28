@@ -145,7 +145,7 @@
 
         name: dir,
 
-        volid:: "${CONFIGDIR}/" + dir,
+        volid:: dir,
 
         with_size:: function(size) self + { size: size },
 
@@ -161,7 +161,7 @@
 
         name: dir,
 
-        volid:: "${CONFIGDIR}/" + dir,
+        volid:: dir,
 
         with_size:: function(size) self + { size: size },
 
