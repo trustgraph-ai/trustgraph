@@ -51,13 +51,17 @@ class Processor(Consumer):
         num_out = v.out_token
 
         model_input_price, model_output_price = self.get_prices(price_list, modelname)
-        cost_in = num_in * model_input_price
-        cost_out = num_out * model_output_price
-        cost_per_call = cost_in + cost_out
+
+        if model_input_price == None:
+            cost_per_call = f"Model Not Found in Price list"
+        else:
+            cost_in = num_in * model_input_price
+            cost_out = num_out * model_output_price
+            cost_per_call = round(cost_in + cost_out, 6)
 
         print(f"Input Tokens: {num_in}", flush=True)
         print(f"Output Tokens: {num_out}", flush=True)
-        print(f"Cost for call: ${cost_per_call:.6f}", flush=True)
+        print(f"Cost for call: ${cost_per_call}", flush=True)
 
     @staticmethod
     def add_args(parser):

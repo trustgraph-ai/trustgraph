@@ -44,6 +44,26 @@ price_list = {
       "model_name": "ollama",
       "input_price": 0,
       "output_price": 0
-    }
+    },
+    {
+      "model_name": "claude-3-haiku-20240307",
+      "input_price": 0.00000025,
+      "output_price": 0.00000125
+    },
+    {
+      "model_name": "claude-3-5-sonnet-20240620",
+      "input_price": 0.000003,
+      "output_price": 0.000015
+    },
+    {
+      "model_name": "claude-3-opus-20240229",
+      "input_price": 0.000015,
+      "output_price": 0.000075
+    },
+    {
+      "model_name": "claude-3-sonnet-20240229",
+      "input_price": 0.000003,
+      "output_price": 0.000015
+    },
   ]
 }
