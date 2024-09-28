@@ -107,12 +107,20 @@ class Processor(ConsumerProducer):
                     #}
                 )
 
+            inputtokens = resp.usage.prompt_tokens
+            outputtokens = resp.usage.completion_tokens
+
             print(resp.choices[0].message.content, flush=True)
+            print(f"Input Tokens: {inputtokens}", flush=True)
+            print(f"Output Tokens: {outputtokens}", flush=True)
 
             print("Send response...", flush=True)
             r = TextCompletionResponse(
                 response=resp.choices[0].message.content,
                 error=None,
+                in_token=inputtokens,
+                out_token=outputtokens,
+                model="llama.cpp"
             )
             self.send(r, properties={"id": id})
 
@@ -130,6 +138,9 @@ class Processor(ConsumerProducer):
                     message = str(e),
                 ),
                 response=None,
+                in_token=None,
+                out_token=None,
+                model=None,
             )
 
             self.producer.send(r, properties={"id": id})
@@ -148,6 +159,9 @@ class Processor(ConsumerProducer):
                     message = str(e),
                 ),
                 response=None,
+                in_token=None,
+                out_token=None,
+                model=None,
             )
 
             self.producer.send(r, properties={"id": id})
