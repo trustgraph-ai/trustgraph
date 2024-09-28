@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from trustgraph.chunking.recursive import run
+from trustgraph.core.chunking.recursive import run
 
 run()
 

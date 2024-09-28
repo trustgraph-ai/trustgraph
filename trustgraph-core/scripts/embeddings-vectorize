@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from trustgraph.embeddings.vectorize import run
+from trustgraph.core.embeddings.vectorize import run
 
 run()
 

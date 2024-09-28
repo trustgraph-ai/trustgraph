@@ -6,14 +6,14 @@ Loads a PDF document into TrustGraph processing.
 
 import pulsar
 from pulsar.schema import JsonSchema
-from trustgraph.schema import Document, Source, document_ingest_queue
+from trustgraph.core.schema import Document, Source, document_ingest_queue
 import base64
 import hashlib
 import argparse
 import os
 import time
 
-from trustgraph.log_level import LogLevel
+from trustgraph.core.log_level import LogLevel
 
 class Loader:
 

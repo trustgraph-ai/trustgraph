@@ -6,7 +6,7 @@ Connects to the graph query service and dumps all graph edges.
 
 import argparse
 import os
-from trustgraph.clients.triples_query_client import TriplesQueryClient
+from trustgraph.core.clients.triples_query_client import TriplesQueryClient
 import rdflib
 import io
 import sys
