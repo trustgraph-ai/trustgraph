@@ -1,5 +1,5 @@
 
-from pulsar.schema import Record, String, Array, Double
+from pulsar.schema import Record, String, Array, Double, Integer
 
 from . topic import topic
 from . types import Error
@@ -14,6 +14,9 @@ class TextCompletionRequest(Record):
 class TextCompletionResponse(Record):
     error = Error()
     response = String()
+    in_token = Integer()
+    out_token = Integer()
+    model = String()
 
 text_completion_request_queue = topic(
     'text-completion', kind='non-persistent', namespace='request'

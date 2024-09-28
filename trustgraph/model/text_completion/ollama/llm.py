@@ -4,7 +4,7 @@ Simple LLM service, performs text prompt completion using an Ollama service.
 Input is prompt, output is response.
 """
 
-from langchain_community.llms import Ollama
+from ollama import Client
 from prometheus_client import Histogram, Info
 
 from .... schema import TextCompletionRequest, TextCompletionResponse, Error
@@ -67,7 +67,8 @@ class Processor(ConsumerProducer):
             "ollama": ollama,
         })
 
-        self.llm = Ollama(base_url=ollama, model=model)
+        self.model = model
+        self.llm = Client(host=ollama)
 
     def handle(self, msg):
 
@@ -83,11 +84,16 @@ class Processor(ConsumerProducer):
         try:
 
             with __class__.text_completion_metric.time():
-                response = self.llm.invoke(prompt)
+                response = self.llm.generate(self.model, prompt)
 
+            response_text = response['response']
             print("Send response...", flush=True)
+            print(response_text, flush=True)
 
-            r = TextCompletionResponse(response=response, error=None)
+            inputtokens = int(response['prompt_eval_count'])
+            outputtokens = int(response['eval_count'])
+
+            r = TextCompletionResponse(response=response_text, error=None, in_token=inputtokens, out_token=outputtokens, model="ollama")
 
             self.send(r, properties={"id": id})
 
@@ -105,6 +111,9 @@ class Processor(ConsumerProducer):
                     message = str(e),
                 ),
                 response=None,
+                in_token=None,
+                out_token=None,
+                model=None,
             )
 
             self.producer.send(r, properties={"id": id})
@@ -123,6 +132,9 @@ class Processor(ConsumerProducer):
                     message = str(e),
                 ),
                 response=None,
+                in_token=None,
+                out_token=None,
+                model=None,
             )
 
             self.producer.send(r, properties={"id": id})
