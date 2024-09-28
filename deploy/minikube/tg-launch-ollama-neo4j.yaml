@@ -31,7 +31,7 @@ items:
           - '250'
           - --chunk-overlap
           - '15'
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: chunker
           resources:
             limits:
@@ -81,7 +81,7 @@ items:
           - pulsar://pulsar:6650
           - -m
           - all-MiniLM-L6-v2
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: embeddings
           resources:
             limits:
@@ -590,7 +590,7 @@ items:
           - '30'
           - --max-subgraph-size
           - '3000'
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: graph-rag
           resources:
             limits:
@@ -638,7 +638,7 @@ items:
           - kg-extract-definitions
           - -p
           - pulsar://pulsar:6650
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: kg-extract-definitions
           resources:
             limits:
@@ -686,7 +686,7 @@ items:
           - kg-extract-relationships
           - -p
           - pulsar://pulsar:6650
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: kg-extract-relationships
           resources:
             limits:
@@ -712,6 +712,41 @@ items:
     selector:
       app: kg-extract-relationships
     type: LoadBalancer
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    labels:
+      app: kg-extract-topics
+    name: kg-extract-topics
+    namespace: trustgraph
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: kg-extract-topics
+    template:
+      metadata:
+        labels:
+          app: kg-extract-topics
+      spec:
+        containers:
+        - command:
+          - kg-extract-topics
+          - -p
+          - pulsar://pulsar:6650
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
+          name: kg-extract-topics
+          resources:
+            limits:
+              cpu: '0.5'
+              memory: 128M
+            requests:
+              cpu: '0.1'
+              memory: 128M
+          securityContext:
+            runAsGroup: 0
+            runAsUser: 0
+        volumes: []
 - apiVersion: v1
   kind: PersistentVolume
   metadata:
@@ -818,7 +853,7 @@ items:
           - pdf-decoder
           - -p
           - pulsar://pulsar:6650
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: pdf-decoder
           resources:
             limits:
@@ -857,11 +892,12 @@ items:
       \    # 5 seconds.\n    scrape_interval: 5s\n\n    static_configs:\n      - targets:\n\
       \        - 'pdf-decoder:8000'\n        - 'chunker:8000'\n        - 'vectorize:8000'\n\
       \        - 'embeddings:8000'\n        - 'kg-extract-definitions:8000'\n    \
-      \    - 'kg-extract-relationships:8000'\n        - 'store-graph-embeddings:8000'\n\
-      \        - 'store-triples:8000'\n        - 'text-completion:8000'\n        -\
-      \ 'text-completion-rag:8000'\n        - 'graph-rag:8000'\n        - 'prompt:8000'\n\
-      \        - 'prompt-rag:8000'\n        - 'query-graph-embeddings:8000'\n    \
-      \    - 'query-triples:8000'\n        - 'pulsar:8080'\n\n"
+      \    - 'kg-extract-topics:8000'\n        - 'kg-extract-relationships:8000'\n\
+      \        - 'store-graph-embeddings:8000'\n        - 'store-triples:8000'\n \
+      \       - 'text-completion:8000'\n        - 'text-completion-rag:8000'\n   \
+      \     - 'graph-rag:8000'\n        - 'prompt:8000'\n        - 'prompt-rag:8000'\n\
+      \        - 'query-graph-embeddings:8000'\n        - 'query-triples:8000'\n \
+      \       - 'pulsar:8080'\n\n"
   kind: ConfigMap
   metadata:
     name: prometheus-cfg
@@ -973,7 +1009,7 @@ items:
           - non-persistent://tg/request/text-completion
           - --text-completion-response-queue
           - non-persistent://tg/response/text-completion-response
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: prompt
           resources:
             limits:
@@ -1029,7 +1065,7 @@ items:
           - non-persistent://tg/request/text-completion-rag
           - --text-completion-response-queue
           - non-persistent://tg/response/text-completion-rag-response
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: prompt-rag
           resources:
             limits:
@@ -1287,7 +1323,7 @@ items:
           - pulsar://pulsar:6650
           - -t
           - http://qdrant:6333
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: query-doc-embeddings
           resources:
             limits:
@@ -1337,7 +1373,7 @@ items:
           - pulsar://pulsar:6650
           - -t
           - http://qdrant:6333
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: query-graph-embeddings
           resources:
             limits:
@@ -1387,7 +1423,7 @@ items:
           - pulsar://pulsar:6650
           - -g
           - bolt://neo4j:7687
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: query-triples
           resources:
             limits:
@@ -1437,7 +1473,7 @@ items:
           - pulsar://pulsar:6650
           - -t
           - http://qdrant:6333
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: store-doc-embeddings
           resources:
             limits:
@@ -1487,7 +1523,7 @@ items:
           - pulsar://pulsar:6650
           - -t
           - http://qdrant:6333
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: store-graph-embeddings
           resources:
             limits:
@@ -1537,7 +1573,7 @@ items:
           - pulsar://pulsar:6650
           - -g
           - bolt://neo4j:7687
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: store-triples
           resources:
             limits:
@@ -1589,7 +1625,7 @@ items:
           - gemma2:9b
           - -r
           - ${OLLAMA_HOST}
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: text-completion
           resources:
             limits:
@@ -1645,7 +1681,7 @@ items:
           - non-persistent://tg/request/text-completion-rag
           - -o
           - non-persistent://tg/response/text-completion-rag-response
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: text-completion-rag
           resources:
             limits:
@@ -1693,7 +1729,7 @@ items:
           - embeddings-vectorize
           - -p
           - pulsar://pulsar:6650
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: vectorize
           resources:
             limits:

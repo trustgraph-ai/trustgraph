@@ -110,7 +110,7 @@ items:
           - '250'
           - --chunk-overlap
           - '15'
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: chunker
           resources:
             limits:
@@ -160,7 +160,7 @@ items:
           - pulsar://pulsar:6650
           - -m
           - all-MiniLM-L6-v2
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: embeddings
           resources:
             limits:
@@ -669,7 +669,7 @@ items:
           - '30'
           - --max-subgraph-size
           - '3000'
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: graph-rag
           resources:
             limits:
@@ -717,7 +717,7 @@ items:
           - kg-extract-definitions
           - -p
           - pulsar://pulsar:6650
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: kg-extract-definitions
           resources:
             limits:
@@ -765,7 +765,7 @@ items:
           - kg-extract-relationships
           - -p
           - pulsar://pulsar:6650
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: kg-extract-relationships
           resources:
             limits:
@@ -795,6 +795,41 @@ items:
   kind: Deployment
   metadata:
     labels:
+      app: kg-extract-topics
+    name: kg-extract-topics
+    namespace: trustgraph
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: kg-extract-topics
+    template:
+      metadata:
+        labels:
+          app: kg-extract-topics
+      spec:
+        containers:
+        - command:
+          - kg-extract-topics
+          - -p
+          - pulsar://pulsar:6650
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
+          name: kg-extract-topics
+          resources:
+            limits:
+              cpu: '0.5'
+              memory: 128M
+            requests:
+              cpu: '0.1'
+              memory: 128M
+          securityContext:
+            runAsGroup: 0
+            runAsUser: 0
+        volumes: []
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    labels:
       app: pdf-decoder
     name: pdf-decoder
     namespace: trustgraph
@@ -813,7 +848,7 @@ items:
           - pdf-decoder
           - -p
           - pulsar://pulsar:6650
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: pdf-decoder
           resources:
             limits:
@@ -852,11 +887,12 @@ items:
       \    # 5 seconds.\n    scrape_interval: 5s\n\n    static_configs:\n      - targets:\n\
       \        - 'pdf-decoder:8000'\n        - 'chunker:8000'\n        - 'vectorize:8000'\n\
       \        - 'embeddings:8000'\n        - 'kg-extract-definitions:8000'\n    \
-      \    - 'kg-extract-relationships:8000'\n        - 'store-graph-embeddings:8000'\n\
-      \        - 'store-triples:8000'\n        - 'text-completion:8000'\n        -\
-      \ 'text-completion-rag:8000'\n        - 'graph-rag:8000'\n        - 'prompt:8000'\n\
-      \        - 'prompt-rag:8000'\n        - 'query-graph-embeddings:8000'\n    \
-      \    - 'query-triples:8000'\n        - 'pulsar:8080'\n\n"
+      \    - 'kg-extract-topics:8000'\n        - 'kg-extract-relationships:8000'\n\
+      \        - 'store-graph-embeddings:8000'\n        - 'store-triples:8000'\n \
+      \       - 'text-completion:8000'\n        - 'text-completion-rag:8000'\n   \
+      \     - 'graph-rag:8000'\n        - 'prompt:8000'\n        - 'prompt-rag:8000'\n\
+      \        - 'query-graph-embeddings:8000'\n        - 'query-triples:8000'\n \
+      \       - 'pulsar:8080'\n\n"
   kind: ConfigMap
   metadata:
     name: prometheus-cfg
@@ -1043,6 +1079,18 @@ items:
             or headers or prefixes.
 
             </requirements>'
+          - --topic-template
+          - "You are a helpful assistant that performs information extraction tasks\
+            \ for a provided text.\nRead the provided text. You will identify topics\
+            \ and their definitions in JSON.\n\nReading Instructions:\n- Ignore document\
+            \ formatting in the provided text.\n- Study the provided text carefully.\n\
+            \nHere is the text:\n{text}\n\nResponse Instructions: \n- Do not respond\
+            \ with special characters.\n- Return only topics that are concepts and\
+            \ unique to the provided text.\n- Respond only with well-formed JSON.\n\
+            - The JSON response shall be an array of objects with keys \"topic\" and\
+            \ \"definition\". \n- The JSON response shall use the following structure:\n\
+            \n```json\n[{{\"topic\": string, \"definition\": string}}]\n```\n\n- Do\
+            \ not write any additional text or explanations."
           - --knowledge-query-template
           - 'Study the following set of knowledge statements. The statements are written
             in Cypher format that has been extracted from a knowledge graph. Use only
@@ -1113,7 +1161,7 @@ items:
             explanations. Do not add markdown formatting or headers or prefixes.
 
             </requirements>'
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: prompt
           resources:
             limits:
@@ -1244,6 +1292,18 @@ items:
             or headers or prefixes.
 
             </requirements>'
+          - --topic-template
+          - "You are a helpful assistant that performs information extraction tasks\
+            \ for a provided text.\nRead the provided text. You will identify topics\
+            \ and their definitions in JSON.\n\nReading Instructions:\n- Ignore document\
+            \ formatting in the provided text.\n- Study the provided text carefully.\n\
+            \nHere is the text:\n{text}\n\nResponse Instructions: \n- Do not respond\
+            \ with special characters.\n- Return only topics that are concepts and\
+            \ unique to the provided text.\n- Respond only with well-formed JSON.\n\
+            - The JSON response shall be an array of objects with keys \"topic\" and\
+            \ \"definition\". \n- The JSON response shall use the following structure:\n\
+            \n```json\n[{{\"topic\": string, \"definition\": string}}]\n```\n\n- Do\
+            \ not write any additional text or explanations."
           - --knowledge-query-template
           - 'Study the following set of knowledge statements. The statements are written
             in Cypher format that has been extracted from a knowledge graph. Use only
@@ -1314,7 +1374,7 @@ items:
             explanations. Do not add markdown formatting or headers or prefixes.
 
             </requirements>'
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: prompt-rag
           resources:
             limits:
@@ -1572,7 +1632,7 @@ items:
           - pulsar://pulsar:6650
           - -t
           - http://qdrant:6333
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: query-doc-embeddings
           resources:
             limits:
@@ -1622,7 +1682,7 @@ items:
           - pulsar://pulsar:6650
           - -t
           - http://qdrant:6333
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: query-graph-embeddings
           resources:
             limits:
@@ -1672,7 +1732,7 @@ items:
           - pulsar://pulsar:6650
           - -g
           - cassandra
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: query-triples
           resources:
             limits:
@@ -1722,7 +1782,7 @@ items:
           - pulsar://pulsar:6650
           - -t
           - http://qdrant:6333
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: store-doc-embeddings
           resources:
             limits:
@@ -1772,7 +1832,7 @@ items:
           - pulsar://pulsar:6650
           - -t
           - http://qdrant:6333
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: store-graph-embeddings
           resources:
             limits:
@@ -1822,7 +1882,7 @@ items:
           - pulsar://pulsar:6650
           - -g
           - cassandra
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: store-triples
           resources:
             limits:
@@ -1876,7 +1936,7 @@ items:
           - '4096'
           - -t
           - '0'
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: text-completion
           resources:
             limits:
@@ -1934,7 +1994,7 @@ items:
           - non-persistent://tg/request/text-completion-rag
           - -o
           - non-persistent://tg/response/text-completion-rag-response
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: text-completion-rag
           resources:
             limits:
@@ -1982,7 +2042,7 @@ items:
           - embeddings-vectorize
           - -p
           - pulsar://pulsar:6650
-          image: docker.io/trustgraph/trustgraph-flow:0.10.0
+          image: docker.io/trustgraph/trustgraph-flow:0.10.1
           name: vectorize
           resources:
             limits:
