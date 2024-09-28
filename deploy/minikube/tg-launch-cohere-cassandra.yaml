@@ -888,9 +888,9 @@ items:
       \        - 'pdf-decoder:8000'\n        - 'chunker:8000'\n        - 'vectorize:8000'\n\
       \        - 'embeddings:8000'\n        - 'kg-extract-definitions:8000'\n    \
       \    - 'kg-extract-topics:8000'\n        - 'kg-extract-relationships:8000'\n\
-      \        - 'store-graph-embeddings:8000'\n        - 'store-triples:8000'\n \
-      \       - 'text-completion:8000'\n        - 'text-completion-rag:8000'\n   \
-      \     - 'graph-rag:8000'\n        - 'prompt:8000'\n        - 'prompt-rag:8000'\n\
+      \        - 'metering:8000'\n        - 'store-graph-embeddings:8000'\n      \
+      \  - 'store-triples:8000'\n        - 'text-completion:8000'\n        - 'text-completion-rag:8000'\n\
+      \        - 'graph-rag:8000'\n        - 'prompt:8000'\n        - 'prompt-rag:8000'\n\
       \        - 'query-graph-embeddings:8000'\n        - 'query-triples:8000'\n \
       \       - 'pulsar:8080'\n\n"
   kind: ConfigMap
