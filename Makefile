@@ -92,6 +92,10 @@ update-minikubes: set-version
 	  done; \
 	done
 
+docker-hub-login:
+	cat docker-token.txt | \
+	    docker login -u trustgraph --password-stdin registry-1.docker.io
+
 FORCE:
 
 IGNOREconfig.yaml: config.json FORCE
