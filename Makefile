@@ -8,6 +8,7 @@ all: pkgs
 
 pkgs:
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-core/
+	pip3 wheel --no-deps --wheel-dir dist trustgraph-embeddings-hf/
 
 # container
 
