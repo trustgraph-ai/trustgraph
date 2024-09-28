@@ -225,6 +225,7 @@ class Processor(ConsumerProducer):
                 response=outputtext,
                 in_token=inputtokens,
                 out_token=outputtokens,
+                model=str(self.model),
             )
 
             self.send(r, properties={"id": id})
@@ -246,6 +247,7 @@ class Processor(ConsumerProducer):
                 response=None,
                 in_token=None,
                 out_token=None,
+                model=None,
             )
 
             self.producer.send(r, properties={"id": id})
@@ -266,6 +268,7 @@ class Processor(ConsumerProducer):
                 response=None,
                 in_token=None,
                 out_token=None,
+                model=None,
             )
 
             self.consumer.acknowledge(msg)

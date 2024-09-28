@@ -16,6 +16,7 @@ class TextCompletionResponse(Record):
     response = String()
     in_token = Integer()
     out_token = Integer()
+    model = String()
 
 text_completion_request_queue = topic(
     'text-completion', kind='non-persistent', namespace='request'
