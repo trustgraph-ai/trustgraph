@@ -20,3 +20,4 @@ pyyaml
 prometheus-client
 pyarrow
 boto3
+ollama

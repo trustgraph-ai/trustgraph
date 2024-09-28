@@ -39,6 +39,11 @@ price_list = {
       "model_name": "cohere.command-r-plus-v1:0",
       "input_price": 0.0000030,
       "output_price": 0.0000150
+    },
+    {
+      "model_name": "ollama",
+      "input_price": 0,
+      "output_price": 0
     }
   ]
 }
