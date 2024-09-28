@@ -15,10 +15,11 @@ private_json = "Put your GCP private.json here"
 
 class Generator:
 
-    def __init__(self, config, base="./templates/"):
+    def __init__(self, config, base="./templates/", version="0.0.0"):
 
         self.jsonnet_base = base
         self.config = config
+        self.version = f"\"{version}\"".encode("utf-8")
 
     def process(self, config):
 
@@ -32,6 +33,10 @@ class Generator:
         if filename == "config.json" and dir == "":
             path = os.path.join(".", dir, filename)
             return str(path), self.config
+
+        if filename == "version.jsonnet" and dir == "./templates/values/":
+            path = os.path.join(".", dir, filename)
+            return str(path), self.version
 
         if dir:
             candidates = [
@@ -89,7 +94,8 @@ def full_config_object(
 def generate_config(
         vector_store="qdrant", embeddings="embeddings-hf",
         graph_store="cassandra", llm="vertexai",
-        platform = "docker-compose"
+        platform="docker-compose",
+        version="0.0.0"
 ):
 
     config = full_config_object(
@@ -102,7 +108,7 @@ def generate_config(
     with open(f"./templates/config-to-{platform}.jsonnet", "r") as f:
         wrapper = f.read()
 
-    gen = Generator(json.dumps(config).encode("utf-8"))
+    gen = Generator(json.dumps(config).encode("utf-8"), version=version)
 
     processed = gen.process(wrapper)
 
@@ -110,7 +116,7 @@ def generate_config(
 
     return y
 
-def generate_all(output):
+def generate_all(output, version):
 
     for platform in [
             "docker-compose", "minikube-k8s", "gcp-k8s"
@@ -122,7 +128,8 @@ def generate_all(output):
             for graph in [ "cassandra", "neo4j" ]:
 
                 y = generate_config(
-                    llm=model, graph_store=graph, platform=platform
+                    llm=model, graph_store=graph, platform=platform,
+                    version=version
                 )
 
                 fname =f"{platform}/tg-{model}-{graph}.yaml"
@@ -130,9 +137,12 @@ def generate_all(output):
                 output(fname, y)
 
 
-if len(sys.argv) < 2: raise RuntimeError("Usage: generate-all <file>")
+if len(sys.argv) < 3:
+    raise RuntimeError("Usage: generate-all <file> <version>")
 
 outfile = sys.argv[1]
+version = sys.argv[2]
+
 logger.info(f"Outputting to {outfile}...")
 
 with zipfile.ZipFile(outfile, mode='w') as out:
@@ -141,7 +151,7 @@ with zipfile.ZipFile(outfile, mode='w') as out:
         logger.info(f"Adding {name}...")
         out.writestr(name, content)
 
-    generate_all(output)
+    generate_all(output=output, version=version)
 
     # Placeholder for the private.json file.  Won't put actual credentials
     # here.
