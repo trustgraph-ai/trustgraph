@@ -4,7 +4,9 @@ VERSION=0.11.5
 
 DOCKER=podman
 
-all: container
+all:
+
+# container
 
 CONTAINER=docker.io/trustgraph/trustgraph-flow
 
