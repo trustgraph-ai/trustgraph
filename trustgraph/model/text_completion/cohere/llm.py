@@ -91,10 +91,15 @@ class Processor(ConsumerProducer):
                 )
 
             resp = output.text
+            inputtokens = output.meta.billed_units.input_tokens
+            outputtokens = output.meta.billed_units.output_tokens
+
             print(resp, flush=True)
+            print(f"Input Tokens: {inputtokens}", flush=True)
+            print(f"Output Tokens: {outputtokens}", flush=True)
 
             print("Send response...", flush=True)
-            r = TextCompletionResponse(response=resp, error=None)
+            r = TextCompletionResponse(response=resp, error=None, in_token=inputtokens, out_token=outputtokens, model=self.model)
             self.send(r, properties={"id": id})
 
             print("Done.", flush=True)
@@ -111,6 +116,9 @@ class Processor(ConsumerProducer):
                     message = str(e),
                 ),
                 response=None,
+                in_token=None,
+                out_token=None,
+                model=None,
             )
 
             self.producer.send(r, properties={"id": id})
@@ -129,6 +137,9 @@ class Processor(ConsumerProducer):
                     message = str(e),
                 ),
                 response=None,
+                in_token=None,
+                out_token=None,
+                model=None,
             )
 
             self.producer.send(r, properties={"id": id})

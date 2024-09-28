@@ -65,5 +65,15 @@ price_list = {
       "input_price": 0.000003,
       "output_price": 0.000015
     },
+    {
+      "model_name": "command-r-08-202",
+      "input_price": 0.0000025,
+      "output_price": 0.000010
+    },
+    {
+      "model_name": "c4ai-aya-23-8b",
+      "input_price": 0,
+      "output_price": 0
+    },
   ]
 }
