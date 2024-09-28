@@ -7,7 +7,7 @@ with open("../README.md", "r") as fh:
 version = "0.11.5"
 
 setuptools.setup(
-    name="trustgraph",
+    name="trustgraph-core",
     version=version,
     author="trustgraph.ai",
     author_email="security@trustgraph.ai",
@@ -15,7 +15,10 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/trustgraph-ai/trustgraph",
-    packages=setuptools.find_packages(),
+    packages=setuptools.find_namespace_packages(
+        where='./',
+#         include=['trustgraph.core']
+    ),
     classifiers=[ 
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
