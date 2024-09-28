@@ -42,8 +42,8 @@ class Processor(Consumer):
         num_in = v.in_token
         num_out = v.out_token
 
-        print(f"Input Tokens: {num_in}")
-        print(f"Output Tokens: {num_out}")
+        print(f"Input Tokens: {num_in}", flush=True)
+        print(f"Output Tokens: {num_out}", flush=True)
 
     @staticmethod
     def add_args(parser):

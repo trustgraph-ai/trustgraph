@@ -209,14 +209,22 @@ class Processor(ConsumerProducer):
             # Use Mistral as default
             else:
                 response_body = json.loads(response.get("body").read())
-                outputtext = response_body['outputs'][0]['text']            
+                outputtext = response_body['outputs'][0]['text']
+
+            metadata = response['ResponseMetadata']['HTTPHeaders']
+            inputtokens = int(metadata['x-amzn-bedrock-input-token-count'])
+            outputtokens = int(metadata['x-amzn-bedrock-output-token-count'])        
 
             print(outputtext, flush=True)
+            print(f"Input Tokens: {inputtokens}", flush=True)
+            print(f"Output Tokens: {outputtokens}", flush=True)
 
             print("Send response...", flush=True)
             r = TextCompletionResponse(
                 error=None,
-                response=outputtext
+                response=outputtext,
+                in_token=inputtokens,
+                out_token=outputtokens,
             )
 
             self.send(r, properties={"id": id})
@@ -236,6 +244,8 @@ class Processor(ConsumerProducer):
                     message = str(e),
                 ),
                 response=None,
+                in_token=None,
+                out_token=None,
             )
 
             self.producer.send(r, properties={"id": id})
@@ -254,6 +264,8 @@ class Processor(ConsumerProducer):
                     message = str(e),
                 ),
                 response=None,
+                in_token=None,
+                out_token=None,
             )
 
             self.consumer.acknowledge(msg)
