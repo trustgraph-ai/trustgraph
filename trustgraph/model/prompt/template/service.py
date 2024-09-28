@@ -4,8 +4,10 @@ Language service abstracts prompt engineering from LLM.
 """
 
 import json
+import re
 
 from .... schema import Definition, Relationship, Triple
+from .... schema import Topic
 from .... schema import PromptRequest, PromptResponse, Error
 from .... schema import TextCompletionRequest, TextCompletionResponse
 from .... schema import text_completion_request_queue
@@ -15,7 +17,7 @@ from .... base import ConsumerProducer
 from .... clients.llm_client import LlmClient
 
 from . prompts import to_definitions, to_relationships, to_rows
-from . prompts import to_kg_query, to_document_query
+from . prompts import to_kg_query, to_document_query, to_topics
 
 module = ".".join(__name__.split(".")[1:-1])
 
@@ -38,6 +40,7 @@ class Processor(ConsumerProducer):
         )
         definition_template = params.get("definition_template")
         relationship_template = params.get("relationship_template")
+        topic_template = params.get("topic_template")
         rows_template = params.get("rows_template")
         knowledge_query_template = params.get("knowledge_query_template")
         document_query_template = params.get("document_query_template")
@@ -62,18 +65,22 @@ class Processor(ConsumerProducer):
         )
 
         self.definition_template = definition_template
+        self.topic_template = topic_template
         self.relationship_template = relationship_template
         self.rows_template = rows_template
         self.knowledge_query_template = knowledge_query_template
         self.document_query_template = document_query_template
 
     def parse_json(self, text):
-        
-        # Hacky, workaround temperamental JSON markdown
-        text = text.replace("```json", "")
-        text = text.replace("```", "")
+        json_match = re.search(r'```(?:json)?(.*?)```', text, re.DOTALL)
+    
+        if json_match:
+            json_str = json_match.group(1).strip()
+        else:
+            # If no delimiters, assume the entire output is JSON
+            json_str = text.strip()
 
-        return json.loads(text)
+        return json.loads(json_str)
 
     def handle(self, msg):
 
@@ -90,6 +97,11 @@ class Processor(ConsumerProducer):
         if kind == "extract-definitions":
 
             self.handle_extract_definitions(id, v)
+            return
+
+        elif kind == "extract-topics":
+
+            self.handle_extract_topics(id, v)
             return
 
         elif kind == "extract-relationships":
@@ -175,6 +187,66 @@ class Processor(ConsumerProducer):
             )
 
             self.producer.send(r, properties={"id": id})
+
+    def handle_extract_topics(self, id, v):
+
+        try:
+
+            prompt = to_topics(self.topic_template, v.chunk)
+
+            ans = self.llm.request(prompt)
+
+            # Silently ignore JSON parse error
+            try:
+                defs = self.parse_json(ans)
+            except:
+                print("JSON parse error, ignored", flush=True)
+                defs = []
+
+            output = []
+
+            for defn in defs:
+
+                try:
+                    e = defn["topic"]
+                    d = defn["definition"]
+
+                    if e == "": continue
+                    if e is None: continue
+                    if d == "": continue
+                    if d is None: continue
+
+                    output.append(
+                        Topic(
+                            name=e, definition=d
+                        )
+                    )
+
+                except:
+                    print("definition fields missing, ignored", flush=True)
+
+            print("Send response...", flush=True)
+            r = PromptResponse(topics=output, error=None)
+            self.producer.send(r, properties={"id": id})
+
+            print("Done.", flush=True)
+        
+        except Exception as e:
+
+            print(f"Exception: {e}")
+
+            print("Send error response...", flush=True)
+
+            r = PromptResponse(
+                error=Error(
+                    type = "llm-error",
+                    message = str(e),
+                ),
+                response=None,
+            )
+
+            self.producer.send(r, properties={"id": id})
+
 
     def handle_extract_relationships(self, id, v):
 
@@ -413,6 +485,12 @@ class Processor(ConsumerProducer):
             '--definition-template',
             required=True,
             help=f'Definition extraction template',
+        )
+
+        parser.add_argument(
+            '--topic-template',
+            required=True,
+            help=f'Topic extraction template',
         )
 
         parser.add_argument(

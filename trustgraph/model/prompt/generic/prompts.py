@@ -1,50 +1,92 @@
 
 def to_relationships(text):
 
-    prompt = f"""<instructions>
-Study the following text and derive entity relationships.  For each
-relationship, derive the subject, predicate and object of the relationship.
-Output relationships in JSON format as an arary of objects with fields:
-- subject: the subject of the relationship
-- predicate: the predicate
-- object: the object of the relationship
-- object-entity: false if the object is a simple data type: name, value or date.  true if it is an entity.
-</instructions>
+    prompt = f"""You are a helpful assistant that performs information extraction tasks for a provided text.
 
-<text>
+Read the provided text. You will model the text as an information network for a RDF knowledge graph in JSON.
+
+Information Network Rules:
+- An information network has subjects connected by predicates to objects.
+- A subject is a named-entity or a conceptual topic.
+- One subject can have many predicates and objects.
+- An object is a property or attribute of a subject.
+- A subject can be connected by a predicate to another subject.
+
+Reading Instructions:
+- Ignore document formatting in the provided text.
+- Study the provided text carefully.
+
+Here is the text: 
 {text}
-</text>
 
-<requirements>
-You will respond only with raw JSON format data. Do not provide
-explanations. Do not use special characters in the abstract text. The
-abstract must be written as plain text.  Do not add markdown formatting
-or headers or prefixes.
-</requirements>"""
+Response Instructions:
+- Obey the information network rules. 
+- Do not return special characters.
+- Respond only with well-formed JSON.
+- The JSON response shall be an array of JSON objects with keys "subject", "predicate", "object", and "object-entity".
+- The JSON response shall use the following structure:
+
+```json
+[{{"subject": string, "predicate": string, "object": string, "object-entity": boolean}}]
+```
+
+- The key "object-entity" is TRUE only if the "object" is a subject.
+- Do not write any additional text or explanations.
+"""
+    
+    return prompt
+
+def to_topics(text):
+
+    prompt = f"""You are a helpful assistant that performs information extraction tasks for a provided text.\nRead the provided text. You will identify topics and their definitions in JSON.
+
+Reading Instructions:
+- Ignore document formatting in the provided text.
+- Study the provided text carefully.
+
+Here is the text:
+{text}
+
+Response Instructions: 
+- Do not respond with special characters.
+- Return only topics that are concepts and unique to the provided text.
+- Respond only with well-formed JSON.
+- The JSON response shall be an array of objects with keys "topic" and "definition". 
+- The JSON response shall use the following structure:
+
+```json
+[{{"topic": string, "definition": string}}]
+```
+
+- Do not write any additional text or explanations.
+"""
     
     return prompt
     
 def to_definitions(text):
 
-    prompt = f"""<instructions>
-Study the following text and derive definitions for any discovered entities.
-Do not provide definitions for entities whose definitions are incomplete
-or unknown.
-Output relationships in JSON format as an arary of objects with fields:
-- entity: the name of the entity
-- definition: English text which defines the entity
-</instructions>
+    prompt = f"""You are a helpful assistant that performs information extraction tasks for a provided text.\nRead the provided text. You will identify entities and their definitions in JSON.
 
-<text>
+Reading Instructions:
+- Ignore document formatting in the provided text.
+- Study the provided text carefully.
+
+Here is the text:
 {text}
-</text>
 
-<requirements>
-You will respond only with raw JSON format data. Do not provide
-explanations. Do not use special characters in the abstract text. The
-abstract will be written as plain text.  Do not add markdown formatting
-or headers or prefixes.  Do not include null or unknown definitions.
-</requirements>"""
+Response Instructions:
+- Do not respond with special characters.
+- Return only entities that are named-entities such as: people, organizations, physical objects, locations, animals, products, commodotities, or substances.
+- Respond only with well-formed JSON. 
+- The JSON response shall be an array of objects with keys "entity" and "definition".
+- The JSON response shall use the following structure: 
+
+```json
+[{{"entity": string, "definition": string}}]
+```
+
+- Do not write any additional text or explanations.
+"""
     
     return prompt
 

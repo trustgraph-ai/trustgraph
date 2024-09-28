@@ -44,6 +44,13 @@ class PromptClient(BaseClient):
             kind="extract-definitions", chunk=chunk,
             timeout=timeout
         ).definitions
+    
+    def request_topics(self, chunk, timeout=300):
+
+        return self.call(
+            kind="extract-topics", chunk=chunk,
+            timeout=timeout
+        ).topics
 
     def request_relationships(self, chunk, timeout=300):
 

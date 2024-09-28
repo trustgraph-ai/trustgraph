@@ -32,12 +32,12 @@ clean:
 set-version:
 	echo '"${VERSION}"' > templates/values/version.jsonnet
 
-TEMPLATES=azure bedrock claude cohere mix ollama openai vertexai \
+TEMPLATES=azure bedrock claude cohere mix llamafile ollama openai vertexai \
     openai-neo4j storage
 
 DCS=$(foreach template,${TEMPLATES},${template:%=tg-launch-%.yaml})
 
-MODELS=azure bedrock claude cohere ollama openai vertexai
+MODELS=azure bedrock claude cohere llamafile ollama openai vertexai
 GRAPHS=cassandra neo4j
 
 # tg-launch-%.yaml: templates/%.jsonnet templates/components/version.jsonnet

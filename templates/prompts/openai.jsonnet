@@ -11,6 +11,8 @@ local url = import "values/url.jsonnet";
 
 //    "prompt-relationship-template":: "PROMPT GOES HERE",
 
+//    "prompt-topic-template":: "PROMPT GOES HERE",
+
 //    "prompt-knowledge-query-template":: "PROMPT GOES HERE",
 
 //    "prompt-document-query-template":: "PROMPT GOES HERE",
