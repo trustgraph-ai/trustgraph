@@ -4,7 +4,10 @@ VERSION=0.11.5
 
 DOCKER=podman
 
-all:
+all: pkgs
+
+pkgs:
+	pip3 wheel --no-deps --wheel-dir dist trustgraph-core/
 
 # container
 
