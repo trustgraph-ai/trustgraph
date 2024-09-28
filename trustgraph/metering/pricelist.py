@@ -1,14 +1,14 @@
 price_list = {
   "price_list": [
     {
-      "model_name": "GPT-3.5-Turbo",
-      "input_price": 0.0015,
-      "output_price": 0.002
+      "model_name": "mistral.mistral-large-2407-v1:0",
+      "input_price": 0.000004,
+      "output_price": 0.000012
     },
     {
-      "model_name": "GPT-4",
-      "input_price": 0.03,
-      "output_price": 0.06
+      "model_name": "meta.llama3-1-405b-instruct-v1:0",
+      "input_price": 0.00000532,
+      "output_price": 0.000016
     },
     {
       "model_name": "mistral.mixtral-8x7b-instruct-v0:1",
@@ -16,14 +16,29 @@ price_list = {
       "output_price": 0.0000007
     },
     {
-      "model_name": "DALL-E 2",
-      "input_price": 0.016,
-      "output_price": 0.016
+      "model_name": "meta.llama3-1-70b-instruct-v1:0",
+      "input_price": 0.00000099,
+      "output_price": 0.00000099
     },
     {
-      "model_name": "Jurassic-1 Jumbo",
-      "input_price": 0.01,
-      "output_price": 0.01
+      "model_name": "meta.llama3-1-8b-instruct-v1:0",
+      "input_price": 0.00000022,
+      "output_price": 0.00000022
+    },
+    {
+      "model_name": "anthropic.claude-3-haiku-20240307-v1:0",
+      "input_price": 0.00000025,
+      "output_price": 0.00000125
+    },
+    {
+      "model_name": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+      "input_price": 0.000003,
+      "output_price": 0.000015
+    },
+    {
+      "model_name": "cohere.command-r-plus-v1:0",
+      "input_price": 0.0000030,
+      "output_price": 0.0000150
     }
   ]
 }
