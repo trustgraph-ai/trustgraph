@@ -73,8 +73,8 @@ class DocumentRag:
 
         self.lang = PromptClient(
             pulsar_host=pulsar_host,
-            input_queue=prompt_request_queue,
-            output_queue=prompt_response_queue,
+            input_queue=pr_request_queue,
+            output_queue=pr_response_queue,
             subscriber=module + "-de-prompt",
         )
 
