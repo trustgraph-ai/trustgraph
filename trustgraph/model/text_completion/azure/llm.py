@@ -22,6 +22,7 @@ default_output_queue = text_completion_response_queue
 default_subscriber = module
 default_temperature = 0.0
 default_max_output = 4192
+default_model = "AzureAI"
 
 class Processor(ConsumerProducer):
 
@@ -34,6 +35,7 @@ class Processor(ConsumerProducer):
         token = params.get("token")
         temperature = params.get("temperature", default_temperature)
         max_output = params.get("max_output", default_max_output)
+        model = default_model
 
         super(Processor, self).__init__(
             **params | {
@@ -44,6 +46,7 @@ class Processor(ConsumerProducer):
                 "output_schema": TextCompletionResponse,
                 "temperature": temperature,
                 "max_output": max_output,
+                "model": model,
             }
         )
 
@@ -64,6 +67,7 @@ class Processor(ConsumerProducer):
         self.token = token
         self.temperature = temperature
         self.max_output = max_output
+        self.model = model
 
     def build_prompt(self, system, content):
 
@@ -140,7 +144,7 @@ class Processor(ConsumerProducer):
 
             print("Send response...", flush=True)
 
-            r = TextCompletionResponse(response=resp, error=None, in_token=inputtokens, out_token=outputtokens, model="AzureAI")
+            r = TextCompletionResponse(response=resp, error=None, in_token=inputtokens, out_token=outputtokens, model=self.model)
             self.producer.send(r, properties={"id": id})
 
         except TooManyRequests:

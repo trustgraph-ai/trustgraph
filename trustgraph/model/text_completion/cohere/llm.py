@@ -91,8 +91,8 @@ class Processor(ConsumerProducer):
                 )
 
             resp = output.text
-            inputtokens = output.meta.billed_units.input_tokens
-            outputtokens = output.meta.billed_units.output_tokens
+            inputtokens = int(output.meta.billed_units.input_tokens)
+            outputtokens = int(output.meta.billed_units.output_tokens)
 
             print(resp, flush=True)
             print(f"Input Tokens: {inputtokens}", flush=True)

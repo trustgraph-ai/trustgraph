@@ -142,14 +142,14 @@ class Processor(ConsumerProducer):
 
             with __class__.text_completion_metric.time():
 
-                resp = self.llm.generate_content(
+                response = self.llm.generate_content(
                     prompt, generation_config=self.generation_config,
                     safety_settings=self.safety_settings
                 )
 
-            resp = resp.text
-            inputtokens = resp.usage_metadata.prompt_token_count
-            outputtokens = resp.usage_metadata.candidates_token_count
+            resp = response.text
+            inputtokens = int(response.usage_metadata.prompt_token_count)
+            outputtokens = int(response.usage_metadata.candidates_token_count)
             print(resp, flush=True)
             print(f"Input Tokens: {inputtokens}", flush=True)
             print(f"Output Tokens: {outputtokens}", flush=True)
