@@ -64,6 +64,7 @@ class Processor(ConsumerProducer):
         self.token = token
         self.temperature = temperature
         self.max_output = max_output
+        self.model = "AzureAI"
 
     def build_prompt(self, system, content):
 
@@ -140,7 +141,7 @@ class Processor(ConsumerProducer):
 
             print("Send response...", flush=True)
 
-            r = TextCompletionResponse(response=resp, error=None, in_token=inputtokens, out_token=outputtokens, model="AzureAI")
+            r = TextCompletionResponse(response=resp, error=None, in_token=inputtokens, out_token=outputtokens, model=self.model)
             self.producer.send(r, properties={"id": id})
 
         except TooManyRequests:
