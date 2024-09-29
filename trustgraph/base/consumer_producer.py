@@ -1,6 +1,6 @@
 
 from pulsar.schema import JsonSchema
-from prometheus_client import Histogram, Info, Counter
+from prometheus_client import Histogram, Info, Counter, Enum
 import time
 
 from . base_processor import BaseProcessor
@@ -11,6 +11,15 @@ from .. exceptions import TooManyRequests
 class ConsumerProducer(BaseProcessor):
 
     def __init__(self, **params):
+
+        if not hasattr(__class__, "state_metric"):
+            __class__.state_metric = Enum(
+                'processor_state', 'Processor state',
+                states=['starting', 'running', 'stopped']
+            )
+            __class__.state_metric.state('starting')
+
+        __class__.state_metric.state('starting')
 
         input_queue = params.get("input_queue")
         output_queue = params.get("output_queue")
@@ -65,6 +74,8 @@ class ConsumerProducer(BaseProcessor):
         )
 
     def run(self):
+
+        __class__.state_metric.state('running')
 
         while True:
 
