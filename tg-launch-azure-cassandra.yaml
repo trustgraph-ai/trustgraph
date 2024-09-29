@@ -69,9 +69,9 @@ services:
     restart: on-failure:100
     volumes:
     - grafana-storage:/var/lib/grafana
-    - grafana/provisioning/:/etc/grafana/provisioning/dashboards/
-    - grafana/provisioning/:/etc/grafana/provisioning/datasources/
-    - grafana/dashboards/:/var/lib/grafana/dashboards/
+    - ./grafana/provisioning/:/etc/grafana/provisioning/dashboards/
+    - ./grafana/provisioning/:/etc/grafana/provisioning/datasources/
+    - ./grafana/dashboards/:/var/lib/grafana/dashboards/
   graph-rag:
     command:
     - graph-rag
@@ -191,7 +191,7 @@ services:
     - 9090:9090
     restart: on-failure:100
     volumes:
-    - prometheus:/etc/prometheus/
+    - ./prometheus:/etc/prometheus/
     - prometheus-data:/prometheus
   prompt:
     command:

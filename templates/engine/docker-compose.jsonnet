@@ -145,7 +145,7 @@
 
         name: dir,
 
-        volid:: dir,
+        volid:: "./" + dir,
 
         with_size:: function(size) self + { size: size },
 
