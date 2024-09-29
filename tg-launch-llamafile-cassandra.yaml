@@ -33,7 +33,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.11.0
+    image: docker.io/trustgraph/trustgraph-flow:0.11.1
     restart: on-failure:100
   embeddings:
     command:
@@ -50,7 +50,7 @@ services:
         reservations:
           cpus: '0.5'
           memory: 400M
-    image: docker.io/trustgraph/trustgraph-flow:0.11.0
+    image: docker.io/trustgraph/trustgraph-flow:0.11.1
     restart: on-failure:100
   grafana:
     deploy:
@@ -95,7 +95,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.11.0
+    image: docker.io/trustgraph/trustgraph-flow:0.11.1
     restart: on-failure:100
   init-pulsar:
     command:
@@ -130,7 +130,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.11.0
+    image: docker.io/trustgraph/trustgraph-flow:0.11.1
     restart: on-failure:100
   kg-extract-relationships:
     command:
@@ -145,7 +145,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.11.0
+    image: docker.io/trustgraph/trustgraph-flow:0.11.1
     restart: on-failure:100
   kg-extract-topics:
     command:
@@ -160,7 +160,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.11.0
+    image: docker.io/trustgraph/trustgraph-flow:0.11.1
     restart: on-failure:100
   pdf-decoder:
     command:
@@ -175,7 +175,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.11.0
+    image: docker.io/trustgraph/trustgraph-flow:0.11.1
     restart: on-failure:100
   prometheus:
     deploy:
@@ -210,7 +210,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.11.0
+    image: docker.io/trustgraph/trustgraph-flow:0.11.1
     restart: on-failure:100
   prompt-rag:
     command:
@@ -233,7 +233,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.11.0
+    image: docker.io/trustgraph/trustgraph-flow:0.11.1
     restart: on-failure:100
   pulsar:
     command:
@@ -287,7 +287,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.11.0
+    image: docker.io/trustgraph/trustgraph-flow:0.11.1
     restart: on-failure:100
   query-graph-embeddings:
     command:
@@ -304,7 +304,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.11.0
+    image: docker.io/trustgraph/trustgraph-flow:0.11.1
     restart: on-failure:100
   query-triples:
     command:
@@ -321,7 +321,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 512M
-    image: docker.io/trustgraph/trustgraph-flow:0.11.0
+    image: docker.io/trustgraph/trustgraph-flow:0.11.1
     restart: on-failure:100
   store-doc-embeddings:
     command:
@@ -338,7 +338,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.11.0
+    image: docker.io/trustgraph/trustgraph-flow:0.11.1
     restart: on-failure:100
   store-graph-embeddings:
     command:
@@ -355,7 +355,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.11.0
+    image: docker.io/trustgraph/trustgraph-flow:0.11.1
     restart: on-failure:100
   store-triples:
     command:
@@ -372,7 +372,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.11.0
+    image: docker.io/trustgraph/trustgraph-flow:0.11.1
     restart: on-failure:100
   text-completion:
     command:
@@ -391,7 +391,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.11.0
+    image: docker.io/trustgraph/trustgraph-flow:0.11.1
     restart: on-failure:100
   text-completion-rag:
     command:
@@ -414,7 +414,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.11.0
+    image: docker.io/trustgraph/trustgraph-flow:0.11.1
     restart: on-failure:100
   vectorize:
     command:
@@ -429,7 +429,7 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
-    image: docker.io/trustgraph/trustgraph-flow:0.11.0
+    image: docker.io/trustgraph/trustgraph-flow:0.11.1
     restart: on-failure:100
 volumes:
   cassandra: {}
