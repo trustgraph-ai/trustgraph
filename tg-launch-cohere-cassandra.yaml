@@ -692,7 +692,7 @@ services:
     - -k
     - ${COHERE_KEY}
     - -t
-    - 0
+    - '0'
     deploy:
       resources:
         limits:
@@ -711,7 +711,7 @@ services:
     - -k
     - ${COHERE_KEY}
     - -t
-    - 0
+    - '0'
     - -i
     - non-persistent://tg/request/text-completion-rag
     - -o
