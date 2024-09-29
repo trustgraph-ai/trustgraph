@@ -125,7 +125,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.11.2
+    image: docker.io/trustgraph/trustgraph-flow:0.11.3
     restart: on-failure:100
   query-graph-embeddings:
     command:
@@ -142,7 +142,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.11.2
+    image: docker.io/trustgraph/trustgraph-flow:0.11.3
     restart: on-failure:100
   query-triples:
     command:
@@ -159,7 +159,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.11.2
+    image: docker.io/trustgraph/trustgraph-flow:0.11.3
     restart: on-failure:100
   store-doc-embeddings:
     command:
@@ -176,7 +176,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.11.2
+    image: docker.io/trustgraph/trustgraph-flow:0.11.3
     restart: on-failure:100
   store-graph-embeddings:
     command:
@@ -193,7 +193,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.11.2
+    image: docker.io/trustgraph/trustgraph-flow:0.11.3
     restart: on-failure:100
   store-triples:
     command:
@@ -210,7 +210,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.11.2
+    image: docker.io/trustgraph/trustgraph-flow:0.11.3
     restart: on-failure:100
 volumes:
   grafana-storage: {}
