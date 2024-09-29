@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+
+import requests
+import tabulate
+
+url = 'http://localhost:9090/api/v1/query?query=processor_state%7Bprocessor_state%3D%22running%22%7D'
+
+resp = requests.get(url)
+
+obj = resp.json()
+
+tbl = [
+    [
+        m["metric"]["instance"],
+        "running" if int(m["value"][1]) > 0 else "down"
+    ]
+    for m in obj["data"]["result"]
+]
+
+print(tabulate.tabulate(
+    tbl, tablefmt="pretty", headers=["processor", "state"],
+    stralign="left"
+))
+
