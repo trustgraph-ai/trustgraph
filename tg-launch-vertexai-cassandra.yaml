@@ -162,6 +162,21 @@ services:
           memory: 128M
     image: docker.io/trustgraph/trustgraph-flow:0.11.1
     restart: on-failure:100
+  metering:
+    command:
+    - metering
+    - -p
+    - pulsar://pulsar:6650
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    image: docker.io/trustgraph/trustgraph-flow:0.11.1
+    restart: on-failure:100
   pdf-decoder:
     command:
     - pdf-decoder
