@@ -108,9 +108,7 @@ class Processor(ConsumerProducer):
 
         result = resp.json()
 
-        message_content = result['choices'][0]['message']['content']
-
-        return message_content
+        return result
 
     def handle(self, msg):
 
@@ -132,9 +130,17 @@ class Processor(ConsumerProducer):
             with __class__.text_completion_metric.time():
                 response = self.call_llm(prompt)
 
+            resp = response['choices'][0]['message']['content']
+            inputtokens = response['usage']['prompt_tokens']
+            outputtokens = response['usage']['completion_tokens']
+
+            print(resp, flush=True)
+            print(f"Input Tokens: {inputtokens}", flush=True)
+            print(f"Output Tokens: {outputtokens}", flush=True)
+
             print("Send response...", flush=True)
 
-            r = TextCompletionResponse(response=response, error=None)
+            r = TextCompletionResponse(response=resp, error=None, in_token=inputtokens, out_token=outputtokens, model="AzureAI")
             self.producer.send(r, properties={"id": id})
 
         except TooManyRequests:
@@ -145,7 +151,11 @@ class Processor(ConsumerProducer):
                 error=Error(
                     type = "rate-limit",
                     message = str(e),
-                )
+                ),
+                response=None,
+                in_token=None,
+                out_token=None,
+                model=None,
             )
 
             self.producer.send(r, properties={"id": id})
@@ -162,7 +172,11 @@ class Processor(ConsumerProducer):
                 error=Error(
                     type = "llm-error",
                     message = str(e),
-                )
+                ),
+                response=None,
+                in_token=None,
+                out_token=None,
+                model=None,
             )
 
             self.producer.send(r, properties={"id": id})

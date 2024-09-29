@@ -122,6 +122,7 @@ class Processor(ConsumerProducer):
 
         print(f"Initialise model {model}", flush=True)
         self.llm = GenerativeModel(model)
+        self.model = model
 
         print("Initialisation complete", flush=True)
 
@@ -147,12 +148,20 @@ class Processor(ConsumerProducer):
                 )
 
             resp = resp.text
+            inputtokens = resp.usage_metadata.prompt_token_count
+            outputtokens = resp.usage_metadata.candidates_token_count
+            print(resp, flush=True)
+            print(f"Input Tokens: {inputtokens}", flush=True)
+            print(f"Output Tokens: {outputtokens}", flush=True)
 
             print("Send response...", flush=True)
 
             r = TextCompletionResponse(
                 error=None,
                 response=resp,
+                in_token=inputtokens,
+                out_token=outputtokens,
+                model=self.model
             )
 
             self.producer.send(r, properties={"id": id})
@@ -172,6 +181,9 @@ class Processor(ConsumerProducer):
                     message = str(e),
                 ),
                 response=None,
+                in_token=None,
+                out_token=None,
+                model=None,
             )
 
             self.producer.send(r, properties={"id": id})
@@ -190,6 +202,9 @@ class Processor(ConsumerProducer):
                     message = str(e),
                 ),
                 response=None,
+                in_token=None,
+                out_token=None,
+                model=None,
             )
 
             self.producer.send(r, properties={"id": id})

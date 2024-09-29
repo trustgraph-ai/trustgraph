@@ -44,6 +44,61 @@ price_list = {
       "model_name": "ollama",
       "input_price": 0,
       "output_price": 0
-    }
+    },
+    {
+      "model_name": "claude-3-haiku-20240307",
+      "input_price": 0.00000025,
+      "output_price": 0.00000125
+    },
+    {
+      "model_name": "claude-3-5-sonnet-20240620",
+      "input_price": 0.000003,
+      "output_price": 0.000015
+    },
+    {
+      "model_name": "claude-3-opus-20240229",
+      "input_price": 0.000015,
+      "output_price": 0.000075
+    },
+    {
+      "model_name": "claude-3-sonnet-20240229",
+      "input_price": 0.000003,
+      "output_price": 0.000015
+    },
+    {
+      "model_name": "command-r-08-202",
+      "input_price": 0.0000025,
+      "output_price": 0.000010
+    },
+    {
+      "model_name": "c4ai-aya-23-8b",
+      "input_price": 0,
+      "output_price": 0
+    },
+    {
+      "model_name": "llama.cpp",
+      "input_price": 0,
+      "output_price": 0
+    },
+    {
+      "model_name": "gpt-4o",
+      "input_price": 0.000005,
+      "output_price": 0.000015
+    },
+    {
+      "model_name": "gpt-4o-2024-08-06",
+      "input_price": 0.0000025,
+      "output_price": 0.000010
+    },
+    {
+      "model_name": "gpt-4o-2024-05-13",
+      "input_price": 0.000005,
+      "output_price": 0.000015
+    },
+    {
+      "model_name": "gpt-4o-mini",
+      "input_price": 0.00000015,
+      "output_price": 0.0000006
+    },
   ]
 }
