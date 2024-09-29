@@ -4,7 +4,7 @@ import os
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-version = "0.11.2"
+version = "0.11.3"
 
 setuptools.setup(
     name="trustgraph",
@@ -41,6 +41,7 @@ setuptools.setup(
         "pulsar-client",
         "pypdf",
         "qdrant-client",
+        "tabulate",
         "anthropic",
         "google-cloud-aiplatform",
         "pyyaml",
@@ -99,6 +100,7 @@ setuptools.setup(
         "scripts/text-completion-ollama",
         "scripts/text-completion-openai",
         "scripts/text-completion-vertexai",
+        "scripts/tg-processor-state",
         "scripts/triples-dump-parquet",
         "scripts/triples-query-cassandra",
         "scripts/triples-query-neo4j",
