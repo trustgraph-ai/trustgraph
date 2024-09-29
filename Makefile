@@ -49,19 +49,20 @@ VECTORDB=qdrant
 
 JSONNET_FLAGS=-J templates -J .
 
+# Temporarily going back to how templates were built in 0.9 because this
+# is going away in 0.11.
 
-update-templates: update-dcs update-minikubes
+update-templates: update-dcs
+# update-minikubes
 
 JSON_TO_YAML=python3 -c 'import sys, yaml, json; j=json.loads(sys.stdin.read()); print(yaml.safe_dump(j))'
 # JSON_TO_YAML=cat
 
 update-dcs: set-version
-	rm -rf deploy
-	mkdir -p deploy/docker-compose deploy/minikube
 	for graph in ${GRAPHS}; do \
 	    cm=$${graph},pulsar,${VECTORDB},grafana; \
 	    input=templates/opts-to-docker-compose.jsonnet; \
-	    output=deploy/docker-compose/tg-storage-$${graph}.yaml; \
+	    output=tg-storage-$${graph}.yaml; \
 	    echo $${graph} '->' $${output}; \
 	    jsonnet ${JSONNET_FLAGS} \
 	         --ext-str options=$${cm} $${input} | \
@@ -71,7 +72,7 @@ update-dcs: set-version
 	  for graph in ${GRAPHS}; do \
 	    cm=$${graph},pulsar,${VECTORDB},embeddings-hf,graph-rag,grafana,trustgraph,$${model}; \
 	    input=templates/opts-to-docker-compose.jsonnet; \
-	    output=deploy/docker-compose/tg-launch-$${model}-$${graph}.yaml; \
+	    output=tg-launch-$${model}-$${graph}.yaml; \
 	    echo $${model} + $${graph} '->' $${output}; \
 	    jsonnet ${JSONNET_FLAGS} \
 	         --ext-str options=$${cm} $${input} | \
@@ -80,6 +81,8 @@ update-dcs: set-version
 	done
 
 update-minikubes: set-version
+	rm -rf deploy/minikube
+	mkdir -p deploy/minikube
 	for model in ${MODELS}; do \
 	  for graph in ${GRAPHS}; do \
 	    cm=$${graph},pulsar,${VECTORDB},embeddings-hf,graph-rag,grafana,trustgraph,$${model}; \

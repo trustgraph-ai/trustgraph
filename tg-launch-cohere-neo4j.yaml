@@ -1,30 +1,13 @@
 services:
-  cassandra:
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 800M
-        reservations:
-          cpus: '0.5'
-          memory: 800M
-    environment:
-      JVM_OPTS: -Xms256M -Xmx256M
-    image: docker.io/cassandra:4.1.6
-    ports:
-    - 9042:9042
-    restart: on-failure:100
-    volumes:
-    - cassandra:/var/lib/cassandra
   chunker:
     command:
     - chunker-token
     - -p
     - pulsar://pulsar:6650
     - --chunk-size
-    - '250'
+    - '150'
     - --chunk-overlap
-    - '15'
+    - '10'
     deploy:
       resources:
         limits:
@@ -33,7 +16,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.10.1
+    image: docker.io/trustgraph/trustgraph-flow:0.11.0
     restart: on-failure:100
   embeddings:
     command:
@@ -50,7 +33,7 @@ services:
         reservations:
           cpus: '0.5'
           memory: 400M
-    image: docker.io/trustgraph/trustgraph-flow:0.10.1
+    image: docker.io/trustgraph/trustgraph-flow:0.11.0
     restart: on-failure:100
   grafana:
     deploy:
@@ -95,7 +78,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.10.1
+    image: docker.io/trustgraph/trustgraph-flow:0.11.0
     restart: on-failure:100
   init-pulsar:
     command:
@@ -130,7 +113,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.10.1
+    image: docker.io/trustgraph/trustgraph-flow:0.11.0
     restart: on-failure:100
   kg-extract-relationships:
     command:
@@ -145,7 +128,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.10.1
+    image: docker.io/trustgraph/trustgraph-flow:0.11.0
     restart: on-failure:100
   kg-extract-topics:
     command:
@@ -160,8 +143,26 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.10.1
+    image: docker.io/trustgraph/trustgraph-flow:0.11.0
     restart: on-failure:100
+  neo4j:
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 768M
+        reservations:
+          cpus: '0.5'
+          memory: 768M
+    environment:
+      NEO4J_AUTH: neo4j/password
+    image: docker.io/neo4j:5.22.0-community-bullseye
+    ports:
+    - 7474:7474
+    - 7687:7687
+    restart: on-failure:100
+    volumes:
+    - neo4j:/data
   pdf-decoder:
     command:
     - pdf-decoder
@@ -175,7 +176,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.10.1
+    image: docker.io/trustgraph/trustgraph-flow:0.11.0
     restart: on-failure:100
   prometheus:
     deploy:
@@ -365,7 +366,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.10.1
+    image: docker.io/trustgraph/trustgraph-flow:0.11.0
     restart: on-failure:100
   prompt-rag:
     command:
@@ -543,7 +544,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.10.1
+    image: docker.io/trustgraph/trustgraph-flow:0.11.0
     restart: on-failure:100
   pulsar:
     command:
@@ -597,7 +598,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.10.1
+    image: docker.io/trustgraph/trustgraph-flow:0.11.0
     restart: on-failure:100
   query-graph-embeddings:
     command:
@@ -614,24 +615,24 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.10.1
+    image: docker.io/trustgraph/trustgraph-flow:0.11.0
     restart: on-failure:100
   query-triples:
     command:
-    - triples-query-cassandra
+    - triples-query-neo4j
     - -p
     - pulsar://pulsar:6650
     - -g
-    - cassandra
+    - bolt://neo4j:7687
     deploy:
       resources:
         limits:
           cpus: '0.5'
-          memory: 512M
+          memory: 128M
         reservations:
           cpus: '0.1'
-          memory: 512M
-    image: docker.io/trustgraph/trustgraph-flow:0.10.1
+          memory: 128M
+    image: docker.io/trustgraph/trustgraph-flow:0.11.0
     restart: on-failure:100
   store-doc-embeddings:
     command:
@@ -648,7 +649,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.10.1
+    image: docker.io/trustgraph/trustgraph-flow:0.11.0
     restart: on-failure:100
   store-graph-embeddings:
     command:
@@ -665,15 +666,15 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.10.1
+    image: docker.io/trustgraph/trustgraph-flow:0.11.0
     restart: on-failure:100
   store-triples:
     command:
-    - triples-write-cassandra
+    - triples-write-neo4j
     - -p
     - pulsar://pulsar:6650
     - -g
-    - cassandra
+    - bolt://neo4j:7687
     deploy:
       resources:
         limits:
@@ -682,19 +683,17 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.10.1
+    image: docker.io/trustgraph/trustgraph-flow:0.11.0
     restart: on-failure:100
   text-completion:
     command:
-    - text-completion-claude
+    - text-completion-cohere
     - -p
     - pulsar://pulsar:6650
     - -k
-    - ${CLAUDE_KEY}
-    - -x
-    - '4096'
+    - ${COHERE_KEY}
     - -t
-    - '0'
+    - 0
     deploy:
       resources:
         limits:
@@ -703,19 +702,17 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.10.1
+    image: docker.io/trustgraph/trustgraph-flow:0.11.0
     restart: on-failure:100
   text-completion-rag:
     command:
-    - text-completion-claude
+    - text-completion-cohere
     - -p
     - pulsar://pulsar:6650
     - -k
-    - ${CLAUDE_KEY}
-    - -x
-    - '4096'
+    - ${COHERE_KEY}
     - -t
-    - '0'
+    - 0
     - -i
     - non-persistent://tg/request/text-completion-rag
     - -o
@@ -728,7 +725,7 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-    image: docker.io/trustgraph/trustgraph-flow:0.10.1
+    image: docker.io/trustgraph/trustgraph-flow:0.11.0
     restart: on-failure:100
   vectorize:
     command:
@@ -743,11 +740,11 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
-    image: docker.io/trustgraph/trustgraph-flow:0.10.1
+    image: docker.io/trustgraph/trustgraph-flow:0.11.0
     restart: on-failure:100
 volumes:
-  cassandra: {}
   grafana-storage: {}
+  neo4j: {}
   prometheus-data: {}
   pulsar-data: {}
   qdrant: {}
