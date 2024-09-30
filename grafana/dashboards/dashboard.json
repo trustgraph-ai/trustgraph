@@ -1026,7 +1026,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
-            "axisLabel": "",
+            "axisLabel": "$",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
@@ -1143,6 +1143,6 @@
   "timezone": "",
   "title": "Overview",
   "uid": "b5c8abf8-fe79-496b-b028-10bde917d1f0",
-  "version": 2,
+  "version": 1,
   "weekStart": ""
 }
