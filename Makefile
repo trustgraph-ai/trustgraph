@@ -1,6 +1,6 @@
 
 # VERSION=$(shell git describe | sed 's/^v//')
-VERSION=0.11.7
+VERSION=0.11.8
 
 DOCKER=podman
 
@@ -12,7 +12,11 @@ pkgs:
 
 CONTAINER=docker.io/trustgraph/trustgraph-flow
 
-container:
+update-package-versions:
+	echo __version__ = \"${VERSION}\" > trustgraph-core/trustgraph/core_version.py
+	echo __version__ = \"${VERSION}\" > trustgraph-embeddings-hf/trustgraph/embeddings_hf_version.py
+
+container: update-package-versions
 	${DOCKER} build -f Containerfile -t ${CONTAINER}:${VERSION} \
 	    --format docker
 
