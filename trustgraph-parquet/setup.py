@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 # Load a version number module
 spec = importlib.util.spec_from_file_location(
-    'version', 'trustgraph/embeddings_hf_version.py'
+    'version', 'trustgraph/parquet_version.py'
 )
 version_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(version_module)
@@ -15,11 +15,11 @@ spec.loader.exec_module(version_module)
 version = version_module.__version__
 
 setuptools.setup(
-    name="trustgraph-embeddings-hf",
+    name="trustgraph-parquet",
     version=version,
     author="trustgraph.ai",
     author_email="security@trustgraph.ai",
-    description="HuggingFace embeddings support for TrustGraph.",
+    description="TrustGraph provides a means to run a pipeline of flexible AI processing components in a flexible means to achieve a processing pipeline.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/trustgraph-ai/trustgraph",
@@ -35,21 +35,14 @@ setuptools.setup(
     download_url = "https://github.com/trustgraph-ai/trustgraph/archive/refs/tags/v" + version + ".tar.gz",
     install_requires=[
         "trustgraph-base",
-        "trustgraph-flow",
-        "torch",
-        "urllib3",
-        "transformers",
-        "sentence-transformers",
-        "langchain",
-        "langchain-core",
-        "langchain-huggingface",
-        "langchain-community",
-        "huggingface-hub",
         "pulsar-client",
-        "pyyaml",
         "prometheus-client",
+        "pyarrow",
     ],
     scripts=[
-        "scripts/embeddings-hf",
+        "scripts/concat-parquet",
+        "scripts/dump-parquet",
+        "scripts/ge-dump-parquet",
+        "scripts/triples-dump-parquet",
     ]
 )

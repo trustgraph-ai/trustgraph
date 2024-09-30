@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 # Load a version number module
 spec = importlib.util.spec_from_file_location(
-    'version', 'trustgraph/core_version.py'
+    'version', 'trustgraph/flow_version.py'
 )
 version_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(version_module)
@@ -15,7 +15,7 @@ spec.loader.exec_module(version_module)
 version = version_module.__version__
 
 setuptools.setup(
-    name="trustgraph-core",
+    name="trustgraph-flow",
     version=version,
     author="trustgraph.ai",
     author_email="security@trustgraph.ai",
@@ -25,7 +25,6 @@ setuptools.setup(
     url="https://github.com/trustgraph-ai/trustgraph",
     packages=setuptools.find_namespace_packages(
         where='./',
-#         include=['trustgraph.core']
     ),
     classifiers=[ 
         "Programming Language :: Python :: 3",
@@ -35,6 +34,7 @@ setuptools.setup(
     python_requires='>=3.8',
     download_url = "https://github.com/trustgraph-ai/trustgraph/archive/refs/tags/v" + version + ".tar.gz",
     install_requires=[
+        "trustgraph-base",
         "urllib3",
         "rdflib",
         "pymilvus",
@@ -49,12 +49,9 @@ setuptools.setup(
         "qdrant-client",
         "tabulate",
         "anthropic",
-        "google-cloud-aiplatform",
         "pyyaml",
         "prometheus-client",
-        "pyarrow",
         "cohere",
-        "boto3",
         "openai",
         "neo4j",
         "tiktoken",
@@ -62,52 +59,35 @@ setuptools.setup(
     scripts=[
         "scripts/chunker-recursive",
         "scripts/chunker-token",
-        "scripts/concat-parquet",
         "scripts/de-query-milvus",
         "scripts/de-query-qdrant",
         "scripts/de-write-milvus",
         "scripts/de-write-qdrant",
         "scripts/document-rag",
-        "scripts/dump-parquet",
         "scripts/embeddings-ollama",
         "scripts/embeddings-vectorize",
-        "scripts/ge-dump-parquet",
         "scripts/ge-query-milvus",
         "scripts/ge-query-qdrant",
         "scripts/ge-write-milvus",
         "scripts/ge-write-qdrant",
         "scripts/graph-rag",
-        "scripts/graph-show",
-        "scripts/graph-to-turtle",
-        "scripts/init-pulsar-manager",
         "scripts/kg-extract-definitions",
         "scripts/kg-extract-topics",
         "scripts/kg-extract-relationships",
-        "scripts/load-graph-embeddings",
-        "scripts/load-pdf",
-        "scripts/load-text",
-        "scripts/load-triples",
         "scripts/metering",
         "scripts/object-extract-row",
         "scripts/oe-write-milvus",
         "scripts/pdf-decoder",
         "scripts/prompt-generic",
         "scripts/prompt-template",
-        "scripts/query-document-rag",
-        "scripts/query-graph-rag",
         "scripts/rows-write-cassandra",
         "scripts/run-processing",
         "scripts/text-completion-azure",
-        "scripts/text-completion-bedrock",
         "scripts/text-completion-claude",
         "scripts/text-completion-cohere",
         "scripts/text-completion-llamafile",
         "scripts/text-completion-ollama",
         "scripts/text-completion-openai",
-        "scripts/text-completion-vertexai",
-        "scripts/tg-init-pulsar",
-        "scripts/tg-processor-state",
-        "scripts/triples-dump-parquet",
         "scripts/triples-query-cassandra",
         "scripts/triples-query-neo4j",
         "scripts/triples-write-cassandra",
