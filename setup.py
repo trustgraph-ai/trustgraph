@@ -100,6 +100,7 @@ setuptools.setup(
         "scripts/text-completion-ollama",
         "scripts/text-completion-openai",
         "scripts/text-completion-vertexai",
+        "scripts/tg-init-pulsar",
         "scripts/tg-processor-state",
         "scripts/triples-dump-parquet",
         "scripts/triples-query-cassandra",
