@@ -1,10 +1,18 @@
 import setuptools
 import os
+import importlib
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-version = "0.11.6"
+# Load a version number module
+spec = importlib.util.spec_from_file_location(
+    'version', 'trustgraph/embeddings_hf_version.py'
+)
+version_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(version_module)
+
+version = version_module.__version__
 
 setuptools.setup(
     name="trustgraph-embeddings-hf",
