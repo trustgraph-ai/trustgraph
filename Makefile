@@ -1,16 +1,14 @@
 
 # VERSION=$(shell git describe | sed 's/^v//')
-VERSION=0.11.5
+VERSION=0.11.6
 
 DOCKER=podman
 
-all: pkgs
+all: container
 
 pkgs:
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-core/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-embeddings-hf/
-
-# container
 
 CONTAINER=docker.io/trustgraph/trustgraph-flow
 

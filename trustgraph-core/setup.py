@@ -1,10 +1,10 @@
 import setuptools
 import os
 
-with open("../README.md", "r") as fh:
+with open("README.md", "r") as fh:
     long_description = fh.read()
 
-version = "0.11.5"
+version = "0.11.6"
 
 setuptools.setup(
     name="trustgraph-core",
