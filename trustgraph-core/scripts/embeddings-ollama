@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from trustgraph.core.embeddings.ollama import run
+from trustgraph.embeddings.ollama import run
 
 run()
 

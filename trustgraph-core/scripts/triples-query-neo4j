@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from trustgraph.core.query.triples.neo4j import run
+from trustgraph.query.triples.neo4j import run
 
 run()
 

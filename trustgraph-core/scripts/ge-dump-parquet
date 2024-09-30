@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from trustgraph.core.dump.graph_embeddings.parquet import run
+from trustgraph.dump.graph_embeddings.parquet import run
 
 run()
 

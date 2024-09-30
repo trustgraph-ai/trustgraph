@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from trustgraph.embeddings_hf.embeddings.hf import run
+from trustgraph.embeddings.hf import run
 
 run()
 
