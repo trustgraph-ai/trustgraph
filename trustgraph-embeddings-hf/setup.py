@@ -25,7 +25,6 @@ setuptools.setup(
     url="https://github.com/trustgraph-ai/trustgraph",
     packages=setuptools.find_namespace_packages(
         where='./',
-#         include=['trustgraph.core']
     ),
     classifiers=[ 
         "Programming Language :: Python :: 3",
@@ -35,7 +34,8 @@ setuptools.setup(
     python_requires='>=3.8',
     download_url = "https://github.com/trustgraph-ai/trustgraph/archive/refs/tags/v" + version + ".tar.gz",
     install_requires=[
-        "trustgraph-core",
+        "trustgraph-base",
+        "trustgraph-flow",
         "torch",
         "urllib3",
         "transformers",

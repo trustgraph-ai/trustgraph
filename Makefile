@@ -1,19 +1,21 @@
 
 # VERSION=$(shell git describe | sed 's/^v//')
-VERSION=0.11.8
+VERSION=0.11.9
 
 DOCKER=podman
 
 all: container
 
 pkgs:
-	pip3 wheel --no-deps --wheel-dir dist trustgraph-core/
+	pip3 wheel --no-deps --wheel-dir dist trustgraph-base/
+	pip3 wheel --no-deps --wheel-dir dist trustgraph-flow/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-embeddings-hf/
 
 CONTAINER=docker.io/trustgraph/trustgraph-flow
 
 update-package-versions:
-	echo __version__ = \"${VERSION}\" > trustgraph-core/trustgraph/core_version.py
+	echo __version__ = \"${VERSION}\" > trustgraph-base/trustgraph/base_version.py
+	echo __version__ = \"${VERSION}\" > trustgraph-flow/trustgraph/flow_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-embeddings-hf/trustgraph/embeddings_hf_version.py
 
 container: update-package-versions
@@ -22,17 +24,6 @@ container: update-package-versions
 
 push:
 	${DOCKER} push ${CONTAINER}:${VERSION}
-
-start:
-	${DOCKER} run -i -t --name ${NAME} \
-	    -i -t \
-	    -p 8081:8081 \
-	    -v $$(pwd)/keys:/keys \
-	    -v $$(pwd)/configs:/configs \
-	    ${CONTAINER}:${VERSION}
-
-stop:
-	${DOCKER} rm -f ${NAME}
 
 clean:
 	rm -rf wheels/
@@ -61,10 +52,8 @@ JSONNET_FLAGS=-J templates -J .
 # is going away in 0.11.
 
 update-templates: update-dcs
-# update-minikubes
 
 JSON_TO_YAML=python3 -c 'import sys, yaml, json; j=json.loads(sys.stdin.read()); print(yaml.safe_dump(j))'
-# JSON_TO_YAML=cat
 
 update-dcs: set-version
 	for graph in ${GRAPHS}; do \
@@ -88,31 +77,7 @@ update-dcs: set-version
 	  done; \
 	done
 
-update-minikubes: set-version
-	rm -rf deploy/minikube
-	mkdir -p deploy/minikube
-	for model in ${MODELS}; do \
-	  for graph in ${GRAPHS}; do \
-	    cm=$${graph},pulsar,${VECTORDB},embeddings-hf,graph-rag,grafana,trustgraph,$${model}; \
-	    input=templates/opts-to-minikube-k8s.jsonnet; \
-	    output=deploy/minikube/tg-launch-$${model}-$${graph}.yaml; \
-	    echo $${model} + $${graph} '->' $${output}; \
-	    jsonnet ${JSONNET_FLAGS} \
-	        --ext-str options=$${cm} $${input} | \
-	        ${JSON_TO_YAML} > $${output}; \
-	  done; \
-	done
-
 docker-hub-login:
 	cat docker-token.txt | \
 	    docker login -u trustgraph --password-stdin registry-1.docker.io
 
-FORCE:
-
-IGNOREconfig.yaml: config.json FORCE
-	jsonnet -J . -J templates/ templates/config-to-gcp-k8s.jsonnet | \
-	    python3 -c 'import sys, yaml, json; j=json.loads(sys.stdin.read()); print(yaml.safe_dump(j))' > $@
-
-config.yaml: config.json FORCE
-	jsonnet -J . -J templates/ templates/config-to-minikube-k8s.jsonnet | \
-	    python3 -c 'import sys, yaml, json; j=json.loads(sys.stdin.read()); print(yaml.safe_dump(j))' > $@
