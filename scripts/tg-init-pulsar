@@ -8,13 +8,13 @@ import requests
 import time
 import argparse
 
-default_pulsar_admin_url = "http://pulsar:8080/"
+default_pulsar_admin_url = "http://pulsar:8080"
 
 def get_clusters(url):
 
-    print("Get clusters...")
+    print("Get clusters...", flush=True)
 
-    resp = requests.get(f"{url}admin/v2/clusters")
+    resp = requests.get(f"{url}/admin/v2/clusters")
 
     if resp.status_code != 200: raise RuntimeError("Could not fetch clusters")
 
@@ -22,14 +22,14 @@ def get_clusters(url):
 
 def ensure_tenant(url, tenant, clusters):
 
-    resp = requests.get(f"{url}admin/v2/tenants/{tenant}")
+    resp = requests.get(f"{url}/admin/v2/tenants/{tenant}")
 
     if resp.status_code == 200:
-        print(f"Tenant {tenant} already exists.")
+        print(f"Tenant {tenant} already exists.", flush=True)
         return
 
     resp = requests.put(
-        f"{url}admin/v2/tenants/{tenant}",
+        f"{url}/admin/v2/tenants/{tenant}",
         json={
             "adminRoles": [],
             "allowedClusters": clusters,
@@ -37,30 +37,30 @@ def ensure_tenant(url, tenant, clusters):
     )
 
     if resp.status_code != 204:
-        print(resp.text)
+        print(resp.text, flush=True)
         raise RuntimeError("Tenant creation failed.")
 
-    print(f"Tenant {tenant} created.")
+    print(f"Tenant {tenant} created.", flush=True)
 
 def ensure_namespace(url, tenant, namespace, config):
 
-    resp = requests.get(f"{url}admin/v2/namespaces/{tenant}/{namespace}")
+    resp = requests.get(f"{url}/admin/v2/namespaces/{tenant}/{namespace}")
 
     if resp.status_code == 200:
-        print(f"Namespace {tenant}/{namespace} already exists.")
+        print(f"Namespace {tenant}/{namespace} already exists.", flush=True)
         return
 
     resp = requests.put(
-        f"{url}admin/v2/namespaces/{tenant}/{namespace}",
+        f"{url}/admin/v2/namespaces/{tenant}/{namespace}",
         json=config,
     )
 
     if resp.status_code != 204:
-        print(resp.status_code)
-        print(resp.text)
+        print(resp.status_code, flush=True)
+        print(resp.text, flush=True)
         raise RuntimeError(f"Namespace {tenant}/{namespace} creation failed.")
 
-    print(f"Namespace {tenant}/{namespace} created.")
+    print(f"Namespace {tenant}/{namespace} created.", flush=True)
 
 def init(url, tenant="tg"):
 
@@ -98,19 +98,22 @@ def main():
 
         try:
 
-            print()
-            print("Initialising...")
+            print(flush=True)
+            print(
+                f"Initialising with Pulsar {args.pulsar_admin_url}...",
+                flush=True
+            )
             init(args.pulsar_admin_url, "tg")
-            print("Initialisation complete.")
+            print("Initialisation complete.", flush=True)
             break
 
         except Exception as e:
 
-            print("Exception:", e)
+            print("Exception:", e, flush=True)
 
-            print("Sleeping...")
+            print("Sleeping...", flush=True)
             time.sleep(2)
-            print("Will retry...")
+            print("Will retry...", flush=True)
 
 main()
 

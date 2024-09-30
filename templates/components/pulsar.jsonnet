@@ -1,5 +1,6 @@
 local base = import "base/base.jsonnet";
 local images = import "values/images.jsonnet";
+local url = import "values/url.jsonnet";
 
 {
 
@@ -14,7 +15,6 @@ local images = import "values/images.jsonnet";
                 engine.container("pulsar")
                     .with_image(images.pulsar)
                     .with_command(["bin/pulsar", "standalone"])
-//                    .with_command(["/bin/sh", "-c", "sleep 9999999"])
                     .with_environment({
                         "PULSAR_MEM": "-Xms600M -Xmx600M"
                     })
@@ -27,14 +27,14 @@ local images = import "values/images.jsonnet";
 
             local adminContainer =
                 engine.container("init-pulsar")
-                    .with_image(images.pulsar)
+                    .with_image(images.trustgraph)
                     .with_command([
-                        "sh",
-                        "-c",
-                        "while true; do pulsar-admin --admin-url http://pulsar:8080 tenants create tg ; pulsar-admin --admin-url http://pulsar:8080 namespaces create tg/flow ; pulsar-admin --admin-url http://pulsar:8080 namespaces create tg/request ; pulsar-admin --admin-url http://pulsar:8080 namespaces create tg/response ; pulsar-admin --admin-url http://pulsar:8080 namespaces set-retention --size -1 --time 3m tg/response; sleep 20; done",
+                        "tg-init-pulsar",
+                        "-p",
+                        url.pulsar_admin,
                     ])
-                    .with_limits("1", "400M")
-                    .with_reservations("0.1", "400M");
+                    .with_limits("1", "128M")
+                    .with_reservations("0.1", "128M");
 
             local containerSet = engine.containers(
                 "pulsar",
