@@ -11,7 +11,7 @@ obj = resp.json()
 
 tbl = [
     [
-        m["metric"]["instance"],
+        m["metric"]["job"],
         "running" if int(m["value"][1]) > 0 else "down"
     ]
     for m in obj["data"]["result"]
