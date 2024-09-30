@@ -63,14 +63,14 @@ class ConsumerProducer(BaseProcessor):
         if output_schema == None:
             raise RuntimeError("output_schema must be specified")
 
-        self.consumer = self.client.subscribe(
-            input_queue, subscriber,
-            schema=JsonSchema(input_schema),
-        )
-
         self.producer = self.client.create_producer(
             topic=output_queue,
             schema=JsonSchema(output_schema),
+        )
+
+        self.consumer = self.client.subscribe(
+            input_queue, subscriber,
+            schema=JsonSchema(input_schema),
         )
 
     def run(self):

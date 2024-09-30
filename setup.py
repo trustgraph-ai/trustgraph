@@ -4,7 +4,7 @@ import os
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-version = "0.11.4"
+version = "0.11.5"
 
 setuptools.setup(
     name="trustgraph",
@@ -100,6 +100,7 @@ setuptools.setup(
         "scripts/text-completion-ollama",
         "scripts/text-completion-openai",
         "scripts/text-completion-vertexai",
+        "scripts/tg-init-pulsar",
         "scripts/tg-processor-state",
         "scripts/triples-dump-parquet",
         "scripts/triples-query-cassandra",
