@@ -11,6 +11,7 @@ pkgs:
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-flow/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-vertexai/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-bedrock/
+	pip3 wheel --no-deps --wheel-dir dist trustgraph-parquet/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-embeddings-hf/
 
 CONTAINER=docker.io/trustgraph/trustgraph-flow
@@ -20,6 +21,7 @@ update-package-versions:
 	echo __version__ = \"${VERSION}\" > trustgraph-flow/trustgraph/flow_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-vertexai/trustgraph/vertexai_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-bedrock/trustgraph/bedrock_version.py
+	echo __version__ = \"${VERSION}\" > trustgraph-parquet/trustgraph/parquet_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-embeddings-hf/trustgraph/embeddings_hf_version.py
 
 container: update-package-versions
