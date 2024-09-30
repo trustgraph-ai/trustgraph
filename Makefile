@@ -1,12 +1,13 @@
 
 # VERSION=$(shell git describe | sed 's/^v//')
-VERSION=0.11.10
+VERSION=0.11.11
 
 DOCKER=podman
 
 all: container
 
-pkgs:
+# Not used
+wheels:
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-base/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-flow/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-vertexai/
@@ -14,6 +15,16 @@ pkgs:
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-parquet/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-embeddings-hf/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-utils/
+
+packages:
+	rm -rf dist/
+	cd trustgraph-base && python3 setup.py sdist --dist-dir ../dist/
+	cd trustgraph-flow && python3 setup.py sdist --dist-dir ../dist/
+	cd trustgraph-vertexai && python3 setup.py sdist --dist-dir ../dist/
+	cd trustgraph-bedrock && python3 setup.py sdist --dist-dir ../dist/
+	cd trustgraph-parquet && python3 setup.py sdist --dist-dir ../dist/
+	cd trustgraph-embeddings-hf && python3 setup.py sdist --dist-dir ../dist/
+	cd trustgraph-utils && python3 setup.py sdist --dist-dir ../dist/
 
 CONTAINER=docker.io/trustgraph/trustgraph-flow
 
