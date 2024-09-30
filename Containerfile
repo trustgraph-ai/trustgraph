@@ -46,6 +46,9 @@ COPY README.md /root/build/trustgraph-parquet/
 COPY trustgraph-embeddings-hf/ /root/build/trustgraph-embeddings-hf/
 COPY README.md /root/build/trustgraph-embeddings-hf/
 
+COPY trustgraph-utils/ /root/build/trustgraph-utils/
+COPY README.md /root/build/trustgraph-utils/
+
 WORKDIR /root/build/
 
 RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-base/
@@ -54,6 +57,7 @@ RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-vertexai/
 RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-bedrock/
 RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-parquet/
 RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-embeddings-hf/
+RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-utils/
 
 RUN ls /root/wheels
 
@@ -72,6 +76,7 @@ RUN \
     pip3 install /root/wheels/trustgraph_bedrock-* && \
     pip3 install /root/wheels/trustgraph_parquet-* && \
     pip3 install /root/wheels/trustgraph_embeddings_hf-* && \
+    pip3 install /root/wheels/trustgraph_utils-* && \
     pip3 cache purge && \
     rm -rf /root/wheels
 
