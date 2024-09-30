@@ -29,25 +29,12 @@ RUN pip3 install anthropic boto3 cohere openai google-cloud-aiplatform ollama \
 FROM ai AS build
 
 COPY trustgraph-base/ /root/build/trustgraph-base/
-COPY README.md /root/build/trustgraph-base/
-
 COPY trustgraph-flow/ /root/build/trustgraph-flow/
-COPY README.md /root/build/trustgraph-flow/
-
 COPY trustgraph-vertexai/ /root/build/trustgraph-vertexai/
-COPY README.md /root/build/trustgraph-vertexai/
-
 COPY trustgraph-bedrock/ /root/build/trustgraph-bedrock/
-COPY README.md /root/build/trustgraph-bedrock/
-
 COPY trustgraph-parquet/ /root/build/trustgraph-parquet/
-COPY README.md /root/build/trustgraph-parquet/
-
 COPY trustgraph-embeddings-hf/ /root/build/trustgraph-embeddings-hf/
-COPY README.md /root/build/trustgraph-embeddings-hf/
-
 COPY trustgraph-utils/ /root/build/trustgraph-utils/
-COPY README.md /root/build/trustgraph-utils/
 
 WORKDIR /root/build/
 
