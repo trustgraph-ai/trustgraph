@@ -1,21 +1,13 @@
 import setuptools
 import os
-import importlib
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-# Load a version number module
-spec = importlib.util.spec_from_file_location(
-    'version', 'trustgraph/flow_version.py'
-)
-version_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(version_module)
-
-version = version_module.__version__
+version = "0.11.7"
 
 setuptools.setup(
-    name="trustgraph-flow",
+    name="trustgraph-core",
     version=version,
     author="trustgraph.ai",
     author_email="security@trustgraph.ai",
@@ -25,6 +17,7 @@ setuptools.setup(
     url="https://github.com/trustgraph-ai/trustgraph",
     packages=setuptools.find_namespace_packages(
         where='./',
+#         include=['trustgraph.core']
     ),
     classifiers=[ 
         "Programming Language :: Python :: 3",
@@ -34,7 +27,6 @@ setuptools.setup(
     python_requires='>=3.8',
     download_url = "https://github.com/trustgraph-ai/trustgraph/archive/refs/tags/v" + version + ".tar.gz",
     install_requires=[
-        "trustgraph-base",
         "urllib3",
         "rdflib",
         "pymilvus",
@@ -49,10 +41,12 @@ setuptools.setup(
         "qdrant-client",
         "tabulate",
         "anthropic",
+        "google-cloud-aiplatform",
         "pyyaml",
         "prometheus-client",
         "pyarrow",
         "cohere",
+        "boto3",
         "openai",
         "neo4j",
         "tiktoken",
@@ -96,11 +90,13 @@ setuptools.setup(
         "scripts/rows-write-cassandra",
         "scripts/run-processing",
         "scripts/text-completion-azure",
+        "scripts/text-completion-bedrock",
         "scripts/text-completion-claude",
         "scripts/text-completion-cohere",
         "scripts/text-completion-llamafile",
         "scripts/text-completion-ollama",
         "scripts/text-completion-openai",
+        "scripts/text-completion-vertexai",
         "scripts/tg-init-pulsar",
         "scripts/tg-processor-state",
         "scripts/triples-dump-parquet",
