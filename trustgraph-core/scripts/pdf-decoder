@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+
+from trustgraph.core.decoding.pdf import run
+
+run()
+

@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+
+from trustgraph.core.extract.kg.topics import run
+
+run()
+

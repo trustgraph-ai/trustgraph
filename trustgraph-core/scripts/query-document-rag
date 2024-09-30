@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+
+"""
+Uses the Document RAG service to answer a query
+"""
+
+import argparse
+import os
+from trustgraph.core.clients.document_rag_client import DocumentRagClient
+
+default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://localhost:6650')
+
+def query(pulsar, query):
+
+    rag = DocumentRagClient(pulsar_host=pulsar)
+    resp = rag.request(query)
+    print(resp)
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        prog='graph-show',
+        description=__doc__,
+    )
+
+    parser.add_argument(
+        '-p', '--pulsar-host',
+        default=default_pulsar_host,
+        help=f'Pulsar host (default: {default_pulsar_host})',
+    )
+
+    parser.add_argument(
+        '-q', '--query',
+        required=True,
+        help=f'Query to execute',
+    )
+
+    args = parser.parse_args()
+
+    try:
+
+        query(args.pulsar_host, args.query)
+
+    except Exception as e:
+
+        print("Exception:", e, flush=True)
+
+main()
+

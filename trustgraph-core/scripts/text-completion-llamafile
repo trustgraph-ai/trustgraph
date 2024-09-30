@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+
+from trustgraph.core.model.text_completion.llamafile import run
+
+run()
+

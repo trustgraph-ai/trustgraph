@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+
+from trustgraph.core.model.prompt.generic import run
+
+run()
+

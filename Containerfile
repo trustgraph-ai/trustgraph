@@ -21,7 +21,7 @@ RUN pip3 install anthropic boto3 cohere openai google-cloud-aiplatform ollama \
     pip3 cache purge
 
 # ----------------------------------------------------------------------------
-# Build a container which contains the built Python package.  The build
+# Build a container which contains the built Python packages.  The build
 # creates a bunch of left-over cruft, a separate phase means this is only
 # needed to support package build
 # ----------------------------------------------------------------------------
@@ -30,12 +30,18 @@ FROM ai AS build
 
 env PACKAGE_VERSION=0.0.0
 
-COPY setup.py /root/build/
-COPY README.md /root/build/
-COPY scripts/ /root/build/scripts/
-COPY trustgraph/ root/build/trustgraph/
+COPY trustgraph-core/ /root/build/trustgraph-core/
+COPY README.md /root/build/trustgraph-core/
 
-RUN (cd /root/build && pip3 wheel -w /root/wheels --no-deps .)
+COPY trustgraph-embeddings-hf/ /root/build/trustgraph-embeddings-hf/
+COPY README.md /root/build/trustgraph-embeddings-hf/
+
+WORKDIR /root/build/
+
+RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-core/
+RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-embeddings-hf/
+
+RUN ls /root/wheels
 
 # ----------------------------------------------------------------------------
 # Finally, the target container.  Start with base and add the package.
@@ -45,7 +51,9 @@ FROM ai
 
 COPY --from=build /root/wheels /root/wheels
 
-RUN pip3 install /root/wheels/trustgraph-* && \
+RUN \
+    pip3 install /root/wheels/trustgraph_core-* && \
+    pip3 install /root/wheels/trustgraph_embeddings_hf-* && \
     pip3 cache purge && \
     rm -rf /root/wheels
 
