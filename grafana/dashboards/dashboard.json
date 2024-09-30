@@ -280,7 +280,7 @@
           "editorMode": "builder",
           "expr": "rate(request_latency_count[1m])",
           "instant": false,
-          "legendFormat": "{{instance}}",
+          "legendFormat": "{{job}}",
           "range": true,
           "refId": "A"
         }
@@ -869,8 +869,8 @@
           "options": {
             "include": {
               "names": [
-                "instance",
-                "model"
+                "model",
+                "job"
               ]
             }
           }
