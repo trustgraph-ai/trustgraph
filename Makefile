@@ -26,6 +26,9 @@ packages:
 	cd trustgraph-embeddings-hf && python3 setup.py sdist --dist-dir ../dist/
 	cd trustgraph-utils && python3 setup.py sdist --dist-dir ../dist/
 
+pypi-upload:
+	twine upload dist/*-${VERSION}.*
+
 CONTAINER=docker.io/trustgraph/trustgraph-flow
 
 update-package-versions:
