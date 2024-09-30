@@ -1,6 +1,6 @@
 
 # VERSION=$(shell git describe | sed 's/^v//')
-VERSION=0.11.12
+VERSION=0.11.13
 
 DOCKER=podman
 
@@ -14,7 +14,7 @@ wheels:
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-bedrock/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-parquet/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-embeddings-hf/
-	pip3 wheel --no-deps --wheel-dir dist trustgraph-utils/
+	pip3 wheel --no-deps --wheel-dir dist trustgraph-cli/
 
 packages:
 	rm -rf dist/
@@ -24,7 +24,7 @@ packages:
 	cd trustgraph-bedrock && python3 setup.py sdist --dist-dir ../dist/
 	cd trustgraph-parquet && python3 setup.py sdist --dist-dir ../dist/
 	cd trustgraph-embeddings-hf && python3 setup.py sdist --dist-dir ../dist/
-	cd trustgraph-utils && python3 setup.py sdist --dist-dir ../dist/
+	cd trustgraph-cli && python3 setup.py sdist --dist-dir ../dist/
 
 pypi-upload:
 	twine upload dist/*-${VERSION}.*
@@ -32,14 +32,14 @@ pypi-upload:
 CONTAINER=docker.io/trustgraph/trustgraph-flow
 
 update-package-versions:
-	mkdir -p trustgraph-utils/trustgraph
+	mkdir -p trustgraph-cli/trustgraph
 	echo __version__ = \"${VERSION}\" > trustgraph-base/trustgraph/base_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-flow/trustgraph/flow_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-vertexai/trustgraph/vertexai_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-bedrock/trustgraph/bedrock_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-parquet/trustgraph/parquet_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-embeddings-hf/trustgraph/embeddings_hf_version.py
-	echo __version__ = \"${VERSION}\" > trustgraph-utils/trustgraph/utils_version.py
+	echo __version__ = \"${VERSION}\" > trustgraph-cli/trustgraph/cli_version.py
 
 container: update-package-versions
 	${DOCKER} build -f Containerfile -t ${CONTAINER}:${VERSION} \

@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 # Load a version number module
 spec = importlib.util.spec_from_file_location(
-    'version', 'trustgraph/utils_version.py'
+    'version', 'trustgraph/cli_version.py'
 )
 version_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(version_module)
@@ -15,7 +15,7 @@ spec.loader.exec_module(version_module)
 version = version_module.__version__
 
 setuptools.setup(
-    name="trustgraph-utils",
+    name="trustgraph-cli",
     version=version,
     author="trustgraph.ai",
     author_email="security@trustgraph.ai",

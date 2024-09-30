@@ -11,5 +11,5 @@ trustgraph-embeddings-hf/trustgraph/embeddings_hf_version.py
 trustgraph-flow/trustgraph/flow_version.py
 trustgraph-parquet/trustgraph/parquet_version.py
 trustgraph-vertexai/trustgraph/vertexai_version.py
-trustgraph-utils/trustgraph/
+trustgraph-cli/trustgraph/
 vertexai/
