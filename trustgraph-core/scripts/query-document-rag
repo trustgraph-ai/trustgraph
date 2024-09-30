@@ -6,7 +6,7 @@ Uses the Document RAG service to answer a query
 
 import argparse
 import os
-from trustgraph.core.clients.document_rag_client import DocumentRagClient
+from trustgraph.clients.document_rag_client import DocumentRagClient
 
 default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://localhost:6650')
 

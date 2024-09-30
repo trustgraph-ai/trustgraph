@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from trustgraph.core.query.doc_embeddings.qdrant import run
+from trustgraph.query.doc_embeddings.qdrant import run
 
 run()
 

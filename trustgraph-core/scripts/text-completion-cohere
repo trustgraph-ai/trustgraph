@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from trustgraph.core.model.text_completion.cohere import run
+from trustgraph.model.text_completion.cohere import run
 
 run()
 

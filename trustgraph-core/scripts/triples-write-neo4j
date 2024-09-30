@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from trustgraph.core.storage.triples.neo4j import run
+from trustgraph.storage.triples.neo4j import run
 
 run()
 

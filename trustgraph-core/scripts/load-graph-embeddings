@@ -6,15 +6,15 @@ Loads Graph embeddings into TrustGraph processing.
 
 import pulsar
 from pulsar.schema import JsonSchema
-from trustgraph.core.schema import GraphEmbeddings, Value
-from trustgraph.core.schema import graph_embeddings_store_queue
+from trustgraph.schema import GraphEmbeddings, Value
+from trustgraph.schema import graph_embeddings_store_queue
 import argparse
 import os
 import time
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from trustgraph.core.log_level import LogLevel
+from trustgraph.log_level import LogLevel
 
 class Loader:
 

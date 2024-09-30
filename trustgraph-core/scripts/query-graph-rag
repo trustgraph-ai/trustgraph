@@ -6,7 +6,7 @@ Uses the GraphRAG service to answer a query
 
 import argparse
 import os
-from trustgraph.core.clients.graph_rag_client import GraphRagClient
+from trustgraph.clients.graph_rag_client import GraphRagClient
 
 default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://localhost:6650')
 

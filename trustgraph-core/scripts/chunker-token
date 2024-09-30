@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from trustgraph.core.chunking.token import run
+from trustgraph.chunking.token import run
 
 run()
 

@@ -6,14 +6,14 @@ Loads a text document into TrustGraph processing.
 
 import pulsar
 from pulsar.schema import JsonSchema
-from trustgraph.core.schema import TextDocument, Source, text_ingest_queue
+from trustgraph.schema import TextDocument, Source, text_ingest_queue
 import base64
 import hashlib
 import argparse
 import os
 import time
 
-from trustgraph.core.log_level import LogLevel
+from trustgraph.log_level import LogLevel
 
 class Loader:
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from trustgraph.core.storage.rows.cassandra import run
+from trustgraph.storage.rows.cassandra import run
 
 run()
 
