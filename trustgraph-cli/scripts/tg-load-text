@@ -22,7 +22,6 @@ class Loader:
             pulsar_host,
             output_queue,
             log_level,
-            file,
     ):
 
         self.client = pulsar.Client(
@@ -36,13 +35,16 @@ class Loader:
             chunking_enabled=True,
         )
 
-        self.file = file
+    def load(self, files):
 
-    def run(self):
+        for file in files:
+            self.load_file(file)
+
+    def load_file(self, file):
 
         try:
 
-            path = self.file
+            path = file
             data = open(path, "rb").read()
 
             id = hashlib.sha256(path.encode("utf-8")).hexdigest()[0:8]
@@ -58,8 +60,10 @@ class Loader:
 
             self.producer.send(r)
 
+            print(f"{file}: Loaded successfully.")
+
         except Exception as e:
-            print(e, flush=True)
+            print(f"{file}: Failed: {str(e)}", flush=True)
             
     def __del__(self):
         self.client.close()
@@ -95,8 +99,7 @@ def main():
     )
 
     parser.add_argument(
-        '-f', '--file',
-        required=True,
+        'files', nargs='+',
         help=f'File to load'
     )
 
@@ -105,16 +108,16 @@ def main():
     while True:
 
         try:
+
             p = Loader(
                 pulsar_host=args.pulsar_host,
                 output_queue=args.output_queue,
                 log_level=args.log_level,
-                file=args.file,
             )
 
-            p.run()
+            p.load(args.files)
 
-            print("File loaded.")
+            print("All done.")
             break
 
         except Exception as e:
