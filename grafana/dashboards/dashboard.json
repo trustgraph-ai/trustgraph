@@ -90,14 +90,18 @@
             "type": "prometheus",
             "uid": "f6b18033-5918-4e05-a1ca-4cb30343b129"
           },
-          "editorMode": "code",
+          "disableTextWrap": false,
+          "editorMode": "builder",
           "exemplar": false,
-          "expr": "max by(le) (text_completion_duration_bucket)",
+          "expr": "sum by(le) (rate(text_completion_duration_bucket[$__rate_interval]))",
           "format": "heatmap",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
           "instant": false,
           "legendFormat": "99%",
           "range": true,
-          "refId": "A"
+          "refId": "A",
+          "useBackend": false
         }
       ],
       "title": "LLM latency",
@@ -1136,7 +1140,7 @@
     "list": []
   },
   "time": {
-    "from": "now-5m",
+    "from": "now-15m",
     "to": "now"
   },
   "timepicker": {},
