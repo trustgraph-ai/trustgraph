@@ -132,7 +132,7 @@ def generate_all(output, version):
                     version=version
                 )
 
-                fname =f"{platform}/tg-{model}-{graph}.yaml"
+                fname = f"{platform}/tg-{model}-{graph}.yaml"
 
                 output(fname, y)
 
@@ -155,21 +155,21 @@ with zipfile.ZipFile(outfile, mode='w') as out:
 
     # Placeholder for the private.json file.  Won't put actual credentials
     # here.
-    output("vertexai/private.json", private_json)
+    output("docker-compose/vertexai/private.json", private_json)
 
     # Grafana config
     with open("grafana/dashboards/dashboard.json") as f:
-        output("grafana/dashboards/dashboard.json", f.read())
+        output("docker-compose/grafana/dashboards/dashboard.json", f.read())
 
     with open("grafana/provisioning/dashboard.yml") as f:
-        output("grafana/provisioning/dashboard.yml", f.read())
+        output("docker-compose/grafana/provisioning/dashboard.yml", f.read())
 
     with open("grafana/provisioning/datasource.yml") as f:
-        output("grafana/provisioning/datasource.yml", f.read())
+        output("docker-compose/grafana/provisioning/datasource.yml", f.read())
 
     # Prometheus config
     with open("prometheus/prometheus.yml") as f:
-        output("prometheus/prometheus.yml", f.read())
+        output("docker-compose/prometheus/prometheus.yml", f.read())
 
     # A README
     with open("templates/zip-readme.md") as f:
