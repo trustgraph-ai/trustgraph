@@ -2,7 +2,7 @@
 Simple token counter for each LLM response.
 """
 
-from prometheus_client import Histogram, Info
+from prometheus_client import Counter
 from . pricelist import price_list
 
 from .. schema import TextCompletionResponse, Error
@@ -19,6 +19,26 @@ default_subscriber = module
 class Processor(Consumer):
 
     def __init__(self, **params):
+
+        if not hasattr(__class__, "input_token_metric"):
+            __class__.input_token_metric = Counter(
+                'input_tokens', 'Input token count'
+            )
+
+        if not hasattr(__class__, "output_token_metric"):
+            __class__.output_token_metric = Counter(
+                'output_tokens', 'Output token count'
+            )
+
+        if not hasattr(__class__, "input_cost_metric"):
+            __class__.input_cost_metric = Counter(
+                'input_cost', 'Input cost'
+            )
+
+        if not hasattr(__class__, "output_cost_metric"):
+            __class__.output_cost_metric = Counter(
+                'output_cost', 'Output cost'
+            )
 
         input_queue = params.get("input_queue", default_input_queue)
         subscriber = params.get("subscriber", default_subscriber)
@@ -50,6 +70,9 @@ class Processor(Consumer):
         num_in = v.in_token
         num_out = v.out_token
 
+        __class__.input_token_metric.inc(num_in)
+        __class__.output_token_metric.inc(num_out)
+
         model_input_price, model_output_price = self.get_prices(price_list, modelname)
 
         if model_input_price == None:
@@ -58,6 +81,9 @@ class Processor(Consumer):
             cost_in = num_in * model_input_price
             cost_out = num_out * model_output_price
             cost_per_call = round(cost_in + cost_out, 6)
+
+            __class__.input_cost_metric.inc(cost_in)
+            __class__.output_cost_metric.inc(cost_out)
 
         print(f"Input Tokens: {num_in}", flush=True)
         print(f"Output Tokens: {num_out}", flush=True)
