@@ -21,7 +21,6 @@ local images = import "values/images.jsonnet";
                     .with_image(images.prometheus)
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M")
-//                    .with_command(["/bin/sh", "-c", "sleep 9999999"])
                     .with_port(9090, 9090, "http")
                     .with_volume_mount(cfgVol, "/etc/prometheus/")
                     .with_volume_mount(vol, "/prometheus");
