@@ -37,6 +37,7 @@ setuptools.setup(
         "trustgraph-base",
         "requests",
         "pulsar-client",
+        "rdflib",
         "tabulate",
     ],
     scripts=[
