@@ -108,7 +108,9 @@ class Processor(ConsumerProducer):
 
             print(f"Handling input {id}...", flush=True)
 
-            response = self.rag.query(v.query)
+            response = self.rag.query(
+                query=v.query, user=v.user, collection=v.collection
+            )
 
             print("Send response...", flush=True)
             r = GraphRagResponse(response = response, error=None)

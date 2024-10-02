@@ -38,12 +38,31 @@ class Processor(Consumer):
             }
         )
 
-        self.tg = TrustGraph([graph_host])
+        self.graph_host = [graph_host]
+        self.table = None
 
     def handle(self, msg):
 
         v = msg.value()
 
+        table = (v.metadata.user, v.metadata.collection)
+
+        if self.table is None or self.table != table:
+
+            self.tg = None
+
+            try:
+                self.tg = TrustGraph(
+                    hosts=self.graph_host,
+                    keyspace=v.metadata.user, table=v.metadata.collection,
+                )
+            except Exception as e:
+                print("Exception", e, flush=True)
+                time.sleep(1)
+                raise e
+
+            self.table = table
+        
         self.tg.insert(
             v.s.value,
             v.p.value,

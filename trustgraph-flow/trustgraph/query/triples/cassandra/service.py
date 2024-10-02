@@ -38,7 +38,8 @@ class Processor(ConsumerProducer):
             }
         )
 
-        self.tg = TrustGraph([graph_host])
+        self.graph_host = [graph_host]
+        self.table = None
 
     def create_value(self, ent):
         if ent.startswith("http://") or ent.startswith("https://"):
@@ -51,6 +52,15 @@ class Processor(ConsumerProducer):
         try:
 
             v = msg.value()
+
+            table = (v.user, v.collection)
+
+            if table != self.table:
+                self.tg = TrustGraph(
+                    hosts=self.graph_host,
+                    keyspace=v.user, table=v.collection,
+                )
+                self.table = table
 
             # Sender-produced ID
             id = msg.properties()["id"]

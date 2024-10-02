@@ -2,17 +2,13 @@
 from pulsar.schema import Record, Bytes, String, Boolean, Integer, Array, Double
 from . topic import topic
 from . types import Error
-
-class Source(Record):
-    source = String()
-    id = String()
-    title = String()
+from . metadata import Metadata
 
 ############################################################################
 
 # PDF docs etc.
 class Document(Record):
-    source = Source()
+    metadata = Metadata()
     data = Bytes()
 
 document_ingest_queue = topic('document-load')
@@ -22,7 +18,7 @@ document_ingest_queue = topic('document-load')
 # Text documents / text from PDF
 
 class TextDocument(Record):
-    source = Source()
+    metadata = Metadata()
     text = Bytes()
 
 text_ingest_queue = topic('text-document-load')
@@ -32,7 +28,7 @@ text_ingest_queue = topic('text-document-load')
 # Chunks of text
 
 class Chunk(Record):
-    source = Source()
+    metadata = Metadata()
     chunk = Bytes()
 
 chunk_ingest_queue = topic('chunk-load')
@@ -42,7 +38,7 @@ chunk_ingest_queue = topic('chunk-load')
 # Chunk embeddings are an embeddings associated with a text chunk
 
 class ChunkEmbeddings(Record):
-    source = Source()
+    metadata = Metadata()
     vectors = Array(Array(Double()))
     chunk = Bytes()
 

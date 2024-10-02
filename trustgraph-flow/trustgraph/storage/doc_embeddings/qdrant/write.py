@@ -37,7 +37,6 @@ class Processor(Consumer):
         )
 
         self.last_collection = None
-        self.last_dim = None
 
         self.client = QdrantClient(url=store_uri)
 
@@ -52,9 +51,12 @@ class Processor(Consumer):
         for vec in v.vectors:
 
             dim = len(vec)
-            collection = "doc_" + str(dim)
+            collection = (
+                "d_" + v.metadata.user + "_" + v.metadata.collection + "_" +
+                str(dim)
+            )
 
-            if dim != self.last_dim:
+            if collection != self.last_collection:
 
                 if not self.client.collection_exists(collection):
 
@@ -70,7 +72,6 @@ class Processor(Consumer):
                         raise e
 
                 self.last_collection = collection
-                self.last_dim = dim
 
             self.client.upsert(
                 collection_name=collection,

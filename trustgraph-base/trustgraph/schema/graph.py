@@ -1,16 +1,16 @@
 
 from pulsar.schema import Record, Bytes, String, Boolean, Integer, Array, Double
 
-from . documents import Source
 from . types import Error, Value
 from . topic import topic
+from . metadata import Metadata
 
 ############################################################################
 
 # Graph embeddings are embeddings associated with a graph entity
 
 class GraphEmbeddings(Record):
-    source = Source()
+    metadata = Metadata()
     vectors = Array(Array(Double()))
     entity = Value()
 
@@ -23,6 +23,8 @@ graph_embeddings_store_queue = topic('graph-embeddings-store')
 class GraphEmbeddingsRequest(Record):
     vectors = Array(Array(Double()))
     limit = Integer()
+    user = String()
+    collection = String()
 
 class GraphEmbeddingsResponse(Record):
     error = Error()
@@ -40,7 +42,7 @@ graph_embeddings_response_queue = topic(
 # Graph triples
 
 class Triple(Record):
-    source = Source()
+    metadata = Metadata()
     s = Value()
     p = Value()
     o = Value()
@@ -56,6 +58,8 @@ class TriplesQueryRequest(Record):
     p = Value()
     o = Value()
     limit = Integer()
+    user = String()
+    collection = String()
 
 class TriplesQueryResponse(Record):
     error = Error()

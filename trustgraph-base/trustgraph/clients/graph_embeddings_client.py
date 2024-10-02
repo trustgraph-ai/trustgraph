@@ -38,8 +38,12 @@ class GraphEmbeddingsClient(BaseClient):
             output_schema=GraphEmbeddingsResponse,
         )
 
-    def request(self, vectors, limit=10, timeout=300):
+    def request(
+            self, vectors, user="trustgraph", collection="default",
+            limit=10, timeout=300
+    ):
         return self.call(
+            user=user, collection=collection,
             vectors=vectors, limit=limit, timeout=timeout
         ).entities
 

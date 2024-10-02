@@ -50,15 +50,15 @@ class Processor(ConsumerProducer):
             subscriber=module + "-emb",
         )
 
-    def emit(self, source, chunk, vectors):
+    def emit(self, metadata, chunk, vectors):
 
-        r = ChunkEmbeddings(source=source, chunk=chunk, vectors=vectors)
+        r = ChunkEmbeddings(metadata=metadata, chunk=chunk, vectors=vectors)
         self.producer.send(r)
 
     def handle(self, msg):
 
         v = msg.value()
-        print(f"Indexing {v.source.id}...", flush=True)
+        print(f"Indexing {v.metadata.id}...", flush=True)
 
         chunk = v.chunk.decode("utf-8")
 
@@ -67,7 +67,7 @@ class Processor(ConsumerProducer):
             vectors = self.embeddings.request(chunk)
 
             self.emit(
-                source=v.source,
+                metadata=v.metadata,
                 chunk=chunk.encode("utf-8"),
                 vectors=vectors
             )
