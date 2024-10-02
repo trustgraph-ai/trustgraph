@@ -99,7 +99,7 @@ class Processor(ConsumerProducer):
 
     def emit_vec(self, metadata, ent, vec):
 
-        r = GraphEmbeddings(metdata=metadata, entity=ent, vectors=vec)
+        r = GraphEmbeddings(metadata=metadata, entity=ent, vectors=vec)
         self.vec_prod.send(r)
 
     def handle(self, msg):
@@ -140,7 +140,7 @@ class Processor(ConsumerProducer):
                     o_value = Value(value=str(o), is_uri=False)
 
                 self.emit_edge(
-                    v.metdata,
+                    v.metadata,
                     s_value,
                     p_value,
                     o_value
@@ -148,7 +148,7 @@ class Processor(ConsumerProducer):
 
                 # Label for s
                 self.emit_edge(
-                    v.metdata,
+                    v.metadata,
                     s_value,
                     RDF_LABEL_VALUE,
                     Value(value=str(s), is_uri=False)
@@ -156,7 +156,7 @@ class Processor(ConsumerProducer):
 
                 # Label for p
                 self.emit_edge(
-                    v.metdata,
+                    v.metadata,
                     p_value,
                     RDF_LABEL_VALUE,
                     Value(value=str(p), is_uri=False)
@@ -165,7 +165,7 @@ class Processor(ConsumerProducer):
                 if rel.o_entity:
                     # Label for o
                     self.emit_edge(
-                        v.metdata,
+                        v.metadata,
                         o_value,
                         RDF_LABEL_VALUE,
                         Value(value=str(o), is_uri=False)
