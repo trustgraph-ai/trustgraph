@@ -2,7 +2,7 @@
 from pulsar.schema import Record, Bytes, String, Boolean, Integer, Array
 from pulsar.schema import Double, Map
 
-from . documents import Source
+from . metadata import Metadata
 from . types import Value, RowSchema
 from . topic import topic
 
@@ -12,7 +12,7 @@ from . topic import topic
 # object
 
 class ObjectEmbeddings(Record):
-    source = Source()
+    metadata = Metadata()
     vectors = Array(Array(Double()))
     name = String()
     key_name = String()
@@ -25,7 +25,7 @@ object_embeddings_store_queue = topic('object-embeddings-store')
 # Stores rows of information
 
 class Rows(Record):
-    source = Source()
+    metadata = Metadata()
     row_schema = RowSchema()
     rows = Array(Map(String()))
 
