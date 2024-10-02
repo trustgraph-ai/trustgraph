@@ -9,6 +9,8 @@ from . types import Error, Value
 
 class GraphRagQuery(Record):
     query = String()
+    user = String()
+    collection = String()
 
 class GraphRagResponse(Record):
     error = Error()
@@ -27,6 +29,8 @@ graph_rag_response_queue = topic(
 
 class DocumentRagQuery(Record):
     query = String()
+    user = String()
+    collection = String()
 
 class DocumentRagResponse(Record):
     error = Error()

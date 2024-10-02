@@ -38,9 +38,12 @@ class GraphRagClient(BaseClient):
             output_schema=GraphRagResponse,
         )
 
-    def request(self, query, timeout=500):
+    def request(
+            self, query, user="trustgraph", collection="default",
+            timeout=500
+    ):
 
         return self.call(
-            query=query, timeout=timeout
+            user=user, collection=collection, query=query, timeout=timeout
         ).response
 
