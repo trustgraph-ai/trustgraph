@@ -50,7 +50,10 @@ class Processor(Consumer):
         for vec in v.vectors:
 
             dim = len(vec)
-            collection = "triples_" + str(dim)
+            collection = (
+                "t_" + v.metadata.user + "_" + v.metadata.collection +
+                str(dim)
+            )
 
             if dim != self.last_dim:
 

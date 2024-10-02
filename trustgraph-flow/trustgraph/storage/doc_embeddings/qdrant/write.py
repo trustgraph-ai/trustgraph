@@ -52,7 +52,10 @@ class Processor(Consumer):
         for vec in v.vectors:
 
             dim = len(vec)
-            collection = "doc_" + str(dim)
+            collection = (
+                "d_" + v.metadata.user + "_" + v.metadata.collection +
+                str(dim)
+            )
 
             if dim != self.last_dim:
 

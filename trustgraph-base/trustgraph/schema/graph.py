@@ -23,6 +23,8 @@ graph_embeddings_store_queue = topic('graph-embeddings-store')
 class GraphEmbeddingsRequest(Record):
     vectors = Array(Array(Double()))
     limit = Integer()
+    user = String()
+    collection = String()
 
 class GraphEmbeddingsResponse(Record):
     error = Error()
@@ -56,6 +58,8 @@ class TriplesQueryRequest(Record):
     p = Value()
     o = Value()
     limit = Integer()
+    user = String()
+    collection = String()
 
 class TriplesQueryResponse(Record):
     error = Error()

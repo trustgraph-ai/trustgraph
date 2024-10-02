@@ -18,6 +18,144 @@ from . schema import triples_response_queue
 LABEL="http://www.w3.org/2000/01/rdf-schema#label"
 DEFINITION="http://www.w3.org/2004/02/skos/core#definition"
 
+class Query:
+
+    def __init__(self, rag, user, collection, verbose):
+        self.rag = rag
+        self.user = user
+        self.collection = collection
+        self.verbose = verbose
+
+    def get_vector(self, query):
+
+        if self.verbose:
+            print("Compute embeddings...", flush=True)
+
+        qembeds = self.rag.embeddings.request(query)
+
+        if self.verbose:
+            print("Done.", flush=True)
+
+        return qembeds
+
+    def get_entities(self, query):
+
+        vectors = self.get_vector(query)
+
+        if self.verbose:
+            print("Get entities...", flush=True)
+
+        entities = self.rag.ge_client.request(
+            user=self.user, collection=self.collection,
+            vectors=vectors, limit=self.rag.entity_limit,
+        )
+
+        entities = [
+            e.value
+            for e in entities
+        ]
+
+        if self.verbose:
+            print("Entities:", flush=True)
+            for ent in entities:
+                print(" ", ent, flush=True)
+
+        return entities
+        
+    def maybe_label(self, e):
+
+        if e in self.rag.label_cache:
+            return self.rag.label_cache[e]
+
+        res = self.rag.triples_client.request(
+            user=self.user, collection=self.collection,
+            s=e, p=LABEL, o=None, limit=1,
+        )
+
+        if len(res) == 0:
+            self.rag.label_cache[e] = e
+            return e
+
+        self.rag.label_cache[e] = res[0].o.value
+        return self.rag.label_cache[e]
+
+    def get_subgraph(self, query):
+
+        entities = self.get_entities(query)
+
+        subgraph = set()
+
+        if self.verbose:
+            print("Get subgraph...", flush=True)
+
+        for e in entities:
+
+            res = self.rag.triples_client.request(
+                user=self.user, collection=self.collection,
+                s=e, p=None, o=None,
+                limit=self.rag.query_limit
+            )
+
+            for triple in res:
+                subgraph.add(
+                    (triple.s.value, triple.p.value, triple.o.value)
+                )
+
+            res = self.rag.triples_client.request(
+                user=self.user, collection=self.collection,
+                s=None, p=e, o=None,
+                limit=self.rag.query_limit
+            )
+
+            for triple in res:
+                subgraph.add(
+                    (triple.s.value, triple.p.value, triple.o.value)
+                )
+
+            res = self.rag.triples_client.request(
+                user=self.user, collection=self.collection,
+                s=None, p=None, o=e,
+                limit=self.rag.query_limit,
+            )
+
+            for triple in res:
+                subgraph.add(
+                    (triple.s.value, triple.p.value, triple.o.value)
+                )
+
+        subgraph = list(subgraph)
+
+        subgraph = subgraph[0:self.rag.max_subgraph_size]
+
+        if self.verbose:
+            print("Subgraph:", flush=True)
+            for edge in subgraph:
+                print(" ", str(edge), flush=True)
+
+        if self.verbose:
+            print("Done.", flush=True)
+
+        return subgraph
+
+    def get_labelgraph(self, query):
+
+        subgraph = self.get_subgraph(query)
+
+        sg2 = []
+
+        for edge in subgraph:
+
+            if edge[1] == LABEL:
+                continue
+
+            s = self.maybe_label(edge[0])
+            p = self.maybe_label(edge[1])
+            o = self.maybe_label(edge[2])
+
+            sg2.append((s, p, o))
+
+        return sg2
+    
 class GraphRag:
 
     def __init__(
@@ -94,7 +232,7 @@ class GraphRag:
 
         self.label_cache = {}
 
-        self.lang = PromptClient(
+        self.prompt = PromptClient(
             pulsar_host=pulsar_host,
             input_queue=pr_request_queue,
             output_queue=pr_response_queue,
@@ -104,144 +242,23 @@ class GraphRag:
         if self.verbose:
             print("Initialised", flush=True)
 
-    def get_vector(self, query):
-
-        if self.verbose:
-            print("Compute embeddings...", flush=True)
-
-        qembeds = self.embeddings.request(query)
-
-        if self.verbose:
-            print("Done.", flush=True)
-
-        return qembeds
-
-    def get_entities(self, query):
-
-        vectors = self.get_vector(query)
-
-        if self.verbose:
-            print("Get entities...", flush=True)
-
-        entities = self.ge_client.request(
-            vectors, self.entity_limit
-        )
-
-        entities = [
-            e.value
-            for e in entities
-        ]
-
-        if self.verbose:
-            print("Entities:", flush=True)
-            for ent in entities:
-                print(" ", ent, flush=True)
-
-        return entities
-        
-    def maybe_label(self, e):
-
-        if e in self.label_cache:
-            return self.label_cache[e]
-
-        res = self.triples_client.request(
-            e, LABEL, None, limit=1
-        )
-
-        if len(res) == 0:
-            self.label_cache[e] = e
-            return e
-
-        self.label_cache[e] = res[0].o.value
-        return self.label_cache[e]
-
-    def get_subgraph(self, query):
-
-        entities = self.get_entities(query)
-
-        subgraph = set()
-
-        if self.verbose:
-            print("Get subgraph...", flush=True)
-
-        for e in entities:
-
-            res = self.triples_client.request(
-                e, None, None,
-                limit=self.query_limit
-            )
-
-            for triple in res:
-                subgraph.add(
-                    (triple.s.value, triple.p.value, triple.o.value)
-                )
-
-            res = self.triples_client.request(
-                None, e, None,
-                limit=self.query_limit
-            )
-
-            for triple in res:
-                subgraph.add(
-                    (triple.s.value, triple.p.value, triple.o.value)
-                )
-
-            res = self.triples_client.request(
-                None, None, e,
-                limit=self.query_limit
-            )
-
-            for triple in res:
-                subgraph.add(
-                    (triple.s.value, triple.p.value, triple.o.value)
-                )
-
-        subgraph = list(subgraph)
-
-        subgraph = subgraph[0:self.max_subgraph_size]
-
-        if self.verbose:
-            print("Subgraph:", flush=True)
-            for edge in subgraph:
-                print(" ", str(edge), flush=True)
-
-        if self.verbose:
-            print("Done.", flush=True)
-
-        return subgraph
-
-    def get_labelgraph(self, query):
-
-        subgraph = self.get_subgraph(query)
-
-        sg2 = []
-
-        for edge in subgraph:
-
-            if edge[1] == LABEL:
-                continue
-
-            s = self.maybe_label(edge[0])
-            p = self.maybe_label(edge[1])
-            o = self.maybe_label(edge[2])
-
-            sg2.append((s, p, o))
-
-        return sg2
-
-    def query(self, query):
+    def query(self, query, user="trustgraph", collection="default"):
 
         if self.verbose:
             print("Construct prompt...", flush=True)
 
-        kg = self.get_labelgraph(query)
+        q = Query(
+            rag=self, user=user, collection=collection, verbose=self.verbose
+        )
+
+        kg = q.get_labelgraph(query)
 
         if self.verbose:
             print("Invoke LLM...", flush=True)
             print(kg)
             print(query)
 
-        resp = self.lang.request_kg_prompt(query, kg)
+        resp = self.prompt.request_kg_prompt(query, kg)
 
         if self.verbose:
             print("Done", flush=True)
