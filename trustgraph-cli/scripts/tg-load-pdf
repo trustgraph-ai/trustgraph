@@ -6,7 +6,7 @@ Loads a PDF document into TrustGraph processing.
 
 import pulsar
 from pulsar.schema import JsonSchema
-from trustgraph.schema import Document, Source, document_ingest_queue
+from trustgraph.schema import Document, document_ingest_queue, Metadata
 import base64
 import hashlib
 import argparse
@@ -15,12 +15,17 @@ import time
 
 from trustgraph.log_level import LogLevel
 
+default_user = 'trustgraph'
+default_collection = 'default'
+
 class Loader:
 
     def __init__(
             self,
             pulsar_host,
             output_queue,
+            user,
+            collection,
             log_level,
     ):
 
@@ -34,6 +39,9 @@ class Loader:
             schema=JsonSchema(Document),
             chunking_enabled=True,
         )
+
+        self.user = user
+        self.collection = collection
 
     def load(self, files):
 
@@ -50,10 +58,12 @@ class Loader:
             id = hashlib.sha256(path.encode("utf-8")).hexdigest()[0:8]
 
             r = Document(
-                source=Source(
+                metadata=Metadata(
                     source=path,
                     title=path,
                     id=id,
+                    user=self.user,
+                    collection=self.collection,
                 ),
                 data=base64.b64encode(data),
             )
@@ -91,6 +101,18 @@ def main():
     )
 
     parser.add_argument(
+        '-u', '--user',
+        default=default_user,
+        help=f'User ID (default: {default_user})'
+    )
+
+    parser.add_argument(
+        '-c', '--collection',
+        default=default_collection,
+        help=f'Collection ID (default: {default_collection})'
+    )
+
+    parser.add_argument(
         '-l', '--log-level',
         type=LogLevel,
         default=LogLevel.ERROR,
@@ -112,6 +134,8 @@ def main():
             p = Loader(
                 pulsar_host=args.pulsar_host,
                 output_queue=args.output_queue,
+                user=args.user,
+                collection=args.collection,
                 log_level=args.log_level,
             )
 

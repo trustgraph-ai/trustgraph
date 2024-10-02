@@ -8,7 +8,7 @@ import urllib.parse
 import os
 from pulsar.schema import JsonSchema
 
-from .... schema import ChunkEmbeddings, Rows, ObjectEmbeddings, Source
+from .... schema import ChunkEmbeddings, Rows, ObjectEmbeddings, Metadata
 from .... schema import RowSchema, Field
 from .... schema import chunk_embeddings_ingest_queue, rows_store_queue
 from .... schema import object_embeddings_store_queue
@@ -124,24 +124,24 @@ class Processor(ConsumerProducer):
     def get_rows(self, chunk):
         return self.prompt.request_rows(self.schema, chunk)
 
-    def emit_rows(self, source, rows):
+    def emit_rows(self, metadata, rows):
 
         t = Rows(
-            source=source, row_schema=self.row_schema, rows=rows
+            metadata=metadata, row_schema=self.row_schema, rows=rows
         )
         self.producer.send(t)
 
-    def emit_vec(self, source, name, vec, key_name, key):
+    def emit_vec(self, metadata, name, vec, key_name, key):
 
         r = ObjectEmbeddings(
-            source=source, vectors=vec, name=name, key_name=key_name, id=key
+            metadata=metadata, vectors=vec, name=name, key_name=key_name, id=key
         )
         self.vec_prod.send(r)
 
     def handle(self, msg):
 
         v = msg.value()
-        print(f"Indexing {v.source.id}...", flush=True)
+        print(f"Indexing {v.metadata.id}...", flush=True)
 
         chunk = v.chunk.decode("utf-8")
 
@@ -150,13 +150,13 @@ class Processor(ConsumerProducer):
             rows = self.get_rows(chunk)
 
             self.emit_rows(
-                source=v.source,
+                metadata=v.metadata,
                 rows=rows
             )
 
             for row in rows:
                 self.emit_vec(
-                    source=v.source, vec=v.vectors,
+                    metadata=v.metadata, vec=v.vectors,
                     name=self.schema.name, key_name=self.primary.name,
                     key=row[self.primary.name]
                 )
