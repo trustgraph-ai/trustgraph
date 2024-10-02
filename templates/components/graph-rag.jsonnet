@@ -89,6 +89,7 @@ local url = import "values/url.jsonnet";
 
             engine.resources([
                 containerSet,
+                service,
             ])
 
     },
