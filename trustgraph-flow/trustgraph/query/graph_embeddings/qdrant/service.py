@@ -67,7 +67,7 @@ class Processor(ConsumerProducer):
 
                 dim = len(vec)
                 collection = (
-                    "t_" + v.user + "_" + v.collection +
+                    "t_" + v.user + "_" + v.collection + "_" +
                     str(dim)
                 )
 
