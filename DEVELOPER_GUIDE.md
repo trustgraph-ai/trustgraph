@@ -52,14 +52,16 @@ To do a local build, you need to...
 - Build containers
 
 ```
-  make
+    make
 ```
 
 
 - If you changed anything which affects command line stuff (which maybe
   you could do if you changed schemas), then
 
-  make packages
+```
+    make packages
+```
 
   That puts Python packages in dist/  You then need to install some or
   all of those packages.  Typically you only need -base and -cli to
