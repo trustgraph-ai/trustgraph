@@ -1,4 +1,8 @@
 
+= Developer's guide
+
+== Release management
+
 To do a public release you need to...
 
 - Get the git directory ready for the release
@@ -33,6 +37,8 @@ To do a public release you need to...
 
   - make
   - make push
+
+== Local build
 
 To do a local build, you need to...
 
