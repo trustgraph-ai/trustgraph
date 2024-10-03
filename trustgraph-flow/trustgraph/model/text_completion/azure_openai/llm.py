@@ -1,7 +1,7 @@
 
 """
 Simple LLM service, performs text prompt completion using the Azure
-serverless endpoint service.  Input is prompt, output is response.
+OpenAI endpoit service.  Input is prompt, output is response.
 """
 
 import requests
@@ -66,17 +66,14 @@ class Processor(ConsumerProducer):
                 ]
             )
 
-        self.api = api
-        self.endpoint = endpoint
-        self.token = token
         self.temperature = temperature
         self.max_output = max_output
         self.model = model
 
         self.openai = AzureOpenAI(
-            api_key=self.token,  
-            api_version=self.api,
-            azure_endpoint = self.endpoint,
+            api_key=token,  
+            api_version=api,
+            azure_endpoint = endpoint,
             )
 
     def handle(self, msg):
@@ -91,10 +88,11 @@ class Processor(ConsumerProducer):
 
         prompt = v.prompt
 
+
         try:
 
             with __class__.text_completion_metric.time():
-                resp = self.openai.completions.create(
+                resp = self.openai.chat.completions.create(
                     model=self.model,
                     messages=[
                         {
