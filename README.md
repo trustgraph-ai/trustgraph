@@ -16,54 +16,58 @@ The pipeline processing components are interconnected with a pub/sub engine to m
 
 The processing showcases the reliability and efficiences of GraphRAG algorithms which can capture contextual language flags that are missed in conventional RAG approaches. Graph querying algorithms enable retrieving not just relevant knowledge but language cues essential to understanding semantic uses unique to a text corpus.
 
-## Deploy in Minutes
-
-TrustGraph is designed to deploy all the services and stores needed for a scalable GraphRAG infrastructure as quickly and simply as possible.
-
-### Install Requirements
+## Install the TrustGraph CLI
 
 ```
-python3 -m venv env
-. env/bin/activate
-pip3 install pulsar-client
-pip3 install cassandra-driver
-export PYTHON_PATH=.
+pip3 install trustgraph-cli
 ```
 
-### Download TrustGraph
+## Download TrustGraph
 
-```
-git clone https://github.com/trustgraph-ai/trustgraph trustgraph
-cd trustgraph
-```
+TrustGraph releases are available [here](https://github.com/trustgraph-ai/trustgraph/releases). Download `deploy.zip` for the desired release version.
 
-TrustGraph is fully containerized and is launched with a Docker Compose `YAML` file. These files are prebuilt and included in the download main directory. Simply select the file that matches your desired model deployment and graph store configuration.
+| Release Type | Release Version |
+| ------------ | --------------- |
+| Latest | [0.11.19](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.11.19/deploy.zip) |
+| Stable | [0.11.19](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.11.19/deploy.zip) |
+
+TrustGraph is fully containerized and is launched with a `YAML` configuration file. Unzipping the `deploy.zip` will add the `deploy` directory with the following subdirectories:
+
+- `docker-compose`
+- `minikube-k8s`
+- `gcp-k8s`
+
+Each directory contains the pre-built `YAML` configuration files needed to launch TrustGraph.
 
 | Model Deployment | Graph Store | Launch File |
 | ---------------- | ------------ | ----------- |
-| AWS Bedrock | Cassandra | `tg-launch-bedrock-cassandra.yaml` |
-| AWS Bedrock | Neo4j | `tg-launch-bedrock-neo4j.yaml` |
-| AzureAI Serverless Endpoint | Cassandra | `tg-launch-azure-cassandra.yaml` |
-| AzureAI Serverless Endpoint | Neo4j | `tg-launch-azure-neo4j.yaml` |
-| Anthropic API | Cassandra | `tg-launch-claude-cassandra.yaml` |
-| Anthropic API | Neo4j | `tg-launch-claude-neo4j.yaml` |
-| Cohere API | Cassandra | `tg-launch-cohere-cassandra.yaml` |
-| Cohere API | Neo4j | `tg-launch-cohere-neo4j.yaml` |
-| Llamafile | Cassandra | `tg-launch-llamafile-cassandra.yaml` |
-| Llamafile | Neo4j | `tg-launch-llamafile-neo4j.yaml` |
-| Mixed Depoloyment | Cassandra | `tg-launch-mix-cassandra.yaml` |
-| Mixed Depoloyment | Neo4j | `tg-launch-mix-neo4j.yaml` |
-| Ollama | Cassandra | `tg-launch-ollama-cassandra.yaml` |
-| Ollama | Neo4j | `tg-launch-ollama-neo4j.yaml` |
-| OpenAI | Cassandra | `tg-launch-openai-cassandra.yaml` |
-| OpenAI | Neo4j | `tg-launch-openai-neo4j.yaml` |
-| VertexAI | Cassandra | `tg-launch-vertexai-cassandra.yaml` |
-| VertexAI | Neo4j | `tg-launch-vertexai-neo4j.yaml` |
+| AWS Bedrock | Cassandra | `tg-bedrock-cassandra.yaml` |
+| AWS Bedrock | Neo4j | `tg-bedrock-neo4j.yaml` |
+| AzureAI Serverless Endpoint | Cassandra | `tg-azure-cassandra.yaml` |
+| AzureAI Serverless Endpoint | Neo4j | `tg-azure-neo4j.yaml` |
+| Anthropic API | Cassandra | `tg-claude-cassandra.yaml` |
+| Anthropic API | Neo4j | `tg-claude-neo4j.yaml` |
+| Cohere API | Cassandra | `tg-cohere-cassandra.yaml` |
+| Cohere API | Neo4j | `tg-cohere-neo4j.yaml` |
+| Llamafile | Cassandra | `tg-llamafile-cassandra.yaml` |
+| Llamafile | Neo4j | `tg-llamafile-neo4j.yaml` |
+| Ollama | Cassandra | `tg-ollama-cassandra.yaml` |
+| Ollama | Neo4j | `tg-ollama-neo4j.yaml` |
+| OpenAI | Cassandra | `tg-openai-cassandra.yaml` |
+| OpenAI | Neo4j | `tg-openai-neo4j.yaml` |
+| VertexAI | Cassandra | `tg-vertexai-cassandra.yaml` |
+| VertexAI | Neo4j | `tg-vertexai-neo4j.yaml` |
 
 Launching TrustGraph is as simple as running one line:
 
+**Docker**:
 ```
-docker compose -f <launch-file> up -d
+docker compose -f <launch-file.yaml> up -d
+```
+
+**Kubernetes**:
+```
+kubectl apply -f <launch-file.yaml>
 ```
 
 ## Core TrustGraph Features
@@ -80,7 +84,7 @@ docker compose -f <launch-file> up -d
 - GraphRAG query service
 - [Grafana](https://github.com/grafana/) telemetry dashboard
 - Module integration with [Apache Pulsar](https://github.com/apache/pulsar/)
-- Container orchestration with `Docker` or [Podman](http://podman.io/)
+- Container orchestration with `Docker`, `Podman`, or `Minikube`
 
 ## Architecture
 
@@ -105,12 +109,12 @@ The agent prompts are built through templates, enabling customized extraction ag
 
 PDF file:
 ```
-scripts/load-pdf -f sample-text-corpus.pdf
+tg-load-pdf sample-text-corpus.pdf
 ```
 
 Text file:
 ```
-scripts/load-text -f sample-text-corpus.txt
+tg-load-text sample-text-corpus.txt
 ```
 
 ## GraphRAG Queries
@@ -118,7 +122,7 @@ scripts/load-text -f sample-text-corpus.txt
 Once the knowledge graph has been built or a knowledge core has been loaded, GraphRAG queries are launched with a single line:
 
 ```
-scripts/query-graph-rag -q "Write a blog post about the 5 key takeaways from SB1047 and how they will impact AI development."
+tg-query-graph-rag -q "Write a blog post about the 5 key takeaways from SB1047 and how they will impact AI development."
 ```
 
 ## Deploy and Manage TrustGraph
