@@ -41,22 +41,22 @@ Each directory contains the pre-built `YAML` configuration files needed to launc
 
 | Model Deployment | Graph Store | Launch File |
 | ---------------- | ------------ | ----------- |
-| AWS Bedrock | Cassandra | `tg-bedrock-cassandra.yaml` |
-| AWS Bedrock | Neo4j | `tg-bedrock-neo4j.yaml` |
-| AzureAI Serverless Endpoint | Cassandra | `tg-azure-cassandra.yaml` |
-| AzureAI Serverless Endpoint | Neo4j | `tg-azure-neo4j.yaml` |
+| AWS Bedrock API | Cassandra | `tg-bedrock-cassandra.yaml` |
+| AWS Bedrock API | Neo4j | `tg-bedrock-neo4j.yaml` |
+| AzureAI Serverless API | Cassandra | `tg-azure-cassandra.yaml` |
+| AzureAI Serverless API | Neo4j | `tg-azure-neo4j.yaml` |
 | Anthropic API | Cassandra | `tg-claude-cassandra.yaml` |
 | Anthropic API | Neo4j | `tg-claude-neo4j.yaml` |
 | Cohere API | Cassandra | `tg-cohere-cassandra.yaml` |
 | Cohere API | Neo4j | `tg-cohere-neo4j.yaml` |
-| Llamafile | Cassandra | `tg-llamafile-cassandra.yaml` |
-| Llamafile | Neo4j | `tg-llamafile-neo4j.yaml` |
-| Ollama | Cassandra | `tg-ollama-cassandra.yaml` |
-| Ollama | Neo4j | `tg-ollama-neo4j.yaml` |
-| OpenAI | Cassandra | `tg-openai-cassandra.yaml` |
-| OpenAI | Neo4j | `tg-openai-neo4j.yaml` |
-| VertexAI | Cassandra | `tg-vertexai-cassandra.yaml` |
-| VertexAI | Neo4j | `tg-vertexai-neo4j.yaml` |
+| Llamafile API | Cassandra | `tg-llamafile-cassandra.yaml` |
+| Llamafile API | Neo4j | `tg-llamafile-neo4j.yaml` |
+| Ollama API | Cassandra | `tg-ollama-cassandra.yaml` |
+| Ollama API | Neo4j | `tg-ollama-neo4j.yaml` |
+| OpenAI API | Cassandra | `tg-openai-cassandra.yaml` |
+| OpenAI API | Neo4j | `tg-openai-neo4j.yaml` |
+| VertexAI API | Cassandra | `tg-vertexai-cassandra.yaml` |
+| VertexAI API | Neo4j | `tg-vertexai-neo4j.yaml` |
 
 Launching TrustGraph is as simple as running one line:
 
