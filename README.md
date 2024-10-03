@@ -37,7 +37,7 @@ TrustGraph is fully containerized and is launched with a `YAML` configuration fi
 - `minikube-k8s`
 - `gcp-k8s`
 
-Each directory contains the pre-built `YAML` configuration files needed to launch TrustGraph.
+Each directory contains the pre-built `YAML` configuration files needed to launch TrustGraph:
 
 | Model Deployment | Graph Store | Launch File |
 | ---------------- | ------------ | ----------- |
