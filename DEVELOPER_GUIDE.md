@@ -1,7 +1,7 @@
 
-= Developer's guide
+# Developer's guide
 
-== Release management
+## Release management
 
 To do a public release you need to...
 
@@ -38,7 +38,7 @@ To do a public release you need to...
   - make
   - make push
 
-== Local build
+## Local build
 
 To do a local build, you need to...
 
