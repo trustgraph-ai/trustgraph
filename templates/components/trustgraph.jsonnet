@@ -31,8 +31,13 @@ local prompt = import "prompt-template.jsonnet";
                 "chunker", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8000, 8000, "metrics");
+
             engine.resources([
                 containerSet,
+                service,
             ])
 
     },
@@ -56,8 +61,13 @@ local prompt = import "prompt-template.jsonnet";
                 "pdf-decoder", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8000, 8000, "metrics");
+
             engine.resources([
                 containerSet,
+                service,
             ])
 
     },
@@ -81,8 +91,75 @@ local prompt = import "prompt-template.jsonnet";
                 "vectorize", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8000, 8000, "metrics");
+
             engine.resources([
                 containerSet,
+                service,
+            ])
+
+    },
+
+    "metering" +: {
+    
+        create:: function(engine)
+
+            local container =
+                engine.container("metering")
+                    .with_image(images.trustgraph)
+                    .with_command([
+                        "metering",
+                        "-p",
+                        url.pulsar,
+                    ])
+                    .with_limits("0.5", "128M")
+                    .with_reservations("0.1", "128M");
+
+            local containerSet = engine.containers(
+                "metering", [ container ]
+            );
+
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8000, 8000, "metrics");
+
+            engine.resources([
+                containerSet,
+                service,
+            ])
+
+    },
+
+    "metering-rag" +: {
+    
+        create:: function(engine)
+
+            local container =
+                engine.container("metering-rag")
+                    .with_image(images.trustgraph)
+                    .with_command([
+                        "metering",
+                        "-p",
+                        url.pulsar,
+                        "-i",
+                        "non-persistent://tg/response/text-completion-rag-response",
+                    ])
+                    .with_limits("0.5", "128M")
+                    .with_reservations("0.1", "128M");
+
+            local containerSet = engine.containers(
+                "metering-rag", [ container ]
+            );
+
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8000, 8000, "metrics");
+
+            engine.resources([
+                containerSet,
+                service,
             ])
 
     },

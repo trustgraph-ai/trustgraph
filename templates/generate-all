@@ -1,0 +1,179 @@
+#!/usr/bin/env python3
+
+import _jsonnet as j
+import json
+import yaml
+import logging
+import os
+import sys
+import zipfile
+
+logger = logging.getLogger("generate")
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+
+private_json = "Put your GCP private.json here"
+
+class Generator:
+
+    def __init__(self, config, base="./templates/", version="0.0.0"):
+
+        self.jsonnet_base = base
+        self.config = config
+        self.version = f"\"{version}\"".encode("utf-8")
+
+    def process(self, config):
+
+        res = j.evaluate_snippet("config", config, import_callback=self.load)
+        return json.loads(res)
+
+    def load(self, dir, filename):
+
+        logger.debug("Request jsonnet: %s %s", dir, filename)
+
+        if filename == "config.json" and dir == "":
+            path = os.path.join(".", dir, filename)
+            return str(path), self.config
+
+        if filename == "version.jsonnet" and dir == "./templates/values/":
+            path = os.path.join(".", dir, filename)
+            return str(path), self.version
+
+        if dir:
+            candidates = [
+                os.path.join(".", dir, filename),
+                os.path.join(".", filename)
+            ]
+        else:
+            candidates = [
+                os.path.join(".", filename)
+            ]
+
+        try:
+
+            if filename == "vertexai/private.json":
+
+                return candidates[0], private_json.encode("utf-8")
+
+            for c in candidates:
+                logger.debug("Try: %s", c)
+
+                if os.path.isfile(c):
+                    with open(c, "rb") as f:
+                        logger.debug("Loading: %s", c)
+                        return str(c), f.read()
+
+            raise RuntimeError(
+                f"Could not load file={filename} dir={dir}"
+            )
+                
+        except:
+
+            path = os.path.join(self.jsonnet_base, filename)
+            logger.debug("Try: %s", path)
+            with open(path, "rb") as f:
+                logger.debug("Loaded: %s", path)
+                return str(path), f.read()
+
+def config_object(items):
+
+    return [
+        { "name": v, "parameters": {} }
+        for v in items
+    ]
+
+def full_config_object(
+        vector_store="qdrant", embeddings="embeddings-hf",
+        graph_store="cassandra", llm="vertexai",
+):
+
+    return config_object([
+        graph_store, "pulsar", vector_store, embeddings,
+        "graph-rag", "grafana", "trustgraph", llm
+    ])
+
+def generate_config(
+        vector_store="qdrant", embeddings="embeddings-hf",
+        graph_store="cassandra", llm="vertexai",
+        platform="docker-compose",
+        version="0.0.0"
+):
+
+    config = full_config_object(
+        vector_store=vector_store,
+        embeddings=embeddings,
+        graph_store=graph_store,
+        llm=llm,
+    )
+
+    with open(f"./templates/config-to-{platform}.jsonnet", "r") as f:
+        wrapper = f.read()
+
+    gen = Generator(json.dumps(config).encode("utf-8"), version=version)
+
+    processed = gen.process(wrapper)
+
+    y = yaml.dump(processed)
+
+    return y
+
+def generate_all(output, version):
+
+    for platform in [
+            "docker-compose", "minikube-k8s", "gcp-k8s"
+    ]:
+        for model in [
+                "azure", "bedrock", "claude", "cohere", "llamafile", "ollama",
+                "openai", "vertexai"
+        ]:
+            for graph in [ "cassandra", "neo4j" ]:
+
+                y = generate_config(
+                    llm=model, graph_store=graph, platform=platform,
+                    version=version
+                )
+
+                fname = f"{platform}/tg-{model}-{graph}.yaml"
+
+                output(fname, y)
+
+
+if len(sys.argv) < 3:
+    raise RuntimeError("Usage: generate-all <file> <version>")
+
+outfile = sys.argv[1]
+version = sys.argv[2]
+
+logger.info(f"Outputting to {outfile}...")
+
+with zipfile.ZipFile(outfile, mode='w') as out:
+
+    def output(name, content):
+        logger.info(f"Adding {name}...")
+        out.writestr(name, content)
+
+    generate_all(output=output, version=version)
+
+    # Placeholder for the private.json file.  Won't put actual credentials
+    # here.
+    output("docker-compose/vertexai/private.json", private_json)
+
+    # Grafana config
+    with open("grafana/dashboards/dashboard.json") as f:
+        output("docker-compose/grafana/dashboards/dashboard.json", f.read())
+
+    with open("grafana/provisioning/dashboard.yml") as f:
+        output("docker-compose/grafana/provisioning/dashboard.yml", f.read())
+
+    with open("grafana/provisioning/datasource.yml") as f:
+        output("docker-compose/grafana/provisioning/datasource.yml", f.read())
+
+    # Prometheus config
+    with open("prometheus/prometheus.yml") as f:
+        output("docker-compose/prometheus/prometheus.yml", f.read())
+
+    # A README
+    with open("templates/zip-readme.md") as f:
+        output("README.md", f.read())
+
+logger.info("Output file written.")
+

@@ -26,7 +26,7 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "-k",
                         $["cohere-key"],
                         "-t",
-                        $["cohere-temperature"],
+                        std.toString($["cohere-temperature"]),
                     ])
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M");
@@ -35,8 +35,13 @@ local prompts = import "prompts/mixtral.jsonnet";
                 "text-completion", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8000, 8000, "metrics");
+
             engine.resources([
                 containerSet,
+                service,
             ])
 
     },
@@ -55,7 +60,7 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "-k",
                         $["cohere-key"],
                         "-t",
-                        $["cohere-temperature"],
+                        std.toString($["cohere-temperature"]),
                         "-i",
                         "non-persistent://tg/request/text-completion-rag",
                         "-o",
@@ -68,8 +73,13 @@ local prompts = import "prompts/mixtral.jsonnet";
                 "text-completion-rag", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8000, 8000, "metrics");
+
             engine.resources([
                 containerSet,
+                service,
             ])
 
 

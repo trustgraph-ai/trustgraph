@@ -1,6 +1,6 @@
 
-local engine = import "docker-compose.jsonnet";
-local decode = import "decode-config.jsonnet";
+local engine = import "engine/docker-compose.jsonnet";
+local decode = import "util/decode-config.jsonnet";
 local components = import "components.jsonnet";
 
 // Import config

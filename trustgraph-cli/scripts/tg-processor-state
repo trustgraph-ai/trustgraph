@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+
+"""
+Dump out TrustGraph processor states.
+"""
+
+import requests
+import argparse
+import tabulate
+
+default_prometheus_url = "http://localhost:9090"
+
+def dump_status(prom):
+
+    url = f"{prom}/api/v1/query?query=processor_state%7Bprocessor_state%3D%22running%22%7D"
+
+    resp = requests.get(url)
+
+    obj = resp.json()
+
+    tbl = [
+        [
+            m["metric"]["job"],
+            "running" if int(m["value"][1]) > 0 else "down"
+        ]
+        for m in obj["data"]["result"]
+    ]
+
+    print(tabulate.tabulate(
+        tbl, tablefmt="pretty", headers=["processor", "state"],
+        stralign="left"
+    ))
+
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        prog='tg-processor-state',
+        description=__doc__,
+    )
+
+    parser.add_argument(
+        '-p', '--prometheus-url',
+        default=default_prometheus_url,
+        help=f'Prometheus URL (default: {default_prometheus_url})',
+    )
+
+    args = parser.parse_args()
+
+    try:
+
+        dump_status(args.prometheus_url)
+
+    except Exception as e:
+
+        print("Exception:", e, flush=True)
+
+main()
+

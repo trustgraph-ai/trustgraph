@@ -14,29 +14,134 @@ scrape_configs:
   # The job name is added as a label `job=<job_name>` to any timeseries
   # scraped from this config.
 
-  - job_name: 'trustgraph'
-
-    # Override the global default and scrape targets from this job every
-    # 5 seconds.
+  - job_name: 'pdf-decoder'
     scrape_interval: 5s
-
     static_configs:
       - targets:
         - 'pdf-decoder:8000'
+
+  - job_name: 'chunker'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
         - 'chunker:8000'
+
+
+  - job_name: 'vectorize'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
         - 'vectorize:8000'
+
+
+  - job_name: 'embeddings'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
         - 'embeddings:8000'
+
+
+  - job_name: 'kg-extract-definitions'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
         - 'kg-extract-definitions:8000'
+
+
+  - job_name: 'kg-extract-topics'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
         - 'kg-extract-topics:8000'
+
+
+  - job_name: 'kg-extract-relationships'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
         - 'kg-extract-relationships:8000'
+
+
+  - job_name: 'metering'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
+        - 'metering:8000'
+
+
+  - job_name: 'metering-rag'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
+        - 'metering-rag:8000'
+
+
+  - job_name: 'store-graph-embeddings'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
         - 'store-graph-embeddings:8000'
+
+
+  - job_name: 'store-triples'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
         - 'store-triples:8000'
+
+
+  - job_name: 'text-completion'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
         - 'text-completion:8000'
+
+
+  - job_name: 'text-completion-rag'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
         - 'text-completion-rag:8000'
+
+
+  - job_name: 'graph-rag'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
         - 'graph-rag:8000'
+
+
+  - job_name: 'prompt'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
         - 'prompt:8000'
+
+
+  - job_name: 'prompt-rag'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
         - 'prompt-rag:8000'
+
+
+  - job_name: 'query-graph-embeddings'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
         - 'query-graph-embeddings:8000'
+
+
+  - job_name: 'query-triples'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
         - 'query-triples:8000'
+
+
+  - job_name: 'pulsar'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
         - 'pulsar:8080'
 

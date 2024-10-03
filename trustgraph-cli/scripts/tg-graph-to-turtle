@@ -1,0 +1,74 @@
+#!/usr/bin/env python3
+
+"""
+Connects to the graph query service and dumps all graph edges.
+"""
+
+import argparse
+import os
+from trustgraph.clients.triples_query_client import TriplesQueryClient
+import rdflib
+import io
+import sys
+
+default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://localhost:6650')
+
+def show_graph(pulsar):
+
+    tq = TriplesQueryClient(pulsar_host=pulsar)
+
+    rows = tq.request(None, None, None, limit=10_000_000)
+
+    g = rdflib.Graph()
+
+    for row in rows:
+
+        sv = rdflib.term.URIRef(row.s.value)
+        pv = rdflib.term.URIRef(row.p.value)
+
+        if row.o.is_uri:
+
+            # Skip malformed URLs with spaces in
+            if " " in row.o.value:
+                continue
+
+            ov = rdflib.term.URIRef(row.o.value)
+        else:
+            ov = rdflib.term.Literal(row.o.value)
+
+        g.add((sv, pv, ov))
+
+    g.serialize(destination="output.ttl", format="turtle")
+
+    buf = io.BytesIO()
+
+    g.serialize(destination=buf, format="turtle")
+
+    sys.stdout.write(buf.getvalue().decode("utf-8"))
+
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        prog='graph-show',
+        description=__doc__,
+    )
+
+    parser.add_argument(
+        '-p', '--pulsar-host',
+        default=default_pulsar_host,
+        help=f'Pulsar host (default: {default_pulsar_host})',
+    )
+
+    args = parser.parse_args()
+
+    try:
+
+        show_graph(args.pulsar_host)
+
+    except Exception as e:
+
+        print("Exception:", e, flush=True)
+
+main()
+

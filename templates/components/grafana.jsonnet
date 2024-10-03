@@ -8,8 +8,13 @@ local images = import "values/images.jsonnet";
         create:: function(engine)
 
             local vol = engine.volume("prometheus-data").with_size("20G");
-            local cfgVol = engine.configVolume("./prometheus")
-                .with_size("20G");
+
+            local cfgVol = engine.configVolume(
+                "prometheus-cfg", "prometheus",
+		{
+		    "prometheus.yml": importstr "prometheus/prometheus.yml",
+		}
+            );
 
             local container =
                 engine.container("prometheus")
@@ -17,17 +22,22 @@ local images = import "values/images.jsonnet";
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M")
                     .with_port(9090, 9090, "http")
-                    .with_volume_mount(cfgVol, "/etc/prometheus")
+                    .with_volume_mount(cfgVol, "/etc/prometheus/")
                     .with_volume_mount(vol, "/prometheus");
 
             local containerSet = engine.containers(
                 "prometheus", [ container ]
             );
 
+            local service =
+                engine.service(containerSet)
+                .with_port(9090, 9090, "http");
+
             engine.resources([
                 cfgVol,
                 vol,
                 containerSet,
+                service,
             ])
 
     },
@@ -37,12 +47,33 @@ local images = import "values/images.jsonnet";
         create:: function(engine)
 
             local vol = engine.volume("grafana-storage").with_size("20G");
-            local cv1 = engine.configVolume("./grafana/dashboard.yml")
-                .with_size("20G");
-            local cv2 = engine.configVolume("./grafana/datasource.yml")
-                .with_size("20G");
-            local cv3 = engine.configVolume("./grafana/dashboard.json")
-                .with_size("20G");
+
+            local provDashVol = engine.configVolume(
+                "prov-dash", "grafana/provisioning/",
+		{
+		    "dashboard.yml":
+                        importstr "grafana/provisioning/dashboard.yml",
+		}
+		
+            );
+
+            local provDataVol = engine.configVolume(
+                "prov-data", "grafana/provisioning/",
+		{
+		    "datasource.yml":
+                        importstr "grafana/provisioning/datasource.yml",
+		}
+		
+            );
+
+            local dashVol = engine.configVolume(
+                "dashboards", "grafana/dashboards/",
+		{
+		    "dashboard.json":
+                        importstr "grafana/dashboards/dashboard.json",
+		}
+		
+            );
 
             local container =
                 engine.container("grafana")
@@ -58,20 +89,31 @@ local images = import "values/images.jsonnet";
                     .with_reservations("0.5", "256M")
                     .with_port(3000, 3000, "cassandra")
                     .with_volume_mount(vol, "/var/lib/grafana")
-                    .with_volume_mount(cv1, "/etc/grafana/provisioning/dashboards/dashboard.yml")
-                    .with_volume_mount(cv2, "/etc/grafana/provisioning/datasources/datasource.yml")
-                    .with_volume_mount(cv3, "/var/lib/grafana/dashboards/dashboard.json");
+                    .with_volume_mount(
+                        provDashVol, "/etc/grafana/provisioning/dashboards/"
+                    )
+                    .with_volume_mount(
+                        provDataVol, "/etc/grafana/provisioning/datasources/"
+                    )
+                    .with_volume_mount(
+                        dashVol, "/var/lib/grafana/dashboards/"
+                    );
 
             local containerSet = engine.containers(
                 "grafana", [ container ]
             );
 
+            local service =
+                engine.service(containerSet)
+                .with_port(3000, 3000, "http");
+
             engine.resources([
                 vol,
-                cv1,
-                cv2,
-                cv3,
+	        provDashVol,
+	        provDataVol,
+		dashVol,
                 containerSet,
+                service,
             ])
 
     },

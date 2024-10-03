@@ -37,7 +37,7 @@ local images = import "values/images.jsonnet";
 
             local service =
                 engine.service(containerSet)
-                .with_port(2379, 2379);
+                .with_port(2379, 2379, 30379, "api");
 
             engine.resources([
                 vol,
@@ -78,7 +78,7 @@ local images = import "values/images.jsonnet";
 
             local service =
                 engine.service(containerSet)
-                .with_port(9001, 9001);
+                .with_port(9001, 9001, "api");
 
             engine.resources([
                 vol,
@@ -116,8 +116,8 @@ local images = import "values/images.jsonnet";
 
             local service =
                 engine.service(containerSet)
-                .with_port(9091, 9091)
-                .with_port(19530, 19530);
+                .with_port(9091, 9091, "api")
+                .with_port(19530, 19530, "api2);
 
             engine.resources([
                 vol,

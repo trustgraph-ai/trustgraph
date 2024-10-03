@@ -15,7 +15,13 @@ local prompts = import "prompts/mixtral.jsonnet";
     
         create:: function(engine)
 
-            local cfgVol = engine.configVolume("./vertexai");
+            local cfgVol = engine.secretVolume(
+	        "vertexai-creds",
+	        "./vertexai",
+		{
+		    "private.json": importstr "vertexai/private.json",
+		}
+            );
 
             local container =
                 engine.container("text-completion")
@@ -35,17 +41,22 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "-m",
                         $["vertexai-model"],
                     ])
-                    .with_limits("0.5", "128M")
-                    .with_reservations("0.1", "128M")
+                    .with_limits("0.5", "256M")
+                    .with_reservations("0.1", "256M")
                     .with_volume_mount(cfgVol, "/vertexai");
 
             local containerSet = engine.containers(
                 "text-completion", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8000, 8000, "metrics");
+
             engine.resources([
                 cfgVol,
                 containerSet,
+                service,
             ])
 
     },
@@ -54,7 +65,13 @@ local prompts = import "prompts/mixtral.jsonnet";
     
         create:: function(engine)
 
-            local cfgVol = engine.configVolume("./vertexai");
+            local cfgVol = engine.secretVolume(
+	        "vertexai-creds",
+	        "./vertexai",
+		{
+		    "private.json": importstr "vertexai/private.json",
+		}
+            );
 
             local container =
                 engine.container("text-completion-rag")
@@ -78,19 +95,23 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "-o",
                         "non-persistent://tg/response/text-completion-rag-response",
                     ])
-                    .with_limits("0.5", "128M")
-                    .with_reservations("0.1", "128M")
+                    .with_limits("0.5", "256M")
+                    .with_reservations("0.1", "256M")
                     .with_volume_mount(cfgVol, "/vertexai");
 
             local containerSet = engine.containers(
                 "text-completion-rag", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8000, 8000, "metrics");
+
             engine.resources([
                 cfgVol,
                 containerSet,
+                service,
             ])
-
 
     }
 

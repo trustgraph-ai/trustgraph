@@ -37,8 +37,13 @@ local prompts = import "prompts/mixtral.jsonnet";
                 "text-completion", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8080, 8080, "metrics");
+
             engine.resources([
                 containerSet,
+                service,
             ])
 
     },
@@ -74,8 +79,13 @@ local prompts = import "prompts/mixtral.jsonnet";
                 "text-completion-rag", [ container ]
             );
 
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8080, 8080, "metrics");
+
             engine.resources([
                 containerSet,
+                service,
             ])
 
 
