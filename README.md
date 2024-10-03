@@ -1,7 +1,7 @@
 
 # TrustGraph
 
-![TrustGraph banner](TG_Banner_readme.png)
+![TrustGraph banner](TG_readme.png)
 
 🚀 [Full Documentation](https://trustgraph.ai/docs/getstarted)
 💬 [Join the Discord](https://discord.gg/AXpxVjwzAw)
