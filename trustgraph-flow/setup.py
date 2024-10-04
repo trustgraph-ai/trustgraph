@@ -83,6 +83,7 @@ setuptools.setup(
         "scripts/rows-write-cassandra",
         "scripts/run-processing",
         "scripts/text-completion-azure",
+        "scripts/text-completion-azure-openai",
         "scripts/text-completion-claude",
         "scripts/text-completion-cohere",
         "scripts/text-completion-llamafile",

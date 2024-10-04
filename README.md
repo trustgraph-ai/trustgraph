@@ -105,16 +105,16 @@ TrustGraph extracts knowledge from a text corpus (PDF or text) to an ultra-dense
 - Entity Extraction Agent
 - Node Connection Agent
 
-The agent prompts are built through templates, enabling customized extraction agents for a specific use case. The extraction agents are launched automatically with either of following commands pointing to the path of a desired text corpus or the included sample files:
+The agent prompts are built through templates, enabling customized extraction agents for a specific use case. The extraction agents are launched automatically with the loader commands.
 
 PDF file:
 ```
-tg-load-pdf sample-text-corpus.pdf
+tg-load-pdf <document.pdf>
 ```
 
 Text file:
 ```
-tg-load-text sample-text-corpus.txt
+tg-load-text <document.txt>
 ```
 
 ## GraphRAG Queries
