@@ -4,10 +4,10 @@ name: Build
 on:
   workflow_dispatch:
   push:
-#     branches:
-#       - release/v0.12
-#     tags:
-#       - v0.12.*
+    branches:
+      - release/v0.12
+    tags:
+      - v0.12.*
 
 permissions:
   contents: read
@@ -46,24 +46,24 @@ jobs:
         run: echo VERSION=sha-$(git rev-parse --short HEAD) >> $GITHUB_OUTPUT
 
       - name: Build packages
-        run: make packages
+        run: make packages VERSION=${{ steps.version.outputs.VERSION }}
 
-#       - name: Publish release distributions to PyPI
-#         uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Publish release distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
 
       - name: Create deploy bundle
         run: templates/generate-all deploy.zip v${{ steps.version.outputs.VERSION }}
 
-      # - uses: ncipollo/release-action@v1
-      #   with:
-      #     artifacts: deploy.zip
-      #     generateReleaseNotes: true
-      #     makeLatest: false
-      #     prerelease: true
-      #     skipIfReleaseExists: true
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: deploy.zip
+          generateReleaseNotes: true
+          makeLatest: false
+          prerelease: true
+          skipIfReleaseExists: true
 
       - name: Build container
-        run: make container
+        run: make container VERSION=${{ steps.version.outputs.VERSION }}
 
       - name: Extract metadata for container
         id: meta
