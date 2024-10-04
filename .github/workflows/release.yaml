@@ -42,7 +42,7 @@ jobs:
         id: version
         run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
 
-      - run echo ${{ steps.version.outputs.VERSION }}
+      - run: echo ${{ steps.version.outputs.VERSION }}
 
       - name: Build packages
         run: make packages VERSION=${{ steps.version.outputs.VERSION }}
