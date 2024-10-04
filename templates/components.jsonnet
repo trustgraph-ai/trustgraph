@@ -1,5 +1,6 @@
 {
    "azure": import "components/azure.jsonnet",
+   "azure-openai": import "components/azure-openai.jsonnet",
    "bedrock": import "components/bedrock.jsonnet",
    "claude": import "components/claude.jsonnet",
    "cohere": import "components/cohere.jsonnet",
