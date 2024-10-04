@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 # Load a version number module
 spec = importlib.util.spec_from_file_location(
-    'version', 'trustgraph/cli_version.py'
+    'version', 'trustgraph/trustgraph_version.py'
 )
 version_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(version_module)
@@ -15,7 +15,7 @@ spec.loader.exec_module(version_module)
 version = version_module.__version__
 
 setuptools.setup(
-    name="trustgraph-cli",
+    name="trustgraph",
     version=version,
     author="trustgraph.ai",
     author_email="security@trustgraph.ai",
@@ -35,20 +35,13 @@ setuptools.setup(
     download_url = "https://github.com/trustgraph-ai/trustgraph/archive/refs/tags/v" + version + ".tar.gz",
     install_requires=[
         "trustgraph-base<0.12",
-        "requests",
-        "pulsar-client",
-        "rdflib",
-        "tabulate",
+        "trustgraph-bedrock<0.12",
+        "trustgraph-cli<0.12",
+        "trustgraph-embeddings-hf<0.12",
+        "trustgraph-flow<0.12",
+        "trustgraph-parquet<0.12",
+        "trustgraph-vertexai<0.12",
     ],
     scripts=[
-        "scripts/tg-graph-show",
-        "scripts/tg-graph-to-turtle",
-        "scripts/tg-init-pulsar-manager",
-        "scripts/tg-load-pdf",
-        "scripts/tg-load-text",
-        "scripts/tg-query-document-rag",
-        "scripts/tg-query-graph-rag",
-        "scripts/tg-init-pulsar",
-        "scripts/tg-processor-state",
     ]
 )
