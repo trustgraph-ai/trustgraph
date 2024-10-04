@@ -34,7 +34,7 @@ setuptools.setup(
     python_requires='>=3.8',
     download_url = "https://github.com/trustgraph-ai/trustgraph/archive/refs/tags/v" + version + ".tar.gz",
     install_requires=[
-        "trustgraph-base",
+        "trustgraph-base<0.12",
         "urllib3",
         "rdflib",
         "pymilvus",
