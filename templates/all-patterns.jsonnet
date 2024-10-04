@@ -7,6 +7,7 @@
     import "patterns/triple-store-neo4j.jsonnet",
     import "patterns/graph-rag.jsonnet",
     import "patterns/llm-azure.jsonnet",
+    import "patterns/llm-azure-openai.jsonnet",
     import "patterns/llm-bedrock.jsonnet",
     import "patterns/llm-claude.jsonnet",
     import "patterns/llm-cohere.jsonnet",
