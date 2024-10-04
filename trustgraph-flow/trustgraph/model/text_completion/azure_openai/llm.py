@@ -177,6 +177,7 @@ class Processor(ConsumerProducer):
 
         parser.add_argument(
             '-a', '--api-version',
+            default=default_api,
             help=f'API version (default: {default_api})'
         )
 
