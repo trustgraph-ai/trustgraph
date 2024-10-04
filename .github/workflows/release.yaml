@@ -6,6 +6,8 @@ on:
   push:
 #     branches:
 #       - release/v0.12
+    tags:
+      - 0.12.*
 
 permissions:
   contents: read
@@ -17,6 +19,8 @@ jobs:
 
     name: Build everything
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     environment:
       name: release
 
@@ -66,7 +70,7 @@ jobs:
           makeLatest: false
           prerelease: true
           skipIfReleaseExists: true
-          tag: ${{ steps.version.outputs.VERSION }}
+          tag: ${{ github.ref }}
 
       - name: Extract metadata for container
         id: meta
