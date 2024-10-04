@@ -1,6 +1,6 @@
 
 # VERSION=$(shell git describe | sed 's/^v//')
-VERSION=0.11.19
+VERSION=0.12.0
 
 DOCKER=podman
 
@@ -16,7 +16,7 @@ wheels:
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-embeddings-hf/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-cli/
 
-packages:
+packages: update-package-versions
 	rm -rf dist/
 	cd trustgraph-base && python3 setup.py sdist --dist-dir ../dist/
 	cd trustgraph-flow && python3 setup.py sdist --dist-dir ../dist/
