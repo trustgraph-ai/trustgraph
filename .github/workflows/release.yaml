@@ -25,6 +25,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - name: Install build dependencies
+        run: pip3 install jsonnet
+
       - name: Get version
         id: version
         run: echo VERSION=sha-$(git rev-parse --short HEAD) >> $GITHUB_OUTPUT
