@@ -70,7 +70,6 @@ jobs:
           makeLatest: false
           prerelease: true
           skipIfReleaseExists: true
-          tag: ${{ github.ref }}
 
       - name: Extract metadata for container
         id: meta
