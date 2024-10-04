@@ -8,6 +8,7 @@ all: container
 
 # Not used
 wheels:
+	pip3 wheel --no-deps --wheel-dir dist trustgraph/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-base/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-flow/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-vertexai/
@@ -16,8 +17,9 @@ wheels:
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-embeddings-hf/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-cli/
 
-packages:
+packages: update-package-versions
 	rm -rf dist/
+	cd trustgraph && python3 setup.py sdist --dist-dir ../dist/
 	cd trustgraph-base && python3 setup.py sdist --dist-dir ../dist/
 	cd trustgraph-flow && python3 setup.py sdist --dist-dir ../dist/
 	cd trustgraph-vertexai && python3 setup.py sdist --dist-dir ../dist/
@@ -40,6 +42,7 @@ update-package-versions:
 	echo __version__ = \"${VERSION}\" > trustgraph-parquet/trustgraph/parquet_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-embeddings-hf/trustgraph/embeddings_hf_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-cli/trustgraph/cli_version.py
+	echo __version__ = \"${VERSION}\" > trustgraph/trustgraph/trustgraph_version.py
 
 container: update-package-versions
 	${DOCKER} build -f Containerfile -t ${CONTAINER}:${VERSION} \
