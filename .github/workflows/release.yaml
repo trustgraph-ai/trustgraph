@@ -47,6 +47,9 @@ jobs:
 #       - name: Build container
 #         run: make container
 
-      - name: Publish release distributions to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+#       - name: Publish release distributions to PyPI
+#         uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Create deploy bundle
+        run: templates/generate-all deploy.zip v${{ steps.version.outputs.VERSION }}
 
