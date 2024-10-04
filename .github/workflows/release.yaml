@@ -9,9 +9,9 @@ on:
     tags:
       - v0.12.*
 
-permissions:
-  contents: read
-  id-token: 'write'
+# permissions:
+#   contents: read
+#   id-token: write
 
 jobs:
 
@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      id-token: 'write'
+      id-token: write
     environment:
       name: release
 
@@ -29,9 +29,6 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v3
-
-      - run: echo ${{ secrets.DOCKER_USERNAME }}
-      - run: echo ${{ secrets.DOCKER_SECRET }} | sum - | sum - | md5sum
 
       - name: Log in to Docker Hub
         uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
