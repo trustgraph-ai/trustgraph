@@ -1,0 +1,47 @@
+
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+#     branches:
+#       - 
+
+permissions:
+  contents: read
+  id-token: 'write'
+
+jobs:
+
+  deploy:
+
+    name: Build everything
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Get version
+        id: version
+        run: echo VERSION=sha-$(git rev-parse --short HEAD) >> $GITHUB_OUTPUT
+
+      - name: Extract metadata for container
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: accounts-svc
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+
+      - name: Build packages
+        run: make packages
+
+      - name: Build container
+        run: make container
+

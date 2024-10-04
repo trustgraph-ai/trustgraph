@@ -1,0 +1,20 @@
+
+name: Test pull request
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+
+  container-push:
+
+    name: Do nothing
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
