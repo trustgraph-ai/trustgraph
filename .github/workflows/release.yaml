@@ -9,9 +9,8 @@ on:
     tags:
       - v0.12.*
 
-# permissions:
-#   contents: read
-#   id-token: write
+permissions:
+  contents: read
 
 jobs:
 
