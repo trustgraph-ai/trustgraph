@@ -4,8 +4,8 @@ name: Build
 on:
   workflow_dispatch:
   push:
-#     branches:
-#       - 
+    branches:
+      - release/v0.12
 
 permissions:
   contents: read
@@ -17,6 +17,8 @@ jobs:
 
     name: Build everything
     runs-on: ubuntu-latest
+    environment:
+      name: release
 
     steps:
 
@@ -44,4 +46,7 @@ jobs:
 
       - name: Build container
         run: make container
+
+      - name: Publish release distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
 
