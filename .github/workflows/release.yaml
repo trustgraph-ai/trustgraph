@@ -1,0 +1,84 @@
+
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+#     branches:
+#       - release/v0.12
+    tags:
+      - v0.12.*
+
+permissions:
+  contents: read
+  id-token: 'write'
+
+jobs:
+
+  deploy:
+
+    name: Build everything
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    environment:
+      name: release
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install build dependencies
+        run: pip3 install jsonnet
+
+      - name: Get version
+        id: version
+        run: echo VERSION=sha-$(git rev-parse --short HEAD) >> $GITHUB_OUTPUT
+
+      - name: Build packages
+        run: make packages
+
+#       - name: Build container
+#         run: make container
+
+#       - name: Publish release distributions to PyPI
+#         uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Create deploy bundle
+        run: templates/generate-all deploy.zip v${{ steps.version.outputs.VERSION }}
+
+      # - name: Create Release
+      #   id: create_release
+      #   uses: actions/create-release@v1
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+      #   with:
+      #     tag_name: ${{ github.ref }}
+      #     release_name: Release ${{ github.ref }}
+      #     body: |
+      #       Changes in this Release
+      #       - First Change
+      #       - Second Change
+      #     draft: true
+      #     prerelease: true
+
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: deploy.zip
+          generateReleaseNotes: true
+          makeLatest: false
+          prerelease: true
+          skipIfReleaseExists: true
+
+      - name: Extract metadata for container
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: trustgraph-flow
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
