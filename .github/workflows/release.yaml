@@ -45,13 +45,13 @@ jobs:
       - name: Create deploy bundle
         run: templates/generate-all deploy.zip v${{ steps.version.outputs.VERSION }}
 
-      - uses: ncipollo/release-action@v1
-        with:
-          artifacts: deploy.zip
-          generateReleaseNotes: true
-          makeLatest: false
-          prerelease: true
-          skipIfReleaseExists: true
+      # - uses: ncipollo/release-action@v1
+      #   with:
+      #     artifacts: deploy.zip
+      #     generateReleaseNotes: true
+      #     makeLatest: false
+      #     prerelease: true
+      #     skipIfReleaseExists: true
 
       - name: Log in to Docker Hub
         uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
