@@ -28,6 +28,8 @@ While TrustGraph is endlessly customizable, the quickstart configuration editor 
 
 [Launch the Quickstart UI 🚀](https://config-ui.demo.trustgraph.ai/)
 
+https://github.com/user-attachments/assets/90eeaea6-82b7-480a-9972-edb66ea99738
+
 Launch Steps:
 
 - For the selected `Model Deployment`, follow the instructions in `Model credentials` section to configure any required environment variables or paths
