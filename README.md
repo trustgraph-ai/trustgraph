@@ -84,7 +84,7 @@ Each directory contains the pre-built `YAML` configuration files needed to launc
 | VertexAI API | Cassandra | `tg-vertexai-cassandra.yaml` |
 | VertexAI API | Neo4j | `tg-vertexai-neo4j.yaml` |
 
-Launching TrustGraph is as simple as running one line:
+Once a configuration `launch file` has been selected, deploy TrustGraph with:
 
 **Docker**:
 ```
