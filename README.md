@@ -22,7 +22,31 @@ The processing showcases the reliability and efficiences of GraphRAG algorithms 
 pip3 install trustgraph-cli
 ```
 
-## Download TrustGraph
+## Quickstart UI
+
+While TrustGraph is endlessly customizable, the quickstart configuration editor can build a custom configuration in seconds with Docker.
+
+[Launch the Quickstart UI 🚀](https://config-ui.demo.trustgraph.ai/)
+
+Launch Steps:
+
+- For the selected `Model Deployment`, follow the instructions in `Model credentials` section to configure any required environment variables or paths
+- Fill in the desired LLM name in the `Model Name` field that corresponds to your selected `Model Deployment`
+- Set all desired `Model Parameters`
+- Click `GENERATE` under the `Deployment configuration` section
+- Follow the instructions under `Launch`
+
+Once `deploy.zip` has been unzipped, launching TrustGraph is as simple as navigating to the `deploy` directory and running:
+```
+docker compose up -d
+```
+
+When finished, shutting down TrustGraph is as simple as:
+```
+docker compose down -v
+```
+
+## TrustGraph Releases
 
 TrustGraph releases are available [here](https://github.com/trustgraph-ai/trustgraph/releases). Download `deploy.zip` for the desired release version.
 
@@ -112,7 +136,7 @@ PDF file:
 tg-load-pdf <document.pdf>
 ```
 
-Text file:
+Text or Markdown file:
 ```
 tg-load-text <document.txt>
 ```
