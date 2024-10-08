@@ -55,7 +55,7 @@ setuptools.setup(
         "openai",
         "neo4j",
         "tiktoken",
-        "google-generativeai"
+        "google-generativeai",
     ],
     scripts=[
         "scripts/chunker-recursive",

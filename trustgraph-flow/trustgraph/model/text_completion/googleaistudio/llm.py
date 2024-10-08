@@ -74,12 +74,14 @@ class Processor(ConsumerProducer):
             "response_mime_type": "text/plain",
         }
 
+        block_level = HarmBlockThreshold.BLOCK_ONLY_HIGH
+
         self.safety_settings={
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-            HarmCategory.HARM_CATEGORY_DANGEROUS: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-            HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: block_level,
+            HarmCategory.HARM_CATEGORY_HARASSMENT: block_level,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: block_level,
+            HarmCategory.HARM_CATEGORY_DANGEROUS: block_level,
+            HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY: block_level,
         }
 
         self.llm = genai.GenerativeModel(
