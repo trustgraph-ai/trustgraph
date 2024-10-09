@@ -38,11 +38,14 @@ setuptools.setup(
         "pulsar-client",
         "prometheus-client",
         "pyarrow",
+        "pandas",
     ],
     scripts=[
         "scripts/concat-parquet",
         "scripts/dump-parquet",
         "scripts/ge-dump-parquet",
         "scripts/triples-dump-parquet",
+        "scripts/load-graph-embeddings",
+        "scripts/load-triples",
     ]
 )
