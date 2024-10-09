@@ -55,6 +55,7 @@ setuptools.setup(
         "openai",
         "neo4j",
         "tiktoken",
+        "google-generativeai",
     ],
     scripts=[
         "scripts/chunker-recursive",
@@ -86,6 +87,7 @@ setuptools.setup(
         "scripts/text-completion-azure-openai",
         "scripts/text-completion-claude",
         "scripts/text-completion-cohere",
+        "scripts/text-completion-googleaistudio",
         "scripts/text-completion-llamafile",
         "scripts/text-completion-ollama",
         "scripts/text-completion-openai",
