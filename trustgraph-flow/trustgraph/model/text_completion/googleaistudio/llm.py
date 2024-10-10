@@ -5,6 +5,7 @@ Input is prompt, output is response.
 """
 
 import google.generativeai as genai
+from google.generativeai.types import HarmCategory, HarmBlockThreshold
 from prometheus_client import Histogram
 
 from .... schema import TextCompletionRequest, TextCompletionResponse, Error
@@ -80,8 +81,9 @@ class Processor(ConsumerProducer):
             HarmCategory.HARM_CATEGORY_HATE_SPEECH: block_level,
             HarmCategory.HARM_CATEGORY_HARASSMENT: block_level,
             HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: block_level,
-            HarmCategory.HARM_CATEGORY_DANGEROUS: block_level,
-            HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY: block_level,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: block_level,
+            # There is a documentation conflict on whether or not CIVIC_INTEGRITY is a valid category
+            # HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY: block_level,
         }
 
         self.llm = genai.GenerativeModel(
