@@ -113,7 +113,7 @@ kubectl apply -f <launch-file.yaml>
 - [Apache Cassandra](https://github.com/apache/cassandra) or [Neo4j](https://neo4j.com/) as the graph store
 - [Qdrant](https://qdrant.tech/) as the VectorDB
 - Build and load [Knowledge Cores](https://trustgraph.ai/docs/category/knowledge-cores)
-- GraphRAG query service
+- RAG query service using both the Graph Store and VectorDB
 - [Grafana](https://github.com/grafana/) telemetry dashboard
 - Module integration with [Apache Pulsar](https://github.com/apache/pulsar/)
 - Container orchestration with `Docker`, `Podman`, or `Minikube`
@@ -149,9 +149,9 @@ Text or Markdown file:
 tg-load-text <document.txt>
 ```
 
-## GraphRAG Queries
+## RAG Queries
 
-Once the knowledge graph has been built or a knowledge core has been loaded, GraphRAG queries are launched with a single line:
+Once the knowledge graph and embeddings have been built or a knowledge core has been loaded, RAG queries are launched with a single line:
 
 ```
 tg-query-graph-rag -q "Write a blog post about the 5 key takeaways from SB1047 and how they will impact AI development."
