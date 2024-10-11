@@ -10,11 +10,17 @@
 
 ## Introduction
 
-TrustGraph deploys a full E2E (end-to-end) AI solution with native GraphRAG in minutes. Autonomous Knowledge Agents build ultra-dense knowlege graphs to fully capture all knowledge context. TrustGraph is designed for maximum flexibility and modularity whether it's calling Cloud LLMs or deploying SLMs On-Device. TrustGraph ingests data to build a RDF style knowledge graph to enable accurate and private `RAG` responses using only the knowledge you want, when you want.
+TrustGraph is your exclusive AI engine for data enhancement. The AI engine includes:
 
-The pipeline processing components are interconnected with a pub/sub engine to maximize modularity for agent integration. The core processing components decode documents, chunk text, create mapped embeddings, generate a RDF knowledge graph, generate AI predictions from either a Cloud LLM or On-Device SLM.
+- Bulk document ingestion
+- Automated Knowledge Graph Building
+- Automated Vectorization
+- Model Agnostic LLM Integration
+- RAG combining both Knowledge Graphs and VectorDBs
+- Enterprise Grade Reliability, Scalability, and Modularity
+- Private end-to-end deployments with Ollama and Llamafile
 
-The processing showcases the reliability and efficiences of GraphRAG algorithms which can capture contextual language flags that are missed in conventional RAG approaches. Graph querying algorithms enable retrieving not just relevant knowledge but language cues essential to understanding semantic uses unique to a text corpus.
+Ingest your sensitive data in batches and build reusable and enhanced knowledge cores that transform general purpose LLMs into knowledge specialists. The observability dashboard allows you to monitor LLM latency, resource management, and token throughput in realtime. Visualize your enhanced data with Neo4j.
 
 ## Install the TrustGraph CLI
 
