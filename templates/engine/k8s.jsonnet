@@ -10,12 +10,15 @@
         reservations: {},
         ports: [],
         volumes: [],
+        environment: {},
 
         with_image:: function(x) self + { image: x },
 
         with_command:: function(x) self + { command: x },
 
-        with_environment:: function(x) self + { environment: x },
+        with_environment:: function(x) self + {
+            environment: super.environment + x,
+        },
 
         with_limits:: function(c, m) self + { limits: { cpu: c, memory: m } },
 
@@ -36,6 +39,16 @@
                     { src: src, dest: dest, name : name }
                 ]
             },
+
+        with_env_var_secrets::
+            function(vars)
+                std.foldl(
+                    function(obj, x) obj.with_environment(
+                        { [x]: "${" + x  + "}" }
+                    ),
+                    vars.variables,
+                    self
+                ),
 
         add:: function() [
 
@@ -97,7 +110,8 @@
                                     (if std.objectHas(container, "command") then
                                     { command: container.command }
                                     else {}) + 
-                                    (if std.objectHas(container, "environment") then
+
+                                    (if ! std.isEmpty(container.environment) then
                                     { env: [ {
                                         name: e.key, value: e.value
                                         }
@@ -280,6 +294,42 @@
             name: volume.name,
             secret: { secretName: volume.name },
         }
+
+    },
+
+    envSecrets:: function(name)
+    {
+
+        local volume = self,
+
+        name: name,
+
+        variables: [],
+
+        with_size:: function(size) self + { size: size },
+
+        add:: function() [
+                {
+                    apiVersion: "v1",
+                    kind: "Secret",
+                    metadata: {
+                        name: volume.name,
+                        namespace: "trustgraph",
+                    },
+                    data: {
+                    }
+                },
+            ],
+
+        volRef:: function() {
+            name: volume.name,
+            secret: { secretName: volume.name },
+        },
+
+        with_env_var::
+            function(name) self + {
+                variables: super.variables + [name],
+            },
 
     },
 
