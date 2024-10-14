@@ -7,6 +7,7 @@ serverless endpoint service.  Input is prompt, output is response.
 import requests
 import json
 from prometheus_client import Histogram
+import os
 
 from .... schema import TextCompletionRequest, TextCompletionResponse, Error
 from .... schema import text_completion_request_queue
@@ -23,6 +24,8 @@ default_subscriber = module
 default_temperature = 0.0
 default_max_output = 4192
 default_model = "AzureAI"
+default_endpoint = os.getenv("AZURE_ENDPOINT")
+default_token = os.getenv("AZURE_TOKEN")
 
 class Processor(ConsumerProducer):
 
@@ -31,11 +34,17 @@ class Processor(ConsumerProducer):
         input_queue = params.get("input_queue", default_input_queue)
         output_queue = params.get("output_queue", default_output_queue)
         subscriber = params.get("subscriber", default_subscriber)
-        endpoint = params.get("endpoint")
-        token = params.get("token")
+        endpoint = params.get("endpoint", default_endpoint)
+        token = params.get("token", default_token)
         temperature = params.get("temperature", default_temperature)
         max_output = params.get("max_output", default_max_output)
         model = default_model
+
+        if endpoint is None:
+            raise RuntimeError("Azure endpoint not specified")
+
+        if token is None:
+            raise RuntimeError("Azure token not specified")
 
         super(Processor, self).__init__(
             **params | {

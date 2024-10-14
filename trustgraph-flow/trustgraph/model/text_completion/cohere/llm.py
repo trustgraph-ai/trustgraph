@@ -6,6 +6,7 @@ Input is prompt, output is response.
 
 import cohere
 from prometheus_client import Histogram
+import os
 
 from .... schema import TextCompletionRequest, TextCompletionResponse, Error
 from .... schema import text_completion_request_queue
@@ -21,6 +22,7 @@ default_output_queue = text_completion_response_queue
 default_subscriber = module
 default_model = 'c4ai-aya-23-8b'
 default_temperature = 0.0
+default_api_key = os.getenv("COHERE_KEY")
 
 class Processor(ConsumerProducer):
 
@@ -30,8 +32,11 @@ class Processor(ConsumerProducer):
         output_queue = params.get("output_queue", default_output_queue)
         subscriber = params.get("subscriber", default_subscriber)
         model = params.get("model", default_model)
-        api_key = params.get("api_key")
+        api_key = params.get("api_key", default_api_key)
         temperature = params.get("temperature", default_temperature)
+
+        if api_key is None:
+            raise RuntimeError("Cohere API key not specified")
 
         super(Processor, self).__init__(
             **params | {
