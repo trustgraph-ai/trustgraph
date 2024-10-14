@@ -27,17 +27,26 @@ TrustGraph is your exclusive AI engine for data enhancement. The AI engine inclu
 
 Ingest your sensitive data in batches and build reusable and enhanced knowledge cores that transform general purpose LLMs into knowledge specialists. The observability dashboard allows you to monitor LLM latency, resource management, and token throughput in realtime. Visualize your enhanced data with Neo4j.
 
-## Install the TrustGraph CLI
+## TrustGraph Control Plane
+
+There are two primary ways of interacting with TrustGraph:
+
+- TrustGraph CLI
+- Configuration UI
+
+The `TrustGraph CLI` installs the commands for interacting with TrustGraph while running. The `Configuration UI` enables customization of TrustGraph deployments prior to launching.
+
+### Install the TrustGraph CLI
 
 ```
 pip3 install trustgraph-cli
 ```
 
-## Quickstart UI
+### Config UI
 
-While TrustGraph is endlessly customizable, the quickstart configuration editor can build a custom configuration in seconds with Docker.
+While TrustGraph is endlessly customizable, the configuration editor can build a custom configuration in seconds with Docker.
 
-[Launch the Quickstart UI 🚀](https://config-ui.demo.trustgraph.ai/)
+[Launch the Config UI 🚀](https://config-ui.demo.trustgraph.ai/)
 
 https://github.com/user-attachments/assets/90eeaea6-82b7-480a-9972-edb66ea99738
 
