@@ -5,7 +5,6 @@ local prompts = import "prompts/mixtral.jsonnet";
 
 {
 
-    "azure-openai-token":: "${AZURE_OPENAI_TOKEN}",
     "azure-openai-model":: "GPT-3.5-Turbo",
     "azure-openai-max-output-tokens":: 4192,
     "azure-openai-temperature":: 0.0,
@@ -14,6 +13,9 @@ local prompts = import "prompts/mixtral.jsonnet";
     
         create:: function(engine)
 
+            local envSecrets = engine.envSecrets("azure-openai-credentials")
+                .with_env_var("AZURE_TOKEN", "azure-token");
+
             local container =
                 engine.container("text-completion")
                     .with_image(images.trustgraph)
@@ -21,8 +23,6 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "text-completion-azure-openai",
                         "-p",
                         url.pulsar,
-                        "-k",
-                        $["azure-openai-token"],
                         "-m",
                         $["azure-openai-model"],
                         "-x",
@@ -30,39 +30,17 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "-t",
                         std.toString($["azure-openai-temperature"]),
                     ])
+                    .with_env_var_secrets(envSecrets)
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M");
 
-            local containerSet = engine.containers(
-                "text-completion", [ container ]
-            );
-
-            local service =
-                engine.internalService(containerSet)
-                .with_port(8000, 8000, "metrics");
-
-            engine.resources([
-                containerSet,
-                service,
-            ])
-
-    },
-
-    "text-completion-rag" +: {
-    
-        create:: function(engine)
-
-            local container =
+            local containerRag =
                 engine.container("text-completion-rag")
                     .with_image(images.trustgraph)
                     .with_command([
                         "text-completion-azure",
                         "-p",
                         url.pulsar,
-                        "-k",
-                        $["azure-openai-token"],
-                        "-e",
-                        $["azure-openai-model"],
                         "-x",
                         std.toString($["azure-openai-max-output-tokens"]),
                         "-t",
@@ -72,24 +50,35 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "-o",
                         "non-persistent://tg/response/text-completion-rag-response",
                     ])
+                    .with_env_var_secrets(envSecrets)
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M");
 
             local containerSet = engine.containers(
-                "text-completion-rag", [ container ]
+                "text-completion", [ container ]
+            );
+
+            local containerSetRag = engine.containers(
+                "text-completion-rag", [ containerRag ]
             );
 
             local service =
                 engine.internalService(containerSet)
                 .with_port(8000, 8000, "metrics");
 
+            local serviceRag =
+                engine.internalService(containerSetRag)
+                .with_port(8000, 8000, "metrics");
+
             engine.resources([
+                envSecrets,
                 containerSet,
+                containerSetRag,
                 service,
+                serviceRag,
             ])
 
-
-    }
+    },
 
 } + prompts
 

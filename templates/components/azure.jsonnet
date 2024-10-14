@@ -32,31 +32,7 @@ local prompts = import "prompts/mixtral.jsonnet";
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M");
 
-            local containerSet = engine.containers(
-                "text-completion", [ container ]
-            );
-
-            local service =
-                engine.internalService(containerSet)
-                .with_port(8000, 8000, "metrics");
-
-            engine.resources([
-                envSecrets,
-                containerSet,
-                service,
-            ])
-
-    },
-
-    "text-completion-rag" +: {
-    
-        create:: function(engine)
-
-            local envSecrets = engine.envSecrets("azure-credentials-rag")
-                .with_env_var("AZURE_TOKEN", "azure-token")
-                .with_env_var("AZURE_ENDPOINT", "azure-endpoint");
-
-            local container =
+            local containerRag =
                 engine.container("text-completion-rag")
                     .with_image(images.trustgraph)
                     .with_command([
@@ -77,19 +53,28 @@ local prompts = import "prompts/mixtral.jsonnet";
                     .with_reservations("0.1", "128M");
 
             local containerSet = engine.containers(
-                "text-completion-rag", [ container ]
+                "text-completion", [ container ]
+            );
+
+            local containerSetRag = engine.containers(
+                "text-completion-rag", [ containerRag ]
             );
 
             local service =
                 engine.internalService(containerSet)
                 .with_port(8000, 8000, "metrics");
 
+            local serviceRag =
+                engine.internalService(containerSetRag)
+                .with_port(8000, 8000, "metrics");
+
             engine.resources([
                 envSecrets,
                 containerSet,
+                containerSetRag,
                 service,
+                serviceRag,
             ])
-
 
     }
 
