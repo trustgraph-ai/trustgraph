@@ -25,15 +25,6 @@
             ],
         },
 
-        with_environment_valueFrom:: function(x) self + {
-            environment: super.environment + [
-                {
-                    name: v.key, value: v.value
-                }
-                for v in std.objectKeysValues(x)
-            ],
-        },
-
         with_limits:: function(c, m) self + { limits: { cpu: c, memory: m } },
 
         with_reservations::
@@ -57,18 +48,17 @@
         with_env_var_secrets::
             function(vars)
                 std.foldl(
-                    function(obj, x) obj + obj.with_environment_valueFrom(
-                        {
-                            [x]: {
-                                valueFrom: {
-                                    secretKeyRef: {
-                                        name: vars.name,
-                                        key: x,
-                                    }
+                    function(obj, x) obj + {
+                        environment: super.environment + [{
+                            name: x,
+                            valueFrom: {
+                                secretKeyRef: {
+                                    name: vars.name,
+                                    key: x,
                                 }
                             }
-                        }
-                    ),
+                        }]
+                    },
                     vars.variables,
                     self
                 ),
