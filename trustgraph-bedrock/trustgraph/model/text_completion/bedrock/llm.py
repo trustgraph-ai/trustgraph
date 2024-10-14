@@ -22,7 +22,7 @@ default_input_queue = text_completion_request_queue
 default_output_queue = text_completion_response_queue
 default_subscriber = module
 default_model = 'mistral.mistral-large-2407-v1:0'
-default_region = 'us-west-2'
+default_region = os.getenv("AWS_REGION", 'us-west-2')
 default_temperature = 0.0
 default_max_output = 2048
 default_aws_id = os.getenv("AWS_ID_KEY")
@@ -307,7 +307,7 @@ class Processor(ConsumerProducer):
 
         parser.add_argument(
             '-r', '--aws-region',
-            help=f'AWS Region (default: us-west-2)'
+            help=f'AWS Region'
         )
 
         parser.add_argument(
@@ -328,4 +328,3 @@ def run():
 
     Processor.start(module, __doc__)
 
-    
