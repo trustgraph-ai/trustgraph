@@ -10,14 +10,28 @@
         reservations: {},
         ports: [],
         volumes: [],
-        environment: {},
+        environment: [],
 
         with_image:: function(x) self + { image: x },
 
         with_command:: function(x) self + { command: x },
 
         with_environment:: function(x) self + {
-            environment: super.environment + x,
+            environment: super.environment + [
+                {
+                    name: v.key, value: v.value
+                }
+                for v in std.objectKeysValues(x)
+            ],
+        },
+
+        with_environment_valueFrom:: function(x) self + {
+            environment: super.environment + [
+                {
+                    name: v.key, value: v.value
+                }
+                for v in std.objectKeysValues(x)
+            ],
         },
 
         with_limits:: function(c, m) self + { limits: { cpu: c, memory: m } },
@@ -43,8 +57,17 @@
         with_env_var_secrets::
             function(vars)
                 std.foldl(
-                    function(obj, x) obj.with_environment(
-                        { [x]: "${" + x  + "}" }
+                    function(obj, x) obj + obj.with_environment_valueFrom(
+                        {
+                            [x]: {
+                                valueFrom: {
+                                    secretKeyRef: {
+                                        name: vars.name,
+                                        key: x,
+                                    }
+                                }
+                            }
+                        }
                     ),
                     vars.variables,
                     self
@@ -112,15 +135,9 @@
                                     else {}) + 
 
                                     (if ! std.isEmpty(container.environment) then
-                                    { env: [ {
-                                        name: e.key, value: e.value
-                                        }
-                                        for e in 
-                                        std.objectKeysValues(
-                                            container.environment
-                                            )
-                                            ]
-                                            }
+                                    {
+                                        env: container.environment,
+                                    }
                                     else {}) + 
 
                 (if std.length(container.volumes) > 0 then
@@ -309,6 +326,7 @@
         with_size:: function(size) self + { size: size },
 
         add:: function() [
+/*
                 {
                     apiVersion: "v1",
                     kind: "Secret",
@@ -319,6 +337,7 @@
                     data: {
                     }
                 },
+*/
             ],
 
         volRef:: function() {
