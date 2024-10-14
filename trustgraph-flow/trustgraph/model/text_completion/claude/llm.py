@@ -37,6 +37,9 @@ class Processor(ConsumerProducer):
         temperature = params.get("temperature", default_temperature)
         max_output = params.get("max_output", default_max_output)
 
+        if api_key is None:
+            raise RuntimeError("Claude API key not specified")
+
         super(Processor, self).__init__(
             **params | {
                 "input_queue": input_queue,
