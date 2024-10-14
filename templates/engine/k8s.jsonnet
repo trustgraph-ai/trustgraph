@@ -54,7 +54,7 @@
                             valueFrom: {
                                 secretKeyRef: {
                                     name: vars.name,
-                                    key: x,
+                                    key: vars.keyMap[x],
                                 }
                             }
                         }]
@@ -312,23 +312,12 @@
         name: name,
 
         variables: [],
+        keyMap: {},
 
         with_size:: function(size) self + { size: size },
 
         add:: function() [
-/*
-                {
-                    apiVersion: "v1",
-                    kind: "Secret",
-                    metadata: {
-                        name: volume.name,
-                        namespace: "trustgraph",
-                    },
-                    data: {
-                    }
-                },
-*/
-            ],
+        ],
 
         volRef:: function() {
             name: volume.name,
@@ -336,8 +325,9 @@
         },
 
         with_env_var::
-            function(name) self + {
+            function(name, key) self + {
                 variables: super.variables + [name],
+                keyMap: super.keyMap + { [name]: key },
             },
 
     },

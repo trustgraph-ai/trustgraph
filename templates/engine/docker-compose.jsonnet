@@ -195,7 +195,7 @@
         variables:: [],
 
         with_env_var::
-            function(name) self + {
+            function(name, key) self + {
                 variables: super.variables + [name],
             },
 
