@@ -13,8 +13,8 @@ local prompts = import "prompts/mixtral.jsonnet";
         create:: function(engine)
 
             local envSecrets = engine.envSecrets("azure-credentials")
-                .with_env_var("AZURE_TOKEN")
-                .with_env_var("AZURE_ENDPOINT");
+                .with_env_var("AZURE_TOKEN", "azure-token")
+                .with_env_var("AZURE_ENDPOINT", "azure-endpoint");
 
             local container =
                 engine.container("text-completion")
@@ -53,8 +53,8 @@ local prompts = import "prompts/mixtral.jsonnet";
         create:: function(engine)
 
             local envSecrets = engine.envSecrets("azure-credentials-rag")
-                .with_env_var("AZURE_TOKEN")
-                .with_env_var("AZURE_ENDPOINT");
+                .with_env_var("AZURE_TOKEN", "azure-token")
+                .with_env_var("AZURE_ENDPOINT", "azure-endpoint");
 
             local container =
                 engine.container("text-completion-rag")
