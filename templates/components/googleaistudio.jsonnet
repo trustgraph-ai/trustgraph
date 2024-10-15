@@ -5,13 +5,15 @@ local prompts = import "prompts/mixtral.jsonnet";
 
 {
 
-    "googleaistudio-key":: "${GOOGLEAISTUDIO_KEY}",
     "googleaistudio-max-output-tokens":: 4096,
     "googleaistudio-temperature":: 0.0,
 
     "text-completion" +: {
     
         create:: function(engine)
+
+            local envSecrets = engine.envSecrets("bedrock-credentials")
+                .with_env_var("GOOGLEAISTUDIO_KEY", "googleaistudio-key");
 
             local container =
                 engine.container("text-completion")
@@ -20,44 +22,22 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "text-completion-googleaistudio",
                         "-p",
                         url.pulsar,
-                        "-k",
-                        $["googleaistudio-key"],
                         "-x",
                         std.toString($["googleaistudio-max-output-tokens"]),
                         "-t",
                         std.toString($["googleaistudio-temperature"]),
                     ])
+                    .with_env_var_secrets(envSecrets)
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M");
 
-            local containerSet = engine.containers(
-                "text-completion", [ container ]
-            );
-
-            local service =
-                engine.internalService(containerSet)
-                .with_port(8000, 8000, "metrics");
-
-            engine.resources([
-                containerSet,
-                service,
-            ])
-
-    },
-
-    "text-completion-rag" +: {
-    
-        create:: function(engine)
-
-            local container =
+            local containerRag =
                 engine.container("text-completion-rag")
                     .with_image(images.trustgraph)
                     .with_command([
                         "text-completion-googleaistudio",
                         "-p",
                         url.pulsar,
-                        "-k",
-                        $["googleaistudio-key"],
                         "-x",
                         std.toString($["googleaistudio-max-output-tokens"]),
                         "-t",
@@ -67,24 +47,35 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "-o",
                         "non-persistent://tg/response/text-completion-rag-response",
                     ])
+                    .with_env_var_secrets(envSecrets)
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M");
 
             local containerSet = engine.containers(
-                "text-completion-rag", [ container ]
+                "text-completion", [ container ]
+            );
+
+            local containerSetRag = engine.containers(
+                "text-completion-rag", [ containerRag ]
             );
 
             local service =
                 engine.internalService(containerSet)
                 .with_port(8000, 8000, "metrics");
 
+            local serviceRag =
+                engine.internalService(containerSetRag)
+                .with_port(8000, 8000, "metrics");
+
             engine.resources([
+                envSecrets,
                 containerSet,
+                containerSetRag,
                 service,
+                serviceRag,
             ])
 
-
-    }
+    },
 
 } + prompts
 
