@@ -92,12 +92,16 @@ Each directory contains the pre-built `YAML` configuration files needed to launc
 | ---------------- | ------------ | ----------- |
 | AWS Bedrock API | Cassandra | `tg-bedrock-cassandra.yaml` |
 | AWS Bedrock API | Neo4j | `tg-bedrock-neo4j.yaml` |
-| AzureAI Serverless API | Cassandra | `tg-azure-cassandra.yaml` |
-| AzureAI Serverless API | Neo4j | `tg-azure-neo4j.yaml` |
+| AzureAI API | Cassandra | `tg-azure-cassandra.yaml` |
+| AzureAI API | Neo4j | `tg-azure-neo4j.yaml` |
+| AzureOpenAI API | Cassandra | `tg-azure-openai-cassandra.yaml` |
+| AzureOpenAI API | Neo4j | `tg-azure-openai-neo4j.yaml` |
 | Anthropic API | Cassandra | `tg-claude-cassandra.yaml` |
 | Anthropic API | Neo4j | `tg-claude-neo4j.yaml` |
 | Cohere API | Cassandra | `tg-cohere-cassandra.yaml` |
 | Cohere API | Neo4j | `tg-cohere-neo4j.yaml` |
+| Google AI Studio API | Cassandra | `tg-googleaistudio-cassandra.yaml` |
+| Google AI Studio API | Neo4j | `tg-googleaistudio-neo4j.yaml` |
 | Llamafile API | Cassandra | `tg-llamafile-cassandra.yaml` |
 | Llamafile API | Neo4j | `tg-llamafile-neo4j.yaml` |
 | Ollama API | Cassandra | `tg-ollama-cassandra.yaml` |
