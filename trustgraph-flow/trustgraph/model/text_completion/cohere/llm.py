@@ -167,6 +167,7 @@ class Processor(ConsumerProducer):
 
         parser.add_argument(
             '-k', '--api-key',
+            default=default_api_key,
             help=f'Cohere API key'
         )
 

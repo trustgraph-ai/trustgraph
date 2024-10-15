@@ -208,11 +208,13 @@ class Processor(ConsumerProducer):
 
         parser.add_argument(
             '-e', '--endpoint',
+            default=default_endpoint,
             help=f'LLM model endpoint'
         )
 
         parser.add_argument(
             '-k', '--token',
+            default=default_token,
             help=f'LLM model token'
         )
 

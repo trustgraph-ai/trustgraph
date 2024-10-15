@@ -39,7 +39,7 @@ default_model = 'gemini-1.0-pro-001'
 default_region = 'us-central1'
 default_temperature = 0.0
 default_max_output = 8192
-default_private_key = os.getenv("VERTEXAI_KEY")
+default_private_key = "private.json"
 
 class Processor(ConsumerProducer):
 
