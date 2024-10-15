@@ -51,7 +51,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
 
       - name: Create deploy bundle
-        run: templates/generate-all deploy.zip v${{ steps.version.outputs.VERSION }}
+        run: templates/generate-all deploy.zip ${{ steps.version.outputs.VERSION }}
 
       - uses: ncipollo/release-action@v1
         with:
