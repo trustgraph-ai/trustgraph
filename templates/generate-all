@@ -123,7 +123,7 @@ def generate_all(output, version):
     ]:
         for model in [
                 "azure", "azure-openai", "bedrock", "claude", "cohere",
-                "llamafile", "ollama", "openai", "vertexai"
+                "googleaistudio", "llamafile", "ollama", "openai", "vertexai",
         ]:
             for graph in [ "cassandra", "neo4j" ]:
 
