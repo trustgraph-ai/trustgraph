@@ -74,7 +74,7 @@ TrustGraph releases are available [here](https://github.com/trustgraph-ai/trustg
 
 | Release Type | Release Version |
 | ------------ | --------------- |
-| Latest | [0.12.4](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.12.4/deploy.zip) |
+| Latest | [0.12.5](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.12.4/deploy.zip) |
 | Stable | [0.11.21](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.11.21/deploy.zip) |
 
 TrustGraph is fully containerized and is launched with a `YAML` configuration file. Unzipping the `deploy.zip` will add the `deploy` directory with the following subdirectories:
