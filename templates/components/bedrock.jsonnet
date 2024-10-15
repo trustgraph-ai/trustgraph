@@ -16,7 +16,7 @@ local chunker = import "chunker-recursive.jsonnet";
 
             local envSecrets = engine.envSecrets("bedrock-credentials")
                 .with_env_var("AWS_ID_KEY", "aws-id-key")
-                .with_env_var("AWS_SECRET_KEY", "aws-secret-key")
+                .with_env_var("AWS_SECRET", "aws-secret")
                 .with_env_var("AWS_REGION", "aws-region");
 
             local container =
