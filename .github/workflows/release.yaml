@@ -7,7 +7,7 @@ on:
 #    branches:
 #      - release/v0.12
     tags:
-      - v0.12.*
+      - v0.13.*
 
 permissions:
   contents: read
