@@ -180,6 +180,7 @@ class Processor(ConsumerProducer):
 
         parser.add_argument(
             '-k', '--api-key',
+            default=default_api_key,
             help=f'Claude API key'
         )
 
