@@ -1,7 +1,7 @@
 
 from pulsar.schema import Record, Bytes, String, Boolean, Integer, Array, Double
 
-from . types import Error, Value
+from . types import Error, Value, Triple
 from . topic import topic
 from . metadata import Metadata
 
@@ -41,11 +41,9 @@ graph_embeddings_response_queue = topic(
 
 # Graph triples
 
-class Triple(Record):
+class Triples(Record):
     metadata = Metadata()
-    s = Value()
-    p = Value()
-    o = Value()
+    triples = Array(Triple())
 
 triples_store_queue = topic('triples-store')
 

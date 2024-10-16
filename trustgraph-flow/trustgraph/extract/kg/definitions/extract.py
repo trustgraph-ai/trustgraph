@@ -7,7 +7,7 @@ get entity definitions which are output as graph edges.
 import urllib.parse
 import json
 
-from .... schema import ChunkEmbeddings, Triple, Metadata, Value
+from .... schema import ChunkEmbeddings, Triple, Triples, Metadata, Value
 from .... schema import chunk_embeddings_ingest_queue, triples_store_queue
 from .... schema import prompt_request_queue
 from .... schema import prompt_response_queue
@@ -44,7 +44,7 @@ class Processor(ConsumerProducer):
                 "output_queue": output_queue,
                 "subscriber": subscriber,
                 "input_schema": ChunkEmbeddings,
-                "output_schema": Triple,
+                "output_schema": Triples,
                 "prompt_request_queue": pr_request_queue,
                 "prompt_response_queue": pr_response_queue,
             }
@@ -71,7 +71,10 @@ class Processor(ConsumerProducer):
 
     def emit_edge(self, metadata, s, p, o):
 
-        t = Triple(metadata=metadata, s=s, p=p, o=o)
+        t = Triples(
+            metadata=metadata,
+            triples=[Triple(s=s, p=p, o=o)],
+        )
         self.producer.send(t)
 
     def handle(self, msg):

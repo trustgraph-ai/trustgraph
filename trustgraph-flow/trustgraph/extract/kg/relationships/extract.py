@@ -9,7 +9,7 @@ import urllib.parse
 import os
 from pulsar.schema import JsonSchema
 
-from .... schema import ChunkEmbeddings, Triple, GraphEmbeddings
+from .... schema import ChunkEmbeddings, Triple, Triples, GraphEmbeddings
 from .... schema import Metadata, Value
 from .... schema import chunk_embeddings_ingest_queue, triples_store_queue
 from .... schema import graph_embeddings_store_queue
@@ -50,7 +50,7 @@ class Processor(ConsumerProducer):
                 "output_queue": output_queue,
                 "subscriber": subscriber,
                 "input_schema": ChunkEmbeddings,
-                "output_schema": Triple,
+                "output_schema": Triples,
                 "prompt_request_queue": pr_request_queue,
                 "prompt_response_queue": pr_response_queue,
             }
@@ -69,7 +69,7 @@ class Processor(ConsumerProducer):
             "prompt_response_queue": pr_response_queue,
             "subscriber": subscriber,
             "input_schema": ChunkEmbeddings.__name__,
-            "output_schema": Triple.__name__,
+            "output_schema": Triples.__name__,
             "vector_schema": GraphEmbeddings.__name__,
         })
 
@@ -94,7 +94,10 @@ class Processor(ConsumerProducer):
 
     def emit_edge(self, metadata, s, p, o):
 
-        t = Triple(metadata=metadata, s=s, p=p, o=o)
+        t = Triples(
+            metadata=metadata,
+            triples=[Triple(s=s, p=p, o=o)],
+        )
         self.producer.send(t)
 
     def emit_vec(self, metadata, ent, vec):
