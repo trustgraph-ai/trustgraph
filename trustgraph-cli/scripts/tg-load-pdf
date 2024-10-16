@@ -55,7 +55,11 @@ class Loader:
             path = file
             data = open(path, "rb").read()
 
-            id = hashlib.sha256(path.encode("utf-8")).hexdigest()[0:8]
+            # Create a SHA256 hash from the data
+            id = hashlib.sha256(data).hexdigest()
+
+            # Convert into a UUID, 64-byte hash becomes 32-byte UUID
+            id = str(uuid.UUID(id[::2]))
 
             r = Document(
                 metadata=Metadata(
@@ -110,6 +114,54 @@ def main():
         '-c', '--collection',
         default=default_collection,
         help=f'Collection ID (default: {default_collection})'
+    )
+
+    parser.add_argument(
+        '--name', help=f'Document name'
+    )
+
+    parser.add_argument(
+        '--description', help=f'Document description'
+    )
+
+    parser.add_argument(
+        '--copyright-notice', help=f'Copyright notice'
+    )
+
+    parser.add_argument(
+        '--copyright-holder', help=f'Copyright holder'
+    )
+
+    parser.add_argument(
+        '--copyright-year', help=f'Copyright year'
+    )
+
+    parser.add_argument(
+        '--licence', help=f'Copyright licence'
+    )
+
+    parser.add_argument(
+        '--publication-organization', help=f'Publication organization'
+    )
+
+    parser.add_argument(
+        '--publication-description', help=f'Publication description'
+    )
+
+    parser.add_argument(
+        '--publication-date', help=f'Publication date'
+    )
+
+    parser.add_argument(
+        '--url', help=f'Document URL'
+    )
+
+    parser.add_argument(
+        '--keyword', help=f'Keyword'
+    )
+
+    parser.add_argument(
+        '--title', help=f'Document title'
     )
 
     parser.add_argument(
