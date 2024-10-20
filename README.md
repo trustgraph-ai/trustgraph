@@ -141,7 +141,7 @@ kubectl apply -f <launch-file.yaml>
 
 ## Architecture
 
-![architecture](TrustGraph_architecture.svg)
+![architecture](tg-privacy-boundary.svg)
 
 TrustGraph is designed to be modular to support as many Language Models and environments as possible. A natural fit for a modular architecture is to decompose functions into a set of modules connected through a pub/sub backbone. [Apache Pulsar](https://github.com/apache/pulsar/) serves as this pub/sub backbone. Pulsar acts as the data broker managing data processing queues connected to procesing modules.
 
