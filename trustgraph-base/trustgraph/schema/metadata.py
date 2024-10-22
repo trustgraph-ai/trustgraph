@@ -8,7 +8,7 @@ class Metadata(Record):
     id = String()
 
     # Subgraph
-    source = Array(Triple())
+    metadata = Array(Triple())
 
     # Collection management
     user = String()

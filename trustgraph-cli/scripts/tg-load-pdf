@@ -12,11 +12,107 @@ import hashlib
 import argparse
 import os
 import time
+import uuid
 
 from trustgraph.log_level import LogLevel
 
 default_user = 'trustgraph'
 default_collection = 'default'
+
+class MetadataSource:
+    def __init__(self, args):
+        self.source = args
+
+    def id_hash(self, data):
+
+        # Create a SHA256 hash from the data
+        id = hashlib.sha256(data).hexdigest()
+
+        # Convert into a UUID, 64-byte hash becomes 32-byte UUID
+        id = str(uuid.UUID(id[::2]))
+
+        return id
+
+    def add(self, id, add):
+
+        source = self.source
+
+        add(id, IS_A, DIGITAL_DOCUMENT)
+
+        if source.name:
+            add(id, LABEL, source.name)
+            add(id, NAME, source.name)
+
+        if source.description:
+            add(id, DESCRIPTION, source.description)
+
+        if source.copyright_notice:
+            add(id, COPYRIGHT_NOTICE, source.copyright_notice)
+
+        if source.copyright_holder:
+            add(id, COPYRIGHT_HOLDER, source.copyright_holder)
+
+        if source.copyright_year:
+            add(id, COPYRIGHT_YEAR, source.copyright_year)
+
+        if source.license:
+            add(id, LICENSE, source.license)
+
+        if source.publication_organization:
+
+            pub_id = self.id_hash(
+                source.publication_organization.encode("utf-8")
+            )
+
+            add(id, IS_A, PUBLICATION_EVENT)
+
+            add(id, PUBLICATION, pub_id)
+
+            if source.publication_organization:
+                add(pub_id, PUBLISHED_BY,
+                    source.publication_organization)
+
+            if source.publication_description:
+                add(pub_id, DESCRIPTION, source.publication_description)
+
+            if source.publication_date:
+                add(pub_id, START_DATE, source.publication_date)
+
+            if source.publication_date:
+                add(pub_id, END_DATE, source.publication_date)
+
+        if source.url:
+            add(id, URL, source.url)
+
+        if source.identifier:
+            add(id, IDENTIFIER, source.identifier)
+
+        if source.keyword:
+            for k in source.keyword:
+                add(id, KEYWORD, k)
+
+IS_A = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
+LABEL = 'http://www.w3.org/2000/01/rdf-schema#label'
+
+DIGITAL_DOCUMENT = 'https://schema.org/DigitalDocument'
+PUBLICATION_EVENT = 'https://schema.org/PublicationEvent'
+
+NAME = 'https://schema.org/name'
+DESCRIPTION = 'https://schema.org/description'
+COPYRIGHT_NOTICE = 'https://schema.org/copyrightNotice'
+COPYRIGHT_HOLDER = 'https://schema.org/copyrightHolder'
+COPYRIGHT_YEAR = 'https://schema.org/copyrightYear'
+LICENSE = 'https://schema.org/license'
+PUBLICATION = 'https://schema.org/publication'
+START_DATE = 'https://schema.org/startDate'
+END_DATE = 'https://schema.org/endDate'
+PUBLISHED_BY = 'https://schema.org/publishedBy'
+DATE_PUBLISHED = 'https://schema.org/datePublished'
+PUBLICATION = 'https://schema.org/publication'
+DATE_PUBLISHED = 'https://schema.org/datePublished'
+URL = 'https://schema.org/url'
+IDENTIFIER = 'https://schema.org/identifier'
+KEYWORD = 'https://schema.org/keywords'
 
 class Loader:
 
@@ -27,21 +123,27 @@ class Loader:
             user,
             collection,
             log_level,
+            metadata,
     ):
 
-        self.client = pulsar.Client(
-            pulsar_host,
-            logger=pulsar.ConsoleLogger(log_level.to_pulsar())
-        )
+        # self.client = pulsar.Client(
+        #     pulsar_host,
+        #     logger=pulsar.ConsoleLogger(log_level.to_pulsar())
+        # )
 
-        self.producer = self.client.create_producer(
-            topic=output_queue,
-            schema=JsonSchema(Document),
-            chunking_enabled=True,
-        )
+        # self.producer = self.client.create_producer(
+        #     topic=output_queue,
+        #     schema=JsonSchema(Document),
+        #     chunking_enabled=True,
+        # )
+        class Bunch:
+            def close(self):
+                print("CLOSE")
+        self.client = Bunch()
 
         self.user = user
         self.collection = collection
+        self.metadata = metadata
 
     def load(self, files):
 
@@ -60,6 +162,19 @@ class Loader:
 
             # Convert into a UUID, 64-byte hash becomes 32-byte UUID
             id = str(uuid.UUID(id[::2]))
+
+            triples = []
+
+            def add(s, p, o):
+                triples.append((s, p, o))
+
+            self.metadata.add(id, add)
+
+            for t in triples:
+                print(t)
+
+            return
+            
 
             r = Document(
                 metadata=Metadata(
@@ -137,7 +252,7 @@ def main():
     )
 
     parser.add_argument(
-        '--licence', help=f'Copyright licence'
+        '--license', help=f'Copyright license'
     )
 
     parser.add_argument(
@@ -157,11 +272,11 @@ def main():
     )
 
     parser.add_argument(
-        '--keyword', help=f'Keyword'
+        '--keyword', nargs='+', help=f'Keyword'
     )
 
     parser.add_argument(
-        '--title', help=f'Document title'
+        '--identifier', '--id', help=f'Document ID'
     )
 
     parser.add_argument(
@@ -189,6 +304,7 @@ def main():
                 user=args.user,
                 collection=args.collection,
                 log_level=args.log_level,
+                metadata=MetadataSource(args),
             )
 
             p.load(args.files)
