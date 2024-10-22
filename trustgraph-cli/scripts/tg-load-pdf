@@ -56,6 +56,9 @@ def hash(data):
 
     return id
 
+def curi(pref, id):
+    return f"https://trustgraph.ai/{pref}/{id}"
+
 class DigitalDocument:
     def __init__(
             self, id, name=None, description=None, copyright_notice=None,
@@ -74,16 +77,6 @@ class DigitalDocument:
         self.url = url
         self.identifier = identifier
         self.keywords = keywords
-
-    # def id_hash(self, data):
-
-    #     # Create a SHA256 hash from the data
-    #     id = hashlib.sha256(data).hexdigest()
-
-    #     # Convert into a UUID, 64-byte hash becomes 32-byte UUID
-    #     id = str(uuid.UUID(id[::2]))
-
-    #     return id
 
     def emit(self, emit):
 
@@ -216,6 +209,8 @@ class Loader:
 
             # Convert into a UUID, 64-byte hash becomes 32-byte UUID
             id = str(uuid.UUID(id[::2]))
+
+            id = curi("doc", id)
 
             triples = []
 
@@ -367,11 +362,11 @@ def main():
 
             if args.publication_organization:
                 org = Organization(
-                    id=hash(args.publication_organization),
+                    id=curi("org", hash(args.publication_organization)),
                     name=args.publication_organization,
                 )
                 document.publication = PublicationEvent(
-                    id = str(uuid.uuid4()),
+                    id = curi("pubev", str(uuid.uuid4())),
                     organization=org,
                     description=args.publication_description,
                     start_date=args.publication_date,
