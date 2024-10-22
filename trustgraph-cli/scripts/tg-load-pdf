@@ -6,7 +6,8 @@ Loads a PDF document into TrustGraph processing.
 
 import pulsar
 from pulsar.schema import JsonSchema
-from trustgraph.schema import Document, document_ingest_queue, Metadata
+from trustgraph.schema import Document, document_ingest_queue
+from trustgraph.schema import Value, Metadata, Triple
 import base64
 import hashlib
 import argparse
@@ -80,40 +81,55 @@ class DigitalDocument:
 
     def emit(self, emit):
 
-        emit(self.id, IS_A, DIGITAL_DOCUMENT)
+        emit(Triple(Value(self.id), Value(IS_A), Value(DIGITAL_DOCUMENT)))
 
         if self.name:
-            emit(self.id, LABEL, self.name)
-            emit(self.id, NAME, self.name)
+            emit(Triple(Value(self.id), Value(LABEL), Value(self.name)))
+            emit(Triple(Value(self.id), Value(NAME), Value(self.name)))
 
         if self.identifier:
-            emit(id, IDENTIFIER, self.identifier)
+            emit(Triple(Value(id), Value(IDENTIFIER), Value(self.identifier)))
 
         if self.description:
-            emit(self.id, DESCRIPTION, self.description)
+            emit(Triple(
+                Value(self.id), Value(DESCRIPTION), Value(self.description)
+            ))
 
         if self.copyright_notice:
-            emit(self.id, COPYRIGHT_NOTICE, self.copyright_notice)
+            emit(Triple(
+                Value(self.id), Value(COPYRIGHT_NOTICE),
+                Value(self.copyright_notice)
+            ))
 
         if self.copyright_holder:
-            emit(self.id, COPYRIGHT_HOLDER, self.copyright_holder)
+            emit(Triple(
+                Value(self.id), Value(COPYRIGHT_HOLDER),
+                Value(self.copyright_holder)
+            ))
 
         if self.copyright_year:
-            emit(self.id, COPYRIGHT_YEAR, self.copyright_year)
+            emit(Triple(
+                Value(self.id), Value(COPYRIGHT_YEAR),
+                Value(self.copyright_year)
+            ))
 
         if self.license:
-            emit(self.id, LICENSE, self.license)
+            emit(Triple(
+                Value(self.id), Value(LICENSE), Value(self.license)
+            ))
 
         if self.keywords:
             for k in self.keywords:
-                emit(self.id, KEYWORD, k)
+                emit(Triple(Value(self.id), Value(KEYWORD), Value(k)))
 
         if self.publication:
-            emit(self.id, PUBLICATION, self.publication.id)
+            emit(Triple(
+                Value(self.id), Value(PUBLICATION, Value(self.publication.id))
+            ))
             self.publication.emit(emit)
 
         if self.url:
-            emit(self.id, URL, self.url)
+            emit(Triple(Value(self.id), Value(URL), Value(self.url)))
 
 class PublicationEvent:
     def __init__(
@@ -129,24 +145,31 @@ class PublicationEvent:
 
     def emit(self, emit):
 
-        emit(self.id, IS_A, PUBLICATION_EVENT)
+        emit(Triple(Value(self.id), Value(IS_A), Value(PUBLICATION_EVENT)))
 
         if self.name:
-            emit(self.id, LABEL, self.name)
-            emit(self.id, NAME, self.name)
+            emit(Triple(Value(self.id), Value(LABEL), Value(self.name)))
+            emit(Triple(Value(self.id), Value(NAME), Value(self.name)))
 
         if self.description:
-            emit(self.id, DESCRIPTION, self.description)
+            emit(Triple(
+                Value(self.id), Value(DESCRIPTION), Value(self.description)
+            ))
 
         if self.organization:
-            emit(self.id, PUBLISHED_BY, self.organization.id)
+            emit(Triple(
+                Value(self.id), Value(PUBLISHED_BY),
+                Value(self.organization.id)
+            ))
             self.organization.emit(emit)
 
         if self.start_date:
-            emit(self.id, START_DATE, self.start_date)
+            emit(Triple(
+                Value(self.id), Value(START_DATE), Value(self.start_date)
+            ))
 
         if self.end_date:
-            emit(self.id, END_DATE, self.end_date)
+            emit(Triple(Value(self.id), Value(END_DATE), Value(self.end_date)))
 
 class Organization:
     def __init__(self, id, name=None, description=None):
@@ -156,14 +179,16 @@ class Organization:
 
     def emit(self, emit):
 
-        emit(self.id, IS_A, ORGANIZATION)
+        emit(Triple(Value(self.id), Value(IS_A), Value(ORGANIZATION)))
 
         if self.name:
-            emit(self.id, LABEL, self.name)
-            emit(self.id, NAME, self.name)
+            emit(Triple(Value(self.id), Value(LABEL), Value(self.name)))
+            emit(Triple(Value(self.id), Value(NAME), Value(self.name)))
 
         if self.description:
-            emit(self.id, DESCRIPTION, self.description)
+            emit(Triple(
+                Value(self.id), Value(DESCRIPTION), Value(self.description)
+            ))
 
 class Loader:
 
@@ -177,16 +202,16 @@ class Loader:
             metadata,
     ):
 
-        # self.client = pulsar.Client(
-        #     pulsar_host,
-        #     logger=pulsar.ConsoleLogger(log_level.to_pulsar())
-        # )
+        self.client = pulsar.Client(
+            pulsar_host,
+            logger=pulsar.ConsoleLogger(log_level.to_pulsar())
+        )
 
-        # self.producer = self.client.create_producer(
-        #     topic=output_queue,
-        #     schema=JsonSchema(Document),
-        #     chunking_enabled=True,
-        # )
+        self.producer = self.client.create_producer(
+            topic=output_queue,
+            schema=JsonSchema(Document),
+            chunking_enabled=True,
+        )
 
         self.user = user
         self.collection = collection
@@ -205,32 +230,22 @@ class Loader:
             data = open(path, "rb").read()
 
             # Create a SHA256 hash from the data
-            id = hashlib.sha256(data).hexdigest()
-
-            # Convert into a UUID, 64-byte hash becomes 32-byte UUID
-            id = str(uuid.UUID(id[::2]))
+            id = hash(data)
 
             id = curi("doc", id)
 
             triples = []
 
-            def emit(s, p, o):
-                triples.append((s, p, o))
+            def emit(t):
+                triples.append(t)
 
             self.metadata.id = id
             self.metadata.emit(emit)
 
-            for t in triples:
-                print(t)
-
-            return
-            
-
             r = Document(
                 metadata=Metadata(
-                    source=path,
-                    title=path,
                     id=id,
+                    metadata = triples,
                     user=self.user,
                     collection=self.collection,
                 ),
