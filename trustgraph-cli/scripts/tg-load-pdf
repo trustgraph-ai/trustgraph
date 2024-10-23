@@ -6,8 +6,6 @@ Loads a PDF document into TrustGraph processing.
 
 import pulsar
 from pulsar.schema import JsonSchema
-from trustgraph.schema import Document, document_ingest_queue
-from trustgraph.schema import Value, Metadata, Triple
 import base64
 import hashlib
 import argparse
@@ -15,180 +13,16 @@ import os
 import time
 import uuid
 
+from trustgraph.schema import Document, document_ingest_queue
+from trustgraph.schema import Value, Metadata, Triple
 from trustgraph.log_level import LogLevel
+from trustgraph.knowledge import hash, to_uri
+from trustgraph.knowledge import PREF_PUBEV, PREF_DOC, PREF_ORG
+from trustgraph.knowledge import Organization, PublicationEvent
+from trustgraph.knowledge import DigitalDocument
 
 default_user = 'trustgraph'
 default_collection = 'default'
-
-IS_A = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
-LABEL = 'http://www.w3.org/2000/01/rdf-schema#label'
-
-DIGITAL_DOCUMENT = 'https://schema.org/DigitalDocument'
-PUBLICATION_EVENT = 'https://schema.org/PublicationEvent'
-ORGANIZATION = 'https://schema.org/Organization'
-
-NAME = 'https://schema.org/name'
-DESCRIPTION = 'https://schema.org/description'
-COPYRIGHT_NOTICE = 'https://schema.org/copyrightNotice'
-COPYRIGHT_HOLDER = 'https://schema.org/copyrightHolder'
-COPYRIGHT_YEAR = 'https://schema.org/copyrightYear'
-LICENSE = 'https://schema.org/license'
-PUBLICATION = 'https://schema.org/publication'
-START_DATE = 'https://schema.org/startDate'
-END_DATE = 'https://schema.org/endDate'
-PUBLISHED_BY = 'https://schema.org/publishedBy'
-DATE_PUBLISHED = 'https://schema.org/datePublished'
-PUBLICATION = 'https://schema.org/publication'
-DATE_PUBLISHED = 'https://schema.org/datePublished'
-URL = 'https://schema.org/url'
-IDENTIFIER = 'https://schema.org/identifier'
-KEYWORD = 'https://schema.org/keywords'
-
-def hash(data):
-
-    if isinstance(data, str):
-        data = data.encode("utf-8")
-
-    # Create a SHA256 hash from the data
-    id = hashlib.sha256(data).hexdigest()
-
-    # Convert into a UUID, 64-byte hash becomes 32-byte UUID
-    id = str(uuid.UUID(id[::2]))
-
-    return id
-
-def curi(pref, id):
-    return f"https://trustgraph.ai/{pref}/{id}"
-
-class DigitalDocument:
-    def __init__(
-            self, id, name=None, description=None, copyright_notice=None,
-            copyright_holder=None, copyright_year=None, license=None,
-            identifier=None,
-            publication=None, url=None, keywords=[]
-    ):
-        self.id = id
-        self.name = name
-        self.description = description
-        self.copyright_notice = copyright_notice
-        self.copyright_holder = copyright_holder
-        self.copyright_year = copyright_year
-        self.license = license
-        self.publication = publication
-        self.url = url
-        self.identifier = identifier
-        self.keywords = keywords
-
-    def emit(self, emit):
-
-        emit(Triple(Value(self.id), Value(IS_A), Value(DIGITAL_DOCUMENT)))
-
-        if self.name:
-            emit(Triple(Value(self.id), Value(LABEL), Value(self.name)))
-            emit(Triple(Value(self.id), Value(NAME), Value(self.name)))
-
-        if self.identifier:
-            emit(Triple(Value(id), Value(IDENTIFIER), Value(self.identifier)))
-
-        if self.description:
-            emit(Triple(
-                Value(self.id), Value(DESCRIPTION), Value(self.description)
-            ))
-
-        if self.copyright_notice:
-            emit(Triple(
-                Value(self.id), Value(COPYRIGHT_NOTICE),
-                Value(self.copyright_notice)
-            ))
-
-        if self.copyright_holder:
-            emit(Triple(
-                Value(self.id), Value(COPYRIGHT_HOLDER),
-                Value(self.copyright_holder)
-            ))
-
-        if self.copyright_year:
-            emit(Triple(
-                Value(self.id), Value(COPYRIGHT_YEAR),
-                Value(self.copyright_year)
-            ))
-
-        if self.license:
-            emit(Triple(
-                Value(self.id), Value(LICENSE), Value(self.license)
-            ))
-
-        if self.keywords:
-            for k in self.keywords:
-                emit(Triple(Value(self.id), Value(KEYWORD), Value(k)))
-
-        if self.publication:
-            emit(Triple(
-                Value(self.id), Value(PUBLICATION, Value(self.publication.id))
-            ))
-            self.publication.emit(emit)
-
-        if self.url:
-            emit(Triple(Value(self.id), Value(URL), Value(self.url)))
-
-class PublicationEvent:
-    def __init__(
-            self, id, organization=None, name=None, description=None,
-            start_date=None, end_date=None,
-    ):
-        self.id = id
-        self.organization = organization
-        self.name = name
-        self.description = description
-        self.start_date = start_date
-        self.end_date = end_date
-
-    def emit(self, emit):
-
-        emit(Triple(Value(self.id), Value(IS_A), Value(PUBLICATION_EVENT)))
-
-        if self.name:
-            emit(Triple(Value(self.id), Value(LABEL), Value(self.name)))
-            emit(Triple(Value(self.id), Value(NAME), Value(self.name)))
-
-        if self.description:
-            emit(Triple(
-                Value(self.id), Value(DESCRIPTION), Value(self.description)
-            ))
-
-        if self.organization:
-            emit(Triple(
-                Value(self.id), Value(PUBLISHED_BY),
-                Value(self.organization.id)
-            ))
-            self.organization.emit(emit)
-
-        if self.start_date:
-            emit(Triple(
-                Value(self.id), Value(START_DATE), Value(self.start_date)
-            ))
-
-        if self.end_date:
-            emit(Triple(Value(self.id), Value(END_DATE), Value(self.end_date)))
-
-class Organization:
-    def __init__(self, id, name=None, description=None):
-        self.id = id
-        self.name = name
-        self.description = description
-
-    def emit(self, emit):
-
-        emit(Triple(Value(self.id), Value(IS_A), Value(ORGANIZATION)))
-
-        if self.name:
-            emit(Triple(Value(self.id), Value(LABEL), Value(self.name)))
-            emit(Triple(Value(self.id), Value(NAME), Value(self.name)))
-
-        if self.description:
-            emit(Triple(
-                Value(self.id), Value(DESCRIPTION), Value(self.description)
-            ))
 
 class Loader:
 
@@ -232,7 +66,7 @@ class Loader:
             # Create a SHA256 hash from the data
             id = hash(data)
 
-            id = curi("doc", id)
+            id = to_uri(PREF_DOC, id)
 
             triples = []
 
@@ -245,7 +79,7 @@ class Loader:
             r = Document(
                 metadata=Metadata(
                     id=id,
-                    metadata = triples,
+                    metadata=triples,
                     user=self.user,
                     collection=self.collection,
                 ),
@@ -377,11 +211,11 @@ def main():
 
             if args.publication_organization:
                 org = Organization(
-                    id=curi("org", hash(args.publication_organization)),
+                    id=to_uri(PREF_ORG, hash(args.publication_organization)),
                     name=args.publication_organization,
                 )
                 document.publication = PublicationEvent(
-                    id = curi("pubev", str(uuid.uuid4())),
+                    id = to_uri(PREF_PUBEV, str(uuid.uuid4())),
                     organization=org,
                     description=args.publication_description,
                     start_date=args.publication_date,
