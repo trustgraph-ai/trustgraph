@@ -59,15 +59,8 @@ class Processor(ConsumerProducer):
 
                 for ix, page in enumerate(pages):
 
-                    id = v.metadata.id + "-p" + str(ix)
                     r = TextDocument(
-                        metadata=Metadata(
-                            source=v.metadata.source,
-                            title=v.metadata.title,
-                            id=id,
-                            user=v.metadata.user,
-                            collection=v.metadata.collection,
-                        ),
+                        metadata=v.metadata,
                         text=page.page_content.encode("utf-8"),
                     )
 

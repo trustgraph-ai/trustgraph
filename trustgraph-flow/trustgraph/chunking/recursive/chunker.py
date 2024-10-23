@@ -63,16 +63,8 @@ class Processor(ConsumerProducer):
 
         for ix, chunk in enumerate(texts):
 
-            id = v.metadata.id + "-c" + str(ix)
-
             r = Chunk(
-                metadata=Metadata(
-                    source=v.metadata.source,
-                    id=id,
-                    title=v.metadata.title,
-                    user=v.metadata.user,
-                    collection=v.metadata.collection,
-                ),
+                metadata=v.metadata,
                 chunk=chunk.page_content.encode("utf-8"),
             )
 
