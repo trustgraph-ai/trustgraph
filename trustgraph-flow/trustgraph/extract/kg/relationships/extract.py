@@ -17,10 +17,11 @@ from .... schema import prompt_request_queue
 from .... schema import prompt_response_queue
 from .... log_level import LogLevel
 from .... clients.prompt_client import PromptClient
-from .... rdf import RDF_LABEL, TRUSTGRAPH_ENTITIES
+from .... rdf import RDF_LABEL, TRUSTGRAPH_ENTITIES, SUBJECT_OF
 from .... base import ConsumerProducer
 
 RDF_LABEL_VALUE = Value(value=RDF_LABEL, is_uri=True)
+SUBJECT_OF_VALUE = Value(value=SUBJECT_OF, is_uri=True)
 
 module = ".".join(__name__.split(".")[1:-1])
 
@@ -177,8 +178,24 @@ class Processor(ConsumerProducer):
                         o=Value(value=str(o), is_uri=False)
                     ))
 
+                # 'Subject of' for s
+                triples.append(Triple(
+                    s=s_value,
+                    p=SUBJECT_OF_VALUE,
+                    o=Value(value=v.metadata.id, is_uri=True)
+                ))
+
+                if rel.o_entity:
+                    # 'Subject of' for o
+                    triples.append(Triple(
+                        s=o_value,
+                        p=RDF_LABEL_VALUE,
+                        o=Value(value=v.metadata.id, is_uri=True)
+                    ))
+
                 self.emit_vec(v.metadata, s_value, v.vectors)
                 self.emit_vec(v.metadata, p_value, v.vectors)
+
                 if rel.o_entity:
                     self.emit_vec(v.metadata, o_value, v.vectors)
 

@@ -13,10 +13,12 @@ from .... schema import prompt_request_queue
 from .... schema import prompt_response_queue
 from .... log_level import LogLevel
 from .... clients.prompt_client import PromptClient
-from .... rdf import TRUSTGRAPH_ENTITIES, DEFINITION
+from .... rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL, SUBJECT_OF
 from .... base import ConsumerProducer
 
 DEFINITION_VALUE = Value(value=DEFINITION, is_uri=True)
+RDF_LABEL_VALUE = Value(value=RDF_LABEL, is_uri=True)
+SUBJECT_OF_VALUE = Value(value=SUBJECT_OF, is_uri=True)
 
 module = ".".join(__name__.split(".")[1:-1])
 
@@ -112,7 +114,19 @@ class Processor(ConsumerProducer):
                 o_value = Value(value=str(o), is_uri=False)
 
                 triples.append(Triple(
+                    s=s_value,
+                    p=RDF_LABEL_VALUE,
+                    o=Value(value=s, is_uri=False),
+                ))
+
+                triples.append(Triple(
                     s=s_value, p=DEFINITION_VALUE, o=o_value
+                ))
+
+                triples.append(Triple(
+                    s=s_value,
+                    p=SUBJECT_OF_VALUE,
+                    o=Value(value=v.metadata.id, is_uri=True)
                 ))
 
             self.emit_edges(
