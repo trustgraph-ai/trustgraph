@@ -23,52 +23,97 @@ class DigitalDocument:
 
     def emit(self, emit):
 
-        emit(Triple(Value(self.id), Value(IS_A), Value(DIGITAL_DOCUMENT)))
+        emit(Triple(
+            s=Value(value=self.id, is_uri=True),
+            p=Value(value=IS_A, is_uri=True),
+            o=Value(value=DIGITAL_DOCUMENT, is_uri=True)
+        ))
 
         if self.name:
-            emit(Triple(Value(self.id), Value(LABEL), Value(self.name)))
-            emit(Triple(Value(self.id), Value(NAME), Value(self.name)))
+
+            emit(Triple(
+                s=Value(value=self.id, is_uri=True),
+                p=Value(value=LABEL, is_uri=True),
+                o=Value(value=self.name, is_uri=False)
+            ))
+
+            emit(Triple(
+                s=Value(value=self.id, is_uri=True),
+                p=Value(value=NAME, is_uri=True),
+                o=Value(value=self.name, is_uri=False)
+            ))
 
         if self.identifier:
-            emit(Triple(Value(id), Value(IDENTIFIER), Value(self.identifier)))
+
+            emit(Triple(
+                s=Value(value=id, is_uri=True),
+                p=Value(value=IDENTIFIER, is_uri=True),
+                o=Value(value=self.identifier, is_uri=False)
+            ))
 
         if self.description:
+
             emit(Triple(
-                Value(self.id), Value(DESCRIPTION), Value(self.description)
+                s=Value(value=self.id, is_uri=True),
+                p=Value(value=DESCRIPTION, is_uri=True),
+                o=Value(value=self.description, is_uri=False)
             ))
 
         if self.copyright_notice:
+
             emit(Triple(
-                Value(self.id), Value(COPYRIGHT_NOTICE),
-                Value(self.copyright_notice)
+                s=Value(value=self.id, is_uri=True),
+                p=Value(value=COPYRIGHT_NOTICE, is_uri=True),
+                o=Value(value=self.copyright_notice, is_uri=False)
             ))
 
         if self.copyright_holder:
+
             emit(Triple(
-                Value(self.id), Value(COPYRIGHT_HOLDER),
-                Value(self.copyright_holder)
+                s=Value(value=self.id, is_uri=True),
+                p=Value(value=COPYRIGHT_HOLDER, is_uri=True),
+                o=Value(value=self.copyright_holder, is_uri=False)
             ))
 
         if self.copyright_year:
+
             emit(Triple(
-                Value(self.id), Value(COPYRIGHT_YEAR),
-                Value(self.copyright_year)
+                s=Value(value=self.id, is_uri=True),
+                p=Value(value=COPYRIGHT_YEAR, is_uri=True),
+                o=Value(value=self.copyright_year, is_uri=False)
             ))
 
         if self.license:
+
             emit(Triple(
-                Value(self.id), Value(LICENSE), Value(self.license)
+                s=Value(value=self.id, is_uri=True),
+                p=Value(value=LICENSE, is_uri=True),
+                o=Value(value=self.license, is_uri=False)
             ))
 
         if self.keywords:
             for k in self.keywords:
-                emit(Triple(Value(self.id), Value(KEYWORD), Value(k)))
+                emit(Triple(
+                    s=Value(value=self.id, is_uri=True),
+                    p=Value(value=KEYWORD, is_uri=True),
+                    o=Value(value=k, is_uri=False)
+                ))
 
         if self.publication:
+
             emit(Triple(
-                Value(self.id), Value(PUBLICATION, Value(self.publication.id))
+                s=Value(value=self.id, is_uri=True),
+                p=Value(value=PUBLICATION, is_uri=True),
+                o=Value(value=self.publication.id, is_uri=True)
             ))
+
             self.publication.emit(emit)
 
         if self.url:
-            emit(Triple(Value(self.id), Value(URL), Value(self.url)))
+
+            emit(Triple(
+                s=Value(value=self.id, is_uri=True),
+                p=Value(value=URL, is_uri=True),
+                o=Value(value=self.url, is_uri=True)
+            ))
+
