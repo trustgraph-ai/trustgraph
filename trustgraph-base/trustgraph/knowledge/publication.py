@@ -16,29 +16,55 @@ class PublicationEvent:
 
     def emit(self, emit):
 
-        emit(Triple(Value(self.id), Value(IS_A), Value(PUBLICATION_EVENT)))
+        emit(Triple(
+            s=Value(value=self.id, is_uri=True),
+            p=Value(value=IS_A, is_uri=True),
+            o=Value(value=PUBLICATION_EVENT, is_uri=True)))
 
         if self.name:
-            emit(Triple(Value(self.id), Value(LABEL), Value(self.name)))
-            emit(Triple(Value(self.id), Value(NAME), Value(self.name)))
+
+            emit(Triple(
+                s=Value(value=self.id, is_uri=True),
+                p=Value(value=LABEL, is_uri=True),
+                o=Value(value=self.name, is_uri=False)
+            ))
+
+            emit(Triple(
+                s=Value(value=self.id, is_uri=True),
+                p=Value(value=NAME, is_uri=True),
+                o=Value(value=self.name, is_uri=False)
+            ))
 
         if self.description:
+
             emit(Triple(
-                Value(self.id), Value(DESCRIPTION), Value(self.description)
+                s=Value(value=self.id, is_uri=True),
+                p=Value(value=DESCRIPTION, is_uri=True),
+                o=Value(value=self.description, is_uri=False)
             ))
 
         if self.organization:
+
             emit(Triple(
-                Value(self.id), Value(PUBLISHED_BY),
-                Value(self.organization.id)
+                s=Value(value=self.id, is_uri=True),
+                p=Value(value=PUBLISHED_BY, is_uri=True),
+                o=Value(value=self.organization.id, is_uri=True)
             ))
+
             self.organization.emit(emit)
 
         if self.start_date:
+
             emit(Triple(
-                Value(self.id), Value(START_DATE), Value(self.start_date)
+                s=Value(value=self.id, is_uri=True),
+                p=Value(value=START_DATE, is_uri=True),
+                o=Value(value=self.start_date, is_uri=False)
             ))
 
         if self.end_date:
-            emit(Triple(Value(self.id), Value(END_DATE), Value(self.end_date)))
+
+            emit(Triple(
+                s=Value(value=self.id, is_uri=True),
+                p=Value(value=END_DATE, is_uri=True),
+                o=Value(value=self.end_date, is_uri=False)))
 
