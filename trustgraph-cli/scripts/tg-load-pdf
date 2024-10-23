@@ -6,14 +6,20 @@ Loads a PDF document into TrustGraph processing.
 
 import pulsar
 from pulsar.schema import JsonSchema
-from trustgraph.schema import Document, document_ingest_queue, Metadata
 import base64
 import hashlib
 import argparse
 import os
 import time
+import uuid
 
+from trustgraph.schema import Document, document_ingest_queue
+from trustgraph.schema import Metadata
 from trustgraph.log_level import LogLevel
+from trustgraph.knowledge import hash, to_uri
+from trustgraph.knowledge import PREF_PUBEV, PREF_DOC, PREF_ORG
+from trustgraph.knowledge import Organization, PublicationEvent
+from trustgraph.knowledge import DigitalDocument
 
 default_user = 'trustgraph'
 default_collection = 'default'
@@ -27,6 +33,7 @@ class Loader:
             user,
             collection,
             log_level,
+            metadata,
     ):
 
         self.client = pulsar.Client(
@@ -42,6 +49,7 @@ class Loader:
 
         self.user = user
         self.collection = collection
+        self.metadata = metadata
 
     def load(self, files):
 
@@ -55,13 +63,23 @@ class Loader:
             path = file
             data = open(path, "rb").read()
 
-            id = hashlib.sha256(path.encode("utf-8")).hexdigest()[0:8]
+            # Create a SHA256 hash from the data
+            id = hash(data)
+
+            id = to_uri(PREF_DOC, id)
+
+            triples = []
+
+            def emit(t):
+                triples.append(t)
+
+            self.metadata.id = id
+            self.metadata.emit(emit)
 
             r = Document(
                 metadata=Metadata(
-                    source=path,
-                    title=path,
                     id=id,
+                    metadata=triples,
                     user=self.user,
                     collection=self.collection,
                 ),
@@ -113,6 +131,54 @@ def main():
     )
 
     parser.add_argument(
+        '--name', help=f'Document name'
+    )
+
+    parser.add_argument(
+        '--description', help=f'Document description'
+    )
+
+    parser.add_argument(
+        '--copyright-notice', help=f'Copyright notice'
+    )
+
+    parser.add_argument(
+        '--copyright-holder', help=f'Copyright holder'
+    )
+
+    parser.add_argument(
+        '--copyright-year', help=f'Copyright year'
+    )
+
+    parser.add_argument(
+        '--license', help=f'Copyright license'
+    )
+
+    parser.add_argument(
+        '--publication-organization', help=f'Publication organization'
+    )
+
+    parser.add_argument(
+        '--publication-description', help=f'Publication description'
+    )
+
+    parser.add_argument(
+        '--publication-date', help=f'Publication date'
+    )
+
+    parser.add_argument(
+        '--url', help=f'Document URL'
+    )
+
+    parser.add_argument(
+        '--keyword', nargs='+', help=f'Keyword'
+    )
+
+    parser.add_argument(
+        '--identifier', '--id', help=f'Document ID'
+    )
+
+    parser.add_argument(
         '-l', '--log-level',
         type=LogLevel,
         default=LogLevel.ERROR,
@@ -131,12 +197,38 @@ def main():
 
         try:
 
+            document = DigitalDocument(
+                id,
+                name=args.name,
+                description=args.description,
+                copyright_notice=args.copyright_notice,
+                copyright_holder=args.copyright_holder,
+                copyright_year=args.copyright_year,
+                license=args.license,
+                url=args.url,
+                keywords=args.keyword,
+            )
+
+            if args.publication_organization:
+                org = Organization(
+                    id=to_uri(PREF_ORG, hash(args.publication_organization)),
+                    name=args.publication_organization,
+                )
+                document.publication = PublicationEvent(
+                    id = to_uri(PREF_PUBEV, str(uuid.uuid4())),
+                    organization=org,
+                    description=args.publication_description,
+                    start_date=args.publication_date,
+                    end_date=args.publication_date,
+                )
+
             p = Loader(
                 pulsar_host=args.pulsar_host,
                 output_queue=args.output_queue,
                 user=args.user,
                 collection=args.collection,
                 log_level=args.log_level,
+                metadata=document,
             )
 
             p.load(args.files)

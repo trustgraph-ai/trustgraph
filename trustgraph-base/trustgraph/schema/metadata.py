@@ -1,10 +1,16 @@
 
-from pulsar.schema import Record, String
+from pulsar.schema import Record, String, Array
+from . types import Triple
 
 class Metadata(Record):
-    source = String()
+
+    # Source identifier
     id = String()
-    title = String()
+
+    # Subgraph
+    metadata = Array(Triple())
+
+    # Collection management
     user = String()
     collection = String()
 

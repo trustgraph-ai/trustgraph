@@ -10,6 +10,11 @@ class Value(Record):
     is_uri = Boolean()
     type = String()
 
+class Triple(Record):
+    s = Value()
+    p = Value()
+    o = Value()
+
 class Field(Record):
     name = String()
     # int, string, long, bool, float, double

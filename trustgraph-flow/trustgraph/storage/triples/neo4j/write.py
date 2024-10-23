@@ -116,14 +116,16 @@ class Processor(Consumer):
 
         v = msg.value()
 
-        self.create_node(v.s.value)
+        for t in v.triples:
 
-        if v.o.is_uri:
-            self.create_node(v.o.value)
-            self.relate_node(v.s.value, v.p.value, v.o.value)
-        else:
-            self.create_literal(v.o.value)
-            self.relate_literal(v.s.value, v.p.value, v.o.value)
+            self.create_node(t.s.value)
+
+            if v.o.is_uri:
+                self.create_node(t.o.value)
+                self.relate_node(t.s.value, t.p.value, t.o.value)
+            else:
+                self.create_literal(t.o.value)
+                self.relate_literal(t.s.value, t.p.value, t.o.value)
 
     @staticmethod
     def add_args(parser):
