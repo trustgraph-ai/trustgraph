@@ -92,11 +92,11 @@ class Processor(ConsumerProducer):
 
         return self.prompt.request_relationships(chunk)
 
-    def emit_edge(self, metadata, s, p, o):
+    def emit_edges(self, metadata, triples):
 
         t = Triples(
             metadata=metadata,
-            triples=[Triple(s=s, p=p, o=o)],
+            triples=triples,
         )
         self.producer.send(t)
 
@@ -115,6 +115,13 @@ class Processor(ConsumerProducer):
         try:
 
             rels = self.get_relationships(chunk)
+
+            triples = []
+
+            # FIXME: Putting metadata into triples store is duplicated in
+            # relationships extractor too
+            for t in v.metadata.metadata:
+                triples.append(t)
 
             for rel in rels:
 
@@ -142,42 +149,48 @@ class Processor(ConsumerProducer):
                 else:
                     o_value = Value(value=str(o), is_uri=False)
 
-                self.emit_edge(
-                    v.metadata,
-                    s_value,
-                    p_value,
-                    o_value
-                )
+                triples.append(Triple(
+                    s=s_value,
+                    p=p_value,
+                    o=o_value
+                ))
 
                 # Label for s
-                self.emit_edge(
-                    v.metadata,
-                    s_value,
-                    RDF_LABEL_VALUE,
-                    Value(value=str(s), is_uri=False)
-                )
+                triples.append(Triple(
+                    s=s_value,
+                    p=RDF_LABEL_VALUE,
+                    o=Value(value=str(s), is_uri=False)
+                ))
 
                 # Label for p
-                self.emit_edge(
-                    v.metadata,
-                    p_value,
-                    RDF_LABEL_VALUE,
-                    Value(value=str(p), is_uri=False)
-                )
+                triples.append(Triple(
+                    s=p_value,
+                    p=RDF_LABEL_VALUE,
+                    o=Value(value=str(p), is_uri=False)
+                ))
 
                 if rel.o_entity:
                     # Label for o
-                    self.emit_edge(
-                        v.metadata,
-                        o_value,
-                        RDF_LABEL_VALUE,
-                        Value(value=str(o), is_uri=False)
-                    )
+                    triples.append(Triple(
+                        s=o_value,
+                        p=RDF_LABEL_VALUE,
+                        o=Value(value=str(o), is_uri=False)
+                    ))
 
                 self.emit_vec(v.metadata, s_value, v.vectors)
                 self.emit_vec(v.metadata, p_value, v.vectors)
                 if rel.o_entity:
                     self.emit_vec(v.metadata, o_value, v.vectors)
+
+            self.emit_edges(
+                Metadata(
+                    id=v.metadata.id,
+                    metadata=[],
+                    user=v.metadata.user,
+                    collection=v.metadata.collection,
+                ),
+                triples
+            )
 
         except Exception as e:
             print("Exception: ", e, flush=True)

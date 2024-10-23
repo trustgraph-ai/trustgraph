@@ -69,11 +69,11 @@ class Processor(ConsumerProducer):
 
         return self.prompt.request_definitions(chunk)
 
-    def emit_edge(self, metadata, s, p, o):
+    def emit_edges(self, metadata, triples):
 
         t = Triples(
             metadata=metadata,
-            triples=[Triple(s=s, p=p, o=o)],
+            triples=triples,
         )
         self.producer.send(t)
 
@@ -87,6 +87,13 @@ class Processor(ConsumerProducer):
         try:
 
             defs = self.get_definitions(chunk)
+
+            triples = []
+
+            # FIXME: Putting metadata into triples store is duplicated in
+            # relationships extractor too
+            for t in v.metadata.metadata:
+                triples.append(t)
 
             for defn in defs:
 
@@ -104,7 +111,19 @@ class Processor(ConsumerProducer):
                 s_value = Value(value=str(s_uri), is_uri=True)
                 o_value = Value(value=str(o), is_uri=False)
 
-                self.emit_edge(v.metadata, s_value, DEFINITION_VALUE, o_value)
+                triples.append(Triple(
+                    s=s_value, p=DEFINITION_VALUE, o=o_value
+                ))
+
+            self.emit_edges(
+                Metadata(
+                    id=v.metadata.id,
+                    metadata=[],
+                    user=v.metadata.user,
+                    collection=v.metadata.collection,
+                ),
+                triples
+            )
 
         except Exception as e:
             print("Exception: ", e, flush=True)
