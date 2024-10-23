@@ -1,5 +1,6 @@
 
 from . defs import *
+from .. schema import Triple, Value
 
 class PublicationEvent:
     def __init__(

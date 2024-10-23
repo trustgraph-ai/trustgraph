@@ -1,5 +1,6 @@
 
-from . defs import ORGANIZATION, DESCRIPTION
+from . defs import *
+from .. schema import Triple, Value
 
 class Organization:
     def __init__(self, id, name=None, description=None):

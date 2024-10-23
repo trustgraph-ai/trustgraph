@@ -14,7 +14,7 @@ import time
 import uuid
 
 from trustgraph.schema import Document, document_ingest_queue
-from trustgraph.schema import Value, Metadata, Triple
+from trustgraph.schema import Metadata
 from trustgraph.log_level import LogLevel
 from trustgraph.knowledge import hash, to_uri
 from trustgraph.knowledge import PREF_PUBEV, PREF_DOC, PREF_ORG
