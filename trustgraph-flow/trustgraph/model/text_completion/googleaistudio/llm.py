@@ -6,6 +6,7 @@ Input is prompt, output is response.
 
 import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
+from google.api_core.exceptions import ResourceExhausted
 from prometheus_client import Histogram
 import os
 
@@ -139,7 +140,7 @@ class Processor(ConsumerProducer):
 
         # FIXME: Wrong exception, don't know what this LLM throws
         # for a rate limit
-        except TooManyRequests:
+        except ResourceExhausted as e:
 
             print("Send rate limit response...", flush=True)
 
