@@ -53,57 +53,82 @@ class PromptClient(BaseClient):
         if resp.text: return resp.text
 
         return json.loads(resp.object)
-    
-    def request_topics(self, chunk, timeout=300):
 
-        return self.call(
-            kind="extract-topics", chunk=chunk,
+    def request_definitions(self, chunk, timeout=300):
+
+        return self.request(
+            id="extract-definitions",
+            terms={
+                "chunk": chunk
+            },
             timeout=timeout
-        ).topics
+        )
 
     def request_relationships(self, chunk, timeout=300):
 
         return self.call(
-            kind="extract-relationships", chunk=chunk,
+            id="extract-relationships",
+            terms={
+                "chunk": chunk
+            },
             timeout=timeout
-        ).relationships
+        )
+
+    def request_topics(self, chunk, timeout=300):
+
+        return self.call(
+            id="extract-topics",
+            terms={
+                "chunk": chunk
+            },
+            timeout=timeout
+        )
 
     def request_rows(self, schema, chunk, timeout=300):
 
         return self.call(
-            kind="extract-rows", chunk=chunk,
-            row_schema=RowSchema(
-                name=schema.name,
-                description=schema.description,
-                fields=[
-                    Field(
-                        name=f.name, type=str(f.type), size=f.size,
-                        primary=f.primary, description=f.description,
-                    )
-                    for f in schema.fields
-                ]
-            ),
+            id="extract-rows",
+            terms={
+                "chunk": chunk,
+                "row-schema": {
+                    "name": schema.name,
+                    "description": schema.description,
+                    "fields": [
+                        {
+                            "name": f.name, "type": str(f.type),
+                            "size": f.size, "primary": f.primary,
+                            "description": f.description,
+                        }
+                        for f in schema.fields
+                    ]
+                }
+            },
             timeout=timeout
-        ).rows
+        )
 
     def request_kg_prompt(self, query, kg, timeout=300):
 
         return self.call(
-            kind="kg-prompt",
-            query=query,
-            kg=[
-                Fact(s=v[0], p=v[1], o=v[2])
-                for v in kg
-            ],
+            id="kg-prompt",
+            terms={
+                "query": query,
+                "kg": [
+                    { "s": v[0], "p": v[1], "o": v[2] }
+                    for v in kg
+                ]
+            },
             timeout=timeout
-        ).answer
+        )
 
     def request_document_prompt(self, query, documents, timeout=300):
 
         return self.call(
-            kind="document-prompt",
-            query=query,
-            documents=documents,
+            id="document-prompt",
+            terms={
+                "query": query,
+                "documents": documents,
+            },
             timeout=timeout
-        ).answer
+        )
+
 
