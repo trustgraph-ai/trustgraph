@@ -1,8 +1,12 @@
+# TrustGraph Engine
+
 <div align="center">
 
-# TrustGraph
+![TrustGraph banner](TG_engine6.svg)
 
-![TrustGraph banner](TG_Banner_exclusive.png)
+</div>
+
+## LLM Agnostic AI Agent Development Platform
 
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
@@ -10,10 +14,6 @@
 🚀 [Full Documentation](https://trustgraph.ai/docs/getstarted) 📋 [Use Cases](https://trustgraph.ai/docs/usecases) 💬 [Join the Discord](https://discord.gg/sQMwkRz5GX) 📖 [Read the Blog](https://blog.trustgraph.ai) 📺 [YouTube](https://www.youtube.com/@TrustGraph) 
 
 </div>
-
----
-
-## Introduction
 
 TrustGraph is your exclusive AI engine for data enhancement. The AI engine includes:
 
