@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+
+import json
+from trustgraph.clients.prompt_client import PromptClient
+
+p = PromptClient(pulsar_host="pulsar://localhost:6650")
+
+knowledge = [
+      ("accident", "evoked", "a wide range of deeply felt public responses"),
+      ("Space Shuttle concept", "had", "genesis"),
+      ("Commission", "had", "a mandate to develop recommendations for corrective or other action based upon the Commission's findings and determinations"),
+      ("Commission", "established", "teams of persons"),
+      ("Space Shuttle Challenger", "http://www.w3.org/2004/02/skos/core#definition", "A space shuttle that was destroyed in an accident during mission 51-L."),
+      ("The mid fuselage", "contains", "the payload bay"),
+      ("Volume I", "contains", "Chapter IX"),
+      ("accident", "resulted in", "firm national resolve that those men and women be forever enshrined in the annals of American heroes"),
+      ("Volume I", "contains", "Chapter VII"),
+      ("Volume I", "contains", "Chapter II"),
+      ("Volume I", "contains", "Chapter V"),
+      ("Commission", "believes", "its investigation and report have been responsive to the request of the President and hopes that they will serve the best interests of the nation in restoring the United States space program to its preeminent position in the world"),
+      ("Commission", "construe", "mandate"),
+      ("accident", "became", "a milestone on the way to achieving the full potential that space offers to mankind"),
+      ("Volume I", "contains", "The Commission"),
+      ("Commission", "http://www.w3.org/2004/02/skos/core#definition", "A group established to investigate the space shuttle accident"),
+      ("Volume I", "contains", "Appendix D"),
+      ("Commission", "had", "a mandate to review the circumstances surrounding the accident to establish the probable cause or causes of the accident"),
+      ("Volume I", "contains", "Recommendations")
+]
+
+q = "Tell me some facts in the knowledge graph"
+
+resp = p.request(
+    id="graph-query",
+    terms = {
+        "name": "Jayney",
+        "knowledge": knowledge,
+        "question": q
+    }
+)
+
+print(resp)
+
+
+

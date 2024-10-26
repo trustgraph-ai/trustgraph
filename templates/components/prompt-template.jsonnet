@@ -17,22 +17,38 @@ local default_prompts = import "prompts/default-prompts.jsonnet";
                         "prompt-template",
                         "-p",
                         url.pulsar,
+
                         "--text-completion-request-queue",
                         "non-persistent://tg/request/text-completion",
                         "--text-completion-response-queue",
                         "non-persistent://tg/response/text-completion-response",
-                        "--definition-template",
+
+                        "--system-prompt",
+                        $["system-template"],
+
+                        "--prompt",
+                        "question={{question}}",
+                        "extract-definitions=" +
                         $["prompt-definition-template"],
-                        "--relationship-template",
+                        "extract-relationships=" +
                         $["prompt-relationship-template"],
-                        "--topic-template",
+                        "extract-topics=" +
                         $["prompt-topic-template"],
-                        "--knowledge-query-template",
+                        "kg-prompt=" +
                         $["prompt-knowledge-query-template"],
-                        "--document-query-template",
+                        "document-prompt=" +
                         $["prompt-document-query-template"],
-                        "--rows-template",
+                        "extract-rows=" +
                         $["prompt-rows-template"],
+
+                        "--prompt-response-type",
+                        "extract-definitions=json",
+                        "extract-relationships=json",
+                        "extract-topics=json",
+                        "kg-prompt=text",
+                        "document-prompt=text",
+                        "extract-rows=json",
+
                     ])
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M");
@@ -71,18 +87,33 @@ local default_prompts = import "prompts/default-prompts.jsonnet";
                         "non-persistent://tg/request/text-completion-rag",
                         "--text-completion-response-queue",
                         "non-persistent://tg/response/text-completion-rag-response",
-                        "--definition-template",
+
+                        "--system-prompt",
+                        $["system-template"],
+
+                        "--prompt",
+                        "question={{question}}",
+                        "extract-definitions=" +
                         $["prompt-definition-template"],
-                        "--relationship-template",
+                        "extract-relationships=" +
                         $["prompt-relationship-template"],
-                        "--topic-template",
+                        "extract-topics=" +
                         $["prompt-topic-template"],
-                        "--knowledge-query-template",
+                        "kg-prompt=" +
                         $["prompt-knowledge-query-template"],
-                        "--document-query-template",
+                        "document-prompt=" +
                         $["prompt-document-query-template"],
-                        "--rows-template",
+                        "extract-rows=" +
                         $["prompt-rows-template"],
+
+                        "--prompt-response-type",
+                        "extract-definitions=json",
+                        "extract-relationships=json",
+                        "extract-topics=json",
+                        "kg-prompt=text",
+                        "document-prompt=text",
+                        "extract-rows=json",
+
                     ])
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M");

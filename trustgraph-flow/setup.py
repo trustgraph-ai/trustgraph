@@ -56,6 +56,8 @@ setuptools.setup(
         "neo4j",
         "tiktoken",
         "google-generativeai",
+        "ibis",
+        "jsonschema",
     ],
     scripts=[
         "scripts/chunker-recursive",
