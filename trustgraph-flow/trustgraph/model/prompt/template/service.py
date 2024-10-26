@@ -166,6 +166,9 @@ class Processor(ConsumerProducer):
         kind = v.id
 
         try:
+
+            print(v.terms)
+
             input = {
                 k: json.loads(v)
                 for k, v in v.terms.items()

@@ -19,6 +19,13 @@ class Definition:
     name: str
     definition: str
 
+@dataclasses.dataclass
+class Relationship:
+    s: str
+    p: str
+    o: str
+    o_entity: str
+
 class PromptClient(BaseClient):
 
     def __init__(
@@ -77,7 +84,7 @@ class PromptClient(BaseClient):
 
     def request_relationships(self, chunk, timeout=300):
 
-        return self.call(
+        rels = self.request(
             id="extract-relationships",
             terms={
                 "text": chunk
@@ -85,9 +92,19 @@ class PromptClient(BaseClient):
             timeout=timeout
         )
 
+        return [
+            Relationship(
+                s=d["subject"],
+                p=d["predicate"],
+                o=d["object"],
+                o_entity=d["object-entity"]
+            )
+            for d in rels
+        ]
+
     def request_topics(self, chunk, timeout=300):
 
-        return self.call(
+        return self.request(
             id="extract-topics",
             terms={
                 "text": chunk
@@ -97,7 +114,7 @@ class PromptClient(BaseClient):
 
     def request_rows(self, schema, chunk, timeout=300):
 
-        return self.call(
+        return self.request(
             id="extract-rows",
             terms={
                 "chunk": chunk,
@@ -119,11 +136,11 @@ class PromptClient(BaseClient):
 
     def request_kg_prompt(self, query, kg, timeout=300):
 
-        return self.call(
+        return self.request(
             id="kg-prompt",
             terms={
                 "query": query,
-                "kg": [
+                "knowledge": [
                     { "s": v[0], "p": v[1], "o": v[2] }
                     for v in kg
                 ]
@@ -133,7 +150,7 @@ class PromptClient(BaseClient):
 
     def request_document_prompt(self, query, documents, timeout=300):
 
-        return self.call(
+        return self.request(
             id="document-prompt",
             terms={
                 "query": query,
