@@ -28,7 +28,7 @@ class Relationship:
 
 @dataclasses.dataclass
 class Topic:
-    topic: str
+    name: str
     definition: str
 
 class PromptClient(BaseClient):
@@ -118,7 +118,7 @@ class PromptClient(BaseClient):
         )
         
         return [
-            Topic(topic=d["topic"], definition=d["definition"])
+            Topic(name=d["topic"], definition=d["definition"])
             for d in topics
         ]
 
