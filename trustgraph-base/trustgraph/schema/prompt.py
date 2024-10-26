@@ -39,20 +39,21 @@ class Fact(Record):
 #   schema, chunk -> rows
 
 class PromptRequest(Record):
-    kind = String()
-    chunk = String()
-    query = String()
-    kg = Array(Fact())
-    documents = Array(Bytes())
-    row_schema = RowSchema()
+    id = String()
+
+    # JSON encoded values
+    terms = Map(String())
 
 class PromptResponse(Record):
+
+    # Error case
     error = Error()
-    answer = String()
-    definitions = Array(Definition())
-    topics = Array(Topic())
-    relationships = Array(Relationship())
-    rows = Array(Map(String()))
+
+    # Just plain text
+    text = String()
+
+    # JSON encoded
+    object = String()
 
 prompt_request_queue = topic(
     'prompt', kind='non-persistent', namespace='request'

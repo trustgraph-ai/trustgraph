@@ -1,7 +1,8 @@
 
 import _pulsar
+import json
 
-from .. schema import PromptRequest, PromptResponse, Fact, RowSchema, Field
+from .. schema import PromptRequest, PromptResponse
 from .. schema import prompt_request_queue
 from .. schema import prompt_response_queue
 from . base import BaseClient
@@ -38,12 +39,20 @@ class PromptClient(BaseClient):
             output_schema=PromptResponse,
         )
 
-    def request_definitions(self, chunk, timeout=300):
+    def request(self, id, terms, timeout=300):
 
-        return self.call(
-            kind="extract-definitions", chunk=chunk,
+        resp = self.call(
+            id=id,
+            terms={
+                k: json.dumps(v)
+                for k, v in terms.items()
+            },
             timeout=timeout
-        ).definitions
+        )
+
+        if resp.text: return resp.text
+
+        return json.loads(resp.object)
     
     def request_topics(self, chunk, timeout=300):
 

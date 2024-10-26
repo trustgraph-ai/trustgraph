@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+
+import json
+from trustgraph.clients.prompt_client import PromptClient
+
+p = PromptClient(pulsar_host="pulsar://localhost:6650")
+
+description = """Fred is a 4-legged cat who is 12 years old"""
+
+resp = p.request(
+    id="analyze",
+    terms = {
+        "description": description,
+    }
+)
+
+print(json.dumps(resp, indent=4))
+
