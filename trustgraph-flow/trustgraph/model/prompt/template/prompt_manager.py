@@ -2,6 +2,7 @@
 import ibis
 import json
 from jsonschema import validate
+import re
 
 from trustgraph.clients.llm_client import LlmClient
 
@@ -42,6 +43,17 @@ class PromptManager:
             if v.terms is None:
                 v.terms = {}
 
+    def parse_json(self, text):
+        json_match = re.search(r'```(?:json)?(.*?)```', text, re.DOTALL)
+    
+        if json_match:
+            json_str = json_match.group(1).strip()
+        else:
+            # If no delimiters, assume the entire output is JSON
+            json_str = text.strip()
+
+        return json.loads(json_str)
+
     def invoke(self, id, input):
 
         if id not in self.prompts:
@@ -58,6 +70,8 @@ class PromptManager:
 
         resp = self.llm.request(**prompt)
 
+        print(resp, flush=True)
+
         if resp_type == "text":
             return resp
 
@@ -65,12 +79,11 @@ class PromptManager:
             raise RuntimeError(f"Response type {resp_type} not known")
 
         try:
-            obj = json.loads(resp)
+            obj = self.parse_json(resp)
         except:
             raise RuntimeError("JSON parse fail")
 
-        print(resp)
-        print(obj)
+        print(obj, flush=True)
         if self.prompts[id].schema:
             try:
                 print(self.prompts[id].schema)

@@ -1,6 +1,7 @@
 
 import _pulsar
 import json
+import dataclasses
 
 from .. schema import PromptRequest, PromptResponse
 from .. schema import prompt_request_queue
@@ -12,6 +13,11 @@ ERROR=_pulsar.LoggerLevel.Error
 WARN=_pulsar.LoggerLevel.Warn
 INFO=_pulsar.LoggerLevel.Info
 DEBUG=_pulsar.LoggerLevel.Debug
+
+@dataclasses.dataclass
+class Definition:
+    name: str
+    definition: str
 
 class PromptClient(BaseClient):
 
@@ -56,20 +62,25 @@ class PromptClient(BaseClient):
 
     def request_definitions(self, chunk, timeout=300):
 
-        return self.request(
+        defs = self.request(
             id="extract-definitions",
             terms={
-                "chunk": chunk
+                "text": chunk
             },
             timeout=timeout
         )
+
+        return [
+            Definition(name=d["entity"], definition=d["definition"])
+            for d in defs
+        ]
 
     def request_relationships(self, chunk, timeout=300):
 
         return self.call(
             id="extract-relationships",
             terms={
-                "chunk": chunk
+                "text": chunk
             },
             timeout=timeout
         )
@@ -79,7 +90,7 @@ class PromptClient(BaseClient):
         return self.call(
             id="extract-topics",
             terms={
-                "chunk": chunk
+                "text": chunk
             },
             timeout=timeout
         )
