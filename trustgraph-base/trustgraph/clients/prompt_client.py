@@ -26,6 +26,11 @@ class Relationship:
     o: str
     o_entity: str
 
+@dataclasses.dataclass
+class Topic:
+    topic: str
+    definition: str
+
 class PromptClient(BaseClient):
 
     def __init__(
@@ -104,13 +109,18 @@ class PromptClient(BaseClient):
 
     def request_topics(self, chunk, timeout=300):
 
-        return self.request(
+        topics = self.request(
             id="extract-topics",
             terms={
                 "text": chunk
             },
             timeout=timeout
         )
+        
+        return [
+            Topic(topic=d["topic"], definition=d["definition"])
+            for d in topics
+        ]
 
     def request_rows(self, schema, chunk, timeout=300):
 
