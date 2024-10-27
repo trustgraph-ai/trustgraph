@@ -49,6 +49,11 @@ local default_prompts = import "prompts/default-prompts.jsonnet";
                         "document-prompt=text",
                         "extract-rows=json",
 
+                        "--prompt-schema",
+                        'extract-definitions={ "type": "array", "items": { "type": "object", "properties": { "entity": { "type": "string" }, "definition": { "type": "string" } }, "required": [ "entity", "definition" ] } }',
+                        'extract-relationships={ "type": "array", "items": { "type": "object", "properties": { "subject": { "type": "string" }, "predicate": { "type": "string" },  "object": { "type": "string" },  "object-entity": { "type": "boolean" } }, "required": [ "subject", "predicate", "object", "object-entity" ] } }',
+                        'extract-topics={ "type": "array", "items": { "type": "object", "properties": { "topic": { "type": "string" }, "definition": { "type": "string" } }, "required": [ "topic", "definition" ] } }',
+
                     ])
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M");
@@ -113,6 +118,11 @@ local default_prompts = import "prompts/default-prompts.jsonnet";
                         "kg-prompt=text",
                         "document-prompt=text",
                         "extract-rows=json",
+
+                        "--prompt-schema",
+                        'extract-definitions={ "type": "array", "items": { "type": "object", "properties": { "entity": { "type": "string" }, "definition": { "type": "string" } }, "required": [ "entity", "definition" ] } }',
+                        'extract-relationships={ "type": "array", "items": { "type": "object", "properties": { "subject": { "type": "string" }, "predicate": { "type": "string" },  "object": { "type": "string" },  "object-entity": { "type": "boolean" } }, "required": [ "subject", "predicate", "object", "object-entity" ] } }',
+                        'extract-topics={ "type": "array", "items": { "type": "object", "properties": { "topic": { "type": "string" }, "definition": { "type": "string" } }, "required": [ "topic", "definition" ] } }',
 
                     ])
                     .with_limits("0.5", "128M")
