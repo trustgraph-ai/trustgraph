@@ -50,5 +50,6 @@ setuptools.setup(
         "scripts/tg-query-graph-rag",
         "scripts/tg-init-pulsar",
         "scripts/tg-processor-state",
+        "scripts/tg-invoke-prompt",
     ]
 )
