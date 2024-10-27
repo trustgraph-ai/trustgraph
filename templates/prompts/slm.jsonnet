@@ -1,7 +1,44 @@
+// For SLM.  Not currently overriding prompts
 
-// For basic SLMs, use prompt-generic
+local prompts = import "default-prompts.jsonnet";
 
-local prompts = import "components/prompt-generic.jsonnet";
+prompts + {
 
-prompts
+    // "system-template":: "PROMPT GOES HERE.",
+
+    "templates" +:: {
+
+        "question" +:: {
+            // "prompt": "PROMPT GOES HERE",
+        },
+
+        "extract-definitions" +:: {
+            // "prompt": "PROMPT GOES HERE",
+        },
+
+        "extract-relationships" +:: {
+            // "prompt": "PROMPT GOES HERE",
+        },
+
+        "extract-topics" +:: {
+            // "prompt": "PROMPT GOES HERE",
+        },
+
+        "extract-rows" +:: {
+            // "prompt": "PROMPT GOES HERE",
+        },
+
+        "kg-prompt" +:: {
+            // "prompt": "PROMPT GOES HERE",
+        },
+
+        "document-prompt" +:: {
+            // "prompt": "PROMPT GOES HERE",
+        },
+
+    }
+
+}
+
+
 

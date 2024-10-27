@@ -1,23 +1,42 @@
+// For OpenAI LLMs.  Not currently overriding prompts
 
-// For OpenAI LLMs
+local prompts = import "default-prompts.jsonnet";
 
-local base = import "base/base.jsonnet";
-local images = import "values/images.jsonnet";
-local url = import "values/url.jsonnet";
+prompts + {
 
-{
+    // "system-template":: "PROMPT GOES HERE.",
 
-//    "prompt-definition-template": "PROMPT GOES HERE",
+    "templates" +:: {
 
-//    "prompt-relationship-template":: "PROMPT GOES HERE",
+        "question" +:: {
+            // "prompt": "PROMPT GOES HERE",
+        },
 
-//    "prompt-topic-template":: "PROMPT GOES HERE",
+        "extract-definitions" +:: {
+            // "prompt": "PROMPT GOES HERE",
+        },
 
-//    "prompt-knowledge-query-template":: "PROMPT GOES HERE",
+        "extract-relationships" +:: {
+            // "prompt": "PROMPT GOES HERE",
+        },
 
-//    "prompt-document-query-template":: "PROMPT GOES HERE",
+        "extract-topics" +:: {
+            // "prompt": "PROMPT GOES HERE",
+        },
 
-//    "prompt-rows-template":: "PROMPT GOES HERE",
+        "extract-rows" +:: {
+            // "prompt": "PROMPT GOES HERE",
+        },
+
+        "kg-prompt" +:: {
+            // "prompt": "PROMPT GOES HERE",
+        },
+
+        "document-prompt" +:: {
+            // "prompt": "PROMPT GOES HERE",
+        },
+
+    }
 
 }
 

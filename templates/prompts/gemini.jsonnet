@@ -1,17 +1,42 @@
-
 // For VertexAI Gemini.  Not currently overriding prompts
-{
 
-//    "prompt-definition-template": "PROMPT GOES HERE",
+local prompts = import "default-prompts.jsonnet";
 
-//    "prompt-relationship-template":: "PROMPT GOES HERE",
+prompts + {
 
-//    "prompt-topic-template":: "PROMPT GOES HERE",
+    // "system-template":: "PROMPT GOES HERE.",
 
-//    "prompt-knowledge-query-template":: "PROMPT GOES HERE",
+    "templates" +:: {
 
-//    "prompt-document-query-template":: "PROMPT GOES HERE",
+        "question" +:: {
+            // "prompt": "PROMPT GOES HERE",
+        },
 
-//    "prompt-rows-template":: "PROMPT GOES HERE",
+        "extract-definitions" +:: {
+            // "prompt": "PROMPT GOES HERE",
+        },
+
+        "extract-relationships" +:: {
+            // "prompt": "PROMPT GOES HERE",
+        },
+
+        "extract-topics" +:: {
+            // "prompt": "PROMPT GOES HERE",
+        },
+
+        "extract-rows" +:: {
+            // "prompt": "PROMPT GOES HERE",
+        },
+
+        "kg-prompt" +:: {
+            // "prompt": "PROMPT GOES HERE",
+        },
+
+        "document-prompt" +:: {
+            // "prompt": "PROMPT GOES HERE",
+        },
+
+    }
 
 }
+
