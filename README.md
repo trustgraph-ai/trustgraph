@@ -15,7 +15,7 @@
 
 </div>
 
-TrustGraph is your exclusive AI engine for data enhancement. The AI engine includes:
+The TrustGraph Engine provides all the tools, services, Graph Stores, and VectorDBs needed to deploy reliable, scalable, and accurate AI agents. The AI Engine includes:
 
 - Bulk document ingestion
 - Automated Knowledge Graph Building
@@ -23,7 +23,7 @@ TrustGraph is your exclusive AI engine for data enhancement. The AI engine inclu
 - Model Agnostic LLM Integration
 - RAG combining both Knowledge Graphs and VectorDBs
 - Enterprise Grade Reliability, Scalability, and Modularity
-- Private end-to-end deployments with Ollama and Llamafile
+- Data Privacy enablement with local LLM deployments with Ollama and Llamafile
 
 Ingest your sensitive data in batches and build reusable and enhanced knowledge cores that transform general purpose LLMs into knowledge specialists. The observability dashboard allows you to monitor LLM latency, resource management, and token throughput in realtime. Visualize your enhanced data with Neo4j.
 
@@ -32,7 +32,7 @@ Ingest your sensitive data in batches and build reusable and enhanced knowledge 
 There are two primary ways of interacting with TrustGraph:
 
 - TrustGraph CLI
-- Configuration UI
+- Dev Configuration UI
 
 The `TrustGraph CLI` installs the commands for interacting with TrustGraph while running. The `Configuration UI` enables customization of TrustGraph deployments prior to launching.
 
