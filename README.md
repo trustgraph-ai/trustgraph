@@ -39,7 +39,7 @@ The `TrustGraph CLI` installs the commands for interacting with TrustGraph while
 ### Install the TrustGraph CLI
 
 ```
-pip3 install trustgraph-cli==0.12.5
+pip3 install trustgraph-cli==0.13.2
 ```
 
 > [!NOTE]
