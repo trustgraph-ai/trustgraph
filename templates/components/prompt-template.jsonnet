@@ -48,6 +48,13 @@ local default_prompts = import "prompts/default-prompts.jsonnet";
                         )
                         for p in std.objectKeysValuesAll($.prompts.templates)
                         if std.objectHas(p.value, "schema")
+                    ] + [
+                        "--prompt-term"
+                    ] + [
+                        p.key + "=" + t.key + ":" + t.value
+                        for p in std.objectKeysValuesAll($.prompts.templates)
+                        if std.objectHas(p.value, "terms")
+                        for t in std.objectKeysValuesAll(p.value.terms)
                     ])
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M");
