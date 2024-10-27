@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![TrustGraph banner](TG_engine6.svg)
+![TrustGraph banner](TG_Dev_Engine.svg)
 
 </div>
 
