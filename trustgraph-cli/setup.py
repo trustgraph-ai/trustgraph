@@ -46,6 +46,7 @@ setuptools.setup(
         "scripts/tg-init-pulsar-manager",
         "scripts/tg-load-pdf",
         "scripts/tg-load-text",
+        "scripts/tg-load-turtle",
         "scripts/tg-query-document-rag",
         "scripts/tg-query-graph-rag",
         "scripts/tg-init-pulsar",

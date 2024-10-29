@@ -67,4 +67,3 @@ class PublicationEvent:
                 s=Value(value=self.id, is_uri=True),
                 p=Value(value=END_DATE, is_uri=True),
                 o=Value(value=self.end_date, is_uri=False)))
-
