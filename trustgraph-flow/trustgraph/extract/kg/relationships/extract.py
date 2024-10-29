@@ -189,7 +189,7 @@ class Processor(ConsumerProducer):
                     # 'Subject of' for o
                     triples.append(Triple(
                         s=o_value,
-                        p=RDF_LABEL_VALUE,
+                        p=SUBJECT_OF_VALUE,
                         o=Value(value=v.metadata.id, is_uri=True)
                     ))
 

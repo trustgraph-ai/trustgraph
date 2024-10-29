@@ -3,12 +3,14 @@ from . defs import *
 from .. schema import Triple, Value
 
 class DigitalDocument:
+
     def __init__(
             self, id, name=None, description=None, copyright_notice=None,
             copyright_holder=None, copyright_year=None, license=None,
             identifier=None,
             publication=None, url=None, keywords=[]
     ):
+
         self.id = id
         self.name = name
         self.description = description
@@ -116,4 +118,3 @@ class DigitalDocument:
                 p=Value(value=URL, is_uri=True),
                 o=Value(value=self.url, is_uri=True)
             ))
-

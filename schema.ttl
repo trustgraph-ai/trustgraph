@@ -1,0 +1,32 @@
+@prefix ns1: <http://trustgraph.ai/e/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema: <https://schema.org/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+
+schema:subjectOf rdfs:label "subject of" .
+skos:definition rdfs:label "definition" .
+
+rdf:type rdfs:label "type" .
+
+schema:DigitalDocument rdfs:label "digital document" .
+schema:Organization rdfs:label "organization" .
+schema:PublicationEvent rdfs:label "publication event" .
+
+schema:copyrightNotice rdfs:label "copyright notice" .
+schema:copyrightHolder rdfs:label "copyright holder" .
+schema:copyrightYear rdfs:label "copyright year" .
+schema:license rdfs:label "license" .
+schema:publication rdfs:label "publication" .
+schema:startDate rdfs:label "start date" .
+schema:endDate rdfs:label "end date" .
+schema:publishedBy rdfs:label "published by" .
+schema:datePublished rdfs:label "date published" .
+schema:publication rdfs:label "publication" .
+schema:datePublished rdfs:label "date published" .
+schema:url rdfs:label "url" .
+schema:identifier rdfs:label "identifier" .
+schema:keywords rdfs:label "keyword" .
+
+skos:definition rdfs:label "definition" .
+
