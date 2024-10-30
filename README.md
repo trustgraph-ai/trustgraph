@@ -51,7 +51,7 @@ pip3 install trustgraph-cli==0.13.2
 
 While TrustGraph is endlessly customizable, the configuration editor can build a custom configuration in seconds with Docker.
 
-[Launch the Developer Config UI 🚀](https://dev.config-ui.demo.trustgraph.ai/)
+[Launch the Developer Config UI 🚀](https://config-ui.demo.trustgraph.ai/)
 
 https://github.com/user-attachments/assets/90eeaea6-82b7-480a-9972-edb66ea99738
 
