@@ -4,9 +4,11 @@
 
 ![TrustGraph banner](TG_Dev_Engine.svg)
 
+## LLM Agnostic Knowledge Agent Development Platform
+
 </div>
 
-## LLM Agnostic Knowledge Agent Development Platform
+<div align="center">
 
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
@@ -77,7 +79,7 @@ TrustGraph releases are available [here](https://github.com/trustgraph-ai/trustg
 
 | Release Type | Release Version |
 | ------------ | --------------- |
-| Latest | [0.14.3](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.14.3/deploy.zip) |
+| Latest | [0.14.4](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.14.4/deploy.zip) |
 | Stable | [0.13.2](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.13.2/deploy.zip) |
 
 TrustGraph is fully containerized and is launched with a `YAML` configuration file. Unzipping the `deploy.zip` will add the `deploy` directory with the following subdirectories:
