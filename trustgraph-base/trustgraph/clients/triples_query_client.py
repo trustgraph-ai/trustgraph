@@ -52,7 +52,7 @@ class TriplesQueryClient(BaseClient):
             self, 
             s, p, o,
             user="trustgraph", collection="default",
-            limit=10, timeout=60,
+            limit=10, timeout=120,
     ):
         return self.call(
             s=self.create_value(s),

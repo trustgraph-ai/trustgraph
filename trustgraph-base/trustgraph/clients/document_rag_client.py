@@ -38,7 +38,7 @@ class DocumentRagClient(BaseClient):
             output_schema=DocumentRagResponse,
         )
 
-    def request(self, query, timeout=500):
+    def request(self, query, timeout=300):
 
         return self.call(
             query=query, timeout=timeout
