@@ -12,8 +12,8 @@ local images = import "values/images.jsonnet";
             local container =
                 engine.container("qdrant")
                     .with_image(images.qdrant)
-                    .with_limits("1.0", "256M")
-                    .with_reservations("0.5", "256M")
+                    .with_limits("1.0", "1024M")
+                    .with_reservations("0.5", "1024M")
                     .with_port(6333, 6333, "api")
                     .with_port(6334, 6334, "api2")
                     .with_volume_mount(vol, "/qdrant/storage");
