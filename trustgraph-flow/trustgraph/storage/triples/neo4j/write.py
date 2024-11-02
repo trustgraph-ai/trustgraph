@@ -11,7 +11,7 @@ import time
 
 from neo4j import GraphDatabase
 
-from .... schema import Triple
+from .... schema import Triples
 from .... schema import triples_store_queue
 from .... log_level import LogLevel
 from .... base import Consumer
@@ -39,7 +39,7 @@ class Processor(Consumer):
             **params | {
                 "input_queue": input_queue,
                 "subscriber": subscriber,
-                "input_schema": Triple,
+                "input_schema": Triples,
                 "graph_host": graph_host,
             }
         )

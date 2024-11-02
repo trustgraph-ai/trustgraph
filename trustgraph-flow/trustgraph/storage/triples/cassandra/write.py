@@ -10,7 +10,7 @@ import argparse
 import time
 
 from .... direct.cassandra import TrustGraph
-from .... schema import Triple, Triples
+from .... schema import Triples
 from .... schema import triples_store_queue
 from .... log_level import LogLevel
 from .... base import Consumer
