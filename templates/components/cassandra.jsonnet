@@ -24,7 +24,7 @@ cassandra + {
                     .with_reservations("0.1", "128M");
 
             local containerSet = engine.containers(
-                "stop-triples", [ container ]
+                "store-triples", [ container ]
             );
 
             local service =
