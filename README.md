@@ -1,5 +1,3 @@
-# TrustGraph Engine
-
 <div align="center">
 
 ![TrustGraph banner](TG_Dev_Engine.svg)
