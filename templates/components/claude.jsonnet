@@ -25,7 +25,7 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "-x",
                         std.toString($["claude-max-output-tokens"]),
                         "-t",
-                        std.toString($["claude-temperature"]),
+                        "%0.3f" % $["claude-temperature"],
                     ])
                     .with_env_var_secrets(envSecrets)
                     .with_limits("0.5", "128M")
@@ -41,7 +41,7 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "-x",
                         std.toString($["claude-max-output-tokens"]),
                         "-t",
-                        std.toString($["claude-temperature"]),
+                        "%0.3f" % $["claude-temperature"],
                         "-i",
                         "non-persistent://tg/request/text-completion-rag",
                         "-o",

@@ -26,7 +26,7 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "-x",
                         std.toString($["openai-max-output-tokens"]),
                         "-t",
-                        std.toString($["openai-temperature"]),
+                        "%0.3f" % $["openai-temperature"],
                         "-m",
                         $["openai-model"],
                     ])
@@ -44,7 +44,7 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "-x",
                         std.toString($["openai-max-output-tokens"]),
                         "-t",
-                        std.toString($["openai-temperature"]),
+                        "%0.3f" % $["openai-temperature"],
                         "-m",
                         $["openai-model"],
                         "-i",

@@ -26,7 +26,7 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "-p",
                         url.pulsar,
                         "-t",
-                        std.toString($["cohere-temperature"]),
+                        "%0.3f" % $["cohere-temperature"],
                     ])
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M");
@@ -39,7 +39,7 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "-p",
                         url.pulsar,
                         "-t",
-                        std.toString($["cohere-temperature"]),
+                        "%0.3f" % $["cohere-temperature"],
                         "-i",
                         "non-persistent://tg/request/text-completion-rag",
                         "-o",

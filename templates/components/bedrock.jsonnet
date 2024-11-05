@@ -29,7 +29,7 @@ local chunker = import "chunker-recursive.jsonnet";
                         "-x",
                         std.toString($["bedrock-max-output-tokens"]),
                         "-t",
-                        std.toString($["bedrock-temperature"]),
+                        "%0.3f" % $["bedrock-temperature"],
                         "-m",
                         $["bedrock-model"],
               	    ])
@@ -47,7 +47,7 @@ local chunker = import "chunker-recursive.jsonnet";
                         "-x",
                         std.toString($["bedrock-max-output-tokens"]),
                         "-t",
-                        std.toString($["bedrock-temperature"]),
+                        "%0.3f" % $["bedrock-temperature"],
                         "-m",
                         $["bedrock-model"],
                         "-i",
