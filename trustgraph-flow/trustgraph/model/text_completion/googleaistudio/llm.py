@@ -111,7 +111,14 @@ class Processor(ConsumerProducer):
 
         print(f"Handling prompt {id}...", flush=True)
 
-        prompt = v.prompt
+        # FIXME: There's a system prompt above.  Maybe if system changes,
+        # then reset self.llm?  It shouldn't do, because system prompt
+        # is set system wide?
+
+        # Or... could keep different LLM structures for different system
+        # prompts?
+
+        prompt = v.system + "\n\n" + v.prompt
 
         try:
 

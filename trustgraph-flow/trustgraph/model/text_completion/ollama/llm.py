@@ -80,7 +80,7 @@ class Processor(ConsumerProducer):
 
         print(f"Handling prompt {id}...", flush=True)
 
-        prompt = v.prompt
+        prompt = v.system + "\n\n" + v.prompt
 
         try:
 

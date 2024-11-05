@@ -9,6 +9,7 @@ from . types import Error
 # LLM text completion
 
 class TextCompletionRequest(Record):
+    system = String()
     prompt = String()
 
 class TextCompletionResponse(Record):

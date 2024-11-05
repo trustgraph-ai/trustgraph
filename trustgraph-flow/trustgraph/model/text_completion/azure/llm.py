@@ -136,7 +136,7 @@ class Processor(ConsumerProducer):
         try:
 
             prompt = self.build_prompt(
-                "You are a helpful chatbot",
+                v.system,
                 v.prompt
             )
 
