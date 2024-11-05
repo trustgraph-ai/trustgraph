@@ -7,6 +7,7 @@ local prompts = import "prompts/mixtral.jsonnet";
 
     "googleaistudio-max-output-tokens":: 4096,
     "googleaistudio-temperature":: 0.0,
+    "googleaistudio-model":: "gemini-1.5-flash-002",
 
     "text-completion" +: {
     
