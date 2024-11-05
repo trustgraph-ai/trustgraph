@@ -95,7 +95,7 @@ class Processor(ConsumerProducer):
                     model=self.model,
                     max_tokens=self.max_output,
                     temperature=self.temperature,
-                    system = "You are a helpful chatbot.",
+                    system = v.system,
                     messages=[
                         {
                             "role": "user",

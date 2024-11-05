@@ -79,6 +79,7 @@ class Processor(ConsumerProducer):
 
         print(f"Handling prompt {id}...", flush=True)
 
+        system = v.system
         prompt = v.prompt
 
         try:
@@ -88,7 +89,7 @@ class Processor(ConsumerProducer):
                 output = self.cohere.chat( 
                     model=self.model,
                     message=prompt,
-                    preamble = "You are a helpful AI-assistant.",
+                    preamble = system,
                     temperature=self.temperature,
                     chat_history=[],
                     prompt_truncation='auto',
