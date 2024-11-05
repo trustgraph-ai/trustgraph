@@ -28,7 +28,7 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "-x",
                         std.toString($["azure-openai-max-output-tokens"]),
                         "-t",
-                        std.toString($["azure-openai-temperature"]),
+                        "%0.3f" % $["azure-openai-temperature"],
                     ])
                     .with_env_var_secrets(envSecrets)
                     .with_limits("0.5", "128M")
@@ -44,7 +44,7 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "-x",
                         std.toString($["azure-openai-max-output-tokens"]),
                         "-t",
-                        std.toString($["azure-openai-temperature"]),
+                        "%0.3f" % $["azure-openai-temperature"],
                         "-i",
                         "non-persistent://tg/request/text-completion-rag",
                         "-o",

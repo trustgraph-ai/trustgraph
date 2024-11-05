@@ -25,7 +25,7 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "-x",
                         std.toString($["googleaistudio-max-output-tokens"]),
                         "-t",
-                        std.toString($["googleaistudio-temperature"]),
+                        "%0.3f" % $["googleaistudio-temperature"],
                     ])
                     .with_env_var_secrets(envSecrets)
                     .with_limits("0.5", "128M")
@@ -41,7 +41,7 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "-x",
                         std.toString($["googleaistudio-max-output-tokens"]),
                         "-t",
-                        std.toString($["googleaistudio-temperature"]),
+                        "%0.3f" % $["googleaistudio-temperature"],
                         "-i",
                         "non-persistent://tg/request/text-completion-rag",
                         "-o",
