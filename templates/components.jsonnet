@@ -16,13 +16,10 @@
    "ollama": import "components/ollama.jsonnet",
    "openai": import "components/openai.jsonnet",
    "override-recursive-chunker": import "components/chunker-recursive.jsonnet",
-   "prompt-template-definitions": import "components/null.jsonnet",
-   "prompt-template-document-query": import "components/null.jsonnet",
-   "prompt-template-kq-query": import "components/null.jsonnet",
-   "prompt-template-relationships": import "components/null.jsonnet",
-   "prompt-template-rows-template": import "components/null.jsonnet",
-   "prompt-generic": import "components/prompt-generic.jsonnet",
+
    "prompt-template": import "components/prompt-template.jsonnet",
+   "prompt-overrides": import "components/prompt-overrides.jsonnet",
+
    "pulsar": import "components/pulsar.jsonnet",
    "pulsar-manager": import "components/pulsar-manager.jsonnet",
    "trustgraph-base": import "components/trustgraph.jsonnet",

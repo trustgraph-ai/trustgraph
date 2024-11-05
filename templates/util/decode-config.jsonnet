@@ -3,9 +3,7 @@ local components = import "components.jsonnet";
 
 local apply = function(p, components)
 
-    local component = components[p.name];
-
-    (component + {
+    local base = {
 
         with:: function(k, v) self + {
             [k]:: v
@@ -18,7 +16,11 @@ local apply = function(p, components)
                 self
             ),
 
-    }).with_params(p.parameters);
+    };
+
+    local component = base + components[p.name];
+
+    component.with_params(p.parameters);
 
 local decode = function(config)
     local add = function(state, c) state + apply(c, components);
