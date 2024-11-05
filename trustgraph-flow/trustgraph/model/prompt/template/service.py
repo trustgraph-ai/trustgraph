@@ -146,7 +146,7 @@ class Processor(ConsumerProducer):
             def request(self, system, prompt):
                 print(system)
                 print(prompt, flush=True)
-                return self.llm.request(system + "\n\n" + prompt)
+                return self.llm.request(system, prompt)
 
         self.llm = Llm(self.llm)
 
