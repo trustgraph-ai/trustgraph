@@ -17,7 +17,7 @@ local default_prompts = import "prompts/default-prompts.jsonnet";
             self + {
                 prompts +:: {
                     templates +:: {
-                        [key]: {
+                        [key] +:: {
                             prompt +:: value
                         }
                     }
