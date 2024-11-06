@@ -120,7 +120,7 @@ class Processor(Consumer):
 
             self.create_node(t.s.value)
 
-            if v.o.is_uri:
+            if t.o.is_uri:
                 self.create_node(t.o.value)
                 self.relate_node(t.s.value, t.p.value, t.o.value)
             else:
