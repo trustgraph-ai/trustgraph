@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 
 """
-Uses the GraphRAG service to answer a query
+Invokes the LLM prompt service by specifying a prompt identifier and template
+terms.  The prompt identifier identifies which prompt template to use.
+Standard template identifiers are: question, extract-relationship.
+The prompt terms specify keyword terms in the template to be replaced, and
+provide the values to replace them with.
 """
 
 import argparse
@@ -25,7 +29,7 @@ def query(pulsar_host, id, terms):
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-graph-query-rag',
+        prog='tg-invoke-prompt',
         description=__doc__,
     )
 
@@ -38,13 +42,14 @@ def main():
     parser.add_argument(
         'id',
         nargs=1,
-        help=f'Prompt identifier',
+        help=f'Prompt identifier e.g. question',
     )
 
     parser.add_argument(
         'term',
         nargs='*',
-        help=f'Prompt terms',
+        help='''Prompt template terms of the form key=value, can be specified
+multiple times''',
     )
 
     args = parser.parse_args()
