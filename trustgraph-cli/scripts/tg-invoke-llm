@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+
+"""
+Invokes the text completion service by specifying an LLM system prompt
+and user prompt.  Both arguments are required.
+"""
+
+import argparse
+import os
+import json
+from trustgraph.clients.llm_client import LlmClient
+
+default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://localhost:6650')
+
+def query(pulsar_host, system, prompt):
+
+    cli = LlmClient(pulsar_host=pulsar_host)
+
+    resp = cli.request(system=system, prompt=prompt)
+
+    print(resp)
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        prog='tg-graph-query-rag',
+        description=__doc__,
+    )
+
+    parser.add_argument(
+        '-p', '--pulsar-host',
+        default=default_pulsar_host,
+        help=f'Pulsar host (default: {default_pulsar_host})',
+    )
+
+    parser.add_argument(
+        'system',
+        nargs=1,
+        help='LLM system prompt e.g. You are a helpful assistant',
+    )
+
+    parser.add_argument(
+        'prompt',
+        nargs=1,
+        help='LLM prompt e.g. What is 2 + 2?',
+    )
+
+    args = parser.parse_args()
+
+    try:
+
+        query(
+            pulsar_host=args.pulsar_host,
+            system=args.system[0],
+            prompt=args.prompt[0],
+        )
+
+    except Exception as e:
+
+        print("Exception:", e, flush=True)
+
+main()
+

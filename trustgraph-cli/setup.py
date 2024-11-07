@@ -52,5 +52,6 @@ setuptools.setup(
         "scripts/tg-init-pulsar",
         "scripts/tg-processor-state",
         "scripts/tg-invoke-prompt",
+        "scripts/tg-invoke-llm",
     ]
 )
