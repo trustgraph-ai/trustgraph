@@ -89,7 +89,7 @@ class Loader:
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='loader',
+        prog='tg-load-turtle',
         description=__doc__,
     )
 
