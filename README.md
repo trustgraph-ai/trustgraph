@@ -1,8 +1,8 @@
 <div align="center">
 
-![TrustGraph banner](TG_Dev_Engine.svg)
+![TrustGraph banner](TG-silos.svg)
 
-## LLM Agnostic Knowledge Agent Development Platform
+## Connect Data Silos with Reliable AI
 
 </div>
 
