@@ -39,7 +39,7 @@ The `TrustGraph CLI` installs the commands for interacting with TrustGraph while
 ### Install the TrustGraph CLI
 
 ```
-pip3 install trustgraph-cli==0.13.2
+pip3 install trustgraph-cli==0.14.14
 ```
 
 > [!NOTE]
@@ -78,7 +78,7 @@ TrustGraph releases are available [here](https://github.com/trustgraph-ai/trustg
 | Release Type | Release Version |
 | ------------ | --------------- |
 | Latest | [0.14.14](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.14.14/deploy.zip) |
-| Stable | [0.13.2](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.13.2/deploy.zip) |
+| Stable | [0.14.14](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.14.14/deploy.zip) |
 
 TrustGraph is fully containerized and is launched with a `YAML` configuration file. Unzipping the `deploy.zip` will add the `deploy` directory with the following subdirectories:
 
