@@ -29,7 +29,7 @@ def query(pulsar_host, id, terms):
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-graph-query-rag',
+        prog='tg-invoke-prompt',
         description=__doc__,
     )
 
