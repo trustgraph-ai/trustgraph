@@ -3,7 +3,7 @@
 """
 Invokes the LLM prompt service by specifying the prompt template to use
 and values for the variables in the prompt template.  The
-prompt template is identifier by its template identifier e.g.
+prompt template is identified by its template identifier e.g.
 question, extract-definitions.  Template variable values are specified
 using key=value arguments on the command line, and these replace
 {{key}} placeholders in the template.
@@ -44,14 +44,15 @@ def main():
         'id',
         metavar='template-id',
         nargs=1,
-        help=f'Prompt identifier e.g. question',
+        help=f'Prompt identifier e.g. question, extract-definitions',
     )
 
     parser.add_argument(
         'variable',
         nargs='*',
-        help='''Prompt template terms of the form key=value, can be specified
-multiple times''',
+        metavar="variable=value",
+        help='''Prompt template terms of the form variable=value, can be
+specified multiple times''',
     )
 
     args = parser.parse_args()
