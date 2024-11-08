@@ -99,7 +99,7 @@ class Loader:
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='loader',
+        prog='tg-load-pdf',
         description=__doc__,
     )
 
