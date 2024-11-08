@@ -11,7 +11,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
 
-🚀 [Full Documentation](https://trustgraph.ai/docs/getstarted) 🧑‍💻 [CLI](https://trustgraph.ai/docs/running/cli) 📋 [Use Cases](https://trustgraph.ai/docs/usecases) 💬 [Join the Discord](https://discord.gg/sQMwkRz5GX) 📺 [YouTube](https://www.youtube.com/@TrustGraph?sub_confirmation=1) 📖 [Blog](https://blog.trustgraph.ai)
+🚀 [Get Started](https://trustgraph.ai/docs/getstarted) 🧑‍💻 [CLI Docs](https://trustgraph.ai/docs/running/cli) 📋 [Use Cases](https://trustgraph.ai/docs/usecases) 💬 [Join the Discord](https://discord.gg/sQMwkRz5GX) 📺 [YouTube](https://www.youtube.com/@TrustGraph?sub_confirmation=1) 📖 [Blog](https://blog.trustgraph.ai)
 
 </div>
 
