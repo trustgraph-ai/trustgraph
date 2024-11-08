@@ -57,13 +57,13 @@ class PromptClient(BaseClient):
             output_schema=PromptResponse,
         )
 
-    def request(self, id, terms, timeout=300):
+    def request(self, id, variables, timeout=300):
 
         resp = self.call(
             id=id,
             terms={
                 k: json.dumps(v)
-                for k, v in terms.items()
+                for k, v in variables.items()
             },
             timeout=timeout
         )
@@ -76,7 +76,7 @@ class PromptClient(BaseClient):
 
         defs = self.request(
             id="extract-definitions",
-            terms={
+            variables={
                 "text": chunk
             },
             timeout=timeout
@@ -91,7 +91,7 @@ class PromptClient(BaseClient):
 
         rels = self.request(
             id="extract-relationships",
-            terms={
+            variables={
                 "text": chunk
             },
             timeout=timeout
@@ -111,7 +111,7 @@ class PromptClient(BaseClient):
 
         topics = self.request(
             id="extract-topics",
-            terms={
+            variables={
                 "text": chunk
             },
             timeout=timeout
@@ -126,7 +126,7 @@ class PromptClient(BaseClient):
 
         return self.request(
             id="extract-rows",
-            terms={
+            variables={
                 "chunk": chunk,
                 "row-schema": {
                     "name": schema.name,
@@ -148,7 +148,7 @@ class PromptClient(BaseClient):
 
         return self.request(
             id="kg-prompt",
-            terms={
+            variables={
                 "query": query,
                 "knowledge": [
                     { "s": v[0], "p": v[1], "o": v[2] }
@@ -162,7 +162,7 @@ class PromptClient(BaseClient):
 
         return self.request(
             id="document-prompt",
-            terms={
+            variables={
                 "query": query,
                 "documents": documents,
             },

@@ -27,7 +27,7 @@ def show_graph(pulsar, user, collection):
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='graph-show',
+        prog='tg-graph-show',
         description=__doc__,
     )
 
