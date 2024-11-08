@@ -15,7 +15,7 @@
 
 </div>
 
-The TrustGraph Engine provides all the tools, services, Graph Stores, and VectorDBs needed to deploy reliable, scalable, and accurate AI agents. The AI Engine includes:
+TrustGraph provides all the tools, services, Graph Stores, and VectorDBs needed to deploy reliable, scalable, and accurate AI agents that break down the barriers disconnecting your data. Key features:
 
 - Bulk document ingestion
 - Automated Knowledge Graph Building
@@ -77,8 +77,8 @@ TrustGraph releases are available [here](https://github.com/trustgraph-ai/trustg
 
 | Release Type | Release Version |
 | ------------ | --------------- |
-| Latest | [0.14.14](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.14.14/deploy.zip) |
-| Stable | [0.14.14](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.14.14/deploy.zip) |
+| Latest | [0.14.15](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.14.15/deploy.zip) |
+| Stable | [0.14.15](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.14.15/deploy.zip) |
 
 TrustGraph is fully containerized and is launched with a `YAML` configuration file. Unzipping the `deploy.zip` will add the `deploy` directory with the following subdirectories:
 
