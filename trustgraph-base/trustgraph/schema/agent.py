@@ -1,8 +1,8 @@
 
-from pulsar.schema import Record, Bytes, String, Boolean, Array, Map, Integer
+from pulsar.schema import Record, String, Array, Map
 
 from . topic import topic
-from . types import Error, RowSchema
+from . types import Error
 
 ############################################################################
 
@@ -11,18 +11,20 @@ from . types import Error, RowSchema
 class AgentStep(Record):
     thought = String()
     action = String()
-    action_input = String()
+    arguments = Map(String())
     observation = String()
 
 class AgentRequest(Record):
     question = String()
     plan = String()
+    state = String()
     history = Array(AgentStep())
 
 class AgentResponse(Record):
     answer = String()
-    error = String()
+    error = Error()
     thought = String()
+    observation = String()
 
 agent_request_queue = topic(
     'agent', kind='non-persistent', namespace='request'

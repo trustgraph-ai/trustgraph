@@ -59,9 +59,13 @@ class BaseClient:
     def call(self, **args):
 
         timeout = args.get("timeout", DEFAULT_TIMEOUT)
+        inspect = args.get("inspect", lambda x: True)
 
         if "timeout" in args:
             del args["timeout"]
+
+        if "inspect" in args:
+            del args["inspect"]
 
         id = str(uuid.uuid4())
 
@@ -102,6 +106,10 @@ class BaseClient:
                         raise RuntimeError(
                             f"{value.error.type}: {value.error.message}"
                         )
+
+                complete = inspect(value)
+
+                if not complete: continue
 
                 resp = msg.value()
                 self.consumer.acknowledge(msg)

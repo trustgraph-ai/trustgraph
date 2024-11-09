@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+
+import json
+from trustgraph.clients.agent_client import AgentClient
+
+p = AgentClient(pulsar_host="pulsar://localhost:6650")
+
+q = "How many cats does Mark have? Calculate that number raised to 0.4 power.  Is that number lower than the numeric part of the mission identifier of the Space Shuttle Challenger on its last mission?  If so, give me an apple pie recipe, otherwise return a poem about cheese."
+
+def think(x):
+    print(f"think: {x}")
+
+def observe(x):
+    print(f"observe: {x}")
+
+resp = p.request(
+    question=q, think=think, observe=observe,
+)
+
+print(resp)
+

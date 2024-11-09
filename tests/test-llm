@@ -5,9 +5,10 @@ from trustgraph.clients.llm_client import LlmClient
 
 llm = LlmClient(pulsar_host="pulsar://localhost:6650")
 
+system = "You are a lovely assistant."
 prompt="Write a funny limerick about a llama"
 
-resp = llm.request(prompt)
+resp = llm.request(system, prompt)
 
 print(resp)
 
