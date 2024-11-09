@@ -8,8 +8,11 @@ import ibis
 import textwrap
 import time
 import dataclasses
-import sys
 import base64
+import logging
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 def wrap(text, width=75):
 
@@ -219,7 +222,7 @@ Input:
             ],
         })
 
-#         print(prompt)
+        logger.info(f"prompt: {prompt}")
 
         resp = prompt_client.request(
             "question",
@@ -231,11 +234,7 @@ Input:
         resp = resp.replace("```json", "")
         resp = resp.replace("```", "")
 
-#         print("---")
-#         print(resp)
-#         print("---")
-
-#         print(base64.b64encode(resp.encode("utf-8")).decode("utf-8"))
+        logger.info(f"response: {resp}")
 
         obj = json.loads(resp)
 
@@ -261,7 +260,7 @@ Input:
 
     def think(self, thought):
 
-#         print(thought)
+        logger.info(f"thought: {thought}")
 
         output(wrap(thought), "? ")
         print()
@@ -270,11 +269,8 @@ Input:
 
         for i in range(0, 10):
 
-#             print("-----------------------")
-#             print("Iter", i)
-
             act = self.iterate()
-#             print(act)
+            logger.info(f"act: {act}")
 
             if isinstance(act, Final):
 
@@ -284,8 +280,6 @@ Input:
             else:
 
                 self.think(act.thought)
-
-#                 print(act.name)
 
                 action = None
 
@@ -300,15 +294,13 @@ Input:
 
                 resp = resp.strip()
 
-#                 print(resp)
+                logger.info(f"resp: {resp}")
 
                 act.observation = resp
 
-#                 print("act>", act)
+                logger.info(f"iter: {act}")
 
                 self.history.append(act)
-
-#                 print(self.history)
 
         raise RuntimeError("Too many iterations")
         
