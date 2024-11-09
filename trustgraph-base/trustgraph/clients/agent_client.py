@@ -45,14 +45,12 @@ class AgentClient(BaseClient):
 
         def inspect(x):
 
-            print("inspect", x)
-
             if x.thought and think:
                 think(x.thought)
                 return
 
-            if x.observation and observation:
-                think(x.observation)
+            if x.observation and observe:
+                observe(x.observation)
                 return
 
             if x.answer:

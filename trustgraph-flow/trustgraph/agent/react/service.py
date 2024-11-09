@@ -95,6 +95,16 @@ class Processor(ConsumerProducer):
                     answer=None,
                     error=None,
                     thought=thought,
+                    observation=None,
+                )
+
+                self.producer.send(r, properties={"id": id})
+
+                r = AgentResponse(
+                    answer=None,
+                    error=None,
+                    thought=None,
+                    observation="I have imagined myself",
                 )
 
                 self.producer.send(r, properties={"id": id})
@@ -118,9 +128,13 @@ class Processor(ConsumerProducer):
 
                 self.recursive_input.send(r, properties={"id": id})
 
+                print("Done.", flush=True)
+
                 return
 
             else:
+
+                print("Send response...", flush=True)
 
                 r = AgentResponse(
                     answer="Here is the answer",
@@ -129,6 +143,8 @@ class Processor(ConsumerProducer):
                 )
 
                 self.producer.send(r, properties={"id": id})
+
+                print("Done.", flush=True)
 
                 return
 
