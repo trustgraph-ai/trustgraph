@@ -94,8 +94,6 @@ Input:
             t.tool.name for t in self.tools
         ])
 
-        print("HERE!")
-
         prompt = tpl.render({
             "tools": tools,
             "question": question,
@@ -112,8 +110,6 @@ Input:
         })
 
         logger.info(f"prompt: {prompt}")
-
-        print(prompt)
 
         resp = self.context.prompt.request(
             "question",
@@ -154,8 +150,6 @@ Input:
         act = self.reason(question, history)
         logger.info(f"act: {act}")
 
-        print(act)
-
         if isinstance(act, Final):
 
             think(act.thought)
@@ -174,8 +168,6 @@ Input:
             if action is None:
                 raise RuntimeError(f"No action for {act.name}!")
 
-            print(act.arguments)
-            print("Invoke...")
             resp = action.invoke(**act.arguments)
 
             resp = resp.strip()

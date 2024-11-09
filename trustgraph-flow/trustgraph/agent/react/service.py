@@ -139,16 +139,16 @@ class Processor(ConsumerProducer):
             else:
                 history = []
 
-            print(v.question)
+            print(f"Question: {v.question}", flush=True)
 
             if len(history) > 10:
                 raise RuntimeError("Too many agent iterations")
 
-            print("History:", history)
+            print(f"History: {history}", flush=True)
 
             def think(x):
 
-                print("THINK:", x)
+                print(f"Think: {x}", flush=True)
 
                 r = AgentResponse(
                     answer=None,
@@ -161,7 +161,7 @@ class Processor(ConsumerProducer):
 
             def observe(x):
 
-                print("OBSERVE:", x)
+                print(f"Observe: {x}", flush=True)
 
                 r = AgentResponse(
                     answer=None,
@@ -174,13 +174,11 @@ class Processor(ConsumerProducer):
 
             act = self.agent.react(v.question, history, think, observe)
 
-            print(act)
+            print(f"Action: {act}", flush=True)
 
             print("Send response...", flush=True)
 
             if type(act) == Final:
-
-                print("Send response...", flush=True)
 
                 r = AgentResponse(
                     answer=act.final,
@@ -195,8 +193,6 @@ class Processor(ConsumerProducer):
                 return
 
             history.append(act)
-
-            print(history)
 
             r = AgentRequest(
                 question=v.question,
