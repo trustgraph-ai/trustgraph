@@ -13,6 +13,8 @@ import base64
 
 def wrap(text, width=75):
 
+    if text is None: text = "n/a"
+
     out = textwrap.wrap(
         text, width=width
     )
@@ -29,10 +31,6 @@ pulsar_host = "pulsar://localhost:6650"
 
 prompt_client = PromptClient(pulsar_host=pulsar_host)
 rag_client = GraphRagClient(pulsar_host=pulsar_host)
-
-def graph_rag_query(q):
-    resp = rag_client.request(q)
-    return resp
 
 @dataclasses.dataclass
 class Argument:
@@ -110,12 +108,6 @@ class Compute:
         return self.client.request(
             "question", { "question": arguments.get("computation") }
         )
-                         
-# t = CatsKb(rag_client)
-# print(t.invoke(query="How many cats does Mark have?"))
-
-# t = Compute(prompt_client)
-# print(t.invoke(computation="12 + 4"))
 
 tools = [
     CatsKb(rag_client),
@@ -125,7 +117,8 @@ tools = [
 
 class AgentManager:
 
-    template="""Answer the following questions as best you can. You have access to the following tools:
+    template="""Answer the following questions as best you can. You have
+access to the following functions:
 
 {% for tool in tools %}{
     "function": "{{ tool.tool.name }}",
@@ -140,39 +133,49 @@ class AgentManager:
     ]
 }
 {% endfor %}
-To call a function, respond - immediately and only - with a JSON object of the following format:
+
+You can either choose to call a function to get more information, or
+return a final answer.
+    
+To call a function, respond with a JSON object of the following format:
+
 {
-    "action": "function_name",
+    "thought": "your thought about what to do",
+    "action": "the action to take, should be one of [{{tool_names}}]",
     "arguments": {
         "argument1": "argument_value",
         "argument2": "argument_value"
     }
 }
 
-Each step has the following format in your output:
+To provide a final answer, response a JSON object of the following format:
 
 {
-  "thought": "you should always think about what to do",
-  "action": "the action to take, should be one of [{{tool_names}}]",
+  "thought": "I now know the final answer",
+  "final-answer": "the final answer to the original input question"
+}
+
+Previous steps are included in the input.  Each step has the following
+format in your output:
+
+{
+  "thought": "your thought about what to do",
+  "action": "the action taken",
   "arguments": {
       "argument1": action argument,
       "argument2": action argument2
   },
   "observation": "the result of the action",
 }
-... (this JSON object can repeat N times)
-{
-  "thought": "I now know the final answer",
-  "final-answer": "the final answer to the original input question"
-}
 
-Respond by describing either one single thought/action/arguments or the final-answer.  Pause after providing each action.
-
+Respond by describing either one single thought/action/arguments or
+the final-answer.  Pause after providing one action or final-answer.
 Begin!
 
 Question: {{question}}
 
 Input:
+    
 {% for h in history %}
 {
     "action": "{{h.action}}",
@@ -216,7 +219,7 @@ Input:
             ],
         })
 
-        print(prompt)
+#         print(prompt)
 
         resp = prompt_client.request(
             "question",
@@ -228,11 +231,12 @@ Input:
         resp = resp.replace("```json", "")
         resp = resp.replace("```", "")
 
-        print("---")
-        print(resp)
-        print("---")
+#         print("---")
+#         print(resp)
+#         print("---")
 
-        print(base64.b64encode(resp.encode("utf-8")).decode("utf-8"))
+#         print(base64.b64encode(resp.encode("utf-8")).decode("utf-8"))
+
         obj = json.loads(resp)
 
         if obj.get("final-answer"):
@@ -257,20 +261,20 @@ Input:
 
     def think(self, thought):
 
-        print(thought)
+#         print(thought)
 
-        output(thought, "? ")
+        output(wrap(thought), "? ")
         print()
 
     def invoke(self):
 
         for i in range(0, 10):
 
-            print("-----------------------")
-            print("Iter", i)
+#             print("-----------------------")
+#             print("Iter", i)
 
             act = self.iterate()
-            print(act)
+#             print(act)
 
             if isinstance(act, Final):
 
@@ -281,7 +285,7 @@ Input:
 
                 self.think(act.thought)
 
-                print(act.name)
+#                 print(act.name)
 
                 action = None
 
@@ -296,23 +300,28 @@ Input:
 
                 resp = resp.strip()
 
-                print(resp)
+#                 print(resp)
 
                 act.observation = resp
 
-                print("act>", act)
+#                 print("act>", act)
 
                 self.history.append(act)
 
-                print(self.history)
+#                 print(self.history)
 
         raise RuntimeError("Too many iterations")
         
 
 q = "How many cats does Mark have? Calculate that number raised to 0.4 power.  Is that number higher than the numeric part of the mission identifier of the Space Shuttle Challenger on its last mission?  If so, give me an apple pie recipe, otherwise return a poem about cheese."
 
+output(wrap(q))
+print()
+
 am = AgentManager(prompt_client, tools, q)
 
-act = am.invoke()
-print(act)
+resp = am.invoke()
+
+output(resp, "< ")
+print()
 

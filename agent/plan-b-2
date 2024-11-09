@@ -110,12 +110,6 @@ class Compute:
         return self.client.request(
             "question", { "question": arguments.get("computation") }
         )
-                         
-# t = CatsKb(rag_client)
-# print(t.invoke(query="How many cats does Mark have?"))
-
-# t = Compute(prompt_client)
-# print(t.invoke(computation="12 + 4"))
 
 tools = [
     CatsKb(rag_client),
@@ -140,7 +134,7 @@ class AgentManager:
     ]
 }
 {% endfor %}
-To call a function, respond - immediately and only - with a JSON object of the following format:
+To call a function, respond - immediately with exactly one action - a JSON object of the following format:
 {
     "action": "function_name",
     "arguments": {
@@ -166,7 +160,7 @@ Each step has the following format in your output:
   "final-answer": "the final answer to the original input question"
 }
 
-Respond by describing either one single thought/action/arguments or the final-answer.  Pause after providing each action.
+Respond by describing either one single thought/action/arguments or the final-answer.  Pause after providing one action or final answer.
 
 Begin!
 

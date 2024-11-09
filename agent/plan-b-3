@@ -30,10 +30,6 @@ pulsar_host = "pulsar://localhost:6650"
 prompt_client = PromptClient(pulsar_host=pulsar_host)
 rag_client = GraphRagClient(pulsar_host=pulsar_host)
 
-def graph_rag_query(q):
-    resp = rag_client.request(q)
-    return resp
-
 @dataclasses.dataclass
 class Argument:
     name : str
@@ -110,12 +106,6 @@ class Compute:
         return self.client.request(
             "question", { "question": arguments.get("computation") }
         )
-                         
-# t = CatsKb(rag_client)
-# print(t.invoke(query="How many cats does Mark have?"))
-
-# t = Compute(prompt_client)
-# print(t.invoke(computation="12 + 4"))
 
 tools = [
     CatsKb(rag_client),
@@ -216,7 +206,7 @@ Input:
             ],
         })
 
-        print(prompt)
+#         print(prompt)
 
         resp = prompt_client.request(
             "question",
@@ -228,11 +218,11 @@ Input:
         resp = resp.replace("```json", "")
         resp = resp.replace("```", "")
 
-        print("---")
-        print(resp)
-        print("---")
+#         print("---")
+#         print(resp)
+#         print("---")
 
-        print(base64.b64encode(resp.encode("utf-8")).decode("utf-8"))
+#         print(base64.b64encode(resp.encode("utf-8")).decode("utf-8"))
         obj = json.loads(resp)
 
         if obj.get("final-answer"):
@@ -257,20 +247,20 @@ Input:
 
     def think(self, thought):
 
-        print(thought)
+#         print(thought)
 
-        output(thought, "? ")
+        output(wrap(thought), "? ")
         print()
 
     def invoke(self):
 
         for i in range(0, 10):
 
-            print("-----------------------")
-            print("Iter", i)
+#             print("-----------------------")
+#             print("Iter", i)
 
             act = self.iterate()
-            print(act)
+#             print(act)
 
             if isinstance(act, Final):
 
@@ -281,7 +271,7 @@ Input:
 
                 self.think(act.thought)
 
-                print(act.name)
+#                 print(act.name)
 
                 action = None
 
@@ -296,20 +286,23 @@ Input:
 
                 resp = resp.strip()
 
-                print(resp)
+#                 print(resp)
 
                 act.observation = resp
 
-                print("act>", act)
+#                 print("act>", act)
 
                 self.history.append(act)
 
-                print(self.history)
+#                 print(self.history)
 
         raise RuntimeError("Too many iterations")
         
 
 q = "How many cats does Mark have? Calculate that number raised to 0.4 power.  Is that number higher than the numeric part of the mission identifier of the Space Shuttle Challenger on its last mission?  If so, give me an apple pie recipe, otherwise return a poem about cheese."
+
+output(wrap(q))
+print()
 
 am = AgentManager(prompt_client, tools, q)
 
