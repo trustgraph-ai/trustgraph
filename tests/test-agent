@@ -42,4 +42,3 @@ resp = p.request(
 output(resp, "\U0001f4ac ")
 print()
 
-
