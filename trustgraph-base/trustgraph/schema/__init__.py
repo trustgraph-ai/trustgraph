@@ -8,4 +8,5 @@ from . topic import *
 from . graph import *
 from . retrieval import *
 from . metadata import *
+from . agent import *
 

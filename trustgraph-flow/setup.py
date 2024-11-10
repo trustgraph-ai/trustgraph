@@ -60,6 +60,7 @@ setuptools.setup(
         "jsonschema",
     ],
     scripts=[
+        "scripts/agent-manager-react",
         "scripts/chunker-recursive",
         "scripts/chunker-token",
         "scripts/de-query-milvus",

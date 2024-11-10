@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+
+"""
+Uses the GraphRAG service to answer a query
+"""
+
+import argparse
+import os
+import textwrap
+
+from trustgraph.clients.agent_client import AgentClient
+
+default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://localhost:6650')
+default_user = 'trustgraph'
+default_collection = 'default'
+
+def wrap(text, width=75):
+    if text is None: text = "n/a"
+    out = textwrap.wrap(
+        text, width=width
+    )
+    return "\n".join(out)
+
+def output(text, prefix="> ", width=78):
+    out = textwrap.indent(
+        text, prefix=prefix
+    )
+    print(out)
+
+def query(
+        pulsar_host, query, user, collection,
+        plan=None, state=None, verbose=False
+):
+
+    am = AgentClient(pulsar_host=pulsar_host)
+
+    if verbose:
+        output(wrap(query), "\U00002753 ")
+        print()
+
+    def think(x):
+        if verbose:
+            output(wrap(x), "\U0001f914 ")
+            print()
+
+    def observe(x):
+        if verbose:
+            output(wrap(x), "\U0001f4a1 ")
+            print()
+
+    resp = am.request(
+        question=query, think=think, observe=observe,
+    )
+
+    print(resp)
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        prog='tg-invoke-agent',
+        description=__doc__,
+    )
+
+    parser.add_argument(
+        '-p', '--pulsar-host',
+        default=default_pulsar_host,
+        help=f'Pulsar host (default: {default_pulsar_host})',
+    )
+
+    parser.add_argument(
+        '-q', '--query',
+        required=True,
+        help=f'Query to execute',
+    )
+
+    parser.add_argument(
+        '-u', '--user',
+        default=default_user,
+        help=f'User ID (default: {default_user})'
+    )
+
+    parser.add_argument(
+        '-c', '--collection',
+        default=default_collection,
+        help=f'Collection ID (default: {default_collection})'
+    )
+
+    parser.add_argument(
+        '-l', '--plan',
+        help=f'Agent plan (default: unspecified)'
+    )
+
+    parser.add_argument(
+        '-s', '--state',
+        help=f'Agent initial state (default: unspecified)'
+    )
+
+    parser.add_argument(
+        '-v', '--verbose',
+        action="store_true",
+        help=f'Output thinking/observations'
+    )
+
+    args = parser.parse_args()
+
+    try:
+
+        query(
+            pulsar_host=args.pulsar_host,
+            query=args.query,
+            user=args.user,
+            collection=args.collection,
+            plan=args.plan,
+            state=args.state,
+            verbose=args.verbose,
+        )
+
+    except Exception as e:
+
+        print("Exception:", e, flush=True)
+
+main()
+
