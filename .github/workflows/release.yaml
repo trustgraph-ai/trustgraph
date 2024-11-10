@@ -4,10 +4,8 @@ name: Build
 on:
   workflow_dispatch:
   push:
-#    branches:
-#      - release/v0.12
     tags:
-      - v0.14.*
+      - v0.15.*
 
 permissions:
   contents: read
