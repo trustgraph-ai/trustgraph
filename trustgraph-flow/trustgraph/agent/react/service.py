@@ -4,6 +4,7 @@ Simple agent infrastructure broadly implements the ReAct flow.
 
 import json
 import re
+import sys
 
 from pulsar.schema import JsonSchema
 
@@ -34,6 +35,73 @@ default_subscriber = module
 class Processor(ConsumerProducer):
 
     def __init__(self, **params):
+
+        tool_base = {}
+
+        # Parsing the prompt information to the prompt configuration
+        # structure
+        tool_type_arg = params.get("tool_type", [])
+        if tool_type_arg:
+            for t in tool_type_arg:
+                toks = t.split("=", 1)
+                if len(toks) < 2:
+                    raise RuntimeError(
+                        f"Tool-type string not well-formed: {t}"
+                    )
+                ttoks = toks[1].split(":", 1)
+                if len(ttoks) == 1:
+                    tool_base[toks[0]] = {
+                        "type": ttoks[0],
+                        "input-arg": "query",
+                        "arguments": {},
+                    }
+                else:
+                    tool_base[toks[0]] = {
+                        "type": ttoks[0],
+                        "input-arg": ttoks[1],
+                        "arguments": {},
+                    }
+
+        # Parsing the prompt information to the prompt configuration
+        # structure
+        tool_desc_arg = params.get("tool_description", [])
+        if tool_desc_arg:
+            for t in tool_desc_arg:
+                toks = t.split("=", 1)
+                if len(toks) < 2:
+                    raise RuntimeError(
+                        f"Tool-type string not well-formed: {t}"
+                    )
+                if toks[0] not in tool_base:
+                    raise RuntimeError(f"Description, tool {toks[0]} not known")
+                tool_base[toks[0]]["description"] = toks[1]
+
+        # Parsing the prompt information to the prompt configuration
+        # structure
+        tool_arg_arg = params.get("tool_argument", [])
+        if tool_arg_arg:
+            for t in tool_arg_arg:
+                toks = t.split("=", 1)
+                if len(toks) < 2:
+                    raise RuntimeError(
+                        f"Tool-type string not well-formed: {t}"
+                    )
+                ttoks = toks[1].split(":", 2)
+                if len(ttoks) != 3:
+                    raise RuntimeError(
+                        f"Tool argument string not well-formed: {t}"
+                    )
+                if toks[0] not in tool_base:
+                    raise RuntimeError(f"Description, tool {toks[0]} not known")
+                tool_base[toks[0]]["arguments"][ttoks[0]] = {
+                    "name": ttoks[0],
+                    "type": ttoks[1],
+                    "description": ttoks[2],
+                }
+
+        print(json.dumps(tool_base, indent=4))
+
+        sys.exit(0)
 
         input_queue = params.get("input_queue", default_input_queue)
         output_queue = params.get("output_queue", default_output_queue)
@@ -273,6 +341,35 @@ class Processor(ConsumerProducer):
             '--graph-rag-response-queue',
             default=gr_response_queue,
             help=f'Graph RAG response queue (default: {gr_response_queue})',
+        )
+
+        parser.add_argument(
+            '--tool-type', nargs='*',
+            help=f'''Specifies the type of an agent tool.  Takes the form
+<id>=<specifier>.  <id> is the name of the tool.  <specifier> is one of
+knowledge-base, text-completion.  Additional parameters are specified
+for different tools which are tool-specific. e.g. knowledge-query:<arg>
+which specifies the name of the arg whose content is fed into the knowledge
+query as a question.  text-completion:<arg> specifies the name of the arg
+whose content is fed into the text-completion service as a prompt'''
+        )
+
+        parser.add_argument(
+            '--tool-description', nargs='*',
+            help=f'''Specifies the textual description of a tool.  Takes
+the form <id>=<description>.  The description is important, it teaches the
+LLM how to use the tool.  It should describe what it does and how to
+use the arguments.  This is specified in natural language.'''
+        )
+
+        parser.add_argument(
+            '--tool-argument', nargs='*',
+            help=f'''Specifies argument usage for a tool.  Takes
+the form <id>=<arg>:<type>:<description>.  The description is important,
+it is read by the LLM and used to determine how to use the argument.
+<id> can be specified multiple times to give a tool multiple arguments.
+<type> is one of string, number.  <description> is a natural language
+description.'''
         )
 
 def run():

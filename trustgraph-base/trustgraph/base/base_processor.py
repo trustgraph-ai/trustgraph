@@ -39,8 +39,9 @@ class BaseProcessor:
 
     def __del__(self):
 
-        if self.client:
-            self.client.close()
+        if hasattr(self, "client"):
+            if self.client:
+                self.client.close()
 
     @staticmethod
     def add_args(parser):
