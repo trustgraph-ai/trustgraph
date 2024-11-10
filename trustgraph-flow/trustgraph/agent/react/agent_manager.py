@@ -13,10 +13,10 @@ class AgentManager:
 access to the following functions:
 
 {% for tool in tools %}{
-    "function": "{{ tool.tool.name }}",
-    "description": "{{ tool.tool.description }}",
+    "function": "{{ tool.name }}",
+    "description": "{{ tool.description }}",
     "arguments": [
-{% for arg in tool.tool.arguments %}        {
+{% for arg in tool.arguments %}        {
             "name": "{{ arg.name }}",
             "type": "{{ arg.type }}",
             "description": "{{ arg.description }}",
@@ -91,11 +91,25 @@ Input:
         tools = self.tools
 
         tool_names = ",".join([
-            t.tool.name for t in self.tools
+            t for t in self.tools.keys()
         ])
 
         prompt = tpl.render({
-            "tools": tools,
+            "tools": [
+                {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "arguments": [
+                        {
+                            "name": arg.name,
+                            "type": arg.type,
+                            "description": arg.description
+                        }
+                        for arg in tool.arguments.values()
+                    ]
+                }
+                for tool in self.tools.values()
+            ],
             "question": question,
             "tool_names": tool_names,
             "history": [
@@ -159,16 +173,12 @@ Input:
 
             think(act.thought)
 
-            action = None
-
-            for tool in self.tools:
-                if tool.tool.name == act.name:
-                    action = tool
-
-            if action is None:
+            if act.name in self.tools:
+                action = self.tools[act.name]
+            else:
                 raise RuntimeError(f"No action for {act.name}!")
 
-            resp = action.invoke(**act.arguments)
+            resp = action.implementation.invoke(**act.arguments)
 
             resp = resp.strip()
 

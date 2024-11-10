@@ -24,7 +24,8 @@ from ... clients.graph_rag_client import GraphRagClient
 
 from . tools import KnowledgeQueryImpl, TextCompletionImpl
 from . agent_manager import AgentManager
-from . types import Final, Action, Tool
+
+from . types import Final, Action, Tool, Argument
 
 module = ".".join(__name__.split(".")[1:-1])
 
@@ -55,9 +56,9 @@ class Processor(ConsumerProducer):
                     )
 
                 if ttoks[0] == "knowledge-query":
-                    impl = KnowledgeQueryImpl
+                    impl = KnowledgeQueryImpl(self)
                 elif ttoks[0] == "text-completion":
-                    impl = TextCompletionImpl
+                    impl = TextCompletionImpl(self)
                 else:
                     raise RuntimeError(
                         f"Tool-kind {ttoks[0]} not known"
@@ -111,15 +112,13 @@ class Processor(ConsumerProducer):
                     )
                 if toks[0] not in tool_base:
                     raise RuntimeError(f"Description, tool {toks[0]} not known")
-                tool_base[toks[0]].arguments[ttoks[0]] = {
-                    "name": ttoks[0],
-                    "type": ttoks[1],
-                    "description": ttoks[2],
-                }
+                tool_base[toks[0]].arguments[ttoks[0]] = Argument(
+                    name = ttoks[0],
+                    type = ttoks[1],
+                    description = ttoks[2]
+                )
 
-        print(json.dumps({k: str(v) for k, v in tool_base.items()}, indent=4))
-
-        sys.exit(0)
+#         print(json.dumps({k: str(v) for k, v in tool_base.items()}, indent=4))
 
         input_queue = params.get("input_queue", default_input_queue)
         output_queue = params.get("output_queue", default_output_queue)
@@ -186,11 +185,7 @@ class Processor(ConsumerProducer):
             schema=JsonSchema(AgentRequest),
         )
 
-        tools = [
-#            CatsKb(self), ShuttleKb(self), Compute(self),
-        ]
-
-        self.agent = AgentManager(self, tools)
+        self.agent = AgentManager(self, tool_base)
 
     def parse_json(self, text):
         json_match = re.search(r'```(?:json)?(.*?)```', text, re.DOTALL)
