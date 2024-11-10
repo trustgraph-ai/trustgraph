@@ -22,9 +22,9 @@ from ... clients.prompt_client import PromptClient
 from ... clients.llm_client import LlmClient
 from ... clients.graph_rag_client import GraphRagClient
 
-from . tools import CatsKb, ShuttleKb, Compute
+from . tools import KnowledgeQueryImpl, TextCompletionImpl
 from . agent_manager import AgentManager
-from . types import Final, Action
+from . types import Final, Action, Tool
 
 module = ".".join(__name__.split(".")[1:-1])
 
@@ -49,32 +49,50 @@ class Processor(ConsumerProducer):
                         f"Tool-type string not well-formed: {t}"
                     )
                 ttoks = toks[1].split(":", 1)
-                if len(ttoks) == 1:
-                    tool_base[toks[0]] = {
-                        "type": ttoks[0],
-                        "input-arg": "query",
-                        "arguments": {},
-                    }
-                else:
-                    tool_base[toks[0]] = {
-                        "type": ttoks[0],
-                        "input-arg": ttoks[1],
-                        "arguments": {},
-                    }
+                if len(ttoks) < 1:
+                    raise RuntimeError(
+                        f"Tool-type string not well-formed: {t}"
+                    )
 
-        # Parsing the prompt information to the prompt configuration
+                if ttoks[0] == "knowledge-query":
+                    impl = KnowledgeQueryImpl
+                elif ttoks[0] == "text-completion":
+                    impl = TextCompletionImpl
+                else:
+                    raise RuntimeError(
+                        f"Tool-kind {ttoks[0]} not known"
+                    )
+
+                if len(ttoks) == 1:
+                    tool_base[toks[0]] = Tool(
+                        name = ttoks[0],
+                        description = "",
+                        implementation = impl,
+                        config = { "input": "query" },
+                        arguments = {},
+                    )
+                else:
+                    tool_base[toks[0]] = Tool(
+                        name = ttoks[0],
+                        description = "",
+                        implementation = impl,
+                        config = { "input": ttoks[1] },
+                        arguments = {},
+                    )
+
+        # parsing the prompt information to the prompt configuration
         # structure
         tool_desc_arg = params.get("tool_description", [])
         if tool_desc_arg:
             for t in tool_desc_arg:
                 toks = t.split("=", 1)
                 if len(toks) < 2:
-                    raise RuntimeError(
-                        f"Tool-type string not well-formed: {t}"
+                    raise runtimeerror(
+                        f"tool-type string not well-formed: {t}"
                     )
                 if toks[0] not in tool_base:
-                    raise RuntimeError(f"Description, tool {toks[0]} not known")
-                tool_base[toks[0]]["description"] = toks[1]
+                    raise runtimeerror(f"description, tool {toks[0]} not known")
+                tool_base[toks[0]].description = toks[1]
 
         # Parsing the prompt information to the prompt configuration
         # structure
@@ -93,13 +111,13 @@ class Processor(ConsumerProducer):
                     )
                 if toks[0] not in tool_base:
                     raise RuntimeError(f"Description, tool {toks[0]} not known")
-                tool_base[toks[0]]["arguments"][ttoks[0]] = {
+                tool_base[toks[0]].arguments[ttoks[0]] = {
                     "name": ttoks[0],
                     "type": ttoks[1],
                     "description": ttoks[2],
                 }
 
-        print(json.dumps(tool_base, indent=4))
+        print(json.dumps({k: str(v) for k, v in tool_base.items()}, indent=4))
 
         sys.exit(0)
 
@@ -169,7 +187,7 @@ class Processor(ConsumerProducer):
         )
 
         tools = [
-            CatsKb(self), ShuttleKb(self), Compute(self),
+#            CatsKb(self), ShuttleKb(self), Compute(self),
         ]
 
         self.agent = AgentManager(self, tools)
@@ -347,7 +365,7 @@ class Processor(ConsumerProducer):
             '--tool-type', nargs='*',
             help=f'''Specifies the type of an agent tool.  Takes the form
 <id>=<specifier>.  <id> is the name of the tool.  <specifier> is one of
-knowledge-base, text-completion.  Additional parameters are specified
+knowledge-query, text-completion.  Additional parameters are specified
 for different tools which are tool-specific. e.g. knowledge-query:<arg>
 which specifies the name of the arg whose content is fed into the knowledge
 query as a question.  text-completion:<arg> specifies the name of the arg
