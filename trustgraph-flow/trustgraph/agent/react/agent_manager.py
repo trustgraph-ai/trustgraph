@@ -62,7 +62,9 @@ format in your output:
 
 Respond by describing either one single thought/action/arguments or
 the final-answer.  Pause after providing one action or final-answer.
-Begin!
+
+{% if context %}Additional context has been provided:
+{{context}}{% endif %}
 
 Question: {{question}}
 
@@ -80,9 +82,10 @@ Input:
 }
 {% endfor %}"""
 
-    def __init__(self, context, tools):
+    def __init__(self, context, tools, additional_context=None):
         self.context = context
         self.tools = tools
+        self.additional_context = additional_context
 
     def reason(self, question, history):
 
@@ -110,6 +113,7 @@ Input:
                 }
                 for tool in self.tools.values()
             ],
+            "context": self.additional_context,
             "question": question,
             "tool_names": tool_names,
             "history": [
@@ -122,6 +126,8 @@ Input:
                 for h in history
             ],
         })
+
+        print(prompt)
 
         logger.info(f"prompt: {prompt}")
 

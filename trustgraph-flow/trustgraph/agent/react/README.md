@@ -14,3 +14,6 @@ agent-manager-react \
         shuttle="query:string:The search query string" \
         compute="computation:string:The computation to solve"
 
+
+    --context 'The space shuttle challenger final mission was 58-L'
+

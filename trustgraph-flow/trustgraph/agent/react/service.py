@@ -37,7 +37,9 @@ class Processor(ConsumerProducer):
 
     def __init__(self, **params):
 
-        tool_base = {}
+        additional = params.get("context", None)
+
+        tools = {}
 
         # Parsing the prompt information to the prompt configuration
         # structure
@@ -65,7 +67,7 @@ class Processor(ConsumerProducer):
                     )
 
                 if len(ttoks) == 1:
-                    tool_base[toks[0]] = Tool(
+                    tools[toks[0]] = Tool(
                         name = ttoks[0],
                         description = "",
                         implementation = impl,
@@ -73,7 +75,7 @@ class Processor(ConsumerProducer):
                         arguments = {},
                     )
                 else:
-                    tool_base[toks[0]] = Tool(
+                    tools[toks[0]] = Tool(
                         name = ttoks[0],
                         description = "",
                         implementation = impl,
@@ -91,9 +93,9 @@ class Processor(ConsumerProducer):
                     raise runtimeerror(
                         f"tool-type string not well-formed: {t}"
                     )
-                if toks[0] not in tool_base:
+                if toks[0] not in tools:
                     raise runtimeerror(f"description, tool {toks[0]} not known")
-                tool_base[toks[0]].description = toks[1]
+                tools[toks[0]].description = toks[1]
 
         # Parsing the prompt information to the prompt configuration
         # structure
@@ -110,15 +112,13 @@ class Processor(ConsumerProducer):
                     raise RuntimeError(
                         f"Tool argument string not well-formed: {t}"
                     )
-                if toks[0] not in tool_base:
+                if toks[0] not in tools:
                     raise RuntimeError(f"Description, tool {toks[0]} not known")
-                tool_base[toks[0]].arguments[ttoks[0]] = Argument(
+                tools[toks[0]].arguments[ttoks[0]] = Argument(
                     name = ttoks[0],
                     type = ttoks[1],
                     description = ttoks[2]
                 )
-
-#         print(json.dumps({k: str(v) for k, v in tool_base.items()}, indent=4))
 
         input_queue = params.get("input_queue", default_input_queue)
         output_queue = params.get("output_queue", default_output_queue)
@@ -185,7 +185,11 @@ class Processor(ConsumerProducer):
             schema=JsonSchema(AgentRequest),
         )
 
-        self.agent = AgentManager(self, tool_base)
+        self.agent = AgentManager(
+            context=self,
+            tools=tools,
+            additional_context=additional
+        )
 
     def parse_json(self, text):
         json_match = re.search(r'```(?:json)?(.*?)```', text, re.DOTALL)
@@ -383,6 +387,11 @@ it is read by the LLM and used to determine how to use the argument.
 <id> can be specified multiple times to give a tool multiple arguments.
 <type> is one of string, number.  <description> is a natural language
 description.'''
+        )
+
+        parser.add_argument(
+            '--context', 
+            help=f'Optional, specifies additional context text for the LLM.'
         )
 
 def run():
