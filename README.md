@@ -147,9 +147,9 @@ TrustGraph extracts knowledge documents to an ultra-dense knowledge graph using 
 
 - Topic Extraction Agent
 - Entity Extraction Agent
-- Node Connection Agent
+- Relationship Extraction Agent
 
-The agent prompts are built through templates, enabling customized extraction agents for a specific use case. The extraction agents are launched automatically with the loader commands.
+The agent prompts are built through templates, enabling customized data extraction agents for a specific use case. The data extraction agents are launched automatically with the loader commands.
 
 PDF file:
 ```
