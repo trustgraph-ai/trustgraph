@@ -15,24 +15,28 @@
 
 </div>
 
-TrustGraph provides all the tools, services, Graph Stores, and VectorDBs needed to deploy reliable, scalable, and accurate AI agents that break down the barriers disconnecting your data. Key features:
+TrustGraph is a full AI powered data engineering platform. Extract your documents to knowledge graphs and vector embeddings with customizable data extraction agents. Deploy AI agents that leverage your data to generate reliable and accurate AI responses.
 
-- Bulk document ingestion
-- Automated Knowledge Graph Building
-- Automated Vectorization
-- Model Agnostic LLM Integration
-- RAG combining both Knowledge Graphs and VectorDBs
-- Enterprise Grade Reliability, Scalability, and Modularity
-- Data Privacy enablement with local LLM deployments with Ollama and Llamafile
+## Key Features
 
-Ingest your sensitive data in batches and build reusable and enhanced knowledge cores that transform general purpose LLMs into knowledge specialists. The observability dashboard allows you to monitor LLM latency, resource management, and token throughput in realtime. Visualize your enhanced data with Neo4j.
+- 📄 **Document Extraction**: Bulk ingest documents such as `.pdf`,`.txt`, and `.md`
+- 🔁 **No-code LLM Integration**: Anthropic, AWS Bedrock, AzureAI, AzureOpenAI, Cohere, Google AI Studio, Google VertexAI, Llamafiles, Ollama, and OpenAI
+- 📖 **Entity, Topic, and Relationship Knowledge Graphs**
+- 🔢 **Mapped Vector Embeddings**
+- ❔**No-code RAG Queries**: Automatically perform a semantic similiarity search and subgraph extraction for the context of LLM generative responses
+- 🤖 **AI Agent Generation**: Use AI to generate agent modules that autonomously run on the Apache pub/sub backbone
+- 🎛️ **Production-Grade** reliability, scalability, and accuracy
+- 🔍 **Observability**: get  insights into system performance with Prometheus and Grafana
+- 🗄️ **AI Powered Data Warehouse**: Load only the subgraph and vector embeddings you use most often
+- 🪴 **Customizable and Extensible**: Tailor for your data and use cases
+- 🖥️ **Configuration UI**: Build the `YAML` configuration with drop down menus and selectable parameters
 
-## TrustGraph Control Plane
+## Get Started
 
 There are two primary ways of interacting with TrustGraph:
 
 - TrustGraph CLI
-- Dev Configuration UI
+- Configuration UI
 
 The `TrustGraph CLI` installs the commands for interacting with TrustGraph while running. The `Configuration UI` enables customization of TrustGraph deployments prior to launching.
 
@@ -45,11 +49,11 @@ pip3 install trustgraph-cli==0.14.15
 > [!NOTE]
 > The `TrustGraph CLI` version must match the desired `TrustGraph` release version.
 
-### Developer Config UI
+### Configuration UI
 
-While TrustGraph is endlessly customizable, the configuration editor can build a custom configuration in seconds with Docker.
+While TrustGraph is endlessly customizable through the `YAML` launch files, the `Configuration UI` can build a custom configuration in seconds that deploys with Docker, Podman, Minikube, or Google Cloud.
 
-[Launch the Developer Config UI 🚀](https://config-ui.demo.trustgraph.ai/)
+[Configuration UI 🚀](https://config-ui.demo.trustgraph.ai/)
 
 https://github.com/user-attachments/assets/90eeaea6-82b7-480a-9972-edb66ea99738
 
@@ -77,7 +81,7 @@ TrustGraph releases are available [here](https://github.com/trustgraph-ai/trustg
 
 | Release Type | Release Version |
 | ------------ | --------------- |
-| Latest | [0.14.15](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.14.15/deploy.zip) |
+| Latest | [0.15.1](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.15.1/deploy.zip) |
 | Stable | [0.14.15](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.14.15/deploy.zip) |
 
 TrustGraph is fully containerized and is launched with a `YAML` configuration file. Unzipping the `deploy.zip` will add the `deploy` directory with the following subdirectories:
@@ -123,36 +127,20 @@ docker compose -f <launch-file.yaml> up -d
 kubectl apply -f <launch-file.yaml>
 ```
 
-## Core TrustGraph Features
-
-- PDF decoding
-- Text chunking
-- On-Device SLM inference with [Ollama](https://ollama.com) or [Llamafile](https://github.com/Mozilla-Ocho/llamafile)
-- Cloud LLM infernece: `AWS Bedrock`, `AzureAI`, `Anthropic`, `Cohere`, `OpenAI`, and `VertexAI`
-- Chunk-mapped vector embeddings with [HuggingFace](https://hf.co) models
-- [RDF](https://www.w3.org/TR/rdf12-schema/) Knowledge Extraction Agents
-- [Apache Cassandra](https://github.com/apache/cassandra) or [Neo4j](https://neo4j.com/) as the graph store
-- [Qdrant](https://qdrant.tech/) as the VectorDB
-- Build and load [Knowledge Cores](https://trustgraph.ai/docs/category/knowledge-cores)
-- RAG query service using both the Graph Store and VectorDB
-- [Grafana](https://github.com/grafana/) telemetry dashboard
-- Module integration with [Apache Pulsar](https://github.com/apache/pulsar/)
-- Container orchestration with `Docker`, `Podman`, or `Minikube`
-
 ## Architecture
 
 ![architecture](tg-arch-diagram.svg)
 
-TrustGraph is designed to be modular to support as many Language Models and environments as possible. A natural fit for a modular architecture is to decompose functions into a set of modules connected through a pub/sub backbone. [Apache Pulsar](https://github.com/apache/pulsar/) serves as this pub/sub backbone. Pulsar acts as the data broker managing data processing queues connected to procesing modules.
+TrustGraph is designed to be modular to support as many LLMs and environments as possible. A natural fit for a modular architecture is to decompose functions into a set of modules connected through a pub/sub backbone. [Apache Pulsar](https://github.com/apache/pulsar/) serves as this pub/sub backbone. Pulsar acts as the data broker managing data processing queues connected to procesing modules.
 
 ### Pulsar Workflows
 
 - For processing flows, Pulsar accepts the output of a processing module and queues it for input to the next subscribed module.
 - For services such as LLMs and embeddings, Pulsar provides a client/server model.  A Pulsar queue is used as the input to the service.  When processed, the output is then delivered to a separate queue where a client subscriber can request that output.
 
-## Knowledge Agents
+## Data Extraction Agents
 
-TrustGraph extracts knowledge from a text corpus (PDF or text) to an ultra-dense knowledge graph using 3 automonous knowledge agents. These agents focus on individual elements needed to build the RDF knowledge graph. The agents are:
+TrustGraph extracts knowledge documents to an ultra-dense knowledge graph using 3 automonous data extraction agents. These agents focus on individual elements needed to build the knowledge graph. The agents are:
 
 - Topic Extraction Agent
 - Entity Extraction Agent
