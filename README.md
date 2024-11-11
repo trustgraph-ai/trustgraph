@@ -20,7 +20,7 @@ TrustGraph is a full AI powered data engineering platform. Extract your document
 ## Key Features
 
 - 📄 **Document Extraction**: Bulk ingest documents such as `.pdf`,`.txt`, and `.md`
-- 🪓 **Adjustable Chunking** Choose your chunking algorithm and parameters
+- 🪓 **Adjustable Chunking**: Choose your chunking algorithm and parameters
 - 🔁 **No-code LLM Integration**: Anthropic, AWS Bedrock, AzureAI, AzureOpenAI, Cohere, Google AI Studio, Google VertexAI, Llamafiles, Ollama, and OpenAI
 - 📖 **Entity, Topic, and Relationship Knowledge Graphs**
 - 🔢 **Mapped Vector Embeddings**
