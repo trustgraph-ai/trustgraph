@@ -20,6 +20,7 @@ TrustGraph is a full AI powered data engineering platform. Extract your document
 ## Key Features
 
 - 📄 **Document Extraction**: Bulk ingest documents such as `.pdf`,`.txt`, and `.md`
+- 🪓 **Adjustable Chunking** Choose your chunking algorithm and parameters
 - 🔁 **No-code LLM Integration**: Anthropic, AWS Bedrock, AzureAI, AzureOpenAI, Cohere, Google AI Studio, Google VertexAI, Llamafiles, Ollama, and OpenAI
 - 📖 **Entity, Topic, and Relationship Knowledge Graphs**
 - 🔢 **Mapped Vector Embeddings**
@@ -49,26 +50,28 @@ pip3 install trustgraph-cli==0.14.15
 > [!NOTE]
 > The `TrustGraph CLI` version must match the desired `TrustGraph` release version.
 
+The full CLI docs are [here](https://trustgraph.ai/docs/running/cli).
+
 ### Configuration UI
 
 While TrustGraph is endlessly customizable through the `YAML` launch files, the `Configuration UI` can build a custom configuration in seconds that deploys with Docker, Podman, Minikube, or Google Cloud.
 
 [Configuration UI 🚀](https://config-ui.demo.trustgraph.ai/)
 
-https://github.com/user-attachments/assets/90eeaea6-82b7-480a-9972-edb66ea99738
+The `Configuration UI` has three sections:
 
-Launch Steps:
+- **Component Selection** ✅: Choose from the available deployment platforms, LLMs, graph store, VectorDB, chunking algorithm, chunking parameters, and LLM parameters
+- **Customization** 🧰: Customize the prompts for the data extraction agents
+- **Finish Deployment** 🚀: Download the launch `YAML` files with deployment instructions
 
-- For the selected `Model Deployment`, follow the instructions in `Model credentials` section to configure any required environment variables or paths
-- Fill in the desired LLM name in the `Model Name` field that corresponds to your selected `Model Deployment`
-- Set all desired `Model Parameters`
-- Click `GENERATE` under the `Deployment configuration` section
-- Follow the instructions under `Launch`
+The `Configuration UI` will generate the `YAML` files in `deploy.zip`. Once `deploy.zip` has been downloaded and unzipped, launching TrustGraph is as simple as navigating to the `deploy` directory and running:
 
-Once `deploy.zip` has been unzipped, launching TrustGraph is as simple as navigating to the `deploy` directory and running:
 ```
 docker compose up -d
 ```
+
+> [!TIP]
+> Docker is the recommended container orchestration platform for first getting started with TrustGraph.
 
 When finished, shutting down TrustGraph is as simple as:
 ```
