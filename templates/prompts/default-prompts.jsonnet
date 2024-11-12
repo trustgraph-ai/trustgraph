@@ -104,6 +104,10 @@
             "response-type": "text",
         },
 
+        "agent-react":: {
+            "prompt": "Answer the following questions as best you can. You have\naccess to the following functions:\n\n{% for tool in tools %}{\n    \"function\": \"{{ tool.name }}\",\n    \"description\": \"{{ tool.description }}\",\n    \"arguments\": [\n{% for arg in tool.arguments %}        {\n            \"name\": \"{{ arg.name }}\",\n            \"type\": \"{{ arg.type }}\",\n            \"description\": \"{{ arg.description }}\",\n        }\n{% endfor %}\n    ]\n}\n{% endfor %}\n\nYou can either choose to call a function to get more information, or\nreturn a final answer.\n    \nTo call a function, respond with a JSON object of the following format:\n\n{\n    \"thought\": \"your thought about what to do\",\n    \"action\": \"the action to take, should be one of [{{tool_names}}]\",\n    \"arguments\": {\n        \"argument1\": \"argument_value\",\n        \"argument2\": \"argument_value\"\n    }\n}\n\nTo provide a final answer, response a JSON object of the following format:\n\n{\n  \"thought\": \"I now know the final answer\",\n  \"final-answer\": \"the final answer to the original input question\"\n}\n\nPrevious steps are included in the input.  Each step has the following\nformat in your output:\n\n{\n  \"thought\": \"your thought about what to do\",\n  \"action\": \"the action taken\",\n  \"arguments\": {\n      \"argument1\": action argument,\n      \"argument2\": action argument2\n  },\n  \"observation\": \"the result of the action\",\n}\n\nRespond by describing either one single thought/action/arguments or\nthe final-answer.  Pause after providing one action or final-answer.\n\n{% if context %}Additional context has been provided:\n{{context}}{% endif %}\n\nQuestion: {{question}}\n\nInput:\n    \n{% for h in history %}\n{\n    \"action\": \"{{h.action}}\",\n    \"arguments\": [\n{% for k, v in h.arguments.items() %}        {\n            \"{{k}}\": \"{{v}}\",\n{%endfor%}        }\n    ],\n    \"observation\": \"{{h.observation}}\"\n}\n{% endfor %}",
+            "response-type": "json"
+        }
     }
 
 }
