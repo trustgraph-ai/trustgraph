@@ -28,6 +28,8 @@
    "vertexai": import "components/vertexai.jsonnet",
    "null": {},
 
+   "agent-manager-react": import "components/agent-manager-react.jsonnet",
+
    // FIXME: Dupes
    "cassandra": import "components/cassandra.jsonnet",
    "neo4j": import "components/neo4j.jsonnet",
