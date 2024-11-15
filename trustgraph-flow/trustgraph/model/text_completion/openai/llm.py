@@ -23,7 +23,7 @@ default_subscriber = module
 default_model = 'gpt-3.5-turbo'
 default_temperature = 0.0
 default_max_output = 4096
-default_api_key = os.getenv("OPENAI_KEY")
+default_api_key = os.getenv("OPENAI_TOKEN")
 
 class Processor(ConsumerProducer):
 
