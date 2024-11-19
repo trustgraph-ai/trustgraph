@@ -32,12 +32,15 @@ module = ".".join(__name__.split(".")[1:-1])
 default_input_queue = agent_request_queue
 default_output_queue = agent_response_queue
 default_subscriber = module
+default_max_iterations = 15
 
 class Processor(ConsumerProducer):
 
     def __init__(self, **params):
 
         additional = params.get("context", None)
+
+        self.max_iterations = int(params.get("max_iterations", default_max_iterations))
 
         tools = {}
 
@@ -67,8 +70,9 @@ class Processor(ConsumerProducer):
                     )
 
                 if len(ttoks) == 1:
+
                     tools[toks[0]] = Tool(
-                        name = ttoks[0],
+                        name = toks[0],
                         description = "",
                         implementation = impl,
                         config = { "input": "query" },
@@ -76,7 +80,7 @@ class Processor(ConsumerProducer):
                     )
                 else:
                     tools[toks[0]] = Tool(
-                        name = ttoks[0],
+                        name = toks[0],
                         description = "",
                         implementation = impl,
                         config = { "input": ttoks[1] },
@@ -226,7 +230,7 @@ class Processor(ConsumerProducer):
 
             print(f"Question: {v.question}", flush=True)
 
-            if len(history) > 10:
+            if len(history) >= self.max_iterations:
                 raise RuntimeError("Too many agent iterations")
 
             print(f"History: {history}", flush=True)
@@ -392,6 +396,12 @@ description.'''
         parser.add_argument(
             '--context', 
             help=f'Optional, specifies additional context text for the LLM.'
+        )
+
+        parser.add_argument(
+            '--max-iterations',
+            default=default_max_iterations,
+            help=f'Maximum number of react iterations (default: {default_max_iterations})',
         )
 
 def run():
