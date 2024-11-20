@@ -7,7 +7,7 @@ as text as separate output objects.
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from prometheus_client import Histogram
 
-from ... schema import TextDocument, Chunk, Source
+from ... schema import TextDocument, Chunk, Metadata
 from ... schema import text_ingest_queue, chunk_ingest_queue
 from ... log_level import LogLevel
 from ... base import ConsumerProducer
@@ -55,7 +55,7 @@ class Processor(ConsumerProducer):
     def handle(self, msg):
 
         v = msg.value()
-        print(f"Chunking {v.source.id}...", flush=True)
+        print(f"Chunking {v.metadata.id}...", flush=True)
 
         texts = self.text_splitter.create_documents(
             [v.text.decode("utf-8")]
@@ -63,14 +63,8 @@ class Processor(ConsumerProducer):
 
         for ix, chunk in enumerate(texts):
 
-            id = v.source.id + "-c" + str(ix)
-
             r = Chunk(
-                source=Source(
-                    source=v.source.source,
-                    id=id,
-                    title=v.source.title
-                ),
+                metadata=v.metadata,
                 chunk=chunk.page_content.encode("utf-8"),
             )
 

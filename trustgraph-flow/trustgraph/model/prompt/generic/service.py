@@ -2,6 +2,15 @@
 Language service abstracts prompt engineering from LLM.
 """
 
+#
+# FIXME: This module is broken, it doesn't conform to the prompt API change
+# made in 0.14, nor the prompt template support.
+#
+# It could be made to conform by using prompt-template as a starting
+# point, and hard-coding all the information.
+# 
+
+
 import json
 import re
 
@@ -468,6 +477,8 @@ class Processor(ConsumerProducer):
         )
 
 def run():
+
+    raise RuntimeError("NOT IMPLEMENTED")
 
     Processor.start(module, __doc__)
 

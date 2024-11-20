@@ -6,11 +6,13 @@ local prompts = import "prompts/slm.jsonnet";
 {
 
     "llamafile-model":: "LLaMA_CPP",
-    "llamafile-url":: "${LLAMAFILE_URL}",
 
     "text-completion" +: {
     
         create:: function(engine)
+
+            local envSecrets = engine.envSecrets("llamafile-credentials")
+                .with_env_var("LLAMAFILE_URL", "llamafile-url");
 
             local container =
                 engine.container("text-completion")
@@ -21,27 +23,12 @@ local prompts = import "prompts/slm.jsonnet";
                         url.pulsar,
                         "-m",
                         $["llamafile-model"],
-                        "-r",
-                        $["llamafile-url"],
                     ])
+                    .with_env_var_secrets(envSecrets)
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M");
 
-            local containerSet = engine.containers(
-                "text-completion", [ container ]
-            );
-
-            engine.resources([
-                containerSet,
-            ])
-
-    },
-
-    "text-completion-rag" +: {
-    
-        create:: function(engine)
-
-            local container =
+            local containerRag =
                 engine.container("text-completion-rag")
                     .with_image(images.trustgraph)
                     .with_command([
@@ -50,26 +37,40 @@ local prompts = import "prompts/slm.jsonnet";
                         url.pulsar,
                         "-m",
                         $["llamafile-model"],
-                        "-r",
-                        $["llamafile-url"],
                         "-i",
                         "non-persistent://tg/request/text-completion-rag",
                         "-o",
                         "non-persistent://tg/response/text-completion-rag-response",
                     ])
+                    .with_env_var_secrets(envSecrets)
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M");
 
             local containerSet = engine.containers(
-                "text-completion-rag", [ container ]
+                "text-completion", [ container ]
             );
 
+            local containerSetRag = engine.containers(
+                "text-completion-rag", [ containerRag ]
+            );
+
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8080, 8080, "metrics");
+
+            local serviceRag =
+                engine.internalService(containerSetRag)
+                .with_port(8080, 8080, "metrics");
+
             engine.resources([
+                envSecrets,
                 containerSet,
+                containerSetRag,
+                service,
+                serviceRag,
             ])
 
-
-    }
+    },
 
 } + prompts
 

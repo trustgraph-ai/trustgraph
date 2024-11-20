@@ -66,7 +66,10 @@ class Processor(ConsumerProducer):
             for vec in v.vectors:
 
                 dim = len(vec)
-                collection = "triples_" + str(dim)
+                collection = (
+                    "t_" + v.user + "_" + v.collection + "_" +
+                    str(dim)
+                )
 
                 search_result = self.client.query_points(
                     collection_name=collection,

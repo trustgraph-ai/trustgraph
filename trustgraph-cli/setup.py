@@ -34,7 +34,7 @@ setuptools.setup(
     python_requires='>=3.8',
     download_url = "https://github.com/trustgraph-ai/trustgraph/archive/refs/tags/v" + version + ".tar.gz",
     install_requires=[
-        "trustgraph-base<0.12",
+        "trustgraph-base>=0.15,<0.16",
         "requests",
         "pulsar-client",
         "rdflib",
@@ -46,9 +46,13 @@ setuptools.setup(
         "scripts/tg-init-pulsar-manager",
         "scripts/tg-load-pdf",
         "scripts/tg-load-text",
+        "scripts/tg-load-turtle",
         "scripts/tg-query-document-rag",
         "scripts/tg-query-graph-rag",
         "scripts/tg-init-pulsar",
         "scripts/tg-processor-state",
+        "scripts/tg-invoke-agent",
+        "scripts/tg-invoke-prompt",
+        "scripts/tg-invoke-llm",
     ]
 )

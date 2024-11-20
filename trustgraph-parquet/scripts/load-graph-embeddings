@@ -6,7 +6,7 @@ Loads Graph embeddings into TrustGraph processing.
 
 import pulsar
 from pulsar.schema import JsonSchema
-from trustgraph.schema import GraphEmbeddings, Value
+from trustgraph.schema import GraphEmbeddings, Value, Metadata
 from trustgraph.schema import graph_embeddings_store_queue
 import argparse
 import os
@@ -24,6 +24,8 @@ class Loader:
             output_queue,
             log_level,
             file,
+            user,
+            collection,
     ):
 
         self.client = pulsar.Client(
@@ -38,6 +40,8 @@ class Loader:
         )
 
         self.file = file
+        self.user = user
+        self.collection = collection
 
     def run(self):
 
@@ -66,11 +70,16 @@ class Loader:
                 n = ent.as_py()
 
                 r = GraphEmbeddings(
+                    metadata=Metadata(
+                        metadata=[],
+                        user=self.user,
+                        collection=self.collection,
+                    ),
                     vectors=b,
                     entity=Value(
                         value=n,
                         is_uri=n.startswith("https:")
-                    )
+                    ),
                 )
 
                 self.producer.send(r)
@@ -90,6 +99,8 @@ def main():
 
     default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://localhost:6650')
     default_output_queue = graph_embeddings_store_queue
+    default_user = 'trustgraph'
+    default_collection = 'default'
 
     parser.add_argument(
         '-p', '--pulsar-host',
@@ -101,6 +112,18 @@ def main():
         '-o', '--output-queue',
         default=default_output_queue,
         help=f'Output queue (default: {default_output_queue})'
+    )
+
+    parser.add_argument(
+        '-u', '--user',
+        default=default_user,
+        help=f'User ID (default: {default_user})'
+    )
+
+    parser.add_argument(
+        '-c', '--collection',
+        default=default_collection,
+        help=f'Collection ID (default: {default_collection})'
     )
 
     parser.add_argument(
@@ -127,6 +150,8 @@ def main():
                 output_queue=args.output_queue,
                 log_level=args.log_level,
                 file=args.file,
+                user=args.user,
+                collection=args.collection,
             )
 
             p.run()

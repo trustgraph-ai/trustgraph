@@ -20,7 +20,7 @@ default_input_queue = text_completion_request_queue
 default_output_queue = text_completion_response_queue
 default_subscriber = module
 default_model = 'LLaMA_CPP'
-default_llamafile = 'http://localhost:8080/v1'
+default_llamafile = os.getenv("LLAMAFILE_URL", "http://localhost:8080/v1")
 default_temperature = 0.0
 default_max_output = 4096
 
@@ -84,7 +84,7 @@ class Processor(ConsumerProducer):
 
         print(f"Handling prompt {id}...", flush=True)
 
-        prompt = v.prompt
+        prompt = v.system + "\n\n" + v.prompt
 
         try:
 

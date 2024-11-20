@@ -1,6 +1,7 @@
 
 # VERSION=$(shell git describe | sed 's/^v//')
-VERSION=0.11.20
+
+VERSION=0.0.0
 
 DOCKER=podman
 
@@ -35,6 +36,7 @@ CONTAINER=docker.io/trustgraph/trustgraph-flow
 
 update-package-versions:
 	mkdir -p trustgraph-cli/trustgraph
+	mkdir -p trustgraph/trustgraph
 	echo __version__ = \"${VERSION}\" > trustgraph-base/trustgraph/base_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-flow/trustgraph/flow_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-vertexai/trustgraph/vertexai_version.py

@@ -10,7 +10,7 @@ import argparse
 import time
 
 from .... direct.cassandra import TrustGraph
-from .... schema import Triple
+from .... schema import Triples
 from .... schema import triples_store_queue
 from .... log_level import LogLevel
 from .... base import Consumer
@@ -33,22 +33,42 @@ class Processor(Consumer):
             **params | {
                 "input_queue": input_queue,
                 "subscriber": subscriber,
-                "input_schema": Triple,
+                "input_schema": Triples,
                 "graph_host": graph_host,
             }
         )
 
-        self.tg = TrustGraph([graph_host])
+        self.graph_host = [graph_host]
+        self.table = None
 
     def handle(self, msg):
 
         v = msg.value()
 
-        self.tg.insert(
-            v.s.value,
-            v.p.value,
-            v.o.value
-        )
+        table = (v.metadata.user, v.metadata.collection)
+
+        if self.table is None or self.table != table:
+
+            self.tg = None
+
+            try:
+                self.tg = TrustGraph(
+                    hosts=self.graph_host,
+                    keyspace=v.metadata.user, table=v.metadata.collection,
+                )
+            except Exception as e:
+                print("Exception", e, flush=True)
+                time.sleep(1)
+                raise e
+
+            self.table = table
+
+        for t in v.triples:
+            self.tg.insert(
+                t.s.value,
+                t.p.value,
+                t.o.value
+            )
 
     @staticmethod
     def add_args(parser):

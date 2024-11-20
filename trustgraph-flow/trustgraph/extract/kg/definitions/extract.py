@@ -7,16 +7,18 @@ get entity definitions which are output as graph edges.
 import urllib.parse
 import json
 
-from .... schema import ChunkEmbeddings, Triple, Source, Value
+from .... schema import ChunkEmbeddings, Triple, Triples, Metadata, Value
 from .... schema import chunk_embeddings_ingest_queue, triples_store_queue
 from .... schema import prompt_request_queue
 from .... schema import prompt_response_queue
 from .... log_level import LogLevel
 from .... clients.prompt_client import PromptClient
-from .... rdf import TRUSTGRAPH_ENTITIES, DEFINITION
+from .... rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL, SUBJECT_OF
 from .... base import ConsumerProducer
 
 DEFINITION_VALUE = Value(value=DEFINITION, is_uri=True)
+RDF_LABEL_VALUE = Value(value=RDF_LABEL, is_uri=True)
+SUBJECT_OF_VALUE = Value(value=SUBJECT_OF, is_uri=True)
 
 module = ".".join(__name__.split(".")[1:-1])
 
@@ -44,7 +46,7 @@ class Processor(ConsumerProducer):
                 "output_queue": output_queue,
                 "subscriber": subscriber,
                 "input_schema": ChunkEmbeddings,
-                "output_schema": Triple,
+                "output_schema": Triples,
                 "prompt_request_queue": pr_request_queue,
                 "prompt_response_queue": pr_response_queue,
             }
@@ -69,21 +71,31 @@ class Processor(ConsumerProducer):
 
         return self.prompt.request_definitions(chunk)
 
-    def emit_edge(self, s, p, o):
+    def emit_edges(self, metadata, triples):
 
-        t = Triple(s=s, p=p, o=o)
+        t = Triples(
+            metadata=metadata,
+            triples=triples,
+        )
         self.producer.send(t)
 
     def handle(self, msg):
 
         v = msg.value()
-        print(f"Indexing {v.source.id}...", flush=True)
+        print(f"Indexing {v.metadata.id}...", flush=True)
 
         chunk = v.chunk.decode("utf-8")
 
         try:
 
             defs = self.get_definitions(chunk)
+
+            triples = []
+
+            # FIXME: Putting metadata into triples store is duplicated in
+            # relationships extractor too
+            for t in v.metadata.metadata:
+                triples.append(t)
 
             for defn in defs:
 
@@ -101,7 +113,31 @@ class Processor(ConsumerProducer):
                 s_value = Value(value=str(s_uri), is_uri=True)
                 o_value = Value(value=str(o), is_uri=False)
 
-                self.emit_edge(s_value, DEFINITION_VALUE, o_value)
+                triples.append(Triple(
+                    s=s_value,
+                    p=RDF_LABEL_VALUE,
+                    o=Value(value=s, is_uri=False),
+                ))
+
+                triples.append(Triple(
+                    s=s_value, p=DEFINITION_VALUE, o=o_value
+                ))
+
+                triples.append(Triple(
+                    s=s_value,
+                    p=SUBJECT_OF_VALUE,
+                    o=Value(value=v.metadata.id, is_uri=True)
+                ))
+
+            self.emit_edges(
+                Metadata(
+                    id=v.metadata.id,
+                    metadata=[],
+                    user=v.metadata.user,
+                    collection=v.metadata.collection,
+                ),
+                triples
+            )
 
         except Exception as e:
             print("Exception: ", e, flush=True)

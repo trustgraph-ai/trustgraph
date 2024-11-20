@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+
+"""
+Invokes the LLM prompt service by specifying the prompt template to use
+and values for the variables in the prompt template.  The
+prompt template is identified by its template identifier e.g.
+question, extract-definitions.  Template variable values are specified
+using key=value arguments on the command line, and these replace
+{{key}} placeholders in the template.
+"""
+
+import argparse
+import os
+import json
+from trustgraph.clients.prompt_client import PromptClient
+
+default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://localhost:6650')
+
+def query(pulsar_host, template_id, variables):
+
+    cli = PromptClient(pulsar_host=pulsar_host)
+
+    resp = cli.request(id=template_id, variables=variables)
+
+    if isinstance(resp, str):
+        print(resp)
+    else:
+        print(json.dumps(resp, indent=4))
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        prog='tg-invoke-prompt',
+        description=__doc__,
+    )
+
+    parser.add_argument(
+        '-p', '--pulsar-host',
+        default=default_pulsar_host,
+        help=f'Pulsar host (default: {default_pulsar_host})',
+    )
+
+    parser.add_argument(
+        'id',
+        metavar='template-id',
+        nargs=1,
+        help=f'Prompt identifier e.g. question, extract-definitions',
+    )
+
+    parser.add_argument(
+        'variable',
+        nargs='*',
+        metavar="variable=value",
+        help='''Prompt template terms of the form variable=value, can be
+specified multiple times''',
+    )
+
+    args = parser.parse_args()
+
+    variables = {}
+
+    for variable in args.variable:
+
+        toks = variable.split("=", 1)
+        if len(toks) != 2:
+            raise RuntimeError(f"Malformed variable: {variable}")
+
+        variables[toks[0]] = toks[1]
+
+    try:
+
+        query(
+            pulsar_host=args.pulsar_host,
+            template_id=args.id[0],
+            variables=variables,
+        )
+
+    except Exception as e:
+
+        print("Exception:", e, flush=True)
+
+main()
+

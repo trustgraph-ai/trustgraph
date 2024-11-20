@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 """
-Connects to the graph query service and dumps all graph edges.
+Connects to the graph query service and dumps all graph edges in Turtle
+format.
 """
 
 import argparse
@@ -50,7 +51,7 @@ def show_graph(pulsar):
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='graph-show',
+        prog='tg-graph-to-turtle',
         description=__doc__,
     )
 

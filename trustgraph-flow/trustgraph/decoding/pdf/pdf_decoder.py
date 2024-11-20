@@ -8,7 +8,7 @@ import tempfile
 import base64
 from langchain_community.document_loaders import PyPDFLoader
 
-from ... schema import Document, TextDocument, Source
+from ... schema import Document, TextDocument, Metadata
 from ... schema import document_ingest_queue, text_ingest_queue
 from ... log_level import LogLevel
 from ... base import ConsumerProducer
@@ -45,7 +45,7 @@ class Processor(ConsumerProducer):
 
         v = msg.value()
 
-        print(f"Decoding {v.source.id}...", flush=True)
+        print(f"Decoding {v.metadata.id}...", flush=True)
 
         with tempfile.NamedTemporaryFile(delete_on_close=False) as fp:
 
@@ -59,13 +59,8 @@ class Processor(ConsumerProducer):
 
                 for ix, page in enumerate(pages):
 
-                    id = v.source.id + "-p" + str(ix)
                     r = TextDocument(
-                        source=Source(
-                            source=v.source.source,
-                            title=v.source.title,
-                            id=id,
-                        ),
+                        metadata=v.metadata,
                         text=page.page_content.encode("utf-8"),
                     )
 

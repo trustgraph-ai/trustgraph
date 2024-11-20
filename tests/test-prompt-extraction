@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+
+import json
+from trustgraph.clients.prompt_client import PromptClient
+
+p = PromptClient(pulsar_host="pulsar://localhost:6650")
+
+chunk="""
+ The Space Shuttle was a reusable spacecraft that transported astronauts and cargo to and from Earth's orbit. It was designed to launch like a rocket, maneuver in orbit like a spacecraft, and land like an airplane. The Space Shuttle was NASA's space transportation system and was used for many purposes, including: 
+
+    Carrying astronauts
+    The Space Shuttle could carry up to seven astronauts at a time. 
+
+Launching, recovering, and repairing satellites
+The Space Shuttle could launch satellites into orbit, recover them, and repair them. 
+Building the International Space Station
+The Space Shuttle carried large parts into space to build the International Space Station. 
+Conducting research
+Astronauts conducted experiments in the Space Shuttle, which was like a science lab in space. 
+
+The Space Shuttle was retired in 2011 after the Columbia accident in 2003. The Columbia Accident Investigation Board report found that the Space Shuttle was unsafe and expensive to make safe. 
+Here are some other facts about the Space Shuttle: 
+
+    The Space Shuttle was 184 ft tall and had a diameter of 29 ft. 
+
+The Space Shuttle had a mass of 4,480,000 lb. 
+The Space Shuttle's first flight was on April 12, 1981. 
+The Space Shuttle's last mission was in 2011. 
+"""
+
+q = "Tell me some facts in the knowledge graph"
+
+resp = p.request(
+    id="extract-definition",
+    terms = {
+        "text": chunk,
+    }
+)
+
+print(resp)
+
+for fact in resp:
+    print(fact["term"], "::")
+    print(fact["definition"])
+    print()
+

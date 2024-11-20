@@ -9,17 +9,19 @@ import os
 from trustgraph.clients.document_rag_client import DocumentRagClient
 
 default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://localhost:6650')
+default_user = 'trustgraph'
+default_collection = 'default'
 
-def query(pulsar, query):
+def query(pulsar_host, query, user, collection):
 
     rag = DocumentRagClient(pulsar_host=pulsar)
-    resp = rag.request(query)
+    resp = rag.request(user=user, collection=collection, query=query)
     print(resp)
 
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='graph-show',
+        prog='tg-query-document-rag',
         description=__doc__,
     )
 
@@ -35,11 +37,28 @@ def main():
         help=f'Query to execute',
     )
 
+    parser.add_argument(
+        '-u', '--user',
+        default=default_user,
+        help=f'User ID (default: {default_user})'
+    )
+
+    parser.add_argument(
+        '-c', '--collection',
+        default=default_collection,
+        help=f'Collection ID (default: {default_collection})'
+    )
+
     args = parser.parse_args()
 
     try:
 
-        query(args.pulsar_host, args.query)
+        query(
+            pulsar_host=args.pulsar_host,
+            query=args.query,
+            user=args.user,
+            collection=args.collection,
+        )
 
     except Exception as e:
 

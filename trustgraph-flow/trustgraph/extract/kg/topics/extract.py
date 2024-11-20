@@ -7,7 +7,7 @@ get entity definitions which are output as graph edges.
 import urllib.parse
 import json
 
-from .... schema import ChunkEmbeddings, Triple, Source, Value
+from .... schema import ChunkEmbeddings, Triple, Triples, Metadata, Value
 from .... schema import chunk_embeddings_ingest_queue, triples_store_queue
 from .... schema import prompt_request_queue
 from .... schema import prompt_response_queue
@@ -44,7 +44,7 @@ class Processor(ConsumerProducer):
                 "output_queue": output_queue,
                 "subscriber": subscriber,
                 "input_schema": ChunkEmbeddings,
-                "output_schema": Triple,
+                "output_schema": Triples,
                 "prompt_request_queue": pr_request_queue,
                 "prompt_response_queue": pr_response_queue,
             }
@@ -69,15 +69,18 @@ class Processor(ConsumerProducer):
 
         return self.prompt.request_topics(chunk)
 
-    def emit_edge(self, s, p, o):
+    def emit_edge(self, metadata, s, p, o):
 
-        t = Triple(s=s, p=p, o=o)
+        t = Triples(
+            metadata=metadata,
+            triples=[Triple(s=s, p=p, o=o)],
+        )
         self.producer.send(t)
 
     def handle(self, msg):
 
         v = msg.value()
-        print(f"Indexing {v.source.id}...", flush=True)
+        print(f"Indexing {v.metadata.id}...", flush=True)
 
         chunk = v.chunk.decode("utf-8")
 
@@ -101,7 +104,7 @@ class Processor(ConsumerProducer):
                 s_value = Value(value=str(s_uri), is_uri=True)
                 o_value = Value(value=str(o), is_uri=False)
 
-                self.emit_edge(s_value, DEFINITION_VALUE, o_value)
+                self.emit_edge(v. metadata, s_value, DEFINITION_VALUE, o_value)
 
         except Exception as e:
             print("Exception: ", e, flush=True)

@@ -6,6 +6,7 @@ Input is prompt, output is response.
 
 from ollama import Client
 from prometheus_client import Histogram, Info
+import os
 
 from .... schema import TextCompletionRequest, TextCompletionResponse, Error
 from .... schema import text_completion_request_queue
@@ -19,8 +20,8 @@ module = ".".join(__name__.split(".")[1:-1])
 default_input_queue = text_completion_request_queue
 default_output_queue = text_completion_response_queue
 default_subscriber = module
-default_model = 'gemma2'
-default_ollama = 'http://localhost:11434'
+default_model = 'gemma2:9b'
+default_ollama = os.getenv("OLLAMA_HOST", 'http://localhost:11434')
 
 class Processor(ConsumerProducer):
 
@@ -79,7 +80,7 @@ class Processor(ConsumerProducer):
 
         print(f"Handling prompt {id}...", flush=True)
 
-        prompt = v.prompt
+        prompt = v.system + "\n\n" + v.prompt
 
         try:
 
@@ -152,7 +153,7 @@ class Processor(ConsumerProducer):
         parser.add_argument(
             '-m', '--model',
             default="gemma2",
-            help=f'LLM model (default: gemma2)'
+            help=f'LLM model (default: {default_model})'
         )
 
         parser.add_argument(

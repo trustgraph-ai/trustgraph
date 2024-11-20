@@ -37,7 +37,7 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "-x",
                         std.toString($["vertexai-max-output-tokens"]),
                         "-t",
-                        std.toString($["vertexai-temperature"]),
+                        "%0.3f" % $["vertexai-temperature"],
                         "-m",
                         $["vertexai-model"],
                     ])
@@ -87,7 +87,7 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "-x",
                         std.toString($["vertexai-max-output-tokens"]),
                         "-t",
-                        std.toString($["vertexai-temperature"]),
+                        "%0.3f" % $["vertexai-temperature"],
                         "-m",
                         $["vertexai-model"],
                         "-i",

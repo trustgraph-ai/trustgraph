@@ -7,6 +7,7 @@ Google Cloud.   Input is prompt, output is response.
 import vertexai
 import time
 from prometheus_client import Histogram
+import os
 
 from google.oauth2 import service_account
 import google
@@ -38,6 +39,7 @@ default_model = 'gemini-1.0-pro-001'
 default_region = 'us-central1'
 default_temperature = 0.0
 default_max_output = 8192
+default_private_key = "private.json"
 
 class Processor(ConsumerProducer):
 
@@ -48,9 +50,12 @@ class Processor(ConsumerProducer):
         subscriber = params.get("subscriber", default_subscriber)
         region = params.get("region", default_region)
         model = params.get("model", default_model)
-        private_key = params.get("private_key")
+        private_key = params.get("private_key", default_private_key)
         temperature = params.get("temperature", default_temperature)
         max_output = params.get("max_output", default_max_output)
+
+        if private_key is None:
+            raise RuntimeError("Private key file not specified")
 
         super(Processor, self).__init__(
             **params | {
@@ -138,7 +143,7 @@ class Processor(ConsumerProducer):
 
             print(f"Handling prompt {id}...", flush=True)
 
-            prompt = v.prompt
+            prompt = v.system + "\n\n" + v.prompt
 
             with __class__.text_completion_metric.time():
 

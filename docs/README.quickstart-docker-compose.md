@@ -186,7 +186,7 @@ To change the `Ollama` model, first make sure the desired model has been pulled 
 ### OpenAI API
 
 ```
-export OPENAI_KEY=<TOKEN-GOES-HERE>
+export OPENAI_TOKEN=<TOKEN-GOES-HERE>
 docker compose -f tg-launch-openai-cassandra.yaml up -d # Using Cassandra as the graph store
 docker compose -f tg-launch-openai-neo4j.yaml up -d # Using Neo4j as the graph store
 ```

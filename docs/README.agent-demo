@@ -1,0 +1,18 @@
+podman-compose -f docker-compose.yaml up -d
+
+
+tg-processor-state
+
+tg-load-text     --keyword cats animals home-life     --name "Mark's cats"     --description "This document describes Mark's cats"     --copyright-notice 'Public domain'     --publication-organization 'trustgraph.ai'     --publication-date 2024-10-23     --copyright-holder 'trustgraph.ai'     --copyright-year 2024     --publication-description 'Uploading to Github'     --url https://example.com     --id TG-000001     ../trustgraph/README.cats
+
+tg-load-text     --keyword nasa challenger space-shuttle shuttle orbiter     --name 'Challenger Report Volume 1'     --description 'The findings of the Presidential Commission regarding the circumstances surrounding the Challenger accident are reported and recommendations for corrective action are outlined'     --copyright-notice 'Work of the US Gov. Public Use Permitted'     --publication-organization 'NASA'     --publication-date 1986-06-06     --copyright-holder 'US Government'     --copyright-year 1986     --publication-description 'The findings of the Commission regarding the circumstances surrounding the Challenger accident are reported'     --url https://ntrs.nasa.gov/citations/19860015255     --id AD-A171402     ../trustgraph/README.challenger
+
+
+tg-graph-show
+
+tg-query-graph-rag -q 'Tell me cat facts'
+
+
+tg-invoke-agent -v -q "How many cats does Mark have? Calculate that number raised to 0.4 power.  Is that number lower than the numeric part of the mission identifier of the Space Shuttle Challenger on its last mission?  If so, give me an apple pie recipe, otherwise return a poem about cheese."
+
+

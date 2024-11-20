@@ -7,6 +7,7 @@ Input is prompt, output is response. Mistral is default.
 import boto3
 import json
 from prometheus_client import Histogram
+import os
 
 from .... schema import TextCompletionRequest, TextCompletionResponse, Error
 from .... schema import text_completion_request_queue
@@ -21,10 +22,11 @@ default_input_queue = text_completion_request_queue
 default_output_queue = text_completion_response_queue
 default_subscriber = module
 default_model = 'mistral.mistral-large-2407-v1:0'
-default_region = 'us-west-2'
 default_temperature = 0.0
 default_max_output = 2048
-
+default_aws_id_key = os.getenv("AWS_ID_KEY", None)
+default_aws_secret = os.getenv("AWS_SECRET", None)
+default_aws_region = os.getenv("AWS_REGION", 'us-west-2')
 
 class Processor(ConsumerProducer):
 
@@ -34,11 +36,20 @@ class Processor(ConsumerProducer):
         output_queue = params.get("output_queue", default_output_queue)
         subscriber = params.get("subscriber", default_subscriber)
         model = params.get("model", default_model)
-        aws_id = params.get("aws_id_key")
-        aws_secret = params.get("aws_secret")
-        aws_region = params.get("aws_region", default_region)
+        aws_id_key = params.get("aws_id_key", default_aws_id_key)
+        aws_secret = params.get("aws_secret", default_aws_secret)
+        aws_region = params.get("aws_region", default_aws_region)
         temperature = params.get("temperature", default_temperature)
         max_output = params.get("max_output", default_max_output)
+
+        if aws_id_key is None:
+            raise RuntimeError("AWS ID not specified")
+
+        if aws_secret is None:
+            raise RuntimeError("AWS secret not specified")
+
+        if aws_region is None:
+            raise RuntimeError("AWS region not specified")
 
         super(Processor, self).__init__(
             **params | {
@@ -71,7 +82,7 @@ class Processor(ConsumerProducer):
         self.max_output = max_output
 
         self.session = boto3.Session(
-            aws_access_key_id=aws_id,
+            aws_access_key_id=aws_id_key,
             aws_secret_access_key=aws_secret,
             region_name=aws_region
         )
@@ -90,7 +101,7 @@ class Processor(ConsumerProducer):
 
         print(f"Handling prompt {id}...", flush=True)
 
-        prompt = v.prompt
+        prompt = v.system + "\n\n" + v.prompt
 
         try:
 
@@ -289,17 +300,20 @@ class Processor(ConsumerProducer):
 
         parser.add_argument(
             '-z', '--aws-id-key',
+            default=default_aws_id_key,
             help=f'AWS ID Key'
         )
 
         parser.add_argument(
             '-k', '--aws-secret',
+            default=default_aws_secret,
             help=f'AWS Secret Key'
         )
 
         parser.add_argument(
             '-r', '--aws-region',
-            help=f'AWS Region (default: us-west-2)'
+            default=default_aws_region,
+            help=f'AWS Region'
         )
 
         parser.add_argument(
@@ -320,4 +334,3 @@ def run():
 
     Processor.start(module, __doc__)
 
-    

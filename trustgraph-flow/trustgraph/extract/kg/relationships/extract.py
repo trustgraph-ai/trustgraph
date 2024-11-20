@@ -9,17 +9,19 @@ import urllib.parse
 import os
 from pulsar.schema import JsonSchema
 
-from .... schema import ChunkEmbeddings, Triple, GraphEmbeddings, Source, Value
+from .... schema import ChunkEmbeddings, Triple, Triples, GraphEmbeddings
+from .... schema import Metadata, Value
 from .... schema import chunk_embeddings_ingest_queue, triples_store_queue
 from .... schema import graph_embeddings_store_queue
 from .... schema import prompt_request_queue
 from .... schema import prompt_response_queue
 from .... log_level import LogLevel
 from .... clients.prompt_client import PromptClient
-from .... rdf import RDF_LABEL, TRUSTGRAPH_ENTITIES
+from .... rdf import RDF_LABEL, TRUSTGRAPH_ENTITIES, SUBJECT_OF
 from .... base import ConsumerProducer
 
 RDF_LABEL_VALUE = Value(value=RDF_LABEL, is_uri=True)
+SUBJECT_OF_VALUE = Value(value=SUBJECT_OF, is_uri=True)
 
 module = ".".join(__name__.split(".")[1:-1])
 
@@ -49,7 +51,7 @@ class Processor(ConsumerProducer):
                 "output_queue": output_queue,
                 "subscriber": subscriber,
                 "input_schema": ChunkEmbeddings,
-                "output_schema": Triple,
+                "output_schema": Triples,
                 "prompt_request_queue": pr_request_queue,
                 "prompt_response_queue": pr_response_queue,
             }
@@ -68,7 +70,7 @@ class Processor(ConsumerProducer):
             "prompt_response_queue": pr_response_queue,
             "subscriber": subscriber,
             "input_schema": ChunkEmbeddings.__name__,
-            "output_schema": Triple.__name__,
+            "output_schema": Triples.__name__,
             "vector_schema": GraphEmbeddings.__name__,
         })
 
@@ -91,26 +93,36 @@ class Processor(ConsumerProducer):
 
         return self.prompt.request_relationships(chunk)
 
-    def emit_edge(self, s, p, o):
+    def emit_edges(self, metadata, triples):
 
-        t = Triple(s=s, p=p, o=o)
+        t = Triples(
+            metadata=metadata,
+            triples=triples,
+        )
         self.producer.send(t)
 
-    def emit_vec(self, ent, vec):
+    def emit_vec(self, metadata, ent, vec):
 
-        r = GraphEmbeddings(entity=ent, vectors=vec)
+        r = GraphEmbeddings(metadata=metadata, entity=ent, vectors=vec)
         self.vec_prod.send(r)
 
     def handle(self, msg):
 
         v = msg.value()
-        print(f"Indexing {v.source.id}...", flush=True)
+        print(f"Indexing {v.metadata.id}...", flush=True)
 
         chunk = v.chunk.decode("utf-8")
 
         try:
 
             rels = self.get_relationships(chunk)
+
+            triples = []
+
+            # FIXME: Putting metadata into triples store is duplicated in
+            # relationships extractor too
+            for t in v.metadata.metadata:
+                triples.append(t)
 
             for rel in rels:
 
@@ -138,38 +150,64 @@ class Processor(ConsumerProducer):
                 else:
                     o_value = Value(value=str(o), is_uri=False)
 
-                self.emit_edge(
-                    s_value,
-                    p_value,
-                    o_value
-                )
+                triples.append(Triple(
+                    s=s_value,
+                    p=p_value,
+                    o=o_value
+                ))
 
                 # Label for s
-                self.emit_edge(
-                    s_value,
-                    RDF_LABEL_VALUE,
-                    Value(value=str(s), is_uri=False)
-                )
+                triples.append(Triple(
+                    s=s_value,
+                    p=RDF_LABEL_VALUE,
+                    o=Value(value=str(s), is_uri=False)
+                ))
 
                 # Label for p
-                self.emit_edge(
-                    p_value,
-                    RDF_LABEL_VALUE,
-                    Value(value=str(p), is_uri=False)
-                )
+                triples.append(Triple(
+                    s=p_value,
+                    p=RDF_LABEL_VALUE,
+                    o=Value(value=str(p), is_uri=False)
+                ))
 
                 if rel.o_entity:
                     # Label for o
-                    self.emit_edge(
-                        o_value,
-                        RDF_LABEL_VALUE,
-                        Value(value=str(o), is_uri=False)
-                    )
+                    triples.append(Triple(
+                        s=o_value,
+                        p=RDF_LABEL_VALUE,
+                        o=Value(value=str(o), is_uri=False)
+                    ))
 
-                self.emit_vec(s_value, v.vectors)
-                self.emit_vec(p_value, v.vectors)
+                # 'Subject of' for s
+                triples.append(Triple(
+                    s=s_value,
+                    p=SUBJECT_OF_VALUE,
+                    o=Value(value=v.metadata.id, is_uri=True)
+                ))
+
                 if rel.o_entity:
-                    self.emit_vec(o_value, v.vectors)
+                    # 'Subject of' for o
+                    triples.append(Triple(
+                        s=o_value,
+                        p=SUBJECT_OF_VALUE,
+                        o=Value(value=v.metadata.id, is_uri=True)
+                    ))
+
+                self.emit_vec(v.metadata, s_value, v.vectors)
+                self.emit_vec(v.metadata, p_value, v.vectors)
+
+                if rel.o_entity:
+                    self.emit_vec(v.metadata, o_value, v.vectors)
+
+            self.emit_edges(
+                Metadata(
+                    id=v.metadata.id,
+                    metadata=[],
+                    user=v.metadata.user,
+                    collection=v.metadata.collection,
+                ),
+                triples
+            )
 
         except Exception as e:
             print("Exception: ", e, flush=True)

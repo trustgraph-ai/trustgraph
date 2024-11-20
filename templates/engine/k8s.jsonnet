@@ -10,12 +10,20 @@
         reservations: {},
         ports: [],
         volumes: [],
+        environment: [],
 
         with_image:: function(x) self + { image: x },
 
         with_command:: function(x) self + { command: x },
 
-        with_environment:: function(x) self + { environment: x },
+        with_environment:: function(x) self + {
+            environment: super.environment + [
+                {
+                    name: v.key, value: v.value
+                }
+                for v in std.objectKeysValues(x)
+            ],
+        },
 
         with_limits:: function(c, m) self + { limits: { cpu: c, memory: m } },
 
@@ -36,6 +44,24 @@
                     { src: src, dest: dest, name : name }
                 ]
             },
+
+        with_env_var_secrets::
+            function(vars)
+                std.foldl(
+                    function(obj, x) obj + {
+                        environment: super.environment + [{
+                            name: x,
+                            valueFrom: {
+                                secretKeyRef: {
+                                    name: vars.name,
+                                    key: vars.keyMap[x],
+                                }
+                            }
+                        }]
+                    },
+                    vars.variables,
+                    self
+                ),
 
         add:: function() [
 
@@ -97,16 +123,11 @@
                                     (if std.objectHas(container, "command") then
                                     { command: container.command }
                                     else {}) + 
-                                    (if std.objectHas(container, "environment") then
-                                    { env: [ {
-                                        name: e.key, value: e.value
-                                        }
-                                        for e in 
-                                        std.objectKeysValues(
-                                            container.environment
-                                            )
-                                            ]
-                                            }
+
+                                    (if ! std.isEmpty(container.environment) then
+                                    {
+                                        env: container.environment,
+                                    }
                                     else {}) + 
 
                 (if std.length(container.volumes) > 0 then
@@ -280,6 +301,34 @@
             name: volume.name,
             secret: { secretName: volume.name },
         }
+
+    },
+
+    envSecrets:: function(name)
+    {
+
+        local volume = self,
+
+        name: name,
+
+        variables: [],
+        keyMap: {},
+
+        with_size:: function(size) self + { size: size },
+
+        add:: function() [
+        ],
+
+        volRef:: function() {
+            name: volume.name,
+            secret: { secretName: volume.name },
+        },
+
+        with_env_var::
+            function(name, key) self + {
+                variables: super.variables + [name],
+                keyMap: super.keyMap + { [name]: key },
+            },
 
     },
 

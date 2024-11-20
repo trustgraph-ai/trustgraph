@@ -18,12 +18,15 @@
         reservations: {},
         ports: [],
         volumes: [],
+        environment: {},
 
         with_image:: function(x) self + { image: x },
 
         with_command:: function(x) self + { command: x },
 
-        with_environment:: function(x) self + { environment: x },
+        with_environment:: function(x) self + {
+            environment: super.environment + x,
+        },
 
         with_limits:: function(c, m) self + { limits: { cpus: c, memory: m } },
 
@@ -45,6 +48,16 @@
                 ]
             },
 
+        with_env_var_secrets::
+            function(vars)
+                std.foldl(
+                    function(obj, x) obj.with_environment(
+                        { [x]: "${" + x  + "}" }
+                    ),
+                    vars.variables,
+                    self
+                ),
+
         add:: function() {
             services +: {
                 [container.name]: {
@@ -62,7 +75,7 @@
                 { command: container.command }
                 else {}) +
 
-                (if std.objectHas(container, "environment") then
+                (if ! std.isEmpty(container.environment) then
                 { environment: container.environment }
                 else {}) +
 
@@ -164,6 +177,27 @@
         volid:: dir,
 
         with_size:: function(size) self + { size: size },
+
+        add:: function() {
+        }
+
+    },
+
+    envSecrets:: function(name)
+    {
+
+        local volume = self,
+
+        name: name,
+
+        volid:: name,
+
+        variables:: [],
+
+        with_env_var::
+            function(name, key) self + {
+                variables: super.variables + [name],
+            },
 
         add:: function() {
         }

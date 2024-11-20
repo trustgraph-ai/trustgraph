@@ -6,6 +6,7 @@ Input is prompt, output is response.
 
 import anthropic
 from prometheus_client import Histogram
+import os
 
 from .... schema import TextCompletionRequest, TextCompletionResponse, Error
 from .... schema import text_completion_request_queue
@@ -22,6 +23,7 @@ default_subscriber = module
 default_model = 'claude-3-5-sonnet-20240620'
 default_temperature = 0.0
 default_max_output = 8192
+default_api_key = os.getenv("CLAUDE_KEY")
 
 class Processor(ConsumerProducer):
 
@@ -31,9 +33,12 @@ class Processor(ConsumerProducer):
         output_queue = params.get("output_queue", default_output_queue)
         subscriber = params.get("subscriber", default_subscriber)
         model = params.get("model", default_model)
-        api_key = params.get("api_key")
+        api_key = params.get("api_key", default_api_key)
         temperature = params.get("temperature", default_temperature)
         max_output = params.get("max_output", default_max_output)
+
+        if api_key is None:
+            raise RuntimeError("Claude API key not specified")
 
         super(Processor, self).__init__(
             **params | {
@@ -90,7 +95,7 @@ class Processor(ConsumerProducer):
                     model=self.model,
                     max_tokens=self.max_output,
                     temperature=self.temperature,
-                    system = "You are a helpful chatbot.",
+                    system = v.system,
                     messages=[
                         {
                             "role": "user",
@@ -175,6 +180,7 @@ class Processor(ConsumerProducer):
 
         parser.add_argument(
             '-k', '--api-key',
+            default=default_api_key,
             help=f'Claude API key'
         )
 

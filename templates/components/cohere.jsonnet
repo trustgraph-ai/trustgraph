@@ -9,12 +9,14 @@ local prompts = import "prompts/mixtral.jsonnet";
     "chunk-size":: 150,
     "chunk-overlap":: 10,
 
-    "cohere-key":: "${COHERE_KEY}",
     "cohere-temperature":: 0.0,
 
     "text-completion" +: {
     
         create:: function(engine)
+
+            local envSecrets = engine.envSecrets("cohere-credentials")
+                .with_env_var("COHERE_KEY", "cohere-key");
 
             local container =
                 engine.container("text-completion")
@@ -23,44 +25,21 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "text-completion-cohere",
                         "-p",
                         url.pulsar,
-                        "-k",
-                        $["cohere-key"],
                         "-t",
-                        std.toString($["cohere-temperature"]),
+                        "%0.3f" % $["cohere-temperature"],
                     ])
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M");
 
-            local containerSet = engine.containers(
-                "text-completion", [ container ]
-            );
-
-            local service =
-                engine.internalService(containerSet)
-                .with_port(8000, 8000, "metrics");
-
-            engine.resources([
-                containerSet,
-                service,
-            ])
-
-    },
-
-    "text-completion-rag" +: {
-    
-        create:: function(engine)
-
-            local container =
+            local containerRag =
                 engine.container("text-completion-rag")
                     .with_image(images.trustgraph)
                     .with_command([
                         "text-completion-cohere",
                         "-p",
                         url.pulsar,
-                        "-k",
-                        $["cohere-key"],
                         "-t",
-                        std.toString($["cohere-temperature"]),
+                        "%0.3f" % $["cohere-temperature"],
                         "-i",
                         "non-persistent://tg/request/text-completion-rag",
                         "-o",
@@ -70,20 +49,30 @@ local prompts = import "prompts/mixtral.jsonnet";
                     .with_reservations("0.1", "128M");
 
             local containerSet = engine.containers(
-                "text-completion-rag", [ container ]
+                "text-completion", [ container ]
+            );
+
+            local containerSetRag = engine.containers(
+                "text-completion-rag", [ containerRag ]
             );
 
             local service =
                 engine.internalService(containerSet)
                 .with_port(8000, 8000, "metrics");
 
+            local serviceRag =
+                engine.internalService(containerSetRag)
+                .with_port(8000, 8000, "metrics");
+
             engine.resources([
+                envSecrets,
                 containerSet,
+                containerSetRag,
                 service,
+                serviceRag,
             ])
 
-
-    }
+    },
 
 } + prompts
 
