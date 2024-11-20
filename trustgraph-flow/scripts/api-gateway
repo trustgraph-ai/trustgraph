@@ -35,6 +35,10 @@ from trustgraph.schema import AgentRequest, AgentResponse
 from trustgraph.schema import agent_request_queue
 from trustgraph.schema import agent_response_queue
 
+from trustgraph.schema import EmbeddingsRequest, EmbeddingsResponse
+from trustgraph.schema import embeddings_request_queue
+from trustgraph.schema import embeddings_response_queue
+
 logger = logging.getLogger("api")
 logger.setLevel(logging.INFO)
 
@@ -161,12 +165,24 @@ class Api:
             JsonSchema(AgentResponse)
         )
 
+        self.embeddings_out = Publisher(
+            pulsar_host, embeddings_request_queue,
+            schema=JsonSchema(EmbeddingsRequest)
+        )
+
+        self.embeddings_in = Subscriber(
+            pulsar_host, embeddings_response_queue,
+            "api-gateway", "api-gateway",
+            JsonSchema(EmbeddingsResponse)
+        )
+
         self.app.add_routes([
             web.post("/api/v1/text-completion", self.llm),
             web.post("/api/v1/prompt", self.prompt),
             web.post("/api/v1/graph-rag", self.graph_rag),
             web.post("/api/v1/triples-query", self.triples_query),
             web.post("/api/v1/agent", self.agent),
+            web.post("/api/v1/embeddings", self.embeddings),
         ])
 
     async def llm(self, request):
@@ -445,6 +461,47 @@ class Api:
         finally:
             await self.agent_in.unsubscribe(id)
 
+    async def embeddings(self, request):
+
+        id = str(uuid.uuid4())
+
+        try:
+
+            data = await request.json()
+
+            q = await self.embeddings_in.subscribe(id)
+
+            await self.embeddings_out.send(
+                id,
+                EmbeddingsRequest(
+                    text=data["text"],
+                )
+            )
+
+            try:
+                resp = await asyncio.wait_for(q.get(), TIME_OUT)
+            except:
+                raise RuntimeError("Timeout waiting for response")
+
+            if resp.error:
+                return web.json_response(
+                    { "error": resp.error.message }
+                )
+
+            return web.json_response(
+                { "vectors": resp.vectors }
+            )
+
+        except Exception as e:
+            logging.error(f"Exception: {e}")
+
+            return web.json_response(
+                { "error": str(e) }
+            )
+
+        finally:
+            await self.embeddings_in.unsubscribe(id)
+
     async def app_factory(self):
 
         self.llm_pub_task = asyncio.create_task(self.llm_in.run())
@@ -465,6 +522,13 @@ class Api:
 
         self.agent_pub_task = asyncio.create_task(self.agent_in.run())
         self.agent_sub_task = asyncio.create_task(self.agent_out.run())
+
+        self.embeddings_pub_task = asyncio.create_task(
+            self.embeddings_in.run()
+        )
+        self.embeddings_sub_task = asyncio.create_task(
+            self.embeddings_out.run()
+        )
 
         return self.app
 
