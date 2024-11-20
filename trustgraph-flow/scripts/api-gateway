@@ -23,6 +23,10 @@ from trustgraph.schema import PromptRequest, PromptResponse
 from trustgraph.schema import prompt_request_queue
 from trustgraph.schema import prompt_response_queue
 
+from trustgraph.schema import GraphRagQuery, GraphRagResponse
+from trustgraph.schema import graph_rag_request_queue
+from trustgraph.schema import graph_rag_response_queue
+
 logger = logging.getLogger("api")
 logger.setLevel(logging.INFO)
 
@@ -116,9 +120,21 @@ class Api:
             JsonSchema(PromptResponse)
         )
 
+        self.graph_rag_out = Publisher(
+            pulsar_host, graph_rag_request_queue,
+            schema=JsonSchema(GraphRagQuery)
+        )
+
+        self.graph_rag_in = Subscriber(
+            pulsar_host, graph_rag_response_queue,
+            "api-gateway", "api-gateway",
+            JsonSchema(GraphRagResponse)
+        )
+
         self.app.add_routes([
             web.post("/api/v1/text-completion", self.llm),
             web.post("/api/v1/prompt", self.prompt),
+            web.post("/api/v1/graph-rag", self.graph_rag),
         ])
 
     async def llm(self, request):
@@ -213,7 +229,50 @@ class Api:
             )
 
         finally:
-            await self.llm_in.unsubscribe(id)
+            await self.prompt_in.unsubscribe(id)
+
+    async def graph_rag(self, request):
+
+        id = str(uuid.uuid4())
+
+        try:
+
+            data = await request.json()
+
+            q = await self.graph_rag_in.subscribe(id)
+
+            await self.graph_rag_out.send(
+                id,
+                GraphRagQuery(
+                    query=data["query"],
+                    user=data.get("user", "trustgraph"),
+                    collection=data.get("collection", "default"),
+                )
+            )
+
+            try:
+                resp = await asyncio.wait_for(q.get(), TIME_OUT)
+            except:
+                raise RuntimeError("Timeout waiting for response")
+
+            if resp.error:
+                return web.json_response(
+                    { "error": resp.error.message }
+                )
+
+            return web.json_response(
+                { "response": resp.response }
+            )
+
+        except Exception as e:
+            logging.error(f"Exception: {e}")
+
+            return web.json_response(
+                { "error": str(e) }
+            )
+
+        finally:
+            await self.graph_rag_in.unsubscribe(id)
 
     async def app_factory(self):
 
@@ -222,6 +281,9 @@ class Api:
 
         self.prompt_pub_task = asyncio.create_task(self.prompt_in.run())
         self.prompt_sub_task = asyncio.create_task(self.prompt_out.run())
+
+        self.graph_rag_pub_task = asyncio.create_task(self.graph_rag_in.run())
+        self.graph_rag_sub_task = asyncio.create_task(self.graph_rag_out.run())
 
         return self.app
 
