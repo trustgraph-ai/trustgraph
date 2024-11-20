@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 
+# FIXME: Subscribes to Pulsar unnecessarily, should only do it when there
+# are active listeners
+
+# FIXME: Connection errors in publishers / subscribers cause those threads
+# to fail and are not failed or retried
+
 import asyncio
 from aiohttp import web
 import json
 import logging
 import uuid
+import os
 
 import pulsar
 from pulsar.asyncio import Client
@@ -42,7 +49,7 @@ from trustgraph.schema import embeddings_response_queue
 logger = logging.getLogger("api")
 logger.setLevel(logging.INFO)
 
-pulsar_host = "pulsar://localhost:6650"
+pulsar_host = os.getenv("PULSAR_HOST", "pulsar://pulsar:6650")
 TIME_OUT = 600
 
 class Publisher:
@@ -54,15 +61,18 @@ class Publisher:
         self.q = asyncio.Queue(maxsize=max_size)
 
     async def run(self):
-        async with aiopulsar.connect(self.pulsar_host) as client:
-            async with client.create_producer(
-                    topic=self.topic,
-                    schema=self.schema,
-            ) as producer:
-                while True:
-                    id, item = await self.q.get()
-                    await producer.send(item, { "id": id })
-#                     print("message out")
+        try:
+            async with aiopulsar.connect(self.pulsar_host) as client:
+                async with client.create_producer(
+                        topic=self.topic,
+                        schema=self.schema,
+                ) as producer:
+                    while True:
+                        id, item = await self.q.get()
+                        await producer.send(item, { "id": id })
+    #                     print("message out")
+        except Exception as e:
+            print("Exception:", e, flush=True)
 
     async def send(self, id, msg):
         await self.q.put((id, msg))
@@ -79,20 +89,23 @@ class Subscriber:
         self.q = {}
 
     async def run(self):
-        async with aiopulsar.connect(pulsar_host) as client:
-            async with client.subscribe(
-                topic=self.topic,
-                subscription_name=self.subscription,
-                consumer_name=self.consumer_name,
-                schema=self.schema,
-            ) as consumer:
-                while True:
-                    msg = await consumer.receive()
-#                     print("message in", self.topic)
-                    id = msg.properties()["id"]
-                    value = msg.value()
-                    if id in self.q:
-                        await self.q[id].put(value)
+        try:
+            async with aiopulsar.connect(pulsar_host) as client:
+                async with client.subscribe(
+                    topic=self.topic,
+                    subscription_name=self.subscription,
+                    consumer_name=self.consumer_name,
+                    schema=self.schema,
+                ) as consumer:
+                    while True:
+                        msg = await consumer.receive()
+    #                     print("message in", self.topic)
+                        id = msg.properties()["id"]
+                        value = msg.value()
+                        if id in self.q:
+                            await self.q[id].put(value)
+        except Exception as e:
+            print("Exception:", e, flush=True)
          
     async def subscribe(self, id):
         q = asyncio.Queue()
