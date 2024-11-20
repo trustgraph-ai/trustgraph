@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+
+import requests
+import json
+import sys
+
+url = "http://localhost:8088/api/v1/"
+
+############################################################################
+
+input = {
+    "p": "http://www.w3.org/2000/01/rdf-schema#label",
+    "limit": 10
+}
+
+resp = requests.post(
+    f"{url}triples-query",
+    json=input,
+)
+
+print(resp.text)
+resp = resp.json()
+
+
+print(resp)
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
+
+print(resp["response"])
+
+sys.exit(0)
+############################################################################
+
