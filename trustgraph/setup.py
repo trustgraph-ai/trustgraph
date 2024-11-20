@@ -34,13 +34,13 @@ setuptools.setup(
     python_requires='>=3.8',
     download_url = "https://github.com/trustgraph-ai/trustgraph/archive/refs/tags/v" + version + ".tar.gz",
     install_requires=[
-        "trustgraph-base>=0.15,<0.16",
-        "trustgraph-bedrock>=0.15,<0.16",
-        "trustgraph-cli>=0.15,<0.16",
-        "trustgraph-embeddings-hf>=0.15,<0.16",
-        "trustgraph-flow>=0.15,<0.16",
-        "trustgraph-parquet>=0.15,<0.16",
-        "trustgraph-vertexai>=0.15,<0.16",
+        "trustgraph-base>=0.16,<0.17",
+        "trustgraph-bedrock>=0.16,<0.17",
+        "trustgraph-cli>=0.16,<0.17",
+        "trustgraph-embeddings-hf>=0.16,<0.17",
+        "trustgraph-flow>=0.16,<0.17",
+        "trustgraph-parquet>=0.16,<0.17",
+        "trustgraph-vertexai>=0.16,<0.17",
     ],
     scripts=[
     ]
