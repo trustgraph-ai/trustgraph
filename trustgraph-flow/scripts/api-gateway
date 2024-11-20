@@ -19,33 +19,34 @@ from trustgraph.schema import TextCompletionRequest, TextCompletionResponse
 from trustgraph.schema import text_completion_request_queue
 from trustgraph.schema import text_completion_response_queue
 
+from trustgraph.schema import PromptRequest, PromptResponse
+from trustgraph.schema import prompt_request_queue
+from trustgraph.schema import prompt_response_queue
+
 logger = logging.getLogger("api")
 logger.setLevel(logging.INFO)
 
 pulsar_host = "pulsar://localhost:6650"
+TIME_OUT = 600
 
 class Publisher:
 
     def __init__(self, pulsar_host, topic, schema=None, max_size=10):
-
         self.pulsar_host = pulsar_host
         self.topic = topic
         self.schema = schema
-
         self.q = asyncio.Queue(maxsize=max_size)
 
     async def run(self):
-
         async with aiopulsar.connect(self.pulsar_host) as client:
-
             async with client.create_producer(
                     topic=self.topic,
                     schema=self.schema,
             ) as producer:
-
                 while True:
                     id, item = await self.q.get()
                     await producer.send(item, { "id": id })
+                    print("message out")
 
     async def send(self, id, msg):
         await self.q.put((id, msg))
@@ -54,33 +55,26 @@ class Subscriber:
 
     def __init__(self, pulsar_host, topic, subscription, consumer_name,
                  schema=None, max_size=10):
-
         self.pulsar_host = pulsar_host
         self.topic = topic
         self.subscription = subscription
         self.consumer_name = consumer_name
         self.schema = schema
-
         self.q = {}
 
     async def run(self):
-
         async with aiopulsar.connect(pulsar_host) as client:
-
             async with client.subscribe(
                 topic=self.topic,
                 subscription_name=self.subscription,
                 consumer_name=self.consumer_name,
                 schema=self.schema,
             ) as consumer:
-
                 while True:
-
                     msg = await consumer.receive()
-
+                    print("message in")
                     id = msg.properties()["id"]
                     value = msg.value()
-
                     if id in self.q:
                         await self.q[id].put(value)
          
@@ -91,7 +85,6 @@ class Subscriber:
 
     async def unsubscribe(self, id):
         if id in self.q:
-#             self.q[id].shutdown()
             del self.q[id]
     
 class Api:
@@ -101,15 +94,26 @@ class Api:
         self.port = int(config.get("port", "8088"))
         self.app = web.Application(middlewares=[])
 
+        self.llm_out = Publisher(
+            pulsar_host, text_completion_request_queue,
+            schema=JsonSchema(TextCompletionRequest)
+        )
+
         self.llm_in = Subscriber(
             pulsar_host, text_completion_response_queue,
             "api-gateway", "api-gateway",
             JsonSchema(TextCompletionResponse)
         )
 
-        self.llm_out = Publisher(
-            pulsar_host, text_completion_request_queue,
-            schema=JsonSchema(TextCompletionRequest)
+        self.prompt_out = Publisher(
+            pulsar_host, prompt_request_queue,
+            schema=JsonSchema(PromptRequest)
+        )
+
+        self.prompt_in = Subscriber(
+            pulsar_host, prompt_response_queue,
+            "api-gateway", "api-gateway",
+            JsonSchema(PromptResponse)
         )
 
         self.app.add_routes([
@@ -118,8 +122,6 @@ class Api:
         ])
 
     async def llm(self, request):
-
-        logger.info("LLM...")
 
         id = str(uuid.uuid4())
 
@@ -137,65 +139,89 @@ class Api:
                 )
             )
 
-            resp = await q.get()
+            try:
+                resp = await asyncio.wait_for(q.get(), TIME_OUT)
+            except:
+                raise RuntimeError("Timeout waiting for response")
 
-            await self.llm_in.unsubscribe(id)
+            if resp.error:
+                return web.json_response(
+                    { "error": resp.error.message }
+                )
 
             return web.json_response(
-                {
-                    "response": resp.response,
-                },
-                content_type="application/json",
+                { "response": resp.response }
             )
 
         except Exception as e:
             logging.error(f"Exception: {e}")
-            return web.HTTPInternalServerError()
+
+            return web.json_response(
+                { "error": str(e) }
+            )
+
+        finally:
+            await self.llm_in.unsubscribe(id)
 
     async def prompt(self, request):
 
-        logger.info("LLM...")
+        id = str(uuid.uuid4())
 
         try:
 
             data = await request.json()
 
-            try:
-                id = data["id"]
-                variables = data["variables"]
-            except:
-                return web.HTTPBadRequest()
+            q = await self.prompt_in.subscribe(id)
 
-            resp = self.prompt_client.request(
-                id=id, variables=variables
+            terms = {
+                k: json.dumps(v)
+                for k, v in data["variables"].items()
+            }
+
+            await self.prompt_out.send(
+                id,
+                PromptRequest(
+                    id=data["id"],
+                    terms=terms
+                )
             )
 
-            if isinstance(resp, str):
+            try:
+                resp = await asyncio.wait_for(q.get(), TIME_OUT)
+            except:
+                raise RuntimeError("Timeout waiting for response")
 
+            if resp.error:
                 return web.json_response(
-                    {
-                        "text": resp,
-                    },
-                    content_type="application/json",
+                    { "error": resp.error.message }
                 )
 
-            else:
-
+            if resp.object:
                 return web.json_response(
-                    {
-                        "object": resp,
-                    },
-                    content_type="application/json",
+                    { "object": resp.object }
                 )
+
+            return web.json_response(
+                { "text": resp.text }
+            )
 
         except Exception as e:
             logging.error(f"Exception: {e}")
-            return web.HTTPInternalServerError()
+
+            return web.json_response(
+                { "error": str(e) }
+            )
+
+        finally:
+            await self.llm_in.unsubscribe(id)
 
     async def app_factory(self):
 
         self.llm_pub_task = asyncio.create_task(self.llm_in.run())
         self.llm_sub_task = asyncio.create_task(self.llm_out.run())
+
+        self.prompt_pub_task = asyncio.create_task(self.prompt_in.run())
+        self.prompt_sub_task = asyncio.create_task(self.prompt_out.run())
 
         return self.app
 

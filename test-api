@@ -19,14 +19,20 @@ resp = requests.post(
     json=input,
 )
 
-print(resp.json()["response"])
-sys.exit(0)
+resp = resp.json()
+
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
+
+print(resp["response"])
+
 ############################################################################
 
 input = {
     "id": "question",
     "variables": {
-        "question": "Add 12 and 14, and then make a poem about llamas which incorporates that number.  Then write a joke about llamas."
+        "question": "Write a joke about llamas."
     }
 }
 
@@ -35,8 +41,13 @@ resp = requests.post(
     json=input,
 )
 
-print(resp.json()["text"])
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
 
+print(resp["response"])
+
+sys.exit(0)
 ############################################################################
 
 input = {
