@@ -58,6 +58,7 @@ setuptools.setup(
         "google-generativeai",
         "ibis",
         "jsonschema",
+        "aiohttp",
     ],
     scripts=[
         "scripts/agent-manager-react",
