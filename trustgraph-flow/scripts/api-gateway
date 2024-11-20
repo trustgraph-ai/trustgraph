@@ -31,6 +31,10 @@ from trustgraph.schema import TriplesQueryRequest, TriplesQueryResponse, Value
 from trustgraph.schema import triples_request_queue
 from trustgraph.schema import triples_response_queue
 
+from trustgraph.schema import AgentRequest, AgentResponse
+from trustgraph.schema import agent_request_queue
+from trustgraph.schema import agent_response_queue
+
 logger = logging.getLogger("api")
 logger.setLevel(logging.INFO)
 
@@ -54,7 +58,7 @@ class Publisher:
                 while True:
                     id, item = await self.q.get()
                     await producer.send(item, { "id": id })
-                    print("message out")
+#                     print("message out")
 
     async def send(self, id, msg):
         await self.q.put((id, msg))
@@ -80,7 +84,7 @@ class Subscriber:
             ) as consumer:
                 while True:
                     msg = await consumer.receive()
-                    print("message in")
+#                     print("message in", self.topic)
                     id = msg.properties()["id"]
                     value = msg.value()
                     if id in self.q:
@@ -146,11 +150,23 @@ class Api:
             JsonSchema(TriplesQueryResponse)
         )
 
+        self.agent_out = Publisher(
+            pulsar_host, agent_request_queue,
+            schema=JsonSchema(AgentRequest)
+        )
+
+        self.agent_in = Subscriber(
+            pulsar_host, agent_response_queue,
+            "api-gateway", "api-gateway",
+            JsonSchema(AgentResponse)
+        )
+
         self.app.add_routes([
             web.post("/api/v1/text-completion", self.llm),
             web.post("/api/v1/prompt", self.prompt),
             web.post("/api/v1/graph-rag", self.graph_rag),
             web.post("/api/v1/triples-query", self.triples_query),
+            web.post("/api/v1/agent", self.agent),
         ])
 
     async def llm(self, request):
@@ -298,8 +314,6 @@ class Api:
 
             data = await request.json()
 
-            print(data)
-
             q = await self.triples_query_in.subscribe(id)
 
             if "s" in data:
@@ -380,6 +394,57 @@ class Api:
         finally:
             await self.graph_rag_in.unsubscribe(id)
 
+    async def agent(self, request):
+
+        id = str(uuid.uuid4())
+
+        try:
+
+            data = await request.json()
+
+            q = await self.agent_in.subscribe(id)
+
+            await self.agent_out.send(
+                id,
+                AgentRequest(
+                    question=data["question"],
+                )
+            )
+
+            while True:
+                try:
+                    resp = await asyncio.wait_for(q.get(), TIME_OUT)
+                except:
+                    raise RuntimeError("Timeout waiting for response")
+
+                if resp.error:
+                    return web.json_response(
+                        { "error": resp.error.message }
+                    )
+
+                if resp.answer: break
+
+                if resp.thought: print("thought:", resp.thought)
+                if resp.observation: print("observation:", resp.observation)
+
+            if resp.answer:
+                return web.json_response(
+                    { "answer": resp.answer }
+                )
+
+            # Can't happen, ook at the logic
+            raise RuntimeError("Strange state")
+
+        except Exception as e:
+            logging.error(f"Exception: {e}")
+
+            return web.json_response(
+                { "error": str(e) }
+            )
+
+        finally:
+            await self.agent_in.unsubscribe(id)
+
     async def app_factory(self):
 
         self.llm_pub_task = asyncio.create_task(self.llm_in.run())
@@ -397,6 +462,9 @@ class Api:
         self.triples_query_sub_task = asyncio.create_task(
             self.triples_query_out.run()
         )
+
+        self.agent_pub_task = asyncio.create_task(self.agent_in.run())
+        self.agent_sub_task = asyncio.create_task(self.agent_out.run())
 
         return self.app
 

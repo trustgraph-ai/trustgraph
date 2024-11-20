@@ -9,27 +9,20 @@ url = "http://localhost:8088/api/v1/"
 ############################################################################
 
 input = {
-    "p": "http://www.w3.org/2000/01/rdf-schema#label",
-    "limit": 10
+    "question": "What is the highest risk aspect of running a space shuttle program?  Provide 5 detailed reasons to justify our answer.",
 }
 
 resp = requests.post(
-    f"{url}triples-query",
+    f"{url}agent",
     json=input,
 )
 
-print(resp.text)
 resp = resp.json()
 
-
-print(resp)
 if "error" in resp:
     print(f"Error: {resp['error']}")
     sys.exit(1)
 
-print(resp["response"])
+print(resp["answer"])
 
-sys.exit(0)
-
-############################################################################
 
