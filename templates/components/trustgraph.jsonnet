@@ -5,8 +5,50 @@ local prompt = import "prompt-template.jsonnet";
 
 {
 
+    "api-gateway-port":: 8088,
+    "api-gateway-timeout":: 600,
+
     "chunk-size":: 250,
     "chunk-overlap":: 15,
+
+    "api-gateway" +: {
+    
+        create:: function(engine)
+
+            local port = $["api-gateway-port"];
+
+            local container =
+                engine.container("api-gateway")
+                    .with_image(images.trustgraph)
+                    .with_command([
+                        "api-gateway",
+                        "-p",
+                        url.pulsar,
+                        "--timeout",
+                        std.toString($["api-gateway-timeout"]),
+                        "--port",
+                        std.toString(port),
+                    ])
+                    .with_limits("0.5", "256M")
+                    .with_reservations("0.1", "256M")
+                    .with_port(8000, 8000, "metrics")
+                    .with_port(port, port, "api");
+
+            local containerSet = engine.containers(
+                "api-gateway", [ container ]
+            );
+
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8000, 8000, "metrics")
+                .with_port(port, port, "api");
+
+            engine.resources([
+                containerSet,
+                service,
+            ])
+
+    },
 
     "chunker" +: {
     

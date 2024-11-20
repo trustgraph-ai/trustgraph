@@ -59,8 +59,10 @@ setuptools.setup(
         "ibis",
         "jsonschema",
         "aiohttp",
+        "aiopulsar-py",
     ],
     scripts=[
+        "scripts/api-gateway",
         "scripts/agent-manager-react",
         "scripts/chunker-recursive",
         "scripts/chunker-token",
