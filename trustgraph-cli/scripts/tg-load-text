@@ -6,7 +6,6 @@ Loads a text document into TrustGraph processing.
 
 import pulsar
 from pulsar.schema import JsonSchema
-import base64
 import hashlib
 import argparse
 import os
