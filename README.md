@@ -24,8 +24,8 @@ TrustGraph is a full AI powered data engineering platform. Extract your document
 - 🔁 **No-code LLM Integration**: Anthropic, AWS Bedrock, AzureAI, AzureOpenAI, Cohere, Google AI Studio, Google VertexAI, Llamafiles, Ollama, and OpenAI
 - 📖 **Entity, Topic, and Relationship Knowledge Graphs**
 - 🔢 **Mapped Vector Embeddings**
-- ❔**No-code RAG Queries**: Automatically perform a semantic similiarity search and subgraph extraction for the context of LLM generative responses
-- 🤖 **AI Agent Generation**: Use AI to generate agent modules that autonomously run on the Apache pub/sub backbone
+- ❔**No-code GraphRAG Queries**: Automatically perform a semantic similiarity search and subgraph extraction for the context of LLM generative responses
+- 🤖 **Agent Flow**: Define custom tools used by a ReAct style Agent Manager that fully controls the response flow including the ability to perform GraphRAG requests
 - 🎛️ **Production-Grade** reliability, scalability, and accuracy
 - 🔍 **Observability**: get  insights into system performance with Prometheus and Grafana
 - 🗄️ **AI Powered Data Warehouse**: Load only the subgraph and vector embeddings you use most often
