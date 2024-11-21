@@ -97,7 +97,7 @@ class TrustGraph:
 
     def get_po(self, p, o, limit=10):
         return self.session.execute(
-            f"select s from {self.table} where p = %s and o = %s allow filtering limit {limit}",
+            f"select s from {self.table} where p = %s and o = %s limit {limit} allow filtering",
             (p, o)
         )
 

@@ -72,7 +72,7 @@ def to_value(x):
     if x.startswith("http:") or x.startswith("https:"):
         return Value(value=x, is_uri=True)
     else:
-        return Value(value=x, is_uri=True)
+        return Value(value=x, is_uri=False)
 
 def to_subgraph(x):
     return [
