@@ -62,7 +62,7 @@ While TrustGraph is endlessly customizable through the `YAML` launch files, the 
 The `Configuration UI` has three sections:
 
 - **Component Selection** ✅: Choose from the available deployment platforms, LLMs, graph store, VectorDB, chunking algorithm, chunking parameters, and LLM parameters
-- **Customization** 🧰: Customize the prompts for the data extraction agents
+- **Customization** 🧰: Customize the prompts for the LLM System, Data Extraction Agents, and Agent Flow
 - **Finish Deployment** 🚀: Download the launch `YAML` files with deployment instructions
 
 The `Configuration UI` will generate the `YAML` files in `deploy.zip`. Once `deploy.zip` has been downloaded and unzipped, launching TrustGraph is as simple as navigating to the `deploy` directory and running:
