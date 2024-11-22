@@ -8,6 +8,7 @@ from pinecone.grpc import PineconeGRPC, GRPCClientConfig
 
 import time
 import uuid
+import os
 
 from .... schema import GraphEmbeddings
 from .... schema import graph_embeddings_store_queue
@@ -18,6 +19,7 @@ module = ".".join(__name__.split(".")[1:-1])
 
 default_input_queue = graph_embeddings_store_queue
 default_subscriber = module
+default_api_key = os.getenv("PINECONE_API_KEY", "not-specified")
 default_cloud = "aws"
 default_region = "us-east-1"
 
@@ -31,7 +33,7 @@ class Processor(Consumer):
         self.url = params.get("url", None)
         self.cloud = params.get("cloud", default_cloud)
         self.region = params.get("region", default_region)
-        self.api_key = params.get("api_key", None)
+        self.api_key = params.get("api_key", default_api_key)
 
         if self.api_key is None:
             raise RuntimeError("Pinecone API key must be specified")
@@ -147,13 +149,13 @@ class Processor(Consumer):
 
         parser.add_argument(
             '-a', '--api-key',
-            required=True,
-            help=f'Pinecone API key.'
+            default=default_api_key,
+            help='Pinecone API key. (default from PINECONE_API_KEY)'
         )
 
         parser.add_argument(
             '-u', '--url',
-            help=f'Pinecone URL.  If unspecified, serverless is used'
+            help='Pinecone URL.  If unspecified, serverless is used'
         )
 
         parser.add_argument(

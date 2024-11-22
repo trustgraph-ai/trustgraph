@@ -25,6 +25,7 @@
    "trustgraph-base": import "components/trustgraph.jsonnet",
    "vector-store-milvus": import "components/milvus.jsonnet",
    "vector-store-qdrant": import "components/qdrant.jsonnet",
+   "vector-store-pinecone": import "components/pinecone.jsonnet",
    "vertexai": import "components/vertexai.jsonnet",
    "null": {},
 
@@ -34,6 +35,7 @@
    "cassandra": import "components/cassandra.jsonnet",
    "neo4j": import "components/neo4j.jsonnet",
    "qdrant": import "components/qdrant.jsonnet",
+   "pinecone": import "components/pinecone.jsonnet",
    "milvus": import "components/milvus.jsonnet",
    "trustgraph": import "components/trustgraph.jsonnet",
 

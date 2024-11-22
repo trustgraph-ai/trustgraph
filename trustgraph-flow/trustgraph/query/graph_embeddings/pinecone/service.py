@@ -7,6 +7,7 @@ entities.  Pinecone implementation.
 from pinecone import Pinecone, ServerlessSpec
 from pinecone.grpc import PineconeGRPC, GRPCClientConfig
 import uuid
+import os
 
 from .... schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
 from .... schema import Error, Value
@@ -19,6 +20,7 @@ module = ".".join(__name__.split(".")[1:-1])
 default_input_queue = graph_embeddings_request_queue
 default_output_queue = graph_embeddings_response_queue
 default_subscriber = module
+default_api_key = os.getenv("PINECONE_API_KEY", "not-specified")
 
 class Processor(ConsumerProducer):
 
@@ -29,7 +31,7 @@ class Processor(ConsumerProducer):
         subscriber = params.get("subscriber", default_subscriber)
 
         self.url = params.get("url", None)
-        self.api_key = params.get("api_key", None)
+        self.api_key = params.get("api_key", default_api_key)
 
         if self.url:
 
@@ -138,13 +140,13 @@ class Processor(ConsumerProducer):
 
         parser.add_argument(
             '-a', '--api-key',
-            required=True,
-            help=f'Pinecone API key.'
+            default=default_api_key,
+            help='Pinecone API key. (default from PINECONE_API_KEY)'
         )
 
         parser.add_argument(
             '-u', '--url',
-            help=f'Pinecone URL.  If unspecified, serverless is used'
+            help='Pinecone URL.  If unspecified, serverless is used'
         )
 
 def run():
