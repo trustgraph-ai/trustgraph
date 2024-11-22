@@ -1,7 +1,7 @@
 
 """
-Graph embeddings query service.  Input is vector, output is list of
-entities.  Pinecone implementation.
+Document embeddings query service.  Input is vector, output is an array
+of chunks.  Pinecone implementation.
 """
 
 from pinecone import Pinecone, ServerlessSpec
@@ -10,16 +10,16 @@ from pinecone.grpc import PineconeGRPC, GRPCClientConfig
 import uuid
 import os
 
-from .... schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
+from .... schema import DocumentEmbeddingsRequest, DocumentEmbeddingsResponse
 from .... schema import Error, Value
-from .... schema import graph_embeddings_request_queue
-from .... schema import graph_embeddings_response_queue
+from .... schema import document_embeddings_request_queue
+from .... schema import document_embeddings_response_queue
 from .... base import ConsumerProducer
 
 module = ".".join(__name__.split(".")[1:-1])
 
-default_input_queue = graph_embeddings_request_queue
-default_output_queue = graph_embeddings_response_queue
+default_input_queue = document_embeddings_request_queue
+default_output_queue = document_embeddings_response_queue
 default_subscriber = module
 default_api_key = os.getenv("PINECONE_API_KEY", "not-specified")
 
@@ -50,18 +50,12 @@ class Processor(ConsumerProducer):
                 "input_queue": input_queue,
                 "output_queue": output_queue,
                 "subscriber": subscriber,
-                "input_schema": GraphEmbeddingsRequest,
-                "output_schema": GraphEmbeddingsResponse,
+                "input_schema": DocumentEmbeddingsRequest,
+                "output_schema": DocumentEmbeddingsResponse,
                 "url": self.url,
             }
         )
 
-    def create_value(self, ent):
-        if ent.startswith("http://") or ent.startswith("https://"):
-            return Value(value=ent, is_uri=True)
-        else:
-            return Value(value=ent, is_uri=False)
-        
     def handle(self, msg):
 
         try:
@@ -73,14 +67,14 @@ class Processor(ConsumerProducer):
 
             print(f"Handling input {id}...", flush=True)
 
-            entities = set()
+            chunks = []
 
             for vec in v.vectors:
 
                 dim = len(vec)
 
                 index_name = (
-                    "t-" + v.user + "-" + str(dim)
+                    "d-" + v.user + "-" + str(dim)
                 )
 
                 index = self.pinecone.Index(index_name)
@@ -93,22 +87,19 @@ class Processor(ConsumerProducer):
                     include_metadata=True
                 )
 
+                search_result = self.client.query_points(
+                    collection_name=collection,
+                    query=vec,
+                    limit=v.limit,
+                    with_payload=True,
+                ).points
+
                 for r in results.matches:
-                    ent = r.metadata["entity"]
-                    entities.add(ent)
-
-            # Convert set to list
-            entities = list(entities)
-
-            ents2 = []
-
-            for ent in entities:
-                ents2.append(self.create_value(ent))
-
-            entities = ents2
+                    doc = r.metadata["doc"]
+                    chunks.add(doc)
 
             print("Send response...", flush=True)
-            r = GraphEmbeddingsResponse(entities=entities, error=None)
+            r = DocumentEmbeddingsResponse(documents=chunks, error=None)
             self.producer.send(r, properties={"id": id})
 
             print("Done.", flush=True)
@@ -119,12 +110,12 @@ class Processor(ConsumerProducer):
 
             print("Send error response...", flush=True)
 
-            r = GraphEmbeddingsResponse(
+            r = DocumentEmbeddingsResponse(
                 error=Error(
                     type = "llm-error",
                     message = str(e),
                 ),
-                entities=None,
+                documents=None,
             )
 
             self.producer.send(r, properties={"id": id})
@@ -140,14 +131,9 @@ class Processor(ConsumerProducer):
         )
 
         parser.add_argument(
-            '-a', '--api-key',
-            default=default_api_key,
-            help='Pinecone API key. (default from PINECONE_API_KEY)'
-        )
-
-        parser.add_argument(
-            '-u', '--url',
-            help='Pinecone URL.  If unspecified, serverless is used'
+            '-t', '--store-uri',
+            default=default_store_uri,
+            help=f'Milvus store URI (default: {default_store_uri})'
         )
 
 def run():

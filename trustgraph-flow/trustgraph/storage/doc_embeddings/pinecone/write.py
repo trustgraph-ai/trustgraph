@@ -1,23 +1,24 @@
 
 """
-Accepts entity/vector pairs and writes them to a Pinecone store.
+Accepts entity/vector pairs and writes them to a Qdrant store.
 """
 
-from pinecone import Pinecone, ServerlessSpec
-from pinecone.grpc import PineconeGRPC, GRPCClientConfig
+from qdrant_client import QdrantClient
+from qdrant_client.models import PointStruct
+from qdrant_client.models import Distance, VectorParams
 
 import time
 import uuid
 import os
 
-from .... schema import GraphEmbeddings
-from .... schema import graph_embeddings_store_queue
+from .... schema import ChunkEmbeddings
+from .... schema import chunk_embeddings_ingest_queue
 from .... log_level import LogLevel
 from .... base import Consumer
 
 module = ".".join(__name__.split(".")[1:-1])
 
-default_input_queue = graph_embeddings_store_queue
+default_input_queue = chunk_embeddings_ingest_queue
 default_subscriber = module
 default_api_key = os.getenv("PINECONE_API_KEY", "not-specified")
 default_cloud = "aws"
@@ -53,7 +54,7 @@ class Processor(Consumer):
             **params | {
                 "input_queue": input_queue,
                 "subscriber": subscriber,
-                "input_schema": GraphEmbeddings,
+                "input_schema": ChunkEmbeddings,
                 "url": self.url,
             }
         )
@@ -64,16 +65,15 @@ class Processor(Consumer):
 
         v = msg.value()
 
-        id = str(uuid.uuid4())
+        chunk = v.chunk.decode("utf-8")
 
-        if v.entity.value == "" or v.entity.value is None: return
+        if chunk == "": return
 
         for vec in v.vectors:
 
             dim = len(vec)
-
-            index_name = (
-                "t-" + v.metadata.user + "-" + str(dim)
+            collection = (
+                "d-" + v.metadata.user + "-" + str(dim)
             )
 
             if index_name != self.last_index_name:
@@ -122,7 +122,7 @@ class Processor(Consumer):
                 {
                     "id": id,
                     "values": vec,
-                    "metadata": { "entity": v.entity.value },
+                    "metadata": { "doc": chunk },
                 }
             ]
 
