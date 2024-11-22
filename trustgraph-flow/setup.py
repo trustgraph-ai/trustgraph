@@ -60,6 +60,7 @@ setuptools.setup(
         "jsonschema",
         "aiohttp",
         "aiopulsar-py",
+        "pinecone[grpc]",
     ],
     scripts=[
         "scripts/api-gateway",
@@ -74,8 +75,10 @@ setuptools.setup(
         "scripts/embeddings-ollama",
         "scripts/embeddings-vectorize",
         "scripts/ge-query-milvus",
+        "scripts/ge-query-pinecone",
         "scripts/ge-query-qdrant",
         "scripts/ge-write-milvus",
+        "scripts/ge-write-pinecone",
         "scripts/ge-write-qdrant",
         "scripts/graph-rag",
         "scripts/kg-extract-definitions",
