@@ -2,7 +2,7 @@
 
 ![TrustGraph banner](TG-silos.svg)
 
-## Connect Data Silos with Reliable AI
+## Connect Data Silos with Explainable AI
 
 </div>
 
