@@ -52,11 +52,9 @@ pip3 install trustgraph-cli==0.15.6
 > [!NOTE]
 > The `TrustGraph CLI` version must match the desired `TrustGraph` release version.
 
-The full CLI docs are [here](https://trustgraph.ai/docs/running/cli).
-
 ### Configuration UI
 
-While TrustGraph is endlessly customizable through the `YAML` launch files, the `Configuration UI` can build a custom configuration in seconds that deploys with Docker, Podman, Minikube, or Google Cloud. There is a `Configuration UI` for the both the lastest and stable `TrustGraph` releases.
+TrustGraph is endlessly customizable by editing the `YAML` launch files. The `Configuration UI` provides a quick and intuitive tool for building a custom configuration that deploys with Docker, Podman, Minikube, or Google Cloud. There is a `Configuration UI` for the both the lastest and stable `TrustGraph` releases.
 
 - [**Stable Configuration UI** (0.15.6) 🚀](https://config-ui.demo.trustgraph.ai/)
 - [**Latest Configuration UI** (0.16.5) 🚀](https://dev.config-ui.demo.trustgraph.ai/)
@@ -81,7 +79,7 @@ When finished, shutting down TrustGraph is as simple as:
 docker compose down -v
 ```
 
-### Example Notebooks
+### Example TrustGraph Notebooks
 
 - [**REST API Notebooks**](https://github.com/trustgraph-ai/example-notebooks/tree/master/api-examples)
 - [**Python SDK Notebooks**](https://github.com/trustgraph-ai/example-notebooks/tree/master/api-library)
