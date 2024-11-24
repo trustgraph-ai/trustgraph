@@ -11,11 +11,11 @@
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
 
-🚀 [Get Started](https://trustgraph.ai/docs/getstarted) 🧑‍💻 [CLI Docs](https://trustgraph.ai/docs/running/cli) 📺 [YouTube](https://www.youtube.com/@TrustGraph?sub_confirmation=1) 💬 [Discord](https://discord.gg/sQMwkRz5GX) 📖 [Blog](https://blog.trustgraph.ai) 📋 [Use Cases](https://trustgraph.ai/docs/usecases)
+🚀 [Gettin Started](https://trustgraph.ai/docs/getstarted) ⚙️ [API Docs](https://trustgraph.ai/docs/api/apistarted/) 🧑‍💻 [CLI Docs](https://trustgraph.ai/docs/running/cli) 📺 [YouTube](https://www.youtube.com/@TrustGraph?sub_confirmation=1) 💬 [Discord](https://discord.gg/sQMwkRz5GX) 📖 [Blog](https://blog.trustgraph.ai) 📋 [Use Cases](https://trustgraph.ai/docs/usecases)
 
 </div>
 
-TrustGraph is a full AI powered data engineering platform. Extract your documents to knowledge graphs and vector embeddings with customizable data extraction agents. Deploy AI agents that leverage your data to generate reliable and accurate AI responses.
+TrustGraph is a fully agentic AI data engineering platform for complex unstructured data. Extract your documents to knowledge graphs and vector embeddings with customizable data extraction agents. Deploy AI agents that leverage your data to generate explainable AI responses.
 
 ## Key Features
 
@@ -32,14 +32,16 @@ TrustGraph is a full AI powered data engineering platform. Extract your document
 - 🪴 **Customizable and Extensible**: Tailor for your data and use cases
 - 🖥️ **Configuration UI**: Build the `YAML` configuration with drop down menus and selectable parameters
 
-## Get Started
+## Getting Started
 
-There are two primary ways of interacting with TrustGraph:
+There are four ways of interacting with TrustGraph:
 
-- TrustGraph CLI
-- Configuration UI
+- **REST API**
+- **Python SDK**
+- **TrustGraph CLI**
+- **Configuration UI**
 
-The `TrustGraph CLI` installs the commands for interacting with TrustGraph while running. The `Configuration UI` enables customization of TrustGraph deployments prior to launching.
+The `TrustGraph CLI` installs the commands for interacting with TrustGraph while running along with the Python SDK. The `Configuration UI` enables customization of TrustGraph deployments prior to launching. The **REST API** can be accessed through port `8088` of the TrustGraph host machine with JSON request and response bodies.
 
 ### Install the TrustGraph CLI
 
@@ -57,7 +59,7 @@ The full CLI docs are [here](https://trustgraph.ai/docs/running/cli).
 While TrustGraph is endlessly customizable through the `YAML` launch files, the `Configuration UI` can build a custom configuration in seconds that deploys with Docker, Podman, Minikube, or Google Cloud. There is a `Configuration UI` for the both the lastest and stable `TrustGraph` releases.
 
 - [**Stable Configuration UI** (0.15.6) 🚀](https://config-ui.demo.trustgraph.ai/)
-- [**Latest Configuration UI** (0.16.3) 🚀](https://dev.config-ui.demo.trustgraph.ai/)
+- [**Latest Configuration UI** (0.16.5) 🚀](https://dev.config-ui.demo.trustgraph.ai/)
 
 The `Configuration UI` has three sections:
 
@@ -79,13 +81,18 @@ When finished, shutting down TrustGraph is as simple as:
 docker compose down -v
 ```
 
+### Example Notebooks
+
+- [**REST API Notebooks**](https://github.com/trustgraph-ai/example-notebooks/tree/master/api-examples)
+- [**Python SDK Notebooks**](https://github.com/trustgraph-ai/example-notebooks/tree/master/api-library)
+
 ## TrustGraph Releases
 
 TrustGraph releases are available [here](https://github.com/trustgraph-ai/trustgraph/releases). Download `deploy.zip` for the desired release version.
 
 | Release Type | Release Version |
 | ------------ | --------------- |
-| Latest | [0.16.3](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.16.3/deploy.zip) |
+| Latest | [0.16.5](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.16.5/deploy.zip) |
 | Stable | [0.15.6](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.15.6/deploy.zip) |
 
 TrustGraph is fully containerized and is launched with a `YAML` configuration file. Unzipping the `deploy.zip` will add the `deploy` directory with the following subdirectories:
