@@ -167,13 +167,24 @@ Text or Markdown file:
 tg-load-text <document.txt>
 ```
 
-## RAG Queries
+## GraphRAG Queries
 
 Once the knowledge graph and embeddings have been built or a knowledge core has been loaded, RAG queries are launched with a single line:
 
 ```
 tg-query-graph-rag -q "Write a blog post about the 5 key takeaways from SB1047 and how they will impact AI development."
 ```
+
+## Agent Flow
+
+Invoking the Agent Flow will use a ReAct style approach the combines GraphRAG and text completion requests to think through a problem solution.
+
+```
+tg-invoke-agent -v -q "Write a blog post about the 5 key takeaways from SB1047 and how they will impact AI development."
+```
+
+> [!TIP]
+> Adding `-v` to the agent request will return all of the agent manager's thoughts and observations that led to the final response.
 
 ## Deploy and Manage TrustGraph
 
