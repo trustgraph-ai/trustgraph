@@ -36,10 +36,10 @@ TrustGraph is a fully agentic AI data engineering platform for complex unstructu
 
 There are four ways of interacting with TrustGraph:
 
-- **REST API**
-- **Python SDK**
-- **TrustGraph CLI**
-- **Configuration UI**
+- [**REST API**](https://trustgraph.ai/docs/api/apistarted)
+- [**Python SDK**](https://trustgraph.ai/docs/api/apistarted)
+- [**TrustGraph CLI**](https://trustgraph.ai/docs/running/cli)
+- [**Configuration UI**](https://config-ui.demo.trustgraph.ai/)
 
 The `TrustGraph CLI` installs the commands for interacting with TrustGraph while running along with the Python SDK. The `Configuration UI` enables customization of TrustGraph deployments prior to launching. The **REST API** can be accessed through port `8088` of the TrustGraph host machine with JSON request and response bodies.
 
