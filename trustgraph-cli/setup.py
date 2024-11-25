@@ -39,6 +39,7 @@ setuptools.setup(
         "pulsar-client",
         "rdflib",
         "tabulate",
+        "msgpack",
     ],
     scripts=[
         "scripts/tg-graph-show",
@@ -54,5 +55,8 @@ setuptools.setup(
         "scripts/tg-invoke-agent",
         "scripts/tg-invoke-prompt",
         "scripts/tg-invoke-llm",
+        "scripts/tg-save-kg-core",
+        "scripts/tg-load-kg-core",
+        "scripts/tg-dump-msgpack",
     ]
 )

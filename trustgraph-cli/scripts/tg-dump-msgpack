@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+
+import msgpack
+import sys
+import argparse
+
+def run(input_file):
+
+    with open(input_file, 'rb') as f:
+
+        unpacker = msgpack.Unpacker(f, raw=False)
+
+        for unpacked in unpacker:
+            print(unpacked)
+
+def main():
+    
+    parser = argparse.ArgumentParser(
+        prog='tg-load-pdf',
+        description=__doc__,
+    )
+
+    parser.add_argument(
+        '-i', '--input-file',
+        required=True,
+        help=f'Input file'
+    )
+
+    args = parser.parse_args()
+
+    run(**vars(args))
+
+main()
+
