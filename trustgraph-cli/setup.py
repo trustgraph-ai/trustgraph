@@ -39,6 +39,7 @@ setuptools.setup(
         "pulsar-client",
         "rdflib",
         "tabulate",
+        "msgpack",
     ],
     scripts=[
         "scripts/tg-graph-show",
