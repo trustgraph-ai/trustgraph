@@ -1,0 +1,9 @@
+#!/usr/bin/env python3
+
+import msgpack
+import sys
+
+unpacker = msgpack.Unpacker(sys.stdin.buffer, raw=False)
+for unpacked in unpacker:
+    print(unpacked)
+

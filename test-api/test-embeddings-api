@@ -23,3 +23,6 @@ if "error" in resp:
     print(f"Error: {resp['error']}")
     sys.exit(1)
 
+print(resp["vectors"])
+
+

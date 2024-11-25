@@ -14,7 +14,7 @@ module = ".".join(__name__.split(".")[1:-1])
 
 import asyncio
 import argparse
-from aiohttp import web
+from aiohttp import web, WSMsgType
 import json
 import logging
 import uuid
@@ -47,9 +47,13 @@ from ... schema import GraphRagQuery, GraphRagResponse
 from ... schema import graph_rag_request_queue
 from ... schema import graph_rag_response_queue
 
-from ... schema import TriplesQueryRequest, TriplesQueryResponse
+from ... schema import TriplesQueryRequest, TriplesQueryResponse, Triples
 from ... schema import triples_request_queue
 from ... schema import triples_response_queue
+from ... schema import triples_store_queue
+
+from ... schema import GraphEmbeddings
+from ... schema import graph_embeddings_store_queue
 
 from ... schema import AgentRequest, AgentResponse
 from ... schema import agent_request_queue
@@ -83,6 +87,11 @@ def to_subgraph(x):
         )
         for t in x
     ]
+
+class Running:
+    def __init__(self): self.running = True
+    def get(self): return self.running
+    def stop(self): self.running = False
 
 class Publisher:
 
@@ -132,6 +141,7 @@ class Subscriber:
         self.consumer_name = consumer_name
         self.schema = schema
         self.q = {}
+        self.full = {}
 
     async def run(self):
         while True:
@@ -145,10 +155,19 @@ class Subscriber:
                     ) as consumer:
                         while True:
                             msg = await consumer.receive()
-                            id = msg.properties()["id"]
+
+                            try:
+                                id = msg.properties()["id"]
+                            except:
+                                id = None
+
                             value = msg.value()
                             if id in self.q:
                                 await self.q[id].put(value)
+
+                            for q in self.full.values():
+                                await q.put(value)
+
             except Exception as e:
                 print("Exception:", e, flush=True)
          
@@ -163,6 +182,59 @@ class Subscriber:
     async def unsubscribe(self, id):
         if id in self.q:
             del self.q[id]
+    
+    async def subscribe_all(self, id):
+        q = asyncio.Queue()
+        self.full[id] = q
+        return q
+
+    async def unsubscribe_all(self, id):
+        if id in self.full:
+            del self.full[id]
+
+def serialize_triples(message):
+    return {
+        "metadata": {
+            "id": message.metadata.id,
+            "metadata": [
+                {
+                    "s": t.s.value,
+                    "p": t.p.value,
+                    "o": t.o.value,
+                }
+                for t in message.metadata.metadata
+            ],
+            "user": message.metadata.user,
+            "collection": message.metadata.collection,
+        },
+        "triples": [        
+            {
+                "s": t.s.value,
+                "p": t.p.value,
+                "o": t.o.value,
+            }
+            for t in message.triples
+        ]
+    }
+    
+def serialize_graph_embeddings(message):
+    return {
+        "metadata": {
+            "id": message.metadata.id,
+            "metadata": [
+                {
+                    "s": t.s.value,
+                    "p": t.p.value,
+                    "o": t.o.value,
+                }
+                for t in message.metadata.metadata
+            ],
+            "user": message.metadata.user,
+            "collection": message.metadata.collection,
+        },
+        "vectors": message.vectors,
+        "entity": message.entity.value,
+    }
     
 class Api:
 
@@ -243,6 +315,18 @@ class Api:
             JsonSchema(EmbeddingsResponse)
         )
 
+        self.triples_tap = Subscriber(
+            self.pulsar_host, triples_store_queue,
+            "api-gateway", "api-gateway",
+            schema=JsonSchema(Triples)
+        )
+
+        self.graph_embeddings_tap = Subscriber(
+            self.pulsar_host, graph_embeddings_store_queue,
+            "api-gateway", "api-gateway",
+            schema=JsonSchema(GraphEmbeddings)
+        )
+
         self.document_out = Publisher(
             self.pulsar_host, document_ingest_queue,
             schema=JsonSchema(Document),
@@ -264,6 +348,12 @@ class Api:
             web.post("/api/v1/embeddings", self.embeddings),
             web.post("/api/v1/load/document", self.load_document),
             web.post("/api/v1/load/text", self.load_text),
+            web.get("/api/v1/ws", self.socket),
+            web.get("/api/v1/stream/triples", self.stream_triples),
+            web.get(
+                "/api/v1/stream/graph-embeddings",
+                self.stream_graph_embeddings
+            ),
         ])
 
     async def llm(self, request):
@@ -660,6 +750,100 @@ class Api:
                 { "error": str(e) }
             )
 
+    async def socket(self, request):
+
+        ws = web.WebSocketResponse()
+        await ws.prepare(request)
+
+        async for msg in ws:
+            if msg.type == WSMsgType.TEXT:
+                if msg.data == 'close':
+                    await ws.close()
+                else:
+                    await ws.send_str(msg.data + '/answer')
+            elif msg.type == WSMsgType.ERROR:
+                print('ws connection closed with exception %s' %
+                      ws.exception())
+
+        print('websocket connection closed')
+
+        return ws
+
+    async def stream(self, q, ws, running, fn):
+
+        while running.get():
+            try:
+                resp = await asyncio.wait_for(q.get(), 0.5)
+                await ws.send_json(fn(resp))
+
+            except TimeoutError:
+                continue
+
+            except Exception as e:
+                print(f"Exception: {str(e)}", flush=True)
+
+    async def stream_triples(self, request):
+
+        id = str(uuid.uuid4())
+
+        q = await self.triples_tap.subscribe_all(id)
+        running = Running()
+
+        ws = web.WebSocketResponse()
+        await ws.prepare(request)
+
+        tsk = asyncio.create_task(self.stream(
+            q,
+            ws,
+            running,
+            serialize_triples,
+        ))
+
+        async for msg in ws:
+            if msg.type == WSMsgType.ERROR:
+                break
+            else:
+                # Ignore incoming messages
+                pass
+
+        running.stop()
+
+        await self.triples_tap.unsubscribe_all(id)
+        await tsk
+
+        return ws
+
+    async def stream_graph_embeddings(self, request):
+
+        id = str(uuid.uuid4())
+
+        q = await self.graph_embeddings_tap.subscribe_all(id)
+        running = Running()
+
+        ws = web.WebSocketResponse()
+        await ws.prepare(request)
+
+        tsk = asyncio.create_task(self.stream(
+            q,
+            ws,
+            running,
+            serialize_graph_embeddings,
+        ))
+
+        async for msg in ws:
+            if msg.type == WSMsgType.ERROR:
+                break
+            else:
+                # Ignore incoming messages
+                pass
+
+        running.stop()
+
+        await self.graph_embeddings_tap.unsubscribe_all(id)
+        await tsk
+
+        return ws
+
     async def app_factory(self):
 
         self.llm_pub_task = asyncio.create_task(self.llm_in.run())
@@ -686,6 +870,14 @@ class Api:
         )
         self.embeddings_sub_task = asyncio.create_task(
             self.embeddings_out.run()
+        )
+
+        self.triples_tap_task = asyncio.create_task(
+            self.triples_tap.run()
+        )
+
+        self.graph_embeddings_tap_task = asyncio.create_task(
+            self.graph_embeddings_tap.run()
         )
 
         self.doc_ingest_pub_task = asyncio.create_task(self.document_out.run())
