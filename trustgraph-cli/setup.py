@@ -54,5 +54,7 @@ setuptools.setup(
         "scripts/tg-invoke-agent",
         "scripts/tg-invoke-prompt",
         "scripts/tg-invoke-llm",
+        "scripts/tg-save-kg-core",
+        "scripts/tg-dump-msgpack",
     ]
 )
