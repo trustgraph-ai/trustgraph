@@ -321,9 +321,19 @@ class Api:
             schema=JsonSchema(Triples)
         )
 
+        self.triples_pub = Publisher(
+            self.pulsar_host, triples_store_queue,
+            schema=JsonSchema(Triples)
+        )
+
         self.graph_embeddings_tap = Subscriber(
             self.pulsar_host, graph_embeddings_store_queue,
             "api-gateway", "api-gateway",
+            schema=JsonSchema(GraphEmbeddings)
+        )
+
+        self.graph_embeddings_pub = Publisher(
+            self.pulsar_host, graph_embeddings_store_queue,
             schema=JsonSchema(GraphEmbeddings)
         )
 
@@ -349,11 +359,19 @@ class Api:
             web.post("/api/v1/load/document", self.load_document),
             web.post("/api/v1/load/text", self.load_text),
             web.get("/api/v1/ws", self.socket),
+
             web.get("/api/v1/stream/triples", self.stream_triples),
             web.get(
                 "/api/v1/stream/graph-embeddings",
                 self.stream_graph_embeddings
             ),
+
+            web.get("/api/v1/load/triples", self.load_triples),
+            web.get(
+                "/api/v1/load/graph-embeddings",
+                self.load_graph_embeddings
+            ),
+
         ])
 
     async def llm(self, request):
@@ -844,6 +862,75 @@ class Api:
 
         return ws
 
+    async def load_triples(self, request):
+
+        ws = web.WebSocketResponse()
+        await ws.prepare(request)
+
+        async for msg in ws:
+
+            try:
+
+                if msg.type == WSMsgType.TEXT:
+
+                    data = msg.json()
+
+                    elt = Triples(
+                        metadata=Metadata(
+                            id=data["metadata"]["id"],
+                            metadata=to_subgraph(data["metadata"]["metadata"]),
+                            user=data["metadata"]["user"],
+                            collection=data["metadata"]["collection"],
+                        ),
+                        triples=to_subgraph(data["triples"]),
+                    )
+
+                    await self.triples_pub.send(None, elt)
+
+                elif msg.type == WSMsgType.ERROR:
+                    break
+
+            except Exception as e:
+
+                print("Exception:", e)
+
+        return ws
+
+    async def load_graph_embeddings(self, request):
+
+        ws = web.WebSocketResponse()
+        await ws.prepare(request)
+
+        async for msg in ws:
+
+            try:
+
+                if msg.type == WSMsgType.TEXT:
+
+                    data = msg.json()
+
+                    elt = GraphEmbeddings(
+                        metadata=Metadata(
+                            id=data["metadata"]["id"],
+                            metadata=to_subgraph(data["metadata"]["metadata"]),
+                            user=data["metadata"]["user"],
+                            collection=data["metadata"]["collection"],
+                        ),
+                        entity=to_value(data["entity"]),
+                        vectors=data["vectors"],
+                    )
+
+                    await self.graph_embeddings_pub.send(None, elt)
+
+                elif msg.type == WSMsgType.ERROR:
+                    break
+
+            except Exception as e:
+
+                print("Exception:", e)
+
+        return ws
+
     async def app_factory(self):
 
         self.llm_pub_task = asyncio.create_task(self.llm_in.run())
@@ -876,8 +963,16 @@ class Api:
             self.triples_tap.run()
         )
 
+        self.triples_pub_task = asyncio.create_task(
+            self.triples_pub.run()
+        )
+
         self.graph_embeddings_tap_task = asyncio.create_task(
             self.graph_embeddings_tap.run()
+        )
+
+        self.graph_embeddings_pub_task = asyncio.create_task(
+            self.graph_embeddings_pub.run()
         )
 
         self.doc_ingest_pub_task = asyncio.create_task(self.document_out.run())
@@ -890,7 +985,6 @@ class Api:
         web.run_app(self.app_factory(), port=self.port)
 
 def run():
-
 
     parser = argparse.ArgumentParser(
         prog="api-gateway",
