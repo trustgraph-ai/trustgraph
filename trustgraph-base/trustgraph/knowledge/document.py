@@ -2,9 +2,10 @@
 from . defs import *
 
 def Value(value, is_uri):
-    return {
-        "v": value, "e": is_uri,
-    }
+    if is_uri:
+        return Uri(value)
+    else:
+        return Literal(value)
 
 def Triple(s, p, o):
     return {

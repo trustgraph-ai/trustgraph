@@ -4,21 +4,13 @@ import json
 import dataclasses
 import base64
 
-from trustgraph.knowledge import hash
+from trustgraph.knowledge import hash, Uri, Literal
 
 class ProtocolException(Exception):
     pass
 
 class ApplicationException(Exception):
     pass
-
-class Uri(str):
-    def is_uri(self): return True
-    def is_literal(self): return False
-
-class Literal(str):
-    def is_uri(self): return False
-    def is_literal(self): return True
 
 @dataclasses.dataclass
 class Triple:
@@ -279,10 +271,10 @@ class Api:
 
         if metadata:
             metadata.emit(
-                lambda t: triples.append(
-                    "s": { "v": t.s, "e": isinstance(t.s, Uri) }
-                    "p": { "v": t.p, "e": isinstance(t.p, Uri) }
-                    "o": { "v": t.o, "e": isinstance(t.o, Uri) }
+                lambda t: triples.append({
+                    "s": { "v": t["s"], "e": isinstance(t["s"], Uri) },
+                    "p": { "v": t["p"], "e": isinstance(t["p"], Uri) },
+                    "o": { "v": t["o"], "e": isinstance(t["o"], Uri) }
                 })
             )
 
@@ -319,9 +311,9 @@ class Api:
         if metadata:
             metadata.emit(
                 lambda t: triples.append({
-                    "s": { "v": t.s, "e": isinstance(t.s, Uri),
-                    "p": { "v": t.p, "e": isinstance(t.p, Uri),
-                    "o": { "v": t.o, "e": isinstance(t.o, Uri),
+                    "s": { "v": t["s"], "e": isinstance(t["s"], Uri) },
+                    "p": { "v": t["p"], "e": isinstance(t["p"], Uri) },
+                    "o": { "v": t["o"], "e": isinstance(t["o"], Uri) }
                 })
             )
 
