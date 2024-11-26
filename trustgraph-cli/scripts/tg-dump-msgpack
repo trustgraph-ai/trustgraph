@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
 
+""
+This utility reads a knowledge core in msgpack format and outputs its
+contents in JSON form to standard output.  This is useful only as a
+diagnostic utility.
+"""
+
 import msgpack
 import sys
 import argparse
@@ -16,7 +22,7 @@ def run(input_file):
 def main():
     
     parser = argparse.ArgumentParser(
-        prog='tg-load-pdf',
+        prog='tg-dump-msgpack',
         description=__doc__,
     )
 

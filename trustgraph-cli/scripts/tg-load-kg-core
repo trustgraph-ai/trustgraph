@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 
+"""This utility takes a knowledge core and loads it into a running TrustGraph
+through the API.  The knowledge core should be in msgpack format, which is the
+default format produce by tg-save-kg-core.
+"""
+
 import aiohttp
 import asyncio
 import msgpack
@@ -133,7 +138,7 @@ async def run(**args):
 async def main():
     
     parser = argparse.ArgumentParser(
-        prog='tg-load-pdf',
+        prog='tg-load-kg-core',
         description=__doc__,
     )
 
