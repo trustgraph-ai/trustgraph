@@ -73,10 +73,7 @@ default_timeout = 600
 default_port = 8088
 
 def to_value(x):
-    if x.startswith("http:") or x.startswith("https:"):
-        return Value(value=x, is_uri=True)
-    else:
-        return Value(value=x, is_uri=False)
+    return Value(value=x["v"], is_uri=x["e"])
 
 def to_subgraph(x):
     return [
@@ -156,6 +153,9 @@ class Subscriber:
                         while True:
                             msg = await consumer.receive()
 
+                            # Acknowledge successful reception of the message
+                            await consumer.acknowledge(msg)
+
                             try:
                                 id = msg.properties()["id"]
                             except:
@@ -192,43 +192,41 @@ class Subscriber:
         if id in self.full:
             del self.full[id]
 
+def serialize_value(v):
+    return {
+        "v": v.value,
+        "e": v.is_uri,
+    }
+
+def serialize_triple(t):
+    return {
+        "s": serialize_value(t.s),
+        "p": serialize_value(t.p),
+        "o": serialize_value(t.o)
+    }
+
+def serialize_subgraph(sg):
+    return [
+        serialize_triple(t)
+        for t in sg
+    ]
+
 def serialize_triples(message):
     return {
         "metadata": {
             "id": message.metadata.id,
-            "metadata": [
-                {
-                    "s": t.s.value,
-                    "p": t.p.value,
-                    "o": t.o.value,
-                }
-                for t in message.metadata.metadata
-            ],
+            "metadata": serialize_subgraph(message.metadata.metadata),
             "user": message.metadata.user,
             "collection": message.metadata.collection,
         },
-        "triples": [        
-            {
-                "s": t.s.value,
-                "p": t.p.value,
-                "o": t.o.value,
-            }
-            for t in message.triples
-        ]
+        "triples": serialize_subgraph(message.triples),
     }
     
 def serialize_graph_embeddings(message):
     return {
         "metadata": {
             "id": message.metadata.id,
-            "metadata": [
-                {
-                    "s": t.s.value,
-                    "p": t.p.value,
-                    "o": t.o.value,
-                }
-                for t in message.metadata.metadata
-            ],
+            "metadata": serialize_subgraph(message.metadata.metadata),
             "user": message.metadata.user,
             "collection": message.metadata.collection,
         },
@@ -560,23 +558,7 @@ class Api:
 
             return web.json_response(
                 {
-                    "response": [
-                        {
-                            "s": {
-                                "v": t.s.value,
-                                "e": t.s.is_uri,
-                            },
-                            "p": {
-                                "v": t.p.value,
-                                "e": t.p.is_uri,
-                            },
-                            "o": {
-                                "v": t.o.value,
-                                "e": t.o.is_uri,
-                            }
-                        }
-                        for t in resp.triples
-                    ]
+                    "response": serialize_subgraph(resp.triples),
                 }
             )
 
