@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
 
+"""
+This utility connects to a running TrustGraph through the API and creates
+a knowledge core from the data streaming through the processing queues.
+For completeness of data, tg-save-kg-core should be initiated before data
+loading takes place.  The default output  format, msgpack should be used.
+JSON output format is also available - msgpack produces a more compact
+representation, which is also more performant to load.
+"""
+
 import aiohttp
 import asyncio
 import msgpack
@@ -144,7 +153,7 @@ async def run(**args):
 async def main():
     
     parser = argparse.ArgumentParser(
-        prog='tg-load-pdf',
+        prog='tg-save-kg-core',
         description=__doc__,
     )
 
