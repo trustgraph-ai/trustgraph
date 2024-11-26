@@ -1,6 +1,15 @@
 
 from . defs import *
-from .. schema import Triple, Value
+
+def Value(value, is_uri):
+    return {
+        "v": value, "e": is_uri,
+    }
+
+def Triple(s, p, o):
+    return {
+        "s": s, "p": p, "o": o,
+    }
 
 class DigitalDocument:
 

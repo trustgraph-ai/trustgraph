@@ -213,9 +213,16 @@ class Api:
             "limit": limit
         }
 
-        if s: input["s"] = s
-        if p: input["p"] = p
-        if o: input["o"] = o
+        if not isinstance(s, Uri):
+            raise RuntimeError("s must be Uri")
+        if not isinstance(p, Uri):
+            raise RuntimeError("p must be Uri")
+        if not isinstance(o, Uri) and not isinstance(o, Literal):
+            raise RuntimeError("o must be Uri or Literal")
+
+        if s: input["s"] = { "v": str(s), "e": isinstance(s, Uri), }
+        if p: input["p"] = { "v": str(p), "e": isinstance(p, Uri), }
+        if o: input["o"] = { "v": str(o), "e": isinstance(o, Uri), }
 
         url = f"{self.url}triples-query"
 
@@ -272,10 +279,10 @@ class Api:
 
         if metadata:
             metadata.emit(
-                lambda t: triples.append({
-                    "s": t.s.value,
-                    "p": t.p.value,
-                    "o": t.o.value
+                lambda t: triples.append(
+                    "s": { "v": t.s, "e": isinstance(t.s, Uri) }
+                    "p": { "v": t.p, "e": isinstance(t.p, Uri) }
+                    "o": { "v": t.o, "e": isinstance(t.o, Uri) }
                 })
             )
 
@@ -312,9 +319,9 @@ class Api:
         if metadata:
             metadata.emit(
                 lambda t: triples.append({
-                    "s": t.s.value,
-                    "p": t.p.value,
-                    "o": t.o.value
+                    "s": { "v": t.s, "e": isinstance(t.s, Uri),
+                    "p": { "v": t.p, "e": isinstance(t.p, Uri),
+                    "o": { "v": t.o, "e": isinstance(t.o, Uri),
                 })
             )
 
