@@ -13,7 +13,7 @@ import time
 import uuid
 
 from trustgraph.schema import TextDocument, text_ingest_queue
-from trustgraph.schema import Metadata
+from trustgraph.schema import Metadata, Triple, Value
 from trustgraph.log_level import LogLevel
 from trustgraph.knowledge import hash, to_uri
 from trustgraph.knowledge import PREF_PUBEV, PREF_DOC, PREF_ORG
@@ -78,7 +78,14 @@ class Loader:
             r = TextDocument(
                 metadata=Metadata(
                     id=id,
-                    metadata=triples,
+                    metadata=[
+                        Triple(
+                            s=Value(value=t["s"]["v"], is_uri=t["s"]["e"]),
+                            p=Value(value=t["p"]["v"], is_uri=t["p"]["e"]),
+                            o=Value(value=t["o"]["v"], is_uri=t["o"]["e"])
+                        )
+                        for t in triples
+                    ],
                     user=self.user,
                     collection=self.collection,
                 ),
