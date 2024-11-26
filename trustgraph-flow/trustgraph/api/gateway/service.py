@@ -156,6 +156,9 @@ class Subscriber:
                         while True:
                             msg = await consumer.receive()
 
+                            # Acknowledge successful reception of the message
+                            await consumer.acknowledge(msg)
+
                             try:
                                 id = msg.properties()["id"]
                             except:
