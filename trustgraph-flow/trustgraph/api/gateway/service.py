@@ -231,7 +231,7 @@ def serialize_graph_embeddings(message):
             "collection": message.metadata.collection,
         },
         "vectors": message.vectors,
-        "entity": message.entity.value,
+        "entity": message.entity,
     }
     
 class Api:

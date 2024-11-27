@@ -104,8 +104,10 @@ async def loader(ge_queue, t_queue, path, format, user, collection):
 
 async def run(**args):
 
-    ge_q = asyncio.Queue()
-    t_q = asyncio.Queue()
+    # Maxsize on queues reduces back-pressure so tg-load-kg-core doesn't
+    # grow to eat all memory
+    ge_q = asyncio.Queue(maxsize=500)
+    t_q = asyncio.Queue(maxsize=500)
 
     load_task = asyncio.create_task(
         loader(
