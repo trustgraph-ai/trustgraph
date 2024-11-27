@@ -57,7 +57,7 @@ pip3 install trustgraph-cli==0.15.6
 TrustGraph is endlessly customizable by editing the `YAML` launch files. The `Configuration UI` provides a quick and intuitive tool for building a custom configuration that deploys with Docker, Podman, Minikube, or Google Cloud. There is a `Configuration UI` for the both the lastest and stable `TrustGraph` releases.
 
 - [**Stable Configuration UI** (0.15.6) 🚀](https://config-ui.demo.trustgraph.ai/)
-- [**Latest Configuration UI** (0.16.5) 🚀](https://dev.config-ui.demo.trustgraph.ai/)
+- [**Latest Configuration UI** (0.16.8) 🚀](https://dev.config-ui.demo.trustgraph.ai/)
 
 The `Configuration UI` has three sections:
 
@@ -90,7 +90,7 @@ TrustGraph releases are available [here](https://github.com/trustgraph-ai/trustg
 
 | Release Type | Release Version |
 | ------------ | --------------- |
-| Latest | [0.16.5](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.16.5/deploy.zip) |
+| Latest | [0.16.8](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.16.8/deploy.zip) |
 | Stable | [0.15.6](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.15.6/deploy.zip) |
 
 TrustGraph is fully containerized and is launched with a `YAML` configuration file. Unzipping the `deploy.zip` will add the `deploy` directory with the following subdirectories:
