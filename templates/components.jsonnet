@@ -12,6 +12,7 @@
    "graph-rag": import "components/graph-rag.jsonnet",
    "triple-store-cassandra": import "components/cassandra.jsonnet",
    "triple-store-neo4j": import "components/neo4j.jsonnet",
+   "triple-store-memgraph": import "components/memgraph.jsonnet",
    "llamafile": import "components/llamafile.jsonnet",
    "ollama": import "components/ollama.jsonnet",
    "openai": import "components/openai.jsonnet",
@@ -34,6 +35,7 @@
    // FIXME: Dupes
    "cassandra": import "components/cassandra.jsonnet",
    "neo4j": import "components/neo4j.jsonnet",
+   "memgraph": import "components/memgraph.jsonnet",
    "qdrant": import "components/qdrant.jsonnet",
    "pinecone": import "components/pinecone.jsonnet",
    "milvus": import "components/milvus.jsonnet",

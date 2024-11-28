@@ -10,5 +10,7 @@ local version = import "version.jsonnet";
     prometheus: "docker.io/prom/prometheus:v2.53.2",
     grafana: "docker.io/grafana/grafana:11.1.4",
     trustgraph: "docker.io/trustgraph/trustgraph-flow:" + version,
-    qdrant: "docker.io/qdrant/qdrant:v1.11.1"
+    qdrant: "docker.io/qdrant/qdrant:v1.11.1",
+    memgraph_mage: "docker.io/memgraph/memgraph-mage:1.22-memgraph-2.22",
+    memgraph_lab: "docker.io/memgraph/lab:2.19.1",
 }
