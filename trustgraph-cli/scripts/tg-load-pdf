@@ -16,7 +16,7 @@ import uuid
 from trustgraph.schema import Document, document_ingest_queue
 from trustgraph.schema import Metadata, Triple, Value
 from trustgraph.log_level import LogLevel
-from trustgraph.knowledge import hash, to_uri
+from trustgraph.knowledge import hash, to_uri, Uri
 from trustgraph.knowledge import PREF_PUBEV, PREF_DOC, PREF_ORG
 from trustgraph.knowledge import Organization, PublicationEvent
 from trustgraph.knowledge import DigitalDocument
