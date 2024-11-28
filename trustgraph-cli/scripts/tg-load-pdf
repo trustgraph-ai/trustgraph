@@ -81,9 +81,18 @@ class Loader:
                     id=id,
                     metadata=[
                         Triple(
-                            s=Value(value=t["s"]["v"], is_uri=t["s"]["e"]),
-                            p=Value(value=t["p"]["v"], is_uri=t["p"]["e"]),
-                            o=Value(value=t["o"]["v"], is_uri=t["o"]["e"])
+                            s=Value(
+                                value=t["s"],
+                                is_uri=isinstance(t["s"], Uri)
+                            ),
+                            p=Value(
+                                value=t["p"],
+                                is_uri=isinstance(t["p"], Uri)
+                            ),
+                            o=Value(
+                                value=t["o"],
+                                is_uri=isinstance(t["o"], Uri)
+                            ),
                         )
                         for t in triples
                     ],
