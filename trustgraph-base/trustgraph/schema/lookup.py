@@ -1,5 +1,5 @@
 
-from pulsar.schema import Record, Bytes, String, Boolean, Integer, Array, Double
+from pulsar.schema import Record, String
 
 from . types import Error, Value, Triple
 from . topic import topic
@@ -15,12 +15,20 @@ class LookupRequest(Record):
 
 class LookupResponse(Record):
     text = String()
+    error = Error()
 
-wikipedia_lookup_request_queue = topic(
+encyclopedia_lookup_request_queue = topic(
     'encyclopedia', kind='non-persistent', namespace='request'
 )
-wikipedia_lookup_response_queue = topic(
+encyclopedia_lookup_response_queue = topic(
     'encyclopedia', kind='non-persistent', namespace='response', 
+)
+
+dbpedia_lookup_request_queue = topic(
+    'dbpedia', kind='non-persistent', namespace='request'
+)
+dbpedia_lookup_response_queue = topic(
+    'dbpedia', kind='non-persistent', namespace='response', 
 )
 
 internet_search_request_queue = topic(

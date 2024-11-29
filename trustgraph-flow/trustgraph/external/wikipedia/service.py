@@ -1,23 +1,22 @@
 
 """
-Embeddings service, applies an embeddings model selected from HuggingFace.
-Input is text, output is embeddings vector.
+Wikipedia lookup service.  Fetchs an extract from the Wikipedia page
+using the API.
 """
 
-from langchain_huggingface import HuggingFaceEmbeddings
-
-from trustgraph.schema import EmbeddingsRequest, EmbeddingsResponse, Error
-from trustgraph.schema import embeddings_request_queue
-from trustgraph.schema import embeddings_response_queue
+from trustgraph.schema import LookupRequest, LookupResponse, Error
+from trustgraph.schema import encyclopedia_lookup_request_queue
+from trustgraph.schema import encyclopedia_lookup_response_queue
 from trustgraph.log_level import LogLevel
 from trustgraph.base import ConsumerProducer
+import requests
 
 module = ".".join(__name__.split(".")[1:-1])
 
-default_input_queue = embeddings_request_queue
-default_output_queue = embeddings_response_queue
+default_input_queue = encyclopedia_lookup_request_queue
+default_output_queue = encyclopedia_lookup_response_queue
 default_subscriber = module
-default_model="all-MiniLM-L6-v2"
+default_url="https://en.wikipedia.org/"
 
 class Processor(ConsumerProducer):
 
@@ -26,19 +25,19 @@ class Processor(ConsumerProducer):
         input_queue = params.get("input_queue", default_input_queue)
         output_queue = params.get("output_queue", default_output_queue)
         subscriber = params.get("subscriber", default_subscriber)
-        model = params.get("model", default_model)
+        url = params.get("url", default_url)
 
         super(Processor, self).__init__(
             **params | {
                 "input_queue": input_queue,
                 "output_queue": output_queue,
                 "subscriber": subscriber,
-                "input_schema": EmbeddingsRequest,
-                "output_schema": EmbeddingsResponse,
+                "input_schema": LookupRequest,
+                "output_schema": LookupResponse,
             }
         )
 
-        self.embeddings = HuggingFaceEmbeddings(model_name=model)
+        self.url = url
 
     def handle(self, msg):
 
@@ -47,37 +46,40 @@ class Processor(ConsumerProducer):
         # Sender-produced ID
         id = msg.properties()["id"]
 
-        print(f"Handling input {id}...", flush=True)
+        print(f"Handling {v.kind} / {v.term}...", flush=True)
 
         try:
 
-            text = v.text
-            embeds = self.embeddings.embed_documents([text])
+            url = f"{self.url}/api/rest_v1/page/summary/{v.term}"
 
-            print("Send response...", flush=True)
-            r = EmbeddingsResponse(vectors=embeds, error=None)
-            self.producer.send(r, properties={"id": id})
+            resp = Result = requests.get(url).json()
+            resp = resp["extract"]
 
-            print("Done.", flush=True)
-
-
-        except Exception as e:
-
-            print(f"Exception: {e}")
-
-            print("Send error response...", flush=True)
-
-            r = EmbeddingsResponse(
-                error=Error(
-                    type = "llm-error",
-                    message = str(e),
-                ),
-                response=None,
+            r = LookupResponse(
+                error=None,
+                text=resp
             )
 
             self.producer.send(r, properties={"id": id})
 
             self.consumer.acknowledge(msg)
+
+            return
+
+        except Exception as e:
+                
+            r = LookupResponse(
+                error=Error(
+                    type = "lookup-error",
+                    message = str(e),
+                ),
+                text=None,
+            )
+            self.producer.send(r, properties={"id": id})
+
+            self.consumer.acknowledge(msg)
+
+            return
             
 
     @staticmethod
@@ -89,9 +91,9 @@ class Processor(ConsumerProducer):
         )
 
         parser.add_argument(
-            '-m', '--model',
-            default="all-MiniLM-L6-v2",
-            help=f'LLM model (default: all-MiniLM-L6-v2)'
+            '-u', '--url',
+            default=default_url,
+            help=f'LLM model (default: {default_url})'
         )
 
 def run():

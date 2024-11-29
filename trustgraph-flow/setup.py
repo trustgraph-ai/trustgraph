@@ -106,5 +106,6 @@ setuptools.setup(
         "scripts/triples-query-neo4j",
         "scripts/triples-write-cassandra",
         "scripts/triples-write-neo4j",
+        "scripts/wikipedia-lookup",
     ]
 )
