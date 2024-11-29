@@ -66,6 +66,10 @@ from ... schema import embeddings_response_queue
 from ... schema import LookupRequest, LookupResponse
 from ... schema import encyclopedia_lookup_request_queue
 from ... schema import encyclopedia_lookup_response_queue
+from ... schema import internet_search_request_queue
+from ... schema import internet_search_response_queue
+from ... schema import dbpedia_lookup_request_queue
+from ... schema import dbpedia_lookup_response_queue
 
 from ... schema import document_ingest_queue, text_ingest_queue
 
@@ -362,6 +366,28 @@ class Api:
             JsonSchema(LookupResponse)
         )
 
+        self.internet_search_out = Publisher(
+            self.pulsar_host, internet_search_request_queue,
+            schema=JsonSchema(LookupRequest)
+        )
+
+        self.internet_search_in = Subscriber(
+            self.pulsar_host, internet_search_response_queue,
+            "api-gateway", "api-gateway",
+            JsonSchema(LookupResponse)
+        )
+
+        self.dbpedia_lookup_out = Publisher(
+            self.pulsar_host, dbpedia_lookup_request_queue,
+            schema=JsonSchema(LookupRequest)
+        )
+
+        self.dbpedia_lookup_in = Subscriber(
+            self.pulsar_host, dbpedia_lookup_response_queue,
+            "api-gateway", "api-gateway",
+            JsonSchema(LookupResponse)
+        )
+
         self.app.add_routes([
             web.post("/api/v1/text-completion", self.llm),
             web.post("/api/v1/prompt", self.prompt),
@@ -369,6 +395,8 @@ class Api:
             web.post("/api/v1/triples-query", self.triples_query),
             web.post("/api/v1/agent", self.agent),
             web.post("/api/v1/encyclopedia", self.encyclopedia),
+            web.post("/api/v1/internet-search", self.internet-search),
+            web.post("/api/v1/dbpedia", self.dbpedia),
             web.post("/api/v1/embeddings", self.embeddings),
             web.post("/api/v1/load/document", self.load_document),
             web.post("/api/v1/load/text", self.load_text),
@@ -688,8 +716,6 @@ class Api:
 
             data = await request.json()
 
-            print(data)
-
             q = await self.encyclopedia_lookup_in.subscribe(id)
 
             await self.encyclopedia_lookup_out.send(
@@ -723,6 +749,90 @@ class Api:
 
         finally:
             await self.encyclopedia_lookup_in.unsubscribe(id)
+
+    async def internet_search(self, request):
+
+        id = str(uuid.uuid4())
+
+        try:
+
+            data = await request.json()
+
+            q = await self.internet_search_in.subscribe(id)
+
+            await self.internet_search_out.send(
+                id,
+                LookupRequest(
+                    term=data["term"],
+                    kind=data.get("kind", None),
+                )
+            )
+
+            try:
+                resp = await asyncio.wait_for(q.get(), self.timeout)
+            except:
+                raise RuntimeError("Timeout waiting for response")
+
+            if resp.error:
+                return web.json_response(
+                    { "error": resp.error.message }
+                )
+
+            return web.json_response(
+                { "text": resp.text }
+            )
+
+        except Exception as e:
+            logging.error(f"Exception: {e}")
+
+            return web.json_response(
+                { "error": str(e) }
+            )
+
+        finally:
+            await self.internet_search_in.unsubscribe(id)
+
+    async def dbpedia(self, request):
+
+        id = str(uuid.uuid4())
+
+        try:
+
+            data = await request.json()
+
+            q = await self.dbpedia_lookup_in.subscribe(id)
+
+            await self.dbpedia_lookup_out.send(
+                id,
+                LookupRequest(
+                    term=data["term"],
+                    kind=data.get("kind", None),
+                )
+            )
+
+            try:
+                resp = await asyncio.wait_for(q.get(), self.timeout)
+            except:
+                raise RuntimeError("Timeout waiting for response")
+
+            if resp.error:
+                return web.json_response(
+                    { "error": resp.error.message }
+                )
+
+            return web.json_response(
+                { "text": resp.text }
+            )
+
+        except Exception as e:
+            logging.error(f"Exception: {e}")
+
+            return web.json_response(
+                { "error": str(e) }
+            )
+
+        finally:
+            await self.dbpedia_lookup_in.unsubscribe(id)
 
     async def load_document(self, request):
 
@@ -1026,6 +1136,20 @@ class Api:
         )
         self.encyclopedia_sub_task = asyncio.create_task(
             self.encyclopedia_lookup_in.run()
+        )
+
+        self.search_pub_task = asyncio.create_task(
+            self.internet_search_out.run()
+        )
+        self.search_sub_task = asyncio.create_task(
+            self.internet_search_in.run()
+        )
+
+        self.dbpedia_pub_task = asyncio.create_task(
+            self.dbpedia_lookup_out.run()
+        )
+        self.dbpedia_sub_task = asyncio.create_task(
+            self.dbpedia_lookup_in.run()
         )
 
         return self.app
