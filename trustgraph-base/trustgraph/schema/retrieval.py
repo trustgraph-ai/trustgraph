@@ -20,7 +20,7 @@ graph_rag_request_queue = topic(
     'graph-rag', kind='non-persistent', namespace='request'
 )
 graph_rag_response_queue = topic(
-    'graph-rag-response', kind='non-persistent', namespace='response'
+    'graph-rag', kind='non-persistent', namespace='response'
 )
 
 ############################################################################
@@ -40,5 +40,5 @@ document_rag_request_queue = topic(
     'doc-rag', kind='non-persistent', namespace='request'
 )
 document_rag_response_queue = topic(
-    'doc-rag-response', kind='non-persistent', namespace='response'
+    'doc-rag', kind='non-persistent', namespace='response'
 )

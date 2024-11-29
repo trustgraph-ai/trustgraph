@@ -59,7 +59,7 @@ prompt_request_queue = topic(
     'prompt', kind='non-persistent', namespace='request'
 )
 prompt_response_queue = topic(
-    'prompt-response', kind='non-persistent', namespace='response'
+    'prompt', kind='non-persistent', namespace='response'
 )
 
 ############################################################################

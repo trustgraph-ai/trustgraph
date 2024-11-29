@@ -23,7 +23,7 @@ text_completion_request_queue = topic(
     'text-completion', kind='non-persistent', namespace='request'
 )
 text_completion_response_queue = topic(
-    'text-completion-response', kind='non-persistent', namespace='response', 
+    'text-completion', kind='non-persistent', namespace='response'
 )
 
 ############################################################################
@@ -41,5 +41,5 @@ embeddings_request_queue = topic(
     'embeddings', kind='non-persistent', namespace='request'
 )
 embeddings_response_queue = topic(
-    'embeddings-response', kind='non-persistent', namespace='response'
+    'embeddings', kind='non-persistent', namespace='response'
 )
