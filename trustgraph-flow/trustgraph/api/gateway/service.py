@@ -1,4 +1,3 @@
-
 """
 API gateway.  Offers HTTP services which are translated to interaction on the
 Pulsar bus.
@@ -200,6 +199,169 @@ class Subscriber:
         if id in self.full:
             del self.full[id]
 
+class ServiceEndpoint:
+
+    def __init__(
+            self,
+            pulsar_host,
+            request_queue, request_schema,
+            response_queue, response_schema,
+            endpoint_path,
+            subscription="api-gateway", consumer_name="api-gateway",
+            timeout=default_timeout,
+    ):
+
+        self.pub = Publisher(
+            pulsar_host, request_queue,
+            schema=JsonSchema(request_schema)
+        )
+
+        self.sub = Subscriber(
+            pulsar_host, response_queue,
+            subscription, consumer_name,
+            JsonSchema(response_schema)
+        )
+
+        self.path = endpoint_path
+        self.timeout = timeout
+
+    async def start(self):
+
+        self.pub_task = asyncio.create_task(self.pub.run())
+        self.sub_task = asyncio.create_task(self.sub.run())
+
+    def add_routes(self, app):
+
+        app.add_routes([
+            web.post(self.path, self.handle),
+        ])
+
+    def to_request(self, request):
+        raise RuntimeError("Not defined")
+
+    def from_response(self, response):
+        raise RuntimeError("Not defined")
+
+    async def handle(self, request):
+
+        id = str(uuid.uuid4())
+
+        try:
+
+            data = await request.json()
+
+            q = await self.sub.subscribe(id)
+
+            print(data)
+
+            await self.pub.send(
+                id,
+                self.to_request(data),
+            )
+
+            try:
+                resp = await asyncio.wait_for(q.get(), self.timeout)
+            except:
+                raise RuntimeError("Timeout waiting for response")
+
+            print(resp)
+
+            if resp.error:
+                return web.json_response(
+                    { "error": resp.error.message }
+                )
+
+            return web.json_response(
+                self.from_response(resp)
+            )
+
+        except Exception as e:
+            logging.error(f"Exception: {e}")
+
+            return web.json_response(
+                { "error": str(e) }
+            )
+
+        finally:
+            await self.sub.unsubscribe(id)
+
+class TextCompletionEndpoint(ServiceEndpoint):
+    def __init__(self, pulsar_host, timeout):
+
+        super(TextCompletionEndpoint, self).__init__(
+            pulsar_host=pulsar_host,
+            request_queue=text_completion_request_queue,
+            response_queue=text_completion_response_queue,
+            request_schema=TextCompletionRequest,
+            response_schema=TextCompletionResponse,
+            endpoint_path="/api/v1/text-completion",
+            timeout=timeout,
+        )
+
+    def to_request(self, body):
+        return TextCompletionRequest(
+            system=body["system"],
+            prompt=body["prompt"]
+        )
+
+    def from_response(self, message):
+        return { "response": message.response }
+
+class PromptEndpoint(ServiceEndpoint):
+    def __init__(self, pulsar_host, timeout):
+
+        super(PromptEndpoint, self).__init__(
+            pulsar_host=pulsar_host,
+            request_queue=prompt_request_queue,
+            response_queue=prompt_response_queue,
+            request_schema=PromptRequest,
+            response_schema=PromptResponse,
+            endpoint_path="/api/v1/prompt",
+            timeout=timeout,
+        )
+
+    def to_request(self, body):
+        return PromptRequest(
+            id=body["id"],
+            terms={
+                k: json.dumps(v)
+                for k, v in body["variables"].items()
+            }
+        )
+
+    def from_response(self, message):
+        if message.object:
+            return {
+                "object": message.object
+            }
+        else:
+            return {
+                "text": message.text
+            }
+
+class GraphRagEndpoint(ServiceEndpoint):
+    def __init__(self, pulsar_host, timeout):
+
+        super(GraphRagEndpoint, self).__init__(
+            pulsar_host=pulsar_host,
+            request_queue=graph_rag_request_queue,
+            response_queue=graph_rag_response_queue,
+            request_schema=GraphRagQuery,
+            response_schema=GraphRagResponse,
+            endpoint_path="/api/v1/graph-rag",
+            timeout=timeout,
+        )
+
+    def to_request(self, body):
+        return GraphRagQuery(
+            query=body["query"],
+            user=body.get("user", "trustgraph"),
+            collection=body.get("collection", "default"),
+        )
+
+    def from_response(self, message):
+        return { "response": message.response }
+
 def serialize_value(v):
     return {
         "v": v.value,
@@ -255,37 +417,16 @@ class Api:
         self.timeout = int(config.get("timeout", default_timeout))
         self.pulsar_host = config.get("pulsar_host", default_pulsar_host)
 
-        self.llm_out = Publisher(
-            self.pulsar_host, text_completion_request_queue,
-            schema=JsonSchema(TextCompletionRequest)
+        self.text_completion = TextCompletionEndpoint(
+            pulsar_host=self.pulsar_host, timeout=self.timeout,
         )
 
-        self.llm_in = Subscriber(
-            self.pulsar_host, text_completion_response_queue,
-            "api-gateway", "api-gateway",
-            JsonSchema(TextCompletionResponse)
+        self.prompt = PromptEndpoint(
+            pulsar_host=self.pulsar_host, timeout=self.timeout,
         )
 
-        self.prompt_out = Publisher(
-            self.pulsar_host, prompt_request_queue,
-            schema=JsonSchema(PromptRequest)
-        )
-
-        self.prompt_in = Subscriber(
-            self.pulsar_host, prompt_response_queue,
-            "api-gateway", "api-gateway",
-            JsonSchema(PromptResponse)
-        )
-
-        self.graph_rag_out = Publisher(
-            self.pulsar_host, graph_rag_request_queue,
-            schema=JsonSchema(GraphRagQuery)
-        )
-
-        self.graph_rag_in = Subscriber(
-            self.pulsar_host, graph_rag_response_queue,
-            "api-gateway", "api-gateway",
-            JsonSchema(GraphRagResponse)
+        self.graph_rag = GraphRagEndpoint(
+            pulsar_host=self.pulsar_host, timeout=self.timeout,
         )
 
         self.triples_query_out = Publisher(
@@ -388,15 +529,16 @@ class Api:
             JsonSchema(LookupResponse)
         )
 
+        self.text_completion.add_routes(self.app)
+        self.prompt.add_routes(self.app)
+        self.graph_rag.add_routes(self.app)
+
         self.app.add_routes([
-            web.post("/api/v1/text-completion", self.llm),
-            web.post("/api/v1/prompt", self.prompt),
-            web.post("/api/v1/graph-rag", self.graph_rag),
             web.post("/api/v1/triples-query", self.triples_query),
             web.post("/api/v1/agent", self.agent),
             web.post("/api/v1/encyclopedia", self.encyclopedia),
-            web.post("/api/v1/internet-search", self.internet-search),
-            web.post("/api/v1/dbpedia", self.dbpedia),
+#            web.post("/api/v1/internet-search", self.internet-search),
+#            web.post("/api/v1/dbpedia", self.dbpedia),
             web.post("/api/v1/embeddings", self.embeddings),
             web.post("/api/v1/load/document", self.load_document),
             web.post("/api/v1/load/text", self.load_text),
@@ -415,143 +557,6 @@ class Api:
             ),
 
         ])
-
-    async def llm(self, request):
-
-        id = str(uuid.uuid4())
-
-        try:
-
-            data = await request.json()
-
-            q = await self.llm_in.subscribe(id)
-
-            await self.llm_out.send(
-                id,
-                TextCompletionRequest(
-                    system=data["system"],
-                    prompt=data["prompt"]
-                )
-            )
-
-            try:
-                resp = await asyncio.wait_for(q.get(), self.timeout)
-            except:
-                raise RuntimeError("Timeout waiting for response")
-
-            if resp.error:
-                return web.json_response(
-                    { "error": resp.error.message }
-                )
-
-            return web.json_response(
-                { "response": resp.response }
-            )
-
-        except Exception as e:
-            logging.error(f"Exception: {e}")
-
-            return web.json_response(
-                { "error": str(e) }
-            )
-
-        finally:
-            await self.llm_in.unsubscribe(id)
-
-    async def prompt(self, request):
-
-        id = str(uuid.uuid4())
-
-        try:
-
-            data = await request.json()
-
-            q = await self.prompt_in.subscribe(id)
-
-            terms = {
-                k: json.dumps(v)
-                for k, v in data["variables"].items()
-            }
-
-            await self.prompt_out.send(
-                id,
-                PromptRequest(
-                    id=data["id"],
-                    terms=terms
-                )
-            )
-
-            try:
-                resp = await asyncio.wait_for(q.get(), self.timeout)
-            except:
-                raise RuntimeError("Timeout waiting for response")
-
-            if resp.error:
-                return web.json_response(
-                    { "error": resp.error.message }
-                )
-
-            if resp.object:
-                return web.json_response(
-                    { "object": resp.object }
-                )
-
-            return web.json_response(
-                { "text": resp.text }
-            )
-
-        except Exception as e:
-            logging.error(f"Exception: {e}")
-
-            return web.json_response(
-                { "error": str(e) }
-            )
-
-        finally:
-            await self.prompt_in.unsubscribe(id)
-
-    async def graph_rag(self, request):
-
-        id = str(uuid.uuid4())
-
-        try:
-
-            data = await request.json()
-
-            q = await self.graph_rag_in.subscribe(id)
-
-            await self.graph_rag_out.send(
-                id,
-                GraphRagQuery(
-                    query=data["query"],
-                    user=data.get("user", "trustgraph"),
-                    collection=data.get("collection", "default"),
-                )
-            )
-
-            try:
-                resp = await asyncio.wait_for(q.get(), self.timeout)
-            except:
-                raise RuntimeError("Timeout waiting for response")
-
-            if resp.error:
-                return web.json_response(
-                    { "error": resp.error.message }
-                )
-
-            return web.json_response(
-                { "response": resp.response }
-            )
-
-        except Exception as e:
-            logging.error(f"Exception: {e}")
-
-            return web.json_response(
-                { "error": str(e) }
-            )
-
-        finally:
-            await self.graph_rag_in.unsubscribe(id)
 
     async def triples_query(self, request):
 
@@ -1085,14 +1090,9 @@ class Api:
 
     async def app_factory(self):
 
-        self.llm_pub_task = asyncio.create_task(self.llm_in.run())
-        self.llm_sub_task = asyncio.create_task(self.llm_out.run())
-
-        self.prompt_pub_task = asyncio.create_task(self.prompt_in.run())
-        self.prompt_sub_task = asyncio.create_task(self.prompt_out.run())
-
-        self.graph_rag_pub_task = asyncio.create_task(self.graph_rag_in.run())
-        self.graph_rag_sub_task = asyncio.create_task(self.graph_rag_out.run())
+        await self.text_completion.start()
+        await self.prompt.start()
+        await self.graph_rag.start()
 
         self.triples_query_pub_task = asyncio.create_task(
             self.triples_query_in.run()
