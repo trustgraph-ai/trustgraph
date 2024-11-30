@@ -362,6 +362,51 @@ class GraphRagEndpoint(ServiceEndpoint):
     def from_response(self, message):
         return { "response": message.response }
 
+class TriplesQueryEndpoint(ServiceEndpoint):
+    def __init__(self, pulsar_host, timeout):
+
+        super(TriplesQueryEndpoint, self).__init__(
+            pulsar_host=pulsar_host,
+            request_queue=triples_request_queue,
+            response_queue=triples_response_queue,
+            request_schema=TriplesQueryRequest,
+            response_schema=TriplesQueryResponse,
+            endpoint_path="/api/v1/triples-query",
+            timeout=timeout,
+        )
+
+    def to_request(self, body):
+
+        if "s" in body:
+            s = to_value(body["s"])
+        else:
+            s = None
+
+        if "p" in body:
+            p = to_value(body["p"])
+        else:
+            p = None
+
+        if "o" in body:
+            o = to_value(body["o"])
+        else:
+            o = None
+
+        limit = int(body.get("limit", 10000))
+
+        return TriplesQueryRequest(
+            s = s, p = p, o = o,
+            limit = limit,
+            user = body.get("user", "trustgraph"),
+            collection = body.get("collection", "default"),
+        )
+
+    def from_response(self, message):
+        print(message)
+        return {
+            "response": serialize_subgraph(message.triples)
+        }
+
 def serialize_value(v):
     return {
         "v": v.value,
@@ -429,16 +474,10 @@ class Api:
             pulsar_host=self.pulsar_host, timeout=self.timeout,
         )
 
-        self.triples_query_out = Publisher(
-            self.pulsar_host, triples_request_queue,
-            schema=JsonSchema(TriplesQueryRequest)
+        self.triples_query = TriplesQueryEndpoint(
+            pulsar_host=self.pulsar_host, timeout=self.timeout,
         )
 
-        self.triples_query_in = Subscriber(
-            self.pulsar_host, triples_response_queue,
-            "api-gateway", "api-gateway",
-            JsonSchema(TriplesQueryResponse)
-        )
 
         self.agent_out = Publisher(
             self.pulsar_host, agent_request_queue,
@@ -532,9 +571,10 @@ class Api:
         self.text_completion.add_routes(self.app)
         self.prompt.add_routes(self.app)
         self.graph_rag.add_routes(self.app)
+        self.triples_query.add_routes(self.app)
 
         self.app.add_routes([
-            web.post("/api/v1/triples-query", self.triples_query),
+#            web.post("/api/v1/triples-query", self.triples_query),
             web.post("/api/v1/agent", self.agent),
             web.post("/api/v1/encyclopedia", self.encyclopedia),
 #            web.post("/api/v1/internet-search", self.internet-search),
@@ -557,69 +597,6 @@ class Api:
             ),
 
         ])
-
-    async def triples_query(self, request):
-
-        id = str(uuid.uuid4())
-
-        try:
-
-            data = await request.json()
-
-            q = await self.triples_query_in.subscribe(id)
-
-            if "s" in data:
-                s = to_value(data["s"])
-            else:
-                s = None
-
-            if "p" in data:
-                p = to_value(data["p"])
-            else:
-                p = None
-
-            if "o" in data:
-                o = to_value(data["o"])
-            else:
-                o = None
-
-            limit = int(data.get("limit", 10000))
-
-            await self.triples_query_out.send(
-                id,
-                TriplesQueryRequest(
-                    s = s, p = p, o = o,
-                    limit = limit,
-                    user = data.get("user", "trustgraph"),
-                    collection = data.get("collection", "default"),
-                )
-            )
-
-            try:
-                resp = await asyncio.wait_for(q.get(), self.timeout)
-            except:
-                raise RuntimeError("Timeout waiting for response")
-
-            if resp.error:
-                return web.json_response(
-                    { "error": resp.error.message }
-                )
-
-            return web.json_response(
-                {
-                    "response": serialize_subgraph(resp.triples),
-                }
-            )
-
-        except Exception as e:
-            logging.error(f"Exception: {e}")
-
-            return web.json_response(
-                { "error": str(e) }
-            )
-
-        finally:
-            await self.graph_rag_in.unsubscribe(id)
 
     async def agent(self, request):
 
@@ -1093,13 +1070,7 @@ class Api:
         await self.text_completion.start()
         await self.prompt.start()
         await self.graph_rag.start()
-
-        self.triples_query_pub_task = asyncio.create_task(
-            self.triples_query_in.run()
-        )
-        self.triples_query_sub_task = asyncio.create_task(
-            self.triples_query_out.run()
-        )
+        await self.triples_query.start()
 
         self.agent_pub_task = asyncio.create_task(self.agent_in.run())
         self.agent_sub_task = asyncio.create_task(self.agent_out.run())
