@@ -43,7 +43,7 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "-i",
                         "non-persistent://tg/request/text-completion-rag",
                         "-o",
-                        "non-persistent://tg/response/text-completion-rag-response",
+                        "non-persistent://tg/response/text-completion-rag",
                     ])
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M");
