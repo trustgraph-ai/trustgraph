@@ -22,7 +22,6 @@ resp = requests.post(
 
 resp = resp.json()
 
-print(resp)
 if "error" in resp:
     print(f"Error: {resp['error']}")
     sys.exit(1)
