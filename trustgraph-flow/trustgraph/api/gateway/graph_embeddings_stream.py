@@ -12,10 +12,12 @@ from . serialize import serialize_graph_embeddings
 
 class GraphEmbeddingsStreamEndpoint(SocketEndpoint):
 
-    def __init__(self, pulsar_host, path="/api/v1/stream/graph-embeddings"):
+    def __init__(
+            self, pulsar_host, auth, path="/api/v1/stream/graph-embeddings"
+    ):
 
         super(GraphEmbeddingsStreamEndpoint, self).__init__(
-            endpoint_path=path
+            endpoint_path=path, auth=auth,
         )
 
         self.pulsar_host=pulsar_host

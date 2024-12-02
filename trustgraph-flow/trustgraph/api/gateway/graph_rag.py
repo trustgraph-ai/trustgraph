@@ -6,7 +6,7 @@ from ... schema import graph_rag_response_queue
 from . endpoint import ServiceEndpoint
 
 class GraphRagEndpoint(ServiceEndpoint):
-    def __init__(self, pulsar_host, timeout):
+    def __init__(self, pulsar_host, timeout, auth):
 
         super(GraphRagEndpoint, self).__init__(
             pulsar_host=pulsar_host,
@@ -16,6 +16,7 @@ class GraphRagEndpoint(ServiceEndpoint):
             response_schema=GraphRagResponse,
             endpoint_path="/api/v1/graph-rag",
             timeout=timeout,
+            auth=auth,
         )
 
     def to_request(self, body):

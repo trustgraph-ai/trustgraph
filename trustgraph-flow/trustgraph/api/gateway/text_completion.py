@@ -6,7 +6,7 @@ from ... schema import text_completion_response_queue
 from . endpoint import ServiceEndpoint
 
 class TextCompletionEndpoint(ServiceEndpoint):
-    def __init__(self, pulsar_host, timeout):
+    def __init__(self, pulsar_host, timeout, auth):
 
         super(TextCompletionEndpoint, self).__init__(
             pulsar_host=pulsar_host,
@@ -16,6 +16,7 @@ class TextCompletionEndpoint(ServiceEndpoint):
             response_schema=TextCompletionResponse,
             endpoint_path="/api/v1/text-completion",
             timeout=timeout,
+            auth=auth,
         )
 
     def to_request(self, body):

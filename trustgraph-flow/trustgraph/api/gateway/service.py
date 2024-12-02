@@ -45,6 +45,7 @@ from . triples_stream import TriplesStreamEndpoint
 from . graph_embeddings_stream import GraphEmbeddingsStreamEndpoint
 from . triples_load import TriplesLoadEndpoint
 from . graph_embeddings_load import GraphEmbeddingsLoadEndpoint
+from . auth import Authenticator
 
 logger = logging.getLogger("api")
 logger.setLevel(logging.INFO)
@@ -52,6 +53,7 @@ logger.setLevel(logging.INFO)
 default_pulsar_host = os.getenv("PULSAR_HOST", "pulsar://pulsar:6650")
 default_timeout = 600
 default_port = 8088
+default_api_token = None
 
 class Api:
 
@@ -66,45 +68,66 @@ class Api:
         self.timeout = int(config.get("timeout", default_timeout))
         self.pulsar_host = config.get("pulsar_host", default_pulsar_host)
 
+        api_token = config.get("api_token", default_api_token)
+
+        # Token not set, or token equal empty string means no auth
+        if api_token:
+            self.auth = Authenticator(token=api_token)
+        else:
+            self.auth = Authenticator(allow_all=True)
+
         self.endpoints = [
             TextCompletionEndpoint(
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
+                auth = self.auth,
             ),
             PromptEndpoint(
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
+                auth = self.auth,
             ),
             GraphRagEndpoint(
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
+                auth = self.auth,
             ),
             TriplesQueryEndpoint(
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
+                auth = self.auth,
             ),
             EmbeddingsEndpoint(
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
+                auth = self.auth,
             ),
             AgentEndpoint(
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
+                auth = self.auth,
             ),
             EncyclopediaEndpoint(
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
+                auth = self.auth,
             ),
             DbpediaEndpoint(
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
+                auth = self.auth,
             ),
             InternetSearchEndpoint(
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
+                auth = self.auth,
             ),
             TriplesStreamEndpoint(
-                pulsar_host=self.pulsar_host
+                pulsar_host=self.pulsar_host,
+                auth = self.auth,
             ),
             GraphEmbeddingsStreamEndpoint(
-                pulsar_host=self.pulsar_host
+                pulsar_host=self.pulsar_host,
+                auth = self.auth,
             ),
             TriplesLoadEndpoint(
-                pulsar_host=self.pulsar_host
+                pulsar_host=self.pulsar_host,
+                auth = self.auth,
             ),
             GraphEmbeddingsLoadEndpoint(
-                pulsar_host=self.pulsar_host
+                pulsar_host=self.pulsar_host,
+                auth = self.auth,
             ),
         ]
 
@@ -252,6 +275,12 @@ def run():
         type=int,
         default=default_timeout,
         help=f'API request timeout in seconds (default: {default_timeout})',
+    )
+
+    parser.add_argument(
+        '--api-token',
+        default=default_api_token,
+        help=f'Secret API token (default: no auth)',
     )
 
     parser.add_argument(

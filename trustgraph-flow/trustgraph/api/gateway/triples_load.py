@@ -14,10 +14,10 @@ from . serialize import to_subgraph
 
 class TriplesLoadEndpoint(SocketEndpoint):
 
-    def __init__(self, pulsar_host, path="/api/v1/load/triples"):
+    def __init__(self, pulsar_host, auth, path="/api/v1/load/triples"):
 
         super(TriplesLoadEndpoint, self).__init__(
-            endpoint_path=path
+            endpoint_path=path, auth=auth,
         )
 
         self.pulsar_host=pulsar_host

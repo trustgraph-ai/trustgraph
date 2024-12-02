@@ -12,10 +12,10 @@ from . serialize import serialize_triples
 
 class TriplesStreamEndpoint(SocketEndpoint):
 
-    def __init__(self, pulsar_host, path="/api/v1/stream/triples"):
+    def __init__(self, pulsar_host, auth, path="/api/v1/stream/triples"):
 
         super(TriplesStreamEndpoint, self).__init__(
-            endpoint_path=path
+            endpoint_path=path, auth=auth,
         )
 
         self.pulsar_host=pulsar_host

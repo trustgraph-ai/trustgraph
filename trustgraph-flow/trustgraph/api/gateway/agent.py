@@ -6,7 +6,7 @@ from ... schema import agent_response_queue
 from . endpoint import MultiResponseServiceEndpoint
 
 class AgentEndpoint(MultiResponseServiceEndpoint):
-    def __init__(self, pulsar_host, timeout):
+    def __init__(self, pulsar_host, timeout, auth):
 
         super(AgentEndpoint, self).__init__(
             pulsar_host=pulsar_host,
@@ -16,6 +16,7 @@ class AgentEndpoint(MultiResponseServiceEndpoint):
             response_schema=AgentResponse,
             endpoint_path="/api/v1/agent",
             timeout=timeout,
+            auth=auth,
         )
 
     def to_request(self, body):

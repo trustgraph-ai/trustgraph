@@ -8,7 +8,7 @@ from ... schema import prompt_response_queue
 from . endpoint import ServiceEndpoint
 
 class PromptEndpoint(ServiceEndpoint):
-    def __init__(self, pulsar_host, timeout):
+    def __init__(self, pulsar_host, timeout, auth):
 
         super(PromptEndpoint, self).__init__(
             pulsar_host=pulsar_host,
@@ -18,6 +18,7 @@ class PromptEndpoint(ServiceEndpoint):
             response_schema=PromptResponse,
             endpoint_path="/api/v1/prompt",
             timeout=timeout,
+            auth=auth,
         )
 
     def to_request(self, body):

@@ -7,7 +7,7 @@ from . endpoint import ServiceEndpoint
 from . serialize import to_value, serialize_subgraph
 
 class TriplesQueryEndpoint(ServiceEndpoint):
-    def __init__(self, pulsar_host, timeout):
+    def __init__(self, pulsar_host, timeout, auth):
 
         super(TriplesQueryEndpoint, self).__init__(
             pulsar_host=pulsar_host,
@@ -17,6 +17,7 @@ class TriplesQueryEndpoint(ServiceEndpoint):
             response_schema=TriplesQueryResponse,
             endpoint_path="/api/v1/triples-query",
             timeout=timeout,
+            auth=auth,
         )
 
     def to_request(self, body):
