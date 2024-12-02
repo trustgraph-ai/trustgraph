@@ -24,7 +24,6 @@ import pulsar
 from pulsar.asyncio import Client
 from pulsar.schema import JsonSchema
 import _pulsar
-import aiopulsar
 from prometheus_client import start_http_server
 
 from ... log_level import LogLevel
@@ -33,14 +32,6 @@ from trustgraph.clients.llm_client import LlmClient
 from trustgraph.clients.prompt_client import PromptClient
 
 from ... schema import Value, Metadata, Document, TextDocument, Triple
-
-from ... schema import TextCompletionRequest, TextCompletionResponse
-from ... schema import text_completion_request_queue
-from ... schema import text_completion_response_queue
-
-from ... schema import PromptRequest, PromptResponse
-from ... schema import prompt_request_queue
-from ... schema import prompt_response_queue
 
 from ... schema import GraphRagQuery, GraphRagResponse
 from ... schema import graph_rag_request_queue
@@ -72,326 +63,23 @@ from ... schema import dbpedia_lookup_response_queue
 
 from ... schema import document_ingest_queue, text_ingest_queue
 
+from . serialize import serialize_value, serialize_triple, serialize_subgraph
+from . serialize import serialize_triples, serialize_graph_embeddings
+from . serialize import to_value, to_subgraph
+
+from . running import Running
+from . publisher import Publisher
+from . subscriber import Subscriber
+from . endpoint import ServiceEndpoint, MultiResponseServiceEndpoint
+from . text_completion import TextCompletionEndpoint
+from . prompt import PromptEndpoint
+
 logger = logging.getLogger("api")
 logger.setLevel(logging.INFO)
 
 default_pulsar_host = os.getenv("PULSAR_HOST", "pulsar://pulsar:6650")
 default_timeout = 600
 default_port = 8088
-
-def to_value(x):
-    return Value(value=x["v"], is_uri=x["e"])
-
-def to_subgraph(x):
-    return [
-        Triple(
-            s=to_value(t["s"]),
-            p=to_value(t["p"]),
-            o=to_value(t["o"])
-        )
-        for t in x
-    ]
-
-class Running:
-    def __init__(self): self.running = True
-    def get(self): return self.running
-    def stop(self): self.running = False
-
-class Publisher:
-
-    def __init__(self, pulsar_host, topic, schema=None, max_size=10,
-                 chunking_enabled=False):
-        self.pulsar_host = pulsar_host
-        self.topic = topic
-        self.schema = schema
-        self.q = asyncio.Queue(maxsize=max_size)
-        self.chunking_enabled = chunking_enabled
-
-    async def run(self):
-
-        while True:
-
-            try:
-                async with aiopulsar.connect(self.pulsar_host) as client:
-                    async with client.create_producer(
-                            topic=self.topic,
-                            schema=self.schema,
-                            chunking_enabled=self.chunking_enabled,
-                    ) as producer:
-                        while True:
-                            id, item = await self.q.get()
-
-                            if id:
-                                await producer.send(item, { "id": id })
-                            else:
-                                await producer.send(item)
-
-            except Exception as e:
-                print("Exception:", e, flush=True)
-
-            # If handler drops out, sleep a retry
-            await asyncio.sleep(2)
-
-    async def send(self, id, msg):
-        await self.q.put((id, msg))
-
-class Subscriber:
-
-    def __init__(self, pulsar_host, topic, subscription, consumer_name,
-                 schema=None, max_size=10):
-        self.pulsar_host = pulsar_host
-        self.topic = topic
-        self.subscription = subscription
-        self.consumer_name = consumer_name
-        self.schema = schema
-        self.q = {}
-        self.full = {}
-
-    async def run(self):
-        while True:
-            try:
-                async with aiopulsar.connect(self.pulsar_host) as client:
-                    async with client.subscribe(
-                        topic=self.topic,
-                        subscription_name=self.subscription,
-                        consumer_name=self.consumer_name,
-                        schema=self.schema,
-                    ) as consumer:
-                        while True:
-                            msg = await consumer.receive()
-
-                            # Acknowledge successful reception of the message
-                            await consumer.acknowledge(msg)
-
-                            try:
-                                id = msg.properties()["id"]
-                            except:
-                                id = None
-
-                            value = msg.value()
-                            if id in self.q:
-                                await self.q[id].put(value)
-
-                            for q in self.full.values():
-                                await q.put(value)
-
-            except Exception as e:
-                print("Exception:", e, flush=True)
-         
-            # If handler drops out, sleep a retry
-            await asyncio.sleep(2)
-
-    async def subscribe(self, id):
-        q = asyncio.Queue()
-        self.q[id] = q
-        return q
-
-    async def unsubscribe(self, id):
-        if id in self.q:
-            del self.q[id]
-    
-    async def subscribe_all(self, id):
-        q = asyncio.Queue()
-        self.full[id] = q
-        return q
-
-    async def unsubscribe_all(self, id):
-        if id in self.full:
-            del self.full[id]
-
-class ServiceEndpoint:
-
-    def __init__(
-            self,
-            pulsar_host,
-            request_queue, request_schema,
-            response_queue, response_schema,
-            endpoint_path,
-            subscription="api-gateway", consumer_name="api-gateway",
-            timeout=default_timeout,
-    ):
-
-        self.pub = Publisher(
-            pulsar_host, request_queue,
-            schema=JsonSchema(request_schema)
-        )
-
-        self.sub = Subscriber(
-            pulsar_host, response_queue,
-            subscription, consumer_name,
-            JsonSchema(response_schema)
-        )
-
-        self.path = endpoint_path
-        self.timeout = timeout
-
-    async def start(self):
-
-        self.pub_task = asyncio.create_task(self.pub.run())
-        self.sub_task = asyncio.create_task(self.sub.run())
-
-    def add_routes(self, app):
-
-        app.add_routes([
-            web.post(self.path, self.handle),
-        ])
-
-    def to_request(self, request):
-        raise RuntimeError("Not defined")
-
-    def from_response(self, response):
-        raise RuntimeError("Not defined")
-
-    async def handle(self, request):
-
-        id = str(uuid.uuid4())
-
-        try:
-
-            data = await request.json()
-
-            q = await self.sub.subscribe(id)
-
-            print(data)
-
-            await self.pub.send(
-                id,
-                self.to_request(data),
-            )
-
-            try:
-                resp = await asyncio.wait_for(q.get(), self.timeout)
-            except:
-                raise RuntimeError("Timeout waiting for response")
-
-            print(resp)
-
-            if resp.error:
-                return web.json_response(
-                    { "error": resp.error.message }
-                )
-
-            return web.json_response(
-                self.from_response(resp)
-            )
-
-        except Exception as e:
-            logging.error(f"Exception: {e}")
-
-            return web.json_response(
-                { "error": str(e) }
-            )
-
-        finally:
-            await self.sub.unsubscribe(id)
-
-class MultiResponseServiceEndpoint(ServiceEndpoint):
-
-    async def handle(self, request):
-
-        id = str(uuid.uuid4())
-
-        try:
-
-            data = await request.json()
-
-            q = await self.sub.subscribe(id)
-
-            print(data)
-
-            await self.pub.send(
-                id,
-                self.to_request(data),
-            )
-
-            # Keeps looking at responses...
-
-            while True:
-
-                try:
-                    resp = await asyncio.wait_for(q.get(), self.timeout)
-                except:
-                    raise RuntimeError("Timeout waiting for response")
-
-                print(resp)
-
-                if resp.error:
-                    return web.json_response(
-                        { "error": resp.error.message }
-                    )
-
-                # Until from_response says we have a finished answer
-                resp, fin = self.from_response(resp)
-
-
-                if fin:
-                    return web.json_response(resp)
-
-                # Not finished, so loop round and continue
-
-        except Exception as e:
-            logging.error(f"Exception: {e}")
-
-            return web.json_response(
-                { "error": str(e) }
-            )
-
-        finally:
-            await self.sub.unsubscribe(id)
-
-class TextCompletionEndpoint(ServiceEndpoint):
-    def __init__(self, pulsar_host, timeout):
-
-        super(TextCompletionEndpoint, self).__init__(
-            pulsar_host=pulsar_host,
-            request_queue=text_completion_request_queue,
-            response_queue=text_completion_response_queue,
-            request_schema=TextCompletionRequest,
-            response_schema=TextCompletionResponse,
-            endpoint_path="/api/v1/text-completion",
-            timeout=timeout,
-        )
-
-    def to_request(self, body):
-        return TextCompletionRequest(
-            system=body["system"],
-            prompt=body["prompt"]
-        )
-
-    def from_response(self, message):
-        return { "response": message.response }
-
-class PromptEndpoint(ServiceEndpoint):
-    def __init__(self, pulsar_host, timeout):
-
-        super(PromptEndpoint, self).__init__(
-            pulsar_host=pulsar_host,
-            request_queue=prompt_request_queue,
-            response_queue=prompt_response_queue,
-            request_schema=PromptRequest,
-            response_schema=PromptResponse,
-            endpoint_path="/api/v1/prompt",
-            timeout=timeout,
-        )
-
-    def to_request(self, body):
-        return PromptRequest(
-            id=body["id"],
-            terms={
-                k: json.dumps(v)
-                for k, v in body["variables"].items()
-            }
-        )
-
-    def from_response(self, message):
-        if message.object:
-            return {
-                "object": message.object
-            }
-        else:
-            return {
-                "text": message.text
-            }
 
 class GraphRagEndpoint(ServiceEndpoint):
     def __init__(self, pulsar_host, timeout):
@@ -528,48 +216,6 @@ class EncyclopediaEndpoint(ServiceEndpoint):
     def from_response(self, message):
         return { "text": message.text }
 
-def serialize_value(v):
-    return {
-        "v": v.value,
-        "e": v.is_uri,
-    }
-
-def serialize_triple(t):
-    return {
-        "s": serialize_value(t.s),
-        "p": serialize_value(t.p),
-        "o": serialize_value(t.o)
-    }
-
-def serialize_subgraph(sg):
-    return [
-        serialize_triple(t)
-        for t in sg
-    ]
-
-def serialize_triples(message):
-    return {
-        "metadata": {
-            "id": message.metadata.id,
-            "metadata": serialize_subgraph(message.metadata.metadata),
-            "user": message.metadata.user,
-            "collection": message.metadata.collection,
-        },
-        "triples": serialize_subgraph(message.triples),
-    }
-    
-def serialize_graph_embeddings(message):
-    return {
-        "metadata": {
-            "id": message.metadata.id,
-            "metadata": serialize_subgraph(message.metadata.metadata),
-            "user": message.metadata.user,
-            "collection": message.metadata.collection,
-        },
-        "vectors": message.vectors,
-        "entity": message.entity,
-    }
-    
 class Api:
 
     def __init__(self, **config):
