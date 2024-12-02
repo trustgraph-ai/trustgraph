@@ -15,6 +15,9 @@ local prompt = import "prompt-template.jsonnet";
     
         create:: function(engine)
 
+            local envSecrets = engine.envSecrets("gateway-secret")
+                .with_env_var("GATEWAY_SECRET", "gateway-secret");
+
             local port = $["api-gateway-port"];
 
             local container =
@@ -29,6 +32,7 @@ local prompt = import "prompt-template.jsonnet";
                         "--port",
                         std.toString(port),
                     ])
+                    .with_env_var_secrets(envSecrets)
                     .with_limits("0.5", "256M")
                     .with_reservations("0.1", "256M")
                     .with_port(8000, 8000, "metrics")
@@ -44,6 +48,7 @@ local prompt = import "prompt-template.jsonnet";
                 .with_port(port, port, "api");
 
             engine.resources([
+                envSecrets,
                 containerSet,
                 service,
             ])
