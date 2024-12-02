@@ -6,7 +6,7 @@ from ... schema import internet_search_response_queue
 from . endpoint import ServiceEndpoint
 
 class InternetSearchEndpoint(ServiceEndpoint):
-    def __init__(self, pulsar_host, timeout):
+    def __init__(self, pulsar_host, timeout, auth):
 
         super(InternetSearchEndpoint, self).__init__(
             pulsar_host=pulsar_host,
@@ -16,6 +16,7 @@ class InternetSearchEndpoint(ServiceEndpoint):
             response_schema=LookupResponse,
             endpoint_path="/api/v1/internet-search",
             timeout=timeout,
+            auth=auth,
         )
 
     def to_request(self, body):

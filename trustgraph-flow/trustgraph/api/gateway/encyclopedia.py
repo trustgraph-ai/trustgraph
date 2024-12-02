@@ -6,7 +6,7 @@ from ... schema import encyclopedia_lookup_response_queue
 from . endpoint import ServiceEndpoint
 
 class EncyclopediaEndpoint(ServiceEndpoint):
-    def __init__(self, pulsar_host, timeout):
+    def __init__(self, pulsar_host, timeout, auth):
 
         super(EncyclopediaEndpoint, self).__init__(
             pulsar_host=pulsar_host,
@@ -16,6 +16,7 @@ class EncyclopediaEndpoint(ServiceEndpoint):
             response_schema=LookupResponse,
             endpoint_path="/api/v1/encyclopedia",
             timeout=timeout,
+            auth=auth,
         )
 
     def to_request(self, body):

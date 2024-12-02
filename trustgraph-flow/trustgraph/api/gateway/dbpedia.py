@@ -6,7 +6,7 @@ from ... schema import dbpedia_lookup_response_queue
 from . endpoint import ServiceEndpoint
 
 class DbpediaEndpoint(ServiceEndpoint):
-    def __init__(self, pulsar_host, timeout):
+    def __init__(self, pulsar_host, timeout, auth):
 
         super(DbpediaEndpoint, self).__init__(
             pulsar_host=pulsar_host,
@@ -16,6 +16,7 @@ class DbpediaEndpoint(ServiceEndpoint):
             response_schema=LookupResponse,
             endpoint_path="/api/v1/dbpedia",
             timeout=timeout,
+            auth=auth,
         )
 
     def to_request(self, body):

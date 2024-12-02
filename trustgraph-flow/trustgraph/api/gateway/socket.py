@@ -11,11 +11,12 @@ logger.setLevel(logging.INFO)
 class SocketEndpoint:
 
     def __init__(
-            self,
-            endpoint_path="/api/v1/socket",
+            self, endpoint_path, auth,
     ):
 
         self.path = endpoint_path
+        self.auth = auth
+        self.operation = "socket"
 
     async def listener(self, ws, running):
         
@@ -43,17 +44,32 @@ class SocketEndpoint:
         
     async def handle(self, request):
 
+        try:
+            token = request.query['token']
+        except:
+            token = ""
+
+        if not self.auth.permitted(token, self.operation):
+            return web.HTTPUnauthorized()
+        
         running = Running()
         ws = web.WebSocketResponse()
         await ws.prepare(request)
 
         task = asyncio.create_task(self.async_thread(ws, running))
 
-        await self.listener(ws, running)
+        try:
 
-        await task
+            await self.listener(ws, running)
+
+        except Exception as e:
+            print(e, flush=True)
 
         running.stop()
+
+        await ws.close()
+
+        await task
 
         return ws
 

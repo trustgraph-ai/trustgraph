@@ -19,6 +19,7 @@ class ServiceEndpoint:
             request_queue, request_schema,
             response_queue, response_schema,
             endpoint_path,
+            auth,
             subscription="api-gateway", consumer_name="api-gateway",
             timeout=600,
     ):
@@ -36,6 +37,9 @@ class ServiceEndpoint:
 
         self.path = endpoint_path
         self.timeout = timeout
+        self.auth = auth
+
+        self.operation = "service"
 
     async def start(self):
 
@@ -59,12 +63,22 @@ class ServiceEndpoint:
         id = str(uuid.uuid4())
 
         try:
+            ht = request.headers["Authorization"]
+            tokens = ht.split(" ", 2)
+            if tokens[0] != "Bearer":
+                return web.HTTPUnauthorized()
+            token = tokens[1]
+        except:
+            token = ""
+
+        if not self.auth.permitted(token, self.operation):
+            return web.HTTPUnauthorized()
+
+        try:
 
             data = await request.json()
 
             q = await self.sub.subscribe(id)
-
-            print(data)
 
             await self.pub.send(
                 id,
@@ -75,8 +89,6 @@ class ServiceEndpoint:
                 resp = await asyncio.wait_for(q.get(), self.timeout)
             except:
                 raise RuntimeError("Timeout waiting for response")
-
-            print(resp)
 
             if resp.error:
                 return web.json_response(
@@ -110,8 +122,6 @@ class MultiResponseServiceEndpoint(ServiceEndpoint):
 
             q = await self.sub.subscribe(id)
 
-            print(data)
-
             await self.pub.send(
                 id,
                 self.to_request(data),
@@ -125,8 +135,6 @@ class MultiResponseServiceEndpoint(ServiceEndpoint):
                     resp = await asyncio.wait_for(q.get(), self.timeout)
                 except:
                     raise RuntimeError("Timeout waiting for response")
-
-                print(resp)
 
                 if resp.error:
                     return web.json_response(

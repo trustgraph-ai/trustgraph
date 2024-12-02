@@ -14,10 +14,12 @@ from . serialize import to_subgraph, to_value
 
 class GraphEmbeddingsLoadEndpoint(SocketEndpoint):
 
-    def __init__(self, pulsar_host, path="/api/v1/load/graph-embeddings"):
+    def __init__(
+            self, pulsar_host, auth, path="/api/v1/load/graph-embeddings",
+    ):
 
         super(GraphEmbeddingsLoadEndpoint, self).__init__(
-            endpoint_path=path
+            endpoint_path=path, auth=auth,
         )
 
         self.pulsar_host=pulsar_host
