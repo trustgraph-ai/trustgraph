@@ -33,13 +33,7 @@ from trustgraph.clients.prompt_client import PromptClient
 
 from ... schema import Value, Metadata, Document, TextDocument, Triple
 
-from ... schema import GraphRagQuery, GraphRagResponse
-from ... schema import graph_rag_request_queue
-from ... schema import graph_rag_response_queue
-
-from ... schema import TriplesQueryRequest, TriplesQueryResponse, Triples
-from ... schema import triples_request_queue
-from ... schema import triples_response_queue
+from ... schema import Triples
 from ... schema import triples_store_queue
 
 from ... schema import GraphEmbeddings
@@ -71,8 +65,11 @@ from . running import Running
 from . publisher import Publisher
 from . subscriber import Subscriber
 from . endpoint import ServiceEndpoint, MultiResponseServiceEndpoint
+
 from . text_completion import TextCompletionEndpoint
 from . prompt import PromptEndpoint
+from . graph_rag import GraphRagEndpoint
+from . triples_query import TriplesQueryEndpoint
 
 logger = logging.getLogger("api")
 logger.setLevel(logging.INFO)
@@ -81,73 +78,6 @@ default_pulsar_host = os.getenv("PULSAR_HOST", "pulsar://pulsar:6650")
 default_timeout = 600
 default_port = 8088
 
-class GraphRagEndpoint(ServiceEndpoint):
-    def __init__(self, pulsar_host, timeout):
-
-        super(GraphRagEndpoint, self).__init__(
-            pulsar_host=pulsar_host,
-            request_queue=graph_rag_request_queue,
-            response_queue=graph_rag_response_queue,
-            request_schema=GraphRagQuery,
-            response_schema=GraphRagResponse,
-            endpoint_path="/api/v1/graph-rag",
-            timeout=timeout,
-        )
-
-    def to_request(self, body):
-        return GraphRagQuery(
-            query=body["query"],
-            user=body.get("user", "trustgraph"),
-            collection=body.get("collection", "default"),
-        )
-
-    def from_response(self, message):
-        return { "response": message.response }
-
-class TriplesQueryEndpoint(ServiceEndpoint):
-    def __init__(self, pulsar_host, timeout):
-
-        super(TriplesQueryEndpoint, self).__init__(
-            pulsar_host=pulsar_host,
-            request_queue=triples_request_queue,
-            response_queue=triples_response_queue,
-            request_schema=TriplesQueryRequest,
-            response_schema=TriplesQueryResponse,
-            endpoint_path="/api/v1/triples-query",
-            timeout=timeout,
-        )
-
-    def to_request(self, body):
-
-        if "s" in body:
-            s = to_value(body["s"])
-        else:
-            s = None
-
-        if "p" in body:
-            p = to_value(body["p"])
-        else:
-            p = None
-
-        if "o" in body:
-            o = to_value(body["o"])
-        else:
-            o = None
-
-        limit = int(body.get("limit", 10000))
-
-        return TriplesQueryRequest(
-            s = s, p = p, o = o,
-            limit = limit,
-            user = body.get("user", "trustgraph"),
-            collection = body.get("collection", "default"),
-        )
-
-    def from_response(self, message):
-        print(message)
-        return {
-            "response": serialize_subgraph(message.triples)
-        }
 
 class EmbeddingsEndpoint(ServiceEndpoint):
     def __init__(self, pulsar_host, timeout):
