@@ -285,6 +285,60 @@ class ServiceEndpoint:
         finally:
             await self.sub.unsubscribe(id)
 
+class MultiResponseServiceEndpoint(ServiceEndpoint):
+
+    async def handle(self, request):
+
+        id = str(uuid.uuid4())
+
+        try:
+
+            data = await request.json()
+
+            q = await self.sub.subscribe(id)
+
+            print(data)
+
+            await self.pub.send(
+                id,
+                self.to_request(data),
+            )
+
+            # Keeps looking at responses...
+
+            while True:
+
+                try:
+                    resp = await asyncio.wait_for(q.get(), self.timeout)
+                except:
+                    raise RuntimeError("Timeout waiting for response")
+
+                print(resp)
+
+                if resp.error:
+                    return web.json_response(
+                        { "error": resp.error.message }
+                    )
+
+                # Until from_response says we have a finished answer
+                resp, fin = self.from_response(resp)
+
+
+                if fin:
+                    return web.json_response(resp)
+
+                # Not finished, so loop round and continue
+
+        except Exception as e:
+            logging.error(f"Exception: {e}")
+
+            return web.json_response(
+                { "error": str(e) }
+            )
+
+        finally:
+            await self.sub.unsubscribe(id)
+
 class TextCompletionEndpoint(ServiceEndpoint):
     def __init__(self, pulsar_host, timeout):
 
@@ -407,6 +461,73 @@ class TriplesQueryEndpoint(ServiceEndpoint):
             "response": serialize_subgraph(message.triples)
         }
 
+class EmbeddingsEndpoint(ServiceEndpoint):
+    def __init__(self, pulsar_host, timeout):
+
+        super(EmbeddingsEndpoint, self).__init__(
+            pulsar_host=pulsar_host,
+            request_queue=embeddings_request_queue,
+            response_queue=embeddings_response_queue,
+            request_schema=EmbeddingsRequest,
+            response_schema=EmbeddingsResponse,
+            endpoint_path="/api/v1/embeddings",
+            timeout=timeout,
+        )
+
+    def to_request(self, body):
+        return EmbeddingsRequest(
+            text=body["text"]
+        )
+
+    def from_response(self, message):
+        return { "vectors": message.vectors }
+
+class AgentEndpoint(MultiResponseServiceEndpoint):
+    def __init__(self, pulsar_host, timeout):
+
+        super(AgentEndpoint, self).__init__(
+            pulsar_host=pulsar_host,
+            request_queue=agent_request_queue,
+            response_queue=agent_response_queue,
+            request_schema=AgentRequest,
+            response_schema=AgentResponse,
+            endpoint_path="/api/v1/agent",
+            timeout=timeout,
+        )
+
+    def to_request(self, body):
+        return AgentRequest(
+            question=body["question"]
+        )
+
+    def from_response(self, message):
+        if message.answer:
+            return { "answer": message.answer }, True
+        else:
+            return {}, False
+
+class EncyclopediaEndpoint(ServiceEndpoint):
+    def __init__(self, pulsar_host, timeout):
+
+        super(EncyclopediaEndpoint, self).__init__(
+            pulsar_host=pulsar_host,
+            request_queue=encyclopedia_lookup_request_queue,
+            response_queue=encyclopedia_lookup_response_queue,
+            request_schema=LookupRequest,
+            response_schema=LookupResponse,
+            endpoint_path="/api/v1/encyclopedia",
+            timeout=timeout,
+        )
+
+    def to_request(self, body):
+        return LookupRequest(
+            term=body["term"],
+            kind=body.get("kind", None),
+        )
+
+    def from_response(self, message):
+        return { "text": message.text }
+
 def serialize_value(v):
     return {
         "v": v.value,
@@ -478,28 +599,20 @@ class Api:
             pulsar_host=self.pulsar_host, timeout=self.timeout,
         )
 
-
-        self.agent_out = Publisher(
-            self.pulsar_host, agent_request_queue,
-            schema=JsonSchema(AgentRequest)
+        self.embeddings = EmbeddingsEndpoint(
+            pulsar_host=self.pulsar_host, timeout=self.timeout,
         )
 
-        self.agent_in = Subscriber(
-            self.pulsar_host, agent_response_queue,
-            "api-gateway", "api-gateway",
-            JsonSchema(AgentResponse)
+        self.agent = AgentEndpoint(
+            pulsar_host=self.pulsar_host, timeout=self.timeout,
         )
 
-        self.embeddings_out = Publisher(
-            self.pulsar_host, embeddings_request_queue,
-            schema=JsonSchema(EmbeddingsRequest)
+        self.encyclopedia = EncyclopediaEndpoint(
+            pulsar_host=self.pulsar_host, timeout=self.timeout,
         )
 
-        self.embeddings_in = Subscriber(
-            self.pulsar_host, embeddings_response_queue,
-            "api-gateway", "api-gateway",
-            JsonSchema(EmbeddingsResponse)
-        )
+
+
 
         self.triples_tap = Subscriber(
             self.pulsar_host, triples_store_queue,
@@ -535,16 +648,6 @@ class Api:
             chunking_enabled=True,
         )
 
-        self.encyclopedia_lookup_out = Publisher(
-            self.pulsar_host, encyclopedia_lookup_request_queue,
-            schema=JsonSchema(LookupRequest)
-        )
-
-        self.encyclopedia_lookup_in = Subscriber(
-            self.pulsar_host, encyclopedia_lookup_response_queue,
-            "api-gateway", "api-gateway",
-            JsonSchema(LookupResponse)
-        )
 
         self.internet_search_out = Publisher(
             self.pulsar_host, internet_search_request_queue,
@@ -572,14 +675,14 @@ class Api:
         self.prompt.add_routes(self.app)
         self.graph_rag.add_routes(self.app)
         self.triples_query.add_routes(self.app)
+        self.embeddings.add_routes(self.app)
+        self.agent.add_routes(self.app)
+        self.encyclopedia.add_routes(self.app)
 
         self.app.add_routes([
 #            web.post("/api/v1/triples-query", self.triples_query),
-            web.post("/api/v1/agent", self.agent),
-            web.post("/api/v1/encyclopedia", self.encyclopedia),
 #            web.post("/api/v1/internet-search", self.internet-search),
 #            web.post("/api/v1/dbpedia", self.dbpedia),
-            web.post("/api/v1/embeddings", self.embeddings),
             web.post("/api/v1/load/document", self.load_document),
             web.post("/api/v1/load/text", self.load_text),
             web.get("/api/v1/ws", self.socket),
@@ -597,98 +700,6 @@ class Api:
             ),
 
         ])
-
-    async def agent(self, request):
-
-        id = str(uuid.uuid4())
-
-        try:
-
-            data = await request.json()
-
-            q = await self.agent_in.subscribe(id)
-
-            await self.agent_out.send(
-                id,
-                AgentRequest(
-                    question=data["question"],
-                )
-            )
-
-            while True:
-                try:
-                    resp = await asyncio.wait_for(q.get(), self.timeout)
-                except:
-                    raise RuntimeError("Timeout waiting for response")
-
-                if resp.error:
-                    return web.json_response(
-                        { "error": resp.error.message }
-                    )
-
-                if resp.answer: break
-
-                if resp.thought: print("thought:", resp.thought)
-                if resp.observation: print("observation:", resp.observation)
-
-            if resp.answer:
-                return web.json_response(
-                    { "answer": resp.answer }
-                )
-
-            # Can't happen, ook at the logic
-            raise RuntimeError("Strange state")
-
-        except Exception as e:
-            logging.error(f"Exception: {e}")
-
-            return web.json_response(
-                { "error": str(e) }
-            )
-
-        finally:
-            await self.agent_in.unsubscribe(id)
-
-    async def embeddings(self, request):
-
-        id = str(uuid.uuid4())
-
-        try:
-
-            data = await request.json()
-
-            q = await self.embeddings_in.subscribe(id)
-
-            await self.embeddings_out.send(
-                id,
-                EmbeddingsRequest(
-                    text=data["text"],
-                )
-            )
-
-            try:
-                resp = await asyncio.wait_for(q.get(), self.timeout)
-            except:
-                raise RuntimeError("Timeout waiting for response")
-
-            if resp.error:
-                return web.json_response(
-                    { "error": resp.error.message }
-                )
-
-            return web.json_response(
-                { "vectors": resp.vectors }
-            )
-
-        except Exception as e:
-            logging.error(f"Exception: {e}")
-
-            return web.json_response(
-                { "error": str(e) }
-            )
-
-        finally:
-            await self.embeddings_in.unsubscribe(id)
 
     async def encyclopedia(self, request):
 
@@ -1071,16 +1082,9 @@ class Api:
         await self.prompt.start()
         await self.graph_rag.start()
         await self.triples_query.start()
-
-        self.agent_pub_task = asyncio.create_task(self.agent_in.run())
-        self.agent_sub_task = asyncio.create_task(self.agent_out.run())
-
-        self.embeddings_pub_task = asyncio.create_task(
-            self.embeddings_in.run()
-        )
-        self.embeddings_sub_task = asyncio.create_task(
-            self.embeddings_out.run()
-        )
+        await self.embeddings.start()
+        await self.agent.start()
+        await self.encyclopedia.start()
 
         self.triples_tap_task = asyncio.create_task(
             self.triples_tap.run()
@@ -1101,13 +1105,6 @@ class Api:
         self.doc_ingest_pub_task = asyncio.create_task(self.document_out.run())
 
         self.text_ingest_pub_task = asyncio.create_task(self.text_out.run())
-
-        self.encyclopedia_pub_task = asyncio.create_task(
-            self.encyclopedia_lookup_out.run()
-        )
-        self.encyclopedia_sub_task = asyncio.create_task(
-            self.encyclopedia_lookup_in.run()
-        )
 
         self.search_pub_task = asyncio.create_task(
             self.internet_search_out.run()
