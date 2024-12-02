@@ -13,42 +13,25 @@ module = ".".join(__name__.split(".")[1:-1])
 
 import asyncio
 import argparse
-from aiohttp import web, WSMsgType
-import json
+from aiohttp import web
 import logging
-import uuid
 import os
 import base64
 
 import pulsar
-from pulsar.asyncio import Client
 from pulsar.schema import JsonSchema
-import _pulsar
 from prometheus_client import start_http_server
 
 from ... log_level import LogLevel
 
-from ... schema import Value, Metadata, Document, TextDocument, Triple
-
-from ... schema import Triples
-from ... schema import triples_store_queue
-
-from ... schema import GraphEmbeddings
-from ... schema import graph_embeddings_store_queue
-
-from ... schema import LookupRequest, LookupResponse
-
+from ... schema import Metadata, Document, TextDocument
 from ... schema import document_ingest_queue, text_ingest_queue
 
-from . serialize import serialize_value, serialize_triple, serialize_subgraph
-from . serialize import serialize_triples, serialize_graph_embeddings
-from . serialize import to_value, to_subgraph
-
+from . serialize import to_subgraph
 from . running import Running
 from . publisher import Publisher
 from . subscriber import Subscriber
 from . endpoint import ServiceEndpoint, MultiResponseServiceEndpoint
-
 from . text_completion import TextCompletionEndpoint
 from . prompt import PromptEndpoint
 from . graph_rag import GraphRagEndpoint
@@ -69,7 +52,6 @@ logger.setLevel(logging.INFO)
 default_pulsar_host = os.getenv("PULSAR_HOST", "pulsar://pulsar:6650")
 default_timeout = 600
 default_port = 8088
-
 
 class Api:
 
@@ -126,22 +108,6 @@ class Api:
             ),
         ]
 
-        # self.triples_tap = Subscriber(
-        #     self.pulsar_host, triples_store_queue,
-        #     "api-gateway", "api-gateway",
-        #     schema=JsonSchema(Triples)
-        # )
-
-        self.triples_pub = Publisher(
-            self.pulsar_host, triples_store_queue,
-            schema=JsonSchema(Triples)
-        )
-
-        self.graph_embeddings_pub = Publisher(
-            self.pulsar_host, graph_embeddings_store_queue,
-            schema=JsonSchema(GraphEmbeddings)
-        )
-
         self.document_out = Publisher(
             self.pulsar_host, document_ingest_queue,
             schema=JsonSchema(Document),
@@ -158,21 +124,8 @@ class Api:
             ep.add_routes(self.app)
 
         self.app.add_routes([
-
             web.post("/api/v1/load/document", self.load_document),
             web.post("/api/v1/load/text", self.load_text),
-
-#            web.get("/api/v1/ws", self.socket),
-
-#            web.get("/api/v1/stream/triples", self.stream_triples),
-
-#            web.get("/api/v1/load/triples", self.load_triples),
-
-#            web.get(
-#                "/api/v1/load/graph-embeddings",
-#                self.load_graph_embeddings
-#            ),
-
         ])
 
     async def load_document(self, request):
@@ -261,57 +214,12 @@ class Api:
                 { "error": str(e) }
             )
 
-    async def socket(self, request):
-
-        ws = web.WebSocketResponse()
-        await ws.prepare(request)
-
-        async for msg in ws:
-            if msg.type == WSMsgType.TEXT:
-                if msg.data == 'close':
-                    await ws.close()
-                else:
-                    await ws.send_str(msg.data + '/answer')
-            elif msg.type == WSMsgType.ERROR:
-                print('ws connection closed with exception %s' %
-                      ws.exception())
-
-        print('websocket connection closed')
-
-        return ws
-
-    async def stream(self, q, ws, running, fn):
-
-        while running.get():
-            try:
-                resp = await asyncio.wait_for(q.get(), 0.5)
-                await ws.send_json(fn(resp))
-
-            except TimeoutError:
-                continue
-
-            except Exception as e:
-                print(f"Exception: {str(e)}", flush=True)
-
     async def app_factory(self):
 
         for ep in self.endpoints:
             await ep.start()
 
-#        self.triples_tap_task = asyncio.create_task(
-#            self.triples_tap.run()
-#        )
-
-        self.triples_pub_task = asyncio.create_task(
-            self.triples_pub.run()
-        )
-
-        self.graph_embeddings_pub_task = asyncio.create_task(
-            self.graph_embeddings_pub.run()
-        )
-
         self.doc_ingest_pub_task = asyncio.create_task(self.document_out.run())
-
         self.text_ingest_pub_task = asyncio.create_task(self.text_out.run())
 
         return self.app
