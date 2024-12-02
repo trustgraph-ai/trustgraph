@@ -52,6 +52,6 @@ def serialize_graph_embeddings(message):
             "collection": message.metadata.collection,
         },
         "vectors": message.vectors,
-        "entity": message.entity,
+        "entity": serialize_value(message.entity),
     }
 

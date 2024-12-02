@@ -28,9 +28,6 @@ from prometheus_client import start_http_server
 
 from ... log_level import LogLevel
 
-from trustgraph.clients.llm_client import LlmClient
-from trustgraph.clients.prompt_client import PromptClient
-
 from ... schema import Value, Metadata, Document, TextDocument, Triple
 
 from ... schema import Triples
@@ -39,21 +36,7 @@ from ... schema import triples_store_queue
 from ... schema import GraphEmbeddings
 from ... schema import graph_embeddings_store_queue
 
-from ... schema import AgentRequest, AgentResponse
-from ... schema import agent_request_queue
-from ... schema import agent_response_queue
-
-from ... schema import EmbeddingsRequest, EmbeddingsResponse
-from ... schema import embeddings_request_queue
-from ... schema import embeddings_response_queue
-
 from ... schema import LookupRequest, LookupResponse
-from ... schema import encyclopedia_lookup_request_queue
-from ... schema import encyclopedia_lookup_response_queue
-from ... schema import internet_search_request_queue
-from ... schema import internet_search_response_queue
-from ... schema import dbpedia_lookup_request_queue
-from ... schema import dbpedia_lookup_response_queue
 
 from ... schema import document_ingest_queue, text_ingest_queue
 
@@ -70,6 +53,15 @@ from . text_completion import TextCompletionEndpoint
 from . prompt import PromptEndpoint
 from . graph_rag import GraphRagEndpoint
 from . triples_query import TriplesQueryEndpoint
+from . embeddings import EmbeddingsEndpoint
+from . encyclopedia import EncyclopediaEndpoint
+from . agent import AgentEndpoint
+from . dbpedia import DbpediaEndpoint
+from . internet_search import InternetSearchEndpoint
+from . triples_stream import TriplesStreamEndpoint
+from . graph_embeddings_stream import GraphEmbeddingsStreamEndpoint
+from . triples_load import TriplesLoadEndpoint
+from . graph_embeddings_load import GraphEmbeddingsLoadEndpoint
 
 logger = logging.getLogger("api")
 logger.setLevel(logging.INFO)
@@ -78,73 +70,6 @@ default_pulsar_host = os.getenv("PULSAR_HOST", "pulsar://pulsar:6650")
 default_timeout = 600
 default_port = 8088
 
-
-class EmbeddingsEndpoint(ServiceEndpoint):
-    def __init__(self, pulsar_host, timeout):
-
-        super(EmbeddingsEndpoint, self).__init__(
-            pulsar_host=pulsar_host,
-            request_queue=embeddings_request_queue,
-            response_queue=embeddings_response_queue,
-            request_schema=EmbeddingsRequest,
-            response_schema=EmbeddingsResponse,
-            endpoint_path="/api/v1/embeddings",
-            timeout=timeout,
-        )
-
-    def to_request(self, body):
-        return EmbeddingsRequest(
-            text=body["text"]
-        )
-
-    def from_response(self, message):
-        return { "vectors": message.vectors }
-
-class AgentEndpoint(MultiResponseServiceEndpoint):
-    def __init__(self, pulsar_host, timeout):
-
-        super(AgentEndpoint, self).__init__(
-            pulsar_host=pulsar_host,
-            request_queue=agent_request_queue,
-            response_queue=agent_response_queue,
-            request_schema=AgentRequest,
-            response_schema=AgentResponse,
-            endpoint_path="/api/v1/agent",
-            timeout=timeout,
-        )
-
-    def to_request(self, body):
-        return AgentRequest(
-            question=body["question"]
-        )
-
-    def from_response(self, message):
-        if message.answer:
-            return { "answer": message.answer }, True
-        else:
-            return {}, False
-
-class EncyclopediaEndpoint(ServiceEndpoint):
-    def __init__(self, pulsar_host, timeout):
-
-        super(EncyclopediaEndpoint, self).__init__(
-            pulsar_host=pulsar_host,
-            request_queue=encyclopedia_lookup_request_queue,
-            response_queue=encyclopedia_lookup_response_queue,
-            request_schema=LookupRequest,
-            response_schema=LookupResponse,
-            endpoint_path="/api/v1/encyclopedia",
-            timeout=timeout,
-        )
-
-    def to_request(self, body):
-        return LookupRequest(
-            term=body["term"],
-            kind=body.get("kind", None),
-        )
-
-    def from_response(self, message):
-        return { "text": message.text }
 
 class Api:
 
@@ -159,52 +84,57 @@ class Api:
         self.timeout = int(config.get("timeout", default_timeout))
         self.pulsar_host = config.get("pulsar_host", default_pulsar_host)
 
-        self.text_completion = TextCompletionEndpoint(
-            pulsar_host=self.pulsar_host, timeout=self.timeout,
-        )
+        self.endpoints = [
+            TextCompletionEndpoint(
+                pulsar_host=self.pulsar_host, timeout=self.timeout,
+            ),
+            PromptEndpoint(
+                pulsar_host=self.pulsar_host, timeout=self.timeout,
+            ),
+            GraphRagEndpoint(
+                pulsar_host=self.pulsar_host, timeout=self.timeout,
+            ),
+            TriplesQueryEndpoint(
+                pulsar_host=self.pulsar_host, timeout=self.timeout,
+            ),
+            EmbeddingsEndpoint(
+                pulsar_host=self.pulsar_host, timeout=self.timeout,
+            ),
+            AgentEndpoint(
+                pulsar_host=self.pulsar_host, timeout=self.timeout,
+            ),
+            EncyclopediaEndpoint(
+                pulsar_host=self.pulsar_host, timeout=self.timeout,
+            ),
+            DbpediaEndpoint(
+                pulsar_host=self.pulsar_host, timeout=self.timeout,
+            ),
+            InternetSearchEndpoint(
+                pulsar_host=self.pulsar_host, timeout=self.timeout,
+            ),
+            TriplesStreamEndpoint(
+                pulsar_host=self.pulsar_host
+            ),
+            GraphEmbeddingsStreamEndpoint(
+                pulsar_host=self.pulsar_host
+            ),
+            TriplesLoadEndpoint(
+                pulsar_host=self.pulsar_host
+            ),
+            GraphEmbeddingsLoadEndpoint(
+                pulsar_host=self.pulsar_host
+            ),
+        ]
 
-        self.prompt = PromptEndpoint(
-            pulsar_host=self.pulsar_host, timeout=self.timeout,
-        )
-
-        self.graph_rag = GraphRagEndpoint(
-            pulsar_host=self.pulsar_host, timeout=self.timeout,
-        )
-
-        self.triples_query = TriplesQueryEndpoint(
-            pulsar_host=self.pulsar_host, timeout=self.timeout,
-        )
-
-        self.embeddings = EmbeddingsEndpoint(
-            pulsar_host=self.pulsar_host, timeout=self.timeout,
-        )
-
-        self.agent = AgentEndpoint(
-            pulsar_host=self.pulsar_host, timeout=self.timeout,
-        )
-
-        self.encyclopedia = EncyclopediaEndpoint(
-            pulsar_host=self.pulsar_host, timeout=self.timeout,
-        )
-
-
-
-
-        self.triples_tap = Subscriber(
-            self.pulsar_host, triples_store_queue,
-            "api-gateway", "api-gateway",
-            schema=JsonSchema(Triples)
-        )
+        # self.triples_tap = Subscriber(
+        #     self.pulsar_host, triples_store_queue,
+        #     "api-gateway", "api-gateway",
+        #     schema=JsonSchema(Triples)
+        # )
 
         self.triples_pub = Publisher(
             self.pulsar_host, triples_store_queue,
             schema=JsonSchema(Triples)
-        )
-
-        self.graph_embeddings_tap = Subscriber(
-            self.pulsar_host, graph_embeddings_store_queue,
-            "api-gateway", "api-gateway",
-            schema=JsonSchema(GraphEmbeddings)
         )
 
         self.graph_embeddings_pub = Publisher(
@@ -224,184 +154,26 @@ class Api:
             chunking_enabled=True,
         )
 
-
-        self.internet_search_out = Publisher(
-            self.pulsar_host, internet_search_request_queue,
-            schema=JsonSchema(LookupRequest)
-        )
-
-        self.internet_search_in = Subscriber(
-            self.pulsar_host, internet_search_response_queue,
-            "api-gateway", "api-gateway",
-            JsonSchema(LookupResponse)
-        )
-
-        self.dbpedia_lookup_out = Publisher(
-            self.pulsar_host, dbpedia_lookup_request_queue,
-            schema=JsonSchema(LookupRequest)
-        )
-
-        self.dbpedia_lookup_in = Subscriber(
-            self.pulsar_host, dbpedia_lookup_response_queue,
-            "api-gateway", "api-gateway",
-            JsonSchema(LookupResponse)
-        )
-
-        self.text_completion.add_routes(self.app)
-        self.prompt.add_routes(self.app)
-        self.graph_rag.add_routes(self.app)
-        self.triples_query.add_routes(self.app)
-        self.embeddings.add_routes(self.app)
-        self.agent.add_routes(self.app)
-        self.encyclopedia.add_routes(self.app)
+        for ep in self.endpoints:
+            ep.add_routes(self.app)
 
         self.app.add_routes([
-#            web.post("/api/v1/triples-query", self.triples_query),
-#            web.post("/api/v1/internet-search", self.internet-search),
-#            web.post("/api/v1/dbpedia", self.dbpedia),
+
             web.post("/api/v1/load/document", self.load_document),
             web.post("/api/v1/load/text", self.load_text),
-            web.get("/api/v1/ws", self.socket),
 
-            web.get("/api/v1/stream/triples", self.stream_triples),
-            web.get(
-                "/api/v1/stream/graph-embeddings",
-                self.stream_graph_embeddings
-            ),
+#            web.get("/api/v1/ws", self.socket),
 
-            web.get("/api/v1/load/triples", self.load_triples),
-            web.get(
-                "/api/v1/load/graph-embeddings",
-                self.load_graph_embeddings
-            ),
+#            web.get("/api/v1/stream/triples", self.stream_triples),
+
+#            web.get("/api/v1/load/triples", self.load_triples),
+
+#            web.get(
+#                "/api/v1/load/graph-embeddings",
+#                self.load_graph_embeddings
+#            ),
 
         ])
-
-    async def encyclopedia(self, request):
-
-        id = str(uuid.uuid4())
-
-        try:
-
-            data = await request.json()
-
-            q = await self.encyclopedia_lookup_in.subscribe(id)
-
-            await self.encyclopedia_lookup_out.send(
-                id,
-                LookupRequest(
-                    term=data["term"],
-                    kind=data.get("kind", None),
-                )
-            )
-
-            try:
-                resp = await asyncio.wait_for(q.get(), self.timeout)
-            except:
-                raise RuntimeError("Timeout waiting for response")
-
-            if resp.error:
-                return web.json_response(
-                    { "error": resp.error.message }
-                )
-
-            return web.json_response(
-                { "text": resp.text }
-            )
-
-        except Exception as e:
-            logging.error(f"Exception: {e}")
-
-            return web.json_response(
-                { "error": str(e) }
-            )
-
-        finally:
-            await self.encyclopedia_lookup_in.unsubscribe(id)
-
-    async def internet_search(self, request):
-
-        id = str(uuid.uuid4())
-
-        try:
-
-            data = await request.json()
-
-            q = await self.internet_search_in.subscribe(id)
-
-            await self.internet_search_out.send(
-                id,
-                LookupRequest(
-                    term=data["term"],
-                    kind=data.get("kind", None),
-                )
-            )
-
-            try:
-                resp = await asyncio.wait_for(q.get(), self.timeout)
-            except:
-                raise RuntimeError("Timeout waiting for response")
-
-            if resp.error:
-                return web.json_response(
-                    { "error": resp.error.message }
-                )
-
-            return web.json_response(
-                { "text": resp.text }
-            )
-
-        except Exception as e:
-            logging.error(f"Exception: {e}")
-
-            return web.json_response(
-                { "error": str(e) }
-            )
-
-        finally:
-            await self.internet_search_in.unsubscribe(id)
-
-    async def dbpedia(self, request):
-
-        id = str(uuid.uuid4())
-
-        try:
-
-            data = await request.json()
-
-            q = await self.dbpedia_lookup_in.subscribe(id)
-
-            await self.dbpedia_lookup_out.send(
-                id,
-                LookupRequest(
-                    term=data["term"],
-                    kind=data.get("kind", None),
-                )
-            )
-
-            try:
-                resp = await asyncio.wait_for(q.get(), self.timeout)
-            except:
-                raise RuntimeError("Timeout waiting for response")
-
-            if resp.error:
-                return web.json_response(
-                    { "error": resp.error.message }
-                )
-
-            return web.json_response(
-                { "text": resp.text }
-            )
-
-        except Exception as e:
-            logging.error(f"Exception: {e}")
-
-            return web.json_response(
-                { "error": str(e) }
-            )
-
-        finally:
-            await self.dbpedia_lookup_in.unsubscribe(id)
 
     async def load_document(self, request):
 
@@ -521,157 +293,17 @@ class Api:
             except Exception as e:
                 print(f"Exception: {str(e)}", flush=True)
 
-    async def stream_triples(self, request):
-
-        id = str(uuid.uuid4())
-
-        q = await self.triples_tap.subscribe_all(id)
-        running = Running()
-
-        ws = web.WebSocketResponse()
-        await ws.prepare(request)
-
-        tsk = asyncio.create_task(self.stream(
-            q,
-            ws,
-            running,
-            serialize_triples,
-        ))
-
-        async for msg in ws:
-            if msg.type == WSMsgType.ERROR:
-                break
-            else:
-                # Ignore incoming messages
-                pass
-
-        running.stop()
-
-        await self.triples_tap.unsubscribe_all(id)
-        await tsk
-
-        return ws
-
-    async def stream_graph_embeddings(self, request):
-
-        id = str(uuid.uuid4())
-
-        q = await self.graph_embeddings_tap.subscribe_all(id)
-        running = Running()
-
-        ws = web.WebSocketResponse()
-        await ws.prepare(request)
-
-        tsk = asyncio.create_task(self.stream(
-            q,
-            ws,
-            running,
-            serialize_graph_embeddings,
-        ))
-
-        async for msg in ws:
-            if msg.type == WSMsgType.ERROR:
-                break
-            else:
-                # Ignore incoming messages
-                pass
-
-        running.stop()
-
-        await self.graph_embeddings_tap.unsubscribe_all(id)
-        await tsk
-
-        return ws
-
-    async def load_triples(self, request):
-
-        ws = web.WebSocketResponse()
-        await ws.prepare(request)
-
-        async for msg in ws:
-
-            try:
-
-                if msg.type == WSMsgType.TEXT:
-
-                    data = msg.json()
-
-                    elt = Triples(
-                        metadata=Metadata(
-                            id=data["metadata"]["id"],
-                            metadata=to_subgraph(data["metadata"]["metadata"]),
-                            user=data["metadata"]["user"],
-                            collection=data["metadata"]["collection"],
-                        ),
-                        triples=to_subgraph(data["triples"]),
-                    )
-
-                    await self.triples_pub.send(None, elt)
-
-                elif msg.type == WSMsgType.ERROR:
-                    break
-
-            except Exception as e:
-
-                print("Exception:", e)
-
-        return ws
-
-    async def load_graph_embeddings(self, request):
-
-        ws = web.WebSocketResponse()
-        await ws.prepare(request)
-
-        async for msg in ws:
-
-            try:
-
-                if msg.type == WSMsgType.TEXT:
-
-                    data = msg.json()
-
-                    elt = GraphEmbeddings(
-                        metadata=Metadata(
-                            id=data["metadata"]["id"],
-                            metadata=to_subgraph(data["metadata"]["metadata"]),
-                            user=data["metadata"]["user"],
-                            collection=data["metadata"]["collection"],
-                        ),
-                        entity=to_value(data["entity"]),
-                        vectors=data["vectors"],
-                    )
-
-                    await self.graph_embeddings_pub.send(None, elt)
-
-                elif msg.type == WSMsgType.ERROR:
-                    break
-
-            except Exception as e:
-
-                print("Exception:", e)
-
-        return ws
-
     async def app_factory(self):
 
-        await self.text_completion.start()
-        await self.prompt.start()
-        await self.graph_rag.start()
-        await self.triples_query.start()
-        await self.embeddings.start()
-        await self.agent.start()
-        await self.encyclopedia.start()
+        for ep in self.endpoints:
+            await ep.start()
 
-        self.triples_tap_task = asyncio.create_task(
-            self.triples_tap.run()
-        )
+#        self.triples_tap_task = asyncio.create_task(
+#            self.triples_tap.run()
+#        )
 
         self.triples_pub_task = asyncio.create_task(
             self.triples_pub.run()
-        )
-
-        self.graph_embeddings_tap_task = asyncio.create_task(
-            self.graph_embeddings_tap.run()
         )
 
         self.graph_embeddings_pub_task = asyncio.create_task(
@@ -681,20 +313,6 @@ class Api:
         self.doc_ingest_pub_task = asyncio.create_task(self.document_out.run())
 
         self.text_ingest_pub_task = asyncio.create_task(self.text_out.run())
-
-        self.search_pub_task = asyncio.create_task(
-            self.internet_search_out.run()
-        )
-        self.search_sub_task = asyncio.create_task(
-            self.internet_search_in.run()
-        )
-
-        self.dbpedia_pub_task = asyncio.create_task(
-            self.dbpedia_lookup_out.run()
-        )
-        self.dbpedia_sub_task = asyncio.create_task(
-            self.dbpedia_lookup_in.run()
-        )
 
         return self.app
 

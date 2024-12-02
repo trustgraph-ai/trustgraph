@@ -9,30 +9,22 @@ url = "http://localhost:8088/api/v1/"
 ############################################################################
 
 input = {
-    "p": {
-        "v": "http://www.w3.org/2000/01/rdf-schema#label",
-        "e": True,
-    },
-    "limit": 10
+    "term": "Cornwall",
 }
 
 resp = requests.post(
-    f"{url}triples-query",
+    f"{url}internet-search",
     json=input,
 )
 
-print(resp.text)
 resp = resp.json()
 
-
-print(resp)
 if "error" in resp:
     print(f"Error: {resp['error']}")
     sys.exit(1)
 
-print(resp["response"])
+print(resp["text"])
 
 sys.exit(0)
-
 ############################################################################
 
