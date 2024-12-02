@@ -47,7 +47,7 @@ class SocketEndpoint:
         try:
             token = request.query['token']
         except:
-            return web.HTTPUnauthorized()
+            token = ""
 
         if not self.auth.permitted(token, self.operation):
             return web.HTTPUnauthorized()

@@ -53,7 +53,7 @@ logger.setLevel(logging.INFO)
 default_pulsar_host = os.getenv("PULSAR_HOST", "pulsar://pulsar:6650")
 default_timeout = 600
 default_port = 8088
-default_api_token = None
+default_api_token = os.getenv("GATEWAY_SECRET", "")
 
 class Api:
 

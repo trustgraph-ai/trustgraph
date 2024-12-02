@@ -69,9 +69,9 @@ class ServiceEndpoint:
                 return web.HTTPUnauthorized()
             token = tokens[1]
         except:
-            return web.HTTPUnauthorized()
+            token = ""
 
-        if not self.auth.permitted(tokens[1], self.operation):
+        if not self.auth.permitted(token, self.operation):
             return web.HTTPUnauthorized()
 
         try:
