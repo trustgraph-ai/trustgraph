@@ -112,7 +112,7 @@ local url = import "values/url.jsonnet";
                         "--prompt-request-queue",
                         "non-persistent://tg/request/prompt-rag",
                         "--prompt-response-queue",
-                        "non-persistent://tg/response/prompt-rag-response",
+                        "non-persistent://tg/response/prompt-rag",
                         "--entity-limit",
                         std.toString($["graph-rag-entity-limit"]),
                         "--triple-limit",

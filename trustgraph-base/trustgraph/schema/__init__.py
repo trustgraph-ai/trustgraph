@@ -9,4 +9,6 @@ from . graph import *
 from . retrieval import *
 from . metadata import *
 from . agent import *
+from . lookup import *
+
 

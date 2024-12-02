@@ -93,7 +93,6 @@ async def loader(ge_queue, t_queue, path, format, user, collection):
                 if collection:
                     unpacked["metadata"]["collection"] = collection
 
-
                 if unpacked[0] == "t":
                     await t_queue.put(unpacked[1])
                     t_counts += 1

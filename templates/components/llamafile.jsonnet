@@ -40,7 +40,7 @@ local prompts = import "prompts/slm.jsonnet";
                         "-i",
                         "non-persistent://tg/request/text-completion-rag",
                         "-o",
-                        "non-persistent://tg/response/text-completion-rag-response",
+                        "non-persistent://tg/response/text-completion-rag",
                     ])
                     .with_env_var_secrets(envSecrets)
                     .with_limits("0.5", "128M")
