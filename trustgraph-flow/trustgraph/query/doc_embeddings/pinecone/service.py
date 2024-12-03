@@ -131,9 +131,14 @@ class Processor(ConsumerProducer):
         )
 
         parser.add_argument(
-            '-t', '--store-uri',
-            default=default_store_uri,
-            help=f'Milvus store URI (default: {default_store_uri})'
+            '-a', '--api-key',
+            default=default_api_key,
+            help='Pinecone API key. (default from PINECONE_API_KEY)'
+        )
+
+        parser.add_argument(
+            '-u', '--url',
+            help='Pinecone URL.  If unspecified, serverless is used'
         )
 
 def run():
