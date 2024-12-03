@@ -212,7 +212,7 @@ class Api:
             # Text is base64 encoded
             text = base64.b64decode(data["text"]).decode(charset)
 
-            resp = asyncio.to_thread(
+            resp = await asyncio.to_thread(
                 self.text_out.send,
                 None,
                 TextDocument(
