@@ -30,19 +30,17 @@ class GraphEmbeddingsStreamEndpoint(SocketEndpoint):
 
     async def start(self):
 
-        self.task = asyncio.create_task(
-            self.subscriber.run()
-        )
+        self.subscriber.start()
 
     async def async_thread(self, ws, running):
 
         id = str(uuid.uuid4())
 
-        q = await self.subscriber.subscribe_all(id)
+        q = self.subscriber.subscribe_all(id)
 
         while running.get():
             try:
-                resp = await asyncio.wait_for(q.get(), 0.5)
+                resp = await asyncio.to_thread(q.get, timeout=0.5)
                 await ws.send_json(serialize_graph_embeddings(resp))
 
             except TimeoutError:
@@ -52,7 +50,7 @@ class GraphEmbeddingsStreamEndpoint(SocketEndpoint):
                 print(f"Exception: {str(e)}", flush=True)
                 break
 
-        await self.subscriber.unsubscribe_all(id)
+        self.subscriber.unsubscribe_all(id)
 
         running.stop()
 

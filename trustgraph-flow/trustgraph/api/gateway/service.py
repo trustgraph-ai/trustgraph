@@ -166,7 +166,8 @@ class Api:
             # content is valid base64
             doc = base64.b64decode(data["data"])
 
-            resp = await self.document_out.send(
+            resp = await asyncio.to_thread(
+                self.document_out.send,
                 None,
                 Document(
                     metadata=Metadata(
@@ -211,7 +212,8 @@ class Api:
             # Text is base64 encoded
             text = base64.b64decode(data["text"]).decode(charset)
 
-            resp = await self.text_out.send(
+            resp = asyncio.to_thread(
+                self.text_out.send,
                 None,
                 TextDocument(
                     metadata=Metadata(
@@ -242,8 +244,8 @@ class Api:
         for ep in self.endpoints:
             await ep.start()
 
-        self.doc_ingest_pub_task = asyncio.create_task(self.document_out.run())
-        self.text_ingest_pub_task = asyncio.create_task(self.text_out.run())
+        self.document_out.start()
+        self.text_out.start()
 
         return self.app
 

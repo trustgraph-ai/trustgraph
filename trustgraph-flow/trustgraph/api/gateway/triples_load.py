@@ -29,9 +29,7 @@ class TriplesLoadEndpoint(SocketEndpoint):
 
     async def start(self):
 
-        self.task = asyncio.create_task(
-            self.publisher.run()
-        )
+        self.publisher.start()
 
     async def listener(self, ws, running):
         
@@ -53,7 +51,7 @@ class TriplesLoadEndpoint(SocketEndpoint):
                     triples=to_subgraph(data["triples"]),
                 )
 
-                await self.publisher.send(None, elt)
+                self.publisher.send(None, elt)
 
 
         running.stop()
