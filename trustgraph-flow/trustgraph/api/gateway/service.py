@@ -17,7 +17,6 @@ from aiohttp import web
 import logging
 import os
 import base64
-import aiopulsar
 
 import pulsar
 from pulsar.schema import JsonSchema
@@ -238,35 +237,13 @@ class Api:
                 { "error": str(e) }
             )
 
-    async def run_endpoints(self):
-
-        async with aiopulsar.connect(self.pulsar_host) as client:
-
-            for ep in self.endpoints:
-                await ep.start(client)
-
-                self.doc_ingest_pub_task = asyncio.create_task(
-                    self.document_out.run(client)
-                )
-
-                self.text_ingest_pub_task = asyncio.create_task(
-                    self.text_out.run(client)
-                )
-
-            print("Endpoints are running...")
-
-            # They never exit
-            for ep in self.endpoints:
-                await ep.join()
-
-            await self.doc_ingest_pub_task
-            await self.text_ingest_pub_task
-
-            print("Endpoints are stopped.")
-
     async def app_factory(self):
 
-        self.endpoint_task = asyncio.create_task(self.run_endpoints())
+        for ep in self.endpoints:
+            await ep.start()
+
+        self.doc_ingest_pub_task = asyncio.create_task(self.document_out.run())
+        self.text_ingest_pub_task = asyncio.create_task(self.text_out.run())
 
         return self.app
 

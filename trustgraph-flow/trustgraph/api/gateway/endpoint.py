@@ -41,15 +41,10 @@ class ServiceEndpoint:
 
         self.operation = "service"
 
-    async def start(self, client):
+    async def start(self):
 
-        self.pub_task = asyncio.create_task(self.pub.run(client))
-        self.sub_task = asyncio.create_task(self.sub.run(client))
-
-    async def join(self):
-        
-        await self.pub_task
-        await self.sub_task
+        self.pub_task = asyncio.create_task(self.pub.run())
+        self.sub_task = asyncio.create_task(self.sub.run())
 
     def add_routes(self, app):
 

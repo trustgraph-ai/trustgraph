@@ -1,5 +1,6 @@
 
 import asyncio
+import aiopulsar
 
 class Subscriber:
 
@@ -13,32 +14,33 @@ class Subscriber:
         self.q = {}
         self.full = {}
 
-    async def run(self, client):
+    async def run(self):
         while True:
             try:
-                async with client.subscribe(
-                    topic=self.topic,
-                    subscription_name=self.subscription,
-                    consumer_name=self.consumer_name,
-                    schema=self.schema,
-                ) as consumer:
-                    while True:
-                        msg = await consumer.receive()
+                async with aiopulsar.connect(self.pulsar_host) as client:
+                    async with client.subscribe(
+                        topic=self.topic,
+                        subscription_name=self.subscription,
+                        consumer_name=self.consumer_name,
+                        schema=self.schema,
+                    ) as consumer:
+                        while True:
+                            msg = await consumer.receive()
 
-                        # Acknowledge successful reception of the message
-                        await consumer.acknowledge(msg)
+                            # Acknowledge successful reception of the message
+                            await consumer.acknowledge(msg)
 
-                        try:
-                            id = msg.properties()["id"]
-                        except:
-                            id = None
+                            try:
+                                id = msg.properties()["id"]
+                            except:
+                                id = None
 
-                        value = msg.value()
-                        if id in self.q:
-                            await self.q[id].put(value)
+                            value = msg.value()
+                            if id in self.q:
+                                await self.q[id].put(value)
 
-                        for q in self.full.values():
-                            await q.put(value)
+                            for q in self.full.values():
+                                await q.put(value)
 
             except Exception as e:
                 print("Exception:", e, flush=True)

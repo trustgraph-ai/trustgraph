@@ -26,10 +26,10 @@ class TriplesStreamEndpoint(SocketEndpoint):
             schema=JsonSchema(Triples)
         )
 
-    async def start(self, client):
+    async def start(self):
 
         self.task = asyncio.create_task(
-            self.subscriber.run(client)
+            self.subscriber.run()
         )
 
     async def async_thread(self, ws, running):
