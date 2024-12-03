@@ -76,6 +76,12 @@ class SocketEndpoint:
     async def start(self):
         pass
 
+    async def join(self):
+
+        # Nothing to wait for
+        while True:
+            await asyncio.sleep(100)
+
     def add_routes(self, app):
 
         app.add_routes([

@@ -29,10 +29,10 @@ class GraphEmbeddingsLoadEndpoint(SocketEndpoint):
             schema=JsonSchema(GraphEmbeddings)
         )
 
-    async def start(self):
+    async def start(self, client):
 
         self.task = asyncio.create_task(
-            self.publisher.run()
+            self.publisher.run(client)
         )
 
     async def listener(self, ws, running):
