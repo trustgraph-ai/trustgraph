@@ -1,6 +1,5 @@
 
 import asyncio
-import aiopulsar
 
 class Publisher:
 
@@ -12,24 +11,23 @@ class Publisher:
         self.q = asyncio.Queue(maxsize=max_size)
         self.chunking_enabled = chunking_enabled
 
-    async def run(self):
+    async def run(self, client):
 
         while True:
 
             try:
-                async with aiopulsar.connect(self.pulsar_host) as client:
-                    async with client.create_producer(
-                            topic=self.topic,
-                            schema=self.schema,
-                            chunking_enabled=self.chunking_enabled,
-                    ) as producer:
-                        while True:
-                            id, item = await self.q.get()
+                async with client.create_producer(
+                        topic=self.topic,
+                        schema=self.schema,
+                        chunking_enabled=self.chunking_enabled,
+                ) as producer:
+                    while True:
+                        id, item = await self.q.get()
 
-                            if id:
-                                await producer.send(item, { "id": id })
-                            else:
-                                await producer.send(item)
+                        if id:
+                            await producer.send(item, { "id": id })
+                        else:
+                            await producer.send(item)
 
             except Exception as e:
                 print("Exception:", e, flush=True)
