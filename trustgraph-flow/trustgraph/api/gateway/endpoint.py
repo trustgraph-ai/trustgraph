@@ -62,6 +62,8 @@ class ServiceEndpoint:
 
         id = str(uuid.uuid4())
 
+        print(request.path, "...")
+
         try:
             ht = request.headers["Authorization"]
             tokens = ht.split(" ", 2)
@@ -78,22 +80,30 @@ class ServiceEndpoint:
 
             data = await request.json()
 
+            print(data)
+
             q = await self.sub.subscribe(id)
 
             await self.pub.send(
                 id,
                 self.to_request(data),
             )
+            print("Request sent")
 
             try:
                 resp = await asyncio.wait_for(q.get(), self.timeout)
             except:
                 raise RuntimeError("Timeout waiting for response")
 
+            print("Response got")
+
             if resp.error:
+                print("Error")
                 return web.json_response(
                     { "error": resp.error.message }
                 )
+
+            print("Send response")
 
             return web.json_response(
                 self.from_response(resp)
