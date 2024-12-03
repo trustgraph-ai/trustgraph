@@ -38,8 +38,6 @@ class Publisher:
 
                     id, item = self.q.get()
 
-                    print("THING ON Q")
-
                     if id:
                         producer.send(item, { "id": id })
                     else:
@@ -53,4 +51,3 @@ class Publisher:
 
     def send(self, id, msg):
         self.q.put((id, msg))
-        print("PUT ON Q")

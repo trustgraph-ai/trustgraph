@@ -7,7 +7,7 @@ import time
 class Subscriber:
 
     def __init__(self, pulsar_host, topic, subscription, consumer_name,
-                 schema=None, max_size=10):
+                 schema=None, max_size=100):
         self.pulsar_host = pulsar_host
         self.topic = topic
         self.subscription = subscription
@@ -16,6 +16,7 @@ class Subscriber:
         self.q = {}
         self.full = {}
         self.max_size = max_size
+        self.lock = threading.Lock()
 
     def start(self):
         self.task = threading.Thread(target=self.run)
@@ -37,12 +38,10 @@ class Subscriber:
                     consumer_name=self.consumer_name,
                     schema=self.schema,
                 )
-                
+
                 while True:
 
                     msg = consumer.receive()
-
-                    print("Received", msg)
 
                     # Acknowledge successful reception of the message
                     consumer.acknowledge(msg)
@@ -53,11 +52,20 @@ class Subscriber:
                         id = None
 
                     value = msg.value()
-                    if id in self.q:
-                        self.q[id].put(value)
 
-                    for q in self.full.values():
-                        q.put(value)
+                    with self.lock:
+
+                        if id in self.q:
+                            try:
+                                self.q[id].put(value, timeout=0.5)
+                            except:
+                                pass
+
+                        for q in self.full.values():
+                            try:
+                                q.put(value, timeout=0.5)
+                            except:
+                                pass
 
             except Exception as e:
                 print("Exception:", e, flush=True)
@@ -66,20 +74,36 @@ class Subscriber:
             time.sleep(2)
 
     def subscribe(self, id):
-        q = queue.Queue(maxsize=self.max_size)
-        self.q[id] = q
+
+        with self.lock:
+
+            q = queue.Queue(maxsize=self.max_size)
+            self.q[id] = q
+
         return q
 
     def unsubscribe(self, id):
-        if id in self.q:
-            del self.q[id]
+        
+        with self.lock:
+
+            if id in self.q:
+#                self.q[id].shutdown(immediate=True)
+                del self.q[id]
     
     def subscribe_all(self, id):
-        q = queue.Queue(maxsize=self.max_size)
-        self.full[id] = q
+
+        with self.lock:
+
+            q = queue.Queue(maxsize=self.max_size)
+            self.full[id] = q
+
         return q
 
     def unsubscribe_all(self, id):
-        if id in self.full:
-            del self.full[id]
+
+        with self.lock:
+
+            if id in self.full:
+#                self.full[id].shutdown(immediate=True)
+                del self.full[id]
 

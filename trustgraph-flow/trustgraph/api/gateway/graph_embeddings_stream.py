@@ -1,5 +1,6 @@
 
 import asyncio
+import queue
 from pulsar.schema import JsonSchema
 import uuid
 
@@ -43,7 +44,7 @@ class GraphEmbeddingsStreamEndpoint(SocketEndpoint):
                 resp = await asyncio.to_thread(q.get, timeout=0.5)
                 await ws.send_json(serialize_graph_embeddings(resp))
 
-            except TimeoutError:
+            except queue.Empty:
                 continue
 
             except Exception as e:

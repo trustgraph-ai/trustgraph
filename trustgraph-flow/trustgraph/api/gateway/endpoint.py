@@ -93,6 +93,8 @@ class ServiceEndpoint:
             except Exception as e:
                 raise RuntimeError("Timeout")
 
+            print(resp)
+
             if resp.error:
                 print("Error")
                 return web.json_response(
