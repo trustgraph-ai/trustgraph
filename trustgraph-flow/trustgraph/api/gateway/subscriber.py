@@ -1,10 +1,13 @@
 
-import asyncio
+import queue
+import pulsar
+import threading
+import time
 
 class Subscriber:
 
     def __init__(self, pulsar_host, topic, subscription, consumer_name,
-                 schema=None, max_size=10):
+                 schema=None, max_size=100):
         self.pulsar_host = pulsar_host
         self.topic = topic
         self.subscription = subscription
@@ -12,55 +15,95 @@ class Subscriber:
         self.schema = schema
         self.q = {}
         self.full = {}
+        self.max_size = max_size
+        self.lock = threading.Lock()
 
-    async def run(self, client):
+    def start(self):
+        self.task = threading.Thread(target=self.run)
+        self.task.start()
+
+    def run(self):
+
         while True:
+
             try:
-                async with client.subscribe(
+
+                client = pulsar.Client(
+                    self.pulsar_host,
+                )
+
+                consumer = client.subscribe(
                     topic=self.topic,
                     subscription_name=self.subscription,
                     consumer_name=self.consumer_name,
                     schema=self.schema,
-                ) as consumer:
-                    while True:
-                        msg = await consumer.receive()
+                )
 
-                        # Acknowledge successful reception of the message
-                        await consumer.acknowledge(msg)
+                while True:
 
-                        try:
-                            id = msg.properties()["id"]
-                        except:
-                            id = None
+                    msg = consumer.receive()
 
-                        value = msg.value()
+                    # Acknowledge successful reception of the message
+                    consumer.acknowledge(msg)
+
+                    try:
+                        id = msg.properties()["id"]
+                    except:
+                        id = None
+
+                    value = msg.value()
+
+                    with self.lock:
+
                         if id in self.q:
-                            await self.q[id].put(value)
+                            try:
+                                self.q[id].put(value, timeout=0.5)
+                            except:
+                                pass
 
                         for q in self.full.values():
-                            await q.put(value)
+                            try:
+                                q.put(value, timeout=0.5)
+                            except:
+                                pass
 
             except Exception as e:
                 print("Exception:", e, flush=True)
          
             # If handler drops out, sleep a retry
-            await asyncio.sleep(2)
+            time.sleep(2)
 
-    async def subscribe(self, id):
-        q = asyncio.Queue()
-        self.q[id] = q
+    def subscribe(self, id):
+
+        with self.lock:
+
+            q = queue.Queue(maxsize=self.max_size)
+            self.q[id] = q
+
         return q
 
-    async def unsubscribe(self, id):
-        if id in self.q:
-            del self.q[id]
+    def unsubscribe(self, id):
+        
+        with self.lock:
+
+            if id in self.q:
+#                self.q[id].shutdown(immediate=True)
+                del self.q[id]
     
-    async def subscribe_all(self, id):
-        q = asyncio.Queue()
-        self.full[id] = q
+    def subscribe_all(self, id):
+
+        with self.lock:
+
+            q = queue.Queue(maxsize=self.max_size)
+            self.full[id] = q
+
         return q
 
-    async def unsubscribe_all(self, id):
-        if id in self.full:
-            del self.full[id]
+    def unsubscribe_all(self, id):
+
+        with self.lock:
+
+            if id in self.full:
+#                self.full[id].shutdown(immediate=True)
+                del self.full[id]
 

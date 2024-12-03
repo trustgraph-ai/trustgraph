@@ -1,5 +1,6 @@
 
 import asyncio
+import queue
 from pulsar.schema import JsonSchema
 import uuid
 
@@ -26,31 +27,29 @@ class TriplesStreamEndpoint(SocketEndpoint):
             schema=JsonSchema(Triples)
         )
 
-    async def start(self, client):
+    async def start(self):
 
-        self.task = asyncio.create_task(
-            self.subscriber.run(client)
-        )
+        self.subscriber.start()
 
     async def async_thread(self, ws, running):
 
         id = str(uuid.uuid4())
 
-        q = await self.subscriber.subscribe_all(id)
+        q = self.subscriber.subscribe_all(id)
 
         while running.get():
             try:
-                resp = await asyncio.wait_for(q.get(), 0.5)
+                resp = await asyncio.to_thread(q.get, timeout=0.5)
                 await ws.send_json(serialize_triples(resp))
 
-            except TimeoutError:
+            except queue.Empty:
                 continue
 
             except Exception as e:
                 print(f"Exception: {str(e)}", flush=True)
                 break
 
-        await self.subscriber.unsubscribe_all(id)
+        self.subscriber.unsubscribe_all(id)
 
         running.stop()
 

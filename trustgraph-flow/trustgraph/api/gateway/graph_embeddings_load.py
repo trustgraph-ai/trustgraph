@@ -29,11 +29,9 @@ class GraphEmbeddingsLoadEndpoint(SocketEndpoint):
             schema=JsonSchema(GraphEmbeddings)
         )
 
-    async def start(self, client):
+    async def start(self):
 
-        self.task = asyncio.create_task(
-            self.publisher.run(client)
-        )
+        self.publisher.start()
 
     async def listener(self, ws, running):
         
@@ -56,7 +54,7 @@ class GraphEmbeddingsLoadEndpoint(SocketEndpoint):
                     vectors=data["vectors"],
                 )
 
-                await self.publisher.send(None, elt)
+                self.publisher.send(None, elt)
 
 
         running.stop()

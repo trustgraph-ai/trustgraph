@@ -59,7 +59,6 @@ setuptools.setup(
         "ibis",
         "jsonschema",
         "aiohttp",
-        "aiopulsar-py",
         "pinecone[grpc]",
     ],
     scripts=[

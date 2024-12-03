@@ -41,15 +41,10 @@ class ServiceEndpoint:
 
         self.operation = "service"
 
-    async def start(self, client):
+    async def start(self):
 
-        self.pub_task = asyncio.create_task(self.pub.run(client))
-        self.sub_task = asyncio.create_task(self.sub.run(client))
-
-    async def join(self):
-        
-        await self.pub_task
-        await self.sub_task
+        self.pub.start()
+        self.sub.start()
 
     def add_routes(self, app):
 
@@ -87,28 +82,24 @@ class ServiceEndpoint:
 
             print(data)
 
-            q = await self.sub.subscribe(id)
+            q = self.sub.subscribe(id)
 
-            await self.pub.send(
-                id,
-                self.to_request(data),
+            await asyncio.to_thread(
+                self.pub.send, id, self.to_request(data)
             )
-            print("Request sent")
 
             try:
-                resp = await asyncio.wait_for(q.get(), self.timeout)
-            except:
-                raise RuntimeError("Timeout waiting for response")
+                resp = await asyncio.to_thread(q.get, timeout=self.timeout)
+            except Exception as e:
+                raise RuntimeError("Timeout")
 
-            print("Response got")
+            print(resp)
 
             if resp.error:
                 print("Error")
                 return web.json_response(
                     { "error": resp.error.message }
                 )
-
-            print("Send response")
 
             return web.json_response(
                 self.from_response(resp)
@@ -122,7 +113,7 @@ class ServiceEndpoint:
             )
 
         finally:
-            await self.sub.unsubscribe(id)
+            self.sub.unsubscribe(id)
 
 
 class MultiResponseServiceEndpoint(ServiceEndpoint):
@@ -135,11 +126,10 @@ class MultiResponseServiceEndpoint(ServiceEndpoint):
 
             data = await request.json()
 
-            q = await self.sub.subscribe(id)
+            q = self.sub.subscribe(id)
 
-            await self.pub.send(
-                id,
-                self.to_request(data),
+            await asyncio.to_thread(
+                self.pub.send, id, self.to_request(data)
             )
 
             # Keeps looking at responses...
@@ -147,8 +137,8 @@ class MultiResponseServiceEndpoint(ServiceEndpoint):
             while True:
 
                 try:
-                    resp = await asyncio.wait_for(q.get(), self.timeout)
-                except:
+                    resp = await asyncio.to_thread(q.get, timeout=self.timeout)
+                except Exception as e:
                     raise RuntimeError("Timeout waiting for response")
 
                 if resp.error:
@@ -173,4 +163,4 @@ class MultiResponseServiceEndpoint(ServiceEndpoint):
             )
 
         finally:
-            await self.sub.unsubscribe(id)
+            self.sub.unsubscribe(id)
