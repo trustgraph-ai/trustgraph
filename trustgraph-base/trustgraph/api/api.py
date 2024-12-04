@@ -205,16 +205,20 @@ class Api:
             "limit": limit
         }
 
-        if not isinstance(s, Uri):
-            raise RuntimeError("s must be Uri")
-        if not isinstance(p, Uri):
-            raise RuntimeError("p must be Uri")
-        if not isinstance(o, Uri) and not isinstance(o, Literal):
-            raise RuntimeError("o must be Uri or Literal")
+        if s:
+            if not isinstance(s, Uri):
+                raise RuntimeError("s must be Uri")
+            input["s"] = { "v": str(s), "e": isinstance(s, Uri), }
+            
+        if p:
+            if not isinstance(p, Uri):
+                raise RuntimeError("p must be Uri")
+            input["p"] = { "v": str(p), "e": isinstance(p, Uri), }
 
-        if s: input["s"] = { "v": str(s), "e": isinstance(s, Uri), }
-        if p: input["p"] = { "v": str(p), "e": isinstance(p, Uri), }
-        if o: input["o"] = { "v": str(o), "e": isinstance(o, Uri), }
+        if o:
+            if not isinstance(o, Uri) and not isinstance(o, Literal):
+                raise RuntimeError("o must be Uri or Literal")
+            input["o"] = { "v": str(o), "e": isinstance(o, Uri), }
 
         url = f"{self.url}triples-query"
 
