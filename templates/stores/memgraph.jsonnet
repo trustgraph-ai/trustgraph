@@ -13,8 +13,8 @@ local images = import "values/images.jsonnet";
                     .with_environment({
                           MEMGRAPH: "--storage-properties-on-edges=true --storage-enable-edges-metadata=true"
                     })
-                    .with_limits("1.0", "2000M")
-                    .with_reservations("0.5", "2000M")
+                    .with_limits("1.0", "1000M")
+                    .with_reservations("0.5", "1000M")
                     .with_port(7474, 7474, "api")
                     .with_port(7687, 7687, "api2");
 
