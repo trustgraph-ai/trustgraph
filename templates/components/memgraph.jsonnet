@@ -16,7 +16,7 @@ memgraph + {
                 engine.container("store-triples")
                     .with_image(images.trustgraph)
                     .with_command([
-                        "triples-write-neo4j",
+                        "triples-write-memgraph",
                         "-p",
                         url.pulsar,
                         "-g",
@@ -50,7 +50,7 @@ memgraph + {
                 engine.container("query-triples")
                     .with_image(images.trustgraph)
                     .with_command([
-                        "triples-query-neo4j",
+                        "triples-query-memgraph",
                         "-p",
                         url.pulsar,
                         "-g",
