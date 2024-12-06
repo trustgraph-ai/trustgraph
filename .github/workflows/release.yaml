@@ -48,20 +48,6 @@ jobs:
       - name: Publish release distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
 
-      - name: Create deploy bundle
-        run: templates/generate-all deploy.zip ${{ steps.version.outputs.VERSION }}
-
-      - uses: ncipollo/release-action@v1
-        with:
-          artifacts: deploy.zip
-          generateReleaseNotes: true
-          makeLatest: false
-          prerelease: true
-          skipIfReleaseExists: true
-
-      - name: Build container
-        run: make container VERSION=${{ steps.version.outputs.VERSION }}
-
       - name: Extract metadata for container
         id: meta
         uses: docker/metadata-action@v4
@@ -84,3 +70,13 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
+      - name: Create deploy bundle
+        run: templates/generate-all deploy.zip ${{ steps.version.outputs.VERSION }}
+
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: deploy.zip
+          generateReleaseNotes: true
+          makeLatest: false
+          prerelease: true
+          skipIfReleaseExists: true

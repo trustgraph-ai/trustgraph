@@ -32,7 +32,6 @@ COPY trustgraph-base/ /root/build/trustgraph-base/
 COPY trustgraph-flow/ /root/build/trustgraph-flow/
 COPY trustgraph-vertexai/ /root/build/trustgraph-vertexai/
 COPY trustgraph-bedrock/ /root/build/trustgraph-bedrock/
-COPY trustgraph-parquet/ /root/build/trustgraph-parquet/
 COPY trustgraph-embeddings-hf/ /root/build/trustgraph-embeddings-hf/
 COPY trustgraph-cli/ /root/build/trustgraph-cli/
 
