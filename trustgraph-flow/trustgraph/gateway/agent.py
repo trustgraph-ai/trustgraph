@@ -24,16 +24,26 @@ class AgentRequestor(MultiResponseServiceRequestor):
         )
 
     def from_response(self, message):
+        resp = {
+        }
+
         if message.answer:
-            return { "answer": message.answer }, True
-        else:
-            return {}, False
+            resp["answer"] = message.answer
+
+        if message.thought:
+            resp["thought"] = message.thought
+
+        if message.observation:
+            resp["observation"] = message.observation
+
+        # The 2nd boolean expression indicates whether we're done responding
+        return resp, (message.answer is not None)
 
 class AgentEndpoint(MultiResponseServiceEndpoint):
     def __init__(self, pulsar_host, timeout, auth):
 
         super(AgentEndpoint, self).__init__(
-            endpoint_path="/api/v1/text-completion",
+            endpoint_path="/api/v1/agent",
             auth=auth,
             requestor = AgentRequestor(
                 pulsar_host=pulsar_host, timeout=timeout, auth=auth

@@ -68,20 +68,13 @@ class MultiResponseServiceEndpoint(ServiceEndpoint):
 
     async def handle(self, request):
 
-        id = str(uuid.uuid4())
-
         try:
 
             data = await request.json()
-
-            q = self.sub.subscribe(id)
-
-            await asyncio.to_thread(
-                self.pub.send, id, self.to_request(data)
-            )
+            print(data)
 
             def responder(x):
-                print("Resp:", x)
+                print(x)
 
             resp = await self.requestor.process(data, responder)
 
@@ -94,5 +87,3 @@ class MultiResponseServiceEndpoint(ServiceEndpoint):
                 { "error": str(e) }
             )
 
-        finally:
-            self.sub.unsubscribe(id)

@@ -48,24 +48,19 @@ class ServiceRequestor:
     async def process(self, request):
 
         id = str(uuid.uuid4())
-        print(id)
 
         try:
 
             q = self.sub.subscribe(id)
 
-            print("Pub...")
             await asyncio.to_thread(
                 self.pub.send, id, self.to_request(request)
             )
 
-            print("Pubd")
             try:
                 resp = await asyncio.to_thread(q.get, timeout=self.timeout)
             except Exception as e:
                 raise RuntimeError("Timeout")
-
-            print("Recvd...")
 
             if resp.error:
                 return { "error": resp.error.message }
