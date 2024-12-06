@@ -19,6 +19,9 @@ resp = requests.post(
     json=input,
 )
 
+if resp.status_code != 200:
+    raise RuntimeError(f"Status code: {resp.status_code}")
+
 resp = resp.json()
 
 if "error" in resp:

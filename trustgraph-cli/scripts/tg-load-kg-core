@@ -12,16 +12,25 @@ import json
 import sys
 import argparse
 import os
+import signal
 
-async def load_ge(queue, url):
+class Running:
+    def __init__(self): self.running = True
+    def get(self): return self.running
+    def stop(self): self.running = False
+
+async def load_ge(running, queue, url):
 
     async with aiohttp.ClientSession() as session:
 
         async with session.ws_connect(f"{url}load/graph-embeddings") as ws:
 
-            while True:
+            while running.get():
 
-                msg = await queue.get()
+                try:
+                    msg = await asyncio.wait_for(queue.get(), 1)
+                except TimeoutError:
+                    continue
 
                 msg = {
                     "metadata": {
@@ -36,13 +45,18 @@ async def load_ge(queue, url):
 
                 await ws.send_json(msg)
 
-async def load_triples(queue, url):
+async def load_triples(running, queue, url):
+
     async with aiohttp.ClientSession() as session:
+
         async with session.ws_connect(f"{url}load/triples") as ws:
 
-            while True:
+            while running.get():
 
-                msg = await queue.get()
+                try:
+                    msg = await asyncio.wait_for(queue.get(), 1)
+                except TimeoutError:
+                    continue
 
                 msg ={
                     "metadata": {
@@ -59,18 +73,18 @@ async def load_triples(queue, url):
 ge_counts = 0
 t_counts = 0
 
-async def stats():
+async def stats(running):
 
     global t_counts
     global ge_counts
 
-    while True:
-        await asyncio.sleep(5)
+    while running.get():
+        await asyncio.sleep(2)
         print(
             f"Graph embeddings: {ge_counts:10d}  Triples: {t_counts:10d}"
         )
 
-async def loader(ge_queue, t_queue, path, format, user, collection):
+async def loader(running, ge_queue, t_queue, path, format, user, collection):
 
     global t_counts
     global ge_counts
@@ -85,7 +99,12 @@ async def loader(ge_queue, t_queue, path, format, user, collection):
 
             unpacker = msgpack.Unpacker(f, raw=False)
 
-            for unpacked in unpacker:
+            while running.get():
+
+                try:
+                    unpacked = unpacker.unpack()
+                except:
+                    break
 
                 if user:
                     unpacked["metadata"]["user"] = user
@@ -94,14 +113,25 @@ async def loader(ge_queue, t_queue, path, format, user, collection):
                     unpacked["metadata"]["collection"] = collection
 
                 if unpacked[0] == "t":
-                    await t_queue.put(unpacked[1])
+                    qtype = t_queue
                     t_counts += 1
                 else:
                     if unpacked[0] == "ge":
-                        await ge_queue.put(unpacked[1])
+                        qtype = ge_queue
                         ge_counts += 1
 
-async def run(**args):
+                while running.get():
+
+                    try:
+                        await asyncio.wait_for(qtype.put(unpacked[1]), 0.5)
+                    except TimeoutError:
+                        continue
+
+                if not running.get(): break
+
+            running.stop()
+            
+async def run(running, **args):
 
     # Maxsize on queues reduces back-pressure so tg-load-kg-core doesn't
     # grow to eat all memory
@@ -110,6 +140,7 @@ async def run(**args):
 
     load_task = asyncio.create_task(
         loader(
+            running=running,
             ge_queue=ge_q, t_queue=t_q,
             path=args["input_file"], format=args["format"],
             user=args["user"], collection=args["collection"],
@@ -119,24 +150,26 @@ async def run(**args):
 
     ge_task = asyncio.create_task(
         load_ge(
+            running=running,
             queue=ge_q, url=args["url"] + "api/v1/"
         )
     )
 
     triples_task = asyncio.create_task(
         load_triples(
+            running=running,
             queue=t_q, url=args["url"] + "api/v1/"
         )
     )
 
-    stats_task = asyncio.create_task(stats())
+    stats_task = asyncio.create_task(stats(running))
 
     await load_task
     await triples_task
     await ge_task
     await stats_task
 
-async def main():
+async def main(running):
     
     parser = argparse.ArgumentParser(
         prog='tg-load-kg-core',
@@ -179,7 +212,15 @@ async def main():
 
     args = parser.parse_args()
 
-    await run(**vars(args))
+    await run(running, **vars(args))
 
-asyncio.run(main())
+running = Running()
+
+def interrupt(sig, frame):
+    running.stop()
+    print('Interrupt')
+
+signal.signal(signal.SIGINT, interrupt)
+
+asyncio.run(main(running))
 
