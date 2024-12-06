@@ -53,30 +53,10 @@ class ServiceEndpoint:
 
             print(data)
 
-            resp = await self.requestor.process(data)
-
-            return web.json_response(resp)
-
-        except Exception as e:
-            logging.error(f"Exception: {e}")
-
-            return web.json_response(
-                { "error": str(e) }
-            )
-
-class MultiResponseServiceEndpoint(ServiceEndpoint):
-
-    async def handle(self, request):
-
-        try:
-
-            data = await request.json()
-            print(data)
-
-            def responder(x):
+            def responder(x, fin):
                 print(x)
 
-            resp = await self.requestor.process(data, responder)
+            resp, fin = await self.requestor.process(data, responder)
 
             return web.json_response(resp)
 

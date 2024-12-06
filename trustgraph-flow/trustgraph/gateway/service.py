@@ -46,7 +46,7 @@ from . triples_load import TriplesLoadEndpoint
 from . graph_embeddings_load import GraphEmbeddingsLoadEndpoint
 from . command import CommandEndpoint
 
-from . endpoint import ServiceEndpoint, MultiResponseServiceEndpoint
+from . endpoint import ServiceEndpoint
 from . auth import Authenticator
 
 logger = logging.getLogger("api")
@@ -138,7 +138,7 @@ class Api:
                 endpoint_path = "/api/v1/embeddings", auth=self.auth,
                 requestor = self.services["embeddings"],
             ),
-            MultiResponseServiceEndpoint(
+            ServiceEndpoint(
                 endpoint_path = "/api/v1/agent", auth=self.auth,
                 requestor = self.services["agent"],
             ),

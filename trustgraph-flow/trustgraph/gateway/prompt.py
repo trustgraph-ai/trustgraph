@@ -33,11 +33,11 @@ class PromptRequestor(ServiceRequestor):
         if message.object:
             return {
                 "object": message.object
-            }
+            }, True
         else:
             return {
                 "text": message.text
-            }
+            }, True
 
 class PromptEndpoint(ServiceEndpoint):
     def __init__(self, pulsar_host, timeout, auth):

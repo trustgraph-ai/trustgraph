@@ -24,7 +24,7 @@ class EmbeddingsRequestor(ServiceRequestor):
         )
 
     def from_response(self, message):
-        return { "vectors": message.vectors }
+        return { "vectors": message.vectors }, True
 
 class EmbeddingsEndpoint(ServiceEndpoint):
     def __init__(self, pulsar_host, timeout, auth):

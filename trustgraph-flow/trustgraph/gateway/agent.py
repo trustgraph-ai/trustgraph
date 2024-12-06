@@ -3,10 +3,10 @@ from .. schema import AgentRequest, AgentResponse
 from .. schema import agent_request_queue
 from .. schema import agent_response_queue
 
-from . endpoint import MultiResponseServiceEndpoint
-from . requestor import MultiResponseServiceRequestor
+from . endpoint import ServiceEndpoint
+from . requestor import ServiceRequestor
 
-class AgentRequestor(MultiResponseServiceRequestor):
+class AgentRequestor(ServiceRequestor):
     def __init__(self, pulsar_host, timeout, auth):
 
         super(AgentRequestor, self).__init__(
@@ -39,14 +39,4 @@ class AgentRequestor(MultiResponseServiceRequestor):
         # The 2nd boolean expression indicates whether we're done responding
         return resp, (message.answer is not None)
 
-class AgentEndpoint(MultiResponseServiceEndpoint):
-    def __init__(self, pulsar_host, timeout, auth):
-
-        super(AgentEndpoint, self).__init__(
-            endpoint_path="/api/v1/agent",
-            auth=auth,
-            requestor = AgentRequestor(
-                pulsar_host=pulsar_host, timeout=timeout, auth=auth
-            )
-        )
-
+    

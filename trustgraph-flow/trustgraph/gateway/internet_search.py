@@ -25,7 +25,7 @@ class InternetSearchRequestor(ServiceRequestor):
         )
 
     def from_response(self, message):
-        return { "text": message.text }
+        return { "text": message.text }, True
 
 class InternetSearchEndpoint(ServiceEndpoint):
     def __init__(self, pulsar_host, timeout, auth):

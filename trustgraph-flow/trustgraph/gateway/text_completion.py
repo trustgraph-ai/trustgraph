@@ -25,7 +25,7 @@ class TextCompletionRequestor(ServiceRequestor):
         )
 
     def from_response(self, message):
-        return { "response": message.response }
+        return { "response": message.response }, True
 
 class TextCompletionEndpoint(ServiceEndpoint):
     def __init__(self, pulsar_host, timeout, auth):

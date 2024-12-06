@@ -25,7 +25,7 @@ class EncyclopediaRequestor(ServiceRequestor):
         )
 
     def from_response(self, message):
-        return { "text": message.text }
+        return { "text": message.text }, True
 
 
 class EncyclopediaEndpoint(ServiceEndpoint):

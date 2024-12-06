@@ -44,9 +44,14 @@ class CommandEndpoint(SocketEndpoint):
 
                 requestor = self.services[svc]
 
-                resp = await requestor.process(request)
+                async def responder(resp, fin):
+                    await ws.send_json({
+                        "id": id,
+                        "response": resp,
+                        "complete": fin,
+                    })
 
-                await ws.send_json({"id": id, "response": resp })
+                resp = await requestor.process(request, responder)
 
             except Exception as e:
 

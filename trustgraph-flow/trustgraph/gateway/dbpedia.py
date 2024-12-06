@@ -25,16 +25,5 @@ class DbpediaRequestor(ServiceRequestor):
         )
 
     def from_response(self, message):
-        return { "text": message.text }
-
-class DbpediaEndpoint(ServiceEndpoint):
-    def __init__(self, pulsar_host, timeout, auth):
-
-        super(DbpediaEndpoint, self).__init__(
-            endpoint_path="/api/v1/dbpedia",
-            auth=auth,
-            requestor = DbpediaRequestor(
-                pulsar_host=pulsar_host, timeout=timeout, auth=auth
-            )
-        )
+        return { "text": message.text }, True
 

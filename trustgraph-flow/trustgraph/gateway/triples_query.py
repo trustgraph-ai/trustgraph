@@ -49,7 +49,7 @@ class TriplesQueryRequestor(ServiceRequestor):
         print(message)
         return {
             "response": serialize_subgraph(message.triples)
-        }
+        }, True
 
 class TriplesQueryEndpoint(ServiceEndpoint):
     def __init__(self, pulsar_host, timeout, auth):
