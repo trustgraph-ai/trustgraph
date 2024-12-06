@@ -25,7 +25,7 @@ def summary(input_file, action):
 
     triples = set()
 
-    max_records = 10
+    max_records = 1000000
 
     with open(input_file, 'rb') as f:
 
@@ -41,22 +41,20 @@ def summary(input_file, action):
             if msg[0] == "t":
 
                 for elt in msg[1]["m"]["m"]:
-                    triples.add(
+                    triples.add((
                         elt["s"]["v"],
                         elt["p"]["v"],
                         elt["o"]["v"],
-                    )
+                    ))
 
             if rec_count > max_records: break
             rec_count += 1
 
     print("Vector dimension:", vector_dim)
-    print(triples)
 
-#     print(f"Graph-embeddings:   {ge:10d}")
-#     for k, v in sorted(ge_dim.items()):
-#         print(f"    Dimension {k}:  {v:10d}")
-#     print(f"Triples:            {t:10d}")
+    for t in triples:
+        if t[1] == "http://www.w3.org/2000/01/rdf-schema#label":
+            print("-", t[2])
 
 def main():
     
