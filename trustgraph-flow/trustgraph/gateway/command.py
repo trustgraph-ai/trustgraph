@@ -27,16 +27,16 @@ class CommandEndpoint(SocketEndpoint):
     async def start(self):
         pass
 
-    async def ASDasync_thread(self, ws, running):
+    async def async_thread(self, ws, running):
 
         while running.get():
 
             try:
-                svc, request = await asyncio.wait_for(self.q.get(), 1)
+                id, svc, request = await asyncio.wait_for(self.q.get(), 1)
             except TimeoutError:
                 continue
             except Exception as e:
-                await ws.send_json({"error": str(e)})
+                await ws.send_json({"id": id, "error": str(e)})
 
             try:
 
@@ -46,33 +46,13 @@ class CommandEndpoint(SocketEndpoint):
 
                 resp = await requestor.process(request)
 
-                await ws.send_json({ "response": resp })
+                await ws.send_json({"id": id, "response": resp })
 
             except Exception as e:
 
                 await ws.send_json({"error": str(e)})
 
         running.stop()
-
-    async def processor(self, ws, id, service, request):
-
-        try:
-
-            print(id, service, request)
-
-            requestor = self.services[service]
-
-            resp = await requestor.process(request)
-
-            await ws.send_json({"id": id, "response": resp })
-
-        except Exception as e:
-
-            await ws.send_json({"id": id, "error": str(e)})
-
-    async def async_thread(self, ws, running):
-        while running.get():
-            await asyncio.sleep(1)
 
     async def listener(self, ws, running):
         
@@ -96,10 +76,8 @@ class CommandEndpoint(SocketEndpoint):
                     if "id" not in data:
                         raise RuntimeError("Bad message")
 
-                    asyncio.create_task(
-                        self.processor(
-                            ws, data["id"], data["service"], data["request"]
-                        )
+                    await self.q.put(
+                        (data["id"], data["service"], data["request"])
                     )
 
                 except Exception as e:
