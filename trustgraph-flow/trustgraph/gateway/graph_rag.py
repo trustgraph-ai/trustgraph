@@ -28,14 +28,3 @@ class GraphRagRequestor(ServiceRequestor):
     def from_response(self, message):
         return { "response": message.response }, True
 
-class GraphRagEndpoint(ServiceEndpoint):
-    def __init__(self, pulsar_host, timeout, auth):
-
-        super(GraphRagEndpoint, self).__init__(
-            endpoint_path="/api/v1/graph-rag",
-            auth=auth,
-            requestor = GraphRagRequestor(
-                pulsar_host=pulsar_host, timeout=timeout, auth=auth
-            )
-        )
-

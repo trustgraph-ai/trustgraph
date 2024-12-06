@@ -51,14 +51,3 @@ class TriplesQueryRequestor(ServiceRequestor):
             "response": serialize_subgraph(message.triples)
         }, True
 
-class TriplesQueryEndpoint(ServiceEndpoint):
-    def __init__(self, pulsar_host, timeout, auth):
-
-        super(TriplesQueryEndpoint, self).__init__(
-            endpoint_path="/api/v1/triples-query",
-            auth=auth,
-            requestor = TriplesQueryRequestor(
-                pulsar_host=pulsar_host, timeout=timeout, auth=auth
-            )
-        )
-

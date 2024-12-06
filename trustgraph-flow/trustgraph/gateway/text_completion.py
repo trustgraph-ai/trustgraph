@@ -27,14 +27,3 @@ class TextCompletionRequestor(ServiceRequestor):
     def from_response(self, message):
         return { "response": message.response }, True
 
-class TextCompletionEndpoint(ServiceEndpoint):
-    def __init__(self, pulsar_host, timeout, auth):
-
-        super(TextCompletionEndpoint, self).__init__(
-            endpoint_path="/api/v1/text-completion",
-            auth=auth,
-            requestor = TextCompletionRequestor(
-                pulsar_host=pulsar_host, timeout=timeout, auth=auth
-            )
-        )
-

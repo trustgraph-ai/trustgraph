@@ -27,15 +27,3 @@ class EncyclopediaRequestor(ServiceRequestor):
     def from_response(self, message):
         return { "text": message.text }, True
 
-
-class EncyclopediaEndpoint(ServiceEndpoint):
-    def __init__(self, pulsar_host, timeout, auth):
-
-        super(EncyclopediaEndpoint, self).__init__(
-            endpoint_path="/api/v1/encyclopedia",
-            auth=auth,
-            requestor = EncyclopediaRequestor(
-                pulsar_host=pulsar_host, timeout=timeout, auth=auth
-            )
-        )
-

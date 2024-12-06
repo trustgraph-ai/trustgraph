@@ -39,14 +39,3 @@ class PromptRequestor(ServiceRequestor):
                 "text": message.text
             }, True
 
-class PromptEndpoint(ServiceEndpoint):
-    def __init__(self, pulsar_host, timeout, auth):
-
-        super(PromptEndpoint, self).__init__(
-            endpoint_path="/api/v1/prompt",
-            auth=auth,
-            requestor = PromptRequestor(
-                pulsar_host=pulsar_host, timeout=timeout, auth=auth
-            )
-        )
-

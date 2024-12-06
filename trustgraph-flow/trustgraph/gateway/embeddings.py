@@ -26,14 +26,4 @@ class EmbeddingsRequestor(ServiceRequestor):
     def from_response(self, message):
         return { "vectors": message.vectors }, True
 
-class EmbeddingsEndpoint(ServiceEndpoint):
-    def __init__(self, pulsar_host, timeout, auth):
-
-        super(EmbeddingsEndpoint, self).__init__(
-            endpoint_path="/api/v1/embeddings",
-            auth=auth,
-            requestor = EmbeddingsRequestor(
-                pulsar_host=pulsar_host, timeout=timeout, auth=auth
-            )
-        )
 

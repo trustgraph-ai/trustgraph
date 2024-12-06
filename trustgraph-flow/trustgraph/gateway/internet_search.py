@@ -27,14 +27,3 @@ class InternetSearchRequestor(ServiceRequestor):
     def from_response(self, message):
         return { "text": message.text }, True
 
-class InternetSearchEndpoint(ServiceEndpoint):
-    def __init__(self, pulsar_host, timeout, auth):
-
-        super(InternetSearchEndpoint, self).__init__(
-            endpoint_path="/api/v1/internet-search",
-            auth=auth,
-            requestor = InternetSearchRequestor(
-                pulsar_host=pulsar_host, timeout=timeout, auth=auth
-            )
-        )
-
