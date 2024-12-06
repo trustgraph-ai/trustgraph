@@ -4,19 +4,18 @@ from .. schema import internet_search_request_queue
 from .. schema import internet_search_response_queue
 
 from . endpoint import ServiceEndpoint
+from . requestor import ServiceRequestor
 
-class InternetSearchEndpoint(ServiceEndpoint):
+class InternetSearchRequestor(ServiceRequestor):
     def __init__(self, pulsar_host, timeout, auth):
 
-        super(InternetSearchEndpoint, self).__init__(
+        super(InternetSearchRequestor, self).__init__(
             pulsar_host=pulsar_host,
             request_queue=internet_search_request_queue,
             response_queue=internet_search_response_queue,
             request_schema=LookupRequest,
             response_schema=LookupResponse,
-            endpoint_path="/api/v1/internet-search",
             timeout=timeout,
-            auth=auth,
         )
 
     def to_request(self, body):
@@ -27,4 +26,15 @@ class InternetSearchEndpoint(ServiceEndpoint):
 
     def from_response(self, message):
         return { "text": message.text }
+
+class InternetSearchEndpoint(ServiceEndpoint):
+    def __init__(self, pulsar_host, timeout, auth):
+
+        super(InternetSearchEndpoint, self).__init__(
+            endpoint_path="/api/v1/internet-search",
+            auth=auth,
+            requestor = InternetSearchRequestor(
+                pulsar_host=pulsar_host, timeout=timeout, auth=auth
+            )
+        )
 

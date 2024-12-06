@@ -6,19 +6,18 @@ from .. schema import prompt_request_queue
 from .. schema import prompt_response_queue
 
 from . endpoint import ServiceEndpoint
+from . requestor import ServiceRequestor
 
-class PromptEndpoint(ServiceEndpoint):
+class PromptRequestor(ServiceRequestor):
     def __init__(self, pulsar_host, timeout, auth):
 
-        super(PromptEndpoint, self).__init__(
+        super(PromptRequestor, self).__init__(
             pulsar_host=pulsar_host,
             request_queue=prompt_request_queue,
             response_queue=prompt_response_queue,
             request_schema=PromptRequest,
             response_schema=PromptResponse,
-            endpoint_path="/api/v1/prompt",
             timeout=timeout,
-            auth=auth,
         )
 
     def to_request(self, body):
@@ -39,4 +38,15 @@ class PromptEndpoint(ServiceEndpoint):
             return {
                 "text": message.text
             }
+
+class PromptEndpoint(ServiceEndpoint):
+    def __init__(self, pulsar_host, timeout, auth):
+
+        super(PromptEndpoint, self).__init__(
+            endpoint_path="/api/v1/prompt",
+            auth=auth,
+            requestor = PromptRequestor(
+                pulsar_host=pulsar_host, timeout=timeout, auth=auth
+            )
+        )
 

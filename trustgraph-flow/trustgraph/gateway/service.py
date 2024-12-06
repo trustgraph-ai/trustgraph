@@ -45,6 +45,8 @@ from . triples_stream import TriplesStreamEndpoint
 from . graph_embeddings_stream import GraphEmbeddingsStreamEndpoint
 from . triples_load import TriplesLoadEndpoint
 from . graph_embeddings_load import GraphEmbeddingsLoadEndpoint
+from . command import CommandEndpoint
+
 from . auth import Authenticator
 
 logger = logging.getLogger("api")
@@ -126,6 +128,10 @@ class Api:
                 auth = self.auth,
             ),
             GraphEmbeddingsLoadEndpoint(
+                pulsar_host=self.pulsar_host,
+                auth = self.auth,
+            ),
+            CommandEndpoint(
                 pulsar_host=self.pulsar_host,
                 auth = self.auth,
             ),

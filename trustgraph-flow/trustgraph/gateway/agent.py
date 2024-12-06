@@ -4,19 +4,18 @@ from .. schema import agent_request_queue
 from .. schema import agent_response_queue
 
 from . endpoint import MultiResponseServiceEndpoint
+from . requestor import MultiResponseServiceRequestor
 
-class AgentEndpoint(MultiResponseServiceEndpoint):
+class AgentRequestor(MultiResponseServiceRequestor):
     def __init__(self, pulsar_host, timeout, auth):
 
-        super(AgentEndpoint, self).__init__(
+        super(AgentRequestor, self).__init__(
             pulsar_host=pulsar_host,
             request_queue=agent_request_queue,
             response_queue=agent_response_queue,
             request_schema=AgentRequest,
             response_schema=AgentResponse,
-            endpoint_path="/api/v1/agent",
             timeout=timeout,
-            auth=auth,
         )
 
     def to_request(self, body):
@@ -29,3 +28,15 @@ class AgentEndpoint(MultiResponseServiceEndpoint):
             return { "answer": message.answer }, True
         else:
             return {}, False
+
+class AgentEndpoint(MultiResponseServiceEndpoint):
+    def __init__(self, pulsar_host, timeout, auth):
+
+        super(AgentEndpoint, self).__init__(
+            endpoint_path="/api/v1/text-completion",
+            auth=auth,
+            requestor = AgentRequestor(
+                pulsar_host=pulsar_host, timeout=timeout, auth=auth
+            )
+        )
+
