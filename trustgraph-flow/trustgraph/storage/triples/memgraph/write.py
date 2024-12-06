@@ -50,63 +50,50 @@ class Processor(Consumer):
 
         self.io = GraphDatabase.driver(graph_host, auth=(username, password))
 
-        self.create_indexes()
+        with self.io.session(database=self.db) as session:
+            self.create_indexes(session)
 
-    def create_indexes(self):
+    def create_indexes(self, session):
 
-        print("Create indexes...")
+        print("Create indexes...", flush=True)
 
         try:
-            summary = self.io.execute_query(
-                "CREATE INDEX ON :Node;",
-                database_=self.db,
-            ).summary
-
-            print("Created indexes in {time} ms.".format(
-                time=summary.result_available_after
-            ))
-        except:
+            session.run(
+                "CREATE INDEX ON :Node",
+            )
+        except Exception as e:
+            print(e, flush=True)
             # Maybe index already exists
             print("Index create failure ignored", flush=True)
 
         try:
-            summary = self.io.execute_query(
-                "CREATE INDEX ON :Node(uri);",
-                database_=self.db,
-            ).summary
-
-            print("Created indexes in {time} ms.".format(
-                time=summary.result_available_after
-            ))
-        except:
+            session.run(
+                "CREATE INDEX ON :Node(uri)"
+            )
+        except Exception as e:
+            print(e, flush=True)
             # Maybe index already exists
             print("Index create failure ignored", flush=True)
 
         try:
-            summary = self.io.execute_query(
-                "CREATE INDEX ON :Literal;",
-                database_=self.db,
-            ).summary
-
-            print("Created indexes in {time} ms.".format(
-                time=summary.result_available_after
-            ))
-        except:
+            session.run(
+                "CREATE INDEX ON :Literal",
+            )
+        except Exception as e:
+            print(e, flush=True)
             # Maybe index already exists
             print("Index create failure ignored", flush=True)
 
         try:
-            summary = self.io.execute_query(
-                "CREATE INDEX ON :Literal(value);",
-                database_=self.db,
-            ).summary
-
-            print("Created indexes in {time} ms.".format(
-                time=summary.result_available_after
-            ))
-        except:
+            session.run(
+                "CREATE INDEX ON :Literal(value)"
+            )
+        except Exception as e:
+            print(e, flush=True)
             # Maybe index already exists
             print("Index create failure ignored", flush=True)
+
+        print("Index creation done", flush=True)
 
     def create_node(self, uri):
 
@@ -172,20 +159,61 @@ class Processor(Consumer):
             time=summary.result_available_after
         ))
 
+    def create_triple(self, tx, t):
+
+        # Create new s node with given uri, if not exists
+        result = tx.run(
+            "MERGE (n:Node {uri: $uri})",
+            uri=t.s.value
+        )
+
+        if t.o.is_uri:
+
+            # Create new o node with given uri, if not exists
+            result = tx.run(
+                "MERGE (n:Node {uri: $uri})",
+                uri=t.o.value
+            )
+
+            result = tx.run(
+                "MATCH (src:Node {uri: $src}) "
+                "MATCH (dest:Node {uri: $dest}) "
+                "MERGE (src)-[:Rel {uri: $uri}]->(dest)",
+                src=t.s.value, dest=t.o.value, uri=t.p.value,
+            )
+
+        else:
+        
+            # Create new o literal with given uri, if not exists
+            result = tx.run(
+                "MERGE (n:Literal {value: $value})",
+                value=t.o.value
+            )
+
+            result = tx.run(
+                "MATCH (src:Node {uri: $src}) "
+                "MATCH (dest:Literal {value: $dest}) "
+                "MERGE (src)-[:Rel {uri: $uri}]->(dest)",
+                src=t.s.value, dest=t.o.value, uri=t.p.value,
+            )
+        
     def handle(self, msg):
 
         v = msg.value()
 
         for t in v.triples:
 
-            self.create_node(t.s.value)
+            # self.create_node(t.s.value)
 
-            if t.o.is_uri:
-                self.create_node(t.o.value)
-                self.relate_node(t.s.value, t.p.value, t.o.value)
-            else:
-                self.create_literal(t.o.value)
-                self.relate_literal(t.s.value, t.p.value, t.o.value)
+            # if t.o.is_uri:
+            #     self.create_node(t.o.value)
+            #     self.relate_node(t.s.value, t.p.value, t.o.value)
+            # else:
+            #     self.create_literal(t.o.value)
+            #     self.relate_literal(t.s.value, t.p.value, t.o.value)
+
+            with self.io.session(database=self.db) as session:
+                session.execute_write(self.create_triple, t)
 
     @staticmethod
     def add_args(parser):
