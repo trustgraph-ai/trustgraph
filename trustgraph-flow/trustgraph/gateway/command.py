@@ -27,7 +27,7 @@ class CommandEndpoint(SocketEndpoint):
     async def start(self):
         pass
 
-    async def async_thread(self, ws, running):
+    async def ASDasync_thread(self, ws, running):
 
         while running.get():
 
@@ -54,6 +54,26 @@ class CommandEndpoint(SocketEndpoint):
 
         running.stop()
 
+    async def processor(self, ws, id, service, request):
+
+        try:
+
+            print(id, service, request)
+
+            requestor = self.services[service]
+
+            resp = await requestor.process(request)
+
+            await ws.send_json({"id": id, "response": resp })
+
+        except Exception as e:
+
+            await ws.send_json({"id": id, "error": str(e)})
+
+    async def async_thread(self, ws, running):
+        while running.get():
+            await asyncio.sleep(1)
+
     async def listener(self, ws, running):
         
         async for msg in ws:
@@ -64,13 +84,22 @@ class CommandEndpoint(SocketEndpoint):
             else:
 
                 try:
+
                     data = msg.json()
 
                     if data["service"] not in self.services:
                         raise RuntimeError("Bad service")
 
-                    await self.q.put(
-                        ( data["service"], data["request"] )
+                    if "request" not in data:
+                        raise RuntimeError("Bad message")
+
+                    if "id" not in data:
+                        raise RuntimeError("Bad message")
+
+                    asyncio.create_task(
+                        self.processor(
+                            ws, data["id"], data["service"], data["request"]
+                        )
                     )
 
                 except Exception as e:
