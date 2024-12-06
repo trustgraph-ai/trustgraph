@@ -16,11 +16,26 @@ import json
 import sys
 import argparse
 import os
+import signal
 
-async def fetch_ge(queue, user, collection, url):
+class Running:
+    def __init__(self): self.running = True
+    def get(self): return self.running
+    def stop(self): self.running = False
+
+async def fetch_ge(running, queue, user, collection, url):
+
     async with aiohttp.ClientSession() as session:
+
         async with session.ws_connect(f"{url}stream/graph-embeddings") as ws:
-            async for msg in ws:
+
+            while running.get():
+
+                try:
+                    msg = await asyncio.wait_for(ws.receive(), 1)
+                except:
+                    continue
+
                 if msg.type == aiohttp.WSMsgType.TEXT:
 
                     data = msg.json()
@@ -50,10 +65,19 @@ async def fetch_ge(queue, user, collection, url):
                     print("Error")
                     break
 
-async def fetch_triples(queue, user, collection, url):
+async def fetch_triples(running, queue, user, collection, url):
+
     async with aiohttp.ClientSession() as session:
+
         async with session.ws_connect(f"{url}stream/triples") as ws:
-            async for msg in ws:
+
+            while running.get():
+
+                try:
+                    msg = await asyncio.wait_for(ws.receive(), 1)
+                except:
+                    continue
+
                 if msg.type == aiohttp.WSMsgType.TEXT:
 
                     data = msg.json()
@@ -85,27 +109,32 @@ async def fetch_triples(queue, user, collection, url):
 ge_counts = 0
 t_counts = 0
 
-async def stats():
+async def stats(running):
 
     global t_counts
     global ge_counts
 
-    while True:
-        await asyncio.sleep(5)
+    while running.get():
+
+        await asyncio.sleep(2)
+
         print(
             f"Graph embeddings: {ge_counts:10d}  Triples: {t_counts:10d}"
         )
 
-async def output(queue, path, format):
+async def output(running, queue, path, format):
 
     global t_counts
     global ge_counts
     
     with open(path, "wb") as f:
 
-        while True:
+        while running.get():
 
-            msg = await queue.get()
+            try:
+                msg = await asyncio.wait_for(queue.get(), 0.5)
+            except TimeoutError:
+                continue
 
             if format == "msgpack":
                 f.write(msgpack.packb(msg, use_bin_type=True))
@@ -118,12 +147,15 @@ async def output(queue, path, format):
                 if msg[0] == "ge":
                     ge_counts += 1
 
-async def run(**args):
+    print("Output file closed")
+
+async def run(running, **args):
 
     q = asyncio.Queue()
 
     ge_task = asyncio.create_task(
         fetch_ge(
+            running=running,
             queue=q, user=args["user"], collection=args["collection"],
             url=args["url"] + "api/v1/"
         )
@@ -131,26 +163,30 @@ async def run(**args):
 
     triples_task = asyncio.create_task(
         fetch_triples(
-            queue=q, user=args["user"], collection=args["collection"],
+            running=running, queue=q,
+            user=args["user"], collection=args["collection"],
             url=args["url"] + "api/v1/"
         )
     )
 
     output_task = asyncio.create_task(
         output(
-            queue=q, path=args["output_file"], format=args["format"],
+            running=running, queue=q,
+            path=args["output_file"], format=args["format"],
         )
         
     )
 
-    stats_task = asyncio.create_task(stats())
+    stats_task = asyncio.create_task(stats(running))
 
     await output_task
     await triples_task
     await ge_task
     await stats_task
 
-async def main():
+    print("Exiting")
+
+async def main(running):
     
     parser = argparse.ArgumentParser(
         prog='tg-save-kg-core',
@@ -193,7 +229,15 @@ async def main():
 
     args = parser.parse_args()
 
-    await run(**vars(args))
+    await run(running, **vars(args))
 
-asyncio.run(main())
+running = Running()
+
+def interrupt(sig, frame):
+    running.stop()
+    print('Interrupt')
+
+signal.signal(signal.SIGINT, interrupt)
+
+asyncio.run(main(running))
 
