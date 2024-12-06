@@ -3,20 +3,19 @@ from .. schema import AgentRequest, AgentResponse
 from .. schema import agent_request_queue
 from .. schema import agent_response_queue
 
-from . endpoint import MultiResponseServiceEndpoint
+from . endpoint import ServiceEndpoint
+from . requestor import ServiceRequestor
 
-class AgentEndpoint(MultiResponseServiceEndpoint):
+class AgentRequestor(ServiceRequestor):
     def __init__(self, pulsar_host, timeout, auth):
 
-        super(AgentEndpoint, self).__init__(
+        super(AgentRequestor, self).__init__(
             pulsar_host=pulsar_host,
             request_queue=agent_request_queue,
             response_queue=agent_response_queue,
             request_schema=AgentRequest,
             response_schema=AgentResponse,
-            endpoint_path="/api/v1/agent",
             timeout=timeout,
-            auth=auth,
         )
 
     def to_request(self, body):
@@ -25,7 +24,19 @@ class AgentEndpoint(MultiResponseServiceEndpoint):
         )
 
     def from_response(self, message):
+        resp = {
+        }
+
         if message.answer:
-            return { "answer": message.answer }, True
-        else:
-            return {}, False
+            resp["answer"] = message.answer
+
+        if message.thought:
+            resp["thought"] = message.thought
+
+        if message.observation:
+            resp["observation"] = message.observation
+
+        # The 2nd boolean expression indicates whether we're done responding
+        return resp, (message.answer is not None)
+
+    

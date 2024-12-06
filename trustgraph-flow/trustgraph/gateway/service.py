@@ -31,20 +31,22 @@ from . serialize import to_subgraph
 from . running import Running
 from . publisher import Publisher
 from . subscriber import Subscriber
-from . endpoint import ServiceEndpoint, MultiResponseServiceEndpoint
-from . text_completion import TextCompletionEndpoint
-from . prompt import PromptEndpoint
-from . graph_rag import GraphRagEndpoint
-from . triples_query import TriplesQueryEndpoint
-from . embeddings import EmbeddingsEndpoint
-from . encyclopedia import EncyclopediaEndpoint
-from . agent import AgentEndpoint
-from . dbpedia import DbpediaEndpoint
-from . internet_search import InternetSearchEndpoint
+from . text_completion import TextCompletionRequestor
+from . prompt import PromptRequestor
+from . graph_rag import GraphRagRequestor
+from . triples_query import TriplesQueryRequestor
+from . embeddings import EmbeddingsRequestor
+from . encyclopedia import EncyclopediaRequestor
+from . agent import AgentRequestor
+from . dbpedia import DbpediaRequestor
+from . internet_search import InternetSearchRequestor
 from . triples_stream import TriplesStreamEndpoint
 from . graph_embeddings_stream import GraphEmbeddingsStreamEndpoint
 from . triples_load import TriplesLoadEndpoint
 from . graph_embeddings_load import GraphEmbeddingsLoadEndpoint
+from . mux import MuxEndpoint
+
+from . endpoint import ServiceEndpoint
 from . auth import Authenticator
 
 logger = logging.getLogger("api")
@@ -76,42 +78,81 @@ class Api:
         else:
             self.auth = Authenticator(allow_all=True)
 
+        self.services = {
+            "text-completion": TextCompletionRequestor(
+                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                auth = self.auth,
+            ),
+            "prompt": PromptRequestor(
+                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                auth = self.auth,
+            ),
+            "graph-rag": GraphRagRequestor(
+                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                auth = self.auth,
+            ),
+            "triples-query": TriplesQueryRequestor(
+                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                auth = self.auth,
+            ),
+            "embeddings": EmbeddingsRequestor(
+                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                auth = self.auth,
+            ),
+            "agent": AgentRequestor(
+                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                auth = self.auth,
+            ),
+            "encyclopedia": EncyclopediaRequestor(
+                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                auth = self.auth,
+            ),
+            "dbpedia": DbpediaRequestor(
+                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                auth = self.auth,
+            ),
+            "internet-search": InternetSearchRequestor(
+                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                auth = self.auth,
+            ),
+        }
+
         self.endpoints = [
-            TextCompletionEndpoint(
-                pulsar_host=self.pulsar_host, timeout=self.timeout,
-                auth = self.auth,
+            ServiceEndpoint(
+                endpoint_path = "/api/v1/text-completion", auth=self.auth,
+                requestor = self.services["text-completion"],
             ),
-            PromptEndpoint(
-                pulsar_host=self.pulsar_host, timeout=self.timeout,
-                auth = self.auth,
+            ServiceEndpoint(
+                endpoint_path = "/api/v1/prompt", auth=self.auth,
+                requestor = self.services["prompt"],
             ),
-            GraphRagEndpoint(
-                pulsar_host=self.pulsar_host, timeout=self.timeout,
-                auth = self.auth,
+            ServiceEndpoint(
+                endpoint_path = "/api/v1/graph-rag", auth=self.auth,
+                requestor = self.services["graph-rag"],
             ),
-            TriplesQueryEndpoint(
-                pulsar_host=self.pulsar_host, timeout=self.timeout,
-                auth = self.auth,
+            ServiceEndpoint(
+                endpoint_path = "/api/v1/triples-query", auth=self.auth,
+                requestor = self.services["triples-query"],
             ),
-            EmbeddingsEndpoint(
-                pulsar_host=self.pulsar_host, timeout=self.timeout,
-                auth = self.auth,
+            ServiceEndpoint(
+                endpoint_path = "/api/v1/embeddings", auth=self.auth,
+                requestor = self.services["embeddings"],
             ),
-            AgentEndpoint(
-                pulsar_host=self.pulsar_host, timeout=self.timeout,
-                auth = self.auth,
+            ServiceEndpoint(
+                endpoint_path = "/api/v1/agent", auth=self.auth,
+                requestor = self.services["agent"],
             ),
-            EncyclopediaEndpoint(
-                pulsar_host=self.pulsar_host, timeout=self.timeout,
-                auth = self.auth,
+            ServiceEndpoint(
+                endpoint_path = "/api/v1/encyclopedia", auth=self.auth,
+                requestor = self.services["encyclopedia"],
             ),
-            DbpediaEndpoint(
-                pulsar_host=self.pulsar_host, timeout=self.timeout,
-                auth = self.auth,
+            ServiceEndpoint(
+                endpoint_path = "/api/v1/dbpedia", auth=self.auth,
+                requestor = self.services["dbpedia"],
             ),
-            InternetSearchEndpoint(
-                pulsar_host=self.pulsar_host, timeout=self.timeout,
-                auth = self.auth,
+            ServiceEndpoint(
+                endpoint_path = "/api/v1/internet-search", auth=self.auth,
+                requestor = self.services["internet-search"],
             ),
             TriplesStreamEndpoint(
                 pulsar_host=self.pulsar_host,
@@ -128,6 +169,11 @@ class Api:
             GraphEmbeddingsLoadEndpoint(
                 pulsar_host=self.pulsar_host,
                 auth = self.auth,
+            ),
+            MuxEndpoint(
+                pulsar_host=self.pulsar_host,
+                auth = self.auth,
+                services = self.services,
             ),
         ]
 
@@ -162,7 +208,7 @@ class Api:
             else:
                 metadata = []
 
-            # Doing a base64 decode/encode here to make sure the
+            # Doing a base64 decoe/encode here to make sure the
             # content is valid base64
             doc = base64.b64decode(data["data"])
 

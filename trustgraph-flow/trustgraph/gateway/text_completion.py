@@ -4,19 +4,18 @@ from .. schema import text_completion_request_queue
 from .. schema import text_completion_response_queue
 
 from . endpoint import ServiceEndpoint
+from . requestor import ServiceRequestor
 
-class TextCompletionEndpoint(ServiceEndpoint):
+class TextCompletionRequestor(ServiceRequestor):
     def __init__(self, pulsar_host, timeout, auth):
 
-        super(TextCompletionEndpoint, self).__init__(
+        super(TextCompletionRequestor, self).__init__(
             pulsar_host=pulsar_host,
             request_queue=text_completion_request_queue,
             response_queue=text_completion_response_queue,
             request_schema=TextCompletionRequest,
             response_schema=TextCompletionResponse,
-            endpoint_path="/api/v1/text-completion",
             timeout=timeout,
-            auth=auth,
         )
 
     def to_request(self, body):
@@ -26,4 +25,5 @@ class TextCompletionEndpoint(ServiceEndpoint):
         )
 
     def from_response(self, message):
-        return { "response": message.response }
+        return { "response": message.response }, True
+
