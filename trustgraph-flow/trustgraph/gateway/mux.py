@@ -8,15 +8,15 @@ from aiohttp import web, WSMsgType
 from . socket import SocketEndpoint
 from . text_completion import TextCompletionRequestor
 
-class CommandEndpoint(SocketEndpoint):
+class MuxEndpoint(SocketEndpoint):
 
     def __init__(
             self, pulsar_host, auth,
             services,
-            path="/api/v1/command",
+            path="/api/v1/mux",
     ):
 
-        super(CommandEndpoint, self).__init__(
+        super(MuxEndpoint, self).__init__(
             endpoint_path=path, auth=auth,
         )
 

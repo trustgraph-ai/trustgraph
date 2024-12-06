@@ -44,7 +44,7 @@ from . triples_stream import TriplesStreamEndpoint
 from . graph_embeddings_stream import GraphEmbeddingsStreamEndpoint
 from . triples_load import TriplesLoadEndpoint
 from . graph_embeddings_load import GraphEmbeddingsLoadEndpoint
-from . command import CommandEndpoint
+from . mux import MuxEndpoint
 
 from . endpoint import ServiceEndpoint
 from . auth import Authenticator
@@ -170,7 +170,7 @@ class Api:
                 pulsar_host=self.pulsar_host,
                 auth = self.auth,
             ),
-            CommandEndpoint(
+            MuxEndpoint(
                 pulsar_host=self.pulsar_host,
                 auth = self.auth,
                 services = self.services,
@@ -208,7 +208,7 @@ class Api:
             else:
                 metadata = []
 
-            # Doing a base64 decode/encode here to make sure the
+            # Doing a base64 decoe/encode here to make sure the
             # content is valid base64
             doc = base64.b64decode(data["data"])
 
