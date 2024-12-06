@@ -1,6 +1,6 @@
 
 """
-Triples query service for neo4j.
+Triples query service for memgraph.
 Input is a (s, p, o) triple, some values may be null.  Output is a list of
 triples.
 """
@@ -19,10 +19,10 @@ default_input_queue = triples_request_queue
 default_output_queue = triples_response_queue
 default_subscriber = module
 
-default_graph_host = 'bolt://neo4j:7687'
-default_username = 'neo4j'
+default_graph_host = 'bolt://memgraph:7687'
+default_username = 'memgraph'
 default_password = 'password'
-default_database = 'neo4j'
+default_database = 'memgraph'
 
 class Processor(ConsumerProducer):
 
@@ -336,19 +336,19 @@ class Processor(ConsumerProducer):
         parser.add_argument(
             '--username',
             default=default_username,
-            help=f'Neo4j username (default: {default_username})'
+            help=f'Memgraph username (default: {default_username})'
         )
 
         parser.add_argument(
             '--password',
             default=default_password,
-            help=f'Neo4j password (default: {default_password})'
+            help=f'Memgraph password (default: {default_password})'
         )
 
         parser.add_argument(
             '--database',
             default=default_database,
-            help=f'Neo4j database (default: {default_database})'
+            help=f'Memgraph database (default: {default_database})'
         )
 
 def run():

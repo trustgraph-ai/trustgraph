@@ -103,8 +103,10 @@ setuptools.setup(
         "scripts/text-completion-openai",
         "scripts/triples-query-cassandra",
         "scripts/triples-query-neo4j",
+        "scripts/triples-query-memgraph",
         "scripts/triples-write-cassandra",
         "scripts/triples-write-neo4j",
+        "scripts/triples-write-memgraph",
         "scripts/wikipedia-lookup",
     ]
 )
