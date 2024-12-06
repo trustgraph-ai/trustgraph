@@ -20,20 +20,37 @@ class CommandEndpoint(SocketEndpoint):
             endpoint_path=path, auth=auth,
         )
 
-        self.pulsar_host=pulsar_host
+        self.q = asyncio.Queue(maxsize=10)
 
-#        self.text_completion = TextCompletionRequestor(
-#        )
+        self.services = services
 
     async def start(self):
         pass
 
     async def async_thread(self, ws, running):
 
-        id = str(uuid.uuid4())
-
         while running.get():
-            await asyncio.sleep(1)
+
+            try:
+                svc, request = await asyncio.wait_for(self.q.get(), 1)
+            except TimeoutError:
+                continue
+            except Exception as e:
+                await ws.send_json({"error": str(e)})
+
+            try:
+
+                print(svc, request)
+
+                requestor = self.services[svc]
+
+                resp = await requestor.process(request)
+
+                await ws.send_json({ "response": resp })
+
+            except Exception as e:
+
+                await ws.send_json({"error": str(e)})
 
         running.stop()
 
@@ -48,12 +65,18 @@ class CommandEndpoint(SocketEndpoint):
 
                 try:
                     data = msg.json()
+
+                    if data["service"] not in self.services:
+                        raise RuntimeError("Bad service")
+
+                    await self.q.put(
+                        ( data["service"], data["request"] )
+                    )
+
                 except Exception as e:
+
                     await ws.send_json({"error": str(e)})
                     continue
-
-                if "service" not in data:
-                    await ws.send_json({"error": "Malformed message"})
 
         running.stop()
 
