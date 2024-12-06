@@ -5,17 +5,15 @@ from pulsar.schema import JsonSchema
 import uuid
 from aiohttp import web, WSMsgType
 
-from .. schema import GraphEmbeddings
-from .. schema import graph_embeddings_store_queue
-
-from . subscriber import Subscriber
 from . socket import SocketEndpoint
-from . serialize import serialize_graph_embeddings
+from . text_completion import TextCompletionRequestor
 
 class CommandEndpoint(SocketEndpoint):
 
     def __init__(
-            self, pulsar_host, auth, path="/api/v1/command"
+            self, pulsar_host, auth,
+            services,
+            path="/api/v1/command",
     ):
 
         super(CommandEndpoint, self).__init__(
@@ -23,6 +21,9 @@ class CommandEndpoint(SocketEndpoint):
         )
 
         self.pulsar_host=pulsar_host
+
+#        self.text_completion = TextCompletionRequestor(
+#        )
 
     async def start(self):
         pass
