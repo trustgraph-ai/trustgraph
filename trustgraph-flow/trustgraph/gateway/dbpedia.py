@@ -1,7 +1,7 @@
 
-from ... schema import LookupRequest, LookupResponse
-from ... schema import dbpedia_lookup_request_queue
-from ... schema import dbpedia_lookup_response_queue
+from .. schema import LookupRequest, LookupResponse
+from .. schema import dbpedia_lookup_request_queue
+from .. schema import dbpedia_lookup_response_queue
 
 from . endpoint import ServiceEndpoint
 

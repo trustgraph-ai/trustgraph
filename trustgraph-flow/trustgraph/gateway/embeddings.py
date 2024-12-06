@@ -1,7 +1,7 @@
 
-from ... schema import EmbeddingsRequest, EmbeddingsResponse
-from ... schema import embeddings_request_queue
-from ... schema import embeddings_response_queue
+from .. schema import EmbeddingsRequest, EmbeddingsResponse
+from .. schema import embeddings_request_queue
+from .. schema import embeddings_response_queue
 
 from . endpoint import ServiceEndpoint
 

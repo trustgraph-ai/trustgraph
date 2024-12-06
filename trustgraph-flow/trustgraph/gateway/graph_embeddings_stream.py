@@ -4,8 +4,8 @@ import queue
 from pulsar.schema import JsonSchema
 import uuid
 
-from ... schema import GraphEmbeddings
-from ... schema import graph_embeddings_store_queue
+from .. schema import GraphEmbeddings
+from .. schema import graph_embeddings_store_queue
 
 from . subscriber import Subscriber
 from . socket import SocketEndpoint

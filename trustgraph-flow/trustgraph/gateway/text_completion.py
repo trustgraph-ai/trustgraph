@@ -1,7 +1,7 @@
 
-from ... schema import TextCompletionRequest, TextCompletionResponse
-from ... schema import text_completion_request_queue
-from ... schema import text_completion_response_queue
+from .. schema import TextCompletionRequest, TextCompletionResponse
+from .. schema import text_completion_request_queue
+from .. schema import text_completion_response_queue
 
 from . endpoint import ServiceEndpoint
 

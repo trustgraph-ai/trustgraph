@@ -1,4 +1,4 @@
-from ... schema import Value, Triple
+from .. schema import Value, Triple
 
 def to_value(x):
     return Value(value=x["v"], is_uri=x["e"])

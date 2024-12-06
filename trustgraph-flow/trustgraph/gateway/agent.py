@@ -1,7 +1,7 @@
 
-from ... schema import AgentRequest, AgentResponse
-from ... schema import agent_request_queue
-from ... schema import agent_response_queue
+from .. schema import AgentRequest, AgentResponse
+from .. schema import agent_request_queue
+from .. schema import agent_response_queue
 
 from . endpoint import MultiResponseServiceEndpoint
 

@@ -1,7 +1,7 @@
 
-from ... schema import TriplesQueryRequest, TriplesQueryResponse, Triples
-from ... schema import triples_request_queue
-from ... schema import triples_response_queue
+from .. schema import TriplesQueryRequest, TriplesQueryResponse, Triples
+from .. schema import triples_request_queue
+from .. schema import triples_response_queue
 
 from . endpoint import ServiceEndpoint
 from . serialize import to_value, serialize_subgraph
