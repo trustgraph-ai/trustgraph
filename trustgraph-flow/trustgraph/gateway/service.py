@@ -22,10 +22,10 @@ import pulsar
 from pulsar.schema import JsonSchema
 from prometheus_client import start_http_server
 
-from ... log_level import LogLevel
+from .. log_level import LogLevel
 
-from ... schema import Metadata, Document, TextDocument
-from ... schema import document_ingest_queue, text_ingest_queue
+from .. schema import Metadata, Document, TextDocument
+from .. schema import document_ingest_queue, text_ingest_queue
 
 from . serialize import to_subgraph
 from . running import Running

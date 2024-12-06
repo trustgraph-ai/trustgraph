@@ -4,9 +4,9 @@ from pulsar.schema import JsonSchema
 import uuid
 from aiohttp import WSMsgType
 
-from ... schema import Metadata
-from ... schema import Triples
-from ... schema import triples_store_queue
+from .. schema import Metadata
+from .. schema import Triples
+from .. schema import triples_store_queue
 
 from . publisher import Publisher
 from . socket import SocketEndpoint

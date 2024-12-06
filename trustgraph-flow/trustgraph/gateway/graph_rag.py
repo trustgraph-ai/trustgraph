@@ -1,7 +1,7 @@
 
-from ... schema import GraphRagQuery, GraphRagResponse
-from ... schema import graph_rag_request_queue
-from ... schema import graph_rag_response_queue
+from .. schema import GraphRagQuery, GraphRagResponse
+from .. schema import graph_rag_request_queue
+from .. schema import graph_rag_response_queue
 
 from . endpoint import ServiceEndpoint
 

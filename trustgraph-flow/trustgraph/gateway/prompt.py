@@ -1,9 +1,9 @@
 
 import json
 
-from ... schema import PromptRequest, PromptResponse
-from ... schema import prompt_request_queue
-from ... schema import prompt_response_queue
+from .. schema import PromptRequest, PromptResponse
+from .. schema import prompt_request_queue
+from .. schema import prompt_response_queue
 
 from . endpoint import ServiceEndpoint
 
