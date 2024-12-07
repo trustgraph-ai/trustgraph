@@ -79,7 +79,8 @@ class Processor(ConsumerProducer):
 
                         records, summary, keys = self.io.execute_query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Literal {value: $value}) "
-                            "RETURN $src as src",
+                            "RETURN $src as src "
+                            "LIMIT " + str(v.limit),
                             src=v.s.value, rel=v.p.value, value=v.o.value,
                             database_=self.db,
                         )
@@ -89,7 +90,8 @@ class Processor(ConsumerProducer):
 
                         records, summary, keys = self.io.execute_query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Node {uri: $uri}) "
-                            "RETURN $src as src",
+                            "RETURN $src as src "
+                            "LIMIT " + str(v.limit),
                             src=v.s.value, rel=v.p.value, uri=v.o.value,
                             database_=self.db,
                         )
@@ -103,7 +105,8 @@ class Processor(ConsumerProducer):
 
                         records, summary, keys = self.io.execute_query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Literal) "
-                            "RETURN dest.value as dest",
+                            "RETURN dest.value as dest "
+                            "LIMIT " + str(v.limit),
                             src=v.s.value, rel=v.p.value,
                             database_=self.db,
                         )
@@ -114,7 +117,8 @@ class Processor(ConsumerProducer):
 
                         records, summary, keys = self.io.execute_query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Node) "
-                            "RETURN dest.uri as dest",
+                            "RETURN dest.uri as dest "
+                            "LIMIT " + str(v.limit),
                             src=v.s.value, rel=v.p.value,
                             database_=self.db,
                         )
@@ -131,7 +135,8 @@ class Processor(ConsumerProducer):
 
                         records, summary, keys = self.io.execute_query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Literal {value: $value}) "
-                            "RETURN rel.uri as rel",
+                            "RETURN rel.uri as rel "
+                            "LIMIT " + str(v.limit),
                             src=v.s.value, value=v.o.value,
                             database_=self.db,
                         )
@@ -142,7 +147,8 @@ class Processor(ConsumerProducer):
 
                         records, summary, keys = self.io.execute_query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Node {uri: $uri}) "
-                            "RETURN rel.uri as rel",
+                            "RETURN rel.uri as rel "
+                            "LIMIT " + str(v.limit),
                             src=v.s.value, uri=v.o.value,
                             database_=self.db,
                         )
@@ -157,7 +163,8 @@ class Processor(ConsumerProducer):
 
                         records, summary, keys = self.io.execute_query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Literal) "
-                            "RETURN rel.uri as rel, dest.value as dest",
+                            "RETURN rel.uri as rel, dest.value as dest "
+                            "LIMIT " + str(v.limit),
                             src=v.s.value,
                             database_=self.db,
                         )
@@ -168,7 +175,8 @@ class Processor(ConsumerProducer):
 
                         records, summary, keys = self.io.execute_query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Node) "
-                            "RETURN rel.uri as rel, dest.uri as dest",
+                            "RETURN rel.uri as rel, dest.uri as dest "
+                            "LIMIT " + str(v.limit),
                             src=v.s.value,
                             database_=self.db,
                         )
@@ -188,7 +196,8 @@ class Processor(ConsumerProducer):
 
                         records, summary, keys = self.io.execute_query(
                             "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Literal {value: $value}) "
-                            "RETURN src.uri as src",
+                            "RETURN src.uri as src "
+                            "LIMIT " + str(v.limit),
                             uri=v.p.value, value=v.o.value,
                             database_=self.db,
                         )
@@ -199,7 +208,8 @@ class Processor(ConsumerProducer):
 
                         records, summary, keys = self.io.execute_query(
                             "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Node {uri: $uri}) "
-                            "RETURN src.uri as src",
+                            "RETURN src.uri as src "
+                            "LIMIT " + str(v.limit),
                             uri=v.p.value, dest=v.o.value,
                             database_=self.db,
                         )
@@ -214,7 +224,8 @@ class Processor(ConsumerProducer):
 
                         records, summary, keys = self.io.execute_query(
                             "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Literal) "
-                            "RETURN src.uri as src, dest.value as dest",
+                            "RETURN src.uri as src, dest.value as dest "
+                            "LIMIT " + str(v.limit),
                             uri=v.p.value,
                             database_=self.db,
                         )
@@ -225,7 +236,8 @@ class Processor(ConsumerProducer):
 
                         records, summary, keys = self.io.execute_query(
                             "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Node) "
-                            "RETURN src.uri as src, dest.uri as dest",
+                            "RETURN src.uri as src, dest.uri as dest "
+                            "LIMIT " + str(v.limit),
                             uri=v.p.value,
                             database_=self.db,
                         )
@@ -242,7 +254,8 @@ class Processor(ConsumerProducer):
 
                         records, summary, keys = self.io.execute_query(
                             "MATCH (src:Node)-[rel:Rel]->(dest:Literal {value: $value}) "
-                            "RETURN src.uri as src, rel.uri as rel",
+                            "RETURN src.uri as src, rel.uri as rel "
+                            "LIMIT " + str(v.limit),
                             value=v.o.value,
                             database_=self.db,
                         )
@@ -253,7 +266,8 @@ class Processor(ConsumerProducer):
 
                         records, summary, keys = self.io.execute_query(
                             "MATCH (src:Node)-[rel:Rel]->(dest:Node {uri: $uri}) "
-                            "RETURN src.uri as src, rel.uri as rel",
+                            "RETURN src.uri as src, rel.uri as rel "
+                            "LIMIT " + str(v.limit),
                             uri=v.o.value,
                             database_=self.db,
                         )
@@ -268,7 +282,8 @@ class Processor(ConsumerProducer):
 
                         records, summary, keys = self.io.execute_query(
                             "MATCH (src:Node)-[rel:Rel]->(dest:Literal) "
-                            "RETURN src.uri as src, rel.uri as rel, dest.value as dest",
+                            "RETURN src.uri as src, rel.uri as rel, dest.value as dest "
+                            "LIMIT " + str(v.limit),
                             database_=self.db,
                         )
 
@@ -278,7 +293,8 @@ class Processor(ConsumerProducer):
 
                         records, summary, keys = self.io.execute_query(
                             "MATCH (src:Node)-[rel:Rel]->(dest:Node) "
-                            "RETURN src.uri as src, rel.uri as rel, dest.uri as dest",
+                            "RETURN src.uri as src, rel.uri as rel, dest.uri as dest "
+                            "LIMIT " + str(v.limit),
                             database_=self.db,
                         )
 
@@ -292,7 +308,7 @@ class Processor(ConsumerProducer):
                     p=self.create_value(t[1]), 
                     o=self.create_value(t[2])
                 )
-                for t in triples
+                for t in triples[:v.limit]
             ]
 
             print("Send response...", flush=True)
