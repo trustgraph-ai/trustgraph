@@ -128,7 +128,9 @@ async def loader(running, ge_queue, t_queue, path, format, user, collection):
 
                     try:
                         await asyncio.wait_for(qtype.put(unpacked[1]), 0.5)
-                    except TimeoutError:
+                    except:
+                        # Hopefully it's TimeoutError.  Annoying to match since
+                        # it changed in 3.11.
                         continue
 
                 if not running.get(): break
