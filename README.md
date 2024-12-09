@@ -2,7 +2,7 @@
 
 ![TrustGraph banner](TG-silos.svg)
 
-## Connect Data Silos with Explainable AI
+## Discover the Knowledge Trapped in Data Silos
 
 </div>
 
@@ -15,19 +15,21 @@
 
 </div>
 
-TrustGraph is a fully agentic AI data engineering platform for complex unstructured data. Extract your documents to knowledge graphs and vector embeddings with customizable data extraction agents. Deploy AI agents that leverage your data to generate explainable AI responses.
+TrustGraph is a fully agentic AI system for complex unstructured data. Extract your documents to knowledge graphs and vector embeddings with customizable data extraction agents. Deploy AI agents that analyze your data to understand the complex relationships scattered across data silos.
 
 ## Key Features
 
 - 📄 **Document Extraction**: Bulk ingest documents such as `.pdf`,`.txt`, and `.md`
 - 🪓 **Adjustable Chunking**: Choose your chunking algorithm and parameters
-- 🔁 **No-code LLM Integration**: Anthropic, AWS Bedrock, AzureAI, AzureOpenAI, Cohere, Google AI Studio, Google VertexAI, Llamafiles, Ollama, and OpenAI
+- 🔁 **No-code LLM Integration**: **Anthropic**, **AWS Bedrock**, **AzureAI**, **AzureOpenAI**, **Cohere**, **Google AI Studio**, **Google VertexAI**, **Llamafiles**, **Ollama**, and **OpenAI**
 - 📖 **Entity, Topic, and Relationship Knowledge Graphs**
 - 🔢 **Mapped Vector Embeddings**
 - ❔**No-code GraphRAG Queries**: Automatically perform a semantic similiarity search and subgraph extraction for the context of LLM generative responses
 - 🤖 **Agent Flow**: Define custom tools used by a ReAct style Agent Manager that fully controls the response flow including the ability to perform GraphRAG requests
+- 📚 **Multiple Knowledge Graph Options**: Full integration with **Memgraph**, **Neo4j**, or **Cassandra**
+- 🧮 **Multiple VectorDB Options**: Full integration with **Pinecone**, **Qdrant**, or **Milvus**
 - 🎛️ **Production-Grade** reliability, scalability, and accuracy
-- 🔍 **Observability**: get  insights into system performance with Prometheus and Grafana
+- 🔍 **Observability**: get insights into system performance with Prometheus and Grafana
 - 🗄️ **AI Powered Data Warehouse**: Load only the subgraph and vector embeddings you use most often
 - 🪴 **Customizable and Extensible**: Tailor for your data and use cases
 - 🖥️ **Configuration UI**: Build the `YAML` configuration with drop down menus and selectable parameters
