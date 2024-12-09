@@ -29,7 +29,9 @@ async def load_ge(running, queue, url):
 
                 try:
                     msg = await asyncio.wait_for(queue.get(), 1)
-                except TimeoutError:
+                except:
+                    # Hopefully it's TimeoutError.  Annoying to match since
+                    # it changed in 3.11.
                     continue
 
                 msg = {
@@ -55,7 +57,9 @@ async def load_triples(running, queue, url):
 
                 try:
                     msg = await asyncio.wait_for(queue.get(), 1)
-                except TimeoutError:
+                except:
+                    # Hopefully it's TimeoutError.  Annoying to match since
+                    # it changed in 3.11.
                     continue
 
                 msg ={
