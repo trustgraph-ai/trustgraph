@@ -62,7 +62,7 @@ class Processor(Consumer):
                         self.client.create_collection(
                             collection_name=collection,
                             vectors_config=VectorParams(
-                                size=dim, distance=Distance.DOT
+                                size=dim, distance=Distance.COSINE
                             ),
                         )
                     except Exception as e:
