@@ -34,8 +34,8 @@ setuptools.setup(
     python_requires='>=3.8',
     download_url = "https://github.com/trustgraph-ai/trustgraph/archive/refs/tags/v" + version + ".tar.gz",
     install_requires=[
-        "trustgraph-base>=0.17,<0.18",
-        "trustgraph-flow>=0.17,<0.18",
+        "trustgraph-base>=0.18,<0.19",
+        "trustgraph-flow>=0.18,<0.19",
         "torch",
         "urllib3",
         "transformers",

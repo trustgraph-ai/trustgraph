@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
   push:
     tags:
-      - v0.17.*
+      - v0.18.*
 
 permissions:
   contents: read
