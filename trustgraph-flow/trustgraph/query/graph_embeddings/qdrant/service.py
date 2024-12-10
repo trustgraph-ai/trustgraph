@@ -61,7 +61,8 @@ class Processor(ConsumerProducer):
 
             print(f"Handling input {id}...", flush=True)
 
-            entities = set()
+            entity_set = set()
+            entities = []
 
             for vec in v.vectors:
 
@@ -71,19 +72,28 @@ class Processor(ConsumerProducer):
                     str(dim)
                 )
 
+                # Heuristic hack, get (2*limit), so that we have more chance
+                # of getting (limit) entities
                 search_result = self.client.query_points(
                     collection_name=collection,
                     query=vec,
-                    limit=v.limit,
+                    limit=v.limit * 2,
                     with_payload=True,
                 ).points
 
                 for r in search_result:
                     ent = r.payload["entity"]
-                    entities.add(ent)
 
-            # Convert set to list
-            entities = list(entities)
+                    # De-dupe entities
+                    if ent not in entity_set:
+                        entity_set.add(ent)
+                        entities.append(ent)
+
+                    # Keep adding entities until limit
+                    if len(entity_set) >= v.limit: break
+
+                # Keep adding entities until limit
+                if len(entity_set) >= v.limit: break
 
             ents2 = []
 

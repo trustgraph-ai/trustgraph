@@ -73,7 +73,8 @@ class Processor(ConsumerProducer):
 
             print(f"Handling input {id}...", flush=True)
 
-            entities = set()
+            entity_set = set()
+            entities = []
 
             for vec in v.vectors:
 
@@ -85,20 +86,30 @@ class Processor(ConsumerProducer):
 
                 index = self.pinecone.Index(index_name)
 
+                # Heuristic hack, get (2*limit), so that we have more chance
+                # of getting (limit) entities
                 results = index.query(
                     namespace=v.collection,
                     vector=vec,
-                    top_k=v.limit,
+                    top_k=v.limit * 2,
                     include_values=False,
                     include_metadata=True
                 )
 
                 for r in results.matches:
-                    ent = r.metadata["entity"]
-                    entities.add(ent)
 
-            # Convert set to list
-            entities = list(entities)
+                    ent = r.metadata["entity"]
+
+                    # De-dupe entities
+                    if ent not in entity_set:
+                        entity_set.add(ent)
+                        entities.append(ent)
+
+                    # Keep adding entities until limit
+                    if len(entity_set) >= v.limit: break
+
+                # Keep adding entities until limit
+                if len(entity_set) >= v.limit: break
 
             ents2 = []
 
