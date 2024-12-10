@@ -23,3 +23,11 @@ URL = 'https://schema.org/url'
 IDENTIFIER = 'https://schema.org/identifier'
 KEYWORD = 'https://schema.org/keywords'
 
+class Uri(str):
+    def is_uri(self): return True
+    def is_literal(self): return False
+
+class Literal(str):
+    def is_uri(self): return False
+    def is_literal(self): return True
+

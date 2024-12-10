@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+
+from trustgraph.gateway import run
+
+run()
+

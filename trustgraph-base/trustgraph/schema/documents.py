@@ -60,5 +60,5 @@ document_embeddings_request_queue = topic(
     'doc-embeddings', kind='non-persistent', namespace='request'
 )
 document_embeddings_response_queue = topic(
-    'doc-embeddings-response', kind='non-persistent', namespace='response', 
+    'doc-embeddings', kind='non-persistent', namespace='response',
 )

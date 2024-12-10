@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+
+import requests
+import json
+import sys
+
+url = "http://localhost:8088/api/v1/"
+
+############################################################################
+
+input = {
+    "id": "extract-definitions",
+    "variables": {
+        "text": "A cat is a large mammal."
+    }
+}
+
+resp = requests.post(
+    f"{url}prompt",
+    json=input,
+)
+
+resp = resp.json()
+
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
+
+if "object" in resp:
+    object = json.loads(resp["object"])
+    print(json.dumps(object, indent=4))
+    sys.exit(1)
+
+print(resp["text"])
+
+sys.exit(0)
+############################################################################
+

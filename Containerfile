@@ -16,7 +16,7 @@ RUN pip3 install torch --index-url https://download.pytorch.org/whl/cpu
 RUN pip3 install anthropic boto3 cohere openai google-cloud-aiplatform ollama google-generativeai \
     langchain langchain-core langchain-huggingface langchain-text-splitters \
     langchain-community pymilvus sentence-transformers transformers \
-    huggingface-hub pulsar-client cassandra-driver pyarrow pyyaml \
+    huggingface-hub pulsar-client cassandra-driver pyyaml \
     neo4j tiktoken && \
     pip3 cache purge
 
@@ -32,7 +32,6 @@ COPY trustgraph-base/ /root/build/trustgraph-base/
 COPY trustgraph-flow/ /root/build/trustgraph-flow/
 COPY trustgraph-vertexai/ /root/build/trustgraph-vertexai/
 COPY trustgraph-bedrock/ /root/build/trustgraph-bedrock/
-COPY trustgraph-parquet/ /root/build/trustgraph-parquet/
 COPY trustgraph-embeddings-hf/ /root/build/trustgraph-embeddings-hf/
 COPY trustgraph-cli/ /root/build/trustgraph-cli/
 
@@ -42,7 +41,6 @@ RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-base/
 RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-flow/
 RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-vertexai/
 RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-bedrock/
-RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-parquet/
 RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-embeddings-hf/
 RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-cli/
 
@@ -61,7 +59,6 @@ RUN \
     pip3 install /root/wheels/trustgraph_flow-* && \
     pip3 install /root/wheels/trustgraph_vertexai-* && \
     pip3 install /root/wheels/trustgraph_bedrock-* && \
-    pip3 install /root/wheels/trustgraph_parquet-* && \
     pip3 install /root/wheels/trustgraph_embeddings_hf-* && \
     pip3 install /root/wheels/trustgraph_cli-* && \
     pip3 cache purge && \

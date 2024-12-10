@@ -34,7 +34,7 @@ graph_embeddings_request_queue = topic(
     'graph-embeddings', kind='non-persistent', namespace='request'
 )
 graph_embeddings_response_queue = topic(
-    'graph-embeddings-response', kind='non-persistent', namespace='response', 
+    'graph-embeddings', kind='non-persistent', namespace='response'
 )
 
 ############################################################################
@@ -67,5 +67,5 @@ triples_request_queue = topic(
     'triples', kind='non-persistent', namespace='request'
 )
 triples_response_queue = topic(
-    'triples-response', kind='non-persistent', namespace='response',
+    'triples', kind='non-persistent', namespace='response'
 )

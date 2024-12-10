@@ -1,0 +1,30 @@
+#!/usr/bin/env python3
+
+import requests
+import json
+import sys
+
+url = "http://localhost:8088/api/v1/"
+
+############################################################################
+
+input = {
+    "term": "Cornwall",
+}
+
+resp = requests.post(
+    f"{url}encyclopedia",
+    json=input,
+)
+
+resp = resp.json()
+
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
+
+print(resp["text"])
+
+sys.exit(0)
+############################################################################
+

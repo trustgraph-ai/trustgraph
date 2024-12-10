@@ -1,7 +1,8 @@
 
 """
-Triples query service.  Input is a (s, p, o) triple, some values may be
-null.  Output is a list of triples.
+Triples query service for neo4j.
+Input is a (s, p, o) triple, some values may be null.  Output is a list of
+triples.
 """
 
 from neo4j import GraphDatabase
@@ -21,6 +22,7 @@ default_subscriber = module
 default_graph_host = 'bolt://neo4j:7687'
 default_username = 'neo4j'
 default_password = 'password'
+default_database = 'neo4j'
 
 class Processor(ConsumerProducer):
 
@@ -31,7 +33,8 @@ class Processor(ConsumerProducer):
         subscriber = params.get("subscriber", default_subscriber)
         graph_host = params.get("graph_host", default_graph_host)
         username = params.get("username", default_username)
-        password = params.get("passowrd", default_password)
+        password = params.get("password", default_password)
+        database = params.get("database", default_database)
 
         super(Processor, self).__init__(
             **params | {
@@ -44,7 +47,7 @@ class Processor(ConsumerProducer):
             }
         )
 
-        self.db = "neo4j"
+        self.db = database
 
         self.io = GraphDatabase.driver(graph_host, auth=(username, password))
 
@@ -340,6 +343,12 @@ class Processor(ConsumerProducer):
             '--password',
             default=default_password,
             help=f'Neo4j password (default: {default_password})'
+        )
+
+        parser.add_argument(
+            '--database',
+            default=default_database,
+            help=f'Neo4j database (default: {default_database})'
         )
 
 def run():

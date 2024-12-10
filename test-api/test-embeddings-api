@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+
+import requests
+import json
+import sys
+
+url = "http://localhost:8088/api/v1/"
+
+############################################################################
+
+input = {
+    "text": "What is the highest risk aspect of running a space shuttle program?  Provide 5 detailed reasons to justify our answer.",
+}
+
+resp = requests.post(
+    f"{url}embeddings",
+    json=input,
+)
+
+resp = resp.json()
+
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
+
+print(resp["vectors"])
+
+

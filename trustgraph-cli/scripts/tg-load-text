@@ -6,7 +6,6 @@ Loads a text document into TrustGraph processing.
 
 import pulsar
 from pulsar.schema import JsonSchema
-import base64
 import hashlib
 import argparse
 import os
@@ -14,9 +13,9 @@ import time
 import uuid
 
 from trustgraph.schema import TextDocument, text_ingest_queue
-from trustgraph.schema import Metadata
+from trustgraph.schema import Metadata, Triple, Value
 from trustgraph.log_level import LogLevel
-from trustgraph.knowledge import hash, to_uri
+from trustgraph.knowledge import hash, to_uri, Literal, Uri
 from trustgraph.knowledge import PREF_PUBEV, PREF_DOC, PREF_ORG
 from trustgraph.knowledge import Organization, PublicationEvent
 from trustgraph.knowledge import DigitalDocument
@@ -79,7 +78,23 @@ class Loader:
             r = TextDocument(
                 metadata=Metadata(
                     id=id,
-                    metadata=triples,
+                    metadata=[
+                        Triple(
+                            s=Value(
+                                value=t["s"],
+                                is_uri=isinstance(t["s"], Uri)
+                            ),
+                            p=Value(
+                                value=t["p"],
+                                is_uri=isinstance(t["p"], Uri)
+                            ),
+                            o=Value(
+                                value=t["o"],
+                                is_uri=isinstance(t["o"], Uri)
+                            ),
+                        )
+                        for t in triples
+                    ],
                     user=self.user,
                     collection=self.collection,
                 ),

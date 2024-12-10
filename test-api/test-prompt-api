@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+
+import requests
+import json
+import sys
+
+url = "http://localhost:8088/api/v1/"
+
+############################################################################
+
+input = {
+    "id": "question",
+    "variables": {
+        "question": "Write a joke about llamas."
+    }
+}
+
+resp = requests.post(
+    f"{url}prompt",
+    json=input,
+)
+
+resp = resp.json()
+
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
+
+if "object" in resp:
+    print(f"Object: {resp['object']}")
+    sys.exit(1)
+
+print(resp["text"])
+
+sys.exit(0)
+############################################################################
+

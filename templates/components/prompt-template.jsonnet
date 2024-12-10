@@ -53,7 +53,7 @@ local default_prompts = import "prompts/default-prompts.jsonnet";
                         "--text-completion-request-queue",
                         "non-persistent://tg/request/text-completion",
                         "--text-completion-response-queue",
-                        "non-persistent://tg/response/text-completion-response",
+                        "non-persistent://tg/response/text-completion",
 
                         "--system-prompt",
                         $["prompts"]["system-template"],
@@ -92,11 +92,11 @@ local default_prompts = import "prompts/default-prompts.jsonnet";
                         "-i",
                         "non-persistent://tg/request/prompt-rag",
                         "-o",
-                        "non-persistent://tg/response/prompt-rag-response",
+                        "non-persistent://tg/response/prompt-rag",
                         "--text-completion-request-queue",
                         "non-persistent://tg/request/text-completion-rag",
                         "--text-completion-response-queue",
-                        "non-persistent://tg/response/text-completion-rag-response",
+                        "non-persistent://tg/response/text-completion-rag",
 
                         "--system-prompt",
                         $["prompts"]["system-template"],

@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+
+import requests
+import json
+import sys
+
+url = "http://localhost:8088/api/v1/"
+
+############################################################################
+
+input = {
+    "system": "Respond in French.  Use long word, form of numbers, no digits",
+#     "prompt": "Add 2 and 12"
+    "prompt": "Add 12 and 14, and then make a poem about llamas which incorporates that number.  Then write a joke about llamas"
+}
+
+resp = requests.post(
+    f"{url}text-completion",
+    json=input,
+)
+
+if resp.status_code != 200:
+    raise RuntimeError(f"Status code: {resp.status_code}")
+
+resp = resp.json()
+
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
+
+print(resp["response"])
+
+############################################################################
+

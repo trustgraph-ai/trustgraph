@@ -1,6 +1,16 @@
 
 from . defs import *
-from .. schema import Triple, Value
+
+def Value(value, is_uri):
+    if is_uri:
+        return Uri(value)
+    else:
+        return Literal(value)
+
+def Triple(s, p, o):
+    return {
+        "s": s, "p": p, "o": o,
+    }
 
 class PublicationEvent:
     def __init__(

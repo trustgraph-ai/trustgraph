@@ -13,7 +13,7 @@ local prompts = import "prompts/mixtral.jsonnet";
     
         create:: function(engine)
 
-            local envSecrets = engine.envSecrets("bedrock-credentials")
+            local envSecrets = engine.envSecrets("googleaistudio-key")
                 .with_env_var("GOOGLE_AI_STUDIO_KEY", "googleaistudio-key");
 
             local container =
@@ -50,7 +50,7 @@ local prompts = import "prompts/mixtral.jsonnet";
                         "-i",
                         "non-persistent://tg/request/text-completion-rag",
                         "-o",
-                        "non-persistent://tg/response/text-completion-rag-response",
+                        "non-persistent://tg/response/text-completion-rag",
                     ])
                     .with_env_var_secrets(envSecrets)
                     .with_limits("0.5", "128M")

@@ -34,11 +34,12 @@ setuptools.setup(
     python_requires='>=3.8',
     download_url = "https://github.com/trustgraph-ai/trustgraph/archive/refs/tags/v" + version + ".tar.gz",
     install_requires=[
-        "trustgraph-base>=0.15,<0.16",
+        "trustgraph-base>=0.17,<0.18",
         "requests",
         "pulsar-client",
         "rdflib",
         "tabulate",
+        "msgpack",
     ],
     scripts=[
         "scripts/tg-graph-show",
@@ -54,5 +55,8 @@ setuptools.setup(
         "scripts/tg-invoke-agent",
         "scripts/tg-invoke-prompt",
         "scripts/tg-invoke-llm",
+        "scripts/tg-save-kg-core",
+        "scripts/tg-load-kg-core",
+        "scripts/tg-dump-msgpack",
     ]
 )
