@@ -5,6 +5,7 @@
     import "patterns/grafana.jsonnet",
     import "patterns/triple-store-cassandra.jsonnet",
     import "patterns/triple-store-neo4j.jsonnet",
+    import "patterns/triple-store-falkordb.jsonnet",
     import "patterns/graph-rag.jsonnet",
     import "patterns/llm-azure.jsonnet",
     import "patterns/llm-azure-openai.jsonnet",
