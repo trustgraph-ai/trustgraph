@@ -53,10 +53,10 @@ class ServiceEndpoint:
 
             print(data)
 
-            def responder(x, fin):
+            async def responder(x, fin):
                 print(x)
 
-            resp, fin = await self.requestor.process(data, responder)
+            resp = await self.requestor.process(data, responder)
 
             return web.json_response(resp)
 
