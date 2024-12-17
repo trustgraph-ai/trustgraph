@@ -59,7 +59,7 @@ pip3 install trustgraph-cli==0.17.16
 TrustGraph is endlessly customizable by editing the `YAML` launch files. The `Configuration UI` provides a quick and intuitive tool for building a custom configuration that deploys with Docker, Podman, Minikube, or Google Cloud. There is a `Configuration UI` for the both the lastest and stable `TrustGraph` releases.
 
 - [**Stable Configuration UI** (0.17.16) 🚀](https://config-ui.demo.trustgraph.ai/)
-- [**Latest Configuration UI** (0.18.1) 🚀](https://dev.config-ui.demo.trustgraph.ai/)
+- [**Latest Configuration UI** (0.18.2) 🚀](https://dev.config-ui.demo.trustgraph.ai/)
 
 The `Configuration UI` has three sections:
 
@@ -86,13 +86,13 @@ docker compose down -v
 - [**REST API Notebooks**](https://github.com/trustgraph-ai/example-notebooks/tree/master/api-examples)
 - [**Python SDK Notebooks**](https://github.com/trustgraph-ai/example-notebooks/tree/master/api-library)
 
-## TrustGraph Releases
+## Prebuilt Configuration Files
 
-TrustGraph releases are available [here](https://github.com/trustgraph-ai/trustgraph/releases). Download `deploy.zip` for the desired release version.
+TrustGraph `YAML` files are available [here](https://github.com/trustgraph-ai/trustgraph/releases). Download `deploy.zip` for the desired release version.
 
 | Release Type | Release Version |
 | ------------ | --------------- |
-| Latest | [0.18.1](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.18.1/deploy.zip) |
+| Latest | [0.18.2](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.18.2/deploy.zip) |
 | Stable | [0.17.16](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.17.16/deploy.zip) |
 
 TrustGraph is fully containerized and is launched with a `YAML` configuration file. Unzipping the `deploy.zip` will add the `deploy` directory with the following subdirectories:
@@ -101,32 +101,8 @@ TrustGraph is fully containerized and is launched with a `YAML` configuration fi
 - `minikube-k8s`
 - `gcp-k8s`
 
-Each directory contains the pre-built `YAML` configuration files needed to launch TrustGraph:
-
-| Model Deployment | Graph Store | Launch File |
-| ---------------- | ------------ | ----------- |
-| AWS Bedrock API | Cassandra | `tg-bedrock-cassandra.yaml` |
-| AWS Bedrock API | Neo4j | `tg-bedrock-neo4j.yaml` |
-| AzureAI API | Cassandra | `tg-azure-cassandra.yaml` |
-| AzureAI API | Neo4j | `tg-azure-neo4j.yaml` |
-| AzureOpenAI API | Cassandra | `tg-azure-openai-cassandra.yaml` |
-| AzureOpenAI API | Neo4j | `tg-azure-openai-neo4j.yaml` |
-| Anthropic API | Cassandra | `tg-claude-cassandra.yaml` |
-| Anthropic API | Neo4j | `tg-claude-neo4j.yaml` |
-| Cohere API | Cassandra | `tg-cohere-cassandra.yaml` |
-| Cohere API | Neo4j | `tg-cohere-neo4j.yaml` |
-| Google AI Studio API | Cassandra | `tg-googleaistudio-cassandra.yaml` |
-| Google AI Studio API | Neo4j | `tg-googleaistudio-neo4j.yaml` |
-| Llamafile API | Cassandra | `tg-llamafile-cassandra.yaml` |
-| Llamafile API | Neo4j | `tg-llamafile-neo4j.yaml` |
-| Ollama API | Cassandra | `tg-ollama-cassandra.yaml` |
-| Ollama API | Neo4j | `tg-ollama-neo4j.yaml` |
-| OpenAI API | Cassandra | `tg-openai-cassandra.yaml` |
-| OpenAI API | Neo4j | `tg-openai-neo4j.yaml` |
-| VertexAI API | Cassandra | `tg-vertexai-cassandra.yaml` |
-| VertexAI API | Neo4j | `tg-vertexai-neo4j.yaml` |
-
-Once a configuration `launch file` has been selected, deploy TrustGraph with:
+> [!NOTE]
+> As more integrations have been added, the number of possible combinations of configurations has become quite large. It is recommended to use the `Config UI` to build your deployment configuration. Each directory contains `YAML` configuration files for the default component selections.
 
 **Docker**:
 ```
