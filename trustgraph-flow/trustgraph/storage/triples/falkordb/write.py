@@ -1,6 +1,6 @@
 
 """
-Graph writer.  Input is graph edge.  Writes edges to Neo4j graph.
+Graph writer.  Input is graph edge.  Writes edges to FalkorDB graph.
 """
 
 import pulsar
@@ -9,7 +9,7 @@ import os
 import argparse
 import time
 
-from neo4j import GraphDatabase
+from falkordb import FalkorDB
 
 from .... schema import Triples
 from .... schema import triples_store_queue
@@ -21,10 +21,8 @@ module = ".".join(__name__.split(".")[1:-1])
 default_input_queue = triples_store_queue
 default_subscriber = module
 
-default_graph_host = 'bolt://neo4j:7687'
-default_username = 'neo4j'
-default_password = 'password'
-default_database = 'neo4j'
+default_graph_url = 'falkor://falkordb:6379'
+default_database = 'falkordb'
 
 class Processor(Consumer):
 
@@ -32,9 +30,7 @@ class Processor(Consumer):
         
         input_queue = params.get("input_queue", default_input_queue)
         subscriber = params.get("subscriber", default_subscriber)
-        graph_host = params.get("graph_host", default_graph_host)
-        username = params.get("username", default_username)
-        password = params.get("password", default_password)
+        graph_url = params.get("graph_host", default_graph_url)
         database = params.get("database", default_database)
 
         super(Processor, self).__init__(
@@ -42,76 +38,76 @@ class Processor(Consumer):
                 "input_queue": input_queue,
                 "subscriber": subscriber,
                 "input_schema": Triples,
-                "graph_host": graph_host,
+                "graph_url": graph_url,
             }
         )
 
         self.db = database
 
-        self.io = GraphDatabase.driver(graph_host, auth=(username, password))
+        self.io = FalkorDB.from_url(graph_url).select_graph(database)
 
     def create_node(self, uri):
 
         print("Create node", uri)
 
-        summary = self.io.execute_query(
+        res = self.io.query(
             "MERGE (n:Node {uri: $uri})",
             uri=uri,
             database_=self.db,
-        ).summary
+        )
 
         print("Created {nodes_created} nodes in {time} ms.".format(
-            nodes_created=summary.counters.nodes_created,
-            time=summary.result_available_after
+            nodes_created=res.nodes_created,
+            time=res.run_time_ms
         ))
 
     def create_literal(self, value):
 
         print("Create literal", value)
 
-        summary = self.io.execute_query(
+        res = self.io.query(
             "MERGE (n:Literal {value: $value})",
             value=value,
             database_=self.db,
-        ).summary
+        )
 
         print("Created {nodes_created} nodes in {time} ms.".format(
-            nodes_created=summary.counters.nodes_created,
-            time=summary.result_available_after
+            nodes_created=res.nodes_created,
+            time=res.run_time_ms
         ))
 
     def relate_node(self, src, uri, dest):
 
         print("Create node rel", src, uri, dest)
 
-        summary = self.io.execute_query(
+        res = self.io.query(
             "MATCH (src:Node {uri: $src}) "
             "MATCH (dest:Node {uri: $dest}) "
             "MERGE (src)-[:Rel {uri: $uri}]->(dest)",
             src=src, dest=dest, uri=uri,
             database_=self.db,
-        ).summary
+        )
 
         print("Created {nodes_created} nodes in {time} ms.".format(
-            nodes_created=summary.counters.nodes_created,
-            time=summary.result_available_after
+            nodes_created=res.nodes_created,
+            time=res.run_time_ms
         ))
 
     def relate_literal(self, src, uri, dest):
 
         print("Create literal rel", src, uri, dest)
 
-        summary = self.io.execute_query(
+        res = self.io.query(
             "MATCH (src:Node {uri: $src}) "
             "MATCH (dest:Literal {value: $dest}) "
             "MERGE (src)-[:Rel {uri: $uri}]->(dest)",
             src=src, dest=dest, uri=uri,
             database_=self.db,
-        ).summary
+        )
 
         print("Created {nodes_created} nodes in {time} ms.".format(
-            nodes_created=summary.counters.nodes_created,
-            time=summary.result_available_after
+            nodes_created=res.nodes_created,
+            time=res.run_time_ms
         ))
 
     def handle(self, msg):
@@ -138,26 +134,14 @@ class Processor(Consumer):
 
         parser.add_argument(
             '-g', '--graph_host',
-            default=default_graph_host,
-            help=f'Graph host (default: {default_graph_host})'
-        )
-
-        parser.add_argument(
-            '--username',
-            default=default_username,
-            help=f'Neo4j username (default: {default_username})'
-        )
-
-        parser.add_argument(
-            '--password',
-            default=default_password,
-            help=f'Neo4j password (default: {default_password})'
+            default=default_graph_url,
+            help=f'Graph host (default: {default_graph_url})'
         )
 
         parser.add_argument(
             '--database',
             default=default_database,
-            help=f'Neo4j database (default: {default_database})'
+            help=f'FalkorDB database (default: {default_database})'
         )
 
 def run():

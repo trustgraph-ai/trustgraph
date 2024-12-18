@@ -13,7 +13,7 @@
 > [!TIP]
 > If using `Podman`, the only change will be to substitute `podman` instead of `docker` in all commands.
 
-All `TrustGraph` components are deployed through a `Docker Compose` file. There are **16** `Docker Compose` files to choose from, depending on the desired model deployment and choosing between the graph stores `Cassandra` or `Neo4j`:
+All `TrustGraph` components are deployed through a `Docker Compose` file. There are **16** `Docker Compose` files to choose from, depending on the desired model deployment and choosing between the graph stores `Cassandra` or `Neo4j` or `FalkorDB`:
 
 - `AzureAI` serverless endpoint for deployed models in Azure
 - `Bedrock` API for models deployed in AWS Bedrock

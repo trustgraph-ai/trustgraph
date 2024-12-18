@@ -17,7 +17,7 @@ RUN pip3 install anthropic boto3 cohere openai google-cloud-aiplatform ollama go
     langchain langchain-core langchain-huggingface langchain-text-splitters \
     langchain-community pymilvus sentence-transformers transformers \
     huggingface-hub pulsar-client cassandra-driver pyyaml \
-    neo4j tiktoken && \
+    neo4j tiktoken falkordb && \
     pip3 cache purge
 
 # ----------------------------------------------------------------------------
