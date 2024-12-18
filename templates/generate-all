@@ -125,7 +125,7 @@ def generate_all(output, version):
                 "azure", "azure-openai", "bedrock", "claude", "cohere",
                 "googleaistudio", "llamafile", "ollama", "openai", "vertexai",
         ]:
-            for graph in [ "cassandra", "neo4j" ]:
+            for graph in [ "cassandra", "neo4j", "falkordb" ]:
 
                 y = generate_config(
                     llm=model, graph_store=graph, platform=platform,

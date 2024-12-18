@@ -60,6 +60,7 @@ setuptools.setup(
         "jsonschema",
         "aiohttp",
         "pinecone[grpc]",
+        "falkordb",
     ],
     scripts=[
         "scripts/api-gateway",
@@ -104,9 +105,11 @@ setuptools.setup(
         "scripts/triples-query-cassandra",
         "scripts/triples-query-neo4j",
         "scripts/triples-query-memgraph",
+        "scripts/triples-query-falkordb",
         "scripts/triples-write-cassandra",
         "scripts/triples-write-neo4j",
         "scripts/triples-write-memgraph",
+        "scripts/triples-write-falkordb",
         "scripts/wikipedia-lookup",
     ]
 )
