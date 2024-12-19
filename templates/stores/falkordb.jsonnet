@@ -15,7 +15,7 @@ local images = import "values/images.jsonnet";
                     .with_limits("1.0", "768M")
                     .with_reservations("0.5", "768M")
                     .with_port(6379, 6379, "api")
-                    .with_port(3000, 3000, "ui")
+                    .with_port(3010, 3000, "ui")
                     .with_volume_mount(vol, "/data");
 
             local containerSet = engine.containers(
@@ -25,7 +25,7 @@ local images = import "values/images.jsonnet";
             local service =
                 engine.service(containerSet)
                 .with_port(6379, 6379, "api")
-                .with_port(3000, 3000, "ui");
+                .with_port(3010, 3010, "ui");
 
             engine.resources([
                 vol,

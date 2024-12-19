@@ -52,8 +52,9 @@ class Processor(Consumer):
 
         res = self.io.query(
             "MERGE (n:Node {uri: $uri})",
-            uri=uri,
-            database_=self.db,
+            params={
+                "uri": uri,
+            },
         )
 
         print("Created {nodes_created} nodes in {time} ms.".format(
@@ -67,8 +68,9 @@ class Processor(Consumer):
 
         res = self.io.query(
             "MERGE (n:Literal {value: $value})",
-            value=value,
-            database_=self.db,
+            params={
+                "value": value,
+            },
         )
 
         print("Created {nodes_created} nodes in {time} ms.".format(
@@ -84,8 +86,11 @@ class Processor(Consumer):
             "MATCH (src:Node {uri: $src}) "
             "MATCH (dest:Node {uri: $dest}) "
             "MERGE (src)-[:Rel {uri: $uri}]->(dest)",
-            src=src, dest=dest, uri=uri,
-            database_=self.db,
+            params={
+                "src": src,
+                "dest": dest,
+                "uri": uri,
+            },
         )
 
         print("Created {nodes_created} nodes in {time} ms.".format(
@@ -101,8 +106,11 @@ class Processor(Consumer):
             "MATCH (src:Node {uri: $src}) "
             "MATCH (dest:Literal {value: $dest}) "
             "MERGE (src)-[:Rel {uri: $uri}]->(dest)",
-            src=src, dest=dest, uri=uri,
-            database_=self.db,
+            params={
+                "src": src,
+                "dest": dest,
+                "uri": uri,
+            },
         )
 
         print("Created {nodes_created} nodes in {time} ms.".format(
