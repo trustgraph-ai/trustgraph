@@ -13,5 +13,5 @@ local version = import "version.jsonnet";
     qdrant: "docker.io/qdrant/qdrant:v1.11.1",
     memgraph_mage: "docker.io/memgraph/memgraph-mage:1.22-memgraph-2.22",
     memgraph_lab: "docker.io/memgraph/lab:2.19.1",
-    falkordb: "falkordb/falkordb:latest"
+    falkordb: "docker.io/falkordb/falkordb:latest"
 }
