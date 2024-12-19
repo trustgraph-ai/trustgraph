@@ -13,7 +13,7 @@ class MuxEndpoint(SocketEndpoint):
     def __init__(
             self, pulsar_host, auth,
             services,
-            path="/api/v1/mux",
+            path="/api/v1/socket",
     ):
 
         super(MuxEndpoint, self).__init__(
