@@ -22,11 +22,14 @@ class SocketEndpoint:
         
         async for msg in ws:
             # On error, finish
-            if msg.type == WSMsgType.ERROR:
-                break
+            if msg.type == WSMsgType.TEXT:
+                # Ignore incoming message
+                continue
+            elif msg.type == WSMsgType.BINARY:
+                # Ignore incoming message
+                continue
             else:
-                # Ignore incoming messages
-                pass
+                break
 
         running.stop()
 
