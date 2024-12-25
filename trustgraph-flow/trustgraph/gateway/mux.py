@@ -8,6 +8,13 @@ from aiohttp import web, WSMsgType
 from . socket import SocketEndpoint
 from . text_completion import TextCompletionRequestor
 
+MAX_OUTSTANDING_REQUESTS = 15
+WORKER_CLOSE_WAIT = 0.01
+START_REQUEST_WAIT = 0.1
+
+# This buffers requests until task start, so short-lived
+MAX_QUEUE_SIZE = 10
+
 class MuxEndpoint(SocketEndpoint):
 
     def __init__(
@@ -20,31 +27,26 @@ class MuxEndpoint(SocketEndpoint):
             endpoint_path=path, auth=auth,
         )
 
-        # The outstanding request queue, max size is 10
-        self.q = asyncio.Queue(maxsize=10)
-
-        # Worker threads, servicing
-        self.workers = []
-
         self.services = services
 
     async def start(self):
         pass
 
-    async def maybe_tidy_workers(self):
+    async def maybe_tidy_workers(self, workers):
 
         while True:
             try:
 
                 await asyncio.wait_for(
-                    asyncio.shield(self.workers[0]),
-                    0.05
+                    asyncio.shield(workers[0]),
+                    WORKER_CLOSE_WAIT
                 )
 
                 # worker[0] now stopped
-                self.workers = self.workers[1:]
+                # FIXME: Delete reference???
+                del workers[0]
 
-                if len(self.workers) == 0:
+                if len(workers) == 0:
                     break
 
                 # Loop iterates to try the next worker
@@ -53,7 +55,7 @@ class MuxEndpoint(SocketEndpoint):
                 # worker[0] still running, move on
                 break
 
-    async def start_request_task(self, ws, id, svc, request):
+    async def start_request_task(self, ws, id, svc, request, workers):
 
         requestor = self.services[svc]
 
@@ -66,27 +68,30 @@ class MuxEndpoint(SocketEndpoint):
                 "complete": fin,
             })
 
-        # Wait for outstanding requests to go below 15
-        while len(self.workers) > 15:
-            await asyncio.sleep(0.1)
+        # Wait for outstanding requests to go below MAX_OUTSTANDING_REQUESTS
+        while len(workers) > MAX_OUTSTANDING_REQUESTS:
+            await asyncio.sleep(START_REQUEST_WAIT)
 
         worker = asyncio.create_task(
             requestor.process(request, responder)
         )
 
-        self.workers.append(worker)
+        workers.append(worker)
 
-    async def async_thread(self, ws, running):
+    async def async_thread(self, ws, running, q):
+
+        # Worker threads, servicing
+        workers = []
 
         while running.get():
 
             try:
 
-                if len(self.workers) > 0:
-                    await self.maybe_tidy_workers()
+                if len(workers) > 0:
+                    await self.maybe_tidy_workers(workers)
 
                 # Get next request on queue
-                id, svc, request = await asyncio.wait_for(self.q.get(), 1)
+                id, svc, request = await asyncio.wait_for(q.get(), 1)
 
             except TimeoutError:
                 continue
@@ -99,7 +104,7 @@ class MuxEndpoint(SocketEndpoint):
 
             try:
                 print(id, svc, request)
-                await self.start_request_task(ws, id, svc, request)
+                await self.start_request_task(ws, id, svc, request, workers)
 
             except Exception as e:
                 print("Exception2:", e)
@@ -108,6 +113,13 @@ class MuxEndpoint(SocketEndpoint):
         running.stop()
 
     async def listener(self, ws, running):
+
+        # The outstanding request queue, max size is MAX_QUEUE_SIZE
+        q = asyncio.Queue(maxsize=MAX_QUEUE_SIZE)
+
+        async_task = asyncio.create_task(self.async_thread(
+            ws, running, q
+        ))
         
         async for msg in ws:
 
@@ -127,7 +139,7 @@ class MuxEndpoint(SocketEndpoint):
                     if "id" not in data:
                         raise RuntimeError("Bad message")
 
-                    await self.q.put(
+                    await q.put(
                         (data["id"], data["service"], data["request"])
                     )
 
@@ -145,3 +157,4 @@ class MuxEndpoint(SocketEndpoint):
 
         running.stop()
 
+        await async_task
