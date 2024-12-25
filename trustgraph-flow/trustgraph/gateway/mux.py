@@ -60,8 +60,6 @@ class MuxEndpoint(SocketEndpoint):
         requestor = self.services[svc]
 
         async def responder(resp, fin):
-            print("respnd", id)
-            print(svc, request)
             await ws.send_json({
                 "id": id,
                 "response": resp,
