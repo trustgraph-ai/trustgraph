@@ -35,6 +35,7 @@ class MuxEndpoint(SocketEndpoint):
     async def maybe_tidy_workers(self, workers):
 
         while True:
+
             try:
 
                 await asyncio.wait_for(
@@ -44,7 +45,8 @@ class MuxEndpoint(SocketEndpoint):
 
                 # worker[0] now stopped
                 # FIXME: Delete reference???
-                del workers[0]
+
+                workers.pop(0)
 
                 if len(workers) == 0:
                     break
@@ -57,6 +59,10 @@ class MuxEndpoint(SocketEndpoint):
 
     async def start_request_task(self, ws, id, svc, request, workers):
 
+        if svc not in self.services:
+            await ws.send_json({"id": id, "error": "Service not recognised"})
+            return
+            
         requestor = self.services[svc]
 
         async def responder(resp, fin):
@@ -68,7 +74,12 @@ class MuxEndpoint(SocketEndpoint):
 
         # Wait for outstanding requests to go below MAX_OUTSTANDING_REQUESTS
         while len(workers) > MAX_OUTSTANDING_REQUESTS:
+
+            # Fixes deadlock
+            # FIXME: Put it in its own loop
             await asyncio.sleep(START_REQUEST_WAIT)
+
+            await self.maybe_tidy_workers(workers)
 
         worker = asyncio.create_task(
             requestor.process(request, responder)
