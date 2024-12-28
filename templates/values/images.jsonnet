@@ -14,5 +14,5 @@ local version = import "version.jsonnet";
     memgraph_mage: "docker.io/memgraph/memgraph-mage:1.22-memgraph-2.22",
     memgraph_lab: "docker.io/memgraph/lab:2.19.1",
     falkordb: "docker.io/falkordb/falkordb:latest",
-    "workbench-ui": "docker.io/trustgraph/workbench-ui:0.1.4",
+    "workbench-ui": "docker.io/trustgraph/workbench-ui:0.1.6",
 }
