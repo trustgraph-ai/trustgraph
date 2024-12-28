@@ -6,10 +6,11 @@ The websocket service is provided by the `api-gateway` service on port
 
 ## URL
 
-Depending on how the service is hosted, the websocket is invoked on URL:
+Depending on how the service is hosted, the websocket is invoked on this
+URL on `api-gateway`:
 
 ```
-ws://api-gateway:8088/api/v1/socket
+/api/v1/socket
 ```
 
 When hosted using docker compose, you can access the service at
@@ -22,7 +23,8 @@ A request message is a JSON message containing 3 fields:
 - `id`: A unique ID which is used to correlate requests and responses.
   You should make sure it is unique.
 - `service`: The name of the service to invoke.
-- `request`: The request body which is passed to the service.
+- `request`: The request body which is passed to the service - this is
+  defined in the API documentation for that service.
 
 e.g.
 

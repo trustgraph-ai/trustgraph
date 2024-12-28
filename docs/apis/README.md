@@ -66,4 +66,6 @@ Cons:
   - [Agent](api-agent.md)
   - [Embeddings](api-embeddings.md)
   - [Text completion](api-text-completion.md)
+  - [Graph embeddings](api-graph-embeddings.md)
+  - [Triples query](api-triples-query.md)
 
