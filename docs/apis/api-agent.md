@@ -107,3 +107,27 @@ Responses:
 }
 ```
 
+## Pulsar
+
+The Pulsar schema for the Agent API is defined in Python code here:
+
+https://github.com/trustgraph-ai/trustgraph/blob/master/trustgraph-base/trustgraph/schema/agent.py
+
+Default request queue:
+`non-persistent://tg/request/agent`
+
+Default response queue:
+`non-persistent://tg/response/agent`
+
+Request schema:
+`trustgraph.schema.AgentRequest`
+
+Response schema:
+`trustgraph.schema.AgentResponse`
+
+## Pulsar Python client
+
+The client class is
+`trustgraph.clients.AgentClient`
+
+https://github.com/trustgraph-ai/trustgraph/blob/master/trustgraph-base/trustgraph/clients/agent_client.py
