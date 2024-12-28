@@ -105,12 +105,3 @@ The client class is
 
 https://github.com/trustgraph-ai/trustgraph/blob/master/trustgraph-base/trustgraph/clients/embeddings_client.py
 
-
-
-
-
-
-
-
-
-
