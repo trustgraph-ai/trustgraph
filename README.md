@@ -125,9 +125,13 @@ Once the knowledge graph has been built or a knowledge core has been loaded, Gra
 tg-query-graph-rag -q "Write a blog post about the 5 key takeaways from SB1047 and how they will impact AI development."
 ```
 
+## API documentation
+
+[Developing on TrustGraph using APIs](docs/api/README.md)
+
 ## Deploy and Manage TrustGraph
 
-[🚀 Full Deployment Guide 🚀](https://trustgraph.ai/docs/getstarted)
+[🚀🙏 Full Deployment Guide 🚀🙏](https://trustgraph.ai/docs/getstarted)
 
 ## TrustGraph Developer's Guide
 
