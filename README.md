@@ -127,7 +127,7 @@ tg-query-graph-rag -q "Write a blog post about the 5 key takeaways from SB1047 a
 
 ## API documentation
 
-[Developing on TrustGraph using APIs](docs/api/README.md)
+[Developing on TrustGraph using APIs](docs/apis/README.md)
 
 ## Deploy and Manage TrustGraph
 
