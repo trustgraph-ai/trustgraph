@@ -19,8 +19,7 @@ The request contains the following fields:
 ## REST service
 
 The REST service accepts a request object containing the question field.
-The response is a JSON object containing the `answer` field.  Interim
-responses are not provided.
+The response is a JSON object containing the `answer` field.
 
 e.g.
 
@@ -41,7 +40,7 @@ Response:
 
 ## Websocket
 
-Agent requests have a `request` object containing the `text` field.
+Embeddings requests have a `request` object containing the `text` field.
 Responses have a `response` object containing `vectors` field.
 
 e.g.
@@ -82,7 +81,7 @@ Responses:
 
 ## Pulsar
 
-The Pulsar schema for the Agent API is defined in Python code here:
+The Pulsar schema for the Embeddings API is defined in Python code here:
 
 https://github.com/trustgraph-ai/trustgraph/blob/master/trustgraph-base/trustgraph/schema/models.py
 

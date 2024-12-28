@@ -1,5 +1,9 @@
 
-# TrustGraph Embeddings API
+# TrustGraph Text Completion API
+
+This is a low-level interface to the LLM service.  For a higher-level
+interface with template management, consider the
+[Prompt API](api-prompt.md).
 
 ## Request/response
 
@@ -21,8 +25,7 @@ The request contains the following fields:
 ## REST service
 
 The REST service accepts a request object containing the question field.
-The response is a JSON object containing the `answer` field.  Interim
-responses are not provided.
+The response is a JSON object containing the `answer` field.
 
 e.g.
 
@@ -44,7 +47,7 @@ Response:
 
 ## Websocket
 
-Agent requests have a `request` object containing the `system` and
+Requests have a `request` object containing the `system` and
 `prompt` fields.
 Responses have a `response` object containing `response` field.
 
