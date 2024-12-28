@@ -69,3 +69,63 @@ e.g.
 }
 ```
 
+For a multi-part response, a number of responses are provided with the
+same ID until the final message which has the `complete` field set to
+true.
+
+e.g.
+
+Request:
+
+```
+{
+    "id": "blrqotfefnmnh7de-20",
+    "service": "agent",
+    "request": {
+        "question": "What does NASA stand for?"
+    }
+}
+```
+
+Responses:
+
+```
+{
+    "id": "blrqotfefnmnh7de-20",
+    "response": {
+        "thought": "I need to query a knowledge base"
+    },
+    "complete": false
+}
+```
+
+```
+{
+  "id": "blrqotfefnmnh7de-20",
+  "response": {
+    "observation": "Based on the provided text, NASA stands for National Aeronautics and Space Administration."
+  },
+  "complete": false
+}
+```
+
+```
+{
+  "id": "blrqotfefnmnh7de-20",
+  "response": {
+    "thought": "I now know the final answer"
+  },
+  "complete": false
+}
+```
+
+```
+{
+  "id": "blrqotfefnmnh7de-20",
+  "response": {
+    "answer": "National Aeronautics and Space Administration"
+  },
+  "complete": true
+}
+```
+
