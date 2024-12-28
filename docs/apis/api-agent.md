@@ -1,16 +1,109 @@
 
+# TrustGraph Agent API
 
-{"id":"blrqotfefnmnh7de-20","service":"agent","request":{"question":"What does NASA stand for?"}}
+The REST service provides incomplete functionality: The agent service
+is able to provide multi-part responses containing 'thought' and
+'observation' messages as the agent manager iterates over resolution of the
+question.  These responses are provided in the websocket, but not the REST
+API.
 
+## Request
 
-{"id": "blrqotfefnmnh7de-20", "response": {"thought": "I need to query a knowledge base to find out what NASA stands for."}, "complete": fals}e
+The request contains the following fields:
+- `question`: A string, the question which the agent API must resolve
+- `plan`: Optional, not used
+- `state`: Optional, not used
 
+## Response
 
-{"id": "blrqotfefnmnh7de-20", "response": {"observation": "Based on the provided text, NASA stands for National Aeronautics and Space Administration."}, "complete": false}
+The request contains the following fields:
+- `thought`: Optional, a string, provides an interim agent thought
+- `observation`: Optional, a string, provides an interim agent thought
+- `answer`: Optional, a string, provides the final answer
 
-{"id": "blrqotfefnmnh7de-20", "response": {"thought": "I now know the final answer"}, "complete": false}
+## REST service
 
+The REST service accepts a request object containing the question field.
+The response is a JSON object containing the `answer` field.  Interim
+responses are not provided.
 
-{"id": "blrqotfefnmnh7de-20", "response": {"answer": "National Aeronautics and Space Administration"}, "complete": true}
+e.g.
 
+Request:
+```
+{
+    "question": "What does NASA stand for?"
+}
+```
+
+Response:
+
+```
+{
+    "answer": "National Aeronautics and Space Administration"
+}
+```
+
+## Websocket
+
+Agent requests have a `request` object containing the `question` field.
+Responses have a `response` object containing `thought`, `observation`
+and `answer` fields in multi-part responses.  The final `answer` response
+has `complete` set to `true`.
+
+e.g.
+
+Request:
+
+```
+{
+    "id": "blrqotfefnmnh7de-20",
+    "service": "agent",
+    "request": {
+        "question": "What does NASA stand for?"
+    }
+}
+```
+
+Responses:
+
+```
+{
+    "id": "blrqotfefnmnh7de-20",
+    "response": {
+        "thought": "I need to query a knowledge base"
+    },
+    "complete": false
+}
+```
+
+```
+{
+    "id": "blrqotfefnmnh7de-20",
+    "response": {
+        "observation": "National Aeronautics and Space Administration."
+    },
+    "complete": false
+}
+```
+
+```
+{
+    "id": "blrqotfefnmnh7de-20",
+    "response": {
+        "thought": "I now know the final answer"
+    },
+    "complete": false
+}
+```
+
+```
+{
+    "id": "blrqotfefnmnh7de-20",
+    "response": {
+        "answer": "National Aeronautics and Space Administration"
+    },
+    "complete": true
+}
+```
 

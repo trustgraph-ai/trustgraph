@@ -69,9 +69,14 @@ e.g.
 }
 ```
 
+## Multi-part response
+
 For a multi-part response, a number of responses are provided with the
 same ID until the final message which has the `complete` field set to
 true.
+
+Note that multi-part responses are a feature of the websocket API which
+the request/response nature of the REST API is not able to provide.
 
 e.g.
 
