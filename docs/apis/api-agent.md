@@ -7,14 +7,16 @@ is able to provide multi-part responses containing 'thought' and
 question.  These responses are provided in the websocket, but not the REST
 API.
 
-## Request
+## Request/response
+
+### Request
 
 The request contains the following fields:
 - `question`: A string, the question which the agent API must resolve
 - `plan`: Optional, not used
 - `state`: Optional, not used
 
-## Response
+### Response
 
 The request contains the following fields:
 - `thought`: Optional, a string, provides an interim agent thought
