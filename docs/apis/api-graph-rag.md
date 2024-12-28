@@ -95,14 +95,3 @@ The client class is
 
 https://github.com/trustgraph-ai/trustgraph/blob/master/trustgraph-base/trustgraph/clients/graph_rag_client.py
 
-
-
-
-
-
-
-{"id":"as9trkhb9jtizjio-1","service":"graph-rag","request":{"query":"What does NASA stand for?"}}
-
-
-{"id": "as9trkhb9jtizjio-1", "response": {"response": "Based on the provided text, NASA stands for National Aeronautics and Space Administration.  There are multiple statements providing this definition.\n"}, "complete": true}
-
