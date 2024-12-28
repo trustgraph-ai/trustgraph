@@ -29,6 +29,7 @@
    "vector-store-qdrant": import "components/qdrant.jsonnet",
    "vector-store-pinecone": import "components/pinecone.jsonnet",
    "vertexai": import "components/vertexai.jsonnet",
+   "workbench-ui": import "components/workbench-ui.jsonnet",
    "null": {},
 
    "agent-manager-react": import "components/agent-manager-react.jsonnet",

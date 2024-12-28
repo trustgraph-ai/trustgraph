@@ -164,9 +164,13 @@ tg-invoke-agent -v -q "Write a blog post about the 5 key takeaways from SB1047 a
 > [!TIP]
 > Adding `-v` to the agent request will return all of the agent manager's thoughts and observations that led to the final response.
 
+## API documentation
+
+[Developing on TrustGraph using APIs](docs/api/README.md)
+
 ## Deploy and Manage TrustGraph
 
-[🚀 Full Deployment Guide 🚀](https://trustgraph.ai/docs/getstarted)
+[🚀🙏 Full Deployment Guide 🚀🙏](https://trustgraph.ai/docs/getstarted)
 
 ## TrustGraph Developer's Guide
 

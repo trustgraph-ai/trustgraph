@@ -35,6 +35,7 @@ from . text_completion import TextCompletionRequestor
 from . prompt import PromptRequestor
 from . graph_rag import GraphRagRequestor
 from . triples_query import TriplesQueryRequestor
+from . graph_embeddings_query import GraphEmbeddingsQueryRequestor
 from . embeddings import EmbeddingsRequestor
 from . encyclopedia import EncyclopediaRequestor
 from . agent import AgentRequestor
@@ -95,6 +96,10 @@ class Api:
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
                 auth = self.auth,
             ),
+            "graph-embeddings-query": GraphEmbeddingsQueryRequestor(
+                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                auth = self.auth,
+            ),
             "embeddings": EmbeddingsRequestor(
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
                 auth = self.auth,
@@ -133,6 +138,11 @@ class Api:
             ServiceEndpoint(
                 endpoint_path = "/api/v1/triples-query", auth=self.auth,
                 requestor = self.services["triples-query"],
+            ),
+            ServiceEndpoint(
+                endpoint_path = "/api/v1/graph-embeddings-query",
+                auth=self.auth,
+                requestor = self.services["graph-embeddings-query"],
             ),
             ServiceEndpoint(
                 endpoint_path = "/api/v1/embeddings", auth=self.auth,

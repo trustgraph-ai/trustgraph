@@ -76,8 +76,11 @@ class Processor(ConsumerProducer):
                         records = self.io.query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Literal {value: $value}) "
                             "RETURN $src as src",
-                            src=v.s.value, rel=v.p.value, value=v.o.value,
-                            database_=self.db,
+                            params={
+                                "src": v.s.value,
+                                "rel": v.p.value,
+                                "value": v.o.value,
+                            },
                         ).result_set
 
                         for rec in records:
@@ -86,8 +89,11 @@ class Processor(ConsumerProducer):
                         records = self.io.query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Node {uri: $uri}) "
                             "RETURN $src as src",
-                            src=v.s.value, rel=v.p.value, uri=v.o.value,
-                            database_=self.db,
+                            params={
+                                "src": v.s.value,
+                                "rel": v.p.value,
+                                "uri": v.o.value,
+                            },
                         ).result_set
 
                         for rec in records:
@@ -100,24 +106,26 @@ class Processor(ConsumerProducer):
                         records = self.io.query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Literal) "
                             "RETURN dest.value as dest",
-                            src=v.s.value, rel=v.p.value,
-                            database_=self.db,
+                            params={
+                                "src": v.s.value,
+                                "rel": v.p.value,
+                            },
                         ).result_set
 
                         for rec in records:
-                            data = rec.data()
-                            triples.append((v.s.value, v.p.value, data["dest"]))
+                            triples.append((v.s.value, v.p.value, rec[0]))
 
                         records = self.io.query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Node) "
                             "RETURN dest.uri as dest",
-                            src=v.s.value, rel=v.p.value,
-                            database_=self.db,
+                            params={
+                                "src": v.s.value,
+                                "rel": v.p.value,
+                            },
                         ).result_set
 
                         for rec in records:
-                            data = rec.data()
-                            triples.append((v.s.value, v.p.value, data["dest"]))
+                            triples.append((v.s.value, v.p.value, rec[0]))
 
                 else:
 
@@ -128,50 +136,52 @@ class Processor(ConsumerProducer):
                         records = self.io.query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Literal {value: $value}) "
                             "RETURN rel.uri as rel",
-                            src=v.s.value, value=v.o.value,
-                            database_=self.db,
+                            params={
+                                "src": v.s.value,
+                                "value": v.o.value,
+                            },
                         ).result_set
 
                         for rec in records:
-                            data = rec.data()
-                            triples.append((v.s.value, data["rel"], v.o.value))
+                            triples.append((v.s.value, rec[0], v.o.value))
 
                         records = self.io.query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Node {uri: $uri}) "
                             "RETURN rel.uri as rel",
-                            src=v.s.value, uri=v.o.value,
-                            database_=self.db,
+                            params={
+                                "src": v.s.value,
+                                "uri": v.o.value,
+                            },
                         ).result_set
 
                         for rec in records:
-                            data = rec.data()
-                            triples.append((v.s.value, data["rel"], v.o.value))
+                            triples.append((v.s.value, rec[0], v.o.value))
 
                     else:
 
-                        # S
+                        # s
 
                         records = self.io.query(
-                            "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Literal) "
-                            "RETURN rel.uri as rel, dest.value as dest",
-                            src=v.s.value,
-                            database_=self.db,
+                            "match (src:node {uri: $src})-[rel:rel]->(dest:literal) "
+                            "return rel.uri as rel, dest.value as dest",
+                            params={
+                                "src": v.s.value,
+                            },
                         ).result_set
 
                         for rec in records:
-                            data = rec.data()
-                            triples.append((v.s.value, data["rel"], data["dest"]))
+                            triples.append((v.s.value, rec[0], rec[1]))
 
                         records = self.io.query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Node) "
                             "RETURN rel.uri as rel, dest.uri as dest",
-                            src=v.s.value,
-                            database_=self.db,
+                            params={
+                                "src": v.s.value,
+                            },
                         ).result_set
 
                         for rec in records:
-                            data = rec.data()
-                            triples.append((v.s.value, data["rel"], data["dest"]))
+                            triples.append((v.s.value, rec[0], rec[1]))
 
 
             else:
@@ -185,24 +195,26 @@ class Processor(ConsumerProducer):
                         records = self.io.query(
                             "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Literal {value: $value}) "
                             "RETURN src.uri as src",
-                            uri=v.p.value, value=v.o.value,
-                            database_=self.db,
+                            params={
+                                "uri": v.p.value,
+                                "value": v.o.value,
+                            },
                         ).result_set
 
                         for rec in records:
-                            data = rec.data()
-                            triples.append((data["src"], v.p.value, v.o.value))
+                            triples.append((rec[0], v.p.value, v.o.value))
 
                         records = self.io.query(
                             "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Node {uri: $uri}) "
                             "RETURN src.uri as src",
-                            uri=v.p.value, dest=v.o.value,
-                            database_=self.db,
+                            params={
+                                "uri": v.p.value,
+                                "dest": v.o.value,
+                            },
                         ).result_set
 
                         for rec in records:
-                            data = rec.data()
-                            triples.append((data["src"], v.p.value, v.o.value))
+                            triples.append((rec[0], v.p.value, v.o.value))
 
                     else:
 
@@ -211,24 +223,24 @@ class Processor(ConsumerProducer):
                         records = self.io.query(
                             "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Literal) "
                             "RETURN src.uri as src, dest.value as dest",
-                            uri=v.p.value,
-                            database_=self.db,
+                            params={
+                                "uri": v.p.value,
+                            },
                         ).result_set
 
                         for rec in records:
-                            data = rec.data()
-                            triples.append((data["src"], v.p.value, data["dest"]))
+                            triples.append((rec[0], v.p.value, rec[1]))
 
                         records = self.io.query(
                             "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Node) "
                             "RETURN src.uri as src, dest.uri as dest",
-                            uri=v.p.value,
-                            database_=self.db,
+                            params={
+                                "uri": v.p.value,
+                            },
                         ).result_set
 
                         for rec in records:
-                            data = rec.data()
-                            triples.append((data["src"], v.p.value, data["dest"]))
+                            triples.append((rec[0], v.p.value, rec[1]))
 
                 else:
 
@@ -239,24 +251,24 @@ class Processor(ConsumerProducer):
                         records = self.io.query(
                             "MATCH (src:Node)-[rel:Rel]->(dest:Literal {value: $value}) "
                             "RETURN src.uri as src, rel.uri as rel",
-                            value=v.o.value,
-                            database_=self.db,
+                            params={
+                                "value": v.o.value,
+                            },
                         ).result_set
 
                         for rec in records:
-                            data = rec.data()
-                            triples.append((data["src"], data["rel"], v.o.value))
+                            triples.append((rec[0], rec[1], v.o.value))
 
                         records = self.io.query(
                             "MATCH (src:Node)-[rel:Rel]->(dest:Node {uri: $uri}) "
                             "RETURN src.uri as src, rel.uri as rel",
-                            uri=v.o.value,
-                            database_=self.db,
+                            params={
+                                "uri": v.o.value,
+                            },
                         ).result_set
 
                         for rec in records:
-                            data = rec.data()
-                            triples.append((data["src"], data["rel"], v.o.value))
+                            triples.append((rec[0], rec[1], v.o.value))
 
                     else:
 
@@ -265,22 +277,18 @@ class Processor(ConsumerProducer):
                         records = self.io.query(
                             "MATCH (src:Node)-[rel:Rel]->(dest:Literal) "
                             "RETURN src.uri as src, rel.uri as rel, dest.value as dest",
-                            database_=self.db,
                         ).result_set
 
                         for rec in records:
-                            data = rec.data()
-                            triples.append((data["src"], data["rel"], data["dest"]))
+                            triples.append((rec[0], rec[1], rec[2]))
 
                         records = self.io.query(
                             "MATCH (src:Node)-[rel:Rel]->(dest:Node) "
                             "RETURN src.uri as src, rel.uri as rel, dest.uri as dest",
-                            database_=self.db,
                         ).result_set
 
                         for rec in records:
-                            data = rec.data()
-                            triples.append((data["src"], data["rel"], data["dest"]))
+                            triples.append((rec[0], rec[1], rec[2]))
 
             triples = [
                 Triple(

@@ -22,25 +22,16 @@ class SocketEndpoint:
         
         async for msg in ws:
             # On error, finish
-            if msg.type == WSMsgType.ERROR:
-                break
+            if msg.type == WSMsgType.TEXT:
+                # Ignore incoming message
+                continue
+            elif msg.type == WSMsgType.BINARY:
+                # Ignore incoming message
+                continue
             else:
-                # Ignore incoming messages
-                pass
+                break
 
         running.stop()
-
-    async def async_thread(self, ws, running):
-
-        while running.get():
-            try:
-                await asyncio.sleep(1)
-
-            except TimeoutError:
-                continue
-
-            except Exception as e:
-                print(f"Exception: {str(e)}", flush=True)
         
     async def handle(self, request):
 
@@ -56,20 +47,14 @@ class SocketEndpoint:
         ws = web.WebSocketResponse()
         await ws.prepare(request)
 
-        task = asyncio.create_task(self.async_thread(ws, running))
-
         try:
-
             await self.listener(ws, running)
-
         except Exception as e:
             print(e, flush=True)
 
         running.stop()
 
         await ws.close()
-
-        await task
 
         return ws
 

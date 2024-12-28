@@ -1,6 +1,6 @@
 
 """
-Graph writer.  Input is graph edge.  Writes edges to Cassandra graph.
+Graph writer.  Input is graph edge.  Writes edges to Memgraph.
 """
 
 import pulsar
