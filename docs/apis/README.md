@@ -56,16 +56,17 @@ Cons:
     using a basic REST API, particular if you want to cover all of the error
     scenarios well
 
-## Further reading
+## See also
 
 - [TrustGraph websocket overview](websocket.md)
 - [TrustGraph Pulsar overview](pulsar.md)
 - API details
+  - [Text completion](api-text-completion.md)
+  - [Prompt completion](api-prompt.md)
   - [Graph RAG](api-graph-rag.md)
-  - [Document load](api-document-load.md)
   - [Agent](api-agent.md)
   - [Embeddings](api-embeddings.md)
-  - [Text completion](api-text-completion.md)
   - [Graph embeddings](api-graph-embeddings.md)
   - [Triples query](api-triples-query.md)
+  - [Document load](api-document-load.md)
 

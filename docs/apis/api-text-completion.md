@@ -56,7 +56,6 @@ e.g.
 Request:
 
 ```
-
 {
     "id": "blrqotfefnmnh7de-1",
     "service": "text-completion",
@@ -67,11 +66,9 @@ Request:
 }
 ```
 
-Responses:
+Response:
 
 ```
-
-
 {
     "id": "blrqotfefnmnh7de-1",
     "response": {
@@ -83,7 +80,7 @@ Responses:
 
 ## Pulsar
 
-The Pulsar schema for the Agent API is defined in Python code here:
+The Pulsar schema for the Text Completion API is defined in Python code here:
 
 https://github.com/trustgraph-ai/trustgraph/blob/master/trustgraph-base/trustgraph/schema/models.py
 
