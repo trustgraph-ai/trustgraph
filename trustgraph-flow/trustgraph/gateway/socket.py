@@ -44,7 +44,10 @@ class SocketEndpoint:
             return web.HTTPUnauthorized()
         
         running = Running()
-        ws = web.WebSocketResponse()
+
+        # 50MB max message size
+        ws = web.WebSocketResponse(max_msg_size=52428800)
+
         await ws.prepare(request)
 
         try:

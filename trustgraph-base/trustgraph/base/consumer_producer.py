@@ -66,6 +66,7 @@ class ConsumerProducer(BaseProcessor):
         self.producer = self.client.create_producer(
             topic=output_queue,
             schema=JsonSchema(output_schema),
+            chunking_enabled=True,
         )
 
         self.consumer = self.client.subscribe(

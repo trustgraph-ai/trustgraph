@@ -34,6 +34,7 @@ class Producer(BaseProcessor):
         self.producer = self.client.create_producer(
             topic=output_queue,
             schema=JsonSchema(output_schema),
+            chunking_enabled=True,
         )
 
     def send(self, msg, properties={}):
