@@ -83,9 +83,6 @@ input = {
     # Additional metadata in the form of RDF triples
     "metadata": metadata,
     
-    # Text character set.  Default is UTF-8
-    "charset": "utf-8",
-    
     # The PDF document, is presented as a base64 encoded document.
     "data": base64.b64encode(text).decode("utf-8")
 

@@ -1,3 +1,15 @@
+
+Note! this is a subset of possible configurations, to generate your own
+launch config use the config util...
+
+- Production: https://config-ui.demo.trustgraph.ai
+- Early release: https://dev.config-ui.demo.trustgraph.ai
+
+The config util auto-generates deployment instructions for your
+configuration, so that's the recommended way to deploy.
+
+----------------------------------------------------------------------------
+
 These are launch configurations for TrustGraph.  See https://trustgraph.ai for
 the quickstart using docker compose.
 
