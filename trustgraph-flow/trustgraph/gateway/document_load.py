@@ -1,7 +1,7 @@
 
 import base64
 
-from .. schema import Document
+from .. schema import Document, Metadata
 from .. schema import document_ingest_queue
 
 from . sender import ServiceSender
@@ -18,25 +18,24 @@ class DocumentLoadSender(ServiceSender):
 
     def to_request(self, body):
 
-        if "metadata" in data:
-            metadata = to_subgraph(data["metadata"])
+        if "metadata" in body:
+            metadata = to_subgraph(body["metadata"])
         else:
             metadata = []
 
         # Doing a base64 decoe/encode here to make sure the
         # content is valid base64
-        doc = base64.b64decode(data["data"])
+        doc = base64.b64decode(body["data"])
 
         print("Document received")
 
         return Document(
             metadata=Metadata(
-                id=data.get("id"),
+                id=body.get("id"),
                 metadata=metadata,
-                user=data.get("user", "trustgraph"),
-                collection=data.get("collection", "default"),
+                user=body.get("user", "trustgraph"),
+                collection=body.get("collection", "default"),
             ),
             data=base64.b64encode(doc).decode("utf-8")
         )
-
 

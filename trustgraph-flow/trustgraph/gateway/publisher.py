@@ -7,7 +7,7 @@ import threading
 class Publisher:
 
     def __init__(self, pulsar_host, topic, schema=None, max_size=10,
-                 chunking_enabled=False):
+                 chunking_enabled=True):
         self.pulsar_host = pulsar_host
         self.topic = topic
         self.schema = schema
