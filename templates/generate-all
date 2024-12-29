@@ -88,7 +88,7 @@ def full_config_object(
 
     return config_object([
         graph_store, "pulsar", vector_store, embeddings,
-        "graph-rag", "grafana", "trustgraph", llm
+        "graph-rag", "grafana", "trustgraph", llm, "workbench-ui",
     ])
 
 def generate_config(
@@ -119,13 +119,19 @@ def generate_config(
 def generate_all(output, version):
 
     for platform in [
-            "docker-compose", "minikube-k8s", "gcp-k8s"
+            "docker-compose",
+            # "minikube-k8s", "gcp-k8s"
     ]:
         for model in [
-                "azure", "azure-openai", "bedrock", "claude", "cohere",
-                "googleaistudio", "llamafile", "ollama", "openai", "vertexai",
+                # "azure", "azure-openai", "bedrock", "claude", "cohere",
+                # "googleaistudio", "llamafile",
+                "ollama",
+                # "openai", "vertexai",
         ]:
-            for graph in [ "cassandra", "neo4j", "falkordb" ]:
+            for graph in [
+                    "cassandra",
+                    # "neo4j", "falkordb"
+            ]:
 
                 y = generate_config(
                     llm=model, graph_store=graph, platform=platform,

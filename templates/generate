@@ -81,7 +81,7 @@ def main():
         print("Usage:")
         print("  generate <outfile> <version> < input.json")
         print()
-        raise RuntimeError("Arg error")
+        sys.exit(1)
 
     outfile = sys.argv[1]
     version = sys.argv[2]

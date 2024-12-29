@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+
+import requests
+import json
+import sys
+import base64
+
+url = "http://localhost:8088/api/v1/"
+
+############################################################################
+
+text = open("docs/README.cats", "rb").read()
+
+# Some random identifiers.  The doc ID is important, as extracted knowledge
+# is linked back to this identifier
+org_id = "https://trustgraph.ai/org/3c35111a-f8ce-54b2-4dd6-c673f8bf0d09"
+doc_id = "https://trustgraph.ai/doc/4faa45c1-f91a-a96a-d44f-2e57b9813db8"
+pub_id = "https://trustgraph.ai/pubev/a847d950-a281-4099-aaab-c5e35333ff61"
+
+# Organization metadata
+org_facts = [
+    [org_id, "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+     "https://schema.org/Organization"],
+    [org_id, "http://www.w3.org/2000/01/rdf-schema#label", "trustgraph.ai"],
+    [org_id, "https://schema.org/name", "trustgraph.ai"]
+]
+
+# Publication metadata.  Note how it links to the Organization
+pub_facts = [
+    [pub_id, "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+     "https://schema.org/PublicationEvent"],
+    [pub_id, "https://schema.org/description", "Uploading to Github"],
+    [pub_id, "https://schema.org/endDate", "2024-10-23"],
+    [pub_id, "https://schema.org/publishedBy", org_id],
+    [pub_id, "https://schema.org/startDate", "2024-10-23"]
+]
+
+# Document metadata.  Note how it links to the publication event
+doc_facts = [
+    [doc_id, "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+     "https://schema.org/DigitalDocument"],
+    [doc_id, "http://www.w3.org/2000/01/rdf-schema#label", "Mark's cats"],
+    [doc_id, "https://schema.org/copyrightHolder", "trustgraph.ai"],
+    [doc_id, "https://schema.org/copyrightNotice", "Public domain"],
+    [doc_id, "https://schema.org/copyrightYear", "2024"],
+    [doc_id, "https://schema.org/description",
+     "This document describes Mark's cats"],
+    [doc_id, "https://schema.org/keywords", "animals"],
+    [doc_id, "https://schema.org/keywords", "cats"],
+    [doc_id, "https://schema.org/keywords", "home-life"],
+    [doc_id, "https://schema.org/name", "Mark's cats"],
+    [doc_id, "https://schema.org/publication", pub_id],
+    [doc_id, "https://schema.org/url", "https://example.com"]
+]
+
+def to_value(x):
+    if x.startswith("https://"):
+        return { "v": x, "e": True }
+    if x.startswith("http://"):
+        return { "v": x, "e": True }
+    return { "v": x, "e": False }
+
+# Convert the above metadata into the right form
+metadata = [
+    { "s": to_value(t[0]), "p": to_value(t[1]), "o": to_value(t[2]) }
+    for t in org_facts + pub_facts + doc_facts
+]
+
+input = {
+    
+    # Document identifer.  Knowledge derived by TrustGraph is linked to this
+    # identifier, so the additional metadata specified above is linked to the
+    # derived knowledge and users of the knowledge graph could see
+    # information about the source of knowledge
+    "id": doc_id,
+    
+    # Additional metadata in the form of RDF triples
+    "metadata": metadata,
+    
+    # Text character set.  Default is UTF-8
+    "charset": "utf-8",
+    
+    # The PDF document, is presented as a base64 encoded document.
+    "text": base64.b64encode(text).decode("utf-8")
+    
+}
+
+resp = requests.post(
+    f"{url}load/text",
+    json=input,
+)
+
+resp = resp.json()
+
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
+
+print(resp)
+

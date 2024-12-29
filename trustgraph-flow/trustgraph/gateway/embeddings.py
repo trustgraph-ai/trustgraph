@@ -26,4 +26,3 @@ class EmbeddingsRequestor(ServiceRequestor):
     def from_response(self, message):
         return { "vectors": message.vectors }, True
 
-
