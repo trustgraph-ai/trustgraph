@@ -65,7 +65,10 @@ class ServiceRequestor:
                     raise RuntimeError("Timeout")
 
                 if resp.error:
-                    return { "error": resp.error.message }
+                    err = { "error": resp.error.message }
+                    if responder:
+                        await responder(err, True)
+                    return err
 
                 resp, fin = self.from_response(resp)
 
@@ -81,7 +84,10 @@ class ServiceRequestor:
 
             logging.error(f"Exception: {e}")
 
-            return { "error": str(e) }
+            err = { "error": str(e) }
+            if responder:
+                await responder(err, True)
+            return err
 
         finally:
             self.sub.unsubscribe(id)
