@@ -39,7 +39,8 @@ class ServiceSender:
                 self.pub.send, None, self.to_request(request)
             )
 
-            return {}
+            if responder:
+                await responder({}, True)
 
         except Exception as e:
 
