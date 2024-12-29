@@ -36,7 +36,7 @@ class TextLoadSender(ServiceSender):
         return TextDocument(
             metadata=Metadata(
                 id=body.get("id"),
-                metabody=metadata,
+                metadata=metadata,
                 user=body.get("user", "trustgraph"),
                 collection=body.get("collection", "default"),
             ),
