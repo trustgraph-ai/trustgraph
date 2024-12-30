@@ -15,7 +15,7 @@
 
 </div>
 
-TrustGraph is a fully agentic AI system for complex unstructured data. Extract your documents to knowledge graphs and vector embeddings with customizable data extraction agents. Deploy AI agents that analyze your data to understand the complex relationships scattered across data silos.
+TrustGraph is a fully agentic AI system for complex unstructured data. Extract your documents to knowledge graphs and vector embeddings with customizable data extraction agents. Deploy AI agents that analyze your data to understand complex relationships visualized in 3D.
 
 ## Key Features
 
