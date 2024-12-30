@@ -35,20 +35,6 @@ chunk_ingest_queue = topic('chunk-load')
 
 ############################################################################
 
-# Chunk embeddings are an embeddings associated with a text chunk
-
-class EntityContext(Record):
-    entity = Value()
-    context = String()
-
-class EntityContexts(Record):
-    metadata = Metadata()
-    entities = Array(EntityContext())
-
-entity_contexts_ingest_queue = topic('entity-contexts-load')
-
-############################################################################
-
 # Doc embeddings query
 
 class DocumentEmbeddingsRequest(Record):
@@ -65,3 +51,4 @@ document_embeddings_request_queue = topic(
 document_embeddings_response_queue = topic(
     'doc-embeddings', kind='non-persistent', namespace='response',
 )
+

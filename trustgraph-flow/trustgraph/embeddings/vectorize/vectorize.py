@@ -4,8 +4,9 @@ Vectorizer, calls the embeddings service to get embeddings for a chunk.
 Input is text chunk, output is chunk and vectors.
 """
 
-from ... schema import Chunk, ChunkEmbeddings
-from ... schema import chunk_ingest_queue, chunk_embeddings_ingest_queue
+from ... schema import EntityContexts, EntityEmbeddings, GraphEmbeddings
+from ... schema import entity_contexts_ingest_queue
+from ... schema import graph_embeddings_store_queue
 from ... schema import embeddings_request_queue, embeddings_response_queue
 from ... clients.embeddings_client import EmbeddingsClient
 from ... log_level import LogLevel
@@ -13,8 +14,8 @@ from ... base import ConsumerProducer
 
 module = ".".join(__name__.split(".")[1:-1])
 
-default_input_queue = chunk_ingest_queue
-default_output_queue = chunk_embeddings_ingest_queue
+default_input_queue = entity_contexts_ingest_queue
+default_output_queue = graph_embeddings_store_queue
 default_subscriber = module
 
 class Processor(ConsumerProducer):
@@ -38,8 +39,8 @@ class Processor(ConsumerProducer):
                 "embeddings_request_queue": emb_request_queue,
                 "embeddings_response_queue": emb_response_queue,
                 "subscriber": subscriber,
-                "input_schema": Chunk,
-                "output_schema": ChunkEmbeddings,
+                "input_schema": EntityContexts,
+                "output_schema": GraphEmbeddings,
             }
         )
 
@@ -50,9 +51,9 @@ class Processor(ConsumerProducer):
             subscriber=module + "-emb",
         )
 
-    def emit(self, metadata, chunk, vectors):
+    def emit(self, rec, vectors):
 
-        r = ChunkEmbeddings(metadata=metadata, chunk=chunk, vectors=vectors)
+        r = GraphEmbeddings(metadata=metadata, chunk=chunk, vectors=vectors)
         self.producer.send(r)
 
     def handle(self, msg):
@@ -60,20 +61,33 @@ class Processor(ConsumerProducer):
         v = msg.value()
         print(f"Indexing {v.metadata.id}...", flush=True)
 
-        chunk = v.chunk.decode("utf-8")
+        entities = []
 
         try:
 
-            vectors = self.embeddings.request(chunk)
+            for entity in v.entities:
 
-            self.emit(
+                vectors = self.embeddings.request(entity.context)
+
+                entities.append(
+                    EntityEmbeddings(
+                        entity=entity.entity,
+                        vectors=vectors
+                    )
+                )
+
+            r = GraphEmbeddings(
                 metadata=v.metadata,
-                chunk=chunk.encode("utf-8"),
-                vectors=vectors
+                entities=entiities,
             )
+
+            self.producer.send(r)
 
         except Exception as e:
             print("Exception:", e, flush=True)
+
+            # Retry
+            raise e
 
         print("Done.", flush=True)
 
