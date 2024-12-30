@@ -104,6 +104,14 @@ class Processor(ConsumerProducer):
         )
         self.producer.send(t)
 
+    def emit_ecs(self, metadata, entities):
+
+        t = EntityContexts(
+            metadata=metadata,
+            entities=entities,
+        )
+        self.ec_prod.send(t)
+
     def handle(self, msg):
 
         v = msg.value()
@@ -116,6 +124,7 @@ class Processor(ConsumerProducer):
             defs = self.get_definitions(chunk)
 
             triples = []
+            entities = []
 
             # FIXME: Putting metadata into triples store is duplicated in
             # relationships extractor too
@@ -154,6 +163,14 @@ class Processor(ConsumerProducer):
                     o=Value(value=v.metadata.id, is_uri=True)
                 ))
 
+                ec = EntityContext(
+                    entity=s_value,
+                    context=defn.definition,
+                )
+
+                entities.append(ec)
+                    
+
             self.emit_edges(
                 Metadata(
                     id=v.metadata.id,
@@ -162,6 +179,16 @@ class Processor(ConsumerProducer):
                     collection=v.metadata.collection,
                 ),
                 triples
+            )
+
+            self.emit_ecs(
+                Metadata(
+                    id=v.metadata.id,
+                    metadata=[],
+                    user=v.metadata.user,
+                    collection=v.metadata.collection,
+                ),
+                entities
             )
 
         except Exception as e:
