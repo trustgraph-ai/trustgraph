@@ -40,8 +40,11 @@ TrustGraph is a fully agentic AI system for complex unstructured data. Extract y
 For developers, **TrustGraph** has the following APIs and CLI:
 
 - [**REST API**](https://trustgraph.ai/docs/api/apistarted)
+- [**Websocket API**](https://trustgraph.ai/docs/api/apistarted)
 - [**Python SDK**](https://trustgraph.ai/docs/api/apistarted)
 - [**TrustGraph CLI**](https://trustgraph.ai/docs/running/cli)
+
+See the [API Developer's Guide](#api-documentation) for more information.
 
 For users, **TrustGraph** has the following interfaces:
 
@@ -179,7 +182,7 @@ tg-invoke-agent -v -q "Write a blog post about the 5 key takeaways from SB1047 a
 > [!TIP]
 > Adding `-v` to the agent request will return all of the agent manager's thoughts and observations that led to the final response.
 
-## API documentation
+## API Documentation
 
 [Developing on TrustGraph using APIs](docs/apis/README.md)
 
