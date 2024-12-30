@@ -40,6 +40,31 @@ class Processor(Consumer):
 
         self.client = QdrantClient(url=store_uri)
 
+    def get_collection(self, dim, user, collection):
+
+        cname = (
+            "t_" + user + "_" + collection + "_" + str(dim)
+        )
+
+        if cname != self.last_collection:
+
+            if not self.client.collection_exists(cname):
+
+                try:
+                    self.client.create_collection(
+                        collection_name=cname,
+                        vectors_config=VectorParams(
+                            size=dim, distance=Distance.COSINE
+                        ),
+                    )
+                except Exception as e:
+                    print("Qdrant collection creation failed")
+                    raise e
+
+            self.last_collection = cname
+
+        return cname
+
     def handle(self, msg):
 
         v = msg.value()
@@ -51,27 +76,10 @@ class Processor(Consumer):
             for vec in entity.vectors:
 
                 dim = len(vec)
-                collection = (
-                    "t_" + v.metadata.user + "_" + v.metadata.collection +
-                    "_" + str(dim)
+
+                collection = self.get_collection(
+                    dim, v.metadata.user, v.metadata.collection
                 )
-
-                if collection != self.last_collection:
-
-                    if not self.client.collection_exists(collection):
-
-                        try:
-                            self.client.create_collection(
-                                collection_name=collection,
-                                vectors_config=VectorParams(
-                                    size=dim, distance=Distance.COSINE
-                                ),
-                            )
-                        except Exception as e:
-                            print("Qdrant collection creation failed")
-                            raise e
-
-                    self.last_collection = collection
 
                 self.client.upsert(
                     collection_name=collection,

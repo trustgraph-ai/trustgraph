@@ -60,76 +60,82 @@ class Processor(Consumer):
 
         self.last_index_name = None
 
+    def create_index(self, index_name, dim):
+
+        self.pinecone.create_index(
+            name = index_name,
+            dimension = dim,
+            metric = "cosine",
+            spec = ServerlessSpec(
+                cloud = self.cloud,
+                region = self.region,
+            )
+        )
+
+        for i in range(0, 1000):
+
+            if self.pinecone.describe_index(
+                    index_name
+            ).status["ready"]:
+                break
+
+            time.sleep(1)
+
+        if not self.pinecone.describe_index(
+                index_name
+        ).status["ready"]:
+            raise RuntimeError(
+                "Gave up waiting for index creation"
+            )
+
     def handle(self, msg):
 
         v = msg.value()
 
         id = str(uuid.uuid4())
 
-        if v.entity.value == "" or v.entity.value is None: return
+        for entity in v.entities:
 
-        for vec in v.vectors:
+            if v.entity.value == "" or v.entity.value is None: continue
 
-            dim = len(vec)
+            for vec in entity.vectors:
 
-            index_name = (
-                "t-" + v.metadata.user + "-" + str(dim)
-            )
+                dim = len(vec)
 
-            if index_name != self.last_index_name:
+                index_name = (
+                    "t-" + v.metadata.user + "-" + str(dim)
+                )
 
-                if not self.pinecone.has_index(index_name):
+                if index_name != self.last_index_name:
 
-                    try:
+                    if not self.pinecone.has_index(index_name):
 
-                        self.pinecone.create_index(
-                            name = index_name,
-                            dimension = dim,
-                            metric = "cosine",
-                            spec = ServerlessSpec(
-                                cloud = self.cloud,
-                                region = self.region,
-                            )
-                        )
+                        try:
 
-                        for i in range(0, 1000):
+                            self.create_index(index_name, dim)
 
-                            if self.pinecone.describe_index(
-                                    index_name
-                            ).status["ready"]:
-                                break
+                        except Exception as e:
+                            print("Pinecone index creation failed")
+                            raise e
 
-                            time.sleep(1)
+                        print(f"Index {index_name} created", flush=True)
 
-                        if not self.pinecone.describe_index(
-                                index_name
-                        ).status["ready"]:
-                            raise RuntimeError(
-                                "Gave up waiting for index creation"
-                            )
+                    self.last_index_name = index_name
 
-                    except Exception as e:
-                        print("Pinecone index creation failed")
-                        raise e
+                index = self.pinecone.Index(index_name)
 
-                    print(f"Index {index_name} created", flush=True)
+                records = [
+                    {
+                        "id": id,
+                        "values": vec,
+                        "metadata": { "entity": entity.value },
+                    }
+                ]
 
-                self.last_index_name = index_name
-
-            index = self.pinecone.Index(index_name)
-
-            records = [
-                {
-                    "id": id,
-                    "values": vec,
-                    "metadata": { "entity": v.entity.value },
-                }
-            ]
-
-            index.upsert(
-                vectors = records,
-                namespace = v.metadata.collection,
-            )
+                index.upsert(
+                    vectors = records,
+                    namespace = v.metadata.collection,
+                )
 
     @staticmethod
     def add_args(parser):
