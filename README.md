@@ -83,6 +83,15 @@ When finished, shutting down TrustGraph is as simple as:
 docker compose down -v
 ```
 
+### Data Workbench
+
+If added to the build in the `Configuration Portal`, the `Data Workbench` will be available at port `8888`. The `Data Workbench` has 4 capabilities:
+
+- **System Chat** 💬: GraphRAG queries in a chat interface
+- **Data Explorer** 🕵️: See semantic relationships in a list structure
+- **Data Visualizer** 🌐: Visualize semantic relationships in **3D**
+- **Data Loader** 📂: Directly load `.pdf`, `.txt`, or `.md` into the system 
+
 ### Example TrustGraph Notebooks
 
 - [**REST API Notebooks**](https://github.com/trustgraph-ai/example-notebooks/tree/master/api-examples)
