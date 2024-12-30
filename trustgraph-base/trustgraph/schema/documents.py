@@ -37,12 +37,15 @@ chunk_ingest_queue = topic('chunk-load')
 
 # Chunk embeddings are an embeddings associated with a text chunk
 
-class ChunkEmbeddings(Record):
-    metadata = Metadata()
-    vectors = Array(Array(Double()))
-    chunk = Bytes()
+class EntityContext(Record):
+    entity = Value()
+    context = String()
 
-chunk_embeddings_ingest_queue = topic('chunk-embeddings-load')
+class EntityContexts(Record):
+    metadata = Metadata()
+    entities = Array(EntityContext())
+
+entity_contexts_ingest_queue = topic('entity-contexts-load')
 
 ############################################################################
 

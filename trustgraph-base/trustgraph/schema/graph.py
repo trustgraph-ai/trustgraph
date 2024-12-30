@@ -9,10 +9,13 @@ from . metadata import Metadata
 
 # Graph embeddings are embeddings associated with a graph entity
 
+class EntityEmbeddings(Record):
+    entity = Value()
+    vectors = Array(Array(Double()))
+
 class GraphEmbeddings(Record):
     metadata = Metadata()
-    vectors = Array(Array(Double()))
-    entity = Value()
+    entities = Array(EntityEmbeddings())
 
 graph_embeddings_store_queue = topic('graph-embeddings-store')
 
