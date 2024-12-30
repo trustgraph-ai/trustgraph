@@ -38,9 +38,11 @@ class Processor(Consumer):
 
         v = msg.value()
 
-        if v.entity.value != "":
-            for vec in v.vectors:
-                self.vecstore.insert(vec, v.entity.value)
+        for entity in v.entities:
+
+            if entity.entity.value != "" and entity.entity.value is not None:
+                for vec in entity.vectors:
+                    self.vecstore.insert(vec, entity.entity.value)
 
     @staticmethod
     def add_args(parser):
