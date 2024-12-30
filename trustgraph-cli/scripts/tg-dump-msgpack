@@ -9,6 +9,7 @@ diagnostic utility.
 import msgpack
 import sys
 import argparse
+import json
 
 def dump(input_file, action):
 
@@ -17,7 +18,7 @@ def dump(input_file, action):
         unpacker = msgpack.Unpacker(f, raw=False)
 
         for unpacked in unpacker:
-            print(unpacked)
+            print(json.dumps(unpacked))
 
 def summary(input_file, action):
 
