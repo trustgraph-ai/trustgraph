@@ -55,7 +55,7 @@ pip3 install trustgraph-cli==0.18.14
 > [!NOTE]
 > The `TrustGraph CLI` version must match the desired `TrustGraph` release version.
 
-### Configuration Portal
+## Configuration Portal
 
 TrustGraph is endlessly customizable by editing the `YAML` launch files. The `Configuration Portal` provides a quick and intuitive tool for building a custom configuration that deploys with Docker, Podman, Minikube, or Google Cloud. There is a `Configuration Portal` for the both the lastest and stable `TrustGraph` releases.
 
@@ -83,7 +83,7 @@ When finished, shutting down TrustGraph is as simple as:
 docker compose down -v
 ```
 
-### Data Workbench
+## Data Workbench
 
 If added to the build in the `Configuration Portal`, the `Data Workbench` will be available at port `8888`. The `Data Workbench` has 4 capabilities:
 
@@ -92,7 +92,7 @@ If added to the build in the `Configuration Portal`, the `Data Workbench` will b
 - **Data Visualizer** 🌐: Visualize semantic relationships in **3D**
 - **Data Loader** 📂: Directly load `.pdf`, `.txt`, or `.md` into the system 
 
-### Example TrustGraph Notebooks
+## Example TrustGraph Notebooks
 
 - [**REST API Notebooks**](https://github.com/trustgraph-ai/example-notebooks/tree/master/api-examples)
 - [**Python SDK Notebooks**](https://github.com/trustgraph-ai/example-notebooks/tree/master/api-library)
