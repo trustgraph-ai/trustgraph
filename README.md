@@ -11,7 +11,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
 
-🚀 [Getting Started](https://trustgraph.ai/docs/getstarted) ⚙️ [API Docs](https://trustgraph.ai/docs/api/apistarted/) 🧑‍💻 [CLI Docs](https://trustgraph.ai/docs/running/cli) 📺 [YouTube](https://www.youtube.com/@TrustGraph?sub_confirmation=1) 💬 [Discord](https://discord.gg/sQMwkRz5GX) 📖 [Blog](https://blog.trustgraph.ai) 📋 [Use Cases](https://trustgraph.ai/docs/usecases)
+🚀 [Getting Started](https://trustgraph.ai/docs/getstarted) ⚙️ [API Docs](docs/apis/README.md) 🧑‍💻 [CLI Docs](https://trustgraph.ai/docs/running/cli) 📺 [YouTube](https://www.youtube.com/@TrustGraph?sub_confirmation=1) 💬 [Discord](https://discord.gg/sQMwkRz5GX) 📖 [Blog](https://blog.trustgraph.ai) 📋 [Use Cases](https://trustgraph.ai/docs/usecases)
 
 </div>
 
@@ -39,8 +39,8 @@ TrustGraph is a fully agentic AI system for complex unstructured data. Extract y
 
 For developers, **TrustGraph** has the following APIs and CLI:
 
-- [**REST API**](https://trustgraph.ai/docs/api/apistarted)
-- [**Websocket API**](https://trustgraph.ai/docs/api/apistarted)
+- [**REST API**](docs/apis/README.md#rest-apis)
+- [**Websocket API**](docs/apis/README.md#websocket-api)
 - [**Python SDK**](https://trustgraph.ai/docs/api/apistarted)
 - [**TrustGraph CLI**](https://trustgraph.ai/docs/running/cli)
 
