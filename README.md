@@ -1,8 +1,8 @@
 <div align="center">
 
-![TrustGraph banner](TG-silos.svg)
+![TrustGraph banner](TG-explore.svg)
 
-## Discover the Knowledge Trapped in Data Silos
+## See Your Data in a New Light
 
 </div>
 
