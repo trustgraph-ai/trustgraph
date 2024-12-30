@@ -6,8 +6,6 @@ graph edges.
 """
 
 import urllib.parse
-import os
-from pulsar.schema import JsonSchema
 
 from .... schema import Chunk, Triple, Triples
 from .... schema import Metadata, Value

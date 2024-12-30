@@ -96,7 +96,8 @@ class Processor(Consumer):
 
         for entity in v.entities:
 
-            if v.entity.value == "" or v.entity.value is None: continue
+            if entity.entity.value == "" or entity.entity.value is None:
+                continue
 
             for vec in entity.vectors:
 
@@ -128,7 +129,7 @@ class Processor(Consumer):
                     {
                         "id": id,
                         "values": vec,
-                        "metadata": { "entity": entity.value },
+                        "metadata": { "entity": entity.entity.value },
                     }
                 ]
 

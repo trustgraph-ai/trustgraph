@@ -78,7 +78,7 @@ class Processor(ConsumerProducer):
 
             r = GraphEmbeddings(
                 metadata=v.metadata,
-                entities=entiities,
+                entities=entities,
             )
 
             self.producer.send(r)

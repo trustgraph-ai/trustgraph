@@ -71,7 +71,7 @@ class Processor(Consumer):
 
         for entity in v.entities:
 
-            if entity.value == "" or entity.value is None: return
+            if entity.entity.value == "" or entity.entity.value is None: return
 
             for vec in entity.vectors:
 
@@ -88,7 +88,7 @@ class Processor(Consumer):
                             id=str(uuid.uuid4()),
                             vector=vec,
                             payload={
-                                "entity": entity.value,
+                                "entity": entity.entity.value,
                             }
                         )
                     ]

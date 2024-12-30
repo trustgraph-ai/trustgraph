@@ -6,7 +6,7 @@ entity/context definitions for embedding.
 """
 
 import urllib.parse
-import json
+from pulsar.schema import JsonSchema
 
 from .... schema import Chunk, Triple, Triples, Metadata, Value
 from .... schema import EntityContext, EntityContexts
@@ -68,7 +68,7 @@ class Processor(ConsumerProducer):
         __class__.pubsub_metric.info({
             "input_queue": input_queue,
             "output_queue": output_queue,
-            "vector_queue": vector_queue,
+            "entity_context_queue": ec_queue,
             "prompt_request_queue": pr_request_queue,
             "prompt_response_queue": pr_response_queue,
             "subscriber": subscriber,
