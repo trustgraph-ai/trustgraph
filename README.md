@@ -1,12 +1,8 @@
-<div align="center">
+<img src="TG-explore-horizon.svg" width=100% />
 
-![TrustGraph banner](TG-explore-horizon.svg)
+<div align="center">
 
 ## See Your Data in a New Light
-
-</div>
-
-<div align="center">
 
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
