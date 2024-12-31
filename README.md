@@ -1,6 +1,6 @@
 <div align="center">
 
-![TrustGraph banner](TG-explore.svg)
+![TrustGraph banner](TG-explore-horizon.png)
 
 ## See Your Data in a New Light
 
