@@ -20,6 +20,18 @@ scrape_configs:
       - targets:
         - 'pulsar:8080'
 
+  - job_name: 'bookie'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
+        - 'bookie:8000'
+
+  - job_name: 'zookeeper'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
+        - 'zookeeper:8000'
+
   - job_name: 'pdf-decoder'
     scrape_interval: 5s
     static_configs:
