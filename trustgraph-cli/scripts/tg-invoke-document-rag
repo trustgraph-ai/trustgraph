@@ -1,50 +1,53 @@
 #!/usr/bin/env python3
 
 """
-Uses the GraphRAG service to answer a query
+Uses the GraphRAG service to answer a question
 """
 
 import argparse
 import os
-from trustgraph.clients.graph_rag_client import GraphRagClient
+from trustgraph.api import Api
 
-default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://localhost:6650')
+default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_user = 'trustgraph'
 default_collection = 'default'
 
-def query(pulsar_host, query, user, collection):
+def question(url, question, user, collection):
 
-    rag = GraphRagClient(pulsar_host=pulsar_host)
-    resp = rag.request(user=user, collection=collection, query=query)
+    rag = Api(url)
+
+# user=user, collection=collection, 
+    resp = rag.document_rag(question=question)
+
     print(resp)
 
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-graph-query-rag',
+        prog='tg-invoke-document-rag',
         description=__doc__,
     )
 
     parser.add_argument(
-        '-p', '--pulsar-host',
-        default=default_pulsar_host,
-        help=f'Pulsar host (default: {default_pulsar_host})',
+        '-u', '--url',
+        default=default_url,
+        help=f'API URL (default: {default_url})',
     )
 
     parser.add_argument(
-        '-q', '--query',
+        '-q', '--question',
         required=True,
-        help=f'Query to execute',
+        help=f'Question to answer',
     )
 
     parser.add_argument(
-        '-u', '--user',
+        '-U', '--user',
         default=default_user,
         help=f'User ID (default: {default_user})'
     )
 
     parser.add_argument(
-        '-c', '--collection',
+        '-C', '--collection',
         default=default_collection,
         help=f'Collection ID (default: {default_collection})'
     )
@@ -53,9 +56,9 @@ def main():
 
     try:
 
-        query(
-            pulsar_host=args.pulsar_host,
-            query=args.query,
+        question(
+            url=args.url,
+            question=args.question,
             user=args.user,
             collection=args.collection,
         )
