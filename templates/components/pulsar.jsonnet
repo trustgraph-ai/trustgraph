@@ -2,14 +2,22 @@ local base = import "base/base.jsonnet";
 local images = import "values/images.jsonnet";
 local url = import "values/url.jsonnet";
 
+// This is a Pulsar configuration.  Non-standalone mode so we deploy
+// individual components: bookkeeper, broker and zookeeper.
+// 
+// This also deploys the TrustGraph 'admin' container which initialises
+// TrustGraph-specific namespaces etc.
+
 {
 
     "pulsar" +: {
 
         create:: function(engine)
 
+            // Zookeeper volume
             local zkVolume = engine.volume("zookeeper").with_size("1G");
 
+            // Zookeeper container
             local zkContainer = 
                 engine.container("zookeeper")
                     .with_image(images.pulsar)
@@ -29,6 +37,7 @@ local url = import "values/url.jsonnet";
                     .with_port(2888, 2888, "zookeeper2")
                     .with_port(3888, 3888, "zookeeper3");
 
+            // Pulsar cluster init container
             local initContainer =
                 engine.container("pulsar-init")
                     .with_image(images.pulsar)
@@ -37,13 +46,17 @@ local url = import "values/url.jsonnet";
                         "-c",
                         "sleep 10 && bin/pulsar initialize-cluster-metadata --cluster cluster-a --zookeeper zookeeper:2181 --configuration-store zookeeper:2181 --web-service-url http://pulsar:8080 --broker-service-url pulsar://pulsar:6650",
                     ])
-                    // Excessive?!
-                    .with_limits("1", "3000M")
-                    .with_reservations("0.1", "3000M");
+                    .with_limits("1", "512M")
+                    .with_reservations("0.05", "512M")
+                    .with_environment({
+                        "PULSAR_MEM": "-Xms256m -Xmx256m -XX:MaxDirectMemorySize=256m",
+                    });
 
 
+            // Bookkeeper volume
             local bookieVolume = engine.volume("bookie").with_size("20G");
 
+            // Bookkeeper container
             local bookieContainer = 
                 engine.container("bookie")
                     .with_image(images.pulsar)
@@ -67,6 +80,7 @@ local url = import "values/url.jsonnet";
                     })
                     .with_port(3181, 3181, "bookie");
 
+            // Pulsar broker, stateless (uses ZK and Bookkeeper for state)
             local brokerContainer = 
                 engine.container("pulsar")
                     .with_image(images.pulsar)
@@ -91,6 +105,7 @@ local url = import "values/url.jsonnet";
                     .with_port(6650, 6650, "pulsar")
                     .with_port(8080, 8080, "admin");
 
+            // Trustgraph Pulsar initialisation
             local adminContainer =
                 engine.container("init-trustgraph")
                     .with_image(images.trustgraph)
@@ -102,6 +117,7 @@ local url = import "values/url.jsonnet";
                     .with_limits("1", "128M")
                     .with_reservations("0.1", "128M");
 
+            // Container sets
             local zkContainerSet = engine.containers(
                 "zookeeper",
                 [
@@ -137,14 +153,17 @@ local url = import "values/url.jsonnet";
                 ]
             );
 
+            // Zookeeper service
             local zkService =
                 engine.service(zkContainerSet)
                 .with_port(2181, 2181, "zookeeper");
 
+            // Bookkeeper service
             local bookieService =
                 engine.service(bookieContainerSet)
-                .with_port(6650, 6650, "bookie");
+                .with_port(3181, 3181, "bookie");
 
+            // Pulsar broker service
             local brokerService =
                 engine.service(brokerContainerSet)
                 .with_port(8080, 8080, "broker");
