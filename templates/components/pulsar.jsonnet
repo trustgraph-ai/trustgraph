@@ -63,7 +63,7 @@ local url = import "values/url.jsonnet";
                     .with_command([
                         "bash",
                         "-c",
-                        "sleep 5; bin/apply-config-from-env.py conf/bookkeeper.conf && exec bin/pulsar bookie"
+                        "bin/apply-config-from-env.py conf/bookkeeper.conf && exec bin/pulsar bookie"
                         // false ^ causes this to be a 'failure' exit.
                     ])
                     .with_limits("1", "800M")
