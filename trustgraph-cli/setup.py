@@ -40,6 +40,7 @@ setuptools.setup(
         "rdflib",
         "tabulate",
         "msgpack",
+        "websockets",
     ],
     scripts=[
         "scripts/tg-graph-show",

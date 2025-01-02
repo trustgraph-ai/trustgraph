@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 
 """
-Uses the GraphRAG service to answer a query
+Uses the GraphRAG service to answer a question
 """
 
 import argparse
 import os
 import textwrap
+import uuid
+import asyncio
+import json
+from websockets.asyncio.client import connect
 
-from trustgraph.clients.agent_client import AgentClient
-
-default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://localhost:6650')
+default_url = os.getenv("TRUSTGRAPH_URL", 'ws://localhost:8088/')
 default_user = 'trustgraph'
 default_collection = 'default'
 
@@ -27,15 +29,18 @@ def output(text, prefix="> ", width=78):
     )
     print(out)
 
-def query(
-        pulsar_host, query, user, collection,
+async def question(
+        url, question, user, collection,
         plan=None, state=None, verbose=False
 ):
 
-    am = AgentClient(pulsar_host=pulsar_host)
+    if not url.endswith("/"):
+        url += "/"
+
+    url = url + "api/v1/socket"
 
     if verbose:
-        output(wrap(query), "\U00002753 ")
+        output(wrap(question), "\U00002753 ")
         print()
 
     def think(x):
@@ -48,11 +53,43 @@ def query(
             output(wrap(x), "\U0001f4a1 ")
             print()
 
-    resp = am.request(
-        question=query, think=think, observe=observe,
-    )
+    mid = str(uuid.uuid4())
 
-    print(resp)
+    async with connect(url) as ws:
+
+        req = json.dumps({
+            "id": mid,
+            "service": "agent",
+            "request": {
+                "question": question,
+            }
+            
+        })
+
+        await ws.send(req)
+
+        while True:
+
+            msg = await ws.recv()
+
+            obj = json.loads(msg)
+
+            if obj["id"] != mid:
+                print("Ignore message")
+                continue
+
+            if "thought" in obj["response"]:
+                think(obj["response"]["thought"])
+
+            if "observation" in obj["response"]:
+                observe(obj["response"]["observation"])
+
+            if "answer" in obj["response"]:
+                print(obj["response"]["answer"])
+
+            if obj["complete"]: break
+
+        await ws.close()
 
 def main():
 
@@ -62,25 +99,25 @@ def main():
     )
 
     parser.add_argument(
-        '-p', '--pulsar-host',
-        default=default_pulsar_host,
-        help=f'Pulsar host (default: {default_pulsar_host})',
+        '-u', '--url',
+        default=default_url,
+        help=f'API URL (default: {default_url})',
     )
 
     parser.add_argument(
-        '-q', '--query',
+        '-q', '--question',
         required=True,
-        help=f'Query to execute',
+        help=f'Question to answer',
     )
 
     parser.add_argument(
-        '-u', '--user',
+        '-U', '--user',
         default=default_user,
         help=f'User ID (default: {default_user})'
     )
 
     parser.add_argument(
-        '-c', '--collection',
+        '-C', '--collection',
         default=default_collection,
         help=f'Collection ID (default: {default_collection})'
     )
@@ -105,14 +142,16 @@ def main():
 
     try:
 
-        query(
-            pulsar_host=args.pulsar_host,
-            query=args.query,
-            user=args.user,
-            collection=args.collection,
-            plan=args.plan,
-            state=args.state,
-            verbose=args.verbose,
+        asyncio.run(
+            question(
+                url=args.url,
+                question=args.question,
+                user=args.user,
+                collection=args.collection,
+                plan=args.plan,
+                state=args.state,
+                verbose=args.verbose,
+            )
         )
 
     except Exception as e:
