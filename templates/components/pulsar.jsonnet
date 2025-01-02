@@ -156,7 +156,9 @@ local url = import "values/url.jsonnet";
             // Zookeeper service
             local zkService =
                 engine.service(zkContainerSet)
-                .with_port(2181, 2181, "zookeeper");
+                .with_port(2181, 2181, "zookeeper")
+                .with_port(2888, 2888, "zookeeper2")
+                .with_port(3888, 3888, "zookeeper3");
 
             // Bookkeeper service
             local bookieService =
@@ -166,7 +168,8 @@ local url = import "values/url.jsonnet";
             // Pulsar broker service
             local brokerService =
                 engine.service(brokerContainerSet)
-                .with_port(8080, 8080, "broker");
+                .with_port(6650, 6650, "pulsar")
+                .with_port(8080, 8080, "admin");
 
             engine.resources([
                 zkVolume,
