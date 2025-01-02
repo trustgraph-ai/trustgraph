@@ -24,7 +24,7 @@ def question(url, question, user, collection):
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-query-document-rag',
+        prog='tg-invoke-document-rag',
         description=__doc__,
     )
 
