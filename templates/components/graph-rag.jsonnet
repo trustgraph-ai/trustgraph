@@ -138,5 +138,35 @@ local url = import "values/url.jsonnet";
 
     },
 
+    "graph-embeddings" +: {
+    
+        create:: function(engine)
+
+            local container =
+                engine.container("graph-embeddings")
+                    .with_image(images.trustgraph)
+                    .with_command([
+                        "graph-embeddings",
+                        "-p",
+                        url.pulsar,
+                    ])
+                    .with_limits("1.0", "512M")
+                    .with_reservations("0.5", "512M");
+
+            local containerSet = engine.containers(
+                "graph-embeddings", [ container ]
+            );
+
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8000, 8000, "metrics");
+
+            engine.resources([
+                containerSet,
+                service,
+            ])
+
+    },
+
 }
 

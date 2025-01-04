@@ -39,11 +39,16 @@ class Processor(Consumer):
 
         v = msg.value()
 
-        chunk = v.chunk.decode("utf-8")
+        for emb in v.chunks:
 
-        if v.chunk != "" and v.chunk is not None:
-            for vec in v.vectors:
-                self.vecstore.insert(vec, chunk)
+            chunk = emb.chunk.decode("utf-8")
+            if chunk == "" or chunk is None: continue
+
+            for vec in emb.vectors:
+
+                if chunk != "" and v.chunk is not None:
+                    for vec in v.vectors:
+                        self.vecstore.insert(vec, chunk)
 
     @staticmethod
     def add_args(parser):

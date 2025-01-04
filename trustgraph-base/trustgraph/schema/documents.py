@@ -55,6 +55,8 @@ document_embeddings_store_queue = topic('document-embeddings-store')
 class DocumentEmbeddingsRequest(Record):
     vectors = Array(Array(Double()))
     limit = Integer()
+    user = String()
+    collection = String()
 
 class DocumentEmbeddingsResponse(Record):
     error = Error()

@@ -44,47 +44,48 @@ class Processor(Consumer):
 
         v = msg.value()
 
-        chunk = v.chunk.decode("utf-8")
+        for emb in v.chunks:
 
-        if chunk == "": return
+            chunk = emb.chunk.decode("utf-8")
+            if chunk == "": return
 
-        for vec in v.vectors:
+            for vec in emb.vectors:
 
-            dim = len(vec)
-            collection = (
-                "d_" + v.metadata.user + "_" + v.metadata.collection + "_" +
-                str(dim)
-            )
+                dim = len(vec)
+                collection = (
+                    "d_" + v.metadata.user + "_" + v.metadata.collection + "_" +
+                    str(dim)
+                )
 
-            if collection != self.last_collection:
+                if collection != self.last_collection:
 
-                if not self.client.collection_exists(collection):
+                    if not self.client.collection_exists(collection):
 
-                    try:
-                        self.client.create_collection(
-                            collection_name=collection,
-                            vectors_config=VectorParams(
-                                size=dim, distance=Distance.COSINE
-                            ),
+                        try:
+                            self.client.create_collection(
+                                collection_name=collection,
+                                vectors_config=VectorParams(
+                                    size=dim, distance=Distance.COSINE
+                                ),
+                            )
+                        except Exception as e:
+                            print("Qdrant collection creation failed")
+                            raise e
+
+                    self.last_collection = collection
+
+                self.client.upsert(
+                    collection_name=collection,
+                    points=[
+                        PointStruct(
+                            id=str(uuid.uuid4()),
+                            vector=vec,
+                            payload={
+                                "doc": chunk,
+                            }
                         )
-                    except Exception as e:
-                        print("Qdrant collection creation failed")
-                        raise e
-
-                self.last_collection = collection
-
-            self.client.upsert(
-                collection_name=collection,
-                points=[
-                    PointStruct(
-                        id=str(uuid.uuid4()),
-                        vector=vec,
-                        payload={
-                            "doc": chunk,
-                        }
-                    )
-                ]
-            )
+                    ]
+                )
 
     @staticmethod
     def add_args(parser):
