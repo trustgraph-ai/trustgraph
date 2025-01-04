@@ -119,15 +119,15 @@ local prompt = import "prompt-template.jsonnet";
 
     },
 
-    "vectorize" +: {
+    "graph-embeddings" +: {
     
         create:: function(engine)
 
             local container =
-                engine.container("vectorize")
+                engine.container("graph-embeddings")
                     .with_image(images.trustgraph)
                     .with_command([
-                        "embeddings-vectorize",
+                        "graph-embeddings",
                         "-p",
                         url.pulsar,
                     ])
@@ -135,7 +135,7 @@ local prompt = import "prompt-template.jsonnet";
                     .with_reservations("0.5", "512M");
 
             local containerSet = engine.containers(
-                "vectorize", [ container ]
+                "graph-embeddings", [ container ]
             );
 
             local service =

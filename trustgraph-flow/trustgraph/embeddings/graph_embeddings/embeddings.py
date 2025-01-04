@@ -1,7 +1,8 @@
 
 """
-Vectorizer, calls the embeddings service to get embeddings for a chunk.
-Input is text chunk, output is chunk and vectors.
+Graph embeddings, calls the embeddings service to get embeddings for a
+set of entity contexts.  Input is entity plus textual context.
+Output is entity plus embedding.
 """
 
 from ... schema import EntityContexts, EntityEmbeddings, GraphEmbeddings
