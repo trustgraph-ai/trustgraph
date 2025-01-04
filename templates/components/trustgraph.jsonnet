@@ -149,6 +149,36 @@ local prompt = import "prompt-template.jsonnet";
 
     },
 
+    "document-embeddings" +: {
+    
+        create:: function(engine)
+
+            local container =
+                engine.container("document-embeddings")
+                    .with_image(images.trustgraph)
+                    .with_command([
+                        "document-embeddings",
+                        "-p",
+                        url.pulsar,
+                    ])
+                    .with_limits("1.0", "512M")
+                    .with_reservations("0.5", "512M");
+
+            local containerSet = engine.containers(
+                "document-embeddings", [ container ]
+            );
+
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8000, 8000, "metrics");
+
+            engine.resources([
+                containerSet,
+                service,
+            ])
+
+    },
+
     "metering" +: {
     
         create:: function(engine)
