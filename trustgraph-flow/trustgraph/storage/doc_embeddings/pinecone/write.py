@@ -11,14 +11,14 @@ import time
 import uuid
 import os
 
-from .... schema import ChunkEmbeddings
-from .... schema import chunk_embeddings_ingest_queue
+from .... schema import DocumentEmbeddings
+from .... schema import document_embeddings_store_queue
 from .... log_level import LogLevel
 from .... base import Consumer
 
 module = ".".join(__name__.split(".")[1:-1])
 
-default_input_queue = chunk_embeddings_ingest_queue
+default_input_queue = document_embeddings_store_queue
 default_subscriber = module
 default_api_key = os.getenv("PINECONE_API_KEY", "not-specified")
 default_cloud = "aws"
@@ -54,7 +54,7 @@ class Processor(Consumer):
             **params | {
                 "input_queue": input_queue,
                 "subscriber": subscriber,
-                "input_schema": ChunkEmbeddings,
+                "input_schema": DocumentEmbeddings,
                 "url": self.url,
             }
         )

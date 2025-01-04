@@ -52,11 +52,6 @@ class Processor(ConsumerProducer):
             subscriber=module + "-emb",
         )
 
-    def emit(self, rec, vectors):
-
-        r = GraphEmbeddings(metadata=metadata, chunk=chunk, vectors=vectors)
-        self.producer.send(r)
-
     def handle(self, msg):
 
         v = msg.value()

@@ -8,14 +8,14 @@ from qdrant_client.models import PointStruct
 from qdrant_client.models import Distance, VectorParams
 import uuid
 
-from .... schema import ChunkEmbeddings
-from .... schema import chunk_embeddings_ingest_queue
+from .... schema import DocumentEmbeddings
+from .... schema import document_embeddings_store_queue
 from .... log_level import LogLevel
 from .... base import Consumer
 
 module = ".".join(__name__.split(".")[1:-1])
 
-default_input_queue = chunk_embeddings_ingest_queue
+default_input_queue = document_embeddings_store_queue
 default_subscriber = module
 default_store_uri = 'http://localhost:6333'
 
@@ -31,7 +31,7 @@ class Processor(Consumer):
             **params | {
                 "input_queue": input_queue,
                 "subscriber": subscriber,
-                "input_schema": ChunkEmbeddings,
+                "input_schema": DocumentEmbeddings,
                 "store_uri": store_uri,
             }
         )
@@ -64,7 +64,7 @@ class Processor(Consumer):
                         self.client.create_collection(
                             collection_name=collection,
                             vectors_config=VectorParams(
-                                size=dim, distance=Distance.DOT
+                                size=dim, distance=Distance.COSINE
                             ),
                         )
                     except Exception as e:
