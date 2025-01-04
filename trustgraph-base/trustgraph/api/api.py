@@ -131,6 +131,35 @@ class Api:
         except:
             raise ProtocolException(f"Response not formatted correctly")
 
+    def document_rag(self, question):
+
+        # The input consists of a question
+        input = {
+            "query": question
+        }
+
+        url = f"{self.url}document-rag"
+
+        # Invoke the API, input is passed as JSON
+        resp = requests.post(url, json=input)
+
+        # Should be a 200 status code
+        if resp.status_code != 200:
+            raise ProtocolException(f"Status code {resp.status_code}")
+
+        try:
+            # Parse the response as JSON
+            object = resp.json()
+        except:
+            raise ProtocolException(f"Expected JSON response")
+
+        self.check_error(resp)
+
+        try:
+            return object["response"]
+        except:
+            raise ProtocolException(f"Response not formatted correctly")
+
     def embeddings(self, text):
 
         # The input consists of a text block

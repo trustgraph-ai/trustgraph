@@ -31,6 +31,7 @@ from . subscriber import Subscriber
 from . text_completion import TextCompletionRequestor
 from . prompt import PromptRequestor
 from . graph_rag import GraphRagRequestor
+from . document_rag import DocumentRagRequestor
 from . triples_query import TriplesQueryRequestor
 from . graph_embeddings_query import GraphEmbeddingsQueryRequestor
 from . embeddings import EmbeddingsRequestor
@@ -91,6 +92,10 @@ class Api:
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
                 auth = self.auth,
             ),
+            "document-rag": DocumentRagRequestor(
+                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                auth = self.auth,
+            ),
             "triples-query": TriplesQueryRequestor(
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
                 auth = self.auth,
@@ -139,6 +144,10 @@ class Api:
             ServiceEndpoint(
                 endpoint_path = "/api/v1/graph-rag", auth=self.auth,
                 requestor = self.services["graph-rag"],
+            ),
+            ServiceEndpoint(
+                endpoint_path = "/api/v1/document-rag", auth=self.auth,
+                requestor = self.services["document-rag"],
             ),
             ServiceEndpoint(
                 endpoint_path = "/api/v1/triples-query", auth=self.auth,
