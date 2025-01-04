@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+
+from trustgraph.embeddings.document_embeddings import run
+
+run()
+
