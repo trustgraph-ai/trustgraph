@@ -46,6 +46,7 @@ from . graph_embeddings_load import GraphEmbeddingsLoadEndpoint
 from . mux import MuxEndpoint
 from . document_load import DocumentLoadSender
 from . text_load import TextLoadSender
+from . metrics import MetricsEndpoint
 
 from . endpoint import ServiceEndpoint
 from . auth import Authenticator
@@ -54,6 +55,7 @@ logger = logging.getLogger("api")
 logger.setLevel(logging.INFO)
 
 default_pulsar_host = os.getenv("PULSAR_HOST", "pulsar://pulsar:6650")
+default_prometheus_url = os.getenv("PROMETHEUS_URL", "http://prometheus:9090")
 default_timeout = 600
 default_port = 8088
 default_api_token = os.getenv("GATEWAY_SECRET", "")
@@ -70,6 +72,13 @@ class Api:
         self.port = int(config.get("port", default_port))
         self.timeout = int(config.get("timeout", default_timeout))
         self.pulsar_host = config.get("pulsar_host", default_pulsar_host)
+
+        self.prometheus_url = config.get(
+            "prometheus_url", default_prometheus_url,
+        )
+
+        if not self.prometheus_url.endswith("/"):
+            self.prometheus_url += "/"
 
         api_token = config.get("api_token", default_api_token)
 
@@ -207,6 +216,11 @@ class Api:
                 auth = self.auth,
                 services = self.services,
             ),
+            MetricsEndpoint(
+                endpoint_path = "/api/v1/metrics",
+                prometheus_url = self.prometheus_url,
+                auth = self.auth,
+            ),
         ]
 
         for ep in self.endpoints:
@@ -233,6 +247,12 @@ def run():
         '-p', '--pulsar-host',
         default=default_pulsar_host,
         help=f'Pulsar host (default: {default_pulsar_host})',
+    )
+
+    parser.add_argument(
+        '-m', '--prometheus-url',
+        default=default_prometheus_url,
+        help=f'Prometheus URL (default: {default_prometheus_url})',
     )
 
     parser.add_argument(
