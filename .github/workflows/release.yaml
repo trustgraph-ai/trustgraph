@@ -65,33 +65,11 @@ jobs:
       - name: Put version into package manifests
         run: make update-package-versions VERSION=${{ steps.version.outputs.VERSION }}
 
-      - name: Extract metadata for container
-        id: meta
-        uses: docker/metadata-action@v4
-        with:
-          images: trustgraph/trustgraph-flow
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha
-
       - name: Build containers
         run: make container VERSION=${{ steps.version.outputs.VERSION }}
 
       - name: Push containers
         run: make push VERSION=${{ steps.version.outputs.VERSION }}
-
-      - name: Build and push Docker image
-        id: push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Containerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
 
   release-bundle:
 
