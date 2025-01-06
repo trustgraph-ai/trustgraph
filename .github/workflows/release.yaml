@@ -12,7 +12,7 @@ permissions:
 
 jobs:
 
-  python-packages:
+#  python-packages:
 
     # name: Release Python packages
     # runs-on: ubuntu-24.04
