@@ -52,11 +52,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ vars.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_SECRET }}
+      - name: Docker Hub token
+        run: echo ${{ secrets.DOCKER_SECRET }} > docker-token.txt
+
+      - name: Authenticate with Docker hub
+        run: make docker-hub-login
 
       - name: Get version
         id: version
@@ -77,18 +77,24 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha
 
-      - name: Build and push Docker image
-        id: push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Containerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+      - run: echo ${{ steps.meta.outputs.labels }}
+      - run: echo ${{ steps.meta.outputs.tags }}
 
-      - name: Create deploy bundle
-        run: templates/generate-all deploy.zip ${{ steps.version.outputs.VERSION }}
+      # - name: Build containers
+      #   run: make container VERSION=${{ steps.version.outputs.VERSION }}
+
+      # - name: Push containers
+      #   run: make push VERSION=${{ steps.version.outputs.VERSION }}
+
+      # - name: Build and push Docker image
+      #   id: push
+      #   uses: docker/build-push-action@v6
+      #   with:
+      #     context: .
+      #     file: ./Containerfile
+      #     push: true
+      #     tags: ${{ steps.meta.outputs.tags }}
+      #     labels: ${{ steps.meta.outputs.labels }}
 
   # release-bundle:
 
