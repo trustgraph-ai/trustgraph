@@ -104,5 +104,5 @@ update-dcs: set-version
 
 docker-hub-login:
 	cat docker-token.txt | \
-	    docker login -u trustgraph --password-stdin registry-1.docker.io
+	    ${DOCKER} login -u trustgraph --password-stdin registry-1.docker.io
 
