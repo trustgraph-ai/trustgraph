@@ -5,17 +5,17 @@ on:
   workflow_dispatch:
   push:
     tags:
-      - v0.19.*
+      - v*
 
 permissions:
   contents: read
 
 jobs:
 
-  deploy:
+  python-packages:
 
-    name: Build everything
-    runs-on: ubuntu-latest
+    name: Release Python packages
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
       id-token: write
@@ -27,26 +27,43 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ vars.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_SECRET }}
-
-      - name: Install build dependencies
-        run: pip3 install jsonnet
-
       - name: Get version
         id: version
         run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
-
-      - run: echo ${{ steps.version.outputs.VERSION }}
 
       - name: Build packages
         run: make packages VERSION=${{ steps.version.outputs.VERSION }}
 
       - name: Publish release distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+
+  deploy-container-image:
+
+    name: Release container image
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+    environment:
+      name: release
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Docker Hub token
+        run: echo ${{ secrets.DOCKER_SECRET }} > docker-token.txt
+
+      - name: Authenticate with Docker hub
+        run: make docker-hub-login
+
+      - name: Get version
+        id: version
+        run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
+
+      - name: Put version into package manifests
+        run: make update-package-versions VERSION=${{ steps.version.outputs.VERSION }}
 
       - name: Extract metadata for container
         id: meta
@@ -60,6 +77,12 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha
 
+      - name: Build containers
+        run: make container VERSION=${{ steps.version.outputs.VERSION }}
+
+      - name: Push containers
+        run: make push VERSION=${{ steps.version.outputs.VERSION }}
+
       - name: Build and push Docker image
         id: push
         uses: docker/build-push-action@v6
@@ -69,6 +92,28 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  release-bundle:
+
+    name: Upload release bundle
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+    environment:
+      name: release
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: pip3 install jsonnet
+
+      - name: Get version
+        id: version
+        run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
 
       - name: Create deploy bundle
         run: templates/generate-all deploy.zip ${{ steps.version.outputs.VERSION }}
