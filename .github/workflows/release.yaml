@@ -12,30 +12,30 @@ permissions:
 
 jobs:
 
-#  python-packages:
+  python-packages:
 
-    # name: Release Python packages
-    # runs-on: ubuntu-24.04
-    # permissions:
-    #   contents: write
-    #   id-token: write
-    # environment:
-    #   name: release
+    name: Release Python packages
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+    environment:
+      name: release
 
-    # steps:
+    steps:
 
-    #   - name: Checkout
-    #     uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    #   - name: Get version
-    #     id: version
-    #     run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
+      - name: Get version
+        id: version
+        run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
 
-    #   - name: Build packages
-    #     run: make packages VERSION=${{ steps.version.outputs.VERSION }}
+      - name: Build packages
+        run: make packages VERSION=${{ steps.version.outputs.VERSION }}
 
-    #   - name: Publish release distributions to PyPI
-    #     uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Publish release distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
 
   deploy-container-image:
 
@@ -83,45 +83,45 @@ jobs:
       - name: Push containers
         run: make push VERSION=${{ steps.version.outputs.VERSION }}
 
-      # - name: Build and push Docker image
-      #   id: push
-      #   uses: docker/build-push-action@v6
-      #   with:
-      #     context: .
-      #     file: ./Containerfile
-      #     push: true
-      #     tags: ${{ steps.meta.outputs.tags }}
-      #     labels: ${{ steps.meta.outputs.labels }}
+      - name: Build and push Docker image
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Containerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
-  # release-bundle:
+  release-bundle:
 
-  #   name: Upload release bundle
-  #   runs-on: ubuntu-24.04
-  #   permissions:
-  #     contents: write
-  #     id-token: write
-  #   environment:
-  #     name: release
+    name: Upload release bundle
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+    environment:
+      name: release
 
-  #   steps:
+    steps:
 
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  #     - name: Install build dependencies
-  #       run: pip3 install jsonnet
+      - name: Install build dependencies
+        run: pip3 install jsonnet
 
-  #     - name: Get version
-  #       id: version
-  #       run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
+      - name: Get version
+        id: version
+        run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
 
-  #     - name: Create deploy bundle
-  #       run: templates/generate-all deploy.zip ${{ steps.version.outputs.VERSION }}
+      - name: Create deploy bundle
+        run: templates/generate-all deploy.zip ${{ steps.version.outputs.VERSION }}
 
-  #     - uses: ncipollo/release-action@v1
-  #       with:
-  #         artifacts: deploy.zip
-  #         generateReleaseNotes: true
-  #         makeLatest: false
-  #         prerelease: true
-  #         skipIfReleaseExists: true
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: deploy.zip
+          generateReleaseNotes: true
+          makeLatest: false
+          prerelease: true
+          skipIfReleaseExists: true
