@@ -77,14 +77,11 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha
 
-#      - run: echo ${{ steps.meta.outputs.labels }}
-#      - run: echo ${{ steps.meta.outputs.tags }}
+      - name: Build containers
+        run: make container VERSION=${{ steps.version.outputs.VERSION }}
 
-      # - name: Build containers
-      #   run: make container VERSION=${{ steps.version.outputs.VERSION }}
-
-      # - name: Push containers
-      #   run: make push VERSION=${{ steps.version.outputs.VERSION }}
+      - name: Push containers
+        run: make push VERSION=${{ steps.version.outputs.VERSION }}
 
       # - name: Build and push Docker image
       #   id: push
