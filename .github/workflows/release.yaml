@@ -62,6 +62,9 @@ jobs:
         id: version
         run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
 
+      - name: Put version into package manifests
+        run: make update-package-versions VERSION=${{ steps.version.outputs.VERSION }}
+
       - name: Extract metadata for container
         id: meta
         uses: docker/metadata-action@v4
@@ -108,9 +111,6 @@ jobs:
       - name: Get version
         id: version
         run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
-
-      - name: Put version into package manifests
-        run: make update-package-versions VERSION=${{ steps.version.outputs.VERSION }}
 
       - name: Create deploy bundle
         run: templates/generate-all deploy.zip ${{ steps.version.outputs.VERSION }}
