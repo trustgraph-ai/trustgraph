@@ -26,7 +26,7 @@ local url = import "values/url.jsonnet";
                         "-c",
                         "bin/apply-config-from-env.py conf/zookeeper.conf && bin/generate-zookeeper-config.sh conf/zookeeper.conf && exec bin/pulsar zookeeper"
                     ])
-                    .with_limits("0.1", "400M")
+                    .with_limits("1", "400M")
                     .with_reservations("0.05", "400M")
                     .with_user("0:1000")
                     .with_volume_mount(zkVolume, "/pulsar/data/zookeeper")
