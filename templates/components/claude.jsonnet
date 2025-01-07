@@ -13,7 +13,7 @@ local prompts = import "prompts/mixtral.jsonnet";
         create:: function(engine)
 
             local envSecrets = engine.envSecrets("claude-credentials")
-                .with_env_var("CLAUDE_KEY_TOKEN", "claude-key");
+                .with_env_var("CLAUDE_KEY", "claude-key");
 
             local container =
                 engine.container("text-completion")
