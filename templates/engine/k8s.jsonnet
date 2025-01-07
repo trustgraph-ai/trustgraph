@@ -14,6 +14,8 @@
 
         with_image:: function(x) self + { image: x },
 
+        with_user:: function(x) self + { user: x },
+
         with_command:: function(x) self + { command: x },
 
         with_environment:: function(x) self + {
