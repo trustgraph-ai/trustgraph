@@ -13,7 +13,7 @@ local prompts = import "prompts/mixtral.jsonnet";
     
         create:: function(engine)
 
-            local envSecrets = engine.envSecrets("googleaistudio-key")
+            local envSecrets = engine.envSecrets("googleaistudio-credentials")
                 .with_env_var("GOOGLE_AI_STUDIO_KEY", "googleaistudio-key");
 
             local container =
