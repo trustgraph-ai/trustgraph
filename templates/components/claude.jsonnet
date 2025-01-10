@@ -10,6 +10,7 @@ local prompts = import "prompts/mixtral.jsonnet";
             ["claude-" + key]:: value,
         },
 
+    "claude-model":: "claude-3-sonnet-20240229",
     "claude-max-output-tokens":: 4096,
     "claude-temperature":: 0.0,
 
@@ -29,6 +30,8 @@ local prompts = import "prompts/mixtral.jsonnet";
                         url.pulsar,
                         "-x",
                         std.toString($["claude-max-output-tokens"]),
+                        "-m",
+                        $["claude-model"],
                         "-t",
                         "%0.3f" % $["claude-temperature"],
                     ])
