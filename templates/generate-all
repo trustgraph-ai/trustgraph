@@ -87,8 +87,18 @@ def full_config_object(
 ):
 
     return config_object([
-        graph_store, "pulsar", vector_store, embeddings,
-        "graph-rag", "grafana", "trustgraph", llm, "workbench-ui",
+        "triple-store-" + graph_store,
+        "pulsar",
+        "vector-store-" + vector_store,
+        embeddings,
+        "graph-rag",
+        "grafana",
+        "trustgraph-base",
+        llm,
+        llm + "-rag",
+        "workbench-ui",
+        "prompt-template",
+        "agent-manager-react",
     ])
 
 def generate_config(

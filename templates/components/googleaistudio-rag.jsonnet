@@ -14,7 +14,7 @@ local prompts = import "prompts/mixtral.jsonnet";
     "googleaistudio-rag-temperature":: 0.0,
     "googleaistudio-rag-model":: "gemini-1.5-flash-002",
 
-    "text-completion" +: {
+    "text-completion-rag" +: {
     
         create:: function(engine)
 

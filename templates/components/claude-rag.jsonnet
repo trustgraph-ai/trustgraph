@@ -13,7 +13,7 @@ local prompts = import "prompts/mixtral.jsonnet";
     "claude-rag-max-output-tokens":: 4096,
     "claude-rag-temperature":: 0.0,
 
-    "text-completion" +: {
+    "text-completion-rag" +: {
     
         create:: function(engine)
 

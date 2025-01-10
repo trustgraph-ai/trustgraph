@@ -12,7 +12,7 @@ local prompts = import "prompts/mixtral.jsonnet";
 
     "cohere-rag-temperature":: 0.0,
 
-    "text-completion" +: {
+    "text-completion-rag" +: {
     
         create:: function(engine)
 

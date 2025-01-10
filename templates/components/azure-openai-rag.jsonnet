@@ -14,7 +14,7 @@ local prompts = import "prompts/mixtral.jsonnet";
     "azure-openai-rag-max-output-tokens":: 4192,
     "azure-openai-rag-temperature":: 0.0,
 
-    "text-completion" +: {
+    "text-completion-rag" +: {
     
         create:: function(engine)
 
