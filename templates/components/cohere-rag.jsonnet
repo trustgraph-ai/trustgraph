@@ -7,10 +7,10 @@ local prompts = import "prompts/mixtral.jsonnet";
 
     with:: function(key, value)
         self + {
-            ["cohere-" + key]:: value,
+            ["cohere-rag-" + key]:: value,
         },
 
-    "cohere-temperature":: 0.0,
+    "cohere-rag-temperature":: 0.0,
 
     "text-completion" +: {
     
@@ -19,31 +19,35 @@ local prompts = import "prompts/mixtral.jsonnet";
             local envSecrets = engine.envSecrets("cohere-credentials")
                 .with_env_var("COHERE_KEY", "cohere-key");
 
-            local container =
-                engine.container("text-completion")
+            local containerRag =
+                engine.container("text-completion-rag")
                     .with_image(images.trustgraph)
                     .with_command([
                         "text-completion-cohere",
                         "-p",
                         url.pulsar,
                         "-t",
-                        "%0.3f" % $["cohere-temperature"],
+                        "%0.3f" % $["cohere-rag-temperature"],
+                        "-i",
+                        "non-persistent://tg/request/text-completion-rag",
+                        "-o",
+                        "non-persistent://tg/response/text-completion-rag",
                     ])
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M");
 
-            local containerSet = engine.containers(
-                "text-completion", [ container ]
+            local containerSetRag = engine.containers(
+                "text-completion-rag", [ containerRag ]
             );
 
-            local service =
-                engine.internalService(containerSet)
+            local serviceRag =
+                engine.internalService(containerSetRag)
                 .with_port(8000, 8000, "metrics");
 
             engine.resources([
                 envSecrets,
-                containerSet,
-                service,
+                containerSetRag,
+                serviceRag,
             ])
 
     },

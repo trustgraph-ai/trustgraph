@@ -6,13 +6,13 @@ local prompts = import "prompts/mixtral.jsonnet";
 
     with:: function(key, value)
         self + {
-            ["azure-" + key]:: value,
+            ["azure-rag-" + key]:: value,
         },
 
-    "azure-max-output-tokens":: 4096,
-    "azure-temperature":: 0.0,
+    "azure-rag-max-output-tokens":: 4096,
+    "azure-rag-temperature":: 0.0,
 
-    "text-completion" +: {
+    "text-completion-rag" +: {
     
         create:: function(engine)
 
@@ -20,34 +20,38 @@ local prompts = import "prompts/mixtral.jsonnet";
                 .with_env_var("AZURE_TOKEN", "azure-token")
                 .with_env_var("AZURE_ENDPOINT", "azure-endpoint");
 
-            local container =
-                engine.container("text-completion")
+            local containerRag =
+                engine.container("text-completion-rag")
                     .with_image(images.trustgraph)
                     .with_command([
                         "text-completion-azure",
                         "-p",
                         url.pulsar,
                         "-x",
-                        std.toString($["azure-max-output-tokens"]),
+                        std.toString($["azure-rag-max-output-tokens"]),
                         "-t",
-                        "%0.3f" % $["azure-temperature"],
+                        "%0.3f" % $["azure-rag-temperature"],
+                        "-i",
+                        "non-persistent://tg/request/text-completion-rag",
+                        "-o",
+                        "non-persistent://tg/response/text-completion-rag",
                     ])
                     .with_env_var_secrets(envSecrets)
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M");
 
-            local containerSet = engine.containers(
-                "text-completion", [ container ]
+            local containerSetRag = engine.containers(
+                "text-completion-rag", [ containerRag ]
             );
 
-            local service =
-                engine.internalService(containerSet)
+            local serviceRag =
+                engine.internalService(containerSetRag)
                 .with_port(8000, 8000, "metrics");
 
             engine.resources([
                 envSecrets,
-                containerSet,
-                service,
+                containerSetRag,
+                serviceRag,
             ])
 
     }
