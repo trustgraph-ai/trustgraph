@@ -55,6 +55,14 @@ class Processor(Consumer):
 
     def create_indexes(self, session):
 
+        # Race condition, index creation failure is ignored.  Right thing
+        # to do if the index already exists.  Wrong thing to do if it's
+        # because the store is not up yet
+
+        # In real-world cases, Memgraph will start up quicker than Pulsar
+        # and this process will restart several times until Pulsar arrives,
+        # so should be safe
+
         print("Create indexes...", flush=True)
 
         try:
