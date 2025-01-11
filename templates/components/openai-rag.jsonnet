@@ -7,50 +7,54 @@ local prompts = import "prompts/mixtral.jsonnet";
 
     with:: function(key, value)
         self + {
-            ["openai-" + key]:: value,
+            ["openai-rag-" + key]:: value,
         },
 
-    "openai-max-output-tokens":: 4096,
-    "openai-temperature":: 0.0,
-    "openai-model":: "GPT-3.5-Turbo",
+    "openai-rag-max-output-tokens":: 4096,
+    "openai-rag-temperature":: 0.0,
+    "openai-rag-model":: "GPT-3.5-Turbo",
 
-    "text-completion" +: {
+    "text-completion-rag" +: {
     
         create:: function(engine)
 
             local envSecrets = engine.envSecrets("openai-credentials")
                 .with_env_var("OPENAI_TOKEN", "openai-token");
 
-            local container =
-                engine.container("text-completion")
+            local containerRag =
+                engine.container("text-completion-rag")
                     .with_image(images.trustgraph)
                     .with_command([
                         "text-completion-openai",
                         "-p",
                         url.pulsar,
                         "-x",
-                        std.toString($["openai-max-output-tokens"]),
+                        std.toString($["openai-rag-max-output-tokens"]),
                         "-t",
-                        "%0.3f" % $["openai-temperature"],
+                        "%0.3f" % $["openai-rag-temperature"],
                         "-m",
-                        $["openai-model"],
+                        $["openai-rag-model"],
+                        "-i",
+                        "non-persistent://tg/request/text-completion-rag",
+                        "-o",
+                        "non-persistent://tg/response/text-completion-rag",
                     ])
                     .with_env_var_secrets(envSecrets)
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M");
 
-            local containerSet = engine.containers(
-                "text-completion", [ container ]
+            local containerSetRag = engine.containers(
+                "text-completion-rag", [ containerRag ]
             );
 
-            local service =
-                engine.internalService(containerSet)
+            local serviceRag =
+                engine.internalService(containerSetRag)
                 .with_port(8080, 8080, "metrics");
 
             engine.resources([
                 envSecrets,
-                containerSet,
-                service,
+                containerSetRag,
+                serviceRag,
             ])
 
     },

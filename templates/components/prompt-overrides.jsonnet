@@ -1,7 +1,3 @@
-local base = import "base/base.jsonnet";
-local images = import "values/images.jsonnet";
-local url = import "values/url.jsonnet";
-local prompts = import "prompts/mixtral.jsonnet";
 local default_prompts = import "prompts/default-prompts.jsonnet";
 
 {

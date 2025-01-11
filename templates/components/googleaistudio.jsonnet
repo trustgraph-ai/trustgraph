@@ -34,50 +34,18 @@ local prompts = import "prompts/mixtral.jsonnet";
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M");
 
-            local containerRag =
-                engine.container("text-completion-rag")
-                    .with_image(images.trustgraph)
-                    .with_command([
-                        "text-completion-googleaistudio",
-                        "-p",
-                        url.pulsar,
-                        "-x",
-                        std.toString($["googleaistudio-max-output-tokens"]),
-                        "-t",
-                        "%0.3f" % $["googleaistudio-temperature"],
-                        "-m",
-                        $["googleaistudio-model"],
-                        "-i",
-                        "non-persistent://tg/request/text-completion-rag",
-                        "-o",
-                        "non-persistent://tg/response/text-completion-rag",
-                    ])
-                    .with_env_var_secrets(envSecrets)
-                    .with_limits("0.5", "128M")
-                    .with_reservations("0.1", "128M");
-
             local containerSet = engine.containers(
                 "text-completion", [ container ]
-            );
-
-            local containerSetRag = engine.containers(
-                "text-completion-rag", [ containerRag ]
             );
 
             local service =
                 engine.internalService(containerSet)
                 .with_port(8000, 8000, "metrics");
 
-            local serviceRag =
-                engine.internalService(containerSetRag)
-                .with_port(8000, 8000, "metrics");
-
             engine.resources([
                 envSecrets,
                 containerSet,
-                containerSetRag,
                 service,
-                serviceRag,
             ])
 
     },

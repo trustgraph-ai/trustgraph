@@ -8,14 +8,14 @@ local chunker = import "chunker-recursive.jsonnet";
 
     with:: function(key, value)
         self + {
-            ["bedrock-" + key]:: value,
+            ["bedrock-rag-" + key]:: value,
         },
 
-    "bedrock-max-output-tokens":: 4096,
-    "bedrock-temperature":: 0.0,
-    "bedrock-model":: "mistral.mixtral-8x7b-instruct-v0:1",
+    "bedrock-rag-max-output-tokens":: 4096,
+    "bedrock-rag-temperature":: 0.0,
+    "bedrock-rag-model":: "mistral.mixtral-8x7b-instruct-v0:1",
 
-    "text-completion" +: {
+    "text-completion-rag" +: {
     
         create:: function(engine)
 
@@ -24,36 +24,40 @@ local chunker = import "chunker-recursive.jsonnet";
                 .with_env_var("AWS_SECRET", "aws-secret")
                 .with_env_var("AWS_REGION", "aws-region");
 
-            local container =
-                engine.container("text-completion")
+            local containerRag =
+                engine.container("text-completion-rag")
                     .with_image(images.trustgraph)
                     .with_command([
                         "text-completion-bedrock",
                         "-p",
                         url.pulsar,
                         "-x",
-                        std.toString($["bedrock-max-output-tokens"]),
+                        std.toString($["bedrock-rag-max-output-tokens"]),
                         "-t",
-                        "%0.3f" % $["bedrock-temperature"],
+                        "%0.3f" % $["bedrock-rag-temperature"],
                         "-m",
-                        $["bedrock-model"],
+                        $["bedrock-rag-model"],
+                        "-i",
+                        "non-persistent://tg/request/text-completion-rag",
+                        "-o",
+                        "non-persistent://tg/response/text-completion-rag",
               	    ])
                     .with_env_var_secrets(envSecrets)
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M");
 
-            local containerSet = engine.containers(
-                "text-completion", [ container ]
+            local containerSetRag = engine.containers(
+                "text-completion-rag", [ containerRag ]
             );
 
-            local service =
-                engine.internalService(containerSet)
+            local serviceRag =
+                engine.internalService(containerSetRag)
                 .with_port(8000, 8000, "metrics");
 
             engine.resources([
                 envSecrets,
-                containerSet,
-                service,
+                containerSetRag,
+                serviceRag,
             ])
 
     },

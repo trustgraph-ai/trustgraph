@@ -7,44 +7,48 @@ local prompts = import "prompts/mixtral.jsonnet";
 
     with:: function(key, value)
         self + {
-            ["ollama-" + key]:: value,
+            ["ollama-rag-" + key]:: value,
         },
 
-    "ollama-model":: "gemma2:9b",
+    "ollama-rag-model":: "gemma2:9b",
 
-    "text-completion" +: {
+    "text-completion-rag" +: {
     
         create:: function(engine)
 
             local envSecrets = engine.envSecrets("ollama-credentials")
                 .with_env_var("OLLAMA_HOST", "ollama-host");
 
-            local container =
-                engine.container("text-completion")
+            local containerRag =
+                engine.container("text-completion-rag")
                     .with_image(images.trustgraph)
                     .with_command([
                         "text-completion-ollama",
                         "-p",
                         url.pulsar,
                         "-m",
-                        $["ollama-model"],
+                        $["ollama-rag-model"],
+                        "-i",
+                        "non-persistent://tg/request/text-completion-rag",
+                        "-o",
+                        "non-persistent://tg/response/text-completion-rag",
                     ])
                     .with_env_var_secrets(envSecrets)
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M");
 
-            local containerSet = engine.containers(
-                "text-completion", [ container ]
+            local containerSetRag = engine.containers(
+                "text-completion-rag", [ containerRag ]
             );
 
-            local service =
-                engine.internalService(containerSet)
+            local serviceRag =
+                engine.internalService(containerSetRag)
                 .with_port(8080, 8080, "metrics");
 
             engine.resources([
                 envSecrets,
-                containerSet,
-                service,
+                containerSetRag,
+                serviceRag,
             ])
 
     },

@@ -5,13 +5,18 @@ local prompts = import "prompts/mixtral.jsonnet";
 
 {
 
-    "vertexai-model":: "gemini-1.0-pro-001",
-    "vertexai-private-key":: "/vertexai/private.json",
-    "vertexai-region":: "us-central1",
-    "vertexai-max-output-tokens":: 4096,
-    "vertexai-temperature":: 0.0,
+    with:: function(key, value)
+        self + {
+            ["vertexai-rag-" + key]:: value,
+        },
 
-    "text-completion" +: {
+    "vertexai-rag-model":: "gemini-1.0-pro-001",
+    "vertexai-rag-private-key":: "/vertexai/private.json",
+    "vertexai-rag-region":: "us-central1",
+    "vertexai-rag-max-output-tokens":: 4096,
+    "vertexai-rag-temperature":: 0.0,
+
+    "text-completion-rag" +: {
     
         create:: function(engine)
 
@@ -24,29 +29,33 @@ local prompts = import "prompts/mixtral.jsonnet";
             );
 
             local container =
-                engine.container("text-completion")
+                engine.container("text-completion-rag")
                     .with_image(images.trustgraph)
                     .with_command([
                         "text-completion-vertexai",
                         "-p",
                         url.pulsar,
                         "-k",
-                        $["vertexai-private-key"],
+                        $["vertexai-rag-private-key"],
                         "-r",
-                        $["vertexai-region"],
+                        $["vertexai-rag-region"],
                         "-x",
-                        std.toString($["vertexai-max-output-tokens"]),
+                        std.toString($["vertexai-rag-max-output-tokens"]),
                         "-t",
-                        "%0.3f" % $["vertexai-temperature"],
+                        "%0.3f" % $["vertexai-rag-temperature"],
                         "-m",
-                        $["vertexai-model"],
+                        $["vertexai-rag-model"],
+                        "-i",
+                        "non-persistent://tg/request/text-completion-rag",
+                        "-o",
+                        "non-persistent://tg/response/text-completion-rag",
                     ])
                     .with_limits("0.5", "256M")
                     .with_reservations("0.1", "256M")
                     .with_volume_mount(cfgVol, "/vertexai");
 
             local containerSet = engine.containers(
-                "text-completion", [ container ]
+                "text-completion-rag", [ container ]
             );
 
             local service =
@@ -59,7 +68,7 @@ local prompts = import "prompts/mixtral.jsonnet";
                 service,
             ])
 
-    },
+    }
 
 } + prompts
 
