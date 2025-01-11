@@ -1,5 +1,6 @@
 
 from pulsar.schema import JsonSchema
+import pulsar
 from prometheus_client import Histogram, Info, Counter, Enum
 import time
 
@@ -51,6 +52,7 @@ class Consumer(BaseProcessor):
 
         self.consumer = self.client.subscribe(
             input_queue, subscriber,
+            consumer_type=pulsar.ConsumerType.Shared,
             schema=JsonSchema(input_schema),
         )
 
