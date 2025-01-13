@@ -13,7 +13,7 @@ local images = import "values/images.jsonnet";
                 engine.container("cassandra")
                     .with_image(images.cassandra)
                     .with_environment({
-                        JVM_OPTS: "-Xms300M -Xmx300M",
+                        JVM_OPTS: "-Xms300M -Xmx300M -Dcassandra.skip_wait_for_gossip_to_settle=0",
                     })
                     .with_limits("1.0", "1000M")
                     .with_reservations("0.5", "1000M")
