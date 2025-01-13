@@ -52,7 +52,7 @@ The `TrustGraph CLI` installs the commands for interacting with TrustGraph while
 ### Install the TrustGraph CLI
 
 ```
-pip3 install trustgraph-cli==0.18.14
+pip3 install trustgraph-cli==0.19.19
 ```
 
 > [!NOTE]
@@ -62,7 +62,7 @@ pip3 install trustgraph-cli==0.18.14
 
 TrustGraph is endlessly customizable by editing the `YAML` launch files. The `Configuration Portal` provides a quick and intuitive tool for building a custom configuration that deploys with Docker, Podman, Minikube, or Google Cloud. There is a `Configuration Portal` for the both the lastest and stable `TrustGraph` releases.
 
-- [**Configuration Portal** (Stable 0.18.14) 🚀](https://config-ui.demo.trustgraph.ai/)
+- [**Configuration Portal** (Stable 0.19.19) 🚀](https://config-ui.demo.trustgraph.ai/)
 - [**Configuration Portal** (Latest 0.19.19) 🚀](https://dev.config-ui.demo.trustgraph.ai/)
 
 The `Configuration Portal` has 4 important sections:
@@ -107,7 +107,7 @@ TrustGraph `YAML` files are available [here](https://github.com/trustgraph-ai/tr
 | Release Type | Release Version |
 | ------------ | --------------- |
 | Latest | [0.19.19](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.19.19/deploy.zip) |
-| Stable | [0.18.14](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.18.14/deploy.zip) |
+| Stable | [0.19.19](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.19.19/deploy.zip) |
 
 TrustGraph is fully containerized and is launched with a `YAML` configuration file. Unzipping the `deploy.zip` will add the `deploy` directory with the following subdirectories:
 
