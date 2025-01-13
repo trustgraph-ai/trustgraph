@@ -60,7 +60,10 @@ class ServiceRequestor:
             while True:
 
                 try:
-                    resp = await asyncio.to_thread(q.get, timeout=self.timeout)
+                    resp = await asyncio.to_thread(
+                        q.get,
+                        timeout=self.timeout
+                    )
                 except Exception as e:
                     raise RuntimeError("Timeout")
 
