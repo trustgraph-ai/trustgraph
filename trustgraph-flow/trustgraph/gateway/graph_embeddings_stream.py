@@ -29,6 +29,16 @@ class GraphEmbeddingsStreamEndpoint(SocketEndpoint):
             schema=JsonSchema(GraphEmbeddings)
         )
 
+    async def listener(self, ws, running):
+
+        worker = asyncio.create_task(
+            self.async_thread(ws, running)
+        )
+
+        await super(GraphEmbeddingsStreamEndpoint, self).listener(ws, running)
+
+        await worker
+
     async def start(self):
 
         self.subscriber.start()
@@ -43,6 +53,9 @@ class GraphEmbeddingsStreamEndpoint(SocketEndpoint):
             try:
                 resp = await asyncio.to_thread(q.get, timeout=0.5)
                 await ws.send_json(serialize_graph_embeddings(resp))
+
+            except TimeoutError:
+                continue
 
             except queue.Empty:
                 continue
