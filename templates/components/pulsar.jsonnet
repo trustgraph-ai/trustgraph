@@ -100,7 +100,7 @@ local url = import "values/url.jsonnet";
                         "managedLedgerDefaultWriteQuorum": "1",
                         "managedLedgerDefaultAckQuorum": "1",
                         "advertisedAddress": "pulsar",
-                        "advertisedListeners": "external:pulsar://pulsar:6650",
+                        "advertisedListeners": "external:pulsar://pulsar:6650,localhost:pulsar://localhost:6650",
                         "PULSAR_MEM": "-Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m",
                     })
                     .with_port(6650, 6650, "pulsar")
