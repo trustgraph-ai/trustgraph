@@ -57,8 +57,13 @@ async def fetch_ge(running, queue, user, collection, url):
                                 "u": data["metadata"]["user"],
                                 "c": data["metadata"]["collection"],
                             },
-                            "v": data["vectors"],
-                            "e": data["entity"],
+                            "e": [
+                                {
+                                    "e": ent["entity"],
+                                    "v": ent["vectors"],
+                                }
+                                for ent in data["entities"]
+                            ]
                         }
                     ])
                 if msg.type == aiohttp.WSMsgType.ERROR:

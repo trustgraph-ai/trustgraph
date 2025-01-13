@@ -5,7 +5,7 @@ import uuid
 from aiohttp import WSMsgType
 
 from .. schema import Metadata
-from .. schema import GraphEmbeddings
+from .. schema import GraphEmbeddings, EntityEmbeddings
 from .. schema import graph_embeddings_store_queue
 
 from . publisher import Publisher
@@ -50,8 +50,13 @@ class GraphEmbeddingsLoadEndpoint(SocketEndpoint):
                         user=data["metadata"]["user"],
                         collection=data["metadata"]["collection"],
                     ),
-                    entity=to_value(data["entity"]),
-                    vectors=data["vectors"],
+                    entities=[
+                        EntityEmbeddings(
+                            entity=to_value(ent["entity"]),
+                            vectors=ent["vectors"],
+                        )
+                        for ent in data["entities"]
+                    ]
                 )
 
                 self.publisher.send(None, elt)
