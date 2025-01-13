@@ -33,7 +33,14 @@ TrustGraph is a fully agentic AI system for complex unstructured data. Extract y
 
 ## Getting Started
 
-For developers, **TrustGraph** has the following APIs and CLI:
+#### Table of Contents
+- [Install the CLI](#install-the-trustgraph-cli)
+- [Configuration Portal](#configuration-portal)
+- [System Restarts](#system-restarts)
+- [Data Workbench](#data-workbench)
+- [Example Notebooks](#example-trustgraph-notebooks)
+
+## Developer APIs and CLI
 
 - [**REST API**](docs/apis/README.md#rest-apis)
 - [**Websocket API**](docs/apis/README.md#websocket-api)
@@ -86,7 +93,7 @@ When finished, shutting down TrustGraph is as simple as:
 docker compose down -v
 ```
 
-### System Restarts
+## System Restarts
 
 The `-v` flag will destroy all data on shut down. To restart the system, it's necessary to keep the volumes. To keep the volumes, shut down without the `-v` flag:
 ```
