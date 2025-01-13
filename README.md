@@ -33,7 +33,7 @@ TrustGraph is a fully agentic AI system for complex unstructured data. Extract y
 
 ## Getting Started
 
-#### Table of Contents
+#### Quickstart Guide 🚀
 - [Install the CLI](#install-the-trustgraph-cli)
 - [Configuration Portal](#configuration-portal)
 - [System Restarts](#system-restarts)
