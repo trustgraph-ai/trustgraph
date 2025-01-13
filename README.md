@@ -178,7 +178,7 @@ tg-load-text <document.txt>
 Once the knowledge graph and embeddings have been built or a knowledge core has been loaded, RAG queries are launched with a single line:
 
 ```
-tg-query-graph-rag -q "Write a blog post about the 5 key takeaways from SB1047 and how they will impact AI development."
+tg-invoke-graph-rag -q "What are the top 3 takeaways from the document?"
 ```
 
 ## Agent Flow
@@ -186,7 +186,7 @@ tg-query-graph-rag -q "Write a blog post about the 5 key takeaways from SB1047 a
 Invoking the Agent Flow will use a ReAct style approach the combines GraphRAG and text completion requests to think through a problem solution.
 
 ```
-tg-invoke-agent -v -q "Write a blog post about the 5 key takeaways from SB1047 and how they will impact AI development."
+tg-invoke-agent -v -q "Write a blog post on the top 3 takeaways from the document."
 ```
 
 > [!TIP]
