@@ -95,7 +95,7 @@ docker compose down
 
 With the volumes preserved, restarting the system is as simple as:
 ```
-docker compose up
+docker compose up -d
 ```
 
 All data previously in TrustGraph will be saved and usable on restart.
