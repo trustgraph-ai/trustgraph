@@ -86,6 +86,20 @@ When finished, shutting down TrustGraph is as simple as:
 docker compose down -v
 ```
 
+### System Restarts
+
+The `-v` flag will destroy all data on shut down. To restart the system, it's necessary to keep the volumes. To keep the volumes, shut down without the `-v` flag:
+```
+docker compose down
+```
+
+With the volumes preserved, restarting the system is as simple as:
+```
+docker compose up
+```
+
+All data previously in TrustGraph will be saved and usable on restart.
+
 ## Data Workbench
 
 If added to the build in the `Configuration Portal`, the `Data Workbench` will be available at port `8888`. The `Data Workbench` has 4 capabilities:
