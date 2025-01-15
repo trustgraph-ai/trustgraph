@@ -5,6 +5,11 @@ local prompts = import "prompts/mixtral.jsonnet";
 
 {
 
+    with:: function(key, value)
+        self + {
+            ["vertexai-" + key]:: value,
+        },
+
     "vertexai-model":: "gemini-1.0-pro-001",
     "vertexai-private-key":: "/vertexai/private.json",
     "vertexai-region":: "us-central1",
