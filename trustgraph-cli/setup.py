@@ -54,10 +54,12 @@ setuptools.setup(
         "scripts/tg-invoke-llm",
         "scripts/tg-invoke-prompt",
         "scripts/tg-load-kg-core",
+        "scripts/tg-load-doc-embeds",
         "scripts/tg-load-pdf",
         "scripts/tg-load-text",
         "scripts/tg-load-turtle",
         "scripts/tg-processor-state",
         "scripts/tg-save-kg-core",
+        "scripts/tg-save-doc-embeds",
     ]
 )

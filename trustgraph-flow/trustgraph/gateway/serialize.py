@@ -60,3 +60,20 @@ def serialize_graph_embeddings(message):
         ],
     }
 
+def serialize_document_embeddings(message):
+    return {
+        "metadata": {
+            "id": message.metadata.id,
+            "metadata": serialize_subgraph(message.metadata.metadata),
+            "user": message.metadata.user,
+            "collection": message.metadata.collection,
+        },
+        "chunks": [
+            {
+                "vectors": chunk.vectors,
+                "chunk": chunk.chunk.decode("utf-8"),
+            }
+            for chunk in message.chunks
+        ],
+    }
+
