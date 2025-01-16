@@ -41,8 +41,10 @@ from . dbpedia import DbpediaRequestor
 from . internet_search import InternetSearchRequestor
 from . triples_stream import TriplesStreamEndpoint
 from . graph_embeddings_stream import GraphEmbeddingsStreamEndpoint
+from . document_embeddings_stream import DocumentEmbeddingsStreamEndpoint
 from . triples_load import TriplesLoadEndpoint
 from . graph_embeddings_load import GraphEmbeddingsLoadEndpoint
+from . document_embeddings_load import DocumentEmbeddingsLoadEndpoint
 from . mux import MuxEndpoint
 from . document_load import DocumentLoadSender
 from . text_load import TextLoadSender
@@ -203,11 +205,19 @@ class Api:
                 pulsar_host=self.pulsar_host,
                 auth = self.auth,
             ),
+            DocumentEmbeddingsStreamEndpoint(
+                pulsar_host=self.pulsar_host,
+                auth = self.auth,
+            ),
             TriplesLoadEndpoint(
                 pulsar_host=self.pulsar_host,
                 auth = self.auth,
             ),
             GraphEmbeddingsLoadEndpoint(
+                pulsar_host=self.pulsar_host,
+                auth = self.auth,
+            ),
+            DocumentEmbeddingsLoadEndpoint(
                 pulsar_host=self.pulsar_host,
                 auth = self.auth,
             ),
