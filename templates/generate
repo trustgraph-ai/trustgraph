@@ -97,7 +97,7 @@ def main():
             logger.info(f"Adding {name}...")
             out.writestr(name, content)
 
-        fname = "tg-launch.yaml"
+        fname = "docker-compose.yaml"
 
         platform = "docker-compose"
 

@@ -134,7 +134,7 @@ local url = import "values/url.jsonnet";
             );
 
             local bookieContainerSet = engine.containers(
-                "bookie",
+                "pulsar",
                 [
                     bookieContainer,
                 ]
