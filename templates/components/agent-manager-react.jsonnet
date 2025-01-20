@@ -19,6 +19,10 @@ local default_prompts = import "prompts/default-prompts.jsonnet";
                         "agent-manager-react",
                         "-p",
                         url.pulsar,
+                        "--prompt-request-queue",
+                        "non-persistent://tg/request/prompt-rag",
+                        "--prompt-response-queue",
+                        "non-persistent://tg/response/prompt-rag",
                         "--tool-type",
                     ] + [
                         tool.id + "=" + tool.type
