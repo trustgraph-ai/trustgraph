@@ -20,13 +20,13 @@ TrustGraph is a fully agentic AI system for complex unstructured data. Extract y
 - 🔁 **No-code LLM Integration**: **Anthropic**, **AWS Bedrock**, **AzureAI**, **AzureOpenAI**, **Cohere**, **Google AI Studio**, **Google VertexAI**, **Llamafiles**, **Ollama**, and **OpenAI**
 - 📖 **Entity, Topic, and Relationship Knowledge Graphs**
 - 🔢 **Mapped Vector Embeddings**
-- ❔**No-code GraphRAG Queries**: Automatically perform a semantic similiarity search and subgraph extraction for the context of LLM generative responses
-- 🤖 **Agent Flow**: Define custom tools used by a ReAct style Agent Manager that fully controls the response flow including the ability to perform GraphRAG requests
+- ❔**No-code Graph RAG Queries**: Automatically perform a semantic similiarity search and subgraph extraction for the context of LLM generative responses
+- 🧠 **Cognitive Cores**: Modular data sets with semantic relationships that can saved and quickly loaded on demand
+- 🤖 **Agent Flow**: Define custom tools used by a ReAct style Agent Manager that fully controls the response flow including the ability to perform Graph RAG requests
 - 📚 **Multiple Knowledge Graph Options**: Full integration with **Memgraph**, **FalkorDB**, **Neo4j**, or **Cassandra**
 - 🧮 **Multiple VectorDB Options**: Full integration with **Pinecone**, **Qdrant**, or **Milvus**
 - 🎛️ **Production-Grade** reliability, scalability, and accuracy
 - 🔍 **Observability**: get insights into system performance with Prometheus and Grafana
-- 🗄️ **AI Powered Data Warehouse**: Load only the subgraph and vector embeddings you use most often
 - 🪴 **Customizable and Extensible**: Tailor for your data and use cases
 - 🖥️ **Configuration Portal**: Build the `YAML` configuration with drop down menus and selectable parameters
 - 🕵️ **Data Workbench**: Explore your data with a 3D semantic visualizer
@@ -109,7 +109,7 @@ All data previously in TrustGraph will be saved and usable on restart.
 
 If added to the build in the `Configuration Portal`, the `Data Workbench` will be available at port `8888`. The `Data Workbench` has 4 capabilities:
 
-- **System Chat** 💬: GraphRAG queries in a chat interface
+- **System Chat** 💬: Graph RAG queries in a chat interface
 - **Data Explorer** 🕵️: See semantic relationships in a list structure
 - **Data Visualizer** 🌐: Visualize semantic relationships in **3D**
 - **Data Loader** 📂: Directly load `.pdf`, `.txt`, or `.md` into the system 
@@ -178,9 +178,9 @@ Text or Markdown file:
 tg-load-text <document.txt>
 ```
 
-## GraphRAG Queries
+## Graph RAG Queries
 
-Once the knowledge graph and embeddings have been built or a knowledge core has been loaded, RAG queries are launched with a single line:
+Once the knowledge graph and embeddings have been built or a cognitive core has been loaded, RAG queries are launched with a single line:
 
 ```
 tg-invoke-graph-rag -q "What are the top 3 takeaways from the document?"
@@ -188,7 +188,7 @@ tg-invoke-graph-rag -q "What are the top 3 takeaways from the document?"
 
 ## Agent Flow
 
-Invoking the Agent Flow will use a ReAct style approach the combines GraphRAG and text completion requests to think through a problem solution.
+Invoking the Agent Flow will use a ReAct style approach the combines Graph RAG and text completion requests to think through a problem solution.
 
 ```
 tg-invoke-agent -v -q "Write a blog post on the top 3 takeaways from the document."
