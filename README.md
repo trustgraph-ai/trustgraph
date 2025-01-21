@@ -11,7 +11,7 @@
 
 </div>
 
-TrustGraph empowers you to deploy reasoning AI Agents in minutes. Our Agentic Graph RAG platform allows you to leverage modular cognitive cores for complex reasoning and information retrieval, all within a scalable and reliable infrastructure. Forget lengthy development cycles – TrustGraph delivers instant intelligence.
+TrustGraph empowers you to deploy reasoning AI Agents in minutes. Our Agentic Graph RAG platform allows you to leverage modular cognitive cores for complex reasoning and information retrieval, all within a scalable and reliable infrastructure. Forget lengthy development cycles – TrustGraph delivers instant reasoning.
 
 ## Key Features
 
