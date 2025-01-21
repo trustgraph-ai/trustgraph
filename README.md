@@ -2,7 +2,7 @@
 
 <div align="center">
 
-## Intelligent AI Agents, Instantly Deployed
+## Reasoning AI Agents, Instantly Deployed
 
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
@@ -11,7 +11,7 @@
 
 </div>
 
-TrustGraph empowers you to deploy intelligent AI Agents in minutes. Our Agentic Graph RAG platform allows you to leverage modular cognitive cores for complex reasoning and information retrieval, all within a scalable and reliable infrastructure. Forget lengthy development cycles – TrustGraph delivers instant intelligence.
+TrustGraph empowers you to deploy reasoning AI Agents in minutes. Our Agentic Graph RAG platform allows you to leverage modular cognitive cores for complex reasoning and information retrieval, all within a scalable and reliable infrastructure. Forget lengthy development cycles – TrustGraph delivers instant intelligence.
 
 ## Key Features
 
