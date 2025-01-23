@@ -7,6 +7,8 @@ local images = import "values/images.jsonnet";
     
         create:: function(engine)
 
+            local vol = engine.volume("memgraph").with_size("20G");
+
             local container =
                 engine.container("memgraph")
                     .with_image(images.memgraph_mage)
@@ -16,7 +18,8 @@ local images = import "values/images.jsonnet";
                     .with_limits("1.0", "1000M")
                     .with_reservations("0.5", "1000M")
                     .with_port(7474, 7474, "api")
-                    .with_port(7687, 7687, "api2");
+                    .with_port(7687, 7687, "api2")
+                    .with_volume_mount(vol, "/var/lib/memgraph");
 
             local containerSet = engine.containers(
                 "memgraph", [ container ]
@@ -28,6 +31,7 @@ local images = import "values/images.jsonnet";
                 .with_port(7687, 7687, "api2");
 
             engine.resources([
+                vol,
                 containerSet,
                 service,
             ])
@@ -65,4 +69,3 @@ local images = import "values/images.jsonnet";
     },
 
 }
-
