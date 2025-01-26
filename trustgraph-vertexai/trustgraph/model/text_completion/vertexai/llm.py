@@ -180,7 +180,7 @@ class Processor(ConsumerProducer):
 
             print("Hit rate limit:", e, flush=True)
 
-            # Leave rate limit retries to the default handler
+            # Leave rate limit retries to the base handler
             raise TooManyRequests()
 
         except Exception as e:

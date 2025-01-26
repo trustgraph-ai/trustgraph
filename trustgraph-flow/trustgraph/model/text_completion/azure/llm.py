@@ -158,24 +158,14 @@ class Processor(ConsumerProducer):
 
         except TooManyRequests:
 
-            print("Send rate limit response...", flush=True)
+            print("Rate limit...")
 
-            r = TextCompletionResponse(
-                error=Error(
-                    type = "rate-limit",
-                    message = str(e),
-                ),
-                response=None,
-                in_token=None,
-                out_token=None,
-                model=None,
-            )
-
-            self.producer.send(r, properties={"id": id})
-
-            self.consumer.acknowledge(msg)
+            # Leave rate limit retries to the base handler
+            raise TooManyRequests()
 
         except Exception as e:
+
+            # Apart from rate limits, treat all exceptions as unrecoverable
 
             print(f"Exception: {e}")
 

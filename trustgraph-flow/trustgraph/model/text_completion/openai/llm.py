@@ -4,7 +4,7 @@ Simple LLM service, performs text prompt completion using OpenAI.
 Input is prompt, output is response.
 """
 
-from openai import OpenAI
+from openai import OpenAI, RateLimitError
 from prometheus_client import Histogram
 import os
 
@@ -87,8 +87,6 @@ class Processor(ConsumerProducer):
 
         try:
 
-            # FIXME: Rate limits
-
             with __class__.text_completion_metric.time():
 
                 resp = self.openai.chat.completions.create(
@@ -134,26 +132,14 @@ class Processor(ConsumerProducer):
 
         # FIXME: Wrong exception, don't know what this LLM throws
         # for a rate limit
-        except TooManyRequests:
+        except openai.RateLimitError:
 
-            print("Send rate limit response...", flush=True)
-
-            r = TextCompletionResponse(
-                error=Error(
-                    type = "rate-limit",
-                    message = str(e),
-                ),
-                response=None,
-                in_token=None,
-                out_token=None,
-                model=None,
-            )
-
-            self.producer.send(r, properties={"id": id})
-
-            self.consumer.acknowledge(msg)
+            # Leave rate limit retries to the base handler
+            raise TooManyRequests()
 
         except Exception as e:
+
+            # Apart from rate limits, treat all exceptions as unrecoverable
 
             print(f"Exception: {e}")
 
