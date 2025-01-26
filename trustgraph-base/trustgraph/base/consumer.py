@@ -54,9 +54,9 @@ class Consumer(BaseProcessor):
                 'processing_count', 'Processing count', ["status"]
             )
 
-        if not hasattr(__class__, "retry_metric"):
-            __class__.retry_metric = Counter(
-                'retry_count', 'Retry count',
+        if not hasattr(__class__, "rate_limit_metric"):
+            __class__.rate_limit_metric = Counter(
+                'rate_limit_count', 'Rate limit event count',
             )
 
         __class__.pubsub_metric.info({
@@ -118,7 +118,7 @@ class Consumer(BaseProcessor):
 
                     print("TooManyRequests: will retry...", flush=True)
 
-                    __class__.retry_metric.inc()
+                    __class__.rate_limit_metric.inc()
 
                     # Sleep
                     time.sleep(self.rate_limit_retry)
