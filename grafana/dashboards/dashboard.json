@@ -577,7 +577,7 @@
           "disableTextWrap": false,
           "editorMode": "builder",
           "exemplar": false,
-          "expr": "increase(processing_count_total{status!=\"success\"}[$__rate_interval])",
+          "expr": "sum by(job) (increase(rate_limit_count_total[$__rate_interval]))",
           "format": "time_series",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
@@ -588,7 +588,7 @@
           "useBackend": false
         }
       ],
-      "title": "Errors",
+      "title": "Rate limit events",
       "type": "timeseries"
     },
     {
