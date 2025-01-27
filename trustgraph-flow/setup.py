@@ -49,6 +49,7 @@ setuptools.setup(
         "langchain-core",
         "langchain-text-splitters",
         "neo4j",
+        "ollama",
         "openai",
         "pinecone[grpc]",
         "prometheus-client",
