@@ -11,12 +11,19 @@ ENV PIP_BREAK_SYSTEM_PACKAGES=1
 RUN dnf install -y python3 python3-pip python3-wheel python3-aiohttp \
     python3-rdflib
 
-RUN pip3 install torch --index-url https://download.pytorch.org/whl/cpu
+RUN pip3 install torch==2.5.1+cpu \
+    --index-url https://download.pytorch.org/whl/cpu
 
-RUN pip3 install anthropic boto3 cohere openai google-cloud-aiplatform ollama google-generativeai \
-    langchain langchain-core langchain-huggingface langchain-text-splitters \
-    langchain-community pymilvus sentence-transformers transformers \
-    huggingface-hub pulsar-client cassandra-driver pyyaml \
+RUN pip3 install \
+    anthropic boto3 cohere openai google-cloud-aiplatform \
+    ollama google-generativeai \
+    langchain==0.3.13 langchain-core==0.3.28 langchain-huggingface==0.1.2 \
+    langchain-text-splitters==0.3.4 \
+    langchain-community==0.3.13 \
+    sentence-transformers==3.4.0 transformers==4.47.1 \
+    huggingface-hub==0.27.0 \
+    pymilvus \
+    pulsar-client==3.5.0 cassandra-driver pyyaml \
     neo4j tiktoken falkordb && \
     pip3 cache purge
 
