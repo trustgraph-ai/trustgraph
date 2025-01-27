@@ -39,6 +39,7 @@ setuptools.setup(
         "anthropic",
         "cassandra-driver",
         "cohere",
+        "cryptography",
         "falkordb",
         "google-generativeai",
         "ibis",
