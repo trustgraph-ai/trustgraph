@@ -267,6 +267,7 @@ class Processor(ConsumerProducer):
 
         except Exception as e:
 
+            print(type(e))
             print(f"Exception: {e}")
 
             print("Send error response...", flush=True)
