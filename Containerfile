@@ -20,6 +20,10 @@ RUN pip3 install anthropic boto3 cohere openai google-cloud-aiplatform ollama go
     neo4j tiktoken falkordb && \
     pip3 cache purge
 
+# Most commonly used embeddings model, just build it into the container
+# image
+RUN huggingface-cli download sentence-transformers/all-MiniLM-L6-v2
+
 # ----------------------------------------------------------------------------
 # Build a container which contains the built Python packages.  The build
 # creates a bunch of left-over cruft, a separate phase means this is only
