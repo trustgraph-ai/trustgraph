@@ -41,6 +41,7 @@ setuptools.setup(
         "cohere",
         "cryptography",
         "falkordb",
+        "fastembed",
         "google-generativeai",
         "ibis",
         "jsonschema",
