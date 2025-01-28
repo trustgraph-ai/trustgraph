@@ -1,6 +1,6 @@
 
 """
-Embeddings service, applies an embeddings model hosted on a local Ollama.
+Embeddings service, applies an embeddings model selected from HuggingFace.
 Input is text, output is embeddings vector.
 """
 
@@ -8,7 +8,7 @@ from ... schema import EmbeddingsRequest, EmbeddingsResponse
 from ... schema import embeddings_request_queue, embeddings_response_queue
 from ... log_level import LogLevel
 from ... base import ConsumerProducer
-from ollama import Client
+from fastembed import TextEmbedding
 import os
 
 module = ".".join(__name__.split(".")[1:-1])
@@ -16,8 +16,7 @@ module = ".".join(__name__.split(".")[1:-1])
 default_input_queue = embeddings_request_queue
 default_output_queue = embeddings_response_queue
 default_subscriber = module
-default_model="mxbai-embed-large"
-default_ollama = os.getenv("OLLAMA_HOST", 'http://localhost:11434')
+default_model="sentence-transformers/all-MiniLM-L6-v2"
 
 class Processor(ConsumerProducer):
 
@@ -27,7 +26,6 @@ class Processor(ConsumerProducer):
         output_queue = params.get("output_queue", default_output_queue)
         subscriber = params.get("subscriber", default_subscriber)
 
-        ollama = params.get("ollama", default_ollama)
         model = params.get("model", default_model)
 
         super(Processor, self).__init__(
@@ -37,13 +35,11 @@ class Processor(ConsumerProducer):
                 "subscriber": subscriber,
                 "input_schema": EmbeddingsRequest,
                 "output_schema": EmbeddingsResponse,
-                "ollama": ollama,
                 "model": model,
             }
         )
 
-        self.client = Client(host=ollama)
-        self.model = model
+        self.embeddings = TextEmbedding(model_name = model)
 
     def handle(self, msg):
 
@@ -56,14 +52,16 @@ class Processor(ConsumerProducer):
         print(f"Handling input {id}...", flush=True)
 
         text = v.text
-        embeds = self.client.embed(
-            model = self.model,
-            input = text
-        )
+        vecs = self.embeddings.embed([text])
+
+        vecs = [
+            v.tolist()
+            for v in vecs
+        ]
 
         print("Send response...", flush=True)
         r = EmbeddingsResponse(
-            vectors=embeds.embeddings,
+            vectors=list(vecs),
             error=None,
         )
 
@@ -83,12 +81,6 @@ class Processor(ConsumerProducer):
             '-m', '--model',
             default=default_model,
             help=f'Embeddings model (default: {default_model})'
-        )
-
-        parser.add_argument(
-            '-r', '--ollama',
-            default=default_ollama,
-            help=f'ollama (default: {default_ollama})'
         )
 
 def run():
