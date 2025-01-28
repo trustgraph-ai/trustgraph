@@ -17,7 +17,7 @@ local cassandra_hosts = "cassandra";
 
             local container =
                 engine.container("store-graph-embeddings")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "ge-write-pinecone",
                         "-p",
@@ -52,7 +52,7 @@ local cassandra_hosts = "cassandra";
 
             local container =
                 engine.container("query-graph-embeddings")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "ge-query-pinecone",
                         "-p",
@@ -87,7 +87,7 @@ local cassandra_hosts = "cassandra";
 
             local container =
                 engine.container("store-doc-embeddings")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "de-write-pinecone",
                         "-p",
@@ -122,7 +122,7 @@ local cassandra_hosts = "cassandra";
 
             local container =
                 engine.container("query-doc-embeddings")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "de-query-pinecone",
                         "-p",

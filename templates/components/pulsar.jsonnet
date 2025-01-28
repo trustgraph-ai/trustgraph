@@ -109,7 +109,7 @@ local url = import "values/url.jsonnet";
             // Trustgraph Pulsar initialisation
             local adminContainer =
                 engine.container("init-trustgraph")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "tg-init-pulsar",
                         "-p",

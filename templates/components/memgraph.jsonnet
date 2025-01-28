@@ -14,7 +14,7 @@ memgraph + {
 
             local container =
                 engine.container("store-triples")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "triples-write-memgraph",
                         "-p",
@@ -48,7 +48,7 @@ memgraph + {
 
             local container =
                 engine.container("query-triples")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "triples-query-memgraph",
                         "-p",

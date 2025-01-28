@@ -14,7 +14,7 @@ local default_prompts = import "prompts/default-prompts.jsonnet";
 
             local container =
                 engine.container("agent-manager")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "agent-manager-react",
                         "-p",

@@ -21,7 +21,7 @@ local url = import "values/url.jsonnet";
 
             local container =
                 engine.container("api-gateway")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "api-gateway",
                         "-p",
@@ -60,7 +60,7 @@ local url = import "values/url.jsonnet";
 
             local container =
                 engine.container("chunker")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "chunker-token",
                         "-p",
@@ -94,7 +94,7 @@ local url = import "values/url.jsonnet";
 
             local container =
                 engine.container("pdf-decoder")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "pdf-decoder",
                         "-p",
@@ -124,7 +124,7 @@ local url = import "values/url.jsonnet";
 
             local container =
                 engine.container("metering")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "metering",
                         "-p",
@@ -154,7 +154,7 @@ local url = import "values/url.jsonnet";
 
             local container =
                 engine.container("metering-rag")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "metering",
                         "-p",
