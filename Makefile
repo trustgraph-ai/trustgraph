@@ -30,7 +30,7 @@ packages: update-package-versions
 pypi-upload:
 	twine upload dist/*-${VERSION}.*
 
-CONTAINER=docker.io/trustgraph/trustgraph-flow
+CONTAINER_BASE=docker.io/trustgraph
 
 update-package-versions:
 	mkdir -p trustgraph-cli/trustgraph
@@ -44,8 +44,16 @@ update-package-versions:
 	echo __version__ = \"${VERSION}\" > trustgraph/trustgraph/trustgraph_version.py
 
 container: update-package-versions
-	${DOCKER} build -f Containerfile -t ${CONTAINER}:${VERSION} \
-	    --format docker
+	${DOCKER} build -f containers/Containerfile.base \
+	    -t ${CONTAINER_BASE}/trustgraph-base:${VERSION} .
+	${DOCKER} build -f containers/Containerfile.flow \
+	    -t ${CONTAINER_BASE}/trustgraph-flow:${VERSION} .
+	${DOCKER} build -f containers/Containerfile.bedrock \
+	    -t ${CONTAINER_BASE}/trustgraph-bedrock:${VERSION} .
+	${DOCKER} build -f containers/Containerfile.vertexai \
+	    -t ${CONTAINER_BASE}/trustgraph-vertexai:${VERSION} .
+	${DOCKER} build -f containers/Containerfile.hf \
+	    -t ${CONTAINER_BASE}/trustgraph-hf:${VERSION} .
 
 push:
 	${DOCKER} push ${CONTAINER}:${VERSION}
