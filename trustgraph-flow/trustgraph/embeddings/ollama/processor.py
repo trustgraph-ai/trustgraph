@@ -1,6 +1,6 @@
 
 """
-Embeddings service, applies an embeddings model selected from HuggingFace.
+Embeddings service, applies an embeddings model hosted on a local Ollama.
 Input is text, output is embeddings vector.
 """
 

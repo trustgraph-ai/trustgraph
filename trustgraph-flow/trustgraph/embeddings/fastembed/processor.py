@@ -52,11 +52,16 @@ class Processor(ConsumerProducer):
         print(f"Handling input {id}...", flush=True)
 
         text = v.text
-        embeds = self.embeddings.embed([text])
+        vecs = self.embeddings.embed([text])
+
+        vecs = [
+            v.tolist()
+            for v in vecs
+        ]
 
         print("Send response...", flush=True)
         r = EmbeddingsResponse(
-            vectors=embeddings,
+            vectors=list(vecs),
             error=None,
         )
 
@@ -76,12 +81,6 @@ class Processor(ConsumerProducer):
             '-m', '--model',
             default=default_model,
             help=f'Embeddings model (default: {default_model})'
-        )
-
-        parser.add_argument(
-            '-r', '--ollama',
-            default=default_ollama,
-            help=f'ollama (default: {default_ollama})'
         )
 
 def run():

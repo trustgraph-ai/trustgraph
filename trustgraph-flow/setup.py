@@ -79,6 +79,7 @@ setuptools.setup(
         "scripts/document-embeddings",
         "scripts/document-rag",
         "scripts/embeddings-ollama",
+        "scripts/embeddings-fastembed",
         "scripts/ge-query-milvus",
         "scripts/ge-query-pinecone",
         "scripts/ge-query-qdrant",
