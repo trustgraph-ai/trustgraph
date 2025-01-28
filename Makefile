@@ -56,7 +56,11 @@ container: update-package-versions
 	    -t ${CONTAINER_BASE}/trustgraph-hf:${VERSION} .
 
 push:
-	${DOCKER} push ${CONTAINER}:${VERSION}
+	${DOCKER} push ${CONTAINER_BASE}/trustgraph-base:${VERSION}
+	${DOCKER} push ${CONTAINER_BASE}/trustgraph-flow:${VERSION}
+	${DOCKER} push ${CONTAINER_BASE}/trustgraph-bedrock:${VERSION}
+	${DOCKER} push ${CONTAINER_BASE}/trustgraph-vertexai:${VERSION}
+	${DOCKER} push ${CONTAINER_BASE}/trustgraph-hf:${VERSION}
 
 clean:
 	rm -rf wheels/
