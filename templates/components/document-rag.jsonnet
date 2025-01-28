@@ -11,7 +11,7 @@ local prompts = import "prompts/mixtral.jsonnet";
 
             local container =
                 engine.container("document-rag")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "document-rag",
                         "-p",
@@ -45,7 +45,7 @@ local prompts = import "prompts/mixtral.jsonnet";
 
             local container =
                 engine.container("document-embeddings")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "document-embeddings",
                         "-p",

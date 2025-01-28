@@ -21,7 +21,7 @@ local prompts = import "prompts/slm.jsonnet";
 
             local container =
                 engine.container("text-completion")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "text-completion-llamafile",
                         "-p",

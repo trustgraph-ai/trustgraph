@@ -30,7 +30,7 @@ local prompts = import "prompts/mixtral.jsonnet";
 
             local container =
                 engine.container("text-completion")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_vertexai)
                     .with_command([
                         "text-completion-vertexai",
                         "-p",

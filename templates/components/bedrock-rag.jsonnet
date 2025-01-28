@@ -26,7 +26,7 @@ local chunker = import "chunker-recursive.jsonnet";
 
             local containerRag =
                 engine.container("text-completion-rag")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_bedrock)
                     .with_command([
                         "text-completion-bedrock",
                         "-p",

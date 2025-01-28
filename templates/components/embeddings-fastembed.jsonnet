@@ -13,7 +13,7 @@ local prompts = import "prompts/mixtral.jsonnet";
 
             local container =
                 engine.container("embeddings")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "embeddings-fastembed",
                         "-p",

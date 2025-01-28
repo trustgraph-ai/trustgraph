@@ -44,7 +44,7 @@ local default_prompts = import "prompts/default-prompts.jsonnet";
 
             local container =
                 engine.container("prompt")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "prompt-template",
                         "-p",
@@ -84,7 +84,7 @@ local default_prompts = import "prompts/default-prompts.jsonnet";
 
             local container =
                 engine.container("prompt-rag")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "prompt-template",
                         "-p",
