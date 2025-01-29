@@ -5,7 +5,6 @@ Input is prompt, output is response. Mistral is default.
 """
 
 import boto3
-from botocore.errorfactory import ThrottlingException
 import json
 from prometheus_client import Histogram
 import os
@@ -259,7 +258,7 @@ class Processor(ConsumerProducer):
 
             print("Done.", flush=True)
 
-        except ThrottlingException:
+        except self.bedrock.exceptions.ThrottlingException:
 
             print("Send rate limit response...", flush=True)
 
