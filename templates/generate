@@ -7,6 +7,8 @@ import logging
 import os
 import sys
 import zipfile
+import pathlib
+from io import BytesIO
 
 logger = logging.getLogger("generate")
 logging.basicConfig(level=logging.INFO, format='%(message)s')
@@ -15,9 +17,13 @@ private_json = "Put your GCP private.json here"
 
 class Generator:
 
-    def __init__(self, config, base="./templates/", version="0.0.0"):
+    def __init__(
+        self, config, templates="./templates/", resources="./resources",
+        version="0.0.0",
+    ):
 
-        self.jsonnet_base = base
+        self.templates = pathlib.Path(templates)
+        self.resources = pathlib.Path(resources)
         self.config = config
         self.version = f"\"{version}\"".encode("utf-8")
 
@@ -34,25 +40,27 @@ class Generator:
             path = os.path.join(".", dir, filename)
             return str(path), self.config
 
-        if filename == "version.jsonnet" and dir == "./templates/values/":
+        if filename == "version.jsonnet" and dir == "templates/values/":
             path = os.path.join(".", dir, filename)
             return str(path), self.version
 
         if dir:
             candidates = [
-                os.path.join(".", dir, filename),
-                os.path.join(".", filename)
+                self.templates.joinpath(dir, filename),
+                self.templates.joinpath(filename),
+                self.resources.joinpath(dir, filename),
+                self.resources.joinpath(filename),
             ]
         else:
             candidates = [
-                os.path.join(".", filename)
+                self.templates.joinpath(filename),
             ]
 
         try:
 
             if filename == "vertexai/private.json":
 
-                return candidates[0], private_json.encode("utf-8")
+                return str(candidates[0]), private_json.encode("utf-8")
 
             for c in candidates:
                 logger.debug("Try: %s", c)
@@ -68,73 +76,157 @@ class Generator:
                 
         except:
 
-            path = os.path.join(self.jsonnet_base, filename)
+            path = os.path.join(self.templates, filename)
             logger.debug("Try: %s", path)
             with open(path, "rb") as f:
                 logger.debug("Loaded: %s", path)
                 return str(path), f.read()
 
+class Packager:
+
+    def __init__(self):
+        self.templates = pathlib.Path("./templates")
+        self.resources = pathlib.Path("./resources")
+
+    def process(
+            self, config, version="0.0.0", platform="docker-compose",
+    ):
+
+        config = config.encode("utf-8")
+
+        gen = Generator(
+            config, templates=self.templates, resources=self.resources,
+            version=version
+        )
+
+        path = self.templates.joinpath(
+            f"config-to-{platform}.jsonnet"
+        )
+        wrapper = path.read_text()
+
+        processed = gen.process(wrapper)
+
+        return processed
+    
+    def generate(self, config, version, platform):
+
+        logger.info(f"Generating for platform={platform} version={version}")
+
+        try:
+
+            if platform in set(["docker-compose", "podman-compose"]):
+                return self.generate_docker_compose(
+                    "docker-compose", version, config
+                )
+            elif platform in set(["minikube-k8s", "gcp-k8s"]):
+                return self.generate_k8s(
+                    platform, version, config
+                )
+            else:
+                raise RuntimeError("Bad configuration")
+
+        except Exception as e:
+            logging.error(f"Exception: {e}")
+            raise e
+
+    def generate_docker_compose(self, platform, version, config):
+
+        processed = self.process(
+            config, platform=platform, version=version
+        )
+
+        y = yaml.dump(processed)
+
+        mem = BytesIO()
+
+        with zipfile.ZipFile(mem, mode='w') as out:
+
+            def output(name, content):
+                logger.info(f"Adding {name}...")
+                out.writestr(name, content)
+
+            fname = "docker-compose.yaml"
+
+            output(fname, y)
+
+            # Grafana config
+            path = self.resources.joinpath(
+                "grafana/dashboards/dashboard.json"
+            )
+            res = path.read_text()
+            output("grafana/dashboards/dashboard.json", res)
+
+            path = self.resources.joinpath(
+                "grafana/provisioning/dashboard.yml"
+            )
+            res = path.read_text()
+            output("grafana/provisioning/dashboard.yml", res)
+
+            path = self.resources.joinpath(
+                "grafana/provisioning/datasource.yml"
+            )
+            res = path.read_text()
+            output("grafana/provisioning/datasource.yml", res)
+
+            # Prometheus config
+            path = self.resources.joinpath(
+                "prometheus/prometheus.yml"
+            )
+            res = path.read_text()
+            output("prometheus/prometheus.yml", res)
+
+        logger.info("Generation complete.")
+
+        return mem.getvalue()
+
+    def generate_k8s(self, platform, version, config):
+
+        processed = self.process(
+            config, platform=platform, version=version
+        )
+
+        y = yaml.dump(processed)
+
+        mem = BytesIO()
+
+        with zipfile.ZipFile(mem, mode='w') as out:
+
+            def output(name, content):
+                logger.info(f"Adding {name}...")
+                out.writestr(name, content)
+
+            fname = "resources.yaml"
+
+            output(fname, y)
+
+        logger.info("Generation complete.")
+
+        return mem.getvalue()
+            
 def main():
 
-    if len(sys.argv) != 3:
+    if len(sys.argv) != 4:
         print()
         print("Usage:")
-        print("  generate <outfile> <version> < input.json")
+        print("  generate <outfile> <version> <platform> < input.json")
         print()
         sys.exit(1)
 
     outfile = sys.argv[1]
     version = sys.argv[2]
+    platform = sys.argv[3]
 
     cfg = sys.stdin.read()
-    cfg = json.loads(cfg)
     
     logger.info(f"Outputting to {outfile}...")
 
-    with zipfile.ZipFile(outfile, mode='w') as out:
+    p = Packager()
+    resp = p.generate(cfg, version, platform)
 
-        def output(name, content):
-            logger.info(f"Adding {name}...")
-            out.writestr(name, content)
+    with open(outfile, "wb") as f:
+        f.write(resp)
 
-        fname = "docker-compose.yaml"
-
-        platform = "docker-compose"
-
-        with open(f"./templates/config-to-{platform}.jsonnet", "r") as f:
-            wrapper = f.read()
-
-        gen = Generator(json.dumps(cfg).encode("utf-8"), version=version)
-
-        processed = gen.process(wrapper)
-
-        y = yaml.dump(processed)
-
-        output(fname, y)
-
-        # Placeholder for the private.json file.  Won't put actual credentials
-        # here.
-        output("docker-compose/vertexai/private.json", private_json)
-
-        # Grafana config
-        with open("grafana/dashboards/dashboard.json") as f:
-            output(
-                "docker-compose/grafana/dashboards/dashboard.json", f.read()
-            )
-
-        with open("grafana/provisioning/dashboard.yml") as f:
-            output(
-                "docker-compose/grafana/provisioning/dashboard.yml", f.read()
-            )
-
-        with open("grafana/provisioning/datasource.yml") as f:
-            output(
-                "docker-compose/grafana/provisioning/datasource.yml", f.read()
-            )
-
-        # Prometheus config
-        with open("prometheus/prometheus.yml") as f:
-            output("docker-compose/prometheus/prometheus.yml", f.read())
+    return
 
 main()
 
