@@ -5,6 +5,7 @@ Input is prompt, output is response. Mistral is default.
 """
 
 import boto3
+from botocore.errorfactory import ThrottlingException
 import json
 from prometheus_client import Histogram
 import os
@@ -36,6 +37,8 @@ default_region = os.getenv("AWS_DEFAULT_REGION", None)
 class Processor(ConsumerProducer):
 
     def __init__(self, **params):
+
+        print(params)
     
         input_queue = params.get("input_queue", default_input_queue)
         output_queue = params.get("output_queue", default_output_queue)
@@ -195,9 +198,6 @@ class Processor(ConsumerProducer):
             accept = 'application/json'
             contentType = 'application/json'
 
-            # FIXME: Consider catching request limits and raise TooManyRequests
-            # See https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html
-
             with __class__.text_completion_metric.time():
                 response = self.bedrock.invoke_model(
                     body=promptbody, modelId=self.model, accept=accept,
@@ -259,10 +259,7 @@ class Processor(ConsumerProducer):
 
             print("Done.", flush=True)
 
-
-        # FIXME: Wrong exception, don't know what Bedrock throws
-        # for a rate limit
-        except TooManyRequests:
+        except ThrottlingException:
 
             print("Send rate limit response...", flush=True)
 
@@ -316,21 +313,27 @@ class Processor(ConsumerProducer):
         )
 
         parser.add_argument(
-            '-z', '--aws-id-key',
-            default=default_aws_id_key,
-            help=f'AWS ID Key'
+            '-z', '--aws-access-key-id',
+            default=default_access_key_id,
+            help=f'AWS access key ID'
         )
 
         parser.add_argument(
-            '-k', '--aws-secret',
-            default=default_aws_secret,
-            help=f'AWS Secret Key'
+            '-k', '--aws-secret-access-key',
+            default=default_secret_access_key,
+            help=f'AWS secret access key'
         )
 
         parser.add_argument(
             '-r', '--aws-region',
-            default=default_aws_region,
-            help=f'AWS Region'
+            default=default_region,
+            help=f'AWS region'
+        )
+
+        parser.add_argument(
+            '--aws-profile', '--profile', 
+            default=default_profile,
+            help=f'AWS profile name'
         )
 
         parser.add_argument(
