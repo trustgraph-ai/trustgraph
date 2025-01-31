@@ -113,8 +113,9 @@ Choose one of the `Docker Compose` files that meets your preferred model and gra
 ### AWS Bedrock API
 
 ```
-export AWS_ID_KEY=<ID-KEY-HERE>
-export AWS_SECRET_KEY=<TOKEN-GOES-HERE>
+export AWS_ACCESS_KEY_ID=<ID-KEY-HERE>
+export AWS_SECRET_ACCESS_KEY=<TOKEN-GOES-HERE>
+export AWS_DEFAULT_REGION=<REGION-HERE>
 docker compose -f tg-launch-bedrock-cassandra.yaml up -d # Using Cassandra as the graph store
 docker compose -f tg-launch-bedrock-neo4j.yaml up -d # Using Neo4j as the graph store
 ```

@@ -20,9 +20,9 @@ local chunker = import "chunker-recursive.jsonnet";
         create:: function(engine)
 
             local envSecrets = engine.envSecrets("bedrock-credentials")
-                .with_env_var("AWS_ID_KEY", "aws-id-key")
-                .with_env_var("AWS_SECRET", "aws-secret")
-                .with_env_var("AWS_REGION", "aws-region");
+                .with_env_var("AWS_ACCESS_KEY_ID", "aws-id-key")
+                .with_env_var("AWS_SECRET_ACCESS_KEY", "aws-secret")
+                .with_env_var("AWS_DEFAULT_REGION", "aws-region");
 
             local containerRag =
                 engine.container("text-completion-rag")
