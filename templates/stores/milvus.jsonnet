@@ -47,7 +47,7 @@ local images = import "values/images.jsonnet";
 
     },
 
-    mino +: {
+    minio +: {
     
         create:: function(engine)
 
