@@ -8,6 +8,8 @@ from prometheus_client import start_http_server, Info
 
 from .. log_level import LogLevel
 
+
+
 class BaseProcessor:
 
     default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
@@ -28,12 +30,14 @@ class BaseProcessor:
         })
 
         pulsar_host = params.get("pulsar_host", self.default_pulsar_host)
+        pulsar_listener = params.get("pulsar_listener", None)
         log_level = params.get("log_level", LogLevel.INFO)
 
         self.pulsar_host = pulsar_host
 
         self.client = pulsar.Client(
             pulsar_host,
+            listener_name=pulsar_listener,
             logger=pulsar.ConsoleLogger(log_level.to_pulsar())
         )
 
@@ -50,6 +54,11 @@ class BaseProcessor:
             '-p', '--pulsar-host',
             default=__class__.default_pulsar_host,
             help=f'Pulsar host (default: {__class__.default_pulsar_host})',
+        )
+
+        parser.add_argument(
+            '--pulsar-listener',
+            help=f'Pulsar listener (default: none)',
         )
 
         parser.add_argument(
