@@ -39,6 +39,7 @@ from . encyclopedia import EncyclopediaRequestor
 from . agent import AgentRequestor
 from . dbpedia import DbpediaRequestor
 from . internet_search import InternetSearchRequestor
+from . librarian import LibraryRequestor
 from . triples_stream import TriplesStreamEndpoint
 from . graph_embeddings_stream import GraphEmbeddingsStreamEndpoint
 from . document_embeddings_stream import DocumentEmbeddingsStreamEndpoint

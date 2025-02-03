@@ -46,7 +46,6 @@ class LibrarianResponse(Record):
     document = DocumentPackage()
     info = Array(DocumentInfo())
 
-
 librarian_request_queue = topic(
     'librarian', kind='non-persistent', namespace='request'
 )
