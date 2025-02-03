@@ -39,7 +39,7 @@ class LibrarianRequest(Record):
     document = DocumentPackage()
     user = String()
     collection = String()
-    criteria = Criteria()
+    criteria = Array(Criteria())
 
 class LibrarianResponse(Record):
     error = Error()

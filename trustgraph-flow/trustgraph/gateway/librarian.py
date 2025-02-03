@@ -6,7 +6,7 @@ from .. schema import librarian_response_queue
 from . endpoint import ServiceEndpoint
 from . requestor import ServiceRequestor
 from . serialize import serialize_document_package, serialize_document_info
-from . serialize import to_document_package, to_document_info
+from . serialize import to_document_package, to_document_info, to_criteria
 
 class LibrarianRequestor(ServiceRequestor):
     def __init__(self, pulsar_host, timeout, auth):

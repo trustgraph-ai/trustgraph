@@ -140,3 +140,9 @@ def to_document_info(x):
         user = x.get("user", None),
         collection = x.get("collection", None),
     )
+
+def to_criteria(x):
+    return [
+        Critera(v["key"], v["value"], v["operator"])
+        for v in x
+    ]
