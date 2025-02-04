@@ -37,6 +37,7 @@ setuptools.setup(
         "trustgraph-base>=0.21,<0.22",
         "requests",
         "pulsar-client",
+        "aiohttp",
         "rdflib",
         "tabulate",
         "msgpack",
