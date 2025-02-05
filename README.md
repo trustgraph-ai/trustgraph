@@ -18,6 +18,7 @@ TrustGraph empowers you to deploy reasoning AI Agents in minutes. Our Agentic Gr
 - 📄 **Document Extraction**: Bulk ingest documents such as `.pdf`,`.txt`, and `.md`
 - 🪓 **Adjustable Chunking**: Choose your chunking algorithm and parameters
 - 🔁 **No-code LLM Integration**: **Anthropic**, **AWS Bedrock**, **AzureAI**, **AzureOpenAI**, **Cohere**, **Google AI Studio**, **Google VertexAI**, **Llamafiles**, **Ollama**, and **OpenAI**
+- ☁️ **Cloud Deployments**: **AWS** and **Google Cloud**
 - 📖 **Entity, Topic, and Relationship Knowledge Graphs**
 - 🔢 **Mapped Vector Embeddings**
 - ❔**No-code Graph RAG Queries**: Automatically perform a semantic similiarity search and subgraph extraction for the context of LLM generative responses
