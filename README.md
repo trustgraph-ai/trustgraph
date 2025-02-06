@@ -2,7 +2,7 @@
 
 <div align="center">
 
-## No-Code Reasoning Platform Built to Scale
+## Agentic Reasoning Platform Built to Scale
 
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
