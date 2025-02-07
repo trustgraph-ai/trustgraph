@@ -26,6 +26,7 @@ class Processor(Consumer):
         input_queue = params.get("input_queue", default_input_queue)
         subscriber = params.get("subscriber", default_subscriber)
         store_uri = params.get("store_uri", default_store_uri)
+        api_key = params.get("api_key", None)
 
         super(Processor, self).__init__(
             **params | {
@@ -33,6 +34,7 @@ class Processor(Consumer):
                 "subscriber": subscriber,
                 "input_schema": ChunkEmbeddings,
                 "store_uri": store_uri,
+                "api_key": api_key,
             }
         )
 
@@ -96,7 +98,13 @@ class Processor(Consumer):
         parser.add_argument(
             '-t', '--store-uri',
             default=default_store_uri,
-            help=f'Qdrant store URI (default: {default_store_uri})'
+            help=f'Qdrant URI (default: {default_store_uri})'
+        )
+        
+        parser.add_argument(
+            '-k', '--api-key',
+            default=None,
+            help=f'Qdrant API key (default: None)'
         )
 
 def run():
