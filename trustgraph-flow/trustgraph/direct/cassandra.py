@@ -6,7 +6,7 @@ class TrustGraph:
 
     def __init__(
             self, hosts=None,
-            keyspace="trustgraph", table="default",
+            keyspace="trustgraph", table="default", username=None, password=None
     ):
 
         if hosts is None:
@@ -14,8 +14,13 @@ class TrustGraph:
 
         self.keyspace = keyspace
         self.table = table
+        self.username = username
             
-        self.cluster = Cluster(hosts)
+        if username and password:
+            auth_provider = PlainTextAuthProvider(username=username, password=password)
+            self.cluster = Cluster(hosts, auth_provider=auth_provider)
+        else:
+            self.cluster = Cluster(hosts)
         self.session = self.cluster.connect()
 
         self.init()

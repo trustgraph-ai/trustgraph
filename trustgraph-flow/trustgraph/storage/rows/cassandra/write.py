@@ -29,6 +29,8 @@ class Processor(Consumer):
         input_queue = params.get("input_queue", default_input_queue)
         subscriber = params.get("subscriber", default_subscriber)
         graph_host = params.get("graph_host", default_graph_host)
+        graph_username = params.get("graph_username", None)
+        graph_password = params.get("graph_password", None)
 
         super(Processor, self).__init__(
             **params | {
@@ -36,10 +38,16 @@ class Processor(Consumer):
                 "subscriber": subscriber,
                 "input_schema": Rows,
                 "graph_host": graph_host,
+                "graph_username": graph_username,
+                "graph_password": graph_password,
             }
         )
-
-        self.cluster = Cluster(graph_host.split(","))
+        
+        if graph_username and graph_password:
+            auth_provider = PlainTextAuthProvider(username=graph_username, password=graph_password)
+            self.cluster = Cluster(graph_host.split(","), auth_provider=auth_provider)
+        else:
+            self.cluster = Cluster(graph_host.split(","))
         self.session = self.cluster.connect()
 
         self.tables = set()
@@ -119,6 +127,18 @@ class Processor(Consumer):
             '-g', '--graph-host',
             default="localhost",
             help=f'Graph host (default: localhost)'
+        )
+        
+        parser.add_argument(
+            '--graph-username',
+            default=None,
+            help=f'Cassandra username'
+        )
+        
+        parser.add_argument(
+            '--graph-password',
+            default=None,
+            help=f'Cassandra password'
         )
 
 def run():
