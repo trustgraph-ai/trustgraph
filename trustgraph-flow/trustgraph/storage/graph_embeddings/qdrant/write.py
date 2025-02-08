@@ -26,6 +26,7 @@ class Processor(Consumer):
         input_queue = params.get("input_queue", default_input_queue)
         subscriber = params.get("subscriber", default_subscriber)
         store_uri = params.get("store_uri", default_store_uri)
+        api_key = params.get("api_key", None)
 
         super(Processor, self).__init__(
             **params | {
@@ -33,12 +34,13 @@ class Processor(Consumer):
                 "subscriber": subscriber,
                 "input_schema": GraphEmbeddings,
                 "store_uri": store_uri,
+                "api_key": api_key,
             }
         )
 
         self.last_collection = None
 
-        self.client = QdrantClient(url=store_uri)
+        self.client = QdrantClient(url=store_uri, api_key=api_key)
 
     def get_collection(self, dim, user, collection):
 
@@ -105,6 +107,12 @@ class Processor(Consumer):
             '-t', '--store-uri',
             default=default_store_uri,
             help=f'Qdrant store URI (default: {default_store_uri})'
+        )
+        
+        parser.add_argument(
+            '-k', '--api-key',
+            default=None,
+            help=f'Qdrant API key'
         )
 
 def run():
