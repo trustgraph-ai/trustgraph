@@ -6,7 +6,7 @@ from pulsar.schema import JsonSchema
 import uuid
 import logging
 
-from . publisher import Publisher
+from .. base import Publisher
 
 logger = logging.getLogger("sender")
 logger.setLevel(logging.INFO)

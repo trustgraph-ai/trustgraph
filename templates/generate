@@ -50,10 +50,13 @@ class Generator:
                 self.templates.joinpath(filename),
                 self.resources.joinpath(dir, filename),
                 self.resources.joinpath(filename),
+                pathlib.Path(dir).joinpath(filename),
             ]
         else:
             candidates = [
                 self.templates.joinpath(filename),
+                pathlib.Path(dir).joinpath(filename),
+                pathlib.Path(filename),
             ]
 
         try:
@@ -86,7 +89,7 @@ class Packager:
 
     def __init__(self):
         self.templates = pathlib.Path("./templates")
-        self.resources = pathlib.Path("./resources")
+        self.resources = pathlib.Path("./")
 
     def process(
             self, config, version="0.0.0", platform="docker-compose",

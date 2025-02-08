@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+
+from trustgraph.librarian import run
+
+run()
+

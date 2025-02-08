@@ -1,4 +1,7 @@
-from .. schema import Value, Triple
+
+import base64
+
+from .. schema import Value, Triple, DocumentPackage, DocumentInfo
 
 def to_value(x):
     return Value(value=x["v"], is_uri=x["e"])
@@ -77,3 +80,69 @@ def serialize_document_embeddings(message):
         ],
     }
 
+def serialize_document_package(message):
+
+    ret = {}
+
+    if message.metadata:
+        ret["metadata"] = serialize_subgraph(message.metdata)
+
+    if message.document:
+        blob = base64.b64encode(
+            message.document.encode("utf-8")
+        ).decode("utf-8")
+        ret["document"] = blob
+
+    if message.kind:
+        ret["kind"] = message.kind
+
+    if message.user:
+        ret["user"] = message.user
+
+    if message.collection:
+        ret["collection"] = message.collection
+
+    return ret
+
+def serialize_document_info(message):
+
+    ret = {}
+
+    if message.metadata:
+        ret["metadata"] = serialize_subgraph(message.metdata)
+
+    if message.kind:
+        ret["kind"] = message.kind
+
+    if message.user:
+        ret["user"] = message.user
+
+    if message.collection:
+        ret["collection"] = message.collection
+
+    return ret
+
+def to_document_package(x):
+
+    return DocumentPackage(
+        metadata = to_subgraph(x["metadata"]),
+        document = base64.b64decode(x["document"].encode("utf-8")),
+        kind = x.get("kind", None),
+        user = x.get("user", None),
+        collection = x.get("collection", None),
+    )
+
+def to_document_info(x):
+
+    return DocumentInfo(
+        metadata = to_subgraph(x["metadata"]),
+        kind = x.get("kind", None),
+        user = x.get("user", None),
+        collection = x.get("collection", None),
+    )
+
+def to_criteria(x):
+    return [
+        Critera(v["key"], v["value"], v["operator"])
+        for v in x
+    ]

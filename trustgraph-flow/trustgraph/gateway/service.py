@@ -26,8 +26,6 @@ from .. log_level import LogLevel
 
 from . serialize import to_subgraph
 from . running import Running
-from . publisher import Publisher
-from . subscriber import Subscriber
 from . text_completion import TextCompletionRequestor
 from . prompt import PromptRequestor
 from . graph_rag import GraphRagRequestor
@@ -39,6 +37,7 @@ from . encyclopedia import EncyclopediaRequestor
 from . agent import AgentRequestor
 from . dbpedia import DbpediaRequestor
 from . internet_search import InternetSearchRequestor
+from . librarian import LibrarianRequestor
 from . triples_stream import TriplesStreamEndpoint
 from . graph_embeddings_stream import GraphEmbeddingsStreamEndpoint
 from . document_embeddings_stream import DocumentEmbeddingsStreamEndpoint
@@ -123,6 +122,10 @@ class Api:
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
                 auth = self.auth,
             ),
+            "librarian": LibrarianRequestor(
+                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                auth = self.auth,
+            ),
             "encyclopedia": EncyclopediaRequestor(
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
                 auth = self.auth,
@@ -176,6 +179,10 @@ class Api:
             ServiceEndpoint(
                 endpoint_path = "/api/v1/agent", auth=self.auth,
                 requestor = self.services["agent"],
+            ),
+            ServiceEndpoint(
+                endpoint_path = "/api/v1/librarian", auth=self.auth,
+                requestor = self.services["librarian"],
             ),
             ServiceEndpoint(
                 endpoint_path = "/api/v1/encyclopedia", auth=self.auth,

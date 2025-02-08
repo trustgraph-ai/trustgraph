@@ -6,8 +6,8 @@ import uuid
 
 from .. schema import Triples
 from .. schema import triples_store_queue
+from .. base import Subscriber
 
-from . subscriber import Subscriber
 from . socket import SocketEndpoint
 from . serialize import serialize_triples
 

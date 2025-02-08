@@ -7,8 +7,8 @@ from aiohttp import WSMsgType
 from .. schema import Metadata
 from .. schema import DocumentEmbeddings, ChunkEmbeddings
 from .. schema import document_embeddings_store_queue
+from .. base import Publisher
 
-from . publisher import Publisher
 from . socket import SocketEndpoint
 from . serialize import to_subgraph
 
