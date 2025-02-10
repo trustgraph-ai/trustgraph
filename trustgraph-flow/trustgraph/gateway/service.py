@@ -31,6 +31,7 @@ from . subscriber import Subscriber
 from . text_completion import TextCompletionRequestor
 from . prompt import PromptRequestor
 from . graph_rag import GraphRagRequestor
+from . document_rag import DocumentRagRequestor
 from . triples_query import TriplesQueryRequestor
 from . graph_embeddings_query import GraphEmbeddingsQueryRequestor
 from . embeddings import EmbeddingsRequestor
@@ -40,11 +41,14 @@ from . dbpedia import DbpediaRequestor
 from . internet_search import InternetSearchRequestor
 from . triples_stream import TriplesStreamEndpoint
 from . graph_embeddings_stream import GraphEmbeddingsStreamEndpoint
+from . document_embeddings_stream import DocumentEmbeddingsStreamEndpoint
 from . triples_load import TriplesLoadEndpoint
 from . graph_embeddings_load import GraphEmbeddingsLoadEndpoint
+from . document_embeddings_load import DocumentEmbeddingsLoadEndpoint
 from . mux import MuxEndpoint
 from . document_load import DocumentLoadSender
 from . text_load import TextLoadSender
+from . metrics import MetricsEndpoint
 
 from . endpoint import ServiceEndpoint
 from . auth import Authenticator
@@ -54,6 +58,7 @@ logger.setLevel(logging.INFO)
 
 default_pulsar_host = os.getenv("PULSAR_HOST", "pulsar://pulsar:6650")
 default_pulsar_api_key = os.getenv("PULSAR_API_KEY", None)
+default_prometheus_url = os.getenv("PROMETHEUS_URL", "http://prometheus:9090")
 default_timeout = 600
 default_port = 8088
 default_api_token = os.getenv("GATEWAY_SECRET", "")
@@ -71,6 +76,13 @@ class Api:
         self.timeout = int(config.get("timeout", default_timeout))
         self.pulsar_host = config.get("pulsar_host", default_pulsar_host)
         self.pulsar_api_key = config.get("pulsar_api_key", default_pulsar_api_key)
+
+        self.prometheus_url = config.get(
+            "prometheus_url", default_prometheus_url,
+        )
+
+        if not self.prometheus_url.endswith("/"):
+            self.prometheus_url += "/"
 
         api_token = config.get("api_token", default_api_token)
 
@@ -92,6 +104,10 @@ class Api:
             "graph-rag": GraphRagRequestor(
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
                 auth = self.auth, pulsar_api_key=self.pulsar_api_key,
+            ),
+            "document-rag": DocumentRagRequestor(
+                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                auth = self.auth,
             ),
             "triples-query": TriplesQueryRequestor(
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
@@ -143,6 +159,10 @@ class Api:
                 requestor = self.services["graph-rag"],
             ),
             ServiceEndpoint(
+                endpoint_path = "/api/v1/document-rag", auth=self.auth,
+                requestor = self.services["document-rag"],
+            ),
+            ServiceEndpoint(
                 endpoint_path = "/api/v1/triples-query", auth=self.auth,
                 requestor = self.services["triples-query"],
             ),
@@ -189,6 +209,10 @@ class Api:
                 pulsar_api_key=self.pulsar_api_key,
                 auth = self.auth,
             ),
+            DocumentEmbeddingsStreamEndpoint(
+                pulsar_host=self.pulsar_host,
+                auth = self.auth,
+            ),
             TriplesLoadEndpoint(
                 pulsar_host=self.pulsar_host,
                 auth = self.auth,
@@ -199,11 +223,20 @@ class Api:
                 pulsar_api_key=self.pulsar_api_key,
                 auth = self.auth,
             ),
+            DocumentEmbeddingsLoadEndpoint(
+                pulsar_host=self.pulsar_host,
+                auth = self.auth,
+            ),
             MuxEndpoint(
                 pulsar_host=self.pulsar_host,
                 auth = self.auth,
                 services = self.services,
                 pulsar_api_key=self.pulsar_api_key,
+            ),
+            MetricsEndpoint(
+                endpoint_path = "/api/v1/metrics",
+                prometheus_url = self.prometheus_url,
+                auth = self.auth,
             ),
         ]
 
@@ -237,6 +270,12 @@ def run():
         '--pulsar-api-key',
         default=default_pulsar_api_key,
         help=f'Pulsar API key',
+    )
+
+    parser.add_argument(
+        '-m', '--prometheus-url',
+        default=default_prometheus_url,
+        help=f'Prometheus URL (default: {default_prometheus_url})',
     )
 
     parser.add_argument(

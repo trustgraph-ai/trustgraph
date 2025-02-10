@@ -30,6 +30,7 @@ class Processor(ConsumerProducer):
         output_queue = params.get("output_queue", default_output_queue)
         subscriber = params.get("subscriber", default_subscriber)
         store_uri = params.get("store_uri", default_store_uri)
+        api_key = params.get("api_key", None)
 
         super(Processor, self).__init__(
             **params | {
@@ -39,10 +40,11 @@ class Processor(ConsumerProducer):
                 "input_schema": GraphEmbeddingsRequest,
                 "output_schema": GraphEmbeddingsResponse,
                 "store_uri": store_uri,
+                "api_key": api_key,
             }
         )
 
-        self.client = QdrantClient(url=store_uri)
+        self.client = QdrantClient(url=store_uri, api_key=api_key)
 
     def create_value(self, ent):
         if ent.startswith("http://") or ent.startswith("https://"):
@@ -137,7 +139,13 @@ class Processor(ConsumerProducer):
         parser.add_argument(
             '-t', '--store-uri',
             default=default_store_uri,
-            help=f'Milvus store URI (default: {default_store_uri})'
+            help=f'Qdrant store URI (default: {default_store_uri})'
+        )
+        
+        parser.add_argument(
+            '-k', '--api-key',
+            default=None,
+            help=f'API key for qdrant (default: None)'
         )
 
 def run():

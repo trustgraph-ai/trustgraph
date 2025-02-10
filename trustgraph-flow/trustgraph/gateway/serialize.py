@@ -51,7 +51,29 @@ def serialize_graph_embeddings(message):
             "user": message.metadata.user,
             "collection": message.metadata.collection,
         },
-        "vectors": message.vectors,
-        "entity": serialize_value(message.entity),
+        "entities": [
+            {
+                "vectors": entity.vectors,
+                "entity": serialize_value(entity.entity),
+            }
+            for entity in message.entities
+        ],
+    }
+
+def serialize_document_embeddings(message):
+    return {
+        "metadata": {
+            "id": message.metadata.id,
+            "metadata": serialize_subgraph(message.metadata.metadata),
+            "user": message.metadata.user,
+            "collection": message.metadata.collection,
+        },
+        "chunks": [
+            {
+                "vectors": chunk.vectors,
+                "chunk": chunk.chunk.decode("utf-8"),
+            }
+            for chunk in message.chunks
+        ],
     }
 

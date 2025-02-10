@@ -50,6 +50,50 @@ class Processor(Consumer):
 
         self.io = GraphDatabase.driver(graph_host, auth=(username, password))
 
+        with self.io.session(database=self.db) as session:
+            self.create_indexes(session)
+
+    def create_indexes(self, session):
+
+        # Race condition, index creation failure is ignored.  Right thing
+        # to do if the index already exists.  Wrong thing to do if it's
+        # because the store is not up yet
+
+        # In real-world cases, Neo4j will start up quicker than Pulsar
+        # and this process will restart several times until Pulsar arrives,
+        # so should be safe
+
+        print("Create indexes...", flush=True)
+
+        try:
+            session.run(
+                "CREATE INDEX Node_uri FOR (n:Node) ON (n.uri)",
+            )
+        except Exception as e:
+            print(e, flush=True)
+            # Maybe index already exists
+            print("Index create failure ignored", flush=True)
+
+        try:
+            session.run(
+                "CREATE INDEX Literal_value FOR (n:Literal) ON (n.value)",
+            )
+        except Exception as e:
+            print(e, flush=True)
+            # Maybe index already exists
+            print("Index create failure ignored", flush=True)
+
+        try:
+            session.run(
+                "CREATE INDEX Rel_uri FOR ()-[r:Rel]-() ON (r.uri)",
+            )
+        except Exception as e:
+            print(e, flush=True)
+            # Maybe index already exists
+            print("Index create failure ignored", flush=True)
+
+        print("Index creation done", flush=True)
+
     def create_node(self, uri):
 
         print("Create node", uri)

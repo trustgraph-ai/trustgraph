@@ -48,5 +48,11 @@ class ServiceSender:
 
             logging.error(f"Exception: {e}")
 
-            return { "error": str(e) }
+            err = { "error": str(e) }
+
+            if responder:
+                await responder(err, True)
+
+            return err
+
 

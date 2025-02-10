@@ -4,10 +4,9 @@ Simple LLM service, performs text prompt completion using the Azure
 OpenAI endpoit service.  Input is prompt, output is response.
 """
 
-import requests
 import json
 from prometheus_client import Histogram
-from openai import AzureOpenAI
+from openai import AzureOpenAI, RateLimitError
 import os
 
 from .... schema import TextCompletionRequest, TextCompletionResponse, Error
@@ -126,29 +125,26 @@ class Processor(ConsumerProducer):
             print(f"Output Tokens: {outputtokens}", flush=True)
             print("Send response...", flush=True)
 
-            r = TextCompletionResponse(response=resp.choices[0].message.content, error=None, in_token=inputtokens, out_token=outputtokens, model=self.model)
-            self.producer.send(r, properties={"id": id})
-
-        except TooManyRequests:
-
-            print("Send rate limit response...", flush=True)
-
             r = TextCompletionResponse(
-                error=Error(
-                    type = "rate-limit",
-                    message = str(e),
-                ),
-                response=None,
-                in_token=None,
-                out_token=None,
-                model=None,
+                response=resp.choices[0].message.content,
+                error=None,
+                in_token=inputtokens,
+                out_token=outputtokens,
+                model=self.model
             )
 
             self.producer.send(r, properties={"id": id})
 
-            self.consumer.acknowledge(msg)
+        except RateLimitError:
+
+            print("Send rate limit response...", flush=True)
+
+            # Leave rate limit retries to the base handler
+            raise TooManyRequests()
 
         except Exception as e:
+
+            # Apart from rate limits, treat all exceptions as unrecoverable
 
             print(f"Exception: {e}")
 

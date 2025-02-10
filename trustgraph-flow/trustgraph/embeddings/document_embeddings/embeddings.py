@@ -1,11 +1,13 @@
 
 """
-Vectorizer, calls the embeddings service to get embeddings for a chunk.
-Input is text chunk, output is chunk and vectors.
+Document embeddings, calls the embeddings service to get embeddings for a
+chunk of text.  Input is chunk of text plus metadata.
+Output is chunk plus embedding.
 """
 
-from ... schema import Chunk, ChunkEmbeddings
-from ... schema import chunk_ingest_queue, chunk_embeddings_ingest_queue
+from ... schema import Chunk, ChunkEmbeddings, DocumentEmbeddings
+from ... schema import chunk_ingest_queue
+from ... schema import document_embeddings_store_queue
 from ... schema import embeddings_request_queue, embeddings_response_queue
 from ... clients.embeddings_client import EmbeddingsClient
 from ... log_level import LogLevel
@@ -14,7 +16,7 @@ from ... base import ConsumerProducer
 module = ".".join(__name__.split(".")[1:-1])
 
 default_input_queue = chunk_ingest_queue
-default_output_queue = chunk_embeddings_ingest_queue
+default_output_queue = document_embeddings_store_queue
 default_subscriber = module
 
 class Processor(ConsumerProducer):
@@ -39,7 +41,7 @@ class Processor(ConsumerProducer):
                 "embeddings_response_queue": emb_response_queue,
                 "subscriber": subscriber,
                 "input_schema": Chunk,
-                "output_schema": ChunkEmbeddings,
+                "output_schema": DocumentEmbeddings,
             }
         )
 
@@ -51,30 +53,34 @@ class Processor(ConsumerProducer):
             subscriber=module + "-emb",
         )
 
-    def emit(self, metadata, chunk, vectors):
-
-        r = ChunkEmbeddings(metadata=metadata, chunk=chunk, vectors=vectors)
-        self.producer.send(r)
-
     def handle(self, msg):
 
         v = msg.value()
         print(f"Indexing {v.metadata.id}...", flush=True)
 
-        chunk = v.chunk.decode("utf-8")
-
         try:
 
-            vectors = self.embeddings.request(chunk)
+            vectors = self.embeddings.request(v.chunk)
 
-            self.emit(
+            embeds = [
+                ChunkEmbeddings(
+                    chunk=v.chunk,
+                    vectors=vectors,
+                )
+            ]
+
+            r = DocumentEmbeddings(
                 metadata=v.metadata,
-                chunk=chunk.encode("utf-8"),
-                vectors=vectors
+                chunks=embeds,
             )
+
+            self.producer.send(r)
 
         except Exception as e:
             print("Exception:", e, flush=True)
+
+            # Retry
+            raise e
 
         print("Done.", flush=True)
 

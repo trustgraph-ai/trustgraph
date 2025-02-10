@@ -8,14 +8,14 @@ from qdrant_client.models import PointStruct
 from qdrant_client.models import Distance, VectorParams
 import uuid
 
-from .... schema import ChunkEmbeddings
-from .... schema import chunk_embeddings_ingest_queue
+from .... schema import DocumentEmbeddings
+from .... schema import document_embeddings_store_queue
 from .... log_level import LogLevel
 from .... base import Consumer
 
 module = ".".join(__name__.split(".")[1:-1])
 
-default_input_queue = chunk_embeddings_ingest_queue
+default_input_queue = document_embeddings_store_queue
 default_subscriber = module
 default_store_uri = 'http://localhost:6333'
 
@@ -26,13 +26,15 @@ class Processor(Consumer):
         input_queue = params.get("input_queue", default_input_queue)
         subscriber = params.get("subscriber", default_subscriber)
         store_uri = params.get("store_uri", default_store_uri)
+        api_key = params.get("api_key", None)
 
         super(Processor, self).__init__(
             **params | {
                 "input_queue": input_queue,
                 "subscriber": subscriber,
-                "input_schema": ChunkEmbeddings,
+                "input_schema": DocumentEmbeddings,
                 "store_uri": store_uri,
+                "api_key": api_key,
             }
         )
 
@@ -44,47 +46,48 @@ class Processor(Consumer):
 
         v = msg.value()
 
-        chunk = v.chunk.decode("utf-8")
+        for emb in v.chunks:
 
-        if chunk == "": return
+            chunk = emb.chunk.decode("utf-8")
+            if chunk == "": return
 
-        for vec in v.vectors:
+            for vec in emb.vectors:
 
-            dim = len(vec)
-            collection = (
-                "d_" + v.metadata.user + "_" + v.metadata.collection + "_" +
-                str(dim)
-            )
+                dim = len(vec)
+                collection = (
+                    "d_" + v.metadata.user + "_" + v.metadata.collection + "_" +
+                    str(dim)
+                )
 
-            if collection != self.last_collection:
+                if collection != self.last_collection:
 
-                if not self.client.collection_exists(collection):
+                    if not self.client.collection_exists(collection):
 
-                    try:
-                        self.client.create_collection(
-                            collection_name=collection,
-                            vectors_config=VectorParams(
-                                size=dim, distance=Distance.DOT
-                            ),
+                        try:
+                            self.client.create_collection(
+                                collection_name=collection,
+                                vectors_config=VectorParams(
+                                    size=dim, distance=Distance.COSINE
+                                ),
+                            )
+                        except Exception as e:
+                            print("Qdrant collection creation failed")
+                            raise e
+
+                    self.last_collection = collection
+
+                self.client.upsert(
+                    collection_name=collection,
+                    points=[
+                        PointStruct(
+                            id=str(uuid.uuid4()),
+                            vector=vec,
+                            payload={
+                                "doc": chunk,
+                            }
                         )
-                    except Exception as e:
-                        print("Qdrant collection creation failed")
-                        raise e
-
-                self.last_collection = collection
-
-            self.client.upsert(
-                collection_name=collection,
-                points=[
-                    PointStruct(
-                        id=str(uuid.uuid4()),
-                        vector=vec,
-                        payload={
-                            "doc": chunk,
-                        }
-                    )
-                ]
-            )
+                    ]
+                )
 
     @staticmethod
     def add_args(parser):
@@ -96,7 +99,13 @@ class Processor(Consumer):
         parser.add_argument(
             '-t', '--store-uri',
             default=default_store_uri,
-            help=f'Qdrant store URI (default: {default_store_uri})'
+            help=f'Qdrant URI (default: {default_store_uri})'
+        )
+        
+        parser.add_argument(
+            '-k', '--api-key',
+            default=None,
+            help=f'Qdrant API key (default: None)'
         )
 
 def run():

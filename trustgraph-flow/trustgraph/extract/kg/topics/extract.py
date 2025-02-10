@@ -1,14 +1,14 @@
 
 """
-Simple decoder, accepts embeddings+text chunks input, applies entity analysis to
-get entity definitions which are output as graph edges.
+Simple decoder, accepts text chunks input, applies entity analysis to
+get topics which are output as graph edges.
 """
 
 import urllib.parse
 import json
 
-from .... schema import ChunkEmbeddings, Triple, Triples, Metadata, Value
-from .... schema import chunk_embeddings_ingest_queue, triples_store_queue
+from .... schema import Chunk, Triple, Triples, Metadata, Value
+from .... schema import chunk_ingest_queue, triples_store_queue
 from .... schema import prompt_request_queue
 from .... schema import prompt_response_queue
 from .... log_level import LogLevel
@@ -20,7 +20,7 @@ DEFINITION_VALUE = Value(value=DEFINITION, is_uri=True)
 
 module = ".".join(__name__.split(".")[1:-1])
 
-default_input_queue = chunk_embeddings_ingest_queue
+default_input_queue = chunk_ingest_queue
 default_output_queue = triples_store_queue
 default_subscriber = module
 
@@ -43,7 +43,7 @@ class Processor(ConsumerProducer):
                 "input_queue": input_queue,
                 "output_queue": output_queue,
                 "subscriber": subscriber,
-                "input_schema": ChunkEmbeddings,
+                "input_schema": Chunk,
                 "output_schema": Triples,
                 "prompt_request_queue": pr_request_queue,
                 "prompt_response_queue": pr_response_queue,

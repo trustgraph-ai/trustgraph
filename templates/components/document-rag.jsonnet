@@ -11,7 +11,7 @@ local prompts = import "prompts/mixtral.jsonnet";
 
             local container =
                 engine.container("document-rag")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "document-rag",
                         "-p",
@@ -26,6 +26,36 @@ local prompts = import "prompts/mixtral.jsonnet";
 
             local containerSet = engine.containers(
                 "document-rag", [ container ]
+            );
+
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8000, 8000, "metrics");
+
+            engine.resources([
+                containerSet,
+                service,
+            ])
+
+    },
+
+    "document-embeddings" +: {
+    
+        create:: function(engine)
+
+            local container =
+                engine.container("document-embeddings")
+                    .with_image(images.trustgraph_flow)
+                    .with_command([
+                        "document-embeddings",
+                        "-p",
+                        url.pulsar,
+                    ])
+                    .with_limits("1.0", "512M")
+                    .with_reservations("0.5", "512M");
+
+            local containerSet = engine.containers(
+                "document-embeddings", [ container ]
             );
 
             local service =

@@ -100,26 +100,7 @@ class Processor(ConsumerProducer):
 
             print("Done.", flush=True)
 
-        # FIXME: Wrong exception, don't know what this LLM throws
-        # for a rate limit
-        except TooManyRequests:
-
-            print("Send rate limit response...", flush=True)
-
-            r = TextCompletionResponse(
-                error=Error(
-                    type = "rate-limit",
-                    message = str(e),
-                ),
-                response=None,
-                in_token=None,
-                out_token=None,
-                model=None,
-            )
-
-            self.producer.send(r, properties={"id": id})
-
-            self.consumer.acknowledge(msg)
+        # SLM, presumably no rate limits
 
         except Exception as e:
 

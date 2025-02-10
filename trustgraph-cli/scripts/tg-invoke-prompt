@@ -12,17 +12,15 @@ using key=value arguments on the command line, and these replace
 import argparse
 import os
 import json
-from trustgraph.clients.prompt_client import PromptClient
+from trustgraph.api import Api
 
-default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://localhost:6650')
-default_pulsar_api_key = os.getenv("PULSAR_API_KEY", None)
+default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 
+def query(url, template_id, variables):
 
-def query(pulsar_host, template_id, variables, pulsar_api_key=None):
+    api = Api(url)
 
-    cli = PromptClient(pulsar_host=pulsar_host, pulsar_api_key=pulsar_api_key)
-
-    resp = cli.request(id=template_id, variables=variables)
+    resp = api.prompt(id=template_id, variables=variables)
 
     if isinstance(resp, str):
         print(resp)
@@ -37,9 +35,9 @@ def main():
     )
 
     parser.add_argument(
-        '-p', '--pulsar-host',
-        default=default_pulsar_host,
-        help=f'Pulsar host (default: {default_pulsar_host})',
+        '-u', '--url',
+        default=default_url,
+        help=f'API URL (default: {default_url})',
     )
 
     parser.add_argument(
@@ -57,13 +55,6 @@ def main():
 specified multiple times''',
     )
 
-    
-    parser.add_argument(
-        '--pulsar-api-key',
-        default=default_pulsar_api_key,
-        help=f'Pulsar API key',
-    )
-
     args = parser.parse_args()
 
     variables = {}
@@ -79,10 +70,9 @@ specified multiple times''',
     try:
 
         query(
-            pulsar_host=args.pulsar_host,
+            url=args.url,
             template_id=args.id[0],
             variables=variables,
-            pulsar_api_key=args.pulsar_api_key,
         )
 
     except Exception as e:

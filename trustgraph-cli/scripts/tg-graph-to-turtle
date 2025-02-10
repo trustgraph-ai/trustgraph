@@ -5,38 +5,45 @@ Connects to the graph query service and dumps all graph edges in Turtle
 format.
 """
 
-import argparse
-import os
-from trustgraph.clients.triples_query_client import TriplesQueryClient
 import rdflib
 import io
 import sys
+import argparse
+import os
 
-default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://localhost:6650')
-default_pulsar_api_key = os.getenv("PULSAR_API_KEY", None)
+from trustgraph.api import Api, Uri
 
-def show_graph(pulsar, pulsar_api_key=None):
+default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_user = 'trustgraph'
+default_collection = 'default'
 
-    tq = TriplesQueryClient(pulsar_host=pulsar, pulsar_api_key=pulsar_api_key)
+def show_graph(url, user, collection):
 
-    rows = tq.request(None, None, None, limit=10_000_000)
+    api = Api(url)
+
+    rows = api.triples_query(
+        s=None, p=None, o=None,
+        limit=10_000)
+#         user=user, collection=collection,
 
     g = rdflib.Graph()
 
     for row in rows:
 
-        sv = rdflib.term.URIRef(row.s.value)
-        pv = rdflib.term.URIRef(row.p.value)
+        sv = rdflib.term.URIRef(row.s)
+        pv = rdflib.term.URIRef(row.p)
 
-        if row.o.is_uri:
+        if isinstance(row.o, Uri):
 
             # Skip malformed URLs with spaces in
-            if " " in row.o.value:
+            if " " in row.o:
                 continue
 
-            ov = rdflib.term.URIRef(row.o.value)
+            ov = rdflib.term.URIRef(row.o)
+
         else:
-            ov = rdflib.term.Literal(row.o.value)
+
+            ov = rdflib.term.Literal(row.o)
 
         g.add((sv, pv, ov))
 
@@ -57,22 +64,32 @@ def main():
     )
 
     parser.add_argument(
-        '-p', '--pulsar-host',
-        default=default_pulsar_host,
-        help=f'Pulsar host (default: {default_pulsar_host})',
+        '-u', '--api-url',
+        default=default_url,
+        help=f'API URL (default: {default_url})',
     )
-    
+
     parser.add_argument(
-        '--pulsar-api-key',
-        default=default_pulsar_api_key,
-        help=f'Pulsar API key',
+        '-U', '--user',
+        default=default_user,
+        help=f'User ID (default: {default_user})'
+    )
+
+    parser.add_argument(
+        '-C', '--collection',
+        default=default_collection,
+        help=f'Collection ID (default: {default_collection})'
     )
     
     args = parser.parse_args()
 
     try:
 
-        show_graph(args.pulsar_host, pulsar_api_key=args.pulsar_api_key)
+        show_graph(
+            url=args.api_url,
+            user=args.user,
+            collection=args.collection
+        )
 
     except Exception as e:
 

@@ -7,13 +7,14 @@ import threading
 class Publisher:
 
     def __init__(self, pulsar_host, topic, schema=None, max_size=10,
-                 chunking_enabled=False, pulsar_api_key=None):
+                 chunking_enabled=True, listener=None, pulsar_api_key=None):
         self.pulsar_host = pulsar_host
         self.pulsar_api_key = pulsar_api_key,
         self.topic = topic
         self.schema = schema
         self.q = queue.Queue(maxsize=max_size)
         self.chunking_enabled = chunking_enabled
+        self.listener_name = listener
 
     def start(self):
         self.task = threading.Thread(target=self.run)
@@ -28,11 +29,13 @@ class Publisher:
                 if self.pulsar_api_key:
                     client = pulsar.Client(
                         self.pulsar_host,
+                        listener_name=self.listener_name,
                         authentication=pulsar.AuthenticationToken(self.pulsar_api_key)
                     )
                 else:
                     client = pulsar.Client(
                         self.pulsar_host,
+                        listener_name=self.listener_name
                     )
 
                 producer = client.create_producer(

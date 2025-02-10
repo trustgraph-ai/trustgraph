@@ -7,12 +7,31 @@ from . metadata import Metadata
 
 ############################################################################
 
+# Entity context are an entity associated with textual context
+
+class EntityContext(Record):
+    entity = Value()
+    context = String()
+
+# This is a 'batching' mechanism for the above data
+class EntityContexts(Record):
+    metadata = Metadata()
+    entities = Array(EntityContext())
+
+entity_contexts_ingest_queue = topic('entity-contexts-load')
+
+############################################################################
+
 # Graph embeddings are embeddings associated with a graph entity
 
+class EntityEmbeddings(Record):
+    entity = Value()
+    vectors = Array(Array(Double()))
+
+# This is a 'batching' mechanism for the above data
 class GraphEmbeddings(Record):
     metadata = Metadata()
-    vectors = Array(Array(Double()))
-    entity = Value()
+    entities = Array(EntityEmbeddings())
 
 graph_embeddings_store_queue = topic('graph-embeddings-store')
 

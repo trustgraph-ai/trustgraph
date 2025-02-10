@@ -14,11 +14,15 @@ local default_prompts = import "prompts/default-prompts.jsonnet";
 
             local container =
                 engine.container("agent-manager")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "agent-manager-react",
                         "-p",
                         url.pulsar,
+                        "--prompt-request-queue",
+                        "non-persistent://tg/request/prompt-rag",
+                        "--prompt-response-queue",
+                        "non-persistent://tg/response/prompt-rag",
                         "--tool-type",
                     ] + [
                         tool.id + "=" + tool.type

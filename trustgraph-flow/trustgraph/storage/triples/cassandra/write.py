@@ -28,6 +28,8 @@ class Processor(Consumer):
         input_queue = params.get("input_queue", default_input_queue)
         subscriber = params.get("subscriber", default_subscriber)
         graph_host = params.get("graph_host", default_graph_host)
+        graph_username = params.get("graph_username", None)
+        graph_password = params.get("graph_password", None)
 
         super(Processor, self).__init__(
             **params | {
@@ -35,10 +37,14 @@ class Processor(Consumer):
                 "subscriber": subscriber,
                 "input_schema": Triples,
                 "graph_host": graph_host,
+                "graph_username": graph_username,
+                "graph_password": graph_password,
             }
         )
-
+        
         self.graph_host = [graph_host]
+        self.username = graph_username
+        self.password = graph_password
         self.table = None
 
     def handle(self, msg):
@@ -52,10 +58,17 @@ class Processor(Consumer):
             self.tg = None
 
             try:
-                self.tg = TrustGraph(
-                    hosts=self.graph_host,
-                    keyspace=v.metadata.user, table=v.metadata.collection,
-                )
+                if self.username and self.password:
+                    self.tg = TrustGraph(
+                        hosts=self.graph_host,
+                        keyspace=v.metadata.user, table=v.metadata.collection,
+                        username=self.username, password=self.password
+                    )
+                else:
+                    self.tg = TrustGraph(
+                        hosts=self.graph_host,
+                        keyspace=v.metadata.user, table=v.metadata.collection,
+                    )
             except Exception as e:
                 print("Exception", e, flush=True)
                 time.sleep(1)
@@ -81,6 +94,18 @@ class Processor(Consumer):
             '-g', '--graph-host',
             default="localhost",
             help=f'Graph host (default: localhost)'
+        )
+        
+        parser.add_argument(
+            '--graph-username',
+            default=None,
+            help=f'Cassandra username'
+        )
+        
+        parser.add_argument(
+            '--graph-password',
+            default=None,
+            help=f'Cassandra password'
         )
 
 def run():

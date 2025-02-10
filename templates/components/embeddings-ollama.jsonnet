@@ -13,7 +13,7 @@ local url = import "values/url.jsonnet";
 
             local container =
                 engine.container("embeddings")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "embeddings-ollama",
                         "-p",

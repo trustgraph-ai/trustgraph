@@ -8,17 +8,15 @@ and user prompt.  Both arguments are required.
 import argparse
 import os
 import json
-from trustgraph.clients.llm_client import LlmClient
+from trustgraph.api import Api
 
-default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://localhost:6650')
-default_pulsar_api_key = os.getenv("PULSAR_API_KEY", None)
+default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 
+def query(url, system, prompt):
 
-def query(pulsar_host, system, prompt, pulsar_api_key=None):
+    api = Api(url)
 
-    cli = LlmClient(pulsar_host=pulsar_host, pulsar_api_key=pulsar_api_key)
-
-    resp = cli.request(system=system, prompt=prompt)
+    resp = api.text_completion(system=system, prompt=prompt)
 
     print(resp)
 
@@ -30,9 +28,9 @@ def main():
     )
 
     parser.add_argument(
-        '-p', '--pulsar-host',
-        default=default_pulsar_host,
-        help=f'Pulsar host (default: {default_pulsar_host})',
+        '-u', '--url',
+        default=default_url,
+        help=f'API URL (default: {default_url})',
     )
     
     parser.add_argument(
@@ -46,23 +44,15 @@ def main():
         nargs=1,
         help='LLM prompt e.g. What is 2 + 2?',
     )
-    
-    parser.add_argument(
-        '--pulsar-api-key',
-        default=default_pulsar_api_key,
-        help=f'Pulsar API key',
-    )
-
 
     args = parser.parse_args()
 
     try:
 
         query(
-            pulsar_host=args.pulsar_host,
+            url=args.url,
             system=args.system[0],
             prompt=args.prompt[0],
-            pulsar_api_key=args.pulsar_api_key,
         )
 
     except Exception as e:

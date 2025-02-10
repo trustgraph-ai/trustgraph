@@ -14,7 +14,7 @@ local url = import "values/url.jsonnet";
 
             local container =
                 engine.container("kg-extract-definitions")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "kg-extract-definitions",
                         "-p",
@@ -44,7 +44,7 @@ local url = import "values/url.jsonnet";
 
             local container =
                 engine.container("kg-extract-relationships")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "kg-extract-relationships",
                         "-p",
@@ -74,7 +74,7 @@ local url = import "values/url.jsonnet";
 
             local container =
                 engine.container("kg-extract-topics")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "kg-extract-topics",
                         "-p",
@@ -104,7 +104,7 @@ local url = import "values/url.jsonnet";
 
             local container =
                 engine.container("graph-rag")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "graph-rag",
                         "-p",
@@ -125,6 +125,36 @@ local url = import "values/url.jsonnet";
 
             local containerSet = engine.containers(
                 "graph-rag", [ container ]
+            );
+
+            local service =
+                engine.internalService(containerSet)
+                .with_port(8000, 8000, "metrics");
+
+            engine.resources([
+                containerSet,
+                service,
+            ])
+
+    },
+
+    "graph-embeddings" +: {
+    
+        create:: function(engine)
+
+            local container =
+                engine.container("graph-embeddings")
+                    .with_image(images.trustgraph_flow)
+                    .with_command([
+                        "graph-embeddings",
+                        "-p",
+                        url.pulsar,
+                    ])
+                    .with_limits("1.0", "512M")
+                    .with_reservations("0.5", "512M");
+
+            local containerSet = engine.containers(
+                "graph-embeddings", [ container ]
             );
 
             local service =

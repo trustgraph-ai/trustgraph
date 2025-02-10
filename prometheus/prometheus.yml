@@ -20,6 +20,18 @@ scrape_configs:
       - targets:
         - 'pulsar:8080'
 
+  - job_name: 'bookie'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
+        - 'bookie:8000'
+
+  - job_name: 'zookeeper'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
+        - 'zookeeper:8000'
+
   - job_name: 'pdf-decoder'
     scrape_interval: 5s
     static_configs:
@@ -32,11 +44,17 @@ scrape_configs:
       - targets:
         - 'chunker:8000'
 
-  - job_name: 'vectorize'
+  - job_name: 'document-embeddings'
     scrape_interval: 5s
     static_configs:
       - targets:
-        - 'vectorize:8000'
+        - 'document-embeddings:8000'
+
+  - job_name: 'graph-embeddings'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
+        - 'graph-embeddings:8000'
 
   - job_name: 'embeddings'
     scrape_interval: 5s
@@ -74,6 +92,12 @@ scrape_configs:
       - targets:
         - 'metering-rag:8000'
 
+  - job_name: 'store-doc-embeddings'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
+        - 'store-doc-embeddings:8000'
+
   - job_name: 'store-graph-embeddings'
     scrape_interval: 5s
     static_configs:
@@ -104,6 +128,12 @@ scrape_configs:
       - targets:
         - 'graph-rag:8000'
 
+  - job_name: 'document-rag'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
+        - 'document-rag:8000'
+
   - job_name: 'prompt'
     scrape_interval: 5s
     static_configs:
@@ -121,6 +151,12 @@ scrape_configs:
     static_configs:
       - targets:
         - 'query-graph-embeddings:8000'
+
+  - job_name: 'query-doc-embeddings'
+    scrape_interval: 5s
+    static_configs:
+      - targets:
+        - 'query-doc-embeddings:8000'
 
   - job_name: 'query-triples'
     scrape_interval: 5s
@@ -145,3 +181,7 @@ scrape_configs:
     static_configs:
       - targets:
         - 'workbench-ui:8000'
+
+# Cassandra
+# qdrant
+
