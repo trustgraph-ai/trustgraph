@@ -24,6 +24,7 @@ class TriplesStreamEndpoint(SocketEndpoint):
         self.subscriber = Subscriber(
             self.pulsar_client, triples_store_queue,
             "api-gateway", "api-gateway",
+            pulsar_api_key=self.pulsar_api_key,
             schema=JsonSchema(Triples)
         )
 

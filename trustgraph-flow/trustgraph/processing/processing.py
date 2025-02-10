@@ -49,11 +49,12 @@ class Processing:
             pulsar_host,
             log_level,
             file,
+            pulsar_api_key=None,
     ):
         self.pulsar_host = pulsar_host
         self.log_level = log_level
         self.file = file
-
+        self.pulsar_api_key = pulsar_api_key
         self.defs = load(open(file, "r"), Loader=Loader)
 
     def run(self):
@@ -125,11 +126,18 @@ def run():
     )
 
     default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
+    default_pulsar_api_key = os.getenv("PULSAR_API_KEY", None)
 
     parser.add_argument(
         '-p', '--pulsar-host',
         default=default_pulsar_host,
         help=f'Pulsar host (default: {default_pulsar_host})',
+    )
+    
+    parser.add_argument(
+        '--pulsar-api-key',
+        default=default_pulsar_api_key,
+        help=f'Pulsar API key',
     )
 
     parser.add_argument(

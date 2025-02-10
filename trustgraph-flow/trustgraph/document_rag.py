@@ -59,6 +59,7 @@ class DocumentRag:
     def __init__(
             self,
             pulsar_host="pulsar://pulsar:6650",
+            pulsar_api_key=None,
             pr_request_queue=None,
             pr_response_queue=None,
             emb_request_queue=None,
@@ -100,6 +101,7 @@ class DocumentRag:
             subscriber=module + "-de",
             input_queue=de_request_queue,
             output_queue=de_response_queue,
+            pulsar_api_key=pulsar_api_key,
         )            
 
         self.embeddings = EmbeddingsClient(
@@ -107,6 +109,7 @@ class DocumentRag:
             input_queue=emb_request_queue,
             output_queue=emb_response_queue,
             subscriber=module + "-emb",
+            pulsar_api_key=pulsar_api_key,
         )
 
         self.lang = PromptClient(
@@ -114,6 +117,7 @@ class DocumentRag:
             input_queue=pr_request_queue,
             output_queue=pr_response_queue,
             subscriber=module + "-de-prompt",
+            pulsar_api_key=pulsar_api_key,
         )
 
         if self.verbose:
