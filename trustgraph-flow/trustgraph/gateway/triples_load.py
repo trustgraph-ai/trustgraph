@@ -14,17 +14,19 @@ from . serialize import to_subgraph
 
 class TriplesLoadEndpoint(SocketEndpoint):
 
-    def __init__(self, pulsar_host, auth, path="/api/v1/load/triples"):
+    def __init__(self, pulsar_host, auth, path="/api/v1/load/triples", pulsar_api_key=None):
 
         super(TriplesLoadEndpoint, self).__init__(
             endpoint_path=path, auth=auth,
         )
 
         self.pulsar_host=pulsar_host
+        self.pulsar_api_key=pulsar_api_key
 
         self.publisher = Publisher(
             self.pulsar_host, triples_store_queue,
-            schema=JsonSchema(Triples)
+            schema=JsonSchema(Triples),
+            pulsar_api_key=self.pulsar_api_key
         )
 
     async def start(self):

@@ -52,6 +52,7 @@ class Processor(ConsumerProducer):
 
         self.prompt = PromptClient(
             pulsar_host=self.pulsar_host,
+            pulsar_api_key=self.pulsar_api_key,
             input_queue=pr_request_queue,
             output_queue=pr_response_queue,
             subscriber = module + "-prompt",

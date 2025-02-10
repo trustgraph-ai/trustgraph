@@ -6,9 +6,10 @@ import time
 
 class Subscriber:
 
-    def __init__(self, pulsar_host, topic, subscription, consumer_name,
+    def __init__(self, pulsar_host, topic, subscription, consumer_name, pulsar_api_key=None,
                  schema=None, max_size=100):
         self.pulsar_host = pulsar_host
+        self.pulsar_api_key = pulsar_api_key
         self.topic = topic
         self.subscription = subscription
         self.consumer_name = consumer_name
@@ -28,9 +29,16 @@ class Subscriber:
 
             try:
 
-                client = pulsar.Client(
+                if self.pulsar_api_key:
+                    auth = pulsar.AuthenticationToken(self.pulsar_api_key)
+                    client = pulsar.Client(
                     self.pulsar_host,
-                )
+                    authentication=auth,
+                    )
+                else:
+                    client = pulsar.Client(
+                    self.pulsar_host,
+                    )
 
                 consumer = client.subscribe(
                     topic=self.topic,

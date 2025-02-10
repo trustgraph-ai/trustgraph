@@ -15,10 +15,12 @@ import json
 from trustgraph.clients.prompt_client import PromptClient
 
 default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://localhost:6650')
+default_pulsar_api_key = os.getenv("PULSAR_API_KEY", None)
 
-def query(pulsar_host, template_id, variables):
 
-    cli = PromptClient(pulsar_host=pulsar_host)
+def query(pulsar_host, template_id, variables, pulsar_api_key=None):
+
+    cli = PromptClient(pulsar_host=pulsar_host, pulsar_api_key=pulsar_api_key)
 
     resp = cli.request(id=template_id, variables=variables)
 
@@ -55,6 +57,13 @@ def main():
 specified multiple times''',
     )
 
+    
+    parser.add_argument(
+        '--pulsar-api-key',
+        default=default_pulsar_api_key,
+        help=f'Pulsar API key',
+    )
+
     args = parser.parse_args()
 
     variables = {}
@@ -73,6 +82,7 @@ specified multiple times''',
             pulsar_host=args.pulsar_host,
             template_id=args.id[0],
             variables=variables,
+            pulsar_api_key=args.pulsar_api_key,
         )
 
     except Exception as e:

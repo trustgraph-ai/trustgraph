@@ -15,7 +15,7 @@ from . serialize import to_subgraph, to_value
 class GraphEmbeddingsLoadEndpoint(SocketEndpoint):
 
     def __init__(
-            self, pulsar_host, auth, path="/api/v1/load/graph-embeddings",
+            self, pulsar_host, auth, pulsar_api_key=None, path="/api/v1/load/graph-embeddings",
     ):
 
         super(GraphEmbeddingsLoadEndpoint, self).__init__(
@@ -23,9 +23,11 @@ class GraphEmbeddingsLoadEndpoint(SocketEndpoint):
         )
 
         self.pulsar_host=pulsar_host
+        self.pulsar_api_key=pulsar_api_key
 
         self.publisher = Publisher(
             self.pulsar_host, graph_embeddings_store_queue,
+            self.pulsar_api_key,
             schema=JsonSchema(GraphEmbeddings)
         )
 

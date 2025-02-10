@@ -53,6 +53,7 @@ logger = logging.getLogger("api")
 logger.setLevel(logging.INFO)
 
 default_pulsar_host = os.getenv("PULSAR_HOST", "pulsar://pulsar:6650")
+default_pulsar_api_key = os.getenv("PULSAR_API_KEY", None)
 default_timeout = 600
 default_port = 8088
 default_api_token = os.getenv("GATEWAY_SECRET", "")
@@ -69,6 +70,7 @@ class Api:
         self.port = int(config.get("port", default_port))
         self.timeout = int(config.get("timeout", default_timeout))
         self.pulsar_host = config.get("pulsar_host", default_pulsar_host)
+        self.pulsar_api_key = config.get("pulsar_api_key", default_pulsar_api_key)
 
         api_token = config.get("api_token", default_api_token)
 
@@ -81,49 +83,49 @@ class Api:
         self.services = {
             "text-completion": TextCompletionRequestor(
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
-                auth = self.auth,
+                auth = self.auth, pulsar_api_key=self.pulsar_api_key,
             ),
             "prompt": PromptRequestor(
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
-                auth = self.auth,
+                auth = self.auth, pulsar_api_key=self.pulsar_api_key,
             ),
             "graph-rag": GraphRagRequestor(
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
-                auth = self.auth,
+                auth = self.auth, pulsar_api_key=self.pulsar_api_key,
             ),
             "triples-query": TriplesQueryRequestor(
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
-                auth = self.auth,
+                auth = self.auth, pulsar_api_key=self.pulsar_api_key,
             ),
             "graph-embeddings-query": GraphEmbeddingsQueryRequestor(
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
-                auth = self.auth,
+                auth = self.auth, pulsar_api_key=self.pulsar_api_key,
             ),
             "embeddings": EmbeddingsRequestor(
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
-                auth = self.auth,
+                auth = self.auth, pulsar_api_key=self.pulsar_api_key,
             ),
             "agent": AgentRequestor(
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
-                auth = self.auth,
+                auth = self.auth, pulsar_api_key=self.pulsar_api_key,
             ),
             "encyclopedia": EncyclopediaRequestor(
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
-                auth = self.auth,
+                auth = self.auth, pulsar_api_key=self.pulsar_api_key,
             ),
             "dbpedia": DbpediaRequestor(
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
-                auth = self.auth,
+                auth = self.auth, pulsar_api_key=self.pulsar_api_key,
             ),
             "internet-search": InternetSearchRequestor(
                 pulsar_host=self.pulsar_host, timeout=self.timeout,
-                auth = self.auth,
+                auth = self.auth, pulsar_api_key=self.pulsar_api_key,
             ),
             "document-load": DocumentLoadSender(
-                pulsar_host=self.pulsar_host,
+                pulsar_host=self.pulsar_host, pulsar_api_key=self.pulsar_api_key,
             ),
             "text-load": TextLoadSender(
-                pulsar_host=self.pulsar_host,
+                pulsar_host=self.pulsar_host, pulsar_api_key=self.pulsar_api_key,
             ),
         }
 
@@ -179,24 +181,29 @@ class Api:
             ),
             TriplesStreamEndpoint(
                 pulsar_host=self.pulsar_host,
+                pulsar_api_key=self.pulsar_api_key,
                 auth = self.auth,
             ),
             GraphEmbeddingsStreamEndpoint(
                 pulsar_host=self.pulsar_host,
+                pulsar_api_key=self.pulsar_api_key,
                 auth = self.auth,
             ),
             TriplesLoadEndpoint(
                 pulsar_host=self.pulsar_host,
                 auth = self.auth,
+                pulsar_api_key=self.pulsar_api_key,
             ),
             GraphEmbeddingsLoadEndpoint(
                 pulsar_host=self.pulsar_host,
+                pulsar_api_key=self.pulsar_api_key,
                 auth = self.auth,
             ),
             MuxEndpoint(
                 pulsar_host=self.pulsar_host,
                 auth = self.auth,
                 services = self.services,
+                pulsar_api_key=self.pulsar_api_key,
             ),
         ]
 
@@ -224,6 +231,12 @@ def run():
         '-p', '--pulsar-host',
         default=default_pulsar_host,
         help=f'Pulsar host (default: {default_pulsar_host})',
+    )
+    
+    parser.add_argument(
+        '--pulsar-api-key',
+        default=default_pulsar_api_key,
+        help=f'Pulsar API key',
     )
 
     parser.add_argument(

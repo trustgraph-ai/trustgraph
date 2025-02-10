@@ -166,21 +166,24 @@ class Processor(ConsumerProducer):
             subscriber=subscriber,
             input_queue=prompt_request_queue,
             output_queue=prompt_response_queue,
-            pulsar_host = self.pulsar_host
+            pulsar_host = self.pulsar_host,
+            pulsar_api_key=self.pulsar_api_key,
         )
 
         self.llm = LlmClient(
             subscriber=subscriber,
             input_queue=text_completion_request_queue,
             output_queue=text_completion_response_queue,
-            pulsar_host = self.pulsar_host
+            pulsar_host = self.pulsar_host,
+            pulsar_api_key=self.pulsar_api_key,
         )
 
         self.graph_rag = GraphRagClient(
             subscriber=subscriber,
             input_queue=graph_rag_request_queue,
             output_queue=graph_rag_response_queue,
-            pulsar_host = self.pulsar_host
+            pulsar_host = self.pulsar_host,
+            pulsar_api_key=self.pulsar_api_key,
         )
 
         # Need to be able to feed requests to myself

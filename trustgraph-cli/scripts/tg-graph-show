@@ -9,12 +9,13 @@ import os
 from trustgraph.clients.triples_query_client import TriplesQueryClient
 
 default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://localhost:6650')
+default_pulsar_api_key = os.getenv("PULSAR_API_KEY", None)
 default_user = 'trustgraph'
 default_collection = 'default'
 
-def show_graph(pulsar, user, collection):
+def show_graph(pulsar, user, collection, pulsar_api_key=None):
 
-    tq = TriplesQueryClient(pulsar_host=pulsar)
+    tq = TriplesQueryClient(pulsar_host=pulsar, pulsar_api_key=pulsar_api_key)
 
     rows = tq.request(
         user=user, collection=collection,
@@ -48,7 +49,13 @@ def main():
         default=default_collection,
         help=f'Collection ID (default: {default_collection})'
     )
-
+        
+    parser.add_argument(
+        '--pulsar-api-key',
+        default=default_pulsar_api_key,
+        help=f'Pulsar API key',
+    )
+    
     args = parser.parse_args()
 
     try:
@@ -56,6 +63,7 @@ def main():
         show_graph(
             pulsar=args.pulsar_host, user=args.user,
             collection=args.collection,
+            pulsar_api_key=args.pulsar_api_key,
         )
 
     except Exception as e:

@@ -11,6 +11,7 @@ import textwrap
 from trustgraph.clients.agent_client import AgentClient
 
 default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://localhost:6650')
+default_pulsar_api_key = os.getenv("PULSAR_API_KEY", None)
 default_user = 'trustgraph'
 default_collection = 'default'
 
@@ -29,10 +30,10 @@ def output(text, prefix="> ", width=78):
 
 def query(
         pulsar_host, query, user, collection,
-        plan=None, state=None, verbose=False
+        plan=None, state=None, verbose=False, pulsar_api_key=None
 ):
 
-    am = AgentClient(pulsar_host=pulsar_host)
+    am = AgentClient(pulsar_host=pulsar_host, pulsar_api_key=pulsar_api_key)
 
     if verbose:
         output(wrap(query), "\U00002753 ")
@@ -100,6 +101,12 @@ def main():
         action="store_true",
         help=f'Output thinking/observations'
     )
+    
+    parser.add_argument(
+        '--pulsar-api-key',
+        default=default_pulsar_api_key,
+        help=f'Pulsar API key',
+    )
 
     args = parser.parse_args()
 
@@ -113,6 +120,7 @@ def main():
             plan=args.plan,
             state=args.state,
             verbose=args.verbose,
+            pulsar_api_key=args.pulsar_api_key,
         )
 
     except Exception as e:

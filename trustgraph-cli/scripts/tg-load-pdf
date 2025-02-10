@@ -34,13 +34,22 @@ class Loader:
             collection,
             log_level,
             metadata,
+            pulsar_api_key=None,
     ):
-
-        self.client = pulsar.Client(
+        
+        if pulsar_api_key:
+            auth = pulsar.AuthenticationToken(pulsar_api_key)
+            self.client = pulsar.Client(
+				pulsar_host,
+				authentication=auth,
+				logger=pulsar.ConsoleLogger(log_level.to_pulsar())
+            )
+        else:
+            self.client = pulsar.Client(
             pulsar_host,
             logger=pulsar.ConsoleLogger(log_level.to_pulsar())
-        )
-
+            )
+            
         self.producer = self.client.create_producer(
             topic=output_queue,
             schema=JsonSchema(Document),
@@ -120,12 +129,19 @@ def main():
     )
 
     default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://localhost:6650')
+    default_pulsar_api_key = os.getenv("PULSAR_API_KEY", None)
     default_output_queue = document_ingest_queue
 
     parser.add_argument(
         '-p', '--pulsar-host',
         default=default_pulsar_host,
         help=f'Pulsar host (default: {default_pulsar_host})',
+    )
+    
+    parser.add_argument(
+        '--pulsar-api-key',
+        default=default_pulsar_api_key,
+        help=f'Pulsar API key',
     )
 
     parser.add_argument(
@@ -240,6 +256,7 @@ def main():
 
             p = Loader(
                 pulsar_host=args.pulsar_host,
+                pulsar_api_key=args.pulsar_api_key,
                 output_queue=args.output_queue,
                 user=args.user,
                 collection=args.collection,

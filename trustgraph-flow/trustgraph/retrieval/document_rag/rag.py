@@ -68,6 +68,7 @@ class Processor(ConsumerProducer):
 
         self.rag = DocumentRag(
             pulsar_host=self.pulsar_host,
+            pulsar_api_key=self.pulsar_api_key,
             pr_request_queue=pr_request_queue,
             pr_response_queue=pr_response_queue,
             emb_request_queue=emb_request_queue,

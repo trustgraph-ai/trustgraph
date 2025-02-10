@@ -11,10 +11,12 @@ import json
 from trustgraph.clients.llm_client import LlmClient
 
 default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://localhost:6650')
+default_pulsar_api_key = os.getenv("PULSAR_API_KEY", None)
 
-def query(pulsar_host, system, prompt):
 
-    cli = LlmClient(pulsar_host=pulsar_host)
+def query(pulsar_host, system, prompt, pulsar_api_key=None):
+
+    cli = LlmClient(pulsar_host=pulsar_host, pulsar_api_key=pulsar_api_key)
 
     resp = cli.request(system=system, prompt=prompt)
 
@@ -32,7 +34,7 @@ def main():
         default=default_pulsar_host,
         help=f'Pulsar host (default: {default_pulsar_host})',
     )
-
+    
     parser.add_argument(
         'system',
         nargs=1,
@@ -44,6 +46,13 @@ def main():
         nargs=1,
         help='LLM prompt e.g. What is 2 + 2?',
     )
+    
+    parser.add_argument(
+        '--pulsar-api-key',
+        default=default_pulsar_api_key,
+        help=f'Pulsar API key',
+    )
+
 
     args = parser.parse_args()
 
@@ -53,6 +62,7 @@ def main():
             pulsar_host=args.pulsar_host,
             system=args.system[0],
             prompt=args.prompt[0],
+            pulsar_api_key=args.pulsar_api_key,
         )
 
     except Exception as e:

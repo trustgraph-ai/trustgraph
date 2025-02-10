@@ -20,6 +20,7 @@ class LlmClient(BaseClient):
             input_queue=None,
             output_queue=None,
             pulsar_host="pulsar://pulsar:6650",
+            pulsar_api_key=None,
     ):
 
         if input_queue is None: input_queue = text_completion_request_queue
@@ -31,6 +32,7 @@ class LlmClient(BaseClient):
             input_queue=input_queue,
             output_queue=output_queue,
             pulsar_host=pulsar_host,
+            pulsar_api_key=pulsar_api_key,
             input_schema=TextCompletionRequest,
             output_schema=TextCompletionResponse,
         )

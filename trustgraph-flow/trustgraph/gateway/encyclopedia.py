@@ -7,10 +7,11 @@ from . endpoint import ServiceEndpoint
 from . requestor import ServiceRequestor
 
 class EncyclopediaRequestor(ServiceRequestor):
-    def __init__(self, pulsar_host, timeout, auth):
+    def __init__(self, pulsar_host, timeout, auth, pulsar_api_key=None):
 
         super(EncyclopediaRequestor, self).__init__(
             pulsar_host=pulsar_host,
+            pulsar_api_key=pulsar_api_key,
             request_queue=encyclopedia_lookup_request_queue,
             response_queue=encyclopedia_lookup_response_queue,
             request_schema=LookupRequest,

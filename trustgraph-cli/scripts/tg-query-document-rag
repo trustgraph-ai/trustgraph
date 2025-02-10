@@ -9,12 +9,14 @@ import os
 from trustgraph.clients.document_rag_client import DocumentRagClient
 
 default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://localhost:6650')
+default_pulsar_api_key = os.getenv("PULSAR_API_KEY", None)
+
 default_user = 'trustgraph'
 default_collection = 'default'
 
-def query(pulsar_host, query, user, collection):
+def query(pulsar_host, query, user, collection, pulsar_api_key=None):
 
-    rag = DocumentRagClient(pulsar_host=pulsar)
+    rag = DocumentRagClient(pulsar_host=pulsar_host, pulsar_api_key=pulsar_api_key)
     resp = rag.request(user=user, collection=collection, query=query)
     print(resp)
 
@@ -30,7 +32,12 @@ def main():
         default=default_pulsar_host,
         help=f'Pulsar host (default: {default_pulsar_host})',
     )
-
+    
+    parser.add_argument(
+        '--pulsar-api-key',
+        default=default_pulsar_api_key,
+        help=f'Pulsar API key',
+    )
     parser.add_argument(
         '-q', '--query',
         required=True,
@@ -55,6 +62,7 @@ def main():
 
         query(
             pulsar_host=args.pulsar_host,
+            pulsar_api_key=args.pulsar_api_key,
             query=args.query,
             user=args.user,
             collection=args.collection,
