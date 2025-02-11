@@ -34,7 +34,7 @@ class Processor(Consumer):
 
         self.vecstore = ObjectVectors(store_uri)
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         v = msg.value()
 
@@ -57,5 +57,5 @@ class Processor(Consumer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

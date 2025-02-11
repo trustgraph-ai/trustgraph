@@ -59,6 +59,6 @@ class DocumentEmbeddingsLoadEndpoint(SocketEndpoint):
                     ],
                 )
 
-                self.publisher.send(None, elt)
+                await self.publisher.send(None, elt)
 
         running.stop()

@@ -39,7 +39,7 @@ class Processor(ConsumerProducer):
 
         print("PDF inited")
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         print("PDF message received")
 
@@ -64,7 +64,7 @@ class Processor(ConsumerProducer):
                         text=page.page_content.encode("utf-8"),
                     )
 
-                    self.send(r)
+                    await self.send(r)
 
         print("Done.", flush=True)
 
@@ -78,5 +78,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

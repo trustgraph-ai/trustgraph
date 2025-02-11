@@ -59,7 +59,7 @@ class GraphEmbeddingsLoadEndpoint(SocketEndpoint):
                     ]
                 )
 
-                self.publisher.send(None, elt)
+                await self.publisher.send(None, elt)
 
 
         running.stop()

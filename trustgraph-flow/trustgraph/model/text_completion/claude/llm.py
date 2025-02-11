@@ -73,7 +73,7 @@ class Processor(ConsumerProducer):
 
         print("Initialised", flush=True)
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         v = msg.value()
 
@@ -150,7 +150,7 @@ class Processor(ConsumerProducer):
                 model=None,
             )
 
-            self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             self.consumer.acknowledge(msg)
 
@@ -190,6 +190,6 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 
     

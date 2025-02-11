@@ -131,7 +131,7 @@ class Processor(ConsumerProducer):
 
         print("Initialisation complete", flush=True)
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         try:
 
@@ -248,5 +248,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

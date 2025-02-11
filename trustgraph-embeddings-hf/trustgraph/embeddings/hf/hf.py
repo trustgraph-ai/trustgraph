@@ -40,7 +40,7 @@ class Processor(ConsumerProducer):
 
         self.embeddings = HuggingFaceEmbeddings(model_name=model)
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         v = msg.value()
 
@@ -96,5 +96,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

@@ -51,7 +51,7 @@ class Processor(ConsumerProducer):
             chunk_overlap=chunk_overlap,
         )
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         v = msg.value()
         print(f"Chunking {v.metadata.id}...", flush=True)
@@ -69,7 +69,7 @@ class Processor(ConsumerProducer):
 
             __class__.chunk_metric.observe(len(chunk.page_content))
 
-            self.send(r)
+            await self.send(r)
 
         print("Done.", flush=True)
 
@@ -97,5 +97,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

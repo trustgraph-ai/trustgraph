@@ -26,7 +26,7 @@ class Librarian:
         self.load_document = load_document
         self.load_text = load_text
 
-    def add(self, id, document):
+    async def add(self, id, document):
 
         if document.kind not in (
                 "text/plain", "application/pdf"
@@ -41,9 +41,9 @@ class Librarian:
         self.table_store.add(object_id, document)
 
         if document.kind == "application/pdf":
-            self.load_document(id, document)
+            await self.load_document(id, document)
         elif document.kind == "text/plain":
-            self.load_text(id, document)
+            await self.load_text(id, document)
 
         print("Add complete", flush=True)
 
@@ -52,4 +52,5 @@ class Librarian:
             document = None,
             info = None,
         )
+
 
