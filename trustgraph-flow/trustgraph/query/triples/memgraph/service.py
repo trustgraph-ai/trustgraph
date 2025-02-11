@@ -58,7 +58,7 @@ class Processor(ConsumerProducer):
         else:
             return Value(value=ent, is_uri=False)
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         try:
 
@@ -313,7 +313,7 @@ class Processor(ConsumerProducer):
 
             print("Send response...", flush=True)
             r = TriplesQueryResponse(triples=triples, error=None)
-            self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             print("Done.", flush=True)
 
@@ -331,7 +331,7 @@ class Processor(ConsumerProducer):
                 response=None,
             )
 
-            self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             self.consumer.acknowledge(msg)
             
@@ -369,5 +369,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

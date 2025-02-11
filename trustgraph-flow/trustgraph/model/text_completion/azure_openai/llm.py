@@ -84,7 +84,7 @@ class Processor(ConsumerProducer):
             azure_endpoint = endpoint,
             )
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         v = msg.value()
 
@@ -133,7 +133,7 @@ class Processor(ConsumerProducer):
                 model=self.model
             )
 
-            self.producer.send(r, properties={"id": id})
+            await self.producer.send(r, properties={"id": id})
 
         except RateLimitError:
 
@@ -161,7 +161,7 @@ class Processor(ConsumerProducer):
                 model=None,
             )
 
-            self.producer.send(r, properties={"id": id})
+            await self.producer.send(r, properties={"id": id})
 
             self.consumer.acknowledge(msg)
 
@@ -212,4 +212,4 @@ class Processor(ConsumerProducer):
 
 def run():
     
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)

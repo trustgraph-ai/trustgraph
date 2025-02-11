@@ -71,7 +71,7 @@ class Processor(ConsumerProducer):
         self.model = model
         self.llm = Client(host=ollama)
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         v = msg.value()
 
@@ -96,7 +96,7 @@ class Processor(ConsumerProducer):
 
             r = TextCompletionResponse(response=response_text, error=None, in_token=inputtokens, out_token=outputtokens, model="ollama")
 
-            self.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             print("Done.", flush=True)
 
@@ -119,7 +119,7 @@ class Processor(ConsumerProducer):
                 model=None,
             )
 
-            self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             self.consumer.acknowledge(msg)
 
@@ -145,6 +145,6 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 
     

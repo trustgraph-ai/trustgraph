@@ -37,7 +37,7 @@ class Producer(BaseProcessor):
             chunking_enabled=True,
         )
 
-    def send(self, msg, properties={}):
+    async def send(self, msg, properties={}):
         self.producer.send(msg, properties)
         __class__.output_metric.inc()
 

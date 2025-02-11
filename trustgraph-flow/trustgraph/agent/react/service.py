@@ -189,7 +189,7 @@ class Processor(ConsumerProducer):
 
         return json.loads(json_str)
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         try:
 
@@ -229,7 +229,7 @@ class Processor(ConsumerProducer):
                     observation=None,
                 )
 
-                self.producer.send(r, properties={"id": id})
+                await self.producer.send(r, properties={"id": id})
 
             def observe(x):
 
@@ -242,7 +242,7 @@ class Processor(ConsumerProducer):
                     observation=x,
                 )
 
-                self.producer.send(r, properties={"id": id})
+                await self.producer.send(r, properties={"id": id})
 
             act = self.agent.react(v.question, history, think, observe)
 
@@ -258,7 +258,7 @@ class Processor(ConsumerProducer):
                     thought=None,
                 )
 
-                self.producer.send(r, properties={"id": id})
+                await self.producer.send(r, properties={"id": id})
 
                 print("Done.", flush=True)
 
@@ -281,7 +281,7 @@ class Processor(ConsumerProducer):
                 ]
             )
 
-            self.recursive_input.send(r, properties={"id": id})
+            await self.recursive_input.send(r, properties={"id": id})
 
             print("Done.", flush=True)
 
@@ -301,7 +301,7 @@ class Processor(ConsumerProducer):
                 response=None,
             )
 
-            self.producer.send(r, properties={"id": id})
+            await self.producer.send(r, properties={"id": id})
 
     @staticmethod
     def add_args(parser):
@@ -377,5 +377,5 @@ description.'''
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

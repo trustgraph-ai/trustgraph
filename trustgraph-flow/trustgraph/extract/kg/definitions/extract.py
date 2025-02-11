@@ -96,23 +96,23 @@ class Processor(ConsumerProducer):
 
         return self.prompt.request_definitions(chunk)
 
-    def emit_edges(self, metadata, triples):
+    async def emit_edges(self, metadata, triples):
 
         t = Triples(
             metadata=metadata,
             triples=triples,
         )
-        self.producer.send(t)
+        await self.send(t)
 
-    def emit_ecs(self, metadata, entities):
+    async def emit_ecs(self, metadata, entities):
 
         t = EntityContexts(
             metadata=metadata,
             entities=entities,
         )
-        self.ec_prod.send(t)
+        await self.ec_prod.send(t)
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         v = msg.value()
         print(f"Indexing {v.metadata.id}...", flush=True)
@@ -171,7 +171,7 @@ class Processor(ConsumerProducer):
                 entities.append(ec)
                     
 
-            self.emit_edges(
+            await self.emit_edges(
                 Metadata(
                     id=v.metadata.id,
                     metadata=[],
@@ -181,7 +181,7 @@ class Processor(ConsumerProducer):
                 triples
             )
 
-            self.emit_ecs(
+            await self.emit_ecs(
                 Metadata(
                     id=v.metadata.id,
                     metadata=[],
@@ -224,5 +224,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

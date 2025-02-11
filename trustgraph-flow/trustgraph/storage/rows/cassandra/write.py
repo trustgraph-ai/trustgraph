@@ -62,7 +62,7 @@ class Processor(Consumer):
 
         self.session.execute("use trustgraph");
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         try:
 
@@ -143,5 +143,5 @@ class Processor(Consumer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

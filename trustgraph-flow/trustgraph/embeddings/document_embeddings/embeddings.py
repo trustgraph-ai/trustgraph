@@ -52,7 +52,7 @@ class Processor(ConsumerProducer):
             subscriber=module + "-emb",
         )
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         v = msg.value()
         print(f"Indexing {v.metadata.id}...", flush=True)
@@ -73,7 +73,7 @@ class Processor(ConsumerProducer):
                 chunks=embeds,
             )
 
-            self.producer.send(r)
+            await self.producer.send(r)
 
         except Exception as e:
             print("Exception:", e, flush=True)
@@ -105,5 +105,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

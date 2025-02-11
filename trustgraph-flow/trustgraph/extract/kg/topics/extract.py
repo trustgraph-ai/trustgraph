@@ -69,15 +69,15 @@ class Processor(ConsumerProducer):
 
         return self.prompt.request_topics(chunk)
 
-    def emit_edge(self, metadata, s, p, o):
+    async def emit_edge(self, metadata, s, p, o):
 
         t = Triples(
             metadata=metadata,
             triples=[Triple(s=s, p=p, o=o)],
         )
-        self.producer.send(t)
+        await self.send(t)
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         v = msg.value()
         print(f"Indexing {v.metadata.id}...", flush=True)
@@ -104,7 +104,9 @@ class Processor(ConsumerProducer):
                 s_value = Value(value=str(s_uri), is_uri=True)
                 o_value = Value(value=str(o), is_uri=False)
 
-                self.emit_edge(v. metadata, s_value, DEFINITION_VALUE, o_value)
+                await self.emit_edge(
+                    v.metadata, s_value, DEFINITION_VALUE, o_value
+                )
 
         except Exception as e:
             print("Exception: ", e, flush=True)
@@ -133,5 +135,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

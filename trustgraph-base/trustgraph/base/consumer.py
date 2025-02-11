@@ -1,4 +1,5 @@
 
+import asyncio
 from pulsar.schema import JsonSchema
 import pulsar
 from prometheus_client import Histogram, Info, Counter, Enum
@@ -75,7 +76,7 @@ class Consumer(BaseProcessor):
 
         print("Initialised consumer.", flush=True)
 
-    def run(self):
+    async def run(self):
 
         __class__.state_metric.state('running')
 
@@ -104,7 +105,7 @@ class Consumer(BaseProcessor):
                 try:
 
                     with __class__.request_metric.time():
-                        self.handle(msg)
+                        await self.handle(msg)
 
                     # Acknowledge successful processing of the message
                     self.consumer.acknowledge(msg)

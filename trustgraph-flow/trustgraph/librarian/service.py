@@ -110,14 +110,7 @@ class Processor(ConsumerProducer):
             listener=self.pulsar_listener,
         )
 
-        self.document_load.start()
-        self.text_load.start()
-        self.triples_load.start()
-
-        self.triples_sub = self.triples_load.subscribe_all("x")
-
         self.triples_reader = threading.Thread(target=self.receive_triples)
-        self.triples_reader.start()
 
         self.librarian = Librarian(
             cassandra_host = cassandra_host.split(","),
@@ -133,6 +126,16 @@ class Processor(ConsumerProducer):
         )
 
         print("Initialised.", flush=True)
+
+    async def start(self):
+        
+        self.document_load.start()
+        self.text_load.start()
+        self.triples_load.start()
+
+        self.triples_sub = self.triples_load.subscribe_all("x")
+
+        self.triples_reader.start()
 
     def receive_triples(self):
 
@@ -168,7 +171,7 @@ class Processor(ConsumerProducer):
             self.triples_load.stop()
             self.triples_load.join()
 
-    def load_document(self, id, document):
+    async def load_document(self, id, document):
 
         doc = Document(
             metadata = Metadata(
@@ -182,7 +185,7 @@ class Processor(ConsumerProducer):
 
         self.document_load.send(None, doc)
 
-    def load_text(self, id, document):
+    async def load_text(self, id, document):
 
         doc = TextDocument(
             metadata = Metadata(
@@ -202,7 +205,6 @@ class Processor(ConsumerProducer):
             raise RequestError("Null operation")
 
         if v.operation == "add":
-            print(v)
             if (
                     v.id and v.document and v.document.metadata and
                     v.document.document and v.document.kind
@@ -217,7 +219,7 @@ class Processor(ConsumerProducer):
 
         raise RequestError("Invalid operation: " + v.operation)
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         v = msg.value()
 
@@ -236,11 +238,11 @@ class Processor(ConsumerProducer):
                     message = str(e),
                 )
             )
-            self.producer.send(resp, properties={"id": id})
+            await self.send(resp, properties={"id": id})
             return
 
         try:
-            resp = func()
+            resp = await func()
         except RequestError as e:
             resp = LibrarianResponse(
                 error = Error(
@@ -248,7 +250,7 @@ class Processor(ConsumerProducer):
                     message = str(e),
                 )
             )
-            self.producer.send(resp, properties={"id": id})
+            await self.send(resp, properties={"id": id})
             return
         except Exception as e:
             print("Exception:", e, flush=True)
@@ -258,12 +260,12 @@ class Processor(ConsumerProducer):
                     message = "Unhandled error: " + str(e),
                 )
             )
-            self.producer.send(resp, properties={"id": id})
+            await self.send(resp, properties={"id": id})
             return
 
         print("Send response...", flush=True)
 
-        self.producer.send(resp, properties={"id": id})
+        await self.send(resp, properties={"id": id})
 
         print("Done.", flush=True)
 
@@ -348,5 +350,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

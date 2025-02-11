@@ -1,4 +1,5 @@
 
+import asyncio
 import os
 import argparse
 import pulsar
@@ -83,11 +84,20 @@ class BaseProcessor:
             help=f'Pulsar host (default: 8000)',
         )
 
-    def run(self):
+    async def start(self):
+        pass
+
+    async def run(self):
         raise RuntimeError("Something should have implemented the run method")
 
     @classmethod
-    def start(cls, prog, doc):
+    async def launch_async(cls, args):
+        p = cls(**args)
+        await p.start()
+        await p.run()
+
+    @classmethod
+    def launch(cls, prog, doc):
 
         parser = argparse.ArgumentParser(
             prog=prog,
@@ -108,8 +118,7 @@ class BaseProcessor:
 
             try:
 
-                p = cls(**args)
-                p.run()
+                asyncio.run(cls.launch_async(args))
 
             except KeyboardInterrupt:
                 print("Keyboard interrupt.")
@@ -127,3 +136,4 @@ class BaseProcessor:
                 print("Will retry...", flush=True)
 
                 time.sleep(4)
+
