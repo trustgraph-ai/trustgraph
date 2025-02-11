@@ -110,7 +110,7 @@ class Processor(ConsumerProducer):
             metadata=metadata,
             entities=entities,
         )
-        await self.ec_prod.send(t)
+        self.ec_prod.send(t)
 
     async def handle(self, msg):
 

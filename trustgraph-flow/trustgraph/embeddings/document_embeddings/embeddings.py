@@ -73,7 +73,7 @@ class Processor(ConsumerProducer):
                 chunks=embeds,
             )
 
-            await self.producer.send(r)
+            await self.send(r)
 
         except Exception as e:
             print("Exception:", e, flush=True)

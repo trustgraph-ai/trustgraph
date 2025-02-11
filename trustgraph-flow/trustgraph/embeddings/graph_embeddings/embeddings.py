@@ -77,7 +77,7 @@ class Processor(ConsumerProducer):
                 entities=entities,
             )
 
-            await self.producer.send(r)
+            await self.send(r)
 
         except Exception as e:
             print("Exception:", e, flush=True)
