@@ -27,7 +27,7 @@ class GraphEmbeddingsLoadEndpoint(SocketEndpoint):
 
         self.publisher = Publisher(
             self.pulsar_host, graph_embeddings_store_queue,
-            self.pulsar_api_key,
+            pulsar_api_key=self.pulsar_api_key,
             schema=JsonSchema(GraphEmbeddings)
         )
 

@@ -69,6 +69,7 @@ class Processing:
 
             params = {
                 "pulsar_host": self.pulsar_host,
+                "pulsar_api_key": self.pulsar_api_key,
                 "log_level": str(self.log_level),
             }
 
@@ -161,6 +162,7 @@ def run():
         try:
             p = Processing(
                 pulsar_host=args.pulsar_host,
+                pulsar_api_key=args.pulsar_api_key,
                 file=args.file,
                 log_level=args.log_level,
             )
