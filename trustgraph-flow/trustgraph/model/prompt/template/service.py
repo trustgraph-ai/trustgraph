@@ -190,7 +190,7 @@ class Processor(ConsumerProducer):
                     error=None,
                 )
 
-                await self.producer.send(r, properties={"id": id})
+                await self.send(r, properties={"id": id})
 
                 return
 
@@ -205,7 +205,7 @@ class Processor(ConsumerProducer):
                     error=None,
                 )
 
-                await self.producer.send(r, properties={"id": id})
+                await self.send(r, properties={"id": id})
 
                 return
             
@@ -223,7 +223,7 @@ class Processor(ConsumerProducer):
                 response=None,
             )
 
-            await self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
         except Exception as e:
 
@@ -239,7 +239,7 @@ class Processor(ConsumerProducer):
                 response=None,
             )
 
-            await self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
     @staticmethod
     def add_args(parser):
