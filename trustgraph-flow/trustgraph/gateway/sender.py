@@ -15,13 +15,13 @@ class ServiceSender:
 
     def __init__(
             self,
-            pulsar_host,
+            pulsar_client,
             request_queue, request_schema,
     ):
 
         self.pub = Publisher(
-            pulsar_host, request_queue,
-            schema=JsonSchema(request_schema)
+            pulsar_client, request_queue,
+            schema=JsonSchema(request_schema),
         )
 
     async def start(self):
@@ -52,5 +52,4 @@ class ServiceSender:
                 await responder(err, True)
 
             return err
-
 

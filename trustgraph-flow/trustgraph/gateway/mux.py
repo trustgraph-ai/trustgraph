@@ -18,7 +18,7 @@ MAX_QUEUE_SIZE = 10
 class MuxEndpoint(SocketEndpoint):
 
     def __init__(
-            self, pulsar_host, auth,
+            self, pulsar_client, auth,
             services,
             path="/api/v1/socket",
     ):

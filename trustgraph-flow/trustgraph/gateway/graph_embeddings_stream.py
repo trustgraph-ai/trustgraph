@@ -14,17 +14,17 @@ from . serialize import serialize_graph_embeddings
 class GraphEmbeddingsStreamEndpoint(SocketEndpoint):
 
     def __init__(
-            self, pulsar_host, auth, path="/api/v1/stream/graph-embeddings"
+            self, pulsar_client, auth, path="/api/v1/stream/graph-embeddings"
     ):
 
         super(GraphEmbeddingsStreamEndpoint, self).__init__(
             endpoint_path=path, auth=auth,
         )
 
-        self.pulsar_host=pulsar_host
+        self.pulsar_client=pulsar_client
 
         self.subscriber = Subscriber(
-            self.pulsar_host, graph_embeddings_store_queue,
+            self.pulsar_client, graph_embeddings_store_queue,
             "api-gateway", "api-gateway",
             schema=JsonSchema(GraphEmbeddings)
         )

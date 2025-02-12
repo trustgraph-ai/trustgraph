@@ -6,9 +6,9 @@ import time
 
 class Subscriber:
 
-    def __init__(self, pulsar_host, topic, subscription, consumer_name,
-                 schema=None, max_size=100, listener=None):
-        self.pulsar_host = pulsar_host
+    def __init__(self, pulsar_client, topic, subscription, consumer_name,
+                 schema=None, max_size=100):
+        self.client = pulsar_client
         self.topic = topic
         self.subscription = subscription
         self.consumer_name = consumer_name
@@ -17,7 +17,6 @@ class Subscriber:
         self.full = {}
         self.max_size = max_size
         self.lock = threading.Lock()
-        self.listener_name = listener
         self.running = True
 
     def start(self):
@@ -36,12 +35,7 @@ class Subscriber:
 
             try:
 
-                client = pulsar.Client(
-                    self.pulsar_host,
-                    listener_name=self.listener_name,
-                )
-
-                consumer = client.subscribe(
+                consumer = self.client.subscribe(
                     topic=self.topic,
                     subscription_name=self.subscription,
                     consumer_name=self.consumer_name,

@@ -73,6 +73,11 @@ class Api:
         self.port = int(config.get("port", default_port))
         self.timeout = int(config.get("timeout", default_timeout))
         self.pulsar_host = config.get("pulsar_host", default_pulsar_host)
+        self.pulsar_listener = config.get("pulsar_listener", None)
+
+        self.pulsar_client = pulsar.Client(
+            self.pulsar_host, listener_name=self.pulsar_listener
+        )
 
         self.prometheus_url = config.get(
             "prometheus_url", default_prometheus_url,
@@ -91,58 +96,58 @@ class Api:
 
         self.services = {
             "text-completion": TextCompletionRequestor(
-                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                pulsar_client=self.pulsar_client, timeout=self.timeout,
                 auth = self.auth,
             ),
             "prompt": PromptRequestor(
-                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                pulsar_client=self.pulsar_client, timeout=self.timeout,
                 auth = self.auth,
             ),
             "graph-rag": GraphRagRequestor(
-                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                pulsar_client=self.pulsar_client, timeout=self.timeout,
                 auth = self.auth,
             ),
             "document-rag": DocumentRagRequestor(
-                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                pulsar_client=self.pulsar_client, timeout=self.timeout,
                 auth = self.auth,
             ),
             "triples-query": TriplesQueryRequestor(
-                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                pulsar_client=self.pulsar_client, timeout=self.timeout,
                 auth = self.auth,
             ),
             "graph-embeddings-query": GraphEmbeddingsQueryRequestor(
-                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                pulsar_client=self.pulsar_client, timeout=self.timeout,
                 auth = self.auth,
             ),
             "embeddings": EmbeddingsRequestor(
-                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                pulsar_client=self.pulsar_client, timeout=self.timeout,
                 auth = self.auth,
             ),
             "agent": AgentRequestor(
-                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                pulsar_client=self.pulsar_client, timeout=self.timeout,
                 auth = self.auth,
             ),
             "librarian": LibrarianRequestor(
-                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                pulsar_client=self.pulsar_client, timeout=self.timeout,
                 auth = self.auth,
             ),
             "encyclopedia": EncyclopediaRequestor(
-                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                pulsar_client=self.pulsar_client, timeout=self.timeout,
                 auth = self.auth,
             ),
             "dbpedia": DbpediaRequestor(
-                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                pulsar_client=self.pulsar_client, timeout=self.timeout,
                 auth = self.auth,
             ),
             "internet-search": InternetSearchRequestor(
-                pulsar_host=self.pulsar_host, timeout=self.timeout,
+                pulsar_client=self.pulsar_client, timeout=self.timeout,
                 auth = self.auth,
             ),
             "document-load": DocumentLoadSender(
-                pulsar_host=self.pulsar_host,
+                pulsar_client=self.pulsar_client,
             ),
             "text-load": TextLoadSender(
-                pulsar_host=self.pulsar_host,
+                pulsar_client=self.pulsar_client,
             ),
         }
 
@@ -205,31 +210,31 @@ class Api:
                 requestor = self.services["text-load"],
             ),
             TriplesStreamEndpoint(
-                pulsar_host=self.pulsar_host,
+                pulsar_client=self.pulsar_client,
                 auth = self.auth,
             ),
             GraphEmbeddingsStreamEndpoint(
-                pulsar_host=self.pulsar_host,
+                pulsar_client=self.pulsar_client,
                 auth = self.auth,
             ),
             DocumentEmbeddingsStreamEndpoint(
-                pulsar_host=self.pulsar_host,
+                pulsar_client=self.pulsar_client,
                 auth = self.auth,
             ),
             TriplesLoadEndpoint(
-                pulsar_host=self.pulsar_host,
+                pulsar_client=self.pulsar_client,
                 auth = self.auth,
             ),
             GraphEmbeddingsLoadEndpoint(
-                pulsar_host=self.pulsar_host,
+                pulsar_client=self.pulsar_client,
                 auth = self.auth,
             ),
             DocumentEmbeddingsLoadEndpoint(
-                pulsar_host=self.pulsar_host,
+                pulsar_client=self.pulsar_client,
                 auth = self.auth,
             ),
             MuxEndpoint(
-                pulsar_host=self.pulsar_host,
+                pulsar_client=self.pulsar_client,
                 auth = self.auth,
                 services = self.services,
             ),
@@ -264,6 +269,11 @@ def run():
         '-p', '--pulsar-host',
         default=default_pulsar_host,
         help=f'Pulsar host (default: {default_pulsar_host})',
+    )
+
+    parser.add_argument(
+        '--pulsar-listener',
+        help=f'Pulsar listener (default: none)',
     )
 
     parser.add_argument(

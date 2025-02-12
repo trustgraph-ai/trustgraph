@@ -7,6 +7,7 @@ from functools import partial
 import asyncio
 import threading
 import queue
+import base64
 
 from pulsar.schema import JsonSchema
 
@@ -94,32 +95,27 @@ class Processor(ConsumerProducer):
         )
 
         self.document_load = Publisher(
-            self.pulsar_host, document_load_queue, JsonSchema(Document),
-            listener=self.pulsar_listener,
+            self.client, document_load_queue, JsonSchema(Document),
         )
 
         self.text_load = Publisher(
-            self.pulsar_host, text_load_queue, JsonSchema(TextDocument),
-            listener=self.pulsar_listener,
+            self.client, text_load_queue, JsonSchema(TextDocument),
         )
 
         self.triples_brk = Subscriber(
-            self.pulsar_host, triples_store_queue,
+            self.client, triples_store_queue,
             "librarian", "librarian",
             schema=JsonSchema(Triples),
-            listener=self.pulsar_listener,
         )
         self.graph_embeddings_brk = Subscriber(
-            self.pulsar_host, graph_embeddings_store_queue,
+            self.client, graph_embeddings_store_queue,
             "librarian", "librarian",
             schema=JsonSchema(GraphEmbeddings),
-            listener=self.pulsar_listener,
         )
         self.document_embeddings_brk = Subscriber(
-            self.pulsar_host, document_embeddings_store_queue,
+            self.client, document_embeddings_store_queue,
             "librarian", "librarian",
             schema=JsonSchema(DocumentEmbeddings),
-            listener=self.pulsar_listener,
         )
 
         self.triples_reader = threading.Thread(
@@ -243,6 +239,9 @@ class Processor(ConsumerProducer):
 
     async def load_text(self, id, document):
 
+        text = base64.b64decode(document.document)
+        text = text.decode("utf-8")
+
         doc = TextDocument(
             metadata = Metadata(
                 id = id,
@@ -250,7 +249,7 @@ class Processor(ConsumerProducer):
                 user = document.user,
                 collection = document.collection
             ),
-            text = document.document
+            text = text,
         )
 
         self.text_load.send(None, doc)

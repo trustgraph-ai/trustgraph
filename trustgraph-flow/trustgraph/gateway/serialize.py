@@ -126,7 +126,7 @@ def to_document_package(x):
 
     return DocumentPackage(
         metadata = to_subgraph(x["metadata"]),
-        document = base64.b64decode(x["document"].encode("utf-8")),
+        document = x.get("document", None),
         kind = x.get("kind", None),
         user = x.get("user", None),
         collection = x.get("collection", None),

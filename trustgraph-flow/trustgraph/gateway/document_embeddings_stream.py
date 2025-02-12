@@ -14,17 +14,18 @@ from . serialize import serialize_document_embeddings
 class DocumentEmbeddingsStreamEndpoint(SocketEndpoint):
 
     def __init__(
-            self, pulsar_host, auth, path="/api/v1/stream/document-embeddings"
+            self, pulsar_client, auth,
+            path="/api/v1/stream/document-embeddings"
     ):
 
         super(DocumentEmbeddingsStreamEndpoint, self).__init__(
             endpoint_path=path, auth=auth,
         )
 
-        self.pulsar_host=pulsar_host
+        self.pulsar_client=pulsar_client
 
         self.subscriber = Subscriber(
-            self.pulsar_host, document_embeddings_store_queue,
+            self.pulsar_client, document_embeddings_store_queue,
             "api-gateway", "api-gateway",
             schema=JsonSchema(DocumentEmbeddings)
         )
