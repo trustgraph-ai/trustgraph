@@ -103,14 +103,34 @@ class Processor(ConsumerProducer):
             listener=self.pulsar_listener,
         )
 
-        self.triples_load = Subscriber(
+        self.triples_brk = Subscriber(
             self.pulsar_host, triples_store_queue,
             "librarian", "librarian",
             schema=JsonSchema(Triples),
             listener=self.pulsar_listener,
         )
+        self.graph_embeddings_brk = Subscriber(
+            self.pulsar_host, graph_embeddings_store_queue,
+            "librarian", "librarian",
+            schema=JsonSchema(GraphEmbeddings),
+            listener=self.pulsar_listener,
+        )
+        self.document_embeddings_brk = Subscriber(
+            self.pulsar_host, document_embeddings_store_queue,
+            "librarian", "librarian",
+            schema=JsonSchema(DocumentEmbeddings),
+            listener=self.pulsar_listener,
+        )
 
-        self.triples_reader = threading.Thread(target=self.receive_triples)
+        self.triples_reader = threading.Thread(
+            target=self.receive_triples
+        )
+        self.graph_embeddings_reader = threading.Thread(
+            target=self.receive_graph_embeddings
+        )
+        self.document_embeddings_reader = threading.Thread(
+            target=self.receive_document_embeddings
+        )
 
         self.librarian = Librarian(
             cassandra_host = cassandra_host.split(","),
@@ -131,33 +151,22 @@ class Processor(ConsumerProducer):
         
         self.document_load.start()
         self.text_load.start()
-        self.triples_load.start()
 
-        self.triples_sub = self.triples_load.subscribe_all("x")
+        self.triples_brk.start()
+        self.graph_embeddings_brk.start()
+        self.document_embeddings_brk.start()
+
+        self.triples_sub = self.triples_brk.subscribe_all("x")
+        self.graph_embeddings_sub = self.graph_embeddings_brk.subscribe_all("x")
+        self.document_embeddings_sub = self.document_embeddings_brk.subscribe_all("x")
 
         self.triples_reader.start()
-
-    def receive_triples(self):
-
-        print("Receive triples!")
-
-        while self.running:
-            try:
-                msg = self.triples_sub.get(timeout=1)
-            except queue.Empty:
-                print("Tick")
-                continue
-
-            print(msg)
-
-        print("BYE")
+        self.graph_embeddings_reader.start()
+        self.document_embeddings_reader.start()
 
     def __del__(self):
 
         self.running = False
-
-        if hasattr(self, "triples_sub"):
-            self.triples_sub.unsubscribe_all("x")
 
         if hasattr(self, "document_load"):
             self.document_load.stop()
@@ -167,9 +176,56 @@ class Processor(ConsumerProducer):
             self.text_load.stop()
             self.text_load.join()
 
-        if hasattr(self, "triples_load"):
-            self.triples_load.stop()
-            self.triples_load.join()
+        if hasattr(self, "triples_sub"):
+            self.triples_sub.unsubscribe_all("x")
+
+        if hasattr(self, "graph_embeddings_sub"):
+            self.graph_embeddings_sub.unsubscribe_all("x")
+
+        if hasattr(self, "document_embeddings_sub"):
+            self.document_embeddings_sub.unsubscribe_all("x")
+
+        if hasattr(self, "triples_brk"):
+            self.triples_brk.stop()
+            self.triples_brk.join()
+
+        if hasattr(self, "graph_embeddings_brk"):
+            self.graph_embeddings_brk.stop()
+            self.graph_embeddings_brk.join()
+
+        if hasattr(self, "document_embeddings_brk"):
+            self.document_embeddings_brk.stop()
+            self.document_embeddings_brk.join()
+
+    def receive_triples(self):
+
+        while self.running:
+            try:
+                msg = self.triples_sub.get(timeout=1)
+            except queue.Empty:
+                continue
+
+            self.librarian.handle_triples(msg)
+
+    def receive_graph_embeddings(self):
+
+        while self.running:
+            try:
+                msg = self.graph_embeddings_sub.get(timeout=1)
+            except queue.Empty:
+                continue
+
+            self.librarian.handle_graph_embeddings(msg)
+
+    def receive_document_embeddings(self):
+
+        while self.running:
+            try:
+                msg = self.document_embeddings_sub.get(timeout=1)
+            except queue.Empty:
+                continue
+
+            self.librarian.handle_document_embeddings(msg)
 
     async def load_document(self, id, document):
 

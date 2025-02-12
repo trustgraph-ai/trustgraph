@@ -53,4 +53,22 @@ class Librarian:
             info = None,
         )
 
+    def handle_triples(self, m):
+        self.table_store.add_triples(m)
+
+    def handle_graph_embeddings(self, m):
+        self.table_store.add_graph_embeddings(m)
+
+    def handle_document_embeddings(self, m):
+        self.table_store.add_document_embeddings(m)
+        
+
+    def handle_triples(self, m):
+        self.table_store.add_triples(m)
+
+    def handle_graph_embeddings(self, m):
+        self.table_store.add_graph_embeddings(m)
+
+    def handle_document_embeddings(self, m):
+        self.table_store.add_document_embeddings(m)
 
