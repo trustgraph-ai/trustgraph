@@ -4,8 +4,8 @@ from pulsar.schema import JsonSchema
 import uuid
 import logging
 
-from . publisher import Publisher
-from . subscriber import Subscriber
+from .. base import Publisher
+from .. base import Subscriber
 
 logger = logging.getLogger("requestor")
 logger.setLevel(logging.INFO)
@@ -71,7 +71,10 @@ class ServiceRequestor:
                     raise RuntimeError("Timeout")
 
                 if resp.error:
-                    err = { "error": resp.error.message }
+                    err = { "error": {
+                        "type": resp.error.type,
+                        "message": resp.error.message,
+                    } }
                     if responder:
                         await responder(err, True)
                     return err
@@ -90,7 +93,10 @@ class ServiceRequestor:
 
             logging.error(f"Exception: {e}")
 
-            err = { "error": str(e) }
+            err = { "error": {
+                "type": "gateway-error",
+                "message": str(e),
+            } }
             if responder:
                 await responder(err, True)
             return err

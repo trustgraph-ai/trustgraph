@@ -6,8 +6,8 @@ import uuid
 
 from .. schema import GraphEmbeddings
 from .. schema import graph_embeddings_store_queue
+from .. base import Subscriber
 
-from . subscriber import Subscriber
 from . socket import SocketEndpoint
 from . serialize import serialize_graph_embeddings
 

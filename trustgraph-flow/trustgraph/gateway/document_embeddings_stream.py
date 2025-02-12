@@ -6,8 +6,8 @@ import uuid
 
 from .. schema import DocumentEmbeddings
 from .. schema import document_embeddings_store_queue
+from .. base import Subscriber
 
-from . subscriber import Subscriber
 from . socket import SocketEndpoint
 from . serialize import serialize_document_embeddings
 

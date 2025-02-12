@@ -15,14 +15,22 @@ class Publisher:
         self.q = queue.Queue(maxsize=max_size)
         self.chunking_enabled = chunking_enabled
         self.listener_name = listener
+        self.running = True
 
     def start(self):
         self.task = threading.Thread(target=self.run)
         self.task.start()
 
+    def stop(self):
+        self.running = False
+
+    def join(self):
+        self.stop()
+        self.task.join()
+
     def run(self):
 
-        while True:
+        while self.running:
 
             try:
                 
@@ -44,9 +52,12 @@ class Publisher:
                     chunking_enabled=self.chunking_enabled,
                 )
 
-                while True:
+                while self.running:
 
-                    id, item = self.q.get()
+                    try:
+                        id, item = self.q.get(timeout=0.5)
+                    except queue.Empty:
+                        continue
 
                     if id:
                         producer.send(item, { "id": id })
@@ -61,3 +72,5 @@ class Publisher:
 
     def send(self, id, msg):
         self.q.put((id, msg))
+
+        

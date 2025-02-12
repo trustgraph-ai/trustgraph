@@ -19,14 +19,21 @@ class Subscriber:
         self.max_size = max_size
         self.lock = threading.Lock()
         self.listener_name = listener
+        self.running = True
 
     def start(self):
         self.task = threading.Thread(target=self.run)
         self.task.start()
 
+    def stop(self):
+        self.running = False
+
+    def join(self):
+        self.task.join()
+
     def run(self):
 
-        while True:
+        while self.running:
 
             try:
 
@@ -50,7 +57,7 @@ class Subscriber:
                     schema=self.schema,
                 )
 
-                while True:
+                while self.running:
 
                     msg = consumer.receive()
 
@@ -68,12 +75,14 @@ class Subscriber:
 
                         if id in self.q:
                             try:
+                                # FIXME: Timeout means data goes missing
                                 self.q[id].put(value, timeout=0.5)
                             except:
                                 pass
 
                         for q in self.full.values():
                             try:
+                                # FIXME: Timeout means data goes missing
                                 q.put(value, timeout=0.5)
                             except:
                                 pass

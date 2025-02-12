@@ -7,8 +7,8 @@ from aiohttp import WSMsgType
 from .. schema import Metadata
 from .. schema import GraphEmbeddings, EntityEmbeddings
 from .. schema import graph_embeddings_store_queue
+from .. base import Publisher
 
-from . publisher import Publisher
 from . socket import SocketEndpoint
 from . serialize import to_subgraph, to_value
 
@@ -61,7 +61,7 @@ class GraphEmbeddingsLoadEndpoint(SocketEndpoint):
                     ]
                 )
 
-                self.publisher.send(None, elt)
+                await self.publisher.send(None, elt)
 
 
         running.stop()

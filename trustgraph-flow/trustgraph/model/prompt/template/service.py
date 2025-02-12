@@ -156,7 +156,7 @@ class Processor(ConsumerProducer):
             config = prompt_configuration,
         )
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         v = msg.value()
 
@@ -191,7 +191,7 @@ class Processor(ConsumerProducer):
                     error=None,
                 )
 
-                self.producer.send(r, properties={"id": id})
+                await self.send(r, properties={"id": id})
 
                 return
 
@@ -206,7 +206,7 @@ class Processor(ConsumerProducer):
                     error=None,
                 )
 
-                self.producer.send(r, properties={"id": id})
+                await self.send(r, properties={"id": id})
 
                 return
             
@@ -224,7 +224,7 @@ class Processor(ConsumerProducer):
                 response=None,
             )
 
-            self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
         except Exception as e:
 
@@ -240,7 +240,7 @@ class Processor(ConsumerProducer):
                 response=None,
             )
 
-            self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
     @staticmethod
     def add_args(parser):
@@ -294,5 +294,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

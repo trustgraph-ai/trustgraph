@@ -130,16 +130,16 @@ class Processor(ConsumerProducer):
         t = Rows(
             metadata=metadata, row_schema=self.row_schema, rows=rows
         )
-        self.producer.send(t)
+        await self.producer.send(t)
 
     def emit_vec(self, metadata, name, vec, key_name, key):
 
         r = ObjectEmbeddings(
             metadata=metadata, vectors=vec, name=name, key_name=key_name, id=key
         )
-        self.vec_prod.send(r)
+        await self.vec_prod.send(r)
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         v = msg.value()
         print(f"Indexing {v.metadata.id}...", flush=True)
@@ -217,5 +217,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

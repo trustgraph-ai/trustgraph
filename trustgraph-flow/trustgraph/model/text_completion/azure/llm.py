@@ -123,7 +123,7 @@ class Processor(ConsumerProducer):
 
         return result
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         v = msg.value()
 
@@ -154,7 +154,7 @@ class Processor(ConsumerProducer):
             print("Send response...", flush=True)
 
             r = TextCompletionResponse(response=resp, error=None, in_token=inputtokens, out_token=outputtokens, model=self.model)
-            self.producer.send(r, properties={"id": id})
+            await self.producer.send(r, properties={"id": id})
 
         except TooManyRequests:
 
@@ -182,7 +182,7 @@ class Processor(ConsumerProducer):
                 model=None,
             )
 
-            self.producer.send(r, properties={"id": id})
+            await self.producer.send(r, properties={"id": id})
 
             self.consumer.acknowledge(msg)
 
@@ -224,4 +224,4 @@ class Processor(ConsumerProducer):
 
 def run():
     
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)

@@ -72,15 +72,15 @@ class Processor(ConsumerProducer):
 
         return self.prompt.request_relationships(chunk)
 
-    def emit_edges(self, metadata, triples):
+    async def emit_edges(self, metadata, triples):
 
         t = Triples(
             metadata=metadata,
             triples=triples,
         )
-        self.producer.send(t)
+        await self.send(t)
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         v = msg.value()
         print(f"Indexing {v.metadata.id}...", flush=True)
@@ -167,7 +167,7 @@ class Processor(ConsumerProducer):
                         o=Value(value=v.metadata.id, is_uri=True)
                     ))
 
-            self.emit_edges(
+            await self.emit_edges(
                 Metadata(
                     id=v.metadata.id,
                     metadata=[],
@@ -204,5 +204,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

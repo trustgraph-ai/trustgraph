@@ -57,7 +57,7 @@ class Processor(Consumer):
                 return model["input_price"], model["output_price"]
         return None, None  # Return None if model is not found
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         v = msg.value()
         modelname = v.model
@@ -98,4 +98,4 @@ class Processor(Consumer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
