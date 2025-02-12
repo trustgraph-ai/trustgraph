@@ -47,7 +47,7 @@ class Processor(ConsumerProducer):
 
         self.embeddings = EmbeddingsClient(
             pulsar_host=self.pulsar_host,
-			pulsar_api_key=self.pulsar_api_key,
+            pulsar_api_key=self.pulsar_api_key,
             input_queue=emb_request_queue,
             output_queue=emb_response_queue,
             subscriber=module + "-emb",
