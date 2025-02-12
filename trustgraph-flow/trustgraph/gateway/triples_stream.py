@@ -13,17 +13,19 @@ from . serialize import serialize_triples
 
 class TriplesStreamEndpoint(SocketEndpoint):
 
-    def __init__(self, pulsar_host, auth, path="/api/v1/stream/triples"):
+    def __init__(self, pulsar_host, auth, path="/api/v1/stream/triples", pulsar_api_key=None):
 
         super(TriplesStreamEndpoint, self).__init__(
             endpoint_path=path, auth=auth,
         )
 
         self.pulsar_host=pulsar_host
+        self.pulsar_api_key=pulsar_api_key
 
         self.subscriber = Subscriber(
             self.pulsar_host, triples_store_queue,
             "api-gateway", "api-gateway",
+            pulsar_api_key=self.pulsar_api_key,
             schema=JsonSchema(Triples)
         )
 

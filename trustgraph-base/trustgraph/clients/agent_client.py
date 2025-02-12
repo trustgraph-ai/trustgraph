@@ -20,6 +20,7 @@ class AgentClient(BaseClient):
             input_queue=None,
             output_queue=None,
             pulsar_host="pulsar://pulsar:6650",
+            pulsar_api_key=None,
     ):
 
         if input_queue is None: input_queue = agent_request_queue
@@ -33,6 +34,7 @@ class AgentClient(BaseClient):
             pulsar_host=pulsar_host,
             input_schema=AgentRequest,
             output_schema=AgentResponse,
+            pulsar_api_key=pulsar_api_key
         )
 
     def request(

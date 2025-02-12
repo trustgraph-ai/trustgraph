@@ -8,10 +8,11 @@ from . requestor import ServiceRequestor
 from . serialize import to_value, serialize_subgraph
 
 class TriplesQueryRequestor(ServiceRequestor):
-    def __init__(self, pulsar_host, timeout, auth):
+    def __init__(self, pulsar_host, timeout, auth, pulsar_api_key=None):
 
         super(TriplesQueryRequestor, self).__init__(
             pulsar_host=pulsar_host,
+            pulsar_api_key=pulsar_api_key,
             request_queue=triples_request_queue,
             response_queue=triples_response_queue,
             request_schema=TriplesQueryRequest,

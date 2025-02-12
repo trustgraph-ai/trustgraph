@@ -7,10 +7,11 @@ from . endpoint import ServiceEndpoint
 from . requestor import ServiceRequestor
 
 class DocumentRagRequestor(ServiceRequestor):
-    def __init__(self, pulsar_host, timeout, auth):
+    def __init__(self, pulsar_host, timeout, auth, pulsar_api_key=None):
 
         super(DocumentRagRequestor, self).__init__(
             pulsar_host=pulsar_host,
+            pulsar_api_key=pulsar_api_key,
             request_queue=document_rag_request_queue,
             response_queue=document_rag_response_queue,
             request_schema=DocumentRagQuery,

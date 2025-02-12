@@ -17,10 +17,12 @@ class ServiceSender:
             self,
             pulsar_host,
             request_queue, request_schema,
+            pulsar_api_key=None,
     ):
 
         self.pub = Publisher(
             pulsar_host, request_queue,
+            pulsar_api_key,
             schema=JsonSchema(request_schema)
         )
 

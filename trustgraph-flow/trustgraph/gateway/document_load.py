@@ -8,10 +8,11 @@ from . sender import ServiceSender
 from . serialize import to_subgraph
 
 class DocumentLoadSender(ServiceSender):
-    def __init__(self, pulsar_host):
+    def __init__(self, pulsar_host, pulsar_api_key=None):
 
         super(DocumentLoadSender, self).__init__(
             pulsar_host=pulsar_host,
+            pulsar_api_key=pulsar_api_key,
             request_queue=document_ingest_queue,
             request_schema=Document,
         )

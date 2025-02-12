@@ -19,16 +19,19 @@ class ServiceRequestor:
             response_queue, response_schema,
             subscription="api-gateway", consumer_name="api-gateway",
             timeout=600,
+            pulsar_api_key=None,
     ):
 
         self.pub = Publisher(
             pulsar_host, request_queue,
-            schema=JsonSchema(request_schema)
+            pulsar_api_key,
+            schema=JsonSchema(request_schema),
         )
 
         self.sub = Subscriber(
             pulsar_host, response_queue,
             subscription, consumer_name,
+            pulsar_api_key,
             JsonSchema(response_schema)
         )
 
