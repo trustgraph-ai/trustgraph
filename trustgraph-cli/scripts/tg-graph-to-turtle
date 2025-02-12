@@ -80,13 +80,7 @@ def main():
         default=default_collection,
         help=f'Collection ID (default: {default_collection})'
     )
-    
-    # parser.add_argument(
-    #     '--pulsar-api-key',
-    #     default=default_pulsar_api_key,
-    #     help=f'Pulsar API key',
-    # )
-    
+
     args = parser.parse_args()
 
     try:
