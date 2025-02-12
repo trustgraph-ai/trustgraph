@@ -42,13 +42,13 @@ class BaseClient:
             auth = pulsar.AuthenticationToken(pulsar_api_key)
             self.client = pulsar.Client(
             pulsar_host,
+            logger=pulsar.ConsoleLogger(log_level),
             authentication=auth,
-            logger=pulsar.ConsoleLogger(log_level.to_pulsar())
             )
         else:
             self.client = pulsar.Client(
             pulsar_host,
-            logger=pulsar.ConsoleLogger(log_level.to_pulsar())
+            logger=pulsar.ConsoleLogger(log_level)
             )
 
         self.producer = self.client.create_producer(
