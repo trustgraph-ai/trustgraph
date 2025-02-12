@@ -9,10 +9,10 @@ from . serialize import serialize_document_package, serialize_document_info
 from . serialize import to_document_package, to_document_info, to_criteria
 
 class LibrarianRequestor(ServiceRequestor):
-    def __init__(self, pulsar_host, timeout, auth):
+    def __init__(self, pulsar_client, timeout, auth):
 
         super(LibrarianRequestor, self).__init__(
-            pulsar_host=pulsar_host,
+            pulsar_client=pulsar_client,
             request_queue=librarian_request_queue,
             response_queue=librarian_response_queue,
             request_schema=LibrarianRequest,
@@ -22,17 +22,19 @@ class LibrarianRequestor(ServiceRequestor):
 
     def to_request(self, body):
 
+        print("TRR")
         if "document" in body:
             dp = to_document_package(body["document"])
         else:
             dp = None
 
+        print("GOT")
         if "criteria" in body:
             criteria = to_criteria(body["criteria"])
         else:
             criteria = None
 
-        limit = int(body.get("limit", 10000))
+        print("ASLDKJ")
 
         return LibrarianRequest(
             operation = body.get("operation", None),

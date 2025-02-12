@@ -1,8 +1,6 @@
 local base = import "base/base.jsonnet";
 local images = import "values/images.jsonnet";
 local url = import "values/url.jsonnet";
-local minio = import "stores/minio.jsonnet";
-local cassandra = import "stores/cassandra.jsonnet";
 
 {
 
@@ -183,7 +181,4 @@ local cassandra = import "stores/cassandra.jsonnet";
     },
 
 }
-
-    // Minio and Cassandra are used by the Librarian
-    + minio + cassandra
 

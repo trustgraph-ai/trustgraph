@@ -34,6 +34,9 @@
    "graph-rag": import "components/graph-rag.jsonnet",
    "document-rag": import "components/document-rag.jsonnet",
 
+   // Librarian - document management
+   "librarian": import "components/librarian.jsonnet",
+
    // Vector stores
    "vector-store-milvus": import "components/milvus.jsonnet",
    "vector-store-qdrant": import "components/qdrant.jsonnet",

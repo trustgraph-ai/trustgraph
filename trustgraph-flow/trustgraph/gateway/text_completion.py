@@ -7,10 +7,10 @@ from . endpoint import ServiceEndpoint
 from . requestor import ServiceRequestor
 
 class TextCompletionRequestor(ServiceRequestor):
-    def __init__(self, pulsar_host, timeout, auth):
+    def __init__(self, pulsar_client, timeout, auth):
 
         super(TextCompletionRequestor, self).__init__(
-            pulsar_host=pulsar_host,
+            pulsar_client=pulsar_client,
             request_queue=text_completion_request_queue,
             response_queue=text_completion_response_queue,
             request_schema=TextCompletionRequest,

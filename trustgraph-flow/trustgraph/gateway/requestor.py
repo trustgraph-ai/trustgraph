@@ -14,7 +14,7 @@ class ServiceRequestor:
 
     def __init__(
             self,
-            pulsar_host,
+            pulsar_client,
             request_queue, request_schema,
             response_queue, response_schema,
             subscription="api-gateway", consumer_name="api-gateway",
@@ -22,12 +22,12 @@ class ServiceRequestor:
     ):
 
         self.pub = Publisher(
-            pulsar_host, request_queue,
-            schema=JsonSchema(request_schema)
+            pulsar_client, request_queue,
+            schema=JsonSchema(request_schema),
         )
 
         self.sub = Subscriber(
-            pulsar_host, response_queue,
+            pulsar_client, response_queue,
             subscription, consumer_name,
             JsonSchema(response_schema)
         )
@@ -53,9 +53,11 @@ class ServiceRequestor:
 
             q = self.sub.subscribe(id)
 
+            print("BOUT TO SEDN")
             await asyncio.to_thread(
                 self.pub.send, id, self.to_request(request)
             )
+            print("SENT")
 
             while True:
 

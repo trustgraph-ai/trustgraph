@@ -8,10 +8,10 @@ from . sender import ServiceSender
 from . serialize import to_subgraph
 
 class TextLoadSender(ServiceSender):
-    def __init__(self, pulsar_host):
+    def __init__(self, pulsar_client):
 
         super(TextLoadSender, self).__init__(
-            pulsar_host=pulsar_host,
+            pulsar_client=pulsar_client,
             request_queue=text_ingest_queue,
             request_schema=TextDocument,
         )

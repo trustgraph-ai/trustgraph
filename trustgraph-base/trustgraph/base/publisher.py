@@ -6,14 +6,13 @@ import threading
 
 class Publisher:
 
-    def __init__(self, pulsar_host, topic, schema=None, max_size=10,
-                 chunking_enabled=True, listener=None):
-        self.pulsar_host = pulsar_host
+    def __init__(self, pulsar_client, topic, schema=None, max_size=10,
+                 chunking_enabled=True):
+        self.client = pulsar_client
         self.topic = topic
         self.schema = schema
         self.q = queue.Queue(maxsize=max_size)
         self.chunking_enabled = chunking_enabled
-        self.listener_name = listener
         self.running = True
 
     def start(self):
@@ -33,11 +32,8 @@ class Publisher:
 
             try:
 
-                client = pulsar.Client(
-                    self.pulsar_host, listener_name=self.listener_name
-                )
-
-                producer = client.create_producer(
+                print(self.chunking_enabled)
+                producer = self.client.create_producer(
                     topic=self.topic,
                     schema=self.schema,
                     chunking_enabled=self.chunking_enabled,
