@@ -14,7 +14,7 @@ local version = import "version.jsonnet";
     trustgraph_bedrock: "docker.io/trustgraph/trustgraph-bedrock:" + version,
     trustgraph_vertexai: "docker.io/trustgraph/trustgraph-vertexai:" + version,
     trustgraph_hf: "docker.io/trustgraph/trustgraph-hf:" + version,
-    qdrant: "docker.io/qdrant/qdrant:v1.11.1",
+    qdrant: "docker.io/qdrant/qdrant:v1.13.3",
     memgraph_mage: "docker.io/memgraph/memgraph-mage:1.22-memgraph-2.22",
     memgraph_lab: "docker.io/memgraph/lab:2.19.1",
     falkordb: "docker.io/falkordb/falkordb:latest",
