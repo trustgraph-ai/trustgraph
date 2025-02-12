@@ -80,7 +80,7 @@ def main():
         default=default_url,
         help=f'API URL (default: {default_url})',
     )
-    
+
     parser.add_argument(
         '-U', '--user',
         default=default_user,

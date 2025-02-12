@@ -48,7 +48,7 @@ def main():
         default=default_collection,
         help=f'Collection ID (default: {default_collection})'
     )
-    
+
     args = parser.parse_args()
 
     try:
@@ -57,7 +57,6 @@ def main():
             url=args.api_url,
             user=args.user,
             collection=args.collection,
-            pulsar_api_key=args.pulsar_api_key,
         )
 
     except Exception as e:
