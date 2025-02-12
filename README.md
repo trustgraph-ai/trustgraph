@@ -1,84 +1,73 @@
-<img src="TG-future-horizon.svg" width=100% />
-
 <div align="center">
 
-## Agentic Reasoning for Ever-Changing Knowledge
+![TrustGraph banner](TG-silos.svg)
+
+## Discover the Knowledge Trapped in Data Silos
+
+</div>
+
+<div align="center">
 
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
 
-🚀 [Getting Started](https://trustgraph.ai/docs/getstarted) 📺 [YouTube](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) 🧠 [Cognitive Cores](https://github.com/trustgraph-ai/catalog/tree/master/v3) ⚙️ [API Docs](docs/apis/README.md) 🧑‍💻 [CLI Docs](https://trustgraph.ai/docs/running/cli) 💬 [Discord](https://discord.gg/sQMwkRz5GX) 📖 [Blog](https://blog.trustgraph.ai/subscribe)
+🚀 [Getting Started](https://trustgraph.ai/docs/getstarted) ⚙️ [API Docs](https://trustgraph.ai/docs/api/apistarted/) 🧑‍💻 [CLI Docs](https://trustgraph.ai/docs/running/cli) 📺 [YouTube](https://www.youtube.com/@TrustGraph?sub_confirmation=1) 💬 [Discord](https://discord.gg/sQMwkRz5GX) 📖 [Blog](https://blog.trustgraph.ai) 📋 [Use Cases](https://trustgraph.ai/docs/usecases)
 
 </div>
 
-TrustGraph empowers you to deploy reasoning AI Agents in minutes. Our Agentic Graph RAG platform allows you to leverage modular cognitive cores for complex reasoning and information retrieval, all within a scalable and reliable infrastructure. Forget lengthy development cycles – TrustGraph delivers instant reasoning.
+TrustGraph is a fully agentic AI system for complex unstructured data. Extract your documents to knowledge graphs and vector embeddings with customizable data extraction agents. Deploy AI agents that analyze your data to understand the complex relationships scattered across data silos.
 
 ## Key Features
 
 - 📄 **Document Extraction**: Bulk ingest documents such as `.pdf`,`.txt`, and `.md`
 - 🪓 **Adjustable Chunking**: Choose your chunking algorithm and parameters
 - 🔁 **No-code LLM Integration**: **Anthropic**, **AWS Bedrock**, **AzureAI**, **AzureOpenAI**, **Cohere**, **Google AI Studio**, **Google VertexAI**, **Llamafiles**, **Ollama**, and **OpenAI**
-- ☁️ **Cloud Deployments**: **AWS** and **Google Cloud**
 - 📖 **Entity, Topic, and Relationship Knowledge Graphs**
 - 🔢 **Mapped Vector Embeddings**
-- ❔**No-code Graph RAG Queries**: Automatically perform a semantic similiarity search and subgraph extraction for the context of LLM generative responses
-- 🧠 **Cognitive Cores**: Modular data sets with semantic relationships that can saved and quickly loaded on demand
-- 🤖 **Agent Flow**: Define custom tools used by a ReAct style Agent Manager that fully controls the response flow including the ability to perform Graph RAG requests
-- 📚 **Multiple Knowledge Graph Options**: Full integration with **Memgraph**, **FalkorDB**, **Neo4j**, or **Cassandra**
+- ❔**No-code GraphRAG Queries**: Automatically perform a semantic similiarity search and subgraph extraction for the context of LLM generative responses
+- 🤖 **Agent Flow**: Define custom tools used by a ReAct style Agent Manager that fully controls the response flow including the ability to perform GraphRAG requests
+- 📚 **Multiple Knowledge Graph Options**: Full integration with **Memgraph**, **Neo4j**, or **Cassandra**
 - 🧮 **Multiple VectorDB Options**: Full integration with **Pinecone**, **Qdrant**, or **Milvus**
 - 🎛️ **Production-Grade** reliability, scalability, and accuracy
 - 🔍 **Observability**: get insights into system performance with Prometheus and Grafana
+- 🗄️ **AI Powered Data Warehouse**: Load only the subgraph and vector embeddings you use most often
 - 🪴 **Customizable and Extensible**: Tailor for your data and use cases
-- 🖥️ **Configuration Portal**: Build the `YAML` configuration with drop down menus and selectable parameters
-- 🕵️ **Data Workbench**: Explore your data with a 3D semantic visualizer
+- 🖥️ **Configuration UI**: Build the `YAML` configuration with drop down menus and selectable parameters
 
-## Quickstart Guide 🚀
-- [Install the CLI](#install-the-trustgraph-cli)
-- [Configuration Portal](#configuration-portal)
-- [System Restarts](#system-restarts)
-- [Data Workbench](#data-workbench)
-- [Example Notebooks](#example-trustgraph-notebooks)
+## Getting Started
 
-## Developer APIs and CLI
+There are four ways of interacting with TrustGraph:
 
-- [**REST API**](docs/apis/README.md#rest-apis)
-- [**Websocket API**](docs/apis/README.md#websocket-api)
+- [**REST API**](https://trustgraph.ai/docs/api/apistarted)
 - [**Python SDK**](https://trustgraph.ai/docs/api/apistarted)
 - [**TrustGraph CLI**](https://trustgraph.ai/docs/running/cli)
+- [**Configuration UI**](https://config-ui.demo.trustgraph.ai/)
 
-See the [API Developer's Guide](#api-documentation) for more information.
-
-For users, **TrustGraph** has the following interfaces:
-
-- [**Configuration Portal**](#configuration-portal)
-- [**Data Workbench**](#data-workbench)
-
-The `TrustGraph CLI` installs the commands for interacting with TrustGraph while running along with the Python SDK. The `Configuration Portal` enables customization of TrustGraph deployments prior to launching. The **REST API** can be accessed through port `8088` of the TrustGraph host machine with JSON request and response bodies.
+The `TrustGraph CLI` installs the commands for interacting with TrustGraph while running along with the Python SDK. The `Configuration UI` enables customization of TrustGraph deployments prior to launching. The **REST API** can be accessed through port `8088` of the TrustGraph host machine with JSON request and response bodies.
 
 ### Install the TrustGraph CLI
 
 ```
-pip3 install trustgraph-cli==0.20.9
+pip3 install trustgraph-cli==0.17.16
 ```
 
 > [!NOTE]
 > The `TrustGraph CLI` version must match the desired `TrustGraph` release version.
 
-## Configuration Portal
+### Configuration UI
 
-TrustGraph is endlessly customizable by editing the `YAML` launch files. The `Configuration Portal` provides a quick and intuitive tool for building a custom configuration that deploys with Docker, Podman, Minikube, or Google Cloud. There is a `Configuration Portal` for the both the lastest and stable `TrustGraph` releases.
+TrustGraph is endlessly customizable by editing the `YAML` launch files. The `Configuration UI` provides a quick and intuitive tool for building a custom configuration that deploys with Docker, Podman, Minikube, or Google Cloud. There is a `Configuration UI` for the both the lastest and stable `TrustGraph` releases.
 
-- [**Configuration Portal** (Stable 0.20.9) 🚀](https://config-ui.demo.trustgraph.ai/)
-- [**Configuration Portal** (Latest 0.20.11) 🚀](https://dev.config-ui.demo.trustgraph.ai/)
+- [**Stable Configuration UI** (0.17.16) 🚀](https://config-ui.demo.trustgraph.ai/)
+- [**Latest Configuration UI** (0.18.7) 🚀](https://dev.config-ui.demo.trustgraph.ai/)
 
-The `Configuration Portal` has 4 important sections:
+The `Configuration UI` has three sections:
 
 - **Component Selection** ✅: Choose from the available deployment platforms, LLMs, graph store, VectorDB, chunking algorithm, chunking parameters, and LLM parameters
 - **Customization** 🧰: Customize the prompts for the LLM System, Data Extraction Agents, and Agent Flow
-- **Data Workbench** 🕵️: Add the **Data Workbench** to the configuration available on port `8888`
 - **Finish Deployment** 🚀: Download the launch `YAML` files with deployment instructions
 
-The `Configuration Portal` will generate the `YAML` files in `deploy.zip`. Once `deploy.zip` has been downloaded and unzipped, launching TrustGraph is as simple as navigating to the `deploy` directory and running:
+The `Configuration UI` will generate the `YAML` files in `deploy.zip`. Once `deploy.zip` has been downloaded and unzipped, launching TrustGraph is as simple as navigating to the `deploy` directory and running:
 
 ```
 docker compose up -d
@@ -92,31 +81,7 @@ When finished, shutting down TrustGraph is as simple as:
 docker compose down -v
 ```
 
-## System Restarts
-
-The `-v` flag will destroy all data on shut down. To restart the system, it's necessary to keep the volumes. To keep the volumes, shut down without the `-v` flag:
-```
-docker compose down
-```
-
-With the volumes preserved, restarting the system is as simple as:
-```
-docker compose up -d
-```
-
-All data previously in TrustGraph will be saved and usable on restart.
-
-## Data Workbench
-
-If added to the build in the `Configuration Portal`, the `Data Workbench` will be available at port `8888`. The `Data Workbench` has the following capabilities:
-
-- **Chat** 💬: Graph RAG queries in a chat interface
-- **Search** 🔎: Semantic similarity search with cosine similarity scores
-- **Explorer** 🕵️: See semantic relationships in a list structure
-- **Visualizer** 🌐: Visualize semantic relationships in **3D**
-- **Load** 📂: Directly load `.pdf`, `.txt`, or `.md` into the system with document metadata
-
-## Example TrustGraph Notebooks
+### Example TrustGraph Notebooks
 
 - [**REST API Notebooks**](https://github.com/trustgraph-ai/example-notebooks/tree/master/api-examples)
 - [**Python SDK Notebooks**](https://github.com/trustgraph-ai/example-notebooks/tree/master/api-library)
@@ -127,8 +92,8 @@ TrustGraph `YAML` files are available [here](https://github.com/trustgraph-ai/tr
 
 | Release Type | Release Version |
 | ------------ | --------------- |
-| Latest | [0.20.11](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.20.11/deploy.zip) |
-| Stable | [0.20.9](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.20.9/deploy.zip) |
+| Latest | [0.18.7](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.18.7/deploy.zip) |
+| Stable | [0.17.16](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.17.16/deploy.zip) |
 
 TrustGraph is fully containerized and is launched with a `YAML` configuration file. Unzipping the `deploy.zip` will add the `deploy` directory with the following subdirectories:
 
@@ -137,7 +102,7 @@ TrustGraph is fully containerized and is launched with a `YAML` configuration fi
 - `gcp-k8s`
 
 > [!NOTE]
-> As more integrations have been added, the number of possible combinations of configurations has become quite large. It is recommended to use the `Configuration Portal` to build your deployment configuration. Each directory contains `YAML` configuration files for the default component selections.
+> As more integrations have been added, the number of possible combinations of configurations has become quite large. It is recommended to use the `Config UI` to build your deployment configuration. Each directory contains `YAML` configuration files for the default component selections.
 
 **Docker**:
 ```
@@ -180,26 +145,26 @@ Text or Markdown file:
 tg-load-text <document.txt>
 ```
 
-## Graph RAG Queries
+## GraphRAG Queries
 
-Once the knowledge graph and embeddings have been built or a cognitive core has been loaded, RAG queries are launched with a single line:
+Once the knowledge graph and embeddings have been built or a knowledge core has been loaded, RAG queries are launched with a single line:
 
 ```
-tg-invoke-graph-rag -q "What are the top 3 takeaways from the document?"
+tg-query-graph-rag -q "Write a blog post about the 5 key takeaways from SB1047 and how they will impact AI development."
 ```
 
 ## Agent Flow
 
-Invoking the Agent Flow will use a ReAct style approach the combines Graph RAG and text completion requests to think through a problem solution.
+Invoking the Agent Flow will use a ReAct style approach the combines GraphRAG and text completion requests to think through a problem solution.
 
 ```
-tg-invoke-agent -v -q "Write a blog post on the top 3 takeaways from the document."
+tg-invoke-agent -v -q "Write a blog post about the 5 key takeaways from SB1047 and how they will impact AI development."
 ```
 
 > [!TIP]
 > Adding `-v` to the agent request will return all of the agent manager's thoughts and observations that led to the final response.
 
-## API Documentation
+## API documentation
 
 [Developing on TrustGraph using APIs](docs/apis/README.md)
 
