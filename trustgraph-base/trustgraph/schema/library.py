@@ -22,6 +22,8 @@ class DocumentPackage(Record):
     kind = String()
     user = String()
     collection = String()
+    title = String()
+    comments = String()
 
 class DocumentInfo(Record):
     metadata = Array(Triple())

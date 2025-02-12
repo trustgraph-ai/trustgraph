@@ -58,10 +58,13 @@ class TableStore:
         print("document table...", flush=True)
 
         self.cassandra.execute("""
-            create table if not exists document (
+            CREATE TABLE IF NOT EXISTS document (
                 user text,
                 collection text,
                 id uuid,
+                time timestamp,
+                title text,
+                comments text,
                 kind text,
                 object_id uuid,
                 metadata list<tuple<
@@ -74,18 +77,19 @@ class TableStore:
         print("object index...", flush=True)
 
         self.cassandra.execute("""
-            create index if not exists document_object
-            on document ( object_id)
+            CREATE INDEX IF NOT EXISTS document_object
+            ON document (object_id)
         """);
 
         print("triples table...", flush=True)
 
         self.cassandra.execute("""
-            create table if not exists triples (
+            CREATE TABLE IF NOT EXISTS triples (
                 user text,
                 collection text,
                 document_id text,
                 id uuid,
+                time timestamp,
                 metadata list<tuple<
                     text, boolean, text, boolean, text, boolean
                 >>,
@@ -104,6 +108,7 @@ class TableStore:
                 collection text,
                 document_id text,
                 id uuid,
+                time timestamp,
                 metadata list<tuple<
                     text, boolean, text, boolean, text, boolean
                 >>,
@@ -125,6 +130,7 @@ class TableStore:
                 collection text,
                 document_id text,
                 id uuid,
+                time timestamp,
                 metadata list<tuple<
                     text, boolean, text, boolean, text, boolean
                 >>,
@@ -143,27 +149,39 @@ class TableStore:
     def prepare_statements(self):
 
         self.insert_document_stmt = self.cassandra.prepare("""
-            insert into document
-            (id, user, collection, kind, object_id, metadata)
-            values (?, ?, ?, ?, ?, ?)
+            INSERT INTO document
+            (
+                id, user, collection, kind, object_id, time, title, comments,
+                metadata
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """)
 
         self.insert_triples_stmt = self.cassandra.prepare("""
-            insert into triples
-            (id, user, collection, document_id, metadata, triples)
-            values (?, ?, ?, ?, ?, ?)
+            INSERT INTO triples
+            (
+                id, user, collection, document_id, time,
+                metadata, triples
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """)
 
         self.insert_graph_embeddings_stmt = self.cassandra.prepare("""
-            insert into graph_embeddings
-            (id, user, collection, document_id, metadata, entity_embeddings)
-            values (?, ?, ?, ?, ?, ?)
+            INSERT INTO graph_embeddings
+            (
+                id, user, collection, document_id, time,
+                metadata, entity_embeddings
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """)
 
         self.insert_document_embeddings_stmt = self.cassandra.prepare("""
-            insert into document_embeddings
-            (id, user, collection, document_id, metadata, chunks)
-            values (?, ?, ?, ?, ?, ?)
+            INSERT INTO document_embeddings
+            (
+                id, user, collection, document_id, time,
+                metadata, chunks
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """)
 
     def add(self, object_id, document):
@@ -175,6 +193,7 @@ class TableStore:
 
         # Create random doc ID
         doc_id = uuid.uuid4()
+        when = int(time.time() * 1000)
 
         print("Adding", object_id, doc_id)
 
@@ -186,6 +205,8 @@ class TableStore:
             for v in document.metadata
         ]
 
+        # FIXME: doc_id should be the user-supplied ID???
+
         while True:
 
             try:
@@ -193,8 +214,10 @@ class TableStore:
                 resp = self.cassandra.execute(
                     self.insert_document_stmt,
                     (
-                        doc_id, document.user, document.collection, 
-                        document.kind, object_id, metadata
+                        doc_id, document.user, document.collection,
+                        document.kind, object_id, when,
+                        document.title, document.comments,
+                        metadata
                     )
                 )
 
@@ -209,6 +232,8 @@ class TableStore:
         print("Add complete", flush=True)
 
     def add_triples(self, m):
+
+        when = int(time.time() * 1000)
 
         if m.metadata.metadata:
             metadata = [
@@ -237,7 +262,7 @@ class TableStore:
                     self.insert_triples_stmt,
                     (
                         uuid.uuid4(), m.metadata.user,
-                        m.metadata.collection, m.metadata.id, 
+                        m.metadata.collection, m.metadata.id, when,
                         metadata, triples,
                     )
                 )
@@ -251,6 +276,8 @@ class TableStore:
                 time.sleep(1)
 
     def add_graph_embeddings(self, m):
+
+        when = int(time.time() * 1000)
 
         if m.metadata.metadata:
             metadata = [
@@ -279,7 +306,7 @@ class TableStore:
                     self.insert_graph_embeddings_stmt,
                     (
                         uuid.uuid4(), m.metadata.user,
-                        m.metadata.collection, m.metadata.id, 
+                        m.metadata.collection, m.metadata.id, when,
                         metadata, entities,
                     )
                 )
@@ -293,6 +320,8 @@ class TableStore:
                 time.sleep(1)
 
     def add_document_embeddings(self, m):
+
+        when = int(time.time() * 1000)
 
         if m.metadata.metadata:
             metadata = [
@@ -321,7 +350,7 @@ class TableStore:
                     self.insert_document_embeddings_stmt,
                     (
                         uuid.uuid4(), m.metadata.user,
-                        m.metadata.collection, m.metadata.id, 
+                        m.metadata.collection, m.metadata.id, when,
                         metadata, chunks,
                     )
                 )
