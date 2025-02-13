@@ -1,5 +1,5 @@
 
-from pulsar.schema import Record, Bytes, String, Array
+from pulsar.schema import Record, Bytes, String, Array, Timestamp
 from . types import Triple
 from . topic import topic
 from . types import Error
@@ -24,12 +24,16 @@ class DocumentPackage(Record):
     collection = String()
     title = String()
     comments = String()
+    time = Timestamp()
 
 class DocumentInfo(Record):
     metadata = Array(Triple())
     kind = String()
     user = String()
     collection = String()
+    title = String()
+    comments = String()
+    time = Timestamp()
 
 class Criteria(Record):
     key = String()
