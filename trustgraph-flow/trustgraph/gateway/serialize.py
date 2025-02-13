@@ -126,10 +126,13 @@ def to_document_package(x):
 
     return DocumentPackage(
         metadata = to_subgraph(x["metadata"]),
-        document = x.get("document", None),
         kind = x.get("kind", None),
         user = x.get("user", None),
         collection = x.get("collection", None),
+        title = x.get("title", None),
+        comments = x.get("comments", None),
+        time = x.get("time", None),
+        document = x.get("document", None),
     )
 
 def to_document_info(x):
@@ -139,6 +142,9 @@ def to_document_info(x):
         kind = x.get("kind", None),
         user = x.get("user", None),
         collection = x.get("collection", None),
+        title = x.get("title", None),
+        comments = x.get("comments", None),
+        time = x.get("time", None),
     )
 
 def to_criteria(x):
