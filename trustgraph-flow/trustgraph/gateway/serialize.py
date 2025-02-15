@@ -108,8 +108,8 @@ def serialize_document_info(message):
 
     ret = {}
 
-    if message.metadata:
-        ret["metadata"] = serialize_subgraph(message.metdata)
+    if message.id:
+        ret["id"] = message.id
 
     if message.kind:
         ret["kind"] = message.kind
@@ -119,6 +119,18 @@ def serialize_document_info(message):
 
     if message.collection:
         ret["collection"] = message.collection
+
+    if message.title:
+        ret["title"] = message.title
+
+    if message.comments:
+        ret["comments"] = message.comments
+
+    if message.time:
+        ret["time"] = message.time
+
+    if message.metadata:
+        ret["metadata"] = serialize_subgraph(message.metadata)
 
     return ret
 

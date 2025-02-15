@@ -1,4 +1,4 @@
-from .. schema import LibrarianRequest, LibrarianResponse, Error
+from .. schema import LibrarianRequest, LibrarianResponse, Error, Triple
 from .. knowledge import hash
 from .. exceptions import RequestError
 from . table_store import TableStore
@@ -51,6 +51,20 @@ class Librarian:
             error = None,
             document = None,
             info = None,
+        )
+
+    async def list(self, user, collection):
+
+        print("list")
+
+        info = self.table_store.list(user, collection)
+
+        print(">>", info)
+
+        return LibrarianResponse(
+            error = None,
+            document = None,
+            info = info,
         )
 
     def handle_triples(self, m):

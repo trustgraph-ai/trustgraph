@@ -272,6 +272,16 @@ class Processor(ConsumerProducer):
             else:
                 raise RequestError("Invalid call")
 
+        if v.operation == "list":
+            if v.user:
+                return partial(
+                    self.librarian.list,
+                    user = v.user,
+                    collection = v.collection,
+                )
+            else:
+                raise RequestError("Invalid call")
+
         raise RequestError("Invalid operation: " + v.operation)
 
     async def handle(self, msg):
@@ -298,6 +308,7 @@ class Processor(ConsumerProducer):
 
         try:
             resp = await func()
+            print("->", resp)
         except RequestError as e:
             resp = LibrarianResponse(
                 error = Error(
@@ -318,7 +329,7 @@ class Processor(ConsumerProducer):
             await self.send(resp, properties={"id": id})
             return
 
-        print("Send response...", flush=True)
+        print("Send response..!.", flush=True)
 
         await self.send(resp, properties={"id": id})
 

@@ -53,7 +53,10 @@ class LibrarianRequestor(ServiceRequestor):
             response["document"] = serialize_document_package(message.document)
 
         if message.info:
-            response["info"] = serialize_document_info(message.info)
+            response["info"] = [
+                serialize_document_info(v)
+                for v in message.info
+            ]
         
         return response, True
 

@@ -1,10 +1,20 @@
 
-from pulsar.schema import Record, Bytes, String, Array, Timestamp
+from pulsar.schema import Record, Bytes, String, Array, Long
 from . types import Triple
 from . topic import topic
 from . types import Error
 from . metadata import Metadata
 from . documents import Document, TextDocument
+
+# add
+#   -> (id, document)
+#   <- ()
+#   <- (error)
+
+# list
+#   -> (user, collection?)
+#   <- (info)
+#   <- (error)
 
 # add(Metadata, Bytes) : error?
 # copy(id, user, collection)
@@ -17,23 +27,24 @@ from . documents import Document, TextDocument
 # search(<key,op,value>[]) : id[]
 
 class DocumentPackage(Record):
-    metadata = Array(Triple())
     document = Bytes()
     kind = String()
     user = String()
     collection = String()
     title = String()
     comments = String()
-    time = Timestamp()
+    time = Long()
+    metadata = Array(Triple())
 
 class DocumentInfo(Record):
-    metadata = Array(Triple())
+    id = String()
     kind = String()
     user = String()
     collection = String()
     title = String()
     comments = String()
-    time = Timestamp()
+    time = Long()
+    metadata = Array(Triple())
 
 class Criteria(Record):
     key = String()
