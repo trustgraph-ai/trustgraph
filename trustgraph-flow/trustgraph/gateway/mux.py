@@ -21,6 +21,7 @@ class MuxEndpoint(SocketEndpoint):
             self, pulsar_client, auth,
             services,
             path="/api/v1/socket",
+            pulsar_api_key=None
     ):
 
         super(MuxEndpoint, self).__init__(

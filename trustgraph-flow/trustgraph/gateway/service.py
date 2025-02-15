@@ -57,6 +57,7 @@ logger.setLevel(logging.INFO)
 
 default_pulsar_host = os.getenv("PULSAR_HOST", "pulsar://pulsar:6650")
 default_prometheus_url = os.getenv("PROMETHEUS_URL", "http://prometheus:9090")
+default_pulsar_api_key = os.getenv("PULSAR_API_KEY", None)
 default_timeout = 600
 default_port = 8088
 default_api_token = os.getenv("GATEWAY_SECRET", "")
@@ -73,11 +74,20 @@ class Api:
         self.port = int(config.get("port", default_port))
         self.timeout = int(config.get("timeout", default_timeout))
         self.pulsar_host = config.get("pulsar_host", default_pulsar_host)
+        self.pulsar_api_key = config.get(
+            "pulsar_api_key", default_pulsar_api_key
+        )
         self.pulsar_listener = config.get("pulsar_listener", None)
 
-        self.pulsar_client = pulsar.Client(
-            self.pulsar_host, listener_name=self.pulsar_listener
-        )
+        if self.pulsar_api_key:
+            self.pulsar_client = pulsar.Client(
+                self.pulsar_host, listener_name=self.pulsar_listener,
+                authentication=pulsar.AuthenticationToken(self.pulsar_api_key)
+            )
+        else:
+            self.pulsar_client = pulsar.Client(
+                self.pulsar_host, listener_name=self.pulsar_listener,
+            )
 
         self.prometheus_url = config.get(
             "prometheus_url", default_prometheus_url,
@@ -224,6 +234,7 @@ class Api:
             TriplesLoadEndpoint(
                 pulsar_client=self.pulsar_client,
                 auth = self.auth,
+                pulsar_api_key=self.pulsar_api_key,
             ),
             GraphEmbeddingsLoadEndpoint(
                 pulsar_client=self.pulsar_client,
@@ -237,6 +248,7 @@ class Api:
                 pulsar_client=self.pulsar_client,
                 auth = self.auth,
                 services = self.services,
+                pulsar_api_key=self.pulsar_api_key,
             ),
             MetricsEndpoint(
                 endpoint_path = "/api/v1/metrics",
@@ -269,6 +281,12 @@ def run():
         '-p', '--pulsar-host',
         default=default_pulsar_host,
         help=f'Pulsar host (default: {default_pulsar_host})',
+    )
+    
+    parser.add_argument(
+        '--pulsar-api-key',
+        default=default_pulsar_api_key,
+        help=f'Pulsar API key',
     )
 
     parser.add_argument(

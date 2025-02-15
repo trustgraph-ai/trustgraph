@@ -54,6 +54,12 @@ def main():
         help='''Prompt template terms of the form variable=value, can be
 specified multiple times''',
     )
+    
+    # parser.add_argument(
+    #     '--pulsar-api-key',
+    #     default=default_pulsar_api_key,
+    #     help=f'Pulsar API key',
+    # )
 
     args = parser.parse_args()
 

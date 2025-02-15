@@ -30,6 +30,7 @@ class Loader:
             user,
             collection,
             metadata,
+            pulsar_api_key=None,
     ):
 
         self.api = Api(url)

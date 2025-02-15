@@ -31,8 +31,6 @@ class Publisher:
         while self.running:
 
             try:
-
-                print(self.chunking_enabled)
                 producer = self.client.create_producer(
                     topic=self.topic,
                     schema=self.schema,

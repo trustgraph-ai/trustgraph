@@ -44,6 +44,12 @@ def main():
         nargs=1,
         help='LLM prompt e.g. What is 2 + 2?',
     )
+    
+    # parser.add_argument(
+    #     '--pulsar-api-key',
+    #     default=default_pulsar_api_key,
+    #     help=f'Pulsar API key',
+    # )
 
     args = parser.parse_args()
 

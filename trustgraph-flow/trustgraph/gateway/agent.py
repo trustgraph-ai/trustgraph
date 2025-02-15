@@ -7,10 +7,18 @@ from . endpoint import ServiceEndpoint
 from . requestor import ServiceRequestor
 
 class AgentRequestor(ServiceRequestor):
+<<<<<<< HEAD
     def __init__(self, pulsar_client, timeout, auth):
 
         super(AgentRequestor, self).__init__(
             pulsar_client=pulsar_client,
+=======
+    def __init__(self, pulsar_host, timeout, auth, pulsar_api_key=None):
+
+        super(AgentRequestor, self).__init__(
+            pulsar_host=pulsar_host,
+            pulsar_api_key=pulsar_api_key,
+>>>>>>> a5d5b4c (Add pulsar API token check)
             request_queue=agent_request_queue,
             response_queue=agent_response_queue,
             request_schema=AgentRequest,

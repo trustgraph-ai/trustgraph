@@ -136,7 +136,8 @@ class Processor(ConsumerProducer):
             subscriber=subscriber,
             input_queue=tc_request_queue,
             output_queue=tc_response_queue,
-            pulsar_host = self.pulsar_host
+            pulsar_host = self.pulsar_host,
+            pulsar_api_key=self.pulsar_api_key,
         )
 
         # System prompt hack
