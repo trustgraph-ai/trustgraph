@@ -19,7 +19,6 @@ class ServiceRequestor:
             response_queue, response_schema,
             subscription="api-gateway", consumer_name="api-gateway",
             timeout=600,
-            pulsar_api_key=None,
     ):
 
         self.pub = Publisher(
@@ -30,7 +29,6 @@ class ServiceRequestor:
         self.sub = Subscriber(
             pulsar_client, response_queue,
             subscription, consumer_name,
-            pulsar_api_key,
             JsonSchema(response_schema)
         )
 

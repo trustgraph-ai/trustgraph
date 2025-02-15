@@ -17,7 +17,6 @@ class ServiceSender:
             self,
             pulsar_client,
             request_queue, request_schema,
-            pulsar_api_key=None,
     ):
 
         self.pub = Publisher(

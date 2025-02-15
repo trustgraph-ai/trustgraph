@@ -35,6 +35,8 @@ class BaseProcessor:
         log_level = params.get("log_level", LogLevel.INFO)
 
         self.pulsar_host = pulsar_host
+        self.pulsar_api_key = pulsar_api_key
+
         if pulsar_api_key:
             auth = pulsar.AuthenticationToken(pulsar_api_key)
             self.client = pulsar.Client(

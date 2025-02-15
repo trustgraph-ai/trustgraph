@@ -208,7 +208,7 @@ class GraphRag:
 
         self.ge_client = GraphEmbeddingsClient(
             pulsar_host=pulsar_host,
-            pulsar_api_key=-pulsar_api_key,
+            pulsar_api_key=pulsar_api_key,
             subscriber=module + "-ge",
             input_queue=ge_request_queue,
             output_queue=ge_response_queue,
@@ -216,7 +216,7 @@ class GraphRag:
 
         self.triples_client = TriplesQueryClient(
             pulsar_host=pulsar_host,
-            pulsar_api_key=-pulsar_api_key,
+            pulsar_api_key=pulsar_api_key,
             subscriber=module + "-tpl",
             input_queue=tpl_request_queue,
             output_queue=tpl_response_queue
@@ -224,7 +224,7 @@ class GraphRag:
 
         self.embeddings = EmbeddingsClient(
             pulsar_host=pulsar_host,
-            pulsar_api_key=-pulsar_api_key,
+            pulsar_api_key=pulsar_api_key,
             input_queue=emb_request_queue,
             output_queue=emb_response_queue,
             subscriber=module + "-emb",
@@ -238,7 +238,7 @@ class GraphRag:
 
         self.prompt = PromptClient(
             pulsar_host=pulsar_host,
-            pulsar_api_key=-pulsar_api_key,
+            pulsar_api_key=pulsar_api_key,
             input_queue=pr_request_queue,
             output_queue=pr_response_queue,
             subscriber=module + "-prompt",
