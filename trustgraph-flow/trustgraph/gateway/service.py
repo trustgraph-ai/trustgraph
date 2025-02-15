@@ -234,7 +234,6 @@ class Api:
             TriplesLoadEndpoint(
                 pulsar_client=self.pulsar_client,
                 auth = self.auth,
-                pulsar_api_key=self.pulsar_api_key,
             ),
             GraphEmbeddingsLoadEndpoint(
                 pulsar_client=self.pulsar_client,
@@ -248,7 +247,6 @@ class Api:
                 pulsar_client=self.pulsar_client,
                 auth = self.auth,
                 services = self.services,
-                pulsar_api_key=self.pulsar_api_key,
             ),
             MetricsEndpoint(
                 endpoint_path = "/api/v1/metrics",

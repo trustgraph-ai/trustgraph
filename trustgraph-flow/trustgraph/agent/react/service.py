@@ -220,7 +220,7 @@ class Processor(ConsumerProducer):
 
             print(f"History: {history}", flush=True)
 
-            def think(x):
+            async def think(x):
 
                 print(f"Think: {x}", flush=True)
 
@@ -233,7 +233,7 @@ class Processor(ConsumerProducer):
 
                 await self.producer.send(r, properties={"id": id})
 
-            def observe(x):
+            async def observe(x):
 
                 print(f"Observe: {x}", flush=True)
 

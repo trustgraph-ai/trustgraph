@@ -28,7 +28,6 @@ class DocumentEmbeddingsStreamEndpoint(SocketEndpoint):
             self.pulsar_client, document_embeddings_store_queue,
             "api-gateway", "api-gateway",
             schema=JsonSchema(DocumentEmbeddings),
-            pulsar_api_key=self.pulsar_api_key
         )
 
     async def listener(self, ws, running):
