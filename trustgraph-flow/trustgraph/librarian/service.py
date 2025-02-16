@@ -223,11 +223,11 @@ class Processor(ConsumerProducer):
 
             self.librarian.handle_document_embeddings(msg)
 
-    async def load_document(self, id, document):
+    async def load_document(self, document):
 
         doc = Document(
             metadata = Metadata(
-                id = id,
+                id = document.id,
                 metadata = document.metadata,
                 user = document.user,
                 collection = document.collection
@@ -237,14 +237,14 @@ class Processor(ConsumerProducer):
 
         self.document_load.send(None, doc)
 
-    async def load_text(self, id, document):
+    async def load_text(self, document):
 
         text = base64.b64decode(document.document)
         text = text.decode("utf-8")
 
         doc = TextDocument(
             metadata = Metadata(
-                id = id,
+                id = document.id,
                 metadata = document.metadata,
                 user = document.user,
                 collection = document.collection
@@ -259,20 +259,23 @@ class Processor(ConsumerProducer):
         if v.operation is None:
             raise RequestError("Null operation")
 
+        print("op", v.operation)
+
         if v.operation == "add":
             if (
-                    v.id and v.document and v.document.metadata and
+                    v.document and v.document.id and v.document.metadata and
                     v.document.document and v.document.kind
             ):
                 return partial(
                     self.librarian.add,
-                    id = v.id,
                     document = v.document,
                 )
             else:
                 raise RequestError("Invalid call")
 
         if v.operation == "list":
+            print("list", v)
+            print(v.user)
             if v.user:
                 return partial(
                     self.librarian.list,
@@ -280,6 +283,7 @@ class Processor(ConsumerProducer):
                     collection = v.collection,
                 )
             else:
+                print("BROK")
                 raise RequestError("Invalid call")
 
         raise RequestError("Invalid operation: " + v.operation)

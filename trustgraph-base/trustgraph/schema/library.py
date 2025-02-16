@@ -27,6 +27,7 @@ from . documents import Document, TextDocument
 # search(<key,op,value>[]) : id[]
 
 class DocumentPackage(Record):
+    id = String()
     document = Bytes()
     kind = String()
     user = String()

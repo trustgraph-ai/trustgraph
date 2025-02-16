@@ -62,7 +62,7 @@ class TableStore:
             CREATE TABLE IF NOT EXISTS document (
                 user text,
                 collection text,
-                id uuid,
+                id text,
                 time timestamp,
                 title text,
                 comments text,
@@ -207,10 +207,9 @@ class TableStore:
             raise RequestError("Invalid document kind: " + document.kind)
 
         # Create random doc ID
-        doc_id = uuid.uuid4()
         when = int(time.time() * 1000)
 
-        print("Adding", object_id, doc_id)
+        print("Adding", document.id, object_id)
 
         metadata = [
             (
@@ -220,8 +219,6 @@ class TableStore:
             for v in document.metadata
         ]
 
-        # FIXME: doc_id should be the user-supplied ID???
-
         while True:
 
             try:
@@ -229,7 +226,7 @@ class TableStore:
                 resp = self.cassandra.execute(
                     self.insert_document_stmt,
                     (
-                        doc_id, document.user, document.collection,
+                        document.id, document.user, document.collection,
                         document.kind, object_id, when,
                         document.title, document.comments,
                         metadata
