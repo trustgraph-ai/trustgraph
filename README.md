@@ -1,4 +1,4 @@
-<img src="TG-future-horizon.svg" width=100% />
+<img src="TG-horizon-repo.svg" width=100% />
 
 <div align="center">
 
