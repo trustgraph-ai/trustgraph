@@ -2,35 +2,64 @@
 
 <div align="center">
 
-## Agentic Orchestration Platform
+## Data-to-AI, Simplified.
 
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
 
-🚀 [Getting Started](https://trustgraph.ai/docs/getstarted) 📺 [YouTube](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) 🧠 [Cognitive Cores](https://github.com/trustgraph-ai/catalog/tree/master/v3) ⚙️ [API Docs](docs/apis/README.md) 🧑‍💻 [CLI Docs](https://trustgraph.ai/docs/running/cli) 💬 [Discord](https://discord.gg/sQMwkRz5GX) 📖 [Blog](https://blog.trustgraph.ai/subscribe)
+🚀 [Getting Started](https://trustgraph.ai/docs/getstarted) 📺 [YouTube](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) 🧠 [Knowledge Cores](https://github.com/trustgraph-ai/catalog/tree/master/v3) ⚙️ [API Docs](docs/apis/README.md) 🧑‍💻 [CLI Docs](https://trustgraph.ai/docs/running/cli) 💬 [Discord](https://discord.gg/sQMwkRz5GX) 📖 [Blog](https://blog.trustgraph.ai/subscribe)
 
 </div>
 
-TrustGraph empowers you to deploy reasoning AI Agents in minutes. Our Agentic Graph RAG platform allows you to leverage modular cognitive cores for complex reasoning and information retrieval, all within a scalable and reliable infrastructure. Forget lengthy development cycles – TrustGraph delivers instant reasoning.
+## The AI App Problem: Everything in Between
 
-## Key Features
+Building enterprise AI applications is *hard*. You're not just connecting APIs with a protocol - you're wrangling a complex ecosystem:
 
-- 📄 **Document Extraction**: Bulk ingest documents such as `.pdf`,`.txt`, and `.md`
+*   **Data Silos:** Connecting to and managing data from various sources (databases, APIs, files) is a nightmare.
+*   **LLM Integration:** Choosing, integrating, and managing different LLMs adds another layer of complexity.
+*   **Deployment Headaches:** Deploying, scaling, and monitoring your AI application is a constant challenge.
+*   **Knowledge Graph Construction:** Taking raw knowledge and structuring it so it can be efficiently retrieved.
+*   **Vector Database Juggling:** Setting up and optimizing a vector database for efficient data retrieval is crucial but complex.
+*   **Data Pipelines:** Building robust ETL pipelines to prepare and transform your data is time-consuming.
+*   **Data Management:** As your app grows, so does the data meaning storage and retreival becomes much more complex. 
+*   **Prompt Engineering:** Building, testing, and deploying prompts for specific use cases.
+*   **Reliability:** With every new connection, the complexity ramps up meaning any simple error can bring the entire system crashing down.
+
+## What is TrustGraph?
+
+**TrustGraph removes the biggest headache of building an AI app: connecting and managing all the data, deployments, and models.** As a full-stack platform, TrustGraph simplifies the development and deployment of data-driven AI applications. TrustGraph is a complete solution, handling everything from data ingestion to deployment, so you can focus on building innovative AI experiences.
+
+![architecture](TG-layer-diagram.svg)
+
+## The Stack Layers
+
+- 📄 **Data Ingest**: Bulk ingest documents such as `.pdf`,`.txt`, and `.md`
 - 🪓 **Adjustable Chunking**: Choose your chunking algorithm and parameters
 - 🔁 **No-code LLM Integration**: **Anthropic**, **AWS Bedrock**, **AzureAI**, **AzureOpenAI**, **Cohere**, **Google AI Studio**, **Google VertexAI**, **Llamafiles**, **Ollama**, and **OpenAI**
-- ☁️ **Cloud Deployments**: **AWS** and **Google Cloud**
-- 📖 **Entity, Topic, and Relationship Knowledge Graphs**
-- 🔢 **Mapped Vector Embeddings**
-- ❔**No-code Graph RAG Queries**: Automatically perform a semantic similiarity search and subgraph extraction for the context of LLM generative responses
-- 🧠 **Cognitive Cores**: Modular data sets with semantic relationships that can saved and quickly loaded on demand
-- 🤖 **Agent Flow**: Define custom tools used by a ReAct style Agent Manager that fully controls the response flow including the ability to perform Graph RAG requests
+- 📖 **Automated Knowledge Graph Building**: No need for complex ontologies and manual graph building
+- 🔢 **Knoweldge Graph to Vector Embeddings Mappings**: Connect knowledge graph enhanced data directly to vector embeddings
+- ❔**Natural Language Data Retrieval**: Automatically perform a semantic similiarity search and subgraph extraction for the context of LLM generative responses
+- 🧠 **Knowledge Cores**: Modular data sets with semantic relationships that can saved and quickly loaded on demand
+- 🤖 **Agent Manager**: Define custom tools used by a ReAct style Agent Manager that fully controls the response flow including the ability to perform Graph RAG requests
 - 📚 **Multiple Knowledge Graph Options**: Full integration with **Memgraph**, **FalkorDB**, **Neo4j**, or **Cassandra**
-- 🧮 **Multiple VectorDB Options**: Full integration with **Pinecone**, **Qdrant**, or **Milvus**
-- 🎛️ **Production-Grade** reliability, scalability, and accuracy
-- 🔍 **Observability**: get insights into system performance with Prometheus and Grafana
+- 🧮 **Multiple VectorDB Options**: Full integration with **Qdrant**, **Pinecone**, or **Milvus**
+- 🎛️ **Production-Grade** Reliability, scalability, and accuracy
+- 🔍 **Observability and Telemetry**: Get insights into system performance with **Prometheus** and **Grafana**
+- 🎻 **Orchestration**: Fully containerized with **Docker** or **Kubernetes**
+- 🥞 **Stack Manager**: Control and scale the stack with confidence with **Apache Pulsar**
+- ☁️ **Cloud Deployments**: **AWS** and **Google Cloud**
 - 🪴 **Customizable and Extensible**: Tailor for your data and use cases
 - 🖥️ **Configuration Portal**: Build the `YAML` configuration with drop down menus and selectable parameters
 - 🕵️ **Data Workbench**: Explore your data with a 3D semantic visualizer
+
+## Why Use TrustGraph?
+
+*   **Accelerate Development:** TrustGraph instantly connects your data and app, keeping you laser focused on your users.
+*   **Reduce Complexity:** Eliminate the pain of integrating disparate tools and technologies.
+*   **Focus on Innovation:** Spend your time building your core AI logic, not managing infrastructure.
+*   **Improve Data Relevance:** Ensure your LLM has access to the *right* data, at the *right* time.
+*   **Scale with Confidence:**  Deploy and scale your AI applications reliably and efficiently.
+*   **Full RAG Solution:** Focus on optimizing your respones not building RAG pipelines.
 
 ## Quickstart Guide 🚀
 - [Install the CLI](#install-the-trustgraph-cli)
@@ -148,10 +177,6 @@ docker compose -f <launch-file.yaml> up -d
 ```
 kubectl apply -f <launch-file.yaml>
 ```
-
-## Architecture
-
-![architecture](TG-layer-diagram.svg)
 
 TrustGraph is designed to be modular to support as many LLMs and environments as possible. A natural fit for a modular architecture is to decompose functions into a set of modules connected through a pub/sub backbone. [Apache Pulsar](https://github.com/apache/pulsar/) serves as this pub/sub backbone. Pulsar acts as the data broker managing data processing queues connected to procesing modules.
 
