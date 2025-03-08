@@ -37,7 +37,7 @@ Building enterprise AI applications is *hard*. You're not just connecting APIs w
 - 🪓 **Adjustable Chunking**: Choose your chunking algorithm and parameters
 - 🔁 **No-code LLM Integration**: **Anthropic**, **AWS Bedrock**, **AzureAI**, **AzureOpenAI**, **Cohere**, **Google AI Studio**, **Google VertexAI**, **Llamafiles**, **Ollama**, and **OpenAI**
 - 📖 **Automated Knowledge Graph Building**: No need for complex ontologies and manual graph building
-- 🔢 **Knoweldge Graph to Vector Embeddings Mappings**: Connect knowledge graph enhanced data directly to vector embeddings
+- 🔢 **Knowledge Graph to Vector Embeddings Mappings**: Connect knowledge graph enhanced data directly to vector embeddings
 - ❔**Natural Language Data Retrieval**: Automatically perform a semantic similiarity search and subgraph extraction for the context of LLM generative responses
 - 🧠 **Knowledge Cores**: Modular data sets with semantic relationships that can saved and quickly loaded on demand
 - 🤖 **Agent Manager**: Define custom tools used by a ReAct style Agent Manager that fully controls the response flow including the ability to perform Graph RAG requests
