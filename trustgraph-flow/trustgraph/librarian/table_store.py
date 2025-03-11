@@ -1,4 +1,5 @@
-from .. schema import LibrarianRequest, LibrarianResponse, Error
+from .. schema import LibrarianRequest, LibrarianResponse
+from .. schema import DocumentInfo, Error, Triple, Value
 from .. knowledge import hash
 from .. exceptions import RequestError
 
@@ -61,7 +62,7 @@ class TableStore:
             CREATE TABLE IF NOT EXISTS document (
                 user text,
                 collection text,
-                id uuid,
+                id text,
                 time timestamp,
                 title text,
                 comments text,
@@ -157,6 +158,20 @@ class TableStore:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """)
 
+        self.list_document_stmt = self.cassandra.prepare("""
+            SELECT
+                id, kind, user, collection, title, comments, time, metadata
+            FROM document
+            WHERE user = ?
+        """)
+
+        self.list_document_by_collection_stmt = self.cassandra.prepare("""
+            SELECT
+                id, kind, user, collection, title, comments, time, metadata
+            FROM document
+            WHERE user = ? AND collection = ?
+        """)
+
         self.insert_triples_stmt = self.cassandra.prepare("""
             INSERT INTO triples
             (
@@ -192,10 +207,9 @@ class TableStore:
             raise RequestError("Invalid document kind: " + document.kind)
 
         # Create random doc ID
-        doc_id = uuid.uuid4()
         when = int(time.time() * 1000)
 
-        print("Adding", object_id, doc_id)
+        print("Adding", document.id, object_id)
 
         metadata = [
             (
@@ -205,8 +219,6 @@ class TableStore:
             for v in document.metadata
         ]
 
-        # FIXME: doc_id should be the user-supplied ID???
-
         while True:
 
             try:
@@ -214,7 +226,7 @@ class TableStore:
                 resp = self.cassandra.execute(
                     self.insert_document_stmt,
                     (
-                        doc_id, document.user, document.collection,
+                        document.id, document.user, document.collection,
                         document.kind, object_id, when,
                         document.title, document.comments,
                         metadata
@@ -274,6 +286,73 @@ class TableStore:
                 print("Exception:", type(e))
                 print(f"{e}, retry...", flush=True)
                 time.sleep(1)
+
+    def list(self, user, collection=None):
+
+        print("LIST")
+        while True:
+
+            print("TRY")
+
+            print(self.list_document_stmt)
+            try:
+
+                if collection:
+                    resp = self.cassandra.execute(
+                        self.list_document_by_collection_stmt,
+                        (user, collection)
+                    )
+                else:
+                    resp = self.cassandra.execute(
+                        self.list_document_stmt,
+                        (user,)
+                    )
+                break
+
+                print("OK")
+
+            except Exception as e:
+                print("Exception:", type(e))
+                print(f"{e}, retry...", flush=True)
+                time.sleep(1)
+
+        print("OK2")
+
+        info = [
+            DocumentInfo(
+                id = row[0],
+                kind = row[1],
+                user = row[2],
+                collection = row[3],
+                title = row[4],
+                comments = row[5],
+                time = int(1000 * row[6].timestamp()),
+                metadata = [
+                    Triple(
+                        s=Value(value=m[0], is_uri=m[1]),
+                        p=Value(value=m[2], is_uri=m[3]),
+                        o=Value(value=m[4], is_uri=m[5])
+                    )
+                    for m in row[7]
+                ],
+            )
+            for row in resp
+        ]
+
+        print("OK3")
+
+        print(info[0])
+
+        print(info[0].user)
+        print(info[0].time)
+        print(info[0].kind)
+        print(info[0].collection)
+        print(info[0].title)
+        print(info[0].comments)
+        print(info[0].metadata)
+        print(info[0].metadata)
+
+        return info
 
     def add_graph_embeddings(self, m):
 

@@ -1,4 +1,4 @@
-from .. schema import LibrarianRequest, LibrarianResponse, Error
+from .. schema import LibrarianRequest, LibrarianResponse, Error, Triple
 from .. knowledge import hash
 from .. exceptions import RequestError
 from . table_store import TableStore
@@ -26,7 +26,7 @@ class Librarian:
         self.load_document = load_document
         self.load_text = load_text
 
-    async def add(self, id, document):
+    async def add(self, document):
 
         if document.kind not in (
                 "text/plain", "application/pdf"
@@ -41,9 +41,9 @@ class Librarian:
         self.table_store.add(object_id, document)
 
         if document.kind == "application/pdf":
-            await self.load_document(id, document)
+            await self.load_document(document)
         elif document.kind == "text/plain":
-            await self.load_text(id, document)
+            await self.load_text(document)
 
         print("Add complete", flush=True)
 
@@ -51,6 +51,20 @@ class Librarian:
             error = None,
             document = None,
             info = None,
+        )
+
+    async def list(self, user, collection):
+
+        print("list")
+
+        info = self.table_store.list(user, collection)
+
+        print(">>", info)
+
+        return LibrarianResponse(
+            error = None,
+            document = None,
+            info = info,
         )
 
     def handle_triples(self, m):

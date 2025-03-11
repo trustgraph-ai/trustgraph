@@ -84,6 +84,9 @@ def serialize_document_package(message):
 
     ret = {}
 
+    if message.id:
+        ret["id"] = message.id
+
     if message.metadata:
         ret["metadata"] = serialize_subgraph(message.metdata)
 
@@ -108,8 +111,8 @@ def serialize_document_info(message):
 
     ret = {}
 
-    if message.metadata:
-        ret["metadata"] = serialize_subgraph(message.metdata)
+    if message.id:
+        ret["id"] = message.id
 
     if message.kind:
         ret["kind"] = message.kind
@@ -120,25 +123,45 @@ def serialize_document_info(message):
     if message.collection:
         ret["collection"] = message.collection
 
+    if message.title:
+        ret["title"] = message.title
+
+    if message.comments:
+        ret["comments"] = message.comments
+
+    if message.time:
+        ret["time"] = message.time
+
+    if message.metadata:
+        ret["metadata"] = serialize_subgraph(message.metadata)
+
     return ret
 
 def to_document_package(x):
 
     return DocumentPackage(
-        metadata = to_subgraph(x["metadata"]),
-        document = x.get("document", None),
+        id = x.get("id", None),
         kind = x.get("kind", None),
         user = x.get("user", None),
         collection = x.get("collection", None),
+        title = x.get("title", None),
+        comments = x.get("comments", None),
+        time = x.get("time", None),
+        document = x.get("document", None),
+        metadata = to_subgraph(x["metadata"]),
     )
 
 def to_document_info(x):
 
     return DocumentInfo(
-        metadata = to_subgraph(x["metadata"]),
+        id = x.get("id", None),
         kind = x.get("kind", None),
         user = x.get("user", None),
         collection = x.get("collection", None),
+        title = x.get("title", None),
+        comments = x.get("comments", None),
+        time = x.get("time", None),
+        metadata = to_subgraph(x["metadata"]),
     )
 
 def to_criteria(x):
