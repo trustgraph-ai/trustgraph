@@ -23,7 +23,7 @@ class DocumentRagRequestor(ServiceRequestor):
             query=body["query"],
             user=body.get("user", "trustgraph"),
             collection=body.get("collection", "default"),
-            doc_limit=body.get("doc-limit", 20),
+            doc_limit=int(body.get("doc-limit", 20)),
         )
 
     def from_response(self, message):
