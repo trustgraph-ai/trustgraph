@@ -115,17 +115,17 @@ class Processor(ConsumerProducer):
             if v.entity_limit:
                 entity_limit = v.entity_limit
             else:
-                entity_limit = self.entity_limit
+                entity_limit = self.default_entity_limit
 
             if v.triple_limit:
                 triple_limit = v.triple_limit
             else:
-                triple_limit = self.triple_limit
+                triple_limit = self.default_triple_limit
 
             if v.max_subgraph_size:
                 max_subgraph_size = v.max_subgraph_size
             else:
-                max_subgraph_size = self.max_subgraph_size
+                max_subgraph_size = self.default_max_subgraph_size
 
             response = self.rag.query(
                 query=v.query, user=v.user, collection=v.collection,

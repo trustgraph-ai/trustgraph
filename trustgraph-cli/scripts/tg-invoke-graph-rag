@@ -11,10 +11,13 @@ from trustgraph.api import Api
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_user = 'trustgraph'
 default_collection = 'default'
+default_entity_limit = 50
+default_triple_limit = 30
+default_max_subgraph_size = 1000
 
 def question(
         url, question, user, collection, entity_limit, triple_limit,
-        subgraph_limit
+        max_subgraph_size
 ):
 
     rag = Api(url)
@@ -22,7 +25,7 @@ def question(
     resp = rag.graph_rag(
         question=question, user=user, collection=collection,
         entity_limit=entity_limit, triple_limit=triple_limit,
-        subgraph_limit=subgraph_limit
+        max_subgraph_size=max_subgraph_size
     )
 
     print(resp)
@@ -71,9 +74,9 @@ def main():
     )
 
     parser.add_argument(
-        '-s', '--subgraph-limit',
-        default=default_subgraph_limit,
-        help=f'Subgraph limit (default: {subgraph_limit})'
+        '-s', '--max-subgraph-size',
+        default=default_max_subgraph_size,
+        help=f'Max subgraph size (default: {default_max_subgraph_size})'
     )
 
     args = parser.parse_args()
@@ -87,7 +90,7 @@ def main():
             collection=args.collection,
             entity_limit=args.entity_limit,
             triple_limit=args.triple_limit,
-            subgraph_limit=args.subgraph_limit,
+            max_subgraph_size=args.max_subgraph_size,
         )
 
     except Exception as e:

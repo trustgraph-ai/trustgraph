@@ -22,14 +22,14 @@ class Query:
 
     def __init__(
             self, rag, user, collection, verbose,
-            entity_limit=50, query_limit=30, max_subgraph_size=1000,
+            entity_limit=50, triple_limit=30, max_subgraph_size=1000,
     ):
         self.rag = rag
         self.user = user
         self.collection = collection
         self.verbose = verbose
         self.entity_limit = entity_limit
-        self.query_limit = query_limit
+        self.triple_limit = triple_limit
         self.max_subgraph_size = max_subgraph_size
 
     def get_vector(self, query):
@@ -99,7 +99,7 @@ class Query:
             res = self.rag.triples_client.request(
                 user=self.user, collection=self.collection,
                 s=e, p=None, o=None,
-                limit=self.query_limit
+                limit=self.triple_limit
             )
 
             for triple in res:
@@ -110,7 +110,7 @@ class Query:
             res = self.rag.triples_client.request(
                 user=self.user, collection=self.collection,
                 s=None, p=e, o=None,
-                limit=self.query_limit
+                limit=self.triple_limit
             )
 
             for triple in res:
@@ -121,7 +121,7 @@ class Query:
             res = self.rag.triples_client.request(
                 user=self.user, collection=self.collection,
                 s=None, p=None, o=e,
-                limit=self.query_limit,
+                limit=self.triple_limit,
             )
 
             for triple in res:
@@ -255,8 +255,8 @@ class GraphRag:
             print("Construct prompt...", flush=True)
 
         q = Query(
-            rag=self, user=user, collection=collection, verbose=self.verbose
-            entity_limit=entity_limit, query_limit=query_limit,
+            rag=self, user=user, collection=collection, verbose=self.verbose,
+            entity_limit=entity_limit, triple_limit=triple_limit,
             max_subgraph_size=max_subgraph_size,
         )
 

@@ -104,7 +104,7 @@ class Api:
 
     def graph_rag(
             self, question, user="trustgraph", collection="default",
-            entity_limit=50, triple_limit=30, subgraph_limit=1000,
+            entity_limit=50, triple_limit=30, max_subgraph_size=1000,
     ):
 
         # The input consists of a question
@@ -114,7 +114,7 @@ class Api:
             "collection": collection,
             "entity-limit": entity_limit,
             "triple-limit": triple_limit,
-            "max-subgraph-limit": subgraph_limit,
+            "max-subgraph-size": max_subgraph_size,
         }
 
         url = f"{self.url}graph-rag"
