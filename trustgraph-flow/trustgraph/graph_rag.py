@@ -131,16 +131,6 @@ class Query:
 
         subgraph = list(subgraph)
 
-        subgraph = subgraph[0:self.max_subgraph_size]
-
-        if self.verbose:
-            print("Subgraph:", flush=True)
-            for edge in subgraph:
-                print(" ", str(edge), flush=True)
-
-        if self.verbose:
-            print("Done.", flush=True)
-
         return subgraph
 
     def get_labelgraph(self, query):
@@ -159,6 +149,16 @@ class Query:
             o = self.maybe_label(edge[2])
 
             sg2.append((s, p, o))
+
+        sg2 = sg2[0:self.max_subgraph_size]
+
+        if self.verbose:
+            print("Subgraph:", flush=True)
+            for edge in sg2:
+                print(" ", str(edge), flush=True)
+
+        if self.verbose:
+            print("Done.", flush=True)
 
         return sg2
     
