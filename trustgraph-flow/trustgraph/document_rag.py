@@ -18,11 +18,15 @@ DEFINITION="http://www.w3.org/2004/02/skos/core#definition"
 
 class Query:
 
-    def __init__(self, rag, user, collection, verbose):
+    def __init__(
+            self, rag, user, collection, verbose,
+            doc_limit=20
+    ):
         self.rag = rag
         self.user = user
         self.collection = collection
         self.verbose = verbose
+        self.doc_limit = doc_limit
 
     def get_vector(self, query):
 
@@ -44,7 +48,7 @@ class Query:
             print("Get entities...", flush=True)
 
         docs = self.rag.de_client.request(
-            vectors, limit=self.rag.doc_limit
+            vectors, limit=self.doc_limit
         )
 
         if self.verbose:
@@ -93,9 +97,6 @@ class DocumentRag:
         if self.verbose:
             print("Initialising...", flush=True)
 
-        # FIXME: Configurable
-        self.doc_limit = 20
-
         self.de_client = DocumentEmbeddingsClient(
             pulsar_host=pulsar_host,
             subscriber=module + "-de",
@@ -123,13 +124,17 @@ class DocumentRag:
         if self.verbose:
             print("Initialised", flush=True)
 
-    def query(self, query, user="trustgraph", collection="default"):
+    def query(
+            self, query, user="trustgraph", collection="default",
+            doc_limit=20,
+    ):
 
         if self.verbose:
             print("Construct prompt...", flush=True)
 
         q = Query(
-            rag=self, user=user, collection=collection, verbose=self.verbose
+            rag=self, user=user, collection=collection, verbose=self.verbose,
+            doc_limit=doc_limit
         )
 
         docs = q.get_docs(query)

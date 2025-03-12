@@ -12,12 +12,18 @@ default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_user = 'trustgraph'
 default_collection = 'default'
 
-def question(url, question, user, collection):
+def question(
+        url, question, user, collection, entity_limit, triple_limit,
+        subgraph_limit
+):
 
     rag = Api(url)
 
-# user=user, collection=collection, 
-    resp = rag.graph_rag(question=question)
+    resp = rag.graph_rag(
+        question=question, user=user, collection=collection,
+        entity_limit=entity_limit, triple_limit=triple_limit,
+        subgraph_limit=subgraph_limit
+    )
 
     print(resp)
 
@@ -52,6 +58,24 @@ def main():
         help=f'Collection ID (default: {default_collection})'
     )
 
+    parser.add_argument(
+        '-e', '--entity-limit',
+        default=default_entity_limit,
+        help=f'Entity limit (default: {default_entity_limit})'
+    )
+
+    parser.add_argument(
+        '-t', '--triple-limit',
+        default=default_triple_limit,
+        help=f'Triple limit (default: {default_triple_limit})'
+    )
+
+    parser.add_argument(
+        '-s', '--subgraph-limit',
+        default=default_subgraph_limit,
+        help=f'Subgraph limit (default: {subgraph_limit})'
+    )
+
     args = parser.parse_args()
 
     try:
@@ -61,6 +85,9 @@ def main():
             question=args.question,
             user=args.user,
             collection=args.collection,
+            entity_limit=args.entity_limit,
+            triple_limit=args.triple_limit,
+            subgraph_limit=args.subgraph_limit,
         )
 
     except Exception as e:

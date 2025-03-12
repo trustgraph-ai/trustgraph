@@ -31,9 +31,7 @@ class Processor(ConsumerProducer):
         input_queue = params.get("input_queue", default_input_queue)
         output_queue = params.get("output_queue", default_output_queue)
         subscriber = params.get("subscriber", default_subscriber)
-        entity_limit = params.get("entity_limit", 50)
-        triple_limit = params.get("triple_limit", 30)
-        max_subgraph_size = params.get("max_subgraph_size", 3000)
+
         pr_request_queue = params.get(
             "prompt_request_queue", prompt_request_queue
         )
@@ -58,6 +56,10 @@ class Processor(ConsumerProducer):
         tpl_response_queue = params.get(
             "triples_response_queue", triples_response_queue
         )
+
+        entity_limit = params.get("entity_limit", 50)
+        triple_limit = params.get("triple_limit", 30)
+        max_subgraph_size = params.get("max_subgraph_size", 1000)
 
         super(Processor, self).__init__(
             **params | {
@@ -92,11 +94,12 @@ class Processor(ConsumerProducer):
             tpl_request_queue=triples_request_queue,
             tpl_response_queue=triples_response_queue,
             verbose=True,
-            entity_limit=entity_limit,
-            triple_limit=triple_limit,
-            max_subgraph_size=max_subgraph_size,
             module=module,
         )
+
+        self.default_entity_limit = entity_limit
+        self.default_triple_limit = triple_limit
+        self.default_max_subgraph_size = max_subgraph_size
 
     async def handle(self, msg):
 
@@ -106,15 +109,32 @@ class Processor(ConsumerProducer):
 
             # Sender-produced ID
             id = msg.properties()["id"]
-
+         
             print(f"Handling input {id}...", flush=True)
 
+            if v.entity_limit:
+                entity_limit = v.entity_limit
+            else:
+                entity_limit = self.entity_limit
+
+            if v.triple_limit:
+                triple_limit = v.triple_limit
+            else:
+                triple_limit = self.triple_limit
+
+            if v.max_subgraph_size:
+                max_subgraph_size = v.max_subgraph_size
+            else:
+                max_subgraph_size = self.max_subgraph_size
+
             response = self.rag.query(
-                query=v.query, user=v.user, collection=v.collection
+                query=v.query, user=v.user, collection=v.collection,
+                entity_limit=entity_limit, triple_limit=triple_limit,
+                max_subgraph_size=max_subgraph_size
             )
 
             print("Send response...", flush=True)
-            r = GraphRagResponse(response = response, error=None)
+            r = GraphRagResponse(response=response, error=None)
             await self.send(r, properties={"id": id})
 
             print("Done.", flush=True)
@@ -149,21 +169,21 @@ class Processor(ConsumerProducer):
             '-e', '--entity-limit',
             type=int,
             default=50,
-            help=f'Entity vector fetch limit (default: 50)'
+            help=f'Default entity vector fetch limit (default: 50)'
         )
 
         parser.add_argument(
             '-t', '--triple-limit',
             type=int,
             default=30,
-            help=f'Triple query limit, per query (default: 30)'
+            help=f'Default triple query limit, per query (default: 30)'
         )
 
         parser.add_argument(
             '-u', '--max-subgraph-size',
             type=int,
-            default=3000,
-            help=f'Max subgraph size (default: 3000)'
+            default=1000,
+            help=f'Default max subgraph size (default: 1000)'
         )
 
         parser.add_argument(

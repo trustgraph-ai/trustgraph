@@ -23,6 +23,9 @@ class GraphRagRequestor(ServiceRequestor):
             query=body["query"],
             user=body.get("user", "trustgraph"),
             collection=body.get("collection", "default"),
+            entity_limit=body.get("entity-limit", 50),
+            triple_limit=body.get("triple-limit", 30),
+            doc_limit=body.get("doc-limit", 1000),
         )
 
     def from_response(self, message):
