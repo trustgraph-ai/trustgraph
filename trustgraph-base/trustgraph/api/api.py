@@ -102,11 +102,21 @@ class Api:
         except:
             raise ProtocolException(f"Response not formatted correctly")
 
-    def graph_rag(self, question):
+    def graph_rag(
+            self, question, user="trustgraph", collection="default",
+            entity_limit=50, triple_limit=30, max_subgraph_size=150,
+            max_path_length=2,
+    ):
 
         # The input consists of a question
         input = {
-            "query": question
+            "query": question,
+            "user": user,
+            "collection": collection,
+            "entity-limit": entity_limit,
+            "triple-limit": triple_limit,
+            "max-subgraph-size": max_subgraph_size,
+            "max-path-length": max_path_length,
         }
 
         url = f"{self.url}graph-rag"
@@ -131,11 +141,17 @@ class Api:
         except:
             raise ProtocolException(f"Response not formatted correctly")
 
-    def document_rag(self, question):
+    def document_rag(
+            self, question, user="trustgraph", collection="default",
+            doc_limit=10,
+    ):
 
         # The input consists of a question
         input = {
-            "query": question
+            "query": question,
+            "user": user,
+            "collection": collection,
+            "doc-limit": doc_limit,
         }
 
         url = f"{self.url}document-rag"

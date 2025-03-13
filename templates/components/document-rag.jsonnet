@@ -5,6 +5,8 @@ local prompts = import "prompts/mixtral.jsonnet";
 
 {
 
+    "document-rag-doc-limit":: 20,
+
     "document-rag" +: {
     
         create:: function(engine)

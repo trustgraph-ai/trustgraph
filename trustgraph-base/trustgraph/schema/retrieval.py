@@ -11,6 +11,10 @@ class GraphRagQuery(Record):
     query = String()
     user = String()
     collection = String()
+    entity_limit = Integer()
+    triple_limit = Integer()
+    max_subgraph_size = Integer()
+    max_path_length = Integer()
 
 class GraphRagResponse(Record):
     error = Error()
@@ -31,6 +35,7 @@ class DocumentRagQuery(Record):
     query = String()
     user = String()
     collection = String()
+    doc_limit = Integer()
 
 class DocumentRagResponse(Record):
     error = Error()

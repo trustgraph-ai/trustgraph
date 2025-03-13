@@ -4,9 +4,9 @@ local url = import "values/url.jsonnet";
 
 {
 
-    "graph-rag-entity-limit":: 50,
-    "graph-rag-triple-limit":: 30,
-    "graph-rag-max-subgraph-size":: 3000,
+    "graph-rag-entity-limit":: 20,
+    "graph-rag-triple-limit":: 10,
+    "graph-rag-max-subgraph-size":: 1000,
 
     "kg-extract-definitions" +: {
     
