@@ -49,8 +49,8 @@ Building enterprise AI applications is *hard*. You're not just connecting APIs w
 - 🥞 **Stack Manager**: Control and scale the stack with confidence with **Apache Pulsar**
 - ☁️ **Cloud Deployments**: **AWS** and **Google Cloud**
 - 🪴 **Customizable and Extensible**: Tailor for your data and use cases
-- 🖥️ **Configuration Portal**: Build the `YAML` configuration with drop down menus and selectable parameters
-- 🕵️ **Data Workbench**: Explore your data with a 3D semantic visualizer
+- 🖥️ **Configuration Builder**: Build the `YAML` configuration with drop down menus and selectable parameters
+- 🕵️ **Test Suite**: A simple UI to fully test TrustGraph performance
 
 ## Why Use TrustGraph?
 
@@ -63,9 +63,9 @@ Building enterprise AI applications is *hard*. You're not just connecting APIs w
 
 ## Quickstart Guide 🚀
 - [Install the CLI](#install-the-trustgraph-cli)
-- [Configuration Portal](#configuration-portal)
+- [Configuration Builder](#configuration-builder)
 - [System Restarts](#system-restarts)
-- [Data Workbench](#data-workbench)
+- [Test Suite](#test-suite)
 - [Example Notebooks](#example-trustgraph-notebooks)
 
 ## Developer APIs and CLI
@@ -79,10 +79,10 @@ See the [API Developer's Guide](#api-documentation) for more information.
 
 For users, **TrustGraph** has the following interfaces:
 
-- [**Configuration Portal**](#configuration-portal)
-- [**Data Workbench**](#data-workbench)
+- [**Configuration Builder**](#configuration-builder)
+- [**Test Suite**](#test-suite)
 
-The `TrustGraph CLI` installs the commands for interacting with TrustGraph while running along with the Python SDK. The `Configuration Portal` enables customization of TrustGraph deployments prior to launching. The **REST API** can be accessed through port `8088` of the TrustGraph host machine with JSON request and response bodies.
+The `TrustGraph CLI` installs the commands for interacting with TrustGraph while running along with the Python SDK. The `Configuration Builder` enables customization of TrustGraph deployments prior to launching. The **REST API** can be accessed through port `8088` of the TrustGraph host machine with JSON request and response bodies.
 
 ### Install the TrustGraph CLI
 
@@ -93,21 +93,21 @@ pip3 install trustgraph-cli==0.20.9
 > [!NOTE]
 > The `TrustGraph CLI` version must match the desired `TrustGraph` release version.
 
-## Configuration Portal
+## Configuration Builder
 
-TrustGraph is endlessly customizable by editing the `YAML` launch files. The `Configuration Portal` provides a quick and intuitive tool for building a custom configuration that deploys with Docker, Podman, Minikube, or Google Cloud. There is a `Configuration Portal` for the both the lastest and stable `TrustGraph` releases.
+TrustGraph is endlessly customizable by editing the `YAML` launch files. The `Configuration Builder` provides a quick and intuitive tool for building a custom configuration that deploys with Docker, Podman, Minikube, or Google Cloud. There is a `Configuration Builder` for the both the lastest and stable `TrustGraph` releases.
 
-- [**Configuration Portal** (Stable 0.20.9) 🚀](https://config-ui.demo.trustgraph.ai/)
-- [**Configuration Portal** (Latest 0.20.11) 🚀](https://dev.config-ui.demo.trustgraph.ai/)
+- [**Configuration Builder** (Stable 0.20.9) 🚀](https://config-ui.demo.trustgraph.ai/)
+- [**Configuration Builder** (Latest 0.20.11) 🚀](https://dev.config-ui.demo.trustgraph.ai/)
 
-The `Configuration Portal` has 4 important sections:
+The `Configuration Builder` has 4 important sections:
 
 - **Component Selection** ✅: Choose from the available deployment platforms, LLMs, graph store, VectorDB, chunking algorithm, chunking parameters, and LLM parameters
 - **Customization** 🧰: Customize the prompts for the LLM System, Data Extraction Agents, and Agent Flow
-- **Data Workbench** 🕵️: Add the **Data Workbench** to the configuration available on port `8888`
+- **Test Suite** 🕵️: Add the **Test Suite** to the configuration available on port `8888`
 - **Finish Deployment** 🚀: Download the launch `YAML` files with deployment instructions
 
-The `Configuration Portal` will generate the `YAML` files in `deploy.zip`. Once `deploy.zip` has been downloaded and unzipped, launching TrustGraph is as simple as navigating to the `deploy` directory and running:
+The `Configuration Builder` will generate the `YAML` files in `deploy.zip`. Once `deploy.zip` has been downloaded and unzipped, launching TrustGraph is as simple as navigating to the `deploy` directory and running:
 
 ```
 docker compose up -d
@@ -135,15 +135,15 @@ docker compose up -d
 
 All data previously in TrustGraph will be saved and usable on restart.
 
-## Data Workbench
+## Test Suite
 
-If added to the build in the `Configuration Portal`, the `Data Workbench` will be available at port `8888`. The `Data Workbench` has the following capabilities:
+If added to the build in the `Configuration Builder`, the `Test Suite` will be available at port `8888`. The `Test Suite` has the following capabilities:
 
-- **Chat** 💬: Graph RAG queries in a chat interface
-- **Search** 🔎: Semantic similarity search with cosine similarity scores
-- **Explorer** 🕵️: See semantic relationships in a list structure
-- **Visualizer** 🌐: Visualize semantic relationships in **3D**
-- **Load** 📂: Directly load `.pdf`, `.txt`, or `.md` into the system with document metadata
+- **Graph RAG Chat** 💬: Graph RAG queries in a chat interface
+- **Vector Search** 🔎: Semantic similarity search with cosine similarity scores
+- **Semantic Relationships** 🕵️: See semantic relationships in a list structure
+- **Graph Visualizer** 🌐: Visualize semantic relationships in **3D**
+- **Data Loader** 📂: Directly load `.pdf`, `.txt`, or `.md` into the system with document metadata
 
 ## Example TrustGraph Notebooks
 
@@ -166,7 +166,7 @@ TrustGraph is fully containerized and is launched with a `YAML` configuration fi
 - `gcp-k8s`
 
 > [!NOTE]
-> As more integrations have been added, the number of possible combinations of configurations has become quite large. It is recommended to use the `Configuration Portal` to build your deployment configuration. Each directory contains `YAML` configuration files for the default component selections.
+> As more integrations have been added, the number of possible combinations of configurations has become quite large. It is recommended to use the `Configuration Builder` to build your deployment configuration. Each directory contains `YAML` configuration files for the default component selections.
 
 **Docker**:
 ```
