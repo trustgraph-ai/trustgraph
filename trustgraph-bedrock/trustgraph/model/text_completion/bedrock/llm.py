@@ -35,6 +35,7 @@ default_profile = os.getenv("AWS_PROFILE", None)
 default_region = os.getenv("AWS_DEFAULT_REGION", None)
 
 # Variant API handling depends on the model type
+# FIXME: Missing, Amazon models, Deepseek
 class ModelVariant(enum.Enum):
     MISTRAL = enum.auto()                   # Mistral
     META = enum.auto()                      # Llama 3.1
@@ -122,6 +123,9 @@ class Processor(ConsumerProducer):
 
     def determine_model(self, model):
 
+        # FIXME: Missing, Amazon models, Deepseek
+
+        # This set of conditions deals with normal bedrock on-demand usage
         if self.model.startswith("mistral"):
             return ModelVariant.MISTRAL
         elif self.model.startswith("meta"):
@@ -132,8 +136,18 @@ class Processor(ConsumerProducer):
             return ModelVariant.AI21
         elif self.model.startswith("cohere"):
             return ModelVariant.COHERE
-        else:
-            return ModelVariant.DEFAULT
+
+        # The inference profiles
+        if self.model.startswith("us.meta"):
+            return ModelVariant.META
+        elif self.model.startswith("us.anthropic"):
+            return ModelVariant.ANTHROPIC
+        elif self.model.startswith("eu.meta"):
+            return ModelVariant.META
+        elif self.model.startswith("eu.anthropic"):
+            return ModelVariant.ANTHROPIC
+
+        return ModelVariant.DEFAULT
                         
     async def handle(self, msg):
 
