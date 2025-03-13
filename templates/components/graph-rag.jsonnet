@@ -4,9 +4,10 @@ local url = import "values/url.jsonnet";
 
 {
 
-    "graph-rag-entity-limit":: 20,
-    "graph-rag-triple-limit":: 10,
-    "graph-rag-max-subgraph-size":: 1000,
+    "graph-rag-entity-limit":: 50,
+    "graph-rag-triple-limit":: 30,
+    "graph-rag-max-subgraph-size":: 400,
+    "graph-rag-max-path-length":: 2,
 
     "kg-extract-definitions" +: {
     
@@ -119,6 +120,8 @@ local url = import "values/url.jsonnet";
                         std.toString($["graph-rag-triple-limit"]),
                         "--max-subgraph-size",
                         std.toString($["graph-rag-max-subgraph-size"]),
+                        "--max-path-length",
+                        std.toString($["graph-rag-max-path-length"]),
                     ])
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M");
