@@ -59,7 +59,8 @@ class Processor(ConsumerProducer):
 
         entity_limit = params.get("entity_limit", 50)
         triple_limit = params.get("triple_limit", 30)
-        max_subgraph_size = params.get("max_subgraph_size", 1000)
+        max_subgraph_size = params.get("max_subgraph_size", 150)
+        max_path_length = params.get("max_path_length", 2)
 
         super(Processor, self).__init__(
             **params | {
@@ -100,6 +101,7 @@ class Processor(ConsumerProducer):
         self.default_entity_limit = entity_limit
         self.default_triple_limit = triple_limit
         self.default_max_subgraph_size = max_subgraph_size
+        self.default_max_path_length = max_path_length
 
     async def handle(self, msg):
 
@@ -127,10 +129,16 @@ class Processor(ConsumerProducer):
             else:
                 max_subgraph_size = self.default_max_subgraph_size
 
+            if v.max_path_length:
+                max_path_length = v.max_path_length
+            else:
+                max_path_length = self.default_max_path_length
+
             response = self.rag.query(
                 query=v.query, user=v.user, collection=v.collection,
                 entity_limit=entity_limit, triple_limit=triple_limit,
-                max_subgraph_size=max_subgraph_size
+                max_subgraph_size=max_subgraph_size,
+                max_path_length=max_path_length,
             )
 
             print("Send response...", flush=True)
@@ -182,8 +190,15 @@ class Processor(ConsumerProducer):
         parser.add_argument(
             '-u', '--max-subgraph-size',
             type=int,
-            default=1000,
-            help=f'Default max subgraph size (default: 1000)'
+            default=150,
+            help=f'Default max subgraph size (default: 150)'
+        )
+
+        parser.add_argument(
+            '-a', '--max-path-length',
+            type=int,
+            default=2,
+            help=f'Default max path length (default: 2)'
         )
 
         parser.add_argument(

@@ -14,6 +14,7 @@ class GraphRagQuery(Record):
     entity_limit = Integer()
     triple_limit = Integer()
     max_subgraph_size = Integer()
+    max_path_length = Integer()
 
 class GraphRagResponse(Record):
     error = Error()

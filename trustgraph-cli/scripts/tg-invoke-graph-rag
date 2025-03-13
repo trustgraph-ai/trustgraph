@@ -13,11 +13,12 @@ default_user = 'trustgraph'
 default_collection = 'default'
 default_entity_limit = 50
 default_triple_limit = 30
-default_max_subgraph_size = 1000
+default_max_subgraph_size = 150
+default_max_path_length = 2
 
 def question(
         url, question, user, collection, entity_limit, triple_limit,
-        max_subgraph_size
+        max_subgraph_size, max_path_length
 ):
 
     rag = Api(url)
@@ -25,7 +26,8 @@ def question(
     resp = rag.graph_rag(
         question=question, user=user, collection=collection,
         entity_limit=entity_limit, triple_limit=triple_limit,
-        max_subgraph_size=max_subgraph_size
+        max_subgraph_size=max_subgraph_size,
+        max_path_length=max_path_length
     )
 
     print(resp)
@@ -79,6 +81,12 @@ def main():
         help=f'Max subgraph size (default: {default_max_subgraph_size})'
     )
 
+    parser.add_argument(
+        '-p', '--max-path-length',
+        default=default_max_path_length,
+        help=f'Max path length (default: {default_max_path_length})'
+    )
+
     args = parser.parse_args()
 
     try:
@@ -91,6 +99,7 @@ def main():
             entity_limit=args.entity_limit,
             triple_limit=args.triple_limit,
             max_subgraph_size=args.max_subgraph_size,
+            max_path_length=args.max_path_length,
         )
 
     except Exception as e:

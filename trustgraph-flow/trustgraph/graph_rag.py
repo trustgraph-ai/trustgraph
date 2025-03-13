@@ -23,6 +23,7 @@ class Query:
     def __init__(
             self, rag, user, collection, verbose,
             entity_limit=50, triple_limit=30, max_subgraph_size=1000,
+            max_path_length=2,
     ):
         self.rag = rag
         self.user = user
@@ -31,6 +32,7 @@ class Query:
         self.entity_limit = entity_limit
         self.triple_limit = triple_limit
         self.max_subgraph_size = max_subgraph_size
+        self.max_path_length = max_path_length
 
     def get_vector(self, query):
 
@@ -85,49 +87,60 @@ class Query:
         self.rag.label_cache[e] = res[0].o.value
         return self.rag.label_cache[e]
 
+    def follow_edges(self, ent, subgraph, path_length):
+
+        # Not needed?
+        if path_length <= 0:
+            return
+
+        res = self.rag.triples_client.request(
+            user=self.user, collection=self.collection,
+            s=ent, p=None, o=None,
+            limit=self.triple_limit
+        )
+
+        for triple in res:
+            subgraph.add(
+                (triple.s.value, triple.p.value, triple.o.value)
+            )
+            if path_length > 1:
+                self.follow_edges(triple.o.value, subgraph, path_length-1)
+
+        res = self.rag.triples_client.request(
+            user=self.user, collection=self.collection,
+            s=None, p=ent, o=None,
+            limit=self.triple_limit
+        )
+
+        for triple in res:
+            subgraph.add(
+                (triple.s.value, triple.p.value, triple.o.value)
+            )
+
+        res = self.rag.triples_client.request(
+            user=self.user, collection=self.collection,
+            s=None, p=None, o=ent,
+            limit=self.triple_limit,
+        )
+
+        for triple in res:
+            subgraph.add(
+                (triple.s.value, triple.p.value, triple.o.value)
+            )
+            if path_length > 1:
+                self.follow_edges(triple.s.value, subgraph, path_length-1)
+
     def get_subgraph(self, query):
 
         entities = self.get_entities(query)
 
-        subgraph = set()
-
         if self.verbose:
             print("Get subgraph...", flush=True)
 
-        for e in entities:
+        subgraph = set()
 
-            res = self.rag.triples_client.request(
-                user=self.user, collection=self.collection,
-                s=e, p=None, o=None,
-                limit=self.triple_limit
-            )
-
-            for triple in res:
-                subgraph.add(
-                    (triple.s.value, triple.p.value, triple.o.value)
-                )
-
-            res = self.rag.triples_client.request(
-                user=self.user, collection=self.collection,
-                s=None, p=e, o=None,
-                limit=self.triple_limit
-            )
-
-            for triple in res:
-                subgraph.add(
-                    (triple.s.value, triple.p.value, triple.o.value)
-                )
-
-            res = self.rag.triples_client.request(
-                user=self.user, collection=self.collection,
-                s=None, p=None, o=e,
-                limit=self.triple_limit,
-            )
-
-            for triple in res:
-                subgraph.add(
-                    (triple.s.value, triple.p.value, triple.o.value)
-                )
+        for ent in entities:
+            self.follow_edges(ent, subgraph, self.max_path_length)
 
         subgraph = list(subgraph)
 
@@ -249,6 +262,7 @@ class GraphRag:
     def query(
             self, query, user="trustgraph", collection="default",
             entity_limit=50, triple_limit=30, max_subgraph_size=1000,
+            max_path_length=2,
     ):
 
         if self.verbose:
@@ -258,6 +272,7 @@ class GraphRag:
             rag=self, user=user, collection=collection, verbose=self.verbose,
             entity_limit=entity_limit, triple_limit=triple_limit,
             max_subgraph_size=max_subgraph_size,
+            max_path_length=max_path_length,
         )
 
         kg = q.get_labelgraph(query)

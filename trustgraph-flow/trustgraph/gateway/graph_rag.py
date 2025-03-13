@@ -26,6 +26,7 @@ class GraphRagRequestor(ServiceRequestor):
             entity_limit=int(body.get("entity-limit", 50)),
             triple_limit=int(body.get("triple-limit", 30)),
             max_subgraph_size=int(body.get("max-subgraph-size", 1000)),
+            max_path_length=int(body.get("max-path-length", 2)),
         )
 
     def from_response(self, message):
