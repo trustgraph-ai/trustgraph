@@ -93,6 +93,10 @@ class Query:
         if path_length <= 0:
             return
 
+        # Stop spanning around if the subgraph is already maxed out
+        if len(subgraph) >= self.max_subgraph_size:
+            return
+
         res = self.rag.triples_client.request(
             user=self.user, collection=self.collection,
             s=ent, p=None, o=None,
