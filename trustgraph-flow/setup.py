@@ -50,6 +50,7 @@ setuptools.setup(
         "langchain-core",
         "langchain-text-splitters",
         "minio",
+        "mistralai"
         "neo4j",
         "ollama",
         "openai",
@@ -107,6 +108,7 @@ setuptools.setup(
         "scripts/text-completion-cohere",
         "scripts/text-completion-googleaistudio",
         "scripts/text-completion-llamafile",
+        "scripts/text-completion-mistral",
         "scripts/text-completion-ollama",
         "scripts/text-completion-openai",
         "scripts/triples-query-cassandra",

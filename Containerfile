@@ -15,7 +15,7 @@ RUN pip3 install torch==2.5.1+cpu \
     --index-url https://download.pytorch.org/whl/cpu
 
 RUN pip3 install \
-    anthropic boto3 cohere openai google-cloud-aiplatform \
+    anthropic boto3 cohere mistralai openai google-cloud-aiplatform \
     ollama google-generativeai \
     langchain==0.3.13 langchain-core==0.3.28 langchain-huggingface==0.1.2 \
     langchain-text-splitters==0.3.4 \
