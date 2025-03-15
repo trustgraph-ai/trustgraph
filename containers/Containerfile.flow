@@ -12,7 +12,7 @@ RUN dnf install -y python3 python3-pip python3-wheel python3-aiohttp \
     python3-rdflib
 
 RUN pip3 install --no-cache-dir \
-    anthropic cohere openai google-generativeai \
+    anthropic cohere mistralai openai google-generativeai \
     ollama \
     langchain==0.3.13 langchain-core==0.3.28 \
     langchain-text-splitters==0.3.4 \
