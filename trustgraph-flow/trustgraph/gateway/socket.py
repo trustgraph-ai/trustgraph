@@ -19,7 +19,7 @@ class SocketEndpoint:
         self.operation = "socket"
 
     async def listener(self, ws, running):
-        
+
         async for msg in ws:
             # On error, finish
             if msg.type == WSMsgType.TEXT:
@@ -53,7 +53,7 @@ class SocketEndpoint:
         try:
             await self.listener(ws, running)
         except Exception as e:
-            print(e, flush=True)
+            print("Socket exception:", e, flush=True)
 
         running.stop()
 

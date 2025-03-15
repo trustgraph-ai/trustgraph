@@ -51,7 +51,7 @@ class TriplesLoadEndpoint(SocketEndpoint):
                     triples=to_subgraph(data["triples"]),
                 )
 
-                await self.publisher.send(None, elt)
+                self.publisher.send(None, elt)
 
 
         running.stop()

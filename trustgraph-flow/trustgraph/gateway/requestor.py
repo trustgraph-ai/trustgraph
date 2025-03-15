@@ -53,11 +53,9 @@ class ServiceRequestor:
 
             q = self.sub.subscribe(id)
 
-            print("BOUT TO SEDN")
             await asyncio.to_thread(
                 self.pub.send, id, self.to_request(request)
             )
-            print("SENT")
 
             while True:
 
