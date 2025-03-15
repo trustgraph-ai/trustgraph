@@ -121,7 +121,7 @@ class Packager:
                 return self.generate_docker_compose(
                     "docker-compose", version, config
                 )
-            elif platform in set(["minikube-k8s", "gcp-k8s"]):
+            elif platform in set(["minikube-k8s", "gcp-k8s", "aks-k8s"]):
                 return self.generate_k8s(
                     platform, version, config
                 )
