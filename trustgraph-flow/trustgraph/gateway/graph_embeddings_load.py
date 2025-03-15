@@ -36,6 +36,7 @@ class GraphEmbeddingsLoadEndpoint(SocketEndpoint):
     async def listener(self, ws, running):
         
         async for msg in ws:
+
             # On error, finish
             if msg.type == WSMsgType.ERROR:
                 break
@@ -59,7 +60,6 @@ class GraphEmbeddingsLoadEndpoint(SocketEndpoint):
                     ]
                 )
 
-                await self.publisher.send(None, elt)
-
+                self.publisher.send(None, elt)
 
         running.stop()
