@@ -31,6 +31,7 @@
    // Embeddings
    "embeddings-ollama": import "components/embeddings-ollama.jsonnet",
    "embeddings-hf": import "components/embeddings-hf.jsonnet",
+   "embeddings-fastembed": import "components/embeddings-fastembed.jsonnet",
 
    // Processing pipelines
    "graph-rag": import "components/graph-rag.jsonnet",
