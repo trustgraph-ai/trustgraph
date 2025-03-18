@@ -23,9 +23,10 @@ default_output_queue = text_completion_response_queue
 default_subscriber = module
 default_temperature = 0.0
 default_max_output = 4192
-default_api = "2024-02-15-preview"
-default_endpoint = os.getenv("AZURE_ENDPOINT")
-default_token = os.getenv("AZURE_TOKEN")
+default_api = "2024-12-01-preview"
+default_endpoint = os.getenv("AZURE_ENDPOINT", None)
+default_token = os.getenv("AZURE_TOKEN", None)
+default_modeel = os.getenv("AZURE_MODEL", None)
 
 class Processor(ConsumerProducer):
 
@@ -34,12 +35,13 @@ class Processor(ConsumerProducer):
         input_queue = params.get("input_queue", default_input_queue)
         output_queue = params.get("output_queue", default_output_queue)
         subscriber = params.get("subscriber", default_subscriber)
-        endpoint = params.get("endpoint", default_endpoint)
-        token = params.get("token", default_token)
         temperature = params.get("temperature", default_temperature)
         max_output = params.get("max_output", default_max_output)
-        model = params.get("model")
+
         api = params.get("api_version", default_api)
+        endpoint = params.get("endpoint", default_endpoint)
+        token = params.get("token", default_token)
+        model = params.get("model", default_model)
 
         if endpoint is None:
             raise RuntimeError("Azure endpoint not specified")
@@ -177,6 +179,7 @@ class Processor(ConsumerProducer):
 
         parser.add_argument(
             '-e', '--endpoint',
+            default=default_endpoint,
             help=f'LLM model endpoint'
         )
 
@@ -188,11 +191,13 @@ class Processor(ConsumerProducer):
 
         parser.add_argument(
             '-k', '--token',
+            default=default_token,
             help=f'LLM model token'
         )
 
         parser.add_argument(
             '-m', '--model',
+            default=default_model,
             help=f'LLM model'
         )
 
