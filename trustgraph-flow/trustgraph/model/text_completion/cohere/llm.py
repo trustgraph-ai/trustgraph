@@ -136,7 +136,7 @@ class Processor(ConsumerProducer):
                 model=None,
             )
 
-            await self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             self.consumer.acknowledge(msg)
 
