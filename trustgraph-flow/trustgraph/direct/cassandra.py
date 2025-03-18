@@ -1,6 +1,7 @@
 
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
+from ssl import SSLContext, PROTOCOL_TLSv1_2
 
 class TrustGraph:
 
@@ -17,8 +18,9 @@ class TrustGraph:
         self.username = username
             
         if username and password:
+            ssl_context = SSLContext(PROTOCOL_TLSv1_2)
             auth_provider = PlainTextAuthProvider(username=username, password=password)
-            self.cluster = Cluster(hosts, auth_provider=auth_provider)
+            self.cluster = Cluster(hosts, auth_provider=auth_provider, ssl_context=ssl_context)
         else:
             self.cluster = Cluster(hosts)
         self.session = self.cluster.connect()

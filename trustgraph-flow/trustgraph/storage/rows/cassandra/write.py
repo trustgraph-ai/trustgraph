@@ -10,6 +10,7 @@ import argparse
 import time
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
+from ssl import SSLContext, PROTOCOL_TLSv1_2
 
 from .... schema import Rows
 from .... schema import rows_store_queue
@@ -17,6 +18,7 @@ from .... log_level import LogLevel
 from .... base import Consumer
 
 module = ".".join(__name__.split(".")[1:-1])
+ssl_context = SSLContext(PROTOCOL_TLSv1_2)
 
 default_input_queue = rows_store_queue
 default_subscriber = module
@@ -45,7 +47,7 @@ class Processor(Consumer):
         
         if graph_username and graph_password:
             auth_provider = PlainTextAuthProvider(username=graph_username, password=graph_password)
-            self.cluster = Cluster(graph_host.split(","), auth_provider=auth_provider)
+            self.cluster = Cluster(graph_host.split(","), auth_provider=auth_provider, ssl_context=ssl_context)
         else:
             self.cluster = Cluster(graph_host.split(","))
         self.session = self.cluster.connect()
