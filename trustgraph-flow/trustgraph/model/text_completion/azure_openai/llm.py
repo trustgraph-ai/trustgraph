@@ -26,7 +26,7 @@ default_max_output = 4192
 default_api = "2024-12-01-preview"
 default_endpoint = os.getenv("AZURE_ENDPOINT", None)
 default_token = os.getenv("AZURE_TOKEN", None)
-default_modeel = os.getenv("AZURE_MODEL", None)
+default_model = os.getenv("AZURE_MODEL", None)
 
 class Processor(ConsumerProducer):
 
