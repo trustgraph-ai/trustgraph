@@ -50,7 +50,7 @@ setuptools.setup(
         "langchain-core",
         "langchain-text-splitters",
         "minio",
-        "mistralai"
+        "mistralai",
         "neo4j",
         "ollama",
         "openai",
