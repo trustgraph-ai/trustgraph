@@ -135,7 +135,7 @@ class Processor(ConsumerProducer):
                 model=self.model
             )
 
-            await self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
         except RateLimitError:
 

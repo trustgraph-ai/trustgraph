@@ -231,7 +231,7 @@ class Processor(ConsumerProducer):
                     observation=None,
                 )
 
-                await self.producer.send(r, properties={"id": id})
+                await self.send(r, properties={"id": id})
 
             async def observe(x):
 
@@ -244,7 +244,7 @@ class Processor(ConsumerProducer):
                     observation=x,
                 )
 
-                await self.producer.send(r, properties={"id": id})
+                await self.send(r, properties={"id": id})
 
             act = self.agent.react(v.question, history, think, observe)
 
@@ -260,7 +260,7 @@ class Processor(ConsumerProducer):
                     thought=None,
                 )
 
-                await self.producer.send(r, properties={"id": id})
+                await self.send(r, properties={"id": id})
 
                 print("Done.", flush=True)
 
@@ -283,7 +283,7 @@ class Processor(ConsumerProducer):
                 ]
             )
 
-            await self.recursive_input.send(r, properties={"id": id})
+            self.recursive_input.send(r, properties={"id": id})
 
             print("Done.", flush=True)
 
@@ -303,7 +303,7 @@ class Processor(ConsumerProducer):
                 response=None,
             )
 
-            await self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
     @staticmethod
     def add_args(parser):
