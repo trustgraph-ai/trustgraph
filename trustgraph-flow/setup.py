@@ -108,6 +108,7 @@ setuptools.setup(
         "scripts/text-completion-cohere",
         "scripts/text-completion-googleaistudio",
         "scripts/text-completion-llamafile",
+        "scripts/text-completion-lmstudio",
         "scripts/text-completion-mistral",
         "scripts/text-completion-ollama",
         "scripts/text-completion-openai",
