@@ -56,7 +56,7 @@ class Processor(ConsumerProducer):
 
             print("Send response...", flush=True)
             r = EmbeddingsResponse(vectors=embeds, error=None)
-            self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             print("Done.", flush=True)
 
@@ -75,7 +75,7 @@ class Processor(ConsumerProducer):
                 response=None,
             )
 
-            self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             self.consumer.acknowledge(msg)
             

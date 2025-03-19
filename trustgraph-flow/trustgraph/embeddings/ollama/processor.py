@@ -67,7 +67,7 @@ class Processor(ConsumerProducer):
             error=None,
         )
 
-        await self.producer.send(r, properties={"id": id})
+        await self.send(r, properties={"id": id})
 
         print("Done.", flush=True)
 

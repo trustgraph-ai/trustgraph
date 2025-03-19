@@ -154,7 +154,7 @@ class Processor(ConsumerProducer):
             print("Send response...", flush=True)
 
             r = TextCompletionResponse(response=resp, error=None, in_token=inputtokens, out_token=outputtokens, model=self.model)
-            await self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
         except TooManyRequests:
 
@@ -182,7 +182,7 @@ class Processor(ConsumerProducer):
                 model=None,
             )
 
-            await self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             self.consumer.acknowledge(msg)
 

@@ -164,7 +164,7 @@ class Processor(ConsumerProducer):
 
             print("Send response...", flush=True)
             r = PromptResponse(definitions=output, error=None)
-            await self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             print("Done.", flush=True)
         
@@ -182,7 +182,7 @@ class Processor(ConsumerProducer):
                 response=None,
             )
 
-            await self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
     async def handle_extract_topics(self, id, v):
 
@@ -223,7 +223,7 @@ class Processor(ConsumerProducer):
 
             print("Send response...", flush=True)
             r = PromptResponse(topics=output, error=None)
-            await self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             print("Done.", flush=True)
         
@@ -241,7 +241,7 @@ class Processor(ConsumerProducer):
                 response=None,
             )
 
-            await self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
     async def handle_extract_relationships(self, id, v):
 
@@ -295,7 +295,7 @@ class Processor(ConsumerProducer):
 
             print("Send response...", flush=True)
             r = PromptResponse(relationships=output, error=None)
-            await self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             print("Done.", flush=True)
 
@@ -313,7 +313,7 @@ class Processor(ConsumerProducer):
                 response=None,
             )
 
-            await self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
     async def handle_extract_rows(self, id, v):
 
@@ -366,7 +366,7 @@ class Processor(ConsumerProducer):
 
             print("Send response...", flush=True)
             r = PromptResponse(rows=output, error=None)
-            await self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             print("Done.", flush=True)
 
@@ -384,7 +384,7 @@ class Processor(ConsumerProducer):
                 response=None,
             )
 
-            await self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
         
     async def handle_kg_prompt(self, id, v):
 
@@ -400,7 +400,7 @@ class Processor(ConsumerProducer):
 
             print("Send response...", flush=True)
             r = PromptResponse(answer=ans, error=None)
-            await self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             print("Done.", flush=True)
 
@@ -418,7 +418,7 @@ class Processor(ConsumerProducer):
                 response=None,
             )
 
-            await self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
         
     async def handle_document_prompt(self, id, v):
 
@@ -437,7 +437,7 @@ class Processor(ConsumerProducer):
 
             print("Send response...", flush=True)
             r = PromptResponse(answer=ans, error=None)
-            await self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             print("Done.", flush=True)
 
@@ -455,7 +455,7 @@ class Processor(ConsumerProducer):
                 response=None,
             )
 
-            await self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
         
     @staticmethod
     def add_args(parser):
