@@ -22,12 +22,12 @@ RUN pip3 install --no-cache-dir pytesseract pulsar-client==3.5.0
 FROM base AS build
 
 COPY trustgraph-base/ /root/build/trustgraph-base/
-COPY trustgraph-tesseract/ /root/build/trustgraph-tesseract/
+COPY trustgraph-ocr/ /root/build/trustgraph-ocr/
 
 WORKDIR /root/build/
 
 RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-base/
-RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-tesseract/
+RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-ocr/
 
 RUN ls /root/wheels
 
