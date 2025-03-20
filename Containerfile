@@ -45,6 +45,7 @@ COPY trustgraph-vertexai/ /root/build/trustgraph-vertexai/
 COPY trustgraph-bedrock/ /root/build/trustgraph-bedrock/
 COPY trustgraph-embeddings-hf/ /root/build/trustgraph-embeddings-hf/
 COPY trustgraph-cli/ /root/build/trustgraph-cli/
+COPY trustgraph-ocr/ /root/build/trustgraph-ocr/
 
 WORKDIR /root/build/
 
@@ -54,6 +55,7 @@ RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-vertexai/
 RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-bedrock/
 RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-embeddings-hf/
 RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-cli/
+RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-ocr/
 
 RUN ls /root/wheels
 
@@ -72,6 +74,7 @@ RUN \
     pip3 install /root/wheels/trustgraph_bedrock-* && \
     pip3 install /root/wheels/trustgraph_embeddings_hf-* && \
     pip3 install /root/wheels/trustgraph_cli-* && \
+    pip3 install /root/wheels/trustgraph_ocr-* && \
     pip3 cache purge && \
     rm -rf /root/wheels
 
