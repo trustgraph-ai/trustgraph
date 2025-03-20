@@ -16,6 +16,7 @@ wheels:
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-bedrock/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-embeddings-hf/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-cli/
+	pip3 wheel --no-deps --wheel-dir dist trustgraph-ocr/
 
 packages: update-package-versions
 	rm -rf dist/
@@ -26,6 +27,7 @@ packages: update-package-versions
 	cd trustgraph-bedrock && python3 setup.py sdist --dist-dir ../dist/
 	cd trustgraph-embeddings-hf && python3 setup.py sdist --dist-dir ../dist/
 	cd trustgraph-cli && python3 setup.py sdist --dist-dir ../dist/
+	cd trustgraph-ocr && python3 setup.py sdist --dist-dir ../dist/
 
 pypi-upload:
 	twine upload dist/*-${VERSION}.*
@@ -41,6 +43,7 @@ update-package-versions:
 	echo __version__ = \"${VERSION}\" > trustgraph-bedrock/trustgraph/bedrock_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-embeddings-hf/trustgraph/embeddings_hf_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-cli/trustgraph/cli_version.py
+	echo __version__ = \"${VERSION}\" > trustgraph-ocr/trustgraph/ocr_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph/trustgraph/trustgraph_version.py
 
 container: update-package-versions
@@ -54,6 +57,12 @@ container: update-package-versions
 	    -t ${CONTAINER_BASE}/trustgraph-vertexai:${VERSION} .
 	${DOCKER} build -f containers/Containerfile.hf \
 	    -t ${CONTAINER_BASE}/trustgraph-hf:${VERSION} .
+	${DOCKER} build -f containers/Containerfile.ocr \
+	    -t ${CONTAINER_BASE}/trustgraph-ocr:${VERSION} .
+
+container.ocr:
+	${DOCKER} build -f containers/Containerfile.ocr \
+	    -t ${CONTAINER_BASE}/trustgraph-ocr:${VERSION} .
 
 push:
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-base:${VERSION}
@@ -61,6 +70,7 @@ push:
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-bedrock:${VERSION}
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-vertexai:${VERSION}
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-hf:${VERSION}
+	${DOCKER} push ${CONTAINER_BASE}/trustgraph-ocr:${VERSION}
 
 clean:
 	rm -rf wheels/
