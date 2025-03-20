@@ -6,6 +6,7 @@ from .. exceptions import RequestError
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.query import BatchStatement
+from ssl import SSLContext, PROTOCOL_TLSv1_2
 import uuid
 import time
 
@@ -21,12 +22,14 @@ class TableStore:
         print("Connecting to Cassandra...", flush=True)
 
         if cassandra_user and cassandra_password:
+            ssl_context = SSLContext(PROTOCOL_TLSv1_2)
             auth_provider = PlainTextAuthProvider(
                 username=cassandra_user, password=cassandra_password
             )
             self.cluster = Cluster(
                 cassandra_host,
-                auth_provider=auth_provider
+                auth_provider=auth_provider,
+                ssl_context=ssl_context
             )
         else:
             self.cluster = Cluster(cassandra_host)
