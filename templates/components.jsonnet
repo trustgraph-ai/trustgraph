@@ -37,6 +37,10 @@
    "graph-rag": import "components/graph-rag.jsonnet",
    "document-rag": import "components/document-rag.jsonnet",
 
+   // OCR options
+   "ocr": import "components/ocr.jsonnet",
+   "mistral-ocr": import "components/mistral-ocr.jsonnet",
+
    // Librarian - document management
    "librarian": import "components/librarian.jsonnet",
 
