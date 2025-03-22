@@ -11,6 +11,7 @@ local version = import "version.jsonnet";
     grafana: "docker.io/grafana/grafana:11.1.4",
     trustgraph_base: "docker.io/trustgraph/trustgraph-base:" + version,
     trustgraph_flow: "docker.io/trustgraph/trustgraph-flow:" + version,
+    trustgraph_ocr: "docker.io/trustgraph/trustgraph-ocr:" + version,
     trustgraph_bedrock: "docker.io/trustgraph/trustgraph-bedrock:" + version,
     trustgraph_vertexai: "docker.io/trustgraph/trustgraph-vertexai:" + version,
     trustgraph_hf: "docker.io/trustgraph/trustgraph-hf:" + version,
