@@ -35,14 +35,18 @@ chunk_ingest_queue = topic('chunk-load')
 
 ############################################################################
 
-# Chunk embeddings are an embeddings associated with a text chunk
+# Document embeddings are embeddings associated with a chunk
 
 class ChunkEmbeddings(Record):
-    metadata = Metadata()
-    vectors = Array(Array(Double()))
     chunk = Bytes()
+    vectors = Array(Array(Double()))
 
-chunk_embeddings_ingest_queue = topic('chunk-embeddings-load')
+# This is a 'batching' mechanism for the above data
+class DocumentEmbeddings(Record):
+    metadata = Metadata()
+    chunks = Array(ChunkEmbeddings())
+
+document_embeddings_store_queue = topic('document-embeddings-store')
 
 ############################################################################
 
@@ -51,6 +55,8 @@ chunk_embeddings_ingest_queue = topic('chunk-embeddings-load')
 class DocumentEmbeddingsRequest(Record):
     vectors = Array(Array(Double()))
     limit = Integer()
+    user = String()
+    collection = String()
 
 class DocumentEmbeddingsResponse(Record):
     error = Error()
@@ -62,3 +68,4 @@ document_embeddings_request_queue = topic(
 document_embeddings_response_queue = topic(
     'doc-embeddings', kind='non-persistent', namespace='response',
 )
+

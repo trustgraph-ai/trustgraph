@@ -73,7 +73,7 @@ class Processor(ConsumerProducer):
 
         print("Initialised", flush=True)
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         v = msg.value()
 
@@ -86,8 +86,6 @@ class Processor(ConsumerProducer):
         prompt = v.prompt
 
         try:
-
-            # FIXME: Rate limits?
 
             with __class__.text_completion_metric.time():
 
@@ -117,33 +115,25 @@ class Processor(ConsumerProducer):
             print(f"Output Tokens: {outputtokens}", flush=True)
 
             print("Send response...", flush=True)
-            r = TextCompletionResponse(response=resp, error=None, in_token=inputtokens, out_token=outputtokens, model=self.model)
+            r = TextCompletionResponse(
+                response=resp,
+                error=None,
+                in_token=inputtokens,
+                out_token=outputtokens,
+                model=self.model
+            )
             self.send(r, properties={"id": id})
 
             print("Done.", flush=True)
 
-        # FIXME: Wrong exception, don't know what this LLM throws
-        # for a rate limit
-        except TooManyRequests:
+        except anthropic.RateLimitError:
 
-            print("Send rate limit response...", flush=True)
-
-            r = TextCompletionResponse(
-                error=Error(
-                    type = "rate-limit",
-                    message = str(e),
-                ),
-                response=None,
-                in_token=None,
-                out_token=None,
-                model=None,
-            )
-
-            self.producer.send(r, properties={"id": id})
-
-            self.consumer.acknowledge(msg)
+            # Leave rate limit retries to the base handler
+            raise TooManyRequests()
 
         except Exception as e:
+
+            # Apart from rate limits, treat all exceptions as unrecoverable
 
             print(f"Exception: {e}")
 
@@ -160,7 +150,7 @@ class Processor(ConsumerProducer):
                 model=None,
             )
 
-            self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             self.consumer.acknowledge(msg)
 
@@ -200,6 +190,6 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 
     

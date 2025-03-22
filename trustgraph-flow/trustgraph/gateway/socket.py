@@ -19,7 +19,7 @@ class SocketEndpoint:
         self.operation = "socket"
 
     async def listener(self, ws, running):
-        
+
         async for msg in ws:
             # On error, finish
             if msg.type == WSMsgType.TEXT:
@@ -44,13 +44,16 @@ class SocketEndpoint:
             return web.HTTPUnauthorized()
         
         running = Running()
-        ws = web.WebSocketResponse()
+
+        # 50MB max message size
+        ws = web.WebSocketResponse(max_msg_size=52428800)
+
         await ws.prepare(request)
 
         try:
             await self.listener(ws, running)
         except Exception as e:
-            print(e, flush=True)
+            print("Socket exception:", e, flush=True)
 
         running.stop()
 

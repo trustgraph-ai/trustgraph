@@ -131,7 +131,7 @@ class Processor(ConsumerProducer):
 
         print("Initialisation complete", flush=True)
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         try:
 
@@ -169,7 +169,7 @@ class Processor(ConsumerProducer):
                 model=self.model
             )
 
-            self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             print("Done.", flush=True)
 
@@ -178,24 +178,14 @@ class Processor(ConsumerProducer):
 
         except google.api_core.exceptions.ResourceExhausted as e:
 
-            print("Send rate limit response...", flush=True)
+            print("Hit rate limit:", e, flush=True)
 
-            r = TextCompletionResponse(
-                error=Error(
-                    type = "rate-limit",
-                    message = str(e),
-                ),
-                response=None,
-                in_token=None,
-                out_token=None,
-                model=None,
-            )
-
-            self.producer.send(r, properties={"id": id})
-
-            self.consumer.acknowledge(msg)
+            # Leave rate limit retries to the base handler
+            raise TooManyRequests()
 
         except Exception as e:
+
+            # Apart from rate limits, treat all exceptions as unrecoverable
 
             print(f"Exception: {e}")
 
@@ -212,7 +202,7 @@ class Processor(ConsumerProducer):
                 model=None,
             )
 
-            self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             self.consumer.acknowledge(msg)
 
@@ -258,5 +248,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

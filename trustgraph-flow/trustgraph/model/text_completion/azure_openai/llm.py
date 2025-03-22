@@ -4,10 +4,9 @@ Simple LLM service, performs text prompt completion using the Azure
 OpenAI endpoit service.  Input is prompt, output is response.
 """
 
-import requests
 import json
 from prometheus_client import Histogram
-from openai import AzureOpenAI
+from openai import AzureOpenAI, RateLimitError
 import os
 
 from .... schema import TextCompletionRequest, TextCompletionResponse, Error
@@ -24,9 +23,10 @@ default_output_queue = text_completion_response_queue
 default_subscriber = module
 default_temperature = 0.0
 default_max_output = 4192
-default_api = "2024-02-15-preview"
-default_endpoint = os.getenv("AZURE_ENDPOINT")
-default_token = os.getenv("AZURE_TOKEN")
+default_api = "2024-12-01-preview"
+default_endpoint = os.getenv("AZURE_ENDPOINT", None)
+default_token = os.getenv("AZURE_TOKEN", None)
+default_model = os.getenv("AZURE_MODEL", None)
 
 class Processor(ConsumerProducer):
 
@@ -35,12 +35,13 @@ class Processor(ConsumerProducer):
         input_queue = params.get("input_queue", default_input_queue)
         output_queue = params.get("output_queue", default_output_queue)
         subscriber = params.get("subscriber", default_subscriber)
-        endpoint = params.get("endpoint", default_endpoint)
-        token = params.get("token", default_token)
         temperature = params.get("temperature", default_temperature)
         max_output = params.get("max_output", default_max_output)
-        model = params.get("model")
+
         api = params.get("api_version", default_api)
+        endpoint = params.get("endpoint", default_endpoint)
+        token = params.get("token", default_token)
+        model = params.get("model", default_model)
 
         if endpoint is None:
             raise RuntimeError("Azure endpoint not specified")
@@ -85,7 +86,7 @@ class Processor(ConsumerProducer):
             azure_endpoint = endpoint,
             )
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         v = msg.value()
 
@@ -126,29 +127,26 @@ class Processor(ConsumerProducer):
             print(f"Output Tokens: {outputtokens}", flush=True)
             print("Send response...", flush=True)
 
-            r = TextCompletionResponse(response=resp.choices[0].message.content, error=None, in_token=inputtokens, out_token=outputtokens, model=self.model)
-            self.producer.send(r, properties={"id": id})
+            r = TextCompletionResponse(
+                response=resp.choices[0].message.content,
+                error=None,
+                in_token=inputtokens,
+                out_token=outputtokens,
+                model=self.model
+            )
 
-        except TooManyRequests:
+            await self.send(r, properties={"id": id})
+
+        except RateLimitError:
 
             print("Send rate limit response...", flush=True)
 
-            r = TextCompletionResponse(
-                error=Error(
-                    type = "rate-limit",
-                    message = str(e),
-                ),
-                response=None,
-                in_token=None,
-                out_token=None,
-                model=None,
-            )
-
-            self.producer.send(r, properties={"id": id})
-
-            self.consumer.acknowledge(msg)
+            # Leave rate limit retries to the base handler
+            raise TooManyRequests()
 
         except Exception as e:
+
+            # Apart from rate limits, treat all exceptions as unrecoverable
 
             print(f"Exception: {e}")
 
@@ -165,7 +163,7 @@ class Processor(ConsumerProducer):
                 model=None,
             )
 
-            self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             self.consumer.acknowledge(msg)
 
@@ -181,6 +179,7 @@ class Processor(ConsumerProducer):
 
         parser.add_argument(
             '-e', '--endpoint',
+            default=default_endpoint,
             help=f'LLM model endpoint'
         )
 
@@ -192,11 +191,13 @@ class Processor(ConsumerProducer):
 
         parser.add_argument(
             '-k', '--token',
+            default=default_token,
             help=f'LLM model token'
         )
 
         parser.add_argument(
             '-m', '--model',
+            default=default_model,
             help=f'LLM model'
         )
 
@@ -216,4 +217,4 @@ class Processor(ConsumerProducer):
 
 def run():
     
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)

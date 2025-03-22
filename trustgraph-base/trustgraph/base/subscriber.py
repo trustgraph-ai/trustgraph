@@ -6,9 +6,9 @@ import time
 
 class Subscriber:
 
-    def __init__(self, pulsar_host, topic, subscription, consumer_name,
+    def __init__(self, pulsar_client, topic, subscription, consumer_name,
                  schema=None, max_size=100):
-        self.pulsar_host = pulsar_host
+        self.client = pulsar_client
         self.topic = topic
         self.subscription = subscription
         self.consumer_name = consumer_name
@@ -17,29 +17,32 @@ class Subscriber:
         self.full = {}
         self.max_size = max_size
         self.lock = threading.Lock()
+        self.running = True
 
     def start(self):
         self.task = threading.Thread(target=self.run)
         self.task.start()
 
+    def stop(self):
+        self.running = False
+
+    def join(self):
+        self.task.join()
+
     def run(self):
 
-        while True:
+        while self.running:
 
             try:
 
-                client = pulsar.Client(
-                    self.pulsar_host,
-                )
-
-                consumer = client.subscribe(
+                consumer = self.client.subscribe(
                     topic=self.topic,
                     subscription_name=self.subscription,
                     consumer_name=self.consumer_name,
                     schema=self.schema,
                 )
 
-                while True:
+                while self.running:
 
                     msg = consumer.receive()
 
@@ -57,12 +60,14 @@ class Subscriber:
 
                         if id in self.q:
                             try:
+                                # FIXME: Timeout means data goes missing
                                 self.q[id].put(value, timeout=0.5)
                             except:
                                 pass
 
                         for q in self.full.values():
                             try:
+                                # FIXME: Timeout means data goes missing
                                 q.put(value, timeout=0.5)
                             except:
                                 pass

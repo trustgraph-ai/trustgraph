@@ -8,7 +8,6 @@ class LlmError(Exception):
 class ParseError(Exception):
     pass
 
-
-
-
+class RequestError(Exception):
+    pass
 

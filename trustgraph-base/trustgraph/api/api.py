@@ -102,14 +102,59 @@ class Api:
         except:
             raise ProtocolException(f"Response not formatted correctly")
 
-    def graph_rag(self, question):
+    def graph_rag(
+            self, question, user="trustgraph", collection="default",
+            entity_limit=50, triple_limit=30, max_subgraph_size=150,
+            max_path_length=2,
+    ):
 
         # The input consists of a question
         input = {
-            "query": question
+            "query": question,
+            "user": user,
+            "collection": collection,
+            "entity-limit": entity_limit,
+            "triple-limit": triple_limit,
+            "max-subgraph-size": max_subgraph_size,
+            "max-path-length": max_path_length,
         }
 
         url = f"{self.url}graph-rag"
+
+        # Invoke the API, input is passed as JSON
+        resp = requests.post(url, json=input)
+
+        # Should be a 200 status code
+        if resp.status_code != 200:
+            raise ProtocolException(f"Status code {resp.status_code}")
+
+        try:
+            # Parse the response as JSON
+            object = resp.json()
+        except:
+            raise ProtocolException(f"Expected JSON response")
+
+        self.check_error(resp)
+
+        try:
+            return object["response"]
+        except:
+            raise ProtocolException(f"Response not formatted correctly")
+
+    def document_rag(
+            self, question, user="trustgraph", collection="default",
+            doc_limit=10,
+    ):
+
+        # The input consists of a question
+        input = {
+            "query": question,
+            "user": user,
+            "collection": collection,
+            "doc-limit": doc_limit,
+        }
+
+        url = f"{self.url}document-rag"
 
         # Invoke the API, input is passed as JSON
         resp = requests.post(url, json=input)

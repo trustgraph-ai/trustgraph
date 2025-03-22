@@ -20,6 +20,7 @@ class GraphRagClient(BaseClient):
             input_queue=None,
             output_queue=None,
             pulsar_host="pulsar://pulsar:6650",
+            pulsar_api_key=None,
     ):
 
         if input_queue == None:
@@ -34,6 +35,7 @@ class GraphRagClient(BaseClient):
             input_queue=input_queue,
             output_queue=output_queue,
             pulsar_host=pulsar_host,
+            pulsar_api_key=pulsar_api_key,
             input_schema=GraphRagQuery,
             output_schema=GraphRagResponse,
         )

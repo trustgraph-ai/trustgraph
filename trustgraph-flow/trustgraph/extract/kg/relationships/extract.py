@@ -1,18 +1,15 @@
 
 """
-Simple decoder, accepts vector+text chunks input, applies entity
+Simple decoder, accepts text chunks input, applies entity
 relationship analysis to get entity relationship edges which are output as
 graph edges.
 """
 
 import urllib.parse
-import os
-from pulsar.schema import JsonSchema
 
-from .... schema import ChunkEmbeddings, Triple, Triples, GraphEmbeddings
+from .... schema import Chunk, Triple, Triples
 from .... schema import Metadata, Value
-from .... schema import chunk_embeddings_ingest_queue, triples_store_queue
-from .... schema import graph_embeddings_store_queue
+from .... schema import chunk_ingest_queue, triples_store_queue
 from .... schema import prompt_request_queue
 from .... schema import prompt_response_queue
 from .... log_level import LogLevel
@@ -25,9 +22,8 @@ SUBJECT_OF_VALUE = Value(value=SUBJECT_OF, is_uri=True)
 
 module = ".".join(__name__.split(".")[1:-1])
 
-default_input_queue = chunk_embeddings_ingest_queue
+default_input_queue = chunk_ingest_queue
 default_output_queue = triples_store_queue
-default_vector_queue = graph_embeddings_store_queue
 default_subscriber = module
 
 class Processor(ConsumerProducer):
@@ -36,7 +32,6 @@ class Processor(ConsumerProducer):
 
         input_queue = params.get("input_queue", default_input_queue)
         output_queue = params.get("output_queue", default_output_queue)
-        vector_queue = params.get("vector_queue", default_vector_queue)
         subscriber = params.get("subscriber", default_subscriber)
         pr_request_queue = params.get(
             "prompt_request_queue", prompt_request_queue
@@ -50,32 +45,16 @@ class Processor(ConsumerProducer):
                 "input_queue": input_queue,
                 "output_queue": output_queue,
                 "subscriber": subscriber,
-                "input_schema": ChunkEmbeddings,
+                "input_schema": Chunk,
                 "output_schema": Triples,
                 "prompt_request_queue": pr_request_queue,
                 "prompt_response_queue": pr_response_queue,
             }
         )
 
-        self.vec_prod = self.client.create_producer(
-            topic=vector_queue,
-            schema=JsonSchema(GraphEmbeddings),
-        )
-
-        __class__.pubsub_metric.info({
-            "input_queue": input_queue,
-            "output_queue": output_queue,
-            "vector_queue": vector_queue,
-            "prompt_request_queue": pr_request_queue,
-            "prompt_response_queue": pr_response_queue,
-            "subscriber": subscriber,
-            "input_schema": ChunkEmbeddings.__name__,
-            "output_schema": Triples.__name__,
-            "vector_schema": GraphEmbeddings.__name__,
-        })
-
         self.prompt = PromptClient(
             pulsar_host=self.pulsar_host,
+            pulsar_api_key=self.pulsar_api_key,
             input_queue=pr_request_queue,
             output_queue=pr_response_queue,
             subscriber = module + "-prompt",
@@ -93,20 +72,15 @@ class Processor(ConsumerProducer):
 
         return self.prompt.request_relationships(chunk)
 
-    def emit_edges(self, metadata, triples):
+    async def emit_edges(self, metadata, triples):
 
         t = Triples(
             metadata=metadata,
             triples=triples,
         )
-        self.producer.send(t)
+        await self.send(t)
 
-    def emit_vec(self, metadata, ent, vec):
-
-        r = GraphEmbeddings(metadata=metadata, entity=ent, vectors=vec)
-        self.vec_prod.send(r)
-
-    def handle(self, msg):
+    async def handle(self, msg):
 
         v = msg.value()
         print(f"Indexing {v.metadata.id}...", flush=True)
@@ -193,13 +167,7 @@ class Processor(ConsumerProducer):
                         o=Value(value=v.metadata.id, is_uri=True)
                     ))
 
-                self.emit_vec(v.metadata, s_value, v.vectors)
-                self.emit_vec(v.metadata, p_value, v.vectors)
-
-                if rel.o_entity:
-                    self.emit_vec(v.metadata, o_value, v.vectors)
-
-            self.emit_edges(
+            await self.emit_edges(
                 Metadata(
                     id=v.metadata.id,
                     metadata=[],
@@ -223,12 +191,6 @@ class Processor(ConsumerProducer):
         )
 
         parser.add_argument(
-            '-c', '--vector-queue',
-            default=default_vector_queue,
-            help=f'Vector output queue (default: {default_vector_queue})'
-        )
-
-        parser.add_argument(
             '--prompt-request-queue',
             default=prompt_request_queue,
             help=f'Prompt request queue (default: {prompt_request_queue})',
@@ -242,5 +204,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

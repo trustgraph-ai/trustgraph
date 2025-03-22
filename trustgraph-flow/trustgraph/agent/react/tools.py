@@ -14,6 +14,6 @@ class TextCompletionImpl:
         self.context = context
     def invoke(self, **arguments):
         return self.context.prompt.request(
-            "question", { "question": arguments.get("computation") }
+            "question", { "question": arguments.get("question") }
         )
 

@@ -1,0 +1,48 @@
+
+# ----------------------------------------------------------------------------
+# Build an AI container.  This does the torch install which is huge, and I
+# like to avoid re-doing this.
+# ----------------------------------------------------------------------------
+
+FROM docker.io/fedora:40 AS base
+
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
+
+RUN dnf install -y python3 python3-pip python3-wheel python3-aiohttp && \
+    dnf clean all
+
+RUN pip3 install --no-cache-dir pulsar-client==3.5.0
+
+# ----------------------------------------------------------------------------
+# Build a container which contains the built Python packages.  The build
+# creates a bunch of left-over cruft, a separate phase means this is only
+# needed to support package build
+# ----------------------------------------------------------------------------
+
+FROM base AS build
+
+COPY trustgraph-base/ /root/build/trustgraph-base/
+COPY trustgraph-cli/ /root/build/trustgraph-cli/
+
+WORKDIR /root/build/
+
+RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-base/
+RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-cli/
+
+# ----------------------------------------------------------------------------
+# Finally, the target container.  Start with base and add the package.
+# ----------------------------------------------------------------------------
+
+FROM base
+
+COPY --from=build /root/wheels /root/wheels
+
+RUN \
+    pip3 install --no-cache-dir /root/wheels/trustgraph_base-* && \
+    pip3 install --no-cache-dir /root/wheels/trustgraph_cli-* && \
+    rm -rf /root/wheels
+
+WORKDIR /
+
+
+

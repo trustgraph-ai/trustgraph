@@ -34,13 +34,15 @@ class Processor(Consumer):
 
         self.vecstore = EntityVectors(store_uri)
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         v = msg.value()
 
-        if v.entity.value != "":
-            for vec in v.vectors:
-                self.vecstore.insert(vec, v.entity.value)
+        for entity in v.entities:
+
+            if entity.entity.value != "" and entity.entity.value is not None:
+                for vec in entity.vectors:
+                    self.vecstore.insert(vec, entity.entity.value)
 
     @staticmethod
     def add_args(parser):
@@ -57,5 +59,5 @@ class Processor(Consumer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

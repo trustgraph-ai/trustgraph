@@ -20,6 +20,7 @@ class DocumentEmbeddingsClient(BaseClient):
             input_queue=None,
             output_queue=None,
             pulsar_host="pulsar://pulsar:6650",
+            pulsar_api_key=None,
     ):
 
         if input_queue == None:
@@ -34,12 +35,17 @@ class DocumentEmbeddingsClient(BaseClient):
             input_queue=input_queue,
             output_queue=output_queue,
             pulsar_host=pulsar_host,
+            pulsar_api_key=pulsar_api_key,
             input_schema=DocumentEmbeddingsRequest,
             output_schema=DocumentEmbeddingsResponse,
         )
 
-    def request(self, vectors, limit=10, timeout=300):
+    def request(
+            self, vectors, user="trustgraph", collection="default",
+            limit=10, timeout=300
+    ):
         return self.call(
+            user=user, collection=collection,
             vectors=vectors, limit=limit, timeout=timeout
         ).documents
 

@@ -31,9 +31,7 @@ class Processor(ConsumerProducer):
         input_queue = params.get("input_queue", default_input_queue)
         output_queue = params.get("output_queue", default_output_queue)
         subscriber = params.get("subscriber", default_subscriber)
-        entity_limit = params.get("entity_limit", 50)
-        triple_limit = params.get("triple_limit", 30)
-        max_subgraph_size = params.get("max_subgraph_size", 3000)
+
         pr_request_queue = params.get(
             "prompt_request_queue", prompt_request_queue
         )
@@ -59,6 +57,11 @@ class Processor(ConsumerProducer):
             "triples_response_queue", triples_response_queue
         )
 
+        entity_limit = params.get("entity_limit", 50)
+        triple_limit = params.get("triple_limit", 30)
+        max_subgraph_size = params.get("max_subgraph_size", 150)
+        max_path_length = params.get("max_path_length", 2)
+
         super(Processor, self).__init__(
             **params | {
                 "input_queue": input_queue,
@@ -82,6 +85,7 @@ class Processor(ConsumerProducer):
 
         self.rag = GraphRag(
             pulsar_host=self.pulsar_host,
+            pulsar_api_key=self.pulsar_api_key,
             pr_request_queue=pr_request_queue,
             pr_response_queue=pr_response_queue,
             emb_request_queue=emb_request_queue,
@@ -91,13 +95,15 @@ class Processor(ConsumerProducer):
             tpl_request_queue=triples_request_queue,
             tpl_response_queue=triples_response_queue,
             verbose=True,
-            entity_limit=entity_limit,
-            triple_limit=triple_limit,
-            max_subgraph_size=max_subgraph_size,
             module=module,
         )
 
-    def handle(self, msg):
+        self.default_entity_limit = entity_limit
+        self.default_triple_limit = triple_limit
+        self.default_max_subgraph_size = max_subgraph_size
+        self.default_max_path_length = max_path_length
+
+    async def handle(self, msg):
 
         try:
 
@@ -105,16 +111,39 @@ class Processor(ConsumerProducer):
 
             # Sender-produced ID
             id = msg.properties()["id"]
-
+         
             print(f"Handling input {id}...", flush=True)
 
+            if v.entity_limit:
+                entity_limit = v.entity_limit
+            else:
+                entity_limit = self.default_entity_limit
+
+            if v.triple_limit:
+                triple_limit = v.triple_limit
+            else:
+                triple_limit = self.default_triple_limit
+
+            if v.max_subgraph_size:
+                max_subgraph_size = v.max_subgraph_size
+            else:
+                max_subgraph_size = self.default_max_subgraph_size
+
+            if v.max_path_length:
+                max_path_length = v.max_path_length
+            else:
+                max_path_length = self.default_max_path_length
+
             response = self.rag.query(
-                query=v.query, user=v.user, collection=v.collection
+                query=v.query, user=v.user, collection=v.collection,
+                entity_limit=entity_limit, triple_limit=triple_limit,
+                max_subgraph_size=max_subgraph_size,
+                max_path_length=max_path_length,
             )
 
             print("Send response...", flush=True)
-            r = GraphRagResponse(response = response, error=None)
-            self.producer.send(r, properties={"id": id})
+            r = GraphRagResponse(response=response, error=None)
+            await self.send(r, properties={"id": id})
 
             print("Done.", flush=True)
 
@@ -132,7 +161,7 @@ class Processor(ConsumerProducer):
                 response=None,
             )
 
-            self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             self.consumer.acknowledge(msg)
 
@@ -148,21 +177,28 @@ class Processor(ConsumerProducer):
             '-e', '--entity-limit',
             type=int,
             default=50,
-            help=f'Entity vector fetch limit (default: 50)'
+            help=f'Default entity vector fetch limit (default: 50)'
         )
 
         parser.add_argument(
             '-t', '--triple-limit',
             type=int,
             default=30,
-            help=f'Triple query limit, per query (default: 30)'
+            help=f'Default triple query limit, per query (default: 30)'
         )
 
         parser.add_argument(
             '-u', '--max-subgraph-size',
             type=int,
-            default=3000,
-            help=f'Max subgraph size (default: 3000)'
+            default=150,
+            help=f'Default max subgraph size (default: 150)'
+        )
+
+        parser.add_argument(
+            '-a', '--max-path-length',
+            type=int,
+            default=2,
+            help=f'Default max path length (default: 2)'
         )
 
         parser.add_argument(
@@ -215,5 +251,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

@@ -4,8 +4,8 @@ from pulsar.schema import JsonSchema
 import uuid
 import logging
 
-from . publisher import Publisher
-from . subscriber import Subscriber
+from .. base import Publisher
+from .. base import Subscriber
 
 logger = logging.getLogger("requestor")
 logger.setLevel(logging.INFO)
@@ -14,7 +14,7 @@ class ServiceRequestor:
 
     def __init__(
             self,
-            pulsar_host,
+            pulsar_client,
             request_queue, request_schema,
             response_queue, response_schema,
             subscription="api-gateway", consumer_name="api-gateway",
@@ -22,12 +22,12 @@ class ServiceRequestor:
     ):
 
         self.pub = Publisher(
-            pulsar_host, request_queue,
-            schema=JsonSchema(request_schema)
+            pulsar_client, request_queue,
+            schema=JsonSchema(request_schema),
         )
 
         self.sub = Subscriber(
-            pulsar_host, response_queue,
+            pulsar_client, response_queue,
             subscription, consumer_name,
             JsonSchema(response_schema)
         )
@@ -60,12 +60,21 @@ class ServiceRequestor:
             while True:
 
                 try:
-                    resp = await asyncio.to_thread(q.get, timeout=self.timeout)
+                    resp = await asyncio.to_thread(
+                        q.get,
+                        timeout=self.timeout
+                    )
                 except Exception as e:
                     raise RuntimeError("Timeout")
 
                 if resp.error:
-                    return { "error": resp.error.message }
+                    err = { "error": {
+                        "type": resp.error.type,
+                        "message": resp.error.message,
+                    } }
+                    if responder:
+                        await responder(err, True)
+                    return err
 
                 resp, fin = self.from_response(resp)
 
@@ -81,7 +90,13 @@ class ServiceRequestor:
 
             logging.error(f"Exception: {e}")
 
-            return { "error": str(e) }
+            err = { "error": {
+                "type": "gateway-error",
+                "message": str(e),
+            } }
+            if responder:
+                await responder(err, True)
+            return err
 
         finally:
             self.sub.unsubscribe(id)

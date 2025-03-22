@@ -8,10 +8,10 @@ from . requestor import ServiceRequestor
 from . serialize import serialize_value
 
 class GraphEmbeddingsQueryRequestor(ServiceRequestor):
-    def __init__(self, pulsar_host, timeout, auth):
+    def __init__(self, pulsar_client, timeout, auth):
 
         super(GraphEmbeddingsQueryRequestor, self).__init__(
-            pulsar_host=pulsar_host,
+            pulsar_client=pulsar_client,
             request_queue=graph_embeddings_request_queue,
             response_queue=graph_embeddings_response_queue,
             request_schema=GraphEmbeddingsRequest,

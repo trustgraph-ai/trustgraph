@@ -5,27 +5,27 @@ import uuid
 from aiohttp import WSMsgType
 
 from .. schema import Metadata
-from .. schema import GraphEmbeddings
+from .. schema import GraphEmbeddings, EntityEmbeddings
 from .. schema import graph_embeddings_store_queue
+from .. base import Publisher
 
-from . publisher import Publisher
 from . socket import SocketEndpoint
 from . serialize import to_subgraph, to_value
 
 class GraphEmbeddingsLoadEndpoint(SocketEndpoint):
 
     def __init__(
-            self, pulsar_host, auth, path="/api/v1/load/graph-embeddings",
+            self, pulsar_client, auth, path="/api/v1/load/graph-embeddings",
     ):
 
         super(GraphEmbeddingsLoadEndpoint, self).__init__(
             endpoint_path=path, auth=auth,
         )
 
-        self.pulsar_host=pulsar_host
+        self.pulsar_client=pulsar_client
 
         self.publisher = Publisher(
-            self.pulsar_host, graph_embeddings_store_queue,
+            self.pulsar_client, graph_embeddings_store_queue,
             schema=JsonSchema(GraphEmbeddings)
         )
 
@@ -36,6 +36,7 @@ class GraphEmbeddingsLoadEndpoint(SocketEndpoint):
     async def listener(self, ws, running):
         
         async for msg in ws:
+
             # On error, finish
             if msg.type == WSMsgType.ERROR:
                 break
@@ -50,11 +51,15 @@ class GraphEmbeddingsLoadEndpoint(SocketEndpoint):
                         user=data["metadata"]["user"],
                         collection=data["metadata"]["collection"],
                     ),
-                    entity=to_value(data["entity"]),
-                    vectors=data["vectors"],
+                    entities=[
+                        EntityEmbeddings(
+                            entity=to_value(ent["entity"]),
+                            vectors=ent["vectors"],
+                        )
+                        for ent in data["entities"]
+                    ]
                 )
 
                 self.publisher.send(None, elt)
-
 
         running.stop()

@@ -26,6 +26,8 @@ class Processor(ConsumerProducer):
         output_queue = params.get("output_queue", default_output_queue)
         subscriber = params.get("subscriber", default_subscriber)
         graph_host = params.get("graph_host", default_graph_host)
+        graph_username = params.get("graph_username", None)
+        graph_password = params.get("graph_password", None)
 
         super(Processor, self).__init__(
             **params | {
@@ -35,10 +37,14 @@ class Processor(ConsumerProducer):
                 "input_schema": TriplesQueryRequest,
                 "output_schema": TriplesQueryResponse,
                 "graph_host": graph_host,
+                "graph_username": graph_username,
+                "graph_password": graph_password,
             }
         )
 
         self.graph_host = [graph_host]
+        self.username = graph_username
+        self.password = graph_password
         self.table = None
 
     def create_value(self, ent):
@@ -47,7 +53,7 @@ class Processor(ConsumerProducer):
         else:
             return Value(value=ent, is_uri=False)
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         try:
 
@@ -56,10 +62,17 @@ class Processor(ConsumerProducer):
             table = (v.user, v.collection)
 
             if table != self.table:
-                self.tg = TrustGraph(
-                    hosts=self.graph_host,
-                    keyspace=v.user, table=v.collection,
-                )
+                if self.username and self.password:
+                    self.tg = TrustGraph(
+                        hosts=self.graph_host,
+                        keyspace=v.user, table=v.collection,
+                        username=self.username, password=self.password
+                    )
+                else:
+                    self.tg = TrustGraph(
+                        hosts=self.graph_host,
+                        keyspace=v.user, table=v.collection,
+                    )
                 self.table = table
 
             # Sender-produced ID
@@ -141,7 +154,7 @@ class Processor(ConsumerProducer):
 
             print("Send response...", flush=True)
             r = TriplesQueryResponse(triples=triples, error=None)
-            self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             print("Done.", flush=True)
 
@@ -159,7 +172,7 @@ class Processor(ConsumerProducer):
                 response=None,
             )
 
-            self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             self.consumer.acknowledge(msg)
 
@@ -176,8 +189,21 @@ class Processor(ConsumerProducer):
             default="localhost",
             help=f'Graph host (default: localhost)'
         )
+        
+        parser.add_argument(
+            '--graph-username',
+            default=None,
+            help=f'Cassandra username'
+        )
+        
+        parser.add_argument(
+            '--graph-password',
+            default=None,
+            help=f'Cassandra password'
+        )
+
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

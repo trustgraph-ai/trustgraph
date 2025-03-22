@@ -13,7 +13,7 @@ neo4j + {
 
             local container =
                 engine.container("store-triples")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "triples-write-neo4j",
                         "-p",
@@ -45,7 +45,7 @@ neo4j + {
 
             local container =
                 engine.container("query-triples")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "triples-query-neo4j",
                         "-p",

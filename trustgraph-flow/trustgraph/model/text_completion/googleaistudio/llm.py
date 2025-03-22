@@ -88,7 +88,8 @@ class Processor(ConsumerProducer):
             HarmCategory.HARM_CATEGORY_HARASSMENT: block_level,
             HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: block_level,
             HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: block_level,
-            # There is a documentation conflict on whether or not CIVIC_INTEGRITY is a valid category
+            # There is a documentation conflict on whether or not
+            # CIVIC_INTEGRITY is a valid category
             # HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY: block_level,
         }
 
@@ -101,7 +102,7 @@ class Processor(ConsumerProducer):
 
         print("Initialised", flush=True)
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         v = msg.value()
 
@@ -122,8 +123,6 @@ class Processor(ConsumerProducer):
 
         try:
 
-            # FIXME: Rate limits?
-
             with __class__.text_completion_metric.time():
 
                 chat_session = self.llm.start_chat(
@@ -140,35 +139,30 @@ class Processor(ConsumerProducer):
             print(f"Output Tokens: {outputtokens}", flush=True)
 
             print("Send response...", flush=True)
-            r = TextCompletionResponse(response=resp, error=None, in_token=inputtokens, out_token=outputtokens, model=self.model)
-            self.send(r, properties={"id": id})
+            r = TextCompletionResponse(
+                response=resp,
+                error=None,
+                in_token=inputtokens,
+                out_token=outputtokens,
+                model=self.model
+            )
+            await self.send(r, properties={"id": id})
 
             print("Done.", flush=True)
 
-        # FIXME: Wrong exception, don't know what this LLM throws
-        # for a rate limit
         except ResourceExhausted as e:
 
-            print("Send rate limit response...", flush=True)
+            print("Hit rate limit:", e, flush=True)
 
-            r = TextCompletionResponse(
-                error=Error(
-                    type = "rate-limit",
-                    message = str(e),
-                ),
-                response=None,
-                in_token=None,
-                out_token=None,
-                model=None,
-            )
-
-            self.producer.send(r, properties={"id": id})
-
-            self.consumer.acknowledge(msg)
+            # Leave rate limit retries to the default handler
+            raise TooManyRequests()
 
         except Exception as e:
 
-            print(f"Exception: {e}")
+            # Apart from rate limits, treat all exceptions as unrecoverable
+
+            print(type(e), flush=True)
+            print(f"Exception: {e}", flush=True)
 
             print("Send error response...", flush=True)
 
@@ -183,7 +177,7 @@ class Processor(ConsumerProducer):
                 model=None,
             )
 
-            self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             self.consumer.acknowledge(msg)
 
@@ -223,6 +217,6 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 
     

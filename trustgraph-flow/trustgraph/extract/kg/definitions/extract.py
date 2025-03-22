@@ -1,14 +1,17 @@
 
 """
-Simple decoder, accepts embeddings+text chunks input, applies entity analysis to
-get entity definitions which are output as graph edges.
+Simple decoder, accepts text chunks input, applies entity analysis to
+get entity definitions which are output as graph edges along with
+entity/context definitions for embedding.
 """
 
 import urllib.parse
-import json
+from pulsar.schema import JsonSchema
 
-from .... schema import ChunkEmbeddings, Triple, Triples, Metadata, Value
-from .... schema import chunk_embeddings_ingest_queue, triples_store_queue
+from .... schema import Chunk, Triple, Triples, Metadata, Value
+from .... schema import EntityContext, EntityContexts
+from .... schema import chunk_ingest_queue, triples_store_queue
+from .... schema import entity_contexts_ingest_queue
 from .... schema import prompt_request_queue
 from .... schema import prompt_response_queue
 from .... log_level import LogLevel
@@ -22,8 +25,9 @@ SUBJECT_OF_VALUE = Value(value=SUBJECT_OF, is_uri=True)
 
 module = ".".join(__name__.split(".")[1:-1])
 
-default_input_queue = chunk_embeddings_ingest_queue
+default_input_queue = chunk_ingest_queue
 default_output_queue = triples_store_queue
+default_entity_context_queue = entity_contexts_ingest_queue
 default_subscriber = module
 
 class Processor(ConsumerProducer):
@@ -32,6 +36,10 @@ class Processor(ConsumerProducer):
 
         input_queue = params.get("input_queue", default_input_queue)
         output_queue = params.get("output_queue", default_output_queue)
+        ec_queue = params.get(
+            "entity_context_queue",
+            default_entity_context_queue
+        )
         subscriber = params.get("subscriber", default_subscriber)
         pr_request_queue = params.get(
             "prompt_request_queue", prompt_request_queue
@@ -45,15 +53,33 @@ class Processor(ConsumerProducer):
                 "input_queue": input_queue,
                 "output_queue": output_queue,
                 "subscriber": subscriber,
-                "input_schema": ChunkEmbeddings,
+                "input_schema": Chunk,
                 "output_schema": Triples,
                 "prompt_request_queue": pr_request_queue,
                 "prompt_response_queue": pr_response_queue,
             }
         )
 
+        self.ec_prod = self.client.create_producer(
+            topic=ec_queue,
+            schema=JsonSchema(EntityContexts),
+        )
+
+        __class__.pubsub_metric.info({
+            "input_queue": input_queue,
+            "output_queue": output_queue,
+            "entity_context_queue": ec_queue,
+            "prompt_request_queue": pr_request_queue,
+            "prompt_response_queue": pr_response_queue,
+            "subscriber": subscriber,
+            "input_schema": Chunk.__name__,
+            "output_schema": Triples.__name__,
+            "vector_schema": EntityContexts.__name__,
+        })
+
         self.prompt = PromptClient(
             pulsar_host=self.pulsar_host,
+            pulsar_api_key=self.pulsar_api_key,
             input_queue=pr_request_queue,
             output_queue=pr_response_queue,
             subscriber = module + "-prompt",
@@ -71,15 +97,23 @@ class Processor(ConsumerProducer):
 
         return self.prompt.request_definitions(chunk)
 
-    def emit_edges(self, metadata, triples):
+    async def emit_edges(self, metadata, triples):
 
         t = Triples(
             metadata=metadata,
             triples=triples,
         )
-        self.producer.send(t)
+        await self.send(t)
 
-    def handle(self, msg):
+    async def emit_ecs(self, metadata, entities):
+
+        t = EntityContexts(
+            metadata=metadata,
+            entities=entities,
+        )
+        self.ec_prod.send(t)
+
+    async def handle(self, msg):
 
         v = msg.value()
         print(f"Indexing {v.metadata.id}...", flush=True)
@@ -91,6 +125,7 @@ class Processor(ConsumerProducer):
             defs = self.get_definitions(chunk)
 
             triples = []
+            entities = []
 
             # FIXME: Putting metadata into triples store is duplicated in
             # relationships extractor too
@@ -129,7 +164,15 @@ class Processor(ConsumerProducer):
                     o=Value(value=v.metadata.id, is_uri=True)
                 ))
 
-            self.emit_edges(
+                ec = EntityContext(
+                    entity=s_value,
+                    context=defn.definition,
+                )
+
+                entities.append(ec)
+                    
+
+            await self.emit_edges(
                 Metadata(
                     id=v.metadata.id,
                     metadata=[],
@@ -137,6 +180,16 @@ class Processor(ConsumerProducer):
                     collection=v.metadata.collection,
                 ),
                 triples
+            )
+
+            await self.emit_ecs(
+                Metadata(
+                    id=v.metadata.id,
+                    metadata=[],
+                    user=v.metadata.user,
+                    collection=v.metadata.collection,
+                ),
+                entities
             )
 
         except Exception as e:
@@ -153,6 +206,12 @@ class Processor(ConsumerProducer):
         )
 
         parser.add_argument(
+            '-e', '--entity-context-queue',
+            default=default_entity_context_queue,
+            help=f'Entity context queue (default: {default_entity_context_queue})'
+        )
+
+        parser.add_argument(
             '--prompt-request-queue',
             default=prompt_request_queue,
             help=f'Prompt request queue (default: {prompt_request_queue})',
@@ -166,5 +225,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

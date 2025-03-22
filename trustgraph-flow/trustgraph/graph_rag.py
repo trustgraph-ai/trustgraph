@@ -20,11 +20,19 @@ DEFINITION="http://www.w3.org/2004/02/skos/core#definition"
 
 class Query:
 
-    def __init__(self, rag, user, collection, verbose):
+    def __init__(
+            self, rag, user, collection, verbose,
+            entity_limit=50, triple_limit=30, max_subgraph_size=1000,
+            max_path_length=2,
+    ):
         self.rag = rag
         self.user = user
         self.collection = collection
         self.verbose = verbose
+        self.entity_limit = entity_limit
+        self.triple_limit = triple_limit
+        self.max_subgraph_size = max_subgraph_size
+        self.max_path_length = max_path_length
 
     def get_vector(self, query):
 
@@ -47,7 +55,7 @@ class Query:
 
         entities = self.rag.ge_client.request(
             user=self.user, collection=self.collection,
-            vectors=vectors, limit=self.rag.entity_limit,
+            vectors=vectors, limit=self.entity_limit,
         )
 
         entities = [
@@ -79,61 +87,66 @@ class Query:
         self.rag.label_cache[e] = res[0].o.value
         return self.rag.label_cache[e]
 
+    def follow_edges(self, ent, subgraph, path_length):
+
+        # Not needed?
+        if path_length <= 0:
+            return
+
+        # Stop spanning around if the subgraph is already maxed out
+        if len(subgraph) >= self.max_subgraph_size:
+            return
+
+        res = self.rag.triples_client.request(
+            user=self.user, collection=self.collection,
+            s=ent, p=None, o=None,
+            limit=self.triple_limit
+        )
+
+        for triple in res:
+            subgraph.add(
+                (triple.s.value, triple.p.value, triple.o.value)
+            )
+            if path_length > 1:
+                self.follow_edges(triple.o.value, subgraph, path_length-1)
+
+        res = self.rag.triples_client.request(
+            user=self.user, collection=self.collection,
+            s=None, p=ent, o=None,
+            limit=self.triple_limit
+        )
+
+        for triple in res:
+            subgraph.add(
+                (triple.s.value, triple.p.value, triple.o.value)
+            )
+
+        res = self.rag.triples_client.request(
+            user=self.user, collection=self.collection,
+            s=None, p=None, o=ent,
+            limit=self.triple_limit,
+        )
+
+        for triple in res:
+            subgraph.add(
+                (triple.s.value, triple.p.value, triple.o.value)
+            )
+            if path_length > 1:
+                self.follow_edges(triple.s.value, subgraph, path_length-1)
+
     def get_subgraph(self, query):
 
         entities = self.get_entities(query)
 
-        subgraph = set()
-
         if self.verbose:
             print("Get subgraph...", flush=True)
 
-        for e in entities:
+        subgraph = set()
 
-            res = self.rag.triples_client.request(
-                user=self.user, collection=self.collection,
-                s=e, p=None, o=None,
-                limit=self.rag.query_limit
-            )
-
-            for triple in res:
-                subgraph.add(
-                    (triple.s.value, triple.p.value, triple.o.value)
-                )
-
-            res = self.rag.triples_client.request(
-                user=self.user, collection=self.collection,
-                s=None, p=e, o=None,
-                limit=self.rag.query_limit
-            )
-
-            for triple in res:
-                subgraph.add(
-                    (triple.s.value, triple.p.value, triple.o.value)
-                )
-
-            res = self.rag.triples_client.request(
-                user=self.user, collection=self.collection,
-                s=None, p=None, o=e,
-                limit=self.rag.query_limit,
-            )
-
-            for triple in res:
-                subgraph.add(
-                    (triple.s.value, triple.p.value, triple.o.value)
-                )
+        for ent in entities:
+            self.follow_edges(ent, subgraph, self.max_path_length)
 
         subgraph = list(subgraph)
-
-        subgraph = subgraph[0:self.rag.max_subgraph_size]
-
-        if self.verbose:
-            print("Subgraph:", flush=True)
-            for edge in subgraph:
-                print(" ", str(edge), flush=True)
-
-        if self.verbose:
-            print("Done.", flush=True)
 
         return subgraph
 
@@ -154,6 +167,16 @@ class Query:
 
             sg2.append((s, p, o))
 
+        sg2 = sg2[0:self.max_subgraph_size]
+
+        if self.verbose:
+            print("Subgraph:", flush=True)
+            for edge in sg2:
+                print(" ", str(edge), flush=True)
+
+        if self.verbose:
+            print("Done.", flush=True)
+
         return sg2
     
 class GraphRag:
@@ -161,6 +184,7 @@ class GraphRag:
     def __init__(
             self,
             pulsar_host="pulsar://pulsar:6650",
+            pulsar_api_key=None,
             pr_request_queue=None,
             pr_response_queue=None,
             emb_request_queue=None,
@@ -170,9 +194,6 @@ class GraphRag:
             tpl_request_queue=None,
             tpl_response_queue=None,
             verbose=False,
-            entity_limit=50,
-            triple_limit=30,
-            max_subgraph_size=3000,
             module="test",
     ):
 
@@ -207,6 +228,7 @@ class GraphRag:
 
         self.ge_client = GraphEmbeddingsClient(
             pulsar_host=pulsar_host,
+            pulsar_api_key=pulsar_api_key,
             subscriber=module + "-ge",
             input_queue=ge_request_queue,
             output_queue=ge_response_queue,
@@ -214,6 +236,7 @@ class GraphRag:
 
         self.triples_client = TriplesQueryClient(
             pulsar_host=pulsar_host,
+            pulsar_api_key=pulsar_api_key,
             subscriber=module + "-tpl",
             input_queue=tpl_request_queue,
             output_queue=tpl_response_queue
@@ -221,19 +244,17 @@ class GraphRag:
 
         self.embeddings = EmbeddingsClient(
             pulsar_host=pulsar_host,
+            pulsar_api_key=pulsar_api_key,
             input_queue=emb_request_queue,
             output_queue=emb_response_queue,
             subscriber=module + "-emb",
         )
 
-        self.entity_limit=entity_limit
-        self.query_limit=triple_limit
-        self.max_subgraph_size=max_subgraph_size
-
         self.label_cache = {}
 
         self.prompt = PromptClient(
             pulsar_host=pulsar_host,
+            pulsar_api_key=pulsar_api_key,
             input_queue=pr_request_queue,
             output_queue=pr_response_queue,
             subscriber=module + "-prompt",
@@ -242,13 +263,20 @@ class GraphRag:
         if self.verbose:
             print("Initialised", flush=True)
 
-    def query(self, query, user="trustgraph", collection="default"):
+    def query(
+            self, query, user="trustgraph", collection="default",
+            entity_limit=50, triple_limit=30, max_subgraph_size=1000,
+            max_path_length=2,
+    ):
 
         if self.verbose:
             print("Construct prompt...", flush=True)
 
         q = Query(
-            rag=self, user=user, collection=collection, verbose=self.verbose
+            rag=self, user=user, collection=collection, verbose=self.verbose,
+            entity_limit=entity_limit, triple_limit=triple_limit,
+            max_subgraph_size=max_subgraph_size,
+            max_path_length=max_path_length,
         )
 
         kg = q.get_labelgraph(query)

@@ -10,6 +10,7 @@ import argparse
 import time
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
+from ssl import SSLContext, PROTOCOL_TLSv1_2
 
 from .... schema import Rows
 from .... schema import rows_store_queue
@@ -17,6 +18,7 @@ from .... log_level import LogLevel
 from .... base import Consumer
 
 module = ".".join(__name__.split(".")[1:-1])
+ssl_context = SSLContext(PROTOCOL_TLSv1_2)
 
 default_input_queue = rows_store_queue
 default_subscriber = module
@@ -29,6 +31,8 @@ class Processor(Consumer):
         input_queue = params.get("input_queue", default_input_queue)
         subscriber = params.get("subscriber", default_subscriber)
         graph_host = params.get("graph_host", default_graph_host)
+        graph_username = params.get("graph_username", None)
+        graph_password = params.get("graph_password", None)
 
         super(Processor, self).__init__(
             **params | {
@@ -36,10 +40,16 @@ class Processor(Consumer):
                 "subscriber": subscriber,
                 "input_schema": Rows,
                 "graph_host": graph_host,
+                "graph_username": graph_username,
+                "graph_password": graph_password,
             }
         )
-
-        self.cluster = Cluster(graph_host.split(","))
+        
+        if graph_username and graph_password:
+            auth_provider = PlainTextAuthProvider(username=graph_username, password=graph_password)
+            self.cluster = Cluster(graph_host.split(","), auth_provider=auth_provider, ssl_context=ssl_context)
+        else:
+            self.cluster = Cluster(graph_host.split(","))
         self.session = self.cluster.connect()
 
         self.tables = set()
@@ -54,7 +64,7 @@ class Processor(Consumer):
 
         self.session.execute("use trustgraph");
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         try:
 
@@ -120,8 +130,20 @@ class Processor(Consumer):
             default="localhost",
             help=f'Graph host (default: localhost)'
         )
+        
+        parser.add_argument(
+            '--graph-username',
+            default=None,
+            help=f'Cassandra username'
+        )
+        
+        parser.add_argument(
+            '--graph-password',
+            default=None,
+            help=f'Cassandra password'
+        )
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

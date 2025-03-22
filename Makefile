@@ -16,6 +16,7 @@ wheels:
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-bedrock/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-embeddings-hf/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-cli/
+	pip3 wheel --no-deps --wheel-dir dist trustgraph-ocr/
 
 packages: update-package-versions
 	rm -rf dist/
@@ -26,11 +27,12 @@ packages: update-package-versions
 	cd trustgraph-bedrock && python3 setup.py sdist --dist-dir ../dist/
 	cd trustgraph-embeddings-hf && python3 setup.py sdist --dist-dir ../dist/
 	cd trustgraph-cli && python3 setup.py sdist --dist-dir ../dist/
+	cd trustgraph-ocr && python3 setup.py sdist --dist-dir ../dist/
 
 pypi-upload:
 	twine upload dist/*-${VERSION}.*
 
-CONTAINER=docker.io/trustgraph/trustgraph-flow
+CONTAINER_BASE=docker.io/trustgraph
 
 update-package-versions:
 	mkdir -p trustgraph-cli/trustgraph
@@ -41,14 +43,34 @@ update-package-versions:
 	echo __version__ = \"${VERSION}\" > trustgraph-bedrock/trustgraph/bedrock_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-embeddings-hf/trustgraph/embeddings_hf_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-cli/trustgraph/cli_version.py
+	echo __version__ = \"${VERSION}\" > trustgraph-ocr/trustgraph/ocr_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph/trustgraph/trustgraph_version.py
 
 container: update-package-versions
-	${DOCKER} build -f Containerfile -t ${CONTAINER}:${VERSION} \
-	    --format docker
+	${DOCKER} build -f containers/Containerfile.base \
+	    -t ${CONTAINER_BASE}/trustgraph-base:${VERSION} .
+	${DOCKER} build -f containers/Containerfile.flow \
+	    -t ${CONTAINER_BASE}/trustgraph-flow:${VERSION} .
+	${DOCKER} build -f containers/Containerfile.bedrock \
+	    -t ${CONTAINER_BASE}/trustgraph-bedrock:${VERSION} .
+	${DOCKER} build -f containers/Containerfile.vertexai \
+	    -t ${CONTAINER_BASE}/trustgraph-vertexai:${VERSION} .
+	${DOCKER} build -f containers/Containerfile.hf \
+	    -t ${CONTAINER_BASE}/trustgraph-hf:${VERSION} .
+	${DOCKER} build -f containers/Containerfile.ocr \
+	    -t ${CONTAINER_BASE}/trustgraph-ocr:${VERSION} .
+
+container.ocr:
+	${DOCKER} build -f containers/Containerfile.ocr \
+	    -t ${CONTAINER_BASE}/trustgraph-ocr:${VERSION} .
 
 push:
-	${DOCKER} push ${CONTAINER}:${VERSION}
+	${DOCKER} push ${CONTAINER_BASE}/trustgraph-base:${VERSION}
+	${DOCKER} push ${CONTAINER_BASE}/trustgraph-flow:${VERSION}
+	${DOCKER} push ${CONTAINER_BASE}/trustgraph-bedrock:${VERSION}
+	${DOCKER} push ${CONTAINER_BASE}/trustgraph-vertexai:${VERSION}
+	${DOCKER} push ${CONTAINER_BASE}/trustgraph-hf:${VERSION}
+	${DOCKER} push ${CONTAINER_BASE}/trustgraph-ocr:${VERSION}
 
 clean:
 	rm -rf wheels/
@@ -56,13 +78,13 @@ clean:
 set-version:
 	echo '"${VERSION}"' > templates/values/version.jsonnet
 
-TEMPLATES=azure bedrock claude cohere mix llamafile ollama openai vertexai \
+TEMPLATES=azure bedrock claude cohere mix llamafile mistral ollama openai vertexai \
     openai-neo4j storage
 
 DCS=$(foreach template,${TEMPLATES},${template:%=tg-launch-%.yaml})
 
-MODELS=azure bedrock claude cohere llamafile ollama openai vertexai
-GRAPHS=cassandra neo4j falkordb
+MODELS=azure bedrock claude cohere llamafile mistral ollama openai vertexai
+GRAPHS=cassandra neo4j falkordb memgraph
 
 # tg-launch-%.yaml: templates/%.jsonnet templates/components/version.jsonnet
 # 	jsonnet -Jtemplates \
@@ -104,5 +126,5 @@ update-dcs: set-version
 
 docker-hub-login:
 	cat docker-token.txt | \
-	    docker login -u trustgraph --password-stdin registry-1.docker.io
+	    ${DOCKER} login -u trustgraph --password-stdin registry-1.docker.io
 

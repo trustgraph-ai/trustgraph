@@ -22,6 +22,8 @@
 
         with_image:: function(x) self + { image: x },
 
+        with_user:: function(x) self + { user: x },
+
         with_command:: function(x) self + { command: x },
 
         with_environment:: function(x) self + {
@@ -73,6 +75,10 @@
 
                 (if std.objectHas(container, "command") then
                 { command: container.command }
+                else {}) +
+
+                (if std.objectHas(container, "user") then
+                { user: container.user }
                 else {}) +
 
                 (if ! std.isEmpty(container.environment) then

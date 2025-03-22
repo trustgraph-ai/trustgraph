@@ -6,28 +6,38 @@ import uuid
 
 from .. schema import GraphEmbeddings
 from .. schema import graph_embeddings_store_queue
+from .. base import Subscriber
 
-from . subscriber import Subscriber
 from . socket import SocketEndpoint
 from . serialize import serialize_graph_embeddings
 
 class GraphEmbeddingsStreamEndpoint(SocketEndpoint):
 
     def __init__(
-            self, pulsar_host, auth, path="/api/v1/stream/graph-embeddings"
+            self, pulsar_client, auth, path="/api/v1/stream/graph-embeddings"
     ):
 
         super(GraphEmbeddingsStreamEndpoint, self).__init__(
             endpoint_path=path, auth=auth,
         )
 
-        self.pulsar_host=pulsar_host
+        self.pulsar_client=pulsar_client
 
         self.subscriber = Subscriber(
-            self.pulsar_host, graph_embeddings_store_queue,
+            self.pulsar_client, graph_embeddings_store_queue,
             "api-gateway", "api-gateway",
             schema=JsonSchema(GraphEmbeddings)
         )
+
+    async def listener(self, ws, running):
+
+        worker = asyncio.create_task(
+            self.async_thread(ws, running)
+        )
+
+        await super(GraphEmbeddingsStreamEndpoint, self).listener(ws, running)
+
+        await worker
 
     async def start(self):
 
@@ -43,6 +53,9 @@ class GraphEmbeddingsStreamEndpoint(SocketEndpoint):
             try:
                 resp = await asyncio.to_thread(q.get, timeout=0.5)
                 await ws.send_json(serialize_graph_embeddings(resp))
+
+            except TimeoutError:
+                continue
 
             except queue.Empty:
                 continue

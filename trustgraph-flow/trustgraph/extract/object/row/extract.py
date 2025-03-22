@@ -112,6 +112,7 @@ class Processor(ConsumerProducer):
 
         self.prompt = PromptClient(
             pulsar_host=self.pulsar_host,
+            pulsar_api_key=self.pulsar_api_key,
             input_queue=pr_request_queue,
             output_queue=pr_response_queue,
             subscriber = module + "-prompt",
@@ -129,7 +130,7 @@ class Processor(ConsumerProducer):
         t = Rows(
             metadata=metadata, row_schema=self.row_schema, rows=rows
         )
-        self.producer.send(t)
+        await self.send(t)
 
     def emit_vec(self, metadata, name, vec, key_name, key):
 
@@ -138,7 +139,7 @@ class Processor(ConsumerProducer):
         )
         self.vec_prod.send(r)
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         v = msg.value()
         print(f"Indexing {v.metadata.id}...", flush=True)
@@ -216,5 +217,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

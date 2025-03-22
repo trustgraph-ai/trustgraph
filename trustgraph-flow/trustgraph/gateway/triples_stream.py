@@ -6,26 +6,36 @@ import uuid
 
 from .. schema import Triples
 from .. schema import triples_store_queue
+from .. base import Subscriber
 
-from . subscriber import Subscriber
 from . socket import SocketEndpoint
 from . serialize import serialize_triples
 
 class TriplesStreamEndpoint(SocketEndpoint):
 
-    def __init__(self, pulsar_host, auth, path="/api/v1/stream/triples"):
+    def __init__(self, pulsar_client, auth, path="/api/v1/stream/triples"):
 
         super(TriplesStreamEndpoint, self).__init__(
             endpoint_path=path, auth=auth,
         )
 
-        self.pulsar_host=pulsar_host
+        self.pulsar_client=pulsar_client
 
         self.subscriber = Subscriber(
-            self.pulsar_host, triples_store_queue,
+            self.pulsar_client, triples_store_queue,
             "api-gateway", "api-gateway",
             schema=JsonSchema(Triples)
         )
+
+    async def listener(self, ws, running):
+
+        worker = asyncio.create_task(
+            self.async_thread(ws, running)
+        )
+
+        await super(TriplesStreamEndpoint, self).listener(ws, running)
+
+        await worker
 
     async def start(self):
 
@@ -41,6 +51,9 @@ class TriplesStreamEndpoint(SocketEndpoint):
             try:
                 resp = await asyncio.to_thread(q.get, timeout=0.5)
                 await ws.send_json(serialize_triples(resp))
+
+            except TimeoutError:
+                continue
 
             except queue.Empty:
                 continue

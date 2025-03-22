@@ -11,14 +11,14 @@ import time
 import uuid
 import os
 
-from .... schema import ChunkEmbeddings
-from .... schema import chunk_embeddings_ingest_queue
+from .... schema import DocumentEmbeddings
+from .... schema import document_embeddings_store_queue
 from .... log_level import LogLevel
 from .... base import Consumer
 
 module = ".".join(__name__.split(".")[1:-1])
 
-default_input_queue = chunk_embeddings_ingest_queue
+default_input_queue = document_embeddings_store_queue
 default_subscriber = module
 default_api_key = os.getenv("PINECONE_API_KEY", "not-specified")
 default_cloud = "aws"
@@ -54,82 +54,85 @@ class Processor(Consumer):
             **params | {
                 "input_queue": input_queue,
                 "subscriber": subscriber,
-                "input_schema": ChunkEmbeddings,
+                "input_schema": DocumentEmbeddings,
                 "url": self.url,
             }
         )
 
         self.last_index_name = None
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         v = msg.value()
 
-        chunk = v.chunk.decode("utf-8")
+        for emb in v.chunks:
 
-        if chunk == "": return
+            chunk = emb.chunk.decode("utf-8")
+            if chunk == "" or chunk is None: continue
 
-        for vec in v.vectors:
+            for vec in emb.vectors:
 
-            dim = len(vec)
-            collection = (
-                "d-" + v.metadata.user + "-" + str(dim)
-            )
+                for vec in v.vectors:
 
-            if index_name != self.last_index_name:
+                    dim = len(vec)
+                    collection = (
+                        "d-" + v.metadata.user + "-" + str(dim)
+                    )
 
-                if not self.pinecone.has_index(index_name):
+                    if index_name != self.last_index_name:
 
-                    try:
+                        if not self.pinecone.has_index(index_name):
 
-                        self.pinecone.create_index(
-                            name = index_name,
-                            dimension = dim,
-                            metric = "cosine",
-                            spec = ServerlessSpec(
-                                cloud = self.cloud,
-                                region = self.region,
-                            )
-                        )
+                            try:
 
-                        for i in range(0, 1000):
+                                self.pinecone.create_index(
+                                    name = index_name,
+                                    dimension = dim,
+                                    metric = "cosine",
+                                    spec = ServerlessSpec(
+                                        cloud = self.cloud,
+                                        region = self.region,
+                                    )
+                                )
 
-                            if self.pinecone.describe_index(
-                                    index_name
-                            ).status["ready"]:
-                                break
+                                for i in range(0, 1000):
 
-                            time.sleep(1)
+                                    if self.pinecone.describe_index(
+                                            index_name
+                                    ).status["ready"]:
+                                        break
 
-                        if not self.pinecone.describe_index(
-                                index_name
-                        ).status["ready"]:
-                            raise RuntimeError(
-                                "Gave up waiting for index creation"
-                            )
+                                    time.sleep(1)
 
-                    except Exception as e:
-                        print("Pinecone index creation failed")
-                        raise e
+                                if not self.pinecone.describe_index(
+                                        index_name
+                                ).status["ready"]:
+                                    raise RuntimeError(
+                                        "Gave up waiting for index creation"
+                                    )
 
-                    print(f"Index {index_name} created", flush=True)
+                            except Exception as e:
+                                print("Pinecone index creation failed")
+                                raise e
 
-                self.last_index_name = index_name
+                            print(f"Index {index_name} created", flush=True)
 
-            index = self.pinecone.Index(index_name)
+                        self.last_index_name = index_name
 
-            records = [
-                {
-                    "id": id,
-                    "values": vec,
-                    "metadata": { "doc": chunk },
-                }
-            ]
+                    index = self.pinecone.Index(index_name)
 
-            index.upsert(
-                vectors = records,
-                namespace = v.metadata.collection,
-            )
+                    records = [
+                        {
+                            "id": id,
+                            "values": vec,
+                            "metadata": { "doc": chunk },
+                        }
+                    ]
+
+                    index.upsert(
+                        vectors = records,
+                        namespace = v.metadata.collection,
+                    )
 
     @staticmethod
     def add_args(parser):
@@ -163,5 +166,5 @@ class Processor(Consumer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

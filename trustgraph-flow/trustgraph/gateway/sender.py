@@ -6,7 +6,7 @@ from pulsar.schema import JsonSchema
 import uuid
 import logging
 
-from . publisher import Publisher
+from .. base import Publisher
 
 logger = logging.getLogger("sender")
 logger.setLevel(logging.INFO)
@@ -15,13 +15,13 @@ class ServiceSender:
 
     def __init__(
             self,
-            pulsar_host,
+            pulsar_client,
             request_queue, request_schema,
     ):
 
         self.pub = Publisher(
-            pulsar_host, request_queue,
-            schema=JsonSchema(request_schema)
+            pulsar_client, request_queue,
+            schema=JsonSchema(request_schema),
         )
 
     async def start(self):
@@ -46,5 +46,10 @@ class ServiceSender:
 
             logging.error(f"Exception: {e}")
 
-            return { "error": str(e) }
+            err = { "error": str(e) }
+
+            if responder:
+                await responder(err, True)
+
+            return err
 

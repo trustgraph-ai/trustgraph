@@ -14,8 +14,6 @@ from ... schema import AgentRequest, AgentResponse, AgentStep
 from ... schema import agent_request_queue, agent_response_queue
 from ... schema import prompt_request_queue as pr_request_queue
 from ... schema import prompt_response_queue as pr_response_queue
-from ... schema import text_completion_request_queue as tc_request_queue
-from ... schema import text_completion_response_queue as tc_response_queue
 from ... schema import graph_rag_request_queue as gr_request_queue
 from ... schema import graph_rag_response_queue as gr_response_queue
 from ... clients.prompt_client import PromptClient
@@ -133,12 +131,6 @@ class Processor(ConsumerProducer):
         prompt_response_queue = params.get(
             "prompt_response_queue", pr_response_queue
         )
-        text_completion_request_queue = params.get(
-            "text_completion_request_queue", tc_request_queue
-        )
-        text_completion_response_queue = params.get(
-            "text_completion_response_queue", tc_response_queue
-        )
         graph_rag_request_queue = params.get(
             "graph_rag_request_queue", gr_request_queue
         )
@@ -155,8 +147,6 @@ class Processor(ConsumerProducer):
                 "output_schema": AgentResponse,
                 "prompt_request_queue": prompt_request_queue,
                 "prompt_response_queue": prompt_response_queue,
-                "text_completion_request_queue": tc_request_queue,
-                "text_completion_response_queue": tc_response_queue,
                 "graph_rag_request_queue": gr_request_queue,
                 "graph_rag_response_queue": gr_response_queue,
             }
@@ -166,21 +156,16 @@ class Processor(ConsumerProducer):
             subscriber=subscriber,
             input_queue=prompt_request_queue,
             output_queue=prompt_response_queue,
-            pulsar_host = self.pulsar_host
-        )
-
-        self.llm = LlmClient(
-            subscriber=subscriber,
-            input_queue=text_completion_request_queue,
-            output_queue=text_completion_response_queue,
-            pulsar_host = self.pulsar_host
+            pulsar_host = self.pulsar_host,
+            pulsar_api_key=self.pulsar_api_key,
         )
 
         self.graph_rag = GraphRagClient(
             subscriber=subscriber,
             input_queue=graph_rag_request_queue,
             output_queue=graph_rag_response_queue,
-            pulsar_host = self.pulsar_host
+            pulsar_host = self.pulsar_host,
+            pulsar_api_key=self.pulsar_api_key,
         )
 
         # Need to be able to feed requests to myself
@@ -206,7 +191,7 @@ class Processor(ConsumerProducer):
 
         return json.loads(json_str)
 
-    def handle(self, msg):
+    async def handle(self, msg):
 
         try:
 
@@ -235,7 +220,7 @@ class Processor(ConsumerProducer):
 
             print(f"History: {history}", flush=True)
 
-            def think(x):
+            async def think(x):
 
                 print(f"Think: {x}", flush=True)
 
@@ -246,9 +231,9 @@ class Processor(ConsumerProducer):
                     observation=None,
                 )
 
-                self.producer.send(r, properties={"id": id})
+                await self.send(r, properties={"id": id})
 
-            def observe(x):
+            async def observe(x):
 
                 print(f"Observe: {x}", flush=True)
 
@@ -259,7 +244,7 @@ class Processor(ConsumerProducer):
                     observation=x,
                 )
 
-                self.producer.send(r, properties={"id": id})
+                await self.send(r, properties={"id": id})
 
             act = self.agent.react(v.question, history, think, observe)
 
@@ -275,7 +260,7 @@ class Processor(ConsumerProducer):
                     thought=None,
                 )
 
-                self.producer.send(r, properties={"id": id})
+                await self.send(r, properties={"id": id})
 
                 print("Done.", flush=True)
 
@@ -318,7 +303,7 @@ class Processor(ConsumerProducer):
                 response=None,
             )
 
-            self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
     @staticmethod
     def add_args(parser):
@@ -338,18 +323,6 @@ class Processor(ConsumerProducer):
             '--prompt-response-queue',
             default=pr_response_queue,
             help=f'Prompt response queue (default: {pr_response_queue})',
-        )
-
-        parser.add_argument(
-            '--text-completion-request-queue',
-            default=tc_request_queue,
-            help=f'Text completion request queue (default: {tc_request_queue})',
-        )
-
-        parser.add_argument(
-            '--text-completion-response-queue',
-            default=tc_response_queue,
-            help=f'Text completion response queue (default: {tc_response_queue})',
         )
 
         parser.add_argument(
@@ -406,5 +379,5 @@ description.'''
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

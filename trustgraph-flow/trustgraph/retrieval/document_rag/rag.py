@@ -50,6 +50,8 @@ class Processor(ConsumerProducer):
             document_embeddings_response_queue
         )
 
+        doc_limit = params.get("doc_limit", 10)
+
         super(Processor, self).__init__(
             **params | {
                 "input_queue": input_queue,
@@ -68,6 +70,7 @@ class Processor(ConsumerProducer):
 
         self.rag = DocumentRag(
             pulsar_host=self.pulsar_host,
+            pulsar_api_key=self.pulsar_api_key,
             pr_request_queue=pr_request_queue,
             pr_response_queue=pr_response_queue,
             emb_request_queue=emb_request_queue,
@@ -78,7 +81,9 @@ class Processor(ConsumerProducer):
             module=module,
         )
 
-    def handle(self, msg):
+        self.doc_limit = doc_limit
+
+    async def handle(self, msg):
 
         try:
 
@@ -89,11 +94,16 @@ class Processor(ConsumerProducer):
 
             print(f"Handling input {id}...", flush=True)
 
-            response = self.rag.query(v.query)
+            if v.doc_limit:
+                doc_limit = v.doc_limit
+            else:
+                doc_limit = self.doc_limit
+
+            response = self.rag.query(v.query, doc_limit=doc_limit)
 
             print("Send response...", flush=True)
             r = DocumentRagResponse(response = response, error=None)
-            self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             print("Done.", flush=True)
 
@@ -111,7 +121,7 @@ class Processor(ConsumerProducer):
                 response=None,
             )
 
-            self.producer.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             self.consumer.acknowledge(msg)
 
@@ -121,6 +131,13 @@ class Processor(ConsumerProducer):
         ConsumerProducer.add_args(
             parser, default_input_queue, default_subscriber,
             default_output_queue,
+        )
+
+        parser.add_argument(
+            '-d', '--doc-limit',
+            type=int,
+            default=20,
+            help=f'Default document fetch limit (default: 10)'
         )
 
         parser.add_argument(
@@ -161,5 +178,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 

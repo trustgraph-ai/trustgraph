@@ -51,8 +51,13 @@ async def load_ge(running, queue, url):
                         "user": msg["m"]["u"],
                         "collection": msg["m"]["c"],
                     },
-                    "vectors": msg["v"],
-                    "entity": msg["e"],
+                    "entities": [
+                        {
+                            "entity": ent["e"],
+                            "vectors": ent["v"],
+                        }
+                        for ent in msg["e"]
+                    ],
                 }
 
                 try:

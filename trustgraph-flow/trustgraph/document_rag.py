@@ -16,11 +16,54 @@ from . schema import document_embeddings_response_queue
 LABEL="http://www.w3.org/2000/01/rdf-schema#label"
 DEFINITION="http://www.w3.org/2004/02/skos/core#definition"
 
+class Query:
+
+    def __init__(
+            self, rag, user, collection, verbose,
+            doc_limit=20
+    ):
+        self.rag = rag
+        self.user = user
+        self.collection = collection
+        self.verbose = verbose
+        self.doc_limit = doc_limit
+
+    def get_vector(self, query):
+
+        if self.verbose:
+            print("Compute embeddings...", flush=True)
+
+        qembeds = self.rag.embeddings.request(query)
+
+        if self.verbose:
+            print("Done.", flush=True)
+
+        return qembeds
+
+    def get_docs(self, query):
+
+        vectors = self.get_vector(query)
+
+        if self.verbose:
+            print("Get entities...", flush=True)
+
+        docs = self.rag.de_client.request(
+            vectors, limit=self.doc_limit
+        )
+
+        if self.verbose:
+            print("Docs:", flush=True)
+            for doc in docs:
+                print(doc, flush=True)
+
+        return docs
+
 class DocumentRag:
 
     def __init__(
             self,
             pulsar_host="pulsar://pulsar:6650",
+            pulsar_api_key=None,
             pr_request_queue=None,
             pr_response_queue=None,
             emb_request_queue=None,
@@ -54,14 +97,12 @@ class DocumentRag:
         if self.verbose:
             print("Initialising...", flush=True)
 
-        # FIXME: Configurable
-        self.entity_limit = 20
-
         self.de_client = DocumentEmbeddingsClient(
             pulsar_host=pulsar_host,
             subscriber=module + "-de",
             input_queue=de_request_queue,
             output_queue=de_response_queue,
+            pulsar_api_key=pulsar_api_key,
         )            
 
         self.embeddings = EmbeddingsClient(
@@ -69,6 +110,7 @@ class DocumentRag:
             input_queue=emb_request_queue,
             output_queue=emb_response_queue,
             subscriber=module + "-emb",
+            pulsar_api_key=pulsar_api_key,
         )
 
         self.lang = PromptClient(
@@ -76,47 +118,26 @@ class DocumentRag:
             input_queue=pr_request_queue,
             output_queue=pr_response_queue,
             subscriber=module + "-de-prompt",
+            pulsar_api_key=pulsar_api_key,
         )
 
         if self.verbose:
             print("Initialised", flush=True)
 
-    def get_vector(self, query):
-
-        if self.verbose:
-            print("Compute embeddings...", flush=True)
-
-        qembeds = self.embeddings.request(query)
-
-        if self.verbose:
-            print("Done.", flush=True)
-
-        return qembeds
-
-    def get_docs(self, query):
-
-        vectors = self.get_vector(query)
-
-        if self.verbose:
-            print("Get entities...", flush=True)
-
-        docs = self.de_client.request(
-            vectors, self.entity_limit
-        )
-
-        if self.verbose:
-            print("Docs:", flush=True)
-            for doc in docs:
-                print(doc, flush=True)
-
-        return docs
-
-    def query(self, query):
+    def query(
+            self, query, user="trustgraph", collection="default",
+            doc_limit=20,
+    ):
 
         if self.verbose:
             print("Construct prompt...", flush=True)
 
-        docs = self.get_docs(query)
+        q = Query(
+            rag=self, user=user, collection=collection, verbose=self.verbose,
+            doc_limit=doc_limit
+        )
+
+        docs = q.get_docs(query)
 
         if self.verbose:
             print("Invoke LLM...", flush=True)

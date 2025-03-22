@@ -12,7 +12,7 @@ qdrant + {
 
             local container =
                 engine.container("store-graph-embeddings")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "ge-write-qdrant",
                         "-p",
@@ -44,7 +44,7 @@ qdrant + {
 
             local container =
                 engine.container("query-graph-embeddings")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "ge-query-qdrant",
                         "-p",
@@ -76,7 +76,7 @@ qdrant + {
 
             local container =
                 engine.container("store-doc-embeddings")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "de-write-qdrant",
                         "-p",
@@ -108,7 +108,7 @@ qdrant + {
 
             local container =
                 engine.container("query-doc-embeddings")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "de-query-qdrant",
                         "-p",

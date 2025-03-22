@@ -1,7 +1,6 @@
 local base = import "base/base.jsonnet";
 local images = import "values/images.jsonnet";
 local url = import "values/url.jsonnet";
-local prompt = import "prompt-template.jsonnet";
 
 {
 
@@ -22,7 +21,7 @@ local prompt = import "prompt-template.jsonnet";
 
             local container =
                 engine.container("api-gateway")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "api-gateway",
                         "-p",
@@ -61,7 +60,7 @@ local prompt = import "prompt-template.jsonnet";
 
             local container =
                 engine.container("chunker")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "chunker-token",
                         "-p",
@@ -95,7 +94,7 @@ local prompt = import "prompt-template.jsonnet";
 
             local container =
                 engine.container("pdf-decoder")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "pdf-decoder",
                         "-p",
@@ -119,43 +118,13 @@ local prompt = import "prompt-template.jsonnet";
 
     },
 
-    "vectorize" +: {
-    
-        create:: function(engine)
-
-            local container =
-                engine.container("vectorize")
-                    .with_image(images.trustgraph)
-                    .with_command([
-                        "embeddings-vectorize",
-                        "-p",
-                        url.pulsar,
-                    ])
-                    .with_limits("1.0", "512M")
-                    .with_reservations("0.5", "512M");
-
-            local containerSet = engine.containers(
-                "vectorize", [ container ]
-            );
-
-            local service =
-                engine.internalService(containerSet)
-                .with_port(8000, 8000, "metrics");
-
-            engine.resources([
-                containerSet,
-                service,
-            ])
-
-    },
-
     "metering" +: {
     
         create:: function(engine)
 
             local container =
                 engine.container("metering")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "metering",
                         "-p",
@@ -185,7 +154,7 @@ local prompt = import "prompt-template.jsonnet";
 
             local container =
                 engine.container("metering-rag")
-                    .with_image(images.trustgraph)
+                    .with_image(images.trustgraph_flow)
                     .with_command([
                         "metering",
                         "-p",
@@ -211,5 +180,5 @@ local prompt = import "prompt-template.jsonnet";
 
     },
 
-} + prompt
+}
 

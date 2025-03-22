@@ -8,6 +8,7 @@ import boto3
 import json
 from prometheus_client import Histogram
 import os
+import enum
 
 from .... schema import TextCompletionRequest, TextCompletionResponse, Error
 from .... schema import text_completion_request_queue
@@ -24,32 +25,163 @@ default_subscriber = module
 default_model = 'mistral.mistral-large-2407-v1:0'
 default_temperature = 0.0
 default_max_output = 2048
-default_aws_id_key = os.getenv("AWS_ID_KEY", None)
-default_aws_secret = os.getenv("AWS_SECRET", None)
-default_aws_region = os.getenv("AWS_REGION", 'us-west-2')
+default_top_p = 0.99
+default_top_k = 40
+
+# Actually, these could all just be None, no need to get environment
+# variables, as Boto3 would pick all these up if not passed in as args
+default_access_key_id = os.getenv("AWS_ACCESS_KEY_ID", None)
+default_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY", None)
+default_session_token = os.getenv("AWS_SESSION_TOKEN", None)
+default_profile = os.getenv("AWS_PROFILE", None)
+default_region = os.getenv("AWS_DEFAULT_REGION", None)
+
+# Variant API handling depends on the model type
+
+class ModelHandler:
+    def __init__(self):
+        self.temperature = default_temperature
+        self.max_output = default_max_output
+        self.top_p = default_top_p
+        self.top_k = default_top_k
+    def set_temperature(self, temperature):
+        self.temperature = temperature
+    def set_max_output(self, max_output):
+        self.max_output = max_output
+    def set_top_p(self, top_p):
+        self.top_p = top_p
+    def set_top_k(self, top_k):
+        self.top_k = top_k
+    def encode_request(self, system, prompt):
+        raise RuntimeError("format_request not implemented")
+    def decode_response(self, response):
+        raise RuntimeError("format_request not implemented")
+
+class Mistral(ModelHandler):
+    def __init__(self):
+        self.top_p = 0.99
+        self.top_k = 40
+    def encode_request(self, system, prompt):
+        return json.dumps({
+            "prompt": f"{system}\n\n{prompt}",
+            "max_tokens": self.max_output,
+            "temperature": self.temperature,
+            "top_p": self.top_p,
+            "top_k": self.top_k,
+        })
+    def decode_response(self, response):
+        response_body = json.loads(response.get("body").read())
+        return response_body['outputs'][0]['text']
+
+# Llama 3
+class Meta(ModelHandler):
+    def __init__(self):
+        self.top_p = 0.95
+    def encode_request(self, system, prompt):
+        return json.dumps({
+            "prompt": f"{system}\n\n{prompt}",
+            "max_gen_len": self.max_output,
+            "temperature": self.temperature,
+            "top_p": self.top_p,
+        })
+    def decode_response(self, response):
+        model_response = json.loads(response["body"].read())
+        return model_response["generation"]
+
+class Anthropic(ModelHandler):
+    def __init__(self):
+        self.top_p = 0.999
+    def encode_request(self, system, prompt):
+        return json.dumps({
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": self.max_output,
+            "temperature": self.temperature,
+            "top_p": self.top_p,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": f"{system}\n\n{prompt}",
+                        }
+                    ]
+                }
+            ]
+        })
+    def decode_response(self, response):
+        model_response = json.loads(response["body"].read())
+        return model_response['content'][0]['text']
+
+class Ai21(ModelHandler):
+    def __init__(self):
+        self.top_p = 0.9
+    def encode_request(self, system, prompt):
+        return json.dumps({
+            "max_tokens": self.max_output,
+            "temperature": self.temperature,
+            "top_p": self.top_p,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": f"{system}\n\n{prompt}"
+                }
+            ]
+        })
+    def decode_response(self, response):
+        content = response['body'].read()
+        content_str = content.decode('utf-8')
+        content_json = json.loads(content_str)
+        return content_json['choices'][0]['message']['content']
+
+class Cohere(ModelHandler):
+    def encode_request(self, system, prompt):
+        return json.dumps({
+            "max_tokens": self.max_output,
+            "temperature": self.temperature,
+            "message": f"{system}\n\n{prompt}",
+        })
+    def decode_response(self, response):
+        content = response['body'].read()
+        content_str = content.decode('utf-8')
+        content_json = json.loads(content_str)
+        return content_json['text']
+
+Default=Mistral
 
 class Processor(ConsumerProducer):
 
     def __init__(self, **params):
+
+        print(params)
     
         input_queue = params.get("input_queue", default_input_queue)
         output_queue = params.get("output_queue", default_output_queue)
         subscriber = params.get("subscriber", default_subscriber)
+
         model = params.get("model", default_model)
-        aws_id_key = params.get("aws_id_key", default_aws_id_key)
-        aws_secret = params.get("aws_secret", default_aws_secret)
-        aws_region = params.get("aws_region", default_aws_region)
         temperature = params.get("temperature", default_temperature)
         max_output = params.get("max_output", default_max_output)
 
-        if aws_id_key is None:
-            raise RuntimeError("AWS ID not specified")
+        aws_access_key_id = params.get(
+            "aws_access_key_id", default_access_key_id
+        )
 
-        if aws_secret is None:
-            raise RuntimeError("AWS secret not specified")
+        aws_secret_access_key = params.get(
+            "aws_secret_access_key", default_secret_access_key
+        )
 
-        if aws_region is None:
-            raise RuntimeError("AWS region not specified")
+        aws_session_token = params.get(
+            "aws_session_token", default_session_token
+        )
+
+        aws_region = params.get(
+            "aws_region", default_region
+        )
+
+        aws_profile = params.get(
+            "aws_profile", default_profile
+        )
 
         super(Processor, self).__init__(
             **params | {
@@ -81,17 +213,51 @@ class Processor(ConsumerProducer):
         self.temperature = temperature
         self.max_output = max_output
 
+        self.variant = self.determine_variant(self.model)()
+        self.variant.set_temperature(temperature)
+        self.variant.set_max_output(max_output)
+
         self.session = boto3.Session(
-            aws_access_key_id=aws_id_key,
-            aws_secret_access_key=aws_secret,
-            region_name=aws_region
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            aws_session_token=aws_session_token,
+            profile_name=aws_profile,
+            region_name=aws_region,
         )
 
         self.bedrock = self.session.client(service_name='bedrock-runtime')
 
         print("Initialised", flush=True)
 
-    def handle(self, msg):
+    def determine_variant(self, model):
+
+        # FIXME: Missing, Amazon models, Deepseek
+
+        # This set of conditions deals with normal bedrock on-demand usage
+        if self.model.startswith("mistral"):
+            return Mistral
+        elif self.model.startswith("meta"):
+            return Meta
+        elif self.model.startswith("anthropic"):
+            return Anthropic
+        elif self.model.startswith("ai21"):
+            return Ai21
+        elif self.model.startswith("cohere"):
+            return Cohere
+
+        # The inference profiles
+        if self.model.startswith("us.meta"):
+            return Meta
+        elif self.model.startswith("us.anthropic"):
+            return Anthropic
+        elif self.model.startswith("eu.meta"):
+            return Meta
+        elif self.model.startswith("eu.anthropic"):
+            return Anthropic
+
+        return Default
+                        
+    async def handle(self, msg):
 
         v = msg.value()
 
@@ -101,130 +267,27 @@ class Processor(ConsumerProducer):
 
         print(f"Handling prompt {id}...", flush=True)
 
-        prompt = v.system + "\n\n" + v.prompt
-
         try:
 
-            # Mistral Input Format
-            if self.model.startswith("mistral"):
-                promptbody = json.dumps({
-                    "prompt": prompt,
-                    "max_tokens": self.max_output,
-                    "temperature": self.temperature,
-                    "top_p": 0.99,
-                    "top_k": 40
-                })
-
-            # Llama 3.1 Input Format
-            elif self.model.startswith("meta"):
-                promptbody = json.dumps({
-                    "prompt": prompt,
-                    "max_gen_len": self.max_output,
-                    "temperature": self.temperature,
-                    "top_p": 0.95,
-                })
-
-            # Anthropic Input Format
-            elif self.model.startswith("anthropic"):
-                promptbody = json.dumps({
-                    "anthropic_version": "bedrock-2023-05-31",
-                    "max_tokens": self.max_output,
-                    "temperature": self.temperature,
-                    "top_p": 0.999,
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "text",
-                                    "text": prompt
-                                }
-                            ]
-                        }
-                    ]
-                })
-
-            # Jamba Input Format
-            elif self.model.startswith("ai21"):
-                promptbody = json.dumps({
-                    "max_tokens": self.max_output,
-                    "temperature": self.temperature,
-                    "top_p": 0.9,
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ]
-                })
-
-            # Cohere Input Format
-            elif self.model.startswith("cohere"):
-                promptbody = json.dumps({
-                    "max_tokens": self.max_output,
-                    "temperature": self.temperature,
-                    "message": prompt
-                })
-
-            # Use Mistral format as defualt
-            else:
-                promptbody = json.dumps({
-                    "prompt": prompt,
-                    "max_tokens": self.max_output,
-                    "temperature": self.temperature,
-                    "top_p": 0.99,
-                    "top_k": 40
-                })
+            promptbody = self.variant.encode_request(v.system, v.prompt)
 
             accept = 'application/json'
             contentType = 'application/json'
 
-            # FIXME: Consider catching request limits and raise TooManyRequests
-            # See https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html
-
             with __class__.text_completion_metric.time():
                 response = self.bedrock.invoke_model(
-                    body=promptbody, modelId=self.model, accept=accept,
+                    body=promptbody,
+                    modelId=self.model,
+                    accept=accept,
                     contentType=contentType
                 )
 
-            # Mistral Response Structure
-            if self.model.startswith("mistral"):
-                response_body = json.loads(response.get("body").read())
-                outputtext = response_body['outputs'][0]['text']
-
-            # Claude Response Structure
-            elif self.model.startswith("anthropic"):
-                model_response = json.loads(response["body"].read())
-                outputtext = model_response['content'][0]['text']
-
-            # Llama 3.1 Response Structure
-            elif self.model.startswith("meta"):
-                model_response = json.loads(response["body"].read())
-                outputtext = model_response["generation"]
-
-            # Jamba Response Structure
-            elif self.model.startswith("ai21"):
-                content = response['body'].read()
-                content_str = content.decode('utf-8')
-                content_json = json.loads(content_str)
-                outputtext = content_json['choices'][0]['message']['content']
-
-            # Cohere Input Format
-            elif self.model.startswith("cohere"):
-                content = response['body'].read()
-                content_str = content.decode('utf-8')
-                content_json = json.loads(content_str)
-                outputtext = content_json['text']
-
-            # Use Mistral as default
-            else:
-                response_body = json.loads(response.get("body").read())
-                outputtext = response_body['outputs'][0]['text']
+            # Response structure decode
+            outputtext = self.variant.decode_response(response)
 
             metadata = response['ResponseMetadata']['HTTPHeaders']
             inputtokens = int(metadata['x-amzn-bedrock-input-token-count'])
-            outputtokens = int(metadata['x-amzn-bedrock-output-token-count'])        
+            outputtokens = int(metadata['x-amzn-bedrock-output-token-count'])
 
             print(outputtext, flush=True)
             print(f"Input Tokens: {inputtokens}", flush=True)
@@ -243,30 +306,18 @@ class Processor(ConsumerProducer):
 
             print("Done.", flush=True)
 
+        except self.bedrock.exceptions.ThrottlingException as e:
 
-        # FIXME: Wrong exception, don't know what Bedrock throws
-        # for a rate limit
-        except TooManyRequests:
+            print("Hit rate limit:", e, flush=True)
 
-            print("Send rate limit response...", flush=True)
-
-            r = TextCompletionResponse(
-                error=Error(
-                    type = "rate-limit",
-                    message = str(e),
-                ),
-                response=None,
-                in_token=None,
-                out_token=None,
-                model=None,
-            )
-
-            self.producer.send(r, properties={"id": id})
-
-            self.consumer.acknowledge(msg)
+            # Leave rate limit retries to the base handler
+            raise TooManyRequests()
 
         except Exception as e:
 
+            # Apart from rate limits, treat all exceptions as unrecoverable
+
+            print(type(e))
             print(f"Exception: {e}")
 
             print("Send error response...", flush=True)
@@ -299,21 +350,27 @@ class Processor(ConsumerProducer):
         )
 
         parser.add_argument(
-            '-z', '--aws-id-key',
-            default=default_aws_id_key,
-            help=f'AWS ID Key'
+            '-z', '--aws-access-key-id',
+            default=default_access_key_id,
+            help=f'AWS access key ID'
         )
 
         parser.add_argument(
-            '-k', '--aws-secret',
-            default=default_aws_secret,
-            help=f'AWS Secret Key'
+            '-k', '--aws-secret-access-key',
+            default=default_secret_access_key,
+            help=f'AWS secret access key'
         )
 
         parser.add_argument(
             '-r', '--aws-region',
-            default=default_aws_region,
-            help=f'AWS Region'
+            default=default_region,
+            help=f'AWS region'
+        )
+
+        parser.add_argument(
+            '--aws-profile', '--profile', 
+            default=default_profile,
+            help=f'AWS profile name'
         )
 
         parser.add_argument(
@@ -332,5 +389,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.start(module, __doc__)
+    Processor.launch(module, __doc__)
 
