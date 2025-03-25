@@ -4,7 +4,7 @@ Simple LLM service, performs text prompt completion using Mistral.
 Input is prompt, output is response.
 """
 
-from mistralai import Mistral, RateLimitError
+from mistralai import Mistral
 from prometheus_client import Histogram
 import os
 
@@ -130,12 +130,18 @@ class Processor(ConsumerProducer):
 
             print("Done.", flush=True)
 
-        # FIXME: Wrong exception, don't know what this LLM throws
-        # for a rate limit
-        except Mistral.RateLimitError:
+        # FIXME: Wrong exception.  The MistralAI library has retry logic
+        # so retry-able errors are retried transparently.  It means we
+        # don't get rate limit events.
 
-            # Leave rate limit retries to the base handler
-            raise TooManyRequests()
+        # We could choose to turn off retry and handle all that here
+        # or subclass BackoffStrategy to keep the retry logic, but
+        # get the events out.
+
+#        except Mistral.RateLimitError:
+
+#            # Leave rate limit retries to the base handler
+#            raise TooManyRequests()
 
         except Exception as e:
 

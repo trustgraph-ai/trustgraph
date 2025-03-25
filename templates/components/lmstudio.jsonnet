@@ -1,34 +1,46 @@
+local base = import "base/base.jsonnet";
 local images = import "values/images.jsonnet";
 local url = import "values/url.jsonnet";
+local prompts = import "prompts/mixtral.jsonnet";
 
 {
 
     with:: function(key, value)
         self + {
-            ["mistral-" + key]:: value,
+            ["lmstudio-" + key]:: value,
         },
 
-    "pdf-decoder" +: {
+    "lmstudio-max-output-tokens":: 4096,
+    "lmstudio-temperature":: 0.0,
+    "lmstudio-model":: "GPT-3.5-Turbo",
+
+    "text-completion" +: {
     
         create:: function(engine)
 
-            local envSecrets = engine.envSecrets("mistral-credentials")
-                .with_env_var("MISTRAL_TOKEN", "mistral-token");
+            local envSecrets = engine.envSecrets("lmstudio-credentials")
+                .with_env_var("LMSTUDIO_URL", "lmstudio-url");
 
             local container =
-                engine.container("mistral-ocr")
+                engine.container("text-completion")
                     .with_image(images.trustgraph_flow)
                     .with_command([
-                        "pdf-ocr-mistral",
+                        "text-completion-lmstudio",
                         "-p",
                         url.pulsar,
+                        "-x",
+                        std.toString($["lmstudio-max-output-tokens"]),
+                        "-t",
+                        "%0.3f" % $["lmstudio-temperature"],
+                        "-m",
+                        $["lmstudio-model"],
                     ])
                     .with_env_var_secrets(envSecrets)
                     .with_limits("0.5", "128M")
                     .with_reservations("0.1", "128M");
 
             local containerSet = engine.containers(
-                "mistral-ocr", [ container ]
+                "text-completion", [ container ]
             );
 
             local service =
@@ -43,5 +55,5 @@ local url = import "values/url.jsonnet";
 
     },
 
-}
+} + prompts
 
