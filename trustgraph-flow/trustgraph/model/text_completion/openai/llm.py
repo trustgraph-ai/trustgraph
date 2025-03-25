@@ -24,6 +24,7 @@ default_model = 'gpt-3.5-turbo'
 default_temperature = 0.0
 default_max_output = 4096
 default_api_key = os.getenv("OPENAI_TOKEN")
+default_base_url = os.getenv("OPENAI_BASE_URL", None)
 
 class Processor(ConsumerProducer):
 
@@ -34,6 +35,7 @@ class Processor(ConsumerProducer):
         subscriber = params.get("subscriber", default_subscriber)
         model = params.get("model", default_model)
         api_key = params.get("api_key", default_api_key)
+        base_url = params.get("base_url", default_base_url)
         temperature = params.get("temperature", default_temperature)
         max_output = params.get("max_output", default_max_output)
 
@@ -50,6 +52,7 @@ class Processor(ConsumerProducer):
                 "model": model,
                 "temperature": temperature,
                 "max_output": max_output,
+                "base_url": base_url,
             }
         )
 
@@ -69,7 +72,7 @@ class Processor(ConsumerProducer):
         self.model = model
         self.temperature = temperature
         self.max_output = max_output
-        self.openai = OpenAI(api_key=api_key)
+        self.openai = OpenAI(base_url=base_url, api_key=api_key)
 
         print("Initialised", flush=True)
 
@@ -132,7 +135,7 @@ class Processor(ConsumerProducer):
 
         # FIXME: Wrong exception, don't know what this LLM throws
         # for a rate limit
-        except openai.RateLimitError:
+        except RateLimitError:
 
             # Leave rate limit retries to the base handler
             raise TooManyRequests()
@@ -178,6 +181,12 @@ class Processor(ConsumerProducer):
             '-k', '--api-key',
             default=default_api_key,
             help=f'OpenAI API key'
+        )
+
+        parser.add_argument(
+            '-u', '--url',
+            default=default_base_url,
+            help=f'OpenAI service base URL'
         )
 
         parser.add_argument(
