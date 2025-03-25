@@ -34,7 +34,7 @@ Building enterprise AI applications is *hard*. You're not just connecting APIs w
 ## The Stack Layers
 
 - 📄 **Data Ingest**: Bulk ingest documents such as `.pdf`,`.txt`, and `.md`
-- 📃 **OCR Pipelins**: OCR documents with PDF decode, Tesseract, or Mistral OCR services
+- 📃 **OCR Pipelines**: OCR documents with PDF decode, Tesseract, or Mistral OCR services
 - 🪓 **Adjustable Chunking**: Choose your chunking algorithm and parameters
 - 🔁 **No-code LLM Integration**: **Anthropic**, **AWS Bedrock**, **AzureAI**, **AzureOpenAI**, **Cohere**, **Google AI Studio**, **Google VertexAI**, **Llamafiles**, **Mistral**, **Ollama**, and **OpenAI**
 - 📖 **Automated Knowledge Graph Building**: No need for complex ontologies and manual graph building
