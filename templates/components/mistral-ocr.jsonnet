@@ -43,5 +43,5 @@ local url = import "values/url.jsonnet";
 
     },
 
-} + prompts
+}
 

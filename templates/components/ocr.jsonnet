@@ -27,12 +27,11 @@ local url = import "values/url.jsonnet";
                 .with_port(8080, 8080, "metrics");
 
             engine.resources([
-                envSecrets,
                 containerSet,
                 service,
             ])
 
     },
 
-} + prompts
+}
 
