@@ -302,7 +302,7 @@ class Processor(ConsumerProducer):
                 model=str(self.model),
             )
 
-            self.send(r, properties={"id": id})
+            await self.send(r, properties={"id": id})
 
             print("Done.", flush=True)
 
@@ -332,6 +332,8 @@ class Processor(ConsumerProducer):
                 out_token=None,
                 model=None,
             )
+
+            await self.send(r, properties={"id": id})
 
             self.consumer.acknowledge(msg)
 
