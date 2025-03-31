@@ -61,6 +61,7 @@ class Processor(ConsumerProducer):
                     value = self.config[v.type][v.key],
                     directory = None,
                     values = None,
+                    config = None,
                     error = None,
                 )
                 await self.send(r, properties={"id": id})
@@ -71,6 +72,7 @@ class Processor(ConsumerProducer):
                     value=None,
                     directory=None,
                     values=None,
+                    config = None,
                     error=Error(
                         code="no-such-key",
                         message="No such key"
@@ -84,6 +86,7 @@ class Processor(ConsumerProducer):
                 value=None,
                 directory=None,
                 values=None,
+                config = None,
                 error=Error(
                     code="no-such-type",
                     message="No such type"
@@ -99,6 +102,7 @@ class Processor(ConsumerProducer):
                 value = None,
                 directory = list(self.config[v.type].keys())
                 values = None,
+                config = None,
                 error = None,
             )
             await self.send(r, properties={"id": id})
@@ -109,6 +113,7 @@ class Processor(ConsumerProducer):
                 value=None,
                 directory=None,
                 values=None,
+                config = None,
                 error=Error(
                     code="no-such-type",
                     message="No such type"
@@ -124,6 +129,7 @@ class Processor(ConsumerProducer):
                 value = None,
                 directory = None,
                 values = self.config[v.type]
+                config = None,
                 error = None,
             )
             await self.send(r, properties={"id": id})
@@ -134,6 +140,7 @@ class Processor(ConsumerProducer):
                 value=None,
                 directory=None,
                 values=None,
+                config = None,
                 error=Error(
                     code="no-such-type",
                     message="No such type"
@@ -150,6 +157,7 @@ class Processor(ConsumerProducer):
                     value = None,
                     directory = None,
                     values = None,
+                    config = None,
                     error = None,
                 )
                 await self.send(r, properties={"id": id})
@@ -159,6 +167,7 @@ class Processor(ConsumerProducer):
             value=None,
             directory=None,
             values=None,
+            config = None,
             error=Error(
                 code="no-such-object",
                 message="No such object"
@@ -177,6 +186,17 @@ class Processor(ConsumerProducer):
             value = None,
             directory = None,
             values = None,
+            error = None,
+        )
+        await self.send(r, properties={"id": id})
+
+    async def handle_dump(self, v):
+
+        resp = ConfigResponse(
+            value = None,
+            directory = None,
+            values = None,
+            config = self.config,
             error = None,
         )
         await self.send(r, properties={"id": id})
@@ -211,6 +231,10 @@ class Processor(ConsumerProducer):
             elif v.operation == "put":
 
                 self.handle_put(v, id)
+
+            elif v.operation == "dump":
+
+                self.handle_dump(v, id)
 
             else:
 
