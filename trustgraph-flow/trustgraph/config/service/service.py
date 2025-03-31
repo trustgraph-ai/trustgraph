@@ -175,6 +175,8 @@ class Processor(ConsumerProducer):
         )
         await self.send(r, properties={"id": id})
 
+        await self.push()
+
     async def handle_put(self, v):
 
         if v.type not in self.config:
@@ -190,6 +192,8 @@ class Processor(ConsumerProducer):
         )
         await self.send(r, properties={"id": id})
 
+        await self.push()
+
     async def handle_dump(self, v):
 
         resp = ConfigResponse(
@@ -201,6 +205,17 @@ class Processor(ConsumerProducer):
         )
         await self.send(r, properties={"id": id})
 
+    async def push(self):
+
+        resp = ConfigResponse(
+            value = None,
+            directory = None,
+            values = None,
+            config = self.config,
+            error = None,
+        )
+        self.push_prod.send(r)
+        
     async def handle(self, msg):
 
         v = msg.value()
