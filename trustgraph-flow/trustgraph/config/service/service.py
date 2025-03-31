@@ -51,6 +51,136 @@ class Processor(ConsumerProducer):
         # back-end state store.
         self.config = {}
 
+    async def handle_get(self, v):
+
+        if v.type in self.config:
+
+            if v.key in self.config[v.type]:
+
+                resp = ConfigResponse(
+                    value = self.config[v.type][v.key],
+                    directory = None,
+                    values = None,
+                    error = None,
+                )
+                await self.send(r, properties={"id": id})
+
+            else:
+
+                resp = ConfigResponse(
+                    value=None,
+                    directory=None,
+                    values=None,
+                    error=Error(
+                        code="no-such-key",
+                        message="No such key"
+                    )
+                )
+                await self.send(r, properties={"id": id})
+
+        else:
+
+            resp = ConfigResponse(
+                value=None,
+                directory=None,
+                values=None,
+                error=Error(
+                    code="no-such-type",
+                    message="No such type"
+                )
+            )
+            await self.send(r, properties={"id": id})
+
+    async def handle_list(self, v):
+
+        if v.type in self.config:
+
+            resp = ConfigResponse(
+                value = None,
+                directory = list(self.config[v.type].keys())
+                values = None,
+                error = None,
+            )
+            await self.send(r, properties={"id": id})
+
+        else:
+
+            resp = ConfigResponse(
+                value=None,
+                directory=None,
+                values=None,
+                error=Error(
+                    code="no-such-type",
+                    message="No such type"
+                )
+            )
+            await self.send(r, properties={"id": id})
+
+    async def handle_getall(self, v):
+
+        if v.type in self.config:
+
+            resp = ConfigResponse(
+                value = None,
+                directory = None,
+                values = self.config[v.type]
+                error = None,
+            )
+            await self.send(r, properties={"id": id})
+
+        else:
+
+            resp = ConfigResponse(
+                value=None,
+                directory=None,
+                values=None,
+                error=Error(
+                    code="no-such-type",
+                    message="No such type"
+                )
+            )
+            await self.send(r, properties={"id": id})
+
+    async def handle_delete(self, v):
+
+        if v.type in self.config:
+            if v.key in self.config[v.type]:
+
+                resp = ConfigResponse(
+                    value = None,
+                    directory = None,
+                    values = None,
+                    error = None,
+                )
+                await self.send(r, properties={"id": id})
+                return
+
+        resp = ConfigResponse(
+            value=None,
+            directory=None,
+            values=None,
+            error=Error(
+                code="no-such-object",
+                message="No such object"
+            )
+        )
+        await self.send(r, properties={"id": id})
+
+    async def handle_put(self, v):
+
+        if v.type not in self.config:
+            self.config[v.type] = {}
+
+        self.config[v.type][v.key] = v.value
+
+        resp = ConfigResponse(
+            value = None,
+            directory = None,
+            values = None,
+            error = None,
+        )
+        await self.send(r, properties={"id": id})
+
     async def handle(self, msg):
 
         v = msg.value()
@@ -64,101 +194,26 @@ class Processor(ConsumerProducer):
 
             if v.operation == "get":
 
-                if v.type in self.config:
-                    if v.key in self.config[v.type]:
-
-                        resp = ConfigResponse(
-                            value = self.config[v.type][v.key],
-                            directory = None,
-                            values = None,
-                            error = None,
-                        )
-                        await self.send(r, properties={"id": id})
-                        self.consumer.acknowledge(msg)
-
-                    else:
-
-                        resp = ConfigResponse(
-                            value=None,
-                            directory=None,
-                            values=None,
-                            error=Error(
-                                code="no-such-key",
-                                message="No such key"
-                            )
-                        )
-                        await self.send(r, properties={"id": id})
-                        self.consumer.acknowledge(msg)
-
-                else:
-
-                    resp = ConfigResponse(
-                        value=None,
-                        directory=None,
-                        values=None,
-                        error=Error(
-                            code="no-such-type",
-                            message="No such type"
-                        )
-                    )
-                    await self.send(r, properties={"id": id})
-                    self.consumer.acknowledge(msg)
+                self.handle_get(v, id)
 
             elif v.operation == "list":
 
-                if v.type in self.config:
-
-                    resp = ConfigResponse(
-                        value = None,
-                        directory = list(self.config[v.type].keys())
-                        values = None,
-                        error = None,
-                    )
-                    await self.send(r, properties={"id": id})
-                    self.consumer.acknowledge(msg)
-
-                else:
-
-                    resp = ConfigResponse(
-                        value=None,
-                        directory=None,
-                        values=None,
-                        error=Error(
-                            code="no-such-type",
-                            message="No such type"
-                        )
-                    )
-                    await self.send(r, properties={"id": id})
-                    self.consumer.acknowledge(msg)
+                self.handle_list(v, id)
 
             elif v.operation == "getall":
 
-                if v.type in self.config:
+                self.handle_getall(v, id)
 
-                    resp = ConfigResponse(
-                        value = None,
-                        directory = None,
-                        values = self.config[v.type]
-                        error = None,
-                    )
-                    await self.send(r, properties={"id": id})
-                    self.consumer.acknowledge(msg)
+            elif v.operation == "delete":
 
-                else:
+                self.handle_delete(v, id)
 
-                    resp = ConfigResponse(
-                        value=None,
-                        directory=None,
-                        values=None,
-                        error=Error(
-                            code="no-such-type",
-                            message="No such type"
-                        )
-                    )
-                    await self.send(r, properties={"id": id})
-                    self.consumer.acknowledge(msg)
+            elif v.operation == "put":
+
+                self.handle_put(v, id)
 
             else:
+
                 r = ConfigResponse(
                     value=None,
                     directory=None,
@@ -170,6 +225,8 @@ class Processor(ConsumerProducer):
                 )
                 await self.send(r, properties={"id": id})
                 self.consumer.acknowledge(msg)
+
+            self.consumer.acknowledge(msg)
 
         except Exception as e:
                 
