@@ -19,7 +19,8 @@ local prompts = import "prompts/mixtral.jsonnet";
         create:: function(engine)
 
             local envSecrets = engine.envSecrets("openai-credentials")
-                .with_env_var("OPENAI_TOKEN", "openai-token");
+                .with_env_var("OPENAI_TOKEN", "openai-token")
+                .with_env_var("OPENAI_BASE_URL", "openai-url");
 
             local container =
                 engine.container("text-completion")
