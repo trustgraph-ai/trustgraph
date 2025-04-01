@@ -411,4 +411,3 @@ class Api:
         except:
             raise ProtocolException(f"Response not formatted correctly")
 
-        

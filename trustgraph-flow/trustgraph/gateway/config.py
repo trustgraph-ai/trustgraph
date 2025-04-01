@@ -54,10 +54,10 @@ class ConfigRequestor(ServiceRequestor):
 
         response = { }
 
-        if message.version:
+        if message.version is not None:
             response["version"] = message.version
 
-        if message.values:
+        if message.values is not None:
             response["values"] = [
                 {
                     "type": v.type,
@@ -67,10 +67,10 @@ class ConfigRequestor(ServiceRequestor):
                 for v in message.values
             ]
 
-        if message.directory:
+        if message.directory is not None:
             response["directory"] = message.directory
 
-        if message.config:
+        if message.config is not None:
             response["config"] = message.config
 
         return response, True
