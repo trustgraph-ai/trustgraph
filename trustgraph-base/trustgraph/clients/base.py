@@ -28,6 +28,7 @@ class BaseClient:
             output_schema=None,
             pulsar_host="pulsar://pulsar:6650",
             pulsar_api_key=None,
+            listener=None,
     ):
 
         if input_queue == None: raise RuntimeError("Need input_queue")
@@ -41,14 +42,16 @@ class BaseClient:
         if pulsar_api_key:
             auth = pulsar.AuthenticationToken(pulsar_api_key)
             self.client = pulsar.Client(
-            pulsar_host,
-            logger=pulsar.ConsoleLogger(log_level),
-            authentication=auth,
+                pulsar_host,
+                logger=pulsar.ConsoleLogger(log_level),
+                authentication=auth,
+                listener=listener,
             )
         else:
             self.client = pulsar.Client(
-            pulsar_host,
-            logger=pulsar.ConsoleLogger(log_level)
+                pulsar_host,
+                logger=pulsar.ConsoleLogger(log_level),
+                listener_name=listener,
             )
 
         self.producer = self.client.create_producer(
