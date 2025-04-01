@@ -76,13 +76,15 @@ def init(url, tenant="tg"):
         "retention_policies": {
             "retentionSizeInMB": -1,
             "retentionTimeInMinutes": 3,
+            "subscription_expiration_time_minutes": 30,
         }
     })
 
     ensure_namespace(url, tenant, "config", {
         "retention_policies": {
-            "retentionSizeInMB": 50,
+            "retentionSizeInMB": 10,
             "retentionTimeInMinutes": -1,
+            "subscription_expiration_time_minutes": 5,
         }
     })
 

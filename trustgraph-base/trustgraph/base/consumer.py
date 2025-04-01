@@ -82,7 +82,7 @@ class Consumer(BaseProcessor):
 
         while True:
 
-            msg = self.consumer.receive()
+            msg = await asyncio.to_thread(self.consumer.receive)
 
             expiry = time.time() + self.rate_limit_timeout
 
