@@ -4,13 +4,14 @@ Config service.  Fetchs an extract from the Wikipedia page
 using the API.
 """
 
-from trustgraph.schema import ConfigItem, ConfigItems, ConfigUpdate
+from pulsar.schema import JsonSchema
+
 from trustgraph.schema import ConfigRequest, ConfigResponse, ConfigPush
+from trustgraph.schema import Error
 from trustgraph.schema import config_request_queue, config_response_queue
 from trustgraph.schema import config_push_queue
 from trustgraph.log_level import LogLevel
 from trustgraph.base import ConsumerProducer
-import requests
 
 module = ".".join(__name__.split(".")[1:-1])
 
@@ -27,7 +28,6 @@ class Processor(ConsumerProducer):
         output_queue = params.get("output_queue", default_output_queue)
         push_queue = params.get("push_queue", default_push_queue)
         subscriber = params.get("subscriber", default_subscriber)
-        url = params.get("url", default_url)
 
         super(Processor, self).__init__(
             **params | {
@@ -51,24 +51,32 @@ class Processor(ConsumerProducer):
         # back-end state store.
         self.config = {}
 
-    async def handle_get(self, v):
+        # Version counter
+        self.version = 0
+
+    async def start(self):
+        await self.push()
+        
+    async def handle_get(self, v, id):
 
         if v.type in self.config:
 
             if v.key in self.config[v.type]:
 
                 resp = ConfigResponse(
+                    version = self.version,
                     value = self.config[v.type][v.key],
                     directory = None,
                     values = None,
                     config = None,
                     error = None,
                 )
-                await self.send(r, properties={"id": id})
+                await self.send(resp, properties={"id": id})
 
             else:
 
                 resp = ConfigResponse(
+                    version = None,
                     value=None,
                     directory=None,
                     values=None,
@@ -78,11 +86,12 @@ class Processor(ConsumerProducer):
                         message="No such key"
                     )
                 )
-                await self.send(r, properties={"id": id})
+                await self.send(resp, properties={"id": id})
 
         else:
 
             resp = ConfigResponse(
+                version = None,
                 value=None,
                 directory=None,
                 values=None,
@@ -92,24 +101,26 @@ class Processor(ConsumerProducer):
                     message="No such type"
                 )
             )
-            await self.send(r, properties={"id": id})
+            await self.send(resp, properties={"id": id})
 
-    async def handle_list(self, v):
+    async def handle_list(self, v, id):
 
         if v.type in self.config:
 
             resp = ConfigResponse(
+                version = self.version,
                 value = None,
-                directory = list(self.config[v.type].keys())
+                directory = list(self.config[v.type].keys()),
                 values = None,
                 config = None,
                 error = None,
             )
-            await self.send(r, properties={"id": id})
+            await self.send(resp, properties={"id": id})
 
         else:
 
             resp = ConfigResponse(
+                version = None,
                 value=None,
                 directory=None,
                 values=None,
@@ -119,24 +130,26 @@ class Processor(ConsumerProducer):
                     message="No such type"
                 )
             )
-            await self.send(r, properties={"id": id})
+            await self.send(resp, properties={"id": id})
 
-    async def handle_getall(self, v):
+    async def handle_getall(self, v, id):
 
         if v.type in self.config:
 
             resp = ConfigResponse(
+                version = self.version,
                 value = None,
                 directory = None,
-                values = self.config[v.type]
+                values = self.config[v.type],
                 config = None,
                 error = None,
             )
-            await self.send(r, properties={"id": id})
+            await self.send(resp, properties={"id": id})
 
         else:
 
             resp = ConfigResponse(
+                version = None,
                 value=None,
                 directory=None,
                 values=None,
@@ -146,24 +159,32 @@ class Processor(ConsumerProducer):
                     message="No such type"
                 )
             )
-            await self.send(r, properties={"id": id})
+            await self.send(resp, properties={"id": id})
 
-    async def handle_delete(self, v):
+    async def handle_delete(self, v, id):
 
         if v.type in self.config:
+
             if v.key in self.config[v.type]:
 
+                del self.config[v.type][v.key]
+                self.version += 1
+
                 resp = ConfigResponse(
+                    version = None,
                     value = None,
                     directory = None,
                     values = None,
                     config = None,
                     error = None,
                 )
-                await self.send(r, properties={"id": id})
+                await self.send(resp, properties={"id": id})
+
+                await self.push()
                 return
 
         resp = ConfigResponse(
+            version = None,
             value=None,
             directory=None,
             values=None,
@@ -173,48 +194,53 @@ class Processor(ConsumerProducer):
                 message="No such object"
             )
         )
-        await self.send(r, properties={"id": id})
+        await self.send(resp, properties={"id": id})
 
         await self.push()
 
-    async def handle_put(self, v):
+    async def handle_put(self, v, id):
 
         if v.type not in self.config:
             self.config[v.type] = {}
 
         self.config[v.type][v.key] = v.value
+        self.version += 1
 
         resp = ConfigResponse(
+            version = None,
             value = None,
             directory = None,
             values = None,
             error = None,
         )
-        await self.send(r, properties={"id": id})
+        await self.send(resp, properties={"id": id})
 
         await self.push()
 
-    async def handle_dump(self, v):
+    async def handle_dump(self, v, id):
 
         resp = ConfigResponse(
+            version = self.version,
             value = None,
             directory = None,
             values = None,
             config = self.config,
             error = None,
         )
-        await self.send(r, properties={"id": id})
+        await self.send(resp, properties={"id": id})
 
     async def push(self):
 
-        resp = ConfigResponse(
+        resp = ConfigPush(
+            version = self.version,
             value = None,
             directory = None,
             values = None,
             config = self.config,
             error = None,
         )
-        self.push_prod.send(r)
+        self.push_prod.send(resp)
+        print("Pushed.")
         
     async def handle(self, msg):
 
@@ -229,27 +255,27 @@ class Processor(ConsumerProducer):
 
             if v.operation == "get":
 
-                self.handle_get(v, id)
+                await self.handle_get(v, id)
 
             elif v.operation == "list":
 
-                self.handle_list(v, id)
+                await self.handle_list(v, id)
 
             elif v.operation == "getall":
 
-                self.handle_getall(v, id)
+                await self.handle_getall(v, id)
 
             elif v.operation == "delete":
 
-                self.handle_delete(v, id)
+                await self.handle_delete(v, id)
 
             elif v.operation == "put":
 
-                self.handle_put(v, id)
+                await self.handle_put(v, id)
 
-            elif v.operation == "dump":
+            elif v.operation == "config":
 
-                self.handle_dump(v, id)
+                await self.handle_dump(v, id)
 
             else:
 
@@ -269,7 +295,7 @@ class Processor(ConsumerProducer):
 
         except Exception as e:
                 
-            r = LookupResponse(
+            r = ConfigResponse(
                 error=Error(
                     type = "unexpected-error",
                     message = str(e),

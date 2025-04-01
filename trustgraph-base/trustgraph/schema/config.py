@@ -7,20 +7,14 @@ from . types import Error, RowSchema
 ############################################################################
 
 # Prompt services, abstract the prompt generation
-
-class ConfigItem(Record):
+class ConfigRequest(Record):
+    operation = String() # get, list, getall, delete, put, dump
+    type = String()
     key = String()
     value = String()
 
-class ConfigItems(Record):
-    items = Map(String())
-
-class ConfigRequest(Record):
-    type = String()
-    key = String()
-    operation = String() # get, list, getall, delete, put, dump
-
 class ConfigResponse(Record):
+    version = Integer()
     value = String()
     directory = Array(String())
     values = Map(String())
@@ -28,16 +22,17 @@ class ConfigResponse(Record):
     error = Error()
 
 class ConfigPush(Record):
-    config = Map(ConfigItems())
+    version = Integer()
+    config = Map(Map(String()))
 
 config_request_queue = topic(
-    'prompt', kind='non-persistent', namespace='request'
+    'config', kind='non-persistent', namespace='request'
 )
 config_response_queue = topic(
-    'prompt', kind='non-persistent', namespace='response'
+    'config', kind='non-persistent', namespace='response'
 )
 config_push_queue = topic(
-    'prompt', kind='non-persistent', namespace='config'b
+    'config', kind='persistent', namespace='config'
 )
 
 ############################################################################

@@ -38,6 +38,7 @@ from . agent import AgentRequestor
 from . dbpedia import DbpediaRequestor
 from . internet_search import InternetSearchRequestor
 from . librarian import LibrarianRequestor
+from . config import ConfigRequestor
 from . triples_stream import TriplesStreamEndpoint
 from . graph_embeddings_stream import GraphEmbeddingsStreamEndpoint
 from . document_embeddings_stream import DocumentEmbeddingsStreamEndpoint
@@ -141,6 +142,10 @@ class Api:
                 pulsar_client=self.pulsar_client, timeout=self.timeout,
                 auth = self.auth,
             ),
+            "config": ConfigRequestor(
+                pulsar_client=self.pulsar_client, timeout=self.timeout,
+                auth = self.auth,
+            ),
             "encyclopedia": EncyclopediaRequestor(
                 pulsar_client=self.pulsar_client, timeout=self.timeout,
                 auth = self.auth,
@@ -198,6 +203,10 @@ class Api:
             ServiceEndpoint(
                 endpoint_path = "/api/v1/librarian", auth=self.auth,
                 requestor = self.services["librarian"],
+            ),
+            ServiceEndpoint(
+                endpoint_path = "/api/v1/config", auth=self.auth,
+                requestor = self.services["config"],
             ),
             ServiceEndpoint(
                 endpoint_path = "/api/v1/encyclopedia", auth=self.auth,
