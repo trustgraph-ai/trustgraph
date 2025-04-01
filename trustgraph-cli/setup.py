@@ -62,5 +62,6 @@ setuptools.setup(
         "scripts/tg-processor-state",
         "scripts/tg-save-kg-core",
         "scripts/tg-save-doc-embeds",
+        "scripts/tg-show-config",
     ]
 )

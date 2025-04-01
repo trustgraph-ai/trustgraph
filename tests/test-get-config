@@ -1,0 +1,11 @@
+#!/usr/bin/env python3
+
+import pulsar
+from trustgraph.clients.config_client import ConfigClient
+
+cli = ConfigClient(pulsar_host="pulsar://localhost:6650")
+
+resp = cli.request_config()
+
+print(resp)
+

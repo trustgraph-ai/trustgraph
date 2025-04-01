@@ -11,5 +11,6 @@ from . metadata import *
 from . agent import *
 from . lookup import *
 from . library import *
+from . config import *
 
 

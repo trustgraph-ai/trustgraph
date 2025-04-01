@@ -382,3 +382,33 @@ class Api:
         if resp.status_code != 200:
             raise ProtocolException(f"Status code {resp.status_code}")
 
+    def get_config(self):
+
+        # The input consists of system and prompt strings
+        input = {
+            "operation": "config"
+        }
+
+        url = f"{self.url}config"
+
+        # Invoke the API, input is passed as JSON
+        resp = requests.post(url, json=input)
+
+        # Should be a 200 status code
+        if resp.status_code != 200:
+            raise ProtocolException(f"Status code {resp.status_code}")
+
+        try:
+            # Parse the response as JSON
+            object = resp.json()
+        except:
+            raise ProtocolException(f"Expected JSON response")
+
+        self.check_error(resp)
+
+        try:
+            return object["config"], object["version"]
+        except:
+            raise ProtocolException(f"Response not formatted correctly")
+
+        

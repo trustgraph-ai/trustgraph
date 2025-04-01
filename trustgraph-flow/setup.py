@@ -73,6 +73,7 @@ setuptools.setup(
         "scripts/api-gateway",
         "scripts/chunker-recursive",
         "scripts/chunker-token",
+        "scripts/config-svc",
         "scripts/de-query-milvus",
         "scripts/de-query-pinecone",
         "scripts/de-query-qdrant",

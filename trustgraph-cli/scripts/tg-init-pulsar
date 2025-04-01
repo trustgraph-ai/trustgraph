@@ -79,6 +79,13 @@ def init(url, tenant="tg"):
         }
     })
 
+    ensure_namespace(url, tenant, "config", {
+        "retention_policies": {
+            "retentionSizeInMB": 50,
+            "retentionTimeInMinutes": -1,
+        }
+    })
+
 def main():
 
     parser = argparse.ArgumentParser(
