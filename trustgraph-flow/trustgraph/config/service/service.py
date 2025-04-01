@@ -7,7 +7,7 @@ using the API.
 from pulsar.schema import JsonSchema
 
 from trustgraph.schema import ConfigRequest, ConfigResponse, ConfigPush
-from trustgraph.schema import Error
+from trustgraph.schema import ConfigValue, Error
 from trustgraph.schema import config_request_queue, config_response_queue
 from trustgraph.schema import config_push_queue
 from trustgraph.log_level import LogLevel
@@ -20,6 +20,19 @@ default_output_queue = config_response_queue
 default_push_queue = config_push_queue
 default_subscriber = module
 
+# This behaves just like a dict, should be easier to add persistent storage
+# later
+
+class ConfigurationItems(dict):
+    pass
+
+class Configuration(dict):
+
+    def __getitem__(self, key):
+        if key not in self:
+            self[key] = ConfigurationItems()
+        return dict.__getitem__(self, key)
+        
 class Processor(ConsumerProducer):
 
     def __init__(self, **params):
@@ -49,7 +62,7 @@ class Processor(ConsumerProducer):
         # FIXME: The state is held internally. This only works if there's
         # one config service.  Should be more than one, and use a
         # back-end state store.
-        self.config = {}
+        self.config = Configuration()
 
         # Version counter
         self.version = 0
@@ -59,167 +72,142 @@ class Processor(ConsumerProducer):
         
     async def handle_get(self, v, id):
 
-        if v.type in self.config:
-
-            if v.key in self.config[v.type]:
-
-                resp = ConfigResponse(
-                    version = self.version,
-                    value = self.config[v.type][v.key],
-                    directory = None,
-                    values = None,
-                    config = None,
-                    error = None,
-                )
-                await self.send(resp, properties={"id": id})
-
-            else:
-
-                resp = ConfigResponse(
+        for k in v.keys:
+            if k.type not in self.config or k.key not in self.config[k.type]:
+                return ConfigResponse(
                     version = None,
-                    value=None,
-                    directory=None,
-                    values=None,
+                    values = None,
+                    directory = None,
                     config = None,
-                    error=Error(
-                        code="no-such-key",
-                        message="No such key"
+                    error = Error(
+                        code = "key-error",
+                        message = f"Key error"
                     )
                 )
-                await self.send(resp, properties={"id": id})
 
-        else:
-
-            resp = ConfigResponse(
-                version = None,
-                value=None,
-                directory=None,
-                values=None,
-                config = None,
-                error=Error(
-                    code="no-such-type",
-                    message="No such type"
-                )
+        values = [
+            ConfigValue(
+                type = k.type,
+                key = k.key,
+                value = self.config[k.type][k.key]
             )
-            await self.send(resp, properties={"id": id})
+            for k in v.keys
+        ]
+
+        return ConfigResponse(
+            version = self.version,
+            values = values,
+            directory = None,
+            config = None,
+            error = None,
+        )
 
     async def handle_list(self, v, id):
 
-        if v.type in self.config:
+        if v.type not in self.config:
 
-            resp = ConfigResponse(
-                version = self.version,
-                value = None,
-                directory = list(self.config[v.type].keys()),
+            return ConfigResponse(
+                version = None,
                 values = None,
-                config = None,
-                error = None,
-            )
-            await self.send(resp, properties={"id": id})
-
-        else:
-
-            resp = ConfigResponse(
-                version = None,
-                value=None,
-                directory=None,
-                values=None,
-                config = None,
-                error=Error(
-                    code="no-such-type",
-                    message="No such type"
-                )
-            )
-            await self.send(resp, properties={"id": id})
-
-    async def handle_getall(self, v, id):
-
-        if v.type in self.config:
-
-            resp = ConfigResponse(
-                version = self.version,
-                value = None,
                 directory = None,
-                values = self.config[v.type],
                 config = None,
-                error = None,
+                error = Error(
+                    code="key-error",
+                    message="No such type",
+                ),
             )
-            await self.send(resp, properties={"id": id})
 
-        else:
+        return ConfigResponse(
+            version = self.version,
+            values = None,
+            directory = list(self.config[v.type].keys()),
+            config = None,
+            error = None,
+        )
 
-            resp = ConfigResponse(
+    async def handle_getvalues(self, v, id):
+
+        if v.type not in self.config:
+
+            return ConfigResponse(
                 version = None,
-                value=None,
-                directory=None,
-                values=None,
+                values = None,
+                directory = None,
                 config = None,
-                error=Error(
-                    code="no-such-type",
-                    message="No such type"
+                error = Error(
+                    code = "key-error",
+                    message = f"Key error"
                 )
             )
-            await self.send(resp, properties={"id": id})
+
+        values = [
+            ConfigValue(
+                type = v.type,
+                key = k,
+                value = self.config[v.type][k],
+            )
+            for k in self.config[v.type]
+        ]
+
+        return ConfigResponse(
+            version = self.version,
+            values = values,
+            directory = None,
+            config = None,
+            error = None,
+        )
 
     async def handle_delete(self, v, id):
 
-        if v.type in self.config:
-
-            if v.key in self.config[v.type]:
-
-                del self.config[v.type][v.key]
-                self.version += 1
-
-                resp = ConfigResponse(
+        for k in v.keys:
+            if k.type not in self.config or k.key not in self.config[k.type]:
+                return ConfigResponse(
                     version = None,
-                    value = None,
-                    directory = None,
                     values = None,
+                    directory = None,
                     config = None,
-                    error = None,
+                    error = Error(
+                        code = "key-error",
+                        message = f"Key error"
+                    )
                 )
-                await self.send(resp, properties={"id": id})
 
-                await self.push()
-                return
+        for k in v.keys:
+            del self.config[k.type][k.key]
 
-        resp = ConfigResponse(
-            version = None,
-            value=None,
-            directory=None,
-            values=None,
-            config = None,
-            error=Error(
-                code="no-such-object",
-                message="No such object"
-            )
-        )
-        await self.send(resp, properties={"id": id})
+        self.version += 1
 
         await self.push()
 
+        return ConfigResponse(
+            version = None,
+            value = None,
+            directory = None,
+            values = None,
+            config = None,
+            error = None,
+        )
+
     async def handle_put(self, v, id):
 
-        if v.type not in self.config:
-            self.config[v.type] = {}
+        for k in v.values:
+            self.config[k.type][k.key] = k.value
 
-        self.config[v.type][v.key] = v.value
         self.version += 1
 
-        resp = ConfigResponse(
+        await self.push()
+
+        return ConfigResponse(
             version = None,
             value = None,
             directory = None,
             values = None,
             error = None,
         )
-        await self.send(resp, properties={"id": id})
 
-        await self.push()
+    async def handle_config(self, v, id):
 
-    async def handle_dump(self, v, id):
-
-        resp = ConfigResponse(
+        return ConfigResponse(
             version = self.version,
             value = None,
             directory = None,
@@ -227,7 +215,6 @@ class Processor(ConsumerProducer):
             config = self.config,
             error = None,
         )
-        await self.send(resp, properties={"id": id})
 
     async def push(self):
 
@@ -255,31 +242,31 @@ class Processor(ConsumerProducer):
 
             if v.operation == "get":
 
-                await self.handle_get(v, id)
+                resp = await self.handle_get(v, id)
 
             elif v.operation == "list":
 
-                await self.handle_list(v, id)
+                resp = await self.handle_list(v, id)
 
-            elif v.operation == "getall":
+            elif v.operation == "getvalues":
 
-                await self.handle_getall(v, id)
+                resp = await self.handle_getvalues(v, id)
 
             elif v.operation == "delete":
 
-                await self.handle_delete(v, id)
+                resp = await self.handle_delete(v, id)
 
             elif v.operation == "put":
 
-                await self.handle_put(v, id)
+                resp = await self.handle_put(v, id)
 
             elif v.operation == "config":
 
-                await self.handle_dump(v, id)
+                resp = await self.handle_config(v, id)
 
             else:
 
-                r = ConfigResponse(
+                resp = ConfigResponse(
                     value=None,
                     directory=None,
                     values=None,
@@ -288,21 +275,21 @@ class Processor(ConsumerProducer):
                         message="Bad operation"
                     )
                 )
-                await self.send(r, properties={"id": id})
-                self.consumer.acknowledge(msg)
+
+            await self.send(resp, properties={"id": id})
 
             self.consumer.acknowledge(msg)
 
         except Exception as e:
                 
-            r = ConfigResponse(
+            resp = ConfigResponse(
                 error=Error(
                     type = "unexpected-error",
                     message = str(e),
                 ),
                 text=None,
             )
-            await self.send(r, properties={"id": id})
+            await self.send(resp, properties={"id": id})
             self.consumer.acknowledge(msg)
 
     @staticmethod

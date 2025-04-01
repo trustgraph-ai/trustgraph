@@ -1,5 +1,5 @@
 
-from .. schema import ConfigRequest, ConfigResponse
+from .. schema import ConfigRequest, ConfigResponse, ConfigKey, ConfigValue
 from .. schema import config_request_queue
 from .. schema import config_response_queue
 
@@ -20,29 +20,55 @@ class ConfigRequestor(ServiceRequestor):
 
     def to_request(self, body):
 
+        if "keys" in body:
+            keys = [
+                ConfigKey(
+                    type = k["type"],
+                    key = k["key"],
+                )
+                for k in body["keys"]
+            ]
+        else:
+            keys = None
+
+        if "values" in body:
+            values = [
+                ConfigValue(
+                    type = v["type"],
+                    key = v["key"],
+                    value = v["value"],
+                )
+                for v in body["values"]
+            ]
+        else:
+            values = None
+
         return ConfigRequest(
             operation = body.get("operation", None),
+            keys = keys,
             type = body.get("type", None),
-            key = body.get("key", None),
-            value = body.get("value", None),
+            values = values
         )
 
     def from_response(self, message):
 
-        response = {
-        }
+        response = { }
 
         if message.version:
             response["version"] = message.version
 
-        if message.value:
-            response["value"] = message.value
+        if message.values:
+            response["values"] = [
+                {
+                    "type": v.type,
+                    "key": v.key,
+                    "value": v.value,
+                }
+                for v in message.values
+            ]
 
         if message.directory:
             response["directory"] = message.directory
-
-        if message.values:
-            response["values"] = message.values
 
         if message.config:
             response["config"] = message.config

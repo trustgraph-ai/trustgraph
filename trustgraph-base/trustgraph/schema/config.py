@@ -6,19 +6,51 @@ from . types import Error, RowSchema
 
 ############################################################################
 
-# Prompt services, abstract the prompt generation
-class ConfigRequest(Record):
-    operation = String() # get, list, getall, delete, put, dump
+# Config service:
+#   get(keys) -> (version, values)
+#   list(type) -> (version, values)
+#   getvalues(type) -> (version, values)
+#   put(values) -> ()
+#   delete(keys) -> ()
+#   config() -> (version, config)
+class ConfigKey(Record):
+    type = String()
+    key = String()
+
+class ConfigValue(Record):
     type = String()
     key = String()
     value = String()
 
+# Prompt services, abstract the prompt generation
+class ConfigRequest(Record):
+
+    operation = String() # get, list, getvalues, delete, put, config
+
+    # get, delete
+    keys = Array(ConfigKey())
+
+    # list, getvalues
+    type = String()
+
+    # put
+    values = Array(ConfigValue())
+
 class ConfigResponse(Record):
+
+    # get, list, getvalues, config
     version = Integer()
-    value = String()
+
+    # get, getvalues
+    values = Array(ConfigValue())
+
+    # list
     directory = Array(String())
-    values = Map(String())
+
+    # config
     config = Map(Map(String()))
+
+    # Everything
     error = Error()
 
 class ConfigPush(Record):
