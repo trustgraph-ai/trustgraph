@@ -28,82 +28,6 @@ class Processor(ConsumerProducer):
 
     def __init__(self, **params):
 
-        prompt_base = {}
-
-        # Parsing the prompt information to the prompt configuration
-        # structure
-        prompt_arg = params.get("prompt", [])
-        if prompt_arg:
-            for p in prompt_arg:
-                toks = p.split("=", 1)
-                if len(toks) < 2:
-                    raise RuntimeError(f"Prompt string not well-formed: {p}")
-                prompt_base[toks[0]] = {
-                    "template": toks[1]
-                }
-
-        prompt_response_type_arg = params.get("prompt_response_type", [])
-        if prompt_response_type_arg:
-            for p in prompt_response_type_arg:
-                toks = p.split("=", 1)
-                if len(toks) < 2:
-                    raise RuntimeError(f"Response type not well-formed: {p}")
-                if toks[0] not in prompt_base:
-                    raise RuntimeError(f"Response-type, {toks[0]} not known")
-                prompt_base[toks[0]]["response_type"] = toks[1]
-
-        prompt_schema_arg = params.get("prompt_schema", [])
-        if prompt_schema_arg:
-            for p in prompt_schema_arg:
-                toks = p.split("=", 1)
-                if len(toks) < 2:
-                    raise RuntimeError(f"Schema arg not well-formed: {p}")
-                if toks[0] not in prompt_base:
-                    raise RuntimeError(f"Schema, {toks[0]} not known")
-                try:
-                    prompt_base[toks[0]]["schema"] = json.loads(toks[1])
-                except:
-                    raise RuntimeError(f"Failed to parse JSON schema: {p}")
-
-        prompt_term_arg = params.get("prompt_term", [])
-        if prompt_term_arg:
-            for p in prompt_term_arg:
-                toks = p.split("=", 1)
-                if len(toks) < 2:
-                    raise RuntimeError(f"Term arg not well-formed: {p}")
-                if toks[0] not in prompt_base:
-                    raise RuntimeError(f"Term, {toks[0]} not known")
-                kvtoks = toks[1].split(":", 1)
-                if len(kvtoks) < 2:
-                    raise RuntimeError(f"Term not well-formed: {toks[1]}")
-                k, v = kvtoks
-                if "terms" not in prompt_base[toks[0]]:
-                    prompt_base[toks[0]]["terms"] = {}
-                prompt_base[toks[0]]["terms"][k] = v
-
-        global_terms = {}
-
-        global_term_arg = params.get("global_term", [])
-        if global_term_arg:
-            for t in global_term_arg:
-                toks = t.split("=", 1)
-                if len(toks) < 2:
-                    raise RuntimeError(f"Global term arg not well-formed: {t}")
-                global_terms[toks[0]] = toks[1]
-
-        print(global_terms)
-
-        prompts = {
-            k: Prompt(**v)
-            for k, v in prompt_base.items()
-        }
-
-        prompt_configuration = PromptConfiguration(
-            system_template = params.get("system_prompt", ""),
-            global_terms = global_terms,
-            prompts = prompts
-        )
-
         input_queue = params.get("input_queue", default_input_queue)
         output_queue = params.get("output_queue", default_output_queue)
         subscriber = params.get("subscriber", default_subscriber)
@@ -113,12 +37,8 @@ class Processor(ConsumerProducer):
         tc_response_queue = params.get(
             "text_completion_response_queue", text_completion_response_queue
         )
-        definition_template = params.get("definition_template")
-        relationship_template = params.get("relationship_template")
-        topic_template = params.get("topic_template")
-        rows_template = params.get("rows_template")
-        knowledge_query_template = params.get("knowledge_query_template")
-        document_query_template = params.get("document_query_template")
+
+        self.config_key = params.get("config_type", "prompt")
 
         super(Processor, self).__init__(
             **params | {
@@ -151,10 +71,60 @@ class Processor(ConsumerProducer):
 
         self.llm = Llm(self.llm)
 
+        # Null configuration, should reload quickly
         self.manager = PromptManager(
             llm = self.llm,
-            config = prompt_configuration,
+            config = PromptConfiguration("", {}, {})
         )
+
+    async def on_config(self, version, config):
+
+        print("Loading configuration version", version)
+
+        if self.config_key not in config:
+            print(f"No key {self.config_key} in config", flush=True)
+            return
+
+        config = config[self.config_key]
+
+        try:
+
+            system = json.loads(config["system"])
+            ix = json.loads(config["template-index"])
+
+            prompts = {}
+
+            for k in ix:
+
+                pc = config[f"template.{k}"]
+                data = json.loads(pc)
+
+                prompt = data.get("prompt")
+                rtype = data.get("response-type", "text")
+                schema = data.get("schema", None)
+
+                prompts[k] = Prompt(
+                    template = prompt,
+                    response_type = rtype,
+                    schema = schema,
+                    terms = {}
+                )
+
+            self.manager = PromptManager(
+                self.llm,
+                PromptConfiguration(
+                    system,
+                    {},
+                    prompts
+                )
+            )
+
+            print("Prompt configuration reloaded.", flush=True)
+
+        except Exception as e:
+
+            print("Exception:", e, flush=True)
+            print("Configuration reload failed", flush=True)
 
     async def handle(self, msg):
 
@@ -263,33 +233,9 @@ class Processor(ConsumerProducer):
         )
 
         parser.add_argument(
-            '--prompt', nargs='*',
-            help=f'Prompt template form id=template',
-        )
-
-        parser.add_argument(
-            '--prompt-response-type', nargs='*',
-            help=f'Prompt response type, form id=json|text',
-        )
-
-        parser.add_argument(
-            '--prompt-term', nargs='*',
-            help=f'Prompt response type, form id=key:value',
-        )
-
-        parser.add_argument(
-            '--prompt-schema', nargs='*',
-            help=f'Prompt response schema, form id=schema',
-        )
-
-        parser.add_argument(
-            '--system-prompt',
-            help=f'System prompt template',
-        )
-
-        parser.add_argument(
-            '--global-term', nargs='+',
-            help=f'Global term, form key:value'
+            '--config-type',
+            default="prompt",
+            help=f'Configuration key for prompts (default: prompt)',
         )
 
 def run():

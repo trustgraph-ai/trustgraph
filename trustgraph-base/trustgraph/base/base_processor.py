@@ -67,6 +67,7 @@ class BaseProcessor:
         self.config_subscriber = self.client.subscribe(
             self.config_push_queue, config_subscriber_id,
             consumer_type=pulsar.ConsumerType.Shared,
+            initial_position=pulsar.InitialPosition.Earliest,
             schema=JsonSchema(ConfigPush),         
         )
 

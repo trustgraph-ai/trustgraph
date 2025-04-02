@@ -132,7 +132,7 @@ def init(pulsar_admin_url, pulsar_host, pulsar_api_key, config, tenant):
         "retention_policies": {
             "retentionSizeInMB": -1,
             "retentionTimeInMinutes": 3,
-            "subscription_expiration_time_minutes": 30,
+            "subscriptionExpirationTimeMinutes": 30,
         }
     })
 
@@ -140,7 +140,7 @@ def init(pulsar_admin_url, pulsar_host, pulsar_api_key, config, tenant):
         "retention_policies": {
             "retentionSizeInMB": 10,
             "retentionTimeInMinutes": -1,
-            "subscription_expiration_time_minutes": 5,
+            "subscriptionExpirationTimeMinutes": 5,
         }
     })
 

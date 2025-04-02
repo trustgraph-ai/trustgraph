@@ -5,7 +5,7 @@ class KnowledgeQueryImpl:
     def __init__(self, context):
         self.context = context
     def invoke(self, **arguments):
-        return self.context.graph_rag.request(arguments.get("query"))
+        return self.context.graph_rag.request(arguments.get("question"))
 
 # This tool implementation knows how to do text completion.  This uses
 # the prompt service, rather than talking  to TextCompletion directly.
