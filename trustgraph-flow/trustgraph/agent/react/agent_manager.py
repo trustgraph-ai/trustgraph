@@ -85,19 +85,19 @@ class AgentManager:
 
             return a
 
-    def react(self, question, history, think, observe):
+    async def react(self, question, history, think, observe):
 
         act = self.reason(question, history)
         logger.info(f"act: {act}")
 
         if isinstance(act, Final):
 
-            think(act.thought)
+            await think(act.thought)
             return act
 
         else:
 
-            think(act.thought)
+            await think(act.thought)
 
             if act.name in self.tools:
                 action = self.tools[act.name]
@@ -110,7 +110,7 @@ class AgentManager:
 
             logger.info(f"resp: {resp}")
 
-            observe(resp)
+            await observe(resp)
 
             act.observation = resp
 

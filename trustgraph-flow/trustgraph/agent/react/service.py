@@ -36,91 +36,11 @@ class Processor(ConsumerProducer):
 
     def __init__(self, **params):
 
-        additional = params.get("context", None)
-
-        self.max_iterations = int(params.get("max_iterations", default_max_iterations))
+        self.max_iterations = int(
+            params.get("max_iterations", default_max_iterations)
+        )
 
         tools = {}
-
-        # Parsing the prompt information to the prompt configuration
-        # structure
-        tool_type_arg = params.get("tool_type", [])
-        if tool_type_arg:
-            for t in tool_type_arg:
-                toks = t.split("=", 1)
-                if len(toks) < 2:
-                    raise RuntimeError(
-                        f"Tool-type string not well-formed: {t}"
-                    )
-                ttoks = toks[1].split(":", 1)
-                if len(ttoks) < 1:
-                    raise RuntimeError(
-                        f"Tool-type string not well-formed: {t}"
-                    )
-
-                if ttoks[0] == "knowledge-query":
-                    impl = KnowledgeQueryImpl(self)
-                elif ttoks[0] == "text-completion":
-                    impl = TextCompletionImpl(self)
-                else:
-                    raise RuntimeError(
-                        f"Tool-kind {ttoks[0]} not known"
-                    )
-
-                if len(ttoks) == 1:
-
-                    tools[toks[0]] = Tool(
-                        name = toks[0],
-                        description = "",
-                        implementation = impl,
-                        config = { "input": "query" },
-                        arguments = {},
-                    )
-                else:
-                    tools[toks[0]] = Tool(
-                        name = toks[0],
-                        description = "",
-                        implementation = impl,
-                        config = { "input": ttoks[1] },
-                        arguments = {},
-                    )
-
-        # parsing the prompt information to the prompt configuration
-        # structure
-        tool_desc_arg = params.get("tool_description", [])
-        if tool_desc_arg:
-            for t in tool_desc_arg:
-                toks = t.split("=", 1)
-                if len(toks) < 2:
-                    raise runtimeerror(
-                        f"tool-type string not well-formed: {t}"
-                    )
-                if toks[0] not in tools:
-                    raise runtimeerror(f"description, tool {toks[0]} not known")
-                tools[toks[0]].description = toks[1]
-
-        # Parsing the prompt information to the prompt configuration
-        # structure
-        tool_arg_arg = params.get("tool_argument", [])
-        if tool_arg_arg:
-            for t in tool_arg_arg:
-                toks = t.split("=", 1)
-                if len(toks) < 2:
-                    raise RuntimeError(
-                        f"Tool-type string not well-formed: {t}"
-                    )
-                ttoks = toks[1].split(":", 2)
-                if len(ttoks) != 3:
-                    raise RuntimeError(
-                        f"Tool argument string not well-formed: {t}"
-                    )
-                if toks[0] not in tools:
-                    raise RuntimeError(f"Description, tool {toks[0]} not known")
-                tools[toks[0]].arguments[ttoks[0]] = Argument(
-                    name = ttoks[0],
-                    type = ttoks[1],
-                    description = ttoks[2]
-                )
 
         input_queue = params.get("input_queue", default_input_queue)
         output_queue = params.get("output_queue", default_output_queue)
@@ -137,6 +57,8 @@ class Processor(ConsumerProducer):
         graph_rag_response_queue = params.get(
             "graph_rag_response_queue", gr_response_queue
         )
+
+        self.config_key = params.get("config_type", "agent")
 
         super(Processor, self).__init__(
             **params | {
@@ -176,20 +98,74 @@ class Processor(ConsumerProducer):
 
         self.agent = AgentManager(
             context=self,
-            tools=tools,
-            additional_context=additional
+            tools=[],
+            additional_context="",
         )
 
-    def parse_json(self, text):
-        json_match = re.search(r'```(?:json)?(.*?)```', text, re.DOTALL)
-    
-        if json_match:
-            json_str = json_match.group(1).strip()
-        else:
-            # If no delimiters, assume the entire output is JSON
-            json_str = text.strip()
+    async def on_config(self, version, config):
 
-        return json.loads(json_str)
+        print("Loading configuration version", version)
+
+        if self.config_key not in config:
+            print(f"No key {self.config_key} in config", flush=True)
+            return
+
+        config = config[self.config_key]
+
+        try:
+
+            # This is some extra stuff to put in the prompt
+            additional = config.get("additional-context", None)
+
+            ix = json.loads(config["tool-index"])
+
+            tools = {}
+
+            for k in ix:
+
+                pc = config[f"tool.{k}"]
+                data = json.loads(pc)
+
+                arguments = {
+                    v.get("name"): Argument(
+                        name = v.get("name"),
+                        type = v.get("type"),
+                        description = v.get("description")
+                    )
+                    for v in data["arguments"]
+                }
+
+                impl_id = data.get("type")
+
+                if impl_id == "knowledge-query":
+                    impl = KnowledgeQueryImpl(self)
+                elif impl_id == "text-completion":
+                    impl = TextCompletionImpl(self)
+                else:
+                    raise RuntimeError(
+                        f"Tool-kind {impl_id} not known"
+                    )
+
+                tools[data.get("name")] = Tool(
+                    name = data.get("name"),
+                    description = data.get("description"),
+                    implementation = impl,
+                    config=data.get("config", {}),
+                    arguments = arguments,
+                )
+
+            self.agent = AgentManager(
+                context=self,
+                tools=tools,
+                additional_context=additional
+            )
+
+            print("Prompt configuration reloaded.", flush=True)
+
+        except Exception as e:
+
+            print("Exception:", e, flush=True)
+            print("Configuration reload failed", flush=True)
 
     async def handle(self, msg):
 
@@ -246,7 +222,7 @@ class Processor(ConsumerProducer):
 
                 await self.send(r, properties={"id": id})
 
-            act = self.agent.react(v.question, history, think, observe)
+            act = await self.agent.react(v.question, history, think, observe)
 
             print(f"Action: {act}", flush=True)
 
@@ -338,43 +314,15 @@ class Processor(ConsumerProducer):
         )
 
         parser.add_argument(
-            '--tool-type', nargs='*',
-            help=f'''Specifies the type of an agent tool.  Takes the form
-<id>=<specifier>.  <id> is the name of the tool.  <specifier> is one of
-knowledge-query, text-completion.  Additional parameters are specified
-for different tools which are tool-specific. e.g. knowledge-query:<arg>
-which specifies the name of the arg whose content is fed into the knowledge
-query as a question.  text-completion:<arg> specifies the name of the arg
-whose content is fed into the text-completion service as a prompt'''
-        )
-
-        parser.add_argument(
-            '--tool-description', nargs='*',
-            help=f'''Specifies the textual description of a tool.  Takes
-the form <id>=<description>.  The description is important, it teaches the
-LLM how to use the tool.  It should describe what it does and how to
-use the arguments.  This is specified in natural language.'''
-        )
-
-        parser.add_argument(
-            '--tool-argument', nargs='*',
-            help=f'''Specifies argument usage for a tool.  Takes
-the form <id>=<arg>:<type>:<description>.  The description is important,
-it is read by the LLM and used to determine how to use the argument.
-<id> can be specified multiple times to give a tool multiple arguments.
-<type> is one of string, number.  <description> is a natural language
-description.'''
-        )
-
-        parser.add_argument(
-            '--context', 
-            help=f'Optional, specifies additional context text for the LLM.'
-        )
-
-        parser.add_argument(
             '--max-iterations',
             default=default_max_iterations,
             help=f'Maximum number of react iterations (default: {default_max_iterations})',
+        )
+
+        parser.add_argument(
+            '--config-type',
+            default="agent",
+            help=f'Configuration key for prompts (default: agent)',
         )
 
 def run():
