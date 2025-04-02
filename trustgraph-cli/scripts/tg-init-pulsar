@@ -7,8 +7,13 @@ Initialises Pulsar with Trustgraph tenant / namespaces & policy.
 import requests
 import time
 import argparse
+import json
+
+from trustgraph.clients.config_client import ConfigClient
 
 default_pulsar_admin_url = "http://pulsar:8080"
+default_pulsar_host = "pulsar://pulsar:6650"
+subscriber = "tg-init-pulsar"
 
 def get_clusters(url):
 
@@ -62,17 +67,68 @@ def ensure_namespace(url, tenant, namespace, config):
 
     print(f"Namespace {tenant}/{namespace} created.", flush=True)
 
-def init(url, tenant="tg"):
+def ensure_config(config, pulsar_host, pulsar_api_key):
 
-    clusters = get_clusters(url)
+    cli = ConfigClient(
+        subscriber=subscriber,
+        pulsar_host=pulsar_host,
+        pulsar_api_key=pulsar_api_key,
+    )
 
-    ensure_tenant(url, tenant, clusters)
+    while True:
 
-    ensure_namespace(url, tenant, "flow", {})
+        try:
 
-    ensure_namespace(url, tenant, "request", {})
+            print("Get current config...", flush=True)
+            current, version = cli.config(timeout=5)
 
-    ensure_namespace(url, tenant, "response", {
+        except Exception as e:
+
+            print("Exception:", e, flush=True)
+            time.sleep(2)
+            print("Retrying...", flush=True)
+            continue
+
+        print("Current config version is", version, flush=True)
+
+        if version != 0:
+            print("Already updated, not updating config.  Done.", flush=True)
+            return
+
+        print("Config is version 0, updating...", flush=True)
+
+        batch = []
+
+        for type in config:
+            for key in config[type]:
+                print(f"Adding {type}/{key} to update.", flush=True)
+                batch.append({
+                    "type": type,
+                    "key": key,
+                    "value": json.dumps(config[type][key]),
+                })
+
+        try:
+            cli.put(batch, timeout=10)
+            print("Update succeeded.", flush=True)
+            break
+        except Exception as e:
+            print("Exception:", e, flush=True)
+            time.sleep(2)
+            print("Retrying...", flush=True)
+            continue
+    
+def init(pulsar_admin_url, pulsar_host, pulsar_api_key, config, tenant):
+
+    clusters = get_clusters(pulsar_admin_url)
+
+    ensure_tenant(pulsar_admin_url, tenant, clusters)
+
+    ensure_namespace(pulsar_admin_url, tenant, "flow", {})
+
+    ensure_namespace(pulsar_admin_url, tenant, "request", {})
+
+    ensure_namespace(pulsar_admin_url, tenant, "response", {
         "retention_policies": {
             "retentionSizeInMB": -1,
             "retentionTimeInMinutes": 3,
@@ -80,13 +136,28 @@ def init(url, tenant="tg"):
         }
     })
 
-    ensure_namespace(url, tenant, "config", {
+    ensure_namespace(pulsar_admin_url, tenant, "config", {
         "retention_policies": {
             "retentionSizeInMB": 10,
             "retentionTimeInMinutes": -1,
             "subscription_expiration_time_minutes": 5,
         }
     })
+
+    if config is not None:
+
+        try:
+            print("Decoding config...", flush=True)
+            dec = json.loads(config)
+            print("Decoded.", flush=True)
+        except Exception as e:
+            print("Exception:", e, flush=True)
+            raise e
+
+        ensure_config(dec, pulsar_host, pulsar_api_key)
+
+    else:
+        print("No config to update.", flush=True)
 
 def main():
 
@@ -101,6 +172,28 @@ def main():
         help=f'Pulsar admin URL (default: {default_pulsar_admin_url})',
     )
 
+    parser.add_argument(
+        '--pulsar-host',
+        default=default_pulsar_host,
+        help=f'Pulsar host (default: {default_pulsar_host})',
+    )
+
+    parser.add_argument(
+        '--pulsar-api-key',
+        help=f'Pulsar API key',
+    )
+
+    parser.add_argument(
+        '-c', '--config',
+        help=f'Initial configuration to load',
+    )
+
+    parser.add_argument(
+        '-t', '--tenant',
+        default="tg",
+        help=f'Tenant (default: tg)',
+    )
+
     args = parser.parse_args()
 
     while True:
@@ -112,7 +205,7 @@ def main():
                 f"Initialising with Pulsar {args.pulsar_admin_url}...",
                 flush=True
             )
-            init(args.pulsar_admin_url, "tg")
+            init(**vars(args))
             print("Initialisation complete.", flush=True)
             break
 

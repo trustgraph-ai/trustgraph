@@ -15,7 +15,7 @@ def show_config(url):
 
     api = Api(url)
 
-    config, version = api.get_config()
+    config, version = api.config_all()
 
     print("Version:", version)
     print(json.dumps(config, indent=4))
