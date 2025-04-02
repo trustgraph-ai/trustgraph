@@ -80,7 +80,7 @@ class Processor(ConsumerProducer):
                     directory = None,
                     config = None,
                     error = Error(
-                        code = "key-error",
+                        type = "key-error",
                         message = f"Key error"
                     )
                 )
@@ -112,8 +112,8 @@ class Processor(ConsumerProducer):
                 directory = None,
                 config = None,
                 error = Error(
-                    code="key-error",
-                    message="No such type",
+                    type = "key-error",
+                    message = "No such type",
                 ),
             )
 
@@ -135,7 +135,7 @@ class Processor(ConsumerProducer):
                 directory = None,
                 config = None,
                 error = Error(
-                    code = "key-error",
+                    type = "key-error",
                     message = f"Key error"
                 )
             )
@@ -167,7 +167,7 @@ class Processor(ConsumerProducer):
                     directory = None,
                     config = None,
                     error = Error(
-                        code = "key-error",
+                        type = "key-error",
                         message = f"Key error"
                     )
                 )
@@ -271,8 +271,8 @@ class Processor(ConsumerProducer):
                     directory=None,
                     values=None,
                     error=Error(
-                        code="bad-operation",
-                        message="Bad operation"
+                        type = "bad-operation",
+                        message = "Bad operation"
                     )
                 )
 

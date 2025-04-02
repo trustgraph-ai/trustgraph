@@ -61,7 +61,7 @@ class ConfigClient(BaseClient):
             listener=listener,
         )
 
-    def request_get(self, keys, timeout=300):
+    def get(self, keys, timeout=300):
 
         resp = self.call(
             id=id,
@@ -85,7 +85,7 @@ class ConfigClient(BaseClient):
             for v in resp.values
         ]
 
-    def request_list(self, type, timeout=300):
+    def list(self, type, timeout=300):
 
         resp = self.call(
             id=id,
@@ -96,7 +96,7 @@ class ConfigClient(BaseClient):
 
         return resp.directory
 
-    def request_getvalues(self, type, timeout=300):
+    def getvalues(self, type, timeout=300):
 
         resp = self.call(
             id=id,
@@ -114,7 +114,7 @@ class ConfigClient(BaseClient):
             for v in resp.values
         ]
 
-    def request_delete(self, keys, timeout=300):
+    def delete(self, keys, timeout=300):
 
         resp = self.call(
             id=id,
@@ -131,25 +131,25 @@ class ConfigClient(BaseClient):
 
         return None
 
-    def request_put(self, value, timeout=300):
+    def put(self, values, timeout=300):
 
         resp = self.call(
             id=id,
             operation="put",
             values=[
                 ConfigValue(
-                    type = k["type"],
-                    key = k["key"],
-                    value = k["value"]
+                    type = v["type"],
+                    key = v["key"],
+                    value = v["value"]
                 )
-                for k in keys
+                for v in values
             ],
             timeout=timeout
         )
 
         return None
 
-    def request_config(self, timeout=300):
+    def config(self, timeout=300):
 
         resp = self.call(
             id=id,
@@ -157,5 +157,5 @@ class ConfigClient(BaseClient):
             timeout=timeout
         )
 
-        return resp.config
+        return resp.config, resp.version
 

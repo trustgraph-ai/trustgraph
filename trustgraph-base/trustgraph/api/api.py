@@ -18,6 +18,17 @@ class Triple:
     p : str
     o : str
 
+@dataclasses.dataclass
+class ConfigKey:
+    type : str
+    key : str
+
+@dataclasses.dataclass
+class ConfigValue:
+    type : str
+    key : str
+    value : str
+
 class Api:
 
     def __init__(self, url="http://localhost:8088/"):
@@ -35,7 +46,7 @@ class Api:
 
             try:
                 msg = response["error"]["message"]
-                tp = response["error"]["message"]
+                tp = response["error"]["type"]
             except:
                 raise ApplicationException(
                     "Error, but the error object is broken"
@@ -66,7 +77,7 @@ class Api:
         except:
             raise ProtocolException(f"Expected JSON response")
 
-        self.check_error(resp)
+        self.check_error(object)
 
         try:
             return object["response"]
@@ -95,7 +106,7 @@ class Api:
         except:
             raise ProtocolException(f"Expected JSON response")
 
-        self.check_error(resp)
+        self.check_error(object)
 
         try:
             return object["answer"]
@@ -134,7 +145,7 @@ class Api:
         except:
             raise ProtocolException(f"Expected JSON response")
 
-        self.check_error(resp)
+        self.check_error(object)
 
         try:
             return object["response"]
@@ -169,7 +180,7 @@ class Api:
         except:
             raise ProtocolException(f"Expected JSON response")
 
-        self.check_error(resp)
+        self.check_error(object)
 
         try:
             return object["response"]
@@ -198,7 +209,7 @@ class Api:
         except:
             raise ProtocolException(f"Expected JSON response")
 
-        self.check_error(resp)
+        self.check_error(object)
 
         try:
             return object["vectors"]
@@ -228,7 +239,7 @@ class Api:
         except:
             raise ProtocolException("Expected JSON response")
 
-        self.check_error(resp)
+        self.check_error(object)
 
         if "text" in object:
             return object["text"]
@@ -280,7 +291,7 @@ class Api:
         except:
             raise ProtocolException("Expected JSON response")
 
-        self.check_error(resp)
+        self.check_error(object)
 
         if "response" not in object:
             raise ProtocolException("Response not formatted correctly")
@@ -382,7 +393,7 @@ class Api:
         if resp.status_code != 200:
             raise ProtocolException(f"Status code {resp.status_code}")
 
-    def get_config(self):
+    def config_all(self):
 
         # The input consists of system and prompt strings
         input = {
@@ -404,10 +415,150 @@ class Api:
         except:
             raise ProtocolException(f"Expected JSON response")
 
-        self.check_error(resp)
+        self.check_error(object)
 
         try:
             return object["config"], object["version"]
+        except:
+            raise ProtocolException(f"Response not formatted correctly")
+
+    def config_get(self, keys):
+
+        # The input consists of system and prompt strings
+        input = {
+            "operation": "get",
+            "keys": [
+                { "type": k.type, "key": k.key }
+                for k in keys
+            ]
+        }
+
+        url = f"{self.url}config"
+
+        # Invoke the API, input is passed as JSON
+        resp = requests.post(url, json=input)
+
+        # Should be a 200 status code
+        if resp.status_code != 200:
+            raise ProtocolException(f"Status code {resp.status_code}")
+
+        try:
+            # Parse the response as JSON
+            object = resp.json()
+        except:
+            raise ProtocolException(f"Expected JSON response")
+
+        self.check_error(object)
+
+        try:
+            return [
+                ConfigValue(
+                    type = v["type"],
+                    key = v["key"],
+                    value = v["value"]
+                )
+                for v in object["values"]
+            ]
+        except:
+            raise ProtocolException(f"Response not formatted correctly")
+
+    def config_put(self, values):
+
+        # The input consists of system and prompt strings
+        input = {
+            "operation": "put",
+            "values": [
+                { "type": v.type, "key": v.key, "value": v.value }
+                for v in values
+            ]
+        }
+
+        url = f"{self.url}config"
+
+        # Invoke the API, input is passed as JSON
+        resp = requests.post(url, json=input)
+
+        # Should be a 200 status code
+        if resp.status_code != 200:
+            raise ProtocolException(f"Status code {resp.status_code}")
+
+        try:
+            # Parse the response as JSON
+            object = resp.json()
+        except:
+            raise ProtocolException(f"Expected JSON response")
+
+        self.check_error(object)
+
+        try:
+            return None
+        except:
+            raise ProtocolException(f"Response not formatted correctly")
+
+    def config_list(self, type):
+
+        # The input consists of system and prompt strings
+        input = {
+            "operation": "list",
+            "type": type,
+        }
+
+        url = f"{self.url}config"
+
+        # Invoke the API, input is passed as JSON
+        resp = requests.post(url, json=input)
+
+        # Should be a 200 status code
+        if resp.status_code != 200:
+            raise ProtocolException(f"Status code {resp.status_code}")
+
+        try:
+            # Parse the response as JSON
+            object = resp.json()
+        except:
+            raise ProtocolException(f"Expected JSON response")
+
+        self.check_error(object)
+
+        try:
+            return object["directory"]
+        except:
+            raise ProtocolException(f"Response not formatted correctly")
+
+    def config_getvalues(self, type):
+
+        # The input consists of system and prompt strings
+        input = {
+            "operation": "getvalues",
+            "type": type,
+        }
+
+        url = f"{self.url}config"
+
+        # Invoke the API, input is passed as JSON
+        resp = requests.post(url, json=input)
+
+        # Should be a 200 status code
+        if resp.status_code != 200:
+            raise ProtocolException(f"Status code {resp.status_code}")
+
+        try:
+            # Parse the response as JSON
+            object = resp.json()
+        except:
+            raise ProtocolException(f"Expected JSON response")
+
+        self.check_error(object)
+
+        try:
+            return [
+                ConfigValue(
+                    type = v["type"],
+                    key = v["key"],
+                    value = v["value"]
+                )
+                for v in object["values"]
+            ]
         except:
             raise ProtocolException(f"Response not formatted correctly")
 
