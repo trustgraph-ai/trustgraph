@@ -63,6 +63,7 @@ setuptools.setup(
         "scripts/tg-save-kg-core",
         "scripts/tg-save-doc-embeds",
         "scripts/tg-show-config",
+        "scripts/tg-set-prompt",
         "scripts/tg-show-tools",
         "scripts/tg-show-prompts",
     ]
