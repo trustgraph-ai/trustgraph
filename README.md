@@ -22,11 +22,8 @@ It provides a robust, scalable, and reliable infrastructure designed for complex
 -   ✨ [Key Features](#-key-features)
 -   🎯 [Why TrustGraph?](#-why-trustgraph)
 -   🚀 [Getting Started](#-getting-started)
-    -   [Prerequisites](#prerequisites)
-    -   [Installation](#installation)
-    -   [Quick Start](#quick-start)
 -   🔧 [Configuration Builder](#-configuration-builder)
--   [Core Concepts](#-core-concepts)
+-   📐 [Architecture](#-architecture)
 -   🧩 [Integrations](#-integrations)
 -   📊 [Observability & Telemetry](#-observability--telemetry)
 -   🤝 [Contributing](#-contributing)
@@ -34,12 +31,6 @@ It provides a robust, scalable, and reliable infrastructure designed for complex
 -   📞 [Support & Community](#-support--community)
 
 ---
-
-## What is TrustGraph?
-
-**TrustGraph removes the biggest headache of building an AI app: connecting and managing all the data, deployments, and models.** As a full-stack platform, TrustGraph simplifies the development and deployment of data-driven AI applications. TrustGraph is a complete solution, handling everything from data ingestion to deployment, so you can focus on building innovative AI experiences.
-
-![architecture](TG-layer-diagram.svg)
 
 ## ✨ Key Features
 
@@ -188,6 +179,12 @@ kubectl apply -f <launch-file.yaml>
 ```
 
 TrustGraph is designed to be modular to support as many LLMs and environments as possible. A natural fit for a modular architecture is to decompose functions into a set of modules connected through a pub/sub backbone. [Apache Pulsar](https://github.com/apache/pulsar/) serves as this pub/sub backbone. Pulsar acts as the data broker managing data processing queues connected to procesing modules.
+
+## 📐 Architecture
+
+**TrustGraph removes the biggest headache of building an AI app: connecting and managing all the data, deployments, and models.** As a full-stack platform, TrustGraph simplifies the development and deployment of data-driven AI applications. TrustGraph is a complete solution, handling everything from data ingestion to deployment, so you can focus on building innovative AI experiences.
+
+![architecture](TG-layer-diagram.svg)
 
 ### Pulsar Workflows
 
