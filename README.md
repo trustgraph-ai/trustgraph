@@ -13,7 +13,7 @@
 
 **Transform AI agents from experimental concepts into a new paradigm of continuous operations.**
 
-The **TrustGraph** platform provides a robust, scalable, and reliable AI infrastructure designed for complex environments, complete with a full observability and telemetrystack. **TrustGraph** automates the deployment in local and cloud environments of state-of-the-art RAG pipelines using Knowledge Graphs and Vector Databases with a unified interface to all major LLM providers.
+The **TrustGraph** platform provides a robust, scalable, and reliable AI infrastructure designed for complex environments, complete with a full observability and telemetry stack. **TrustGraph** automates the deployment in local and cloud environments of state-of-the-art RAG pipelines using Knowledge Graphs and Vector Databases with a unified interface to all major LLM providers.
 
 ---
 
