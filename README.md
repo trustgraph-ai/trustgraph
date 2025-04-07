@@ -11,9 +11,9 @@
 
 </div>
 
-**TrustGraph transforms agents from experimental concepts into a new paradigm of continuous operations.**
+**Transform AI agents from experimental concepts into a new paradigm of continuous operations.**
 
-The platform provides a robust, scalable, and reliable infrastructure designed for complex environments, complete with a full observability stack. **TrustGraph** automates the deployment in local and cloud environments of state-of-the-art RAG pipelines using Knowledge Graphs and Vector Databases with a unified interface to all major LLM providers.
+The **TrustGraph** platform provides a robust, scalable, and reliable AI infrastructure designed for complex environments, complete with a full observability and telemetrystack. **TrustGraph** automates the deployment in local and cloud environments of state-of-the-art RAG pipelines using Knowledge Graphs and Vector Databases with a unified interface to all major LLM providers.
 
 ---
 
@@ -46,7 +46,7 @@ The platform provides a robust, scalable, and reliable infrastructure designed f
 - 📚 **Multiple Knowledge Graph Options**: Full integration with **Memgraph**, **FalkorDB**, **Neo4j**, or **Cassandra**
 - 🧮 **Multiple VectorDB Options**: Full integration with **Qdrant**, **Pinecone**, or **Milvus**
 - 🎛️ **Production-Grade** Reliability, scalability, and accuracy
-- 🔍 **Observability and Telemetry**: Get insights into system performance with **Prometheus** and **Grafana**
+- 📊 **Observability and Telemetry**: Get insights into system performance with **Prometheus** and **Grafana**
 - 🎻 **Orchestration**: Fully containerized with **Docker** or **Kubernetes**
 - 🥞 **Stack Manager**: Control and scale the stack with confidence with **Apache Pulsar**
 - ☁️ **Cloud Deployments**: **AWS**, **Azure**, and **Google Cloud**
@@ -196,12 +196,12 @@ TrustGraph aims to integrate seamlessly with your existing ecosystem.
 - Observability: Prometheus and Grafana
 - Control Flow: Apache Pulsar
 
-## Pulsar Control Flows
+### Pulsar Control Flows
 
 - For control flows, Pulsar accepts the output of a processing module and queues it for input to the next subscribed module.
 - For services such as LLMs and embeddings, Pulsar provides a client/server model.  A Pulsar queue is used as the input to the service.  When processed, the output is then delivered to a separate queue where a client subscriber can request that output.
 
-## Data Extraction Agents
+### Document Extraction Agents
 
 TrustGraph extracts knowledge documents to an ultra-dense knowledge graph using 3 automonous data extraction agents. These agents focus on individual elements needed to build the knowledge graph. The agents are:
 
@@ -221,7 +221,7 @@ Text or Markdown file:
 tg-load-text <document.txt>
 ```
 
-## Graph RAG Queries
+### Graph RAG Queries
 
 Once the knowledge graph and embeddings have been built or a cognitive core has been loaded, RAG queries are launched with a single line:
 
@@ -229,7 +229,7 @@ Once the knowledge graph and embeddings have been built or a cognitive core has 
 tg-invoke-graph-rag -q "What are the top 3 takeaways from the document?"
 ```
 
-## Agent Flow
+### Agent Flow
 
 Invoking the Agent Flow will use a ReAct style approach the combines Graph RAG and text completion requests to think through a problem solution.
 
@@ -239,6 +239,36 @@ tg-invoke-agent -v -q "Write a blog post on the top 3 takeaways from the documen
 
 > [!TIP]
 > Adding `-v` to the agent request will return all of the agent manager's thoughts and observations that led to the final response.
+
+## 📊 Observability & Telemetry
+
+Once the platform is running, access the Grafana dashboard at:
+
+```
+http://localhost:3000
+```
+
+Default credentials are:
+
+```
+user: admin
+password: admin
+```
+
+The default Grafana dashboard tracks the following:
+
+- LLM Latency
+- Error Rate
+- Service Request Rates
+- Queue Backlogs
+- Chunking Histogram
+- Error Source by Service
+- Rate Limit Events
+- CPU usage by Service
+- Memory usage by Service
+- Models Deployed
+- Token Throughput (Tokens/second)
+- Cost Throughput (Cost/second)
 
 ## 🤝 Contributing
 
