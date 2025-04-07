@@ -130,7 +130,7 @@ When finished, shutting down TrustGraph is as simple as:
 docker compose down -v
 ```
 
-## Platform Restarts
+### Platform Restarts
 
 The `-v` flag will destroy all data on shut down. To restart the system, it's necessary to keep the volumes. To keep the volumes, shut down without the `-v` flag:
 ```
@@ -144,7 +144,7 @@ docker compose up -d
 
 All data previously in TrustGraph will be saved and usable on restart.
 
-## Test Suite
+### Test Suite
 
 If added to the build in the `Configuration Builder`, the `Test Suite` will be available at port `8888`. The `Test Suite` has the following capabilities:
 
@@ -154,7 +154,7 @@ If added to the build in the `Configuration Builder`, the `Test Suite` will be a
 - **Graph Visualizer** 🌐: Visualize semantic relationships in **3D**
 - **Data Loader** 📂: Directly load `.pdf`, `.txt`, or `.md` into the system with document metadata
 
-## Example TrustGraph Notebooks
+### Example TrustGraph Notebooks
 
 - [**REST API Notebooks**](https://github.com/trustgraph-ai/example-notebooks/tree/master/api-examples)
 - [**Python SDK Notebooks**](https://github.com/trustgraph-ai/example-notebooks/tree/master/api-library)
@@ -187,7 +187,7 @@ TrustGraph is designed to be modular to support as many LLMs and environments as
 ![architecture](TG-layer-diagram.svg)
 
 ## 🧩 Integrations
-TrustGraph aims to integrate seamlessly with your existing ecosystem.
+TrustGraph seamlessly integrates API services, data stores, OTel, and control flow for a unified platform experience.
 
 - LLM Providers: **Anthropic**, **AWS Bedrock**, **AzureAI**, **AzureOpenAI**, **Cohere**, **Google AI Studio**, **Google VertexAI**, **Llamafiles**, **LM Studio**, **Mistral**, **Ollama**, and **OpenAI**
 - Vector Databases: **Qdrant**, **Pinecone**, and **Milvus**
