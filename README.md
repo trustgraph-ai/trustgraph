@@ -11,9 +11,9 @@
 
 </div>
 
-**TrustGraph transforms AI agents from experimental concepts into a continuous paradigm of autonomous operations within an organization.**
+**TrustGraph transforms AI agents from experimental concepts into a new paradigm of continuous autonomous operations.**
 
-It provides a robust, scalable, and reliable infrastructure designed for complex environments, complete with a full observability stack. TrustGraph automates the deployment of state-of-the-art RAG pipelines using Knowledge Graphs and Vector Databases and offers a unified interface to interact with all major LLM providers.
+The platform provides a robust, scalable, and reliable infrastructure designed for complex environments, complete with a full observability stack. TrustGraph automates the deployment of state-of-the-art RAG pipelines using Knowledge Graphs and Vector Databases and offers a unified interface to interact with all major LLM providers.
 
 ---
 
@@ -73,11 +73,11 @@ Traditional operations often involve manual intervention, siloed tools, and reac
 ## 🚀 Getting Started
 - [Install the CLI](#install-the-trustgraph-cli)
 - [Configuration Builder](#-configuration-builder)
-- [System Restarts](#system-restarts)
+- [Platform Restarts](#platform-restarts)
 - [Test Suite](#test-suite)
 - [Example Notebooks](#example-trustgraph-notebooks)
 
-## Developer APIs and CLI
+### Developer APIs and CLI
 
 - [**REST API**](docs/apis/README.md#rest-apis)
 - [**Websocket API**](docs/apis/README.md#websocket-api)
@@ -130,7 +130,7 @@ When finished, shutting down TrustGraph is as simple as:
 docker compose down -v
 ```
 
-## System Restarts
+## Platform Restarts
 
 The `-v` flag will destroy all data on shut down. To restart the system, it's necessary to keep the volumes. To keep the volumes, shut down without the `-v` flag:
 ```
