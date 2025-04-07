@@ -25,7 +25,7 @@ It provides a robust, scalable, and reliable infrastructure designed for complex
     -   [Prerequisites](#prerequisites)
     -   [Installation](#installation)
     -   [Quick Start](#quick-start)
--   🔧 [Configuration](#-configuration)
+-   🔧 [Configuration Builder](#-configuration-builder)
 -   [Core Concepts](#-core-concepts)
 -   🧩 [Integrations](#-integrations)
 -   📊 [Observability & Telemetry](#-observability--telemetry)
@@ -34,20 +34,6 @@ It provides a robust, scalable, and reliable infrastructure designed for complex
 -   📞 [Support & Community](#-support--community)
 
 ---
-
-## The AI App Problem: Everything in Between
-
-Building enterprise AI applications is *hard*. You're not just connecting APIs with a protocol - you're wrangling a complex ecosystem:
-
-*   **Data Silos:** Connecting to and managing data from various sources (databases, APIs, files) is a nightmare.
-*   **LLM Integration:** Choosing, integrating, and managing different LLMs adds another layer of complexity.
-*   **Deployment Headaches:** Deploying, scaling, and monitoring your AI application is a constant challenge.
-*   **Knowledge Graph Construction:** Taking raw knowledge and structuring it so it can be efficiently retrieved.
-*   **Vector Database Juggling:** Setting up and optimizing a vector database for efficient data retrieval is crucial but complex.
-*   **Data Pipelines:** Building robust ETL pipelines to prepare and transform your data is time-consuming.
-*   **Data Management:** As your app grows, so does the data meaning storage and retreival becomes much more complex. 
-*   **Prompt Engineering:** Building, testing, and deploying prompts for specific use cases.
-*   **Reliability:** With every new connection, the complexity ramps up meaning any simple error can bring the entire system crashing down.
 
 ## What is TrustGraph?
 
@@ -93,9 +79,9 @@ Traditional operations often involve manual intervention, siloed tools, and reac
 *   A **standardized layer** for LLM interaction and enterprise system integration.
 *   **Built-in observability** to ensure you can trust and manage your autonomous systems.
 
-## Quickstart Guide 🚀
+## 🚀 Getting Started
 - [Install the CLI](#install-the-trustgraph-cli)
-- [Configuration Builder](#configuration-builder)
+- [Configuration Builder](#-configuration-builder)
 - [System Restarts](#system-restarts)
 - [Test Suite](#test-suite)
 - [Example Notebooks](#example-trustgraph-notebooks)
@@ -111,7 +97,7 @@ See the [API Developer's Guide](#api-documentation) for more information.
 
 For users, **TrustGraph** has the following interfaces:
 
-- [**Configuration Builder**](#configuration-builder)
+- [**Configuration Builder**](#-configuration-builder)
 - [**Test Suite**](#test-suite)
 
 The `TrustGraph CLI` installs the commands for interacting with TrustGraph while running along with the Python SDK. The `Configuration Builder` enables customization of TrustGraph deployments prior to launching. The **REST API** can be accessed through port `8088` of the TrustGraph host machine with JSON request and response bodies.
@@ -125,7 +111,7 @@ pip3 install trustgraph-cli==0.21.17
 > [!NOTE]
 > The `TrustGraph CLI` version must match the desired `TrustGraph` release version.
 
-## Configuration Builder
+## 🔧 Configuration Builder
 
 TrustGraph is endlessly customizable by editing the `YAML` launch files. The `Configuration Builder` provides a quick and intuitive tool for building a custom configuration that deploys with Docker, Podman, Minikube, or Google Cloud. There is a `Configuration Builder` for the both the lastest and stable `TrustGraph` releases.
 
