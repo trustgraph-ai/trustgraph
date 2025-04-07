@@ -186,6 +186,15 @@ TrustGraph is designed to be modular to support as many LLMs and environments as
 
 ![architecture](TG-layer-diagram.svg)
 
+## 🧩 Integrations
+TrustGraph aims to integrate seamlessly with your existing ecosystem.
+
+- LLM Providers: **Anthropic**, **AWS Bedrock**, **AzureAI**, **AzureOpenAI**, **Cohere**, **Google AI Studio**, **Google VertexAI**, **Llamafiles**, **LM Studio**, **Mistral**, **Ollama**, and **OpenAI**
+- Vector Databases: **Qdrant**, **Pinecone**, and **Milvus**
+- Knowledge Graphs: Memgraph, Neo4j, and FalkorDB 
+- Data Stores: Apache Cassandra
+- Observability: Prometheus and Grafana
+
 ### Pulsar Workflows
 
 - For processing flows, Pulsar accepts the output of a processing module and queues it for input to the next subscribed module.
