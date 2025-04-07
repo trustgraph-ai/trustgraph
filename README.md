@@ -7,7 +7,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
 
-🚀 [Getting Started](https://trustgraph.ai/docs/getstarted) 📺 [YouTube](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) 🧠 [Knowledge Cores](https://github.com/trustgraph-ai/catalog/tree/master/v3) ⚙️ [API Docs](docs/apis/README.md) 🧑‍💻 [CLI Docs](https://trustgraph.ai/docs/running/cli) 💬 [Discord](https://discord.gg/sQMwkRz5GX) 📖 [Blog](https://blog.trustgraph.ai/subscribe)
+📑 [Docs](https://trustgraph.ai/docs/getstarted) 📺 [YouTube](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) 🧠 [Knowledge Cores](https://github.com/trustgraph-ai/catalog/tree/master/v3) ⚙️ [API Docs](docs/apis/README.md) 🧑‍💻 [CLI Docs](https://trustgraph.ai/docs/running/cli) 💬 [Discord](https://discord.gg/sQMwkRz5GX) 📖 [Blog](https://blog.trustgraph.ai/subscribe)
 
 </div>
 
@@ -194,10 +194,11 @@ TrustGraph aims to integrate seamlessly with your existing ecosystem.
 - Knowledge Graphs: Memgraph, Neo4j, and FalkorDB 
 - Data Stores: Apache Cassandra
 - Observability: Prometheus and Grafana
+- Control Flow: Apache Pulsar
 
-### Pulsar Workflows
+## Pulsar Control Flows
 
-- For processing flows, Pulsar accepts the output of a processing module and queues it for input to the next subscribed module.
+- For control flows, Pulsar accepts the output of a processing module and queues it for input to the next subscribed module.
 - For services such as LLMs and embeddings, Pulsar provides a client/server model.  A Pulsar queue is used as the input to the service.  When processed, the output is then delivered to a separate queue where a client subscriber can request that output.
 
 ## Data Extraction Agents
@@ -239,14 +240,14 @@ tg-invoke-agent -v -q "Write a blog post on the top 3 takeaways from the documen
 > [!TIP]
 > Adding `-v` to the agent request will return all of the agent manager's thoughts and observations that led to the final response.
 
-## API Documentation
-
-[Developing on TrustGraph using APIs](docs/apis/README.md)
-
-## Deploy and Manage TrustGraph
-
-[🚀🙏 Full Deployment Guide 🚀🙏](https://trustgraph.ai/docs/getstarted)
-
-## TrustGraph Developer's Guide
+## 🤝 Contributing
 
 [Developing for TrustGraph](docs/README.development.md)
+
+## 📄 License
+**TrustGraph** is licensed under [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html).
+
+## 📞 Support & Community
+- Bug Reports & Feature Requests: [Discord](https://discord.gg/sQMwkRz5GX)
+- Discussions & Questions: [Discord](https://discord.gg/sQMwkRz5GX)
+- Documentation: [Docs](https://trustgraph.ai/docs/getstarted)
