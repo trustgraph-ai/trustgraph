@@ -2,7 +2,7 @@
 
 <div align="center">
 
-## Data-to-AI, Simplified.
+## Autonomous Operations Platform
 
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
@@ -10,6 +10,30 @@
 🚀 [Getting Started](https://trustgraph.ai/docs/getstarted) 📺 [YouTube](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) 🧠 [Knowledge Cores](https://github.com/trustgraph-ai/catalog/tree/master/v3) ⚙️ [API Docs](docs/apis/README.md) 🧑‍💻 [CLI Docs](https://trustgraph.ai/docs/running/cli) 💬 [Discord](https://discord.gg/sQMwkRz5GX) 📖 [Blog](https://blog.trustgraph.ai/subscribe)
 
 </div>
+
+**TrustGraph transforms AI agents from experimental concepts into a continuous paradigm of autonomous operations within an organization.**
+
+It provides a robust, scalable, and reliable infrastructure designed for complex environments, complete with a full observability stack. TrustGraph automates the deployment of state-of-the-art RAG pipelines using Knowledge Graphs and Vector Databases and offers a unified interface to interact with all major LLM providers.
+
+---
+
+## Table of Contents
+
+-   ✨ [Key Features](#-key-features)
+-   🎯 [Why TrustGraph?](#-why-trustgraph)
+-   🚀 [Getting Started](#-getting-started)
+    -   [Prerequisites](#prerequisites)
+    -   [Installation](#installation)
+    -   [Quick Start](#quick-start)
+-   🔧 [Configuration](#-configuration)
+-   [Core Concepts](#-core-concepts)
+-   🧩 [Integrations](#-integrations)
+-   📊 [Observability & Telemetry](#-observability--telemetry)
+-   🤝 [Contributing](#-contributing)
+-   📄 [License](#-license)
+-   📞 [Support & Community](#-support--community)
+
+---
 
 ## The AI App Problem: Everything in Between
 
@@ -31,7 +55,7 @@ Building enterprise AI applications is *hard*. You're not just connecting APIs w
 
 ![architecture](TG-layer-diagram.svg)
 
-## The Stack Layers
+## Key Features
 
 - 📄 **Data Ingest**: Bulk ingest documents such as `.pdf`,`.txt`, and `.md`
 - 📃 **OCR Pipelines**: OCR documents with PDF decode, Tesseract, or Mistral OCR services
