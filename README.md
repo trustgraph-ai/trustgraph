@@ -19,7 +19,7 @@ It provides a robust, scalable, and reliable infrastructure designed for complex
 
 ## Table of Contents
 
--   ✨ [Key Features](#key-features)
+-   ✨ [Key Features](#-key-features)
 -   🎯 [Why TrustGraph?](#-why-trustgraph)
 -   🚀 [Getting Started](#-getting-started)
     -   [Prerequisites](#prerequisites)
@@ -55,7 +55,7 @@ Building enterprise AI applications is *hard*. You're not just connecting APIs w
 
 ![architecture](TG-layer-diagram.svg)
 
-## Key Features
+## ✨ Key Features
 
 - 📄 **Data Ingest**: Bulk ingest documents such as `.pdf`,`.txt`, and `.md`
 - 📃 **OCR Pipelines**: OCR documents with PDF decode, Tesseract, or Mistral OCR services
@@ -77,14 +77,21 @@ Building enterprise AI applications is *hard*. You're not just connecting APIs w
 - 🖥️ **Configuration Builder**: Build the `YAML` configuration with drop down menus and selectable parameters
 - 🕵️ **Test Suite**: A simple UI to fully test TrustGraph performance
 
-## Why Use TrustGraph?
+## 🎯 Why TrustGraph?
 
-*   **Accelerate Development:** TrustGraph instantly connects your data and app, keeping you laser focused on your users.
-*   **Reduce Complexity:** Eliminate the pain of integrating disparate tools and technologies.
-*   **Focus on Innovation:** Spend your time building your core AI logic, not managing infrastructure.
-*   **Improve Data Relevance:** Ensure your LLM has access to the *right* data, at the *right* time.
-*   **Scale with Confidence:**  Deploy and scale your AI applications reliably and efficiently.
-*   **Full RAG Solution:** Focus on optimizing your respones not building RAG pipelines.
+Traditional operations often involve manual intervention, siloed tools, and reactive problem-solving. While AI agents show promise, integrating them into reliable, continuous enterprise workflows presents significant challenges:
+
+1.  **Scalability & Reliability:** Standalone agent scripts don't scale or offer the robustness required for business-critical operations.
+2.  **Contextual Understanding:** Agents need deep, relevant context (often locked in enterprise data) to perform complex tasks effectively. RAG is powerful but complex to set up and manage.
+3.  **Integration Hell:** Connecting agents to diverse enterprise systems, data sources, and various LLMs is difficult and time-consuming.
+4.  **Lack of Oversight:** Monitoring, debugging, and understanding the behavior of multiple autonomous agents in production is critical but often overlooked.
+
+**TrustGraph addresses these challenges by providing:**
+
+*   A **platform**, not just a library, for managing the lifecycle of autonomous operations.
+*   **Automated, best-practice RAG deployments** that combine the strengths of semantic vector search and structured knowledge graph traversal.
+*   A **standardized layer** for LLM interaction and enterprise system integration.
+*   **Built-in observability** to ensure you can trust and manage your autonomous systems.
 
 ## Quickstart Guide 🚀
 - [Install the CLI](#install-the-trustgraph-cli)
@@ -123,7 +130,7 @@ pip3 install trustgraph-cli==0.21.17
 TrustGraph is endlessly customizable by editing the `YAML` launch files. The `Configuration Builder` provides a quick and intuitive tool for building a custom configuration that deploys with Docker, Podman, Minikube, or Google Cloud. There is a `Configuration Builder` for the both the lastest and stable `TrustGraph` releases.
 
 - [**Configuration Builder** (Stable 0.21.17) 🚀](https://config-ui.demo.trustgraph.ai/)
-- [**Configuration Builder** (Latest 0.21.17) 🚀](https://dev.config-ui.demo.trustgraph.ai/)
+- [**Configuration Builder** (Latest 0.22.5) 🚀](https://dev.config-ui.demo.trustgraph.ai/)
 
 The `Configuration Builder` has 4 important sections:
 
@@ -174,15 +181,6 @@ If added to the build in the `Configuration Builder`, the `Test Suite` will be a
 
 - [**REST API Notebooks**](https://github.com/trustgraph-ai/example-notebooks/tree/master/api-examples)
 - [**Python SDK Notebooks**](https://github.com/trustgraph-ai/example-notebooks/tree/master/api-library)
-
-## Prebuilt Configuration Files
-
-TrustGraph `YAML` files are available [here](https://github.com/trustgraph-ai/trustgraph/releases). Download `deploy.zip` for the desired release version.
-
-| Release Type | Release Version |
-| ------------ | --------------- |
-| Latest | [0.21.17](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.21.17/deploy.zip) |
-| Stable | [0.21.17](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.21.17/deploy.zip) |
 
 TrustGraph is fully containerized and is launched with a `YAML` configuration file. Unzipping the `deploy.zip` will add the `deploy` directory with the following subdirectories:
 
