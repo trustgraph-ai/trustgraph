@@ -19,7 +19,7 @@ It provides a robust, scalable, and reliable infrastructure designed for complex
 
 ## Table of Contents
 
--   ✨ [Key Features](#-key-features)
+-   ✨ [Key Features](#key-features)
 -   🎯 [Why TrustGraph?](#-why-trustgraph)
 -   🚀 [Getting Started](#-getting-started)
     -   [Prerequisites](#prerequisites)
