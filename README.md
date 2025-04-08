@@ -17,8 +17,6 @@ The **TrustGraph** platform provides a robust, scalable, and reliable AI infrast
 
 ---
 
-## Table of Contents
-
 -   ✨ [Key Features](#-key-features)
 -   🎯 [Why TrustGraph?](#-why-trustgraph)
 -   🚀 [Getting Started](#-getting-started)
