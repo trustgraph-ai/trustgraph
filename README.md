@@ -197,7 +197,7 @@ When a Knowledge Core is loaded into TrustGraph, the corresponding graph edges a
 ![architecture](TG-layer-diagram.svg)
 
 ## 🧩 Integrations
-TrustGraph seamlessly integrates API services, data stores, OTel, and control flow for a unified platform experience.
+TrustGraph seamlessly integrates API services, data stores, observability, telemetry, and control flow for a unified platform experience.
 
 - LLM Providers: **Anthropic**, **AWS Bedrock**, **AzureAI**, **AzureOpenAI**, **Cohere**, **Google AI Studio**, **Google VertexAI**, **Llamafiles**, **LM Studio**, **Mistral**, **Ollama**, and **OpenAI**
 - Vector Databases: **Qdrant**, **Pinecone**, and **Milvus**
