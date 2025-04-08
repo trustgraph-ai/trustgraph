@@ -23,6 +23,7 @@ The **TrustGraph** platform provides a robust, scalable, and reliable AI infrast
 -   🎯 [Why TrustGraph?](#-why-trustgraph)
 -   🚀 [Getting Started](#-getting-started)
 -   🔧 [Configuration Builder](#-configuration-builder)
+-   🧠 [Knowledge Cores](#-knowledge-cores)
 -   📐 [Architecture](#-architecture)
 -   🧩 [Integrations](#-integrations)
 -   📊 [Observability & Telemetry](#-observability--telemetry)
@@ -179,6 +180,17 @@ kubectl apply -f <launch-file.yaml>
 ```
 
 TrustGraph is designed to be modular to support as many LLMs and environments as possible. A natural fit for a modular architecture is to decompose functions into a set of modules connected through a pub/sub backbone. [Apache Pulsar](https://github.com/apache/pulsar/) serves as this pub/sub backbone. Pulsar acts as the data broker managing data processing queues connected to procesing modules.
+
+## 🧠 Knowledge Cores
+
+One of the biggest challenges currently facing RAG architectures is the ability to quickly reuse and integrate knowledge sets. **TrustGraph** solves this problem by storing the results of the document ingestion process in reusable Knowledge Cores. Being able to store and reuse the Knowledge Cores means the process has to be run only once for a set of documents. These reusable Knowledge Cores can be loaded back into **TrustGraph** and used for RAG.
+
+A Knowledge Core has two components:
+
+- Set of Graph Edges
+- Set of mapped Vector Embeddings
+
+When a Knowledge Core is loaded into TrustGraph, the corresponding graph edges and vector embeddings are queued and loaded into the chosen graph and vector stores.
 
 ## 📐 Architecture
 
