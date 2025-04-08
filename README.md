@@ -201,10 +201,10 @@ TrustGraph seamlessly integrates API services, data stores, observability, telem
 
 - LLM Providers: **Anthropic**, **AWS Bedrock**, **AzureAI**, **AzureOpenAI**, **Cohere**, **Google AI Studio**, **Google VertexAI**, **Llamafiles**, **LM Studio**, **Mistral**, **Ollama**, and **OpenAI**
 - Vector Databases: **Qdrant**, **Pinecone**, and **Milvus**
-- Knowledge Graphs: Memgraph, Neo4j, and FalkorDB 
-- Data Stores: Apache Cassandra
-- Observability: Prometheus and Grafana
-- Control Flow: Apache Pulsar
+- Knowledge Graphs: **Memgraph**, **Neo4j**, and **FalkorDB** 
+- Data Stores: **Apache Cassandra**
+- Observability: **Prometheus** and **Grafana**
+- Control Flow: **Apache Pulsar**
 
 ### Pulsar Control Flows
 
