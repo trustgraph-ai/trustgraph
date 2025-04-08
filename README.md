@@ -192,7 +192,7 @@ When a Knowledge Core is loaded into TrustGraph, the corresponding graph edges a
 
 ## 📐 Architecture
 
-**TrustGraph removes the biggest headache of building an AI app: connecting and managing all the data, deployments, and models.** As a full-stack platform, TrustGraph simplifies the development and deployment of data-driven AI applications. TrustGraph is a complete solution, handling everything from data ingestion to deployment, so you can focus on building innovative AI experiences.
+As a full-stack platform, TrustGraph provides all the stack layers needed to connect the data layer to the app layer for autonomous operations.
 
 ![architecture](TG-layer-diagram.svg)
 
