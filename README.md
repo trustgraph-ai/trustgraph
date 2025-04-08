@@ -48,7 +48,7 @@ The **TrustGraph** platform provides a robust, scalable, and reliable AI infrast
 - 📊 **Observability and Telemetry**: Get insights into system performance with **Prometheus** and **Grafana**
 - 🎻 **Orchestration**: Fully containerized with **Docker** or **Kubernetes**
 - 🥞 **Stack Manager**: Control and scale the stack with confidence with **Apache Pulsar**
-- ☁️ **Cloud Deployments**: **AWS**, **Azure**, and **Google Cloud**
+- ☁️ **Cloud Deployments**: **AWS**, **Azure**, **Google Cloud**, and **Scaleway**
 - 🪴 **Customizable and Extensible**: Tailor for your data and use cases
 - 🖥️ **Configuration Builder**: Build the `YAML` configuration with drop down menus and selectable parameters
 - 🕵️ **Test Suite**: A simple UI to fully test TrustGraph performance
