@@ -17,17 +17,17 @@ The **TrustGraph** platform provides a robust, scalable, and reliable AI infrast
 
 ---
 
--   ✨ [Key Features](#-key-features)
--   🎯 [Why TrustGraph?](#-why-trustgraph)
--   🚀 [Getting Started](#-getting-started)
--   🔧 [Configuration Builder](#-configuration-builder)
--   🧠 [Knowledge Cores](#-knowledge-cores)
--   📐 [Architecture](#-architecture)
--   🧩 [Integrations](#-integrations)
--   📊 [Observability & Telemetry](#-observability--telemetry)
--   🤝 [Contributing](#-contributing)
--   📄 [License](#-license)
--   📞 [Support & Community](#-support--community)
+-   ✨ [**Key Features**](#-key-features)
+-   🎯 [**Why TrustGraph?**](#-why-trustgraph)
+-   🚀 [**Getting Started**](#-getting-started)
+-   🔧 [**Configuration Builder**](#-configuration-builder)
+-   🧠 [**Knowledge Cores**](#-knowledge-cores)
+-   📐 [**Architecture**](#-architecture)
+-   🧩 [**Integrations**](#-integrations)
+-   📊 [**Observability & Telemetry**](#-observability--telemetry)
+-   🤝 [**Contributing**](#-contributing)
+-   📄 [**License**](#-license)
+-   📞 [**Support & Community**](#-support--community)
 
 ---
 
