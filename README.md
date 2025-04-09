@@ -2,7 +2,7 @@
 
 <div align="center">
 
-## Autonomous Operations Platform
+## Autonomous Knowledge Operations Platform
 
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
@@ -17,7 +17,6 @@ The **TrustGraph** platform provides a robust, scalable, and reliable AI infrast
 
 ---
 
--   ✨ [**Key Features**](#-key-features)
 -   🎯 [**Why TrustGraph?**](#-why-trustgraph)
 -   🚀 [**Getting Started**](#-getting-started)
 -   🔧 [**Configuration Builder**](#-configuration-builder)
@@ -30,28 +29,6 @@ The **TrustGraph** platform provides a robust, scalable, and reliable AI infrast
 -   📞 [**Support & Community**](#-support--community)
 
 ---
-
-## ✨ Key Features
-
-- 📄 **Data Ingest**: Bulk ingest documents such as `.pdf`,`.txt`, and `.md`
-- 📃 **OCR Pipelines**: OCR documents with PDF decode, Tesseract, or Mistral OCR services
-- 🪓 **Adjustable Chunking**: Choose your chunking algorithm and parameters
-- 🔁 **No-code LLM Integration**: **Anthropic**, **AWS Bedrock**, **AzureAI**, **AzureOpenAI**, **Cohere**, **Google AI Studio**, **Google VertexAI**, **Llamafiles**, **LM Studio**, **Mistral**, **Ollama**, and **OpenAI**
-- 📖 **Automated Knowledge Graph Building**: No need for complex ontologies and manual graph building
-- 🔢 **Knowledge Graph to Vector Embeddings Mappings**: Connect knowledge graph enhanced data directly to vector embeddings
-- ❔**Natural Language Data Retrieval**: Automatically perform a semantic similiarity search and subgraph extraction for the context of LLM generative responses
-- 🧠 **Knowledge Cores**: Modular data sets with semantic relationships that can saved and quickly loaded on demand
-- 🤖 **Agent Manager**: Define custom tools used by a ReAct style Agent Manager that fully controls the response flow including the ability to perform Graph RAG requests
-- 📚 **Multiple Knowledge Graph Options**: Full integration with **Memgraph**, **FalkorDB**, **Neo4j**, or **Cassandra**
-- 🧮 **Multiple VectorDB Options**: Full integration with **Qdrant**, **Pinecone**, or **Milvus**
-- 🎛️ **Production-Grade** Reliability, scalability, and accuracy
-- 📊 **Observability and Telemetry**: Get insights into system performance with **Prometheus** and **Grafana**
-- 🎻 **Orchestration**: Fully containerized with **Docker** or **Kubernetes**
-- 🥞 **Stack Manager**: Control and scale the stack with confidence with **Apache Pulsar**
-- ☁️ **Cloud Deployments**: **AWS**, **Azure**, **Google Cloud**, and **Scaleway**
-- 🪴 **Customizable and Extensible**: Tailor for your data and use cases
-- 🖥️ **Configuration Builder**: Build the `YAML` configuration with drop down menus and selectable parameters
-- 🕵️ **Test Suite**: A simple UI to fully test TrustGraph performance
 
 ## 🎯 Why TrustGraph?
 
