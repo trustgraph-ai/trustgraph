@@ -20,7 +20,7 @@ from .... base import ConsumerProducer
 RDF_LABEL_VALUE = Value(value=RDF_LABEL, is_uri=True)
 SUBJECT_OF_VALUE = Value(value=SUBJECT_OF, is_uri=True)
 
-module = ".".join(__name__.split(".")[1:-1])
+module = "kg-extract-relationships"
 
 default_input_queue = chunk_ingest_queue
 default_output_queue = triples_store_queue

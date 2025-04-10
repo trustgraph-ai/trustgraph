@@ -16,7 +16,7 @@ from .... schema import triples_store_queue
 from .... log_level import LogLevel
 from .... base import Consumer
 
-module = ".".join(__name__.split(".")[1:-1])
+module = "triples-write"
 
 default_input_queue = triples_store_queue
 default_subscriber = module

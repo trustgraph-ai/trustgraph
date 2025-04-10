@@ -11,7 +11,7 @@ from .... schema import triples_request_queue
 from .... schema import triples_response_queue
 from .... base import ConsumerProducer
 
-module = ".".join(__name__.split(".")[1:-1])
+module = "triples-query"
 
 default_input_queue = triples_request_queue
 default_output_queue = triples_response_queue

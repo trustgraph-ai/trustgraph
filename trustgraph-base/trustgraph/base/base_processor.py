@@ -71,6 +71,8 @@ class BaseProcessor:
             schema=JsonSchema(ConfigPush),         
         )
 
+        self.config_handlers = []
+
     def __del__(self):
 
         if hasattr(self, "client"):
@@ -148,18 +150,20 @@ class BaseProcessor:
             v = msg.value()
             print("Got config version", v.version, flush=True)
 
-            await self.on_config(v.version, v.config)
-
-    async def on_config(self, version, config):
-        pass
+            for h in self.config_handlers:
+                await h(v.version, v.config)
 
     async def run(self):
         raise RuntimeError("Something should have implemented the run method")
 
     @classmethod
-    async def launch_async(cls, args, prog):
+    async def launch_async(cls, args, ident):
         p = cls(**args)
-        p.module = prog
+
+        # FIXME: Two sort of 'ident' things going on here?
+        p.module = ident
+        p.config_ident = args.ident
+
         await p.start()
 
         task1 = asyncio.create_task(p.run_config_queue())
@@ -168,11 +172,17 @@ class BaseProcessor:
         await asyncio.gather(task1, task2)
 
     @classmethod
-    def launch(cls, prog, doc):
+    def launch(cls, ident, doc):
 
         parser = argparse.ArgumentParser(
-            prog=prog,
+            prog=ident,
             description=doc
+        )
+        
+        parser.add_argument(
+            '--id',
+            default=ident,
+            help=f'Configuration identity (default: {ident})',
         )
 
         cls.add_args(parser)
@@ -189,7 +199,9 @@ class BaseProcessor:
 
             try:
 
-                asyncio.run(cls.launch_async(args, prog))
+                asyncio.run(cls.launch_async(
+                    args, ident
+                ))
 
             except KeyboardInterrupt:
                 print("Keyboard interrupt.")

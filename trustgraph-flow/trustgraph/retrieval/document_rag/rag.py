@@ -16,7 +16,7 @@ from ... log_level import LogLevel
 from ... document_rag import DocumentRag
 from ... base import ConsumerProducer
 
-module = ".".join(__name__.split(".")[1:-1])
+module = "document-rag"
 
 default_input_queue = document_rag_request_queue
 default_output_queue = document_rag_response_queue

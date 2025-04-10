@@ -13,7 +13,7 @@ from ... clients.embeddings_client import EmbeddingsClient
 from ... log_level import LogLevel
 from ... base import ConsumerProducer
 
-module = ".".join(__name__.split(".")[1:-1])
+module = "document-embeddings"
 
 default_input_queue = chunk_ingest_queue
 default_output_queue = document_embeddings_store_queue

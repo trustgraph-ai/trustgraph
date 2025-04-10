@@ -18,7 +18,7 @@ from ... log_level import LogLevel
 from ... graph_rag import GraphRag
 from ... base import ConsumerProducer
 
-module = ".".join(__name__.split(".")[1:-1])
+module = "graph-rag"
 
 default_input_queue = graph_rag_request_queue
 default_output_queue = graph_rag_response_queue

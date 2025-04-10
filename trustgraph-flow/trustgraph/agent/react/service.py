@@ -25,7 +25,7 @@ from . agent_manager import AgentManager
 
 from . types import Final, Action, Tool, Argument
 
-module = ".".join(__name__.split(".")[1:-1])
+module = "agent"
 
 default_input_queue = agent_request_queue
 default_output_queue = agent_response_queue
@@ -101,6 +101,8 @@ class Processor(ConsumerProducer):
             tools=[],
             additional_context="",
         )
+
+        self.config_handlers.append(self.on_config)
 
     async def on_config(self, version, config):
 

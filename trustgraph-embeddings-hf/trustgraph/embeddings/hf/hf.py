@@ -12,7 +12,7 @@ from trustgraph.schema import embeddings_response_queue
 from trustgraph.log_level import LogLevel
 from trustgraph.base import ConsumerProducer
 
-module = ".".join(__name__.split(".")[1:-1])
+module = "embeddings"
 
 default_input_queue = embeddings_request_queue
 default_output_queue = embeddings_response_queue

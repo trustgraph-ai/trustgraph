@@ -13,7 +13,7 @@ from trustgraph.schema import config_push_queue
 from trustgraph.log_level import LogLevel
 from trustgraph.base import ConsumerProducer
 
-module = ".".join(__name__.split(".")[1:-1])
+module = "config-svc"
 
 default_input_queue = config_request_queue
 default_output_queue = config_response_queue

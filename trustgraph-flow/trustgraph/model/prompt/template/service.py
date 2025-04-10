@@ -18,7 +18,7 @@ from .... clients.llm_client import LlmClient
 
 from . prompt_manager import PromptConfiguration, Prompt, PromptManager
 
-module = ".".join(__name__.split(".")[1:-1])
+module = "prompt"
 
 default_input_queue = prompt_request_queue
 default_output_queue = prompt_response_queue
@@ -70,6 +70,8 @@ class Processor(ConsumerProducer):
                 return self.llm.request(system, prompt)
 
         self.llm = Llm(self.llm)
+
+        self.config_handlers.append(self.on_config)
 
         # Null configuration, should reload quickly
         self.manager = PromptManager(

@@ -13,7 +13,7 @@ from ... clients.embeddings_client import EmbeddingsClient
 from ... log_level import LogLevel
 from ... base import ConsumerProducer
 
-module = ".".join(__name__.split(".")[1:-1])
+module = "graph-embeddings"
 
 default_input_queue = entity_contexts_ingest_queue
 default_output_queue = graph_embeddings_store_queue

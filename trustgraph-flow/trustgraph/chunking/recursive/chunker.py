@@ -12,7 +12,7 @@ from ... schema import text_ingest_queue, chunk_ingest_queue
 from ... log_level import LogLevel
 from ... base import ConsumerProducer
 
-module = ".".join(__name__.split(".")[1:-1])
+module = "chunker"
 
 default_input_queue = text_ingest_queue
 default_output_queue = chunk_ingest_queue

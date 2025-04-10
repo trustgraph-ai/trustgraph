@@ -13,7 +13,7 @@ from ... schema import document_ingest_queue, text_ingest_queue
 from ... log_level import LogLevel
 from ... base import ConsumerProducer
 
-module = ".".join(__name__.split(".")[1:-1])
+module = "pdf-decoder"
 
 default_input_queue = document_ingest_queue
 default_output_queue = text_ingest_queue

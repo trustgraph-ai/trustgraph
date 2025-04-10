@@ -35,7 +35,7 @@ from .. exceptions import RequestError
 
 from . librarian import Librarian
 
-module = ".".join(__name__.split(".")[1:-1])
+module = "librarian"
 
 default_input_queue = librarian_request_queue
 default_output_queue = librarian_response_queue
