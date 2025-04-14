@@ -43,7 +43,6 @@ class Processor(BaseProcessor):
         push_queue = params.get("push_queue", default_push_queue)
         subscriber = params.get("subscriber", default_subscriber)
 
-
         input_schema = ConfigRequest
         output_schema = ConfigResponse
         push_schema = ConfigResponse
