@@ -8,11 +8,13 @@ from pulsar.schema import JsonSchema
 from prometheus_client import Histogram, Counter
 
 from trustgraph.schema import ConfigRequest, ConfigResponse, ConfigPush
-from trustgraph.schema import ConfigValue, Error
+from trustgraph.schema import Error
 from trustgraph.schema import config_request_queue, config_response_queue
 from trustgraph.schema import config_push_queue
 from trustgraph.log_level import LogLevel
 from trustgraph.base import AsyncProcessor, Consumer, Producer
+
+from . config import Configuration
 
 module = "config-svc"
 
@@ -24,16 +26,6 @@ default_subscriber = module
 # This behaves just like a dict, should be easier to add persistent storage
 # later
 
-class ConfigurationItems(dict):
-    pass
-
-class Configuration(dict):
-
-    def __getitem__(self, key):
-        if key not in self:
-            self[key] = ConfigurationItems()
-        return dict.__getitem__(self, key)
-        
 class Processor(AsyncProcessor):
 
     def __init__(self, **params):
@@ -96,9 +88,6 @@ class Processor(AsyncProcessor):
             schema = ConfigResponse
         )
 
-        # FIXME: The state is held internally. This only works if there's
-        # one config service.  Should be more than one, and use a
-        # back-end state store.
         self.config = Configuration()
 
         # Version counter
@@ -111,156 +100,10 @@ class Processor(AsyncProcessor):
         await self.push()
         await self.subs.start()
         
-    async def handle_get(self, v, id):
-
-        for k in v.keys:
-            if k.type not in self.config or k.key not in self.config[k.type]:
-                return ConfigResponse(
-                    version = None,
-                    values = None,
-                    directory = None,
-                    config = None,
-                    error = Error(
-                        type = "key-error",
-                        message = f"Key error"
-                    )
-                )
-
-        values = [
-            ConfigValue(
-                type = k.type,
-                key = k.key,
-                value = self.config[k.type][k.key]
-            )
-            for k in v.keys
-        ]
-
-        return ConfigResponse(
-            version = self.version,
-            values = values,
-            directory = None,
-            config = None,
-            error = None,
-        )
-
-    async def handle_list(self, v, id):
-
-        if v.type not in self.config:
-
-            return ConfigResponse(
-                version = None,
-                values = None,
-                directory = None,
-                config = None,
-                error = Error(
-                    type = "key-error",
-                    message = "No such type",
-                ),
-            )
-
-        return ConfigResponse(
-            version = self.version,
-            values = None,
-            directory = list(self.config[v.type].keys()),
-            config = None,
-            error = None,
-        )
-
-    async def handle_getvalues(self, v, id):
-
-        if v.type not in self.config:
-
-            return ConfigResponse(
-                version = None,
-                values = None,
-                directory = None,
-                config = None,
-                error = Error(
-                    type = "key-error",
-                    message = f"Key error"
-                )
-            )
-
-        values = [
-            ConfigValue(
-                type = v.type,
-                key = k,
-                value = self.config[v.type][k],
-            )
-            for k in self.config[v.type]
-        ]
-
-        return ConfigResponse(
-            version = self.version,
-            values = values,
-            directory = None,
-            config = None,
-            error = None,
-        )
-
-    async def handle_delete(self, v, id):
-
-        for k in v.keys:
-            if k.type not in self.config or k.key not in self.config[k.type]:
-                return ConfigResponse(
-                    version = None,
-                    values = None,
-                    directory = None,
-                    config = None,
-                    error = Error(
-                        type = "key-error",
-                        message = f"Key error"
-                    )
-                )
-
-        for k in v.keys:
-            del self.config[k.type][k.key]
-
-        self.version += 1
-
-        await self.push()
-
-        return ConfigResponse(
-            version = None,
-            value = None,
-            directory = None,
-            values = None,
-            config = None,
-            error = None,
-        )
-
-    async def handle_put(self, v, id):
-
-        for k in v.values:
-            self.config[k.type][k.key] = k.value
-
-        self.version += 1
-
-        await self.push()
-
-        return ConfigResponse(
-            version = None,
-            value = None,
-            directory = None,
-            values = None,
-            error = None,
-        )
-
-    async def handle_config(self, v, id):
-
-        return ConfigResponse(
-            version = self.version,
-            value = None,
-            directory = None,
-            values = None,
-            config = self.config,
-            error = None,
-        )
-
     async def push(self):
 
         resp = ConfigPush(
-            version = self.version,
+            version = self.config.version,
             value = None,
             directory = None,
             values = None,
@@ -274,57 +117,24 @@ class Processor(AsyncProcessor):
         
     async def on_message(self, msg, consumer):
 
-        v = msg.value()
-
-        # Sender-produced ID
-        id = msg.properties()["id"]
-
-        print(f"Handling {id}...", flush=True)
 
         try:
 
-            if v.operation == "get":
+            v = msg.value()
 
-                resp = await self.handle_get(v, id)
+            # Sender-produced ID
+            id = msg.properties()["id"]
 
-            elif v.operation == "list":
+            print(f"Handling {id}...", flush=True)
 
-                resp = await self.handle_list(v, id)
-
-            elif v.operation == "getvalues":
-
-                resp = await self.handle_getvalues(v, id)
-
-            elif v.operation == "delete":
-
-                resp = await self.handle_delete(v, id)
-
-            elif v.operation == "put":
-
-                resp = await self.handle_put(v, id)
-
-            elif v.operation == "config":
-
-                resp = await self.handle_config(v, id)
-
-            else:
-
-                resp = ConfigResponse(
-                    value=None,
-                    directory=None,
-                    values=None,
-                    error=Error(
-                        type = "bad-operation",
-                        message = "Bad operation"
-                    )
-                )
+            resp = await self.config.handle(v)
 
             await self.out_pub.send(resp, properties={"id": id})
 
             consumer.acknowledge(msg)
 
         except Exception as e:
-                
+            
             resp = ConfigResponse(
                 error=Error(
                     type = "unexpected-error",
@@ -332,7 +142,9 @@ class Processor(AsyncProcessor):
                 ),
                 text=None,
             )
+
             await self.out_pub.send(resp, properties={"id": id})
+
             consumer.acknowledge(msg)
 
     @staticmethod
