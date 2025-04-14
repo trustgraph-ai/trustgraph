@@ -1,11 +1,9 @@
 
 """
-Config service.  Fetchs an extract from the Wikipedia page
-using the API.
+Config service.  Manages system global configuration state
 """
 
 from pulsar.schema import JsonSchema
-from prometheus_client import Histogram, Counter
 
 from trustgraph.schema import ConfigRequest, ConfigResponse, ConfigPush
 from trustgraph.schema import Error
@@ -108,7 +106,6 @@ class Processor(AsyncProcessor):
         print("Pushed.")
         
     async def on_message(self, msg, consumer):
-
 
         try:
 

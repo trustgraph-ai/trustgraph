@@ -11,26 +11,22 @@ from langchain_community.document_loaders import PyPDFLoader
 from ... schema import Document, TextDocument, Metadata
 from ... schema import document_ingest_queue, text_ingest_queue
 from ... log_level import LogLevel
-from ... base import ConsumerProducer
+from ... base import InputOutputProcessor
 
 module = "pdf-decoder"
 
-default_input_queue = document_ingest_queue
-default_output_queue = text_ingest_queue
 default_subscriber = module
 
-class Processor(ConsumerProducer):
+class Processor(InputOutputProcessor):
 
     def __init__(self, **params):
 
-        input_queue = params.get("input_queue", default_input_queue)
-        output_queue = params.get("output_queue", default_output_queue)
-        subscriber = params.get("subscriber", default_subscriber)
+        id = params.get("id")
+        subscriber = params.get("subscriber")
 
         super(Processor, self).__init__(
             **params | {
-                "input_queue": input_queue,
-                "output_queue": output_queue,
+                "id": id,
                 "subscriber": subscriber,
                 "input_schema": Document,
                 "output_schema": TextDocument,
@@ -39,7 +35,7 @@ class Processor(ConsumerProducer):
 
         print("PDF inited")
 
-    async def handle(self, msg):
+    async def on_message(self, msg, consumer):
 
         print("PDF message received")
 
@@ -71,10 +67,7 @@ class Processor(ConsumerProducer):
     @staticmethod
     def add_args(parser):
 
-        ConsumerProducer.add_args(
-            parser, default_input_queue, default_subscriber,
-            default_output_queue,
-        )
+        InputOutputProcessor.add_args(parser, default_subscriber)
 
 def run():
 

@@ -50,6 +50,9 @@ class AsyncProcessor:
     @property
     def pulsar_host(self): return self.client.pulsar_host
 
+    def on_config(self, handler):
+        self.config_handlers.append(handler)
+
     async def start(self):
 
         self.config_sub_task = self.subscribe(
