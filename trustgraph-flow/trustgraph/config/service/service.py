@@ -15,6 +15,7 @@ from trustgraph.log_level import LogLevel
 from trustgraph.base import AsyncProcessor, Consumer, Producer
 
 from . config import Configuration
+from ... base import ProcessorMetrics, ConsumerMetrics, ProducerMetrics
 
 module = "config-svc"
 
@@ -40,19 +41,13 @@ class Processor(AsyncProcessor):
         response_schema = ConfigResponse
         push_schema = ConfigResponse
 
-        self.set_processor_state(id, "starting")
-
-        self.set_pubsub_info(
-            id
+        ProcessorMetrics(id=id).info(
             {
-                "id": id,
                 "subscriber": subscriber,
                 "request_queue": request_queue,
                 "request_schema": request_schema.__name__,
                 "response_queue": response_queue,
                 "response_schema": request_schema.__name__,
-#                 "rate_limit_retry": str(self.rate_limit_retry),
-#                 "rate_limit_timeout": str(self.rate_limit_timeout),
             }
         )
 
@@ -64,25 +59,20 @@ class Processor(AsyncProcessor):
             }
         )
 
-        if not hasattr(__class__, "request_metric"):
-            __class__.request_metric = Histogram(
-                'request_latency', 'Request latency (seconds)'
-            )
-
-        if not hasattr(__class__, "processing_metric"):
-            __class__.processing_metric = Counter(
-                'processing_count', 'Processing count',
-                ["status"]
-            )
+        self.request_metrics = ConsumerMetrics(id + "-request")
+        self.response_metrics = ProducerMetrics(id + "-response")
+        self.push_metrics = ProducerMetrics(id + "-push")
 
         self.push_pub = self.publish(
             queue = push_queue,
-            schema = ConfigPush
+            schema = ConfigPush,
+            metrics = self.push_metrics,
         )
 
-        self.out_pub = self.publish(
+        self.response_pub = self.publish(
             queue = response_queue,
-            schema = ConfigResponse
+            schema = ConfigResponse,
+            metrics = self.response_metrics,
         )
 
         self.subs = self.subscribe(
@@ -90,6 +80,7 @@ class Processor(AsyncProcessor):
             subscriber = subscriber,
             schema = request_schema,
             handler = self.on_message,
+            metrics = self.request_metrics,
         )
 
         self.config = Configuration()
@@ -130,7 +121,7 @@ class Processor(AsyncProcessor):
 
             resp = await self.config.handle(v)
 
-            await self.out_pub.send(resp, properties={"id": id})
+            await self.response_pub.send(resp, properties={"id": id})
 
             consumer.acknowledge(msg)
 
@@ -144,7 +135,7 @@ class Processor(AsyncProcessor):
                 text=None,
             )
 
-            await self.out_pub.send(resp, properties={"id": id})
+            await self.response_pub.send(resp, properties={"id": id})
 
             consumer.acknowledge(msg)
 
@@ -166,7 +157,7 @@ class Processor(AsyncProcessor):
         )
 
         parser.add_argument(
-            '-P', '--push-queue',
+            '--push-queue',
             default=default_push_queue,
             help=f'Config push queue (default: {default_push_queue})'
         )

@@ -8,7 +8,8 @@ class Consumer:
 
     def __init__(
             self, taskgroup, client, queue, subscriber, schema,
-            handler
+            handler, rate_limit_retry_time = 10,
+            rate_limit_timeout = 7200, metrics = None
     ):
 
         self.taskgroup = taskgroup
@@ -17,9 +18,13 @@ class Consumer:
         self.subscriber = subscriber
         self.schema = schema
         self.handler = handler
+        self.rate_limit_retry_time = rate_limit_retry_time
+        self.rate_limit_timeout = rate_limit_timeout
 
         self.running = True
         self.task = None
+
+        self.metrics = metrics
 
     async def start(self):
 
@@ -29,17 +34,23 @@ class Consumer:
             self.queue, self.subscriber, self.schema
         )
 
+        # Puts it in the stopped state, the run thread should set running
+        if self.metrics:
+            self.metrics.state("stopped")
+
         self.task = self.taskgroup.create_task(self.run())
 
-
     async def run(self):
+
+        if self.metrics:
+            print("RUNNING")
+            self.metrics.state("running")
 
         while self.running:
 
             msg = await asyncio.to_thread(self.consumer.receive)
 
-#             expiry = time.time() + self.rate_limit_timeout
-            expiry = time.time() + 10
+            expiry = time.time() + self.rate_limit_timeout
 
             # This loop is for retry on rate-limit / resource limits
             while True:
@@ -52,8 +63,8 @@ class Consumer:
                     # be retried
                     self.consumer.negative_acknowledge(msg)
 
-                    # FIXME
-#                    __class__.processing_metric.labels(status="error").inc()
+                    if self.metrics:
+                        self.metrics.process("error")
 
                     # Break out of retry loop, processes next message
                     break
@@ -61,15 +72,22 @@ class Consumer:
                 try:
 
                     print("Handle...")
-                    # FIXME
-#                    with __class__.request_metric.time():
-                    await self.handler(msg, self.consumer)
+
+                    if self.metrics:
+
+                        with self.metrics.record_time():
+                            await self.handler(msg, self.consumer)
+
+                    else:
+                        await self.handler(msg, self.consumer)
+
                     print("Handled.")
 
                     # Acknowledge successful processing of the message
                     self.consumer.acknowledge(msg)
 
-#                    __class__.processing_metric.labels(status="success").inc()
+                    if self.metrics:
+                        self.metrics.process("success")
 
                     # Break out of retry loop
                     break
@@ -79,10 +97,11 @@ class Consumer:
                     print("TooManyRequests: will retry...", flush=True)
 
                     # FIXME
-#                     __class__.rate_limit_metric.inc()
+                    if self.metrics:
+                        self.metrics.rate_limit()
 
                     # Sleep
-                    time.sleep(self.rate_limit_retry)
+                    await asyncio.sleep(self.rate_limit_retry)
 
                     # Contine from retry loop, just causes a reprocessing
                     continue
@@ -95,8 +114,11 @@ class Consumer:
                     # be retried
                     self.consumer.negative_acknowledge(msg)
 
-#                    __class__.processing_metric.labels(status="error").inc()
+                    if self.metrics:
+                        self.metrics.process("error")
 
                     # Break out of retry loop, processes next message
                     break
 
+        if self.metrics:
+            self.metrics.state("stopped")

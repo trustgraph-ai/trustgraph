@@ -73,16 +73,25 @@ class AsyncProcessor:
         while True:
             await asyncio.sleep(2)
 
-    def subscribe(self, queue, subscriber, schema, handler):
+    def subscribe(self, queue, subscriber, schema, handler, metrics=None):
 
         return Consumer(
-            self.taskgroup, self.client, queue, subscriber, schema, handler
+            taskgroup = self.taskgroup,
+            client = self.client,
+            queue = queue,
+            subscriber = subscriber,
+            schema = schema,
+            handler = handler,
+            metrics = metrics,
         )
 
-    def publish(self, queue, schema):
+    def publish(self, queue, schema, metrics=None):
 
         return Producer(
-            self.client, queue, schema
+            client = self.client,
+            queue = queue,
+            schema = schema,
+            metrics = metrics,
         )
 
     def set_processor_state(self, flow, state):
@@ -166,7 +175,7 @@ class AsyncProcessor:
                 print("Exception group:")
 
                 for se in e.exceptions:
-                    print("   Type:", type(se))
+                    print("  Type:", type(se))
                     print(f"  Exception: {se}")
 
             except Exception as e:
