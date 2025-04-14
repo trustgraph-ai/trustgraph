@@ -12,7 +12,7 @@ from trustgraph.schema import ConfigValue, Error
 from trustgraph.schema import config_request_queue, config_response_queue
 from trustgraph.schema import config_push_queue
 from trustgraph.log_level import LogLevel
-from trustgraph.base import ConsumerProducer, BaseProcessor
+from trustgraph.base import AsyncProcessor, Consumer, Producer
 
 module = "config-svc"
 
@@ -34,7 +34,7 @@ class Configuration(dict):
             self[key] = ConfigurationItems()
         return dict.__getitem__(self, key)
         
-class Processor(BaseProcessor):
+class Processor(AsyncProcessor):
 
     def __init__(self, **params):
         
@@ -69,10 +69,10 @@ class Processor(BaseProcessor):
         )
 
         self.subs = self.subscribe(
-            input_queue=input_queue,
-            subscriber=subscriber,
-            schema=input_schema,
-            handler=self.on_message,
+            queue = input_queue,
+            subscriber = subscriber,
+            schema = input_schema,
+            handler = self.on_message,
         )
 
         if not hasattr(__class__, "request_metric"):
@@ -87,12 +87,12 @@ class Processor(BaseProcessor):
             )
 
         self.push_pub = self.publish(
-            output_queue = push_queue,
+            queue = push_queue,
             schema = ConfigPush
         )
 
         self.out_pub = self.publish(
-            output_queue = output_queue,
+            queue = output_queue,
             schema = ConfigResponse
         )
 
@@ -107,6 +107,7 @@ class Processor(BaseProcessor):
         print("Service initialised.")
 
     async def start(self):
+
         await self.push()
         await self.subs.start()
         
@@ -337,10 +338,7 @@ class Processor(BaseProcessor):
     @staticmethod
     def add_args(parser):
 
-        ConsumerProducer.add_args(
-            parser, default_input_queue, default_subscriber,
-            default_output_queue,
-        )
+        AsyncProcessor.add_args(parser)
 
         parser.add_argument(
             '-i', '--input-queue',

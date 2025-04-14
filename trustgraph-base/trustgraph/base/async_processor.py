@@ -162,17 +162,20 @@ class AsyncProcessor:
                 print("Pulsar Interrupted.")
                 return
 
+            except ExceptionGroup as e:
+
+                print("Exception group:")
+
+                for se in e.exceptions:
+                    print("   Type:", type(se))
+                    print(f"  Exception: {se}")
+
             except Exception as e:
-
-                print(type(e))
-
-#                print(e.message)
-#                print(e.exceptions)
-
+                print("Type:", type(e))
                 print("Exception:", e, flush=True)
-                print("Will retry...", flush=True)
 
-                time.sleep(4)
+            print("Will retry...", flush=True)
+            time.sleep(4)
 
     @staticmethod
     def add_args(parser):
