@@ -54,3 +54,4 @@ class Producer(BaseProcessor):
             default=default_output_queue,
             help=f'Output queue (default: {default_output_queue})'
         )
+

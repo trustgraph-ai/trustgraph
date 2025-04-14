@@ -26,7 +26,6 @@ class Consumer(BaseProcessor):
 
         super(Consumer, self).__init__(**params)
 
-        self.input_queue = params.get("input_queue")
         self.subscriber = params.get("subscriber")
         self.input_schema = params.get("input_schema")
 
@@ -42,45 +41,66 @@ class Consumer(BaseProcessor):
 
         if not hasattr(__class__, "request_metric"):
             __class__.request_metric = Histogram(
-                'request_latency', 'Request latency (seconds)'
+                'request_latency', 'Request latency (seconds)',
+                ["flow"]
             )
 
         if not hasattr(__class__, "pubsub_metric"):
             __class__.pubsub_metric = Info(
-                'pubsub', 'Pub/sub configuration'
+                'pubsub', 'Pub/sub configuration',
+                ["flow"]
             )
 
         if not hasattr(__class__, "processing_metric"):
             __class__.processing_metric = Counter(
-                'processing_count', 'Processing count', ["status"]
+                'processing_count', 'Processing count',
+                ["flow", "status"]
             )
 
         if not hasattr(__class__, "rate_limit_metric"):
             __class__.rate_limit_metric = Counter(
                 'rate_limit_count', 'Rate limit event count',
+                ["flow"]
             )
 
-        __class__.pubsub_metric.info({
-            "input_queue": self.input_queue,
-            "subscriber": self.subscriber,
-            "input_schema": self.input_schema.__name__,
-            "rate_limit_retry": str(self.rate_limit_retry),
-            "rate_limit_timeout": str(self.rate_limit_timeout),
-        })
+        # __class__.pubsub_metric.info({
+        #     "input_queue": self.input_queue,
+        #     "subscriber": self.subscriber,
+        #     "input_schema": self.input_schema.__name__,
+        #     "rate_limit_retry": str(self.rate_limit_retry),
+        #     "rate_limit_timeout": str(self.rate_limit_timeout),
+        # })
 
-        self.consumer = self.client.subscribe(
-            self.input_queue, self.subscriber,
-            consumer_type=pulsar.ConsumerType.Shared,
-            schema=JsonSchema(self.input_schema),
-        )
+        # self.consumer = self.client.subscribe(
+        #     self.input_queue, self.subscriber,
+        #     consumer_type=pulsar.ConsumerType.Shared,
+        #     schema=JsonSchema(self.input_schema),
+        # )
+
+        self.config_queues = {}
+        self.config_handlers = [self.on_config_pubsub]
 
         print("Initialised consumer.", flush=True)
+
+    async def on_config_pubsub(self, version, config):
+
+        print("Configuring using config", version)
+
+        flows = config.get("flows", {}).get(self.ident, {})
+
+        print(flows)
+
+        print("Configuration completed OK")
 
     async def run(self):
 
         __class__.state_metric.state('running')
 
         while True:
+
+            await asyncio.sleep(1)
+
+            continue
 
             msg = await asyncio.to_thread(self.consumer.receive)
 
@@ -144,12 +164,6 @@ class Consumer(BaseProcessor):
     def add_args(parser, default_input_queue, default_subscriber):
 
         BaseProcessor.add_args(parser)
-
-        parser.add_argument(
-            '-i', '--input-queue',
-            default=default_input_queue,
-            help=f'Input queue (default: {default_input_queue})'
-        )
 
         parser.add_argument(
             '-s', '--subscriber',

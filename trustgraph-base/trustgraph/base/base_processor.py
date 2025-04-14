@@ -7,20 +7,120 @@ from pulsar.schema import JsonSchema
 import _pulsar
 import time
 import uuid
-from prometheus_client import start_http_server, Info
+from prometheus_client import start_http_server, Info, Enum
 
 from .. schema import ConfigPush, config_push_queue
 from .. log_level import LogLevel
+from .. exceptions import TooManyRequests
 
 default_config_queue = config_push_queue
 config_subscriber_id = str(uuid.uuid4())
 
+class Subscription:
+    def __init__(self, consumer, handler, taskgroup):
+        self.running = True
+        self.task = None
+        self.consumer = consumer
+        self.handle = handler
+        self.taskgroup=taskgroup
+
+    async def start(self):
+        self.running = True
+        self.task = self.taskgroup.create_task(self.run())
+
+    async def run(self):
+
+        while self.running:
+
+            print("Waiting...")
+            msg = await asyncio.to_thread(self.consumer.receive)
+            print("Got", msg)
+
+#             expiry = time.time() + self.rate_limit_timeout
+            expiry = time.time() + 10
+
+            # This loop is for retry on rate-limit / resource limits
+            while True:
+
+                if time.time() > expiry:
+
+                    print("Gave up waiting for rate-limit retry", flush=True)
+
+                    # Message failed to be processed, this causes it to
+                    # be retried
+                    self.consumer.negative_acknowledge(msg)
+
+                    # FIXME
+#                    __class__.processing_metric.labels(status="error").inc()
+
+                    # Break out of retry loop, processes next message
+                    break
+
+                try:
+
+                    print("Handle...")
+                    # FIXME
+#                    with __class__.request_metric.time():
+                    await self.handle(msg, self.consumer)
+                    print("Handled.")
+
+                    # Acknowledge successful processing of the message
+                    self.consumer.acknowledge(msg)
+
+#                    __class__.processing_metric.labels(status="success").inc()
+
+                    # Break out of retry loop
+                    break
+
+                except TooManyRequests:
+
+                    print("TooManyRequests: will retry...", flush=True)
+
+                    # FIXME
+#                     __class__.rate_limit_metric.inc()
+
+                    # Sleep
+                    time.sleep(self.rate_limit_retry)
+
+                    # Contine from retry loop, just causes a reprocessing
+                    continue
+
+                except Exception as e:
+
+                    print("Exception:", e, flush=True)
+
+                    # Message failed to be processed, this causes it to
+                    # be retried
+                    self.consumer.negative_acknowledge(msg)
+
+#                    __class__.processing_metric.labels(status="error").inc()
+
+                    # Break out of retry loop, processes next message
+                    break
+
+class Publisher:
+
+    def __init__(self, producer):
+        self.producer = producer
+#         self.running = True
+
+    async def send(self, msg, properties={}):
+        self.producer.send(msg, properties)
+
+        # FIXME
+#         __class__.output_metric.inc()
+
+                
 class BaseProcessor:
 
     default_pulsar_host = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
     default_pulsar_api_key = os.getenv("PULSAR_API_KEY", None)
 
     def __init__(self, **params):
+
+        self.taskgroup = params.get("taskgroup")
+        if self.taskgroup is None:
+            raise RuntimeError("Essential taskgroup missing")
 
         self.client = None
 
@@ -68,7 +168,7 @@ class BaseProcessor:
             self.config_push_queue, config_subscriber_id,
             consumer_type=pulsar.ConsumerType.Shared,
             initial_position=pulsar.InitialPosition.Earliest,
-            schema=JsonSchema(ConfigPush),         
+            schema=JsonSchema(ConfigPush),
         )
 
         self.config_handlers = []
@@ -154,22 +254,71 @@ class BaseProcessor:
                 await h(v.version, v.config)
 
     async def run(self):
-        raise RuntimeError("Something should have implemented the run method")
+        while True:
+            await asyncio.sleep(2)
+
+#       raise RuntimeError("Something should have implemented the run method")
+
+    def subscribe(self, input_queue, subscriber, schema, handler):
+
+        consumer = self.client.subscribe(
+            input_queue, subscriber,
+            consumer_type=pulsar.ConsumerType.Shared,
+            schema=JsonSchema(schema),
+        )
+
+        s = Subscription(consumer, handler, self.taskgroup)
+
+        return s
+
+    def publish(self, output_queue, schema):
+
+        producer = self.client.create_producer(
+            topic=output_queue,
+            schema=JsonSchema(schema),
+            chunking_enabled=True,
+        )
+
+        p = Publisher(producer)
+
+        return p
+
+    def set_processor_state(self, flow, state):
+
+        if not hasattr(__class__, "state_metric"):
+            __class__.state_metric = Enum(
+                'processor_state', 'Processor state',
+                ["flow"],
+                states=['starting', 'running', 'stopped']
+            )
+
+        __class__.state_metric.labels("flow").state(state)
+
+    def set_pubsub_info(self, flow, info) :
+
+        if not hasattr(__class__, "pubsub_metric"):
+            __class__.pubsub_metric = Info(
+                'pubsub', 'Pub/sub configuration',
+                ["flow"]
+            )
+
+        __class__.pubsub_metric.labels(flow=flow).info(info)
 
     @classmethod
     async def launch_async(cls, args, ident):
-        p = cls(**args)
 
-        # FIXME: Two sort of 'ident' things going on here?
-        p.module = ident
-        p.config_ident = args.ident
+        async with asyncio.TaskGroup() as tg:
 
-        await p.start()
+            p = cls(taskgroup=tg, **args)
 
-        task1 = asyncio.create_task(p.run_config_queue())
-        task2 = asyncio.create_task(p.run())
+            # FIXME: Two sort of 'ident' things going on here?
+            p.module = ident
+            p.config_ident = args.get("ident", "FIXME")
 
-        await asyncio.gather(task1, task2)
+            await p.start()
+
+            task1 = tg.create_task(p.run_config_queue())
+            task2 = tg.create_task(p.run())
 
     @classmethod
     def launch(cls, ident, doc):
@@ -214,6 +363,10 @@ class BaseProcessor:
             except Exception as e:
 
                 print(type(e))
+
+                print(e.message)
+                print(e.exceptions)
+                print(e)
 
                 print("Exception:", e, flush=True)
                 print("Will retry...", flush=True)
