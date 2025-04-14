@@ -18,8 +18,8 @@ from . config import Configuration
 
 module = "config-svc"
 
-default_input_queue = config_request_queue
-default_output_queue = config_response_queue
+default_request_queue = config_request_queue
+default_response_queue = config_response_queue
 default_push_queue = config_push_queue
 default_subscriber = module
 
@@ -30,23 +30,27 @@ class Processor(AsyncProcessor):
 
     def __init__(self, **params):
         
-        input_queue = params.get("input_queue", default_input_queue)
-        output_queue = params.get("output_queue", default_output_queue)
+        request_queue = params.get("request_queue", default_request_queue)
+        response_queue = params.get("response_queue", default_response_queue)
         push_queue = params.get("push_queue", default_push_queue)
         subscriber = params.get("subscriber", default_subscriber)
+        id = params.get("id")
 
-        input_schema = ConfigRequest
-        output_schema = ConfigResponse
+        request_schema = ConfigRequest
+        response_schema = ConfigResponse
         push_schema = ConfigResponse
 
-        self.set_processor_state("FIXME", "starting")
+        self.set_processor_state(id, "starting")
 
         self.set_pubsub_info(
-            "FIXME",
+            id
             {
-                "input_queue": input_queue,
+                "id": id,
                 "subscriber": subscriber,
-                "input_schema": input_schema.__name__,
+                "request_queue": request_queue,
+                "request_schema": request_schema.__name__,
+                "response_queue": response_queue,
+                "response_schema": request_schema.__name__,
 #                 "rate_limit_retry": str(self.rate_limit_retry),
 #                 "rate_limit_timeout": str(self.rate_limit_timeout),
             }
@@ -54,17 +58,10 @@ class Processor(AsyncProcessor):
 
         super(Processor, self).__init__(
             **params | {
-                "input_schema": input_schema.__name__,
-                "output_schema": output_schema.__name__,
+                "request_schema": request_schema.__name__,
+                "response_schema": response_schema.__name__,
                 "push_schema": push_schema.__name__,
             }
-        )
-
-        self.subs = self.subscribe(
-            queue = input_queue,
-            subscriber = subscriber,
-            schema = input_schema,
-            handler = self.on_message,
         )
 
         if not hasattr(__class__, "request_metric"):
@@ -84,14 +81,18 @@ class Processor(AsyncProcessor):
         )
 
         self.out_pub = self.publish(
-            queue = output_queue,
+            queue = response_queue,
             schema = ConfigResponse
         )
 
-        self.config = Configuration()
+        self.subs = self.subscribe(
+            queue = request_queue,
+            subscriber = subscriber,
+            schema = request_schema,
+            handler = self.on_message,
+        )
 
-        # Version counter
-        self.version = 0
+        self.config = Configuration()
 
         print("Service initialised.")
 
@@ -153,13 +154,19 @@ class Processor(AsyncProcessor):
         AsyncProcessor.add_args(parser)
 
         parser.add_argument(
-            '-i', '--input-queue',
-            default=default_input_queue,
-            help=f'Input queue (default: {default_input_queue})'
+            '-q', '--request-queue',
+            default=default_request_queue,
+            help=f'Request queue (default: {default_request_queue})'
         )
 
         parser.add_argument(
-            '-q', '--push-queue',
+            '-r', '--response-queue',
+            default=default_response_queue,
+            help=f'Response queue {default_response_queue}',
+        )
+
+        parser.add_argument(
+            '-P', '--push-queue',
             default=default_push_queue,
             help=f'Config push queue (default: {default_push_queue})'
         )

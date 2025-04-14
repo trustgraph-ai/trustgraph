@@ -119,7 +119,6 @@ class AsyncProcessor:
 
             await p.start()
 
-#            task1 = tg.create_task(p.run_config_queue())
             task2 = tg.create_task(p.run())
 
     @classmethod
