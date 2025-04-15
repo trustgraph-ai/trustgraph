@@ -21,7 +21,7 @@ class Processor(InputOutputProcessor):
     def __init__(self, **params):
 
         id = params.get("id")
-        subscriber = params.get("subscriber")
+        subscriber = params.get("subscriber", default_subscriber)
         chunk_size = params.get("chunk_size", 2000)
         chunk_overlap = params.get("chunk_overlap", 100)
         
