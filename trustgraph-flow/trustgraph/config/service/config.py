@@ -11,10 +11,13 @@ class Configuration(dict):
     # one config service.  Should be more than one, and use a
     # back-end state store.
 
-    def __init__(self):
+    def __init__(self, push):
 
         # Version counter
         self.version = 0
+
+        # External function to respond to update
+        self.push = push
 
     def __getitem__(self, key):
         if key not in self:
@@ -168,6 +171,8 @@ class Configuration(dict):
         )
 
     async def handle(self, msg):
+
+        print("Handle message ", msg.operation)
 
         if msg.operation == "get":
 

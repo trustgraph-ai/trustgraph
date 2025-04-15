@@ -81,7 +81,7 @@ class Processor(AsyncProcessor):
             metrics = self.request_metrics,
         )
 
-        self.config = Configuration()
+        self.config = Configuration(self.push)
 
         print("Service initialised.")
 
@@ -103,7 +103,7 @@ class Processor(AsyncProcessor):
 
         await self.push_pub.send(resp)
 
-        print("Pushed.")
+        print("Pushed version ", self.config.version)
         
     async def on_message(self, msg, consumer):
 

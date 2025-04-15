@@ -31,6 +31,8 @@ class Subscriber:
 
     def run(self):
 
+        print("SUBSCRIBER LOOP KICKS IN", flush=True)
+
         while self.running:
 
             try:
@@ -42,9 +44,13 @@ class Subscriber:
                     schema=self.schema,
                 )
 
+                print("SUBSCRIBER RUNNING...", flush=True)
+
                 while self.running:
 
                     msg = consumer.receive()
+
+                    print("GOT MESSAGE...", flush=True)
 
                     # Acknowledge successful reception of the message
                     consumer.acknowledge(msg)
@@ -73,7 +79,7 @@ class Subscriber:
                                 pass
 
             except Exception as e:
-                print("Exception:", e, flush=True)
+                print("Subscriber exception:", e, flush=True)
          
             # If handler drops out, sleep a retry
             time.sleep(2)

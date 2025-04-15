@@ -9,7 +9,8 @@ class Consumer:
     def __init__(
             self, taskgroup, client, queue, subscriber, schema,
             handler, rate_limit_retry_time = 10,
-            rate_limit_timeout = 7200, metrics = None
+            rate_limit_timeout = 7200, metrics = None,
+            start_of_messages=False,
     ):
 
         self.taskgroup = taskgroup
@@ -20,25 +21,38 @@ class Consumer:
         self.handler = handler
         self.rate_limit_retry_time = rate_limit_retry_time
         self.rate_limit_timeout = rate_limit_timeout
+        self.start_of_messages = start_of_messages
 
         self.running = True
         self.task = None
 
         self.metrics = metrics
 
+        print("Consumer: __init__d")
+
+    async def stop(self):
+
+        self.running = False
+
     async def start(self):
 
         self.running = True
 
+        print("Subscribing...", flush=True)
+
         self.consumer = self.client.subscribe(
-            self.queue, self.subscriber, self.schema
+            self.queue, self.subscriber, self.schema,
+            start_of_messages = self.start_of_messages,
         )
+        print("Subscribed.", flush=True)
 
         # Puts it in the stopped state, the run thread should set running
         if self.metrics:
             self.metrics.state("stopped")
 
         self.task = self.taskgroup.create_task(self.run())
+
+        print("Subscriber started", flush=True)
 
     async def run(self):
 
@@ -48,7 +62,11 @@ class Consumer:
 
         while self.running:
 
+            print("Consumer: WAIT FOR MESSAGE", flush=True)
+
             msg = await asyncio.to_thread(self.consumer.receive)
+
+            print("Consumer: MESSAGE RECEIVED", flush=True)
 
             expiry = time.time() + self.rate_limit_timeout
 

@@ -33,7 +33,7 @@ class Processor(InputOutputProcessor):
             }
         )
 
-        print("PDF inited")
+        print("PDF inited", flush=True)
 
     async def on_message(self, msg, consumer):
 

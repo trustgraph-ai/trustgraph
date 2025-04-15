@@ -47,6 +47,18 @@ class AsyncProcessor:
 
         self.config_handlers = []
 
+        self.config_sub_task = self.subscribe(
+            self.config_push_queue, config_subscriber_id,
+            schema=ConfigPush, handler=self.on_config_change,
+            start_of_messages=True
+        )
+
+        self.running = True
+
+    def stop(self):
+        self.client.close()
+        self.running = False
+
     @property
     def pulsar_host(self): return self.client.pulsar_host
 
@@ -55,14 +67,21 @@ class AsyncProcessor:
 
     async def start(self):
 
-        self.config_sub_task = self.subscribe(
-            self.config_push_queue, config_subscriber_id,
-            schema=ConfigPush, handler=self.on_config_change
-        )
+        print("STARTING CONFIG SUB", flush=True)
+        await self.config_sub_task.start()
 
-    async def on_config_change(self, config, version):
+    async def on_config_change(self, message, consumer):
+
+        config = message.value().config
+        version = message.value().version
+
+        consumer.acknowledge(message)
+
+        print("Config change event", config, version, flush=True)
         for ch in self.config_handlers:
-            ch(config, version)
+            print("Invoke... handler...", flush=True)
+            await ch(config, version)
+
 
     async def run_config_queue(self):
 
@@ -73,11 +92,15 @@ class AsyncProcessor:
         print("Config thread running", flush=True)
 
     async def run(self):
-        while True:
+        while self.running:
             await asyncio.sleep(2)
 
-    def subscribe(self, queue, subscriber, schema, handler, metrics=None):
+    def subscribe(
+            self, queue, subscriber, schema, handler, metrics=None,
+            start_of_messages=False
+    ):
 
+        print("Processing subscription!!!!")
         return Consumer(
             taskgroup = self.taskgroup,
             client = self.client,
@@ -86,6 +109,7 @@ class AsyncProcessor:
             schema = schema,
             handler = handler,
             metrics = metrics,
+            start_of_messages=start_of_messages,
         )
 
     def publish(self, queue, schema, metrics=None):
@@ -123,15 +147,23 @@ class AsyncProcessor:
 
         async with asyncio.TaskGroup() as tg:
 
-            p = cls(**args | { "taskgroup": tg })
+            try:
+                print("CREATING...", flush=True)
 
-            # FIXME: Two sort of 'ident' things going on here?
-            p.module = ident
-            p.config_ident = args.get("ident", "FIXME")
+                p = cls(**args | { "taskgroup": tg })
 
-            await p.start()
+                # FIXME: Two sort of 'ident' things going on here?
+                p.module = ident
+                p.config_ident = args.get("ident", "FIXME")
 
-            task2 = tg.create_task(p.run())
+                print("STARTING...", flush=True)
+                await p.start()
+
+                task2 = tg.create_task(p.run())
+
+            except Exception as e:
+                print("Exception, dropping out", flush=True)
+                raise e
 
     @classmethod
     def launch(cls, ident, doc):
@@ -152,12 +184,14 @@ class AsyncProcessor:
         args = parser.parse_args()
         args = vars(args)
 
-        print(args)
+        print(args, flush=True)
 
         if args["metrics"]:
             start_http_server(args["metrics_port"])
 
         while True:
+
+            print("Starting...", flush=True)
 
             try:
 
@@ -166,23 +200,23 @@ class AsyncProcessor:
                 ))
 
             except KeyboardInterrupt:
-                print("Keyboard interrupt.")
+                print("Keyboard interrupt.", flush=True)
                 return
 
             except _pulsar.Interrupted:
-                print("Pulsar Interrupted.")
+                print("Pulsar Interrupted.", flush=True)
                 return
 
             except ExceptionGroup as e:
 
-                print("Exception group:")
+                print("Exception group:", flush=True)
 
                 for se in e.exceptions:
-                    print("  Type:", type(se))
-                    print(f"  Exception: {se}")
+                    print("  Type:", type(se), flush=True)
+                    print(f"  Exception: {se}", flush=True)
 
             except Exception as e:
-                print("Type:", type(e))
+                print("Type:", type(e), flush=True)
                 print("Exception:", e, flush=True)
 
             print("Will retry...", flush=True)

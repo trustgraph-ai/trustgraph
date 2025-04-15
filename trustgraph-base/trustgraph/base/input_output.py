@@ -1,4 +1,5 @@
 
+import json
 from pulsar.schema import JsonSchema
 
 from .. schema import Error
@@ -18,6 +19,8 @@ class InputOutputProcessor(AsyncProcessor):
         self.input_schema = params.get("input_schema")
         self.output_schema = params.get("output_schema")
 
+        print("alsdkjasdlasdjkL")
+
         ProcessorMetrics(id=self.id).info(
             {
                 "subscriber": self.subscriber,
@@ -26,6 +29,7 @@ class InputOutputProcessor(AsyncProcessor):
             }
         )
 
+        print("ASD")
         super(InputOutputProcessor, self).__init__(
             **params | {
                 "id": self.id,
@@ -34,6 +38,7 @@ class InputOutputProcessor(AsyncProcessor):
             }
         )
 
+        print("alsdkj")
         self.on_config(self.on_configuration)
 
         self.subs = {}
@@ -48,7 +53,7 @@ class InputOutputProcessor(AsyncProcessor):
 
         self.subs[flow] = self.subscribe(
             queue = defn["input"],
-            subscriber = subscriber,
+            subscriber = self.subscriber,
             schema = self.input_schema,
             handler = self.on_message,
             metrics = input_metrics,
@@ -60,31 +65,44 @@ class InputOutputProcessor(AsyncProcessor):
             metrics = output_metrics,
         )
 
-        self.subs[flow].start()
+        await self.subs[flow].start()
 
         print("Started flow for", flow)
 
+    async def stop_handler(self, flow):
+        print("Stopping ", flow, flush=True)
+        await self.subs[flow].stop()
+        del self.subs[flow]
+        del self.pubs[flow]
+        
+
     async def on_configuration(self, config, version):
+
+        print("Got config version", version)
 
         if "flows" not in config: return
 
         if self.id in config["flows"]:
 
-            wanted_keys = config["flows"][self.id].keys()
+            flow_config = json.loads(config["flows"][self.id])
+
+            wanted_keys = flow_config.keys()
             current_keys = self.subs.keys()
 
             for key in wanted_keys:
                 if key not in current_keys:
-                    self.start_handler(key, config["flows"][key])
+                    await self.start_handler(key, flow_config[key])
 
             for key in current_keys:
                 if key not in wanted_keys:
-                    self.stop_handler(key, config["flows"][key])
+                    await self.stop_handler(key)
 
             print("Handled config update")
 
     async def start(self):
-        pass
+
+        print("INPUT OUTPU START")
+        await super(InputOutputProcessor, self).start()
 
     @staticmethod
     def add_args(parser, default_subscriber):
