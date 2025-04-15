@@ -19,8 +19,6 @@ class InputOutputProcessor(AsyncProcessor):
         self.input_schema = params.get("input_schema")
         self.output_schema = params.get("output_schema")
 
-        print("alsdkjasdlasdjkL")
-
         ProcessorMetrics(id=self.id).info(
             {
                 "subscriber": self.subscriber,
@@ -29,7 +27,6 @@ class InputOutputProcessor(AsyncProcessor):
             }
         )
 
-        print("ASD")
         super(InputOutputProcessor, self).__init__(
             **params | {
                 "id": self.id,
@@ -38,7 +35,6 @@ class InputOutputProcessor(AsyncProcessor):
             }
         )
 
-        print("alsdkj")
         self.on_config(self.on_configuration)
 
         self.subs = {}
@@ -67,18 +63,18 @@ class InputOutputProcessor(AsyncProcessor):
 
         await self.subs[flow].start()
 
-        print("Started flow for", flow)
+        print("Started flow: ", flow)
 
     async def stop_handler(self, flow):
-        print("Stopping ", flow, flush=True)
         await self.subs[flow].stop()
         del self.subs[flow]
         del self.pubs[flow]
-        
+
+        print("Stopped flow: ", flow, flush=True)
 
     async def on_configuration(self, config, version):
 
-        print("Got config version", version)
+        print("Got config version", version, flush=True)
 
         if "flows" not in config: return
 
@@ -100,8 +96,6 @@ class InputOutputProcessor(AsyncProcessor):
             print("Handled config update")
 
     async def start(self):
-
-        print("INPUT OUTPU START")
         await super(InputOutputProcessor, self).start()
 
     @staticmethod

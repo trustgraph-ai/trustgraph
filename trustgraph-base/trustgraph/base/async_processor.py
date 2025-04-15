@@ -66,8 +66,6 @@ class AsyncProcessor:
         self.config_handlers.append(handler)
 
     async def start(self):
-
-        print("STARTING CONFIG SUB", flush=True)
         await self.config_sub_task.start()
 
     async def on_config_change(self, message, consumer):
@@ -79,17 +77,7 @@ class AsyncProcessor:
 
         print("Config change event", config, version, flush=True)
         for ch in self.config_handlers:
-            print("Invoke... handler...", flush=True)
             await ch(config, version)
-
-
-    async def run_config_queue(self):
-
-        if self.module == "config.service":
-            print("I am config-svc, not looking at config queue", flush=True)
-            return
-
-        print("Config thread running", flush=True)
 
     async def run(self):
         while self.running:
@@ -100,7 +88,6 @@ class AsyncProcessor:
             start_of_messages=False
     ):
 
-        print("Processing subscription!!!!")
         return Consumer(
             taskgroup = self.taskgroup,
             client = self.client,
@@ -148,7 +135,6 @@ class AsyncProcessor:
         async with asyncio.TaskGroup() as tg:
 
             try:
-                print("CREATING...", flush=True)
 
                 p = cls(**args | { "taskgroup": tg })
 
@@ -156,13 +142,12 @@ class AsyncProcessor:
                 p.module = ident
                 p.config_ident = args.get("ident", "FIXME")
 
-                print("STARTING...", flush=True)
                 await p.start()
 
                 task2 = tg.create_task(p.run())
 
             except Exception as e:
-                print("Exception, dropping out", flush=True)
+                print("Exception, closing taskgroup", flush=True)
                 raise e
 
     @classmethod

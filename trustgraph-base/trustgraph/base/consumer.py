@@ -28,8 +28,6 @@ class Consumer:
 
         self.metrics = metrics
 
-        print("Consumer: __init__d")
-
     async def stop(self):
 
         self.running = False
@@ -38,12 +36,11 @@ class Consumer:
 
         self.running = True
 
-        print("Subscribing...", flush=True)
-
         self.consumer = self.client.subscribe(
             self.queue, self.subscriber, self.schema,
             start_of_messages = self.start_of_messages,
         )
+
         print("Subscribed.", flush=True)
 
         # Puts it in the stopped state, the run thread should set running
@@ -57,16 +54,11 @@ class Consumer:
     async def run(self):
 
         if self.metrics:
-            print("RUNNING")
             self.metrics.state("running")
 
         while self.running:
 
-            print("Consumer: WAIT FOR MESSAGE", flush=True)
-
             msg = await asyncio.to_thread(self.consumer.receive)
-
-            print("Consumer: MESSAGE RECEIVED", flush=True)
 
             expiry = time.time() + self.rate_limit_timeout
 
@@ -89,7 +81,7 @@ class Consumer:
 
                 try:
 
-                    print("Handle...")
+                    print("Handle...", flush=True)
 
                     if self.metrics:
 
@@ -99,7 +91,7 @@ class Consumer:
                     else:
                         await self.handler(msg, self.consumer)
 
-                    print("Handled.")
+                    print("Handled.", flush=True)
 
                     # Acknowledge successful processing of the message
                     self.consumer.acknowledge(msg)

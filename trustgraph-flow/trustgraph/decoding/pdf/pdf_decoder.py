@@ -37,7 +37,7 @@ class Processor(InputOutputProcessor):
 
     async def on_message(self, msg, consumer):
 
-        print("PDF message received")
+        print("PDF message received", flush=True)
 
         v = msg.value()
 
