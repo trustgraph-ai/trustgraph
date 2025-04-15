@@ -37,38 +37,62 @@ class InputOutputProcessor(AsyncProcessor):
 
         self.on_config(self.on_configuration)
 
-        self.subs = {}
-        self.pubs = {}
+        self.consumers = {}
+
+        # These can be overriden by a derived class
+        self.consumer_spec = ("input", self.input_schema)
+        self.producer_spec = [
+            ("output", self.output_schema)
+        ]
 
         print("Service initialised.")
 
-    async def start_handler(self, flow, defn):
+    async def start_flow(self, flow, defn):
 
-        input_metrics = ConsumerMetrics(self.id, flow)
-        output_metrics = ProducerMetrics(self.id, flow)
+        consumer_tag = self.consumer_spec[0]
+        consumer_schema = self.consumer_spec[1]
+        consumer_metrics = ConsumerMetrics(self.id, f"{flow}-{consumer_tag}")
 
-        self.subs[flow] = self.subscribe(
-            queue = defn["input"],
+        consumer = self.subscribe(
+            queue = defn[consumer_tag],
             subscriber = self.subscriber,
-            schema = self.input_schema,
+            schema = consumer_schema,
             handler = self.on_message,
-            metrics = input_metrics,
-        )
-        
-        self.pubs[flow] = self.publish(
-            queue = defn["output"],
-            schema = self.output_schema,
-            metrics = output_metrics,
+            metrics = consumer_metrics,
         )
 
-        await self.subs[flow].start()
+        class Queues:
+            pass
+
+        consumer.output = Queues()
+
+        producers = {}
+
+        for spec in self.producer_spec:
+
+            producer_tag = spec[0]
+            producer_schema = spec[1]
+            producer_metrics = ProducerMetrics(
+                self.id, f"{flow}-{producer_tag}"
+            )
+
+            producer = self.publish(
+                queue = defn[producer_tag],
+                schema = spec[1],
+                metrics = producer_metrics,
+            )
+
+            setattr(consumer.output, producer_tag, producer)
+
+        self.consumers[flow] = consumer
+
+        await consumer.start()
 
         print("Started flow: ", flow)
 
-    async def stop_handler(self, flow):
-        await self.subs[flow].stop()
-        del self.subs[flow]
-        del self.pubs[flow]
+    async def stop_flow(self, flow):
+        await self.consumers[flow].stop()
+        del self.consumers[flow]
 
         print("Stopped flow: ", flow, flush=True)
 
@@ -83,15 +107,15 @@ class InputOutputProcessor(AsyncProcessor):
             flow_config = json.loads(config["flows"][self.id])
 
             wanted_keys = flow_config.keys()
-            current_keys = self.subs.keys()
+            current_keys = self.consumers.keys()
 
             for key in wanted_keys:
                 if key not in current_keys:
-                    await self.start_handler(key, flow_config[key])
+                    await self.start_flow(key, flow_config[key])
 
             for key in current_keys:
                 if key not in wanted_keys:
-                    await self.stop_handler(key)
+                    await self.stop_flow(key)
 
             print("Handled config update")
 

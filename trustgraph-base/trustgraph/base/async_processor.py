@@ -206,6 +206,7 @@ class AsyncProcessor:
 
             print("Will retry...", flush=True)
             time.sleep(4)
+            print("Retrying...", flush=True)
 
     @staticmethod
     def add_args(parser):
