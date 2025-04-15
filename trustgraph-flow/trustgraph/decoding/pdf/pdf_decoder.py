@@ -55,12 +55,14 @@ class Processor(InputOutputProcessor):
 
                 for ix, page in enumerate(pages):
 
+                    print("page", ix, flush=True)
+
                     r = TextDocument(
                         metadata=v.metadata,
                         text=page.page_content.encode("utf-8"),
                     )
 
-                    await self.send(r)
+                    await consumer.q.output.send(r)
 
         print("Done.", flush=True)
 

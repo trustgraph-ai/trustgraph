@@ -64,7 +64,9 @@ class InputOutputProcessor(AsyncProcessor):
         class Queues:
             pass
 
-        consumer.output = Queues()
+        consumer.q = Queues()
+        consumer.id = self.id
+        consumer.flow = flow
 
         producers = {}
 
@@ -82,7 +84,7 @@ class InputOutputProcessor(AsyncProcessor):
                 metrics = producer_metrics,
             )
 
-            setattr(consumer.output, producer_tag, producer)
+            setattr(consumer.q, producer_tag, producer)
 
         self.consumers[flow] = consumer
 

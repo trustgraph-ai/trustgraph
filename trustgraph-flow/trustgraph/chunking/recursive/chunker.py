@@ -10,28 +10,23 @@ from prometheus_client import Histogram
 from ... schema import TextDocument, Chunk, Metadata
 from ... schema import text_ingest_queue, chunk_ingest_queue
 from ... log_level import LogLevel
-from ... base import ConsumerProducer
+from ... base import InputOutputProcessor
 
 module = "chunker"
 
-default_input_queue = text_ingest_queue
-default_output_queue = chunk_ingest_queue
 default_subscriber = module
 
-class Processor(ConsumerProducer):
+class Processor(InputOutputProcessor):
 
     def __init__(self, **params):
 
-        input_queue = params.get("input_queue", default_input_queue)
-        output_queue = params.get("output_queue", default_output_queue)
-        subscriber = params.get("subscriber", default_subscriber)
+        id = params.get("id")
+        subscriber = params.get("subscriber")
         chunk_size = params.get("chunk_size", 2000)
         chunk_overlap = params.get("chunk_overlap", 100)
         
         super(Processor, self).__init__(
             **params | {
-                "input_queue": input_queue,
-                "output_queue": output_queue,
                 "subscriber": subscriber,
                 "input_schema": TextDocument,
                 "output_schema": Chunk,
@@ -41,6 +36,7 @@ class Processor(ConsumerProducer):
         if not hasattr(__class__, "chunk_metric"):
             __class__.chunk_metric = Histogram(
                 'chunk_size', 'Chunk size',
+                ["id", "flow"],
                 buckets=[100, 160, 250, 400, 650, 1000, 1600,
                          2500, 4000, 6400, 10000, 16000]
             )
@@ -52,7 +48,9 @@ class Processor(ConsumerProducer):
             is_separator_regex=False,
         )
 
-    async def handle(self, msg):
+        print("Chunker initialised", flush=True)
+
+    async def on_message(self, msg, consumer):
 
         v = msg.value()
         print(f"Chunking {v.metadata.id}...", flush=True)
@@ -63,24 +61,25 @@ class Processor(ConsumerProducer):
 
         for ix, chunk in enumerate(texts):
 
+            print("Chunk", len(chunk.page_content), flush=True)
+
             r = Chunk(
                 metadata=v.metadata,
                 chunk=chunk.page_content.encode("utf-8"),
             )
 
-            __class__.chunk_metric.observe(len(chunk.page_content))
+            __class__.chunk_metric.labels(
+                id=consumer.id, flow=consumer.flow
+            ).observe(len(chunk.page_content))
 
-            await self.send(r)
+            await consumer.q.output.send(r)
 
         print("Done.", flush=True)
 
     @staticmethod
     def add_args(parser):
 
-        ConsumerProducer.add_args(
-            parser, default_input_queue, default_subscriber,
-            default_output_queue,
-        )
+        InputOutputProcessor.add_args(parser, default_subscriber)
 
         parser.add_argument(
             '-z', '--chunk-size',

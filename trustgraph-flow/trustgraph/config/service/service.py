@@ -120,8 +120,6 @@ class Processor(AsyncProcessor):
 
             await self.response_pub.send(resp, properties={"id": id})
 
-            consumer.acknowledge(msg)
-
         except Exception as e:
             
             resp = ConfigResponse(
@@ -133,8 +131,6 @@ class Processor(AsyncProcessor):
             )
 
             await self.response_pub.send(resp, properties={"id": id})
-
-            consumer.acknowledge(msg)
 
     @staticmethod
     def add_args(parser):

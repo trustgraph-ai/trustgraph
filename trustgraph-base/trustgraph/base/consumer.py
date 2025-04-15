@@ -86,7 +86,7 @@ class Consumer:
                     if self.metrics:
 
                         with self.metrics.record_time():
-                            await self.handler(msg, self.consumer)
+                            await self.handler(msg, self)
 
                     else:
                         await self.handler(msg, self.consumer)
