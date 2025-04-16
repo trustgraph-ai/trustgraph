@@ -20,10 +20,6 @@ module = "config-svc"
 default_request_queue = config_request_queue
 default_response_queue = config_response_queue
 default_push_queue = config_push_queue
-default_subscriber = module
-
-# This behaves just like a dict, should be easier to add persistent storage
-# later
 
 class Processor(AsyncProcessor):
 

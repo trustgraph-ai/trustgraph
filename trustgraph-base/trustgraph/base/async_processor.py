@@ -1,13 +1,15 @@
 
+# Base class for processors.  Implements:
+# - Pulsar client, subscribe and consume basic
+# - the async startup logic
+# - Initialising metrics
+
 import asyncio
-import os
 import argparse
-import pulsar
-from pulsar.schema import JsonSchema
 import _pulsar
 import time
 import uuid
-from prometheus_client import start_http_server, Info, Enum
+from prometheus_client import start_http_server, Info
 
 from .. schema import ConfigPush, config_push_queue
 from .. log_level import LogLevel
@@ -17,73 +19,104 @@ from . producer import Producer
 from . consumer import Consumer
 
 default_config_queue = config_push_queue
-config_subscriber_id = str(uuid.uuid4())
 
+# Async processor
 class AsyncProcessor:
-
 
     def __init__(self, **params):
 
+        # Store the identity
+        self.id = params.get("id")
+
+        # Register a pulsar client
         self.client = PulsarClient(**params)
 
+        # The processor runs all activity in a taskgroup, it's mandatory
+        # that this is provded
         self.taskgroup = params.get("taskgroup")
         if self.taskgroup is None:
             raise RuntimeError("Essential taskgroup missing")
 
+        # Pubsub parameters passed in
         if not hasattr(__class__, "params_metric"):
             __class__.params_metric = Info(
                 'params', 'Parameters configuration'
             )
 
-        # FIXME: Maybe outputs information it should not
+        # Record metrics for the processor
         __class__.params_metric.info({
             k: str(params[k])
             for k in params
         })
 
+        # Get the configuration topic
         self.config_push_queue = params.get(
             "config_push_queue", default_config_queue
         )
 
+        # This records registered configuration handlers
         self.config_handlers = []
 
+        # Create a random ID for this subscription to the configuration
+        # service
+        config_subscriber_id = str(uuid.uuid4())
+
+        # Subscribe to config queue
         self.config_sub_task = self.subscribe(
             flow = None,
             queue = self.config_push_queue, subscriber = config_subscriber_id,
             schema = ConfigPush, handler = self.on_config_change,
+
+            # This causes new subscriptions to view the entire history of
+            # configuration
             start_of_messages = True
         )
 
         self.running = True
 
+    # This is called to start dynamic behaviour.  An over-ride point for
+    # extra functionality
+    async def start(self):
+        await self.config_sub_task.start()
+
+    # This is called to stop all threads.  An over-ride point for extra
+    # functionality
     def stop(self):
         self.client.close()
         self.running = False
 
+    # Returns the pulsar host
     @property
     def pulsar_host(self): return self.client.pulsar_host
 
-    def on_config(self, handler):
+    # Register a new event handler for configuration change
+    def register_config_handler(self, handler):
         self.config_handlers.append(handler)
 
-    async def start(self):
-        await self.config_sub_task.start()
-
+    # Called when a new configuration message push occurs
     async def on_config_change(self, message, consumer):
 
+        # Get configuration data and version number
         config = message.value().config
         version = message.value().version
 
+        # Acknowledge the message
         consumer.acknowledge(message)
 
+        # Invoke message handlers
         print("Config change event", config, version, flush=True)
         for ch in self.config_handlers:
             await ch(config, version)
 
+    # This is the 'main' body of the handler.  It is a point to override
+    # if needed.  By default does nothing.  Processors are implemented
+    # by adding consumer/producer functionality so maybe nothing is needed
+    # in the run() body
     async def run(self):
         while self.running:
             await asyncio.sleep(2)
 
+    # Subscribe to a topic, returns a Consumer
     def subscribe(
             self, flow, queue, subscriber, schema, handler, metrics=None,
             start_of_messages=False
@@ -101,8 +134,8 @@ class AsyncProcessor:
             start_of_messages=start_of_messages,
         )
 
+    # Open a mechanism to publish messages to a topic.  Returns a subscriber
     def publish(self, queue, schema, metrics=None):
-
         return Producer(
             client = self.client,
             queue = queue,
@@ -110,51 +143,45 @@ class AsyncProcessor:
             metrics = metrics,
         )
 
-    def set_processor_state(self, flow, state):
-
-        if not hasattr(__class__, "state_metric"):
-            __class__.state_metric = Enum(
-                'processor_state', 'Processor state',
-                ["flow"],
-                states=['starting', 'running', 'stopped']
-            )
-
-        __class__.state_metric.labels("flow").state(state)
-
-    def set_pubsub_info(self, flow, info) :
-
-        if not hasattr(__class__, "pubsub_metric"):
-            __class__.pubsub_metric = Info(
-                'pubsub', 'Pub/sub configuration',
-                ["flow"]
-            )
-
-        __class__.pubsub_metric.labels(flow=flow).info(info)
-
+    # Startup fabric.  This runs in 'async' mode, creates a taskgroup and
+    # runs the producer.
     @classmethod
     async def launch_async(cls, args, ident):
 
-        async with asyncio.TaskGroup() as tg:
+        try:
 
-            try:
+            # Create a taskgroup.  This seems complicated, when an exception
+            # occurs, unhandled it looks like it cancels all threads in the
+            # taskgroup, but I have observed this not working.  I think
+            # it's fixed now that exceptions are caught in the right place.
+            async with asyncio.TaskGroup() as tg:
 
-                p = cls(**args | { "taskgroup": tg })
 
-                # FIXME: Two sort of 'ident' things going on here?
-                p.module = ident
-                p.config_ident = args.get("ident", "FIXME")
+                    # Create a processor instance, and include the taskgroup
+                    # as a paramter.  A processor identity ident is used as
+                    # - subscriber name
+                    # - an identifier for flow configuration
+                    p = cls(**args | { "taskgroup": tg, "id", ident })
 
-                await p.start()
+                    # Start the processor
+                    await p.start()
 
-                task2 = tg.create_task(p.run())
+                    # Run the processor
+                    task = tg.create_task(p.run())
 
-            except Exception as e:
-                print("Exception, closing taskgroup", flush=True)
-                raise e
+                    # The taskgroup causes everything to wait until
+                    # all threads have stopped
 
+        # This is here to output a debug message, shouldn't be needed.
+        except Exception as e:
+            print("Exception, closing taskgroup", flush=True)
+            raise e
+
+    # Startup fabric.  launch calls launch_async in async mode.
     @classmethod
     def launch(cls, ident, doc):
 
+        # Start assembling CLI arguments
         parser = argparse.ArgumentParser(
             prog=ident,
             description=doc
@@ -166,22 +193,29 @@ class AsyncProcessor:
             help=f'Configuration identity (default: {ident})',
         )
 
+        # Invoke the class-specific add_args, which manages adding all the
+        # command-line arguments
         cls.add_args(parser)
 
+        # Parse arguments
         args = parser.parse_args()
         args = vars(args)
 
+        # Debug
         print(args, flush=True)
 
+        # Start the Prometheus metrics service if needed
         if args["metrics"]:
             start_http_server(args["metrics_port"])
 
+        # Loop forever, exception handler
         while True:
 
             print("Starting...", flush=True)
 
             try:
 
+                # Launch the processor in an asyncio handler
                 asyncio.run(cls.launch_async(
                     args, ident
                 ))
@@ -194,6 +228,7 @@ class AsyncProcessor:
                 print("Pulsar Interrupted.", flush=True)
                 return
 
+            # Exceptions from a taskgroup come in as an exception group
             except ExceptionGroup as e:
 
                 print("Exception group:", flush=True)
@@ -206,10 +241,13 @@ class AsyncProcessor:
                 print("Type:", type(e), flush=True)
                 print("Exception:", e, flush=True)
 
+            # Retry occurs here
             print("Will retry...", flush=True)
             time.sleep(4)
             print("Retrying...", flush=True)
 
+    # The command-line arguments are built using a stack of add_args
+    # invocations
     @staticmethod
     def add_args(parser):
 

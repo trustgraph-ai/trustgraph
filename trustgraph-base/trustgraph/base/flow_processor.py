@@ -1,5 +1,10 @@
 
+# Base class for processor with management of flows in & out which are managed
+# by configuration.  This is probably all processor types, except for the
+# configuration service which can't manage itself.
+
 import json
+
 from pulsar.schema import JsonSchema
 
 from .. schema import Error
@@ -13,45 +18,51 @@ from .. base import ProcessorMetrics, ConsumerMetrics, ProducerMetrics
 class Flow:
     pass
 
+# Parent class for configurable processors, configured with flows by
+# the config service
 class FlowProcessor(AsyncProcessor):
 
     def __init__(self, **params):
-        
-        self.id = params.get("id")
-        self.subscriber = params.get("subscriber")
 
-        ProcessorMetrics(id=self.id).info(
-            {
-                "subscriber": self.subscriber,
-            }
-        )
+        # Initialise base class
+        super(FlowProcessor, self).__init__(**params)
 
-        super(FlowProcessor, self).__init__(
-            **params | {
-                "id": self.id,
-            }
-        )
+        # Initialise metrics, records the parameters
+        ProcessorMetrics(id=self.id).info(params)
 
-        self.on_config(self.on_configuration)
+        # Register configuration handler
+        self.register_config_handler(self.on_configuration)
 
+        # Initialise flow information state
         self.flows = {}
 
-        # These can be overriden by a derived class
+        # These can be overriden by a derived class:
+
+        # Consumer specification, array of ("name", SchemaType, handler)
         self.consumer_spec = []
+
+        # Producer specification, array of ("name", SchemaType)
         self.producer_spec = []
+
+        # Configuration specification, collects some flow variables from
+        # config, array of "name"
         self.config_spec = []
 
         print("Service initialised.")
 
+    # Register a new consumer name
     def register_consumer(self, name, schema, handler):
         self.consumer_spec.append((name, schema, handler))
 
+    # Register a producer name
     def register_producer(self, name, schema):
         self.producer_spec.append((name, schema))
 
+    # Register a configuration variable
     def register_config(self, name):
-        self.config_spec.append((name,))
+        self.config_spec.append(name)
 
+    # Start processing for a new flow
     async def start_flow(self, flow, defn):
 
         flow_obj = Flow()
@@ -117,6 +128,7 @@ class FlowProcessor(AsyncProcessor):
             
         print("Started flow: ", flow)
 
+    # Stop processing for a new flow
     async def stop_flow(self, flow):
 
         for c in self.flows[flow].consumer:
@@ -126,42 +138,49 @@ class FlowProcessor(AsyncProcessor):
 
         print("Stopped flow: ", flow, flush=True)
 
+    # Event handler - called for a configuration change
     async def on_configuration(self, config, version):
 
         print("Got config version", version, flush=True)
 
+        # Skip over invalid data
         if "flows" not in config: return
 
+        # Check there's configuration information for me
         if self.id in config["flows"]:
 
+            # Get my flow config
             flow_config = json.loads(config["flows"][self.id])
 
-            wanted_keys = flow_config.keys()
-            current_keys = self.flows.keys()
+            # Get list of flows which should be running and are currently
+            # running
+            wanted_flows = flow_config.keys()
+            current_flows = self.flows.keys()
 
-            for key in wanted_keys:
-                if key not in current_keys:
-                    await self.start_flow(key, flow_config[key])
+            # Start all the flows which arent currently running
+            for flow in wanted_flows:
+                if flow not in current_flows:
+                    await self.start_flow(flow, flow_config[flow])
 
-            for key in current_keys:
-                if key not in wanted_keys:
-                    await self.stop_flow(key)
+            # Stop all the unwanted flows which are due to be stopped
+            for flow in current_flows:
+                if flow not in wanted_flows:
+                    await self.stop_flow(flow)
 
             print("Handled config update")
 
+        else:
+
+            print("No configuration settings for me!", flush=True)
+
+    # Start threads, just call parent
     async def start(self):
         await super(FlowProcessor, self).start()
 
     @staticmethod
-    def add_args(parser, default_subscriber):
+    def add_args(parser):
 
         AsyncProcessor.add_args(parser)
-
-        parser.add_argument(
-            '-s', '--subscriber',
-            default=default_subscriber,
-            help=f'Queue subscriber name (default: {default_subscriber})'
-        )
 
         # parser.add_argument(
         #     '--rate-limit-retry',

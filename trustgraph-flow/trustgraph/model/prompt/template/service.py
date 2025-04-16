@@ -13,42 +13,29 @@ from .... schema import TextCompletionRequest, TextCompletionResponse
 from .... schema import text_completion_request_queue
 from .... schema import text_completion_response_queue
 from .... schema import prompt_request_queue, prompt_response_queue
-from .... base import ConsumerProducer
 from .... clients.llm_client import LlmClient
+from .... base import RequestResponseService
 
 from . prompt_manager import PromptConfiguration, Prompt, PromptManager
 
 module = "prompt"
-
-default_input_queue = prompt_request_queue
-default_output_queue = prompt_response_queue
 default_subscriber = module
 
-class Processor(ConsumerProducer):
+class Processor(RequestResponseService):
 
     def __init__(self, **params):
 
-        input_queue = params.get("input_queue", default_input_queue)
-        output_queue = params.get("output_queue", default_output_queue)
+        id = params.get("id")
         subscriber = params.get("subscriber", default_subscriber)
-        tc_request_queue = params.get(
-            "text_completion_request_queue", text_completion_request_queue
-        )
-        tc_response_queue = params.get(
-            "text_completion_response_queue", text_completion_response_queue
-        )
 
         self.config_key = params.get("config_type", "prompt")
 
         super(Processor, self).__init__(
             **params | {
-                "input_queue": input_queue,
-                "output_queue": output_queue,
+                "id": id,
                 "subscriber": subscriber,
-                "input_schema": PromptRequest,
-                "output_schema": PromptResponse,
-                "text_completion_request_queue": tc_request_queue,
-                "text_completion_response_queue": tc_response_queue,
+                "request_schema": PromptRequest,
+                "response_schema": PromptResponse,
             }
         )
 
@@ -217,7 +204,7 @@ class Processor(ConsumerProducer):
     @staticmethod
     def add_args(parser):
 
-        ConsumerProducer.add_args(
+        RequestResponseService.add_args(
             parser, default_input_queue, default_subscriber,
             default_output_queue,
         )

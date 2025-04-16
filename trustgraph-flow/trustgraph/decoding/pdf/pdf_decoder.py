@@ -13,21 +13,17 @@ from ... schema import document_ingest_queue, text_ingest_queue
 from ... log_level import LogLevel
 from ... base import FlowProcessor
 
-module = "pdf-decoder"
-
-default_subscriber = module
+default_ident = "pdf-decoder"
 
 class Processor(FlowProcessor):
 
     def __init__(self, **params):
 
-        id = params.get("id")
-        subscriber = params.get("subscriber", default_subscriber)
+        id = params.get("id", default_ident)
 
         super(Processor, self).__init__(
             **params | {
                 "id": id,
-                "subscriber": subscriber,
             }
         )
 
@@ -77,10 +73,9 @@ class Processor(FlowProcessor):
 
     @staticmethod
     def add_args(parser):
-
-        FlowProcessor.add_args(parser, default_subscriber)
+        FlowProcessor.add_args(parser, default_ident)
 
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(ident, __doc__)
 

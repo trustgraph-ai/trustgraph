@@ -2,6 +2,8 @@
 from trustgraph.schema import ConfigResponse
 from trustgraph.schema import ConfigValue, Error
 
+# This behaves just like a dict, should be easier to add persistent storage
+# later
 class ConfigurationItems(dict):
     pass
 

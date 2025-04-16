@@ -25,7 +25,6 @@ from .... exceptions import TooManyRequests
 from .... base import RequestResponseService
 
 module = "text-completion"
-
 default_subscriber = module
 default_model = 'gemini-1.0-pro-001'
 default_region = 'us-central1'
