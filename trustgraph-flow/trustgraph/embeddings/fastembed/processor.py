@@ -5,53 +5,35 @@ Input is text, output is embeddings vector.
 """
 
 from ... schema import EmbeddingsRequest, EmbeddingsResponse
-from ... schema import embeddings_request_queue, embeddings_response_queue
-from ... log_level import LogLevel
-from ... base import ConsumerProducer
+from ... base import RequestResponseService
+
 from fastembed import TextEmbedding
 import os
 
 module = "embeddings"
 
-default_input_queue = embeddings_request_queue
-default_output_queue = embeddings_response_queue
 default_subscriber = module
 default_model="sentence-transformers/all-MiniLM-L6-v2"
 
-class Processor(ConsumerProducer):
+class Processor(RequestResponseService):
 
     def __init__(self, **params):
-
-        input_queue = params.get("input_queue", default_input_queue)
-        output_queue = params.get("output_queue", default_output_queue)
-        subscriber = params.get("subscriber", default_subscriber)
 
         model = params.get("model", default_model)
 
         super(Processor, self).__init__(
             **params | {
-                "input_queue": input_queue,
-                "output_queue": output_queue,
-                "subscriber": subscriber,
-                "input_schema": EmbeddingsRequest,
-                "output_schema": EmbeddingsResponse,
                 "model": model,
+                "request_schema": EmbeddingsRequest,
+                "response_schema": EmbeddingsResponse,
             }
         )
 
         self.embeddings = TextEmbedding(model_name = model)
 
-    async def handle(self, msg):
+    async def on_request(self, request, consumer, flow):
 
-        v = msg.value()
-
-        # Sender-produced ID
-
-        id = msg.properties()["id"]
-
-        print(f"Handling input {id}...", flush=True)
-
-        text = v.text
+        text = request.text
         vecs = self.embeddings.embed([text])
 
         vecs = [
@@ -59,23 +41,15 @@ class Processor(ConsumerProducer):
             for v in vecs
         ]
 
-        print("Send response...", flush=True)
-        r = EmbeddingsResponse(
+        return EmbeddingsResponse(
             vectors=list(vecs),
             error=None,
         )
 
-        await self.send(r, properties={"id": id})
-
-        print("Done.", flush=True)
-
     @staticmethod
     def add_args(parser):
 
-        ConsumerProducer.add_args(
-            parser, default_input_queue, default_subscriber,
-            default_output_queue,
-        )
+        RequestResponseService.add_args(parser, default_subscriber)
 
         parser.add_argument(
             '-m', '--model',

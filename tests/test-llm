@@ -3,7 +3,12 @@
 import pulsar
 from trustgraph.clients.llm_client import LlmClient
 
-llm = LlmClient(pulsar_host="pulsar://localhost:6650")
+llm = LlmClient(
+    pulsar_host="pulsar://pulsar:6650",
+    input_queue="non-persistent://tg/request/text-completion:default",
+    output_queue="non-persistent://tg/response/text-completion:default",
+    subscriber="test1",
+)
 
 system = "You are a lovely assistant."
 prompt="Write a funny limerick about a llama"

@@ -17,9 +17,11 @@ class RequestResponseService(FlowProcessor):
 
         super(RequestResponseService, self).__init__(**params)
 
+        self.response_schema = params.get("responsedrequest_schema")
+
         # These can be overriden by a derived class
         self.consumer_spec = [
-            ("request", params.get("request_schema"), self.on_request)
+            ("request", params.get("request_schema"), self.on_message)
         ]
         self.producer_spec = [
             ("response", params.get("response_schema"))
@@ -27,10 +29,43 @@ class RequestResponseService(FlowProcessor):
 
         print("Service initialised.")
 
+    async def on_message(self, message, consumer, flow):
+        
+        v = message.value()
+
+        # Sender-produced ID
+        id = message.properties()["id"]
+
+        print(f"Handling input {id}...", flush=True)
+
+        try:
+            resp = await self.on_request(v, consumer, flow)
+
+            print("Send response...", flush=True)
+
+            await flow.producer["response"].send(resp, properties={"id": id})
+
+            return
+
+        except Exception as e:
+
+            print("Exception:", e, flush=True)
+            print("Send error response...", flush=True)
+            r = self.response_schema(
+                error=Error(
+                    type="internal-error",
+                    message = str(e)
+                )
+            )
+
+            await flow.producer["response"].send(r, properties={"id": id})
+
+        print("Done.", flush=True)
+
     @staticmethod
     def add_args(parser, default_subscriber):
 
-        FlowProcessor.add_args(parser)
+        FlowProcessor.add_args(parser, default_subscriber)
 
 def run():
 

@@ -11,46 +11,51 @@ from ... schema import graph_embeddings_store_queue
 from ... schema import embeddings_request_queue, embeddings_response_queue
 from ... clients.embeddings_client import EmbeddingsClient
 from ... log_level import LogLevel
-from ... base import ConsumerProducer
+from ... base import FlowProcessor
 
 module = "graph-embeddings"
 
-default_input_queue = entity_contexts_ingest_queue
-default_output_queue = graph_embeddings_store_queue
 default_subscriber = module
 
-class Processor(ConsumerProducer):
+class Processor(FlowProcessor):
 
     def __init__(self, **params):
 
-        input_queue = params.get("input_queue", default_input_queue)
-        output_queue = params.get("output_queue", default_output_queue)
+
+
+                "input_schema": EntityContexts,
+                "output_schema": GraphEmbeddings,
+        
+
+
+
+        id = params.get("id")
         subscriber = params.get("subscriber", default_subscriber)
-        emb_request_queue = params.get(
-            "embeddings_request_queue", embeddings_request_queue
-        )
-        emb_response_queue = params.get(
-            "embeddings_response_queue", embeddings_response_queue
-        )
 
         super(Processor, self).__init__(
             **params | {
-                "input_queue": input_queue,
-                "output_queue": output_queue,
-                "embeddings_request_queue": emb_request_queue,
-                "embeddings_response_queue": emb_response_queue,
+                "id": id,
                 "subscriber": subscriber,
-                "input_schema": EntityContexts,
-                "output_schema": GraphEmbeddings,
             }
         )
 
-        self.embeddings = EmbeddingsClient(
-            pulsar_host=self.pulsar_host,
-            input_queue=emb_request_queue,
-            output_queue=emb_response_queue,
-            subscriber=module + "-emb",
+        self.register_consumer(
+            name = "input",
+            schema = EntityContexts,
+            handler = self.on_message,
         )
+
+        self.register_producer(
+            name = "output",
+            schema = GraphEmbeddings,
+        )
+
+        # self.embeddings = EmbeddingsClient(
+        #     pulsar_host=self.pulsar_host,
+        #     input_queue=emb_request_queue,
+        #     output_queue=emb_response_queue,
+        #     subscriber=module + "-emb",
+        # )
 
     async def handle(self, msg):
 
