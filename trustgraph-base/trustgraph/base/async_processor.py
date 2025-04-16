@@ -17,6 +17,7 @@ from .. exceptions import TooManyRequests
 from . pubsub import PulsarClient
 from . producer import Producer
 from . consumer import Consumer
+from . metrics import ProcessorMetrics
 
 default_config_queue = config_push_queue
 
@@ -31,23 +32,18 @@ class AsyncProcessor:
         # Register a pulsar client
         self.client = PulsarClient(**params)
 
+        # Initialise metrics, records the parameters
+        ProcessorMetrics(id=self.id).info({
+            k: str(params[k])
+            for k in params
+            if k != "id"
+        })
+
         # The processor runs all activity in a taskgroup, it's mandatory
         # that this is provded
         self.taskgroup = params.get("taskgroup")
         if self.taskgroup is None:
             raise RuntimeError("Essential taskgroup missing")
-
-        # Pubsub parameters passed in
-        if not hasattr(__class__, "params_metric"):
-            __class__.params_metric = Info(
-                'params', 'Parameters configuration'
-            )
-
-        # Record metrics for the processor
-        __class__.params_metric.info({
-            k: str(params[k])
-            for k in params
-        })
 
         # Get the configuration topic
         self.config_push_queue = params.get(
@@ -161,7 +157,7 @@ class AsyncProcessor:
                     # as a paramter.  A processor identity ident is used as
                     # - subscriber name
                     # - an identifier for flow configuration
-                    p = cls(**args | { "taskgroup": tg, "id", ident })
+                    p = cls(**args | { "taskgroup": tg, "id": ident })
 
                     # Start the processor
                     await p.start()

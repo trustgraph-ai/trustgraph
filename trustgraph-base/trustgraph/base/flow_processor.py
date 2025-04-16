@@ -12,8 +12,7 @@ from .. schema import config_request_queue, config_response_queue
 from .. schema import config_push_queue
 from .. log_level import LogLevel
 from .. base import AsyncProcessor, Consumer, Producer
-
-from .. base import ProcessorMetrics, ConsumerMetrics, ProducerMetrics
+from . metrics import ConsumerMetrics, ProducerMetrics
 
 class Flow:
     def __init__(self, id, flow, processor, defn):
@@ -30,15 +29,15 @@ class Flow:
             if not hasattr(self, name):
                 setattr(self, name, defn[name])
 
-        for spec in self.producer_spec:
+        for spec in processor.producer_spec:
 
             name, schema = spec
 
             producer_metrics = ProducerMetrics(
-                self.id, f"{flow}-{name}"
+                id, f"{flow}-{name}"
             )
 
-            producer = self.publish(
+            producer = processor.publish(
                 queue = defn[name],
                 schema = schema,
                 metrics = producer_metrics,
@@ -49,18 +48,18 @@ class Flow:
             if not hasattr(self, name):
                 setattr(self, name, producer)
 
-        for spec in self.consumer_spec:
+        for spec in processor.consumer_spec:
 
             name, schema, handler = spec
 
             consumer_metrics = ConsumerMetrics(
-                self.id, f"{flow}-{name}"
+                id, f"{flow}-{name}"
             )
 
-            consumer = self.subscribe(
-                flow = flow_obj,
+            consumer = processor.subscribe(
+                flow = self,
                 queue = defn[name],
-                subscriber = self.id,
+                subscriber = id,
                 schema = schema,
                 handler = handler,
                 metrics = consumer_metrics,
@@ -72,12 +71,10 @@ class Flow:
             consumer.name = name
             consumer.flow = self
 
-            await consumer.start()
-
             self.consumer[name] = consumer
 
             if not hasattr(self, name):
-                setattr(flow_obj, name, consumer)
+                setattr(self, name, consumer)
 
     async def start(self):
         for c in self.consumer.values():
@@ -95,9 +92,6 @@ class FlowProcessor(AsyncProcessor):
 
         # Initialise base class
         super(FlowProcessor, self).__init__(**params)
-
-        # Initialise metrics, records the parameters
-        ProcessorMetrics(id=self.id).info(params)
 
         # Register configuration handler
         self.register_config_handler(self.on_configuration)

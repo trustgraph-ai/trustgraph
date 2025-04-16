@@ -101,5 +101,5 @@ class Processor(FlowProcessor):
 
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 

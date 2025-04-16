@@ -71,12 +71,12 @@ class ProcessorMetrics:
 
         self.id = id
 
-        if not hasattr(__class__, "pubsub_metric"):
-            __class__.pubsub_metric = Info(
-                'pubsub', 'Pub/sub configuration',
+        if not hasattr(__class__, "processor_metric"):
+            __class__.processor_metric = Info(
+                'processor', 'Processor configuration',
                 ["id"]
             )
 
     def info(self, info):
-        __class__.pubsub_metric.labels(id=self.id).info(info)
+        __class__.processor_metric.labels(id=self.id).info(info)
         

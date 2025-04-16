@@ -15,7 +15,7 @@ from trustgraph.base import AsyncProcessor, Consumer, Producer
 from . config import Configuration
 from ... base import ProcessorMetrics, ConsumerMetrics, ProducerMetrics
 
-module = "config-svc"
+default_ident = "config-svc"
 
 default_request_queue = config_request_queue
 default_response_queue = config_response_queue
@@ -28,22 +28,11 @@ class Processor(AsyncProcessor):
         request_queue = params.get("request_queue", default_request_queue)
         response_queue = params.get("response_queue", default_response_queue)
         push_queue = params.get("push_queue", default_push_queue)
-        subscriber = params.get("subscriber", default_subscriber)
         id = params.get("id")
 
         request_schema = ConfigRequest
         response_schema = ConfigResponse
         push_schema = ConfigResponse
-
-        ProcessorMetrics(id=id).info(
-            {
-                "subscriber": subscriber,
-                "request_queue": request_queue,
-                "request_schema": request_schema.__name__,
-                "response_queue": response_queue,
-                "response_schema": request_schema.__name__,
-            }
-        )
 
         super(Processor, self).__init__(
             **params | {
@@ -72,7 +61,7 @@ class Processor(AsyncProcessor):
         self.subs = self.subscribe(
             flow = None,
             queue = request_queue,
-            subscriber = subscriber,
+            subscriber = id,
             schema = request_schema,
             handler = self.on_message,
             metrics = self.request_metrics,
@@ -154,5 +143,5 @@ class Processor(AsyncProcessor):
 
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 
