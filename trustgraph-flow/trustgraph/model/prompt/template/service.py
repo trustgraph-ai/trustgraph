@@ -3,6 +3,7 @@
 Language service abstracts prompt engineering from LLM.
 """
 
+import asyncio
 import json
 import re
 
@@ -10,63 +11,73 @@ from .... schema import Definition, Relationship, Triple
 from .... schema import Topic
 from .... schema import PromptRequest, PromptResponse, Error
 from .... schema import TextCompletionRequest, TextCompletionResponse
-from .... schema import text_completion_request_queue
-from .... schema import text_completion_response_queue
-from .... schema import prompt_request_queue, prompt_response_queue
-from .... clients.llm_client import LlmClient
-from .... base import RequestResponseService
+from .... base import FlowProcessor, SubscriberSpec, ConsumerSpec
+from .... base import ProducerSpec
 
 from . prompt_manager import PromptConfiguration, Prompt, PromptManager
 
-module = "prompt"
-default_subscriber = module
+default_ident = "prompt"
 
-class Processor(RequestResponseService):
+class Processor(FlowProcessor):
 
     def __init__(self, **params):
 
         id = params.get("id")
-        subscriber = params.get("subscriber", default_subscriber)
 
+        # Config key for prompts
         self.config_key = params.get("config_type", "prompt")
 
         super(Processor, self).__init__(
             **params | {
                 "id": id,
-                "subscriber": subscriber,
-                "request_schema": PromptRequest,
-                "response_schema": PromptResponse,
             }
         )
 
-        self.llm = LlmClient(
-            subscriber=subscriber,
-            input_queue=tc_request_queue,
-            output_queue=tc_response_queue,
-            pulsar_host = self.pulsar_host,
-            pulsar_api_key=self.pulsar_api_key,
+        # self.llm = LlmClient(
+        #     subscriber=subscriber,
+        #     input_queue=tc_request_queue,
+        #     output_queue=tc_response_queue,
+        #     pulsar_host = self.pulsar_host,
+        #     pulsar_api_key=self.pulsar_api_key,
+        # )
+
+        self.register_specification(
+            ConsumerSpec(
+                name = "request",
+                schema = PromptRequest,
+                handler = self.on_request
+            )
         )
 
-        # System prompt hack
-        class Llm:
-            def __init__(self, llm):
-                self.llm = llm
-            def request(self, system, prompt):
-                print(system)
-                print(prompt, flush=True)
-                return self.llm.request(system, prompt)
+        self.register_specification(
+            ProducerSpec(
+                name = "text-completion-request",
+                schema = TextCompletionRequest
+            )
+        )
 
-        self.llm = Llm(self.llm)
+        self.register_specification(
+            SubscriberSpec(
+                name = "text-completion-response",
+                schema = TextCompletionResponse,
+            )
+        )
 
-        self.config_handlers.append(self.on_config)
+        self.register_specification(
+            ProducerSpec(
+                name = "response",
+                schema = PromptResponse
+            )
+        )
+
+        self.register_config_handler(self.on_prompt_config)
 
         # Null configuration, should reload quickly
         self.manager = PromptManager(
-            llm = self.llm,
             config = PromptConfiguration("", {}, {})
         )
 
-    async def on_config(self, version, config):
+    async def on_prompt_config(self, config, version):
 
         print("Loading configuration version", version)
 
@@ -100,7 +111,6 @@ class Processor(RequestResponseService):
                 )
 
             self.manager = PromptManager(
-                self.llm,
                 PromptConfiguration(
                     system,
                     {},
@@ -115,7 +125,7 @@ class Processor(RequestResponseService):
             print("Exception:", e, flush=True)
             print("Configuration reload failed", flush=True)
 
-    async def handle(self, msg):
+    async def on_request(self, msg, consumer, flow):
 
         v = msg.value()
 
@@ -127,7 +137,7 @@ class Processor(RequestResponseService):
 
         try:
 
-            print(v.terms)
+            print(v.terms, flush=True)
 
             input = {
                 k: json.loads(v)
@@ -135,9 +145,40 @@ class Processor(RequestResponseService):
             }
             
             print(f"Handling kind {kind}...", flush=True)
-            print(input, flush=True)
 
-            resp = self.manager.invoke(kind, input)
+            q = await flow.consumer["text-completion-response"].subscribe(id)
+
+            async def llm(system, prompt):
+
+                print(system, flush=True)
+                print(prompt, flush=True)
+
+                await flow.producer["text-completion-request"].send(
+                    TextCompletionRequest(
+                        system=system, prompt=prompt
+                    ),
+                    properties={"id": id}
+                )
+
+                # FIXME: hard-coded?
+                resp = await asyncio.wait_for(
+                    q.get(),
+                    timeout=600
+                )
+
+                try:
+                    return resp.response
+                except Exception as e:
+                    print("LLM Exception:", e, flush=True)
+                    return None
+
+            try:
+                resp = await self.manager.invoke(kind, input, llm)
+            except Exception as e:
+                print("Invocation exception:", e, flush=True)
+                raise e
+            finally:
+                await flow.consumer["text-completion-response"].unsubscribe(id)
 
             if isinstance(resp, str):
 
@@ -150,7 +191,7 @@ class Processor(RequestResponseService):
                     error=None,
                 )
 
-                await self.send(r, properties={"id": id})
+                await flow.response.send(r, properties={"id": id})
 
                 return
 
@@ -165,13 +206,13 @@ class Processor(RequestResponseService):
                     error=None,
                 )
 
-                await self.send(r, properties={"id": id})
+                await flow.response.send(r, properties={"id": id})
 
                 return
             
         except Exception as e:
 
-            print(f"Exception: {e}")
+            print(f"Exception: {e}", flush=True)
 
             print("Send error response...", flush=True)
 
@@ -183,11 +224,11 @@ class Processor(RequestResponseService):
                 response=None,
             )
 
-            await self.send(r, properties={"id": id})
+            await flow.response.send(r, properties={"id": id})
 
         except Exception as e:
 
-            print(f"Exception: {e}")
+            print(f"Exception: {e}", flush=True)
 
             print("Send error response...", flush=True)
 
@@ -204,22 +245,7 @@ class Processor(RequestResponseService):
     @staticmethod
     def add_args(parser):
 
-        RequestResponseService.add_args(
-            parser, default_input_queue, default_subscriber,
-            default_output_queue,
-        )
-
-        parser.add_argument(
-            '--text-completion-request-queue',
-            default=text_completion_request_queue,
-            help=f'Text completion request queue (default: {text_completion_request_queue})',
-        )
-
-        parser.add_argument(
-            '--text-completion-response-queue',
-            default=text_completion_response_queue,
-            help=f'Text completion response queue (default: {text_completion_response_queue})',
-        )
+        FlowProcessor.add_args(parser)
 
         parser.add_argument(
             '--config-type',
@@ -229,5 +255,5 @@ class Processor(RequestResponseService):
 
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 

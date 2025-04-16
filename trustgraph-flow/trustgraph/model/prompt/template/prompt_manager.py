@@ -4,8 +4,6 @@ import json
 from jsonschema import validate
 import re
 
-from trustgraph.clients.llm_client import LlmClient
-
 class PromptConfiguration:
     def __init__(self, system_template, global_terms={}, prompts={}):
         self.system_template = system_template
@@ -21,8 +19,7 @@ class Prompt:
 
 class PromptManager:
 
-    def __init__(self, llm, config):
-        self.llm = llm
+    def __init__(self, config):
         self.config = config
         self.terms = config.global_terms
 
@@ -54,7 +51,7 @@ class PromptManager:
 
         return json.loads(json_str)
 
-    def invoke(self, id, input):
+    async def invoke(self, id, input, llm):
 
         if id not in self.prompts:
             raise RuntimeError("ID invalid")
@@ -68,9 +65,7 @@ class PromptManager:
             "prompt": self.templates[id].render(terms)
         }
 
-        resp = self.llm.request(**prompt)
-
-        print(resp, flush=True)
+        resp = await llm(**prompt)
 
         if resp_type == "text":
             return resp
@@ -83,10 +78,9 @@ class PromptManager:
         except:
             raise RuntimeError("JSON parse fail")
 
-        print(obj, flush=True)
         if self.prompts[id].schema:
             try:
-                print(self.prompts[id].schema)
+                print(self.prompts[id].schema, flush=True)
                 validate(instance=obj, schema=self.prompts[id].schema)
             except Exception as e:
                 raise RuntimeError(f"Schema validation fail: {e}")

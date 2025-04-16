@@ -181,7 +181,7 @@ class Processor(RequestResponseService):
     @staticmethod
     def add_args(parser):
 
-        RequestResponseService.add_args(parser, default_subscriber)
+        RequestResponseService.add_args(parser)
 
         parser.add_argument(
             '-m', '--model',

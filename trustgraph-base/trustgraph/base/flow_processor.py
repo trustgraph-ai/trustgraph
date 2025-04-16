@@ -11,70 +11,115 @@ from .. schema import Error
 from .. schema import config_request_queue, config_response_queue
 from .. schema import config_push_queue
 from .. log_level import LogLevel
-from .. base import AsyncProcessor, Consumer, Producer
+from .. base import AsyncProcessor, Consumer, Producer, Subscriber
 from . metrics import ConsumerMetrics, ProducerMetrics
+
+class Spec:
+    pass
+
+class SubscriberSpec(Spec):
+    def __init__(self, name, schema):
+        self.name = name
+        self.schema = schema
+
+    def add(self, flow, processor, definition):
+
+        subscriber_metrics = ConsumerMetrics(
+            flow.id, f"{flow.name}-{self.name}"
+        )
+
+        subscriber = Subscriber(
+            pulsar_client = processor.client.client,
+            topic = definition[self.name],
+            subscription = flow.id,
+            consumer_name = flow.id,
+            schema = self.schema,
+        )
+
+        # Put it in the consumer map, does that work?
+        # It means it gets start/stop call.
+        flow.consumer[self.name] = subscriber
+
+        if not hasattr(flow, self.name):
+            setattr(flow, self.name, subscriber)
+
+class ConsumerSpec(Spec):
+    def __init__(self, name, schema, handler):
+        self.name = name
+        self.schema = schema
+        self.handler = handler
+
+    def add(self, flow, processor, definition):
+
+        consumer_metrics = ConsumerMetrics(
+            flow.id, f"{flow.name}-{self.name}"
+        )
+
+        consumer = processor.subscribe(
+            flow = flow,
+            queue = definition[self.name],
+            subscriber = flow.id,
+            schema = self.schema,
+            handler = self.handler,
+            metrics = consumer_metrics,
+        )
+
+        # Consumer handle gets access to producers and other
+        # metadata
+        consumer.id = flow.id
+        consumer.name = self.name
+        consumer.flow = flow
+
+        flow.consumer[self.name] = consumer
+
+        if not hasattr(flow, self.name):
+            setattr(flow, self.name, consumer)
+
+class ProducerSpec(Spec):
+    def __init__(self, name, schema):
+        self.name = name
+        self.schema = schema
+
+    def add(self, flow, processor, definition):
+
+        producer_metrics = ProducerMetrics(
+            flow.id, f"{flow.name}-{self.name}"
+        )
+
+        producer = processor.publish(
+            queue = definition[self.name],
+            schema = self.schema,
+            metrics = producer_metrics,
+        )
+
+        flow.producer[self.name] = producer
+
+        if not hasattr(self, self.name):
+            setattr(flow, self.name, producer)
+
+class SettingSpec(Spec):
+    def __init__(self, name):
+        self.name = name
+
+    def add(self, flow, processor, definition):
+
+        flow.config[self.name] = definition[self.name]
+
+        if not hasattr(flow, self.name):
+            setattr(flow, self.name, definition[self.name])
 
 class Flow:
     def __init__(self, id, flow, processor, defn):
 
-        self.producer = {}
-        self.consumer = {}
-        self.config = {}
+        self.id = id
         self.name = flow
 
-        for spec in processor.config_spec:
-            name = spec
-            self.config[name] = defn[name]
+        self.producer = {}
+        self.consumer = {}
+        self.setting = {}
 
-            if not hasattr(self, name):
-                setattr(self, name, defn[name])
-
-        for spec in processor.producer_spec:
-
-            name, schema = spec
-
-            producer_metrics = ProducerMetrics(
-                id, f"{flow}-{name}"
-            )
-
-            producer = processor.publish(
-                queue = defn[name],
-                schema = schema,
-                metrics = producer_metrics,
-            )
-
-            self.producer[name] = producer
-
-            if not hasattr(self, name):
-                setattr(self, name, producer)
-
-        for spec in processor.consumer_spec:
-
-            name, schema, handler = spec
-
-            consumer_metrics = ConsumerMetrics(
-                id, f"{flow}-{name}"
-            )
-
-            consumer = processor.subscribe(
-                flow = self,
-                queue = defn[name],
-                subscriber = id,
-                schema = schema,
-                handler = handler,
-                metrics = consumer_metrics,
-            )
-
-            # Consumer handle gets access to producers and other
-            # metadata
-            consumer.id = id
-            consumer.name = name
-            consumer.flow = self
-
-            self.consumer[name] = consumer
-
-            if not hasattr(self, name):
-                setattr(self, name, consumer)
+        for spec in processor.specifications:
+            spec.add(self, processor, defn)
 
     async def start(self):
         for c in self.consumer.values():
@@ -101,29 +146,26 @@ class FlowProcessor(AsyncProcessor):
 
         # These can be overriden by a derived class:
 
-        # Consumer specification, array of ("name", SchemaType, handler)
-        self.consumer_spec = []
-
-        # Producer specification, array of ("name", SchemaType)
-        self.producer_spec = []
-
-        # Configuration specification, collects some flow variables from
-        # config, array of "name"
-        self.config_spec = []
+        # Array of specifications: ConsumerSpec, ProducerSpec, SettingSpec
+        self.specifications = []
 
         print("Service initialised.")
 
     # Register a new consumer name
     def register_consumer(self, name, schema, handler):
-        self.consumer_spec.append((name, schema, handler))
+        self.specifications.append(ConsumerSpec(name, schema, handler))
 
     # Register a producer name
     def register_producer(self, name, schema):
-        self.producer_spec.append((name, schema))
+        self.specifications.append(ProducerSpec(name, schema))
 
     # Register a configuration variable
     def register_config(self, name):
-        self.config_spec.append(name)
+        self.specifications.append(SettingSpec(name))
+
+    # Register a configuration variable
+    def register_specification(self, spec):
+        self.specifications.append(spec)
 
     # Start processing for a new flow
     async def start_flow(self, flow, defn):

@@ -11,11 +11,9 @@ llm = LlmClient(
 )
 
 system = "You are a lovely assistant."
-prompt="Write a funny limerick about a llama"
+prompt="what is 2 + 2 == 5"
 
 resp = llm.request(system, prompt)
 
 print(resp)
-
-
 

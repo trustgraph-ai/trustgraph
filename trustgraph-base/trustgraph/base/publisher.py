@@ -1,8 +1,7 @@
 
-import queue
+import asyncio
 import time
 import pulsar
-import threading
 
 class Publisher:
 
@@ -11,22 +10,22 @@ class Publisher:
         self.client = pulsar_client
         self.topic = topic
         self.schema = schema
-        self.q = queue.Queue(maxsize=max_size)
+        self.q = asyncio.Queue(maxsize=max_size)
         self.chunking_enabled = chunking_enabled
         self.running = True
 
-    def start(self):
-        self.task = threading.Thread(target=self.run)
-        self.task.start()
+    async def start(self):
+        self.task = asyncio.create_task(self.run())
+        await self.task.start()
 
-    def stop(self):
+    async def stop(self):
         self.running = False
 
-    def join(self):
-        self.stop()
-        self.task.join()
+    async def join(self):
+        await self.stop()
+        await self.task
 
-    def run(self):
+    async def run(self):
 
         while self.running:
 
@@ -40,8 +39,13 @@ class Publisher:
                 while self.running:
 
                     try:
-                        id, item = self.q.get(timeout=0.5)
-                    except queue.Empty:
+                        id, item = asyncio.wait_for(
+                            self.q.get(),
+                            timeout=0.5
+                        )
+                    except asyncio.TimeoutError:
+                        continue
+                    except asyncio.QueueEmpty:
                         continue
 
                     if id:
@@ -55,7 +59,6 @@ class Publisher:
             # If handler drops out, sleep a retry
             time.sleep(2)
 
-    def send(self, id, msg):
-        self.q.put((id, msg))
+    async def send(self, id, item):
+        await self.q.put((id, item))
 
-        

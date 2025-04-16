@@ -30,6 +30,8 @@ class Consumer:
 
         self.metrics = metrics
 
+        self.consumer = None
+
     def __del__(self):
         self.running = False
 
@@ -39,17 +41,11 @@ class Consumer:
     async def stop(self):
 
         self.running = False
+        await self.task
 
     async def start(self):
 
         self.running = True
-
-        self.consumer = self.client.subscribe(
-            self.queue, self.subscriber, self.schema,
-            start_of_messages = self.start_of_messages,
-        )
-
-        print("Subscribed.", flush=True)
 
         # Puts it in the stopped state, the run thread should set running
         if self.metrics:
@@ -57,12 +53,51 @@ class Consumer:
 
         self.task = self.taskgroup.create_task(self.run())
 
-        print("Subscriber started", flush=True)
-
     async def run(self):
 
         if self.metrics:
-            self.metrics.state("running")
+            self.metrics.state("stopped")
+
+        while self.running:
+
+            try:
+
+                print(self.queue, "subscribing...", flush=True)
+
+                self.consumer = await asyncio.to_thread(
+                    self.client.subscribe,
+                    queue = self.queue, subscriber = self.subscriber,
+                    schema = self.schema,
+                    start_of_messages = self.start_of_messages
+                )
+
+            except Exception as e:
+
+                print("Exception:", e, flush=True)
+                await asyncio.sleep(2)
+                continue
+
+            print(self.queue, "subscribed", flush=True)
+
+            if self.metrics:
+                self.metrics.state("running")
+
+            try:
+
+                await self.consume()
+
+                if self.metrics:
+                    self.metrics.state("stopped")
+
+            except Exception as e:
+
+                print("Exception:", e, flush=True)
+                self.consumer.close()
+                self.consumer = None
+                await asyncio.sleep(2)
+                continue
+
+    async def consume(self):
 
         while self.running:
 
@@ -79,7 +114,7 @@ class Consumer:
             expiry = time.time() + self.rate_limit_timeout
 
             # This loop is for retry on rate-limit / resource limits
-            while True:
+            while self.running:
 
                 if time.time() > expiry:
 
@@ -122,7 +157,6 @@ class Consumer:
 
                     print("TooManyRequests: will retry...", flush=True)
 
-                    # FIXME
                     if self.metrics:
                         self.metrics.rate_limit()
 
@@ -145,7 +179,3 @@ class Consumer:
 
                     # Break out of retry loop, processes next message
                     break
-
-        if self.metrics:
-            self.metrics.state("stopped")
-
