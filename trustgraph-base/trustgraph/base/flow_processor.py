@@ -10,7 +10,7 @@ from .. base import AsyncProcessor, Consumer, Producer
 
 from .. base import ProcessorMetrics, ConsumerMetrics, ProducerMetrics
 
-class InputOutputProcessor(AsyncProcessor):
+class FlowProcessor(AsyncProcessor):
 
     def __init__(self, **params):
         
@@ -23,7 +23,7 @@ class InputOutputProcessor(AsyncProcessor):
             }
         )
 
-        super(InputOutputProcessor, self).__init__(
+        super(FlowProcessor, self).__init__(
             **params | {
                 "id": self.id,
             }
@@ -138,7 +138,7 @@ class InputOutputProcessor(AsyncProcessor):
             print("Handled config update")
 
     async def start(self):
-        await super(InputOutputProcessor, self).start()
+        await super(FlowProcessor, self).start()
 
     @staticmethod
     def add_args(parser, default_subscriber):

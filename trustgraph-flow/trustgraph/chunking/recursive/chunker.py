@@ -10,13 +10,13 @@ from prometheus_client import Histogram
 from ... schema import TextDocument, Chunk, Metadata
 from ... schema import text_ingest_queue, chunk_ingest_queue
 from ... log_level import LogLevel
-from ... base import InputOutputProcessor
+from ... base import FlowProcessor
 
 module = "chunker"
 
 default_subscriber = module
 
-class Processor(InputOutputProcessor):
+class Processor(FlowProcessor):
 
     def __init__(self, **params):
 
@@ -88,7 +88,7 @@ class Processor(InputOutputProcessor):
     @staticmethod
     def add_args(parser):
 
-        InputOutputProcessor.add_args(parser, default_subscriber)
+        FlowProcessor.add_args(parser, default_subscriber)
 
         parser.add_argument(
             '-z', '--chunk-size',

@@ -11,13 +11,13 @@ from langchain_community.document_loaders import PyPDFLoader
 from ... schema import Document, TextDocument, Metadata
 from ... schema import document_ingest_queue, text_ingest_queue
 from ... log_level import LogLevel
-from ... base import InputOutputProcessor
+from ... base import FlowProcessor
 
 module = "pdf-decoder"
 
 default_subscriber = module
 
-class Processor(InputOutputProcessor):
+class Processor(FlowProcessor):
 
     def __init__(self, **params):
 
@@ -78,7 +78,7 @@ class Processor(InputOutputProcessor):
     @staticmethod
     def add_args(parser):
 
-        InputOutputProcessor.add_args(parser, default_subscriber)
+        FlowProcessor.add_args(parser, default_subscriber)
 
 def run():
 

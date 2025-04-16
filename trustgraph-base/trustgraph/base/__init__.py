@@ -6,5 +6,5 @@ from . producer import Producer
 from . publisher import Publisher
 from . subscriber import Subscriber
 from . metrics import ProcessorMetrics, ConsumerMetrics, ProducerMetrics
-from . input_output import InputOutputProcessor
+from . flow_processor import FlowProcessor
 
