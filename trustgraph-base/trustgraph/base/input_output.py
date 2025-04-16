@@ -16,85 +16,101 @@ class InputOutputProcessor(AsyncProcessor):
         
         self.id = params.get("id")
         self.subscriber = params.get("subscriber")
-        self.input_schema = params.get("input_schema")
-        self.output_schema = params.get("output_schema")
 
         ProcessorMetrics(id=self.id).info(
             {
                 "subscriber": self.subscriber,
-                "input_schema": self.input_schema.__name__,
-                "output_schema": self.output_schema.__name__,
             }
         )
 
         super(InputOutputProcessor, self).__init__(
             **params | {
                 "id": self.id,
-                "input_schema": self.input_schema.__name__,
-                "output_schema": self.output_schema.__name__,
             }
         )
 
         self.on_config(self.on_configuration)
 
         self.consumers = {}
+        self.producers = {}
 
         # These can be overriden by a derived class
-        self.consumer_spec = ("input", self.input_schema)
-        self.producer_spec = [
-            ("output", self.output_schema)
-        ]
+        self.consumer_spec = []
+        self.producer_spec = []
+
+# "input", self.input_schema)
+#                 "input_schema": Document,
+#                 "output_schema": TextDocument,
 
         print("Service initialised.")
 
+    def register_consumer(self, name, schema, handler):
+        self.consumer_spec.append((name, schema, handler))
+
+    def register_producer(self, name, schema):
+        self.producer_spec.append((name, schema))
+
     async def start_flow(self, flow, defn):
-
-        consumer_tag = self.consumer_spec[0]
-        consumer_schema = self.consumer_spec[1]
-        consumer_metrics = ConsumerMetrics(self.id, f"{flow}-{consumer_tag}")
-
-        consumer = self.subscribe(
-            queue = defn[consumer_tag],
-            subscriber = self.subscriber,
-            schema = consumer_schema,
-            handler = self.on_message,
-            metrics = consumer_metrics,
-        )
-
-        class Queues:
-            pass
-
-        consumer.q = Queues()
-        consumer.id = self.id
-        consumer.flow = flow
 
         producers = {}
 
         for spec in self.producer_spec:
 
-            producer_tag = spec[0]
-            producer_schema = spec[1]
+            name, schema = spec
+
             producer_metrics = ProducerMetrics(
-                self.id, f"{flow}-{producer_tag}"
+                self.id, f"{flow}-{name}"
             )
 
             producer = self.publish(
-                queue = defn[producer_tag],
-                schema = spec[1],
+                queue = defn[name],
+                schema = schema,
                 metrics = producer_metrics,
             )
 
-            setattr(consumer.q, producer_tag, producer)
+            producers[name] = producer
 
-        self.consumers[flow] = consumer
+        consumers = {}
 
-        await consumer.start()
+        for spec in self.consumer_spec:
 
+            name, schema, handler = spec
+
+            consumer_metrics = ConsumerMetrics(
+                self.id, f"{flow}-{name}"
+            )
+
+            consumer = self.subscribe(
+                queue = defn[name],
+                subscriber = self.subscriber,
+                schema = schema,
+                handler = handler,
+                metrics = consumer_metrics,
+            )
+
+            # Consumer handle gets access to producers and other
+            # metadata
+            consumer.id = self.id
+            consumer.name = name
+            consumer.flow = flow
+            consumer.q = producers
+
+            consumers[name] = consumer
+
+            await consumer.start()
+
+        self.consumers[flow] = consumers
+        self.producers[flow] = producers
+            
         print("Started flow: ", flow)
 
     async def stop_flow(self, flow):
-        await self.consumers[flow].stop()
+
+        for c in self.consumers[flow]:
+            await c.stop()
+
         del self.consumers[flow]
+        del self.producers[flow]
 
         print("Stopped flow: ", flow, flush=True)
 

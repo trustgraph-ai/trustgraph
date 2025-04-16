@@ -22,15 +22,24 @@ class Processor(InputOutputProcessor):
     def __init__(self, **params):
 
         id = params.get("id")
-        subscriber = params.get("subscriber")
+        subscriber = params.get("subscriber", default_subscriber)
 
         super(Processor, self).__init__(
             **params | {
                 "id": id,
                 "subscriber": subscriber,
-                "input_schema": Document,
-                "output_schema": TextDocument,
             }
+        )
+
+        self.register_consumer(
+            name = "input",
+            schema = Document,
+            handler = self.on_message,
+        )
+
+        self.register_producer(
+            name = "output",
+            schema = TextDocument,
         )
 
         print("PDF inited", flush=True)
@@ -62,7 +71,7 @@ class Processor(InputOutputProcessor):
                         text=page.page_content.encode("utf-8"),
                     )
 
-                    await consumer.q.output.send(r)
+                    await consumer.q["output"].send(r)
 
         print("Done.", flush=True)
 

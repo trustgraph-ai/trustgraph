@@ -10,6 +10,10 @@ class Producer:
 
         self.metrics = metrics
 
+    def __del__(self):
+
+        self.producer.close()
+
     async def send(self, msg, properties={}):
 
         if self.metrics:
@@ -17,6 +21,4 @@ class Producer:
 
         self.producer.send(msg, properties)
 
-        # FIXME
-#         __class__.output_metric.inc()
 

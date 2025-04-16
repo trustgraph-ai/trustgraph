@@ -11,20 +11,17 @@ from ... schema import document_embeddings_store_queue
 from ... schema import embeddings_request_queue, embeddings_response_queue
 from ... clients.embeddings_client import EmbeddingsClient
 from ... log_level import LogLevel
-from ... base import ConsumerProducer
+from ... base import InputOutputProcessor
 
 module = "document-embeddings"
 
-default_input_queue = chunk_ingest_queue
-default_output_queue = document_embeddings_store_queue
 default_subscriber = module
 
-class Processor(ConsumerProducer):
+class Processor(InputOutputProcessor):
 
     def __init__(self, **params):
 
-        input_queue = params.get("input_queue", default_input_queue)
-        output_queue = params.get("output_queue", default_output_queue)
+        id = params.get("id")
         subscriber = params.get("subscriber", default_subscriber)
         emb_request_queue = params.get(
             "embeddings_request_queue", embeddings_request_queue

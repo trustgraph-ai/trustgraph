@@ -28,8 +28,6 @@ class Processor(InputOutputProcessor):
         super(Processor, self).__init__(
             **params | {
                 "subscriber": subscriber,
-                "input_schema": TextDocument,
-                "output_schema": Chunk,
             }
         )
 
@@ -46,6 +44,17 @@ class Processor(InputOutputProcessor):
             chunk_overlap=chunk_overlap,
             length_function=len,
             is_separator_regex=False,
+        )
+
+        self.register_consumer(
+            name = "input",
+            schema = TextDocument,
+            handler = self.on_message,
+        )
+
+        self.register_producer(
+            name = "output",
+            schema = Chunk,
         )
 
         print("Chunker initialised", flush=True)
@@ -72,7 +81,7 @@ class Processor(InputOutputProcessor):
                 id=consumer.id, flow=consumer.flow
             ).observe(len(chunk.page_content))
 
-            await consumer.q.output.send(r)
+            await consumer.q["output"].send(r)
 
         print("Done.", flush=True)
 
