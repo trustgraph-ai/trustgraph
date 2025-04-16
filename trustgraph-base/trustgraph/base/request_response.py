@@ -63,9 +63,9 @@ class RequestResponseService(FlowProcessor):
         print("Done.", flush=True)
 
     @staticmethod
-    def add_args(parser, default_subscriber):
+    def add_args(parser):
 
-        FlowProcessor.add_args(parser, default_subscriber)
+        FlowProcessor.add_args(parser)
 
 def run():
 

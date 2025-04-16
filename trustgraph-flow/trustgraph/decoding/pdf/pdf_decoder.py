@@ -73,7 +73,7 @@ class Processor(FlowProcessor):
 
     @staticmethod
     def add_args(parser):
-        FlowProcessor.add_args(parser, default_ident)
+        FlowProcessor.add_args(parser)
 
 def run():
 

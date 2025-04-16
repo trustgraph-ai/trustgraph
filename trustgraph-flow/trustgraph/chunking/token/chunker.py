@@ -12,23 +12,18 @@ from ... schema import text_ingest_queue, chunk_ingest_queue
 from ... log_level import LogLevel
 from ... base import FlowProcessor
 
-module = "chunker"
-
-default_subscriber = module
+default_ident = "chunker"
 
 class Processor(FlowProcessor):
 
     def __init__(self, **params):
 
         id = params.get("id")
-        subscriber = params.get("subscriber", default_subscriber)
         chunk_size = params.get("chunk_size", 250)
         chunk_overlap = params.get("chunk_overlap", 15)
         
         super(Processor, self).__init__(
-            **params | {
-                "subscriber": subscriber,
-            }
+            **params | { "id": id }
         )
 
         if not hasattr(__class__, "chunk_metric"):
@@ -87,7 +82,7 @@ class Processor(FlowProcessor):
     @staticmethod
     def add_args(parser):
 
-        FlowProcessor.add_args(parser, default_subscriber)
+        FlowProcessor.add_args(parser)
 
         parser.add_argument(
             '-z', '--chunk-size',

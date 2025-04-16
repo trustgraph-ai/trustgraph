@@ -105,7 +105,7 @@ class FlowProcessor(AsyncProcessor):
             consumer = self.subscribe(
                 flow = flow_obj,
                 queue = defn[name],
-                subscriber = self.subscriber,
+                subscriber = self.id,
                 schema = schema,
                 handler = handler,
                 metrics = consumer_metrics,
