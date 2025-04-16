@@ -74,6 +74,7 @@ class Processor(AsyncProcessor):
         )
 
         self.subs = self.subscribe(
+            flow = None,
             queue = request_queue,
             subscriber = subscriber,
             schema = request_schema,
@@ -105,7 +106,7 @@ class Processor(AsyncProcessor):
 
         print("Pushed version ", self.config.version)
         
-    async def on_message(self, msg, consumer):
+    async def on_message(self, msg, consumer, flow):
 
         try:
 

@@ -44,7 +44,7 @@ class Processor(FlowProcessor):
 
         print("PDF inited", flush=True)
 
-    async def on_message(self, msg, consumer):
+    async def on_message(self, msg, consumer, flow):
 
         print("PDF message received", flush=True)
 
@@ -71,7 +71,7 @@ class Processor(FlowProcessor):
                         text=page.page_content.encode("utf-8"),
                     )
 
-                    await consumer.q["output"].send(r)
+                    await flow.producer["output"].send(r)
 
         print("Done.", flush=True)
 

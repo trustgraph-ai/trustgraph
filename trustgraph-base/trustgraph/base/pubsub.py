@@ -51,7 +51,8 @@ class PulsarClient:
             if self.client:
                 self.client.close()
 
-    def subscribe(self, queue, subscriber, schema, start_of_messages=False):
+    def subscribe(self, queue, subscriber, schema,
+                  start_of_messages=False):
 
         if start_of_messages:
             pos = pulsar.InitialPosition.Earliest
@@ -59,10 +60,11 @@ class PulsarClient:
             pos =  pulsar.InitialPosition.Latest
 
         return self.client.subscribe(
-            queue, subscriber,
-            consumer_type=pulsar.ConsumerType.Shared,
-            schema=JsonSchema(schema),
-            initial_position=pos,
+            topic = queue,
+            subscription_name = subscriber,
+            consumer_type = pulsar.ConsumerType.Shared,
+            schema = JsonSchema(schema),
+            initial_position = pos,
         )
 
     def publish(self, queue, schema):

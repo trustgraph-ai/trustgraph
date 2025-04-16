@@ -59,7 +59,7 @@ class Processor(FlowProcessor):
 
         print("Chunker initialised", flush=True)
 
-    async def on_message(self, msg, consumer):
+    async def on_message(self, msg, consumer, flow):
 
         v = msg.value()
         print(f"Chunking {v.metadata.id}...", flush=True)
@@ -81,7 +81,7 @@ class Processor(FlowProcessor):
                 id=consumer.id, flow=consumer.flow
             ).observe(len(chunk.page_content))
 
-            await consumer.q["output"].send(r)
+            await flow.producer["output"].send(r)
 
         print("Done.", flush=True)
 

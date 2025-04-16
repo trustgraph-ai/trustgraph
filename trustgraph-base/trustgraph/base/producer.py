@@ -12,7 +12,8 @@ class Producer:
 
     def __del__(self):
 
-        self.producer.close()
+        if hasattr(self, "producer"):
+            self.producer.close()
 
     async def send(self, msg, properties={}):
 
@@ -20,5 +21,4 @@ class Producer:
             self.metrics.inc()
 
         self.producer.send(msg, properties)
-
 

@@ -10,6 +10,9 @@ from .. base import AsyncProcessor, Consumer, Producer
 
 from .. base import ProcessorMetrics, ConsumerMetrics, ProducerMetrics
 
+class Flow:
+    pass
+
 class FlowProcessor(AsyncProcessor):
 
     def __init__(self, **params):
@@ -31,16 +34,12 @@ class FlowProcessor(AsyncProcessor):
 
         self.on_config(self.on_configuration)
 
-        self.consumers = {}
-        self.producers = {}
+        self.flows = {}
 
         # These can be overriden by a derived class
         self.consumer_spec = []
         self.producer_spec = []
-
-# "input", self.input_schema)
-#                 "input_schema": Document,
-#                 "output_schema": TextDocument,
+        self.config_spec = []
 
         print("Service initialised.")
 
@@ -50,9 +49,21 @@ class FlowProcessor(AsyncProcessor):
     def register_producer(self, name, schema):
         self.producer_spec.append((name, schema))
 
+    def register_config(self, name):
+        self.config_spec.append((name,))
+
     async def start_flow(self, flow, defn):
 
-        producers = {}
+        flow_obj = Flow()
+        flow_obj.producer = {}
+        flow_obj.consumer = {}
+        flow_obj.config = {}
+
+        for spec in self.config_spec:
+            name = spec[0]
+            flow_obj.config[name] = defn[name]
+
+            setattr(flow_obj, name, defn[name])
 
         for spec in self.producer_spec:
 
@@ -68,9 +79,9 @@ class FlowProcessor(AsyncProcessor):
                 metrics = producer_metrics,
             )
 
-            producers[name] = producer
+            flow_obj.producer[name] = producer
 
-        consumers = {}
+            setattr(flow_obj, name, producer)
 
         for spec in self.consumer_spec:
 
@@ -81,6 +92,7 @@ class FlowProcessor(AsyncProcessor):
             )
 
             consumer = self.subscribe(
+                flow = flow_obj,
                 queue = defn[name],
                 subscriber = self.subscriber,
                 schema = schema,
@@ -92,25 +104,25 @@ class FlowProcessor(AsyncProcessor):
             # metadata
             consumer.id = self.id
             consumer.name = name
-            consumer.flow = flow
-            consumer.q = producers
-
-            consumers[name] = consumer
+            consumer.flow = flow_obj
+            consumer.flow.name = flow
 
             await consumer.start()
 
-        self.consumers[flow] = consumers
-        self.producers[flow] = producers
+            flow_obj.consumer[name] = consumer
+
+            setattr(flow_obj, name, consumer)
+
+        self.flows[flow] = flow_obj
             
         print("Started flow: ", flow)
 
     async def stop_flow(self, flow):
 
-        for c in self.consumers[flow]:
+        for c in self.flows[flow].consumer:
             await c.stop()
 
-        del self.consumers[flow]
-        del self.producers[flow]
+        del self.flows[flow]
 
         print("Stopped flow: ", flow, flush=True)
 
@@ -125,7 +137,7 @@ class FlowProcessor(AsyncProcessor):
             flow_config = json.loads(config["flows"][self.id])
 
             wanted_keys = flow_config.keys()
-            current_keys = self.consumers.keys()
+            current_keys = self.flows.keys()
 
             for key in wanted_keys:
                 if key not in current_keys:

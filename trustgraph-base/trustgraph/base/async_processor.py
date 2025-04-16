@@ -48,9 +48,10 @@ class AsyncProcessor:
         self.config_handlers = []
 
         self.config_sub_task = self.subscribe(
-            self.config_push_queue, config_subscriber_id,
-            schema=ConfigPush, handler=self.on_config_change,
-            start_of_messages=True
+            flow = None,
+            queue = self.config_push_queue, subscriber = config_subscriber_id,
+            schema = ConfigPush, handler = self.on_config_change,
+            start_of_messages = True
         )
 
         self.running = True
@@ -84,11 +85,12 @@ class AsyncProcessor:
             await asyncio.sleep(2)
 
     def subscribe(
-            self, queue, subscriber, schema, handler, metrics=None,
+            self, flow, queue, subscriber, schema, handler, metrics=None,
             start_of_messages=False
     ):
 
         return Consumer(
+            flow = flow,
             taskgroup = self.taskgroup,
             client = self.client,
             queue = queue,

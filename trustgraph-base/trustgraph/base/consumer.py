@@ -1,4 +1,5 @@
 
+import _pulsar
 import asyncio
 import time
 
@@ -7,13 +8,14 @@ from .. exceptions import TooManyRequests
 class Consumer:
 
     def __init__(
-            self, taskgroup, client, queue, subscriber, schema,
+            self, taskgroup, flow, client, queue, subscriber, schema,
             handler, rate_limit_retry_time = 10,
             rate_limit_timeout = 7200, metrics = None,
             start_of_messages=False,
     ):
 
         self.taskgroup = taskgroup
+        self.flow = flow
         self.client = client
         self.queue = queue
         self.subscriber = subscriber
@@ -27,6 +29,12 @@ class Consumer:
         self.task = None
 
         self.metrics = metrics
+
+    def __del__(self):
+        self.running = False
+
+        if hasattr(self, "consumer"):
+            self.consumer.close()
 
     async def stop(self):
 
@@ -58,7 +66,15 @@ class Consumer:
 
         while self.running:
 
-            msg = await asyncio.to_thread(self.consumer.receive)
+            try:
+                msg = await asyncio.to_thread(
+                    self.consumer.receive,
+                    timeout_millis=2000
+                )
+            except _pulsar.Timeout:
+                continue
+            except Exception as e:
+                raise e
 
             expiry = time.time() + self.rate_limit_timeout
 
@@ -86,7 +102,7 @@ class Consumer:
                     if self.metrics:
 
                         with self.metrics.record_time():
-                            await self.handler(msg, self)
+                            await self.handler(msg, self, self.flow)
 
                     else:
                         await self.handler(msg, self.consumer)
@@ -132,3 +148,4 @@ class Consumer:
 
         if self.metrics:
             self.metrics.state("stopped")
+
