@@ -16,8 +16,77 @@ from .. base import AsyncProcessor, Consumer, Producer
 from .. base import ProcessorMetrics, ConsumerMetrics, ProducerMetrics
 
 class Flow:
-    pass
+    def __init__(self, id, flow, processor, defn):
 
+        self.producer = {}
+        self.consumer = {}
+        self.config = {}
+        self.name = flow
+
+        for spec in processor.config_spec:
+            name = spec
+            self.config[name] = defn[name]
+
+            if not hasattr(self, name):
+                setattr(self, name, defn[name])
+
+        for spec in self.producer_spec:
+
+            name, schema = spec
+
+            producer_metrics = ProducerMetrics(
+                self.id, f"{flow}-{name}"
+            )
+
+            producer = self.publish(
+                queue = defn[name],
+                schema = schema,
+                metrics = producer_metrics,
+            )
+
+            self.producer[name] = producer
+
+            if not hasattr(self, name):
+                setattr(self, name, producer)
+
+        for spec in self.consumer_spec:
+
+            name, schema, handler = spec
+
+            consumer_metrics = ConsumerMetrics(
+                self.id, f"{flow}-{name}"
+            )
+
+            consumer = self.subscribe(
+                flow = flow_obj,
+                queue = defn[name],
+                subscriber = self.id,
+                schema = schema,
+                handler = handler,
+                metrics = consumer_metrics,
+            )
+
+            # Consumer handle gets access to producers and other
+            # metadata
+            consumer.id = id
+            consumer.name = name
+            consumer.flow = self
+
+            await consumer.start()
+
+            self.consumer[name] = consumer
+
+            if not hasattr(self, name):
+                setattr(flow_obj, name, consumer)
+
+    async def start(self):
+        for c in self.consumer.values():
+            await c.start()
+
+    async def stop(self):
+        for c in self.consumer.values():
+            await c.stop()
+                
 # Parent class for configurable processors, configured with flows by
 # the config service
 class FlowProcessor(AsyncProcessor):
@@ -64,79 +133,16 @@ class FlowProcessor(AsyncProcessor):
 
     # Start processing for a new flow
     async def start_flow(self, flow, defn):
-
-        flow_obj = Flow()
-        flow_obj.producer = {}
-        flow_obj.consumer = {}
-        flow_obj.config = {}
-
-        for spec in self.config_spec:
-            name = spec[0]
-            flow_obj.config[name] = defn[name]
-
-            setattr(flow_obj, name, defn[name])
-
-        for spec in self.producer_spec:
-
-            name, schema = spec
-
-            producer_metrics = ProducerMetrics(
-                self.id, f"{flow}-{name}"
-            )
-
-            producer = self.publish(
-                queue = defn[name],
-                schema = schema,
-                metrics = producer_metrics,
-            )
-
-            flow_obj.producer[name] = producer
-
-            setattr(flow_obj, name, producer)
-
-        for spec in self.consumer_spec:
-
-            name, schema, handler = spec
-
-            consumer_metrics = ConsumerMetrics(
-                self.id, f"{flow}-{name}"
-            )
-
-            consumer = self.subscribe(
-                flow = flow_obj,
-                queue = defn[name],
-                subscriber = self.id,
-                schema = schema,
-                handler = handler,
-                metrics = consumer_metrics,
-            )
-
-            # Consumer handle gets access to producers and other
-            # metadata
-            consumer.id = self.id
-            consumer.name = name
-            consumer.flow = flow_obj
-            consumer.flow.name = flow
-
-            await consumer.start()
-
-            flow_obj.consumer[name] = consumer
-
-            setattr(flow_obj, name, consumer)
-
-        self.flows[flow] = flow_obj
-            
+        self.flows[flow] = Flow(self.id, flow, self, defn)
+        await self.flows[flow].start()
         print("Started flow: ", flow)
-
+        
     # Stop processing for a new flow
     async def stop_flow(self, flow):
-
-        for c in self.flows[flow].consumer:
-            await c.stop()
-
-        del self.flows[flow]
-
-        print("Stopped flow: ", flow, flush=True)
+        if flow in self.flows:
+            await self.flows[flow].stop()
+            del self.flows[flow]
+            print("Stopped flow: ", flow, flush=True)
 
     # Event handler - called for a configuration change
     async def on_configuration(self, config, version):
