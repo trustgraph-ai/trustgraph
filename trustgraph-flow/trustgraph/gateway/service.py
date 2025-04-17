@@ -19,7 +19,6 @@ import os
 import base64
 
 import pulsar
-from pulsar.schema import JsonSchema
 from prometheus_client import start_http_server
 
 from .. log_level import LogLevel

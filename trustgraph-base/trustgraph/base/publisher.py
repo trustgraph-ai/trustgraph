@@ -1,4 +1,6 @@
 
+from pulsar.schema import JsonSchema
+
 import asyncio
 import time
 import pulsar
@@ -16,7 +18,6 @@ class Publisher:
 
     async def start(self):
         self.task = asyncio.create_task(self.run())
-        await self.task.start()
 
     async def stop(self):
         self.running = False
@@ -32,14 +33,14 @@ class Publisher:
             try:
                 producer = self.client.create_producer(
                     topic=self.topic,
-                    schema=self.schema,
+                    schema=JsonSchema(self.schema),
                     chunking_enabled=self.chunking_enabled,
                 )
 
                 while self.running:
 
                     try:
-                        id, item = asyncio.wait_for(
+                        id, item = await asyncio.wait_for(
                             self.q.get(),
                             timeout=0.5
                         )
