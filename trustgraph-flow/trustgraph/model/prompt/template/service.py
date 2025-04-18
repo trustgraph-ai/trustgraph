@@ -13,7 +13,7 @@ from .... schema import PromptRequest, PromptResponse, Error
 from .... schema import TextCompletionRequest, TextCompletionResponse
 
 from .... base import FlowProcessor
-from .... base import ProducerSpec, SubscriberSpec, ConsumerSpec
+from .... base import ProducerSpec, ConsumerSpec, RequestResponseSpec
 
 from . prompt_manager import PromptConfiguration, Prompt, PromptManager
 
@@ -43,16 +43,11 @@ class Processor(FlowProcessor):
         )
 
         self.register_specification(
-            ProducerSpec(
-                name = "text-completion-request",
-                schema = TextCompletionRequest
-            )
-        )
-
-        self.register_specification(
-            SubscriberSpec(
-                name = "text-completion-response",
-                schema = TextCompletionResponse,
+            RequestResponseSpec(
+                request_name = "text-completion-request",
+                request_schema = TextCompletionRequest,
+                response_name = "text-completion-response",
+                response_schema = TextCompletionResponse,
             )
         )
 
@@ -139,24 +134,15 @@ class Processor(FlowProcessor):
             
             print(f"Handling kind {kind}...", flush=True)
 
-            q = await flow.consumer["text-completion-response"].subscribe(id)
-
             async def llm(system, prompt):
 
                 print(system, flush=True)
                 print(prompt, flush=True)
 
-                await flow.producer["text-completion-request"].send(
+                resp = await flow("text-completion-request").request(
                     TextCompletionRequest(
                         system=system, prompt=prompt
                     ),
-                    properties={"id": id}
-                )
-
-                # FIXME: hard-coded?
-                resp = await asyncio.wait_for(
-                    q.get(),
-                    timeout=600
                 )
 
                 try:
@@ -170,8 +156,6 @@ class Processor(FlowProcessor):
             except Exception as e:
                 print("Invocation exception:", e, flush=True)
                 raise e
-            finally:
-                await flow.consumer["text-completion-response"].unsubscribe(id)
 
             print(resp, flush=True)
 
@@ -185,7 +169,7 @@ class Processor(FlowProcessor):
                     error=None,
                 )
 
-                await flow.response.send(r, properties={"id": id})
+                await flow("response").send(r, properties={"id": id})
 
                 return
 
@@ -200,7 +184,7 @@ class Processor(FlowProcessor):
                     error=None,
                 )
 
-                await flow.response.send(r, properties={"id": id})
+                await flow("response").send(r, properties={"id": id})
 
                 return
             
@@ -218,7 +202,7 @@ class Processor(FlowProcessor):
                 response=None,
             )
 
-            await flow.response.send(r, properties={"id": id})
+            await flow("response").send(r, properties={"id": id})
 
         except Exception as e:
 

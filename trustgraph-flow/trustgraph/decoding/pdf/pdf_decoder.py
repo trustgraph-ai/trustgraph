@@ -11,7 +11,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from ... schema import Document, TextDocument, Metadata
 from ... schema import document_ingest_queue, text_ingest_queue
 from ... log_level import LogLevel
-from ... base import FlowProcessor
+from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
 
 default_ident = "pdf-decoder"
 
@@ -27,15 +27,19 @@ class Processor(FlowProcessor):
             }
         )
 
-        self.register_consumer(
-            name = "input",
-            schema = Document,
-            handler = self.on_message,
+        self.register_specification(
+            ConsumerSpec(
+                name = "input",
+                schema = Document,
+                handler = self.on_message,
+            )
         )
 
-        self.register_producer(
-            name = "output",
-            schema = TextDocument,
+        self.register_specification(
+            ProducerSpec(
+                name = "output",
+                schema = TextDocument,
+            )
         )
 
         print("PDF inited", flush=True)
@@ -67,7 +71,7 @@ class Processor(FlowProcessor):
                         text=page.page_content.encode("utf-8"),
                     )
 
-                    await flow.producer["output"].send(r)
+                    await flow("output").send(r)
 
         print("Done.", flush=True)
 

@@ -10,7 +10,7 @@ from prometheus_client import Histogram
 from ... schema import TextDocument, Chunk, Metadata
 from ... schema import text_ingest_queue, chunk_ingest_queue
 from ... log_level import LogLevel
-from ... base import FlowProcessor
+from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
 
 default_ident = "chunker"
 
@@ -41,15 +41,19 @@ class Processor(FlowProcessor):
             is_separator_regex=False,
         )
 
-        self.register_consumer(
-            name = "input",
-            schema = TextDocument,
-            handler = self.on_message,
+        self.register_specification(
+            ConsumerSpec(
+                name = "input",
+                schema = TextDocument,
+                handler = self.on_message,
+            )
         )
 
-        self.register_producer(
-            name = "output",
-            schema = Chunk,
+        self.register_specification(
+            ProducerSpec(
+                name = "output",
+                schema = Chunk,
+            )
         )
 
         print("Chunker initialised", flush=True)
@@ -76,7 +80,7 @@ class Processor(FlowProcessor):
                 id=consumer.id, flow=consumer.flow
             ).observe(len(chunk.page_content))
 
-            await flow.producer["output"].send(r)
+            await flow("output").send(r)
 
         print("Done.", flush=True)
 

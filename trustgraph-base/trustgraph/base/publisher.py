@@ -7,9 +7,9 @@ import pulsar
 
 class Publisher:
 
-    def __init__(self, pulsar_client, topic, schema=None, max_size=10,
+    def __init__(self, client, topic, schema=None, max_size=10,
                  chunking_enabled=True):
-        self.client = pulsar_client
+        self.client = client
         self.topic = topic
         self.schema = schema
         self.q = asyncio.Queue(maxsize=max_size)

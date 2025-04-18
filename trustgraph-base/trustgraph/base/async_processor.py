@@ -30,7 +30,7 @@ class AsyncProcessor:
         self.id = params.get("id")
 
         # Register a pulsar client
-        self.client = PulsarClient(**params)
+        self.pulsar_client = PulsarClient(**params)
 
         # Initialise metrics, records the parameters
         ProcessorMetrics(id=self.id).info({
@@ -58,10 +58,17 @@ class AsyncProcessor:
         config_subscriber_id = str(uuid.uuid4())
 
         # Subscribe to config queue
-        self.config_sub_task = self.subscribe(
+        self.config_sub_task = Consumer(
+
+            taskgroup = self.taskgroup,
+            client = self.client,
+            subscriber = config_subscriber_id,
             flow = None,
-            queue = self.config_push_queue, subscriber = config_subscriber_id,
-            schema = ConfigPush, handler = self.on_config_change,
+
+            topic = self.config_push_queue,
+            schema = ConfigPush,
+
+            handler = self.on_config_change,
 
             # This causes new subscriptions to view the entire history of
             # configuration
@@ -84,6 +91,10 @@ class AsyncProcessor:
     # Returns the pulsar host
     @property
     def pulsar_host(self): return self.client.pulsar_host
+
+    # Returns the pulsar client
+    @property
+    def client(self): return self.pulsar_client.client
 
     # Register a new event handler for configuration change
     def register_config_handler(self, handler):
@@ -111,33 +122,6 @@ class AsyncProcessor:
     async def run(self):
         while self.running:
             await asyncio.sleep(2)
-
-    # Subscribe to a topic, returns a Consumer
-    def subscribe(
-            self, flow, queue, subscriber, schema, handler, metrics=None,
-            start_of_messages=False
-    ):
-
-        return Consumer(
-            flow = flow,
-            taskgroup = self.taskgroup,
-            client = self.client,
-            queue = queue,
-            subscriber = subscriber,
-            schema = schema,
-            handler = handler,
-            metrics = metrics,
-            start_of_messages=start_of_messages,
-        )
-
-    # Open a mechanism to publish messages to a topic.  Returns a subscriber
-    def publish(self, queue, schema, metrics=None):
-        return Producer(
-            client = self.client,
-            queue = queue,
-            schema = schema,
-            metrics = metrics,
-        )
 
     # Startup fabric.  This runs in 'async' mode, creates a taskgroup and
     # runs the producer.

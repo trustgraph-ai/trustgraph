@@ -6,9 +6,9 @@ import time
 
 class Subscriber:
 
-    def __init__(self, pulsar_client, topic, subscription, consumer_name,
+    def __init__(self, client, topic, subscription, consumer_name,
                  schema=None, max_size=100):
-        self.client = pulsar_client
+        self.client = client
         self.topic = topic
         self.subscription = subscription
         self.consumer_name = consumer_name

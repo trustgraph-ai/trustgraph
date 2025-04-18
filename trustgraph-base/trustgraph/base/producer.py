@@ -1,11 +1,12 @@
 
+from pulsar.schema import JsonSchema
 import asyncio
 
 class Producer:
 
-    def __init__(self, client, queue, schema, metrics=None):
+    def __init__(self, client, topic, schema, metrics=None):
         self.client = client
-        self.queue = queue
+        self.topic = topic
         self.schema = schema
 
         self.metrics = metrics
@@ -34,9 +35,12 @@ class Producer:
         while self.running and self.producer is None:
 
             try:
-                print("Connect publisher to", self.queue, "...", flush=True)
-                self.producer = self.client.publish(self.queue, self.schema)
-                print("Connected to", self.queue, flush=True)
+                print("Connect publisher to", self.topic, "...", flush=True)
+                self.producer = self.client.create_producer(
+                    topic = self.topic,
+                    schema = JsonSchema(self.schema)
+                )
+                print("Connected to", self.topic, flush=True)
             except Exception as e:
                 print("Exception:", e, flush=True)
                 await asyncio.sleep(2)

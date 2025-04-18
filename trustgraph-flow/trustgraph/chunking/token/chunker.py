@@ -40,15 +40,19 @@ class Processor(FlowProcessor):
             chunk_overlap=chunk_overlap,
         )
 
-        self.register_consumer(
-            name = "input",
-            schema = TextDocument,
-            handler = self.on_message,
+        self.register_specification(
+            ConsumerSpec(
+                name = "input",
+                schema = TextDocument,
+                handler = self.on_message,
+            )
         )
 
-        self.register_producer(
-            name = "output",
-            schema = Chunk,
+        self.register_specification(
+            ProducerSpec(
+                name = "output",
+                schema = Chunk,
+            )
         )
 
         print("Chunker initialised", flush=True)
@@ -75,7 +79,7 @@ class Processor(FlowProcessor):
                 id=consumer.id, flow=consumer.flow
             ).observe(len(chunk.page_content))
 
-            await flow.producer["output"].send(r)
+            await flow("output").send(r)
 
         print("Done.", flush=True)
 

@@ -51,30 +51,6 @@ class PulsarClient:
             if self.client:
                 self.client.close()
 
-    def subscribe(self, queue, subscriber, schema,
-                  start_of_messages=False):
-
-        if start_of_messages:
-            pos = pulsar.InitialPosition.Earliest
-        else:
-            pos =  pulsar.InitialPosition.Latest
-
-        return self.client.subscribe(
-            topic = queue,
-            subscription_name = subscriber,
-            consumer_type = pulsar.ConsumerType.Shared,
-            schema = JsonSchema(schema),
-            initial_position = pos,
-        )
-
-    def publish(self, queue, schema):
-
-        return self.client.create_producer(
-            topic=queue,
-            schema=JsonSchema(schema),
-            chunking_enabled=True,
-        )
-
     @staticmethod
     def add_args(parser):
 

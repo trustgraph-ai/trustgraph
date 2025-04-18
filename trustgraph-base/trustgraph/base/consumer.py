@@ -1,4 +1,6 @@
 
+from pulsar.schema import JsonSchema
+import pulsar
 import _pulsar
 import asyncio
 import time
@@ -8,19 +10,18 @@ from .. exceptions import TooManyRequests
 class Consumer:
 
     def __init__(
-            self, taskgroup, flow, client, queue, subscriber, schema,
+            self, taskgroup, flow, client, topic, subscriber, schema,
             handler, 
             metrics = None,
             start_of_messages=False,
             rate_limit_retry_time = 10, rate_limit_timeout = 7200,
             reconnect_time = 5,
-            
     ):
 
         self.taskgroup = taskgroup
         self.flow = flow
         self.client = client
-        self.queue = queue
+        self.topic = topic
         self.subscriber = subscriber
         self.schema = schema
         self.handler = handler
@@ -43,7 +44,8 @@ class Consumer:
         self.running = False
 
         if hasattr(self, "consumer"):
-            self.consumer.close()
+            if self.consumer:
+                self.consumer.close()
 
     async def stop(self):
 
@@ -69,13 +71,19 @@ class Consumer:
 
             try:
 
-                print(self.queue, "subscribing...", flush=True)
+                print(self.topic, "subscribing...", flush=True)
+
+                if self.start_of_messages:
+                    pos = pulsar.InitialPosition.Earliest
+                else:
+                    pos = pulsar.InitialPosition.Latest
 
                 self.consumer = await asyncio.to_thread(
                     self.client.subscribe,
-                    queue = self.queue, subscriber = self.subscriber,
-                    schema = self.schema,
-                    start_of_messages = self.start_of_messages
+                    topic = self.topic,
+                    subscription_name = self.subscriber,
+                    schema = JsonSchema(self.schema),
+                    initial_position = pos
                 )
 
             except Exception as e:
@@ -84,7 +92,7 @@ class Consumer:
                 await asyncio.sleep(self.reconnect_time)
                 continue
 
-            print(self.queue, "subscribed", flush=True)
+            print(self.topic, "subscribed", flush=True)
 
             if self.metrics:
                 self.metrics.state("running")

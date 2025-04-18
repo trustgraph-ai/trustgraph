@@ -11,124 +11,10 @@ from .. schema import Error
 from .. schema import config_request_queue, config_response_queue
 from .. schema import config_push_queue
 from .. log_level import LogLevel
-from .. base import AsyncProcessor, Consumer, Producer, Subscriber
-from . metrics import ConsumerMetrics, ProducerMetrics
+from . async_processor import AsyncProcessor
+from . subscriber import Subscriber
+from . flow import Flow
 
-class Spec:
-    pass
-
-class SubscriberSpec(Spec):
-    def __init__(self, name, schema):
-        self.name = name
-        self.schema = schema
-
-    def add(self, flow, processor, definition):
-
-        subscriber_metrics = ConsumerMetrics(
-            flow.id, f"{flow.name}-{self.name}"
-        )
-
-        subscriber = Subscriber(
-            pulsar_client = processor.client.client,
-            topic = definition[self.name],
-            subscription = flow.id,
-            consumer_name = flow.id,
-            schema = self.schema,
-        )
-
-        # Put it in the consumer map, does that work?
-        # It means it gets start/stop call.
-        flow.consumer[self.name] = subscriber
-
-        if not hasattr(flow, self.name):
-            setattr(flow, self.name, subscriber)
-
-class ConsumerSpec(Spec):
-    def __init__(self, name, schema, handler):
-        self.name = name
-        self.schema = schema
-        self.handler = handler
-
-    def add(self, flow, processor, definition):
-
-        consumer_metrics = ConsumerMetrics(
-            flow.id, f"{flow.name}-{self.name}"
-        )
-
-        consumer = processor.subscribe(
-            flow = flow,
-            queue = definition[self.name],
-            subscriber = flow.id,
-            schema = self.schema,
-            handler = self.handler,
-            metrics = consumer_metrics,
-        )
-
-        # Consumer handle gets access to producers and other
-        # metadata
-        consumer.id = flow.id
-        consumer.name = self.name
-        consumer.flow = flow
-
-        flow.consumer[self.name] = consumer
-
-        if not hasattr(flow, self.name):
-            setattr(flow, self.name, consumer)
-
-class ProducerSpec(Spec):
-    def __init__(self, name, schema):
-        self.name = name
-        self.schema = schema
-
-    def add(self, flow, processor, definition):
-
-        producer_metrics = ProducerMetrics(
-            flow.id, f"{flow.name}-{self.name}"
-        )
-
-        producer = processor.publish(
-            queue = definition[self.name],
-            schema = self.schema,
-            metrics = producer_metrics,
-        )
-
-        flow.producer[self.name] = producer
-
-        if not hasattr(self, self.name):
-            setattr(flow, self.name, producer)
-
-class SettingSpec(Spec):
-    def __init__(self, name):
-        self.name = name
-
-    def add(self, flow, processor, definition):
-
-        flow.config[self.name] = definition[self.name]
-
-        if not hasattr(flow, self.name):
-            setattr(flow, self.name, definition[self.name])
-
-class Flow:
-    def __init__(self, id, flow, processor, defn):
-
-        self.id = id
-        self.name = flow
-
-        self.producer = {}
-        self.consumer = {}
-        self.setting = {}
-
-        for spec in processor.specifications:
-            spec.add(self, processor, defn)
-
-    async def start(self):
-        for c in self.consumer.values():
-            await c.start()
-
-    async def stop(self):
-        for c in self.consumer.values():
-            await c.stop()
-                
 # Parent class for configurable processors, configured with flows by
 # the config service
 class FlowProcessor(AsyncProcessor):
@@ -150,18 +36,6 @@ class FlowProcessor(AsyncProcessor):
         self.specifications = []
 
         print("Service initialised.")
-
-    # Register a new consumer name
-    def register_consumer(self, name, schema, handler):
-        self.specifications.append(ConsumerSpec(name, schema, handler))
-
-    # Register a producer name
-    def register_producer(self, name, schema):
-        self.specifications.append(ProducerSpec(name, schema))
-
-    # Register a configuration variable
-    def register_config(self, name):
-        self.specifications.append(SettingSpec(name))
 
     # Register a configuration variable
     def register_specification(self, spec):

@@ -6,7 +6,6 @@ entity/context definitions for embedding.
 """
 
 import json
-import asyncio
 import urllib.parse
 from pulsar.schema import JsonSchema
 import uuid
@@ -18,7 +17,7 @@ from .... log_level import LogLevel
 from .... clients.prompt_client import PromptClient
 from .... rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL, SUBJECT_OF
 
-from .... base import FlowProcessor, SubscriberSpec, ConsumerSpec
+from .... base import FlowProcessor, RequestResponseSpec, ConsumerSpec
 from .... base import ProducerSpec
 
 DEFINITION_VALUE = Value(value=DEFINITION, is_uri=True)
@@ -48,16 +47,11 @@ class Processor(FlowProcessor):
         )
 
         self.register_specification(
-            ProducerSpec(
-                name = "prompt-request",
-                schema = PromptRequest
-            )
-        )
-
-        self.register_specification(
-            SubscriberSpec(
-                name = "prompt-response",
-                schema = PromptResponse,
+            RequestResponseSpec(
+                request_name = "prompt-request",
+                request_schema = PromptRequest,
+                response_name = "prompt-response",
+                response_schema = PromptResponse,
             )
         )
 
@@ -116,26 +110,16 @@ class Processor(FlowProcessor):
 
         try:
 
-            q = await flow.consumer["prompt-response"].subscribe(id)
-
             try:
 
-                await flow.producer["prompt-request"].send(
+                resp = await flow("prompt-request").request(
                     PromptRequest(
                         id="extract-definitions",
                         terms={
                             "text": json.dumps(chunk)
                         },
-                    ),
-                    properties={"id": id}
+                    )
                 )
-
-                # FIXME: hard-coded?
-                resp = await asyncio.wait_for(
-                    q.get(),
-                    timeout=600
-                )
-
                 print("Response", resp, flush=True)
 
                 if resp.error is not None:
@@ -150,8 +134,6 @@ class Processor(FlowProcessor):
             except Exception as e:
                 print("Prompt exception:", e, flush=True)
                 raise e
-            finally:
-                await flow.consumer["prompt-response"].unsubscribe(id)
 
             triples = []
             entities = []
@@ -201,7 +183,7 @@ class Processor(FlowProcessor):
                 entities.append(ec)
 
             await self.emit_triples(
-                flow.producer["triples"],
+                flow("triples"),
                 Metadata(
                     id=v.metadata.id,
                     metadata=[],
@@ -212,7 +194,7 @@ class Processor(FlowProcessor):
             )
 
             await self.emit_ecs(
-                flow.producer["entity-contexts"],
+                flow("entity-contexts"),
                 Metadata(
                     id=v.metadata.id,
                     metadata=[],

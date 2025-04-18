@@ -14,6 +14,7 @@ from trustgraph.base import AsyncProcessor, Consumer, Producer
 
 from . config import Configuration
 from ... base import ProcessorMetrics, ConsumerMetrics, ProducerMetrics
+from ... base import Consumer, Producer
 
 default_ident = "config-svc"
 
@@ -42,29 +43,33 @@ class Processor(AsyncProcessor):
             }
         )
 
-        self.request_metrics = ConsumerMetrics(id + "-request")
-        self.response_metrics = ProducerMetrics(id + "-response")
-        self.push_metrics = ProducerMetrics(id + "-push")
+        request_metrics = ConsumerMetrics(id + "-request")
+        response_metrics = ProducerMetrics(id + "-response")
+        push_metrics = ProducerMetrics(id + "-push")
 
-        self.push_pub = self.publish(
-            queue = push_queue,
+        self.push_pub = Producer(
+            client = self.client,
+            topic = push_queue,
             schema = ConfigPush,
-            metrics = self.push_metrics,
+            metrics = push_metrics,
         )
 
-        self.response_pub = self.publish(
-            queue = response_queue,
+        self.response_pub = Producer(
+            client = self.client,
+            topic = response_queue,
             schema = ConfigResponse,
-            metrics = self.response_metrics,
+            metrics = response_metrics,
         )
 
-        self.subs = self.subscribe(
+        self.subs = Consumer(
+            taskgroup = self.taskgroup,
+            client = self.client,
             flow = None,
-            queue = request_queue,
+            topic = request_queue,
             subscriber = id,
             schema = request_schema,
             handler = self.on_message,
-            metrics = self.request_metrics,
+            metrics = request_metrics,
         )
 
         self.config = Configuration(self.push)
