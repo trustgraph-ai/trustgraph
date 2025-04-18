@@ -13,8 +13,6 @@ import uuid
 from .... schema import Chunk, Triple, Triples, Metadata, Value
 from .... schema import EntityContext, EntityContexts
 from .... schema import PromptRequest, PromptResponse
-from .... log_level import LogLevel
-from .... clients.prompt_client import PromptClient
 from .... rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL, SUBJECT_OF
 
 from .... base import FlowProcessor, RequestResponseSpec, ConsumerSpec

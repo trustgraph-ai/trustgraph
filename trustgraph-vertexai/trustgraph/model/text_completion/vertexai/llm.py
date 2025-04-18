@@ -4,22 +4,17 @@ Simple LLM service, performs text prompt completion using VertexAI on
 Google Cloud.   Input is prompt, output is response.
 """
 
-import vertexai
-import time
-from prometheus_client import Histogram
-import os
-
 from google.oauth2 import service_account
 import google
+import vertexai
 
 from vertexai.preview.generative_models import (
     Content, FunctionDeclaration, GenerativeModel, GenerationConfig,
     HarmCategory, HarmBlockThreshold, Part, Tool,
 )
 
-from .... schema import TextCompletionRequest, TextCompletionResponse, Error
 from .... exceptions import TooManyRequests
-from .... base import FlowProcessor, ConsumerSpec, ProducerSpec
+from .... base import LlmService, LlmResult
 
 default_ident = "text-completion"
 
@@ -29,11 +24,10 @@ default_temperature = 0.0
 default_max_output = 8192
 default_private_key = "private.json"
 
-class Processor(FlowProcessor):
+class Processor(LlmService):
 
     def __init__(self, **params):
 
-        id = params.get("id")
         region = params.get("region", default_region)
         model = params.get("model", default_model)
         private_key = params.get("private_key", default_private_key)
@@ -43,41 +37,7 @@ class Processor(FlowProcessor):
         if private_key is None:
             raise RuntimeError("Private key file not specified")
 
-        super(Processor, self).__init__(
-            **params | {
-                "request_schema": TextCompletionRequest,
-                "response_schema": TextCompletionResponse,
-            }
-        )
-
-        self.register_specification(
-            ConsumerSpec(
-                name = "request",
-                schema = TextCompletionRequest,
-                handler = self.on_request
-            )
-        )
-
-        self.register_specification(
-            ProducerSpec(
-                name = "response",
-                schema = TextCompletionResponse
-            )
-        )
-
-        if not hasattr(__class__, "text_completion_metric"):
-            __class__.text_completion_metric = Histogram(
-                'text_completion_duration',
-                'Text completion duration (seconds)',
-                ["id", "flow"],
-                buckets=[
-                    0.25, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0,
-                    8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0,
-                    17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0, 25.0,
-                    30.0, 35.0, 40.0, 45.0, 50.0, 60.0, 80.0, 100.0,
-                    120.0
-                ]
-            )
+        super(Processor, self).__init__(**params)
 
         self.parameters = {
             "temperature": temperature,
@@ -134,48 +94,29 @@ class Processor(FlowProcessor):
 
         print("Initialisation complete", flush=True)
 
-    async def on_request(self, msg, consumer, flow):
+    async def generate_content(self, system, prompt):
 
         try:
 
-            request = msg.value()
+            prompt = system + "\n\n" + prompt
 
-            # Sender-produced ID
+            response = self.llm.generate_content(
+                prompt, generation_config=self.generation_config,
+                safety_settings=self.safety_settings
+            )
 
-            id = msg.properties()["id"]
+            resp = LlmResult()
+            resp.text = response.text
+            resp.in_token = response.usage_metadata.prompt_token_count
+            resp.out_token = response.usage_metadata.candidates_token_count
+            resp.model = self.model
 
-            prompt = request.system + "\n\n" + request.prompt
-
-            with __class__.text_completion_metric.labels(
-                    id=self.id,
-                    flow=f"{flow.name}-{consumer.name}",
-            ).time():
-
-                response = self.llm.generate_content(
-                    prompt, generation_config=self.generation_config,
-                    safety_settings=self.safety_settings
-                )
-
-            resp = response.text
-            inputtokens = int(response.usage_metadata.prompt_token_count)
-            outputtokens = int(response.usage_metadata.candidates_token_count)
-            print(resp, flush=True)
-            print(f"Input Tokens: {inputtokens}", flush=True)
-            print(f"Output Tokens: {outputtokens}", flush=True)
+            print(f"Input Tokens: {resp.in_token}", flush=True)
+            print(f"Output Tokens: {resp.out_token}", flush=True)
 
             print("Send response...", flush=True)
 
-
-            await flow.producer["response"].send(
-                TextCompletionResponse(
-                    error=None,
-                    response=resp,
-                    in_token=inputtokens,
-                    out_token=outputtokens,
-                    model=self.model
-                ),
-                properties={"id": id}
-            )
+            return resp
 
         except google.api_core.exceptions.ResourceExhausted as e:
 
@@ -187,29 +128,13 @@ class Processor(FlowProcessor):
         except Exception as e:
 
             # Apart from rate limits, treat all exceptions as unrecoverable
-
             print(f"Exception: {e}")
-
-            print("Send error response...", flush=True)
-
-            await flow.producer["response"].send(
-                TextCompletionResponse(
-                    error=Error(
-                        type = "llm-error",
-                        message = str(e),
-                    ),
-                    response=None,
-                    in_token=None,
-                    out_token=None,
-                    model=None,
-                ),
-                properties={"id": id}
-            )
+            raise e
 
     @staticmethod
     def add_args(parser):
 
-        FlowProcessor.add_args(parser)
+        LlmService.add_args(parser)
 
         parser.add_argument(
             '-m', '--model',
@@ -243,6 +168,5 @@ class Processor(FlowProcessor):
         )
 
 def run():
-
     Processor.launch(default_ident, __doc__)
 

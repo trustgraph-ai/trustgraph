@@ -12,4 +12,7 @@ from . setting_spec import SettingSpec
 from . producer_spec import ProducerSpec
 from . subscriber_spec import SubscriberSpec
 from . request_response_spec import RequestResponseSpec
+from . llm_service import LlmService, LlmResult
+
+
 
