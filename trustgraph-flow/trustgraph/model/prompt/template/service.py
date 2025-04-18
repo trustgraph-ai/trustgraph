@@ -11,8 +11,9 @@ from .... schema import Definition, Relationship, Triple
 from .... schema import Topic
 from .... schema import PromptRequest, PromptResponse, Error
 from .... schema import TextCompletionRequest, TextCompletionResponse
-from .... base import FlowProcessor, SubscriberSpec, ConsumerSpec
-from .... base import ProducerSpec
+
+from .... base import FlowProcessor
+from .... base import ProducerSpec, SubscriberSpec, ConsumerSpec
 
 from . prompt_manager import PromptConfiguration, Prompt, PromptManager
 
@@ -172,10 +173,11 @@ class Processor(FlowProcessor):
             finally:
                 await flow.consumer["text-completion-response"].unsubscribe(id)
 
+            print(resp, flush=True)
+
             if isinstance(resp, str):
 
                 print("Send text response...", flush=True)
-                print(resp, flush=True)
 
                 r = PromptResponse(
                     text=resp,

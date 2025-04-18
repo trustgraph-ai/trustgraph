@@ -53,6 +53,8 @@ class PromptManager:
 
     async def invoke(self, id, input, llm):
 
+        print("Invoke...", flush=True)
+
         if id not in self.prompts:
             raise RuntimeError("ID invalid")
 
@@ -76,12 +78,13 @@ class PromptManager:
         try:
             obj = self.parse_json(resp)
         except:
+            print("Parse fail:", resp, flush=True)
             raise RuntimeError("JSON parse fail")
 
         if self.prompts[id].schema:
             try:
-                print(self.prompts[id].schema, flush=True)
                 validate(instance=obj, schema=self.prompts[id].schema)
+                print("Validated", flush=True)
             except Exception as e:
                 raise RuntimeError(f"Schema validation fail: {e}")
 
