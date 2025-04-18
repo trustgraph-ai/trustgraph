@@ -9,9 +9,12 @@ class Consumer:
 
     def __init__(
             self, taskgroup, flow, client, queue, subscriber, schema,
-            handler, rate_limit_retry_time = 10,
-            rate_limit_timeout = 7200, metrics = None,
+            handler, 
+            metrics = None,
             start_of_messages=False,
+            rate_limit_retry_time = 10, rate_limit_timeout = 7200,
+            reconnect_time = 5,
+            
     ):
 
         self.taskgroup = taskgroup
@@ -21,8 +24,12 @@ class Consumer:
         self.subscriber = subscriber
         self.schema = schema
         self.handler = handler
+
         self.rate_limit_retry_time = rate_limit_retry_time
         self.rate_limit_timeout = rate_limit_timeout
+
+        self.reconnect_time = 5
+
         self.start_of_messages = start_of_messages
 
         self.running = True
@@ -55,10 +62,10 @@ class Consumer:
 
     async def run(self):
 
-        if self.metrics:
-            self.metrics.state("stopped")
-
         while self.running:
+
+            if self.metrics:
+                self.metrics.state("stopped")
 
             try:
 
@@ -74,7 +81,7 @@ class Consumer:
             except Exception as e:
 
                 print("Exception:", e, flush=True)
-                await asyncio.sleep(2)
+                await asyncio.sleep(self.reconnect_time)
                 continue
 
             print(self.queue, "subscribed", flush=True)
@@ -94,7 +101,7 @@ class Consumer:
                 print("Exception:", e, flush=True)
                 self.consumer.close()
                 self.consumer = None
-                await asyncio.sleep(2)
+                await asyncio.sleep(self.reconnect_time)
                 continue
 
     async def consume(self):
@@ -161,7 +168,7 @@ class Consumer:
                         self.metrics.rate_limit()
 
                     # Sleep
-                    await asyncio.sleep(self.rate_limit_retry)
+                    await asyncio.sleep(self.rate_limit_retry_time)
 
                     # Contine from retry loop, just causes a reprocessing
                     continue

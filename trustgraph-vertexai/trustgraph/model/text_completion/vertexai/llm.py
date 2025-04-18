@@ -18,26 +18,22 @@ from vertexai.preview.generative_models import (
 )
 
 from .... schema import TextCompletionRequest, TextCompletionResponse, Error
-from .... schema import text_completion_request_queue
-from .... schema import text_completion_response_queue
-from .... log_level import LogLevel
 from .... exceptions import TooManyRequests
-from .... base import RequestResponseService
+from .... base import FlowProcessor, ConsumerSpec, ProducerSpec
 
-module = "text-completion"
-default_subscriber = module
+default_ident = "text-completion"
+
 default_model = 'gemini-1.0-pro-001'
 default_region = 'us-central1'
 default_temperature = 0.0
 default_max_output = 8192
 default_private_key = "private.json"
 
-class Processor(RequestResponseService):
+class Processor(FlowProcessor):
 
     def __init__(self, **params):
 
         id = params.get("id")
-        subscriber = params.get("subscriber", default_subscriber)
         region = params.get("region", default_region)
         model = params.get("model", default_model)
         private_key = params.get("private_key", default_private_key)
@@ -52,6 +48,21 @@ class Processor(RequestResponseService):
                 "request_schema": TextCompletionRequest,
                 "response_schema": TextCompletionResponse,
             }
+        )
+
+        self.register_specification(
+            ConsumerSpec(
+                name = "request",
+                schema = TextCompletionRequest,
+                handler = self.on_request
+            )
+        )
+
+        self.register_specification(
+            ProducerSpec(
+                name = "response",
+                schema = TextCompletionResponse
+            )
         )
 
         if not hasattr(__class__, "text_completion_metric"):
@@ -98,7 +109,11 @@ class Processor(RequestResponseService):
         print("Initialise VertexAI...", flush=True)
 
         if private_key:
-            credentials = service_account.Credentials.from_service_account_file(private_key)
+            credentials = (
+                service_account.Credentials.from_service_account_file(
+                    private_key
+                )
+            )
         else:
             credentials = None
 
@@ -119,9 +134,15 @@ class Processor(RequestResponseService):
 
         print("Initialisation complete", flush=True)
 
-    async def on_request(self, request, consumer, flow):
+    async def on_request(self, msg, consumer, flow):
 
         try:
+
+            request = msg.value()
+
+            # Sender-produced ID
+
+            id = msg.properties()["id"]
 
             prompt = request.system + "\n\n" + request.prompt
 
@@ -144,12 +165,16 @@ class Processor(RequestResponseService):
 
             print("Send response...", flush=True)
 
-            return TextCompletionResponse(
-                error=None,
-                response=resp,
-                in_token=inputtokens,
-                out_token=outputtokens,
-                model=self.model
+
+            await flow.producer["response"].send(
+                TextCompletionResponse(
+                    error=None,
+                    response=resp,
+                    in_token=inputtokens,
+                    out_token=outputtokens,
+                    model=self.model
+                ),
+                properties={"id": id}
             )
 
         except google.api_core.exceptions.ResourceExhausted as e:
@@ -167,28 +192,30 @@ class Processor(RequestResponseService):
 
             print("Send error response...", flush=True)
 
-            return TextCompletionResponse(
-                error=Error(
-                    type = "llm-error",
-                    message = str(e),
+            await flow.producer["response"].send(
+                TextCompletionResponse(
+                    error=Error(
+                        type = "llm-error",
+                        message = str(e),
+                    ),
+                    response=None,
+                    in_token=None,
+                    out_token=None,
+                    model=None,
                 ),
-                response=None,
-                in_token=None,
-                out_token=None,
-                model=None,
+                properties={"id": id}
             )
 
     @staticmethod
     def add_args(parser):
 
-        RequestResponseService.add_args(parser)
+        FlowProcessor.add_args(parser)
 
         parser.add_argument(
             '-m', '--model',
             default=default_model,
             help=f'LLM model (default: {default_model})'
         )
-        # Also: text-bison-32k
 
         parser.add_argument(
             '-k', '--private-key',
@@ -217,5 +244,5 @@ class Processor(RequestResponseService):
 
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 

@@ -65,8 +65,8 @@ some-containers:
 	    -t ${CONTAINER_BASE}/trustgraph-base:${VERSION} .
 	${DOCKER} build -f containers/Containerfile.flow \
 	    -t ${CONTAINER_BASE}/trustgraph-flow:${VERSION} .
-#	${DOCKER} build -f containers/Containerfile.vertexai \
-#	    -t ${CONTAINER_BASE}/trustgraph-vertexai:${VERSION} .
+	${DOCKER} build -f containers/Containerfile.vertexai \
+	    -t ${CONTAINER_BASE}/trustgraph-vertexai:${VERSION} .
 
 basic-containers: update-package-versions
 	${DOCKER} build -f containers/Containerfile.base \
