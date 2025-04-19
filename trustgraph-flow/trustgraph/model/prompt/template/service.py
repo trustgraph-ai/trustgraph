@@ -13,7 +13,7 @@ from .... schema import PromptRequest, PromptResponse, Error
 from .... schema import TextCompletionRequest, TextCompletionResponse
 
 from .... base import FlowProcessor
-from .... base import ProducerSpec, ConsumerSpec, RequestResponseSpec
+from .... base import ProducerSpec, ConsumerSpec, TextCompletionSpec
 
 from . prompt_manager import PromptConfiguration, Prompt, PromptManager
 
@@ -43,11 +43,9 @@ class Processor(FlowProcessor):
         )
 
         self.register_specification(
-            RequestResponseSpec(
+            TextCompletionSpec(
                 request_name = "text-completion-request",
-                request_schema = TextCompletionRequest,
                 response_name = "text-completion-response",
-                response_schema = TextCompletionResponse,
             )
         )
 
@@ -139,14 +137,12 @@ class Processor(FlowProcessor):
                 print(system, flush=True)
                 print(prompt, flush=True)
 
-                resp = await flow("text-completion-request").request(
-                    TextCompletionRequest(
-                        system=system, prompt=prompt
-                    ),
+                resp = await flow("text-completion-request").text_completion(
+                    system = system, prompt = prompt,
                 )
 
                 try:
-                    return resp.response
+                    return resp
                 except Exception as e:
                     print("LLM Exception:", e, flush=True)
                     return None

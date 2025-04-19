@@ -4,12 +4,17 @@ from .. schema import EmbeddingsReqeust, EmbeddingsResponse
 
 class EmbeddingsClient(RequestResponse):
     async def embed(self, text, timeout=30):
+
         resp = await self.request(
             EmbeddingsRequest(
                 text = text
             ),
             timeout=timeout
         )
+
+        if resp.error:
+            raise RuntimeError(resp.error.message)
+
         return resp.vectors
 
 class EmbeddingsClientSpec(RequestResponseSpec):
