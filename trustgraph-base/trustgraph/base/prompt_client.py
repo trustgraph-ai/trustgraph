@@ -2,7 +2,7 @@
 import json
 
 from . request_response_spec import RequestResponse, RequestResponseSpec
-from .. schema import EmbeddingsReqeust, EmbeddingsResponse
+from .. schema import PromptRequest, PromptResponse
 
 class PromptClient(RequestResponse):
 
@@ -42,11 +42,11 @@ class PromptClientSpec(RequestResponseSpec):
     def __init__(
             self, request_name, response_name,
     ):
-        super(EmbeddingsRequestResponseSpec, self).__init__(
+        super(PromptClientSpec, self).__init__(
             request_name = request_name,
-            request_schema = EmbeddingsRequest,
+            request_schema = PromptRequest,
             response_name = response_name,
-            response_schema = EmbeddingsResponse,
-            impl = TextCompletionClient,
+            response_schema = PromptResponse,
+            impl = PromptClient,
         )
 

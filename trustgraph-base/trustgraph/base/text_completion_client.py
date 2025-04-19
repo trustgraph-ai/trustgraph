@@ -1,6 +1,6 @@
 
 from . request_response_spec import RequestResponse, RequestResponseSpec
-from .. schema import EmbeddingsReqeust, EmbeddingsResponse
+from .. schema import TextCompletionRequest, TextCompletionResponse
 
 class TextCompletionClient(RequestResponse):
     async def text_completion(self, system, prompt, timeout=600):
@@ -20,11 +20,11 @@ class TextCompletionClientSpec(RequestResponseSpec):
     def __init__(
             self, request_name, response_name,
     ):
-        super(EmbeddingsRequestResponseSpec, self).__init__(
+        super(TextCompletionClientSpec, self).__init__(
             request_name = request_name,
-            request_schema = EmbeddingsRequest,
+            request_schema = TextCompletionRequest,
             response_name = response_name,
-            response_schema = EmbeddingsResponse,
+            response_schema = TextCompletionResponse,
             impl = TextCompletionClient,
         )
 

@@ -1,6 +1,6 @@
 
 from . request_response_spec import RequestResponse, RequestResponseSpec
-from .. schema import EmbeddingsReqeust, EmbeddingsResponse
+from .. schema import EmbeddingsRequest, EmbeddingsResponse
 
 class EmbeddingsClient(RequestResponse):
     async def embed(self, text, timeout=30):

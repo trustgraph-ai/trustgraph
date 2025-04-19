@@ -15,6 +15,6 @@ from . request_response_spec import RequestResponseSpec
 from . llm_service import LlmService, LlmResult
 from . embeddings_service import EmbeddingsService
 from . embeddings_client import EmbeddingsClientSpec
-from . text_completion_client import TextCompletionsClientSpec
+from . text_completion_client import TextCompletionClientSpec
 from . prompt_client import PromptClientSpec
 
