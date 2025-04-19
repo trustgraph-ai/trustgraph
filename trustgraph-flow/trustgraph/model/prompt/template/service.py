@@ -13,7 +13,7 @@ from .... schema import PromptRequest, PromptResponse, Error
 from .... schema import TextCompletionRequest, TextCompletionResponse
 
 from .... base import FlowProcessor
-from .... base import ProducerSpec, ConsumerSpec, TextCompletionSpec
+from .... base import ProducerSpec, ConsumerSpec, TextCompletionClientSpec
 
 from . prompt_manager import PromptConfiguration, Prompt, PromptManager
 
@@ -43,7 +43,7 @@ class Processor(FlowProcessor):
         )
 
         self.register_specification(
-            TextCompletionSpec(
+            TextCompletionClientSpec(
                 request_name = "text-completion-request",
                 response_name = "text-completion-response",
             )

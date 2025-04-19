@@ -150,7 +150,7 @@ class Processor(FlowProcessor):
                     o=Value(value=str(p), is_uri=False)
                 ))
 
-                if rel["o_entity"]:
+                if rel["object-entity"]:
                     # Label for o
                     triples.append(Triple(
                         s=o_value,
@@ -165,7 +165,7 @@ class Processor(FlowProcessor):
                     o=Value(value=v.metadata.id, is_uri=True)
                 ))
 
-                if rel["o_entity"]:
+                if rel["object-entity"]:
                     # 'Subject of' for o
                     triples.append(Triple(
                         s=o_value,
