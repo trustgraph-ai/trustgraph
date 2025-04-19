@@ -17,4 +17,5 @@ from . embeddings_service import EmbeddingsService
 from . embeddings_client import EmbeddingsClientSpec
 from . text_completion_client import TextCompletionClientSpec
 from . prompt_client import PromptClientSpec
+from . triples_store_service import TriplesStoreService
 
