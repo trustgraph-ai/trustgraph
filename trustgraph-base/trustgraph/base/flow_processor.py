@@ -12,7 +12,6 @@ from .. schema import config_request_queue, config_response_queue
 from .. schema import config_push_queue
 from .. log_level import LogLevel
 from . async_processor import AsyncProcessor
-from . subscriber import Subscriber
 from . flow import Flow
 
 # Parent class for configurable processors, configured with flows by

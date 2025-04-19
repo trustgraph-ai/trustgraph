@@ -44,6 +44,8 @@ class RequestResponse(Subscriber):
 
         id = str(uuid.uuid4())
 
+        print("Request", id, "...", flush=True)
+
         q = await self.subscribe(id)
 
         try:
@@ -57,6 +59,8 @@ class RequestResponse(Subscriber):
                 q.get(),
                 timeout=timeout
             )
+
+            print("Got response.", flush=True)
 
             return resp
 

@@ -58,11 +58,9 @@ class Processor(FlowProcessor):
 
             for entity in v.entities:
 
-                resp = await flow("embeddings-request").embed(
+                vectors = await flow("embeddings-request").embed(
                     text = entity.context
                 )
-
-                vectors = resp.vectors
 
                 entities.append(
                     EntityEmbeddings(
