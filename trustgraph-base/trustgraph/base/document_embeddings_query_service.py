@@ -1,10 +1,10 @@
 
 """
-Graph embeddings query service.  Input is vectors.  Output is list of
+Document embeddings query service.  Input is vectors.  Output is list of
 embeddings.
 """
 
-from .. schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
+from .. schema import DocumentEmbeddingsRequest, DocumentEmbeddingsResponse
 from .. schema import Error, Value
 
 from . flow_processor import FlowProcessor
@@ -13,20 +13,20 @@ from . producer_spec import ProducerSpec
 
 default_ident = "ge-query"
 
-class GraphEmbeddingsQueryService(FlowProcessor):
+class DocumentEmbeddingsQueryService(FlowProcessor):
 
     def __init__(self, **params):
 
         id = params.get("id")
 
-        super(GraphEmbeddingsQueryService, self).__init__(
+        super(DocumentEmbeddingsQueryService, self).__init__(
             **params | { "id": id }
         )
 
         self.register_specification(
             ConsumerSpec(
                 name = "request",
-                schema = GraphEmbeddingsRequest,
+                schema = DocumentEmbeddingsRequest,
                 handler = self.on_message
             )
         )
@@ -34,7 +34,7 @@ class GraphEmbeddingsQueryService(FlowProcessor):
         self.register_specification(
             ProducerSpec(
                 name = "response",
-                schema = GraphEmbeddingsResponse,
+                schema = DocumentEmbeddingsResponse,
             )
         )
 
@@ -49,10 +49,10 @@ class GraphEmbeddingsQueryService(FlowProcessor):
 
             print(f"Handling input {id}...", flush=True)
 
-            entities = self.query_graph_embeddings(request)
+            entities = self.query_document_embeddings(request)
 
             print("Send response...", flush=True)
-            r = GraphEmbeddingsResponse(entities=entities, error=None)
+            r = DocumentEmbeddingsResponse(entities=entities, error=None)
             await flow("response").send(r, properties={"id": id})
 
             print("Done.", flush=True)
@@ -63,9 +63,9 @@ class GraphEmbeddingsQueryService(FlowProcessor):
 
             print("Send error response...", flush=True)
 
-            r = GraphEmbeddingsResponse(
+            r = DocumentEmbeddingsResponse(
                 error=Error(
-                    type = "graph-embeddings-query-error",
+                    type = "document-embeddings-query-error",
                     message = str(e),
                 ),
                 response=None,

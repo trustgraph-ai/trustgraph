@@ -12,6 +12,8 @@ from .... schema import GraphEmbeddingsResponse
 from .... schema import Error, Value
 from .... base import GraphEmbeddingsQueryService
 
+default_ident = "ge-query"
+
 default_store_uri = 'http://localhost:6333'
 
 class Processor(GraphEmbeddingsQueryService):
@@ -19,6 +21,8 @@ class Processor(GraphEmbeddingsQueryService):
     def __init__(self, **params):
 
         store_uri = params.get("store_uri", default_store_uri)
+
+        #optional api key
         api_key = params.get("api_key", None)
 
         super(Processor, self).__init__(

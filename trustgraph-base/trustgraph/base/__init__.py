@@ -20,4 +20,7 @@ from . prompt_client import PromptClientSpec
 from . triples_store_service import TriplesStoreService
 from . graph_embeddings_store_service import GraphEmbeddingsStoreService
 from . document_embeddings_store_service import DocumentEmbeddingsStoreService
+from . triples_query_service import TriplesQueryService
+from . graph_embeddings_query_service import GraphEmbeddingsQueryService
+from . document_embeddings_query_service import DocumentEmbeddingsQueryService
 

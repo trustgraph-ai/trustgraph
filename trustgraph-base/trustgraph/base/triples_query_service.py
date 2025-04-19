@@ -4,11 +4,12 @@ Triples query service.  Input is a (s, p, o) triple, some values may be
 null.  Output is a list of triples.
 """
 
-from .... schema import TriplesQueryRequest, TriplesQueryResponse, Error
-from .... schema import Value, Triple
+from .. schema import TriplesQueryRequest, TriplesQueryResponse, Error
+from .. schema import Value, Triple
 
-from .... base import FlowProcessor, TriplesQueryService, ConsumerSpec
-from .... base import ProducerSpec
+from . flow_processor import FlowProcessor
+from . consumer_spec import  ConsumerSpec
+from . producer_spec import ProducerSpec
 
 default_ident = "triples-query"
 
