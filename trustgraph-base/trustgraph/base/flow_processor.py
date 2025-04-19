@@ -25,7 +25,7 @@ class FlowProcessor(AsyncProcessor):
         super(FlowProcessor, self).__init__(**params)
 
         # Register configuration handler
-        self.register_config_handler(self.on_configuration)
+        self.register_config_handler(self.on_configure_flows)
 
         # Initialise flow information state
         self.flows = {}
@@ -55,18 +55,18 @@ class FlowProcessor(AsyncProcessor):
             print("Stopped flow: ", flow, flush=True)
 
     # Event handler - called for a configuration change
-    async def on_configuration(self, config, version):
+    async def on_configure_flows(self, config, version):
 
         print("Got config version", version, flush=True)
 
         # Skip over invalid data
-        if "flows" not in config: return
+        if "flows-active" not in config: return
 
         # Check there's configuration information for me
-        if self.id in config["flows"]:
+        if self.id in config["flows-active"]:
 
             # Get my flow config
-            flow_config = json.loads(config["flows"][self.id])
+            flow_config = json.loads(config["flows-active"][self.id])
 
             # Get list of flows which should be running and are currently
             # running
