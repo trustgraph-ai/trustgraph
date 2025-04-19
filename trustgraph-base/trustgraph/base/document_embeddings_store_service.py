@@ -5,6 +5,7 @@ Document embeddings store base class
 
 from .. schema import DocumentEmbeddings
 from .. base import FlowProcessor, ConsumerSpec
+from .. exceptions import TooManyRequests
 
 default_ident = "document-embeddings-write"
 

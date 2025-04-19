@@ -5,6 +5,7 @@ Graph embeddings store base class
 
 from .. schema import GraphEmbeddings
 from .. base import FlowProcessor, ConsumerSpec
+from .. exceptions import TooManyRequests
 
 default_ident = "graph-embeddings-write"
 
