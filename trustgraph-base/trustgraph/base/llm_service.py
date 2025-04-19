@@ -73,7 +73,7 @@ class LlmService(FlowProcessor):
                     request.system, request.prompt
                 )
 
-            await flow.producer["response"].send(
+            await flow("response").send(
                 TextCompletionResponse(
                     error=None,
                     response=response.text,
