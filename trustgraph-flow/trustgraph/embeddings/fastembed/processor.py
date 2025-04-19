@@ -9,6 +9,7 @@ from ... base import EmbeddingsService
 from fastembed import TextEmbedding
 
 default_ident = "embeddings"
+
 default_model="sentence-transformers/all-MiniLM-L6-v2"
 
 class Processor(EmbeddingsService):

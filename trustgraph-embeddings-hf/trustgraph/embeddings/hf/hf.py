@@ -4,89 +4,37 @@ Embeddings service, applies an embeddings model selected from HuggingFace.
 Input is text, output is embeddings vector.
 """
 
+from ... base import EmbeddingsService
+
 from langchain_huggingface import HuggingFaceEmbeddings
 
-from trustgraph.schema import EmbeddingsRequest, EmbeddingsResponse, Error
-from trustgraph.schema import embeddings_request_queue
-from trustgraph.schema import embeddings_response_queue
-from trustgraph.log_level import LogLevel
-from trustgraph.base import ConsumerProducer
+default_ident = "embeddings"
 
-module = "embeddings"
-
-default_input_queue = embeddings_request_queue
-default_output_queue = embeddings_response_queue
-default_subscriber = module
 default_model="all-MiniLM-L6-v2"
 
-class Processor(ConsumerProducer):
+class Processor(EmbeddingsService):
 
     def __init__(self, **params):
 
-        input_queue = params.get("input_queue", default_input_queue)
-        output_queue = params.get("output_queue", default_output_queue)
-        subscriber = params.get("subscriber", default_subscriber)
         model = params.get("model", default_model)
 
         super(Processor, self).__init__(
-            **params | {
-                "input_queue": input_queue,
-                "output_queue": output_queue,
-                "subscriber": subscriber,
-                "input_schema": EmbeddingsRequest,
-                "output_schema": EmbeddingsResponse,
-            }
+            **params | { "model": model }
         )
 
+        print("Get model...", flush=True)
         self.embeddings = HuggingFaceEmbeddings(model_name=model)
 
-    async def handle(self, msg):
+    async def on_embeddings(self, text):
 
-        v = msg.value()
-
-        # Sender-produced ID
-        id = msg.properties()["id"]
-
-        print(f"Handling input {id}...", flush=True)
-
-        try:
-
-            text = v.text
-            embeds = self.embeddings.embed_documents([text])
-
-            print("Send response...", flush=True)
-            r = EmbeddingsResponse(vectors=embeds, error=None)
-            await self.send(r, properties={"id": id})
-
-            print("Done.", flush=True)
-
-
-        except Exception as e:
-
-            print(f"Exception: {e}")
-
-            print("Send error response...", flush=True)
-
-            r = EmbeddingsResponse(
-                error=Error(
-                    type = "llm-error",
-                    message = str(e),
-                ),
-                response=None,
-            )
-
-            await self.send(r, properties={"id": id})
-
-            self.consumer.acknowledge(msg)
-            
+        embeds = self.embeddings.embed_documents([text])
+        print("Done.", flush=True)
+        return embeds
 
     @staticmethod
     def add_args(parser):
 
-        ConsumerProducer.add_args(
-            parser, default_input_queue, default_subscriber,
-            default_output_queue,
-        )
+        EmbeddingsService.add_args(parser)
 
         parser.add_argument(
             '-m', '--model',
@@ -96,5 +44,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 
