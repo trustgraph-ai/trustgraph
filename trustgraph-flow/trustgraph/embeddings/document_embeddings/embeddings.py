@@ -6,58 +6,63 @@ Output is chunk plus embedding.
 """
 
 from ... schema import Chunk, ChunkEmbeddings, DocumentEmbeddings
-from ... schema import chunk_ingest_queue
-from ... schema import document_embeddings_store_queue
-from ... schema import embeddings_request_queue, embeddings_response_queue
-from ... clients.embeddings_client import EmbeddingsClient
-from ... log_level import LogLevel
-from ... base import InputOutputProcessor
+from ... schema import EmbeddingsRequest, EmbeddingsResponse
 
-module = "document-embeddings"
+from ... base import FlowProcessor, RequestResponseSpec, ConsumerSpec
+from ... base import ProducerSpec
 
-default_subscriber = module
+default_ident = "document-embeddings"
 
-class Processor(InputOutputProcessor):
+class Processor(FlowProcessor):
 
     def __init__(self, **params):
 
         id = params.get("id")
-        subscriber = params.get("subscriber", default_subscriber)
-        emb_request_queue = params.get(
-            "embeddings_request_queue", embeddings_request_queue
-        )
-        emb_response_queue = params.get(
-            "embeddings_response_queue", embeddings_response_queue
-        )
 
         super(Processor, self).__init__(
             **params | {
-                "input_queue": input_queue,
-                "output_queue": output_queue,
-                "embeddings_request_queue": emb_request_queue,
-                "embeddings_response_queue": emb_response_queue,
-                "subscriber": subscriber,
-                "input_schema": Chunk,
-                "output_schema": DocumentEmbeddings,
+                "id": id,
             }
         )
 
-        self.embeddings = EmbeddingsClient(
-            pulsar_host=self.pulsar_host,
-            pulsar_api_key=self.pulsar_api_key,
-            input_queue=emb_request_queue,
-            output_queue=emb_response_queue,
-            subscriber=module + "-emb",
+        self.register_specification(
+            ConsumerSpec(
+                name = "input",
+                schema = Chunk,
+                handler = self.on_message,
+            )
         )
 
-    async def handle(self, msg):
+        self.register_specification(
+            RequestResponseSpec(
+                request_name = "embeddings-request",
+                request_schema = EmbeddingsRequest,
+                response_name = "embeddings-response",
+                response_schema = EmbeddingsResponse,
+            )
+        )
+
+        self.register_specification(
+            ProducerSpec(
+                name = "output",
+                schema = DocumentEmbeddings
+            )
+        )
+
+    async def on_message(self, msg, consumer, flow):
 
         v = msg.value()
         print(f"Indexing {v.metadata.id}...", flush=True)
 
         try:
 
-            vectors = self.embeddings.request(v.chunk)
+            resp = await flow("embeddings-request").request(
+                EmbeddingsRequest(
+                    text = v.chunk
+                )
+            )
+
+            vectors = resp.vectors
 
             embeds = [
                 ChunkEmbeddings(
@@ -71,7 +76,7 @@ class Processor(InputOutputProcessor):
                 chunks=embeds,
             )
 
-            await self.send(r)
+            await flow("output").send(r)
 
         except Exception as e:
             print("Exception:", e, flush=True)
@@ -84,24 +89,9 @@ class Processor(InputOutputProcessor):
     @staticmethod
     def add_args(parser):
 
-        ConsumerProducer.add_args(
-            parser, default_input_queue, default_subscriber,
-            default_output_queue,
-        )
-
-        parser.add_argument(
-            '--embeddings-request-queue',
-            default=embeddings_request_queue,
-            help=f'Embeddings request queue (default: {embeddings_request_queue})',
-        )
-
-        parser.add_argument(
-            '--embeddings-response-queue',
-            default=embeddings_response_queue,
-            help=f'Embeddings request queue (default: {embeddings_response_queue})',
-        )
+        FlowProcessor.add_args(parser)
 
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 
