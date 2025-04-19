@@ -30,7 +30,7 @@ class Processor(GraphEmbeddingsStoreService):
 
         self.last_collection = None
 
-        self.client = QdrantClient(url=store_uri, api_key=api_key)
+        self.qdrant = QdrantClient(url=store_uri, api_key=api_key)
 
     def get_collection(self, dim, user, collection):
 
@@ -40,10 +40,10 @@ class Processor(GraphEmbeddingsStoreService):
 
         if cname != self.last_collection:
 
-            if not self.client.collection_exists(cname):
+            if not self.qdrant.collection_exists(cname):
 
                 try:
-                    self.client.create_collection(
+                    self.qdrant.create_collection(
                         collection_name=cname,
                         vectors_config=VectorParams(
                             size=dim, distance=Distance.COSINE
@@ -71,7 +71,7 @@ class Processor(GraphEmbeddingsStoreService):
                     dim, v.metadata.user, v.metadata.collection
                 )
 
-                self.client.upsert(
+                self.qdrant.upsert(
                     collection_name=collection,
                     points=[
                         PointStruct(
