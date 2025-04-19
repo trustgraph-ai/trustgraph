@@ -80,9 +80,7 @@ class Processor(DocumentEmbeddingsStoreService):
     @staticmethod
     def add_args(parser):
 
-        DocumentEmbeddingsStoreService.add_args(
-            parser, default_input_queue, default_subscriber,
-        )
+        DocumentEmbeddingsStoreService.add_args(parser)
 
         parser.add_argument(
             '-t', '--store-uri',
