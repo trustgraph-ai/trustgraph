@@ -21,7 +21,7 @@ class EmbeddingsClientSpec(RequestResponseSpec):
     def __init__(
             self, request_name, response_name,
     ):
-        super(EmbeddingsRequestResponseSpec, self).__init__(
+        super(EmbeddingsClientSpec, self).__init__(
             request_name = request_name,
             request_schema = EmbeddingsRequest,
             response_name = response_name,
