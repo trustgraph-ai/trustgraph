@@ -7,8 +7,6 @@ entity/context definitions for embedding.
 
 import json
 import urllib.parse
-from pulsar.schema import JsonSchema
-import uuid
 
 from .... schema import Chunk, Triple, Triples, Metadata, Value
 from .... schema import EntityContext, EntityContexts
@@ -75,10 +73,6 @@ class Processor(FlowProcessor):
 
         return uri
 
-    def get_definitions(self, chunk):
-
-        return self.prompt.request_definitions(chunk)
-
     async def emit_triples(self, pub, metadata, triples):
 
         t = Triples(
@@ -96,8 +90,6 @@ class Processor(FlowProcessor):
         await pub.send(t)
 
     async def on_message(self, msg, consumer, flow):
-
-        id = str(uuid.uuid4())
 
         v = msg.value()
         print(f"Indexing {v.metadata.id}...", flush=True)

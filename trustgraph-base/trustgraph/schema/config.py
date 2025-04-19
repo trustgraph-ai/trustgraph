@@ -2,7 +2,7 @@
 from pulsar.schema import Record, Bytes, String, Boolean, Array, Map, Integer
 
 from . topic import topic
-from . types import Error, RowSchema
+from . types import Error
 
 ############################################################################
 
