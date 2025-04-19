@@ -75,12 +75,14 @@ class RequestResponse(Subscriber):
 # - we receive on the response topic as a subscriber
 class RequestResponseSpec(Spec):
     def __init__(
-            self, request_name, request_schema, response_name, response_schema
+            self, request_name, request_schema, response_name,
+            response_schema, impl=RequestResponse
     ):
         self.request_name = request_name
         self.request_schema = request_schema
         self.response_name = response_name
         self.response_schema = response_schema
+        self.impl = impl
 
     def add(self, flow, processor, definition):
 
@@ -88,7 +90,7 @@ class RequestResponseSpec(Spec):
             flow.id, f"{flow.name}-{self.response_name}"
         )
 
-        rr = RequestResponse(
+        rr = self.impl(
             client = processor.client,
             subscription = flow.id,
             consumer_name = flow.id,
@@ -101,4 +103,5 @@ class RequestResponseSpec(Spec):
         )
 
         flow.consumer[self.request_name] = rr
+
 

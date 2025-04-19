@@ -13,8 +13,8 @@ from .... schema import Metadata, Value
 from .... schema import PromptRequest, PromptResponse
 from .... rdf import RDF_LABEL, TRUSTGRAPH_ENTITIES, SUBJECT_OF
 
-from .... base import FlowProcessor, RequestResponseSpec, ConsumerSpec
-from .... base import ProducerSpec
+from .... base import FlowProcessor, ConsumerSpec,  ProducerSpec
+from .... base import PromptClientSpec
 
 RDF_LABEL_VALUE = Value(value=RDF_LABEL, is_uri=True)
 SUBJECT_OF_VALUE = Value(value=SUBJECT_OF, is_uri=True)
@@ -42,11 +42,9 @@ class Processor(FlowProcessor):
         )
 
         self.register_specification(
-            RequestResponseSpec(
+            PromptClientSpec(
                 request_name = "prompt-request",
-                request_schema = PromptRequest,
                 response_name = "prompt-response",
-                response_schema = PromptResponse,
             )
         )
 
@@ -86,24 +84,14 @@ class Processor(FlowProcessor):
 
             try:
 
-                resp = await flow("prompt-request").request(
-                    PromptRequest(
-                        id="extract-relationships",
-                        terms={
-                            "text": json.dumps(chunk)
-                        },
-                    )
+                rels = await flow("prompt-request").extract_relationships(
+                    text = chunk
                 )
-                print("Response", resp, flush=True)
 
-                if resp.error is not None:
-                    print("Error:", resp.error.message, flush=True)
-                    raise RuntimeError(resp.error.message)
+                print("Response", rels, flush=True)
 
-                if resp.object is None:
-                    raise RuntimeError("Expecting object in prompt response")
-
-                rels = json.loads(resp.object)
+                if type(rels) != list:
+                    raise RuntimeError("Expecting array in prompt response")
 
             except Exception as e:
                 print("Prompt exception:", e, flush=True)
@@ -118,9 +106,9 @@ class Processor(FlowProcessor):
 
             for rel in rels:
 
-                s = rel["s"]
-                p = rel["p"]
-                o = rel["o"]
+                s = rel["subject"]
+                p = rel["predicate"]
+                o = rel["object"]
 
                 if s == "": continue
                 if p == "": continue
@@ -136,7 +124,7 @@ class Processor(FlowProcessor):
                 p_uri = self.to_uri(p)
                 p_value = Value(value=str(p_uri), is_uri=True)
 
-                if rel["o_entity"]: 
+                if rel["object-entity"]: 
                     o_uri = self.to_uri(o)
                     o_value = Value(value=str(o_uri), is_uri=True)
                 else:

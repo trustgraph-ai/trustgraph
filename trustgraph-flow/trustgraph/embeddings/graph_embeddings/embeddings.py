@@ -8,7 +8,7 @@ Output is entity plus embedding.
 from ... schema import EntityContexts, EntityEmbeddings, GraphEmbeddings
 from ... schema import EmbeddingsRequest, EmbeddingsResponse
 
-from ... base import FlowProcessor, RequestResponseSpec, ConsumerSpec
+from ... base import FlowProcessor, EmbeddingsClientSpec, ConsumerSpec
 from ... base import ProducerSpec
 
 default_ident = "graph-embeddings"
@@ -34,11 +34,9 @@ class Processor(FlowProcessor):
         )
 
         self.register_specification(
-            RequestResponseSpec(
+            EmbeddingsClientSpec(
                 request_name = "embeddings-request",
-                request_schema = EmbeddingsRequest,
                 response_name = "embeddings-response",
-                response_schema = EmbeddingsResponse,
             )
         )
 
@@ -60,10 +58,8 @@ class Processor(FlowProcessor):
 
             for entity in v.entities:
 
-                resp = await flow("embeddings-request").request(
-                    EmbeddingsRequest(
-                        text = entity.context
-                    )
+                resp = await flow("embeddings-request").embed(
+                    text = entity.context
                 )
 
                 vectors = resp.vectors

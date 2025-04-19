@@ -13,8 +13,8 @@ from .... schema import EntityContext, EntityContexts
 from .... schema import PromptRequest, PromptResponse
 from .... rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL, SUBJECT_OF
 
-from .... base import FlowProcessor, RequestResponseSpec, ConsumerSpec
-from .... base import ProducerSpec
+from .... base import FlowProcessor, ConsumerSpec,  ProducerSpec
+from .... base import PromptClientSpec
 
 DEFINITION_VALUE = Value(value=DEFINITION, is_uri=True)
 RDF_LABEL_VALUE = Value(value=RDF_LABEL, is_uri=True)
@@ -43,11 +43,9 @@ class Processor(FlowProcessor):
         )
 
         self.register_specification(
-            RequestResponseSpec(
+            PromptClientSpec(
                 request_name = "prompt-request",
-                request_schema = PromptRequest,
                 response_name = "prompt-response",
-                response_schema = PromptResponse,
             )
         )
 
@@ -102,24 +100,14 @@ class Processor(FlowProcessor):
 
             try:
 
-                resp = await flow("prompt-request").request(
-                    PromptRequest(
-                        id="extract-definitions",
-                        terms={
-                            "text": json.dumps(chunk)
-                        },
-                    )
+                defs = await flow("prompt-request").extract_definitions(
+                    text = chunk
                 )
-                print("Response", resp, flush=True)
 
-                if resp.error is not None:
-                    print("Error:", resp.error.message, flush=True)
-                    raise RuntimeError(resp.error.message)
+                print("Response", defs, flush=True)
 
-                if resp.object is None:
-                    raise RuntimeError("Expecting object in prompt response")
-
-                defs = json.loads(resp.object)
+                if type(defs) != list:
+                    raise RuntimeError("Expecting array in prompt response")
 
             except Exception as e:
                 print("Prompt exception:", e, flush=True)
