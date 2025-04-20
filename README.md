@@ -21,16 +21,17 @@ Deploying state-of-the-art AI requires managing a complex web of models, framewo
 <summary>Table of Contents</summary>
 <br>
 
--   🎯 [**Why TrustGraph?**](#-why-trustgraph)<br>
--   🚀 [**Getting Started**](#-getting-started)<br>
--   🔧 [**Configuration Builder**](#-configuration-builder)<br>
--   🧠 [**Knowledge Cores**](#-knowledge-cores)<br>
--   📐 [**Architecture**](#-architecture)<br>
--   🧩 [**Integrations**](#-integrations)<br>
--   📊 [**Observability & Telemetry**](#-observability--telemetry)<br>
--   🤝 [**Contributing**](#-contributing)<br>
--   📄 [**License**](#-license)<br>
--   📞 [**Support & Community**](#-support--community)<br>
+- 🎯 [**Why TrustGraph?**](#-why-trustgraph)<br>
+- 🚀 [**Getting Started**](#-getting-started)<br>
+- 🔧 [**Configuration Builder**](#-configuration-builder)<br>
+- 🔎 [**TrustRAG**](#-trustrag)<br>
+- 🧠 [**Knowledge Cores**](#-knowledge-cores)<br>
+- 📐 [**Architecture**](#-architecture)<br>
+- 🧩 [**Integrations**](#-integrations)<br>
+- 📊 [**Observability & Telemetry**](#-observability--telemetry)<br>
+- 🤝 [**Contributing**](#-contributing)<br>
+- 📄 [**License**](#-license)<br>
+- 📞 [**Support & Community**](#-support--community)<br>
 
 </details>
 
@@ -156,9 +157,28 @@ kubectl apply -f <launch-file.yaml>
 
 TrustGraph is designed to be modular to support as many LLMs and environments as possible. A natural fit for a modular architecture is to decompose functions into a set of modules connected through a pub/sub backbone. [Apache Pulsar](https://github.com/apache/pulsar/) serves as this pub/sub backbone. Pulsar acts as the data broker managing data processing queues connected to procesing modules.
 
+## 🔎 TrustRAG
+
+TrustGraph incorporates **TrustRAG**, an advanced RAG approach that leverages automatically constructed Knowledge Graphs to provide richer and more accurate context to LLMs. Instead of relying solely on unstructured text chunks, TrustRAG understands and utilizes the relationships *between* pieces of information.
+
+**How TrustRAG Works:**
+
+1.  **Automated Knowledge Graph Construction:**
+    *   TrustGraph processes source data to automatically **extract key entities, topics, and the relationships** connecting them.
+    *   It then maps these extracted **semantic relationships and concepts to high-dimensional vector embeddings**, capturing the nuanced meaning beyond simple keyword matching.
+
+2.  **Hybrid Retrieval Process:**
+    *   When a query is received, TrustRAG first performs a **cosine similarity search** on the vector embeddings to identify potentially relevant concepts and relationships within the knowledge graph.
+    *   This initial vector search **pinpoints relevant entry points** within the structured Knowledge Graph.
+
+3.  **Context Generation via Subgraph Traversal:**
+    *   Based on the ranked results from the similarity search, TrustRAG dynamically **generates relevant subgraphs**.
+    *   It starts from the identified entry points and traverses the connections within the Knowledge Graph. Users can configure the **number of 'hops'** (relationship traversals) to expand the contextual window, gathering interconnected information.
+    *   This structured **subgraph**, containing entities and their relationships, forms a highly relevant and context-aware input prompt for the LLM that is endlessly configurable with options for the number of entities, relationships, and overall subgraph size.
+
 ## 🧠 Knowledge Cores
 
-One of the biggest challenges currently facing RAG architectures is the ability to quickly reuse and integrate knowledge sets. **TrustGraph** solves this problem by storing the results of the document ingestion process in reusable Knowledge Cores. Being able to store and reuse the Knowledge Cores means the process has to be run only once for a set of documents. These reusable Knowledge Cores can be loaded back into **TrustGraph** and used for RAG.
+One of the biggest challenges currently facing RAG architectures is the ability to quickly reuse and integrate knowledge sets. **TrustGraph** solves this problem by storing the results of the document ingestion process in reusable Knowledge Cores. Being able to store and reuse the Knowledge Cores means the process has to be run only once for a set of documents. These reusable Knowledge Cores can be loaded back into **TrustGraph** and used for TrustRAG.
 
 A Knowledge Core has two components:
 
