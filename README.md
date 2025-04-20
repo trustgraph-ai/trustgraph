@@ -38,19 +38,12 @@ Deploying state-of-the-art AI requires managing a complex web of models, framewo
 
 ## 🎯 Why TrustGraph?
 
-Traditional operations involve manual intervention, siloed tools, and reactive problem-solving. While AI agents show promise, integrating them into reliable, continuous operations presents significant challenges:
-
-1.  **Scalability & Reliability:** Standalone agents don't scale or offer the robustness required for business-critical operations.
-2.  **Contextual Understanding:** Agents need deep, relevant context (often locked in sensitive and protectec data) to perform complex tasks effectively. RAG is powerful but complex to deploy and manage.
-3.  **Integration Nightmare:** Connecting agents to diverse systems, data sources, and various LLMs is difficult and time-consuming.
-4.  **Lack of Oversight:** Monitoring, debugging, and understanding the behavior of multiple autonomous agents in production is critical but often overlooked.
-
-**TrustGraph addresses these challenges by providing:**
-
-*   A **platform**, not just a library, for managing the lifecycle of autonomous operations.
-*   **Automated, best-practice RAG deployments** that combine the strengths of semantic vector search and structured knowledge graph traversal.
-*   A **standardized layer** for LLM interaction and enterprise system integration.
-*   **Built-in observability** to ensure you can trust and manage your autonomous systems.
+*   **Unified Provisioning:** Define and deploy complete AI environments, including models, dependencies, and tooling, as a single, manageable unit. Stop managing piecemeal installations.
+*   **Environment-Agnostic Deployment:** Provision consistently across diverse infrastructures (Cloud, On-Prem, Edge, Dev environments). Build once, provision anywhere.
+*   **Trusted & Secure Delivery:** Focuses on providing a secure supply chain for AI components.
+*   **Simplified Operations:** Radically reduce the complexity and time required to stand up and manage sophisticated AI stacks. Get operational faster.
+*   **Open Source & Extensible:** Built with transparency and community collaboration in mind. Easily inspect, modify, and extend the platform to meet your specific provisioning needs.
+*   **Component Flexibility:** Avoid component lock-in. TrustGraph integrates multiple options for all system components.
 
 ## 🚀 Getting Started
 - [Install the CLI](#install-the-trustgraph-cli)
