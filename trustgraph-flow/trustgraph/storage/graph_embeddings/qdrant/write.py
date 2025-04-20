@@ -68,7 +68,7 @@ class Processor(GraphEmbeddingsStoreService):
                 dim = len(vec)
 
                 collection = self.get_collection(
-                    dim, v.metadata.user, v.metadata.collection
+                    dim, message.metadata.user, message.metadata.collection
                 )
 
                 self.qdrant.upsert(

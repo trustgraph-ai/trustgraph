@@ -50,13 +50,15 @@ class Processor(TriplesStoreService):
                 if self.username and self.password:
                     self.tg = TrustGraph(
                         hosts=self.graph_host,
-                        keyspace=v.metadata.user, table=v.metadata.collection,
+                        keyspace=message.metadata.user,
+                        table=message.metadata.collection,
                         username=self.username, password=self.password
                     )
                 else:
                     self.tg = TrustGraph(
                         hosts=self.graph_host,
-                        keyspace=v.metadata.user, table=v.metadata.collection,
+                        keyspace=message.metadata.user,
+                        table=message.metadata.collection,
                     )
             except Exception as e:
                 print("Exception", e, flush=True)
@@ -65,7 +67,7 @@ class Processor(TriplesStoreService):
 
             self.table = table
 
-        for t in v.triples:
+        for t in message.triples:
             self.tg.insert(
                 t.s.value,
                 t.p.value,

@@ -43,7 +43,8 @@ class Processor(DocumentEmbeddingsStoreService):
 
                 dim = len(vec)
                 collection = (
-                    "d_" + message.metadata.user + "_" + message.metadata.collection + "_" +
+                    "d_" + message.metadata.user + "_" +
+                    message.metadata.collection + "_" +
                     str(dim)
                 )
 

@@ -83,7 +83,8 @@ class Consumer:
                     topic = self.topic,
                     subscription_name = self.subscriber,
                     schema = JsonSchema(self.schema),
-                    initial_position = pos
+                    initial_position = pos,
+                    consumer_type = pulsar.ConsumerType.Shared,
                 )
 
             except Exception as e:
