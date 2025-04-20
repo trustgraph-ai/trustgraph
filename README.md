@@ -11,9 +11,9 @@
 
 </div>
 
-**Transform AI agents from experimental concepts into a new paradigm of continuous operations.**
+**TrustGraph streamlines the delivery and management of complex AI environments, acting as a comprehensive provisioning platform for your containerized AI tools, pipelines, and integrations.**
 
-The **TrustGraph** platform provides a robust, scalable, and reliable AI infrastructure designed for complex environments, complete with a full observability and telemetry stack. **TrustGraph** automates the deployment of state-of-the-art RAG pipelines using both Knowledge Graphs and Vector Databases in local and cloud environments with a unified interface to all major LLM providers.
+Deploying state-of-the-art AI requires managing a complex web of models, frameworks, data pipelines, and monitoring tools. TrustGraph simplifies this by providing a unified, open-source solution to **provision complete, trusted AI environments** anywhere you need them – from cloud instances and on-premises servers to edge devices.
 
 ---
 
