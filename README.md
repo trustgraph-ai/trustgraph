@@ -1,8 +1,8 @@
-<img src="TG-horizon-repo.svg" width=100% />
+<img src="TG-ship.jpg" width=100% />
 
 <div align="center">
 
-## Autonomous Knowledge Operations Platform
+## The AI Provisioning Platform
 
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
@@ -11,40 +11,41 @@
 
 </div>
 
-**Transform AI agents from experimental concepts into a new paradigm of continuous operations.**
+**TrustGraph streamlines the delivery and management of complex AI environments, acting as a comprehensive provisioning platform for your containerized AI tools, pipelines, and integrations.**
 
-The **TrustGraph** platform provides a robust, scalable, and reliable AI infrastructure designed for complex environments, complete with a full observability and telemetry stack. **TrustGraph** automates the deployment of state-of-the-art RAG pipelines using both Knowledge Graphs and Vector Databases in local and cloud environments with a unified interface to all major LLM providers.
+Deploying state-of-the-art AI requires managing a complex web of models, frameworks, data pipelines, and monitoring tools. TrustGraph simplifies this by providing a unified, open-source solution to **provision complete, trusted AI environments** anywhere you need them – from cloud instances and on-premises servers to edge devices.
 
 ---
 
--   🎯 [**Why TrustGraph?**](#-why-trustgraph)
--   🚀 [**Getting Started**](#-getting-started)
--   🔧 [**Configuration Builder**](#-configuration-builder)
--   🧠 [**Knowledge Cores**](#-knowledge-cores)
--   📐 [**Architecture**](#-architecture)
--   🧩 [**Integrations**](#-integrations)
--   📊 [**Observability & Telemetry**](#-observability--telemetry)
--   🤝 [**Contributing**](#-contributing)
--   📄 [**License**](#-license)
--   📞 [**Support & Community**](#-support--community)
+<details>
+<summary>Table of Contents</summary>
+<br>
+
+- 🎯 [**Why TrustGraph?**](#-why-trustgraph)<br>
+- 🚀 [**Getting Started**](#-getting-started)<br>
+- 🔧 [**Configuration Builder**](#-configuration-builder)<br>
+- 🔎 [**TrustRAG**](#-trustrag)<br>
+- 🧠 [**Knowledge Cores**](#-knowledge-cores)<br>
+- 📐 [**Architecture**](#-architecture)<br>
+- 🧩 [**Integrations**](#-integrations)<br>
+- 📊 [**Observability & Telemetry**](#-observability--telemetry)<br>
+- 🤝 [**Contributing**](#-contributing)<br>
+- 📄 [**License**](#-license)<br>
+- 📞 [**Support & Community**](#-support--community)<br>
+
+</details>
 
 ---
 
 ## 🎯 Why TrustGraph?
 
-Traditional operations involve manual intervention, siloed tools, and reactive problem-solving. While AI agents show promise, integrating them into reliable, continuous operations presents significant challenges:
-
-1.  **Scalability & Reliability:** Standalone agents don't scale or offer the robustness required for business-critical operations.
-2.  **Contextual Understanding:** Agents need deep, relevant context (often locked in sensitive and protectec data) to perform complex tasks effectively. RAG is powerful but complex to deploy and manage.
-3.  **Integration Nightmare:** Connecting agents to diverse systems, data sources, and various LLMs is difficult and time-consuming.
-4.  **Lack of Oversight:** Monitoring, debugging, and understanding the behavior of multiple autonomous agents in production is critical but often overlooked.
-
-**TrustGraph addresses these challenges by providing:**
-
-*   A **platform**, not just a library, for managing the lifecycle of autonomous operations.
-*   **Automated, best-practice RAG deployments** that combine the strengths of semantic vector search and structured knowledge graph traversal.
-*   A **standardized layer** for LLM interaction and enterprise system integration.
-*   **Built-in observability** to ensure you can trust and manage your autonomous systems.
+*   **Unified Provisioning:** Define and deploy complete AI environments, including models, dependencies, and tooling, as a single, manageable unit. Stop managing piecemeal installations.
+*   **No-code TrustRAG Pipelines:** Deploy full end-to-end RAG pipelines using unique TrustGraph algorithms leveraging both Knowledge graphs and VectorDBs.
+*   **Environment-Agnostic Deployment:** Provision consistently across diverse infrastructures (Cloud, On-Prem, Edge, Dev environments). Build once, provision anywhere.
+*   **Trusted & Secure Delivery:** Focuses on providing a secure supply chain for AI components.
+*   **Simplified Operations:** Radically reduce the complexity and time required to stand up and manage sophisticated AI stacks. Get operational faster.
+*   **Open Source & Extensible:** Built with transparency and community collaboration in mind. Easily inspect, modify, and extend the platform to meet your specific provisioning needs.
+*   **Component Flexibility:** Avoid component lock-in. TrustGraph integrates multiple options for all system components.
 
 ## 🚀 Getting Started
 - [Install the CLI](#install-the-trustgraph-cli)
@@ -156,9 +157,28 @@ kubectl apply -f <launch-file.yaml>
 
 TrustGraph is designed to be modular to support as many LLMs and environments as possible. A natural fit for a modular architecture is to decompose functions into a set of modules connected through a pub/sub backbone. [Apache Pulsar](https://github.com/apache/pulsar/) serves as this pub/sub backbone. Pulsar acts as the data broker managing data processing queues connected to procesing modules.
 
+## 🔎 TrustRAG
+
+TrustGraph incorporates **TrustRAG**, an advanced RAG approach that leverages automatically constructed Knowledge Graphs to provide richer and more accurate context to LLMs. Instead of relying solely on unstructured text chunks, TrustRAG understands and utilizes the relationships *between* pieces of information.
+
+**How TrustRAG Works:**
+
+1.  **Automated Knowledge Graph Construction:**
+    *   TrustGraph processes source data to automatically **extract key entities, topics, and the relationships** connecting them.
+    *   It then maps these extracted **semantic relationships and concepts to high-dimensional vector embeddings**, capturing the nuanced meaning beyond simple keyword matching.
+
+2.  **Hybrid Retrieval Process:**
+    *   When a query is received, TrustRAG first performs a **cosine similarity search** on the vector embeddings to identify potentially relevant concepts and relationships within the knowledge graph.
+    *   This initial vector search **pinpoints relevant entry points** within the structured Knowledge Graph.
+
+3.  **Context Generation via Subgraph Traversal:**
+    *   Based on the ranked results from the similarity search, TrustRAG dynamically **generates relevant subgraphs**.
+    *   It starts from the identified entry points and traverses the connections within the Knowledge Graph. Users can configure the **number of 'hops'** (relationship traversals) to expand the contextual window, gathering interconnected information.
+    *   This structured **subgraph**, containing entities and their relationships, forms a highly relevant and context-aware input prompt for the LLM that is endlessly configurable with options for the number of entities, relationships, and overall subgraph size.
+
 ## 🧠 Knowledge Cores
 
-One of the biggest challenges currently facing RAG architectures is the ability to quickly reuse and integrate knowledge sets. **TrustGraph** solves this problem by storing the results of the document ingestion process in reusable Knowledge Cores. Being able to store and reuse the Knowledge Cores means the process has to be run only once for a set of documents. These reusable Knowledge Cores can be loaded back into **TrustGraph** and used for RAG.
+One of the biggest challenges currently facing RAG architectures is the ability to quickly reuse and integrate knowledge sets. **TrustGraph** solves this problem by storing the results of the document ingestion process in reusable Knowledge Cores. Being able to store and reuse the Knowledge Cores means the process has to be run only once for a set of documents. These reusable Knowledge Cores can be loaded back into **TrustGraph** and used for TrustRAG.
 
 A Knowledge Core has two components:
 
