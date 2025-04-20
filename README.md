@@ -39,6 +39,7 @@ Deploying state-of-the-art AI requires managing a complex web of models, framewo
 ## 🎯 Why TrustGraph?
 
 *   **Unified Provisioning:** Define and deploy complete AI environments, including models, dependencies, and tooling, as a single, manageable unit. Stop managing piecemeal installations.
+*   **No-code TrustRAG Pipelines:** Deploy full end-to-end RAG pipelines using unique TrustGraph algorithms leveraging both Knowledge graphs and VectorDBs.
 *   **Environment-Agnostic Deployment:** Provision consistently across diverse infrastructures (Cloud, On-Prem, Edge, Dev environments). Build once, provision anywhere.
 *   **Trusted & Secure Delivery:** Focuses on providing a secure supply chain for AI components.
 *   **Simplified Operations:** Radically reduce the complexity and time required to stand up and manage sophisticated AI stacks. Get operational faster.
