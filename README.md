@@ -2,7 +2,7 @@
 
 <div align="center">
 
-## Autonomous Knowledge Operations Platform
+## The AI Provisioning Platform
 
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
@@ -17,16 +17,22 @@ The **TrustGraph** platform provides a robust, scalable, and reliable AI infrast
 
 ---
 
--   🎯 [**Why TrustGraph?**](#-why-trustgraph)
--   🚀 [**Getting Started**](#-getting-started)
--   🔧 [**Configuration Builder**](#-configuration-builder)
--   🧠 [**Knowledge Cores**](#-knowledge-cores)
--   📐 [**Architecture**](#-architecture)
--   🧩 [**Integrations**](#-integrations)
--   📊 [**Observability & Telemetry**](#-observability--telemetry)
--   🤝 [**Contributing**](#-contributing)
--   📄 [**License**](#-license)
--   📞 [**Support & Community**](#-support--community)
+<details>
+<summary>Table of Contents</summary>
+<br>
+
+-   🎯 [**Why TrustGraph?**](#-why-trustgraph)<br>
+-   🚀 [**Getting Started**](#-getting-started)<br>
+-   🔧 [**Configuration Builder**](#-configuration-builder)<br>
+-   🧠 [**Knowledge Cores**](#-knowledge-cores)<br>
+-   📐 [**Architecture**](#-architecture)<br>
+-   🧩 [**Integrations**](#-integrations)<br>
+-   📊 [**Observability & Telemetry**](#-observability--telemetry)<br>
+-   🤝 [**Contributing**](#-contributing)<br>
+-   📄 [**License**](#-license)<br>
+-   📞 [**Support & Community**](#-support--community)<br>
+
+</details>
 
 ---
 
