@@ -50,10 +50,10 @@ class Processor(DocumentEmbeddingsStoreService):
 
                 if collection != self.last_collection:
 
-                    if not self.client.collection_exists(collection):
+                    if not self.qdrant.collection_exists(collection):
 
                         try:
-                            self.client.create_collection(
+                            self.qdrant.create_collection(
                                 collection_name=collection,
                                 vectors_config=VectorParams(
                                     size=dim, distance=Distance.COSINE
@@ -65,7 +65,7 @@ class Processor(DocumentEmbeddingsStoreService):
 
                     self.last_collection = collection
 
-                self.client.upsert(
+                self.qdrant.upsert(
                     collection_name=collection,
                     points=[
                         PointStruct(
