@@ -111,7 +111,4 @@ class FlowProcessor(AsyncProcessor):
         #     help=f'Rate limit timeout (default: {default_rate_limit_timeout})'
         # )
 
-def run():
-
-    Processor.launch(module, __doc__)
 

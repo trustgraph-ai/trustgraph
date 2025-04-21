@@ -126,14 +126,14 @@ class AsyncProcessor:
     # Startup fabric.  This runs in 'async' mode, creates a taskgroup and
     # runs the producer.
     @classmethod
-    async def launch_async(cls, args, ident):
+    async def launch_async(cls, args):
 
         try:
 
             # Create a taskgroup.  This seems complicated, when an exception
             # occurs, unhandled it looks like it cancels all threads in the
-            # taskgroup, but I have observed this not working.  I think
-            # it's fixed now that exceptions are caught in the right place.
+            # taskgroup.  Needs the exception to be caught in the right
+            # place.
             async with asyncio.TaskGroup() as tg:
 
 
@@ -141,7 +141,7 @@ class AsyncProcessor:
                     # as a paramter.  A processor identity ident is used as
                     # - subscriber name
                     # - an identifier for flow configuration
-                    p = cls(**args | { "taskgroup": tg, "id": ident })
+                    p = cls(**args | { "taskgroup": tg })
 
                     # Start the processor
                     await p.start()
@@ -197,7 +197,7 @@ class AsyncProcessor:
 
                 # Launch the processor in an asyncio handler
                 asyncio.run(cls.launch_async(
-                    args, ident
+                    args
                 ))
 
             except KeyboardInterrupt:
