@@ -29,13 +29,15 @@ class PromptClient(RequestResponse):
     async def extract_definitions(self, text, timeout=600):
         return await self.prompt(
             id = "extract-definitions",
-            variables = { "text": text }
+            variables = { "text": text },
+            timeout = timeout,
         )
 
     async def extract_relationships(self, text, timeout=600):
         return await self.prompt(
             id = "extract-relationships",
-            variables = { "text": text }
+            variables = { "text": text },
+            timeout = timeout,
         )
 
     async def kg_prompt(self, query, kg, timeout=600):
@@ -47,7 +49,8 @@ class PromptClient(RequestResponse):
                     { "s": v[0], "p": v[1], "o": v[2] }
                     for v in kg
                 ]
-            }
+            },
+            timeout = timeout,
         )
 
 class PromptClientSpec(RequestResponseSpec):

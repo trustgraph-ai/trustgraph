@@ -39,14 +39,10 @@ class Query:
         if self.verbose:
             print("Get entities...", flush=True)
 
-        print("HERE>", query, flush=True)
-
         entities = await self.rag.graph_embeddings_client.query(
             vectors=vectors, limit=self.entity_limit,
             user=self.user, collection=self.collection,
         )
-
-        print("ENT>", entities, flush=True)
 
         entities = [
             str(e)
@@ -65,9 +61,9 @@ class Query:
         if e in self.rag.label_cache:
             return self.rag.label_cache[e]
 
-        res = await self.rag.triples_client.request(
-            user=self.user, collection=self.collection,
+        res = await self.rag.triples_client.query(
             s=e, p=LABEL, o=None, limit=1,
+            user=self.user, collection=self.collection,
         )
 
         if len(res) == 0:
@@ -100,10 +96,10 @@ class Query:
             if path_length > 1:
                 await self.follow_edges(str(triple.o), subgraph, path_length-1)
 
-        res = await self.rag.triples_client.request(
-            user=self.user, collection=self.collection,
+        res = await self.rag.triples_client.query(
             s=None, p=ent, o=None,
-            limit=self.triple_limit
+            limit=self.triple_limit,
+            user=self.user, collection=self.collection,
         )
 
         for triple in res:
@@ -111,18 +107,20 @@ class Query:
                 (str(triple.s), str(triple.p), str(triple.o))
             )
 
-        res = await self.rag.triples_client.request(
-            user=self.user, collection=self.collection,
+        res = await self.rag.triples_client.query(
             s=None, p=None, o=ent,
             limit=self.triple_limit,
+            user=self.user, collection=self.collection,
         )
 
         for triple in res:
             subgraph.add(
-                (triple.s.value, triple.p.value, triple.o.value)
+                (str(triple.s), str(triple.p), str(triple.o))
             )
             if path_length > 1:
-                await self.follow_edges(triple.s.value, subgraph, path_length-1)
+                await self.follow_edges(
+                    str(triple.s), subgraph, path_length-1
+                )
 
     async def get_subgraph(self, query):
 
@@ -212,7 +210,7 @@ class GraphRag:
             print(kg)
             print(query)
 
-        resp = await self.prompt_client.request_kg_prompt(query, kg)
+        resp = await self.prompt_client.kg_prompt(query, kg)
 
         if self.verbose:
             print("Done", flush=True)
