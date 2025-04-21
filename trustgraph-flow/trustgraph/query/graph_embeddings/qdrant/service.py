@@ -44,21 +44,14 @@ class Processor(GraphEmbeddingsQueryService):
 
         try:
 
-            v = msg.value()
-
-            # Sender-produced ID
-            id = msg.properties()["id"]
-
-            print(f"Handling input {id}...", flush=True)
-
             entity_set = set()
             entities = []
 
-            for vec in v.vectors:
+            for vec in msg.vectors:
 
                 dim = len(vec)
                 collection = (
-                    "t_" + v.user + "_" + v.collection + "_" +
+                    "t_" + msg.user + "_" + msg.collection + "_" +
                     str(dim)
                 )
 
@@ -67,7 +60,7 @@ class Processor(GraphEmbeddingsQueryService):
                 search_result = self.qdrant.query_points(
                     collection_name=collection,
                     query=vec,
-                    limit=v.limit * 2,
+                    limit=msg.limit * 2,
                     with_payload=True,
                 ).points
 
@@ -80,10 +73,10 @@ class Processor(GraphEmbeddingsQueryService):
                         entities.append(ent)
 
                     # Keep adding entities until limit
-                    if len(entity_set) >= v.limit: break
+                    if len(entity_set) >= msg.limit: break
 
                 # Keep adding entities until limit
-                if len(entity_set) >= v.limit: break
+                if len(entity_set) >= msg.limit: break
 
             ents2 = []
 

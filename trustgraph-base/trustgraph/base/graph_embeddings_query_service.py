@@ -49,7 +49,7 @@ class GraphEmbeddingsQueryService(FlowProcessor):
 
             print(f"Handling input {id}...", flush=True)
 
-            entities = self.query_graph_embeddings(request)
+            entities = await self.query_graph_embeddings(request)
 
             print("Send response...", flush=True)
             r = GraphEmbeddingsResponse(entities=entities, error=None)

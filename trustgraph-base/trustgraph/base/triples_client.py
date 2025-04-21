@@ -1,11 +1,11 @@
 
 from . request_response_spec import RequestResponse, RequestResponseSpec
 from .. schema import TriplesQueryRequest, TriplesQueryResponse, Value
-from .. knowledge import Uri, Literal
+from .. knowledge import Uri, Literal, Triple
 
 def to_value(x):
-    if x.e: return Uri(x.v)
-    return Literal(x.v)
+    if x.is_uri: return Uri(x.value)
+    return Literal(x.value)
 
 def from_value(x):
     if x is None: return None
@@ -35,7 +35,7 @@ class TriplesClient(RequestResponse):
             raise RuntimeError(resp.error.message)
 
         return [
-            to_value(v)
+            Triple(to_value(v.s), to_value(v.p), to_value(v.o))
             for v in resp.triples
         ]
 

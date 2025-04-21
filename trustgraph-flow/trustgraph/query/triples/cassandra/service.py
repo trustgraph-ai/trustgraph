@@ -59,11 +59,6 @@ class Processor(TriplesQueryService):
                     )
                 self.table = table
 
-            # Sender-produced ID
-            id = msg.properties()["id"]
-
-            print(f"Handling input {id}...", flush=True)
-
             triples = []
 
             if query.s is not None:
@@ -137,8 +132,6 @@ class Processor(TriplesQueryService):
             ]
 
             return triples
-
-            print("Done.", flush=True)
 
         except Exception as e:
 

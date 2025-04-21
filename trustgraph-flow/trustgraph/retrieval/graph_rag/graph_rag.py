@@ -39,6 +39,8 @@ class Query:
         if self.verbose:
             print("Get entities...", flush=True)
 
+        print("HERE>", query, flush=True)
+
         entities = await self.rag.graph_embeddings_client.query(
             vectors=vectors, limit=self.entity_limit,
             user=self.user, collection=self.collection,
@@ -47,7 +49,7 @@ class Query:
         print("ENT>", entities, flush=True)
 
         entities = [
-            e.value
+            str(e)
             for e in entities
         ]
 
@@ -72,7 +74,7 @@ class Query:
             self.rag.label_cache[e] = e
             return e
 
-        self.rag.label_cache[e] = res[0].o.value
+        self.rag.label_cache[e] = str(res[0].o)
         return self.rag.label_cache[e]
 
     async def follow_edges(self, ent, subgraph, path_length):
@@ -93,10 +95,10 @@ class Query:
 
         for triple in res:
             subgraph.add(
-                (triple.s.value, triple.p.value, triple.o.value)
+                (str(triple.s), str(triple.p), str(triple.o))
             )
             if path_length > 1:
-                await self.follow_edges(triple.o.value, subgraph, path_length-1)
+                await self.follow_edges(str(triple.o), subgraph, path_length-1)
 
         res = await self.rag.triples_client.request(
             user=self.user, collection=self.collection,
@@ -106,7 +108,7 @@ class Query:
 
         for triple in res:
             subgraph.add(
-                (triple.s.value, triple.p.value, triple.o.value)
+                (str(triple.s), str(triple.p), str(triple.o))
             )
 
         res = await self.rag.triples_client.request(

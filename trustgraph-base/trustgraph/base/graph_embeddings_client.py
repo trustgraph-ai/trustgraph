@@ -4,8 +4,8 @@ from .. schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
 from .. knowledge import Uri, Literal
 
 def to_value(x):
-    if x.e: return Uri(x.v)
-    return Literal(x.v)
+    if x.is_uri: return Uri(x.value)
+    return Literal(x.value)
 
 class GraphEmbeddingsClient(RequestResponse):
     async def query(self, vectors, limit=20, user="trustgraph",
@@ -20,6 +20,8 @@ class GraphEmbeddingsClient(RequestResponse):
             ),
             timeout=timeout
         )
+
+        print(resp, flush=True)
 
         if resp.error:
             raise RuntimeError(resp.error.message)

@@ -23,6 +23,10 @@ URL = 'https://schema.org/url'
 IDENTIFIER = 'https://schema.org/identifier'
 KEYWORD = 'https://schema.org/keywords'
 
+class Triple:
+    def __init__(self, s, p, o):
+        self.s, self.p, self.o = s, p, o
+
 class Uri(str):
     def is_uri(self): return True
     def is_literal(self): return False

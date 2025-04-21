@@ -19,7 +19,7 @@ class TriplesQueryService(FlowProcessor):
 
         id = params.get("id")
 
-        super(TriplesStoreService, self).__init__(**params | { "id": id })
+        super(TriplesQueryService, self).__init__(**params | { "id": id })
 
         self.register_specification(
             ConsumerSpec(
@@ -47,7 +47,7 @@ class TriplesQueryService(FlowProcessor):
 
             print(f"Handling input {id}...", flush=True)
 
-            triples = self.query_triples(request)
+            triples = await self.query_triples(request)
 
             print("Send response...", flush=True)
             r = TriplesQueryResponse(triples=triples, error=None)
