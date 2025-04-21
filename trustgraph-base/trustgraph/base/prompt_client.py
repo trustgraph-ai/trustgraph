@@ -38,6 +38,18 @@ class PromptClient(RequestResponse):
             variables = { "text": text }
         )
 
+    async def kg_prompt(self, query, kg, timeout=600):
+        return await self.prompt(
+            id = "kg-prompt",
+            variables = {
+                "query": query,
+                "knowledge": [
+                    { "s": v[0], "p": v[1], "o": v[2] }
+                    for v in kg
+                ]
+            }
+        )
+
 class PromptClientSpec(RequestResponseSpec):
     def __init__(
             self, request_name, response_name,

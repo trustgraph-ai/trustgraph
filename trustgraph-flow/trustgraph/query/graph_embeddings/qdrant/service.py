@@ -40,7 +40,7 @@ class Processor(GraphEmbeddingsQueryService):
         else:
             return Value(value=ent, is_uri=False)
         
-    async def handle(self, msg):
+    async def query_graph_embeddings(self, msg):
 
         try:
 

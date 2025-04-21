@@ -3,7 +3,12 @@
 import pulsar
 from trustgraph.clients.graph_rag_client import GraphRagClient
 
-rag = GraphRagClient(pulsar_host="pulsar://localhost:6650")
+rag = GraphRagClient(
+    pulsar_host="pulsar://localhost:6650",
+    subscriber="test1",
+    input_queue = "non-persistent://tg/request/graph-rag:default",
+    output_queue = "non-persistent://tg/response/graph-rag:default",
+)
 
 query="""
 This knowledge graph describes the Space Shuttle disaster.

@@ -154,10 +154,6 @@ class Processor(FlowProcessor):
                 properties = {"id": id}
             )
 
-            await self.send(r, properties={"id": id})
-
-            self.consumer.acknowledge(msg)
-
     @staticmethod
     def add_args(parser):
 

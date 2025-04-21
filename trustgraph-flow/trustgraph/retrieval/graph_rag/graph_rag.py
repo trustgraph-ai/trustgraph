@@ -25,7 +25,7 @@ class Query:
         if self.verbose:
             print("Compute embeddings...", flush=True)
 
-        qembeds = await  self.rag.embeddings.request(query)
+        qembeds = await  self.rag.embeddings_client.embed(query)
 
         if self.verbose:
             print("Done.", flush=True)
@@ -39,10 +39,12 @@ class Query:
         if self.verbose:
             print("Get entities...", flush=True)
 
-        entities = await self.rag.ge_client.request(
-            user=self.user, collection=self.collection,
+        entities = await self.rag.graph_embeddings_client.query(
             vectors=vectors, limit=self.entity_limit,
+            user=self.user, collection=self.collection,
         )
+
+        print("ENT>", entities, flush=True)
 
         entities = [
             e.value
@@ -83,10 +85,10 @@ class Query:
         if len(subgraph) >= self.max_subgraph_size:
             return
 
-        res = await self.rag.triples_client.request(
-            user=self.user, collection=self.collection,
+        res = await self.rag.triples_client.query(
             s=ent, p=None, o=None,
-            limit=self.triple_limit
+            limit=self.triple_limit,
+            user=self.user, collection=self.collection,
         )
 
         for triple in res:
@@ -208,7 +210,7 @@ class GraphRag:
             print(kg)
             print(query)
 
-        resp = await self.prompt.request_kg_prompt(query, kg)
+        resp = await self.prompt_client.request_kg_prompt(query, kg)
 
         if self.verbose:
             print("Done", flush=True)
