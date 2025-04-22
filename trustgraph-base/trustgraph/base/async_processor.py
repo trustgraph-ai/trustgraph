@@ -234,7 +234,7 @@ class AsyncProcessor:
         PulsarClient.add_args(parser)
 
         parser.add_argument(
-            '--config-push-queue',
+            '--config-queue',
             default=default_config_queue,
             help=f'Config push queue {default_config_queue}',
         )

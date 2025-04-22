@@ -20,14 +20,14 @@ from . types import Error
 # Prompt services, abstract the prompt generation
 class FlowRequest(Record):
 
-    operation = String() # list_classes, get_class, put_class, delete_class
-                         # list_flows, get_flow, start_flow, stop_flow
+    operation = String() # list-classes, get-class, put-class, delete-class
+                         # list-flows, get-flow, start-flow, stop-flow
 
     # get_class, put_class, delete_class, start_flow
     class_name = String()
 
     # put_class
-    class = String()
+    class_definition = String()
 
     # start_flow
     description = String()
@@ -44,7 +44,7 @@ class FlowResponse(Record):
     flow_ids = Array(String())
 
     # get_class
-    class = String()
+    class_definition = String()
 
     # get_flow
     flow = String()

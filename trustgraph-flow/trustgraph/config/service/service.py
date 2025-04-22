@@ -5,81 +5,129 @@ Config service.  Manages system global configuration state
 
 from pulsar.schema import JsonSchema
 
-from trustgraph.schema import ConfigRequest, ConfigResponse, ConfigPush
 from trustgraph.schema import Error
+
+from trustgraph.schema import ConfigRequest, ConfigResponse, ConfigPush
 from trustgraph.schema import config_request_queue, config_response_queue
 from trustgraph.schema import config_push_queue
+
+from trustgraph.schema import FlowRequest, FlowResponse
+from trustgraph.schema import flow_request_queue, flow_response_queue
+
 from trustgraph.log_level import LogLevel
 from trustgraph.base import AsyncProcessor, Consumer, Producer
 
 from . config import Configuration
+from . flow import FlowConfig
+
 from ... base import ProcessorMetrics, ConsumerMetrics, ProducerMetrics
 from ... base import Consumer, Producer
 
 default_ident = "config-svc"
 
-default_request_queue = config_request_queue
-default_response_queue = config_response_queue
-default_push_queue = config_push_queue
+default_config_request_queue = config_request_queue
+default_config_response_queue = config_response_queue
+default_config_push_queue = config_push_queue
+
+default_flow_request_queue = flow_request_queue
+default_flow_response_queue = flow_response_queue
 
 class Processor(AsyncProcessor):
 
     def __init__(self, **params):
         
-        request_queue = params.get("request_queue", default_request_queue)
-        response_queue = params.get("response_queue", default_response_queue)
-        push_queue = params.get("push_queue", default_push_queue)
+        config_request_queue = params.get(
+            "config_request_queue", default_config_request_queue
+        )
+        config_response_queue = params.get(
+            "config_response_queue", default_config_response_queue
+        )
+        config_push_queue = params.get(
+            "config_push_queue", default_config_push_queue
+        )
+
+        flow_request_queue = params.get(
+            "flow_request_queue", default_flow_request_queue
+        )
+        flow_response_queue = params.get(
+            "flow_response_queue", default_flow_response_queue
+        )
+
         id = params.get("id")
 
-        request_schema = ConfigRequest
-        response_schema = ConfigResponse
-        push_schema = ConfigResponse
+        flow_request_schema = FlowRequest
+        flow_response_schema = FlowResponse
 
         super(Processor, self).__init__(
             **params | {
-                "request_schema": request_schema.__name__,
-                "response_schema": response_schema.__name__,
-                "push_schema": push_schema.__name__,
+                "config_request_schema": ConfigRequest.__name__,
+                "config_response_schema": ConfigResponse.__name__,
+                "config_push_schema": ConfigPush.__name__,
+                "flow_request_schema": FlowRequest.__name__,
+                "flow_response_schema": FlowResponse.__name__,
             }
         )
 
-        request_metrics = ConsumerMetrics(id + "-request")
-        response_metrics = ProducerMetrics(id + "-response")
-        push_metrics = ProducerMetrics(id + "-push")
+        config_request_metrics = ConsumerMetrics(id + "-config-request")
+        config_response_metrics = ProducerMetrics(id + "-config-response")
+        config_push_metrics = ProducerMetrics(id + "-config-push")
 
-        self.push_pub = Producer(
-            client = self.client,
-            topic = push_queue,
-            schema = ConfigPush,
-            metrics = push_metrics,
-        )
+        flow_request_metrics = ConsumerMetrics(id + "-flow-request")
+        flow_response_metrics = ProducerMetrics(id + "-flow-response")
 
-        self.response_pub = Producer(
-            client = self.client,
-            topic = response_queue,
-            schema = ConfigResponse,
-            metrics = response_metrics,
-        )
-
-        self.subs = Consumer(
+        self.config_request_consumer = Consumer(
             taskgroup = self.taskgroup,
             client = self.client,
             flow = None,
-            topic = request_queue,
+            topic = config_request_queue,
             subscriber = id,
-            schema = request_schema,
-            handler = self.on_message,
-            metrics = request_metrics,
+            schema = ConfigRequest,
+            handler = self.on_config_request,
+            metrics = config_request_metrics,
+        )
+
+        self.config_response_producer = Producer(
+            client = self.client,
+            topic = config_response_queue,
+            schema = ConfigResponse,
+            metrics = config_response_metrics,
+        )
+
+        self.config_push_producer = Producer(
+            client = self.client,
+            topic = config_push_queue,
+            schema = ConfigPush,
+            metrics = config_push_metrics,
+        )
+
+        self.flow_request_consumer = Consumer(
+            taskgroup = self.taskgroup,
+            client = self.client,
+            flow = None,
+            topic = flow_request_queue,
+            subscriber = id,
+            schema = FlowRequest,
+            handler = self.on_flow_request,
+            metrics = flow_request_metrics,
+        )
+
+        self.flow_response_producer = Producer(
+            client = self.client,
+            topic = flow_response_queue,
+            schema = FlowResponse,
+            metrics = flow_response_metrics,
         )
 
         self.config = Configuration(self.push)
+        self.flow = FlowConfig(self.config)
 
         print("Service initialised.")
 
     async def start(self):
 
         await self.push()
-        await self.subs.start()
+        await self.config_request_consumer.start()
+        await self.flow_request_consumer.start()
         
     async def push(self):
 
@@ -92,11 +140,11 @@ class Processor(AsyncProcessor):
             error = None,
         )
 
-        await self.push_pub.send(resp)
+        await self.config_push_producer.send(resp)
 
         print("Pushed version ", self.config.version)
         
-    async def on_message(self, msg, consumer, flow):
+    async def on_config_request(self, msg, consumer, flow):
 
         try:
 
@@ -109,19 +157,54 @@ class Processor(AsyncProcessor):
 
             resp = await self.config.handle(v)
 
-            await self.response_pub.send(resp, properties={"id": id})
+            await self.config_response_producer.send(
+                resp, properties={"id": id}
+            )
 
         except Exception as e:
             
             resp = ConfigResponse(
                 error=Error(
-                    type = "unexpected-error",
+                    type = "config-error",
                     message = str(e),
                 ),
                 text=None,
             )
 
-            await self.response_pub.send(resp, properties={"id": id})
+            await self.config_response_producer.send(
+                resp, properties={"id": id}
+            )
+
+    async def on_flow_request(self, msg, consumer, flow):
+
+        try:
+
+            v = msg.value()
+
+            # Sender-produced ID
+            id = msg.properties()["id"]
+
+            print(f"Handling {id}...", flush=True)
+
+            resp = await self.flow.handle(v)
+
+            await self.flow_response_producer.send(
+                resp, properties={"id": id}
+            )
+
+        except Exception as e:
+            
+            resp = FlowResponse(
+                error=Error(
+                    type = "flow-error",
+                    message = str(e),
+                ),
+                text=None,
+            )
+
+            await self.flow_response_producer.send(
+                resp, properties={"id": id}
+            )
 
     @staticmethod
     def add_args(parser):
@@ -129,21 +212,33 @@ class Processor(AsyncProcessor):
         AsyncProcessor.add_args(parser)
 
         parser.add_argument(
-            '-q', '--request-queue',
-            default=default_request_queue,
-            help=f'Request queue (default: {default_request_queue})'
+            '--config-request-queue',
+            default=default_config_request_queue,
+            help=f'Config request queue (default: {default_config_request_queue})'
         )
 
         parser.add_argument(
-            '-r', '--response-queue',
-            default=default_response_queue,
-            help=f'Response queue {default_response_queue}',
+            '--config-response-queue',
+            default=default_config_response_queue,
+            help=f'Config response queue {default_config_response_queue}',
         )
 
         parser.add_argument(
             '--push-queue',
-            default=default_push_queue,
-            help=f'Config push queue (default: {default_push_queue})'
+            default=default_config_push_queue,
+            help=f'Config push queue (default: {default_config_push_queue})'
+        )
+
+        parser.add_argument(
+            '--flow-request-queue',
+            default=default_flow_request_queue,
+            help=f'Flow request queue (default: {default_flow_request_queue})'
+        )
+
+        parser.add_argument(
+            '--flow-response-queue',
+            default=default_flow_response_queue,
+            help=f'Flow response queue {default_flow_response_queue}',
         )
 
 def run():

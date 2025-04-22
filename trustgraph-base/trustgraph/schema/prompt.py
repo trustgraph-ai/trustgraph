@@ -55,12 +55,5 @@ class PromptResponse(Record):
     # JSON encoded
     object = String()
 
-prompt_request_queue = topic(
-    'prompt', kind='non-persistent', namespace='request'
-)
-prompt_response_queue = topic(
-    'prompt', kind='non-persistent', namespace='response'
-)
-
 ############################################################################
 
