@@ -53,6 +53,16 @@ class PromptClient(RequestResponse):
             timeout = timeout,
         )
 
+    async def document_prompt(self, query, documents, timeout=600):
+        return await self.prompt(
+            id = "document-prompt",
+            variables = {
+                "query": query,
+                "documents": documents,
+            },
+            timeout = timeout,
+        )
+
 class PromptClientSpec(RequestResponseSpec):
     def __init__(
             self, request_name, response_name,

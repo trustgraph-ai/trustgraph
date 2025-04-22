@@ -34,31 +34,24 @@ class Processor(DocumentEmbeddingsQueryService):
 
         self.qdrant = QdrantClient(url=store_uri, api_key=api_key)
 
-    async def handle(self, msg):
+    async def query_document_embeddings(self, msg):
 
         try:
 
-            v = msg.value()
-
-            # Sender-produced ID
-            id = msg.properties()["id"]
-
-            print(f"Handling input {id}...", flush=True)
-
             chunks = []
 
-            for vec in v.vectors:
+            for vec in msg.vectors:
 
                 dim = len(vec)
                 collection = (
-                    "d_" + v.user + "_" + v.collection + "_" +
+                    "d_" + msg.user + "_" + msg.collection + "_" +
                     str(dim)
                 )
 
                 search_result = self.qdrant.query_points(
                     collection_name=collection,
                     query=vec,
-                    limit=v.limit,
+                    limit=msg.limit,
                     with_payload=True,
                 ).points
 

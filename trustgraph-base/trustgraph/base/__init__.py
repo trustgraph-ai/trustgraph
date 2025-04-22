@@ -25,4 +25,5 @@ from . graph_embeddings_query_service import GraphEmbeddingsQueryService
 from . document_embeddings_query_service import DocumentEmbeddingsQueryService
 from . graph_embeddings_client import GraphEmbeddingsClientSpec
 from . triples_client import TriplesClientSpec
+from . document_embeddings_client import DocumentEmbeddingsClientSpec
 

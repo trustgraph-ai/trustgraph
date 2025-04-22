@@ -49,10 +49,10 @@ class DocumentEmbeddingsQueryService(FlowProcessor):
 
             print(f"Handling input {id}...", flush=True)
 
-            entities = self.query_document_embeddings(request)
+            docs = await self.query_document_embeddings(request)
 
             print("Send response...", flush=True)
-            r = DocumentEmbeddingsResponse(entities=entities, error=None)
+            r = DocumentEmbeddingsResponse(documents=docs, error=None)
             await flow("response").send(r, properties={"id": id})
 
             print("Done.", flush=True)

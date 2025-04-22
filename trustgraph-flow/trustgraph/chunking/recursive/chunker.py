@@ -7,9 +7,7 @@ as text as separate output objects.
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from prometheus_client import Histogram
 
-from ... schema import TextDocument, Chunk, Metadata
-from ... schema import text_ingest_queue, chunk_ingest_queue
-from ... log_level import LogLevel
+from ... schema import TextDocument, Chunk
 from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
 
 default_ident = "chunker"
