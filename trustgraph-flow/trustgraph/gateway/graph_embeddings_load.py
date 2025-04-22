@@ -1,6 +1,5 @@
 
 import asyncio
-from pulsar.schema import JsonSchema
 import uuid
 from aiohttp import WSMsgType
 
@@ -26,12 +25,12 @@ class GraphEmbeddingsLoadEndpoint(SocketEndpoint):
 
         self.publisher = Publisher(
             self.pulsar_client, graph_embeddings_store_queue,
-            schema=JsonSchema(GraphEmbeddings)
+            schema=GraphEmbeddings
         )
 
     async def start(self):
 
-        self.publisher.start()
+        await self.publisher.start()
 
     async def listener(self, ws, running):
         
@@ -60,6 +59,6 @@ class GraphEmbeddingsLoadEndpoint(SocketEndpoint):
                     ]
                 )
 
-                self.publisher.send(None, elt)
+                await self.publisher.send(None, elt)
 
         running.stop()

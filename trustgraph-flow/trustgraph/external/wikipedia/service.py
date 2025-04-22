@@ -11,7 +11,7 @@ from trustgraph.log_level import LogLevel
 from trustgraph.base import ConsumerProducer
 import requests
 
-module = ".".join(__name__.split(".")[1:-1])
+module = "wikipedia"
 
 default_input_queue = encyclopedia_lookup_request_queue
 default_output_queue = encyclopedia_lookup_response_queue

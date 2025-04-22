@@ -1,12 +1,8 @@
 
 import asyncio
-from pulsar.schema import JsonSchema
 from aiohttp import web
 import uuid
 import logging
-
-from .. base import Publisher
-from .. base import Subscriber
 
 logger = logging.getLogger("endpoint")
 logger.setLevel(logging.INFO)

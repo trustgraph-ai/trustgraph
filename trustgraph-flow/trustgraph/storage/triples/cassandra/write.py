@@ -10,35 +10,26 @@ import argparse
 import time
 
 from .... direct.cassandra import TrustGraph
-from .... schema import Triples
-from .... schema import triples_store_queue
-from .... log_level import LogLevel
-from .... base import Consumer
+from .... base import TriplesStoreService
 
-module = ".".join(__name__.split(".")[1:-1])
+default_ident = "triples-write"
 
-default_input_queue = triples_store_queue
-default_subscriber = module
 default_graph_host='localhost'
 
-class Processor(Consumer):
+class Processor(TriplesStoreService):
 
     def __init__(self, **params):
         
-        input_queue = params.get("input_queue", default_input_queue)
-        subscriber = params.get("subscriber", default_subscriber)
+        id = params.get("id", default_ident)
+
         graph_host = params.get("graph_host", default_graph_host)
         graph_username = params.get("graph_username", None)
         graph_password = params.get("graph_password", None)
 
         super(Processor, self).__init__(
             **params | {
-                "input_queue": input_queue,
-                "subscriber": subscriber,
-                "input_schema": Triples,
                 "graph_host": graph_host,
-                "graph_username": graph_username,
-                "graph_password": graph_password,
+                "graph_username": graph_username
             }
         )
         
@@ -47,11 +38,9 @@ class Processor(Consumer):
         self.password = graph_password
         self.table = None
 
-    async def handle(self, msg):
+    async def store_triples(self, message):
 
-        v = msg.value()
-
-        table = (v.metadata.user, v.metadata.collection)
+        table = (message.metadata.user, message.metadata.collection)
 
         if self.table is None or self.table != table:
 
@@ -61,13 +50,15 @@ class Processor(Consumer):
                 if self.username and self.password:
                     self.tg = TrustGraph(
                         hosts=self.graph_host,
-                        keyspace=v.metadata.user, table=v.metadata.collection,
+                        keyspace=message.metadata.user,
+                        table=message.metadata.collection,
                         username=self.username, password=self.password
                     )
                 else:
                     self.tg = TrustGraph(
                         hosts=self.graph_host,
-                        keyspace=v.metadata.user, table=v.metadata.collection,
+                        keyspace=message.metadata.user,
+                        table=message.metadata.collection,
                     )
             except Exception as e:
                 print("Exception", e, flush=True)
@@ -76,7 +67,7 @@ class Processor(Consumer):
 
             self.table = table
 
-        for t in v.triples:
+        for t in message.triples:
             self.tg.insert(
                 t.s.value,
                 t.p.value,
@@ -86,9 +77,7 @@ class Processor(Consumer):
     @staticmethod
     def add_args(parser):
 
-        Consumer.add_args(
-            parser, default_input_queue, default_subscriber,
-        )
+        TriplesStoreService.add_args(parser)
 
         parser.add_argument(
             '-g', '--graph-host',
@@ -110,5 +99,5 @@ class Processor(Consumer):
 
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 

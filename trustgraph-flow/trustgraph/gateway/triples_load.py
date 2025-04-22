@@ -1,6 +1,5 @@
 
 import asyncio
-from pulsar.schema import JsonSchema
 import uuid
 from aiohttp import WSMsgType
 
@@ -24,12 +23,12 @@ class TriplesLoadEndpoint(SocketEndpoint):
 
         self.publisher = Publisher(
             self.pulsar_client, triples_store_queue,
-            schema=JsonSchema(Triples)
+            schema=Triples
         )
 
     async def start(self):
 
-        self.publisher.start()
+        await self.publisher.start()
 
     async def listener(self, ws, running):
         
@@ -51,7 +50,7 @@ class TriplesLoadEndpoint(SocketEndpoint):
                     triples=to_subgraph(data["triples"]),
                 )
 
-                self.publisher.send(None, elt)
+                await self.publisher.send(None, elt)
 
 
         running.stop()

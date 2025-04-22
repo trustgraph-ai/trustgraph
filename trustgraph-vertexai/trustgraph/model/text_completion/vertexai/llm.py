@@ -4,50 +4,30 @@ Simple LLM service, performs text prompt completion using VertexAI on
 Google Cloud.   Input is prompt, output is response.
 """
 
-import vertexai
-import time
-from prometheus_client import Histogram
-import os
-
 from google.oauth2 import service_account
 import google
+import vertexai
 
 from vertexai.preview.generative_models import (
-    Content,
-    FunctionDeclaration,
-    GenerativeModel,
-    GenerationConfig,
-    HarmCategory,
-    HarmBlockThreshold,
-    Part,
-    Tool,
+    Content, FunctionDeclaration, GenerativeModel, GenerationConfig,
+    HarmCategory, HarmBlockThreshold, Part, Tool,
 )
 
-from .... schema import TextCompletionRequest, TextCompletionResponse, Error
-from .... schema import text_completion_request_queue
-from .... schema import text_completion_response_queue
-from .... log_level import LogLevel
-from .... base import ConsumerProducer
 from .... exceptions import TooManyRequests
+from .... base import LlmService, LlmResult
 
-module = ".".join(__name__.split(".")[1:-1])
+default_ident = "text-completion"
 
-default_input_queue = text_completion_request_queue
-default_output_queue = text_completion_response_queue
-default_subscriber = module
 default_model = 'gemini-1.0-pro-001'
 default_region = 'us-central1'
 default_temperature = 0.0
 default_max_output = 8192
 default_private_key = "private.json"
 
-class Processor(ConsumerProducer):
+class Processor(LlmService):
 
     def __init__(self, **params):
 
-        input_queue = params.get("input_queue", default_input_queue)
-        output_queue = params.get("output_queue", default_output_queue)
-        subscriber = params.get("subscriber", default_subscriber)
         region = params.get("region", default_region)
         model = params.get("model", default_model)
         private_key = params.get("private_key", default_private_key)
@@ -57,28 +37,7 @@ class Processor(ConsumerProducer):
         if private_key is None:
             raise RuntimeError("Private key file not specified")
 
-        super(Processor, self).__init__(
-            **params | {
-                "input_queue": input_queue,
-                "output_queue": output_queue,
-                "subscriber": subscriber,
-                "input_schema": TextCompletionRequest,
-                "output_schema": TextCompletionResponse,
-            }
-        )
-
-        if not hasattr(__class__, "text_completion_metric"):
-            __class__.text_completion_metric = Histogram(
-                'text_completion_duration',
-                'Text completion duration (seconds)',
-                buckets=[
-                    0.25, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0,
-                    8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0,
-                    17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0, 25.0,
-                    30.0, 35.0, 40.0, 45.0, 50.0, 60.0, 80.0, 100.0,
-                    120.0
-                ]
-            )
+        super(Processor, self).__init__(**params)
 
         self.parameters = {
             "temperature": temperature,
@@ -110,7 +69,11 @@ class Processor(ConsumerProducer):
         print("Initialise VertexAI...", flush=True)
 
         if private_key:
-            credentials = service_account.Credentials.from_service_account_file(private_key)
+            credentials = (
+                service_account.Credentials.from_service_account_file(
+                    private_key
+                )
+            )
         else:
             credentials = None
 
@@ -131,50 +94,29 @@ class Processor(ConsumerProducer):
 
         print("Initialisation complete", flush=True)
 
-    async def handle(self, msg):
+    async def generate_content(self, system, prompt):
 
         try:
 
-            v = msg.value()
+            prompt = system + "\n\n" + prompt
 
-            # Sender-produced ID
+            response = self.llm.generate_content(
+                prompt, generation_config=self.generation_config,
+                safety_settings=self.safety_settings
+            )
 
-            id = msg.properties()["id"]
+            resp = LlmResult()
+            resp.text = response.text
+            resp.in_token = response.usage_metadata.prompt_token_count
+            resp.out_token = response.usage_metadata.candidates_token_count
+            resp.model = self.model
 
-            print(f"Handling prompt {id}...", flush=True)
-
-            prompt = v.system + "\n\n" + v.prompt
-
-            with __class__.text_completion_metric.time():
-
-                response = self.llm.generate_content(
-                    prompt, generation_config=self.generation_config,
-                    safety_settings=self.safety_settings
-                )
-
-            resp = response.text
-            inputtokens = int(response.usage_metadata.prompt_token_count)
-            outputtokens = int(response.usage_metadata.candidates_token_count)
-            print(resp, flush=True)
-            print(f"Input Tokens: {inputtokens}", flush=True)
-            print(f"Output Tokens: {outputtokens}", flush=True)
+            print(f"Input Tokens: {resp.in_token}", flush=True)
+            print(f"Output Tokens: {resp.out_token}", flush=True)
 
             print("Send response...", flush=True)
 
-            r = TextCompletionResponse(
-                error=None,
-                response=resp,
-                in_token=inputtokens,
-                out_token=outputtokens,
-                model=self.model
-            )
-
-            await self.send(r, properties={"id": id})
-
-            print("Done.", flush=True)
-
-            # Acknowledge successful processing of the message
-            self.consumer.acknowledge(msg)
+            return resp
 
         except google.api_core.exceptions.ResourceExhausted as e:
 
@@ -186,40 +128,19 @@ class Processor(ConsumerProducer):
         except Exception as e:
 
             # Apart from rate limits, treat all exceptions as unrecoverable
-
             print(f"Exception: {e}")
-
-            print("Send error response...", flush=True)
-
-            r = TextCompletionResponse(
-                error=Error(
-                    type = "llm-error",
-                    message = str(e),
-                ),
-                response=None,
-                in_token=None,
-                out_token=None,
-                model=None,
-            )
-
-            await self.send(r, properties={"id": id})
-
-            self.consumer.acknowledge(msg)
+            raise e
 
     @staticmethod
     def add_args(parser):
 
-        ConsumerProducer.add_args(
-            parser, default_input_queue, default_subscriber,
-            default_output_queue,
-        )
+        LlmService.add_args(parser)
 
         parser.add_argument(
             '-m', '--model',
             default=default_model,
             help=f'LLM model (default: {default_model})'
         )
-        # Also: text-bison-32k
 
         parser.add_argument(
             '-k', '--private-key',
@@ -247,6 +168,5 @@ class Processor(ConsumerProducer):
         )
 
 def run():
-
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 
