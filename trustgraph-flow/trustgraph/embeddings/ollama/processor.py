@@ -11,7 +11,7 @@ from ... base import ConsumerProducer
 from ollama import Client
 import os
 
-module = ".".join(__name__.split(".")[1:-1])
+module = "embeddings"
 
 default_input_queue = embeddings_request_queue
 default_output_queue = embeddings_response_queue

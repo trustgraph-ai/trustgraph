@@ -1,287 +1,118 @@
 
 """
-Config service.  Fetchs an extract from the Wikipedia page
-using the API.
+Config service.  Manages system global configuration state
 """
 
 from pulsar.schema import JsonSchema
 
 from trustgraph.schema import ConfigRequest, ConfigResponse, ConfigPush
-from trustgraph.schema import ConfigValue, Error
+from trustgraph.schema import Error
 from trustgraph.schema import config_request_queue, config_response_queue
 from trustgraph.schema import config_push_queue
 from trustgraph.log_level import LogLevel
-from trustgraph.base import ConsumerProducer
+from trustgraph.base import AsyncProcessor, Consumer, Producer
 
-module = ".".join(__name__.split(".")[1:-1])
+from . config import Configuration
+from ... base import ProcessorMetrics, ConsumerMetrics, ProducerMetrics
+from ... base import Consumer, Producer
 
-default_input_queue = config_request_queue
-default_output_queue = config_response_queue
+default_ident = "config-svc"
+
+default_request_queue = config_request_queue
+default_response_queue = config_response_queue
 default_push_queue = config_push_queue
-default_subscriber = module
 
-# This behaves just like a dict, should be easier to add persistent storage
-# later
-
-class ConfigurationItems(dict):
-    pass
-
-class Configuration(dict):
-
-    def __getitem__(self, key):
-        if key not in self:
-            self[key] = ConfigurationItems()
-        return dict.__getitem__(self, key)
-        
-class Processor(ConsumerProducer):
+class Processor(AsyncProcessor):
 
     def __init__(self, **params):
-
-        input_queue = params.get("input_queue", default_input_queue)
-        output_queue = params.get("output_queue", default_output_queue)
+        
+        request_queue = params.get("request_queue", default_request_queue)
+        response_queue = params.get("response_queue", default_response_queue)
         push_queue = params.get("push_queue", default_push_queue)
-        subscriber = params.get("subscriber", default_subscriber)
+        id = params.get("id")
+
+        request_schema = ConfigRequest
+        response_schema = ConfigResponse
+        push_schema = ConfigResponse
 
         super(Processor, self).__init__(
             **params | {
-                "input_queue": input_queue,
-                "output_queue": output_queue,
-                "push_queue": output_queue,
-                "subscriber": subscriber,
-                "input_schema": ConfigRequest,
-                "output_schema": ConfigResponse,
-                "push_schema": ConfigPush,
+                "request_schema": request_schema.__name__,
+                "response_schema": response_schema.__name__,
+                "push_schema": push_schema.__name__,
             }
         )
 
-        self.push_prod = self.client.create_producer(
-            topic=push_queue,
-            schema=JsonSchema(ConfigPush),
+        request_metrics = ConsumerMetrics(id + "-request")
+        response_metrics = ProducerMetrics(id + "-response")
+        push_metrics = ProducerMetrics(id + "-push")
+
+        self.push_pub = Producer(
+            client = self.client,
+            topic = push_queue,
+            schema = ConfigPush,
+            metrics = push_metrics,
         )
 
-        # FIXME: The state is held internally. This only works if there's
-        # one config service.  Should be more than one, and use a
-        # back-end state store.
-        self.config = Configuration()
+        self.response_pub = Producer(
+            client = self.client,
+            topic = response_queue,
+            schema = ConfigResponse,
+            metrics = response_metrics,
+        )
 
-        # Version counter
-        self.version = 0
+        self.subs = Consumer(
+            taskgroup = self.taskgroup,
+            client = self.client,
+            flow = None,
+            topic = request_queue,
+            subscriber = id,
+            schema = request_schema,
+            handler = self.on_message,
+            metrics = request_metrics,
+        )
+
+        self.config = Configuration(self.push)
+
+        print("Service initialised.")
 
     async def start(self):
+
         await self.push()
+        await self.subs.start()
         
-    async def handle_get(self, v, id):
-
-        for k in v.keys:
-            if k.type not in self.config or k.key not in self.config[k.type]:
-                return ConfigResponse(
-                    version = None,
-                    values = None,
-                    directory = None,
-                    config = None,
-                    error = Error(
-                        type = "key-error",
-                        message = f"Key error"
-                    )
-                )
-
-        values = [
-            ConfigValue(
-                type = k.type,
-                key = k.key,
-                value = self.config[k.type][k.key]
-            )
-            for k in v.keys
-        ]
-
-        return ConfigResponse(
-            version = self.version,
-            values = values,
-            directory = None,
-            config = None,
-            error = None,
-        )
-
-    async def handle_list(self, v, id):
-
-        if v.type not in self.config:
-
-            return ConfigResponse(
-                version = None,
-                values = None,
-                directory = None,
-                config = None,
-                error = Error(
-                    type = "key-error",
-                    message = "No such type",
-                ),
-            )
-
-        return ConfigResponse(
-            version = self.version,
-            values = None,
-            directory = list(self.config[v.type].keys()),
-            config = None,
-            error = None,
-        )
-
-    async def handle_getvalues(self, v, id):
-
-        if v.type not in self.config:
-
-            return ConfigResponse(
-                version = None,
-                values = None,
-                directory = None,
-                config = None,
-                error = Error(
-                    type = "key-error",
-                    message = f"Key error"
-                )
-            )
-
-        values = [
-            ConfigValue(
-                type = v.type,
-                key = k,
-                value = self.config[v.type][k],
-            )
-            for k in self.config[v.type]
-        ]
-
-        return ConfigResponse(
-            version = self.version,
-            values = values,
-            directory = None,
-            config = None,
-            error = None,
-        )
-
-    async def handle_delete(self, v, id):
-
-        for k in v.keys:
-            if k.type not in self.config or k.key not in self.config[k.type]:
-                return ConfigResponse(
-                    version = None,
-                    values = None,
-                    directory = None,
-                    config = None,
-                    error = Error(
-                        type = "key-error",
-                        message = f"Key error"
-                    )
-                )
-
-        for k in v.keys:
-            del self.config[k.type][k.key]
-
-        self.version += 1
-
-        await self.push()
-
-        return ConfigResponse(
-            version = None,
-            value = None,
-            directory = None,
-            values = None,
-            config = None,
-            error = None,
-        )
-
-    async def handle_put(self, v, id):
-
-        for k in v.values:
-            self.config[k.type][k.key] = k.value
-
-        self.version += 1
-
-        await self.push()
-
-        return ConfigResponse(
-            version = None,
-            value = None,
-            directory = None,
-            values = None,
-            error = None,
-        )
-
-    async def handle_config(self, v, id):
-
-        return ConfigResponse(
-            version = self.version,
-            value = None,
-            directory = None,
-            values = None,
-            config = self.config,
-            error = None,
-        )
-
     async def push(self):
 
         resp = ConfigPush(
-            version = self.version,
+            version = self.config.version,
             value = None,
             directory = None,
             values = None,
             config = self.config,
             error = None,
         )
-        self.push_prod.send(resp)
-        print("Pushed.")
+
+        await self.push_pub.send(resp)
+
+        print("Pushed version ", self.config.version)
         
-    async def handle(self, msg):
-
-        v = msg.value()
-
-        # Sender-produced ID
-        id = msg.properties()["id"]
-
-        print(f"Handling {id}...", flush=True)
+    async def on_message(self, msg, consumer, flow):
 
         try:
 
-            if v.operation == "get":
+            v = msg.value()
 
-                resp = await self.handle_get(v, id)
+            # Sender-produced ID
+            id = msg.properties()["id"]
 
-            elif v.operation == "list":
+            print(f"Handling {id}...", flush=True)
 
-                resp = await self.handle_list(v, id)
+            resp = await self.config.handle(v)
 
-            elif v.operation == "getvalues":
-
-                resp = await self.handle_getvalues(v, id)
-
-            elif v.operation == "delete":
-
-                resp = await self.handle_delete(v, id)
-
-            elif v.operation == "put":
-
-                resp = await self.handle_put(v, id)
-
-            elif v.operation == "config":
-
-                resp = await self.handle_config(v, id)
-
-            else:
-
-                resp = ConfigResponse(
-                    value=None,
-                    directory=None,
-                    values=None,
-                    error=Error(
-                        type = "bad-operation",
-                        message = "Bad operation"
-                    )
-                )
-
-            await self.send(resp, properties={"id": id})
-
-            self.consumer.acknowledge(msg)
+            await self.response_pub.send(resp, properties={"id": id})
 
         except Exception as e:
-                
+            
             resp = ConfigResponse(
                 error=Error(
                     type = "unexpected-error",
@@ -289,24 +120,33 @@ class Processor(ConsumerProducer):
                 ),
                 text=None,
             )
-            await self.send(resp, properties={"id": id})
-            self.consumer.acknowledge(msg)
+
+            await self.response_pub.send(resp, properties={"id": id})
 
     @staticmethod
     def add_args(parser):
 
-        ConsumerProducer.add_args(
-            parser, default_input_queue, default_subscriber,
-            default_output_queue,
+        AsyncProcessor.add_args(parser)
+
+        parser.add_argument(
+            '-q', '--request-queue',
+            default=default_request_queue,
+            help=f'Request queue (default: {default_request_queue})'
         )
 
         parser.add_argument(
-            '-q', '--push-queue',
+            '-r', '--response-queue',
+            default=default_response_queue,
+            help=f'Response queue {default_response_queue}',
+        )
+
+        parser.add_argument(
+            '--push-queue',
             default=default_push_queue,
             help=f'Config push queue (default: {default_push_queue})'
         )
 
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 

@@ -9,7 +9,7 @@ from .... log_level import LogLevel
 from .... direct.milvus_object_embeddings import ObjectVectors
 from .... base import Consumer
 
-module = ".".join(__name__.split(".")[1:-1])
+module = "oe-write"
 
 default_input_queue = object_embeddings_store_queue
 default_subscriber = module

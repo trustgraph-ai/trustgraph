@@ -17,7 +17,7 @@ from .... log_level import LogLevel
 from .... base import ConsumerProducer
 from .... exceptions import TooManyRequests
 
-module = ".".join(__name__.split(".")[1:-1])
+module = "text-completion"
 
 default_input_queue = text_completion_request_queue
 default_output_queue = text_completion_response_queue

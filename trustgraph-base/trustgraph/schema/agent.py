@@ -26,12 +26,5 @@ class AgentResponse(Record):
     thought = String()
     observation = String()
 
-agent_request_queue = topic(
-    'agent', kind='non-persistent', namespace='request'
-)
-agent_response_queue = topic(
-    'agent', kind='non-persistent', namespace='response'
-)
-
 ############################################################################
 

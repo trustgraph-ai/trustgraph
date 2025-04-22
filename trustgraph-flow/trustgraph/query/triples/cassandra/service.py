@@ -7,38 +7,24 @@ null.  Output is a list of triples.
 from .... direct.cassandra import TrustGraph
 from .... schema import TriplesQueryRequest, TriplesQueryResponse, Error
 from .... schema import Value, Triple
-from .... schema import triples_request_queue
-from .... schema import triples_response_queue
-from .... base import ConsumerProducer
+from .... base import TriplesQueryService
 
-module = ".".join(__name__.split(".")[1:-1])
+default_ident = "triples-query"
 
-default_input_queue = triples_request_queue
-default_output_queue = triples_response_queue
-default_subscriber = module
 default_graph_host='localhost'
 
-class Processor(ConsumerProducer):
+class Processor(TriplesQueryService):
 
     def __init__(self, **params):
 
-        input_queue = params.get("input_queue", default_input_queue)
-        output_queue = params.get("output_queue", default_output_queue)
-        subscriber = params.get("subscriber", default_subscriber)
         graph_host = params.get("graph_host", default_graph_host)
         graph_username = params.get("graph_username", None)
         graph_password = params.get("graph_password", None)
 
         super(Processor, self).__init__(
             **params | {
-                "input_queue": input_queue,
-                "output_queue": output_queue,
-                "subscriber": subscriber,
-                "input_schema": TriplesQueryRequest,
-                "output_schema": TriplesQueryResponse,
                 "graph_host": graph_host,
                 "graph_username": graph_username,
-                "graph_password": graph_password,
             }
         )
 
@@ -53,92 +39,85 @@ class Processor(ConsumerProducer):
         else:
             return Value(value=ent, is_uri=False)
 
-    async def handle(self, msg):
+    async def query_triples(self, query):
 
         try:
 
-            v = msg.value()
-
-            table = (v.user, v.collection)
+            table = (query.user, query.collection)
 
             if table != self.table:
                 if self.username and self.password:
                     self.tg = TrustGraph(
                         hosts=self.graph_host,
-                        keyspace=v.user, table=v.collection,
+                        keyspace=query.user, table=query.collection,
                         username=self.username, password=self.password
                     )
                 else:
                     self.tg = TrustGraph(
                         hosts=self.graph_host,
-                        keyspace=v.user, table=v.collection,
+                        keyspace=query.user, table=query.collection,
                     )
                 self.table = table
 
-            # Sender-produced ID
-            id = msg.properties()["id"]
-
-            print(f"Handling input {id}...", flush=True)
-
             triples = []
 
-            if v.s is not None:
-                if v.p is not None:
-                    if v.o is not None:
+            if query.s is not None:
+                if query.p is not None:
+                    if query.o is not None:
                         resp = self.tg.get_spo(
-                            v.s.value, v.p.value, v.o.value,
-                            limit=v.limit
+                            query.s.value, query.p.value, query.o.value,
+                            limit=query.limit
                         )
-                        triples.append((v.s.value, v.p.value, v.o.value))
+                        triples.append((query.s.value, query.p.value, query.o.value))
                     else:
                         resp = self.tg.get_sp(
-                            v.s.value, v.p.value,
-                            limit=v.limit
+                            query.s.value, query.p.value,
+                            limit=query.limit
                         )
                         for t in resp:
-                            triples.append((v.s.value, v.p.value, t.o))
+                            triples.append((query.s.value, query.p.value, t.o))
                 else:
-                    if v.o is not None:
+                    if query.o is not None:
                         resp = self.tg.get_os(
-                            v.o.value, v.s.value, 
-                            limit=v.limit
+                            query.o.value, query.s.value, 
+                            limit=query.limit
                         )
                         for t in resp:
-                            triples.append((v.s.value, t.p, v.o.value))
+                            triples.append((query.s.value, t.p, query.o.value))
                     else:
                         resp = self.tg.get_s(
-                            v.s.value,
-                            limit=v.limit
+                            query.s.value,
+                            limit=query.limit
                         )
                         for t in resp:
-                            triples.append((v.s.value, t.p, t.o))
+                            triples.append((query.s.value, t.p, t.o))
             else:
-                if v.p is not None:
-                    if v.o is not None:
+                if query.p is not None:
+                    if query.o is not None:
                         resp = self.tg.get_po(
-                            v.p.value, v.o.value,
-                            limit=v.limit
+                            query.p.value, query.o.value,
+                            limit=query.limit
                         )
                         for t in resp:
-                            triples.append((t.s, v.p.value, v.o.value))
+                            triples.append((t.s, query.p.value, query.o.value))
                     else:
                         resp = self.tg.get_p(
-                            v.p.value,
-                            limit=v.limit
+                            query.p.value,
+                            limit=query.limit
                         )
                         for t in resp:
-                            triples.append((t.s, v.p.value, t.o))
+                            triples.append((t.s, query.p.value, t.o))
                 else:
-                    if v.o is not None:
+                    if query.o is not None:
                         resp = self.tg.get_o(
-                            v.o.value,
-                            limit=v.limit
+                            query.o.value,
+                            limit=query.limit
                         )
                         for t in resp:
-                            triples.append((t.s, t.p, v.o.value))
+                            triples.append((t.s, t.p, query.o.value))
                     else:
                         resp = self.tg.get_all(
-                            limit=v.limit
+                            limit=query.limit
                         )
                         for t in resp:
                             triples.append((t.s, t.p, t.o))
@@ -152,37 +131,17 @@ class Processor(ConsumerProducer):
                 for t in triples
             ]
 
-            print("Send response...", flush=True)
-            r = TriplesQueryResponse(triples=triples, error=None)
-            await self.send(r, properties={"id": id})
-
-            print("Done.", flush=True)
+            return triples
 
         except Exception as e:
 
             print(f"Exception: {e}")
-
-            print("Send error response...", flush=True)
-
-            r = TriplesQueryResponse(
-                error=Error(
-                    type = "llm-error",
-                    message = str(e),
-                ),
-                response=None,
-            )
-
-            await self.send(r, properties={"id": id})
-
-            self.consumer.acknowledge(msg)
+            raise e
 
     @staticmethod
     def add_args(parser):
 
-        ConsumerProducer.add_args(
-            parser, default_input_queue, default_subscriber,
-            default_output_queue,
-        )
+        TriplesQueryService.add_args(parser)
 
         parser.add_argument(
             '-g', '--graph-host',
@@ -205,5 +164,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 

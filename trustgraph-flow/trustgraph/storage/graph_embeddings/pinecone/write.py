@@ -15,7 +15,7 @@ from .... schema import graph_embeddings_store_queue
 from .... log_level import LogLevel
 from .... base import Consumer
 
-module = ".".join(__name__.split(".")[1:-1])
+module = "ge-write"
 
 default_input_queue = graph_embeddings_store_queue
 default_subscriber = module

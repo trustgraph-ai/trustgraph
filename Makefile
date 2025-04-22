@@ -60,6 +60,14 @@ container: update-package-versions
 	${DOCKER} build -f containers/Containerfile.ocr \
 	    -t ${CONTAINER_BASE}/trustgraph-ocr:${VERSION} .
 
+some-containers:
+	${DOCKER} build -f containers/Containerfile.base \
+	    -t ${CONTAINER_BASE}/trustgraph-base:${VERSION} .
+	${DOCKER} build -f containers/Containerfile.flow \
+	    -t ${CONTAINER_BASE}/trustgraph-flow:${VERSION} .
+	${DOCKER} build -f containers/Containerfile.vertexai \
+	    -t ${CONTAINER_BASE}/trustgraph-vertexai:${VERSION} .
+
 basic-containers: update-package-versions
 	${DOCKER} build -f containers/Containerfile.base \
 	    -t ${CONTAINER_BASE}/trustgraph-base:${VERSION} .

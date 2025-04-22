@@ -3,7 +3,7 @@ API gateway.  Offers HTTP services which are translated to interaction on the
 Pulsar bus.
 """
 
-module = ".".join(__name__.split(".")[1:-1])
+module = "api-gateway"
 
 # FIXME: Subscribes to Pulsar unnecessarily, should only do it when there
 # are active listeners
@@ -19,7 +19,6 @@ import os
 import base64
 
 import pulsar
-from pulsar.schema import JsonSchema
 from prometheus_client import start_http_server
 
 from .. log_level import LogLevel

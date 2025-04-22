@@ -3,13 +3,16 @@
 import pulsar
 from trustgraph.clients.embeddings_client import EmbeddingsClient
 
-embed = EmbeddingsClient(pulsar_host="pulsar://localhost:6650")
+embed = EmbeddingsClient(
+    pulsar_host="pulsar://pulsar:6650",
+    input_queue="non-persistent://tg/request/embeddings:default",
+    output_queue="non-persistent://tg/response/embeddings:default",
+    subscriber="test1",
+)
 
 prompt="Write a funny limerick about a llama"
 
 resp = embed.request(prompt)
 
 print(resp)
-
-
 
