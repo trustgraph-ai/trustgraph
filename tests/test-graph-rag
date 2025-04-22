@@ -10,9 +10,11 @@ rag = GraphRagClient(
     output_queue = "non-persistent://tg/response/graph-rag:default",
 )
 
-query="""
-This knowledge graph describes the Space Shuttle disaster.
-Present 20 facts which are present in the knowledge graph."""
+#query="""
+#This knowledge graph describes the Space Shuttle disaster.
+#Present 20 facts which are present in the knowledge graph."""
+
+query = "How many cats does Mark have?"
 
 resp = rag.request(query)
 

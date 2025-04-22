@@ -40,7 +40,7 @@ class RequestResponse(Subscriber):
         await self.producer.stop()
         await super(RequestResponse, self).stop()
 
-    async def request(self, req, timeout=300):
+    async def request(self, req, timeout=300, recipient=None):
 
         id = str(uuid.uuid4())
 
@@ -55,14 +55,40 @@ class RequestResponse(Subscriber):
                 properties={"id": id}
             )
 
-            resp = await asyncio.wait_for(
-                q.get(),
-                timeout=timeout
-            )
+        except Exception as e:
 
-            print("Got response.", flush=True)
+            print("Exception:", e)
+            raise e
 
-            return resp
+
+        try:
+
+            while True:
+
+                resp = await asyncio.wait_for(
+                    q.get(),
+                    timeout=timeout
+                )
+
+                print("Got response.", flush=True)
+
+                if recipient is None:
+
+                    # If no recipient handler, just return the first
+                    # response we get
+                    return resp
+                else:
+
+                    # Recipient handler gets to decide when we're done b
+                    # returning a boolean
+                    fin = await recipient(resp)
+
+                    # If done, return the last result otherwise loop round for
+                    # next response
+                    if fin:
+                        return resp
+                    else:
+                        continue
 
         except Exception as e:
 
@@ -107,5 +133,4 @@ class RequestResponseSpec(Spec):
         )
 
         flow.consumer[self.request_name] = rr
-
 

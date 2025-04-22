@@ -20,7 +20,11 @@ def output(text, prefix="> ", width=78):
     )
     print(out)
 
-p = AgentClient(pulsar_host="pulsar://localhost:6650")
+p = AgentClient(
+    pulsar_host="pulsar://pulsar:6650",
+    input_queue = "non-persistent://tg/request/agent:0000",
+    output_queue = "non-persistent://tg/response/agent:0000",
+)
 
 q = "How many cats does Mark have? Calculate that number raised to 0.4 power.  Is that number lower than the numeric part of the mission identifier of the Space Shuttle Challenger on its last mission?  If so, give me an apple pie recipe, otherwise return a poem about cheese."
 

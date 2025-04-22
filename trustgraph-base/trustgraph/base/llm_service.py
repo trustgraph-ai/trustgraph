@@ -62,8 +62,6 @@ class LlmService(FlowProcessor):
 
             id = msg.properties()["id"]
 
-            prompt = request.system + "\n\n" + request.prompt
-
             with __class__.text_completion_metric.labels(
                     id=self.id,
                     flow=f"{flow.name}-{consumer.name}",

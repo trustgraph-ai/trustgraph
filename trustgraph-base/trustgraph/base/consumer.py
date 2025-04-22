@@ -89,7 +89,7 @@ class Consumer:
 
             except Exception as e:
 
-                print("Exception:", e, flush=True)
+                print("consumer subs Exception:", e, flush=True)
                 await asyncio.sleep(self.reconnect_time)
                 continue
 
@@ -107,7 +107,7 @@ class Consumer:
 
             except Exception as e:
 
-                print("Exception:", e, flush=True)
+                print("consumer loop exception:", e, flush=True)
                 self.consumer.close()
                 self.consumer = None
                 await asyncio.sleep(self.reconnect_time)
@@ -184,7 +184,7 @@ class Consumer:
 
                 except Exception as e:
 
-                    print("Exception:", e, flush=True)
+                    print("consume exception:", e, flush=True)
 
                     # Message failed to be processed, this causes it to
                     # be retried

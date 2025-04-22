@@ -63,6 +63,22 @@ class PromptClient(RequestResponse):
             timeout = timeout,
         )
 
+    async def agent_react(self, variables, timeout=600):
+        return await self.prompt(
+            id = "agent-react",
+            variables = variables,
+            timeout = timeout,
+        )
+
+    async def question(self, question, timeout=600):
+        return await self.prompt(
+            id = "question",
+            variables = {
+                "question": question,
+            },
+            timeout = timeout,
+        )
+
 class PromptClientSpec(RequestResponseSpec):
     def __init__(
             self, request_name, response_name,

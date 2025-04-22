@@ -67,26 +67,27 @@ class FlowProcessor(AsyncProcessor):
             # Get my flow config
             flow_config = json.loads(config["flows-active"][self.id])
 
-            # Get list of flows which should be running and are currently
-            # running
-            wanted_flows = flow_config.keys()
-            current_flows = self.flows.keys()
-
-            # Start all the flows which arent currently running
-            for flow in wanted_flows:
-                if flow not in current_flows:
-                    await self.start_flow(flow, flow_config[flow])
-
-            # Stop all the unwanted flows which are due to be stopped
-            for flow in current_flows:
-                if flow not in wanted_flows:
-                    await self.stop_flow(flow)
-
-            print("Handled config update")
-
         else:
 
-            print("No configuration settings for me!", flush=True)
+            print("No configuration settings for me.", flush=True)
+            flow_config = {}
+
+        # Get list of flows which should be running and are currently
+        # running
+        wanted_flows = flow_config.keys()
+        current_flows = self.flows.keys()
+
+        # Start all the flows which arent currently running
+        for flow in wanted_flows:
+            if flow not in current_flows:
+                await self.start_flow(flow, flow_config[flow])
+
+        # Stop all the unwanted flows which are due to be stopped
+        for flow in current_flows:
+            if flow not in wanted_flows:
+                await self.stop_flow(flow)
+
+        print("Handled config update")
 
     # Start threads, just call parent
     async def start(self):
