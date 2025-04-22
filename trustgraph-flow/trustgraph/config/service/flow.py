@@ -1,5 +1,6 @@
 
 from trustgraph.schema import FlowResponse, Error
+import json
 
 class FlowConfig:
     def __init__(self, config):
@@ -26,6 +27,8 @@ class FlowConfig:
 
         self.config["flow-classes"][msg.class_name] = msg.class_definition
 
+        await self.config.push()
+
         return FlowResponse(
             error = None,
         )
@@ -33,6 +36,8 @@ class FlowConfig:
     async def handle_delete_class(self, msg):
 
         del self.config["flow-classes"][msg.class_name]
+
+        await self.config.push()
 
         return FlowResponse(
             error = None,
@@ -58,9 +63,55 @@ class FlowConfig:
     
     async def handle_start_flow(self, msg):
 
-        cls = self.config["flow-classes"][msg.class_name]
+        def repl_template(tmp):
+            print("REPL")
+            return tmp.replace(
+                "{class}", msg.class_name
+            ).replace(
+                "{id}", msg.flow_id
+            )
+
+        cls = json.loads(self.config["flow-classes"][msg.class_name])
+
+        plumb = {}
+
+        for kind in ("class", "flow"):
+
+            for k, v in cls[kind].items():
+
+                processor, variant = k.split(":", 1)
+
+                variant = repl_template(variant)
+
+                print(">>", processor, variant)
+
+                print(">>>", v)
+
+                v = {
+                    repl_template(k2): repl_template(v2)
+                    for k2, v2 in v.items()
+                }
+
+                print("<<<", v)
+
+                if processor in self.config["flows-active"]:
+                    target = json.loads(self.config["flows-active"][processor])
+                else:
+                    target = {}
+
+                if variant not in target:
+                    target[variant] = v
+
+                self.config["flows-active"][processor] = json.dumps(target)
 
         print(cls)
+
+        self.config["flows"][msg.flow_id] = {
+            "description": cls["description"],
+            "class-name": msg.class_name,
+        }
+
+        await self.config.push()
 
         return FlowResponse(
             error = None,
