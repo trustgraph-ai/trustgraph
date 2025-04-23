@@ -266,11 +266,11 @@ class Api:
             #     auth = self.auth,
             #     services = self.services,
             # ),
-            # MetricsEndpoint(
-            #     endpoint_path = "/api/v1/metrics",
-            #     prometheus_url = self.prometheus_url,
-            #     auth = self.auth,
-            # ),
+            MetricsEndpoint(
+                endpoint_path = "/api/v1/metrics",
+                prometheus_url = self.prometheus_url,
+                auth = self.auth,
+            ),
         ]
 
         for ep in self.endpoints:

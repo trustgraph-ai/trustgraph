@@ -17,7 +17,7 @@ class SubscriberSpec(Spec):
         )
 
         subscriber = Subscriber(
-            client = processor.client,
+            client = processor.pulsar_client,
             topic = definition[self.name],
             subscription = flow.id,
             consumer_name = flow.id,

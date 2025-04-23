@@ -30,7 +30,7 @@ class AsyncProcessor:
         self.id = params.get("id")
 
         # Register a pulsar client
-        self.pulsar_client = PulsarClient(**params)
+        self.pulsar_client_object = PulsarClient(**params)
 
         # Initialise metrics, records the parameters
         ProcessorMetrics(processor = self.id).info({
@@ -61,7 +61,7 @@ class AsyncProcessor:
         self.config_sub_task = Consumer(
 
             taskgroup = self.taskgroup,
-            client = self.client,
+            client = self.pulsar_client,
             subscriber = config_subscriber_id,
             flow = None,
 
@@ -85,16 +85,16 @@ class AsyncProcessor:
     # This is called to stop all threads.  An over-ride point for extra
     # functionality
     def stop(self):
-        self.client.close()
+        self.pulsar_client.close()
         self.running = False
 
     # Returns the pulsar host
     @property
-    def pulsar_host(self): return self.client.pulsar_host
+    def pulsar_host(self): return self.pulsar_client_object.pulsar_host
 
     # Returns the pulsar client
     @property
-    def client(self): return self.pulsar_client.client
+    def pulsar_client(self): return self.pulsar_client_object.client
 
     # Register a new event handler for configuration change
     def register_config_handler(self, handler):
