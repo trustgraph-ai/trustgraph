@@ -562,6 +562,120 @@ class Api:
         except:
             raise ProtocolException(f"Response not formatted correctly")
 
+    def flow_list_classes(self):
+
+        # The input consists of system and prompt strings
+        input = {
+            "operation": "list-classes",
+        }
+
+        url = f"{self.url}flow"
+
+        # Invoke the API, input is passed as JSON
+        resp = requests.post(url, json=input)
+
+        # Should be a 200 status code
+        if resp.status_code != 200:
+            raise ProtocolException(f"Status code {resp.status_code}")
+
+        try:
+            # Parse the response as JSON
+            object = resp.json()
+        except:
+            raise ProtocolException(f"Expected JSON response")
+
+        self.check_error(object)
+
+        try:
+            return object["class-names"]
+        except:
+            raise ProtocolException(f"Response not formatted correctly")
+
+    def flow_get_class(self, class_name):
+
+        # The input consists of system and prompt strings
+        input = {
+            "operation": "get-class",
+            "flow-id": class_name,
+        }
+
+        url = f"{self.url}flow"
+
+        # Invoke the API, input is passed as JSON
+        resp = requests.post(url, json=input)
+
+        # Should be a 200 status code
+        if resp.status_code != 200:
+            raise ProtocolException(f"Status code {resp.status_code}")
+
+        try:
+            # Parse the response as JSON
+            object = resp.json()
+        except:
+            raise ProtocolException(f"Expected JSON response")
+
+        self.check_error(object)
+
+        try:
+            return json.load(object["class-definition"])
+        except:
+            raise ProtocolException(f"Response not formatted correctly")
+
+    def flow_put_class(self, class_name, definition):
+
+        # The input consists of system and prompt strings
+        input = {
+            "operation": "put-class",
+            "flow-id": class_name,
+            "definition": json.dumps(definition),
+        }
+
+        url = f"{self.url}flow"
+
+        # Invoke the API, input is passed as JSON
+        resp = requests.post(url, json=input)
+
+        # Should be a 200 status code
+        if resp.status_code != 200:
+            raise ProtocolException(f"Status code {resp.status_code}")
+
+        try:
+            # Parse the response as JSON
+            object = resp.json()
+        except:
+            raise ProtocolException(f"Expected JSON response")
+
+        self.check_error(object)
+
+        return
+
+    def flow_delete_class(self, class_name):
+
+        # The input consists of system and prompt strings
+        input = {
+            "operation": "delete-class",
+            "flow-id": class_name,
+        }
+
+        url = f"{self.url}flow"
+
+        # Invoke the API, input is passed as JSON
+        resp = requests.post(url, json=input)
+
+        # Should be a 200 status code
+        if resp.status_code != 200:
+            raise ProtocolException(f"Status code {resp.status_code}")
+
+        try:
+            # Parse the response as JSON
+            object = resp.json()
+        except:
+            raise ProtocolException(f"Expected JSON response")
+
+        self.check_error(object)
+
+        return
+
     def flow_list(self):
 
         # The input consists of system and prompt strings
@@ -617,7 +731,62 @@ class Api:
         self.check_error(object)
 
         try:
-            return object["flow"]
+            return json.loads(object["flow"])
         except:
             raise ProtocolException(f"Response not formatted correctly")
+
+    def flow_start(self, class_name, id, description):
+
+        # The input consists of system and prompt strings
+        input = {
+            "operation": "start-flow",
+            "flow-id": id,
+            "class-name": class_name,
+        }
+
+        url = f"{self.url}flow"
+
+        # Invoke the API, input is passed as JSON
+        resp = requests.post(url, json=input)
+
+        # Should be a 200 status code
+        if resp.status_code != 200:
+            raise ProtocolException(f"Status code {resp.status_code}")
+
+        try:
+            # Parse the response as JSON
+            object = resp.json()
+        except:
+            raise ProtocolException(f"Expected JSON response")
+
+        self.check_error(object)
+
+        return
+
+    def flow_stop(self, id):
+
+        # The input consists of system and prompt strings
+        input = {
+            "operation": "stop-flow",
+            "flow-id": id,
+        }
+
+        url = f"{self.url}flow"
+
+        # Invoke the API, input is passed as JSON
+        resp = requests.post(url, json=input)
+
+        # Should be a 200 status code
+        if resp.status_code != 200:
+            raise ProtocolException(f"Status code {resp.status_code}")
+
+        try:
+            # Parse the response as JSON
+            object = resp.json()
+        except:
+            raise ProtocolException(f"Expected JSON response")
+
+        self.check_error(object)
+
+        return
 
