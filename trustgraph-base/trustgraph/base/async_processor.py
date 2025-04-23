@@ -33,7 +33,7 @@ class AsyncProcessor:
         self.pulsar_client = PulsarClient(**params)
 
         # Initialise metrics, records the parameters
-        ProcessorMetrics(id=self.id).info({
+        ProcessorMetrics(processor = self.id).info({
             k: str(params[k])
             for k in params
             if k != "id"

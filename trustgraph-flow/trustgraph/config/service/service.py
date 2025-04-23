@@ -68,12 +68,22 @@ class Processor(AsyncProcessor):
             }
         )
 
-        config_request_metrics = ConsumerMetrics(id + "-config-request")
-        config_response_metrics = ProducerMetrics(id + "-config-response")
-        config_push_metrics = ProducerMetrics(id + "-config-push")
+        config_request_metrics = ConsumerMetrics(
+            processor = self.id, flow = None, name = "config-request"
+        )
+        config_response_metrics = ProducerMetrics(
+            processor = self.id, flow = None, name = "config-response"
+        )
+        config_push_metrics = ProducerMetrics(
+            processor = self.id, flow = None, name = "config-push"
+        )
 
-        flow_request_metrics = ConsumerMetrics(id + "-flow-request")
-        flow_response_metrics = ProducerMetrics(id + "-flow-response")
+        flow_request_metrics = ConsumerMetrics(
+            processor = self.id, flow = None, name = "flow-request"
+        )
+        flow_response_metrics = ProducerMetrics(
+            processor = self.id, flow = None, name = "flow-response"
+        )
 
         self.config_request_consumer = Consumer(
             taskgroup = self.taskgroup,

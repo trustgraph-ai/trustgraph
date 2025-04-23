@@ -4,79 +4,89 @@ from prometheus_client import Counter
 
 class ConsumerMetrics:
 
-    def __init__(self, id, flow=None):
+    def __init__(self, processor, flow, name):
 
-        self.id = id
+        self.processor = processor
         self.flow = flow
+        self.name = name
 
         if not hasattr(__class__, "state_metric"):
             __class__.state_metric = Enum(
                 'consumer_state', 'Consumer state',
-                ["id", "flow"],
+                ["processor", "flow", "name"],
                 states=['stopped', 'running']
             )
+
         if not hasattr(__class__, "request_metric"):
             __class__.request_metric = Histogram(
                 'request_latency', 'Request latency (seconds)',
-                ["id", "flow"],
+                ["processor", "flow", "name"],
             )
+
         if not hasattr(__class__, "processing_metric"):
             __class__.processing_metric = Counter(
                 'processing_count', 'Processing count',
-                ["id", "flow", "status"]
+                ["processor", "flow", "name"],
             )
+
         if not hasattr(__class__, "rate_limit_metric"):
             __class__.rate_limit_metric = Counter(
                 'rate_limit_count', 'Rate limit event count',
-                ["id", "flow"]
+                ["processor", "flow", "name"],
             )
 
     def process(self, status):
         __class__.processing_metric.labels(
-            id=self.id, flow=self.flow, status=status
+            processor = self.processor, flow=self.flow, status=status
         ).inc()
 
     def rate_limit(self):
         __class__.rate_limit_metric.labels(
-            id=self.id, flow=self.flow
+            processor = self.processor, flow=self.flow
         ).inc()
 
     def state(self, state):
         __class__.state_metric.labels(
-            id=self.id, flow=self.flow
+            processor = self.processor, flow=self.flow
         ).state(state)
 
     def record_time(self):
         return __class__.request_metric.labels(
-            id=self.id, flow=self.flow
+            processor = self.processor, flow=self.flow
         ).time()
 
 class ProducerMetrics:
-    def __init__(self, id, flow=None):
 
-        self.id = id
+    def __init__(self, processor, flow, name):
+
+        self.processor = processor
         self.flow = flow
+        self.name = name
 
         if not hasattr(__class__, "output_metric"):
             __class__.output_metric = Counter(
                 'output_count', 'Output items created',
-                ["id", "flow"]
+                ["processor", "flow", "name"],
             )
 
     def inc(self):
-        __class__.output_metric.labels(id=self.id, flow=self.flow).inc()
+        __class__.output_metric.labels(
+            processor = self.processor, flow = self.flow, name = self.name
+        ).inc()
 
 class ProcessorMetrics:
-    def __init__(self, id):
+    def __init__(self, processor):
 
-        self.id = id
+        self.processor = processor
 
         if not hasattr(__class__, "processor_metric"):
             __class__.processor_metric = Info(
                 'processor', 'Processor configuration',
-                ["id"]
+                ["processor"]
             )
 
     def info(self, info):
-        __class__.processor_metric.labels(id=self.id).info(info)
+        __class__.processor_metric.labels(
+            processor = self.processor
+        ).info(info)
         

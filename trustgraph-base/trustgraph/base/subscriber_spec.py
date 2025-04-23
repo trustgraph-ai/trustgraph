@@ -13,7 +13,7 @@ class SubscriberSpec(Spec):
 
         # FIXME: Metrics not used
         subscriber_metrics = ConsumerMetrics(
-            flow.id, f"{flow.name}-{self.name}"
+            processor = flow.id, flow = flow.name, name = self.name
         )
 
         subscriber = Subscriber(

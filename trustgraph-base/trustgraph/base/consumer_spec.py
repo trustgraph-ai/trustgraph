@@ -12,7 +12,7 @@ class ConsumerSpec(Spec):
     def add(self, flow, processor, definition):
 
         consumer_metrics = ConsumerMetrics(
-            flow.id, f"{flow.name}-{self.name}"
+            processor = flow.id, flow = flow.name, name = self.name,
         )
 
         consumer = Consumer(
