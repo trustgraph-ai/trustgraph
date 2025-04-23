@@ -26,7 +26,7 @@ class ConsumerMetrics:
         if not hasattr(__class__, "processing_metric"):
             __class__.processing_metric = Counter(
                 'processing_count', 'Processing count',
-                ["processor", "flow", "name"],
+                ["processor", "flow", "name", "status"],
             )
 
         if not hasattr(__class__, "rate_limit_metric"):
@@ -37,22 +37,23 @@ class ConsumerMetrics:
 
     def process(self, status):
         __class__.processing_metric.labels(
-            processor = self.processor, flow=self.flow, status=status
+            processor = self.processor, flow = self.flow, name = self.name,
+            status=status
         ).inc()
 
     def rate_limit(self):
         __class__.rate_limit_metric.labels(
-            processor = self.processor, flow=self.flow
+            processor = self.processor, flow = self.flow, name = self.name,
         ).inc()
 
     def state(self, state):
         __class__.state_metric.labels(
-            processor = self.processor, flow=self.flow
+            processor = self.processor, flow = self.flow, name = self.name,
         ).state(state)
 
     def record_time(self):
         return __class__.request_metric.labels(
-            processor = self.processor, flow=self.flow
+            processor = self.processor, flow = self.flow, name = self.name,
         ).time()
 
 class ProducerMetrics:
@@ -63,14 +64,14 @@ class ProducerMetrics:
         self.flow = flow
         self.name = name
 
-        if not hasattr(__class__, "output_metric"):
-            __class__.output_metric = Counter(
-                'output_count', 'Output items created',
+        if not hasattr(__class__, "producer_metric"):
+            __class__.producer_metric = Counter(
+                'producer_count', 'Output items produced',
                 ["processor", "flow", "name"],
             )
 
     def inc(self):
-        __class__.output_metric.labels(
+        __class__.producer_metric.labels(
             processor = self.processor, flow = self.flow, name = self.name
         ).inc()
 

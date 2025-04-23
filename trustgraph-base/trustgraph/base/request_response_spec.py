@@ -117,7 +117,7 @@ class RequestResponseSpec(Spec):
     def add(self, flow, processor, definition):
 
         producer_metrics = ProducerMetrics(
-            process = flow.id, name = flow.name, name = self.response_name
+            processor = flow.id, flow = flow.name, name = self.response_name
         )
 
         rr = self.impl(
