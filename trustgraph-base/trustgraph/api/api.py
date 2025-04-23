@@ -562,3 +562,62 @@ class Api:
         except:
             raise ProtocolException(f"Response not formatted correctly")
 
+    def flow_list(self):
+
+        # The input consists of system and prompt strings
+        input = {
+            "operation": "list-flows",
+        }
+
+        url = f"{self.url}flow"
+
+        # Invoke the API, input is passed as JSON
+        resp = requests.post(url, json=input)
+
+        # Should be a 200 status code
+        if resp.status_code != 200:
+            raise ProtocolException(f"Status code {resp.status_code}")
+
+        try:
+            # Parse the response as JSON
+            object = resp.json()
+        except:
+            raise ProtocolException(f"Expected JSON response")
+
+        self.check_error(object)
+
+        try:
+            return object["flow-ids"]
+        except:
+            raise ProtocolException(f"Response not formatted correctly")
+
+    def flow_get(self, id):
+
+        # The input consists of system and prompt strings
+        input = {
+            "operation": "get-flow",
+            "flow-id": id,
+        }
+
+        url = f"{self.url}flow"
+
+        # Invoke the API, input is passed as JSON
+        resp = requests.post(url, json=input)
+
+        # Should be a 200 status code
+        if resp.status_code != 200:
+            raise ProtocolException(f"Status code {resp.status_code}")
+
+        try:
+            # Parse the response as JSON
+            object = resp.json()
+        except:
+            raise ProtocolException(f"Expected JSON response")
+
+        self.check_error(object)
+
+        try:
+            return object["flow"]
+        except:
+            raise ProtocolException(f"Response not formatted correctly")
+
