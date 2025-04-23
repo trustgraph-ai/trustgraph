@@ -110,14 +110,16 @@ class FlowConfig:
     
     async def handle_stop_flow(self, msg):
 
+        class_name = self.config["flows"][msg.flow_id]["class-name"]
+
         def repl_template(tmp):
             return tmp.replace(
-                "{class}", msg.class_name
+                "{class}", class_name
             ).replace(
                 "{id}", msg.flow_id
             )
 
-        cls = json.loads(self.config["flow-classes"][msg.class_name])
+        cls = json.loads(self.config["flow-classes"][class_name])
 
         plumb = {}
 

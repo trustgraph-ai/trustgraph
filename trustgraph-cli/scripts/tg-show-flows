@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+
+"""
+Dumps out the current configuration
+"""
+
+import argparse
+import os
+from trustgraph.api import Api
+import json
+
+default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+
+def show_flows(url):
+
+    api = Api(url)
+
+    BROKEN
+
+
+
+    config, version = api.config_all()
+
+    print("Version:", version)
+    print(json.dumps(config, indent=4))
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        prog='tg-show-config',
+        description=__doc__,
+    )
+
+    parser.add_argument(
+        '-u', '--api-url',
+        default=default_url,
+        help=f'API URL (default: {default_url})',
+    )
+
+    args = parser.parse_args()
+
+    try:
+
+        show_config(
+            url=args.api_url,
+        )
+
+    except Exception as e:
+
+        print("Exception:", e, flush=True)
+
+main()
+
