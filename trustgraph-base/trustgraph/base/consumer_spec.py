@@ -12,13 +12,13 @@ class ConsumerSpec(Spec):
     def add(self, flow, processor, definition):
 
         consumer_metrics = ConsumerMetrics(
-            flow.id, f"{flow.name}-{self.name}"
+            processor = flow.id, flow = flow.name, name = self.name,
         )
 
         consumer = Consumer(
             taskgroup = processor.taskgroup,
             flow = flow,
-            client = processor.client,
+            client = processor.pulsar_client,
             topic = definition[self.name],
             subscriber = processor.id + "--" + self.name,
             schema = self.schema,

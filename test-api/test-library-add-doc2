@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+
+import requests
+import json
+import sys
+import base64
+
+url = "http://localhost:8088/api/v1/"
+
+############################################################################
+
+id = "http://trustgraph.ai/doc/12345678"
+
+source = "../sources/20160001634.pdf"
+
+with open(source, "rb") as f:
+    doc = base64.b64encode(f.read()).decode("utf-8")
+
+input = {
+    "operation": "add",
+    "id": id,
+    "document": {
+        "metadata": [
+            {
+                "s": {
+                    "v": id,
+                    "e": True,
+                },
+                "p": {
+                    "v": "http://www.w3.org/2000/01/rdf-schema#label",
+                    "e": True,
+                },
+                "o": {
+                    "v": "Challenger report volume 1", "e": False,
+                },
+            },
+            {
+                "s": {
+                    "v": id,
+                    "e": True,
+                },
+                "p": {
+                    "v": 'https://schema.org/keywords',
+                    "e": True,
+                },
+                "o": {
+                    "v": "space shuttle", "e": False,
+                },
+            },
+            {
+                "s": {
+                    "v": id,
+                    "e": True,
+                },
+                "p": {
+                    "v": 'https://schema.org/keywords',
+                    "e": True,
+                },
+                "o": {
+                    "v": "nasa", "e": False,
+                },
+            },
+        ],
+        "document": doc,
+        "kind": "application/pdf",
+        "user": "trustgraph",
+        "collection": "default",
+    }
+}
+
+resp = requests.post(
+    f"{url}librarian",
+    json=input,
+)
+
+print(resp.text)
+resp = resp.json()
+
+print(resp)
+
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
+
+print(resp)
+
+sys.exit(0)
+
+############################################################################
+

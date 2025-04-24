@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+
+"""
+"""
+
+import argparse
+import os
+import tabulate
+from trustgraph.api import Api
+import json
+
+default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+
+def show_flows(url):
+
+    api = Api(url)
+
+    flow_ids = api.flow_list()
+
+    print(flow_ids)
+
+    flows = []
+
+    for id in flow_ids:
+        flow = api.flow_get(id)
+        flows.append((
+            id,
+            flow.get("description", ""),
+        ))
+
+    print(tabulate.tabulate(
+        flows,
+        tablefmt="pretty",
+        maxcolwidths=[None, 40],
+        stralign="left",
+        headers = ["id", "description"],
+    ))
+    
+def main():
+
+    parser = argparse.ArgumentParser(
+        prog='tg-show-flows',
+        description=__doc__,
+    )
+
+    parser.add_argument(
+        '-u', '--api-url',
+        default=default_url,
+        help=f'API URL (default: {default_url})',
+    )
+
+    args = parser.parse_args()
+
+    try:
+
+        show_flows(
+            url=args.api_url,
+        )
+
+    except Exception as e:
+
+        print("Exception:", e, flush=True)
+
+main()
+

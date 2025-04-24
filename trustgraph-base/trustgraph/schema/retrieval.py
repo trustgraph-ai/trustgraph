@@ -20,13 +20,6 @@ class GraphRagResponse(Record):
     error = Error()
     response = String()
 
-graph_rag_request_queue = topic(
-    'graph-rag', kind='non-persistent', namespace='request'
-)
-graph_rag_response_queue = topic(
-    'graph-rag', kind='non-persistent', namespace='response'
-)
-
 ############################################################################
 
 # Document RAG text retrieval
@@ -41,9 +34,3 @@ class DocumentRagResponse(Record):
     error = Error()
     response = String()
 
-document_rag_request_queue = topic(
-    'doc-rag', kind='non-persistent', namespace='request'
-)
-document_rag_response_queue = topic(
-    'doc-rag', kind='non-persistent', namespace='response'
-)

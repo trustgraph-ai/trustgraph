@@ -5,7 +5,7 @@ import asyncio
 from . subscriber import Subscriber
 from . producer import Producer
 from . spec import Spec
-from . metrics import ConsumerMetrics, ProducerMetrics
+from . metrics import ConsumerMetrics, ProducerMetrics, SubscriberMetrics
 
 class RequestResponse(Subscriber):
 
@@ -23,6 +23,7 @@ class RequestResponse(Subscriber):
             consumer_name = consumer_name,
             topic = response_topic,
             schema = response_schema,
+            metrics = response_metrics,
         )
 
         self.producer = Producer(
@@ -116,20 +117,24 @@ class RequestResponseSpec(Spec):
 
     def add(self, flow, processor, definition):
 
-        producer_metrics = ProducerMetrics(
-            flow.id, f"{flow.name}-{self.response_name}"
+        request_metrics = ProducerMetrics(
+            processor = flow.id, flow = flow.name, name = self.request_name
+        )
+
+        response_metrics = SubscriberMetrics(
+            processor = flow.id, flow = flow.name, name = self.request_name
         )
 
         rr = self.impl(
-            client = processor.client,
+            client = processor.pulsar_client,
             subscription = flow.id,
             consumer_name = flow.id,
             request_topic = definition[self.request_name],
             request_schema = self.request_schema,
-            request_metrics = producer_metrics,
+            request_metrics = request_metrics,
             response_topic = definition[self.response_name],
             response_schema = self.response_schema,
-            response_metrics = None,
+            response_metrics = response_metrics,
         )
 
         flow.consumer[self.request_name] = rr
