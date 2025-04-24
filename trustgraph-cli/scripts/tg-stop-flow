@@ -11,39 +11,16 @@ import json
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 
-def show_flows(url):
+def stop_flow(url, flow_id):
 
     api = Api(url)
 
-    flow_ids = api.flow_list()
+    api.flow_stop(id = flow_id)
 
-    if len(flow_ids) == 0:
-        print("No flows.")
-        return
-
-    print(flow_ids)
-
-    flows = []
-
-    for id in flow_ids:
-        flow = api.flow_get(id)
-        flows.append((
-            id,
-            flow.get("description", ""),
-        ))
-
-    print(tabulate.tabulate(
-        flows,
-        tablefmt="pretty",
-        maxcolwidths=[None, 40],
-        stralign="left",
-        headers = ["id", "description"],
-    ))
-    
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-show-flows',
+        prog='tg-stop-flow',
         description=__doc__,
     )
 
@@ -53,12 +30,19 @@ def main():
         help=f'API URL (default: {default_url})',
     )
 
+    parser.add_argument(
+        '-i', '--flow-id',
+        required=True,
+        help=f'Flow ID',
+    )
+
     args = parser.parse_args()
 
     try:
 
-        show_flows(
+        stop_flow(
             url=args.api_url,
+            flow_id=args.flow_id,
         )
 
     except Exception as e:
