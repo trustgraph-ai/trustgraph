@@ -596,7 +596,7 @@ class Api:
         # The input consists of system and prompt strings
         input = {
             "operation": "get-class",
-            "flow-id": class_name,
+            "class-name": class_name,
         }
 
         url = f"{self.url}flow"
@@ -617,8 +617,9 @@ class Api:
         self.check_error(object)
 
         try:
-            return json.load(object["class-definition"])
-        except:
+            return json.loads(object["class-definition"])
+        except Exception as e:
+            print(e)
             raise ProtocolException(f"Response not formatted correctly")
 
     def flow_put_class(self, class_name, definition):
@@ -626,8 +627,8 @@ class Api:
         # The input consists of system and prompt strings
         input = {
             "operation": "put-class",
-            "flow-id": class_name,
-            "definition": json.dumps(definition),
+            "class-name": class_name,
+            "class-definition": json.dumps(definition),
         }
 
         url = f"{self.url}flow"
@@ -654,7 +655,7 @@ class Api:
         # The input consists of system and prompt strings
         input = {
             "operation": "delete-class",
-            "flow-id": class_name,
+            "class-name": class_name,
         }
 
         url = f"{self.url}flow"
@@ -742,6 +743,7 @@ class Api:
             "operation": "start-flow",
             "flow-id": id,
             "class-name": class_name,
+            "description": description,
         }
 
         url = f"{self.url}flow"

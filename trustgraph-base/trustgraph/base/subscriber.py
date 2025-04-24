@@ -7,7 +7,7 @@ import time
 class Subscriber:
 
     def __init__(self, client, topic, subscription, consumer_name,
-                 schema=None, max_size=100):
+                 schema=None, max_size=100, metrics=None):
         self.client = client
         self.topic = topic
         self.subscription = subscription
@@ -18,6 +18,7 @@ class Subscriber:
         self.max_size = max_size
         self.lock = asyncio.Lock()
         self.running = True
+        self.metrics = metrics
 
     async def __del__(self):
         self.running = False
@@ -36,6 +37,9 @@ class Subscriber:
 
         while self.running:
 
+            if self.metrics:
+                self.metrics.state("stopped")
+
             try:
 
                 consumer = self.client.subscribe(
@@ -44,6 +48,9 @@ class Subscriber:
                     consumer_name = self.consumer_name,
                     schema = JsonSchema(self.schema),
                 )
+
+                if self.metrics:
+                    self.metrics.state("running")
 
                 print("Subscriber running...", flush=True)
 
@@ -60,6 +67,9 @@ class Subscriber:
                         print("Exception:", e, flush=True)
                         print(type(e))
                         raise e
+
+                    if self.metrics:
+                        self.metrics.received()
 
                     # Acknowledge successful reception of the message
                     consumer.acknowledge(msg)
@@ -83,7 +93,9 @@ class Subscriber:
                                     self.q[id].put(value),
                                     timeout=2
                                 )
+
                             except Exception as e:
+                                self.metrics.dropped()
                                 print("Q Put:", e, flush=True)
 
                         for q in self.full.values():
@@ -94,6 +106,7 @@ class Subscriber:
                                     timeout=2
                                 )
                             except Exception as e:
+                                self.metrics.dropped()
                                 print("Q Put:", e, flush=True)
 
             except Exception as e:
@@ -101,6 +114,9 @@ class Subscriber:
 
             consumer.close()
          
+            if self.metrics:
+                self.metrics.state("stopped")
+
             # If handler drops out, sleep a retry
             time.sleep(2)
 

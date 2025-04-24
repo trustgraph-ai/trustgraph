@@ -35,6 +35,8 @@ class FlowConfig:
     
     async def handle_delete_class(self, msg):
 
+        print(msg)
+
         del self.config["flow-classes"][msg.class_name]
 
         await self.config.push()
@@ -63,6 +65,21 @@ class FlowConfig:
     
     async def handle_start_flow(self, msg):
 
+        if msg.class_name is None:
+            raise RuntimeError("No class name")
+
+        if msg.flow_id is None:
+            raise RuntimeError("No flow ID")
+
+        if msg.flow_id in self.config["flows"]:
+            raise RuntimeError("Flow already exists")
+
+        if msg.description is None:
+            raise RuntimeError("No description")
+
+        if msg.class_name not in self.config["flow-classes"]:
+            raise RuntimeError("Class does not exist")
+
         def repl_template(tmp):
             return tmp.replace(
                 "{class}", msg.class_name
@@ -71,8 +88,6 @@ class FlowConfig:
             )
 
         cls = json.loads(self.config["flow-classes"][msg.class_name])
-
-        plumb = {}
 
         for kind in ("class", "flow"):
 
@@ -97,10 +112,10 @@ class FlowConfig:
 
                 self.config["flows-active"][processor] = json.dumps(target)
 
-        self.config["flows"][msg.flow_id] = {
+        self.config["flows"][msg.flow_id] = json.dumps({
             "description": msg.description,
             "class-name": msg.class_name,
-        }
+        })
 
         await self.config.push()
 
@@ -110,7 +125,20 @@ class FlowConfig:
     
     async def handle_stop_flow(self, msg):
 
-        class_name = self.config["flows"][msg.flow_id]["class-name"]
+        if msg.flow_id is None:
+            raise RuntimeError("No flow ID")
+
+        if msg.flow_id not in self.config["flows"]:
+            raise RuntimeError("Flow ID invalid")
+
+        flow = json.loads(self.config["flows"][msg.flow_id])
+
+        if "class-name" not in flow:
+            raise RuntimeError("Internal error: flow has no flow class")
+
+        class_name = flow["class-name"]
+
+        cls = json.loads(self.config["flow-classes"][class_name])
 
         def repl_template(tmp):
             return tmp.replace(
@@ -119,11 +147,7 @@ class FlowConfig:
                 "{id}", msg.flow_id
             )
 
-        cls = json.loads(self.config["flow-classes"][class_name])
-
-        plumb = {}
-
-        for kind in ("flow"):
+        for kind in ("flow",):
 
             for k, v in cls[kind].items():
 
@@ -145,19 +169,6 @@ class FlowConfig:
             del self.config["flows"][msg.flow_id]
 
         await self.config.push()
-
-        return FlowResponse(
-            error = None,
-        )
-    
-
-
-
-
-
-
-
-        flow = self.config["flows"][msg.flow_id]
 
         return FlowResponse(
             error = None,
@@ -197,4 +208,3 @@ class FlowConfig:
 
         return resp
 
-    

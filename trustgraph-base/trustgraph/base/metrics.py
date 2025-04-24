@@ -90,4 +90,47 @@ class ProcessorMetrics:
         __class__.processor_metric.labels(
             processor = self.processor
         ).info(info)
-        
+
+class SubscriberMetrics:
+
+    def __init__(self, processor, flow, name):
+
+        self.processor = processor
+        self.flow = flow
+        self.name = name
+
+        if not hasattr(__class__, "state_metric"):
+            __class__.state_metric = Enum(
+                'subscriber_state', 'Subscriber state',
+                ["processor", "flow", "name"],
+                states=['stopped', 'running']
+            )
+
+        if not hasattr(__class__, "received_metric"):
+            __class__.received_metric = Counter(
+                'received_count', 'Received count',
+                ["processor", "flow", "name"],
+            )
+
+        if not hasattr(__class__, "dropped_metric"):
+            __class__.dropped_metric = Counter(
+                'dropped_count', 'Dropped messages count',
+                ["processor", "flow", "name"],
+            )
+
+    def received(self):
+        __class__.received_metric.labels(
+            processor = self.processor, flow = self.flow, name = self.name,
+        ).inc()
+
+    def state(self, state):
+
+        __class__.state_metric.labels(
+            processor = self.processor, flow = self.flow, name = self.name,
+        ).state(state)
+
+    def dropped(self, state):
+        __class__.dropped_metric.labels(
+            processor = self.processor, flow = self.flow, name = self.name,
+        ).inc()
+

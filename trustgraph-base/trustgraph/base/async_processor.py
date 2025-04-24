@@ -17,7 +17,7 @@ from .. exceptions import TooManyRequests
 from . pubsub import PulsarClient
 from . producer import Producer
 from . consumer import Consumer
-from . metrics import ProcessorMetrics
+from . metrics import ProcessorMetrics, ConsumerMetrics
 
 default_config_queue = config_push_queue
 
@@ -57,6 +57,10 @@ class AsyncProcessor:
         # service
         config_subscriber_id = str(uuid.uuid4())
 
+        config_consumer_metrics = ConsumerMetrics(
+            processor = self.id, flow = None, name = "config",
+        )
+
         # Subscribe to config queue
         self.config_sub_task = Consumer(
 
@@ -69,6 +73,8 @@ class AsyncProcessor:
             schema = ConfigPush,
 
             handler = self.on_config_change,
+
+            metrics = config_consumer_metrics,
 
             # This causes new subscriptions to view the entire history of
             # configuration
@@ -101,14 +107,11 @@ class AsyncProcessor:
         self.config_handlers.append(handler)
 
     # Called when a new configuration message push occurs
-    async def on_config_change(self, message, consumer):
+    async def on_config_change(self, message, consumer, flow):
 
         # Get configuration data and version number
         config = message.value().config
         version = message.value().version
-
-        # Acknowledge the message
-        consumer.acknowledge(message)
 
         # Invoke message handlers
         print("Config change event", config, version, flush=True)
