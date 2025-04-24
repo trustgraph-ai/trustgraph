@@ -1,0 +1,92 @@
+#!/usr/bin/env python3
+
+import requests
+
+url = "http://localhost:8088/"
+
+resp = requests.post(
+    f"{url}/api/v1/flow",
+    json={
+        "operation": "list-classes",
+    }
+)
+
+print(resp)
+print(resp.text)
+
+resp = requests.post(
+    f"{url}/api/v1/flow",
+    json={
+        "operation": "get-class",
+        "class-name": "default",
+    }
+)
+
+print(resp)
+print(resp.text)
+
+resp = requests.post(
+    f"{url}/api/v1/flow",
+    json={
+        "operation": "put-class",
+        "class-name": "bunch",
+        "class-definition": "{}",
+    }
+)
+
+print(resp)
+print(resp.text)
+
+resp = requests.post(
+    f"{url}/api/v1/flow",
+    json={
+        "operation": "get-class",
+        "class-name": "bunch",
+    }
+)
+
+print(resp)
+print(resp.text)
+
+resp = requests.post(
+    f"{url}/api/v1/flow",
+    json={
+        "operation": "list-classes",
+    }
+)
+
+print(resp)
+print(resp.text)
+
+
+resp = requests.post(
+    f"{url}/api/v1/flow",
+    json={
+        "operation": "delete-class",
+        "class-name": "bunch",
+    }
+)
+
+print(resp)
+print(resp.text)
+
+
+resp = requests.post(
+    f"{url}/api/v1/flow",
+    json={
+        "operation": "list-classes",
+    }
+)
+
+print(resp)
+print(resp.text)
+
+resp = requests.post(
+    f"{url}/api/v1/flow",
+    json={
+        "operation": "list-flows",
+    }
+)
+
+print(resp)
+print(resp.text)

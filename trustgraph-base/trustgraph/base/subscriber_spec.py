@@ -1,5 +1,5 @@
 
-from . metrics import ConsumerMetrics
+from . metrics import SubscriberMetrics
 from . subscriber import Subscriber
 from . spec import Spec
 
@@ -11,17 +11,17 @@ class SubscriberSpec(Spec):
 
     def add(self, flow, processor, definition):
 
-        # FIXME: Metrics not used
-        subscriber_metrics = ConsumerMetrics(
-            flow.id, f"{flow.name}-{self.name}"
+        subscriber_metrics = SubscriberMetrics(
+            processor = flow.id, flow = flow.name, name = self.name
         )
 
         subscriber = Subscriber(
-            client = processor.client,
+            client = processor.pulsar_client,
             topic = definition[self.name],
             subscription = flow.id,
             consumer_name = flow.id,
             schema = self.schema,
+            metrics = subscriber_metrics,
         )
 
         # Put it in the consumer map, does that work?

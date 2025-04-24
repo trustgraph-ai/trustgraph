@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+
+import requests
+import json
+import sys
+import base64
+
+url = "http://localhost:8088/api/v1/"
+
+############################################################################
+
+user = "trustgraph"
+
+input = {
+    "operation": "list",
+    "user": user,
+}
+
+resp = requests.post(
+    f"{url}librarian",
+    json=input,
+)
+
+print(resp.text)
+resp = resp.json()
+
+print(resp)
+
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
+
+# print(resp["response"])
+print(resp)
+
+sys.exit(0)
+
+############################################################################
+

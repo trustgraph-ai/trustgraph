@@ -25,28 +25,30 @@ from .. log_level import LogLevel
 
 from . serialize import to_subgraph
 from . running import Running
-from . text_completion import TextCompletionRequestor
-from . prompt import PromptRequestor
-from . graph_rag import GraphRagRequestor
-from . document_rag import DocumentRagRequestor
-from . triples_query import TriplesQueryRequestor
-from . graph_embeddings_query import GraphEmbeddingsQueryRequestor
-from . embeddings import EmbeddingsRequestor
-from . encyclopedia import EncyclopediaRequestor
-from . agent import AgentRequestor
-from . dbpedia import DbpediaRequestor
-from . internet_search import InternetSearchRequestor
-from . librarian import LibrarianRequestor
+
+#from . text_completion import TextCompletionRequestor
+#from . prompt import PromptRequestor
+#from . graph_rag import GraphRagRequestor
+#from . document_rag import DocumentRagRequestor
+#from . triples_query import TriplesQueryRequestor
+#from . graph_embeddings_query import GraphEmbeddingsQueryRequestor
+#from . embeddings import EmbeddingsRequestor
+#from . encyclopedia import EncyclopediaRequestor
+#from . agent import AgentRequestor
+#from . dbpedia import DbpediaRequestor
+#from . internet_search import InternetSearchRequestor
+#from . librarian import LibrarianRequestor
 from . config import ConfigRequestor
-from . triples_stream import TriplesStreamEndpoint
-from . graph_embeddings_stream import GraphEmbeddingsStreamEndpoint
-from . document_embeddings_stream import DocumentEmbeddingsStreamEndpoint
-from . triples_load import TriplesLoadEndpoint
-from . graph_embeddings_load import GraphEmbeddingsLoadEndpoint
-from . document_embeddings_load import DocumentEmbeddingsLoadEndpoint
+from . flow import FlowRequestor
+#from . triples_stream import TriplesStreamEndpoint
+#from . graph_embeddings_stream import GraphEmbeddingsStreamEndpoint
+#from . document_embeddings_stream import DocumentEmbeddingsStreamEndpoint
+#from . triples_load import TriplesLoadEndpoint
+#from . graph_embeddings_load import GraphEmbeddingsLoadEndpoint
+#from . document_embeddings_load import DocumentEmbeddingsLoadEndpoint
 from . mux import MuxEndpoint
-from . document_load import DocumentLoadSender
-from . text_load import TextLoadSender
+#from . document_load import DocumentLoadSender
+#from . text_load import TextLoadSender
 from . metrics import MetricsEndpoint
 
 from . endpoint import ServiceEndpoint
@@ -105,157 +107,165 @@ class Api:
             self.auth = Authenticator(allow_all=True)
 
         self.services = {
-            "text-completion": TextCompletionRequestor(
-                pulsar_client=self.pulsar_client, timeout=self.timeout,
-                auth = self.auth,
-            ),
-            "prompt": PromptRequestor(
-                pulsar_client=self.pulsar_client, timeout=self.timeout,
-                auth = self.auth,
-            ),
-            "graph-rag": GraphRagRequestor(
-                pulsar_client=self.pulsar_client, timeout=self.timeout,
-                auth = self.auth,
-            ),
-            "document-rag": DocumentRagRequestor(
-                pulsar_client=self.pulsar_client, timeout=self.timeout,
-                auth = self.auth,
-            ),
-            "triples-query": TriplesQueryRequestor(
-                pulsar_client=self.pulsar_client, timeout=self.timeout,
-                auth = self.auth,
-            ),
-            "graph-embeddings-query": GraphEmbeddingsQueryRequestor(
-                pulsar_client=self.pulsar_client, timeout=self.timeout,
-                auth = self.auth,
-            ),
-            "embeddings": EmbeddingsRequestor(
-                pulsar_client=self.pulsar_client, timeout=self.timeout,
-                auth = self.auth,
-            ),
-            "agent": AgentRequestor(
-                pulsar_client=self.pulsar_client, timeout=self.timeout,
-                auth = self.auth,
-            ),
-            "librarian": LibrarianRequestor(
-                pulsar_client=self.pulsar_client, timeout=self.timeout,
-                auth = self.auth,
-            ),
+            # "text-completion": TextCompletionRequestor(
+            #     pulsar_client=self.pulsar_client, timeout=self.timeout,
+            #     auth = self.auth,
+            # ),
+            # "prompt": PromptRequestor(
+            #     pulsar_client=self.pulsar_client, timeout=self.timeout,
+            #     auth = self.auth,
+            # ),
+            # "graph-rag": GraphRagRequestor(
+            #     pulsar_client=self.pulsar_client, timeout=self.timeout,
+            #     auth = self.auth,
+            # ),
+            # "document-rag": DocumentRagRequestor(
+            #     pulsar_client=self.pulsar_client, timeout=self.timeout,
+            #     auth = self.auth,
+            # ),
+            # "triples-query": TriplesQueryRequestor(
+            #     pulsar_client=self.pulsar_client, timeout=self.timeout,
+            #     auth = self.auth,
+            # ),
+            # "graph-embeddings-query": GraphEmbeddingsQueryRequestor(
+            #     pulsar_client=self.pulsar_client, timeout=self.timeout,
+            #     auth = self.auth,
+            # ),
+            # "embeddings": EmbeddingsRequestor(
+            #     pulsar_client=self.pulsar_client, timeout=self.timeout,
+            #     auth = self.auth,
+            # ),
+            # "agent": AgentRequestor(
+            #     pulsar_client=self.pulsar_client, timeout=self.timeout,
+            #     auth = self.auth,
+            # ),
+            # "librarian": LibrarianRequestor(
+            #     pulsar_client=self.pulsar_client, timeout=self.timeout,
+            #     auth = self.auth,
+            # ),
             "config": ConfigRequestor(
                 pulsar_client=self.pulsar_client, timeout=self.timeout,
                 auth = self.auth,
             ),
-            "encyclopedia": EncyclopediaRequestor(
+            "flow": FlowRequestor(
                 pulsar_client=self.pulsar_client, timeout=self.timeout,
                 auth = self.auth,
             ),
-            "dbpedia": DbpediaRequestor(
-                pulsar_client=self.pulsar_client, timeout=self.timeout,
-                auth = self.auth,
-            ),
-            "internet-search": InternetSearchRequestor(
-                pulsar_client=self.pulsar_client, timeout=self.timeout,
-                auth = self.auth,
-            ),
-            "document-load": DocumentLoadSender(
-                pulsar_client=self.pulsar_client,
-            ),
-            "text-load": TextLoadSender(
-                pulsar_client=self.pulsar_client,
-            ),
+            # "encyclopedia": EncyclopediaRequestor(
+            #     pulsar_client=self.pulsar_client, timeout=self.timeout,
+            #     auth = self.auth,
+            # ),
+            # "dbpedia": DbpediaRequestor(
+            #     pulsar_client=self.pulsar_client, timeout=self.timeout,
+            #     auth = self.auth,
+            # ),
+            # "internet-search": InternetSearchRequestor(
+            #     pulsar_client=self.pulsar_client, timeout=self.timeout,
+            #     auth = self.auth,
+            # ),
+            # "document-load": DocumentLoadSender(
+            #     pulsar_client=self.pulsar_client,
+            # ),
+            # "text-load": TextLoadSender(
+            #     pulsar_client=self.pulsar_client,
+            # ),
         }
 
         self.endpoints = [
-            ServiceEndpoint(
-                endpoint_path = "/api/v1/text-completion", auth=self.auth,
-                requestor = self.services["text-completion"],
-            ),
-            ServiceEndpoint(
-                endpoint_path = "/api/v1/prompt", auth=self.auth,
-                requestor = self.services["prompt"],
-            ),
-            ServiceEndpoint(
-                endpoint_path = "/api/v1/graph-rag", auth=self.auth,
-                requestor = self.services["graph-rag"],
-            ),
-            ServiceEndpoint(
-                endpoint_path = "/api/v1/document-rag", auth=self.auth,
-                requestor = self.services["document-rag"],
-            ),
-            ServiceEndpoint(
-                endpoint_path = "/api/v1/triples-query", auth=self.auth,
-                requestor = self.services["triples-query"],
-            ),
-            ServiceEndpoint(
-                endpoint_path = "/api/v1/graph-embeddings-query",
-                auth=self.auth,
-                requestor = self.services["graph-embeddings-query"],
-            ),
-            ServiceEndpoint(
-                endpoint_path = "/api/v1/embeddings", auth=self.auth,
-                requestor = self.services["embeddings"],
-            ),
-            ServiceEndpoint(
-                endpoint_path = "/api/v1/agent", auth=self.auth,
-                requestor = self.services["agent"],
-            ),
-            ServiceEndpoint(
-                endpoint_path = "/api/v1/librarian", auth=self.auth,
-                requestor = self.services["librarian"],
-            ),
+            # ServiceEndpoint(
+            #     endpoint_path = "/api/v1/text-completion", auth=self.auth,
+            #     requestor = self.services["text-completion"],
+            # ),
+            # ServiceEndpoint(
+            #     endpoint_path = "/api/v1/prompt", auth=self.auth,
+            #     requestor = self.services["prompt"],
+            # ),
+            # ServiceEndpoint(
+            #     endpoint_path = "/api/v1/graph-rag", auth=self.auth,
+            #     requestor = self.services["graph-rag"],
+            # ),
+            # ServiceEndpoint(
+            #     endpoint_path = "/api/v1/document-rag", auth=self.auth,
+            #     requestor = self.services["document-rag"],
+            # ),
+            # ServiceEndpoint(
+            #     endpoint_path = "/api/v1/triples-query", auth=self.auth,
+            #     requestor = self.services["triples-query"],
+            # ),
+            # ServiceEndpoint(
+            #     endpoint_path = "/api/v1/graph-embeddings-query",
+            #     auth=self.auth,
+            #     requestor = self.services["graph-embeddings-query"],
+            # ),
+            # ServiceEndpoint(
+            #     endpoint_path = "/api/v1/embeddings", auth=self.auth,
+            #     requestor = self.services["embeddings"],
+            # ),
+            # ServiceEndpoint(
+            #     endpoint_path = "/api/v1/agent", auth=self.auth,
+            #     requestor = self.services["agent"],
+            # ),
+            # ServiceEndpoint(
+            #     endpoint_path = "/api/v1/librarian", auth=self.auth,
+            #     requestor = self.services["librarian"],
+            # ),
             ServiceEndpoint(
                 endpoint_path = "/api/v1/config", auth=self.auth,
                 requestor = self.services["config"],
             ),
             ServiceEndpoint(
-                endpoint_path = "/api/v1/encyclopedia", auth=self.auth,
-                requestor = self.services["encyclopedia"],
+                endpoint_path = "/api/v1/flow", auth=self.auth,
+                requestor = self.services["flow"],
             ),
-            ServiceEndpoint(
-                endpoint_path = "/api/v1/dbpedia", auth=self.auth,
-                requestor = self.services["dbpedia"],
-            ),
-            ServiceEndpoint(
-                endpoint_path = "/api/v1/internet-search", auth=self.auth,
-                requestor = self.services["internet-search"],
-            ),
-            ServiceEndpoint(
-                endpoint_path = "/api/v1/load/document", auth=self.auth,
-                requestor = self.services["document-load"],
-            ),
-            ServiceEndpoint(
-                endpoint_path = "/api/v1/load/text", auth=self.auth,
-                requestor = self.services["text-load"],
-            ),
-            TriplesStreamEndpoint(
-                pulsar_client=self.pulsar_client,
-                auth = self.auth,
-            ),
-            GraphEmbeddingsStreamEndpoint(
-                pulsar_client=self.pulsar_client,
-                auth = self.auth,
-            ),
-            DocumentEmbeddingsStreamEndpoint(
-                pulsar_client=self.pulsar_client,
-                auth = self.auth,
-            ),
-            TriplesLoadEndpoint(
-                pulsar_client=self.pulsar_client,
-                auth = self.auth,
-            ),
-            GraphEmbeddingsLoadEndpoint(
-                pulsar_client=self.pulsar_client,
-                auth = self.auth,
-            ),
-            DocumentEmbeddingsLoadEndpoint(
-                pulsar_client=self.pulsar_client,
-                auth = self.auth,
-            ),
-            MuxEndpoint(
-                pulsar_client=self.pulsar_client,
-                auth = self.auth,
-                services = self.services,
-            ),
+            # ServiceEndpoint(
+            #     endpoint_path = "/api/v1/encyclopedia", auth=self.auth,
+            #     requestor = self.services["encyclopedia"],
+            # ),
+            # ServiceEndpoint(
+            #     endpoint_path = "/api/v1/dbpedia", auth=self.auth,
+            #     requestor = self.services["dbpedia"],
+            # ),
+            # ServiceEndpoint(
+            #     endpoint_path = "/api/v1/internet-search", auth=self.auth,
+            #     requestor = self.services["internet-search"],
+            # ),
+            # ServiceEndpoint(
+            #     endpoint_path = "/api/v1/load/document", auth=self.auth,
+            #     requestor = self.services["document-load"],
+            # ),
+            # ServiceEndpoint(
+            #     endpoint_path = "/api/v1/load/text", auth=self.auth,
+            #     requestor = self.services["text-load"],
+            # ),
+            # TriplesStreamEndpoint(
+            #     pulsar_client=self.pulsar_client,
+            #     auth = self.auth,
+            # ),
+            # GraphEmbeddingsStreamEndpoint(
+            #     pulsar_client=self.pulsar_client,
+            #     auth = self.auth,
+            # ),
+            # DocumentEmbeddingsStreamEndpoint(
+            #     pulsar_client=self.pulsar_client,
+            #     auth = self.auth,
+            # ),
+            # TriplesLoadEndpoint(
+            #     pulsar_client=self.pulsar_client,
+            #     auth = self.auth,
+            # ),
+            # GraphEmbeddingsLoadEndpoint(
+            #     pulsar_client=self.pulsar_client,
+            #     auth = self.auth,
+            # ),
+            # DocumentEmbeddingsLoadEndpoint(
+            #     pulsar_client=self.pulsar_client,
+            #     auth = self.auth,
+            # ),
+            # MuxEndpoint(
+            #     pulsar_client=self.pulsar_client,
+            #     auth = self.auth,
+            #     services = self.services,
+            # ),
             MetricsEndpoint(
                 endpoint_path = "/api/v1/metrics",
                 prometheus_url = self.prometheus_url,

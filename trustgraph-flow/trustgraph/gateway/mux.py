@@ -5,7 +5,6 @@ import uuid
 from aiohttp import web, WSMsgType
 
 from . socket import SocketEndpoint
-from . text_completion import TextCompletionRequestor
 
 MAX_OUTSTANDING_REQUESTS = 15
 WORKER_CLOSE_WAIT = 0.01
