@@ -13,7 +13,7 @@ from .... schema import triples_request_queue
 from .... schema import triples_response_queue
 from .... base import ConsumerProducer
 
-module = "triples-query"
+module = ".".join(__name__.split(".")[1:-1])
 
 default_input_queue = triples_request_queue
 default_output_queue = triples_response_queue

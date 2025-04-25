@@ -27,7 +27,7 @@ from .... clients.llm_client import LlmClient
 from . prompts import to_definitions, to_relationships, to_topics
 from . prompts import to_kg_query, to_document_query, to_rows
 
-module = "prompt"
+module = ".".join(__name__.split(".")[1:-1])
 
 default_input_queue = prompt_request_queue
 default_output_queue = prompt_response_queue

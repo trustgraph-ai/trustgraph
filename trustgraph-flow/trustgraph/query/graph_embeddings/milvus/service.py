@@ -11,7 +11,7 @@ from .... schema import graph_embeddings_request_queue
 from .... schema import graph_embeddings_response_queue
 from .... base import ConsumerProducer
 
-module = "ge-query"
+module = ".".join(__name__.split(".")[1:-1])
 
 default_input_queue = graph_embeddings_request_queue
 default_output_queue = graph_embeddings_response_queue

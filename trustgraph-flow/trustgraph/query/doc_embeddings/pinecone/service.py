@@ -16,7 +16,7 @@ from .... schema import document_embeddings_request_queue
 from .... schema import document_embeddings_response_queue
 from .... base import ConsumerProducer
 
-module = "de-query"
+module = ".".join(__name__.split(".")[1:-1])
 
 default_input_queue = document_embeddings_request_queue
 default_output_queue = document_embeddings_response_queue

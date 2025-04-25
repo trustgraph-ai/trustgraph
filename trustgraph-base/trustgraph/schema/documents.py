@@ -11,6 +11,8 @@ class Document(Record):
     metadata = Metadata()
     data = Bytes()
 
+document_ingest_queue = topic('document-load')
+
 ############################################################################
 
 # Text documents / text from PDF
@@ -19,6 +21,8 @@ class TextDocument(Record):
     metadata = Metadata()
     text = Bytes()
 
+text_ingest_queue = topic('text-document-load')
+
 ############################################################################
 
 # Chunks of text
@@ -26,6 +30,8 @@ class TextDocument(Record):
 class Chunk(Record):
     metadata = Metadata()
     chunk = Bytes()
+
+chunk_ingest_queue = topic('chunk-load')
 
 ############################################################################
 
@@ -40,6 +46,8 @@ class DocumentEmbeddings(Record):
     metadata = Metadata()
     chunks = Array(ChunkEmbeddings())
 
+document_embeddings_store_queue = topic('document-embeddings-store')
+
 ############################################################################
 
 # Doc embeddings query
@@ -53,4 +61,11 @@ class DocumentEmbeddingsRequest(Record):
 class DocumentEmbeddingsResponse(Record):
     error = Error()
     documents = Array(Bytes())
+
+document_embeddings_request_queue = topic(
+    'doc-embeddings', kind='non-persistent', namespace='request'
+)
+document_embeddings_response_queue = topic(
+    'doc-embeddings', kind='non-persistent', namespace='response',
+)
 

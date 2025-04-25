@@ -1,6 +1,7 @@
 
 import asyncio
 import queue
+from pulsar.schema import JsonSchema
 import uuid
 
 from .. schema import GraphEmbeddings
@@ -25,7 +26,7 @@ class GraphEmbeddingsStreamEndpoint(SocketEndpoint):
         self.subscriber = Subscriber(
             self.pulsar_client, graph_embeddings_store_queue,
             "api-gateway", "api-gateway",
-            schema=GraphEmbeddings
+            schema=JsonSchema(GraphEmbeddings)
         )
 
     async def listener(self, ws, running):
@@ -40,17 +41,17 @@ class GraphEmbeddingsStreamEndpoint(SocketEndpoint):
 
     async def start(self):
 
-        await self.subscriber.start()
+        self.subscriber.start()
 
     async def async_thread(self, ws, running):
 
         id = str(uuid.uuid4())
 
-        q = await self.subscriber.subscribe_all(id)
+        q = self.subscriber.subscribe_all(id)
 
         while running.get():
             try:
-                resp = await asyncio.wait_for(q.get, timeout=0.5)
+                resp = await asyncio.to_thread(q.get, timeout=0.5)
                 await ws.send_json(serialize_graph_embeddings(resp))
 
             except TimeoutError:
@@ -63,7 +64,7 @@ class GraphEmbeddingsStreamEndpoint(SocketEndpoint):
                 print(f"Exception: {str(e)}", flush=True)
                 break
 
-        await self.subscriber.unsubscribe_all(id)
+        self.subscriber.unsubscribe_all(id)
 
         running.stop()
 

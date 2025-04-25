@@ -6,68 +6,103 @@ import json
 import re
 import sys
 
-from ... base import AgentService, TextCompletionClientSpec, PromptClientSpec
-from ... base import GraphRagClientSpec
+from pulsar.schema import JsonSchema
 
-from ... schema import AgentRequest, AgentResponse, AgentStep, Error
+from ... base import ConsumerProducer
+from ... schema import Error
+from ... schema import AgentRequest, AgentResponse, AgentStep
+from ... schema import agent_request_queue, agent_response_queue
+from ... schema import prompt_request_queue as pr_request_queue
+from ... schema import prompt_response_queue as pr_response_queue
+from ... schema import graph_rag_request_queue as gr_request_queue
+from ... schema import graph_rag_response_queue as gr_response_queue
+from ... clients.prompt_client import PromptClient
+from ... clients.llm_client import LlmClient
+from ... clients.graph_rag_client import GraphRagClient
 
 from . tools import KnowledgeQueryImpl, TextCompletionImpl
 from . agent_manager import AgentManager
 
 from . types import Final, Action, Tool, Argument
 
-default_ident = "agent-manager"
-default_max_iterations = 10
+module = ".".join(__name__.split(".")[1:-1])
 
-class Processor(AgentService):
+default_input_queue = agent_request_queue
+default_output_queue = agent_response_queue
+default_subscriber = module
+default_max_iterations = 15
+
+class Processor(ConsumerProducer):
 
     def __init__(self, **params):
 
-        id = params.get("id")
-
         self.max_iterations = int(
             params.get("max_iterations", default_max_iterations)
+        )
+
+        tools = {}
+
+        input_queue = params.get("input_queue", default_input_queue)
+        output_queue = params.get("output_queue", default_output_queue)
+        subscriber = params.get("subscriber", default_subscriber)
+        prompt_request_queue = params.get(
+            "prompt_request_queue", pr_request_queue
+        )
+        prompt_response_queue = params.get(
+            "prompt_response_queue", pr_response_queue
+        )
+        graph_rag_request_queue = params.get(
+            "graph_rag_request_queue", gr_request_queue
+        )
+        graph_rag_response_queue = params.get(
+            "graph_rag_response_queue", gr_response_queue
         )
 
         self.config_key = params.get("config_type", "agent")
 
         super(Processor, self).__init__(
             **params | {
-                "id": id,
-                "max_iterations": self.max_iterations,
-                "config_type": self.config_key,
+                "input_queue": input_queue,
+                "output_queue": output_queue,
+                "subscriber": subscriber,
+                "input_schema": AgentRequest,
+                "output_schema": AgentResponse,
+                "prompt_request_queue": prompt_request_queue,
+                "prompt_response_queue": prompt_response_queue,
+                "graph_rag_request_queue": gr_request_queue,
+                "graph_rag_response_queue": gr_response_queue,
             }
         )
 
+        self.prompt = PromptClient(
+            subscriber=subscriber,
+            input_queue=prompt_request_queue,
+            output_queue=prompt_response_queue,
+            pulsar_host = self.pulsar_host,
+            pulsar_api_key=self.pulsar_api_key,
+        )
+
+        self.graph_rag = GraphRagClient(
+            subscriber=subscriber,
+            input_queue=graph_rag_request_queue,
+            output_queue=graph_rag_response_queue,
+            pulsar_host = self.pulsar_host,
+            pulsar_api_key=self.pulsar_api_key,
+        )
+
+        # Need to be able to feed requests to myself
+        self.recursive_input = self.client.create_producer(
+            topic=input_queue,
+            schema=JsonSchema(AgentRequest),
+        )
+
         self.agent = AgentManager(
+            context=self,
             tools=[],
             additional_context="",
         )
 
-        self.config_handlers.append(self.on_tools_config)
-
-        self.register_specification(
-            TextCompletionClientSpec(
-                request_name = "text-completion-request",
-                response_name = "text-completion-response",
-            )
-        )
-
-        self.register_specification(
-            GraphRagClientSpec(
-                request_name = "graph-rag-request",
-                response_name = "graph-rag-response",
-            )
-        )
-
-        self.register_specification(
-            PromptClientSpec(
-                request_name = "prompt-request",
-                response_name = "prompt-response",
-            )
-        )
-
-    async def on_tools_config(self, config, version):
+    async def on_config(self, version, config):
 
         print("Loading configuration version", version)
 
@@ -103,9 +138,9 @@ class Processor(AgentService):
                 impl_id = data.get("type")
 
                 if impl_id == "knowledge-query":
-                    impl = KnowledgeQueryImpl
+                    impl = KnowledgeQueryImpl(self)
                 elif impl_id == "text-completion":
-                    impl = TextCompletionImpl
+                    impl = TextCompletionImpl(self)
                 else:
                     raise RuntimeError(
                         f"Tool-kind {impl_id} not known"
@@ -120,6 +155,7 @@ class Processor(AgentService):
                 )
 
             self.agent = AgentManager(
+                context=self,
                 tools=tools,
                 additional_context=additional
             )
@@ -128,14 +164,19 @@ class Processor(AgentService):
 
         except Exception as e:
 
-            print("on_tools_config Exception:", e, flush=True)
+            print("Exception:", e, flush=True)
             print("Configuration reload failed", flush=True)
 
-    async def agent_request(self, request, respond, next, flow):
+    async def handle(self, msg):
 
         try:
 
-            if request.history:
+            v = msg.value()
+
+            # Sender-produced ID
+            id = msg.properties()["id"]
+
+            if v.history:
                 history = [
                     Action(
                         thought=h.thought,
@@ -143,12 +184,12 @@ class Processor(AgentService):
                         arguments=h.arguments,
                         observation=h.observation
                     )
-                    for h in request.history
+                    for h in v.history
                 ]
             else:
                 history = []
 
-            print(f"Question: {request.question}", flush=True)
+            print(f"Question: {v.question}", flush=True)
 
             if len(history) >= self.max_iterations:
                 raise RuntimeError("Too many agent iterations")
@@ -166,7 +207,7 @@ class Processor(AgentService):
                     observation=None,
                 )
 
-                await respond(r)
+                await self.send(r, properties={"id": id})
 
             async def observe(x):
 
@@ -179,21 +220,15 @@ class Processor(AgentService):
                     observation=x,
                 )
 
-                await respond(r)
+                await self.send(r, properties={"id": id})
 
-            act = await self.agent.react(
-                question = request.question,
-                history = history,
-                think = think,
-                observe = observe,
-                context = flow,
-            )
+            act = await self.agent.react(v.question, history, think, observe)
 
             print(f"Action: {act}", flush=True)
 
-            if isinstance(act, Final):
+            print("Send response...", flush=True)
 
-                print("Send final response...", flush=True)
+            if type(act) == Final:
 
                 r = AgentResponse(
                     answer=act.final,
@@ -201,20 +236,18 @@ class Processor(AgentService):
                     thought=None,
                 )
 
-                await respond(r)
+                await self.send(r, properties={"id": id})
 
                 print("Done.", flush=True)
 
                 return
 
-            print("Send next...", flush=True)
-
             history.append(act)
 
             r = AgentRequest(
-                question=request.question,
-                plan=request.plan,
-                state=request.state,
+                question=v.question,
+                plan=v.plan,
+                state=v.state,
                 history=[
                     AgentStep(
                         thought=h.thought,
@@ -226,7 +259,7 @@ class Processor(AgentService):
                 ]
             )
 
-            await next(r)
+            self.recursive_input.send(r, properties={"id": id})
 
             print("Done.", flush=True)
 
@@ -234,7 +267,7 @@ class Processor(AgentService):
 
         except Exception as e:
 
-            print(f"agent_request Exception: {e}")
+            print(f"Exception: {e}")
 
             print("Send error response...", flush=True)
 
@@ -246,12 +279,39 @@ class Processor(AgentService):
                 response=None,
             )
 
-            await respond(r)
+            await self.send(r, properties={"id": id})
 
     @staticmethod
     def add_args(parser):
 
-        AgentService.add_args(parser)
+        ConsumerProducer.add_args(
+            parser, default_input_queue, default_subscriber,
+            default_output_queue,
+        )
+
+        parser.add_argument(
+            '--prompt-request-queue',
+            default=pr_request_queue,
+            help=f'Prompt request queue (default: {pr_request_queue})',
+        )
+
+        parser.add_argument(
+            '--prompt-response-queue',
+            default=pr_response_queue,
+            help=f'Prompt response queue (default: {pr_response_queue})',
+        )
+
+        parser.add_argument(
+            '--graph-rag-request-queue',
+            default=gr_request_queue,
+            help=f'Graph RAG request queue (default: {gr_request_queue})',
+        )
+
+        parser.add_argument(
+            '--graph-rag-response-queue',
+            default=gr_response_queue,
+            help=f'Graph RAG response queue (default: {gr_response_queue})',
+        )
 
         parser.add_argument(
             '--max-iterations',
@@ -267,5 +327,5 @@ class Processor(AgentService):
 
 def run():
 
-    Processor.launch(default_ident, __doc__)
+    Processor.launch(module, __doc__)
 

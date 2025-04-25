@@ -8,21 +8,31 @@ from qdrant_client.models import PointStruct
 from qdrant_client.models import Distance, VectorParams
 import uuid
 
-from .... base import DocumentEmbeddingsStoreService
+from .... schema import DocumentEmbeddings
+from .... schema import document_embeddings_store_queue
+from .... log_level import LogLevel
+from .... base import Consumer
 
-default_ident = "de-write"
+module = ".".join(__name__.split(".")[1:-1])
 
+default_input_queue = document_embeddings_store_queue
+default_subscriber = module
 default_store_uri = 'http://localhost:6333'
 
-class Processor(DocumentEmbeddingsStoreService):
+class Processor(Consumer):
 
     def __init__(self, **params):
 
+        input_queue = params.get("input_queue", default_input_queue)
+        subscriber = params.get("subscriber", default_subscriber)
         store_uri = params.get("store_uri", default_store_uri)
         api_key = params.get("api_key", None)
 
         super(Processor, self).__init__(
             **params | {
+                "input_queue": input_queue,
+                "subscriber": subscriber,
+                "input_schema": DocumentEmbeddings,
                 "store_uri": store_uri,
                 "api_key": api_key,
             }
@@ -30,11 +40,13 @@ class Processor(DocumentEmbeddingsStoreService):
 
         self.last_collection = None
 
-        self.qdrant = QdrantClient(url=store_uri, api_key=api_key)
+        self.client = QdrantClient(url=store_uri)
 
-    async def store_document_embeddings(self, message):
+    async def handle(self, msg):
 
-        for emb in message.chunks:
+        v = msg.value()
+
+        for emb in v.chunks:
 
             chunk = emb.chunk.decode("utf-8")
             if chunk == "": return
@@ -43,17 +55,16 @@ class Processor(DocumentEmbeddingsStoreService):
 
                 dim = len(vec)
                 collection = (
-                    "d_" + message.metadata.user + "_" +
-                    message.metadata.collection + "_" +
+                    "d_" + v.metadata.user + "_" + v.metadata.collection + "_" +
                     str(dim)
                 )
 
                 if collection != self.last_collection:
 
-                    if not self.qdrant.collection_exists(collection):
+                    if not self.client.collection_exists(collection):
 
                         try:
-                            self.qdrant.create_collection(
+                            self.client.create_collection(
                                 collection_name=collection,
                                 vectors_config=VectorParams(
                                     size=dim, distance=Distance.COSINE
@@ -65,7 +76,7 @@ class Processor(DocumentEmbeddingsStoreService):
 
                     self.last_collection = collection
 
-                self.qdrant.upsert(
+                self.client.upsert(
                     collection_name=collection,
                     points=[
                         PointStruct(
@@ -81,7 +92,9 @@ class Processor(DocumentEmbeddingsStoreService):
     @staticmethod
     def add_args(parser):
 
-        DocumentEmbeddingsStoreService.add_args(parser)
+        Consumer.add_args(
+            parser, default_input_queue, default_subscriber,
+        )
 
         parser.add_argument(
             '-t', '--store-uri',
@@ -97,5 +110,5 @@ class Processor(DocumentEmbeddingsStoreService):
 
 def run():
 
-    Processor.launch(default_ident, __doc__)
+    Processor.launch(module, __doc__)
 

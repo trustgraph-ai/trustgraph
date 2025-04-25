@@ -17,7 +17,7 @@ from .... schema import rows_store_queue
 from .... log_level import LogLevel
 from .... base import Consumer
 
-module = "rows-write"
+module = ".".join(__name__.split(".")[1:-1])
 ssl_context = SSLContext(PROTOCOL_TLSv1_2)
 
 default_input_queue = rows_store_queue

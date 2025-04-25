@@ -18,6 +18,8 @@ class ObjectEmbeddings(Record):
     key_name = String()
     id = String()
 
+object_embeddings_store_queue = topic('object-embeddings-store')
+
 ############################################################################
 
 # Stores rows of information
@@ -27,5 +29,5 @@ class Rows(Record):
     row_schema = RowSchema()
     rows = Array(Map(String()))
 
-
+rows_store_queue = topic('rows-store')
 

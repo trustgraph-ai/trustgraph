@@ -1,136 +1,93 @@
 
+import asyncio
 from pulsar.schema import JsonSchema
 import pulsar
-import _pulsar
-import asyncio
+from prometheus_client import Histogram, Info, Counter, Enum
 import time
 
+from . base_processor import BaseProcessor
 from .. exceptions import TooManyRequests
 
-class Consumer:
+default_rate_limit_retry = 10
+default_rate_limit_timeout = 7200
 
-    def __init__(
-            self, taskgroup, flow, client, topic, subscriber, schema,
-            handler, 
-            metrics = None,
-            start_of_messages=False,
-            rate_limit_retry_time = 10, rate_limit_timeout = 7200,
-            reconnect_time = 5,
-    ):
+class Consumer(BaseProcessor):
 
-        self.taskgroup = taskgroup
-        self.flow = flow
-        self.client = client
-        self.topic = topic
-        self.subscriber = subscriber
-        self.schema = schema
-        self.handler = handler
+    def __init__(self, **params):
 
-        self.rate_limit_retry_time = rate_limit_retry_time
-        self.rate_limit_timeout = rate_limit_timeout
+        if not hasattr(__class__, "state_metric"):
+            __class__.state_metric = Enum(
+                'processor_state', 'Processor state',
+                states=['starting', 'running', 'stopped']
+            )
+            __class__.state_metric.state('starting')
 
-        self.reconnect_time = 5
+        __class__.state_metric.state('starting')
 
-        self.start_of_messages = start_of_messages
+        super(Consumer, self).__init__(**params)
 
-        self.running = True
-        self.task = None
+        self.input_queue = params.get("input_queue")
+        self.subscriber = params.get("subscriber")
+        self.input_schema = params.get("input_schema")
 
-        self.metrics = metrics
+        self.rate_limit_retry = params.get(
+            "rate_limit_retry", default_rate_limit_retry
+        )
+        self.rate_limit_timeout = params.get(
+            "rate_limit_timeout", default_rate_limit_timeout
+        )
 
-        self.consumer = None
+        if self.input_schema == None:
+            raise RuntimeError("input_schema must be specified")
 
-    def __del__(self):
-        self.running = False
+        if not hasattr(__class__, "request_metric"):
+            __class__.request_metric = Histogram(
+                'request_latency', 'Request latency (seconds)'
+            )
 
-        if hasattr(self, "consumer"):
-            if self.consumer:
-                self.consumer.close()
+        if not hasattr(__class__, "pubsub_metric"):
+            __class__.pubsub_metric = Info(
+                'pubsub', 'Pub/sub configuration'
+            )
 
-    async def stop(self):
+        if not hasattr(__class__, "processing_metric"):
+            __class__.processing_metric = Counter(
+                'processing_count', 'Processing count', ["status"]
+            )
 
-        self.running = False
-        await self.task
+        if not hasattr(__class__, "rate_limit_metric"):
+            __class__.rate_limit_metric = Counter(
+                'rate_limit_count', 'Rate limit event count',
+            )
 
-    async def start(self):
+        __class__.pubsub_metric.info({
+            "input_queue": self.input_queue,
+            "subscriber": self.subscriber,
+            "input_schema": self.input_schema.__name__,
+            "rate_limit_retry": str(self.rate_limit_retry),
+            "rate_limit_timeout": str(self.rate_limit_timeout),
+        })
 
-        self.running = True
+        self.consumer = self.client.subscribe(
+            self.input_queue, self.subscriber,
+            consumer_type=pulsar.ConsumerType.Shared,
+            schema=JsonSchema(self.input_schema),
+        )
 
-        # Puts it in the stopped state, the run thread should set running
-        if self.metrics:
-            self.metrics.state("stopped")
-
-        self.task = self.taskgroup.create_task(self.run())
+        print("Initialised consumer.", flush=True)
 
     async def run(self):
 
-        while self.running:
+        __class__.state_metric.state('running')
 
-            if self.metrics:
-                self.metrics.state("stopped")
+        while True:
 
-            try:
-
-                print(self.topic, "subscribing...", flush=True)
-
-                if self.start_of_messages:
-                    pos = pulsar.InitialPosition.Earliest
-                else:
-                    pos = pulsar.InitialPosition.Latest
-
-                self.consumer = await asyncio.to_thread(
-                    self.client.subscribe,
-                    topic = self.topic,
-                    subscription_name = self.subscriber,
-                    schema = JsonSchema(self.schema),
-                    initial_position = pos,
-                    consumer_type = pulsar.ConsumerType.Shared,
-                )
-
-            except Exception as e:
-
-                print("consumer subs Exception:", e, flush=True)
-                await asyncio.sleep(self.reconnect_time)
-                continue
-
-            print(self.topic, "subscribed", flush=True)
-
-            if self.metrics:
-                self.metrics.state("running")
-
-            try:
-
-                await self.consume()
-
-                if self.metrics:
-                    self.metrics.state("stopped")
-
-            except Exception as e:
-
-                print("consumer loop exception:", e, flush=True)
-                self.consumer.close()
-                self.consumer = None
-                await asyncio.sleep(self.reconnect_time)
-                continue
-
-    async def consume(self):
-
-        while self.running:
-
-            try:
-                msg = await asyncio.to_thread(
-                    self.consumer.receive,
-                    timeout_millis=2000
-                )
-            except _pulsar.Timeout:
-                continue
-            except Exception as e:
-                raise e
+            msg = await asyncio.to_thread(self.consumer.receive)
 
             expiry = time.time() + self.rate_limit_timeout
 
             # This loop is for retry on rate-limit / resource limits
-            while self.running:
+            while True:
 
                 if time.time() > expiry:
 
@@ -140,31 +97,20 @@ class Consumer:
                     # be retried
                     self.consumer.negative_acknowledge(msg)
 
-                    if self.metrics:
-                        self.metrics.process("error")
+                    __class__.processing_metric.labels(status="error").inc()
 
                     # Break out of retry loop, processes next message
                     break
 
                 try:
 
-                    print("Handle...", flush=True)
-
-                    if self.metrics:
-
-                        with self.metrics.record_time():
-                            await self.handler(msg, self, self.flow)
-
-                    else:
-                        await self.handler(msg, self, self.flow)
-
-                    print("Handled.", flush=True)
+                    with __class__.request_metric.time():
+                        await self.handle(msg)
 
                     # Acknowledge successful processing of the message
                     self.consumer.acknowledge(msg)
 
-                    if self.metrics:
-                        self.metrics.process("success")
+                    __class__.processing_metric.labels(status="success").inc()
 
                     # Break out of retry loop
                     break
@@ -173,25 +119,55 @@ class Consumer:
 
                     print("TooManyRequests: will retry...", flush=True)
 
-                    if self.metrics:
-                        self.metrics.rate_limit()
+                    __class__.rate_limit_metric.inc()
 
                     # Sleep
-                    await asyncio.sleep(self.rate_limit_retry_time)
+                    time.sleep(self.rate_limit_retry)
 
                     # Contine from retry loop, just causes a reprocessing
                     continue
-
+                
                 except Exception as e:
 
-                    print("consume exception:", e, flush=True)
+                    print("Exception:", e, flush=True)
 
                     # Message failed to be processed, this causes it to
                     # be retried
                     self.consumer.negative_acknowledge(msg)
 
-                    if self.metrics:
-                        self.metrics.process("error")
+                    __class__.processing_metric.labels(status="error").inc()
 
                     # Break out of retry loop, processes next message
                     break
+
+    @staticmethod
+    def add_args(parser, default_input_queue, default_subscriber):
+
+        BaseProcessor.add_args(parser)
+
+        parser.add_argument(
+            '-i', '--input-queue',
+            default=default_input_queue,
+            help=f'Input queue (default: {default_input_queue})'
+        )
+
+        parser.add_argument(
+            '-s', '--subscriber',
+            default=default_subscriber,
+            help=f'Queue subscriber name (default: {default_subscriber})'
+        )
+
+        parser.add_argument(
+            '--rate-limit-retry',
+            type=int,
+            default=default_rate_limit_retry,
+            help=f'Rate limit retry (default: {default_rate_limit_retry})'
+        )
+
+        parser.add_argument(
+            '--rate-limit-timeout',
+            type=int,
+            default=default_rate_limit_timeout,
+            help=f'Rate limit timeout (default: {default_rate_limit_timeout})'
+        )
+

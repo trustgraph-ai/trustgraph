@@ -2,41 +2,40 @@
 
 <div align="center">
 
-## Autonomous Operations Platform
+## Data-to-AI, Simplified.
 
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
 
-📑 [Docs](https://trustgraph.ai/docs/getstarted) 📺 [YouTube](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) 🧠 [Knowledge Cores](https://github.com/trustgraph-ai/catalog/tree/master/v3) ⚙️ [API Docs](docs/apis/README.md) 🧑‍💻 [CLI Docs](https://trustgraph.ai/docs/running/cli) 💬 [Discord](https://discord.gg/sQMwkRz5GX) 📖 [Blog](https://blog.trustgraph.ai/subscribe)
+🚀 [Getting Started](https://trustgraph.ai/docs/getstarted) 📺 [YouTube](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) 🧠 [Knowledge Cores](https://github.com/trustgraph-ai/catalog/tree/master/v3) ⚙️ [API Docs](docs/apis/README.md) 🧑‍💻 [CLI Docs](https://trustgraph.ai/docs/running/cli) 💬 [Discord](https://discord.gg/sQMwkRz5GX) 📖 [Blog](https://blog.trustgraph.ai/subscribe)
 
 </div>
 
-**Transform AI agents from experimental concepts into a new paradigm of continuous operations.**
+## The AI App Problem: Everything in Between
 
-The **TrustGraph** platform provides a robust, scalable, and reliable AI infrastructure designed for complex environments, complete with a full observability and telemetry stack. **TrustGraph** automates the deployment of state-of-the-art RAG pipelines using both Knowledge Graphs and Vector Databases in local and cloud environments with a unified interface to all major LLM providers.
+Building enterprise AI applications is *hard*. You're not just connecting APIs with a protocol - you're wrangling a complex ecosystem:
 
----
+*   **Data Silos:** Connecting to and managing data from various sources (databases, APIs, files) is a nightmare.
+*   **LLM Integration:** Choosing, integrating, and managing different LLMs adds another layer of complexity.
+*   **Deployment Headaches:** Deploying, scaling, and monitoring your AI application is a constant challenge.
+*   **Knowledge Graph Construction:** Taking raw knowledge and structuring it so it can be efficiently retrieved.
+*   **Vector Database Juggling:** Setting up and optimizing a vector database for efficient data retrieval is crucial but complex.
+*   **Data Pipelines:** Building robust ETL pipelines to prepare and transform your data is time-consuming.
+*   **Data Management:** As your app grows, so does the data meaning storage and retreival becomes much more complex. 
+*   **Prompt Engineering:** Building, testing, and deploying prompts for specific use cases.
+*   **Reliability:** With every new connection, the complexity ramps up meaning any simple error can bring the entire system crashing down.
 
--   ✨ [**Key Features**](#-key-features)
--   🎯 [**Why TrustGraph?**](#-why-trustgraph)
--   🚀 [**Getting Started**](#-getting-started)
--   🔧 [**Configuration Builder**](#-configuration-builder)
--   🧠 [**Knowledge Cores**](#-knowledge-cores)
--   📐 [**Architecture**](#-architecture)
--   🧩 [**Integrations**](#-integrations)
--   📊 [**Observability & Telemetry**](#-observability--telemetry)
--   🤝 [**Contributing**](#-contributing)
--   📄 [**License**](#-license)
--   📞 [**Support & Community**](#-support--community)
+## What is TrustGraph?
 
----
+**TrustGraph removes the biggest headache of building an AI app: connecting and managing all the data, deployments, and models.** As a full-stack platform, TrustGraph simplifies the development and deployment of data-driven AI applications. TrustGraph is a complete solution, handling everything from data ingestion to deployment, so you can focus on building innovative AI experiences.
 
-## ✨ Key Features
+![architecture](TG-layer-diagram.svg)
+
+## The Stack Layers
 
 - 📄 **Data Ingest**: Bulk ingest documents such as `.pdf`,`.txt`, and `.md`
-- 📃 **OCR Pipelines**: OCR documents with PDF decode, Tesseract, or Mistral OCR services
 - 🪓 **Adjustable Chunking**: Choose your chunking algorithm and parameters
-- 🔁 **No-code LLM Integration**: **Anthropic**, **AWS Bedrock**, **AzureAI**, **AzureOpenAI**, **Cohere**, **Google AI Studio**, **Google VertexAI**, **Llamafiles**, **LM Studio**, **Mistral**, **Ollama**, and **OpenAI**
+- 🔁 **No-code LLM Integration**: **Anthropic**, **AWS Bedrock**, **AzureAI**, **AzureOpenAI**, **Cohere**, **Google AI Studio**, **Google VertexAI**, **Llamafiles**, **Ollama**, and **OpenAI**
 - 📖 **Automated Knowledge Graph Building**: No need for complex ontologies and manual graph building
 - 🔢 **Knowledge Graph to Vector Embeddings Mappings**: Connect knowledge graph enhanced data directly to vector embeddings
 - ❔**Natural Language Data Retrieval**: Automatically perform a semantic similiarity search and subgraph extraction for the context of LLM generative responses
@@ -45,38 +44,31 @@ The **TrustGraph** platform provides a robust, scalable, and reliable AI infrast
 - 📚 **Multiple Knowledge Graph Options**: Full integration with **Memgraph**, **FalkorDB**, **Neo4j**, or **Cassandra**
 - 🧮 **Multiple VectorDB Options**: Full integration with **Qdrant**, **Pinecone**, or **Milvus**
 - 🎛️ **Production-Grade** Reliability, scalability, and accuracy
-- 📊 **Observability and Telemetry**: Get insights into system performance with **Prometheus** and **Grafana**
+- 🔍 **Observability and Telemetry**: Get insights into system performance with **Prometheus** and **Grafana**
 - 🎻 **Orchestration**: Fully containerized with **Docker** or **Kubernetes**
 - 🥞 **Stack Manager**: Control and scale the stack with confidence with **Apache Pulsar**
-- ☁️ **Cloud Deployments**: **AWS**, **Azure**, **Google Cloud**, and **Scaleway**
+- ☁️ **Cloud Deployments**: **AWS** and **Google Cloud**
 - 🪴 **Customizable and Extensible**: Tailor for your data and use cases
 - 🖥️ **Configuration Builder**: Build the `YAML` configuration with drop down menus and selectable parameters
 - 🕵️ **Test Suite**: A simple UI to fully test TrustGraph performance
 
-## 🎯 Why TrustGraph?
+## Why Use TrustGraph?
 
-Traditional operations involve manual intervention, siloed tools, and reactive problem-solving. While AI agents show promise, integrating them into reliable, continuous operations presents significant challenges:
+*   **Accelerate Development:** TrustGraph instantly connects your data and app, keeping you laser focused on your users.
+*   **Reduce Complexity:** Eliminate the pain of integrating disparate tools and technologies.
+*   **Focus on Innovation:** Spend your time building your core AI logic, not managing infrastructure.
+*   **Improve Data Relevance:** Ensure your LLM has access to the *right* data, at the *right* time.
+*   **Scale with Confidence:**  Deploy and scale your AI applications reliably and efficiently.
+*   **Full RAG Solution:** Focus on optimizing your respones not building RAG pipelines.
 
-1.  **Scalability & Reliability:** Standalone agents don't scale or offer the robustness required for business-critical operations.
-2.  **Contextual Understanding:** Agents need deep, relevant context (often locked in sensitive and protectec data) to perform complex tasks effectively. RAG is powerful but complex to deploy and manage.
-3.  **Integration Nightmare:** Connecting agents to diverse systems, data sources, and various LLMs is difficult and time-consuming.
-4.  **Lack of Oversight:** Monitoring, debugging, and understanding the behavior of multiple autonomous agents in production is critical but often overlooked.
-
-**TrustGraph addresses these challenges by providing:**
-
-*   A **platform**, not just a library, for managing the lifecycle of autonomous operations.
-*   **Automated, best-practice RAG deployments** that combine the strengths of semantic vector search and structured knowledge graph traversal.
-*   A **standardized layer** for LLM interaction and enterprise system integration.
-*   **Built-in observability** to ensure you can trust and manage your autonomous systems.
-
-## 🚀 Getting Started
+## Quickstart Guide 🚀
 - [Install the CLI](#install-the-trustgraph-cli)
-- [Configuration Builder](#-configuration-builder)
-- [Platform Restarts](#platform-restarts)
+- [Configuration Builder](#configuration-builder)
+- [System Restarts](#system-restarts)
 - [Test Suite](#test-suite)
 - [Example Notebooks](#example-trustgraph-notebooks)
 
-### Developer APIs and CLI
+## Developer APIs and CLI
 
 - [**REST API**](docs/apis/README.md#rest-apis)
 - [**Websocket API**](docs/apis/README.md#websocket-api)
@@ -87,7 +79,7 @@ See the [API Developer's Guide](#api-documentation) for more information.
 
 For users, **TrustGraph** has the following interfaces:
 
-- [**Configuration Builder**](#-configuration-builder)
+- [**Configuration Builder**](#configuration-builder)
 - [**Test Suite**](#test-suite)
 
 The `TrustGraph CLI` installs the commands for interacting with TrustGraph while running along with the Python SDK. The `Configuration Builder` enables customization of TrustGraph deployments prior to launching. The **REST API** can be accessed through port `8088` of the TrustGraph host machine with JSON request and response bodies.
@@ -95,18 +87,18 @@ The `TrustGraph CLI` installs the commands for interacting with TrustGraph while
 ### Install the TrustGraph CLI
 
 ```
-pip3 install trustgraph-cli==0.21.17
+pip3 install trustgraph-cli==0.20.9
 ```
 
 > [!NOTE]
 > The `TrustGraph CLI` version must match the desired `TrustGraph` release version.
 
-## 🔧 Configuration Builder
+## Configuration Builder
 
-TrustGraph is endlessly customizable by editing the `YAML` launch files. The `Configuration Builder` provides a quick and intuitive tool for building a custom configuration that deploys with Docker, Podman, Minikube, AWS, Azure, Google Cloud, or Scaleway. There is a `Configuration Builder` for the both the lastest and stable `TrustGraph` releases.
+TrustGraph is endlessly customizable by editing the `YAML` launch files. The `Configuration Builder` provides a quick and intuitive tool for building a custom configuration that deploys with Docker, Podman, Minikube, or Google Cloud. There is a `Configuration Builder` for the both the lastest and stable `TrustGraph` releases.
 
-- [**Configuration Builder** (Stable 0.21.17) 🚀](https://config-ui.demo.trustgraph.ai/)
-- [**Configuration Builder** (Latest 0.22.5) 🚀](https://dev.config-ui.demo.trustgraph.ai/)
+- [**Configuration Builder** (Stable 0.20.9) 🚀](https://config-ui.demo.trustgraph.ai/)
+- [**Configuration Builder** (Latest 0.20.11) 🚀](https://dev.config-ui.demo.trustgraph.ai/)
 
 The `Configuration Builder` has 4 important sections:
 
@@ -129,7 +121,7 @@ When finished, shutting down TrustGraph is as simple as:
 docker compose down -v
 ```
 
-### Platform Restarts
+## System Restarts
 
 The `-v` flag will destroy all data on shut down. To restart the system, it's necessary to keep the volumes. To keep the volumes, shut down without the `-v` flag:
 ```
@@ -143,7 +135,7 @@ docker compose up -d
 
 All data previously in TrustGraph will be saved and usable on restart.
 
-### Test Suite
+## Test Suite
 
 If added to the build in the `Configuration Builder`, the `Test Suite` will be available at port `8888`. The `Test Suite` has the following capabilities:
 
@@ -153,10 +145,19 @@ If added to the build in the `Configuration Builder`, the `Test Suite` will be a
 - **Graph Visualizer** 🌐: Visualize semantic relationships in **3D**
 - **Data Loader** 📂: Directly load `.pdf`, `.txt`, or `.md` into the system with document metadata
 
-### Example TrustGraph Notebooks
+## Example TrustGraph Notebooks
 
 - [**REST API Notebooks**](https://github.com/trustgraph-ai/example-notebooks/tree/master/api-examples)
 - [**Python SDK Notebooks**](https://github.com/trustgraph-ai/example-notebooks/tree/master/api-library)
+
+## Prebuilt Configuration Files
+
+TrustGraph `YAML` files are available [here](https://github.com/trustgraph-ai/trustgraph/releases). Download `deploy.zip` for the desired release version.
+
+| Release Type | Release Version |
+| ------------ | --------------- |
+| Latest | [0.20.11](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.20.11/deploy.zip) |
+| Stable | [0.20.9](https://github.com/trustgraph-ai/trustgraph/releases/download/v0.20.9/deploy.zip) |
 
 TrustGraph is fully containerized and is launched with a `YAML` configuration file. Unzipping the `deploy.zip` will add the `deploy` directory with the following subdirectories:
 
@@ -179,39 +180,12 @@ kubectl apply -f <launch-file.yaml>
 
 TrustGraph is designed to be modular to support as many LLMs and environments as possible. A natural fit for a modular architecture is to decompose functions into a set of modules connected through a pub/sub backbone. [Apache Pulsar](https://github.com/apache/pulsar/) serves as this pub/sub backbone. Pulsar acts as the data broker managing data processing queues connected to procesing modules.
 
-## 🧠 Knowledge Cores
+### Pulsar Workflows
 
-One of the biggest challenges currently facing RAG architectures is the ability to quickly reuse and integrate knowledge sets. **TrustGraph** solves this problem by storing the results of the document ingestion process in reusable Knowledge Cores. Being able to store and reuse the Knowledge Cores means the process has to be run only once for a set of documents. These reusable Knowledge Cores can be loaded back into **TrustGraph** and used for RAG.
-
-A Knowledge Core has two components:
-
-- Set of Graph Edges
-- Set of mapped Vector Embeddings
-
-When a Knowledge Core is loaded into TrustGraph, the corresponding graph edges and vector embeddings are queued and loaded into the chosen graph and vector stores.
-
-## 📐 Architecture
-
-As a full-stack platform, TrustGraph provides all the stack layers needed to connect the data layer to the app layer for autonomous operations.
-
-![architecture](TG-layer-diagram.svg)
-
-## 🧩 Integrations
-TrustGraph seamlessly integrates API services, data stores, observability, telemetry, and control flow for a unified platform experience.
-
-- LLM Providers: **Anthropic**, **AWS Bedrock**, **AzureAI**, **AzureOpenAI**, **Cohere**, **Google AI Studio**, **Google VertexAI**, **Llamafiles**, **LM Studio**, **Mistral**, **Ollama**, and **OpenAI**
-- Vector Databases: **Qdrant**, **Pinecone**, and **Milvus**
-- Knowledge Graphs: **Memgraph**, **Neo4j**, and **FalkorDB** 
-- Data Stores: **Apache Cassandra**
-- Observability: **Prometheus** and **Grafana**
-- Control Flow: **Apache Pulsar**
-
-### Pulsar Control Flows
-
-- For control flows, Pulsar accepts the output of a processing module and queues it for input to the next subscribed module.
+- For processing flows, Pulsar accepts the output of a processing module and queues it for input to the next subscribed module.
 - For services such as LLMs and embeddings, Pulsar provides a client/server model.  A Pulsar queue is used as the input to the service.  When processed, the output is then delivered to a separate queue where a client subscriber can request that output.
 
-### Document Extraction Agents
+## Data Extraction Agents
 
 TrustGraph extracts knowledge documents to an ultra-dense knowledge graph using 3 automonous data extraction agents. These agents focus on individual elements needed to build the knowledge graph. The agents are:
 
@@ -231,7 +205,7 @@ Text or Markdown file:
 tg-load-text <document.txt>
 ```
 
-### Graph RAG Queries
+## Graph RAG Queries
 
 Once the knowledge graph and embeddings have been built or a cognitive core has been loaded, RAG queries are launched with a single line:
 
@@ -239,7 +213,7 @@ Once the knowledge graph and embeddings have been built or a cognitive core has 
 tg-invoke-graph-rag -q "What are the top 3 takeaways from the document?"
 ```
 
-### Agent Flow
+## Agent Flow
 
 Invoking the Agent Flow will use a ReAct style approach the combines Graph RAG and text completion requests to think through a problem solution.
 
@@ -250,44 +224,14 @@ tg-invoke-agent -v -q "Write a blog post on the top 3 takeaways from the documen
 > [!TIP]
 > Adding `-v` to the agent request will return all of the agent manager's thoughts and observations that led to the final response.
 
-## 📊 Observability & Telemetry
+## API Documentation
 
-Once the platform is running, access the Grafana dashboard at:
+[Developing on TrustGraph using APIs](docs/apis/README.md)
 
-```
-http://localhost:3000
-```
+## Deploy and Manage TrustGraph
 
-Default credentials are:
+[🚀🙏 Full Deployment Guide 🚀🙏](https://trustgraph.ai/docs/getstarted)
 
-```
-user: admin
-password: admin
-```
-
-The default Grafana dashboard tracks the following:
-
-- LLM Latency
-- Error Rate
-- Service Request Rates
-- Queue Backlogs
-- Chunking Histogram
-- Error Source by Service
-- Rate Limit Events
-- CPU usage by Service
-- Memory usage by Service
-- Models Deployed
-- Token Throughput (Tokens/second)
-- Cost Throughput (Cost/second)
-
-## 🤝 Contributing
+## TrustGraph Developer's Guide
 
 [Developing for TrustGraph](docs/README.development.md)
-
-## 📄 License
-**TrustGraph** is licensed under [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html).
-
-## 📞 Support & Community
-- Bug Reports & Feature Requests: [Discord](https://discord.gg/sQMwkRz5GX)
-- Discussions & Questions: [Discord](https://discord.gg/sQMwkRz5GX)
-- Documentation: [Docs](https://trustgraph.ai/docs/getstarted)

@@ -17,10 +17,12 @@ from mistralai.models import OCRResponse
 from ... schema import Document, TextDocument, Metadata
 from ... schema import document_ingest_queue, text_ingest_queue
 from ... log_level import LogLevel
-from ... base import InputOutputProcessor
+from ... base import ConsumerProducer
 
-module = "ocr"
+module = ".".join(__name__.split(".")[1:-1])
 
+default_input_queue = document_ingest_queue
+default_output_queue = text_ingest_queue
 default_subscriber = module
 default_api_key = os.getenv("MISTRAL_TOKEN")
 
@@ -69,17 +71,19 @@ def get_combined_markdown(ocr_response: OCRResponse) -> str:
 
     return "\n\n".join(markdowns)
 
-class Processor(InputOutputProcessor):
+class Processor(ConsumerProducer):
 
     def __init__(self, **params):
 
-        id = params.get("id")
+        input_queue = params.get("input_queue", default_input_queue)
+        output_queue = params.get("output_queue", default_output_queue)
         subscriber = params.get("subscriber", default_subscriber)
         api_key = params.get("api_key", default_api_key)
 
         super(Processor, self).__init__(
             **params | {
-                "id": id,
+                "input_queue": input_queue,
+                "output_queue": output_queue,
                 "subscriber": subscriber,
                 "input_schema": Document,
                 "output_schema": TextDocument,
@@ -147,7 +151,7 @@ class Processor(InputOutputProcessor):
 
             return markdown
 
-    async def on_message(self, msg, consumer):
+    async def handle(self, msg):
 
         print("PDF message received")
 
@@ -162,14 +166,17 @@ class Processor(InputOutputProcessor):
             text=markdown.encode("utf-8"),
         )
 
-        await consumer.q.output.send(r)
+        await self.send(r)
 
         print("Done.", flush=True)
 
     @staticmethod
     def add_args(parser):
 
-        InputOutputProcessor.add_args(parser, default_subscriber)
+        ConsumerProducer.add_args(
+            parser, default_input_queue, default_subscriber,
+            default_output_queue,
+        )
 
         parser.add_argument(
             '-k', '--api-key',

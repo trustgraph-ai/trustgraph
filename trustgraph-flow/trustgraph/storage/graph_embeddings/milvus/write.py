@@ -9,7 +9,7 @@ from .... log_level import LogLevel
 from .... direct.milvus_graph_embeddings import EntityVectors
 from .... base import Consumer
 
-module = "ge-write"
+module = ".".join(__name__.split(".")[1:-1])
 
 default_input_queue = graph_embeddings_store_queue
 default_subscriber = module

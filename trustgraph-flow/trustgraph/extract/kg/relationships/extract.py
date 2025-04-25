@@ -5,54 +5,59 @@ relationship analysis to get entity relationship edges which are output as
 graph edges.
 """
 
-import json
 import urllib.parse
 
 from .... schema import Chunk, Triple, Triples
 from .... schema import Metadata, Value
-from .... schema import PromptRequest, PromptResponse
+from .... schema import chunk_ingest_queue, triples_store_queue
+from .... schema import prompt_request_queue
+from .... schema import prompt_response_queue
+from .... log_level import LogLevel
+from .... clients.prompt_client import PromptClient
 from .... rdf import RDF_LABEL, TRUSTGRAPH_ENTITIES, SUBJECT_OF
-
-from .... base import FlowProcessor, ConsumerSpec,  ProducerSpec
-from .... base import PromptClientSpec
+from .... base import ConsumerProducer
 
 RDF_LABEL_VALUE = Value(value=RDF_LABEL, is_uri=True)
 SUBJECT_OF_VALUE = Value(value=SUBJECT_OF, is_uri=True)
 
-default_ident = "kg-extract-relationships"
+module = ".".join(__name__.split(".")[1:-1])
 
-class Processor(FlowProcessor):
+default_input_queue = chunk_ingest_queue
+default_output_queue = triples_store_queue
+default_subscriber = module
+
+class Processor(ConsumerProducer):
 
     def __init__(self, **params):
 
-        id = params.get("id")
+        input_queue = params.get("input_queue", default_input_queue)
+        output_queue = params.get("output_queue", default_output_queue)
+        subscriber = params.get("subscriber", default_subscriber)
+        pr_request_queue = params.get(
+            "prompt_request_queue", prompt_request_queue
+        )
+        pr_response_queue = params.get(
+            "prompt_response_queue", prompt_response_queue
+        )
 
         super(Processor, self).__init__(
             **params | {
-                "id": id,
+                "input_queue": input_queue,
+                "output_queue": output_queue,
+                "subscriber": subscriber,
+                "input_schema": Chunk,
+                "output_schema": Triples,
+                "prompt_request_queue": pr_request_queue,
+                "prompt_response_queue": pr_response_queue,
             }
         )
 
-        self.register_specification(
-            ConsumerSpec(
-                name = "input",
-                schema = Chunk,
-                handler = self.on_message
-            )
-        )
-
-        self.register_specification(
-            PromptClientSpec(
-                request_name = "prompt-request",
-                response_name = "prompt-response",
-            )
-        )
-
-        self.register_specification(
-            ProducerSpec(
-                name = "triples",
-                schema = Triples
-            )
+        self.prompt = PromptClient(
+            pulsar_host=self.pulsar_host,
+            pulsar_api_key=self.pulsar_api_key,
+            input_queue=pr_request_queue,
+            output_queue=pr_response_queue,
+            subscriber = module + "-prompt",
         )
 
     def to_uri(self, text):
@@ -63,39 +68,28 @@ class Processor(FlowProcessor):
 
         return uri
 
-    async def emit_triples(self, pub, metadata, triples):
+    def get_relationships(self, chunk):
+
+        return self.prompt.request_relationships(chunk)
+
+    async def emit_edges(self, metadata, triples):
 
         t = Triples(
             metadata=metadata,
             triples=triples,
         )
-        await pub.send(t)
+        await self.send(t)
 
-    async def on_message(self, msg, consumer, flow):
+    async def handle(self, msg):
 
         v = msg.value()
         print(f"Indexing {v.metadata.id}...", flush=True)
 
         chunk = v.chunk.decode("utf-8")
 
-        print(chunk, flush=True)
-
         try:
 
-            try:
-
-                rels = await flow("prompt-request").extract_relationships(
-                    text = chunk
-                )
-
-                print("Response", rels, flush=True)
-
-                if type(rels) != list:
-                    raise RuntimeError("Expecting array in prompt response")
-
-            except Exception as e:
-                print("Prompt exception:", e, flush=True)
-                raise e
+            rels = self.get_relationships(chunk)
 
             triples = []
 
@@ -106,9 +100,9 @@ class Processor(FlowProcessor):
 
             for rel in rels:
 
-                s = rel["subject"]
-                p = rel["predicate"]
-                o = rel["object"]
+                s = rel.s
+                p = rel.p
+                o = rel.o
 
                 if s == "": continue
                 if p == "": continue
@@ -124,7 +118,7 @@ class Processor(FlowProcessor):
                 p_uri = self.to_uri(p)
                 p_value = Value(value=str(p_uri), is_uri=True)
 
-                if rel["object-entity"]: 
+                if rel.o_entity: 
                     o_uri = self.to_uri(o)
                     o_value = Value(value=str(o_uri), is_uri=True)
                 else:
@@ -150,7 +144,7 @@ class Processor(FlowProcessor):
                     o=Value(value=str(p), is_uri=False)
                 ))
 
-                if rel["object-entity"]:
+                if rel.o_entity:
                     # Label for o
                     triples.append(Triple(
                         s=o_value,
@@ -165,7 +159,7 @@ class Processor(FlowProcessor):
                     o=Value(value=v.metadata.id, is_uri=True)
                 ))
 
-                if rel["object-entity"]:
+                if rel.o_entity:
                     # 'Subject of' for o
                     triples.append(Triple(
                         s=o_value,
@@ -174,7 +168,6 @@ class Processor(FlowProcessor):
                     ))
 
             await self.emit_edges(
-                flow("triples"),
                 Metadata(
                     id=v.metadata.id,
                     metadata=[],
@@ -192,9 +185,24 @@ class Processor(FlowProcessor):
     @staticmethod
     def add_args(parser):
 
-        FlowProcessor.add_args(parser)
+        ConsumerProducer.add_args(
+            parser, default_input_queue, default_subscriber,
+            default_output_queue,
+        )
+
+        parser.add_argument(
+            '--prompt-request-queue',
+            default=prompt_request_queue,
+            help=f'Prompt request queue (default: {prompt_request_queue})',
+        )
+
+        parser.add_argument(
+            '--prompt-response-queue',
+            default=prompt_response_queue,
+            help=f'Prompt response queue (default: {prompt_response_queue})',
+        )
 
 def run():
 
-    Processor.launch(default_ident, __doc__)
+    Processor.launch(module, __doc__)
 
