@@ -18,7 +18,7 @@ from .... base import ConsumerProducer
 
 DEFINITION_VALUE = Value(value=DEFINITION, is_uri=True)
 
-module = "kg-extract-topics"
+module = ".".join(__name__.split(".")[1:-1])
 
 default_input_queue = chunk_ingest_queue
 default_output_queue = triples_store_queue

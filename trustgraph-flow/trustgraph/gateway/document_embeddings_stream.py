@@ -1,6 +1,7 @@
 
 import asyncio
 import queue
+from pulsar.schema import JsonSchema
 import uuid
 
 from .. schema import DocumentEmbeddings
@@ -26,7 +27,7 @@ class DocumentEmbeddingsStreamEndpoint(SocketEndpoint):
         self.subscriber = Subscriber(
             self.pulsar_client, document_embeddings_store_queue,
             "api-gateway", "api-gateway",
-            schema=DocumentEmbeddings,
+            schema=JsonSchema(DocumentEmbeddings),
         )
 
     async def listener(self, ws, running):
@@ -43,17 +44,17 @@ class DocumentEmbeddingsStreamEndpoint(SocketEndpoint):
 
     async def start(self):
 
-        await self.subscriber.start()
+        self.subscriber.start()
 
     async def async_thread(self, ws, running):
 
         id = str(uuid.uuid4())
 
-        q = await self.subscriber.subscribe_all(id)
+        q = self.subscriber.subscribe_all(id)
 
         while running.get():
             try:
-                resp = await asyncio.wait_for(q.get(), timeout=0.5)
+                resp = await asyncio.to_thread(q.get, timeout=0.5)
                 await ws.send_json(serialize_document_embeddings(resp))
 
             except TimeoutError:
@@ -66,7 +67,7 @@ class DocumentEmbeddingsStreamEndpoint(SocketEndpoint):
                 print(f"Exception: {str(e)}", flush=True)
                 break
 
-        await self.subscriber.unsubscribe_all(id)
+        self.subscriber.unsubscribe_all(id)
 
         running.stop()
 

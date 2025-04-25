@@ -10,7 +10,7 @@ from .... schema import document_embeddings_store_queue
 from .... log_level import LogLevel
 from .... base import Consumer
 
-module = "de-write"
+module = ".".join(__name__.split(".")[1:-1])
 
 default_input_queue = document_embeddings_store_queue
 default_subscriber = module

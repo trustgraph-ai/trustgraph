@@ -3,9 +3,7 @@
 import pulsar
 from trustgraph.clients.triples_query_client import TriplesQueryClient
 
-tq = TriplesQueryClient(
-    pulsar_host="pulsar://localhost:6650",
-)
+tq = TriplesQueryClient(pulsar_host="pulsar://localhost:6650")
 
 e = "http://trustgraph.ai/e/shuttle"
 

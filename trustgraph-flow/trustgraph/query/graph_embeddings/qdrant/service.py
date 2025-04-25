@@ -7,32 +7,44 @@ entities
 from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct
 from qdrant_client.models import Distance, VectorParams
+import uuid
 
-from .... schema import GraphEmbeddingsResponse
+from .... schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
 from .... schema import Error, Value
-from .... base import GraphEmbeddingsQueryService
+from .... schema import graph_embeddings_request_queue
+from .... schema import graph_embeddings_response_queue
+from .... base import ConsumerProducer
 
-default_ident = "ge-query"
+module = ".".join(__name__.split(".")[1:-1])
 
+default_input_queue = graph_embeddings_request_queue
+default_output_queue = graph_embeddings_response_queue
+default_subscriber = module
 default_store_uri = 'http://localhost:6333'
 
-class Processor(GraphEmbeddingsQueryService):
+class Processor(ConsumerProducer):
 
     def __init__(self, **params):
 
+        input_queue = params.get("input_queue", default_input_queue)
+        output_queue = params.get("output_queue", default_output_queue)
+        subscriber = params.get("subscriber", default_subscriber)
         store_uri = params.get("store_uri", default_store_uri)
-
-        #optional api key
         api_key = params.get("api_key", None)
 
         super(Processor, self).__init__(
             **params | {
+                "input_queue": input_queue,
+                "output_queue": output_queue,
+                "subscriber": subscriber,
+                "input_schema": GraphEmbeddingsRequest,
+                "output_schema": GraphEmbeddingsResponse,
                 "store_uri": store_uri,
                 "api_key": api_key,
             }
         )
 
-        self.qdrant = QdrantClient(url=store_uri, api_key=api_key)
+        self.client = QdrantClient(url=store_uri, api_key=api_key)
 
     def create_value(self, ent):
         if ent.startswith("http://") or ent.startswith("https://"):
@@ -40,27 +52,34 @@ class Processor(GraphEmbeddingsQueryService):
         else:
             return Value(value=ent, is_uri=False)
         
-    async def query_graph_embeddings(self, msg):
+    async def handle(self, msg):
 
         try:
+
+            v = msg.value()
+
+            # Sender-produced ID
+            id = msg.properties()["id"]
+
+            print(f"Handling input {id}...", flush=True)
 
             entity_set = set()
             entities = []
 
-            for vec in msg.vectors:
+            for vec in v.vectors:
 
                 dim = len(vec)
                 collection = (
-                    "t_" + msg.user + "_" + msg.collection + "_" +
+                    "t_" + v.user + "_" + v.collection + "_" +
                     str(dim)
                 )
 
                 # Heuristic hack, get (2*limit), so that we have more chance
                 # of getting (limit) entities
-                search_result = self.qdrant.query_points(
+                search_result = self.client.query_points(
                     collection_name=collection,
                     query=vec,
-                    limit=msg.limit * 2,
+                    limit=v.limit * 2,
                     with_payload=True,
                 ).points
 
@@ -73,10 +92,10 @@ class Processor(GraphEmbeddingsQueryService):
                         entities.append(ent)
 
                     # Keep adding entities until limit
-                    if len(entity_set) >= msg.limit: break
+                    if len(entity_set) >= v.limit: break
 
                 # Keep adding entities until limit
-                if len(entity_set) >= msg.limit: break
+                if len(entity_set) >= v.limit: break
 
             ents2 = []
 
@@ -86,19 +105,36 @@ class Processor(GraphEmbeddingsQueryService):
             entities = ents2
 
             print("Send response...", flush=True)
-            return entities
+            r = GraphEmbeddingsResponse(entities=entities, error=None)
+            await self.send(r, properties={"id": id})
 
             print("Done.", flush=True)
 
         except Exception as e:
 
             print(f"Exception: {e}")
-            raise e
+
+            print("Send error response...", flush=True)
+
+            r = GraphEmbeddingsResponse(
+                error=Error(
+                    type = "llm-error",
+                    message = str(e),
+                ),
+                entities=None,
+            )
+
+            await self.send(r, properties={"id": id})
+
+            self.consumer.acknowledge(msg)
 
     @staticmethod
     def add_args(parser):
 
-        GraphEmbeddingsQueryService.add_args(parser)
+        ConsumerProducer.add_args(
+            parser, default_input_queue, default_subscriber,
+            default_output_queue,
+        )
 
         parser.add_argument(
             '-t', '--store-uri',
@@ -114,5 +150,5 @@ class Processor(GraphEmbeddingsQueryService):
 
 def run():
 
-    Processor.launch(default_ident, __doc__)
+    Processor.launch(module, __doc__)
 

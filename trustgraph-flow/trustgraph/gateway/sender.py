@@ -2,6 +2,7 @@
 # Like ServiceRequestor, but just fire-and-forget instead of request/response
 
 import asyncio
+from pulsar.schema import JsonSchema
 import uuid
 import logging
 
@@ -20,12 +21,12 @@ class ServiceSender:
 
         self.pub = Publisher(
             pulsar_client, request_queue,
-            schema=request_schema,
+            schema=JsonSchema(request_schema),
         )
 
     async def start(self):
 
-        await self.pub.start()
+        self.pub.start()
 
     def to_request(self, request):
         raise RuntimeError("Not defined")
@@ -34,7 +35,9 @@ class ServiceSender:
 
         try:
 
-            await self.pub.send(None, self.to_request(request))
+            await asyncio.to_thread(
+                self.pub.send, None, self.to_request(request)
+            )
 
             if responder:
                 await responder({}, True)

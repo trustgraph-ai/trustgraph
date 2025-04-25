@@ -1,6 +1,7 @@
 
 import asyncio
 import queue
+from pulsar.schema import JsonSchema
 import uuid
 from aiohttp import web, WSMsgType
 

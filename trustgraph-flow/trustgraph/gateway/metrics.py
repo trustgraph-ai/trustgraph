@@ -7,6 +7,7 @@
 import aiohttp
 from aiohttp import web
 import asyncio
+from pulsar.schema import JsonSchema
 import uuid
 import logging
 

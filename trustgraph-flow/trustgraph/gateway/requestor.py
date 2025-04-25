@@ -1,5 +1,6 @@
 
 import asyncio
+from pulsar.schema import JsonSchema
 import uuid
 import logging
 
@@ -22,21 +23,21 @@ class ServiceRequestor:
 
         self.pub = Publisher(
             pulsar_client, request_queue,
-            schema=request_schema,
+            schema=JsonSchema(request_schema),
         )
 
         self.sub = Subscriber(
             pulsar_client, response_queue,
             subscription, consumer_name,
-            response_schema
+            JsonSchema(response_schema)
         )
 
         self.timeout = timeout
 
     async def start(self):
 
-        await self.pub.start()
-        await self.sub.start()
+        self.pub.start()
+        self.sub.start()
 
     def to_request(self, request):
         raise RuntimeError("Not defined")
@@ -50,15 +51,18 @@ class ServiceRequestor:
 
         try:
 
-            q = await self.sub.subscribe(id)
+            q = self.sub.subscribe(id)
 
-            await self.pub.send(id, self.to_request(request))
+            await asyncio.to_thread(
+                self.pub.send, id, self.to_request(request)
+            )
 
             while True:
 
                 try:
-                    resp = await asyncio.wait_for(
-                        q.get(), timeout=self.timeout
+                    resp = await asyncio.to_thread(
+                        q.get,
+                        timeout=self.timeout
                     )
                 except Exception as e:
                     raise RuntimeError("Timeout")
@@ -95,5 +99,5 @@ class ServiceRequestor:
             return err
 
         finally:
-            await self.sub.unsubscribe(id)
+            self.sub.unsubscribe(id)
 

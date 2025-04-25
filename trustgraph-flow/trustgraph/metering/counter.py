@@ -10,10 +10,11 @@ from .. schema import text_completion_response_queue
 from .. log_level import LogLevel
 from .. base import Consumer
 
-module = "metering"
+module = ".".join(__name__.split(".")[1:-1])
 
 default_input_queue = text_completion_response_queue
 default_subscriber = module
+
 
 class Processor(Consumer):
 

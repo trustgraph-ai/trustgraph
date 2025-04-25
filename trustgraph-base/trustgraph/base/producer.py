@@ -1,69 +1,56 @@
 
 from pulsar.schema import JsonSchema
-import asyncio
+from prometheus_client import Info, Counter
 
-class Producer:
+from . base_processor import BaseProcessor
 
-    def __init__(self, client, topic, schema, metrics=None):
-        self.client = client
-        self.topic = topic
-        self.schema = schema
+class Producer(BaseProcessor):
 
-        self.metrics = metrics
+    def __init__(self, **params):
 
-        self.running = True
-        self.producer = None
+        output_queue = params.get("output_queue")
+        output_schema = params.get("output_schema")
 
-    def __del__(self):
+        if not hasattr(__class__, "output_metric"):
+            __class__.output_metric = Counter(
+                'output_count', 'Output items created'
+            )
 
-        self.running = False
+        if not hasattr(__class__, "pubsub_metric"):
+            __class__.pubsub_metric = Info(
+                'pubsub', 'Pub/sub configuration'
+            )
 
-        if hasattr(self, "producer"):
-            if self.producer:
-                self.producer.close()
+        __class__.pubsub_metric.info({
+            "output_queue": output_queue,
+            "output_schema": output_schema.__name__,
+        })
 
-    async def start(self):
-        self.running = True
+        super(Producer, self).__init__(**params)
 
-    async def stop(self):
-        self.running = False
+        if output_schema == None:
+            raise RuntimeError("output_schema must be specified")
+
+        self.producer = self.client.create_producer(
+            topic=output_queue,
+            schema=JsonSchema(output_schema),
+            chunking_enabled=True,
+        )
 
     async def send(self, msg, properties={}):
+        self.producer.send(msg, properties)
+        __class__.output_metric.inc()
 
-        if not self.running: return
+    @staticmethod
+    def add_args(
+            parser, default_input_queue, default_subscriber,
+            default_output_queue,
+    ):
 
-        while self.running and self.producer is None:
+        BaseProcessor.add_args(parser)
 
-            try:
-                print("Connect publisher to", self.topic, "...", flush=True)
-                self.producer = self.client.create_producer(
-                    topic = self.topic,
-                    schema = JsonSchema(self.schema)
-                )
-                print("Connected to", self.topic, flush=True)
-            except Exception as e:
-                print("Exception:", e, flush=True)
-                await asyncio.sleep(2)
-
-            if not self.running: break
-
-        while self.running:
-
-            try:
-
-                await asyncio.to_thread(
-                    self.producer.send,
-                    msg, properties
-                )
-
-                if self.metrics:
-                    self.metrics.inc()
-
-                # Delivery success, break out of loop
-                break
-
-            except Exception as e:
-                print("Exception:", e, flush=True)
-                self.producer.close()
-                self.producer = None
-
+        parser.add_argument(
+            '-o', '--output-queue',
+            default=default_output_queue,
+            help=f'Output queue (default: {default_output_queue})'
+        )

@@ -8,21 +8,31 @@ from qdrant_client.models import PointStruct
 from qdrant_client.models import Distance, VectorParams
 import uuid
 
-from .... base import GraphEmbeddingsStoreService
+from .... schema import GraphEmbeddings
+from .... schema import graph_embeddings_store_queue
+from .... log_level import LogLevel
+from .... base import Consumer
 
-default_ident = "ge-write"
+module = ".".join(__name__.split(".")[1:-1])
 
+default_input_queue = graph_embeddings_store_queue
+default_subscriber = module
 default_store_uri = 'http://localhost:6333'
 
-class Processor(GraphEmbeddingsStoreService):
+class Processor(Consumer):
 
     def __init__(self, **params):
 
+        input_queue = params.get("input_queue", default_input_queue)
+        subscriber = params.get("subscriber", default_subscriber)
         store_uri = params.get("store_uri", default_store_uri)
         api_key = params.get("api_key", None)
 
         super(Processor, self).__init__(
             **params | {
+                "input_queue": input_queue,
+                "subscriber": subscriber,
+                "input_schema": GraphEmbeddings,
                 "store_uri": store_uri,
                 "api_key": api_key,
             }
@@ -30,7 +40,7 @@ class Processor(GraphEmbeddingsStoreService):
 
         self.last_collection = None
 
-        self.qdrant = QdrantClient(url=store_uri, api_key=api_key)
+        self.client = QdrantClient(url=store_uri, api_key=api_key)
 
     def get_collection(self, dim, user, collection):
 
@@ -40,10 +50,10 @@ class Processor(GraphEmbeddingsStoreService):
 
         if cname != self.last_collection:
 
-            if not self.qdrant.collection_exists(cname):
+            if not self.client.collection_exists(cname):
 
                 try:
-                    self.qdrant.create_collection(
+                    self.client.create_collection(
                         collection_name=cname,
                         vectors_config=VectorParams(
                             size=dim, distance=Distance.COSINE
@@ -57,9 +67,11 @@ class Processor(GraphEmbeddingsStoreService):
 
         return cname
 
-    async def store_graph_embeddings(self, message):
+    async def handle(self, msg):
 
-        for entity in message.entities:
+        v = msg.value()
+
+        for entity in v.entities:
 
             if entity.entity.value == "" or entity.entity.value is None: return
 
@@ -68,10 +80,10 @@ class Processor(GraphEmbeddingsStoreService):
                 dim = len(vec)
 
                 collection = self.get_collection(
-                    dim, message.metadata.user, message.metadata.collection
+                    dim, v.metadata.user, v.metadata.collection
                 )
 
-                self.qdrant.upsert(
+                self.client.upsert(
                     collection_name=collection,
                     points=[
                         PointStruct(
@@ -87,7 +99,9 @@ class Processor(GraphEmbeddingsStoreService):
     @staticmethod
     def add_args(parser):
 
-        GraphEmbeddingsStoreService.add_args(parser)
+        Consumer.add_args(
+            parser, default_input_queue, default_subscriber,
+        )
 
         parser.add_argument(
             '-t', '--store-uri',
@@ -103,5 +117,5 @@ class Processor(GraphEmbeddingsStoreService):
 
 def run():
 
-    Processor.launch(default_ident, __doc__)
+    Processor.launch(module, __doc__)
 

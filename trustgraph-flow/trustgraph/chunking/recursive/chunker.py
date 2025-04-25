@@ -7,27 +7,40 @@ as text as separate output objects.
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from prometheus_client import Histogram
 
-from ... schema import TextDocument, Chunk
-from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
+from ... schema import TextDocument, Chunk, Metadata
+from ... schema import text_ingest_queue, chunk_ingest_queue
+from ... log_level import LogLevel
+from ... base import ConsumerProducer
 
-default_ident = "chunker"
+module = ".".join(__name__.split(".")[1:-1])
 
-class Processor(FlowProcessor):
+default_input_queue = text_ingest_queue
+default_output_queue = chunk_ingest_queue
+default_subscriber = module
+
+class Processor(ConsumerProducer):
 
     def __init__(self, **params):
 
-        id = params.get("id", default_ident)
+        input_queue = params.get("input_queue", default_input_queue)
+        output_queue = params.get("output_queue", default_output_queue)
+        subscriber = params.get("subscriber", default_subscriber)
         chunk_size = params.get("chunk_size", 2000)
         chunk_overlap = params.get("chunk_overlap", 100)
         
         super(Processor, self).__init__(
-            **params | { "id": id }
+            **params | {
+                "input_queue": input_queue,
+                "output_queue": output_queue,
+                "subscriber": subscriber,
+                "input_schema": TextDocument,
+                "output_schema": Chunk,
+            }
         )
 
         if not hasattr(__class__, "chunk_metric"):
             __class__.chunk_metric = Histogram(
                 'chunk_size', 'Chunk size',
-                ["id", "flow"],
                 buckets=[100, 160, 250, 400, 650, 1000, 1600,
                          2500, 4000, 6400, 10000, 16000]
             )
@@ -39,24 +52,7 @@ class Processor(FlowProcessor):
             is_separator_regex=False,
         )
 
-        self.register_specification(
-            ConsumerSpec(
-                name = "input",
-                schema = TextDocument,
-                handler = self.on_message,
-            )
-        )
-
-        self.register_specification(
-            ProducerSpec(
-                name = "output",
-                schema = Chunk,
-            )
-        )
-
-        print("Chunker initialised", flush=True)
-
-    async def on_message(self, msg, consumer, flow):
+    async def handle(self, msg):
 
         v = msg.value()
         print(f"Chunking {v.metadata.id}...", flush=True)
@@ -67,25 +63,24 @@ class Processor(FlowProcessor):
 
         for ix, chunk in enumerate(texts):
 
-            print("Chunk", len(chunk.page_content), flush=True)
-
             r = Chunk(
                 metadata=v.metadata,
                 chunk=chunk.page_content.encode("utf-8"),
             )
 
-            __class__.chunk_metric.labels(
-                id=consumer.id, flow=consumer.flow
-            ).observe(len(chunk.page_content))
+            __class__.chunk_metric.observe(len(chunk.page_content))
 
-            await flow("output").send(r)
+            await self.send(r)
 
         print("Done.", flush=True)
 
     @staticmethod
     def add_args(parser):
 
-        FlowProcessor.add_args(parser)
+        ConsumerProducer.add_args(
+            parser, default_input_queue, default_subscriber,
+            default_output_queue,
+        )
 
         parser.add_argument(
             '-z', '--chunk-size',
@@ -103,5 +98,5 @@ class Processor(FlowProcessor):
 
 def run():
 
-    Processor.launch(default_ident, __doc__)
+    Processor.launch(module, __doc__)
 

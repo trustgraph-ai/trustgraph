@@ -6,48 +6,53 @@ Output is entity plus embedding.
 """
 
 from ... schema import EntityContexts, EntityEmbeddings, GraphEmbeddings
-from ... schema import EmbeddingsRequest, EmbeddingsResponse
+from ... schema import entity_contexts_ingest_queue
+from ... schema import graph_embeddings_store_queue
+from ... schema import embeddings_request_queue, embeddings_response_queue
+from ... clients.embeddings_client import EmbeddingsClient
+from ... log_level import LogLevel
+from ... base import ConsumerProducer
 
-from ... base import FlowProcessor, EmbeddingsClientSpec, ConsumerSpec
-from ... base import ProducerSpec
+module = ".".join(__name__.split(".")[1:-1])
 
-default_ident = "graph-embeddings"
+default_input_queue = entity_contexts_ingest_queue
+default_output_queue = graph_embeddings_store_queue
+default_subscriber = module
 
-class Processor(FlowProcessor):
+class Processor(ConsumerProducer):
 
     def __init__(self, **params):
 
-        id = params.get("id")
+        input_queue = params.get("input_queue", default_input_queue)
+        output_queue = params.get("output_queue", default_output_queue)
+        subscriber = params.get("subscriber", default_subscriber)
+        emb_request_queue = params.get(
+            "embeddings_request_queue", embeddings_request_queue
+        )
+        emb_response_queue = params.get(
+            "embeddings_response_queue", embeddings_response_queue
+        )
 
         super(Processor, self).__init__(
             **params | {
-                "id": id,
+                "input_queue": input_queue,
+                "output_queue": output_queue,
+                "embeddings_request_queue": emb_request_queue,
+                "embeddings_response_queue": emb_response_queue,
+                "subscriber": subscriber,
+                "input_schema": EntityContexts,
+                "output_schema": GraphEmbeddings,
             }
         )
 
-        self.register_specification(
-            ConsumerSpec(
-                name = "input",
-                schema = EntityContexts,
-                handler = self.on_message,
-            )
+        self.embeddings = EmbeddingsClient(
+            pulsar_host=self.pulsar_host,
+            input_queue=emb_request_queue,
+            output_queue=emb_response_queue,
+            subscriber=module + "-emb",
         )
 
-        self.register_specification(
-            EmbeddingsClientSpec(
-                request_name = "embeddings-request",
-                response_name = "embeddings-response",
-            )
-        )
-
-        self.register_specification(
-            ProducerSpec(
-                name = "output",
-                schema = GraphEmbeddings
-            )
-        )
-
-    async def on_message(self, msg, consumer, flow):
+    async def handle(self, msg):
 
         v = msg.value()
         print(f"Indexing {v.metadata.id}...", flush=True)
@@ -58,9 +63,7 @@ class Processor(FlowProcessor):
 
             for entity in v.entities:
 
-                vectors = await flow("embeddings-request").embed(
-                    text = entity.context
-                )
+                vectors = self.embeddings.request(entity.context)
 
                 entities.append(
                     EntityEmbeddings(
@@ -74,7 +77,7 @@ class Processor(FlowProcessor):
                 entities=entities,
             )
 
-            await flow("output").send(r)
+            await self.send(r)
 
         except Exception as e:
             print("Exception:", e, flush=True)
@@ -87,9 +90,24 @@ class Processor(FlowProcessor):
     @staticmethod
     def add_args(parser):
 
-        FlowProcessor.add_args(parser)
+        ConsumerProducer.add_args(
+            parser, default_input_queue, default_subscriber,
+            default_output_queue,
+        )
+
+        parser.add_argument(
+            '--embeddings-request-queue',
+            default=embeddings_request_queue,
+            help=f'Embeddings request queue (default: {embeddings_request_queue})',
+        )
+
+        parser.add_argument(
+            '--embeddings-response-queue',
+            default=embeddings_response_queue,
+            help=f'Embeddings request queue (default: {embeddings_response_queue})',
+        )
 
 def run():
 
-    Processor.launch(default_ident, __doc__)
+    Processor.launch(module, __doc__)
 

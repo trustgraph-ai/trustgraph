@@ -1,6 +1,7 @@
 
 import asyncio
 import queue
+from pulsar.schema import JsonSchema
 import uuid
 
 from .. schema import Triples
@@ -23,7 +24,7 @@ class TriplesStreamEndpoint(SocketEndpoint):
         self.subscriber = Subscriber(
             self.pulsar_client, triples_store_queue,
             "api-gateway", "api-gateway",
-            schema=Triples
+            schema=JsonSchema(Triples)
         )
 
     async def listener(self, ws, running):
@@ -38,7 +39,7 @@ class TriplesStreamEndpoint(SocketEndpoint):
 
     async def start(self):
 
-        await self.subscriber.start()
+        self.subscriber.start()
 
     async def async_thread(self, ws, running):
 
