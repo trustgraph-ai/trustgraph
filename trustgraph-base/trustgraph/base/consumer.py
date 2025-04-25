@@ -156,7 +156,7 @@ class Consumer:
                             await self.handler(msg, self, self.flow)
 
                     else:
-                        await self.handler(msg, self, self.flow)
+                        await self.handler(msg, self.consumer)
 
                     print("Handled.", flush=True)
 

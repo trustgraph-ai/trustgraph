@@ -17,7 +17,7 @@ from .. exceptions import TooManyRequests
 from . pubsub import PulsarClient
 from . producer import Producer
 from . consumer import Consumer
-from . metrics import ProcessorMetrics, ConsumerMetrics
+from . metrics import ProcessorMetrics
 
 default_config_queue = config_push_queue
 
@@ -30,10 +30,10 @@ class AsyncProcessor:
         self.id = params.get("id")
 
         # Register a pulsar client
-        self.pulsar_client_object = PulsarClient(**params)
+        self.pulsar_client = PulsarClient(**params)
 
         # Initialise metrics, records the parameters
-        ProcessorMetrics(processor = self.id).info({
+        ProcessorMetrics(id=self.id).info({
             k: str(params[k])
             for k in params
             if k != "id"
@@ -57,15 +57,11 @@ class AsyncProcessor:
         # service
         config_subscriber_id = str(uuid.uuid4())
 
-        config_consumer_metrics = ConsumerMetrics(
-            processor = self.id, flow = None, name = "config",
-        )
-
         # Subscribe to config queue
         self.config_sub_task = Consumer(
 
             taskgroup = self.taskgroup,
-            client = self.pulsar_client,
+            client = self.client,
             subscriber = config_subscriber_id,
             flow = None,
 
@@ -73,8 +69,6 @@ class AsyncProcessor:
             schema = ConfigPush,
 
             handler = self.on_config_change,
-
-            metrics = config_consumer_metrics,
 
             # This causes new subscriptions to view the entire history of
             # configuration
@@ -91,27 +85,30 @@ class AsyncProcessor:
     # This is called to stop all threads.  An over-ride point for extra
     # functionality
     def stop(self):
-        self.pulsar_client.close()
+        self.client.close()
         self.running = False
 
     # Returns the pulsar host
     @property
-    def pulsar_host(self): return self.pulsar_client_object.pulsar_host
+    def pulsar_host(self): return self.client.pulsar_host
 
     # Returns the pulsar client
     @property
-    def pulsar_client(self): return self.pulsar_client_object.client
+    def client(self): return self.pulsar_client.client
 
     # Register a new event handler for configuration change
     def register_config_handler(self, handler):
         self.config_handlers.append(handler)
 
     # Called when a new configuration message push occurs
-    async def on_config_change(self, message, consumer, flow):
+    async def on_config_change(self, message, consumer):
 
         # Get configuration data and version number
         config = message.value().config
         version = message.value().version
+
+        # Acknowledge the message
+        consumer.acknowledge(message)
 
         # Invoke message handlers
         print("Config change event", config, version, flush=True)
@@ -237,7 +234,7 @@ class AsyncProcessor:
         PulsarClient.add_args(parser)
 
         parser.add_argument(
-            '--config-queue',
+            '--config-push-queue',
             default=default_config_queue,
             help=f'Config push queue {default_config_queue}',
         )

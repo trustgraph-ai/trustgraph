@@ -19,6 +19,13 @@ class TextCompletionResponse(Record):
     out_token = Integer()
     model = String()
 
+text_completion_request_queue = topic(
+    'text-completion', kind='non-persistent', namespace='request'
+)
+text_completion_response_queue = topic(
+    'text-completion', kind='non-persistent', namespace='response'
+)
+
 ############################################################################
 
 # Embeddings
@@ -30,3 +37,9 @@ class EmbeddingsResponse(Record):
     error = Error()
     vectors = Array(Array(Double()))
 
+embeddings_request_queue = topic(
+    'embeddings', kind='non-persistent', namespace='request'
+)
+embeddings_response_queue = topic(
+    'embeddings', kind='non-persistent', namespace='response'
+)

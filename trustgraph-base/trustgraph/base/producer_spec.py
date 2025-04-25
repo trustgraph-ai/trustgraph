@@ -11,11 +11,11 @@ class ProducerSpec(Spec):
     def add(self, flow, processor, definition):
 
         producer_metrics = ProducerMetrics(
-            processor = flow.id, flow = flow.name, name = self.name
+            flow.id, f"{flow.name}-{self.name}"
         )
 
         producer = Producer(
-            client = processor.pulsar_client,
+            client = processor.client,
             topic = definition[self.name],
             schema = self.schema,
             metrics = producer_metrics,
