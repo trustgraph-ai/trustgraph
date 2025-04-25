@@ -17,10 +17,6 @@ def show_flows(url):
 
     flow_ids = api.flow_list()
 
-    if len(flow_ids) == 0:
-        print("No flows.")
-        return
-
     print(flow_ids)
 
     flows = []

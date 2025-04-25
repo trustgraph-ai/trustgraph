@@ -17,10 +17,6 @@ def show_flow_classes(url):
 
     class_names = api.flow_list_classes()
 
-    if len(class_names) == 0:
-        print("No flows.")
-        return
-
     classes = []
 
     for class_name in class_names:
