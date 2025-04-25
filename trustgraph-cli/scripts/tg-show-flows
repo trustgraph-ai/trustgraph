@@ -21,8 +21,6 @@ def show_flows(url):
         print("No flows.")
         return
 
-    print(flow_ids)
-
     flows = []
 
     for id in flow_ids:
