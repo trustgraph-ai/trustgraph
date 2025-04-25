@@ -13,6 +13,11 @@ from .. base import FlowProcessor, ConsumerSpec, ProducerSpec
 default_ident = "text-completion"
 
 class LlmResult:
+    def __init__(self, text=None, in_token=None, out_token=None, model=None):
+        self.text = text
+        self.in_token = in_token
+        self.out_token = out_token
+        self.model = model
     __slots__ = ["text", "in_token", "out_token", "model"]
 
 class LlmService(FlowProcessor):

@@ -105,11 +105,12 @@ class Processor(LlmService):
                 safety_settings=self.safety_settings
             )
 
-            resp = LlmResult()
-            resp.text = response.text
-            resp.in_token = response.usage_metadata.prompt_token_count
-            resp.out_token = response.usage_metadata.candidates_token_count
-            resp.model = self.model
+            resp = LlmResult(
+                text = response.text,
+                in_token = response.usage_metadata.prompt_token_count,
+                out_token = response.usage_metadata.candidates_token_count,
+                model = self.model
+            )
 
             print(f"Input Tokens: {resp.in_token}", flush=True)
             print(f"Output Tokens: {resp.out_token}", flush=True)

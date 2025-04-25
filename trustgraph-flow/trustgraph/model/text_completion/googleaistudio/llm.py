@@ -10,30 +10,20 @@ from google.api_core.exceptions import ResourceExhausted
 from prometheus_client import Histogram
 import os
 
-from .... schema import TextCompletionRequest, TextCompletionResponse, Error
-from .... schema import text_completion_request_queue
-from .... schema import text_completion_response_queue
-from .... log_level import LogLevel
-from .... base import ConsumerProducer
 from .... exceptions import TooManyRequests
+from .... base import LlmService, LlmResult
 
-module = "text-completion"
+default_ident = "text-completion"
 
-default_input_queue = text_completion_request_queue
-default_output_queue = text_completion_response_queue
-default_subscriber = module
 default_model = 'gemini-1.5-flash-002'
 default_temperature = 0.0
 default_max_output = 8192
 default_api_key = os.getenv("GOOGLE_AI_STUDIO_KEY")
 
-class Processor(ConsumerProducer):
+class Processor(LlmService):
 
     def __init__(self, **params):
     
-        input_queue = params.get("input_queue", default_input_queue)
-        output_queue = params.get("output_queue", default_output_queue)
-        subscriber = params.get("subscriber", default_subscriber)
         model = params.get("model", default_model)
         api_key = params.get("api_key", default_api_key)
         temperature = params.get("temperature", default_temperature)
@@ -44,29 +34,11 @@ class Processor(ConsumerProducer):
 
         super(Processor, self).__init__(
             **params | {
-                "input_queue": input_queue,
-                "output_queue": output_queue,
-                "subscriber": subscriber,
-                "input_schema": TextCompletionRequest,
-                "output_schema": TextCompletionResponse,
                 "model": model,
                 "temperature": temperature,
                 "max_output": max_output,
             }
         )
-
-        if not hasattr(__class__, "text_completion_metric"):
-            __class__.text_completion_metric = Histogram(
-                'text_completion_duration',
-                'Text completion duration (seconds)',
-                buckets=[
-                    0.25, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0,
-                    8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0,
-                    17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0, 25.0,
-                    30.0, 35.0, 40.0, 45.0, 50.0, 60.0, 80.0, 100.0,
-                    120.0
-                ]
-            )
 
         genai.configure(api_key=api_key)
         self.model = model
@@ -102,15 +74,7 @@ class Processor(ConsumerProducer):
 
         print("Initialised", flush=True)
 
-    async def handle(self, msg):
-
-        v = msg.value()
-
-        # Sender-produced ID
-
-        id = msg.properties()["id"]
-
-        print(f"Handling prompt {id}...", flush=True)
+    async def generate_content(self, system, prompt):
 
         # FIXME: There's a system prompt above.  Maybe if system changes,
         # then reset self.llm?  It shouldn't do, because system prompt
@@ -119,17 +83,15 @@ class Processor(ConsumerProducer):
         # Or... could keep different LLM structures for different system
         # prompts?
 
-        prompt = v.system + "\n\n" + v.prompt
+        prompt = system + "\n\n" + prompt
 
         try:
 
-            with __class__.text_completion_metric.time():
-
-                chat_session = self.llm.start_chat(
-                    history=[
-                    ]
-                )
-                response = chat_session.send_message(prompt)
+            chat_session = self.llm.start_chat(
+                history=[
+                ]
+            )
+            response = chat_session.send_message(prompt)
 
             resp = response.text
             inputtokens = int(response.usage_metadata.prompt_token_count)
@@ -138,17 +100,14 @@ class Processor(ConsumerProducer):
             print(f"Input Tokens: {inputtokens}", flush=True)
             print(f"Output Tokens: {outputtokens}", flush=True)
 
-            print("Send response...", flush=True)
-            r = TextCompletionResponse(
-                response=resp,
-                error=None,
-                in_token=inputtokens,
-                out_token=outputtokens,
-                model=self.model
+            resp = LlmResult(
+                text = resp,
+                in_token = inputtokens,
+                out_token = outputtokens,
+                model = self.model
             )
-            await self.send(r, properties={"id": id})
 
-            print("Done.", flush=True)
+            return resp
 
         except ResourceExhausted as e:
 
@@ -163,31 +122,12 @@ class Processor(ConsumerProducer):
 
             print(type(e), flush=True)
             print(f"Exception: {e}", flush=True)
-
-            print("Send error response...", flush=True)
-
-            r = TextCompletionResponse(
-                error=Error(
-                    type = "llm-error",
-                    message = str(e),
-                ),
-                response=None,
-                in_token=None,
-                out_token=None,
-                model=None,
-            )
-
-            await self.send(r, properties={"id": id})
-
-            self.consumer.acknowledge(msg)
+            raise e
 
     @staticmethod
     def add_args(parser):
 
-        ConsumerProducer.add_args(
-            parser, default_input_queue, default_subscriber,
-            default_output_queue,
-        )
+        LlmService.add_args(parser)
 
         parser.add_argument(
             '-m', '--model',
@@ -216,7 +156,5 @@ class Processor(ConsumerProducer):
         )
 
 def run():
-
-    Processor.launch(module, __doc__)
-
     
+    Processor.launch(default_ident, __doc__)
