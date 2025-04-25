@@ -5,7 +5,6 @@ Input is prompt, output is response.
 """
 
 import anthropic
-from prometheus_client import Histogram
 import os
 
 from .... exceptions import TooManyRequests
@@ -80,6 +79,8 @@ class Processor(LlmService):
                 out_token = outputtokens,
                 model = self.model
             )
+
+            return resp
 
         except anthropic.RateLimitError:
 
