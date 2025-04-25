@@ -112,9 +112,27 @@ class FlowConfig:
 
                 self.config["flows-active"][processor] = json.dumps(target)
 
+        def repl_interface(i):
+            if isinstance(i, str):
+                return repl_template(i)
+            else:
+                return {
+                    k: repl_template(v)
+                    for k, v in i.items()
+                }
+
+        if "interfaces" in cls:
+            interfaces = {
+                k: repl_interface(v)
+                for k, v in cls["interfaces"].items()
+            }
+        else:
+            interfaces = {}
+
         self.config["flows"][msg.flow_id] = json.dumps({
             "description": msg.description,
             "class-name": msg.class_name,
+            "interfaces": interfaces,
         })
 
         await self.config.push()
