@@ -72,7 +72,7 @@ class Processor(FlowProcessor):
             for k, v in config.items()
         }
 
-    def get_prices(self, prices, modelname):
+    def get_prices(self, modelname):
 
         if modelname in self.prices:
             model = self.prices[modelname]
@@ -90,9 +90,7 @@ class Processor(FlowProcessor):
         __class__.input_token_metric.inc(num_in)
         __class__.output_token_metric.inc(num_out)
 
-        model_input_price, model_output_price = self.get_prices(
-            price_list, modelname
-        )
+        model_input_price, model_output_price = self.get_prices(modelname)
 
         if model_input_price == None:
             cost_per_call = f"Model Not Found in Price list"

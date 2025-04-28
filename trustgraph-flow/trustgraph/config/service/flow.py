@@ -27,6 +27,8 @@ class FlowConfig:
 
         self.config["flow-classes"][msg.class_name] = msg.class_definition
 
+        self.config.version += 1
+
         await self.config.push()
 
         return FlowResponse(
@@ -38,6 +40,8 @@ class FlowConfig:
         print(msg)
 
         del self.config["flow-classes"][msg.class_name]
+
+        self.config.version += 1
 
         await self.config.push()
 
@@ -135,6 +139,8 @@ class FlowConfig:
             "interfaces": interfaces,
         })
 
+        self.config.version += 1
+
         await self.config.push()
 
         return FlowResponse(
@@ -185,6 +191,8 @@ class FlowConfig:
 
         if msg.flow_id in self.config["flows"]:
             del self.config["flows"][msg.flow_id]
+
+        self.config.version += 1
 
         await self.config.push()
 
