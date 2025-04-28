@@ -20,7 +20,7 @@ class ConsumerSpec(Spec):
             flow = flow,
             client = processor.pulsar_client,
             topic = definition[self.name],
-            subscriber = processor.id + "--" + self.name,
+            subscriber = processor.id + "--" + flow.name + "--" + self.name,
             schema = self.schema,
             handler = self.handler,
             metrics = consumer_metrics,

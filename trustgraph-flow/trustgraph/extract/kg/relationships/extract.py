@@ -173,7 +173,7 @@ class Processor(FlowProcessor):
                         o=Value(value=v.metadata.id, is_uri=True)
                     ))
 
-            await self.emit_edges(
+            await self.emit_triples(
                 flow("triples"),
                 Metadata(
                     id=v.metadata.id,

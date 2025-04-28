@@ -20,7 +20,7 @@ class Subscriber:
         self.running = True
         self.metrics = metrics
 
-    async def __del__(self):
+    def __del__(self):
         self.running = False
 
     async def start(self):

@@ -75,7 +75,8 @@ class FlowProcessor(AsyncProcessor):
         # Get list of flows which should be running and are currently
         # running
         wanted_flows = flow_config.keys()
-        current_flows = self.flows.keys()
+        # This takes a copy, needed because dict gets modified by stop_flow
+        current_flows = list(self.flows.keys())
 
         # Start all the flows which arent currently running
         for flow in wanted_flows:

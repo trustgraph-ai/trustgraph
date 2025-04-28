@@ -127,7 +127,9 @@ class RequestResponseSpec(Spec):
 
         rr = self.impl(
             client = processor.pulsar_client,
-            subscription = flow.id,
+            subscription = (
+                processor.id + "--" + flow.name + "--" + self.request_name
+            ),
             consumer_name = flow.id,
             request_topic = definition[self.request_name],
             request_schema = self.request_schema,
