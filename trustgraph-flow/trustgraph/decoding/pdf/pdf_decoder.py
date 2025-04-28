@@ -9,7 +9,6 @@ import base64
 from langchain_community.document_loaders import PyPDFLoader
 
 from ... schema import Document, TextDocument, Metadata
-from ... log_level import LogLevel
 from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
 
 default_ident = "pdf-decoder"
