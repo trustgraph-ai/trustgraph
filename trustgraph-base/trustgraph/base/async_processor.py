@@ -114,7 +114,7 @@ class AsyncProcessor:
         version = message.value().version
 
         # Invoke message handlers
-        print("Config change event", config, version, flush=True)
+        print("Config change event", version, flush=True)
         for ch in self.config_handlers:
             await ch(config, version)
 
