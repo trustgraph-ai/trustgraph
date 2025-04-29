@@ -1,20 +1,23 @@
 
 from .. schema import EmbeddingsRequest, EmbeddingsResponse
-from .. schema import embeddings_request_queue
-from .. schema import embeddings_response_queue
 
 from . endpoint import ServiceEndpoint
 from . requestor import ServiceRequestor
 
 class EmbeddingsRequestor(ServiceRequestor):
-    def __init__(self, pulsar_client, timeout, auth):
+    def __init__(
+            self, pulsar_client, request_queue, response_queue, timeout, auth,
+            consumer, subscriber,
+    ):
 
         super(EmbeddingsRequestor, self).__init__(
             pulsar_client=pulsar_client,
-            request_queue=embeddings_request_queue,
-            response_queue=embeddings_response_queue,
+            request_queue=request_queue,
+            response_queue=response_queue,
             request_schema=EmbeddingsRequest,
             response_schema=EmbeddingsResponse,
+            subscription = subscriber,
+            consumer_name = consumer,
             timeout=timeout,
         )
 

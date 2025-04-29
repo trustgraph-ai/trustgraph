@@ -34,9 +34,12 @@ class ServiceRequestor:
         self.timeout = timeout
 
     async def start(self):
-
         await self.pub.start()
         await self.sub.start()
+
+    async def stop(self):
+        await self.pub.stop()
+        await self.sub.stop()
 
     def to_request(self, request):
         raise RuntimeError("Not defined")

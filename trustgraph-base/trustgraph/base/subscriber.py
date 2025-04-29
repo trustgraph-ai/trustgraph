@@ -28,12 +28,15 @@ class Subscriber:
 
     async def stop(self):
         self.running = False
+        await self.task
 
     async def join(self):
         await self.stop()
         await self.task
 
     async def run(self):
+
+        consumer = None
 
         while self.running:
 
@@ -59,7 +62,7 @@ class Subscriber:
                     try:
                         msg = await asyncio.to_thread(
                             consumer.receive,
-                            timeout_millis=2000
+                            timeout_millis=250
                         )
                     except _pulsar.Timeout:
                         continue
@@ -91,7 +94,7 @@ class Subscriber:
                                 # FIXME: Timeout means data goes missing
                                 await asyncio.wait_for(
                                     self.q[id].put(value),
-                                    timeout=2
+                                    timeout=1
                                 )
 
                             except Exception as e:
@@ -103,7 +106,7 @@ class Subscriber:
                                 # FIXME: Timeout means data goes missing
                                 await asyncio.wait_for(
                                     q.put(value),
-                                    timeout=2
+                                    timeout=1
                                 )
                             except Exception as e:
                                 self.metrics.dropped()
@@ -112,13 +115,21 @@ class Subscriber:
             except Exception as e:
                 print("Subscriber exception:", e, flush=True)
 
-            consumer.close()
+            finally:
+
+                if consumer:
+                    consumer.close()
+                    consumer = None
+                
          
             if self.metrics:
                 self.metrics.state("stopped")
 
+            if not self.running:
+                return
+            
             # If handler drops out, sleep a retry
-            time.sleep(2)
+            await asyncio.sleep(1)
 
     async def subscribe(self, id):
 

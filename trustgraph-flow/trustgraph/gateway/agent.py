@@ -1,20 +1,23 @@
 
 from .. schema import AgentRequest, AgentResponse
-from .. schema import agent_request_queue
-from .. schema import agent_response_queue
 
 from . endpoint import ServiceEndpoint
 from . requestor import ServiceRequestor
 
 class AgentRequestor(ServiceRequestor):
-    def __init__(self, pulsar_client, timeout, auth):
+    def __init__(
+            self, pulsar_client, request_queue, response_queue, timeout, auth,
+            consumer, subscriber,
+    ):
 
         super(AgentRequestor, self).__init__(
             pulsar_client=pulsar_client,
-            request_queue=agent_request_queue,
-            response_queue=agent_response_queue,
+            request_queue=request_queue,
+            response_queue=response_queue,
             request_schema=AgentRequest,
             response_schema=AgentResponse,
+            subscription = subscriber,
+            consumer_name = consumer,
             timeout=timeout,
         )
 

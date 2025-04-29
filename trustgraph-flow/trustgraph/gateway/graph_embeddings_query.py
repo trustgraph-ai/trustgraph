@@ -1,21 +1,24 @@
 
 from .. schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
-from .. schema import graph_embeddings_request_queue
-from .. schema import graph_embeddings_response_queue
 
 from . endpoint import ServiceEndpoint
 from . requestor import ServiceRequestor
 from . serialize import serialize_value
 
 class GraphEmbeddingsQueryRequestor(ServiceRequestor):
-    def __init__(self, pulsar_client, timeout, auth):
+    def __init__(
+            self, pulsar_client, request_queue, response_queue, timeout, auth,
+            consumer, subscriber,
+    ):
 
         super(GraphEmbeddingsQueryRequestor, self).__init__(
             pulsar_client=pulsar_client,
-            request_queue=graph_embeddings_request_queue,
-            response_queue=graph_embeddings_response_queue,
+            request_queue=request_queue,
+            response_queue=response_queue,
             request_schema=GraphEmbeddingsRequest,
             response_schema=GraphEmbeddingsResponse,
+            subscription = subscriber,
+            consumer_name = consumer,
             timeout=timeout,
         )
 
