@@ -17,6 +17,8 @@ from aiohttp import web
 import logging
 import os
 import base64
+import uuid
+import json
 
 import pulsar
 from prometheus_client import start_http_server
@@ -26,7 +28,9 @@ from .. log_level import LogLevel
 from . serialize import to_subgraph
 from . running import Running
 
-#from . text_completion import TextCompletionRequestor
+from .. schema import ConfigPush, config_push_queue
+
+from . text_completion import TextCompletionRequestor
 #from . prompt import PromptRequestor
 #from . graph_rag import GraphRagRequestor
 #from . document_rag import DocumentRagRequestor
@@ -52,7 +56,10 @@ from . mux import MuxEndpoint
 from . metrics import MetricsEndpoint
 
 from . endpoint import ServiceEndpoint
+from . flow_endpoint import FlowEndpoint
 from . auth import Authenticator
+from .. base import Subscriber
+from .. base import Consumer
 
 logger = logging.getLogger("api")
 logger.setLevel(logging.INFO)
@@ -67,11 +74,6 @@ default_api_token = os.getenv("GATEWAY_SECRET", "")
 class Api:
 
     def __init__(self, **config):
-
-        self.app = web.Application(
-            middlewares=[],
-            client_max_size=256 * 1024 * 1024
-        )
 
         self.port = int(config.get("port", default_port))
         self.timeout = int(config.get("timeout", default_timeout))
@@ -217,6 +219,11 @@ class Api:
                 endpoint_path = "/api/v1/flow", auth=self.auth,
                 requestor = self.services["flow"],
             ),
+            FlowEndpoint(
+                endpoint_path = "/api/v1/flow/{flow}/{kind}",
+                auth=self.auth,
+                requestors = self.services,
+            ),
             # ServiceEndpoint(
             #     endpoint_path = "/api/v1/encyclopedia", auth=self.auth,
             #     requestor = self.services["encyclopedia"],
@@ -273,10 +280,102 @@ class Api:
             ),
         ]
 
-        for ep in self.endpoints:
-            ep.add_routes(self.app)
+        self.flows = {}
+
+#        self.services = {}
+
+    async def on_config(self, msg, proc, flow):
+
+        try:
+
+            v = msg.value()
+
+            print(f"Config version", v.version)
+
+            if "flows" in v.config:
+
+                flows = v.config["flows"]
+
+                wanted = list(flows.keys())
+                current = list(self.flows.keys())
+
+                for k in wanted:
+                    if k not in current:
+                        self.flows[k] = json.loads(flows[k])
+                        await self.start_flow(k, self.flows[k])
+
+                for k in current:
+                    if k not in wanted:
+                        await self.stop_flow(k, self.flows[k])
+                        del self.flows[k]
+
+        except Exception as e:
+            print(f"Exception: {e}", flush=True)
+
+    async def start_flow(self, id, flow):
+        print("Start flow", id)
+        intf = flow["interfaces"]
+
+        if "text-completion" in intf:
+            k = (id, "text-completion")
+            if k in self.services:
+                await self.services[k].stop()
+                del self.services[k]
+
+            self.services[k] = TextCompletionRequestor(
+                pulsar_client=self.pulsar_client, timeout=self.timeout,
+                request_queue = intf["text-completion"]["request"],
+                response_queue = intf["text-completion"]["response"],
+                consumer = f"api-gateway-{id}-text-completion-request",
+                subscriber = f"api-gateway-{id}-text-completion-request",
+                auth = self.auth,
+            )
+            await self.services[k].start()
+
+    async def stop_flow(self, id, flow):
+        print("Stop flow", id)
+        intf = flow["interfaces"]
+
+        if "text-completion" in intf:
+            k = (id, "text-completion")
+            if k in self.services:
+                await self.services[k].stop()
+                del self.services[k]
+
+    async def config_loader(self):
+
+        async with asyncio.TaskGroup() as tg:
+
+            id = str(uuid.uuid4())
+
+            self.config_cons = Consumer(
+                taskgroup = tg,
+                flow = None,
+                client = self.pulsar_client,
+                subscriber = f"gateway-{id}",                
+                topic = config_push_queue,
+                schema = ConfigPush,
+                handler = self.on_config,
+                start_of_messages = True,
+            )
+
+            await self.config_cons.start()
+
+            print("Waiting...")
+
+        print("Config consumer done. :/")
 
     async def app_factory(self):
+        
+        self.app = web.Application(
+            middlewares=[],
+            client_max_size=256 * 1024 * 1024
+        )
+
+        asyncio.create_task(self.config_loader())
+
+        for ep in self.endpoints:
+            ep.add_routes(self.app)
 
         for ep in self.endpoints:
             await ep.start()

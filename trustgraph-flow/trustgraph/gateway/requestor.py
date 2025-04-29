@@ -38,6 +38,13 @@ class ServiceRequestor:
         await self.pub.start()
         await self.sub.start()
 
+    async def stop(self):
+
+        print("STOPPING")
+
+        await self.pub.stop()
+        await self.sub.stop()
+
     def to_request(self, request):
         raise RuntimeError("Not defined")
 

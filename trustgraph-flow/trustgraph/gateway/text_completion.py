@@ -1,20 +1,23 @@
 
 from .. schema import TextCompletionRequest, TextCompletionResponse
-from .. schema import text_completion_request_queue
-from .. schema import text_completion_response_queue
 
 from . endpoint import ServiceEndpoint
 from . requestor import ServiceRequestor
 
 class TextCompletionRequestor(ServiceRequestor):
-    def __init__(self, pulsar_client, timeout, auth):
+    def __init__(
+            self, pulsar_client, request_queue, response_queue, timeout, auth,
+            consumer, subscriber,
+    ):
 
         super(TextCompletionRequestor, self).__init__(
             pulsar_client=pulsar_client,
-            request_queue=text_completion_request_queue,
-            response_queue=text_completion_response_queue,
+            request_queue=request_queue,
+            response_queue=response_queue,
             request_schema=TextCompletionRequest,
             response_schema=TextCompletionResponse,
+            subscription = subscriber,
+            consumer_name = consumer,
             timeout=timeout,
         )
 
