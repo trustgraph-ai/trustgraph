@@ -1,21 +1,24 @@
 
 from .. schema import TriplesQueryRequest, TriplesQueryResponse, Triples
-from .. schema import triples_request_queue
-from .. schema import triples_response_queue
 
 from . endpoint import ServiceEndpoint
 from . requestor import ServiceRequestor
 from . serialize import to_value, serialize_subgraph
 
 class TriplesQueryRequestor(ServiceRequestor):
-    def __init__(self, pulsar_client, timeout, auth):
+    def __init__(
+            self, pulsar_client, request_queue, response_queue, timeout, auth,
+            consumer, subscriber,
+    ):
 
         super(TriplesQueryRequestor, self).__init__(
             pulsar_client=pulsar_client,
-            request_queue=triples_request_queue,
-            response_queue=triples_response_queue,
+            request_queue=request_queue,
+            response_queue=response_queue,
             request_schema=TriplesQueryRequest,
             response_schema=TriplesQueryResponse,
+            subscription = subscriber,
+            consumer_name = consumer,
             timeout=timeout,
         )
 

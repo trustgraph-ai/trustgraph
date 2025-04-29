@@ -31,8 +31,8 @@ from . running import Running
 from .. schema import ConfigPush, config_push_queue
 
 from . text_completion import TextCompletionRequestor
-#from . prompt import PromptRequestor
-#from . graph_rag import GraphRagRequestor
+from . prompt import PromptRequestor
+from . graph_rag import GraphRagRequestor
 #from . document_rag import DocumentRagRequestor
 #from . triples_query import TriplesQueryRequestor
 #from . graph_embeddings_query import GraphEmbeddingsQueryRequestor
@@ -145,11 +145,11 @@ class Api:
             #     pulsar_client=self.pulsar_client, timeout=self.timeout,
             #     auth = self.auth,
             # ),
-            "config": ConfigRequestor(
+            (None, "config"): ConfigRequestor(
                 pulsar_client=self.pulsar_client, timeout=self.timeout,
                 auth = self.auth,
             ),
-            "flow": FlowRequestor(
+            (None, "flow"): FlowRequestor(
                 pulsar_client=self.pulsar_client, timeout=self.timeout,
                 auth = self.auth,
             ),
@@ -213,11 +213,11 @@ class Api:
             # ),
             ServiceEndpoint(
                 endpoint_path = "/api/v1/config", auth=self.auth,
-                requestor = self.services["config"],
+                requestor = self.services[(None, "config")],
             ),
             ServiceEndpoint(
                 endpoint_path = "/api/v1/flow", auth=self.auth,
-                requestor = self.services["flow"],
+                requestor = self.services[(None, "flow")],
             ),
             FlowEndpoint(
                 endpoint_path = "/api/v1/flow/{flow}/{kind}",
@@ -282,8 +282,6 @@ class Api:
 
         self.flows = {}
 
-#        self.services = {}
-
     async def on_config(self, msg, proc, flow):
 
         try:
@@ -313,32 +311,49 @@ class Api:
             print(f"Exception: {e}", flush=True)
 
     async def start_flow(self, id, flow):
+
         print("Start flow", id)
         intf = flow["interfaces"]
 
-        if "text-completion" in intf:
-            k = (id, "text-completion")
-            if k in self.services:
-                await self.services[k].stop()
-                del self.services[k]
+        kinds = {
+            "agent": AgentRequestor,
+            "text-completion": TextCompletionRequestor,
+            "prompt": PromptRequestor,
+            "graph-rag": GraphRagRequestor,
+            "embeddings": EmbeddingsRequestor,
+            "graph-embeddings": GraphEmbeddingsRequestor,
+            "triples-query": TriplesQueryRequestor,
+        }
 
-            self.services[k] = TextCompletionRequestor(
-                pulsar_client=self.pulsar_client, timeout=self.timeout,
-                request_queue = intf["text-completion"]["request"],
-                response_queue = intf["text-completion"]["response"],
-                consumer = f"api-gateway-{id}-text-completion-request",
-                subscriber = f"api-gateway-{id}-text-completion-request",
-                auth = self.auth,
-            )
-            await self.services[k].start()
+        for api_kind, requestor in kinds.items():
+
+            if api_kind in intf:
+                k = (id, api_kind)
+                if k in self.services:
+                    await self.services[k].stop()
+                    del self.services[k]
+
+                self.services[k] = requestor(
+                    pulsar_client=self.pulsar_client, timeout=self.timeout,
+                    request_queue = intf[api_kind]["request"],
+                    response_queue = intf[api_kind]["response"],
+                    consumer = f"api-gateway-{id}-{api_kind}-request",
+                    subscriber = f"api-gateway-{id}-{api_kind}-request",
+                    auth = self.auth,
+                )
+                await self.services[k].start()
 
     async def stop_flow(self, id, flow):
         print("Stop flow", id)
         intf = flow["interfaces"]
 
-        if "text-completion" in intf:
-            k = (id, "text-completion")
-            if k in self.services:
+        svc_list = list(self.services.keys())
+
+        for k in svc_list:
+
+            kid, kkind = k
+
+            if id == kid:
                 await self.services[k].stop()
                 del self.services[k]
 

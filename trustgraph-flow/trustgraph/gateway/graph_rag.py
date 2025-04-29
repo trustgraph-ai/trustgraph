@@ -1,20 +1,23 @@
 
 from .. schema import GraphRagQuery, GraphRagResponse
-from .. schema import graph_rag_request_queue
-from .. schema import graph_rag_response_queue
 
 from . endpoint import ServiceEndpoint
 from . requestor import ServiceRequestor
 
 class GraphRagRequestor(ServiceRequestor):
-    def __init__(self, pulsar_client, timeout, auth):
+    def __init__(
+            self, pulsar_client, request_queue, response_queue, timeout, auth,
+            consumer, subscriber,
+    ):
 
         super(GraphRagRequestor, self).__init__(
             pulsar_client=pulsar_client,
-            request_queue=graph_rag_request_queue,
-            response_queue=graph_rag_response_queue,
+            request_queue=request_queue,
+            response_queue=response_queue,
             request_schema=GraphRagQuery,
             response_schema=GraphRagResponse,
+            subscription = subscriber,
+            consumer_name = consumer,
             timeout=timeout,
         )
 

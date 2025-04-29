@@ -34,14 +34,10 @@ class ServiceRequestor:
         self.timeout = timeout
 
     async def start(self):
-
         await self.pub.start()
         await self.sub.start()
 
     async def stop(self):
-
-        print("STOPPING")
-
         await self.pub.stop()
         await self.sub.stop()
 
