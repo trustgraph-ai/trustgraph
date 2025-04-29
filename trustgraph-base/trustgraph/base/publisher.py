@@ -21,6 +21,7 @@ class Publisher:
 
     async def stop(self):
         self.running = False
+        await self.task
 
     async def join(self):
         await self.stop()
@@ -42,7 +43,7 @@ class Publisher:
                     try:
                         id, item = await asyncio.wait_for(
                             self.q.get(),
-                            timeout=0.5
+                            timeout=0.25
                         )
                     except asyncio.TimeoutError:
                         continue
@@ -57,8 +58,11 @@ class Publisher:
             except Exception as e:
                 print("Exception:", e, flush=True)
 
+            if not self.running:
+                return
+
             # If handler drops out, sleep a retry
-            time.sleep(2)
+            await asyncio.sleep(1)
 
     async def send(self, id, item):
         await self.q.put((id, item))
