@@ -34,11 +34,11 @@ from . text_completion import TextCompletionRequestor
 from . prompt import PromptRequestor
 from . graph_rag import GraphRagRequestor
 #from . document_rag import DocumentRagRequestor
-#from . triples_query import TriplesQueryRequestor
-#from . graph_embeddings_query import GraphEmbeddingsQueryRequestor
-#from . embeddings import EmbeddingsRequestor
+from . triples_query import TriplesQueryRequestor
+from . graph_embeddings_query import GraphEmbeddingsQueryRequestor
+from . embeddings import EmbeddingsRequestor
 #from . encyclopedia import EncyclopediaRequestor
-#from . agent import AgentRequestor
+from . agent import AgentRequestor
 #from . dbpedia import DbpediaRequestor
 #from . internet_search import InternetSearchRequestor
 #from . librarian import LibrarianRequestor
@@ -321,7 +321,7 @@ class Api:
             "prompt": PromptRequestor,
             "graph-rag": GraphRagRequestor,
             "embeddings": EmbeddingsRequestor,
-            "graph-embeddings": GraphEmbeddingsRequestor,
+            "graph-embeddings": GraphEmbeddingsQueryRequestor,
             "triples-query": TriplesQueryRequestor,
         }
 
