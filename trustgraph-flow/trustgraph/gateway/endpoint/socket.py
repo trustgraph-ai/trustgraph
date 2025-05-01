@@ -11,32 +11,34 @@ logger.setLevel(logging.INFO)
 class SocketEndpoint:
 
     def __init__(
-            self, endpoint_path, auth,
+            self, endpoint_path, auth, dispatcher,
     ):
 
         self.path = endpoint_path
         self.auth = auth
         self.operation = "socket"
 
-        self.running = Running()
+        self.dispatcher = dispatcher
 
-    async def dispatcher(self, ws):
-        pass
+    async def worker(self, ws, dispatcher, running):
 
-    async def listener(self, ws):
+        await dispatcher.run()
+
+    async def listener(self, ws, dispatcher, running):
 
         async for msg in ws:
+
             # On error, finish
             if msg.type == WSMsgType.TEXT:
-                # Ignore incoming message
+                await dispatcher.receive(msg)
                 continue
             elif msg.type == WSMsgType.BINARY:
-                # Ignore incoming message
+                await dispatcher.receive(msg)
                 continue
             else:
                 break
 
-        self.running.stop()
+        running.stop()
         await ws.close()
         
     async def handle(self, request):
@@ -57,17 +59,39 @@ class SocketEndpoint:
         try:
 
             async with asyncio.TaskGroup() as tg:
-            
-                worker = tg.create_task(
-                    self.dispatcher(ws)
+
+                running = Running()
+
+                print("Create...")
+                print(self.dispatcher)
+                dispinst = await self.dispatcher(ws, running, request)
+
+                print("Create worker...")
+                worker_task = tg.create_task(
+                    self.worker(ws, dispinst, running)
                 )
 
-                worker = tg.create_task(
-                    self.listener(ws)
+                print("Create listener")
+                lsnr_task = tg.create_task(
+                    self.listener(ws, dispinst, running)
                 )
+
+                print("Created taskgroup, waiting...")
 
                 # Wait for threads to complete
 
+            print("Task group closed")
+
+            # Finally?
+            await dispinst.destroy()
+
+        except ExceptionGroup as e:
+
+            print("Exception group:", flush=True)
+
+            for se in e.exceptions:
+                print("  Type:", type(se), flush=True)
+                print(f"  Exception: {se}", flush=True)
         except Exception as e:
             print("Socket exception:", e, flush=True)
 

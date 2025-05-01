@@ -3,47 +3,38 @@ import asyncio
 import queue
 import uuid
 
-from .. schema import Triples
-from .. schema import triples_store_queue
-from .. base import Subscriber
+from ... schema import Triples
+from ... base import Subscriber
 
-from . socket import SocketEndpoint
 from . serialize import serialize_triples
 
-class TriplesStreamEndpoint(SocketEndpoint):
+class TriplesStream:
 
-    def __init__(self, pulsar_client, auth, path="/api/v1/stream/triples"):
+    def __init__(self, ws, running, pulsar_client, queue):
 
-        super(TriplesStreamEndpoint, self).__init__(
-            endpoint_path=path, auth=auth,
-        )
+        self.ws = ws
+        self.running = runnning
+        self.pulsar_client = pulsar_client
+        self.queue = queue
 
-        self.pulsar_client=pulsar_client
+    async def destroy(self):
+        self.running.stop()
+        self.ws.close()
+
+    async def receive(self, msg):
+        print(msg.data)
+
+    async def run(self, ws, running):
 
         self.subscriber = Subscriber(
-            self.pulsar_client, triples_store_queue,
+            pulsar_client, queue,
             "api-gateway", "api-gateway",
             schema=Triples
         )
 
-    async def listener(self, ws, running):
-
-        worker = asyncio.create_task(
-            self.async_thread(ws, running)
-        )
-
-        await super(TriplesStreamEndpoint, self).listener(ws, running)
-
-        await worker
-
-    async def start(self):
-
         await self.subscriber.start()
 
-    async def async_thread(self, ws, running):
-
         id = str(uuid.uuid4())
-
         q = self.subscriber.subscribe_all(id)
 
         while running.get():
@@ -63,5 +54,6 @@ class TriplesStreamEndpoint(SocketEndpoint):
 
         self.subscriber.unsubscribe_all(id)
 
+        await ws.close()
         running.stop()
 

@@ -1,6 +1,8 @@
 
 import asyncio
 
+from aiohttp import web
+
 from . endpoint import ServiceEndpoint
 
 from . flow_endpoint import FlowEndpoint
@@ -14,7 +16,22 @@ from .. dispatch.triples_query import TriplesQueryRequestor
 from .. dispatch.embeddings import EmbeddingsRequestor
 from .. dispatch.graph_embeddings_query import GraphEmbeddingsQueryRequestor
 from .. dispatch.prompt import PromptRequestor
-from . stream import StreamEndpoint
+
+from .. dispatch.triples_stream import TriplesStream
+
+from . socket import SocketEndpoint
+
+class Dispatcher:
+    def __init__(
+            self, pulsar_client, timeout, queue, schema,
+            consumer, subscriber
+    ):
+        self.pulsar_client = pulsar_client
+        self.timeout = timeout
+        self.queue = queue
+        self.schema = schema
+        self.consumer = consumer
+        self.subscriber = subscriber
 
 class FlowEndpointManager:
 
@@ -27,46 +44,35 @@ class FlowEndpointManager:
         self.services = {
         }
 
-        class DispInst:
-            def __init__(self, ws, running):
-                self.ws = ws
-                self.running = running
-                self.num = 1
-            async def destroy(self):
-                print("Destroy..")
-                await self.ws.close()
-                self.running.stop()
-            async def run(self):
-                while self.running.get():
-                    await asyncio.sleep(1)
-                    await self.ws.send_json({"number": self.num})
-                    self.num += 1
-                    print("Tick")
-            async def receive(self, msg):
-                print("Message...")
-                print(msg.data)
-
-        class Dispatcher:
-            def __init__(self):
-                pass
-            async def create(self, ws, running, request):
-                print("Create")
-                return DispInst(ws, running)
-        
         self.endpoints = [
             FlowEndpoint(
                 endpoint_path = "/api/v1/flow/{flow}/{kind}",
                 auth = auth,
                 requestors = self.services,
             ),
-            StreamEndpoint(
+            SocketEndpoint(
                 endpoint_path = "/api/v1/flow/{flow}/stream/{kind}",
                 auth = auth,
-                dispatcher = Dispatcher(),
+                dispatcher = self.create_stream_dispatch
             ),
         ]
 
         self.config_receiver.add_handler(self)
+
+    async def create_stream_dispatch(self, ws, running, request):
+
+        flow_id = request.match_info['flow']
+        kind = request.match_info['kind']
+        k = (flow_id, kind)
+
+        print("Service", k)
+
+        print(self.services)
+
+        if k not in self.services:
+            raise web.HTTPBadRequest()
+        
+        raise RuntimeError("Not impl")
 
     def add_routes(self, app):
         for ep in self.endpoints:
@@ -102,6 +108,7 @@ class FlowEndpointManager:
                     await self.services[k].stop()
                     del self.services[k]
 
+
                 self.services[k] = requestor(
                     pulsar_client=self.pulsar_client, timeout = self.timeout,
                     request_queue = intf[api_kind]["request"],
@@ -113,7 +120,7 @@ class FlowEndpointManager:
 
         kinds = {
 #            "document-embeddings-stream": DocumentEmbeddingsStreamEndpoint,
-#            "triples-store"
+            "triples-stream": TriplesStream,
 #            "bunch": 
         }
 
@@ -127,12 +134,13 @@ class FlowEndpointManager:
                     await self.services[k].stop()
                     del self.services[k]
 
-                self.services[k] = streamer(
-#                    pulsar_client=self.pulsar_client,
-#                    timeout = self.timeout,
-#                    input_queue = intf[api_kind],
-#                    consumer = f"api-gateway-{id}-{api_kind}-stream",
-#                    subscriber = f"api-gateway-{id}-{api_kind}-stream",
+                self.services[k] = Dispatcher(
+                    pulsar_client=self.pulsar_client,
+                    timeout = self.timeout,
+                    input_queue = intf[api_kind],
+                    consumer = f"api-gateway-{id}-{api_kind}-stream",
+                    subscriber = f"api-gateway-{id}-{api_kind}-stream",
+                    impl=streamer,
                 )
                 await self.services[k].start()
 
