@@ -3,12 +3,23 @@ from . endpoint import ServiceEndpoint
 
 from . flow_endpoint import FlowEndpoint
 
+from .. dispatch.agent import AgentRequestor
+from .. dispatch.text_completion import TextCompletionRequestor
+from .. dispatch.prompt import PromptRequestor
+from .. dispatch.graph_rag import GraphRagRequestor
+from .. dispatch.document_rag import DocumentRagRequestor
+from .. dispatch.triples_query import TriplesQueryRequestor
+from .. dispatch.embeddings import EmbeddingsRequestor
+from .. dispatch.graph_embeddings_query import GraphEmbeddingsQueryRequestor
+from .. dispatch.prompt import PromptRequestor
+
 class FlowEndpointManager:
 
     def __init__(self, config_receiver, pulsar_client, auth, timeout=600):
 
         self.config_receiver = config_receiver
         self.pulsar_client = pulsar_client
+        self.timeout = timeout
 
         self.services = {
         }
@@ -32,8 +43,51 @@ class FlowEndpointManager:
             await ep.start()
 
     async def start_flow(self, id, flow):
+
         print("START FLOW", id)
 
+        intf = flow["interfaces"]
+
+        kinds = {
+            "agent": AgentRequestor,
+            "text-completion": TextCompletionRequestor,
+            "prompt": PromptRequestor,
+            "graph-rag": GraphRagRequestor,
+            "document-rag": DocumentRagRequestor,
+            "embeddings": EmbeddingsRequestor,
+            "graph-embeddings": GraphEmbeddingsQueryRequestor,
+            "triples-query": TriplesQueryRequestor,
+        }
+
+        for api_kind, requestor in kinds.items():
+
+            if api_kind in intf:
+                k = (id, api_kind)
+                if k in self.services:
+                    await self.services[k].stop()
+                    del self.services[k]
+
+                self.services[k] = requestor(
+                    pulsar_client=self.pulsar_client, timeout = self.timeout,
+                    request_queue = intf[api_kind]["request"],
+                    response_queue = intf[api_kind]["response"],
+                    consumer = f"api-gateway-{id}-{api_kind}-request",
+                    subscriber = f"api-gateway-{id}-{api_kind}-request",
+                )
+                await self.services[k].start()
+
     async def stop_flow(self, id, flow):
+
         print("STOP FLOW", id)        
 
+        intf = flow["interfaces"]
+
+        svc_list = list(self.services.keys())
+
+        for k in svc_list:
+
+            kid, kkind = k
+
+            if id == kid:
+                await self.services[k].stop()
+                del self.services[k]

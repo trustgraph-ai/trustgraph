@@ -1,12 +1,11 @@
 
-from .. schema import EmbeddingsRequest, EmbeddingsResponse
+from ... schema import EmbeddingsRequest, EmbeddingsResponse
 
-from . endpoint import ServiceEndpoint
 from . requestor import ServiceRequestor
 
 class EmbeddingsRequestor(ServiceRequestor):
     def __init__(
-            self, pulsar_client, request_queue, response_queue, timeout, auth,
+            self, pulsar_client, request_queue, response_queue, timeout,
             consumer, subscriber,
     ):
 

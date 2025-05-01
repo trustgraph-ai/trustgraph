@@ -5,7 +5,7 @@ import asyncio
 import uuid
 import logging
 
-from .. base import Publisher
+from ... base import Publisher
 
 logger = logging.getLogger("sender")
 logger.setLevel(logging.INFO)

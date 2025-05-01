@@ -1,13 +1,12 @@
 
-from .. schema import TriplesQueryRequest, TriplesQueryResponse, Triples
+from ... schema import TriplesQueryRequest, TriplesQueryResponse, Triples
 
-from . endpoint import ServiceEndpoint
 from . requestor import ServiceRequestor
 from . serialize import to_value, serialize_subgraph
 
 class TriplesQueryRequestor(ServiceRequestor):
     def __init__(
-            self, pulsar_client, request_queue, response_queue, timeout, auth,
+            self, pulsar_client, request_queue, response_queue, timeout,
             consumer, subscriber,
     ):
 
