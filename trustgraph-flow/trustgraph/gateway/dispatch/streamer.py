@@ -14,52 +14,44 @@ class ServiceRequestor:
     def __init__(
             self,
             pulsar_client,
-            request_queue, request_schema,
-            response_queue, response_schema,
+            queue, schema,
+            handler,
             subscription="api-gateway", consumer_name="api-gateway",
             timeout=600,
     ):
 
-        self.pub = Publisher(
-            pulsar_client, request_queue,
-            schema=request_schema,
-        )
-
         self.sub = Subscriber(
-            pulsar_client, response_queue,
+            pulsar_client, queue,
             subscription, consumer_name,
-            response_schema
+            schema
         )
 
         self.timeout = timeout
 
         self.running = True
 
+        self.receiver = handler
+
     async def start(self):
-        await self.pub.start()
         await self.sub.start()
+        self.streamer = asyncio.create_task(self.stream())
+        sub.start()
         self.running = True
 
     async def stop(self):
-        await self.pub.stop()
         await self.sub.stop()
         self.running = False
 
-    def to_request(self, request):
+    def from_inbound(self, response):
         raise RuntimeError("Not defined")
 
-    def from_response(self, response):
-        raise RuntimeError("Not defined")
-
-    async def process(self, request, responder=None):
+    async def stream(self):
 
         id = str(uuid.uuid4())
 
         try:
 
             q = await self.sub.subscribe(id)
-
-            await self.pub.send(id, self.to_request(request))
 
             while self.running:
 
@@ -75,19 +67,20 @@ class ServiceRequestor:
                         "type": resp.error.type,
                         "message": resp.error.message,
                     } }
-                    if responder:
-                        await responder(err, True)
-                    return err
 
-                resp, fin = self.from_response(resp)
+                    fin = False
 
-                print(resp, fin)
+                    await self.receiver(err, fin)
 
-                if responder:
-                    await responder(resp, fin)
+                else:
 
-                if fin:
-                    return resp
+                    resp, fin = self.from_inbound(resp)
+
+                    print(resp, fin)
+
+                    await self.receiver(resp, fin)
+
+                if fin: break
 
         except Exception as e:
 

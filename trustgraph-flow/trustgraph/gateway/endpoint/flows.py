@@ -99,7 +99,7 @@ class FlowEndpointManager:
                     await self.services[k].stop()
                     del self.services[k]
 
-                self.services[k] = steamer(
+                self.services[k] = streamer(
 #                    pulsar_client=self.pulsar_client,
 #                    timeout = self.timeout,
 #                    input_queue = intf[api_kind],
