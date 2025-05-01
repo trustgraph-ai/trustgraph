@@ -3,8 +3,8 @@ import asyncio
 import uuid
 import logging
 
-from .. base import Publisher
-from .. base import Subscriber
+from ... base import Publisher
+from ... base import Subscriber
 
 logger = logging.getLogger("requestor")
 logger.setLevel(logging.INFO)
