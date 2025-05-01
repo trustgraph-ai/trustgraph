@@ -1,4 +1,6 @@
 
+import asyncio
+
 from . endpoint import ServiceEndpoint
 
 from . flow_endpoint import FlowEndpoint
@@ -25,6 +27,32 @@ class FlowEndpointManager:
         self.services = {
         }
 
+        class DispInst:
+            def __init__(self, ws, running):
+                self.ws = ws
+                self.running = running
+                self.num = 1
+            async def destroy(self):
+                print("Destroy..")
+                await self.ws.close()
+                self.running.stop()
+            async def run(self):
+                while self.running.get():
+                    await asyncio.sleep(1)
+                    await self.ws.send_json({"number": self.num})
+                    self.num += 1
+                    print("Tick")
+            async def receive(self, msg):
+                print("Message...")
+                print(msg.data)
+
+        class Dispatcher:
+            def __init__(self):
+                pass
+            async def create(self, ws, running, request):
+                print("Create")
+                return DispInst(ws, running)
+        
         self.endpoints = [
             FlowEndpoint(
                 endpoint_path = "/api/v1/flow/{flow}/{kind}",
@@ -34,7 +62,7 @@ class FlowEndpointManager:
             StreamEndpoint(
                 endpoint_path = "/api/v1/flow/{flow}/stream/{kind}",
                 auth = auth,
-                dispatchers = self.services,
+                dispatcher = Dispatcher(),
             ),
         ]
 
