@@ -12,6 +12,7 @@ from .. dispatch.triples_query import TriplesQueryRequestor
 from .. dispatch.embeddings import EmbeddingsRequestor
 from .. dispatch.graph_embeddings_query import GraphEmbeddingsQueryRequestor
 from .. dispatch.prompt import PromptRequestor
+from . stream import StreamEndpoint
 
 class FlowEndpointManager:
 
@@ -29,6 +30,11 @@ class FlowEndpointManager:
                 endpoint_path = "/api/v1/flow/{flow}/{kind}",
                 auth = auth,
                 requestors = self.services,
+            ),
+            StreamEndpoint(
+                endpoint_path = "/api/v1/flow/{flow}/stream/{kind}",
+                auth = auth,
+                dispatchers = self.services,
             ),
         ]
 
@@ -62,6 +68,7 @@ class FlowEndpointManager:
         for api_kind, requestor in kinds.items():
 
             if api_kind in intf:
+
                 k = (id, api_kind)
                 if k in self.services:
                     await self.services[k].stop()
@@ -76,11 +83,34 @@ class FlowEndpointManager:
                 )
                 await self.services[k].start()
 
+        kinds = {
+#            "document-embeddings-stream": DocumentEmbeddingsStreamEndpoint,
+#            "triples-store"
+#            "bunch": 
+        }
+
+        for api_kind, streamer in kinds.items():
+
+#            if api_kind in intf:
+            if True:
+
+                k = (id, api_kind)
+                if k in self.services:
+                    await self.services[k].stop()
+                    del self.services[k]
+
+                self.services[k] = steamer(
+#                    pulsar_client=self.pulsar_client,
+#                    timeout = self.timeout,
+#                    input_queue = intf[api_kind],
+#                    consumer = f"api-gateway-{id}-{api_kind}-stream",
+#                    subscriber = f"api-gateway-{id}-{api_kind}-stream",
+                )
+                await self.services[k].start()
+
     async def stop_flow(self, id, flow):
 
         print("STOP FLOW", id)        
-
-        intf = flow["interfaces"]
 
         svc_list = list(self.services.keys())
 

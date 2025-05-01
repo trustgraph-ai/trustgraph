@@ -21,19 +21,15 @@ class LibrarianRequestor(ServiceRequestor):
 
     def to_request(self, body):
 
-        print("TRR")
         if "document" in body:
             dp = to_document_package(body["document"])
         else:
             dp = None
 
-        print("GOT")
         if "criteria" in body:
             criteria = to_criteria(body["criteria"])
         else:
             criteria = None
-
-        print("ASLDKJ")
 
         return LibrarianRequest(
             operation = body.get("operation", None),

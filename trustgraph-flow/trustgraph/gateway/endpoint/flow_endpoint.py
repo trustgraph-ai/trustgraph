@@ -23,7 +23,6 @@ class FlowEndpoint:
 
     def add_routes(self, app):
 
-        pass
         app.add_routes([
             web.post(self.path, self.handle),
         ])

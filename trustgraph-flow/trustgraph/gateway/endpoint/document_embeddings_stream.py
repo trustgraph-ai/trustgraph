@@ -3,9 +3,9 @@ import asyncio
 import queue
 import uuid
 
-from .. schema import DocumentEmbeddings
-from .. schema import document_embeddings_store_queue
-from .. base import Subscriber
+from ... schema import DocumentEmbeddings
+from ... schema import document_embeddings_store_queue
+from ... base import Subscriber
 
 from . socket import SocketEndpoint
 from . serialize import serialize_document_embeddings
@@ -14,7 +14,8 @@ class DocumentEmbeddingsStreamEndpoint(SocketEndpoint):
 
     def __init__(
             self, pulsar_client, auth,
-            path="/api/v1/stream/document-embeddings"
+            queue,
+            path="/api/v1/stream/document-embeddings",
     ):
 
         super(DocumentEmbeddingsStreamEndpoint, self).__init__(
@@ -24,7 +25,7 @@ class DocumentEmbeddingsStreamEndpoint(SocketEndpoint):
         self.pulsar_client=pulsar_client
 
         self.subscriber = Subscriber(
-            self.pulsar_client, document_embeddings_store_queue,
+            self.pulsar_client, queue,
             "api-gateway", "api-gateway",
             schema=DocumentEmbeddings,
         )
