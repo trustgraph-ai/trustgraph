@@ -33,7 +33,7 @@ from .. schema import ConfigPush, config_push_queue
 from . text_completion import TextCompletionRequestor
 from . prompt import PromptRequestor
 from . graph_rag import GraphRagRequestor
-#from . document_rag import DocumentRagRequestor
+from . document_rag import DocumentRagRequestor
 from . triples_query import TriplesQueryRequestor
 from . graph_embeddings_query import GraphEmbeddingsQueryRequestor
 from . embeddings import EmbeddingsRequestor
@@ -41,7 +41,7 @@ from . embeddings import EmbeddingsRequestor
 from . agent import AgentRequestor
 #from . dbpedia import DbpediaRequestor
 #from . internet_search import InternetSearchRequestor
-#from . librarian import LibrarianRequestor
+from . librarian import LibrarianRequestor
 from . config import ConfigRequestor
 from . flow import FlowRequestor
 #from . triples_stream import TriplesStreamEndpoint
@@ -141,10 +141,10 @@ class Api:
             #     pulsar_client=self.pulsar_client, timeout=self.timeout,
             #     auth = self.auth,
             # ),
-            # "librarian": LibrarianRequestor(
-            #     pulsar_client=self.pulsar_client, timeout=self.timeout,
-            #     auth = self.auth,
-            # ),
+            (None, "librarian"): LibrarianRequestor(
+                pulsar_client=self.pulsar_client, timeout=self.timeout,
+                auth = self.auth,
+            ),
             (None, "config"): ConfigRequestor(
                 pulsar_client=self.pulsar_client, timeout=self.timeout,
                 auth = self.auth,
@@ -207,10 +207,10 @@ class Api:
             #     endpoint_path = "/api/v1/agent", auth=self.auth,
             #     requestor = self.services["agent"],
             # ),
-            # ServiceEndpoint(
-            #     endpoint_path = "/api/v1/librarian", auth=self.auth,
-            #     requestor = self.services["librarian"],
-            # ),
+            ServiceEndpoint(
+                endpoint_path = "/api/v1/librarian", auth=self.auth,
+                requestor = self.services[(None, "librarian")],
+            ),
             ServiceEndpoint(
                 endpoint_path = "/api/v1/config", auth=self.auth,
                 requestor = self.services[(None, "config")],
@@ -320,6 +320,7 @@ class Api:
             "text-completion": TextCompletionRequestor,
             "prompt": PromptRequestor,
             "graph-rag": GraphRagRequestor,
+            "document-rag": DocumentRagRequestor,
             "embeddings": EmbeddingsRequestor,
             "graph-embeddings": GraphEmbeddingsQueryRequestor,
             "triples-query": TriplesQueryRequestor,

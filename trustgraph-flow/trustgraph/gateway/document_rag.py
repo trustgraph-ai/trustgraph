@@ -1,20 +1,23 @@
 
 from .. schema import DocumentRagQuery, DocumentRagResponse
-from .. schema import document_rag_request_queue
-from .. schema import document_rag_response_queue
 
 from . endpoint import ServiceEndpoint
 from . requestor import ServiceRequestor
 
 class DocumentRagRequestor(ServiceRequestor):
-    def __init__(self, pulsar_client, timeout, auth):
+    def __init__(
+            self, pulsar_client, request_queue, response_queue, timeout, auth,
+            consumer, subscriber,
+    ):
 
         super(DocumentRagRequestor, self).__init__(
             pulsar_client=pulsar_client,
-            request_queue=document_rag_request_queue,
-            response_queue=document_rag_response_queue,
+            request_queue=request_queue,
+            response_queue=response_queue,
             request_schema=DocumentRagQuery,
             response_schema=DocumentRagResponse,
+            subscription = subscriber,
+            consumer_name = consumer,
             timeout=timeout,
         )
 
