@@ -266,7 +266,7 @@ async def main(running):
     parser.add_argument(
         '-f', '--flow-id',
         default="0000",
-        help=f'Flow ID'
+        help=f'Flow ID (default: 0000)'
     )
 
     parser.add_argument(
