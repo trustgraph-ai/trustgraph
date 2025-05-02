@@ -37,6 +37,12 @@ def main():
         help=f'API URL (default: {default_url})',
     )
 
+    parser.add_argument(
+        '-f', '--flow-id',
+        default="0000",
+        help=f'Flow ID (default: 0000)'
+    )
+
     # parser.add_argument(
     #     '--pulsar-api-key',
     #     default=default_pulsar_api_key,

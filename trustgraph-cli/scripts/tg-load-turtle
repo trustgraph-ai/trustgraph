@@ -109,6 +109,12 @@ def main():
         default=default_pulsar_host,
         help=f'Pulsar host (default: {default_pulsar_host})',
     )
+
+    parser.add_argument(
+        '-f', '--flow-id',
+        default="0000",
+        help=f'Flow ID (default: 0000)'
+    )
     
     parser.add_argument(
         '--pulsar-api-key',

@@ -70,6 +70,12 @@ def main():
     )
 
     parser.add_argument(
+        '-f', '--flow-id',
+        default="0000",
+        help=f'Flow ID (default: 0000)'
+    )
+
+    parser.add_argument(
         '-U', '--user',
         default=default_user,
         help=f'User ID (default: {default_user})'

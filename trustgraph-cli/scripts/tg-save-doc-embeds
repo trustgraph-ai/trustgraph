@@ -159,6 +159,12 @@ async def main(running):
     )
 
     parser.add_argument(
+        '-f', '--flow-id',
+        default="0000",
+        help=f'Flow ID (default: 0000)'
+    )
+
+    parser.add_argument(
         '-o', '--output-file',
         # Make it mandatory, difficult to over-write an existing file
         required=True,
