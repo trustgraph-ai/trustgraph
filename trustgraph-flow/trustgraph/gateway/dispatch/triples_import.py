@@ -24,7 +24,10 @@ class TriplesImport:
 
     async def destroy(self):
         self.running.stop()
-        await self.ws.close()
+
+        if self.ws:
+            await self.ws.close()
+
         await self.publisher.stop()
 
     async def receive(self, msg):
@@ -48,6 +51,8 @@ class TriplesImport:
         while self.running.get():
             await asyncio.sleep(0.5)
 
-        await self.ws.close()
+        if self.ws:
+            await self.ws.close()
+
         self.ws = None
 

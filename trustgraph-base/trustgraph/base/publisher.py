@@ -15,17 +15,22 @@ class Publisher:
         self.q = asyncio.Queue(maxsize=max_size)
         self.chunking_enabled = chunking_enabled
         self.running = True
+        self.task = None
 
     async def start(self):
         self.task = asyncio.create_task(self.run())
 
     async def stop(self):
         self.running = False
-        await self.task
+
+        if self.task:
+            await self.task
 
     async def join(self):
         await self.stop()
-        await self.task
+
+        if self.task:
+            await self.task
 
     async def run(self):
 

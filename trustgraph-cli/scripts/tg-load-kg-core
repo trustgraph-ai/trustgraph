@@ -200,7 +200,7 @@ async def run(running, **args):
     ge_q = asyncio.Queue(maxsize=10)
     t_q = asyncio.Queue(maxsize=10)
 
-    flow_id = args["flow"]
+    flow_id = args["flow_id"]
     url = args["url"]
 
     load_task = asyncio.create_task(
@@ -217,7 +217,7 @@ async def run(running, **args):
         load_ge(
             running = running,
             queue = ge_q,
-            url = f"{url}api/v1/{flow_id}/import/graph-embeddings"
+            url = f"{url}api/v1/flow/{flow_id}/import/graph-embeddings"
         )
     )
 
@@ -225,7 +225,7 @@ async def run(running, **args):
         load_triples(
             running = running,
             queue = t_q,
-            url = f"{url}api/v1/{flow_id}/import/triples"
+            url = f"{url}api/v1/flow/{flow_id}/import/triples"
         )
     )
 
@@ -265,7 +265,6 @@ async def main(running):
 
     parser.add_argument(
         '-f', '--flow-id',
-        # Make it mandatory, difficult to over-write an existing file
         default="0000",
         help=f'Flow ID'
     )
