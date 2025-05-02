@@ -55,6 +55,11 @@ class EndpointManager:
                 auth = auth,
                 dispatcher = dispatcher_manager.dispatch_export()
             ),
+            SocketEndpoint(
+                endpoint_path = "/api/v1/flow/{flow}/socket",
+                auth = auth,
+                dispatcher = dispatcher_manager.dispatch_socket()
+            ),
         ]
 
     def add_routes(self, app):

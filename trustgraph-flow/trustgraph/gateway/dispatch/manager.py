@@ -27,6 +27,8 @@ from . triples_import import TriplesImport
 from . graph_embeddings_import import GraphEmbeddingsImport
 from . document_embeddings_import import DocumentEmbeddingsImport
 
+from . mux import Mux
+
 request_response_dispatchers = {
     "agent": AgentRequestor,
     "text-completion": TextCompletionRequestor,
@@ -35,7 +37,7 @@ request_response_dispatchers = {
     "document-rag": DocumentRagRequestor,
     "embeddings": EmbeddingsRequestor,
     "graph-embeddings": GraphEmbeddingsQueryRequestor,
-    "triples-query": TriplesQueryRequestor,
+    "triples": TriplesQueryRequestor,
 }
 
 sender_dispatchers = {
@@ -120,6 +122,9 @@ class DispatcherManager:
     def dispatch_export(self):
         return self.invoke_export
 
+    def dispatch_socket(self):
+        return self.invoke_socket
+
     async def invoke_import(self, ws, running, params):
 
         flow = params.get("flow")
@@ -184,10 +189,25 @@ class DispatcherManager:
 
         return dispatcher
 
+    async def invoke_socket(self, ws, running, params):
+
+        flow = params.get("flow")
+
+        if flow not in self.flows:
+            raise RuntimeError("Invalid flow")
+
+        dispatcher = Mux(self, ws, running)
+
+        return dispatcher
+
     async def process(self, data, responder, params):
 
         flow = params.get("flow")
         kind = params.get("kind")
+
+        return await self.invoke(data, responder, flow, kind)
+
+    async def invoke(self, data, responder, flow, kind):
 
         if flow not in self.flows:
             raise RuntimeError("Invalid flow")
