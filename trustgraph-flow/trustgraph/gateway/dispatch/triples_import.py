@@ -3,11 +3,10 @@ import asyncio
 import uuid
 from aiohttp import WSMsgType
 
-from .. schema import Metadata
-from .. schema import Triples
-from .. base import Publisher
+from ... schema import Metadata
+from ... schema import Triples
+from ... base import Publisher
 
-from . socket import SocketEndpoint
 from . serialize import to_subgraph
 
 class TriplesImport:
@@ -20,7 +19,7 @@ class TriplesImport:
         self.running = running
         
         self.publisher = Publisher(
-            pulsar_client, queue = queue, schema = Triples
+            pulsar_client, topic = queue, schema = Triples
         )
 
     async def destroy(self):

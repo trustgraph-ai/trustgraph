@@ -3,11 +3,10 @@ import asyncio
 import uuid
 from aiohttp import WSMsgType
 
-from .. schema import Metadata
-from .. schema import DocumentEmbeddings, ChunkEmbeddings
-from .. base import Publisher
+from ... schema import Metadata
+from ... schema import DocumentEmbeddings, ChunkEmbeddings
+from ... base import Publisher
 
-from . socket import SocketEndpoint
 from . serialize import to_subgraph
 
 class DocumentEmbeddingsImport:
@@ -20,7 +19,7 @@ class DocumentEmbeddingsImport:
         self.running = running
         
         self.publisher = Publisher(
-            pulsar_client, queue = queue, schema = DocumentEmbeddings
+            pulsar_client, topic = queue, schema = DocumentEmbeddings
         )
 
     async def destroy(self):

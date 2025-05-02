@@ -3,11 +3,10 @@ import asyncio
 import uuid
 from aiohttp import WSMsgType
 
-from .. schema import Metadata
-from .. schema import GraphEmbeddings, EntityEmbeddings
-from .. base import Publisher
+from ... schema import Metadata
+from ... schema import GraphEmbeddings, EntityEmbeddings
+from ... base import Publisher
 
-from . socket import SocketEndpoint
 from . serialize import to_subgraph, to_value
 
 class GraphEmbeddingsImport:
@@ -20,7 +19,7 @@ class GraphEmbeddingsImport:
         self.running = running
         
         self.publisher = Publisher(
-            pulsar_client, queue = queue, schema = GraphEmbeddings
+            pulsar_client, topic = queue, schema = GraphEmbeddings
         )
 
     async def destroy(self):

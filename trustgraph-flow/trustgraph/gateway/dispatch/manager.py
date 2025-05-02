@@ -44,9 +44,9 @@ sender_dispatchers = {
 }
 
 export_dispatchers = {
-    "triples": TriplesStream,
-    "graph-embeddings": GraphEmbeddingsStream,
-    "document-embeddings": DocumentEmbeddingsStream,
+    "triples": TriplesExport,
+    "graph-embeddings": GraphEmbeddingsExport,
+    "document-embeddings": DocumentEmbeddingsExport,
 }
 
 import_dispatchers = {
