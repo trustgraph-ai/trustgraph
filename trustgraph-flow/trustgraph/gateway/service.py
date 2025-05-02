@@ -14,8 +14,8 @@ from .. log_level import LogLevel
 from . auth import Authenticator
 from . config.receiver import ConfigReceiver
 from . dispatch.manager import DispatcherManager
-from . endpoint.globals import GlobalEndpointManager
-from . endpoint.flows import FlowEndpointManager
+
+from . endpoint.manager import EndpointManager
 
 import pulsar
 from prometheus_client import start_http_server
@@ -75,16 +75,10 @@ class Api:
             config_receiver = self.config_receiver,
         )
 
-        self.global_manager = GlobalEndpointManager(
-            pulsar_client = self.pulsar_client,
-            auth = self.auth,
-            prometheus_url = self.prometheus_url,
-            timeout = self.timeout,
-        )
-
-        self.flow_manager = FlowEndpointManager(
+        self.endpoint_manager = EndpointManager(
             dispatcher_manager = self.dispatcher_manager,
             auth = self.auth,
+            prometheus_url = self.prometheus_url,
             timeout = self.timeout,
             
         )
@@ -108,11 +102,8 @@ class Api:
         for ep in self.endpoints:
             await ep.start()
 
-        self.global_manager.add_routes(self.app)
-        await self.global_manager.start()
-
-        self.flow_manager.add_routes(self.app)
-        await self.flow_manager.start()
+        self.endpoint_manager.add_routes(self.app)
+        await self.endpoint_manager.start()
 
         return self.app
 

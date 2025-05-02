@@ -45,6 +45,8 @@ class Subscriber:
 
             try:
 
+                # FIXME: Create consumer in start  method so we know
+                # it is definitely running when start completes
                 consumer = self.client.subscribe(
                     topic = self.topic,
                     subscription_name = self.subscription,

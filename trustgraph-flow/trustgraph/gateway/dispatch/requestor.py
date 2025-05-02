@@ -36,9 +36,9 @@ class ServiceRequestor:
         self.running = True
 
     async def start(self):
-        await self.pub.start()
-        await self.sub.start()
         self.running = True
+        await self.sub.start()
+        await self.pub.start()
 
     async def stop(self):
         await self.pub.stop()
@@ -68,6 +68,7 @@ class ServiceRequestor:
                         q.get(), timeout=self.timeout
                     )
                 except Exception as e:
+                    print("Exception", e)
                     raise RuntimeError("Timeout")
 
                 if resp.error:
