@@ -6,10 +6,12 @@ from ... schema import config_response_queue
 from . requestor import ServiceRequestor
 
 class ConfigRequestor(ServiceRequestor):
-    def __init__(self, pulsar_client, timeout=120):
+    def __init__(self, pulsar_client, consumer, subscriber, timeout=120):
 
         super(ConfigRequestor, self).__init__(
             pulsar_client=pulsar_client,
+            consumer_name = consumer,
+            subscription = subscriber,
             request_queue=config_request_queue,
             response_queue=config_response_queue,
             request_schema=ConfigRequest,

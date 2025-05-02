@@ -8,10 +8,12 @@ from . serialize import serialize_document_package, serialize_document_info
 from . serialize import to_document_package, to_document_info, to_criteria
 
 class LibrarianRequestor(ServiceRequestor):
-    def __init__(self, pulsar_client, timeout=120):
+    def __init__(self, pulsar_client, consumer, subscriber, timeout=120):
 
         super(LibrarianRequestor, self).__init__(
             pulsar_client=pulsar_client,
+            consumer_name = consumer,
+            subscription = subscriber,
             request_queue=librarian_request_queue,
             response_queue=librarian_response_queue,
             request_schema=LibrarianRequest,

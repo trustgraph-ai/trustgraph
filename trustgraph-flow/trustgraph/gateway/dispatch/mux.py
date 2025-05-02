@@ -33,18 +33,17 @@ class Mux:
 
             data = msg.json()
 
-#            if data["service"] not in self.services:
-#                raise RuntimeError("Bad service")
-
             if "request" not in data:
                 raise RuntimeError("Bad message")
 
             if "id" not in data:
                 raise RuntimeError("Bad message")
 
-            await self.q.put(
-                (data["id"], data["service"], data["request"])
-            )
+            await self.q.put((
+                    data["id"], data.get("flow"),
+                    data["service"],
+                    data["request"]
+            ))
 
         except Exception as e:
             print("receive exception:", str(e), flush=True)
@@ -75,7 +74,7 @@ class Mux:
                 # worker[0] still running, move on
                 break
 
-    async def start_request_task(self, ws, id, svc, request, workers):
+    async def start_request_task(self, ws, id, flow, svc, request, workers):
             
         # Wait for outstanding requests to go below MAX_OUTSTANDING_REQUESTS
         while len(workers) > MAX_OUTSTANDING_REQUESTS:
@@ -94,7 +93,7 @@ class Mux:
             })
 
         worker = asyncio.create_task(
-            self.request_task(request, responder, "0000", svc)
+            self.request_task(request, responder, flow, svc)
         )
 
         workers.append(worker)
@@ -102,8 +101,19 @@ class Mux:
     async def request_task(self, request, responder, flow, svc):
 
         try:
-            dispatcher = self.dispatcher_manager.dispatch_service()
-            await dispatcher.invoke(request, responder, "0000", svc)
+
+            if flow:
+
+                await self.dispatcher_manager.invoke_flow_service(
+                    request, responder, flow, svc
+                )
+
+            else:
+
+                await self.dispatcher_manager.invoke_global_service(
+                    request, responder, svc
+                )
+
         except Exception as e:
             await self.ws.send_json({"error": str(e)})
 
@@ -120,7 +130,8 @@ class Mux:
                     await self.maybe_tidy_workers(workers)
 
                 # Get next request on queue
-                id, svc, request = await asyncio.wait_for(self.q.get(), 1)
+                item = await asyncio.wait_for(self.q.get(), 1)
+                id, flow, svc, request = item
 
             except TimeoutError:
                 continue
@@ -141,7 +152,7 @@ class Mux:
                 print(id, svc, request)
 
                 await self.start_request_task(
-                    self.ws, id, svc, request, workers
+                    self.ws, id, flow, svc, request, workers
                 )
 
             except Exception as e:
