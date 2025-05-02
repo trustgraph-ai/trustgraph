@@ -2,6 +2,26 @@
 import asyncio
 
 from . embeddings import EmbeddingsRequestor
+from . agent import AgentRequestor
+from . text_completion import TextCompletionRequestor
+from . prompt import PromptRequestor
+from . graph_rag import GraphRagRequestor
+from . document_rag import DocumentRagRequestor
+from . triples_query import TriplesQueryRequestor
+from . embeddings import EmbeddingsRequestor
+from . graph_embeddings_query import GraphEmbeddingsQueryRequestor
+from . prompt import PromptRequestor
+
+request_response_dispatchers = {
+    "agent": AgentRequestor,
+    "text-completion": TextCompletionRequestor,
+    "prompt": PromptRequestor,
+    "graph-rag": GraphRagRequestor,
+    "document-rag": DocumentRagRequestor,
+    "embeddings": EmbeddingsRequestor,
+    "graph-embeddings": GraphEmbeddingsQueryRequestor,
+    "triples-query": TriplesQueryRequestor,
+}
 
 class TestDispatcher:
     def __init__(self, pulsar_client, timeout=120):
@@ -91,7 +111,6 @@ class DispatcherManager:
         return TestDispatcher(pulsar_client = self.pulsar_client)
 
     def dispatch_flow_service(self):
-#        return TestDispatcher2(pulsar_client = self.pulsar_client)
         return self
 
     def dispatch_socket_service(self):
@@ -101,6 +120,9 @@ class DispatcherManager:
 
         flow = params.get("flow")
         kind = params.get("kind")
+
+        if kind not in request_response_dispatchers:
+            raise RuntimeError("Invalid kind")
 
         key = (flow, kind)
 
@@ -112,7 +134,7 @@ class DispatcherManager:
 
         qconfig = self.flows[flow]["interfaces"]["embeddings"]
 
-        dispatcher = EmbeddingsRequestor(
+        dispatcher = request_response_dispatchers[kind](
             pulsar_client = self.pulsar_client,
             request_queue = qconfig["request"],
             response_queue = qconfig["response"],
@@ -125,6 +147,5 @@ class DispatcherManager:
 
         self.dispatchers[key] = dispatcher
 
-        print("CREATE")
         return await dispatcher.process(data, responder)
 
