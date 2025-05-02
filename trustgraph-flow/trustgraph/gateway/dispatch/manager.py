@@ -121,18 +121,23 @@ class DispatcherManager:
         flow = params.get("flow")
         kind = params.get("kind")
 
+        if flow not in self.flows:
+            raise RuntimeError("Invalid flow")
+
         if kind not in request_response_dispatchers:
             raise RuntimeError("Invalid kind")
 
         key = (flow, kind)
 
-        if flow not in self.flows:
-            raise RuntimeError("Invalid flow")
-
         if key in self.dispatchers:
             return await self.dispatchers[key].process(data, responder)
 
-        qconfig = self.flows[flow]["interfaces"]["embeddings"]
+        intf_defs = self.flows[flow]["interfaces"]
+
+        if kind not in intf_defs:
+            raise RuntimeError("This kind not supported by flow")
+
+        qconfig = intf_defs[kind]
 
         dispatcher = request_response_dispatchers[kind](
             pulsar_client = self.pulsar_client,
