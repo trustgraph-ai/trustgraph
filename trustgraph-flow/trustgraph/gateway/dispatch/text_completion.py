@@ -1,12 +1,11 @@
 
-from .. schema import TextCompletionRequest, TextCompletionResponse
+from ... schema import TextCompletionRequest, TextCompletionResponse
 
-from . endpoint import ServiceEndpoint
 from . requestor import ServiceRequestor
 
 class TextCompletionRequestor(ServiceRequestor):
     def __init__(
-            self, pulsar_client, request_queue, response_queue, timeout, auth,
+            self, pulsar_client, request_queue, response_queue, timeout,
             consumer, subscriber,
     ):
 

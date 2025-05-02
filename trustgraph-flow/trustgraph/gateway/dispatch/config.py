@@ -1,13 +1,12 @@
 
-from .. schema import ConfigRequest, ConfigResponse, ConfigKey, ConfigValue
-from .. schema import config_request_queue
-from .. schema import config_response_queue
+from ... schema import ConfigRequest, ConfigResponse, ConfigKey, ConfigValue
+from ... schema import config_request_queue
+from ... schema import config_response_queue
 
-from . endpoint import ServiceEndpoint
 from . requestor import ServiceRequestor
 
 class ConfigRequestor(ServiceRequestor):
-    def __init__(self, pulsar_client, timeout, auth):
+    def __init__(self, pulsar_client, timeout=120):
 
         super(ConfigRequestor, self).__init__(
             pulsar_client=pulsar_client,

@@ -1,13 +1,12 @@
 
-from .. schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
+from ... schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
 
-from . endpoint import ServiceEndpoint
 from . requestor import ServiceRequestor
 from . serialize import serialize_value
 
 class GraphEmbeddingsQueryRequestor(ServiceRequestor):
     def __init__(
-            self, pulsar_client, request_queue, response_queue, timeout, auth,
+            self, pulsar_client, request_queue, response_queue, timeout,
             consumer, subscriber,
     ):
 

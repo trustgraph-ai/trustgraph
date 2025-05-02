@@ -1,15 +1,14 @@
 
-from .. schema import LibrarianRequest, LibrarianResponse, Triples
-from .. schema import librarian_request_queue
-from .. schema import librarian_response_queue
+from ... schema import LibrarianRequest, LibrarianResponse
+from ... schema import librarian_request_queue
+from ... schema import librarian_response_queue
 
-from . endpoint import ServiceEndpoint
 from . requestor import ServiceRequestor
 from . serialize import serialize_document_package, serialize_document_info
 from . serialize import to_document_package, to_document_info, to_criteria
 
 class LibrarianRequestor(ServiceRequestor):
-    def __init__(self, pulsar_client, timeout, auth):
+    def __init__(self, pulsar_client, timeout=120):
 
         super(LibrarianRequestor, self).__init__(
             pulsar_client=pulsar_client,
@@ -22,19 +21,15 @@ class LibrarianRequestor(ServiceRequestor):
 
     def to_request(self, body):
 
-        print("TRR")
         if "document" in body:
             dp = to_document_package(body["document"])
         else:
             dp = None
 
-        print("GOT")
         if "criteria" in body:
             criteria = to_criteria(body["criteria"])
         else:
             criteria = None
-
-        print("ASLDKJ")
 
         return LibrarianRequest(
             operation = body.get("operation", None),

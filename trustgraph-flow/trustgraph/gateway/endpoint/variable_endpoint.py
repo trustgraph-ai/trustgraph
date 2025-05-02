@@ -4,26 +4,25 @@ from aiohttp import web
 import uuid
 import logging
 
-logger = logging.getLogger("flow-endpoint")
+logger = logging.getLogger("endpoint")
 logger.setLevel(logging.INFO)
 
-class FlowEndpoint:
+class VariableEndpoint:
 
-    def __init__(self, endpoint_path, auth, requestors):
+    def __init__(self, endpoint_path, auth, dispatcher):
 
         self.path = endpoint_path
 
         self.auth = auth
         self.operation = "service"
 
-        self.requestors = requestors
+        self.dispatcher = dispatcher
 
     async def start(self):
         pass
 
     def add_routes(self, app):
 
-        pass
         app.add_routes([
             web.post(self.path, self.handle),
         ])
@@ -31,15 +30,6 @@ class FlowEndpoint:
     async def handle(self, request):
 
         print(request.path, "...")
-
-        flow_id = request.match_info['flow']
-        kind = request.match_info['kind']
-        k = (flow_id, kind)
-
-        if k not in self.requestors:
-            raise web.HTTPBadRequest()
-
-        requestor = self.requestors[k]
 
         try:
             ht = request.headers["Authorization"]
@@ -62,7 +52,9 @@ class FlowEndpoint:
             async def responder(x, fin):
                 print(x)
 
-            resp = await requestor.process(data, responder)
+            resp = await self.dispatcher.process(
+                data, responder, request.match_info
+            )
 
             return web.json_response(resp)
 

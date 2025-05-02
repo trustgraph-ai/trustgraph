@@ -19,6 +19,7 @@ class Subscriber:
         self.lock = asyncio.Lock()
         self.running = True
         self.metrics = metrics
+        self.task = None
 
     def __del__(self):
         self.running = False
@@ -28,11 +29,15 @@ class Subscriber:
 
     async def stop(self):
         self.running = False
-        await self.task
+
+        if self.task:
+            await self.task
 
     async def join(self):
         await self.stop()
-        await self.task
+
+        if self.task:
+            await self.task
 
     async def run(self):
 
@@ -45,6 +50,8 @@ class Subscriber:
 
             try:
 
+                # FIXME: Create consumer in start  method so we know
+                # it is definitely running when start completes
                 consumer = self.client.subscribe(
                     topic = self.topic,
                     subscription_name = self.subscription,

@@ -28,7 +28,7 @@ async def load_ge(running, queue, url):
 
     async with aiohttp.ClientSession() as session:
 
-        async with session.ws_connect(f"{url}load/graph-embeddings") as ws:
+        async with session.ws_connect(url) as ws:
 
             while running.get():
 
@@ -73,7 +73,7 @@ async def load_triples(running, queue, url):
 
     async with aiohttp.ClientSession() as session:
 
-        async with session.ws_connect(f"{url}load/triples") as ws:
+        async with session.ws_connect(url) as ws:
 
             while running.get():
 
@@ -200,6 +200,9 @@ async def run(running, **args):
     ge_q = asyncio.Queue(maxsize=10)
     t_q = asyncio.Queue(maxsize=10)
 
+    flow_id = args["flow_id"]
+    url = args["url"]
+
     load_task = asyncio.create_task(
         loader(
             running=running,
@@ -212,15 +215,17 @@ async def run(running, **args):
 
     ge_task = asyncio.create_task(
         load_ge(
-            running=running,
-            queue=ge_q, url=args["url"] + "api/v1/"
+            running = running,
+            queue = ge_q,
+            url = f"{url}api/v1/flow/{flow_id}/import/graph-embeddings"
         )
     )
 
     triples_task = asyncio.create_task(
         load_triples(
-            running=running,
-            queue=t_q, url=args["url"] + "api/v1/"
+            running = running,
+            queue = t_q,
+            url = f"{url}api/v1/flow/{flow_id}/import/triples"
         )
     )
 
@@ -256,6 +261,12 @@ async def main(running):
         # Make it mandatory, difficult to over-write an existing file
         required=True,
         help=f'Output file'
+    )
+
+    parser.add_argument(
+        '-f', '--flow-id',
+        default="0000",
+        help=f'Flow ID (default: 0000)'
     )
 
     parser.add_argument(

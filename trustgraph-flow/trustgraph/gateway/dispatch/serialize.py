@@ -1,7 +1,7 @@
 
 import base64
 
-from .. schema import Value, Triple, DocumentPackage, DocumentInfo
+from ... schema import Value, Triple, DocumentPackage, DocumentInfo
 
 def to_value(x):
     return Value(value=x["v"], is_uri=x["e"])

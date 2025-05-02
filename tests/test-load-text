@@ -14,7 +14,7 @@ prod = client.create_producer(
     chunking_enabled=True,
 )
 
-path = "docs/README.cats"
+path = "../trustgraph/docs/README.cats"
 
 with open(path, "r") as f:
 #    blob = base64.b64encode(f.read()).decode("utf-8")

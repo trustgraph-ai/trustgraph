@@ -1,13 +1,12 @@
 
-from .. schema import FlowRequest, FlowResponse, ConfigKey, ConfigValue
-from .. schema import flow_request_queue
-from .. schema import flow_response_queue
+from ... schema import FlowRequest, FlowResponse
+from ... schema import flow_request_queue
+from ... schema import flow_response_queue
 
-from . endpoint import ServiceEndpoint
 from . requestor import ServiceRequestor
 
 class FlowRequestor(ServiceRequestor):
-    def __init__(self, pulsar_client, timeout, auth):
+    def __init__(self, pulsar_client, timeout=120):
 
         super(FlowRequestor, self).__init__(
             pulsar_client=pulsar_client,

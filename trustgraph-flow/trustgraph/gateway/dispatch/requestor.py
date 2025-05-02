@@ -3,8 +3,8 @@ import asyncio
 import uuid
 import logging
 
-from .. base import Publisher
-from .. base import Subscriber
+from ... base import Publisher
+from ... base import Subscriber
 
 logger = logging.getLogger("requestor")
 logger.setLevel(logging.INFO)
@@ -33,13 +33,17 @@ class ServiceRequestor:
 
         self.timeout = timeout
 
+        self.running = True
+
     async def start(self):
-        await self.pub.start()
+        self.running = True
         await self.sub.start()
+        await self.pub.start()
 
     async def stop(self):
         await self.pub.stop()
         await self.sub.stop()
+        self.running = False
 
     def to_request(self, request):
         raise RuntimeError("Not defined")
@@ -57,13 +61,14 @@ class ServiceRequestor:
 
             await self.pub.send(id, self.to_request(request))
 
-            while True:
+            while self.running:
 
                 try:
                     resp = await asyncio.wait_for(
                         q.get(), timeout=self.timeout
                     )
                 except Exception as e:
+                    print("Exception", e)
                     raise RuntimeError("Timeout")
 
                 if resp.error:

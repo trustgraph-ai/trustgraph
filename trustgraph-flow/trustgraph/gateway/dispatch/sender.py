@@ -5,7 +5,7 @@ import asyncio
 import uuid
 import logging
 
-from .. base import Publisher
+from ... base import Publisher
 
 logger = logging.getLogger("sender")
 logger.setLevel(logging.INFO)
@@ -15,17 +15,19 @@ class ServiceSender:
     def __init__(
             self,
             pulsar_client,
-            request_queue, request_schema,
+            queue, schema,
     ):
 
         self.pub = Publisher(
-            pulsar_client, request_queue,
-            schema=request_schema,
+            pulsar_client, queue,
+            schema=schema,
         )
 
     async def start(self):
-
         await self.pub.start()
+
+    async def stop(self):
+        await self.pub.stop()
 
     def to_request(self, request):
         raise RuntimeError("Not defined")
@@ -38,6 +40,8 @@ class ServiceSender:
 
             if responder:
                 await responder({}, True)
+
+            return {}
 
         except Exception as e:
 

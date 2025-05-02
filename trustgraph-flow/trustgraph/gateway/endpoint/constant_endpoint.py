@@ -7,19 +7,19 @@ import logging
 logger = logging.getLogger("endpoint")
 logger.setLevel(logging.INFO)
 
-class ServiceEndpoint:
+class ConstantEndpoint:
 
-    def __init__(self, endpoint_path, auth, requestor):
+    def __init__(self, endpoint_path, auth, dispatcher):
 
         self.path = endpoint_path
 
         self.auth = auth
         self.operation = "service"
 
-        self.requestor = requestor
+        self.dispatcher = dispatcher
 
     async def start(self):
-        await self.requestor.start()
+        pass
 
     def add_routes(self, app):
 
@@ -52,7 +52,7 @@ class ServiceEndpoint:
             async def responder(x, fin):
                 print(x)
 
-            resp = await self.requestor.process(data, responder)
+            resp = await self.dispatcher.process(data, responder)
 
             return web.json_response(resp)
 
