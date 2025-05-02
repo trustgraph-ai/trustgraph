@@ -1,5 +1,6 @@
 
 import asyncio
+import uuid
 
 from . embeddings import EmbeddingsRequestor
 from . agent import AgentRequestor
@@ -27,9 +28,9 @@ request_response_dispatchers = {
 }
 
 receive_dispatchers = {
-    "triples-store": TriplesStream,
-    "graph-embeddings-store": GraphEmbeddingsStream,
-    "document-embeddings-store": DocumentEmbeddingsStream,
+    "triples": TriplesStream,
+    "graph-embeddings": GraphEmbeddingsStream,
+    "document-embeddings": DocumentEmbeddingsStream,
 }
 
 class TestDispatcher:
@@ -130,9 +131,6 @@ class DispatcherManager:
         flow = params.get("flow")
         kind = params.get("kind")
 
-        # FIXME: What?!?!
-        kind += "-store"
-
         if flow not in self.flows:
             raise RuntimeError("Invalid flow")
 
@@ -141,27 +139,24 @@ class DispatcherManager:
 
         key = (flow, kind)
 
-        if key in self.dispatchers:
-            return self.dispatchers[key]
-
         intf_defs = self.flows[flow]["interfaces"]
 
         if kind not in intf_defs:
             raise RuntimeError("This kind not supported by flow")
 
-        qconfig = intf_defs[kind]
+        # FIXME: The -store bit, does it make sense?
+        qconfig = intf_defs[kind + "-store"]
 
+        id = str(uuid.uuid4())
         dispatcher = receive_dispatchers[kind](
             pulsar_client = self.pulsar_client,
             ws = ws,
             running = running,
             # FIXME!
             queue = qconfig,
-            consumer = f"api-gateway-{flow}-{kind}-request",
-            subscriber = f"api-gateway-{flow}-{kind}-request",
+            consumer = f"api-gateway-{id}",
+            subscriber = f"api-gateway-{id}",
         )
-
-        self.dispatchers[key] = dispatcher
 
         return dispatcher
 

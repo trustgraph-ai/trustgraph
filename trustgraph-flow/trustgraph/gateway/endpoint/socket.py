@@ -26,13 +26,10 @@ class SocketEndpoint:
 
     async def listener(self, ws, dispatcher, running):
 
-        print("In listener...!!!!!!!!!!!!!!!!!!!!")
         async for msg in ws:
 
             # On error, finish
-            print ("mt:", msg.type)
             if msg.type == WSMsgType.TEXT:
-                print("YER!!!!!")
                 await dispatcher.receive(msg)
                 continue
             elif msg.type == WSMsgType.BINARY:
@@ -65,17 +62,14 @@ class SocketEndpoint:
 
                 running = Running()
 
-                print("Create...")
                 dispatcher = await self.dispatcher(
                     ws, running, request.match_info
                 )
 
-                print("Create worker...")
                 worker_task = tg.create_task(
                     self.worker(ws, dispatcher, running)
                 )
 
-                print("Create listener")
                 lsnr_task = tg.create_task(
                     self.listener(ws, dispatcher, running)
                 )
