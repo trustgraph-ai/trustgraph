@@ -12,6 +12,8 @@ from . embeddings import EmbeddingsRequestor
 from . graph_embeddings_query import GraphEmbeddingsQueryRequestor
 from . prompt import PromptRequestor
 from . triples_stream import TriplesStream
+from . graph_embeddings_stream import GraphEmbeddingsStream
+from . document_embeddings_stream import DocumentEmbeddingsStream
 
 request_response_dispatchers = {
     "agent": AgentRequestor,
@@ -26,6 +28,8 @@ request_response_dispatchers = {
 
 receive_dispatchers = {
     "triples-store": TriplesStream,
+    "graph-embeddings-store": GraphEmbeddingsStream,
+    "document-embeddings-store": DocumentEmbeddingsStream,
 }
 
 class TestDispatcher:
@@ -123,7 +127,6 @@ class DispatcherManager:
 
     async def dispatch_receive(self, ws, running, params):
 
-        print("HERE")
         flow = params.get("flow")
         kind = params.get("kind")
 

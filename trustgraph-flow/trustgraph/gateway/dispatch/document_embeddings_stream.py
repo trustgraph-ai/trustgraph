@@ -3,12 +3,12 @@ import asyncio
 import queue
 import uuid
 
-from ... schema import Triples
+from ... schema import DocumentEmbeddings
 from ... base import Subscriber
 
-from . serialize import serialize_triples
+from . serialize import serialize_document_embeddings
 
-class TriplesStream:
+class DocumentEmbeddingsStream:
 
     def __init__(
             self, ws, running, pulsar_client, queue, consumer, subscriber
@@ -34,7 +34,7 @@ class TriplesStream:
         subs = Subscriber(
             client = self.pulsar_client, topic = self.queue,
             consumer_name = self.consumer, subscription = self.subscriber,
-            schema = Triples
+            schema = DocumentEmbeddings
         )
 
         await subs.start()
@@ -46,7 +46,7 @@ class TriplesStream:
             try:
 
                 resp = await asyncio.wait_for(q.get(), timeout=0.5)
-                await self.ws.send_json(serialize_triples(resp))
+                await self.ws.send_json(serialize_document_embeddings(resp))
 
             except TimeoutError:
                 continue
