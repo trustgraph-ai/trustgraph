@@ -13,36 +13,31 @@ from .. dispatch.manager import DispatcherManager
 
 class FlowEndpointManager:
 
-    def __init__(self, config_receiver, pulsar_client, auth, timeout=600):
+    def __init__(self, dispatcher_manager, auth, timeout=600):
 
-        self.config_receiver = config_receiver
-        self.pulsar_client = pulsar_client
+        self.dispatcher_manager = dispatcher_manager
         self.timeout = timeout
 
         self.services = {
         }
 
-        dm = DispatcherManager(pulsar_client)
-
         self.endpoints = [
             ConstantEndpoint(
                 endpoint_path = "/api/v1/test",
                 auth = auth,
-                dispatcher = dm.dispatch_test_service(),
+                dispatcher = dispatcher_manager.dispatch_test_service(),
             ),
             VariableEndpoint(
-                endpoint_path = "/api/v1/test/{thing}",
+                endpoint_path = "/api/v1/flow/{flow}/{kind}",
                 auth = auth,
-                dispatcher = dm.dispatch_flow_service(),
+                dispatcher = dispatcher_manager.dispatch_flow_service(),
             ),
             SocketEndpoint(
                 endpoint_path = "/api/v1/test2",
                 auth = auth,
-                dispatcher = dm.dispatch_socket_service()
+                dispatcher = dispatcher_manager.dispatch_socket_service()
             ),
         ]
-
-        self.config_receiver.add_handler(self)
 
     def add_routes(self, app):
         for ep in self.endpoints:

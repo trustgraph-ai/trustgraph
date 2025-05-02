@@ -13,6 +13,7 @@ from .. log_level import LogLevel
 
 from . auth import Authenticator
 from . config.receiver import ConfigReceiver
+from . dispatch.manager import DispatcherManager
 from . endpoint.globals import GlobalEndpointManager
 from . endpoint.flows import FlowEndpointManager
 
@@ -69,6 +70,11 @@ class Api:
 
         self.config_receiver = ConfigReceiver(self.pulsar_client)
 
+        self.dispatcher_manager = DispatcherManager(
+            pulsar_client = self.pulsar_client,
+            config_receiver = self.config_receiver,
+        )
+
         self.global_manager = GlobalEndpointManager(
             pulsar_client = self.pulsar_client,
             auth = self.auth,
@@ -77,8 +83,7 @@ class Api:
         )
 
         self.flow_manager = FlowEndpointManager(
-            config_receiver = self.config_receiver,
-            pulsar_client = self.pulsar_client,
+            dispatcher_manager = self.dispatcher_manager,
             auth = self.auth,
             timeout = self.timeout,
             
