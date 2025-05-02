@@ -9,18 +9,7 @@ from . constant_endpoint import ConstantEndpoint
 from . variable_endpoint import VariableEndpoint
 from . socket import SocketEndpoint
 
-#from . flow_endpoint import FlowEndpoint
-
-# from .. dispatch.agent import AgentRequestor
-# from .. dispatch.text_completion import TextCompletionRequestor
-# from .. dispatch.prompt import PromptRequestor
-# from .. dispatch.graph_rag import GraphRagRequestor
-# from .. dispatch.document_rag import DocumentRagRequestor
-# from .. dispatch.triples_query import TriplesQueryRequestor
-# from .. dispatch.embeddings import EmbeddingsRequestor
-# from .. dispatch.graph_embeddings_query import GraphEmbeddingsQueryRequestor
-# from .. dispatch.prompt import PromptRequestor
-# from .. dispatch.triples_stream import TriplesStream
+from .. dispatch.manager import DispatcherManager
 
 class FlowEndpointManager:
 
@@ -33,110 +22,27 @@ class FlowEndpointManager:
         self.services = {
         }
 
-        class Dispatcher:
-            def __init__(self, mode, name, timeout=timeout):
-                self.mode = mode
-                self.name = name
-                self.pulsar_client = pulsar_client
-                timeout = timeout
-            async def process(self, data, responder):
-                result = { "result": "Hello world" }
-
-                if responder:
-                    await responder(result, True)
-
-                return result
-                
-        class Dispatcher2:
-            def __init__(self, mode, name, timeout=timeout):
-                self.mode = mode
-                self.name = name
-                self.pulsar_client = pulsar_client
-                timeout = timeout
-            async def process(self, data, responder, params):
-
-                thing = params['thing']
-
-                result = { "result": "Hello world", "thing": thing }
-
-                if responder:
-                    await responder(result, True)
-
-                return result
-                
-        class Dispatcher3:
-            def __init__(self, mode, name, timeout=timeout):
-                self.mode = mode
-                self.name = name
-                self.pulsar_client = pulsar_client
-                timeout = timeout
-
-            async def dispatch(self, ws, running, request):
-
-                class Runner:
-                    def __init__(self, ws, running):
-                        self.ws = ws
-                        self.running = running
-
-                    async def destroy(self):
-
-                        if self.ws:
-                            await self.ws.close()
-                            self.ws = None
-
-                        self.running.stop()
-
-                    async def run(self):
-
-                        i = 0
-
-                        while self.running.get():
-                            await self.ws.send_json({"i": i})
-                            i += 1
-                            await asyncio.sleep(1)
-
-                        await self.ws.close()
-                        self.ws = None
-
-                    async def receive(self, msg):
-                        print("Receive:", msg.data)
-
-                return Runner(ws, running)
+        dm = DispatcherManager(pulsar_client)
 
         self.endpoints = [
             ConstantEndpoint(
                 endpoint_path = "/api/v1/test",
                 auth = auth,
-                dispatcher = Dispatcher(None, "test")
+                dispatcher = dm.dispatch_test_service(),
             ),
             VariableEndpoint(
                 endpoint_path = "/api/v1/test/{thing}",
                 auth = auth,
-                dispatcher = Dispatcher2(None, "test")
+                dispatcher = dm.dispatch_flow_service(),
             ),
             SocketEndpoint(
                 endpoint_path = "/api/v1/test2",
                 auth = auth,
-                dispatcher = Dispatcher3(None, "test2").dispatch,
+                dispatcher = dm.dispatch_socket_service()
             ),
         ]
 
         self.config_receiver.add_handler(self)
-
-    async def ASDcreate_stream_dispatch(self, ws, running, request):
-
-        flow_id = request.match_info['flow']
-        kind = request.match_info['kind']
-        k = (flow_id, kind)
-
-        print("Service", k)
-
-        print(self.services)
-
-        if k not in self.services:
-            raise web.HTTPBadRequest()
-        
-        raise RuntimeError("Not impl")
 
     def add_routes(self, app):
         for ep in self.endpoints:
