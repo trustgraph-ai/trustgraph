@@ -63,17 +63,16 @@ class SocketEndpoint:
                 running = Running()
 
                 print("Create...")
-                print(self.dispatcher)
-                dispinst = await self.dispatcher(ws, running, request)
+                dispatcher = await self.dispatcher(ws, running, request)
 
                 print("Create worker...")
                 worker_task = tg.create_task(
-                    self.worker(ws, dispinst, running)
+                    self.worker(ws, dispatcher, running)
                 )
 
                 print("Create listener")
                 lsnr_task = tg.create_task(
-                    self.listener(ws, dispinst, running)
+                    self.listener(ws, dispatcher, running)
                 )
 
                 print("Created taskgroup, waiting...")
@@ -83,7 +82,7 @@ class SocketEndpoint:
             print("Task group closed")
 
             # Finally?
-            await dispinst.destroy()
+            await dispatcher.destroy()
 
         except ExceptionGroup as e:
 

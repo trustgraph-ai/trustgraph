@@ -3,35 +3,24 @@ import asyncio
 
 from aiohttp import web
 
-from . endpoint import ServiceEndpoint
+#from . endpoint import ServiceEndpoint
 
-from . flow_endpoint import FlowEndpoint
-
-from .. dispatch.agent import AgentRequestor
-from .. dispatch.text_completion import TextCompletionRequestor
-from .. dispatch.prompt import PromptRequestor
-from .. dispatch.graph_rag import GraphRagRequestor
-from .. dispatch.document_rag import DocumentRagRequestor
-from .. dispatch.triples_query import TriplesQueryRequestor
-from .. dispatch.embeddings import EmbeddingsRequestor
-from .. dispatch.graph_embeddings_query import GraphEmbeddingsQueryRequestor
-from .. dispatch.prompt import PromptRequestor
-
-from .. dispatch.triples_stream import TriplesStream
-
+from . constant_endpoint import ConstantEndpoint
+from . variable_endpoint import VariableEndpoint
 from . socket import SocketEndpoint
 
-class Dispatcher:
-    def __init__(
-            self, pulsar_client, timeout, queue, schema,
-            consumer, subscriber
-    ):
-        self.pulsar_client = pulsar_client
-        self.timeout = timeout
-        self.queue = queue
-        self.schema = schema
-        self.consumer = consumer
-        self.subscriber = subscriber
+#from . flow_endpoint import FlowEndpoint
+
+# from .. dispatch.agent import AgentRequestor
+# from .. dispatch.text_completion import TextCompletionRequestor
+# from .. dispatch.prompt import PromptRequestor
+# from .. dispatch.graph_rag import GraphRagRequestor
+# from .. dispatch.document_rag import DocumentRagRequestor
+# from .. dispatch.triples_query import TriplesQueryRequestor
+# from .. dispatch.embeddings import EmbeddingsRequestor
+# from .. dispatch.graph_embeddings_query import GraphEmbeddingsQueryRequestor
+# from .. dispatch.prompt import PromptRequestor
+# from .. dispatch.triples_stream import TriplesStream
 
 class FlowEndpointManager:
 
@@ -44,22 +33,97 @@ class FlowEndpointManager:
         self.services = {
         }
 
+        class Dispatcher:
+            def __init__(self, mode, name, timeout=timeout):
+                self.mode = mode
+                self.name = name
+                self.pulsar_client = pulsar_client
+                timeout = timeout
+            async def process(self, data, responder):
+                result = { "result": "Hello world" }
+
+                if responder:
+                    await responder(result, True)
+
+                return result
+                
+        class Dispatcher2:
+            def __init__(self, mode, name, timeout=timeout):
+                self.mode = mode
+                self.name = name
+                self.pulsar_client = pulsar_client
+                timeout = timeout
+            async def process(self, data, responder, params):
+
+                thing = params['thing']
+
+                result = { "result": "Hello world", "thing": thing }
+
+                if responder:
+                    await responder(result, True)
+
+                return result
+                
+        class Dispatcher3:
+            def __init__(self, mode, name, timeout=timeout):
+                self.mode = mode
+                self.name = name
+                self.pulsar_client = pulsar_client
+                timeout = timeout
+
+            async def dispatch(self, ws, running, request):
+
+                class Runner:
+                    def __init__(self, ws, running):
+                        self.ws = ws
+                        self.running = running
+
+                    async def destroy(self):
+
+                        if self.ws:
+                            await self.ws.close()
+                            self.ws = None
+
+                        self.running.stop()
+
+                    async def run(self):
+
+                        i = 0
+
+                        while self.running.get():
+                            await self.ws.send_json({"i": i})
+                            i += 1
+                            await asyncio.sleep(1)
+
+                        await self.ws.close()
+                        self.ws = None
+
+                    async def receive(self, msg):
+                        print("Receive:", msg.data)
+
+                return Runner(ws, running)
+
         self.endpoints = [
-            FlowEndpoint(
-                endpoint_path = "/api/v1/flow/{flow}/{kind}",
+            ConstantEndpoint(
+                endpoint_path = "/api/v1/test",
                 auth = auth,
-                requestors = self.services,
+                dispatcher = Dispatcher(None, "test")
+            ),
+            VariableEndpoint(
+                endpoint_path = "/api/v1/test/{thing}",
+                auth = auth,
+                dispatcher = Dispatcher2(None, "test")
             ),
             SocketEndpoint(
-                endpoint_path = "/api/v1/flow/{flow}/stream/{kind}",
+                endpoint_path = "/api/v1/test2",
                 auth = auth,
-                dispatcher = self.create_stream_dispatch
+                dispatcher = Dispatcher3(None, "test2").dispatch,
             ),
         ]
 
         self.config_receiver.add_handler(self)
 
-    async def create_stream_dispatch(self, ws, running, request):
+    async def ASDcreate_stream_dispatch(self, ws, running, request):
 
         flow_id = request.match_info['flow']
         kind = request.match_info['kind']
@@ -85,6 +149,8 @@ class FlowEndpointManager:
     async def start_flow(self, id, flow):
 
         print("START FLOW", id)
+
+        return
 
         intf = flow["interfaces"]
 
@@ -146,7 +212,9 @@ class FlowEndpointManager:
 
     async def stop_flow(self, id, flow):
 
-        print("STOP FLOW", id)        
+        print("STOP FLOW", id)
+
+        return
 
         svc_list = list(self.services.keys())
 
