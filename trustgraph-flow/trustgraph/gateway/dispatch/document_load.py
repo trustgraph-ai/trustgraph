@@ -1,19 +1,18 @@
 
 import base64
 
-from .. schema import Document, Metadata
-from .. schema import document_ingest_queue
+from ... schema import Document, Metadata
 
 from . sender import ServiceSender
 from . serialize import to_subgraph
 
-class DocumentLoadSender(ServiceSender):
-    def __init__(self, pulsar_client):
+class DocumentLoad(ServiceSender):
+    def __init__(self, pulsar_client, queue):
 
-        super(DocumentLoadSender, self).__init__(
-            pulsar_client=pulsar_client,
-            request_queue=document_ingest_queue,
-            request_schema=Document,
+        super(DocumentLoad, self).__init__(
+            pulsar_client = pulsar_client,
+            queue = queue,
+            schema = Document,
         )
 
     def to_request(self, body):

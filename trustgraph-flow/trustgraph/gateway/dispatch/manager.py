@@ -16,6 +16,8 @@ from . triples_query import TriplesQueryRequestor
 from . embeddings import EmbeddingsRequestor
 from . graph_embeddings_query import GraphEmbeddingsQueryRequestor
 from . prompt import PromptRequestor
+from . text_load import TextLoad
+from . document_load import DocumentLoad
 
 from . triples_stream import TriplesStream
 from . graph_embeddings_stream import GraphEmbeddingsStream
@@ -30,6 +32,11 @@ request_response_dispatchers = {
     "embeddings": EmbeddingsRequestor,
     "graph-embeddings": GraphEmbeddingsQueryRequestor,
     "triples-query": TriplesQueryRequestor,
+}
+
+sender_dispatchers = {
+    "text-load": TextLoad,
+    "document-load": DocumentLoad,
 }
 
 receive_dispatchers = {
@@ -141,9 +148,6 @@ class DispatcherManager:
         if flow not in self.flows:
             raise RuntimeError("Invalid flow")
 
-        if kind not in request_response_dispatchers:
-            raise RuntimeError("Invalid kind")
-
         key = (flow, kind)
 
         if key in self.dispatchers:
@@ -156,15 +160,23 @@ class DispatcherManager:
 
         qconfig = intf_defs[kind]
 
-        dispatcher = request_response_dispatchers[kind](
-            pulsar_client = self.pulsar_client,
-            request_queue = qconfig["request"],
-            response_queue = qconfig["response"],
-            timeout = 120,
-            consumer = f"api-gateway-{flow}-{kind}-request",
-            subscriber = f"api-gateway-{flow}-{kind}-request",
-        )
-
+        if kind in request_response_dispatchers:
+            dispatcher = request_response_dispatchers[kind](
+                pulsar_client = self.pulsar_client,
+                request_queue = qconfig["request"],
+                response_queue = qconfig["response"],
+                timeout = 120,
+                consumer = f"api-gateway-{flow}-{kind}-request",
+                subscriber = f"api-gateway-{flow}-{kind}-request",
+            )
+        elif kind in sender_dispatchers:
+            dispatcher = sender_dispatchers[kind](
+                pulsar_client = self.pulsar_client,
+                queue = qconfig,
+            )
+        else:
+            raise RuntimeError("Invalid kind")
+            
         await dispatcher.start()
 
         self.dispatchers[key] = dispatcher
