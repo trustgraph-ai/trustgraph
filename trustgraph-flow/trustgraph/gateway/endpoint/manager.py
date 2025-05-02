@@ -41,14 +41,19 @@ class EndpointManager:
                 auth = auth,
             ),
             VariableEndpoint(
-                endpoint_path = "/api/v1/flow/{flow}/{kind}",
+                endpoint_path = "/api/v1/flow/{flow}/service/{kind}",
                 auth = auth,
-                dispatcher = dispatcher_manager.dispatch_flow_service(),
+                dispatcher = dispatcher_manager.dispatch_service(),
             ),
             SocketEndpoint(
-                endpoint_path = "/api/v1/flow/{flow}/receive/{kind}",
+                endpoint_path = "/api/v1/flow/{flow}/import/{kind}",
                 auth = auth,
-                dispatcher = dispatcher_manager.dispatch_flow_receive()
+                dispatcher = dispatcher_manager.dispatch_import()
+            ),
+            SocketEndpoint(
+                endpoint_path = "/api/v1/flow/{flow}/export/{kind}",
+                auth = auth,
+                dispatcher = dispatcher_manager.dispatch_export()
             ),
         ]
 

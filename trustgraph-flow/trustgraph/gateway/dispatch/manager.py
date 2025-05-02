@@ -19,9 +19,13 @@ from . prompt import PromptRequestor
 from . text_load import TextLoad
 from . document_load import DocumentLoad
 
-from . triples_stream import TriplesStream
-from . graph_embeddings_stream import GraphEmbeddingsStream
-from . document_embeddings_stream import DocumentEmbeddingsStream
+from . triples_export import TriplesExport
+from . graph_embeddings_export import GraphEmbeddingsExport
+from . document_embeddings_export import DocumentEmbeddingsExport
+
+from . triples_import import TriplesImport
+from . graph_embeddings_import import GraphEmbeddingsImport
+from . document_embeddings_import import DocumentEmbeddingsImport
 
 request_response_dispatchers = {
     "agent": AgentRequestor,
@@ -39,10 +43,16 @@ sender_dispatchers = {
     "document-load": DocumentLoad,
 }
 
-receive_dispatchers = {
+export_dispatchers = {
     "triples": TriplesStream,
     "graph-embeddings": GraphEmbeddingsStream,
     "document-embeddings": DocumentEmbeddingsStream,
+}
+
+import_dispatchers = {
+    "triples": TriplesImport,
+    "graph-embeddings": GraphEmbeddingsImport,
+    "document-embeddings": DocumentEmbeddingsImport,
 }
 
 class DispatcherWrapper:
@@ -101,13 +111,16 @@ class DispatcherManager:
 
         return await dispatcher.process(data, responder)
 
-    def dispatch_flow_service(self):
+    def dispatch_service(self):
         return self
 
-    def dispatch_flow_receive(self):
-        return self.dispatch_receive
+    def dispatch_import(self):
+        return self.invoke_import
 
-    async def dispatch_receive(self, ws, running, params):
+    def dispatch_export(self):
+        return self.invoke_export
+
+    async def invoke_import(self, ws, running, params):
 
         flow = params.get("flow")
         kind = params.get("kind")
@@ -115,7 +128,7 @@ class DispatcherManager:
         if flow not in self.flows:
             raise RuntimeError("Invalid flow")
 
-        if kind not in receive_dispatchers:
+        if kind not in import_dispatchers:
             raise RuntimeError("Invalid kind")
 
         key = (flow, kind)
@@ -129,7 +142,38 @@ class DispatcherManager:
         qconfig = intf_defs[kind + "-store"]
 
         id = str(uuid.uuid4())
-        dispatcher = receive_dispatchers[kind](
+        dispatcher = import_dispatchers[kind](
+            pulsar_client = self.pulsar_client,
+            ws = ws,
+            running = running,
+            queue = qconfig,
+        )
+
+        return dispatcher
+
+    async def invoke_export(self, ws, running, params):
+
+        flow = params.get("flow")
+        kind = params.get("kind")
+
+        if flow not in self.flows:
+            raise RuntimeError("Invalid flow")
+
+        if kind not in export_dispatchers:
+            raise RuntimeError("Invalid kind")
+
+        key = (flow, kind)
+
+        intf_defs = self.flows[flow]["interfaces"]
+
+        if kind not in intf_defs:
+            raise RuntimeError("This kind not supported by flow")
+
+        # FIXME: The -store bit, does it make sense?
+        qconfig = intf_defs[kind + "-store"]
+
+        id = str(uuid.uuid4())
+        dispatcher = export_dispatchers[kind](
             pulsar_client = self.pulsar_client,
             ws = ws,
             running = running,

@@ -3,12 +3,12 @@ import asyncio
 import queue
 import uuid
 
-from ... schema import DocumentEmbeddings
+from ... schema import GraphEmbeddings
 from ... base import Subscriber
 
-from . serialize import serialize_document_embeddings
+from . serialize import serialize_graph_embeddings
 
-class DocumentEmbeddingsStream:
+class GraphEmbeddingsExport:
 
     def __init__(
             self, ws, running, pulsar_client, queue, consumer, subscriber
@@ -34,7 +34,7 @@ class DocumentEmbeddingsStream:
         subs = Subscriber(
             client = self.pulsar_client, topic = self.queue,
             consumer_name = self.consumer, subscription = self.subscriber,
-            schema = DocumentEmbeddings
+            schema = GraphEmbeddings
         )
 
         await subs.start()
@@ -46,7 +46,7 @@ class DocumentEmbeddingsStream:
             try:
 
                 resp = await asyncio.wait_for(q.get(), timeout=0.5)
-                await self.ws.send_json(serialize_document_embeddings(resp))
+                await self.ws.send_json(serialize_graph_embeddings(resp))
 
             except TimeoutError:
                 continue
