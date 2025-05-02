@@ -3,7 +3,7 @@ import asyncio
 import queue
 import uuid
 
-from ... schema import Triples, EmbeddingsResponse
+from ... schema import Triples
 from ... base import Subscriber
 
 from . serialize import serialize_triples
@@ -37,8 +37,7 @@ class TriplesStream:
         subs = Subscriber(
             client = self.pulsar_client, topic = self.queue,
             consumer_name = self.consumer, subscription = self.subscriber,
-#            schema = Triples
-            schema = EmbeddingsResponse
+            schema = Triples
         )
 
         await subs.start()
@@ -50,12 +49,7 @@ class TriplesStream:
             try:
 
                 resp = await asyncio.wait_for(q.get(), timeout=0.5)
-#                await self.ws.send_json(serialize_triples(resp))
-
-                print("GOT MESSAGE!!!")
-
-
-                await self.ws.send_json(str(resp))
+                await self.ws.send_json(serialize_triples(resp))
 
             except TimeoutError:
                 continue

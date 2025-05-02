@@ -9,7 +9,7 @@ from trustgraph.schema import Document, Metadata
 client = pulsar.Client("pulsar://localhost:6650", listener_name="localhost")
 
 prod = client.create_producer(
-    topic="persistent://tg/flow/document-load:0002",
+    topic="persistent://tg/flow/document-load:0000",
     schema=JsonSchema(Document),
     chunking_enabled=True,
 )

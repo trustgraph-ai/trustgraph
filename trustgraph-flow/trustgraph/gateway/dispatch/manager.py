@@ -25,7 +25,7 @@ request_response_dispatchers = {
 }
 
 receive_dispatchers = {
-    "embeddings": TriplesStream,
+    "triples-store": TriplesStream,
 }
 
 class TestDispatcher:
@@ -127,6 +127,9 @@ class DispatcherManager:
         flow = params.get("flow")
         kind = params.get("kind")
 
+        # FIXME: What?!?!
+        kind += "-store"
+
         if flow not in self.flows:
             raise RuntimeError("Invalid flow")
 
@@ -150,7 +153,7 @@ class DispatcherManager:
             ws = ws,
             running = running,
             # FIXME!
-            queue = qconfig["response"],
+            queue = qconfig,
             consumer = f"api-gateway-{flow}-{kind}-request",
             subscriber = f"api-gateway-{flow}-{kind}-request",
         )
