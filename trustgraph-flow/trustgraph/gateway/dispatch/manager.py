@@ -204,7 +204,7 @@ class DispatcherManager:
         flow = params.get("flow")
         kind = params.get("kind")
 
-        return await self.invoke(data, responder, flow, kind)
+        return await self.invoke_flow_service(data, responder, flow, kind)
 
     async def invoke_flow_service(self, data, responder, flow, kind):
 
