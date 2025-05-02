@@ -33,9 +33,9 @@ class FlowEndpointManager:
                 dispatcher = dispatcher_manager.dispatch_flow_service(),
             ),
             SocketEndpoint(
-                endpoint_path = "/api/v1/test2",
+                endpoint_path = "/api/v1/flow/{flow}/receive/{kind}",
                 auth = auth,
-                dispatcher = dispatcher_manager.dispatch_socket_service()
+                dispatcher = dispatcher_manager.dispatch_flow_receive()
             ),
         ]
 

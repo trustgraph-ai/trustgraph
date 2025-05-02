@@ -11,6 +11,7 @@ from . triples_query import TriplesQueryRequestor
 from . embeddings import EmbeddingsRequestor
 from . graph_embeddings_query import GraphEmbeddingsQueryRequestor
 from . prompt import PromptRequestor
+from . triples_stream import TriplesStream
 
 request_response_dispatchers = {
     "agent": AgentRequestor,
@@ -21,6 +22,10 @@ request_response_dispatchers = {
     "embeddings": EmbeddingsRequestor,
     "graph-embeddings": GraphEmbeddingsQueryRequestor,
     "triples-query": TriplesQueryRequestor,
+}
+
+receive_dispatchers = {
+    "embeddings": TriplesStream,
 }
 
 class TestDispatcher:
@@ -113,8 +118,46 @@ class DispatcherManager:
     def dispatch_flow_service(self):
         return self
 
-    def dispatch_socket_service(self):
-        return TestDispatcher3(pulsar_client = self.pulsar_client).dispatch
+    def dispatch_flow_receive(self):
+        return self.dispatch_receive
+
+    async def dispatch_receive(self, ws, running, params):
+
+        print("HERE")
+        flow = params.get("flow")
+        kind = params.get("kind")
+
+        if flow not in self.flows:
+            raise RuntimeError("Invalid flow")
+
+        if kind not in receive_dispatchers:
+            raise RuntimeError("Invalid kind")
+
+        key = (flow, kind)
+
+        if key in self.dispatchers:
+            return self.dispatchers[key]
+
+        intf_defs = self.flows[flow]["interfaces"]
+
+        if kind not in intf_defs:
+            raise RuntimeError("This kind not supported by flow")
+
+        qconfig = intf_defs[kind]
+
+        dispatcher = receive_dispatchers[kind](
+            pulsar_client = self.pulsar_client,
+            ws = ws,
+            running = running,
+            # FIXME!
+            queue = qconfig["response"],
+            consumer = f"api-gateway-{flow}-{kind}-request",
+            subscriber = f"api-gateway-{flow}-{kind}-request",
+        )
+
+        self.dispatchers[key] = dispatcher
+
+        return dispatcher
 
     async def process(self, data, responder, params):
 

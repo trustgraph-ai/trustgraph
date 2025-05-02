@@ -3,44 +3,59 @@ import asyncio
 import queue
 import uuid
 
-from ... schema import Triples
+from ... schema import Triples, EmbeddingsResponse
 from ... base import Subscriber
 
 from . serialize import serialize_triples
 
 class TriplesStream:
 
-    def __init__(self, ws, running, pulsar_client, queue):
+    def __init__(
+            self, ws, running, pulsar_client, queue, consumer, subscriber
+    ):
 
         self.ws = ws
-        self.running = runnning
+        self.running = running
         self.pulsar_client = pulsar_client
         self.queue = queue
+        self.consumer = consumer
+        self.subscriber = subscriber
 
     async def destroy(self):
         self.running.stop()
-        self.ws.close()
+        await self.ws.close()
 
     async def receive(self, msg):
         print(msg.data)
 
-    async def run(self, ws, running):
+    async def run(self):
 
-        self.subscriber = Subscriber(
-            pulsar_client, queue,
-            "api-gateway", "api-gateway",
-            schema=Triples
+        print("c", self.consumer)
+        print("s", self.subscriber)
+        print("q", self.queue)
+
+        subs = Subscriber(
+            client = self.pulsar_client, topic = self.queue,
+            consumer_name = self.consumer, subscription = self.subscriber,
+#            schema = Triples
+            schema = EmbeddingsResponse
         )
 
-        await self.subscriber.start()
+        await subs.start()
 
         id = str(uuid.uuid4())
-        q = self.subscriber.subscribe_all(id)
+        q = await subs.subscribe_all(id)
 
-        while running.get():
+        while self.running.get():
             try:
-                resp = await asyncio.to_thread(q.get, timeout=0.5)
-                await ws.send_json(serialize_triples(resp))
+
+                resp = await asyncio.wait_for(q.get(), timeout=0.5)
+#                await self.ws.send_json(serialize_triples(resp))
+
+                print("GOT MESSAGE!!!")
+
+
+                await self.ws.send_json(str(resp))
 
             except TimeoutError:
                 continue
@@ -52,8 +67,10 @@ class TriplesStream:
                 print(f"Exception: {str(e)}", flush=True)
                 break
 
-        self.subscriber.unsubscribe_all(id)
+        await subs.unsubscribe_all(id)
 
-        await ws.close()
-        running.stop()
+        await subs.stop()
+
+        await self.ws.close()
+        self.running.stop()
 
