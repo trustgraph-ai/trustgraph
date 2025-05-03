@@ -8,15 +8,18 @@ import requests
 import argparse
 import tabulate
 
-default_prometheus_url = "http://localhost:9090"
+default_metrics_url = "http://localhost:8088/api/metrics"
 
-def dump_status(prom):
+def dump_status(url):
 
-    url = f"{prom}/api/v1/query?query=processor_state%7Bprocessor_state%3D%22running%22%7D"
+    url = f"{url}/query?query=processor_state%7Bprocessor_state%3D%22running%22%7D"
 
     resp = requests.get(url)
 
     obj = resp.json()
+
+    print(obj)
+    return
 
     tbl = [
         [
@@ -40,16 +43,16 @@ def main():
     )
 
     parser.add_argument(
-        '-p', '--prometheus-url',
-        default=default_prometheus_url,
-        help=f'Prometheus URL (default: {default_prometheus_url})',
+        '-m', '--metrics-url',
+        default=default_metrics_url,
+        help=f'Metrics URL (default: {default_metrics_url})',
     )
 
     args = parser.parse_args()
 
     try:
 
-        dump_status(args.prometheus_url)
+        dump_status(args.metrics_url)
 
     except Exception as e:
 
