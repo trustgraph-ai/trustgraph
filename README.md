@@ -76,7 +76,7 @@ The `trustgraph-cli` installs the commands for interacting with TrustGraph while
 pip3 install trustgraph-cli==<trustgraph-version>
 ```
 
-> [!NOTE]
+> [!CAUTION]
 > The `trustgraph-cli` version *must* match the selected **TrustGraph** release version. 
 
 ## 🔧 Configuration Builder
