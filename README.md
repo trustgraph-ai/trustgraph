@@ -68,32 +68,32 @@ For users, **TrustGraph** has the following interfaces:
 - [**Configuration Builder**](#-configuration-builder)
 - [**Test Suite**](#test-suite)
 
-The `TrustGraph CLI` installs the commands for interacting with TrustGraph while running along with the Python SDK. The `Configuration Builder` enables customization of TrustGraph deployments prior to launching. The **REST API** can be accessed through port `8088` of the TrustGraph host machine with JSON request and response bodies.
+The `trustgraph-cli` installs the commands for interacting with TrustGraph while running along with the Python SDK. The **Configuration Builder** enables customization of TrustGraph deployments prior to launching. The **REST API** can be accessed through port `8088` of the TrustGraph host machine with JSON request and response bodies.
 
 ### Install the TrustGraph CLI
 
 ```
-pip3 install trustgraph-cli==0.21.17
+pip3 install trustgraph-cli==<trustgraph-version>
 ```
 
 > [!NOTE]
-> The `TrustGraph CLI` version must match the desired `TrustGraph` release version.
+> The `trustgraph-cli` version *must* match the selected **TrustGraph** release version. 
 
 ## 🔧 Configuration Builder
 
-TrustGraph is endlessly customizable by editing the `YAML` launch files. The `Configuration Builder` provides a quick and intuitive tool for building a custom configuration that deploys with Docker, Podman, Minikube, AWS, Azure, Google Cloud, or Scaleway. There is a `Configuration Builder` for the both the lastest and stable `TrustGraph` releases.
+TrustGraph is endlessly customizable by editing the `YAML` resource files. The **Configuration Builder** provides a tool for building a custom configuration that deploys with your selected orchestration method in your target environment.
 
-- [**Configuration Builder** (Stable 0.21.17) 🚀](https://config-ui.demo.trustgraph.ai/)
-- [**Configuration Builder** (Latest 0.22.5) 🚀](https://dev.config-ui.demo.trustgraph.ai/)
+- [**Configuration Builder** 🚀](https://config-ui.demo.trustgraph.ai/)
 
-The `Configuration Builder` has 4 important sections:
+The **Configuration Builder** has 5 important sections:
 
+- **TrustGraph Version** 🚢: Select the version of TrustGraph you'd like to deploy
 - **Component Selection** ✅: Choose from the available deployment platforms, LLMs, graph store, VectorDB, chunking algorithm, chunking parameters, and LLM parameters
 - **Customization** 🧰: Customize the prompts for the LLM System, Data Extraction Agents, and Agent Flow
 - **Test Suite** 🕵️: Add the **Test Suite** to the configuration available on port `8888`
 - **Finish Deployment** 🚀: Download the launch `YAML` files with deployment instructions
 
-The `Configuration Builder` will generate the `YAML` files in `deploy.zip`. Once `deploy.zip` has been downloaded and unzipped, launching TrustGraph is as simple as navigating to the `deploy` directory and running:
+The **Configuration Builder** will generate the `YAML` files in `deploy.zip`. Once `deploy.zip` has been downloaded and unzipped, launching TrustGraph is as simple as navigating to the `deploy` directory and running:
 
 ```
 docker compose up -d
@@ -123,7 +123,7 @@ All data previously in TrustGraph will be saved and usable on restart.
 
 ### Test Suite
 
-If added to the build in the `Configuration Builder`, the `Test Suite` will be available at port `8888`. The `Test Suite` has the following capabilities:
+If added to the build in the **Configuration Builder**, the **Test Suite** will be available at port `8888`. The **Test Suite** has the following capabilities:
 
 - **Graph RAG Chat** 💬: Graph RAG queries in a chat interface
 - **Vector Search** 🔎: Semantic similarity search with cosine similarity scores
