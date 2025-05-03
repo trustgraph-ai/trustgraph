@@ -57,7 +57,7 @@ def main():
 
         query(
             url=args.url,
-            flow = args.flow_id,
+            flow_id = args.flow_id,
             system=args.system[0],
             prompt=args.prompt[0],
         )
