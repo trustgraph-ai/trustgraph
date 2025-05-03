@@ -75,7 +75,7 @@ async def question(
 
             obj = json.loads(msg)
 
-            if obj["error"]:
+            if "error" in obj:
                 raise RuntimeError(obj["error"])
 
             if obj["id"] != mid:
