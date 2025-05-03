@@ -6,33 +6,46 @@ Dump out TrustGraph processor states.
 
 import requests
 import argparse
+import json
 
 default_metrics_url = "http://localhost:8088/api/metrics"
 
-def dump_status(url):
+def dump_status(url, flow_id):
 
-    url = f"{url}/query?query=processor_info"
+    url = f"{url}/query"
 
-    resp = requests.get(url)
+    expr = f"consumer_state=\"running\",flow=\"{flow_id}\""
+
+    params = {
+        "query": "consumer_state{" + expr + "}"
+    }
+
+    resp = requests.get(url, params=params)
 
     obj = resp.json()
 
     tbl = [
         [
             m["metric"]["job"],
-            "\U0001f49a"
+            "\U0001f49a" if int(m["value"][1]) > 0 else "\U0000274c"
         ]
         for m in obj["data"]["result"]
     ]
 
     for row in tbl:
-        print(f"  {row[0]:30} {row[1]}")
+        print(f"- {row[0]:30} {row[1]}")
 
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-processor-state',
+        prog='tg-show-flow-state',
         description=__doc__,
+    )
+
+    parser.add_argument(
+        '-f', '--flow-id',
+        default="0000",
+        help=f'Flow ID (default: 0000)'
     )
 
     parser.add_argument(
@@ -45,7 +58,7 @@ def main():
 
     try:
 
-        dump_status(args.metrics_url)
+        dump_status(args.metrics_url, args.flow_id)
 
     except Exception as e:
 
