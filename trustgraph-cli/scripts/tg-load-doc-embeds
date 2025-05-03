@@ -142,6 +142,7 @@ async def run(running, **args):
     de_q = asyncio.Queue(maxsize=10)
 
     url = args["url"]
+    flow_id = args["flow_id"]
 
     load_task = asyncio.create_task(
         loader(

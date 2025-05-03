@@ -7,7 +7,6 @@ Loads Graph embeddings into TrustGraph processing.
 import pulsar
 from pulsar.schema import JsonSchema
 from trustgraph.schema import Triples, Triple, Value, Metadata
-from trustgraph.schema import triples_store_queue
 import argparse
 import os
 import time
@@ -180,5 +179,6 @@ def main():
 
         time.sleep(10)
 
-main()
+print("Not implemented.")
+#main()
 

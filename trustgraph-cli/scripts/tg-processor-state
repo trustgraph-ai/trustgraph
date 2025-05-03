@@ -6,34 +6,27 @@ Dump out TrustGraph processor states.
 
 import requests
 import argparse
-import tabulate
 
 default_metrics_url = "http://localhost:8088/api/metrics"
 
 def dump_status(url):
 
-    url = f"{url}/query?query=processor_state%7Bprocessor_state%3D%22running%22%7D"
+    url = f"{url}/query?query=processor_info"
 
     resp = requests.get(url)
 
     obj = resp.json()
 
-    print(obj)
-    return
-
     tbl = [
         [
             m["metric"]["job"],
-            "running" if int(m["value"][1]) > 0 else "down"
+            "\U0001f49a"
         ]
         for m in obj["data"]["result"]
     ]
 
-    print(tabulate.tabulate(
-        tbl, tablefmt="pretty", headers=["processor", "state"],
-        stralign="left"
-    ))
-
+    for row in tbl:
+        print(f"  {row[0]:30} {row[1]}")
 
 def main():
 

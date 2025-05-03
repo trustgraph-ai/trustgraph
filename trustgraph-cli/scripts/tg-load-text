@@ -195,12 +195,11 @@ def main():
         p.load(args.files)
 
         print("All done.")
-        break
 
     except Exception as e:
 
         print("Exception:", e, flush=True)
 
-
 main()
+
 
