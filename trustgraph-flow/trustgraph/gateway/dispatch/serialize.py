@@ -99,6 +99,9 @@ def serialize_document_package(message):
     if message.kind:
         ret["kind"] = message.kind
 
+    if message.flow:
+        ret["flow"] = message.flow
+
     if message.user:
         ret["user"] = message.user
 
@@ -116,6 +119,9 @@ def serialize_document_info(message):
 
     if message.kind:
         ret["kind"] = message.kind
+
+    if message.flow:
+        ret["flow"] = message.flow
 
     if message.user:
         ret["user"] = message.user
@@ -141,6 +147,7 @@ def to_document_package(x):
 
     return DocumentPackage(
         id = x.get("id", None),
+        flow = x.get("flow", None),
         kind = x.get("kind", None),
         user = x.get("user", None),
         collection = x.get("collection", None),
@@ -155,6 +162,7 @@ def to_document_info(x):
 
     return DocumentInfo(
         id = x.get("id", None),
+        flow = x.get("flow", None),
         kind = x.get("kind", None),
         user = x.get("user", None),
         collection = x.get("collection", None),

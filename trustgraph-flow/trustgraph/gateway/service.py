@@ -95,7 +95,6 @@ class Api:
 
         await self.config_receiver.start()
 
-
         for ep in self.endpoints:
             ep.add_routes(self.app)
 

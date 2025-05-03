@@ -36,6 +36,7 @@ class LibrarianRequestor(ServiceRequestor):
         return LibrarianRequest(
             operation = body.get("operation", None),
             id = body.get("id", None),
+            flow = body.get("flow", None),
             document = dp,
             user = body.get("user", None),
             collection = body.get("collection", None),

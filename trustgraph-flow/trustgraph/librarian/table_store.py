@@ -66,6 +66,7 @@ class TableStore:
                 user text,
                 collection text,
                 id text,
+                flow text,
                 time timestamp,
                 title text,
                 comments text,
@@ -155,22 +156,24 @@ class TableStore:
         self.insert_document_stmt = self.cassandra.prepare("""
             INSERT INTO document
             (
-                id, user, collection, kind, object_id, time, title, comments,
-                metadata
+                id, user, collection, flow, kind, object_id, time, title,
+                comments, metadata
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """)
 
         self.list_document_stmt = self.cassandra.prepare("""
             SELECT
-                id, kind, user, collection, title, comments, time, metadata
+                id, kind, flow, user, collection, title, comments, time,
+                metadata
             FROM document
             WHERE user = ?
         """)
 
         self.list_document_by_collection_stmt = self.cassandra.prepare("""
             SELECT
-                id, kind, user, collection, title, comments, time, metadata
+                id, kind, flow, user, collection, title, comments, time,
+                metadata
             FROM document
             WHERE user = ? AND collection = ?
         """)
@@ -325,18 +328,19 @@ class TableStore:
             DocumentInfo(
                 id = row[0],
                 kind = row[1],
-                user = row[2],
-                collection = row[3],
-                title = row[4],
-                comments = row[5],
-                time = int(1000 * row[6].timestamp()),
+                flow = row[2],
+                user = row[3],
+                collection = row[4],
+                title = row[5],
+                comments = row[6],
+                time = int(1000 * row[7].timestamp()),
                 metadata = [
                     Triple(
                         s=Value(value=m[0], is_uri=m[1]),
                         p=Value(value=m[2], is_uri=m[3]),
                         o=Value(value=m[4], is_uri=m[5])
                     )
-                    for m in row[7]
+                    for m in row[8]
                 ],
             )
             for row in resp
@@ -344,16 +348,16 @@ class TableStore:
 
         print("OK3")
 
-        print(info[0])
+        print(info)
 
-        print(info[0].user)
-        print(info[0].time)
-        print(info[0].kind)
-        print(info[0].collection)
-        print(info[0].title)
-        print(info[0].comments)
-        print(info[0].metadata)
-        print(info[0].metadata)
+        # print(info[0].user)
+        # print(info[0].time)
+        # print(info[0].kind)
+        # print(info[0].collection)
+        # print(info[0].title)
+        # print(info[0].comments)
+        # print(info[0].metadata)
+        # print(info[0].metadata)
 
         return info
 

@@ -28,6 +28,7 @@ from . documents import Document, TextDocument
 
 class DocumentPackage(Record):
     id = String()
+    flow = String()
     document = Bytes()
     kind = String()
     user = String()
@@ -39,6 +40,7 @@ class DocumentPackage(Record):
 
 class DocumentInfo(Record):
     id = String()
+    flow = String()
     kind = String()
     user = String()
     collection = String()
@@ -55,6 +57,7 @@ class Criteria(Record):
 class LibrarianRequest(Record):
     operation = String()
     id = String()
+    flow = String()
     document = DocumentPackage()
     user = String()
     collection = String()
