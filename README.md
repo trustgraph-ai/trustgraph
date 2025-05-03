@@ -2,7 +2,7 @@
 
 <div align="center">
 
-## The AI Provisioning Platform
+## The Knowledge Provisioning Platform
 
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
@@ -11,9 +11,9 @@
 
 </div>
 
-**TrustGraph streamlines the delivery and management of complex AI environments, acting as a comprehensive provisioning platform for your containerized AI tools, pipelines, and integrations.**
+**TrustGraph streamlines the delivery and management of knowledge to AI, acting as a comprehensive provisioning platform for your containerized AI tools, pipelines, and integrations.**
 
-Deploying state-of-the-art AI requires managing a complex web of models, frameworks, data pipelines, and monitoring tools. TrustGraph simplifies this by providing a unified, open-source solution to **provision complete, trusted AI environments** anywhere you need them – from cloud instances and on-premises servers to edge devices.
+Deploying state-of-the-art AI requires managing a complex web of models, frameworks, data pipelines, and monitoring tools. TrustGraph simplifies this by providing a unified, open-source platform to **provision a complete knowledge solution** anywhere you need it – from cloud, on-prem, or edge devices.
 
 ---
 
@@ -39,7 +39,7 @@ Deploying state-of-the-art AI requires managing a complex web of models, framewo
 
 ## 🎯 Why TrustGraph?
 
-*   **Unified Provisioning:** Define and deploy complete AI environments, including models, dependencies, and tooling, as a single, manageable unit. Stop managing piecemeal installations.
+*   **Unified Knowledge:** Define and deploy complete knowledge environments, including models, dependencies, and tooling, as a single, manageable unit.
 *   **No-code TrustRAG Pipelines:** Deploy full end-to-end RAG pipelines using unique TrustGraph algorithms leveraging both Knowledge graphs and VectorDBs.
 *   **Environment-Agnostic Deployment:** Provision consistently across diverse infrastructures (Cloud, On-Prem, Edge, Dev environments). Build once, provision anywhere.
 *   **Trusted & Secure Delivery:** Focuses on providing a secure supply chain for AI components.
