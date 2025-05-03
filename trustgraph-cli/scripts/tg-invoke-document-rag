@@ -13,11 +13,11 @@ default_user = 'trustgraph'
 default_collection = 'default'
 default_doc_limit = 10
 
-def question(url, question, user, collection, doc_limit):
+def question(url, flow_id, question, user, collection, doc_limit):
 
-    rag = Api(url)
+    api = Api(url)
 
-    resp = rag.document_rag(
+    resp = api.flow(flow_id).document_rag(
         question=question, user=user, collection=collection,
         doc_limit=doc_limit,
     )
@@ -42,12 +42,6 @@ def main():
         default="0000",
         help=f'Flow ID (default: 0000)'
     )
-
-    # parser.add_argument(
-    #     '--pulsar-api-key',
-    #     default=default_pulsar_api_key,
-    #     help=f'Pulsar API key',
-    # )
 
     parser.add_argument(
         '-q', '--question',
@@ -79,6 +73,7 @@ def main():
 
         question(
             url=args.url,
+            flow_id = args.flow_id,
             question=args.question,
             user=args.user,
             collection=args.collection,

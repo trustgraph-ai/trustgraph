@@ -37,9 +37,7 @@ def check_error(response):
             msg = response["error"]["message"]
             tp = response["error"]["type"]
         except:
-            raise ApplicationException(
-                "Error, but the error object is broken"
-            )
+            raise ApplicationException(response["error"])
 
         raise ApplicationException(f"{tp}: {msg}")
 
@@ -352,12 +350,21 @@ class Flow:
 
         raise ProtocolException("Response not formatted correctly")
 
-    def triples_query(self, s=None, p=None, o=None, limit=10000):
+    def triples_query(
+            self, s=None, p=None, o=None,
+            user=None, collection=None, limit=10000
+    ):
 
         # The input consists of system and prompt strings
         input = {
             "limit": limit
         }
+
+        if user:
+            input["user"] = user
+
+        if collection:
+            input["collection"] = collection
 
         if s:
             if not isinstance(s, Uri):
@@ -392,7 +399,10 @@ class Flow:
             for t in object["response"]
         ]
 
-    def load_document(self, document, id=None, metadata=None):
+    def load_document(
+            self, document, id=None, metadata=None, user=None,
+            collection=None,
+    ):
 
         if id is None:
 
@@ -425,12 +435,21 @@ class Flow:
             "data": base64.b64encode(document).decode("utf-8"),
         }
 
+        if user:
+            input["user"] = user
+
+        if collection:
+            input["collection"] = collection
+
         return self.api.request(
             f"flow/{self.flow}/service/document-load",
             input
         )
 
-    def load_text(self, text, id=None, metadata=None, charset="utf-8"):
+    def load_text(
+            self, text, id=None, metadata=None, charset="utf-8",
+            user=None, collection=None,
+    ):
 
         if id is None:
 
@@ -460,6 +479,12 @@ class Flow:
             "charset": charset,
             "text": base64.b64encode(text).decode("utf-8"),
         }
+
+        if user:
+            input["user"] = user
+
+        if collection:
+            input["collection"] = collection
 
         return self.api.request(
             f"flow/{self.flow}/service/text-load",
