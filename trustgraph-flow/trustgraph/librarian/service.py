@@ -184,7 +184,7 @@ class Processor(AsyncProcessor):
 
         self.text_load.send(None, doc)
 
-    def process_request(self, v):
+    async def process_request(self, v):
 
         if v.operation is None:
             raise RequestError("Null operation")
@@ -206,7 +206,7 @@ class Processor(AsyncProcessor):
         if v.operation not in impls:
             raise RequestError(f"Invalid operation: {v.operation}")
 
-        return impls[v.operation](v)
+        return await impls[v.operation](v)
 
     async def on_librarian_request(self, msg, consumer, flow):
 
@@ -221,11 +221,24 @@ class Processor(AsyncProcessor):
         print(f"Handling input {id}...", flush=True)
 
         try:
-            func = self.process_request(v)
+            func = await self.process_request(v)
         except RequestError as e:
             resp = LibrarianResponse(
                 error = Error(
                     type = "request-error",
+                    message = str(e),
+                )
+            )
+
+            await self.librarian_response_producer.send(
+                resp, properties={"id": id}
+            )
+
+            return
+        except Exception as e:
+            resp = LibrarianResponse(
+                error = Error(
+                    type = "unexpected-error",
                     message = str(e),
                 )
             )

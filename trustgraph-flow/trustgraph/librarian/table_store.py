@@ -63,19 +63,18 @@ class TableStore:
 
         self.cassandra.execute("""
             CREATE TABLE IF NOT EXISTS document (
-                user text,
-                collection text,
                 id text,
-                flow text,
+                user text,
                 time timestamp,
+                kind text,
                 title text,
                 comments text,
-                kind text,
-                object_id uuid,
                 metadata list<tuple<
                     text, boolean, text, boolean, text, boolean
                 >>,
-                PRIMARY KEY (user, collection, id)
+                tags list<text>,
+                object_id uuid,
+                PRIMARY KEY (user, id)
             );
         """);
 
@@ -85,6 +84,8 @@ class TableStore:
             CREATE INDEX IF NOT EXISTS document_object
             ON document (object_id)
         """);
+
+        return
 
         print("triples table...", flush=True)
 
@@ -156,27 +157,28 @@ class TableStore:
         self.insert_document_stmt = self.cassandra.prepare("""
             INSERT INTO document
             (
-                id, user, collection, flow, kind, object_id, time, title,
-                comments, metadata
+                id, user, time, kind, title, comments, metadata, tags,
+                object_id
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """)
 
         self.list_document_stmt = self.cassandra.prepare("""
             SELECT
-                id, kind, flow, user, collection, title, comments, time,
-                metadata
+                id, time, kind, title, comments, metadata, tags, object_id
             FROM document
             WHERE user = ?
         """)
 
         self.list_document_by_collection_stmt = self.cassandra.prepare("""
             SELECT
-                id, kind, flow, user, collection, title, comments, time,
-                metadata
+                id, time, kind, title, comments, metadata, tags, object_id
             FROM document
-            WHERE user = ? AND collection = ?
+            WHERE user = ? AND tags CONTAINS ?
+            ALLOW FILTERING
         """)
+
+        return
 
         self.insert_triples_stmt = self.cassandra.prepare("""
             INSERT INTO triples

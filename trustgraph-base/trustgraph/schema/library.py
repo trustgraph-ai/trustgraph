@@ -91,6 +91,8 @@ class LibrarianRequest(Record):
     # list-processing
     operation = String()
 
+    user = String()
+
     # add-document, remove-document, update-document, get-document-metadata,
     # get-document-content
     document_id = String()

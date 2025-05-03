@@ -4,8 +4,10 @@ from ... schema import librarian_request_queue
 from ... schema import librarian_response_queue
 
 from . requestor import ServiceRequestor
-from . serialize import serialize_document_package, serialize_document_info
-from . serialize import to_document_package, to_document_info, to_criteria
+from . serialize import serialize_document_metadata
+from . serialize import serialize_processing_metadata
+from . serialize import to_document_metadata, to_processing_metadata
+from . serialize import to_criteria
 
 class LibrarianRequestor(ServiceRequestor):
     def __init__(self, pulsar_client, consumer, subscriber, timeout=120):
@@ -51,7 +53,7 @@ class LibrarianRequestor(ServiceRequestor):
             processing_id = body.get("processing-id", None),
             document_metadata = dm,
             processing_metadata = pm,
-            content = content
+            content = content,
             user = body.get("user", None),
             collection = body.get("collection", None),
             criteria = criteria,
