@@ -23,37 +23,34 @@ class EndpointManager:
         }
 
         self.endpoints = [
-            ConstantEndpoint(
-                endpoint_path = "/api/v1/librarian", auth = auth,
-                dispatcher = dispatcher_manager.dispatch_librarian(),
-            ),
-            ConstantEndpoint(
-                endpoint_path = "/api/v1/config", auth = auth,
-                dispatcher = dispatcher_manager.dispatch_config(),
-            ),
-            ConstantEndpoint(
-                endpoint_path = "/api/v1/flow", auth = auth,
-                dispatcher = dispatcher_manager.dispatch_flow(),
-            ),
             MetricsEndpoint(
-                endpoint_path = "/api/v1/metrics",
+                endpoint_path = "/api/metrics",
                 prometheus_url = prometheus_url,
                 auth = auth,
             ),
             VariableEndpoint(
+                endpoint_path = "/api/v1/{kind}", auth = auth,
+                dispatcher = dispatcher_manager.dispatch_global_service(),
+            ),
+            SocketEndpoint(
+                endpoint_path = "/api/v1/socket",
+                auth = auth,
+                dispatcher = dispatcher_manager.dispatch_socket()
+            ),
+            VariableEndpoint(
                 endpoint_path = "/api/v1/flow/{flow}/service/{kind}",
                 auth = auth,
-                dispatcher = dispatcher_manager.dispatch_service(),
+                dispatcher = dispatcher_manager.dispatch_flow_service(),
             ),
             SocketEndpoint(
                 endpoint_path = "/api/v1/flow/{flow}/import/{kind}",
                 auth = auth,
-                dispatcher = dispatcher_manager.dispatch_import()
+                dispatcher = dispatcher_manager.dispatch_flow_import()
             ),
             SocketEndpoint(
                 endpoint_path = "/api/v1/flow/{flow}/export/{kind}",
                 auth = auth,
-                dispatcher = dispatcher_manager.dispatch_export()
+                dispatcher = dispatcher_manager.dispatch_flow_export()
             ),
         ]
 

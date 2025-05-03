@@ -30,7 +30,7 @@ def output(text, prefix="> ", width=78):
     print(out)
 
 async def question(
-        url, question, user, collection,
+        url, question, flow_id, user, collection,
         plan=None, state=None, verbose=False
 ):
 
@@ -60,6 +60,7 @@ async def question(
         req = json.dumps({
             "id": mid,
             "service": "agent",
+            "flow": flow_id,
             "request": {
                 "question": question,
             }
@@ -73,6 +74,9 @@ async def question(
             msg = await ws.recv()
 
             obj = json.loads(msg)
+
+            if obj["error"]:
+                raise RuntimeError(obj["error"])
 
             if obj["id"] != mid:
                 print("Ignore message")
@@ -102,6 +106,12 @@ def main():
         '-u', '--url',
         default=default_url,
         help=f'API URL (default: {default_url})',
+    )
+
+    parser.add_argument(
+        '-f', '--flow-id',
+        default="0000",
+        help=f'Flow ID (default: 0000)'
     )
 
     parser.add_argument(
@@ -137,12 +147,6 @@ def main():
         action="store_true",
         help=f'Output thinking/observations'
     )
-    
-    # parser.add_argument(
-    #     '--pulsar-api-key',
-    #     default=default_pulsar_api_key,
-    #     help=f'Pulsar API key',
-    # )
 
     args = parser.parse_args()
 
@@ -150,13 +154,14 @@ def main():
 
         asyncio.run(
             question(
-                url=args.url,
-                question=args.question,
-                user=args.user,
-                collection=args.collection,
-                plan=args.plan,
-                state=args.state,
-                verbose=args.verbose,
+                url = args.url,
+                flow_id = args.flow_id,
+                question = args.question,
+                user = args.user,
+                collection = args.collection,
+                plan = args.plan,
+                state = args.state,
+                verbose = args.verbose,
             )
         )
 

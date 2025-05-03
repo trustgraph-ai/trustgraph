@@ -6,10 +6,12 @@ from ... schema import flow_response_queue
 from . requestor import ServiceRequestor
 
 class FlowRequestor(ServiceRequestor):
-    def __init__(self, pulsar_client, timeout=120):
+    def __init__(self, pulsar_client, consumer, subscriber, timeout=120):
 
         super(FlowRequestor, self).__init__(
             pulsar_client=pulsar_client,
+            consumer_name = consumer,
+            subscription = subscriber,
             request_queue=flow_request_queue,
             response_queue=flow_response_queue,
             request_schema=FlowRequest,
