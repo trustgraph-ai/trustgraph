@@ -87,11 +87,11 @@ TrustGraph is endlessly customizable by editing the `YAML` resource files. The *
 
 The **Configuration Builder** has 5 important sections:
 
-- **TrustGraph Version** 🚢: Select the version of TrustGraph you'd like to deploy
-- **Component Selection** ✅: Choose from the available deployment platforms, LLMs, graph store, VectorDB, chunking algorithm, chunking parameters, and LLM parameters
-- **Customization** 🧰: Customize the prompts for the LLM System, Data Extraction Agents, and Agent Flow
-- **Test Suite** 🕵️: Add the **Test Suite** to the configuration available on port `8888`
-- **Finish Deployment** 🚀: Download the launch `YAML` files with deployment instructions
+- 🚢 **TrustGraph Version**: Select the version of TrustGraph you'd like to deploy
+- ✅ **Component Selection**: Choose from the available deployment platforms, LLMs, graph store, VectorDB, chunking algorithm, chunking parameters, and LLM parameters
+- 🧰 **Customization**: Customize the prompts for the LLM System, Data Extraction Agents, and Agent Flow
+- 🕵️ **Test Suite**: Add the **Test Suite** to the configuration available on port `8888`
+- 🚀 **Finish Deployment**: Download the launch `YAML` files with deployment instructions
 
 The **Configuration Builder** will generate the `YAML` files in `deploy.zip`. Once `deploy.zip` has been downloaded and unzipped, launching TrustGraph is as simple as navigating to the `deploy` directory and running:
 
