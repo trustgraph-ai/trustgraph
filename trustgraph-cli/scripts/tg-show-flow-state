@@ -6,15 +6,34 @@ Dump out TrustGraph processor states.
 
 import requests
 import argparse
-import json
+from trustgraph.api import Api
+import os
 
 default_metrics_url = "http://localhost:8088/api/metrics"
+default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 
-def dump_status(url, flow_id):
+def dump_status(metrics_url, api_url, flow_id):
 
-    url = f"{url}/query"
+    api = Api(api_url)
 
-    expr = f"consumer_state=\"running\",flow=\"{flow_id}\""
+    flow = api.flow_get(flow_id)
+    class_name = flow["class-name"]
+
+    print()
+    print(f"Flow {flow_id}")
+    show_processors(metrics_url, flow_id)
+
+    print()
+    print(f"Class {class_name}")
+    show_processors(metrics_url, class_name)
+
+    print()
+
+def show_processors(metrics_url, flow_label):
+
+    url = f"{metrics_url}/query"
+
+    expr = f"consumer_state=\"running\",flow=\"{flow_label}\""
 
     params = {
         "query": "consumer_state{" + expr + "}"
@@ -49,6 +68,12 @@ def main():
     )
 
     parser.add_argument(
+        '-u', '--api-url',
+        default=default_url,
+        help=f'API URL (default: {default_url})',
+    )
+
+    parser.add_argument(
         '-m', '--metrics-url',
         default=default_metrics_url,
         help=f'Metrics URL (default: {default_metrics_url})',
@@ -58,7 +83,7 @@ def main():
 
     try:
 
-        dump_status(args.metrics_url, args.flow_id)
+        dump_status(args.metrics_url, args.api_url, args.flow_id)
 
     except Exception as e:
 
