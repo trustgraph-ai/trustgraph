@@ -69,6 +69,7 @@ class DocumentMetadata(Record):
     title = String()
     comments = String()
     metadata = Array(Triple())
+    user = String()
     tags = Array(String())
 
 class ProcessingMetadata(Record):
@@ -90,8 +91,6 @@ class LibrarianRequest(Record):
     # get-document-content, add-processing, remove-processing, list-documents,
     # list-processing
     operation = String()
-
-    user = String()
 
     # add-document, remove-document, update-document, get-document-metadata,
     # get-document-content

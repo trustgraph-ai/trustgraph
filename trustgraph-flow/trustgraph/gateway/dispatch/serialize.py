@@ -102,6 +102,9 @@ def serialize_document_metadata(message):
     if message.metadata:
         ret["metadata"] = serialize_subgraph(message.metadata)
 
+    if message.kind:
+        ret["user"] = message.user
+
     if message.tags:
         ret["tags"] = message.tags
 
@@ -140,6 +143,7 @@ def to_document_metadata(x):
         title = x.get("title", None),
         comments = x.get("comments", None),
         metadata = to_subgraph(x["metadata"]),
+        user = x.get("user", None),
         tags = x.get("tags", None),
     )
 
@@ -159,3 +163,4 @@ def to_criteria(x):
         Critera(v["key"], v["value"], v["operator"])
         for v in x
     ]
+
