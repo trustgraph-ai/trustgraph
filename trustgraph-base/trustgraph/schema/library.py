@@ -63,7 +63,7 @@ from . documents import Document, TextDocument
 # search(<key,op,value>[]) : id[]
 
 class DocumentMetadata(Record):
-    id = String()
+#    id = String()
     time = Long()
     kind = String()
     title = String()
@@ -77,17 +77,7 @@ class ProcessingMetadata(Record):
     flow = String()
     user = String()
     collection = String()
-
-class DocumentInfo(Record):
-    id = String()
-    flow = String()
-    kind = String()
-    user = String()
-    collection = String()
-    title = String()
-    comments = String()
-    time = Long()
-    metadata = Array(Triple())
+    tags = Array(String())
 
 class Criteria(Record):
     key = String()
@@ -128,8 +118,10 @@ class LibrarianRequest(Record):
 
 class LibrarianResponse(Record):
     error = Error()
-    document = DocumentPackage()
-    info = Array(DocumentInfo())
+    document_metadata = DocumentMetadata()
+    content = Bytes()
+    document_metadatas = Array(DocumentMetadata())
+    processing_metadatas = Array(ProcessingMetadata())
 
 librarian_request_queue = topic(
     'librarian', kind='non-persistent', namespace='request'

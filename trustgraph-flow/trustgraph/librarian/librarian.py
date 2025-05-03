@@ -26,17 +26,19 @@ class Librarian:
         self.load_document = load_document
         self.load_text = load_text
 
-    async def add(self, document):
+    async def add_document(self, request):
+        raise RuntimeError("Not implemented")
 
         if document.kind not in (
                 "text/plain", "application/pdf"
         ):
             raise RequestError("Invalid document kind: " + document.kind)
 
-        # Create object ID as a hash of the document
-        object_id = uuid.UUID(hash(document.document))
+        # Create object ID for blob
+        object_id = str(uuid.uuid4())
 
-        self.blob_store.add(object_id, document.document, document.kind)
+        self.blob_store.add(object_id, request.content,
+                            request.document_metadata.kind)
 
         self.table_store.add(object_id, document)
 
@@ -52,8 +54,35 @@ class Librarian:
             document = None,
             info = None,
         )
+    async def remove_document(self, request):
+        raise RuntimeError("Not implemented")
+
+    async def update_document(self, request):
+        raise RuntimeError("Not implemented")
+
+    async def get_document_metadata(self, request):
+        raise RuntimeError("Not implemented")
+
+    async def get_document_content(self, request):
+        raise RuntimeError("Not implemented")
+
+    async def add_processing(self, request):
+        raise RuntimeError("Not implemented")
+
+    async def remove_processing(self, request):
+        raise RuntimeError("Not implemented")
+
+    async def list_documents(self, request):
+        raise RuntimeError("Not implemented")
+
+    async def list_processing(self, request):
+        raise RuntimeError("Not implemented")
 
     async def list(self, user, collection):
+
+        raise RuntimeError("Not implemented")
+
+
 
         print("list")
 

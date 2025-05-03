@@ -1,5 +1,5 @@
 from .. schema import LibrarianRequest, LibrarianResponse
-from .. schema import DocumentInfo, Error, Triple, Value
+from .. schema import DocumentMetadata, Error, Triple, Value
 from .. knowledge import hash
 from .. exceptions import RequestError
 
@@ -325,7 +325,7 @@ class TableStore:
         print("OK2")
 
         info = [
-            DocumentInfo(
+            DocumentMetadata(
                 id = row[0],
                 kind = row[1],
                 flow = row[2],

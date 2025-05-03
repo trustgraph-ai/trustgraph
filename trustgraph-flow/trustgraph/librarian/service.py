@@ -184,39 +184,29 @@ class Processor(AsyncProcessor):
 
         self.text_load.send(None, doc)
 
-    def parse_request(self, v):
+    def process_request(self, v):
 
         if v.operation is None:
             raise RequestError("Null operation")
 
         print("op", v.operation)
 
-        if v.operation == "add":
-            if (
-                    v.document and v.document.id and v.document.metadata and
-                    v.document.document and v.document.kind
-            ):
-                return partial(
-                    self.librarian.add,
-                    document = v.document,
-                )
-            else:
-                raise RequestError("Invalid call")
+        impls = {
+            "add-document": self.librarian.add_document,
+            "remove-document": self.librarian.remove_document,
+            "update-document": self.librarian.update_document,
+            "get-document-metadata": self.librarian.get_document_metadata,
+            "get-document-content": self.librarian.get_document_content,
+            "add-processing": self.librarian.add_processing,
+            "remove-processing": self.librarian.remove_processing,
+            "list-documents": self.librarian.list_documents,
+            "list-processing": self.librarian.list_processing,
+        }
 
-        if v.operation == "list":
-            print("list", v)
-            print(v.user)
-            if v.user:
-                return partial(
-                    self.librarian.list,
-                    user = v.user,
-                    collection = v.collection,
-                )
-            else:
-                print("User not specified")
-                raise RequestError("Invalid call")
+        if v.operation not in impls:
+            raise RequestError(f"Invalid operation: {v.operation}")
 
-        raise RequestError("Invalid operation: " + v.operation)
+        return impls[v.operation](v)
 
     async def on_librarian_request(self, msg, consumer, flow):
 
@@ -231,7 +221,7 @@ class Processor(AsyncProcessor):
         print(f"Handling input {id}...", flush=True)
 
         try:
-            func = self.parse_request(v)
+            func = self.process_request(v)
         except RequestError as e:
             resp = LibrarianResponse(
                 error = Error(

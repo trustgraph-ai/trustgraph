@@ -23,21 +23,35 @@ class LibrarianRequestor(ServiceRequestor):
 
     def to_request(self, body):
 
-        if "document" in body:
-            dp = to_document_package(body["document"])
+        if "document-metadata" in body:
+            dm = to_document_metadata(body["document-metadata"])
         else:
-            dp = None
+            dm = None
+
+        if "processing-metadata" in body:
+            pm = to_processing_metadata(body["processing-metadata"])
+        else:
+            pm = None
 
         if "criteria" in body:
             criteria = to_criteria(body["criteria"])
         else:
             criteria = None
 
+        if "content" in body:
+            content = base64.b64decode(
+                body["content"].decode("utf-8")
+            ).encode("utf-8")
+        else:
+            content = None
+
         return LibrarianRequest(
             operation = body.get("operation", None),
-            id = body.get("id", None),
-            flow = body.get("flow", None),
-            document = dp,
+            document_id = body.get("document-id", None),
+            processing_id = body.get("processing-id", None),
+            document_metadata = dm,
+            processing_metadata = pm,
+            content = content
             user = body.get("user", None),
             collection = body.get("collection", None),
             criteria = criteria,
@@ -47,13 +61,26 @@ class LibrarianRequestor(ServiceRequestor):
 
         response = {}
 
-        if message.document:
-            response["document"] = serialize_document_package(message.document)
+        if message.document_metadata:
+            response["document-metadata"] = serialize_document_metadata(
+                message.document_metadata
+            )
 
-        if message.info:
-            response["info"] = [
-                serialize_document_info(v)
-                for v in message.info
+        if message.content:
+            response["content"] = base64.b64encode(
+                message["content"].decode("utf-8")
+            ).encode("utf-8")
+
+        if message.document_metadatas:
+            response["document-metadatas"] = [
+                serialize_document_metadata(v)
+                for v in message.document_metadatas
+            ]
+
+        if message.processing_metadatas:
+            response["processing-metadatas"] = [
+                serialize_processing_metadata(v)
+                for v in message.processing_metadatas
             ]
         
         return response, True
