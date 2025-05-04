@@ -14,7 +14,7 @@ class Librarian:
             self,
             cassandra_host, cassandra_user, cassandra_password,
             minio_host, minio_access_key, minio_secret_key,
-            bucket_name, keyspace, load_document, load_text,
+            bucket_name, keyspace, load_document,
     ):
 
         self.blob_store = BlobStore(
@@ -26,7 +26,6 @@ class Librarian:
         )
 
         self.load_document = load_document
-        self.load_text = load_text
 
     async def add_document(self, request):
 
@@ -199,6 +198,14 @@ class Librarian:
 
         await self.table_store.add_processing(request.processing_metadata)
 
+        print("Invoke document processing...")
+
+        await self.load_document(
+            document = doc,
+            processing = request.processing_metadata,
+            content = content,
+        )
+
         print("Add complete", flush=True)
 
         return LibrarianResponse(
@@ -208,12 +215,6 @@ class Librarian:
             document_metadatas = None,
             processing_metadatas = None,
         )
-        
-
-        # if document.kind == "application/pdf":
-        #     await self.load_document(document)
-        # elif document.kind == "text/plain":
-        #     await self.load_text(document)
 
     async def remove_processing(self, request):
 
