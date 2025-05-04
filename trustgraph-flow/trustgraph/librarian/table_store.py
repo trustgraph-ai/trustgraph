@@ -1,5 +1,7 @@
+
 from .. schema import LibrarianRequest, LibrarianResponse
-from .. schema import DocumentInfo, Error, Triple, Value
+from .. schema import DocumentMetadata, ProcessingMetadata
+from .. schema import Error, Triple, Value
 from .. knowledge import hash
 from .. exceptions import RequestError
 
@@ -7,8 +9,10 @@ from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.query import BatchStatement
 from ssl import SSLContext, PROTOCOL_TLSv1_2
+
 import uuid
 import time
+import asyncio
 
 class TableStore:
 
@@ -63,18 +67,18 @@ class TableStore:
 
         self.cassandra.execute("""
             CREATE TABLE IF NOT EXISTS document (
-                user text,
-                collection text,
                 id text,
+                user text,
                 time timestamp,
+                kind text,
                 title text,
                 comments text,
-                kind text,
-                object_id uuid,
                 metadata list<tuple<
                     text, boolean, text, boolean, text, boolean
                 >>,
-                PRIMARY KEY (user, collection, id)
+                tags list<text>,
+                object_id uuid,
+                PRIMARY KEY (user, id)
             );
         """);
 
@@ -84,6 +88,23 @@ class TableStore:
             CREATE INDEX IF NOT EXISTS document_object
             ON document (object_id)
         """);
+
+        print("processing table...", flush=True)
+
+        self.cassandra.execute("""
+            CREATE TABLE IF NOT EXISTS processing (
+                id text,
+                document_id text,
+                time timestamp,
+                flow text,
+                user text,
+                collection text,
+                tags list<text>,
+                PRIMARY KEY (user, id)
+            );
+        """);
+
+        return
 
         print("triples table...", flush=True)
 
@@ -155,25 +176,83 @@ class TableStore:
         self.insert_document_stmt = self.cassandra.prepare("""
             INSERT INTO document
             (
-                id, user, collection, kind, object_id, time, title, comments,
-                metadata
+                id, user, time,
+                kind, title, comments,
+                metadata, tags, object_id
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """)
 
+        self.update_document_stmt = self.cassandra.prepare("""
+            UPDATE document
+            SET time = ?, title = ?, comments = ?,
+                metadata = ?, tags = ?
+            WHERE user = ? AND id = ?
+        """)
+
+        self.get_document_stmt = self.cassandra.prepare("""
+            SELECT time, kind, title, comments, metadata, tags, object_id
+            FROM document
+            WHERE user = ? AND id = ?
+        """)
+
+        self.delete_document_stmt = self.cassandra.prepare("""
+            DELETE FROM document
+            WHERE user = ? AND id = ?
+        """)
+
+        self.test_document_exists_stmt = self.cassandra.prepare("""
+            SELECT id
+            FROM document
+            WHERE user = ? AND id = ?
+            LIMIT 1
+        """)
+
         self.list_document_stmt = self.cassandra.prepare("""
             SELECT
-                id, kind, user, collection, title, comments, time, metadata
+                id, time, kind, title, comments, metadata, tags, object_id
             FROM document
             WHERE user = ?
         """)
 
-        self.list_document_by_collection_stmt = self.cassandra.prepare("""
+        self.list_document_by_tag_stmt = self.cassandra.prepare("""
             SELECT
-                id, kind, user, collection, title, comments, time, metadata
+                id, time, kind, title, comments, metadata, tags, object_id
             FROM document
-            WHERE user = ? AND collection = ?
+            WHERE user = ? AND tags CONTAINS ?
+            ALLOW FILTERING
         """)
+
+        self.insert_processing_stmt = self.cassandra.prepare("""
+            INSERT INTO processing
+            (
+                id, document_id, time,
+                flow, user, collection,
+                tags
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """)
+
+        self.delete_processing_stmt = self.cassandra.prepare("""
+            DELETE FROM processing
+            WHERE user = ? AND id = ?
+        """)
+
+        self.test_processing_exists_stmt = self.cassandra.prepare("""
+            SELECT id
+            FROM processing
+            WHERE user = ? AND id = ?
+            LIMIT 1
+        """)
+
+        self.list_processing_stmt = self.cassandra.prepare("""
+            SELECT
+                id, document_id, time, flow, collection, tags
+            FROM processing
+            WHERE user = ?
+        """)
+
+        return
 
         self.insert_triples_stmt = self.cassandra.prepare("""
             INSERT INTO triples
@@ -202,17 +281,24 @@ class TableStore:
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """)
 
-    def add(self, object_id, document):
+    async def document_exists(self, user, id):
 
-        if document.kind not in (
-                "text/plain", "application/pdf"
-        ):
-            raise RequestError("Invalid document kind: " + document.kind)
+        resp = self.cassandra.execute(
+            self.test_document_exists_stmt,
+            ( user, id )
+        )
 
-        # Create random doc ID
-        when = int(time.time() * 1000)
+        # If a row exists, document exists.  It's a cursor, can't just
+        # count the length
 
-        print("Adding", document.id, object_id)
+        for row in resp:
+            return True
+
+        return False
+
+    async def add_document(self, document, object_id):
+
+        print("Adding document", document.id, object_id)
 
         metadata = [
             (
@@ -229,10 +315,9 @@ class TableStore:
                 resp = self.cassandra.execute(
                     self.insert_document_stmt,
                     (
-                        document.id, document.user, document.collection,
-                        document.kind, object_id, when,
-                        document.title, document.comments,
-                        metadata
+                        document.id, document.user, int(document.time * 1000),
+                        document.kind, document.title, document.comments,
+                        metadata, document.tags, object_id
                     )
                 )
 
@@ -242,11 +327,71 @@ class TableStore:
 
                 print("Exception:", type(e))
                 print(f"{e}, retry...", flush=True)
-                time.sleep(1)
+                await asyncio.sleep(1)
 
         print("Add complete", flush=True)
 
-    def add_triples(self, m):
+    async def update_document(self, document):
+
+        print("Updating document", document.id)
+
+        metadata = [
+            (
+                v.s.value, v.s.is_uri, v.p.value, v.p.is_uri,
+                v.o.value, v.o.is_uri
+            )
+            for v in document.metadata
+        ]
+
+        while True:
+
+            try:
+
+                resp = self.cassandra.execute(
+                    self.update_document_stmt,
+                    (
+                        int(document.time * 1000), document.title,
+                        document.comments, metadata, document.tags,
+                        document.user, document.id
+                    )
+                )
+
+                break
+
+            except Exception as e:
+
+                print("Exception:", type(e))
+                print(f"{e}, retry...", flush=True)
+                await asyncio.sleep(1)
+
+        print("Update complete", flush=True)
+
+    async def remove_document(self, user, document_id):
+
+        print("Removing document", document_id)
+
+        while True:
+
+            try:
+
+                resp = self.cassandra.execute(
+                    self.delete_document_stmt,
+                    (
+                        user, document_id
+                    )
+                )
+
+                break
+
+            except Exception as e:
+
+                print("Exception:", type(e))
+                print(f"{e}, retry...", flush=True)
+                await asyncio.sleep(1)
+
+        print("Delete complete", flush=True)
+
+    async def add_triples(self, m):
 
         when = int(time.time() * 1000)
 
@@ -288,76 +433,235 @@ class TableStore:
 
                 print("Exception:", type(e))
                 print(f"{e}, retry...", flush=True)
-                time.sleep(1)
+                await asyncio.sleep(1)
 
-    def list(self, user, collection=None):
+    async def list_documents(self, user):
 
-        print("LIST")
+        print("List documents...")
+
         while True:
 
-            print("TRY")
-
-            print(self.list_document_stmt)
             try:
 
-                if collection:
-                    resp = self.cassandra.execute(
-                        self.list_document_by_collection_stmt,
-                        (user, collection)
-                    )
-                else:
-                    resp = self.cassandra.execute(
-                        self.list_document_stmt,
-                        (user,)
-                    )
-                break
+                resp = self.cassandra.execute(
+                    self.list_document_stmt,
+                    (user,)
+                )
 
-                print("OK")
+                break
 
             except Exception as e:
                 print("Exception:", type(e))
                 print(f"{e}, retry...", flush=True)
-                time.sleep(1)
+                await asyncio.sleep(1)
 
-        print("OK2")
 
-        info = [
-            DocumentInfo(
+        lst = [
+            DocumentMetadata(
                 id = row[0],
-                kind = row[1],
-                user = row[2],
-                collection = row[3],
-                title = row[4],
-                comments = row[5],
-                time = int(1000 * row[6].timestamp()),
+                user = user,
+                time = int(time.mktime(row[1].timetuple())),
+                kind = row[2],
+                title = row[3],
+                comments = row[4],
                 metadata = [
                     Triple(
                         s=Value(value=m[0], is_uri=m[1]),
                         p=Value(value=m[2], is_uri=m[3]),
                         o=Value(value=m[4], is_uri=m[5])
                     )
-                    for m in row[7]
+                    for m in row[5]
                 ],
+                tags = row[6],
+                object_id = row[7],
             )
             for row in resp
         ]
 
-        print("OK3")
+        print("Done")
 
-        print(info[0])
+        return lst
 
-        print(info[0].user)
-        print(info[0].time)
-        print(info[0].kind)
-        print(info[0].collection)
-        print(info[0].title)
-        print(info[0].comments)
-        print(info[0].metadata)
-        print(info[0].metadata)
+    async def get_document(self, user, id):
 
-        return info
+        print("Get document")
 
-    def add_graph_embeddings(self, m):
+        while True:
+
+            try:
+
+                resp = self.cassandra.execute(
+                    self.get_document_stmt,
+                    (user, id)
+                )
+
+                break
+
+            except Exception as e:
+                print("Exception:", type(e))
+                print(f"{e}, retry...", flush=True)
+                await asyncio.sleep(1)
+
+
+        for row in resp:
+            doc = DocumentMetadata(
+                id = id,
+                user = user,
+                time = int(time.mktime(row[0].timetuple())),
+                kind = row[1],
+                title = row[2],
+                comments = row[3],
+                metadata = [
+                    Triple(
+                        s=Value(value=m[0], is_uri=m[1]),
+                        p=Value(value=m[2], is_uri=m[3]),
+                        o=Value(value=m[4], is_uri=m[5])
+                    )
+                    for m in row[4]
+                ],
+                tags = row[5],
+                object_id = row[6],
+            )
+
+            print("Done")
+            return doc
+
+        raise RuntimeError("No such document row?")
+
+    async def get_document_object_id(self, user, id):
+
+        print("Get document obj ID")
+
+        while True:
+
+            try:
+
+                resp = self.cassandra.execute(
+                    self.get_document_stmt,
+                    (user, id)
+                )
+
+                break
+
+            except Exception as e:
+                print("Exception:", type(e))
+                print(f"{e}, retry...", flush=True)
+                await asyncio.sleep(1)
+
+
+        for row in resp:
+            print("Done")
+            return row[6]
+
+        raise RuntimeError("No such document row?")
+
+    async def processing_exists(self, user, id):
+
+        resp = self.cassandra.execute(
+            self.test_processing_exists_stmt,
+            ( user, id )
+        )
+
+        # If a row exists, document exists.  It's a cursor, can't just
+        # count the length
+
+        for row in resp:
+            return True
+
+        return False
+
+    async def add_processing(self, processing):
+
+        print("Adding processing", processing.id)
+
+        while True:
+
+            try:
+
+                resp = self.cassandra.execute(
+                    self.insert_processing_stmt,
+                    (
+                        processing.id, processing.document_id,
+                        int(processing.time * 1000), processing.flow,
+                        processing.user, processing.collection,
+                        processing.tags
+                    )
+                )
+
+                break
+
+            except Exception as e:
+
+                print("Exception:", type(e))
+                print(f"{e}, retry...", flush=True)
+                await asyncio.sleep(1)
+
+        print("Add complete", flush=True)
+
+    async def remove_processing(self, user, processing_id):
+
+        print("Removing processing", processing_id)
+
+        while True:
+
+            try:
+
+                resp = self.cassandra.execute(
+                    self.delete_processing_stmt,
+                    (
+                        user, processing_id
+                    )
+                )
+
+                break
+
+            except Exception as e:
+
+                print("Exception:", type(e))
+                print(f"{e}, retry...", flush=True)
+                await asyncio.sleep(1)
+
+        print("Delete complete", flush=True)
+
+    async def list_processing(self, user):
+
+        print("List processing objects")
+
+        while True:
+
+            try:
+
+                resp = self.cassandra.execute(
+                    self.list_processing_stmt,
+                    (user,)
+                )
+
+                break
+
+            except Exception as e:
+                print("Exception:", type(e))
+                print(f"{e}, retry...", flush=True)
+                await asyncio.sleep(1)
+
+
+        lst = [
+            ProcessingMetadata(
+                id = row[0],
+                document_id = row[1],
+                time = int(time.mktime(row[2].timetuple())),
+                flow = row[3],
+                user = user,
+                collection = row[4],
+                tags = row[5],
+            )
+            for row in resp
+        ]
+
+        print("Done")
+
+        return lst
+
+    async def add_graph_embeddings(self, m):
 
         when = int(time.time() * 1000)
 
@@ -399,9 +703,9 @@ class TableStore:
 
                 print("Exception:", type(e))
                 print(f"{e}, retry...", flush=True)
-                time.sleep(1)
+                await asyncio.sleep(1)
 
-    def add_document_embeddings(self, m):
+    async def add_document_embeddings(self, m):
 
         when = int(time.time() * 1000)
 
@@ -443,6 +747,6 @@ class TableStore:
 
                 print("Exception:", type(e))
                 print(f"{e}, retry...", flush=True)
-                time.sleep(1)
+                await asyncio.sleep(1)
 
         

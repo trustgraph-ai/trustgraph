@@ -1,7 +1,7 @@
 
 import base64
 
-from ... schema import Value, Triple, DocumentPackage, DocumentInfo
+from ... schema import Value, Triple, DocumentMetadata, ProcessingMetadata
 
 def to_value(x):
     return Value(value=x["v"], is_uri=x["e"])
@@ -80,48 +80,18 @@ def serialize_document_embeddings(message):
         ],
     }
 
-def serialize_document_package(message):
+def serialize_document_metadata(message):
 
     ret = {}
 
     if message.id:
         ret["id"] = message.id
 
-    if message.metadata:
-        ret["metadata"] = serialize_subgraph(message.metdata)
-
-    if message.document:
-        blob = base64.b64encode(
-            message.document.encode("utf-8")
-        ).decode("utf-8")
-        ret["document"] = blob
+    if message.time:
+        ret["time"] = message.time
 
     if message.kind:
         ret["kind"] = message.kind
-
-    if message.user:
-        ret["user"] = message.user
-
-    if message.collection:
-        ret["collection"] = message.collection
-
-    return ret
-
-def serialize_document_info(message):
-
-    ret = {}
-
-    if message.id:
-        ret["id"] = message.id
-
-    if message.kind:
-        ret["kind"] = message.kind
-
-    if message.user:
-        ret["user"] = message.user
-
-    if message.collection:
-        ret["collection"] = message.collection
 
     if message.title:
         ret["title"] = message.title
@@ -129,39 +99,67 @@ def serialize_document_info(message):
     if message.comments:
         ret["comments"] = message.comments
 
-    if message.time:
-        ret["time"] = message.time
-
     if message.metadata:
         ret["metadata"] = serialize_subgraph(message.metadata)
 
+    if message.user:
+        ret["user"] = message.user
+
+    if message.tags:
+        ret["tags"] = message.tags
+
     return ret
 
-def to_document_package(x):
+def serialize_processing_metadata(message):
 
-    return DocumentPackage(
+    ret = {}
+
+    if message.id:
+        ret["id"] = message.id
+
+    if message.id:
+        ret["document-id"] = message.document_id
+
+    if message.time:
+        ret["time"] = message.time
+
+    if message.flow:
+        ret["flow"] = message.flow
+
+    if message.user:
+        ret["user"] = message.user
+
+    if message.collection:
+        ret["collection"] = message.collection
+
+    if message.tags:
+        ret["tags"] = message.tags
+
+    return ret
+
+def to_document_metadata(x):
+
+    return DocumentMetadata(
         id = x.get("id", None),
+        time = x.get("time", None),
         kind = x.get("kind", None),
-        user = x.get("user", None),
-        collection = x.get("collection", None),
         title = x.get("title", None),
         comments = x.get("comments", None),
-        time = x.get("time", None),
-        document = x.get("document", None),
         metadata = to_subgraph(x["metadata"]),
+        user = x.get("user", None),
+        tags = x.get("tags", None),
     )
 
-def to_document_info(x):
+def to_processing_metadata(x):
 
-    return DocumentInfo(
+    return ProcessingMetadata(
         id = x.get("id", None),
-        kind = x.get("kind", None),
+        document_id = x.get("document-id", None),
+        time = x.get("time", None),
+        flow = x.get("flow", None),
         user = x.get("user", None),
         collection = x.get("collection", None),
-        title = x.get("title", None),
-        comments = x.get("comments", None),
-        time = x.get("time", None),
-        metadata = to_subgraph(x["metadata"]),
+        tags = x.get("tags", None),
     )
 
 def to_criteria(x):
@@ -169,3 +167,4 @@ def to_criteria(x):
         Critera(v["key"], v["value"], v["operator"])
         for v in x
     ]
+

@@ -4,16 +4,18 @@ import requests
 import json
 import sys
 import base64
+import time
 
 url = "http://localhost:8088/api/v1/"
 
 ############################################################################
 
-user = "trustgraph"
+id = "http://trustgraph.ai/doc/6d034da9-2759-45c2-af24-14db7f4c44c2"
 
 input = {
-    "operation": "list-documents",
-    "user": user,
+    "operation": "remove-document",
+    "user": "trustgraph",
+    "document-id": id
 }
 
 resp = requests.post(

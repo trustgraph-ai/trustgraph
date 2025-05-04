@@ -4,16 +4,18 @@ import requests
 import json
 import sys
 import base64
+import time
 
 url = "http://localhost:8088/api/v1/"
 
 ############################################################################
 
-user = "trustgraph"
+proc_id = "2714fc72-44ab-45f2-94dd-6773fc336535"
 
 input = {
-    "operation": "list-documents",
-    "user": user,
+    "operation": "remove-processing",
+    "user": "trustgraph",
+    "processing-id": proc_id,
 }
 
 resp = requests.post(

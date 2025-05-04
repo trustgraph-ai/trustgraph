@@ -12,17 +12,13 @@ url = "http://localhost:8088/api/v1/"
 
 id = "http://trustgraph.ai/doc/9fdee98b-b259-40ac-bcb9-8e82ccedeb04"
 
-with open("docs/README.cats", "rb") as f:
-    doc = base64.b64encode(f.read()).decode("utf-8")
-
 input = {
-    "operation": "add-document",
+    "operation": "update-document",
     "document-metadata": {
         "id": id,
         "time": int(time.time()),
-        "kind": "text/plain",
-        "title": "Mark's cats",
-        "comments": "Test doc taken from the TrustGraph repo",
+        "title": "Mark's cats - a story",
+        "comments": "Information about Mark's cats",
         "metadata": [
             {
                 "s": {
@@ -52,9 +48,8 @@ input = {
             },
         ],
         "user": "trustgraph",
-        "tags": ["mark", "cats"],
+        "tags": ["mark", "cats", "pets"],
     },
-    "content": doc,
 }
 
 resp = requests.post(

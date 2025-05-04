@@ -1,11 +1,15 @@
 
+import base64
+
 from ... schema import LibrarianRequest, LibrarianResponse
 from ... schema import librarian_request_queue
 from ... schema import librarian_response_queue
 
 from . requestor import ServiceRequestor
-from . serialize import serialize_document_package, serialize_document_info
-from . serialize import to_document_package, to_document_info, to_criteria
+from . serialize import serialize_document_metadata
+from . serialize import serialize_processing_metadata
+from . serialize import to_document_metadata, to_processing_metadata
+from . serialize import to_criteria
 
 class LibrarianRequestor(ServiceRequestor):
     def __init__(self, pulsar_client, consumer, subscriber, timeout=120):
@@ -23,20 +27,37 @@ class LibrarianRequestor(ServiceRequestor):
 
     def to_request(self, body):
 
-        if "document" in body:
-            dp = to_document_package(body["document"])
+        # Content gets base64 decoded & encoded again.  It at least makes
+        # sure payload is valid base64.
+
+        if "document-metadata" in body:
+            dm = to_document_metadata(body["document-metadata"])
         else:
-            dp = None
+            dm = None
+
+        if "processing-metadata" in body:
+            pm = to_processing_metadata(body["processing-metadata"])
+        else:
+            pm = None
 
         if "criteria" in body:
             criteria = to_criteria(body["criteria"])
         else:
             criteria = None
 
+        if "content" in body:
+            content = base64.b64decode(body["content"].encode("utf-8"))
+            content = base64.b64encode(content).decode("utf-8")
+        else:
+            content = None
+
         return LibrarianRequest(
             operation = body.get("operation", None),
-            id = body.get("id", None),
-            document = dp,
+            document_id = body.get("document-id", None),
+            processing_id = body.get("processing-id", None),
+            document_metadata = dm,
+            processing_metadata = pm,
+            content = content,
             user = body.get("user", None),
             collection = body.get("collection", None),
             criteria = criteria,
@@ -44,15 +65,28 @@ class LibrarianRequestor(ServiceRequestor):
 
     def from_response(self, message):
 
+        print(message)
+
         response = {}
 
-        if message.document:
-            response["document"] = serialize_document_package(message.document)
+        if message.document_metadata:
+            response["document-metadata"] = serialize_document_metadata(
+                message.document_metadata
+            )
 
-        if message.info:
-            response["info"] = [
-                serialize_document_info(v)
-                for v in message.info
+        if message.content:
+            response["content"] = message.content.decode("utf-8")
+
+        if message.document_metadatas != None:
+            response["document-metadatas"] = [
+                serialize_document_metadata(v)
+                for v in message.document_metadatas
+            ]
+
+        if message.processing_metadatas != None:
+            response["processing-metadatas"] = [
+                serialize_processing_metadata(v)
+                for v in message.processing_metadatas
             ]
         
         return response, True

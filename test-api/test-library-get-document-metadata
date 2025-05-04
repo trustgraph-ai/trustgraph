@@ -9,11 +9,14 @@ url = "http://localhost:8088/api/v1/"
 
 ############################################################################
 
+id = "http://trustgraph.ai/doc/9fdee98b-b259-40ac-bcb9-8e82ccedeb04"
+
 user = "trustgraph"
 
 input = {
-    "operation": "list-documents",
+    "operation": "get-document-metadata",
     "user": user,
+    "document-id": id,
 }
 
 resp = requests.post(

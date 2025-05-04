@@ -3,8 +3,6 @@
 Config service.  Manages system global configuration state
 """
 
-from pulsar.schema import JsonSchema
-
 from trustgraph.schema import Error
 
 from trustgraph.schema import ConfigRequest, ConfigResponse, ConfigPush
@@ -14,7 +12,6 @@ from trustgraph.schema import config_push_queue
 from trustgraph.schema import FlowRequest, FlowResponse
 from trustgraph.schema import flow_request_queue, flow_response_queue
 
-from trustgraph.log_level import LogLevel
 from trustgraph.base import AsyncProcessor, Consumer, Producer
 
 from . config import Configuration
