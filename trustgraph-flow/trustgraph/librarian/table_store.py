@@ -437,7 +437,7 @@ class TableStore:
 
     async def list_documents(self, user):
 
-        print("LIST")
+        print("List documents...")
 
         while True:
 
@@ -448,7 +448,6 @@ class TableStore:
                     (user,)
                 )
 
-                print("OK")
                 break
 
             except Exception as e:
@@ -479,15 +478,13 @@ class TableStore:
             for row in resp
         ]
 
-        print("OK3")
-
-        print(lst)
+        print("Done")
 
         return lst
 
     async def get_document(self, user, id):
 
-        print("GET")
+        print("Get document")
 
         while True:
 
@@ -498,7 +495,6 @@ class TableStore:
                     (user, id)
                 )
 
-                print("OK")
                 break
 
             except Exception as e:
@@ -526,13 +522,15 @@ class TableStore:
                 tags = row[5],
                 object_id = row[6],
             )
+
+            print("Done")
             return doc
 
         raise RuntimeError("No such document row?")
 
     async def get_document_object_id(self, user, id):
 
-        print("GET")
+        print("Get document obj ID")
 
         while True:
 
@@ -543,7 +541,6 @@ class TableStore:
                     (user, id)
                 )
 
-                print("OK")
                 break
 
             except Exception as e:
@@ -553,6 +550,7 @@ class TableStore:
 
 
         for row in resp:
+            print("Done")
             return row[6]
 
         raise RuntimeError("No such document row?")
@@ -627,7 +625,7 @@ class TableStore:
 
     async def list_processing(self, user):
 
-        print("LIST processing")
+        print("List processing objects")
 
         while True:
 
@@ -638,7 +636,6 @@ class TableStore:
                     (user,)
                 )
 
-                print("OK")
                 break
 
             except Exception as e:
@@ -660,9 +657,7 @@ class TableStore:
             for row in resp
         ]
 
-        print("OK3")
-
-        print(lst)
+        print("Done")
 
         return lst
 

@@ -37,7 +37,6 @@ class Librarian:
                 "Invalid document kind: " + request.document_metadata.kind
             )
 
-        print("Existence test...")
         if await self.table_store.document_exists(
                 request.document_metadata.user,
                 request.document_metadata.id
@@ -46,11 +45,6 @@ class Librarian:
 
         # Create object ID for blob
         object_id = uuid.uuid4()
-
-        print("OID", object_id)
-        print(request.content)
-        print("CONT", base64.b64decode(request.content))
-
 
         print("Add blob...")
 
@@ -77,7 +71,7 @@ class Librarian:
 
     async def remove_document(self, request):
 
-        print("REMOVING...")
+        print("Removing doc...")
 
         if not await self.table_store.document_exists(
                 request.user,
@@ -111,7 +105,7 @@ class Librarian:
 
     async def update_document(self, request):
 
-        print("UPDATING...")
+        print("Updating doc...")
 
         # You can't update the document ID, user or kind.
 
@@ -135,7 +129,7 @@ class Librarian:
 
     async def get_document_metadata(self, request):
 
-        print("GET DOC...")
+        print("Get doc...")
 
         doc = await self.table_store.get_document(
             request.user,
@@ -154,14 +148,12 @@ class Librarian:
 
     async def get_document_content(self, request):
 
-        print("GET DOC CONTENT...")
+        print("Get doc content...")
 
         object_id = await self.table_store.get_document_object_id(
             request.user,
             request.document_id
         )
-
-        print("Now", object_id)
 
         content = await self.blob_store.get(
             object_id
@@ -179,30 +171,23 @@ class Librarian:
 
     async def add_processing(self, request):
 
-        print("LIST PROCESSING")
+        print("Add processing")
 
-        print("Existence test...")
         if await self.table_store.processing_exists(
                 request.processing_metadata.user,
                 request.processing_metadata.id
         ):
             raise RuntimeError("Processing already exists")
 
-        print("Does not already exist")
-
         doc = await self.table_store.get_document(
             request.processing_metadata.user,
             request.processing_metadata.document_id
         )
 
-        print("Got doc")
-
         object_id = await self.table_store.get_document_object_id(
             request.processing_metadata.user,
             request.processing_metadata.document_id
         )
-
-        print("Got object ID")
 
         content = await self.blob_store.get(
             object_id
@@ -232,7 +217,7 @@ class Librarian:
 
     async def remove_processing(self, request):
 
-        print("REMOVING...")
+        print("Removing processing...")
 
         if not await self.table_store.processing_exists(
                 request.user,
@@ -260,8 +245,6 @@ class Librarian:
 
         docs = await self.table_store.list_documents(request.user)
 
-        print(docs)
-
         return LibrarianResponse(
             error = None,
             document_metadata = None,
@@ -272,11 +255,7 @@ class Librarian:
 
     async def list_processing(self, request):
 
-        print("LIST PROCESSING")
-
         procs = await self.table_store.list_processing(request.user)
-
-        print(procs)
 
         return LibrarianResponse(
             error = None,

@@ -144,14 +144,8 @@ class Processor(AsyncProcessor):
     def __del__(self):
 
         pass
-#        self.running = False
 
     async def load_document(self, document):
-
-        print(document)
-        print(document.flow)
-
-        
 
         doc = Document(
             metadata = Metadata(
@@ -189,7 +183,7 @@ class Processor(AsyncProcessor):
         if v.operation is None:
             raise RequestError("Null operation")
 
-        print("op", v.operation)
+        print("requets", v.operation)
 
         impls = {
             "add-document": self.librarian.add_document,
@@ -206,13 +200,9 @@ class Processor(AsyncProcessor):
         if v.operation not in impls:
             raise RequestError(f"Invalid operation: {v.operation}")
 
-        print("HANDLING...")
-
         return await impls[v.operation](v)
 
     async def on_librarian_request(self, msg, consumer, flow):
-
-        print("REQUEST")
 
         v = msg.value()
 
