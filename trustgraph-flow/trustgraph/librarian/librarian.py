@@ -203,19 +203,16 @@ class Librarian:
         )
 
     async def list_processing(self, request):
-        raise RuntimeError("Not implemented")
 
-    async def list(self, user, collection):
+        procs = await self.table_store.list_processing(request.user)
 
-        raise RuntimeError("Not implemented")
-
-        info = self.table_store.list(user, collection)
-
-        print(">>", info)
+        print(procs)
 
         return LibrarianResponse(
             error = None,
-            document = None,
-            info = info,
+            document_metadata = None,
+            content = None,
+            document_metadatas = None,
+            processing_metadatas = procs,
         )
 

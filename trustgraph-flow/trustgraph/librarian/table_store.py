@@ -211,12 +211,41 @@ class TableStore:
             WHERE user = ?
         """)
 
-        self.list_document_by_collection_stmt = self.cassandra.prepare("""
+        self.list_document_by_tag_stmt = self.cassandra.prepare("""
             SELECT
                 id, time, kind, title, comments, metadata, tags, object_id
             FROM document
             WHERE user = ? AND tags CONTAINS ?
             ALLOW FILTERING
+        """)
+
+        self.insert_processing_stmt = self.cassandra.prepare("""
+            INSERT INTO processing
+            (
+                id, document_id, time,
+                flow, user, collection,
+                tags,
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """)
+
+        self.delete_processing_stmt = self.cassandra.prepare("""
+            DELETE FROM processing
+            WHERE user = ? AND id = ?
+        """)
+
+        self.test_processing_exists_stmt = self.cassandra.prepare("""
+            SELECT id
+            FROM processing
+            WHERE user = ? AND id = ?
+            LIMIT 1
+        """)
+
+        self.list_processing_stmt = self.cassandra.prepare("""
+            SELECT
+                id, document_id, time, flow, collection, tags
+            FROM processing
+            WHERE user = ?
         """)
 
         return
