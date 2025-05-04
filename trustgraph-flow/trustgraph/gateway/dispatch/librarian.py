@@ -47,7 +47,7 @@ class LibrarianRequestor(ServiceRequestor):
 
         if "content" in body:
             content = base64.b64decode(body["content"].encode("utf-8"))
-            content = base64.b64encode(content).decode("utf-8"),
+            content = base64.b64encode(content).decode("utf-8")
         else:
             content = None
 
@@ -65,6 +65,8 @@ class LibrarianRequestor(ServiceRequestor):
 
     def from_response(self, message):
 
+        print(message)
+
         response = {}
 
         if message.document_metadata:
@@ -75,13 +77,13 @@ class LibrarianRequestor(ServiceRequestor):
         if message.content:
             response["content"] = message.content
 
-        if message.document_metadatas:
+        if message.document_metadatas != None:
             response["document-metadatas"] = [
                 serialize_document_metadata(v)
                 for v in message.document_metadatas
             ]
 
-        if message.processing_metadatas:
+        if message.processing_metadatas != None:
             response["processing-metadatas"] = [
                 serialize_processing_metadata(v)
                 for v in message.processing_metadatas

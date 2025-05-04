@@ -244,7 +244,7 @@ class TableStore:
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """)
 
-    def document_exists(self, user, id):
+    async def document_exists(self, user, id):
 
         resp = self.cassandra.execute(
             self.test_document_exists_stmt,
@@ -259,7 +259,7 @@ class TableStore:
 
         return False
 
-    def add_document(self, document, object_id):
+    async def add_document(self, document, object_id):
 
         print("Adding document", document.id, object_id)
 
@@ -290,11 +290,11 @@ class TableStore:
 
                 print("Exception:", type(e))
                 print(f"{e}, retry...", flush=True)
-                time.sleep(1)
+                await asyncio.sleep(1)
 
         print("Add complete", flush=True)
 
-    def update_document(self, document):
+    async def update_document(self, document):
 
         print("Updating document", document.id)
 
@@ -325,11 +325,11 @@ class TableStore:
 
                 print("Exception:", type(e))
                 print(f"{e}, retry...", flush=True)
-                time.sleep(1)
+                await asyncio.sleep(1)
 
         print("Update complete", flush=True)
 
-    def add_triples(self, m):
+    async def add_triples(self, m):
 
         when = int(time.time() * 1000)
 
@@ -371,77 +371,59 @@ class TableStore:
 
                 print("Exception:", type(e))
                 print(f"{e}, retry...", flush=True)
-                time.sleep(1)
+                await asyncio.sleep(1)
 
-    def list(self, user, collection=None):
+    async def list_documents(self, user):
 
         print("LIST")
+
         while True:
 
-            print("TRY")
-
-            print(self.list_document_stmt)
             try:
 
-                if collection:
-                    resp = self.cassandra.execute(
-                        self.list_document_by_collection_stmt,
-                        (user, collection)
-                    )
-                else:
-                    resp = self.cassandra.execute(
-                        self.list_document_stmt,
-                        (user,)
-                    )
-                break
+                resp = self.cassandra.execute(
+                    self.list_document_stmt,
+                    (user,)
+                )
 
                 print("OK")
+                break
 
             except Exception as e:
                 print("Exception:", type(e))
                 print(f"{e}, retry...", flush=True)
-                time.sleep(1)
+                await asyncio.sleep(1)
 
-        print("OK2")
 
-        info = [
+        lst = [
             DocumentMetadata(
                 id = row[0],
-                kind = row[1],
-                flow = row[2],
-                user = row[3],
-                collection = row[4],
-                title = row[5],
-                comments = row[6],
-                time = int(1000 * row[7].timestamp()),
+                user = user,
+                time = int(time.mktime(row[1].timetuple())),
+                kind = row[2],
+                title = row[3],
+                comments = row[4],
                 metadata = [
                     Triple(
                         s=Value(value=m[0], is_uri=m[1]),
                         p=Value(value=m[2], is_uri=m[3]),
                         o=Value(value=m[4], is_uri=m[5])
                     )
-                    for m in row[8]
+                    for m in row[5]
                 ],
+                tags = row[6],
+                object_id = row[7],
             )
             for row in resp
         ]
 
         print("OK3")
 
-        print(info)
+        print(lst)
 
-        # print(info[0].user)
-        # print(info[0].time)
-        # print(info[0].kind)
-        # print(info[0].collection)
-        # print(info[0].title)
-        # print(info[0].comments)
-        # print(info[0].metadata)
-        # print(info[0].metadata)
+        return lst
 
-        return info
-
-    def add_graph_embeddings(self, m):
+    async def add_graph_embeddings(self, m):
 
         when = int(time.time() * 1000)
 
@@ -483,9 +465,9 @@ class TableStore:
 
                 print("Exception:", type(e))
                 print(f"{e}, retry...", flush=True)
-                time.sleep(1)
+                await asyncio.sleep(1)
 
-    def add_document_embeddings(self, m):
+    async def add_document_embeddings(self, m):
 
         when = int(time.time() * 1000)
 
@@ -527,6 +509,6 @@ class TableStore:
 
                 print("Exception:", type(e))
                 print(f"{e}, retry...", flush=True)
-                time.sleep(1)
+                await asyncio.sleep(1)
 
         

@@ -37,7 +37,8 @@ class Librarian:
                 "Invalid document kind: " + request.document_metadata.kind
             )
 
-        if self.table_store.document_exists(
+        print("Existence test...")
+        if await self.table_store.document_exists(
                 request.document_metadata.user,
                 request.document_metadata.id
         ):
@@ -46,10 +47,22 @@ class Librarian:
         # Create object ID for blob
         object_id = uuid.uuid4()
 
+        print("OID", object_id)
+        print(request.content)
+        print("CONT", base64.b64decode(request.content))
+
+
+        print("Add blob...")
+        
+
         self.blob_store.add(object_id, base64.b64decode(request.content),
                             request.document_metadata.kind)
 
-        self.table_store.add_document(request.document_metadata, object_id)
+        print("Add table...")
+
+        await self.table_store.add_document(
+            request.document_metadata, object_id
+        )
 
         print("Add complete", flush=True)
 
@@ -70,13 +83,13 @@ class Librarian:
 
         # You can't update the document ID, user or kind.
 
-        if not self.table_store.document_exists(
+        if not await self.table_store.document_exists(
                 request.document_metadata.user,
                 request.document_metadata.id
         ):
             raise RuntimeError("Document does not exist")
 
-        self.table_store.update_document(request.document_metadata)
+        await self.table_store.update_document(request.document_metadata)
 
         print("Update complete", flush=True)
 
@@ -106,7 +119,18 @@ class Librarian:
         raise RuntimeError("Not implemented")
 
     async def list_documents(self, request):
-        raise RuntimeError("Not implemented")
+
+        docs = await self.table_store.list_documents(request.user)
+
+        print(docs)
+
+        return LibrarianResponse(
+            error = None,
+            document_metadata = None,
+            content = None,
+            document_metadatas = docs,
+            processing_metadatas = None,
+        )
 
     async def list_processing(self, request):
         raise RuntimeError("Not implemented")
