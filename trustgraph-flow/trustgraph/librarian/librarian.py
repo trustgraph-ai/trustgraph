@@ -134,10 +134,48 @@ class Librarian:
         )
 
     async def get_document_metadata(self, request):
-        raise RuntimeError("Not implemented")
+
+        print("GET DOC...")
+
+        doc = await self.table_store.get_document(
+            request.user,
+            request.document_id
+        )
+
+        print("Get complete", flush=True)
+
+        return LibrarianResponse(
+            error = None,
+            document_metadata = doc,
+            content = None,
+            document_metadatas = None,
+            processing_metadatas = None,
+        )
 
     async def get_document_content(self, request):
-        raise RuntimeError("Not implemented")
+
+        print("GET DOC CONTENT...")
+
+        object_id = await self.table_store.get_document_object_id(
+            request.user,
+            request.document_id
+        )
+
+        print("Now", object_id)
+
+        content = await self.blob_store.get(
+            object_id
+        )
+
+        print("Get complete", flush=True)
+
+        return LibrarianResponse(
+            error = None,
+            document_metadata = None,
+            content = base64.b64encode(content),
+            document_metadatas = None,
+            processing_metadatas = None,
+        )
 
     async def add_processing(self, request):
         raise RuntimeError("Not implemented")

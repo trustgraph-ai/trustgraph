@@ -75,7 +75,7 @@ class LibrarianRequestor(ServiceRequestor):
             )
 
         if message.content:
-            response["content"] = message.content
+            response["content"] = message.content.decode("utf-8")
 
         if message.document_metadatas != None:
             response["document-metadatas"] = [
