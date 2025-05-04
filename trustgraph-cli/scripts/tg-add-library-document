@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Loads a PDF document into TrustGraph processing.
+Loads a PDF document into the library
 """
 
 import hashlib
@@ -18,24 +18,25 @@ from trustgraph.knowledge import DigitalDocument
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_user = 'trustgraph'
-default_collection = 'default'
 
 class Loader:
 
     def __init__(
-            self,
-            url,
-            flow_id,
-            user,
-            collection,
-            metadata,
+            self, url, user, metadata, title, comments, kind, tags
     ):
 
-        self.api = Api(url).flow(flow_id)
+        self.api = Api(url)
 
         self.user = user
-        self.collection = collection
         self.metadata = metadata
+        self.title = title
+        self.comments = comments
+        self.kind = kind
+
+        if tags:
+            self.tags = tags.split(",")
+        else:
+            self.tags = []
 
     def load(self, files):
 
@@ -56,10 +57,10 @@ class Loader:
 
             self.metadata.id = id
 
-            self.api.load_document(
+            self.api.library_add_document(
                 document=data, id=id, metadata=self.metadata, 
-                user=self.user,
-                collection=self.collection,
+                user=self.user, kind=self.kind, title=self.title,
+                comments=self.comments, tags=self.tags
             )
 
             print(f"{file}: Loaded successfully.")
@@ -71,7 +72,7 @@ class Loader:
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-load-pdf',
+        prog='tg-add-library-document',
         description=__doc__,
     )
 
@@ -82,21 +83,9 @@ def main():
     )
 
     parser.add_argument(
-        '-f', '--flow-id',
-        default="0000",
-        help=f'Flow ID (default: 0000)'
-    )
-
-    parser.add_argument(
         '-U', '--user',
         default=default_user,
         help=f'User ID (default: {default_user})'
-    )
-
-    parser.add_argument(
-        '-C', '--collection',
-        default=default_collection,
-        help=f'Collection ID (default: {default_collection})'
     )
 
     parser.add_argument(
@@ -148,6 +137,17 @@ def main():
     )
 
     parser.add_argument(
+        '-k', '--kind',
+        required=True,
+        help=f'Document MIME type'
+    )
+
+    parser.add_argument(
+        '--tags',
+        help=f'Tags, command separated'
+    )
+
+    parser.add_argument(
         'files', nargs='+',
         help=f'File to load'
     )
@@ -183,10 +183,12 @@ def main():
 
         p = Loader(
             url=args.url,
-            flow_id = args.flow_id,
             user=args.user,
-            collection=args.collection,
             metadata=document,
+            title=args.name,
+            comments=args.description,
+            kind=args.kind,
+            tags=args.tags,
         )
 
         p.load(args.files)

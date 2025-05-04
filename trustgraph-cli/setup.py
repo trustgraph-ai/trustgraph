@@ -70,6 +70,8 @@ setuptools.setup(
         "scripts/tg-show-flow-classes",
         "scripts/tg-show-flow-state",
         "scripts/tg-show-flows",
+        "scripts/tg-show-library-documents",
+        "scripts/tg-add-library-document",
         "scripts/tg-show-processor-state",
         "scripts/tg-show-prompts",
         "scripts/tg-show-token-costs",

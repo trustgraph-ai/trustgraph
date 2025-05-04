@@ -3,6 +3,9 @@ import requests
 import json
 import dataclasses
 import base64
+from typing import List
+import datetime
+import time
 
 from trustgraph.knowledge import hash, Uri, Literal
 
@@ -28,6 +31,31 @@ class ConfigValue:
     type : str
     key : str
     value : str
+
+@dataclasses.dataclass
+class DocumentMetadata:
+    id : str
+    time : datetime.datetime
+    kind : str
+    title : str
+    comments : str
+    metadata : List[Triple]
+    user : str
+    tags : List[str]
+
+@dataclasses.dataclass
+class ProcessingMetadata:
+    id : str
+    document_id : str
+    time : datetime.datetime
+    flow : str
+    user : str
+    collection : str
+    tags : List[str]
+
+def to_value(x):
+    if x["e"]: return Uri(x["v"])
+    return Literal(x["v"])
 
 def check_error(response):
 
@@ -87,6 +115,93 @@ class Api:
 
         try:
             return object["config"], object["version"]
+        except:
+            raise ProtocolException(f"Response not formatted correctly")
+
+    def library_add_document(
+            self, document, id, metadata, user, title, comments,
+            kind="text/plain", tags=[], 
+    ):
+
+        if id is None:
+
+            if metadata is not None:
+
+                # Situation makes no sense.  What can the metadata possibly
+                # mean if the caller doesn't know the document ID.
+                # Metadata should relate to the document by ID
+                raise RuntimeError("Can't specify metadata without id")
+
+            id = hash(document)
+
+        if not title: title = ""
+        if not comments: comments = ""
+
+        triples = []
+
+        def emit(t):
+            triples.append(t)
+
+        if metadata:
+            metadata.emit(
+                lambda t: triples.append({
+                    "s": { "v": t["s"], "e": isinstance(t["s"], Uri) },
+                    "p": { "v": t["p"], "e": isinstance(t["p"], Uri) },
+                    "o": { "v": t["o"], "e": isinstance(t["o"], Uri) }
+                })
+            )
+
+        input = {
+            "operation": "add-document",
+            "document-metadata": {
+                "id": id,
+                "time": int(time.time()),
+                "kind": kind,
+                "title": title,
+                "comments": comments,
+                "metadata": triples,
+                "user": user,
+                "tags": tags
+            },
+            "content": base64.b64encode(document).decode("utf-8"),
+        }
+
+        return self.request(
+            f"librarian",
+            input
+        )
+
+
+    def library_get_documents(self, user):
+
+        input = {
+            "operation": "list-documents",
+            "user": user,
+        }
+
+        object = self.request("librarian", input)
+
+        try:
+            return [
+                DocumentMetadata(
+                    id = v["id"],
+                    time = datetime.datetime.fromtimestamp(v["time"]),
+                    kind = v["kind"],
+                    title = v["title"],
+                    comments = v.get("comments", ""),
+                    metadata = [
+                        Triple(
+                            s = to_value(w["s"]),
+                            p = to_value(w["p"]),
+                            o = to_value(w["o"])
+                        )
+                        for w in v["metadata"]
+                    ],
+                    user = v["user"],
+                    tags = v["tags"]
+                )
+                for v in object["document-metadatas"]
+            ]
         except:
             raise ProtocolException(f"Response not formatted correctly")
 
@@ -386,10 +501,6 @@ class Flow:
             input
         )
 
-        def to_value(x):
-            if x["e"]: return Uri(x["v"])
-            return Literal(x["v"])
-            
         return [
             Triple(
                 s=to_value(t["s"]),
