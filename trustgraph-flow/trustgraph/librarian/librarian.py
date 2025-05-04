@@ -51,11 +51,6 @@ class Librarian:
 
         self.table_store.add_document(request.document_metadata, object_id)
 
-        # if document.kind == "application/pdf":
-        #     await self.load_document(document)
-        # elif document.kind == "text/plain":
-        #     await self.load_text(document)
-
         print("Add complete", flush=True)
 
         return LibrarianResponse(
@@ -70,7 +65,28 @@ class Librarian:
         raise RuntimeError("Not implemented")
 
     async def update_document(self, request):
-        raise RuntimeError("Not implemented")
+
+        print("UPDATING...")
+
+        # You can't update the document ID, user or kind.
+
+        if not self.table_store.document_exists(
+                request.document_metadata.user,
+                request.document_metadata.id
+        ):
+            raise RuntimeError("Document does not exist")
+
+        self.table_store.update_document(request.document_metadata)
+
+        print("Update complete", flush=True)
+
+        return LibrarianResponse(
+            error = None,
+            document_metadata = None,
+            content = None,
+            document_metadatas = None,
+            processing_metadatas = None,
+        )
 
     async def get_document_metadata(self, request):
         raise RuntimeError("Not implemented")
@@ -80,6 +96,11 @@ class Librarian:
 
     async def add_processing(self, request):
         raise RuntimeError("Not implemented")
+
+        # if document.kind == "application/pdf":
+        #     await self.load_document(document)
+        # elif document.kind == "text/plain":
+        #     await self.load_text(document)
 
     async def remove_processing(self, request):
         raise RuntimeError("Not implemented")

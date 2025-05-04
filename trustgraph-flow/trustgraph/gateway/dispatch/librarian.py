@@ -46,9 +46,8 @@ class LibrarianRequestor(ServiceRequestor):
             criteria = None
 
         if "content" in body:
-            content = base64.b64decode(
-                body["content"].encode("utf-8")
-            )
+            content = base64.b64decode(body["content"].encode("utf-8"))
+            content = base64.b64encode(content).decode("utf-8"),
         else:
             content = None
 
@@ -58,7 +57,7 @@ class LibrarianRequestor(ServiceRequestor):
             processing_id = body.get("processing-id", None),
             document_metadata = dm,
             processing_metadata = pm,
-            content = base64.b64encode(content).decode("utf-8"),
+            content = content,
             user = body.get("user", None),
             collection = body.get("collection", None),
             criteria = criteria,

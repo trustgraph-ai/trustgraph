@@ -179,6 +179,13 @@ class TableStore:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """)
 
+        self.update_document_stmt = self.cassandra.prepare("""
+            UPDATE document
+            SET time = ?, title = ?, comments = ?,
+                metadata = ?, tags = ?
+            WHERE user = ? AND id = ?
+        """)
+
         self.get_document_stmt = self.cassandra.prepare("""
             SELECT user, time, kind, title, comments,
             metadata, tags, object_id
@@ -254,9 +261,6 @@ class TableStore:
 
     def add_document(self, document, object_id):
 
-        # Create timestamp
-        when = int(time.time() * 1000)
-
         print("Adding document", document.id, object_id)
 
         metadata = [
@@ -274,7 +278,7 @@ class TableStore:
                 resp = self.cassandra.execute(
                     self.insert_document_stmt,
                     (
-                        document.id, document.user, when,
+                        document.id, document.user, int(document.time * 1000),
                         document.kind, document.title, document.comments,
                         metadata, document.tags, object_id
                     )
@@ -289,6 +293,41 @@ class TableStore:
                 time.sleep(1)
 
         print("Add complete", flush=True)
+
+    def update_document(self, document):
+
+        print("Updating document", document.id)
+
+        metadata = [
+            (
+                v.s.value, v.s.is_uri, v.p.value, v.p.is_uri,
+                v.o.value, v.o.is_uri
+            )
+            for v in document.metadata
+        ]
+
+        while True:
+
+            try:
+
+                resp = self.cassandra.execute(
+                    self.update_document_stmt,
+                    (
+                        int(document.time * 1000), document.title,
+                        document.comments, metadata, document.tags,
+                        document.user, document.id
+                    )
+                )
+
+                break
+
+            except Exception as e:
+
+                print("Exception:", type(e))
+                print(f"{e}, retry...", flush=True)
+                time.sleep(1)
+
+        print("Update complete", flush=True)
 
     def add_triples(self, m):
 

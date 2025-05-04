@@ -207,6 +207,7 @@ class Processor(AsyncProcessor):
             raise RequestError(f"Invalid operation: {v.operation}")
 
         print("HANDLING...")
+
         return await impls[v.operation](v)
 
     async def on_librarian_request(self, msg, consumer, flow):
