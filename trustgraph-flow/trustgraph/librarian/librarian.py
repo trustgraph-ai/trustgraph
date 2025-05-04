@@ -178,7 +178,40 @@ class Librarian:
         )
 
     async def add_processing(self, request):
-        raise RuntimeError("Not implemented")
+
+        print("LIST PROCESSING")
+
+        print("Existence test...")
+        if await self.table_store.processing_exists(
+                request.processing_metadata.user,
+                request.processing_metadata.id
+        ):
+            raise RuntimeError("Processing already exists")
+
+        doc = await self.table_store.get_document(
+            request.processing_metadata.user,
+            request.processing_metadata.document_id
+        )
+
+        object_id = await self.table_store.get_document_object_id(
+            request.user,
+            request.document_id
+        )
+
+        print("Add processing...")
+
+        await self.table_store.add_processing(request.processing_metadata)
+
+        print("Add complete", flush=True)
+
+        return LibrarianResponse(
+            error = None,
+            document_metadata = None,
+            content = None,
+            document_metadatas = None,
+            processing_metadatas = None,
+        )
+        
 
         # if document.kind == "application/pdf":
         #     await self.load_document(document)
@@ -186,7 +219,30 @@ class Librarian:
         #     await self.load_text(document)
 
     async def remove_processing(self, request):
-        raise RuntimeError("Not implemented")
+
+        print("REMOVING...")
+
+        if not await self.table_store.processing_exists(
+                request.user,
+                request.document_id,
+        ):
+            raise RuntimeError("Processing object does not exist")
+
+        # Remove doc table row
+        await self.table_store.remove_processing(
+            request.user,
+            request.processing_id
+        )
+
+        print("Remove complete", flush=True)
+
+        return LibrarianResponse(
+            error = None,
+            document_metadata = None,
+            content = None,
+            document_metadatas = None,
+            processing_metadatas = None,
+        )
 
     async def list_documents(self, request):
 
@@ -203,6 +259,8 @@ class Librarian:
         )
 
     async def list_processing(self, request):
+
+        print("LIST PROCESSING")
 
         procs = await self.table_store.list_processing(request.user)
 

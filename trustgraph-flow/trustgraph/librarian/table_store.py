@@ -1,3 +1,4 @@
+
 from .. schema import LibrarianRequest, LibrarianResponse
 from .. schema import DocumentMetadata, Error, Triple, Value
 from .. knowledge import hash
@@ -7,8 +8,10 @@ from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.query import BatchStatement
 from ssl import SSLContext, PROTOCOL_TLSv1_2
+
 import uuid
 import time
+import asyncio
 
 class TableStore:
 
@@ -224,7 +227,7 @@ class TableStore:
             (
                 id, document_id, time,
                 flow, user, collection,
-                tags,
+                tags
             )
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """)
@@ -604,6 +607,47 @@ class TableStore:
                 await asyncio.sleep(1)
 
         print("Delete complete", flush=True)
+
+    async def list_processing(self, user):
+
+        print("LIST processing")
+
+        while True:
+
+            try:
+
+                resp = self.cassandra.execute(
+                    self.list_processing_stmt,
+                    (user,)
+                )
+
+                print("OK")
+                break
+
+            except Exception as e:
+                print("Exception:", type(e))
+                print(f"{e}, retry...", flush=True)
+                await asyncio.sleep(1)
+
+
+        lst = [
+            ProcessingMetadata(
+                id = row[0],
+                document_id = row[1],
+                time = int(time.mktime(row[2].timetuple())),
+                flow = row[3],
+                user = user,
+                collection = row[4],
+                tags = row[5],
+            )
+            for row in resp
+        ]
+
+        print("OK3")
+
+        print(lst)
+
+        return lst
 
     async def add_graph_embeddings(self, m):
 
