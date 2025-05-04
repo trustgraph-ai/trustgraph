@@ -53,10 +53,11 @@ class Librarian:
 
 
         print("Add blob...")
-        
 
-        self.blob_store.add(object_id, base64.b64decode(request.content),
-                            request.document_metadata.kind)
+        await self.blob_store.add(
+            object_id, base64.b64decode(request.content),
+            request.document_metadata.kind
+        )
 
         print("Add table...")
 
@@ -75,7 +76,38 @@ class Librarian:
         )
 
     async def remove_document(self, request):
-        raise RuntimeError("Not implemented")
+
+        print("REMOVING...")
+
+        if not await self.table_store.document_exists(
+                request.user,
+                request.document_id,
+        ):
+            raise RuntimeError("Document does not exist")
+
+        object_id = await self.table_store.get_document_object_id(
+            request.user,
+            request.document_id
+        )
+
+        # Remove blob...
+        await self.blob_store.remove(object_id)
+
+        # Remove doc table row
+        await self.table_store.remove_document(
+            request.user,
+            request.document_id
+        )
+
+        print("Remove complete", flush=True)
+
+        return LibrarianResponse(
+            error = None,
+            document_metadata = None,
+            content = None,
+            document_metadatas = None,
+            processing_metadatas = None,
+        )
 
     async def update_document(self, request):
 

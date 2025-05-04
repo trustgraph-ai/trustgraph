@@ -187,9 +187,13 @@ class TableStore:
         """)
 
         self.get_document_stmt = self.cassandra.prepare("""
-            SELECT user, time, kind, title, comments,
-            metadata, tags, object_id
+            SELECT time, kind, title, comments, metadata, tags, object_id
             FROM document
+            WHERE user = ? AND id = ?
+        """)
+
+        self.delete_document_stmt = self.cassandra.prepare("""
+            DELETE FROM document
             WHERE user = ? AND id = ?
         """)
 
@@ -329,6 +333,31 @@ class TableStore:
 
         print("Update complete", flush=True)
 
+    async def remove_document(self, user, document_id):
+
+        print("Removing document", document_id)
+
+        while True:
+
+            try:
+
+                resp = self.cassandra.execute(
+                    self.delete_document_stmt,
+                    (
+                        user, document_id
+                    )
+                )
+
+                break
+
+            except Exception as e:
+
+                print("Exception:", type(e))
+                print(f"{e}, retry...", flush=True)
+                await asyncio.sleep(1)
+
+        print("Delete complete", flush=True)
+
     async def add_triples(self, m):
 
         when = int(time.time() * 1000)
@@ -422,6 +451,78 @@ class TableStore:
         print(lst)
 
         return lst
+
+    async def get_document(self, user, id):
+
+        print("GET")
+
+        while True:
+
+            try:
+
+                resp = self.cassandra.execute(
+                    self.get_document_stmt,
+                    (user, id)
+                )
+
+                print("OK")
+                break
+
+            except Exception as e:
+                print("Exception:", type(e))
+                print(f"{e}, retry...", flush=True)
+                await asyncio.sleep(1)
+
+
+        for row in resp:
+            doc = DocumentMetadata(
+                id = id,
+                user = user,
+                time = int(time.mktime(row[0].timetuple())),
+                kind = row[1],
+                title = row[2],
+                comments = row[3],
+                metadata = [
+                    Triple(
+                        s=Value(value=m[0], is_uri=m[1]),
+                        p=Value(value=m[2], is_uri=m[3]),
+                        o=Value(value=m[4], is_uri=m[5])
+                    )
+                    for m in row[4]
+                ],
+                tags = row[5],
+                object_id = row[6],
+            )
+            return doc
+
+        raise RuntimeError("No such document row?")
+
+    async def get_document_object_id(self, user, id):
+
+        print("GET")
+
+        while True:
+
+            try:
+
+                resp = self.cassandra.execute(
+                    self.get_document_stmt,
+                    (user, id)
+                )
+
+                print("OK")
+                break
+
+            except Exception as e:
+                print("Exception:", type(e))
+                print(f"{e}, retry...", flush=True)
+                await asyncio.sleep(1)
+
+
+        for row in resp:
+            return row[6]
+
+        raise RuntimeError("No such document row?")
 
     async def add_graph_embeddings(self, m):
 
