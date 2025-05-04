@@ -113,7 +113,6 @@ class Processor(AsyncProcessor):
             bucket_name = bucket_name,
             keyspace = keyspace,
             load_document = self.load_document,
-            load_text = self.load_text,
         )
 
         self.register_config_handler(self.on_librarian_config)
@@ -145,38 +144,66 @@ class Processor(AsyncProcessor):
 
         pass
 
-    async def load_document(self, document):
+    async def load_document(self, document, processing, content):
 
-        doc = Document(
-            metadata = Metadata(
-                id = document.id,
-                metadata = document.metadata,
-                user = document.user,
-                collection = document.collection
-            ),
-            data = document.document
+        print("Ready for processing...")
+
+        print(document, processing, len(content))
+
+        if processing.flow not in self.flows:
+            raise RuntimeError("Invalid flow ID")
+
+        flow = self.flows[processing.flow]
+
+        if document.kind == "text/plain":
+            kind = "text-load"
+        elif document.kind == "application/pdf":
+            kind = "document-load"
+        else:
+            raise RuntimeError("Document with a MIME type I don't know")
+
+        q = flow["interfaces"][kind]
+
+        if kind == "text-load":
+            doc = TextDocument(
+                metadata = Metadata(
+                    id = document.id,
+                    metadata = document.metadata,
+                    user = processing.user,
+                    collection = processing.collection
+                ),
+                text = content,
+            )
+            schema = TextDocument
+        else:
+            doc = Document(
+                metadata = Metadata(
+                    id = document.id,
+                    metadata = document.metadata,
+                    user = processing.user,
+                    collection = processing.collection
+                ),
+                data = base64.b64encode(content).decode("utf-8")
+
+            )
+            schema = Document
+
+        print(f"Submit on queue {q}...")
+
+        pub = Publisher(
+            self.pulsar_client, q, schema=schema
         )
 
-        
+        await pub.start()
 
-        self.document_load.send(None, doc)
+        # FIXME: Time wait kludge?
+        await asyncio.sleep(1)
 
-    async def load_text(self, document):
+        await pub.send(None, doc)
 
-        text = base64.b64decode(document.document)
-        text = text.decode("utf-8")
+        await pub.stop()
 
-        doc = TextDocument(
-            metadata = Metadata(
-                id = document.id,
-                metadata = document.metadata,
-                user = document.user,
-                collection = document.collection
-            ),
-            text = text,
-        )
-
-        self.text_load.send(None, doc)
+        print("Document submitted")
 
     async def process_request(self, v):
 
