@@ -102,7 +102,7 @@ def serialize_document_metadata(message):
     if message.metadata:
         ret["metadata"] = serialize_subgraph(message.metadata)
 
-    if message.kind:
+    if message.user:
         ret["user"] = message.user
 
     if message.tags:
@@ -123,7 +123,7 @@ def serialize_processing_metadata(message):
     if message.time:
         ret["time"] = message.time
 
-    if message.kind:
+    if message.flow:
         ret["flow"] = message.flow
 
     if message.user:

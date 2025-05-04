@@ -188,15 +188,27 @@ class Librarian:
         ):
             raise RuntimeError("Processing already exists")
 
+        print("Does not already exist")
+
         doc = await self.table_store.get_document(
             request.processing_metadata.user,
             request.processing_metadata.document_id
         )
 
+        print("Got doc")
+
         object_id = await self.table_store.get_document_object_id(
-            request.user,
-            request.document_id
+            request.processing_metadata.user,
+            request.processing_metadata.document_id
         )
+
+        print("Got object ID")
+
+        content = await self.blob_store.get(
+            object_id
+        )
+
+        print("Got content")
 
         print("Add processing...")
 
@@ -224,7 +236,7 @@ class Librarian:
 
         if not await self.table_store.processing_exists(
                 request.user,
-                request.document_id,
+                request.processing_id,
         ):
             raise RuntimeError("Processing object does not exist")
 

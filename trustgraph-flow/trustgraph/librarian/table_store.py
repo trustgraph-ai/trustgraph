@@ -1,6 +1,7 @@
 
 from .. schema import LibrarianRequest, LibrarianResponse
-from .. schema import DocumentMetadata, Error, Triple, Value
+from .. schema import DocumentMetadata, ProcessingMetadata
+from .. schema import Error, Triple, Value
 from .. knowledge import hash
 from .. exceptions import RequestError
 
@@ -556,6 +557,21 @@ class TableStore:
 
         raise RuntimeError("No such document row?")
 
+    async def processing_exists(self, user, id):
+
+        resp = self.cassandra.execute(
+            self.test_processing_exists_stmt,
+            ( user, id )
+        )
+
+        # If a row exists, document exists.  It's a cursor, can't just
+        # count the length
+
+        for row in resp:
+            return True
+
+        return False
+
     async def add_processing(self, processing):
 
         print("Adding processing", processing.id)
@@ -568,8 +584,9 @@ class TableStore:
                     self.insert_processing_stmt,
                     (
                         processing.id, processing.document_id,
-                        processing.time, processing.flow, processing.user,
-                        processing.collection, processing.tags
+                        int(processing.time * 1000), processing.flow,
+                        processing.user, processing.collection,
+                        processing.tags
                     )
                 )
 
