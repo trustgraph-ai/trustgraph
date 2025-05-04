@@ -179,6 +179,20 @@ class TableStore:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """)
 
+        self.get_document_stmt = self.cassandra.prepare("""
+            SELECT user, time, kind, title, comments,
+            metadata, tags, object_id
+            FROM document
+            WHERE user = ? AND id = ?
+        """)
+
+        self.test_document_exists_stmt = self.cassandra.prepare("""
+            SELECT id
+            FROM document
+            WHERE user = ? AND id = ?
+            LIMIT 1
+        """)
+
         self.list_document_stmt = self.cassandra.prepare("""
             SELECT
                 id, time, kind, title, comments, metadata, tags, object_id
@@ -223,12 +237,22 @@ class TableStore:
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """)
 
-    def add_document(self, document, object_id):
+    def document_exists(self, user, id):
 
-        # if document.kind not in (
-        #         "text/plain", "application/pdf"
-        # ):
-        #     raise RequestError("Invalid document kind: " + document.kind)
+        resp = self.cassandra.execute(
+            self.test_document_exists_stmt,
+            ( user, id )
+        )
+
+        # If a row exists, document exists.  It's a cursor, can't just
+        # count the length
+
+        for row in resp:
+            return True
+
+        return False
+
+    def add_document(self, document, object_id):
 
         # Create timestamp
         when = int(time.time() * 1000)

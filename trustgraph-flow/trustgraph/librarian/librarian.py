@@ -37,6 +37,12 @@ class Librarian:
                 "Invalid document kind: " + request.document_metadata.kind
             )
 
+        if self.table_store.document_exists(
+                request.document_metadata.user,
+                request.document_metadata.id
+        ):
+            raise RuntimeError("Document already exists")
+
         # Create object ID for blob
         object_id = uuid.uuid4()
 
