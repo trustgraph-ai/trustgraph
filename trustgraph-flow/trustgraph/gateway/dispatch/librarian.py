@@ -27,7 +27,9 @@ class LibrarianRequestor(ServiceRequestor):
 
     def to_request(self, body):
 
-        print("to_request")
+        # Content gets base64 decoded & encoded again.  It at least makes
+        # sure payload is valid base64.
+
         if "document-metadata" in body:
             dm = to_document_metadata(body["document-metadata"])
         else:
@@ -43,9 +45,6 @@ class LibrarianRequestor(ServiceRequestor):
         else:
             criteria = None
 
-        print("a")
-        print(type(body["content"]))
-
         if "content" in body:
             content = base64.b64decode(
                 body["content"].encode("utf-8")
@@ -53,25 +52,19 @@ class LibrarianRequestor(ServiceRequestor):
         else:
             content = None
 
-        print("b")
-
-        print(type(content))
-
         return LibrarianRequest(
             operation = body.get("operation", None),
             document_id = body.get("document-id", None),
             processing_id = body.get("processing-id", None),
             document_metadata = dm,
             processing_metadata = pm,
-            content = content,
+            content = base64.b64encode(content).decode("utf-8"),
             user = body.get("user", None),
             collection = body.get("collection", None),
             criteria = criteria,
         )
 
     def from_response(self, message):
-
-        print("from_response")
 
         response = {}
 
@@ -81,9 +74,7 @@ class LibrarianRequestor(ServiceRequestor):
             )
 
         if message.content:
-            response["content"] = base64.b64encode(
-                message["content"]
-            ).decode("utf-8")
+            response["content"] = message.content
 
         if message.document_metadatas:
             response["document-metadatas"] = [

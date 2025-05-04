@@ -4,6 +4,7 @@ from .. knowledge import hash
 from .. exceptions import RequestError
 from . table_store import TableStore
 from . blob_store import BlobStore
+import base64
 
 import uuid
 
@@ -29,8 +30,6 @@ class Librarian:
 
     async def add_document(self, request):
 
-        print(request)
-
         if request.document_metadata.kind not in (
                 "text/plain", "application/pdf"
         ):
@@ -41,12 +40,10 @@ class Librarian:
         # Create object ID for blob
         object_id = uuid.uuid4()
 
-        print("HERE")
-        self.blob_store.add(object_id, request.content,
+        self.blob_store.add(object_id, base64.b64decode(request.content),
                             request.document_metadata.kind)
 
         self.table_store.add_document(request.document_metadata, object_id)
-        print("HERE2")
 
         # if document.kind == "application/pdf":
         #     await self.load_document(document)
@@ -90,10 +87,6 @@ class Librarian:
     async def list(self, user, collection):
 
         raise RuntimeError("Not implemented")
-
-
-
-        print("list")
 
         info = self.table_store.list(user, collection)
 

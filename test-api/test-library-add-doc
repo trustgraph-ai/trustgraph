@@ -10,7 +10,7 @@ url = "http://localhost:8088/api/v1/"
 
 ############################################################################
 
-id = "http://trustgraph.ai/doc/12345678"
+id = "http://trustgraph.ai/doc/9fdee98b-b259-40ac-bcb9-8e82ccedeb04"
 
 with open("docs/README.cats", "rb") as f:
     doc = base64.b64encode(f.read()).decode("utf-8")
