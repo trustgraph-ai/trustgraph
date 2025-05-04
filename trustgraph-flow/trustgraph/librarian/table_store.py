@@ -553,6 +553,58 @@ class TableStore:
 
         raise RuntimeError("No such document row?")
 
+    async def add_processing(self, processing):
+
+        print("Adding processing", processing.id)
+
+        while True:
+
+            try:
+
+                resp = self.cassandra.execute(
+                    self.insert_processing_stmt,
+                    (
+                        processing.id, processing.document_id,
+                        processing.time, processing.flow, processing.user,
+                        processing.collection, processing.tags
+                    )
+                )
+
+                break
+
+            except Exception as e:
+
+                print("Exception:", type(e))
+                print(f"{e}, retry...", flush=True)
+                await asyncio.sleep(1)
+
+        print("Add complete", flush=True)
+
+    async def remove_processing(self, user, processing_id):
+
+        print("Removing processing", processing_id)
+
+        while True:
+
+            try:
+
+                resp = self.cassandra.execute(
+                    self.delete_processing_stmt,
+                    (
+                        user, processing_id
+                    )
+                )
+
+                break
+
+            except Exception as e:
+
+                print("Exception:", type(e))
+                print(f"{e}, retry...", flush=True)
+                await asyncio.sleep(1)
+
+        print("Delete complete", flush=True)
+
     async def add_graph_embeddings(self, m):
 
         when = int(time.time() * 1000)
