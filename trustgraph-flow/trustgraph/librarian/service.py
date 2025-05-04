@@ -206,6 +206,7 @@ class Processor(AsyncProcessor):
         if v.operation not in impls:
             raise RequestError(f"Invalid operation: {v.operation}")
 
+        print("HANDLING...")
         return await impls[v.operation](v)
 
     async def on_librarian_request(self, msg, consumer, flow):
@@ -221,7 +222,15 @@ class Processor(AsyncProcessor):
         print(f"Handling input {id}...", flush=True)
 
         try:
-            func = await self.process_request(v)
+
+            resp = await self.process_request(v)
+
+            await self.librarian_response_producer.send(
+                resp, properties={"id": id}
+            )
+
+            return
+
         except RequestError as e:
             resp = LibrarianResponse(
                 error = Error(
@@ -248,43 +257,6 @@ class Processor(AsyncProcessor):
             )
 
             return
-
-        try:
-            resp = await func()
-            print("->", resp)
-        except RequestError as e:
-            resp = LibrarianResponse(
-                error = Error(
-                    type = "request-error",
-                    message = str(e),
-                )
-            )
-
-            await self.librarian_response_producer.send(
-                resp, properties={"id": id}
-            )
-
-            return
-        except Exception as e:
-            print("Exception:", e, flush=True)
-            resp = LibrarianResponse(
-                error = Error(
-                    type = "processing-error",
-                    message = "Unhandled error: " + str(e),
-                )
-            )
-
-            await self.librarian_response_producer.send(
-                resp, properties={"id": id}
-            )
-
-            return
-
-        print("Send response..!.", flush=True)
-
-        await self.librarian_response_producer.send(
-            resp, properties={"id": id}
-        )
 
         print("Done.", flush=True)
 

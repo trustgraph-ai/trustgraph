@@ -4,6 +4,7 @@ import requests
 import json
 import sys
 import base64
+import time
 
 url = "http://localhost:8088/api/v1/"
 
@@ -17,9 +18,13 @@ with open(source, "rb") as f:
     doc = base64.b64encode(f.read()).decode("utf-8")
 
 input = {
-    "operation": "add",
-    "id": id,
-    "document": {
+    "operation": "add-document",
+    "document-metadata": {
+        "id": id,
+        "time": int(time.time()),
+        "kind": "application/pdf",
+        "title": "Application of SAE ARP4754A to Flight Critical Systems",
+        "comments": "Application of federal safety standards to NASA spacecraft",
         "metadata": [
             {
                 "s": {
@@ -61,11 +66,10 @@ input = {
                 },
             },
         ],
-        "document": doc,
-        "kind": "application/pdf",
         "user": "trustgraph",
-        "collection": "default",
-    }
+        "tags": ["nasa", "safety-engineering"],
+    },
+    "content": doc,
 }
 
 resp = requests.post(

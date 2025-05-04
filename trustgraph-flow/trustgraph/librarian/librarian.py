@@ -1,3 +1,4 @@
+
 from .. schema import LibrarianRequest, LibrarianResponse, Error, Triple
 from .. knowledge import hash
 from .. exceptions import RequestError
@@ -27,33 +28,41 @@ class Librarian:
         self.load_text = load_text
 
     async def add_document(self, request):
-        raise RuntimeError("Not implemented")
 
-        if document.kind not in (
+        print(request)
+
+        if request.document_metadata.kind not in (
                 "text/plain", "application/pdf"
         ):
-            raise RequestError("Invalid document kind: " + document.kind)
+            raise RequestError(
+                "Invalid document kind: " + request.document_metadata.kind
+            )
 
         # Create object ID for blob
-        object_id = str(uuid.uuid4())
+        object_id = uuid.uuid4()
 
+        print("HERE")
         self.blob_store.add(object_id, request.content,
                             request.document_metadata.kind)
 
-        self.table_store.add(object_id, document)
+        self.table_store.add_document(request.document_metadata, object_id)
+        print("HERE2")
 
-        if document.kind == "application/pdf":
-            await self.load_document(document)
-        elif document.kind == "text/plain":
-            await self.load_text(document)
+        # if document.kind == "application/pdf":
+        #     await self.load_document(document)
+        # elif document.kind == "text/plain":
+        #     await self.load_text(document)
 
         print("Add complete", flush=True)
 
         return LibrarianResponse(
             error = None,
-            document = None,
-            info = None,
+            document_metadata = None,
+            content = None,
+            document_metadatas = None,
+            processing_metadatas = None,
         )
+
     async def remove_document(self, request):
         raise RuntimeError("Not implemented")
 

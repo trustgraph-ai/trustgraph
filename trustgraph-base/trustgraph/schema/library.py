@@ -63,7 +63,7 @@ from . documents import Document, TextDocument
 # search(<key,op,value>[]) : id[]
 
 class DocumentMetadata(Record):
-#    id = String()
+    id = String()
     time = Long()
     kind = String()
     title = String()
@@ -73,6 +73,7 @@ class DocumentMetadata(Record):
     tags = Array(String())
 
 class ProcessingMetadata(Record):
+    id = String()
     document_id = String()
     time = Long()
     flow = String()

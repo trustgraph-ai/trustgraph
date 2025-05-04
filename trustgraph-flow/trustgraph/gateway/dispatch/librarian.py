@@ -1,4 +1,6 @@
 
+import base64
+
 from ... schema import LibrarianRequest, LibrarianResponse
 from ... schema import librarian_request_queue
 from ... schema import librarian_response_queue
@@ -25,6 +27,7 @@ class LibrarianRequestor(ServiceRequestor):
 
     def to_request(self, body):
 
+        print("to_request")
         if "document-metadata" in body:
             dm = to_document_metadata(body["document-metadata"])
         else:
@@ -40,12 +43,19 @@ class LibrarianRequestor(ServiceRequestor):
         else:
             criteria = None
 
+        print("a")
+        print(type(body["content"]))
+
         if "content" in body:
             content = base64.b64decode(
-                body["content"].decode("utf-8")
-            ).encode("utf-8")
+                body["content"].encode("utf-8")
+            )
         else:
             content = None
+
+        print("b")
+
+        print(type(content))
 
         return LibrarianRequest(
             operation = body.get("operation", None),
@@ -61,6 +71,8 @@ class LibrarianRequestor(ServiceRequestor):
 
     def from_response(self, message):
 
+        print("from_response")
+
         response = {}
 
         if message.document_metadata:
@@ -70,8 +82,8 @@ class LibrarianRequestor(ServiceRequestor):
 
         if message.content:
             response["content"] = base64.b64encode(
-                message["content"].decode("utf-8")
-            ).encode("utf-8")
+                message["content"]
+            ).decode("utf-8")
 
         if message.document_metadatas:
             response["document-metadatas"] = [

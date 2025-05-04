@@ -84,8 +84,8 @@ def serialize_document_metadata(message):
 
     ret = {}
 
-#    if message.id:
-#        ret["id"] = message.id
+    if message.id:
+        ret["id"] = message.id
 
     if message.time:
         ret["time"] = message.time
@@ -115,6 +115,9 @@ def serialize_processing_metadata(message):
     ret = {}
 
     if message.id:
+        ret["id"] = message.id
+
+    if message.id:
         ret["document_id"] = message.document_id
 
     if message.time:
@@ -137,7 +140,7 @@ def serialize_processing_metadata(message):
 def to_document_metadata(x):
 
     return DocumentMetadata(
-#        id = x.get("id", None),
+        id = x.get("id", None),
         time = x.get("time", None),
         kind = x.get("kind", None),
         title = x.get("title", None),
@@ -150,6 +153,7 @@ def to_document_metadata(x):
 def to_processing_metadata(x):
 
     return ProcessingMetadata(
+        id = x.get("id", None),
         document_id = x.get("document_id", None),
         time = x.get("time", None),
         flow = x.get("flow", None),

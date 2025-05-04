@@ -85,6 +85,21 @@ class TableStore:
             ON document (object_id)
         """);
 
+        print("processing table...", flush=True)
+
+        self.cassandra.execute("""
+            CREATE TABLE IF NOT EXISTS processing (
+                id text,
+                document_id text,
+                time timestamp,
+                flow text,
+                user text,
+                collection text,
+                tags list<text>,
+                PRIMARY KEY (user, id)
+            );
+        """);
+
         return
 
         print("triples table...", flush=True)
@@ -157,8 +172,9 @@ class TableStore:
         self.insert_document_stmt = self.cassandra.prepare("""
             INSERT INTO document
             (
-                id, user, time, kind, title, comments, metadata, tags,
-                object_id
+                id, user, time,
+                kind, title, comments,
+                metadata, tags, object_id
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """)
@@ -207,17 +223,17 @@ class TableStore:
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """)
 
-    def add(self, object_id, document):
+    def add_document(self, document, object_id):
 
-        if document.kind not in (
-                "text/plain", "application/pdf"
-        ):
-            raise RequestError("Invalid document kind: " + document.kind)
+        # if document.kind not in (
+        #         "text/plain", "application/pdf"
+        # ):
+        #     raise RequestError("Invalid document kind: " + document.kind)
 
-        # Create random doc ID
+        # Create timestamp
         when = int(time.time() * 1000)
 
-        print("Adding", document.id, object_id)
+        print("Adding document", document.id, object_id)
 
         metadata = [
             (
@@ -234,10 +250,9 @@ class TableStore:
                 resp = self.cassandra.execute(
                     self.insert_document_stmt,
                     (
-                        document.id, document.user, document.collection,
-                        document.kind, object_id, when,
-                        document.title, document.comments,
-                        metadata
+                        document.id, document.user, when,
+                        document.kind, document.title, document.comments,
+                        metadata, document.tags, object_id
                     )
                 )
 
