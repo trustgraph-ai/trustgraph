@@ -14,9 +14,9 @@ default_user = "trustgraph"
 
 def show_docs(url, user):
 
-    api = Api(url)
+    api = Api(url).library()
 
-    docs = api.library_get_documents(user=user)
+    docs = api.get_documents(user=user)
 
     if len(docs) == 0:
         print("No documents.")

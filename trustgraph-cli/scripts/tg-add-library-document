@@ -25,7 +25,7 @@ class Loader:
             self, url, user, metadata, title, comments, kind, tags
     ):
 
-        self.api = Api(url)
+        self.api = Api(url).library()
 
         self.user = user
         self.metadata = metadata
@@ -57,7 +57,7 @@ class Loader:
 
             self.metadata.id = id
 
-            self.api.library_add_document(
+            self.api.add_document(
                 document=data, id=id, metadata=self.metadata, 
                 user=self.user, kind=self.kind, title=self.title,
                 comments=self.comments, tags=self.tags

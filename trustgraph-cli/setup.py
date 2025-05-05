@@ -72,6 +72,7 @@ setuptools.setup(
         "scripts/tg-show-flows",
         "scripts/tg-show-library-documents",
         "scripts/tg-add-library-document",
+        "scripts/tg-remove-library-document",
         "scripts/tg-show-processor-state",
         "scripts/tg-show-prompts",
         "scripts/tg-show-token-costs",
