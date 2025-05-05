@@ -36,6 +36,7 @@ def show_docs(url, user):
             table,
             tablefmt="pretty",
             stralign="left",
+            maxcolwidths=[None, 55],
         ))
         print()
 

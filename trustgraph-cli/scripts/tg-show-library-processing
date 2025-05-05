@@ -36,6 +36,7 @@ def show_procs(url, user):
             table,
             tablefmt="pretty",
             stralign="left",
+            maxcolwidths=[None, 50],
         ))
         print()
 

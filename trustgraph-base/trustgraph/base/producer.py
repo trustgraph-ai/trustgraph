@@ -4,7 +4,9 @@ import asyncio
 
 class Producer:
 
-    def __init__(self, client, topic, schema, metrics=None):
+    def __init__(self, client, topic, schema, metrics=None,
+                 chunking_enabled=True):
+
         self.client = client
         self.topic = topic
         self.schema = schema
@@ -13,6 +15,8 @@ class Producer:
 
         self.running = True
         self.producer = None
+
+        self.chunking_enabled = chunking_enabled
 
     def __del__(self):
 
@@ -38,7 +42,8 @@ class Producer:
                 print("Connect publisher to", self.topic, "...", flush=True)
                 self.producer = self.client.create_producer(
                     topic = self.topic,
-                    schema = JsonSchema(self.schema)
+                    schema = JsonSchema(self.schema),
+                    chunking_enabled = self.chunking_enabled,
                 )
                 print("Connected to", self.topic, flush=True)
             except Exception as e:

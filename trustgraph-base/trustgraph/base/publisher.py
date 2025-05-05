@@ -37,6 +37,7 @@ class Publisher:
         while self.running:
 
             try:
+
                 producer = self.client.create_producer(
                     topic=self.topic,
                     schema=JsonSchema(self.schema),
