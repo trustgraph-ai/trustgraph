@@ -14,9 +14,9 @@ default_collection = 'default'
 
 def show_graph(url, flow_id, user, collection):
 
-    api = Api(url)
+    api = Api(url).flow().id(flow_id)
 
-    rows = api.flow(flow_id).triples_query(
+    rows = api.triples_query(
         user=user, collection=collection,
         s=None, p=None, o=None, limit=10_000,
     )

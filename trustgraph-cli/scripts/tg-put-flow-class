@@ -6,7 +6,6 @@ Dumps out the current configuration
 
 import argparse
 import os
-import tabulate
 from trustgraph.api import Api
 import json
 
@@ -16,7 +15,7 @@ def put_flow_class(url, class_name, config):
 
     api = Api(url)
 
-    class_names = api.flow_put_class(class_name, config)
+    class_names = api.flow().put_class(class_name, config)
 
 def main():
 

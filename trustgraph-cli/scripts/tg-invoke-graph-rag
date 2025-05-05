@@ -21,9 +21,9 @@ def question(
         max_subgraph_size, max_path_length
 ):
 
-    api = Api(url)
+    api = Api(url).flow().id(flow_id)
 
-    resp = api.flow(flow_id).graph_rag(
+    resp = api.graph_rag(
         question=question, user=user, collection=collection,
         entity_limit=entity_limit, triple_limit=triple_limit,
         max_subgraph_size=max_subgraph_size,

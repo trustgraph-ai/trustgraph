@@ -18,9 +18,9 @@ default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 
 def query(url, flow_id, template_id, variables):
 
-    api = Api(url)
+    api = Api(url).flow().id(flow_id)
 
-    resp = api.flow(flow_id).prompt(id=template_id, variables=variables)
+    resp = api.prompt(id=template_id, variables=variables)
 
     if isinstance(resp, str):
         print(resp)

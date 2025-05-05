@@ -11,11 +11,11 @@ import json
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 
-def get_interface(api, i):
+def get_interface(config_api, i):
 
     key = ConfigKey("interface-descriptions", i)
 
-    value = api.config_get([key])[0].value
+    value = config_api.get([key])[0].value
 
     return json.loads(value)
 
@@ -49,15 +49,17 @@ def describe_interfaces(intdefs, flow):
 def show_flows(url):
 
     api = Api(url)
+    config_api = api.config()
+    flow_api = api.flow()
 
-    interface_names = api.config_list("interface-descriptions")
+    interface_names = config_api.list("interface-descriptions")
 
     interface_defs = {
-        i: get_interface(api, i)
+        i: get_interface(config_api, i)
         for i in interface_names
     }
 
-    flow_ids = api.flow_list()
+    flow_ids = flow_api.list()
 
     if len(flow_ids) == 0:
         print("No flows.")
@@ -67,7 +69,7 @@ def show_flows(url):
 
     for id in flow_ids:
 
-        flow = api.flow_get(id)
+        flow = flow_api.get(id)
 
         table = []
         table.append(("id", id))
