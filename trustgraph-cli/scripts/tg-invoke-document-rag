@@ -15,9 +15,9 @@ default_doc_limit = 10
 
 def question(url, flow_id, question, user, collection, doc_limit):
 
-    api = Api(url)
+    api = Api(url).flow().id(flow_id)
 
-    resp = api.flow(flow_id).document_rag(
+    resp = api.document_rag(
         question=question, user=user, collection=collection,
         doc_limit=doc_limit,
     )

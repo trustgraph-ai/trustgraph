@@ -17,9 +17,9 @@ default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 
 def show_config(url):
 
-    api = Api(url)
+    api = Api(url).config()
 
-    models = api.config_list("token-costs")
+    models = api.list("token-costs")
 
     costs = []
 
@@ -29,7 +29,7 @@ def show_config(url):
     for model in models:
 
         try:
-            values = json.loads(api.config_get([
+            values = json.loads(api.get([
                 ConfigKey(type="token-costs", key=model),
             ])[0].value)
             costs.append((

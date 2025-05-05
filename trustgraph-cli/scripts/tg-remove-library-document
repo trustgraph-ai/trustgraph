@@ -1,54 +1,55 @@
 #!/usr/bin/env python3
 
 """
-Dumps out the current configuration
+Remove a PDF document from the library
 """
 
 import argparse
 import os
+import uuid
+
 from trustgraph.api import Api
-import json
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_user = 'trustgraph'
 
-def put_flow_class(url, class_name, config):
 
-    api = Api(url)
+def remove_doc(url, user, id):
 
-    class_names = api.flow().put_class(class_name, config)
+    api = Api(url).library()
+
+    api.remove_document(user=user, id=id)
 
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-put-flow-class',
+        prog='tg-remove-library-document',
         description=__doc__,
     )
 
     parser.add_argument(
-        '-u', '--api-url',
+        '-u', '--url',
         default=default_url,
         help=f'API URL (default: {default_url})',
     )
 
     parser.add_argument(
-        '-n', '--class-name',
-        help=f'Flow class name',
+        '-U', '--user',
+        default=default_user,
+        help=f'User ID (default: {default_user})'
     )
 
     parser.add_argument(
-        '-c', '--config',
-        help=f'Initial configuration to load',
+        '--identifier', '--id',
+        required=True,
+        help=f'Document ID'
     )
 
     args = parser.parse_args()
 
     try:
 
-        put_flow_class(
-            url=args.api_url,
-            class_name=args.class_name,
-            config=json.loads(args.config),
-        )
+        remove_doc(args.url, args.user, args.identifier)
 
     except Exception as e:
 

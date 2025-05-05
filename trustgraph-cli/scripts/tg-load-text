@@ -33,7 +33,7 @@ class Loader:
             metadata,
     ):
 
-        self.api = Api(url).flow(flow_id)
+        self.api = Api(url).flow().id(flow_id)
 
         self.user = user
         self.collection = collection

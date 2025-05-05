@@ -2,6 +2,8 @@
 
 """
 Loads Graph embeddings into TrustGraph processing.
+
+FIXME: This hasn't been updated following API gateway change.
 """
 
 import pulsar
