@@ -114,3 +114,64 @@ class Library:
         object = self.request(input)
 
         return {}
+
+    def start_processing(
+            self, document_id, processing_id, flow="0000",
+            user="trustgraph", collection="default", tags=[],
+    ):
+
+        input = {
+            "operation": "add-processing",
+            "processing-metadata": {
+                "id": processing_id,
+                "document-id": document_id,
+                "time": int(time.time()),
+                "flow": flow,
+                "user": user,
+                "collection": collection,
+                "tags": tags,
+            }
+        }
+
+        object = self.request(input)
+
+        return {}
+
+    def stop_processing(
+            self, processing_id, user="trustgraph"
+    ):
+
+        input = {
+            "operation": "remove-processing",
+            "processing-id": processing_id,
+            "user": user,
+        }
+
+        object = self.request(input)
+
+        return {}
+
+    def get_processing(self, user="trustgraph"):
+
+        input = {
+            "operation": "list-processing",
+            "user": user,
+        }
+
+        object = self.request(input)
+
+        try:
+            return [
+                ProcessingMetadata(
+                    id = v["id"],
+                    document_id = v["document-id"],
+                    time = datetime.datetime.fromtimestamp(v["time"]),
+                    flow = v["flow"],
+                    collection = v["collection"],
+                    tags = v["tags"]
+                )
+                for v in object["processing-metadatas"]
+            ]
+        except Exception as e:
+            print(e)
+            raise ProtocolException(f"Response not formatted correctly")
