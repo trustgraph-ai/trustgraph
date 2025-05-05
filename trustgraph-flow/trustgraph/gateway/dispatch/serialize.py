@@ -105,7 +105,7 @@ def serialize_document_metadata(message):
     if message.user:
         ret["user"] = message.user
 
-    if message.tags:
+    if message.tags is not None:
         ret["tags"] = message.tags
 
     return ret
@@ -132,7 +132,7 @@ def serialize_processing_metadata(message):
     if message.collection:
         ret["collection"] = message.collection
 
-    if message.tags:
+    if message.tags is not None:
         ret["tags"] = message.tags
 
     return ret

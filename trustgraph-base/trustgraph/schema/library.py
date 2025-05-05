@@ -125,10 +125,13 @@ class LibrarianResponse(Record):
     document_metadatas = Array(DocumentMetadata())
     processing_metadatas = Array(ProcessingMetadata())
 
+# FIXME: Is this right?  Using persistence on librarian so that
+# message chunking works
+
 librarian_request_queue = topic(
-    'librarian', kind='non-persistent', namespace='request'
+    'librarian', kind='persistent', namespace='request'
 )
 librarian_response_queue = topic(
-    'librarian', kind='non-persistent', namespace='response',
+    'librarian', kind='persistent', namespace='response',
 )
 
