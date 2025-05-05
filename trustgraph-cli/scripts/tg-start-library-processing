@@ -13,15 +13,24 @@ default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_user = "trustgraph"
 
 def start_processing(
-        url, user, document_id, processing_id, flow, collection, tags
+        url, user, document_id, id, flow, collection, tags
 ):
 
     api = Api(url).library()
 
-    tags = tags.split(",")
+    if tags:
+        tags = tags.split(",")
+    else:
+        tags = []
 
-    api.start_processing(document_id, processing_id, flow, user,
-                         collection, tags)
+    api.start_processing(
+        id = id,
+        document_id = document_id,
+        flow = flow,
+        user = user,
+        collection = collection,
+        tags = tags
+    )
 
 def main():
 
@@ -49,7 +58,7 @@ def main():
     )
 
     parser.add_argument(
-        '-d', '--did', '--document-id',
+        '-d', '--document-id',
         required=True,
         help=f'Document ID',
     )
@@ -79,7 +88,7 @@ def main():
             url = args.api_url,
             user = args.user,
             document_id = args.document_id,
-            processing_id = args.id,
+            id = args.id,
             flow = args.flow_id,
             collection = args.collection,
             tags = args.tags

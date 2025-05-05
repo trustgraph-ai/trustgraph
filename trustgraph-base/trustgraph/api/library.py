@@ -196,14 +196,14 @@ class Library:
         return {}
 
     def start_processing(
-            self, document_id, processing_id, flow="0000",
+            self, id, document_id, flow="0000",
             user="trustgraph", collection="default", tags=[],
     ):
 
         input = {
             "operation": "add-processing",
             "processing-metadata": {
-                "id": processing_id,
+                "id": id,
                 "document-id": document_id,
                 "time": int(time.time()),
                 "flow": flow,
@@ -218,12 +218,12 @@ class Library:
         return {}
 
     def stop_processing(
-            self, processing_id, user="trustgraph"
+            self, id, user="trustgraph", 
     ):
 
         input = {
             "operation": "remove-processing",
-            "processing-id": processing_id,
+            "processing-id": id,
             "user": user,
         }
 

@@ -18,7 +18,7 @@ def stop_processing(
 
     api = Api(url).library()
 
-    api.stop_processing(user, id)
+    api.stop_processing(user = user, id = id)
 
 def main():
 
