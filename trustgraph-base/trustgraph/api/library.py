@@ -103,6 +103,89 @@ class Library:
             print(e)
             raise ProtocolException(f"Response not formatted correctly")
 
+    def get_document(self, user, id):
+
+        input = {
+            "operation": "get-document",
+            "user": user,
+            "document-id", id,
+        }
+
+        object = self.request(input)
+        doc = object["document-metadata"]
+
+        try:
+            DocumentMetadata(
+                id = doc["id"],
+                time = datetime.datetime.fromtimestamp(doc["time"]),
+                kind = doc["kind"],
+                title = doc["title"],
+                comments = doc.get("comments", ""),
+                metadata = [
+                    Triple(
+                        s = to_value(w["s"]),
+                        p = to_value(w["p"]),
+                        o = to_value(w["o"])
+                    )
+                    for w in doc["metadata"]
+                ],
+                user = doc["user"],
+                tags = doc["tags"]
+            )
+        except Exception as e:
+            print(e)
+            raise ProtocolException(f"Response not formatted correctly")
+
+    def update_document(self, user, id, metadata):
+                    "s": { "v": t["s"], "e": isinstance(t["s"], Uri) },
+                    "p": { "v": t["p"], "e": isinstance(t["p"], Uri) },
+                    "o": { "v": t["o"], "e": isinstance(t["o"], Uri) }
+
+        input = {
+            "operation": "update-document",
+            "document-metadata": {
+                "user": user,
+                "document-id", id,
+                "time": metadata.time,
+                "title": metadata.title,
+                "comments": metadata.comments,
+                metadata = [
+                    {
+                        "s": { "v": t["s"], "e": isinstance(t["s"], Uri) },
+                        "p": { "v": t["p"], "e": isinstance(t["p"], Uri) },
+                        "o": { "v": t["o"], "e": isinstance(t["o"], Uri) }
+                    }
+                    for t in metadata.metadata
+                ],
+                "tags": metadata.tags,
+            }
+        }
+
+        object = self.request(input)
+        doc = object["document-metadata"]
+
+        try:
+            DocumentMetadata(
+                id = doc["id"],
+                time = datetime.datetime.fromtimestamp(doc["time"]),
+                kind = doc["kind"],
+                title = doc["title"],
+                comments = doc.get("comments", ""),
+                metadata = [
+                    Triple(
+                        s = to_value(w["s"]),
+                        p = to_value(w["p"]),
+                        o = to_value(w["o"])
+                    )
+                    for w in doc["metadata"]
+                ],
+                user = doc["user"],
+                tags = doc["tags"]
+            )
+        except Exception as e:
+            print(e)
+            raise ProtocolException(f"Response not formatted correctly")
+
     def remove_document(self, user, id):
 
         input = {
@@ -151,7 +234,7 @@ class Library:
 
         return {}
 
-    def get_processing(self, user="trustgraph"):
+    def get_processings(self, user="trustgraph"):
 
         input = {
             "operation": "list-processing",
@@ -175,3 +258,4 @@ class Library:
         except Exception as e:
             print(e)
             raise ProtocolException(f"Response not formatted correctly")
+
