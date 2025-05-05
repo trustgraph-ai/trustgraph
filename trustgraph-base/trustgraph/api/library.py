@@ -108,7 +108,7 @@ class Library:
         input = {
             "operation": "get-document",
             "user": user,
-            "document-id", id,
+            "document-id": id,
         }
 
         object = self.request(input)
@@ -137,19 +137,16 @@ class Library:
             raise ProtocolException(f"Response not formatted correctly")
 
     def update_document(self, user, id, metadata):
-                    "s": { "v": t["s"], "e": isinstance(t["s"], Uri) },
-                    "p": { "v": t["p"], "e": isinstance(t["p"], Uri) },
-                    "o": { "v": t["o"], "e": isinstance(t["o"], Uri) }
 
         input = {
             "operation": "update-document",
             "document-metadata": {
                 "user": user,
-                "document-id", id,
+                "document-id": id,
                 "time": metadata.time,
                 "title": metadata.title,
                 "comments": metadata.comments,
-                metadata = [
+                "metadata": [
                     {
                         "s": { "v": t["s"], "e": isinstance(t["s"], Uri) },
                         "p": { "v": t["p"], "e": isinstance(t["p"], Uri) },
@@ -250,8 +247,9 @@ class Library:
                     document_id = v["document-id"],
                     time = datetime.datetime.fromtimestamp(v["time"]),
                     flow = v["flow"],
+                    user = v["user"],
                     collection = v["collection"],
-                    tags = v["tags"]
+                    tags = v["tags"],
                 )
                 for v in object["processing-metadatas"]
             ]
