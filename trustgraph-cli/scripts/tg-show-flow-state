@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Dump out TrustGraph processor states.
+Dump out a flow's processor states
 """
 
 import requests

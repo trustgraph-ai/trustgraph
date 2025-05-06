@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 """
+Removes a library document processing record.  This is just a record of
+procesing, it doesn't stop in-flight processing at the moment.
 """
 
 import argparse

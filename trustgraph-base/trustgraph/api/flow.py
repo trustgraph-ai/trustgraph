@@ -3,6 +3,7 @@ import json
 import base64
 
 from .. knowledge import hash, Uri, Literal
+from . types import Triple
 
 def to_value(x):
     if x["e"]: return Uri(x["v"])

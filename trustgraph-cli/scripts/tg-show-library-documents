@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 """
+Shows all loaded library documents
 """
 
 import argparse
@@ -29,14 +30,14 @@ def show_docs(url, user):
         table.append(("time", doc.time))
         table.append(("title", doc.title))
         table.append(("kind", doc.kind))
-        table.append(("comments", doc.comments))
+        table.append(("note", doc.comments))
         table.append(("tags", ", ".join(doc.tags)))
 
         print(tabulate.tabulate(
             table,
             tablefmt="pretty",
             stralign="left",
-            maxcolwidths=[None, 55],
+            maxcolwidths=[None, 67],
         ))
         print()
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Uses the GraphRAG service to answer a question
+Uses the DocumentRAG service to answer a question
 """
 
 import argparse

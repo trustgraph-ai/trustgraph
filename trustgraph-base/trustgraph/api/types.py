@@ -2,6 +2,7 @@
 import dataclasses
 import datetime
 from typing import List
+from .. knowledge import hash, Uri, Literal
 
 @dataclasses.dataclass
 class Triple:

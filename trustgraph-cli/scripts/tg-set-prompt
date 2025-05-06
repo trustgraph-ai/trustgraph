@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Dumps out the current prompts
+Sets a prompt template.
 """
 
 import argparse
@@ -63,7 +63,7 @@ def set_prompt(url, id, prompt, response, schema):
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-show-prompts',
+        prog='tg-set-prompt',
         description=__doc__,
     )
 
