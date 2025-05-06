@@ -14,7 +14,7 @@ import uuid
 import time
 import asyncio
 
-class TableStore:
+class LibraryTableStore:
 
     def __init__(
             self,
@@ -104,71 +104,6 @@ class TableStore:
             );
         """);
 
-        return
-
-        print("triples table...", flush=True)
-
-        self.cassandra.execute("""
-            CREATE TABLE IF NOT EXISTS triples (
-                user text,
-                collection text,
-                document_id text,
-                id uuid,
-                time timestamp,
-                metadata list<tuple<
-                    text, boolean, text, boolean, text, boolean
-                >>,
-                triples list<tuple<
-                    text, boolean, text, boolean, text, boolean
-                >>,
-                PRIMARY KEY (user, collection, document_id, id)
-            );
-        """);
-
-        print("graph_embeddings table...", flush=True)
-
-        self.cassandra.execute("""
-            create table if not exists graph_embeddings (
-                user text,
-                collection text,
-                document_id text,
-                id uuid,
-                time timestamp,
-                metadata list<tuple<
-                    text, boolean, text, boolean, text, boolean
-                >>,
-                entity_embeddings list<
-                    tuple<
-                        tuple<text, boolean>,
-                        list<list<double>>
-                    >
-                >,
-                PRIMARY KEY (user, collection, document_id, id)
-            );
-        """);
-
-        print("document_embeddings table...", flush=True)
-
-        self.cassandra.execute("""
-            create table if not exists document_embeddings (
-                user text,
-                collection text,
-                document_id text,
-                id uuid,
-                time timestamp,
-                metadata list<tuple<
-                    text, boolean, text, boolean, text, boolean
-                >>,
-                chunks list<
-                    tuple<
-                        blob,
-                        list<list<double>>
-                    >
-                >,
-                PRIMARY KEY (user, collection, document_id, id)
-            );
-        """);
-
         print("Cassandra schema OK.", flush=True)
 
     def prepare_statements(self):
@@ -250,35 +185,6 @@ class TableStore:
                 id, document_id, time, flow, collection, tags
             FROM processing
             WHERE user = ?
-        """)
-
-        return
-
-        self.insert_triples_stmt = self.cassandra.prepare("""
-            INSERT INTO triples
-            (
-                id, user, collection, document_id, time,
-                metadata, triples
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """)
-
-        self.insert_graph_embeddings_stmt = self.cassandra.prepare("""
-            INSERT INTO graph_embeddings
-            (
-                id, user, collection, document_id, time,
-                metadata, entity_embeddings
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """)
-
-        self.insert_document_embeddings_stmt = self.cassandra.prepare("""
-            INSERT INTO document_embeddings
-            (
-                id, user, collection, document_id, time,
-                metadata, chunks
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
         """)
 
     async def document_exists(self, user, id):
@@ -390,50 +296,6 @@ class TableStore:
                 await asyncio.sleep(1)
 
         print("Delete complete", flush=True)
-
-    async def add_triples(self, m):
-
-        when = int(time.time() * 1000)
-
-        if m.metadata.metadata:
-            metadata = [
-                (
-                    v.s.value, v.s.is_uri, v.p.value, v.p.is_uri,
-                    v.o.value, v.o.is_uri
-                )
-                for v in m.metadata.metadata
-            ]
-        else:
-            metadata = []
-
-        triples = [
-            (
-                v.s.value, v.s.is_uri, v.p.value, v.p.is_uri,
-                v.o.value, v.o.is_uri
-            )
-            for v in m.triples
-        ]
-
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.insert_triples_stmt,
-                    (
-                        uuid.uuid4(), m.metadata.user,
-                        m.metadata.collection, m.metadata.id, when,
-                        metadata, triples,
-                    )
-                )
-
-                break
-
-            except Exception as e:
-
-                print("Exception:", type(e))
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 
     async def list_documents(self, user):
 
@@ -661,92 +523,3 @@ class TableStore:
 
         return lst
 
-    async def add_graph_embeddings(self, m):
-
-        when = int(time.time() * 1000)
-
-        if m.metadata.metadata:
-            metadata = [
-                (
-                    v.s.value, v.s.is_uri, v.p.value, v.p.is_uri,
-                    v.o.value, v.o.is_uri
-                )
-                for v in m.metadata.metadata
-            ]
-        else:
-            metadata = []
-
-        entities = [
-            (
-                (v.entity.value, v.entity.is_uri),
-                v.vectors
-            )
-            for v in m.entities
-        ]
-
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.insert_graph_embeddings_stmt,
-                    (
-                        uuid.uuid4(), m.metadata.user,
-                        m.metadata.collection, m.metadata.id, when,
-                        metadata, entities,
-                    )
-                )
-
-                break
-
-            except Exception as e:
-
-                print("Exception:", type(e))
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
-
-    async def add_document_embeddings(self, m):
-
-        when = int(time.time() * 1000)
-
-        if m.metadata.metadata:
-            metadata = [
-                (
-                    v.s.value, v.s.is_uri, v.p.value, v.p.is_uri,
-                    v.o.value, v.o.is_uri
-                )
-                for v in m.metadata.metadata
-            ]
-        else:
-            metadata = []
-
-        chunks = [
-            (
-                v.chunk,
-                v.vectors,
-            )
-            for v in m.chunks
-        ]
-
-        while True:
-
-            try:
-
-                resp = self.cassandra.execute(
-                    self.insert_document_embeddings_stmt,
-                    (
-                        uuid.uuid4(), m.metadata.user,
-                        m.metadata.collection, m.metadata.id, when,
-                        metadata, chunks,
-                    )
-                )
-
-                break
-
-            except Exception as e:
-
-                print("Exception:", type(e))
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
-
-        

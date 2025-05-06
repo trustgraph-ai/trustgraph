@@ -95,6 +95,8 @@ setuptools.setup(
         "scripts/kg-extract-definitions",
         "scripts/kg-extract-relationships",
         "scripts/kg-extract-topics",
+        "scripts/kg-store",
+        "scripts/kg-manager",
         "scripts/librarian",
         "scripts/metering",
         "scripts/object-extract-row",

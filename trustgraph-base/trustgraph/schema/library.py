@@ -51,17 +51,6 @@ from . documents import Document, TextDocument
 #   <- (processing_metadata[])
 #   <- (error)
 
-# OLD:
-# add(Metadata, Bytes) : error?
-# copy(id, user, collection)
-# move(id, user, collection)
-# delete(id)
-# get(id) : Bytes
-# reindex(id)
-# list(user, collection) : id[]
-# info(id[]) : DocumentInfo[]
-# search(<key,op,value>[]) : id[]
-
 class DocumentMetadata(Record):
     id = String()
     time = Long()

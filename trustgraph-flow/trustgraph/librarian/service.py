@@ -210,7 +210,7 @@ class Processor(AsyncProcessor):
         if v.operation is None:
             raise RequestError("Null operation")
 
-        print("requets", v.operation)
+        print("request", v.operation)
 
         impls = {
             "add-document": self.librarian.add_document,
