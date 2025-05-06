@@ -7,6 +7,7 @@ import time
 from . library import Library
 from . flow import Flow
 from . config import Config
+from . knowledge import Knowledge
 from . exceptions import *
 from . types import *
 
@@ -38,6 +39,9 @@ class Api:
 
     def config(self):
         return Config(api=self)
+
+    def knowledge(self):
+        return Knowledge(api=self)
 
     def request(self, path, request):
 

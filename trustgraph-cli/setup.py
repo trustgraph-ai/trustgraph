@@ -46,7 +46,9 @@ setuptools.setup(
     scripts=[
         "scripts/tg-add-library-document",
         "scripts/tg-delete-flow-class",
+        "scripts/tg-delete-kg-core",
         "scripts/tg-dump-msgpack",
+        "scripts/tg-fetch-kg-core",
         "scripts/tg-get-flow-class",
         "scripts/tg-graph-to-turtle",
         "scripts/tg-init-trustgraph",
@@ -72,6 +74,7 @@ setuptools.setup(
         "scripts/tg-show-flow-state",
         "scripts/tg-show-flows",
         "scripts/tg-show-graph",
+        "scripts/tg-show-kg-cores",
         "scripts/tg-show-library-documents",
         "scripts/tg-show-library-processing",
         "scripts/tg-show-processor-state",
