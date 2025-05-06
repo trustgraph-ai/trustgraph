@@ -20,7 +20,7 @@ class KnowledgeManager:
 
     async def delete_kg_core(self, request):
 
-        print("Updating doc...")
+        print("Updating doc...", flush=True)
 
         # You can't update the document ID, user or kind.
 
@@ -42,50 +42,69 @@ class KnowledgeManager:
             processing_metadatas = None,
         )
 
-    async def fetch_kg_core(self, request, flow):
+    async def fetch_kg_core(self, request, respond):
 
-        print("Fetch core...")
+        print("Fetch core...", flush=True)
 
-        async def publish(obj):
-            print(obj)
-#            await publisher.send(triples)
+        async def publish_triples(t):
+            await respond(
+                KnowledgeResponse(
+                    error = None,
+                    ids = None,
+                    eos = False,
+                    triples = t,
+                    graph_embeddings = None,
+                )
+            )
 
         # Remove doc table row
         await self.table_store.get_triples(
             request.user,
             request.id,
-            publish
+            publish_triples,
         )
 
-        async def publish_ge(obj):
-            print(obj)
+        async def publish_ge(g):
+            await respond(
+                KnowledgeResponse(
+                    error = None,
+                    ids = None,
+                    eos = False,
+                    triples = None,
+                    graph_embeddings = g,
+                )
+            )
 
         # Remove doc table row
         await self.table_store.get_graph_embeddings(
             request.user,
             request.id,
-            publish
+            publish_ge,
         )
 
         print("Fetch complete", flush=True)
 
-        return KnowledgeResponse(
-            error = None,
-            ids = None,
-            eos = True,
-            triples = None,
-            graph_embeddings = None,
+        await respond(
+            KnowledgeResponse(
+                error = None,
+                ids = None,
+                eos = True,
+                triples = None,
+                graph_embeddings = None,
+            )
         )
 
-    async def list_kg_cores(self, request, flow):
+    async def list_kg_cores(self, request, respond):
 
         ids = await self.table_store.list_kg_cores(request.user)
 
-        return KnowledgeResponse(
-            error = None,
-            ids = ids,
-            eos = False,
-            triples = None,
-            graph_embeddings = None
+        await respond(
+            KnowledgeResponse(
+                error = None,
+                ids = ids,
+                eos = False,
+                triples = None,
+                graph_embeddings = None
+            )
         )
 

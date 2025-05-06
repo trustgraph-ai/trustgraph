@@ -351,17 +351,10 @@ class KnowledgeTableStore:
 
             try:
 
-                print("Executing!")
-                print(self.get_triples_stmt)
-                print(user, document_id)
-
                 resp = self.cassandra.execute(
                     self.get_triples_stmt,
                     (user, document_id)
                 )
-                print("HERE")
-
-                print("Executed")
 
                 break
 
@@ -370,11 +363,7 @@ class KnowledgeTableStore:
                 print(f"{e}, retry...", flush=True)
                 await asyncio.sleep(1)
 
-        print("Unpack...")
         for row in resp:
-
-            print("ROW")
-            print(row)
 
             if row[2]:
                 metadata = [
@@ -402,6 +391,7 @@ class KnowledgeTableStore:
                     metadata = Metadata(
                         id = document_id,
                         user = user,
+                        collection = "default",  # FIXME: What to put here?
                         metadata = metadata,
                     ),
                     triples = triples
@@ -432,7 +422,6 @@ class KnowledgeTableStore:
 
         for row in resp:
 
-            print("MD...")
             if row[2]:
                 metadata = [
                     Triple(
@@ -445,7 +434,6 @@ class KnowledgeTableStore:
             else:
                 metadata = []
 
-            print("EE...")
             entities = [
                 EntityEmbeddings(
                     entity = Value(value = ent[0][0], is_uri = ent[0][1]),
@@ -459,6 +447,7 @@ class KnowledgeTableStore:
                     metadata = Metadata(
                         id = document_id,
                         user = user,
+                        collection = "default",   # FIXME: What to put here?
                         metadata = metadata,
                     ),
                     entities = entities

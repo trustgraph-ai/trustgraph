@@ -34,22 +34,34 @@ class KnowledgeRequestor(ServiceRequestor):
 
     def from_response(self, message):
 
-        print(message)
+        print("Processing message")
 
-        response = {
-            "eos": message.eos
-        }
-
+        # Response to list, 
         if message.ids is not None:
-            response["ids"] = message.ids
+            print("-> IDS")
+            return {
+                "ids": message.ids
+            }, True
 
         if message.triples:
-            response["triples"] = serialize_triples(message.triples)
+            print("-> triples")
+            return {
+                "triples": serialize_triples(message.triples)
+            }, False
 
         if message.graph_embeddings:
-            response["graph-embeddings"] = serialize_graph_embeddings(
-                message.graph_embeddings
-            )
-        
-        return response, True
+            print("-> ge")
+            return {
+                "graph-embeddings": serialize_graph_embeddings(
+                    message.graph_embeddings
+                )
+            }, False
+
+        if message.eos is True:
+            print("-> eos")
+            return {
+                "eos": True
+            }, True
+
+        raise RuntimeError("Unexpected case")
 

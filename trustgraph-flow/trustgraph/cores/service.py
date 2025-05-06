@@ -116,72 +116,7 @@ class Processor(AsyncProcessor):
 
         print(self.flows)
 
-    def __del__(self):
-
-        pass
-
-    async def load_document(self, document, processing, content):
-
-        print("Ready for processing...")
-
-        print(document, processing, len(content))
-
-        if processing.flow not in self.flows:
-            raise RuntimeError("Invalid flow ID")
-
-        flow = self.flows[processing.flow]
-
-        if document.kind == "text/plain":
-            kind = "text-load"
-        elif document.kind == "application/pdf":
-            kind = "document-load"
-        else:
-            raise RuntimeError("Document with a MIME type I don't know")
-
-        q = flow["interfaces"][kind]
-
-        if kind == "text-load":
-            doc = TextDocument(
-                metadata = Metadata(
-                    id = document.id,
-                    metadata = document.metadata,
-                    user = processing.user,
-                    collection = processing.collection
-                ),
-                text = content,
-            )
-            schema = TextDocument
-        else:
-            doc = Document(
-                metadata = Metadata(
-                    id = document.id,
-                    metadata = document.metadata,
-                    user = processing.user,
-                    collection = processing.collection
-                ),
-                data = base64.b64encode(content).decode("utf-8")
-
-            )
-            schema = Document
-
-        print(f"Submit on queue {q}...")
-
-        pub = Publisher(
-            self.pulsar_client, q, schema=schema
-        )
-
-        await pub.start()
-
-        # FIXME: Time wait kludge?
-        await asyncio.sleep(1)
-
-        await pub.send(None, doc)
-
-        await pub.stop()
-
-        print("Document submitted")
-
-    async def process_request(self, v, flow):
+    async def process_request(self, v, id):
 
         if v.operation is None:
             raise RequestError("Null operation")
@@ -197,7 +132,11 @@ class Processor(AsyncProcessor):
         if v.operation not in impls:
             raise RequestError(f"Invalid operation: {v.operation}")
 
-        return await impls[v.operation](v, flow)
+        async def respond(x):
+            await self.knowledge_response_producer.send(
+                x, { "id": id }
+            )
+        return await impls[v.operation](v, respond)
 
     async def on_knowledge_request(self, msg, consumer, flow):
 
@@ -211,11 +150,11 @@ class Processor(AsyncProcessor):
 
         try:
 
-            resp = await self.process_request(v, flow)
+            await self.process_request(v, id)
 
-            await self.knowledge_response_producer.send(
-                resp, properties={"id": id}
-            )
+#            await self.knowledge_response_producer.send(
+#                resp, properties={"id": id}
+#            )
 
             return
 
