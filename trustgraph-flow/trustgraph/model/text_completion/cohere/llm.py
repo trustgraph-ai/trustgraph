@@ -70,6 +70,8 @@ class Processor(LlmService):
                 model = self.model
             )
 
+            return resp
+
         # FIXME: Wrong exception, don't know what this LLM throws
         # for a rate limit
         except cohere.TooManyRequestsError:

@@ -86,6 +86,8 @@ class Processor(LlmService):
                 model = self.model
             )
 
+            return resp
+
         # FIXME: Wrong exception.  The MistralAI library has retry logic
         # so retry-able errors are retried transparently.  It means we
         # don't get rate limit events.
