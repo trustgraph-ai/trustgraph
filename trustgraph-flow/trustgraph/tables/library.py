@@ -14,7 +14,7 @@ import uuid
 import time
 import asyncio
 
-class TableStore:
+class LibraryTableStore:
 
     def __init__(
             self,

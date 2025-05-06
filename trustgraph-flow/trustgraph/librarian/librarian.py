@@ -2,7 +2,7 @@
 from .. schema import LibrarianRequest, LibrarianResponse, Error, Triple
 from .. knowledge import hash
 from .. exceptions import RequestError
-from . table_store import TableStore
+from .. tables.library import LibraryTableStore
 from . blob_store import BlobStore
 import base64
 

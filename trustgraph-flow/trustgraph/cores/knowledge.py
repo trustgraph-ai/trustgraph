@@ -2,7 +2,7 @@
 from .. schema import KnowledgeResponse, Error, Triple
 from .. knowledge import hash
 from .. exceptions import RequestError
-from . table_store import TableStore
+from .. tables.knowledge import KnowledgeTableStore
 from . blob_store import BlobStore
 import base64
 
@@ -15,7 +15,7 @@ class KnowledgeManager:
             keyspace,
     ):
 
-        self.table_store = TableStore(
+        self.table_store = KnowledgeTableStore(
             cassandra_host, cassandra_user, cassandra_password, keyspace
         )
 

@@ -9,7 +9,7 @@ import urllib.parse
 from ... schema import Triples, GraphEmbeddings
 from ... base import FlowProcessor, ConsumerSpec
 
-from . table_store import TableStore
+from ... tables.knowledge import KnowledgeTableStore
 
 default_ident = "kg-store"
 
@@ -50,7 +50,7 @@ class Processor(FlowProcessor):
             )
         )
 
-        self.table_store = TableStore(
+        self.table_store = KnowledgeTableStore(
             cassandra_host = cassandra_host.split(","),
             cassandra_user = cassandra_user,
             cassandra_password = cassandra_password,

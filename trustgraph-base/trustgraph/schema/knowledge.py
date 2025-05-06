@@ -1,5 +1,5 @@
 
-from pulsar.schema import Record, Bytes, String, Array, Long
+from pulsar.schema import Record, Bytes, String, Array, Long, Boolean
 from . types import Triple
 from . topic import topic
 from . types import Error

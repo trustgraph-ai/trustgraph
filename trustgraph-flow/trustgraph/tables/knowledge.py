@@ -7,7 +7,7 @@ import uuid
 import time
 import asyncio
 
-class TableStore:
+class KnowledgeTableStore:
 
     def __init__(
             self,
