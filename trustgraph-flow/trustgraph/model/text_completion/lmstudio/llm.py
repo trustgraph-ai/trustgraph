@@ -12,7 +12,6 @@ from .... base import LlmService, LlmResult
 
 default_ident = "text-completion"
 
-default_subscriber = module
 default_model = 'gemma3:9b'
 default_url = os.getenv("LMSTUDIO_URL", "http://localhost:1234/")
 default_temperature = 0.0
