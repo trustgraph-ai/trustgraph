@@ -181,6 +181,16 @@ class KnowledgeTableStore:
             WHERE user = ? AND document_id = ?
         """)
 
+        self.delete_triples_stmt = self.cassandra.prepare("""
+            DELETE FROM triples
+            WHERE user = ? AND document_id = ?
+        """)
+
+        self.delete_graph_embeddings_stmt = self.cassandra.prepare("""
+            DELETE FROM graph_embeddings
+            WHERE user = ? AND document_id = ?
+        """)
+
     async def add_triples(self, m):
 
         when = int(time.time() * 1000)
@@ -342,6 +352,42 @@ class KnowledgeTableStore:
         print("Done")
 
         return lst
+
+    async def delete_kg_core(self, user, document_id):
+
+        print("Delete kg cores...")
+
+        while True:
+
+            try:
+
+                resp = self.cassandra.execute(
+                    self.delete_triples_stmt,
+                    (user, document_id)
+                )
+
+                break
+
+            except Exception as e:
+                print("Exception:", type(e))
+                print(f"{e}, retry...", flush=True)
+                await asyncio.sleep(1)
+
+        while True:
+
+            try:
+
+                resp = self.cassandra.execute(
+                    self.delete_graph_embeddings_stmt,
+                    (user, document_id)
+                )
+
+                break
+
+            except Exception as e:
+                print("Exception:", type(e))
+                print(f"{e}, retry...", flush=True)
+                await asyncio.sleep(1)
 
     async def get_triples(self, user, document_id, receiver):
 

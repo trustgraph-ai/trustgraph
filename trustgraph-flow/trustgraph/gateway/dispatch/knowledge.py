@@ -63,5 +63,6 @@ class KnowledgeRequestor(ServiceRequestor):
                 "eos": True
             }, True
 
-        raise RuntimeError("Unexpected case")
+        # Empty case, return from successful delete.
+        return {}, True
 

@@ -18,28 +18,22 @@ class KnowledgeManager:
             cassandra_host, cassandra_user, cassandra_password, keyspace
         )
 
-    async def delete_kg_core(self, request):
+    async def delete_kg_core(self, request, respond):
 
-        print("Updating doc...", flush=True)
+        print("Deleting core...", flush=True)
 
-        # You can't update the document ID, user or kind.
+        await self.table_store.delete_kg_core(
+            request.user, request.id
+        )
 
-        if not await self.table_store.document_exists(
-                request.document_metadata.user,
-                request.document_metadata.id
-        ):
-            raise RuntimeError("Document does not exist")
-
-        await self.table_store.update_document(request.document_metadata)
-
-        print("Update complete", flush=True)
-
-        return LibrarianResponse(
-            error = None,
-            document_metadata = None,
-            content = None,
-            document_metadatas = None,
-            processing_metadatas = None,
+        await respond(
+            KnowledgeResponse(
+                error = None,
+                ids = None,
+                eos = False,
+                triples = None,
+                graph_embeddings = None,
+            )
         )
 
     async def fetch_kg_core(self, request, respond):
