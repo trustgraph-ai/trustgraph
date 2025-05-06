@@ -3,7 +3,6 @@ from .. schema import KnowledgeResponse, Error, Triple
 from .. knowledge import hash
 from .. exceptions import RequestError
 from .. tables.knowledge import KnowledgeTableStore
-from . blob_store import BlobStore
 import base64
 
 import uuid
