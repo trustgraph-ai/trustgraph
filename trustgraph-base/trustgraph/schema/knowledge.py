@@ -31,14 +31,11 @@ class KnowledgeRequest(Record):
     user = String()
 
     # fetch-kg-core, list-kg-cores, delete-kg-core
-    collection = String()
-
-    # fetch-kg-core, list-kg-cores, delete-kg-core
-    document_id = String()
+    id = String()
 
 class KnowledgeResponse(Record):
     error = Error()
-    document_ids = Array(String())
+    ids = Array(String())
     eos = Boolean()     # Indicates end of knowledge core stream
     triples = Triples()
     graph_embeddings = GraphEmbeddings()

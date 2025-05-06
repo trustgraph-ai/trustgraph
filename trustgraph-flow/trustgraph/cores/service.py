@@ -181,7 +181,7 @@ class Processor(AsyncProcessor):
 
         print("Document submitted")
 
-    async def process_request(self, v):
+    async def process_request(self, v, flow):
 
         if v.operation is None:
             raise RequestError("Null operation")
@@ -189,15 +189,15 @@ class Processor(AsyncProcessor):
         print("request", v.operation)
 
         impls = {
-            "list-cores": self.knowledge.list_cores,
-            "fetch-core": self.knowledge.fetch_core,
-            "delet-core": self.knowledge.delete_core,
+            "list-kg-cores": self.knowledge.list_kg_cores,
+            "fetch-kg-core": self.knowledge.fetch_kg_core,
+            "delete-kg-core": self.knowledge.delete_kg_core,
         }
 
         if v.operation not in impls:
             raise RequestError(f"Invalid operation: {v.operation}")
 
-        return await impls[v.operation](v)
+        return await impls[v.operation](v, flow)
 
     async def on_knowledge_request(self, msg, consumer, flow):
 
@@ -211,7 +211,7 @@ class Processor(AsyncProcessor):
 
         try:
 
-            resp = await self.process_request(v)
+            resp = await self.process_request(v, flow)
 
             await self.knowledge_response_producer.send(
                 resp, properties={"id": id}

@@ -21,7 +21,7 @@ class Librarian:
             minio_host, minio_access_key, minio_secret_key, bucket_name
         )
 
-        self.table_store = TableStore(
+        self.table_store = LibraryTableStore(
             cassandra_host, cassandra_user, cassandra_password, keyspace
         )
 

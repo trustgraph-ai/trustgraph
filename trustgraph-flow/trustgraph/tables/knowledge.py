@@ -1,4 +1,7 @@
 
+from .. schema import KnowledgeResponse, Triple, Triples, EntityEmbeddings
+from .. schema import Metadata, Value, GraphEmbeddings
+
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
 from ssl import SSLContext, PROTOCOL_TLSv1_2
@@ -61,7 +64,6 @@ class KnowledgeTableStore:
         self.cassandra.execute("""
             CREATE TABLE IF NOT EXISTS triples (
                 user text,
-                collection text,
                 document_id text,
                 id uuid,
                 time timestamp,
@@ -71,7 +73,7 @@ class KnowledgeTableStore:
                 triples list<tuple<
                     text, boolean, text, boolean, text, boolean
                 >>,
-                PRIMARY KEY (user, collection, document_id, id)
+                PRIMARY KEY ((user, document_id), id)
             );
         """);
 
@@ -80,7 +82,6 @@ class KnowledgeTableStore:
         self.cassandra.execute("""
             create table if not exists graph_embeddings (
                 user text,
-                collection text,
                 document_id text,
                 id uuid,
                 time timestamp,
@@ -93,8 +94,13 @@ class KnowledgeTableStore:
                         list<list<double>>
                     >
                 >,
-                PRIMARY KEY (user, collection, document_id, id)
+                PRIMARY KEY ((user, document_id), id)
             );
+        """);
+
+        self.cassandra.execute("""
+            CREATE INDEX IF NOT EXISTS graph_embeddings_user ON
+            graph_embeddings ( user );
         """);
 
         print("document_embeddings table...", flush=True)
@@ -102,7 +108,6 @@ class KnowledgeTableStore:
         self.cassandra.execute("""
             create table if not exists document_embeddings (
                 user text,
-                collection text,
                 document_id text,
                 id uuid,
                 time timestamp,
@@ -115,8 +120,13 @@ class KnowledgeTableStore:
                         list<list<double>>
                     >
                 >,
-                PRIMARY KEY (user, collection, document_id, id)
+                PRIMARY KEY ((user, document_id), id)
             );
+        """);
+
+        self.cassandra.execute("""
+            CREATE INDEX IF NOT EXISTS document_embeddings_user ON
+            document_embeddings ( user );
         """);
 
         print("Cassandra schema OK.", flush=True)
@@ -126,28 +136,49 @@ class KnowledgeTableStore:
         self.insert_triples_stmt = self.cassandra.prepare("""
             INSERT INTO triples
             (
-                id, user, collection, document_id, time,
-                metadata, triples
+                id, user, document_id,
+                time, metadata, triples
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?)
         """)
 
         self.insert_graph_embeddings_stmt = self.cassandra.prepare("""
             INSERT INTO graph_embeddings
             (
-                id, user, collection, document_id, time,
-                metadata, entity_embeddings
+                id, user, document_id, time, metadata, entity_embeddings
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?)
         """)
 
         self.insert_document_embeddings_stmt = self.cassandra.prepare("""
             INSERT INTO document_embeddings
             (
-                id, user, collection, document_id, time,
-                metadata, chunks
+                id, user, document_id, time, metadata, chunks
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """)
+
+        self.list_cores_stmt = self.cassandra.prepare("""
+            SELECT DISTINCT user, document_id FROM graph_embeddings
+            WHERE user = ?
+        """)
+
+        self.get_triples_stmt = self.cassandra.prepare("""
+            SELECT id, time, metadata, triples
+            FROM triples
+            WHERE user = ? AND document_id = ?
+        """)
+
+        self.get_graph_embeddings_stmt = self.cassandra.prepare("""
+            SELECT id, time, metadata, entity_embeddings
+            FROM graph_embeddings
+            WHERE user = ? AND document_id = ?
+        """)
+
+        self.get_document_embeddings_stmt = self.cassandra.prepare("""
+            SELECT id, time, metadata, chunks
+            FROM document_embeddings
+            WHERE user = ? AND document_id = ?
         """)
 
     async def add_triples(self, m):
@@ -181,7 +212,7 @@ class KnowledgeTableStore:
                     self.insert_triples_stmt,
                     (
                         uuid.uuid4(), m.metadata.user,
-                        m.metadata.collection, m.metadata.id, when,
+                        m.metadata.id, when,
                         metadata, triples,
                     )
                 )
@@ -225,7 +256,7 @@ class KnowledgeTableStore:
                     self.insert_graph_embeddings_stmt,
                     (
                         uuid.uuid4(), m.metadata.user,
-                        m.metadata.collection, m.metadata.id, when,
+                        m.metadata.id, when,
                         metadata, entities,
                     )
                 )
@@ -269,7 +300,7 @@ class KnowledgeTableStore:
                     self.insert_document_embeddings_stmt,
                     (
                         uuid.uuid4(), m.metadata.user,
-                        m.metadata.collection, m.metadata.id, when,
+                        m.metadata.id, when,
                         metadata, chunks,
                     )
                 )
@@ -282,4 +313,157 @@ class KnowledgeTableStore:
                 print(f"{e}, retry...", flush=True)
                 await asyncio.sleep(1)
 
-        
+    async def list_kg_cores(self, user):
+
+        print("List kg cores...")
+
+        while True:
+
+            try:
+
+                resp = self.cassandra.execute(
+                    self.list_cores_stmt,
+                    (user,)
+                )
+
+                break
+
+            except Exception as e:
+                print("Exception:", type(e))
+                print(f"{e}, retry...", flush=True)
+                await asyncio.sleep(1)
+
+
+        lst = [
+            row[1]
+            for row in resp
+        ]
+
+        print("Done")
+
+        return lst
+
+    async def get_triples(self, user, document_id, receiver):
+
+        print("Get triples...")
+
+        while True:
+
+            try:
+
+                print("Executing!")
+                print(self.get_triples_stmt)
+                print(user, document_id)
+
+                resp = self.cassandra.execute(
+                    self.get_triples_stmt,
+                    (user, document_id)
+                )
+                print("HERE")
+
+                print("Executed")
+
+                break
+
+            except Exception as e:
+                print("Exception:", type(e))
+                print(f"{e}, retry...", flush=True)
+                await asyncio.sleep(1)
+
+        print("Unpack...")
+        for row in resp:
+
+            print("ROW")
+            print(row)
+
+            if row[2]:
+                metadata = [
+                    Triple(
+                        s = Value(value = elt[0], is_uri = elt[1]),
+                        p = Value(value = elt[2], is_uri = elt[3]),
+                        o = Value(value = elt[4], is_uri = elt[5]),
+                    )
+                    for elt in row[2]
+                ]
+            else:
+                metadata = []
+
+            triples = [
+                Triple(
+                    s = Value(value = elt[0], is_uri = elt[1]),
+                    p = Value(value = elt[2], is_uri = elt[3]),
+                    o = Value(value = elt[4], is_uri = elt[5]),
+                )
+                for elt in row[3]
+            ]
+
+            await receiver(
+                Triples(
+                    metadata = Metadata(
+                        id = document_id,
+                        user = user,
+                        metadata = metadata,
+                    ),
+                    triples = triples
+                )
+            )
+
+        print("Done")
+
+    async def get_graph_embeddings(self, user, document_id, receiver):
+
+        print("Get GE...")
+
+        while True:
+
+            try:
+
+                resp = self.cassandra.execute(
+                    self.get_graph_embeddings_stmt,
+                    (user, document_id)
+                )
+
+                break
+
+            except Exception as e:
+                print("Exception:", type(e))
+                print(f"{e}, retry...", flush=True)
+                await asyncio.sleep(1)
+
+        for row in resp:
+
+            print("MD...")
+            if row[2]:
+                metadata = [
+                    Triple(
+                        s = Value(value = elt[0], is_uri = elt[1]),
+                        p = Value(value = elt[2], is_uri = elt[3]),
+                        o = Value(value = elt[4], is_uri = elt[5]),
+                    )
+                    for elt in row[2]
+                ]
+            else:
+                metadata = []
+
+            print("EE...")
+            entities = [
+                EntityEmbeddings(
+                    entity = Value(value = ent[0][0], is_uri = ent[0][1]),
+                    vectors = ent[1]
+                )
+                for ent in row[3]
+            ]
+
+            await receiver(
+                GraphEmbeddings(
+                    metadata = Metadata(
+                        id = document_id,
+                        user = user,
+                        metadata = metadata,
+                    ),
+                    entities = entities
+                )
+            )                    
+
+        print("Done")
+

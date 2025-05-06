@@ -5,6 +5,7 @@ import uuid
 from . config import ConfigRequestor
 from . flow import FlowRequestor
 from . librarian import LibrarianRequestor
+from . knowledge import KnowledgeRequestor
 
 from . embeddings import EmbeddingsRequestor
 from . agent import AgentRequestor
@@ -44,6 +45,7 @@ global_dispatchers = {
     "config": ConfigRequestor,
     "flow": FlowRequestor,
     "librarian": LibrarianRequestor,
+    "knowledge": KnowledgeRequestor,
 }
 
 sender_dispatchers = {
