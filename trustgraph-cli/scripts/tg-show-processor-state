@@ -31,7 +31,7 @@ def dump_status(url):
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-processor-state',
+        prog='tg-show-processor-state',
         description=__doc__,
     )
 

@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
 """
-Loads a PDF document into TrustGraph processing.
+Loads a PDF document into TrustGraph processing by directing to
+the pdf-decoder queue.
+Consider using tg-add-library-document to load
+a document, followed by tg-start-library-processing to initiate processing.
 """
 
 import hashlib

@@ -162,7 +162,7 @@ def init(pulsar_admin_url, pulsar_host, pulsar_api_key, config, tenant):
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-init-pulsar',
+        prog='tg-init-trustgraph',
         description=__doc__,
     )
 

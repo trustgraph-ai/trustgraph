@@ -472,7 +472,7 @@ class TableStore:
                     )
                     for m in row[5]
                 ],
-                tags = row[6],
+                tags = row[6] if row[6] else [],
                 object_id = row[7],
             )
             for row in resp
@@ -519,7 +519,7 @@ class TableStore:
                     )
                     for m in row[4]
                 ],
-                tags = row[5],
+                tags = row[5] if row[5] else [],
                 object_id = row[6],
             )
 
@@ -652,7 +652,7 @@ class TableStore:
                 flow = row[3],
                 user = user,
                 collection = row[4],
-                tags = row[5],
+                tags = row[5] if row[5] else [],
             )
             for row in resp
         ]

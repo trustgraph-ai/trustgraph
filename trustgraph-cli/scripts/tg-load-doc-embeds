@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
-"""This utility takes a knowledge core and loads it into a running TrustGraph
-through the API.  The knowledge core should be in msgpack format, which is the
-default format produce by tg-save-kg-core.
+"""
+This utility takes a document embeddings core and loads it into a running
+TrustGraph through the API.  The document embeddings core should be in msgpack
+format, which is the default format produce by tg-save-doc-embeds.
 """
 
 import aiohttp
@@ -174,7 +175,7 @@ async def run(running, **args):
 async def main(running):
     
     parser = argparse.ArgumentParser(
-        prog='tg-load-kg-core',
+        prog='tg-load-doc-embeds',
         description=__doc__,
     )
 

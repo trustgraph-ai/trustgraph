@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 """
+Starts a processing flow using a defined flow class
 """
 
 import argparse

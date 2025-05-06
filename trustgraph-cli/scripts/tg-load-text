@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
 """
-Loads a text document into TrustGraph processing.
+Loads a text document into TrustGraph processing by directing to a text
+loader queue.
+Consider using tg-add-library-document to load
+a document, followed by tg-start-library-processing to initiate processing.
 """
 
 import pulsar

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 """
+Stops a processing flow.
 """
 
 import argparse

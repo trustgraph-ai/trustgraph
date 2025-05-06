@@ -2,11 +2,11 @@
 
 """
 This utility connects to a running TrustGraph through the API and creates
-a knowledge core from the data streaming through the processing queues.
-For completeness of data, tg-save-kg-core should be initiated before data
-loading takes place.  The default output  format, msgpack should be used.
-JSON output format is also available - msgpack produces a more compact
-representation, which is also more performant to load.
+a document embeddings core from the data streaming through the processing
+queues.  For completeness of data, tg-save-doc-embeds should be initiated
+before data loading takes place.  The default output  format, msgpack
+should be used.  JSON output format is also available - msgpack produces
+a more compact representation, which is also more performant to load.
 """
 
 import aiohttp

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 """
+Submits a library document for processing
 """
 
 import argparse

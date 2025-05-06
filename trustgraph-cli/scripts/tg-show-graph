@@ -27,7 +27,7 @@ def show_graph(url, flow_id, user, collection):
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-graph-show',
+        prog='tg-show-graph',
         description=__doc__,
     )
 

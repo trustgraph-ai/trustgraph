@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Dumps out the current agent tools
+Dumps out the current agent tool configuration
 """
 
 import argparse
@@ -60,7 +60,7 @@ def show_config(url):
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-show-prompts',
+        prog='tg-show-tools',
         description=__doc__,
     )
 

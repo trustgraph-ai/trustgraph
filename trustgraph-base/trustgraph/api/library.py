@@ -44,13 +44,25 @@ class Library:
             triples.append(t)
 
         if metadata:
-            metadata.emit(
-                lambda t: triples.append({
-                    "s": { "v": t["s"], "e": isinstance(t["s"], Uri) },
-                    "p": { "v": t["p"], "e": isinstance(t["p"], Uri) },
-                    "o": { "v": t["o"], "e": isinstance(t["o"], Uri) }
-                })
-            )
+            if isinstance(metadata, list):
+                triples = [
+                    {
+                        "s": { "v": t.s, "e": isinstance(t.s, Uri) },
+                        "p": { "v": t.p, "e": isinstance(t.p, Uri) },
+                        "o": { "v": t.o, "e": isinstance(t.o, Uri) }
+                    }
+                    for t in metadata
+                ]
+            elif hasattr(metadata, "emit"):
+                metadata.emit(
+                    lambda t: triples.append({
+                        "s": { "v": t["s"], "e": isinstance(t["s"], Uri) },
+                        "p": { "v": t["p"], "e": isinstance(t["p"], Uri) },
+                        "o": { "v": t["o"], "e": isinstance(t["o"], Uri) }
+                    })
+                )
+            else:
+                raise RuntimeError("metadata should be a list of Triples or have an emit method")
 
         input = {
             "operation": "add-document",
