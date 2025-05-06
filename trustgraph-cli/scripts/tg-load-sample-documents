@@ -11,7 +11,7 @@ import datetime
 import requests
 
 from trustgraph.api import Api
-from trustgraph.api.types import Uri, Literal, Triple
+from trustgraph.api.types import hash, Uri, Literal, Triple
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_user = 'trustgraph'
@@ -28,6 +28,11 @@ class FileAdapter(HTTPAdapter):
 session = requests.session()
 
 session.mount('file://', FileAdapter())
+
+try:
+    os.mkdir("doc-cache")
+except:
+    pass
 
 documents = [
 
@@ -669,11 +674,19 @@ class Loader:
         try:
 
             print(doc["title"], ":")
-            print("  downloading...")
-            print("  done.")
 
-            resp = session.get(doc["url"])
-            content = resp.content
+            hid = hash(doc["url"])
+            cache_file = f"doc-cache/{hid}"
+
+            if os.path.isfile(cache_file):
+                print("  (use cache file)")
+                content = open(cache_file, "rb").read()
+            else:
+                print("  downloading...")
+                resp = session.get(doc["url"])
+                content = resp.content
+                open(cache_file, "wb").write(content)
+                print("  done.")
 
             print("  adding...")
 
