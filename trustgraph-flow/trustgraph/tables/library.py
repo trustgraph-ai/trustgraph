@@ -232,6 +232,7 @@ class LibraryTableStore:
             except Exception as e:
 
                 print("Exception:", type(e))
+                raise e
                 print(f"{e}, retry...", flush=True)
                 await asyncio.sleep(1)
 
@@ -267,6 +268,7 @@ class LibraryTableStore:
             except Exception as e:
 
                 print("Exception:", type(e))
+                raise e
                 print(f"{e}, retry...", flush=True)
                 await asyncio.sleep(1)
 
@@ -292,6 +294,7 @@ class LibraryTableStore:
             except Exception as e:
 
                 print("Exception:", type(e))
+                raise e
                 print(f"{e}, retry...", flush=True)
                 await asyncio.sleep(1)
 
@@ -314,6 +317,7 @@ class LibraryTableStore:
 
             except Exception as e:
                 print("Exception:", type(e))
+                raise e
                 print(f"{e}, retry...", flush=True)
                 await asyncio.sleep(1)
 
@@ -361,6 +365,7 @@ class LibraryTableStore:
 
             except Exception as e:
                 print("Exception:", type(e))
+                raise e
                 print(f"{e}, retry...", flush=True)
                 await asyncio.sleep(1)
 
@@ -407,6 +412,7 @@ class LibraryTableStore:
 
             except Exception as e:
                 print("Exception:", type(e))
+                raise e
                 print(f"{e}, retry...", flush=True)
                 await asyncio.sleep(1)
 
@@ -455,6 +461,7 @@ class LibraryTableStore:
             except Exception as e:
 
                 print("Exception:", type(e))
+                raise e
                 print(f"{e}, retry...", flush=True)
                 await asyncio.sleep(1)
 
@@ -480,6 +487,7 @@ class LibraryTableStore:
             except Exception as e:
 
                 print("Exception:", type(e))
+                raise e
                 print(f"{e}, retry...", flush=True)
                 await asyncio.sleep(1)
 
@@ -502,6 +510,7 @@ class LibraryTableStore:
 
             except Exception as e:
                 print("Exception:", type(e))
+                raise e
                 print(f"{e}, retry...", flush=True)
                 await asyncio.sleep(1)
 
