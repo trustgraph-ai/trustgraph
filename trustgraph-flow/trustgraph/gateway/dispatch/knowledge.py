@@ -61,29 +61,26 @@ class KnowledgeRequestor(ServiceRequestor):
             operation = body.get("operation", None),
             user = body.get("user", None),
             id = body.get("id", None),
+            flow = body.get("flow", None),
+            collection = body.get("collection", None),
             triples = triples,
             graph_embeddings = ge,
         )
 
     def from_response(self, message):
 
-        print("Processing message")
-
         # Response to list, 
         if message.ids is not None:
-            print("-> IDS")
             return {
                 "ids": message.ids
             }, True
 
         if message.triples:
-            print("-> triples")
             return {
                 "triples": serialize_triples(message.triples)
             }, False
 
         if message.graph_embeddings:
-            print("-> ge")
             return {
                 "graph-embeddings": serialize_graph_embeddings(
                     message.graph_embeddings
@@ -91,7 +88,6 @@ class KnowledgeRequestor(ServiceRequestor):
             }, False
 
         if message.eos is True:
-            print("-> eos")
             return {
                 "eos": True
             }, True

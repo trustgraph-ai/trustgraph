@@ -89,6 +89,7 @@ class Processor(AsyncProcessor):
             cassandra_user = cassandra_user,
             cassandra_password = cassandra_password,
             keyspace = keyspace,
+            flow_config = self,
         )
 
         self.register_config_handler(self.on_knowledge_config)
@@ -128,6 +129,8 @@ class Processor(AsyncProcessor):
             "get-kg-core": self.knowledge.get_kg_core,
             "delete-kg-core": self.knowledge.delete_kg_core,
             "put-kg-core": self.knowledge.put_kg_core,
+            "load-kg-core": self.knowledge.load_kg_core,
+            "unload-kg-core": self.knowledge.unload_kg_core,
         }
 
         if v.operation not in impls:

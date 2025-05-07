@@ -120,31 +120,31 @@ class Configuration:
 
     async def handle_getvalues(self, v):
 
-        if v.type not in self:
+        # if v.type not in self:
 
-            return ConfigResponse(
-                version = None,
-                values = None,
-                directory = None,
-                config = None,
-                error = Error(
-                    type = "key-error",
-                    message = f"Key error"
-                )
-            )
+        #     return ConfigResponse(
+        #         version = None,
+        #         values = None,
+        #         directory = None,
+        #         config = None,
+        #         error = Error(
+        #             type = "key-error",
+        #             message = f"Key error"
+        #         )
+        #     )
 
-        v = await self.table_store.get_values(v.type)
+        vals = await self.table_store.get_values(v.type)
 
         values = map(
             lambda x: ConfigValue(
                 type = v.type, key = x[0], value = x[1]
             ),
-            v
+            vals
         )
 
         return ConfigResponse(
             version = await self.get_version(),
-            values = values,
+            values = list(values),
             directory = None,
             config = None,
             error = None,
