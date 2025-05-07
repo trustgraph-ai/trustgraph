@@ -68,7 +68,7 @@ async def fetch(url, user, id, output):
             "id": mid,
             "service": "knowledge",
             "request": {
-                "operation": "fetch-kg-core",
+                "operation": "get-kg-core",
                 "user": user,
                 "id": id,
             }
@@ -87,22 +87,24 @@ async def fetch(url, user, id, output):
 
                 obj = json.loads(msg)
 
-                if "error" in obj:
+                if "response" not in obj:
+                    raise RuntimeError("No response?")
+
+                response = obj["response"]
+
+                if "error" in response:
                     raise RuntimeError(obj["error"])
 
-                if "response" not in obj:
-                    continue
+                if "eos" in response:
+                    if response["eos"]: break
 
-                if "eos" in obj["response"]:
-                    if obj["response"]["eos"]: break
-
-                if "triples" in obj["response"]:
+                if "triples" in response:
                     t += 1
-                    write_triple(f, obj["response"]["triples"])
+                    write_triple(f, response["triples"])
 
-                if "graph-embeddings" in obj["response"]:
+                if "graph-embeddings" in response:
                     ge += 1
-                    write_ge(f, obj["response"]["graph-embeddings"])
+                    write_ge(f, response["graph-embeddings"])
 
         print(f"Got: {t} triple, {ge} GE messages.")
 

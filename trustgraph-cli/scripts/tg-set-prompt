@@ -25,9 +25,9 @@ def set_system(url, system):
 
 def set_prompt(url, id, prompt, response, schema):
 
-    api = Api(url)
+    api = Api(url).config()
 
-    values = api.config_get([
+    values = api.get([
         ConfigKey(type="prompt", key="template-index")
     ])
 
@@ -49,7 +49,7 @@ def set_prompt(url, id, prompt, response, schema):
     if id not in ix:
         ix.append(id)
 
-    values = api.config_put([
+    values = api.put([
         ConfigValue(
             type="prompt", key="template-index", value=json.dumps(ix)
         ),
