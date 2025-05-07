@@ -20,6 +20,9 @@ from . flow import FlowConfig
 from ... base import ProcessorMetrics, ConsumerMetrics, ProducerMetrics
 from ... base import Consumer, Producer
 
+# FIXME: How to ensure this doesn't conflict with other usage?
+keyspace = "config"
+
 default_ident = "config-svc"
 
 default_config_request_queue = config_request_queue
@@ -28,6 +31,8 @@ default_config_push_queue = config_push_queue
 
 default_flow_request_queue = flow_request_queue
 default_flow_response_queue = flow_response_queue
+
+default_cassandra_host = "cassandra"
 
 class Processor(AsyncProcessor):
 
@@ -50,6 +55,10 @@ class Processor(AsyncProcessor):
             "flow_response_queue", default_flow_response_queue
         )
 
+        cassandra_host = params.get("cassandra_host", default_cassandra_host)
+        cassandra_user = params.get("cassandra_user")
+        cassandra_password = params.get("cassandra_password")
+
         id = params.get("id")
 
         flow_request_schema = FlowRequest
@@ -62,6 +71,8 @@ class Processor(AsyncProcessor):
                 "config_push_schema": ConfigPush.__name__,
                 "flow_request_schema": FlowRequest.__name__,
                 "flow_response_schema": FlowResponse.__name__,
+                "cassandra_host": cassandra_host,
+                "cassandra_user": cassandra_user,
             }
         )
 
@@ -125,7 +136,14 @@ class Processor(AsyncProcessor):
             metrics = flow_response_metrics,
         )
 
-        self.config = Configuration(self.push)
+        self.config = Configuration(
+            host = cassandra_host.split(","),
+            user = cassandra_user,
+            password = cassandra_password,
+            keyspace = keyspace,
+            push = self.push
+        )
+
         self.flow = FlowConfig(self.config)
 
         print("Service initialised.")
@@ -138,18 +156,23 @@ class Processor(AsyncProcessor):
         
     async def push(self):
 
+        config = await self.config.get_config()
+        version = await self.config.get_version()
+
         resp = ConfigPush(
-            version = self.config.version,
+            version = version,
             value = None,
             directory = None,
             values = None,
-            config = self.config,
+            config = config,
             error = None,
         )
 
         await self.config_push_producer.send(resp)
 
-        print("Pushed version ", self.config.version)
+        # Race condition, should make sure version & config sync
+
+        print("Pushed version ", await self.config.get_version())
         
     async def on_config_request(self, msg, consumer, flow):
 
@@ -246,6 +269,24 @@ class Processor(AsyncProcessor):
             '--flow-response-queue',
             default=default_flow_response_queue,
             help=f'Flow response queue {default_flow_response_queue}',
+        )
+
+        parser.add_argument(
+            '--cassandra-host',
+            default="cassandra",
+            help=f'Graph host (default: cassandra)'
+        )
+
+        parser.add_argument(
+            '--cassandra-user',
+            default=None,
+            help=f'Cassandra user'
+        )
+
+        parser.add_argument(
+            '--cassandra-password',
+            default=None,
+            help=f'Cassandra password'
         )
 
 def run():

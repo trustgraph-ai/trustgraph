@@ -70,7 +70,48 @@ class ConfigTableStore:
             );
         """);
 
+        print("version table...", flush=True)
+
+        self.cassandra.execute("""
+            CREATE TABLE IF NOT EXISTS version (
+                id text,
+                version counter,
+                PRIMARY KEY (id)
+            );
+        """);
+        
+        resp = self.cassandra.execute("""
+            SELECT version FROM version
+        """)
+
+        print("ensure version...", flush=True)
+
+        self.cassandra.execute("""
+            UPDATE version set version = version + 0
+            WHERE id = 'version'
+        """)
+
         print("Cassandra schema OK.", flush=True)
+
+    async def inc_version(self):
+
+        self.cassandra.execute("""
+            UPDATE version set version = version + 1
+            WHERE id = 'version'
+        """)
+
+    async def get_version(self):
+
+        resp = self.cassandra.execute("""
+            SELECT version FROM version
+            WHERE id = 'version'
+        """)
+
+        row = resp.one()
+
+        if row: return row[0]
+
+        return None
 
     def prepare_statements(self):
 
