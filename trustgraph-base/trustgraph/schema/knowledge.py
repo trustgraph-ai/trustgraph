@@ -7,7 +7,7 @@ from . metadata import Metadata
 from . documents import Document, TextDocument
 from . graph import Triples, GraphEmbeddings
 
-# fetch-kg-core
+# get-kg-core
 #   -> (???)
 #   <- ()
 #   <- (error)
@@ -24,14 +24,18 @@ from . graph import Triples, GraphEmbeddings
 
 class KnowledgeRequest(Record):
 
-    # fetch-kg-core, delete-kg-core, list-kg-cores
+    # get-kg-core, delete-kg-core, list-kg-cores, put-kg-core
     operation = String()
 
-    # list-kg-cores, delete-kg-core
+    # list-kg-cores, delete-kg-core, put-kg-core
     user = String()
 
-    # fetch-kg-core, list-kg-cores, delete-kg-core
+    # get-kg-core, list-kg-cores, delete-kg-core, put-kg-core
     id = String()
+
+    # put-kg-core
+    triples = Triples()
+    graph_embeddings = GraphEmbeddings()
 
 class KnowledgeResponse(Record):
     error = Error()

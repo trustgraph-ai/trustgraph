@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 """
-Uses the agent service to answer a question
+Uses the knowledge service to fetch a knowledge core which is saved
+to a local file in msgpack format.
 """
 
 import argparse
@@ -15,6 +16,42 @@ import msgpack
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'ws://localhost:8088/')
 default_user = 'trustgraph'
+
+def write_triple(f, data):
+    msg = (
+        "t",
+        {
+            "m": {
+                "i": data["metadata"]["id"], 
+                "m": data["metadata"]["metadata"],
+                "u": data["metadata"]["user"],
+                "c": data["metadata"]["collection"],
+            },
+            "t": data["triples"],
+        }
+    )
+    f.write(msgpack.packb(msg, use_bin_type=True))
+
+def write_ge(f, data):
+    msg = (
+        "ge",
+        {
+            "m": {
+                "i": data["metadata"]["id"], 
+                "m": data["metadata"]["metadata"],
+                "u": data["metadata"]["user"],
+                "c": data["metadata"]["collection"],
+            },
+            "e": [
+                {
+                    "e": ent["entity"],
+                    "v": ent["vectors"],
+                }
+                for ent in data["entities"]
+            ]
+        }
+    )
+    f.write(msgpack.packb(msg, use_bin_type=True))
 
 async def fetch(url, user, id, output):
 
@@ -61,21 +98,20 @@ async def fetch(url, user, id, output):
 
                 if "triples" in obj["response"]:
                     t += 1
-                    msg = obj["response"]["triples"]
-                    f.write(msgpack.packb(msg, use_bin_type=True))
+                    write_triple(f, obj["response"]["triples"])
 
                 if "graph-embeddings" in obj["response"]:
                     ge += 1
-                    msg = obj["response"]["graph-embeddings"]
-                    f.write(msgpack.packb(msg, use_bin_type=True))
+                    write_ge(f, obj["response"]["graph-embeddings"])
 
-        print(f"Wrote: {t} triple, {ge} GE messages.")
+        print(f"Got: {t} triple, {ge} GE messages.")
+
         await ws.close()
 
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-invoke-agent',
+        prog='tg-get-kg-core',
         description=__doc__,
     )
 

@@ -125,8 +125,9 @@ class Processor(AsyncProcessor):
 
         impls = {
             "list-kg-cores": self.knowledge.list_kg_cores,
-            "fetch-kg-core": self.knowledge.fetch_kg_core,
+            "get-kg-core": self.knowledge.get_kg_core,
             "delete-kg-core": self.knowledge.delete_kg_core,
+            "put-kg-core": self.knowledge.put_kg_core,
         }
 
         if v.operation not in impls:
@@ -150,11 +151,9 @@ class Processor(AsyncProcessor):
 
         try:
 
+            # We don't send a response back here, the processing
+            # implementation sends whatever it needs to send.
             await self.process_request(v, id)
-
-#            await self.knowledge_response_producer.send(
-#                resp, properties={"id": id}
-#            )
 
             return
 

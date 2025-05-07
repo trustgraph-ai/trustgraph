@@ -36,9 +36,9 @@ class KnowledgeManager:
             )
         )
 
-    async def fetch_kg_core(self, request, respond):
+    async def get_kg_core(self, request, respond):
 
-        print("Fetch core...", flush=True)
+        print("Get core...", flush=True)
 
         async def publish_triples(t):
             await respond(
@@ -76,7 +76,7 @@ class KnowledgeManager:
             publish_ge,
         )
 
-        print("Fetch complete", flush=True)
+        print("Get complete", flush=True)
 
         await respond(
             KnowledgeResponse(
@@ -96,6 +96,26 @@ class KnowledgeManager:
             KnowledgeResponse(
                 error = None,
                 ids = ids,
+                eos = False,
+                triples = None,
+                graph_embeddings = None
+            )
+        )
+
+    async def put_kg_core(self, request, respond):
+
+        if request.triples:
+            await self.table_store.add_triples(request.triples)
+
+        if request.graph_embeddings:
+            await self.table_store.add_graph_embeddings(
+                request.graph_embeddings
+            )
+
+        await respond(
+            KnowledgeResponse(
+                error = None,
+                ids = None,
                 eos = False,
                 triples = None,
                 graph_embeddings = None
