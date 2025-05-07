@@ -9,7 +9,7 @@ class FlowConfig:
 
     async def handle_list_classes(self, msg):
 
-        names = list(self.config["flow-classes"].keys())
+        names = list(await self.config.get("flow-classes").keys())
 
         return FlowResponse(
             error = None,
@@ -20,14 +20,18 @@ class FlowConfig:
 
         return FlowResponse(
             error = None,
-            class_definition = self.config["flow-classes"][msg.class_name],
+            class_definition = await self.config.get(
+                "flow-classes"
+            ).get(msg.class_name),
         )
     
     async def handle_put_class(self, msg):
 
-        self.config["flow-classes"][msg.class_name] = msg.class_definition
+        await self.config.get("flow-classes").put(
+            msg.class_name, msg.class_definition
+        )
 
-        self.config.version += 1
+        await self.config.inc_version()
 
         await self.config.push()
 
@@ -39,9 +43,9 @@ class FlowConfig:
 
         print(msg)
 
-        del self.config["flow-classes"][msg.class_name]
+        await self.config.get("flow-classes").delete(msg.class_name)
 
-        self.config.version += 1
+        await self.config.inc_version()
 
         await self.config.push()
 
@@ -51,7 +55,7 @@ class FlowConfig:
     
     async def handle_list_flows(self, msg):
 
-        names = list(self.config["flows"].keys())
+        names = list(await self.config.get("flows").keys())
 
         return FlowResponse(
             error = None,
@@ -60,7 +64,7 @@ class FlowConfig:
     
     async def handle_get_flow(self, msg):
 
-        flow = self.config["flows"][msg.flow_id]
+        flow = await self.config.get("flows").get(msg.flow_id)
 
         return FlowResponse(
             error = None,
@@ -75,13 +79,13 @@ class FlowConfig:
         if msg.flow_id is None:
             raise RuntimeError("No flow ID")
 
-        if msg.flow_id in self.config["flows"]:
+        if msg.flow_id in await self.config.get("flows").values():
             raise RuntimeError("Flow already exists")
 
         if msg.description is None:
             raise RuntimeError("No description")
 
-        if msg.class_name not in self.config["flow-classes"]:
+        if msg.class_name not in await self.config.get("flow-classes").values():
             raise RuntimeError("Class does not exist")
 
         def repl_template(tmp):
@@ -91,7 +95,9 @@ class FlowConfig:
                 "{id}", msg.flow_id
             )
 
-        cls = json.loads(self.config["flow-classes"][msg.class_name])
+        cls = json.loads(
+            await self.config.get("flow-classes").get(msg.class_name)
+        )
 
         for kind in ("class", "flow"):
 
@@ -106,15 +112,18 @@ class FlowConfig:
                     for k2, v2 in v.items()
                 }
 
-                if processor in self.config["flows-active"]:
-                    target = json.loads(self.config["flows-active"][processor])
+                flac = await self.config.get("flows-active").values()
+                if processor in flac:
+                    target = json.loads(flac[processor])
                 else:
                     target = {}
 
                 if variant not in target:
                     target[variant] = v
 
-                self.config["flows-active"][processor] = json.dumps(target)
+                await self.config.get("flows-active").put(
+                    processor, json.dumps(target)
+                )
 
         def repl_interface(i):
             if isinstance(i, str):
@@ -133,13 +142,16 @@ class FlowConfig:
         else:
             interfaces = {}
 
-        self.config["flows"][msg.flow_id] = json.dumps({
-            "description": msg.description,
-            "class-name": msg.class_name,
-            "interfaces": interfaces,
-        })
+        await self.config.get("flows").put(
+            msg.flow_id,
+            json.dumps({
+                "description": msg.description,
+                "class-name": msg.class_name,
+                "interfaces": interfaces,
+            })
+        )
 
-        self.config.version += 1
+        await self.config.inc_version()
 
         await self.config.push()
 
@@ -152,17 +164,17 @@ class FlowConfig:
         if msg.flow_id is None:
             raise RuntimeError("No flow ID")
 
-        if msg.flow_id not in self.config["flows"]:
+        if msg.flow_id not in await self.config.get("flows").keys():
             raise RuntimeError("Flow ID invalid")
 
-        flow = json.loads(self.config["flows"][msg.flow_id])
+        flow = json.loads(await self.config.get("flows").get(msg.flow_id))
 
         if "class-name" not in flow:
             raise RuntimeError("Internal error: flow has no flow class")
 
         class_name = flow["class-name"]
 
-        cls = json.loads(self.config["flow-classes"][class_name])
+        cls = json.loads(await self.config.get("flow-classes").get(class_name))
 
         def repl_template(tmp):
             return tmp.replace(
@@ -179,20 +191,24 @@ class FlowConfig:
 
                 variant = repl_template(variant)
 
-                if processor in self.config["flows-active"]:
-                    target = json.loads(self.config["flows-active"][processor])
+                flac = await self.config.get("flows-active").values()
+
+                if processor in flac:
+                    target = json.loads(flac[processor])
                 else:
                     target = {}
 
                 if variant in target:
                     del target[variant]
 
-                self.config["flows-active"][processor] = json.dumps(target)
+                await self.config.get("flows-active").put(
+                    processor, json.dumps(target)
+                )
 
-        if msg.flow_id in self.config["flows"]:
-            del self.config["flows"][msg.flow_id]
+        if msg.flow_id in await self.config.get("flows").values():
+            await self.config.get("flows").delete(msg.flow_id)
 
-        self.config.version += 1
+        await self.config.inc_version()
 
         await self.config.push()
 
