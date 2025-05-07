@@ -25,13 +25,21 @@ from . graph import Triples, GraphEmbeddings
 class KnowledgeRequest(Record):
 
     # get-kg-core, delete-kg-core, list-kg-cores, put-kg-core
+    # load-kg-core, unload-kg-core
     operation = String()
 
     # list-kg-cores, delete-kg-core, put-kg-core
     user = String()
 
-    # get-kg-core, list-kg-cores, delete-kg-core, put-kg-core
+    # get-kg-core, list-kg-cores, delete-kg-core, put-kg-core,
+    # load-kg-core, unload-kg-core
     id = String()
+
+    # load-kg-core
+    flow = String()
+
+    # load-kg-core
+    collection = String()
 
     # put-kg-core
     triples = Triples()
