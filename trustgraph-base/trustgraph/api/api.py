@@ -25,7 +25,7 @@ def check_error(response):
 
 class Api:
 
-    def __init__(self, url="http://localhost:8088/"):
+    def __init__(self, url="http://localhost:8088/", timeout=60):
 
         self.url = url
 
@@ -33,6 +33,8 @@ class Api:
             self.url += "/"
 
         self.url += "api/v1/"
+
+        self.timeout = timeout
 
     def flow(self):
         return Flow(api=self)
@@ -51,7 +53,7 @@ class Api:
 #        print(json.dumps(request, indent=4))
 
         # Invoke the API, input is passed as JSON
-        resp = requests.post(url, json=request)
+        resp = requests.post(url, json=request, timeout=self.timeout)
 
         # Should be a 200 status code
         if resp.status_code != 200:
