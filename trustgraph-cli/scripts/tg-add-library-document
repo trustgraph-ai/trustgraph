@@ -22,7 +22,7 @@ default_user = 'trustgraph'
 class Loader:
 
     def __init__(
-            self, url, user, metadata, title, comments, kind, tags
+            self, id, url, user, metadata, title, comments, kind, tags
     ):
 
         self.api = Api(url).library()
@@ -32,6 +32,7 @@ class Loader:
         self.title = title
         self.comments = comments
         self.kind = kind
+        self.identifier = id
 
         if tags:
             self.tags = tags.split(",")
@@ -51,9 +52,12 @@ class Loader:
             data = open(path, "rb").read()
 
             # Create a SHA256 hash from the data
-            id = hash(data)
-
-            id = to_uri(PREF_DOC, id)
+            if self.identifier:
+                id = self.identifier
+            else:
+                id = hash(data)
+                id = to_uri(PREF_DOC, id)
+                
 
             self.metadata.id = id
 
@@ -157,7 +161,7 @@ def main():
     try:
 
         document = DigitalDocument(
-            id,
+            args.identifier,
             name=args.name,
             description=args.description,
             copyright_notice=args.copyright_notice,
@@ -182,6 +186,7 @@ def main():
             )
 
         p = Loader(
+            id=args.identifier,
             url=args.url,
             user=args.user,
             metadata=document,
