@@ -45,7 +45,9 @@ class Consumer:
 
         if hasattr(self, "consumer"):
             if self.consumer:
+                self.consumer.unsubscribe()
                 self.consumer.close()
+                self.consumer = None
 
     async def stop(self):
 
@@ -108,10 +110,15 @@ class Consumer:
             except Exception as e:
 
                 print("consumer loop exception:", e, flush=True)
+                self.consumer.unsubscribe()
                 self.consumer.close()
                 self.consumer = None
                 await asyncio.sleep(self.reconnect_time)
                 continue
+
+        if self.consumer:
+            self.consumer.unsubscribe()
+            self.consumer.close()
 
     async def consume(self):
 
