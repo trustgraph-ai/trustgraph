@@ -8,12 +8,11 @@ logger = logging.getLogger(__name__)
 
 class AgentManager:
 
-    def __init__(self, context, tools, additional_context=None):
-        self.context = context
+    def __init__(self, tools, additional_context=None):
         self.tools = tools
         self.additional_context = additional_context
 
-    def reason(self, question, history):
+    async def reason(self, question, history, context):
 
         tools = self.tools
 
@@ -56,10 +55,7 @@ class AgentManager:
 
         logger.info(f"prompt: {variables}")
 
-        obj = self.context.prompt.request(
-            "agent-react",
-            variables
-        )
+        obj = await context("prompt-request").agent_react(variables)
 
         print(json.dumps(obj, indent=4), flush=True)
 
@@ -85,32 +81,41 @@ class AgentManager:
 
             return a
 
-    def react(self, question, history, think, observe):
+    async def react(self, question, history, think, observe, context):
 
-        act = self.reason(question, history)
+        act = await self.reason(
+            question = question,
+            history = history,
+            context = context,
+        )
         logger.info(f"act: {act}")
 
         if isinstance(act, Final):
 
-            think(act.thought)
+            await think(act.thought)
             return act
 
         else:
 
-            think(act.thought)
+            await think(act.thought)
 
             if act.name in self.tools:
                 action = self.tools[act.name]
             else:
                 raise RuntimeError(f"No action for {act.name}!")
 
-            resp = action.implementation.invoke(**act.arguments)
+            print("TOOL>>>", act)
+            resp = await action.implementation(context).invoke(
+                **act.arguments
+            )
+
+            print("RSETUL", resp)
 
             resp = resp.strip()
 
             logger.info(f"resp: {resp}")
 
-            observe(resp)
+            await observe(resp)
 
             act.observation = resp
 

@@ -1,7 +1,6 @@
 
 from pulsar.schema import JsonSchema
 from .. schema import EmbeddingsRequest, EmbeddingsResponse
-from .. schema import embeddings_request_queue, embeddings_response_queue
 from . base import BaseClient
 
 import _pulsar
@@ -23,12 +22,6 @@ class EmbeddingsClient(BaseClient):
             pulsar_api_key=None,
     ):
 
-        if input_queue == None:
-            input_queue=embeddings_request_queue
-
-        if output_queue == None:
-            output_queue=embeddings_response_queue
-
         super(EmbeddingsClient, self).__init__(
             log_level=log_level,
             subscriber=subscriber,
@@ -42,5 +35,4 @@ class EmbeddingsClient(BaseClient):
 
     def request(self, text, timeout=300):
         return self.call(text=text, timeout=timeout).vectors
-
 

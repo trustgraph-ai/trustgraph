@@ -37,7 +37,7 @@ class BlobStore:
         else:
             print("Bucket", self.bucket_name, "already exists", flush=True)
 
-    def add(self, object_id, blob, kind):
+    async def add(self, object_id, blob, kind):
 
         # FIXME: Loop retry
         self.minio.put_object(
@@ -49,3 +49,25 @@ class BlobStore:
         )
 
         print("Add blob complete", flush=True)
+
+    async def remove(self, object_id):
+
+        # FIXME: Loop retry
+        self.minio.remove_object(
+            bucket_name = self.bucket_name,
+            object_name = "doc/" + str(object_id),
+        )
+
+        print("Remove blob complete", flush=True)
+
+
+    async def get(self, object_id):
+
+        # FIXME: Loop retry
+        resp = self.minio.get_object(
+            bucket_name = self.bucket_name,
+            object_name = "doc/" + str(object_id),
+        )
+
+        return resp.read()
+

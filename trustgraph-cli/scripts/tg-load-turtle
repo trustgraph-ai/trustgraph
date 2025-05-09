@@ -2,12 +2,13 @@
 
 """
 Loads Graph embeddings into TrustGraph processing.
+
+FIXME: This hasn't been updated following API gateway change.
 """
 
 import pulsar
 from pulsar.schema import JsonSchema
 from trustgraph.schema import Triples, Triple, Value, Metadata
-from trustgraph.schema import triples_store_queue
 import argparse
 import os
 import time
@@ -109,6 +110,12 @@ def main():
         default=default_pulsar_host,
         help=f'Pulsar host (default: {default_pulsar_host})',
     )
+
+    parser.add_argument(
+        '-f', '--flow-id',
+        default="0000",
+        help=f'Flow ID (default: 0000)'
+    )
     
     parser.add_argument(
         '--pulsar-api-key',
@@ -174,5 +181,6 @@ def main():
 
         time.sleep(10)
 
-main()
+print("Not implemented.")
+#main()
 

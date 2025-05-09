@@ -8,31 +8,21 @@ from qdrant_client.models import PointStruct
 from qdrant_client.models import Distance, VectorParams
 import uuid
 
-from .... schema import DocumentEmbeddings
-from .... schema import document_embeddings_store_queue
-from .... log_level import LogLevel
-from .... base import Consumer
+from .... base import DocumentEmbeddingsStoreService
 
-module = ".".join(__name__.split(".")[1:-1])
+default_ident = "de-write"
 
-default_input_queue = document_embeddings_store_queue
-default_subscriber = module
 default_store_uri = 'http://localhost:6333'
 
-class Processor(Consumer):
+class Processor(DocumentEmbeddingsStoreService):
 
     def __init__(self, **params):
 
-        input_queue = params.get("input_queue", default_input_queue)
-        subscriber = params.get("subscriber", default_subscriber)
         store_uri = params.get("store_uri", default_store_uri)
         api_key = params.get("api_key", None)
 
         super(Processor, self).__init__(
             **params | {
-                "input_queue": input_queue,
-                "subscriber": subscriber,
-                "input_schema": DocumentEmbeddings,
                 "store_uri": store_uri,
                 "api_key": api_key,
             }
@@ -40,13 +30,11 @@ class Processor(Consumer):
 
         self.last_collection = None
 
-        self.client = QdrantClient(url=store_uri)
+        self.qdrant = QdrantClient(url=store_uri, api_key=api_key)
 
-    async def handle(self, msg):
+    async def store_document_embeddings(self, message):
 
-        v = msg.value()
-
-        for emb in v.chunks:
+        for emb in message.chunks:
 
             chunk = emb.chunk.decode("utf-8")
             if chunk == "": return
@@ -55,16 +43,17 @@ class Processor(Consumer):
 
                 dim = len(vec)
                 collection = (
-                    "d_" + v.metadata.user + "_" + v.metadata.collection + "_" +
+                    "d_" + message.metadata.user + "_" +
+                    message.metadata.collection + "_" +
                     str(dim)
                 )
 
                 if collection != self.last_collection:
 
-                    if not self.client.collection_exists(collection):
+                    if not self.qdrant.collection_exists(collection):
 
                         try:
-                            self.client.create_collection(
+                            self.qdrant.create_collection(
                                 collection_name=collection,
                                 vectors_config=VectorParams(
                                     size=dim, distance=Distance.COSINE
@@ -76,7 +65,7 @@ class Processor(Consumer):
 
                     self.last_collection = collection
 
-                self.client.upsert(
+                self.qdrant.upsert(
                     collection_name=collection,
                     points=[
                         PointStruct(
@@ -92,9 +81,7 @@ class Processor(Consumer):
     @staticmethod
     def add_args(parser):
 
-        Consumer.add_args(
-            parser, default_input_queue, default_subscriber,
-        )
+        DocumentEmbeddingsStoreService.add_args(parser)
 
         parser.add_argument(
             '-t', '--store-uri',
@@ -110,5 +97,5 @@ class Processor(Consumer):
 
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 

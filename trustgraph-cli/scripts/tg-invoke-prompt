@@ -16,9 +16,9 @@ from trustgraph.api import Api
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 
-def query(url, template_id, variables):
+def query(url, flow_id, template_id, variables):
 
-    api = Api(url)
+    api = Api(url).flow().id(flow_id)
 
     resp = api.prompt(id=template_id, variables=variables)
 
@@ -41,6 +41,12 @@ def main():
     )
 
     parser.add_argument(
+        '-f', '--flow-id',
+        default="0000",
+        help=f'Flow ID (default: 0000)'
+    )
+
+    parser.add_argument(
         'id',
         metavar='template-id',
         nargs=1,
@@ -54,12 +60,6 @@ def main():
         help='''Prompt template terms of the form variable=value, can be
 specified multiple times''',
     )
-    
-    # parser.add_argument(
-    #     '--pulsar-api-key',
-    #     default=default_pulsar_api_key,
-    #     help=f'Pulsar API key',
-    # )
 
     args = parser.parse_args()
 
@@ -77,6 +77,7 @@ specified multiple times''',
 
         query(
             url=args.url,
+            flow_id=args.flow_id,
             template_id=args.id[0],
             variables=variables,
         )

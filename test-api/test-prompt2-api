@@ -4,7 +4,7 @@ import requests
 import json
 import sys
 
-url = "http://localhost:8088/api/v1/"
+url = "http://localhost:8088/api/v1/flow/0000/prompt"
 
 ############################################################################
 
@@ -16,7 +16,7 @@ input = {
 }
 
 resp = requests.post(
-    f"{url}prompt",
+    url,
     json=input,
 )
 

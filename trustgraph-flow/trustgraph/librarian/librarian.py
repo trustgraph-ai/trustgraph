@@ -1,8 +1,10 @@
+
 from .. schema import LibrarianRequest, LibrarianResponse, Error, Triple
 from .. knowledge import hash
 from .. exceptions import RequestError
-from . table_store import TableStore
+from .. tables.library import LibraryTableStore
 from . blob_store import BlobStore
+import base64
 
 import uuid
 
@@ -12,77 +14,255 @@ class Librarian:
             self,
             cassandra_host, cassandra_user, cassandra_password,
             minio_host, minio_access_key, minio_secret_key,
-            bucket_name, keyspace, load_document, load_text,
+            bucket_name, keyspace, load_document,
     ):
 
         self.blob_store = BlobStore(
             minio_host, minio_access_key, minio_secret_key, bucket_name
         )
 
-        self.table_store = TableStore(
+        self.table_store = LibraryTableStore(
             cassandra_host, cassandra_user, cassandra_password, keyspace
         )
 
         self.load_document = load_document
-        self.load_text = load_text
 
-    async def add(self, document):
+    async def add_document(self, request):
 
-        if document.kind not in (
+        if request.document_metadata.kind not in (
                 "text/plain", "application/pdf"
         ):
-            raise RequestError("Invalid document kind: " + document.kind)
+            raise RequestError(
+                "Invalid document kind: " + request.document_metadata.kind
+            )
 
-        # Create object ID as a hash of the document
-        object_id = uuid.UUID(hash(document.document))
+        if await self.table_store.document_exists(
+                request.document_metadata.user,
+                request.document_metadata.id
+        ):
+            raise RuntimeError("Document already exists")
 
-        self.blob_store.add(object_id, document.document, document.kind)
+        # Create object ID for blob
+        object_id = uuid.uuid4()
 
-        self.table_store.add(object_id, document)
+        print("Add blob...")
 
-        if document.kind == "application/pdf":
-            await self.load_document(document)
-        elif document.kind == "text/plain":
-            await self.load_text(document)
+        await self.blob_store.add(
+            object_id, base64.b64decode(request.content),
+            request.document_metadata.kind
+        )
+
+        print("Add table...")
+
+        await self.table_store.add_document(
+            request.document_metadata, object_id
+        )
 
         print("Add complete", flush=True)
 
         return LibrarianResponse(
             error = None,
-            document = None,
-            info = None,
+            document_metadata = None,
+            content = None,
+            document_metadatas = None,
+            processing_metadatas = None,
         )
 
-    async def list(self, user, collection):
+    async def remove_document(self, request):
 
-        print("list")
+        print("Removing doc...")
 
-        info = self.table_store.list(user, collection)
+        if not await self.table_store.document_exists(
+                request.user,
+                request.document_id,
+        ):
+            raise RuntimeError("Document does not exist")
 
-        print(">>", info)
+        object_id = await self.table_store.get_document_object_id(
+            request.user,
+            request.document_id
+        )
+
+        # Remove blob...
+        await self.blob_store.remove(object_id)
+
+        # Remove doc table row
+        await self.table_store.remove_document(
+            request.user,
+            request.document_id
+        )
+
+        print("Remove complete", flush=True)
 
         return LibrarianResponse(
             error = None,
-            document = None,
-            info = info,
+            document_metadata = None,
+            content = None,
+            document_metadatas = None,
+            processing_metadatas = None,
         )
 
-    def handle_triples(self, m):
-        self.table_store.add_triples(m)
+    async def update_document(self, request):
 
-    def handle_graph_embeddings(self, m):
-        self.table_store.add_graph_embeddings(m)
+        print("Updating doc...")
 
-    def handle_document_embeddings(self, m):
-        self.table_store.add_document_embeddings(m)
-        
+        # You can't update the document ID, user or kind.
 
-    def handle_triples(self, m):
-        self.table_store.add_triples(m)
+        if not await self.table_store.document_exists(
+                request.document_metadata.user,
+                request.document_metadata.id
+        ):
+            raise RuntimeError("Document does not exist")
 
-    def handle_graph_embeddings(self, m):
-        self.table_store.add_graph_embeddings(m)
+        await self.table_store.update_document(request.document_metadata)
 
-    def handle_document_embeddings(self, m):
-        self.table_store.add_document_embeddings(m)
+        print("Update complete", flush=True)
+
+        return LibrarianResponse(
+            error = None,
+            document_metadata = None,
+            content = None,
+            document_metadatas = None,
+            processing_metadatas = None,
+        )
+
+    async def get_document_metadata(self, request):
+
+        print("Get doc...")
+
+        doc = await self.table_store.get_document(
+            request.user,
+            request.document_id
+        )
+
+        print("Get complete", flush=True)
+
+        return LibrarianResponse(
+            error = None,
+            document_metadata = doc,
+            content = None,
+            document_metadatas = None,
+            processing_metadatas = None,
+        )
+
+    async def get_document_content(self, request):
+
+        print("Get doc content...")
+
+        object_id = await self.table_store.get_document_object_id(
+            request.user,
+            request.document_id
+        )
+
+        content = await self.blob_store.get(
+            object_id
+        )
+
+        print("Get complete", flush=True)
+
+        return LibrarianResponse(
+            error = None,
+            document_metadata = None,
+            content = base64.b64encode(content),
+            document_metadatas = None,
+            processing_metadatas = None,
+        )
+
+    async def add_processing(self, request):
+
+        print("Add processing")
+
+        if await self.table_store.processing_exists(
+                request.processing_metadata.user,
+                request.processing_metadata.id
+        ):
+            raise RuntimeError("Processing already exists")
+
+        doc = await self.table_store.get_document(
+            request.processing_metadata.user,
+            request.processing_metadata.document_id
+        )
+
+        object_id = await self.table_store.get_document_object_id(
+            request.processing_metadata.user,
+            request.processing_metadata.document_id
+        )
+
+        content = await self.blob_store.get(
+            object_id
+        )
+
+        print("Got content")
+
+        print("Add processing...")
+
+        await self.table_store.add_processing(request.processing_metadata)
+
+        print("Invoke document processing...")
+
+        await self.load_document(
+            document = doc,
+            processing = request.processing_metadata,
+            content = content,
+        )
+
+        print("Add complete", flush=True)
+
+        return LibrarianResponse(
+            error = None,
+            document_metadata = None,
+            content = None,
+            document_metadatas = None,
+            processing_metadatas = None,
+        )
+
+    async def remove_processing(self, request):
+
+        print("Removing processing...")
+
+        if not await self.table_store.processing_exists(
+                request.user,
+                request.processing_id,
+        ):
+            raise RuntimeError("Processing object does not exist")
+
+        # Remove doc table row
+        await self.table_store.remove_processing(
+            request.user,
+            request.processing_id
+        )
+
+        print("Remove complete", flush=True)
+
+        return LibrarianResponse(
+            error = None,
+            document_metadata = None,
+            content = None,
+            document_metadatas = None,
+            processing_metadatas = None,
+        )
+
+    async def list_documents(self, request):
+
+        docs = await self.table_store.list_documents(request.user)
+
+        return LibrarianResponse(
+            error = None,
+            document_metadata = None,
+            content = None,
+            document_metadatas = docs,
+            processing_metadatas = None,
+        )
+
+    async def list_processing(self, request):
+
+        procs = await self.table_store.list_processing(request.user)
+
+        return LibrarianResponse(
+            error = None,
+            document_metadata = None,
+            content = None,
+            document_metadatas = None,
+            processing_metadatas = procs,
+        )
 

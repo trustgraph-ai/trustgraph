@@ -6,46 +6,69 @@ from . types import Error
 from . metadata import Metadata
 from . documents import Document, TextDocument
 
-# add
-#   -> (id, document)
+# add-document
+#   -> (document_id, document_metadata, content)
 #   <- ()
 #   <- (error)
 
-# list
-#   -> (user, collection?)
-#   <- (info)
+# remove-document
+#   -> (document_id)
+#   <- ()
 #   <- (error)
 
-# add(Metadata, Bytes) : error?
-# copy(id, user, collection)
-# move(id, user, collection)
-# delete(id)
-# get(id) : Bytes
-# reindex(id)
-# list(user, collection) : id[]
-# info(id[]) : DocumentInfo[]
-# search(<key,op,value>[]) : id[]
+# update-document
+#   -> (document_id, document_metadata)
+#   <- ()
+#   <- (error)
 
-class DocumentPackage(Record):
+# get-document-metadata
+#   -> (document_id)
+#   <- (document_metadata)
+#   <- (error)
+
+# get-document-content
+#   -> (document_id)
+#   <- (content)
+#   <- (error)
+
+# add-processing
+#   -> (processing_id, processing_metadata)
+#   <- ()
+#   <- (error)
+
+# remove-processing
+#   -> (processing_id)
+#   <- ()
+#   <- (error)
+
+# list-documents
+#   -> (user, collection?)
+#   <- (document_metadata[])
+#   <- (error)
+
+# list-processing
+#   -> (user, collection?)
+#   <- (processing_metadata[])
+#   <- (error)
+
+class DocumentMetadata(Record):
     id = String()
-    document = Bytes()
+    time = Long()
     kind = String()
-    user = String()
-    collection = String()
     title = String()
     comments = String()
-    time = Long()
     metadata = Array(Triple())
+    user = String()
+    tags = Array(String())
 
-class DocumentInfo(Record):
+class ProcessingMetadata(Record):
     id = String()
-    kind = String()
+    document_id = String()
+    time = Long()
+    flow = String()
     user = String()
     collection = String()
-    title = String()
-    comments = String()
-    time = Long()
-    metadata = Array(Triple())
+    tags = Array(String())
 
 class Criteria(Record):
     key = String()
@@ -53,22 +76,51 @@ class Criteria(Record):
     operator = String()
 
 class LibrarianRequest(Record):
+
+    # add-document, remove-document, update-document, get-document-metadata,
+    # get-document-content, add-processing, remove-processing, list-documents,
+    # list-processing
     operation = String()
-    id = String()
-    document = DocumentPackage()
+
+    # add-document, remove-document, update-document, get-document-metadata,
+    # get-document-content
+    document_id = String()
+
+    # add-processing, remove-processing
+    processing_id = String()
+
+    # add-document, update-document
+    document_metadata = DocumentMetadata()
+
+    # add-processing
+    processing_metadata = ProcessingMetadata()
+
+    # add-document
+    content = Bytes()
+
+    # list-documents, list-processing
     user = String()
+
+    # list-documents?, list-processing?
     collection = String()
+
+    # 
     criteria = Array(Criteria())
 
 class LibrarianResponse(Record):
     error = Error()
-    document = DocumentPackage()
-    info = Array(DocumentInfo())
+    document_metadata = DocumentMetadata()
+    content = Bytes()
+    document_metadatas = Array(DocumentMetadata())
+    processing_metadatas = Array(ProcessingMetadata())
+
+# FIXME: Is this right?  Using persistence on librarian so that
+# message chunking works
 
 librarian_request_queue = topic(
-    'librarian', kind='non-persistent', namespace='request'
+    'librarian', kind='persistent', namespace='request'
 )
 librarian_response_queue = topic(
-    'librarian', kind='non-persistent', namespace='response',
+    'librarian', kind='persistent', namespace='response',
 )
 

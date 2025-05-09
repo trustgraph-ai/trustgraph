@@ -5,87 +5,76 @@ Input is query, output is response.
 """
 
 from ... schema import DocumentRagQuery, DocumentRagResponse, Error
-from ... schema import document_rag_request_queue, document_rag_response_queue
-from ... schema import prompt_request_queue
-from ... schema import prompt_response_queue
-from ... schema import embeddings_request_queue
-from ... schema import embeddings_response_queue
-from ... schema import document_embeddings_request_queue
-from ... schema import document_embeddings_response_queue
-from ... log_level import LogLevel
-from ... document_rag import DocumentRag
-from ... base import ConsumerProducer
+from . document_rag import DocumentRag
+from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
+from ... base import PromptClientSpec, EmbeddingsClientSpec
+from ... base import DocumentEmbeddingsClientSpec
 
-module = ".".join(__name__.split(".")[1:-1])
+default_ident = "document-rag"
 
-default_input_queue = document_rag_request_queue
-default_output_queue = document_rag_response_queue
-default_subscriber = module
-
-class Processor(ConsumerProducer):
+class Processor(FlowProcessor):
 
     def __init__(self, **params):
 
-        input_queue = params.get("input_queue", default_input_queue)
-        output_queue = params.get("output_queue", default_output_queue)
-        subscriber = params.get("subscriber", default_subscriber)
-        pr_request_queue = params.get(
-            "prompt_request_queue", prompt_request_queue
-        )
-        pr_response_queue = params.get(
-            "prompt_response_queue", prompt_response_queue
-        )
-        emb_request_queue = params.get(
-            "embeddings_request_queue", embeddings_request_queue
-        )
-        emb_response_queue = params.get(
-            "embeddings_response_queue", embeddings_response_queue
-        )
-        de_request_queue = params.get(
-            "document_embeddings_request_queue",
-            document_embeddings_request_queue
-        )
-        de_response_queue = params.get(
-            "document_embeddings_response_queue",
-            document_embeddings_response_queue
-        )
+        id = params.get("id", default_ident)
 
-        doc_limit = params.get("doc_limit", 10)
+        doc_limit = params.get("doc_limit", 5)
 
         super(Processor, self).__init__(
             **params | {
-                "input_queue": input_queue,
-                "output_queue": output_queue,
-                "subscriber": subscriber,
-                "input_schema": DocumentRagQuery,
-                "output_schema": DocumentRagResponse,
-                "prompt_request_queue": pr_request_queue,
-                "prompt_response_queue": pr_response_queue,
-                "embeddings_request_queue": emb_request_queue,
-                "embeddings_response_queue": emb_response_queue,
-                "document_embeddings_request_queue": de_request_queue,
-                "document_embeddings_response_queue": de_response_queue,
+                "id": id,
+                "doc_limit": doc_limit,
             }
-        )
-
-        self.rag = DocumentRag(
-            pulsar_host=self.pulsar_host,
-            pulsar_api_key=self.pulsar_api_key,
-            pr_request_queue=pr_request_queue,
-            pr_response_queue=pr_response_queue,
-            emb_request_queue=emb_request_queue,
-            emb_response_queue=emb_response_queue,
-            de_request_queue=de_request_queue,
-            de_response_queue=de_response_queue,
-            verbose=True,
-            module=module,
         )
 
         self.doc_limit = doc_limit
 
-    async def handle(self, msg):
+        self.register_specification(
+            ConsumerSpec(
+                name = "request",
+                schema = DocumentRagQuery,
+                handler = self.on_request,
+            )
+        )
+
+        self.register_specification(
+            EmbeddingsClientSpec(
+                request_name = "embeddings-request",
+                response_name = "embeddings-response",
+            )
+        )
+
+        self.register_specification(
+            DocumentEmbeddingsClientSpec(
+                request_name = "document-embeddings-request",
+                response_name = "document-embeddings-response",
+            )
+        )
+
+        self.register_specification(
+            PromptClientSpec(
+                request_name = "prompt-request",
+                response_name = "prompt-response",
+            )
+        )
+
+        self.register_specification(
+            ProducerSpec(
+                name = "response",
+                schema = DocumentRagResponse,
+            )
+        )
+
+    async def on_request(self, msg, consumer, flow):
 
         try:
+
+            self.rag = DocumentRag(
+                embeddings_client = flow("embeddings-request"),
+                doc_embeddings_client = flow("document-embeddings-request"),
+                prompt_client = flow("prompt-request"),
+                verbose=True,
+            )
 
             v = msg.value()
 
@@ -99,11 +88,15 @@ class Processor(ConsumerProducer):
             else:
                 doc_limit = self.doc_limit
 
-            response = self.rag.query(v.query, doc_limit=doc_limit)
+            response = await self.rag.query(v.query, doc_limit=doc_limit)
 
-            print("Send response...", flush=True)
-            r = DocumentRagResponse(response = response, error=None)
-            await self.send(r, properties={"id": id})
+            await flow("response").send(
+                DocumentRagResponse(
+                    response = response,
+                    error = None
+                ),
+                properties = {"id": id}
+            )
 
             print("Done.", flush=True)
 
@@ -113,25 +106,21 @@ class Processor(ConsumerProducer):
 
             print("Send error response...", flush=True)
 
-            r = DocumentRagResponse(
-                error=Error(
-                    type = "llm-error",
-                    message = str(e),
+            await flow("response").send(
+                DocumentRagResponse(
+                    response = None,
+                    error = Error(
+                        type = "document-rag-error",
+                        message = str(e),
+                    ),
                 ),
-                response=None,
+                properties = {"id": id}
             )
-
-            await self.send(r, properties={"id": id})
-
-            self.consumer.acknowledge(msg)
 
     @staticmethod
     def add_args(parser):
 
-        ConsumerProducer.add_args(
-            parser, default_input_queue, default_subscriber,
-            default_output_queue,
-        )
+        FlowProcessor.add_args(parser)
 
         parser.add_argument(
             '-d', '--doc-limit',
@@ -140,43 +129,7 @@ class Processor(ConsumerProducer):
             help=f'Default document fetch limit (default: 10)'
         )
 
-        parser.add_argument(
-            '--prompt-request-queue',
-            default=prompt_request_queue,
-            help=f'Prompt request queue (default: {prompt_request_queue})',
-        )
-
-        parser.add_argument(
-            '--prompt-response-queue',
-            default=prompt_response_queue,
-            help=f'Prompt response queue (default: {prompt_response_queue})',
-        )
-
-        parser.add_argument(
-            '--embeddings-request-queue',
-            default=embeddings_request_queue,
-            help=f'Embeddings request queue (default: {embeddings_request_queue})',
-        )
-
-        parser.add_argument(
-            '--embeddings-response-queue',
-            default=embeddings_response_queue,
-            help=f'Embeddings response queue (default: {embeddings_response_queue})',
-        )
-
-        parser.add_argument(
-            '--document-embeddings-request-queue',
-            default=document_embeddings_request_queue,
-            help=f'Document embeddings request queue (default: {document_embeddings_request_queue})',
-        )
-
-        parser.add_argument(
-            '--document-embeddings-response-queue',
-            default=document_embeddings_response_queue,
-            help=f'Document embeddings response queue (default: {document_embeddings_response_queue})',
-        )
-
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 

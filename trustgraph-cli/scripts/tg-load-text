@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
 """
-Loads a text document into TrustGraph processing.
+Loads a text document into TrustGraph processing by directing to a text
+loader queue.
+Consider using tg-add-library-document to load
+a document, followed by tg-start-library-processing to initiate processing.
 """
 
 import pulsar
@@ -27,12 +30,13 @@ class Loader:
     def __init__(
             self,
             url,
+            flow_id,
             user,
             collection,
             metadata,
     ):
 
-        self.api = Api(url)
+        self.api = Api(url).flow().id(flow_id)
 
         self.user = user
         self.collection = collection
@@ -59,14 +63,15 @@ class Loader:
 
             self.api.load_text(
                 text=data, id=id, metadata=self.metadata, 
-#                user=self.user,
-#                    collection=self.collection,
+                user=self.user,
+                collection=self.collection,
             )
 
             print(f"{file}: Loaded successfully.")
 
         except Exception as e:
             print(f"{file}: Failed: {str(e)}", flush=True)
+            raise e
 
 def main():
 
@@ -80,12 +85,12 @@ def main():
         default=default_url,
         help=f'API URL (default: {default_url})',
     )
-    
-    # parser.add_argument(
-    #     '--pulsar-api-key',
-    #     default=default_pulsar_api_key,
-    #     help=f'Pulsar API key',
-    # )
+
+    parser.add_argument(
+        '-f', '--flow-id',
+        default="0000",
+        help=f'Flow ID (default: 0000)'
+    )
 
     parser.add_argument(
         '-U', '--user',
@@ -154,53 +159,50 @@ def main():
 
     args = parser.parse_args()
 
-    while True:
 
-        try:
+    try:
 
-            document = DigitalDocument(
-                id,
-                name=args.name,
-                description=args.description,
-                copyright_notice=args.copyright_notice,
-                copyright_holder=args.copyright_holder,
-                copyright_year=args.copyright_year,
-                license=args.license,
-                url=args.document_url,
-                keywords=args.keyword,
+        document = DigitalDocument(
+            id,
+            name=args.name,
+            description=args.description,
+            copyright_notice=args.copyright_notice,
+            copyright_holder=args.copyright_holder,
+            copyright_year=args.copyright_year,
+            license=args.license,
+            url=args.document_url,
+            keywords=args.keyword,
+        )
+
+        if args.publication_organization:
+            org = Organization(
+                id=to_uri(PREF_ORG, hash(args.publication_organization)),
+                name=args.publication_organization,
+            )
+            document.publication = PublicationEvent(
+                id = to_uri(PREF_PUBEV, str(uuid.uuid4())),
+                organization=org,
+                description=args.publication_description,
+                start_date=args.publication_date,
+                end_date=args.publication_date,
             )
 
-            if args.publication_organization:
-                org = Organization(
-                    id=to_uri(PREF_ORG, hash(args.publication_organization)),
-                    name=args.publication_organization,
-                )
-                document.publication = PublicationEvent(
-                    id = to_uri(PREF_PUBEV, str(uuid.uuid4())),
-                    organization=org,
-                    description=args.publication_description,
-                    start_date=args.publication_date,
-                    end_date=args.publication_date,
-                )
+        p = Loader(
+            url = args.url,
+            flow_id = args.flow_id,
+            user = args.user,
+            collection = args.collection,
+            metadata = document,
+        )
 
-            p = Loader(
-                url=args.url,
-                user=args.user,
-                collection=args.collection,
-                metadata=document,
-            )
+        p.load(args.files)
 
-            p.load(args.files)
+        print("All done.")
 
-            print("All done.")
-            break
+    except Exception as e:
 
-        except Exception as e:
-
-            print("Exception:", e, flush=True)
-            print("Will retry...", flush=True)
-
-        time.sleep(10)
+        print("Exception:", e, flush=True)
 
 main()
+
 

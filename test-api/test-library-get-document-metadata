@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+
+import requests
+import json
+import sys
+import base64
+
+url = "http://localhost:8088/api/v1/"
+
+############################################################################
+
+id = "http://trustgraph.ai/doc/9fdee98b-b259-40ac-bcb9-8e82ccedeb04"
+
+user = "trustgraph"
+
+input = {
+    "operation": "get-document-metadata",
+    "user": user,
+    "document-id": id,
+}
+
+resp = requests.post(
+    f"{url}librarian",
+    json=input,
+)
+
+print(resp.text)
+resp = resp.json()
+
+print(resp)
+
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
+
+# print(resp["response"])
+print(resp)
+
+sys.exit(0)
+
+############################################################################
+

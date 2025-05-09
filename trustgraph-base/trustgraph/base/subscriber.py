@@ -1,14 +1,14 @@
 
-import queue
-import pulsar
-import threading
+from pulsar.schema import JsonSchema
+import asyncio
+import _pulsar
 import time
 
 class Subscriber:
 
-    def __init__(self, pulsar_client, topic, subscription, consumer_name,
-                 schema=None, max_size=100):
-        self.client = pulsar_client
+    def __init__(self, client, topic, subscription, consumer_name,
+                 schema=None, max_size=100, metrics=None):
+        self.client = client
         self.topic = topic
         self.subscription = subscription
         self.consumer_name = consumer_name
@@ -16,38 +16,73 @@ class Subscriber:
         self.q = {}
         self.full = {}
         self.max_size = max_size
-        self.lock = threading.Lock()
+        self.lock = asyncio.Lock()
         self.running = True
+        self.metrics = metrics
+        self.task = None
 
-    def start(self):
-        self.task = threading.Thread(target=self.run)
-        self.task.start()
+        self.consumer = None
 
-    def stop(self):
+    def __del__(self):
+
         self.running = False
 
-    def join(self):
-        self.task.join()
+    async def start(self):
 
-    def run(self):
+        self.consumer = self.client.subscribe(
+            topic = self.topic,
+            subscription_name = self.subscription,
+            consumer_name = self.consumer_name,
+            schema = JsonSchema(self.schema),
+        )
+
+        self.task = asyncio.create_task(self.run())
+
+    async def stop(self):
+        self.running = False
+
+        if self.task:
+            await self.task
+
+    async def join(self):
+        await self.stop()
+
+        if self.task:
+            await self.task
+
+    async def run(self):
 
         while self.running:
 
+            if self.metrics:
+                self.metrics.state("stopped")
+
             try:
 
-                consumer = self.client.subscribe(
-                    topic=self.topic,
-                    subscription_name=self.subscription,
-                    consumer_name=self.consumer_name,
-                    schema=self.schema,
-                )
+                if self.metrics:
+                    self.metrics.state("running")
+
+                print("Subscriber running...", flush=True)
 
                 while self.running:
 
-                    msg = consumer.receive()
+                    try:
+                        msg = await asyncio.to_thread(
+                            self.consumer.receive,
+                            timeout_millis=250
+                        )
+                    except _pulsar.Timeout:
+                        continue
+                    except Exception as e:
+                        print("Exception:", e, flush=True)
+                        print(type(e))
+                        raise e
+
+                    if self.metrics:
+                        self.metrics.received()
 
                     # Acknowledge successful reception of the message
-                    consumer.acknowledge(msg)
+                    self.consumer.acknowledge(msg)
 
                     try:
                         id = msg.properties()["id"]
@@ -56,57 +91,83 @@ class Subscriber:
 
                     value = msg.value()
 
-                    with self.lock:
+                    async with self.lock:
+
+                        # FIXME: Hard-coded timeouts
 
                         if id in self.q:
+
                             try:
                                 # FIXME: Timeout means data goes missing
-                                self.q[id].put(value, timeout=0.5)
-                            except:
-                                pass
+                                await asyncio.wait_for(
+                                    self.q[id].put(value),
+                                    timeout=1
+                                )
+
+                            except Exception as e:
+                                self.metrics.dropped()
+                                print("Q Put:", e, flush=True)
 
                         for q in self.full.values():
                             try:
                                 # FIXME: Timeout means data goes missing
-                                q.put(value, timeout=0.5)
-                            except:
-                                pass
+                                await asyncio.wait_for(
+                                    q.put(value),
+                                    timeout=1
+                                )
+                            except Exception as e:
+                                self.metrics.dropped()
+                                print("Q Put:", e, flush=True)
 
             except Exception as e:
-                print("Exception:", e, flush=True)
+                print("Subscriber exception:", e, flush=True)
+
+            finally:
+
+                if self.consumer:
+                    self.consumer.unsubscribe()
+                    self.consumer.close()
+                    self.consumer = None
+                
          
+            if self.metrics:
+                self.metrics.state("stopped")
+
+            if not self.running:
+                return
+            
             # If handler drops out, sleep a retry
-            time.sleep(2)
+            await asyncio.sleep(1)
 
-    def subscribe(self, id):
+    async def subscribe(self, id):
 
-        with self.lock:
+        async with self.lock:
 
-            q = queue.Queue(maxsize=self.max_size)
+            q = asyncio.Queue(maxsize=self.max_size)
             self.q[id] = q
 
         return q
 
-    def unsubscribe(self, id):
+    async def unsubscribe(self, id):
         
-        with self.lock:
+        async with self.lock:
 
             if id in self.q:
 #                self.q[id].shutdown(immediate=True)
                 del self.q[id]
     
-    def subscribe_all(self, id):
+    async def subscribe_all(self, id):
 
-        with self.lock:
+        async with self.lock:
 
-            q = queue.Queue(maxsize=self.max_size)
+            q = asyncio.Queue(maxsize=self.max_size)
             self.full[id] = q
 
         return q
 
-    def unsubscribe_all(self, id):
+    async def unsubscribe_all(self, id):
 
-        with self.lock:
+        async with self.lock:
 
             if id in self.full:
 #                self.full[id].shutdown(immediate=True)

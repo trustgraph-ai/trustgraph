@@ -17,13 +17,13 @@ default_max_subgraph_size = 150
 default_max_path_length = 2
 
 def question(
-        url, question, user, collection, entity_limit, triple_limit,
+        url, flow_id, question, user, collection, entity_limit, triple_limit,
         max_subgraph_size, max_path_length
 ):
 
-    rag = Api(url)
+    api = Api(url).flow().id(flow_id)
 
-    resp = rag.graph_rag(
+    resp = api.graph_rag(
         question=question, user=user, collection=collection,
         entity_limit=entity_limit, triple_limit=triple_limit,
         max_subgraph_size=max_subgraph_size,
@@ -43,6 +43,12 @@ def main():
         '-u', '--url',
         default=default_url,
         help=f'API URL (default: {default_url})',
+    )
+
+    parser.add_argument(
+        '-f', '--flow-id',
+        default="0000",
+        help=f'Flow ID (default: 0000)'
     )
 
     parser.add_argument(
@@ -93,6 +99,7 @@ def main():
 
         question(
             url=args.url,
+            flow_id = args.flow_id,
             question=args.question,
             user=args.user,
             collection=args.collection,

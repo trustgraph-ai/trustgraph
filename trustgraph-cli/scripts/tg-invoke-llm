@@ -12,9 +12,9 @@ from trustgraph.api import Api
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 
-def query(url, system, prompt):
+def query(url, flow_id, system, prompt):
 
-    api = Api(url)
+    api = Api(url).flow().id(flow_id)
 
     resp = api.text_completion(system=system, prompt=prompt)
 
@@ -44,12 +44,12 @@ def main():
         nargs=1,
         help='LLM prompt e.g. What is 2 + 2?',
     )
-    
-    # parser.add_argument(
-    #     '--pulsar-api-key',
-    #     default=default_pulsar_api_key,
-    #     help=f'Pulsar API key',
-    # )
+
+    parser.add_argument(
+        '-f', '--flow-id',
+        default="0000",
+        help=f'Flow ID (default: 0000)'
+    )
 
     args = parser.parse_args()
 
@@ -57,6 +57,7 @@ def main():
 
         query(
             url=args.url,
+            flow_id = args.flow_id,
             system=args.system[0],
             prompt=args.prompt[0],
         )

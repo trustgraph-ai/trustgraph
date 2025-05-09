@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+
+import requests
+import json
+import sys
+import base64
+import time
+
+url = "http://localhost:8088/api/v1/"
+
+############################################################################
+
+id = "http://trustgraph.ai/doc/9fdee98b-b259-40ac-bcb9-8e82ccedeb04"
+
+input = {
+    "operation": "update-document",
+    "document-metadata": {
+        "id": id,
+        "time": int(time.time()),
+        "title": "Mark's cats - a story",
+        "comments": "Information about Mark's cats",
+        "metadata": [
+            {
+                "s": {
+                    "v": id,
+                    "e": True,
+                },
+                "p": {
+                    "v": "http://www.w3.org/2000/01/rdf-schema#label",
+                    "e": True,
+                },
+                "o": {
+                    "v": "Mark's pets", "e": False,
+                },
+            },
+            {
+                "s": {
+                    "v": id,
+                    "e": True,
+                },
+                "p": {
+                    "v": 'https://schema.org/keywords',
+                    "e": True,
+                },
+                "o": {
+                    "v": "cats", "e": False,
+                },
+            },
+        ],
+        "user": "trustgraph",
+        "tags": ["mark", "cats", "pets"],
+    },
+}
+
+resp = requests.post(
+    f"{url}librarian",
+    json=input,
+)
+
+print(resp.text)
+resp = resp.json()
+
+print(resp)
+
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
+
+# print(resp["response"])
+print(resp)
+
+sys.exit(0)
+
+############################################################################
+

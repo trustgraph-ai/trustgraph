@@ -1,0 +1,248 @@
+#!/usr/bin/env python3
+
+import requests
+import json
+import sys
+
+url = "http://localhost:8088/api/v1/"
+
+############################################################################
+
+input = {
+    "operation": "config"
+}
+
+resp = requests.post(
+    f"{url}config",
+    json=input,
+)
+
+if resp.status_code != 200:
+    raise RuntimeError(f"Status code: {resp.status_code}")
+
+resp = resp.json()
+
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
+
+print(json.dumps(resp, indent=4))
+
+############################################################################
+
+input = {
+    "operation": "put",
+    "values": [
+        {
+            "type": "test",
+            "key": "key1",
+            "value": "value1"
+        },
+        {
+            "type": "test",
+            "key": "key2",
+            "value": "value2"
+        }
+    ]
+}
+
+resp = requests.post(
+    f"{url}config",
+    json=input,
+)
+
+if resp.status_code != 200:
+    raise RuntimeError(f"Status code: {resp.status_code}")
+
+resp = resp.json()
+
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
+
+print(json.dumps(resp, indent=4))
+
+############################################################################
+
+input = {
+    "operation": "put",
+    "values": [
+        {
+            "type": "test",
+            "key": "key3",
+            "value": "testing 1 2 3"
+        }
+    ]
+}
+
+resp = requests.post(
+    f"{url}config",
+    json=input,
+)
+
+if resp.status_code != 200:
+    raise RuntimeError(f"Status code: {resp.status_code}")
+
+resp = resp.json()
+
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
+
+print(json.dumps(resp, indent=4))
+
+############################################################################
+
+input = {
+    "operation": "get",
+    "keys": [
+        {
+            "type": "test",
+            "key": "key2"
+        },
+        {
+            "type": "test",
+            "key": "key3"
+        }
+    ]
+}
+
+resp = requests.post(
+    f"{url}config",
+    json=input,
+)
+
+if resp.status_code != 200:
+    raise RuntimeError(f"Status code: {resp.status_code}")
+
+resp = resp.json()
+
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
+
+print(json.dumps(resp, indent=4))
+
+############################################################################
+
+input = {
+    "operation": "config"
+}
+
+resp = requests.post(
+    f"{url}config",
+    json=input,
+)
+
+if resp.status_code != 200:
+    raise RuntimeError(f"Status code: {resp.status_code}")
+
+resp = resp.json()
+
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
+
+print(json.dumps(resp, indent=4))
+
+############################################################################
+
+input = {
+    "operation": "list",
+    "type": "test"
+}
+
+resp = requests.post(
+    f"{url}config",
+    json=input,
+)
+
+if resp.status_code != 200:
+    raise RuntimeError(f"Status code: {resp.status_code}")
+
+resp = resp.json()
+
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
+
+print(json.dumps(resp, indent=4))
+
+############################################################################
+
+input = {
+    "operation": "getvalues",
+    "type": "test"
+}
+
+resp = requests.post(
+    f"{url}config",
+    json=input,
+)
+
+if resp.status_code != 200:
+    raise RuntimeError(f"Status code: {resp.status_code}")
+
+resp = resp.json()
+
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
+
+print(json.dumps(resp, indent=4))
+
+############################################################################
+
+input = {
+    "operation": "delete",
+    "keys": [
+        {
+            "type": "test",
+            "key": "key1"
+        },
+        {
+            "type": "test",
+            "key": "key3"
+        }
+    ]
+}
+
+resp = requests.post(
+    f"{url}config",
+    json=input,
+)
+
+if resp.status_code != 200:
+    raise RuntimeError(f"Status code: {resp.status_code}")
+
+resp = resp.json()
+
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
+
+print(json.dumps(resp, indent=4))
+
+############################################################################
+
+input = {
+    "operation": "config"
+}
+
+resp = requests.post(
+    f"{url}config",
+    json=input,
+)
+
+if resp.status_code != 200:
+    raise RuntimeError(f"Status code: {resp.status_code}")
+
+resp = resp.json()
+
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
+
+print(json.dumps(resp, indent=4))
+
+############################################################################

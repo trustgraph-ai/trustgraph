@@ -3,7 +3,12 @@
 import json
 from trustgraph.clients.prompt_client import PromptClient
 
-p = PromptClient(pulsar_host="pulsar://localhost:6650")
+p = PromptClient(
+    pulsar_host="pulsar://localhost:6650",
+    input_queue="non-persistent://tg/request/prompt:default",
+    output_queue="non-persistent://tg/response/prompt:default",
+    subscriber="test1",
+)
 
 chunk="""
  The Space Shuttle was a reusable spacecraft that transported astronauts and cargo to and from Earth's orbit. It was designed to launch like a rocket, maneuver in orbit like a spacecraft, and land like an airplane. The Space Shuttle was NASA's space transportation system and was used for many purposes, including: 
@@ -31,8 +36,8 @@ The Space Shuttle's last mission was in 2011.
 q = "Tell me some facts in the knowledge graph"
 
 resp = p.request(
-    id="extract-definition",
-    terms = {
+    id="extract-definitions",
+    variables = {
         "text": chunk,
     }
 )
@@ -40,7 +45,7 @@ resp = p.request(
 print(resp)
 
 for fact in resp:
-    print(fact["term"], "::")
+    print(fact["entity"], "::")
     print(fact["definition"])
     print()
 

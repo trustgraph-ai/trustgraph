@@ -3,13 +3,18 @@
 import pulsar
 from trustgraph.clients.prompt_client import PromptClient
 
-p = PromptClient(pulsar_host="pulsar://localhost:6650")
+p = PromptClient(
+    pulsar_host="pulsar://localhost:6650",
+    input_queue="non-persistent://tg/request/prompt:default",
+    output_queue="non-persistent://tg/response/prompt:default",
+    subscriber="test1",
+)
 
 question = """What is the square root of 16?"""
 
 resp = p.request(
     id="question",
-    terms = {
+    variables = {
         "question": question
     }
 )

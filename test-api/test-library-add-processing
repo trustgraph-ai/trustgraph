@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+
+import requests
+import json
+import sys
+import base64
+import time
+
+url = "http://localhost:8088/api/v1/"
+
+############################################################################
+
+doc_id = "http://trustgraph.ai/doc/9fdee98b-b259-40ac-bcb9-8e82ccedeb04"
+
+proc_id = "2714fc72-44ab-45f2-94dd-6773fc336535"
+
+input = {
+    "operation": "add-processing",
+    "processing-metadata": {
+        "id": proc_id,
+        "document-id": doc_id,
+        "time": int(time.time()),
+        "flow": "0000",
+        "user": "trustgraph",
+        "collection": "default",
+        "tags": ["test"],
+    }
+}
+
+resp = requests.post(
+    f"{url}librarian",
+    json=input,
+)
+
+print(resp.text)
+resp = resp.json()
+
+print(resp)
+
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
+
+# print(resp["response"])
+print(resp)
+
+sys.exit(0)
+
+############################################################################
+

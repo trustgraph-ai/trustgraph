@@ -2,11 +2,11 @@
 
 """
 This utility connects to a running TrustGraph through the API and creates
-a knowledge core from the data streaming through the processing queues.
-For completeness of data, tg-save-kg-core should be initiated before data
-loading takes place.  The default output  format, msgpack should be used.
-JSON output format is also available - msgpack produces a more compact
-representation, which is also more performant to load.
+a document embeddings core from the data streaming through the processing
+queues.  For completeness of data, tg-save-doc-embeds should be initiated
+before data loading takes place.  The default output  format, msgpack
+should be used.  JSON output format is also available - msgpack produces
+a more compact representation, which is also more performant to load.
 """
 
 import aiohttp
@@ -27,9 +27,7 @@ async def fetch_de(running, queue, user, collection, url):
 
     async with aiohttp.ClientSession() as session:
 
-        de_url = f"{url}stream/document-embeddings"
-
-        async with session.ws_connect(de_url) as ws:
+        async with session.ws_connect(url) as ws:
 
             while running.get():
 
@@ -117,11 +115,14 @@ async def run(running, **args):
 
     q = asyncio.Queue()
 
+    url = args["url"]
+    flow_id = args["flow_id"]
+
     de_task = asyncio.create_task(
         fetch_de(
             running=running,
             queue=q, user=args["user"], collection=args["collection"],
-            url=args["url"] + "api/v1/"
+            url = f"{url}api/v1/flow/{flow_id}/export/document-embeddings"
         )
     )
 
@@ -156,6 +157,12 @@ async def main(running):
         '-u', '--url',
         default=default_url,
         help=f'TrustGraph API URL (default: {default_url})',
+    )
+
+    parser.add_argument(
+        '-f', '--flow-id',
+        default="0000",
+        help=f'Flow ID (default: 0000)'
     )
 
     parser.add_argument(

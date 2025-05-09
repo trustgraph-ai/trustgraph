@@ -3,7 +3,12 @@
 import pulsar
 from trustgraph.clients.document_rag_client import DocumentRagClient
 
-rag = DocumentRagClient(pulsar_host="pulsar://localhost:6650")
+rag = DocumentRagClient(
+    pulsar_host="pulsar://localhost:6650",
+    subscriber="test1",
+    input_queue = "non-persistent://tg/request/document-rag:default",
+    output_queue = "non-persistent://tg/response/document-rag:default",
+)
 
 query="""
 What was the cause of the space shuttle disaster?"""

@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+
+import requests
+import asyncio
+import json
+import sys
+import base64
+import time
+from websockets.asyncio.client import connect
+
+url = "ws://localhost:8088/api/v1/socket"
+
+############################################################################
+
+async def run():
+
+    async with connect(url) as ws:
+
+        req = {
+            "id": "aa11",
+            "service": "knowledge",
+            "request": {
+                "operation": "fetch-kg-core",
+                "user": "trustgraph",
+                "id": "https://trustgraph.ai/doc/intelligence-and-state"
+            }
+        }
+
+        await ws.send(json.dumps(req))
+
+        while True:
+
+            msg = await ws.recv()
+            obj = json.loads(msg)
+
+            print(obj)
+
+            if "error" in obj:
+                print(f"Error: {obj['error']}")
+                break
+
+            if "response" not in obj: continue
+
+            if "eos" in obj["response"]:
+                if obj["response"]["eos"]:
+                    break
+                
+############################################################################
+
+asyncio.run(run())

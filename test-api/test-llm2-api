@@ -1,0 +1,33 @@
+#!/usr/bin/env python3
+
+import requests
+import json
+import sys
+
+url = "http://localhost:8088/api/v1/"
+
+############################################################################
+
+input = {
+    "system": "",
+    "prompt": "Add 2 and 3"
+}
+
+resp = requests.post(
+    f"{url}text-completion",
+    json=input,
+)
+
+if resp.status_code != 200:
+    raise RuntimeError(f"Status code: {resp.status_code}")
+
+resp = resp.json()
+
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
+
+print(resp["response"])
+
+############################################################################
+

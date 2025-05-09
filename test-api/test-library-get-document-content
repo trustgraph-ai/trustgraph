@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+
+import requests
+import json
+import sys
+import base64
+
+url = "http://localhost:8088/api/v1/"
+
+############################################################################
+
+id = "http://trustgraph.ai/doc/9fdee98b-b259-40ac-bcb9-8e82ccedeb04"
+
+user = "trustgraph"
+
+input = {
+    "operation": "get-document-content",
+    "user": user,
+    "document-id": id,
+}
+
+resp = requests.post(
+    f"{url}librarian",
+    json=input,
+)
+
+resp = resp.json()
+
+if "error" in resp:
+    print(f"Error: {resp['error']}")
+    sys.exit(1)
+
+
+content = base64.b64decode(resp["content"]).decode("utf-8")
+
+print(content)
+
+sys.exit(0)
+
+############################################################################
+
