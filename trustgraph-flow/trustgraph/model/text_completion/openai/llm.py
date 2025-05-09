@@ -12,7 +12,6 @@ from .... base import LlmService, LlmResult
 
 default_ident = "text-completion"
 
-default_subscriber = module
 default_model = 'gpt-3.5-turbo'
 default_temperature = 0.0
 default_max_output = 4096
