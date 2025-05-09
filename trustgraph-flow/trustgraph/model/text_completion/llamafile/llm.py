@@ -5,6 +5,7 @@ Input is prompt, output is response.
 """
 
 from openai import OpenAI
+import os
 
 from .... exceptions import TooManyRequests
 from .... base import LlmService, LlmResult
