@@ -2,7 +2,7 @@
 
 <div align="center">
 
-## The Knowledge Provisioning Platform
+## The Knowledge Platform for AI
 
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
@@ -11,9 +11,9 @@
 
 </div>
 
-**TrustGraph streamlines the delivery and management of knowledge to AI, acting as a comprehensive provisioning platform for your containerized AI tools, pipelines, and integrations.**
+**TrustGraph streamlines the delivery and management of knowledge to AI, acting as a comprehensive knowledge platform for your containerized AI tools, pipelines, and integrations.**
 
-Deploying state-of-the-art AI requires managing a complex web of models, frameworks, data pipelines, and monitoring tools. TrustGraph simplifies this by providing a unified, open-source platform to **provision a complete knowledge solution** anywhere you need it – from cloud, on-prem, or edge devices.
+Deploying state-of-the-art AI requires managing a complex web of models, frameworks, data pipelines, and monitoring tools. TrustGraph simplifies this by providing a unified, open-source platform to **configure, build, and ship a complete knowledge solution** anywhere you need it – from cloud, on-prem, or edge devices.
 
 ---
 
