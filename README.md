@@ -13,7 +13,7 @@
 
 **TrustGraph streamlines the delivery and management of knowledge to AI, acting as a comprehensive knowledge platform for your containerized AI tools, pipelines, and integrations.**
 
-Deploying state-of-the-art AI requires managing a complex web of models, frameworks, data pipelines, and monitoring tools. TrustGraph simplifies this by providing a unified, open-source platform to **configure, build, and ship a complete knowledge solution** anywhere you need it – from cloud, on-prem, or edge devices.
+Deploying state-of-the-art AI requires managing a complex web of models, frameworks, data pipelines, and monitoring tools. TrustGraph simplifies this complexity by providing a unified, open-source platform to **configure, build, and ship a complete knowledge solution** anywhere you need it – from cloud, on-prem, or edge devices.
 
 ---
 
