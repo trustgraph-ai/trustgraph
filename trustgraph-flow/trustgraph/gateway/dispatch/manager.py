@@ -160,6 +160,8 @@ class DispatcherManager:
             queue = qconfig,
         )
 
+        await dispatcher.start()
+
         return dispatcher
 
     async def process_flow_export(self, ws, running, params):
