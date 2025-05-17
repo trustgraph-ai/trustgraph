@@ -22,6 +22,9 @@ class GraphEmbeddingsImport:
             pulsar_client, topic = queue, schema = GraphEmbeddings
         )
 
+    async def start(self):
+        await self.publisher.start()
+
     async def destroy(self):
         self.running.stop()
 
