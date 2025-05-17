@@ -22,6 +22,9 @@ class DocumentEmbeddingsImport:
             pulsar_client, topic = queue, schema = DocumentEmbeddings
         )
 
+    async def start(self):
+        await self.publisher.start()
+
     async def destroy(self):
         self.running.stop()
 
