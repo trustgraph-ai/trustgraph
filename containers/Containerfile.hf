@@ -4,7 +4,7 @@
 # like to avoid re-doing this.
 # ----------------------------------------------------------------------------
 
-FROM docker.io/fedora:40 AS ai
+FROM docker.io/fedora:42 AS ai
 
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 
@@ -15,11 +15,11 @@ RUN pip3 install torch==2.5.1+cpu \
     --index-url https://download.pytorch.org/whl/cpu
 
 RUN pip3 install --no-cache-dir \
-    langchain==0.3.13 langchain-core==0.3.28 langchain-huggingface==0.1.2 \
-    langchain-community==0.3.13 \
-    sentence-transformers==3.4.0 transformers==4.47.1 \
-    huggingface-hub==0.27.0 \
-    pulsar-client==3.5.0
+    langchain==0.3.25 langchain-core==0.3.60 langchain-huggingface==0.2.0 \
+    langchain-community==0.3.24 \
+    sentence-transformers==4.1.0 transformers==4.51.3 \
+    huggingface-hub==0.31.2 \
+    pulsar-client==3.7.0
 
 # Most commonly used embeddings model, just build it into the container
 # image
