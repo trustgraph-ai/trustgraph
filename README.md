@@ -302,4 +302,4 @@ The default Grafana dashboard tracks the following:
 ## 📞 Support & Community
 - Bug Reports & Feature Requests: [Discord](https://discord.gg/sQMwkRz5GX)
 - Discussions & Questions: [Discord](https://discord.gg/sQMwkRz5GX)
-- Documentation: [Docs](https://trustgraph.ai/docs/getstarted)
+- Documentation: [Docs](https://docs.trustgraph.ai/docs/getstarted)
