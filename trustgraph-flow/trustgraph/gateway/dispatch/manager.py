@@ -23,10 +23,12 @@ from . document_load import DocumentLoad
 from . triples_export import TriplesExport
 from . graph_embeddings_export import GraphEmbeddingsExport
 from . document_embeddings_export import DocumentEmbeddingsExport
+from . entity_contexts_export import EntityContextsExport
 
 from . triples_import import TriplesImport
 from . graph_embeddings_import import GraphEmbeddingsImport
 from . document_embeddings_import import DocumentEmbeddingsImport
+from . entity_contexts_import import EntityContextsImport
 
 from . mux import Mux
 
@@ -57,12 +59,14 @@ export_dispatchers = {
     "triples": TriplesExport,
     "graph-embeddings": GraphEmbeddingsExport,
     "document-embeddings": DocumentEmbeddingsExport,
+    "entity-contexts": EntityContextsExport,
 }
 
 import_dispatchers = {
     "triples": TriplesImport,
     "graph-embeddings": GraphEmbeddingsImport,
     "document-embeddings": DocumentEmbeddingsImport,
+    "entity-contexts": EntityContextsImport,
 }
 
 class DispatcherWrapper:
@@ -146,11 +150,17 @@ class DispatcherManager:
 
         intf_defs = self.flows[flow]["interfaces"]
 
-        if kind not in intf_defs:
+        # FIXME: The -store bit, does it make sense?
+        if kind == "entity-contexts":
+            int_kind = kind + "-load"
+        else:
+            int_kind = kind + "-store"
+
+        if int_kind not in intf_defs:
             raise RuntimeError("This kind not supported by flow")
 
         # FIXME: The -store bit, does it make sense?
-        qconfig = intf_defs[kind + "-store"]
+        qconfig = intf_defs[int_kind]
 
         id = str(uuid.uuid4())
         dispatcher = import_dispatchers[kind](
@@ -159,6 +169,8 @@ class DispatcherManager:
             running = running,
             queue = qconfig,
         )
+
+        await dispatcher.start()
 
         return dispatcher
 
@@ -177,11 +189,16 @@ class DispatcherManager:
 
         intf_defs = self.flows[flow]["interfaces"]
 
-        if kind not in intf_defs:
+        # FIXME: The -store bit, does it make sense?
+        if kind == "entity-contexts":
+            int_kind = kind + "-load"
+        else:
+            int_kind = kind + "-store"
+
+        if int_kind not in intf_defs:
             raise RuntimeError("This kind not supported by flow")
 
-        # FIXME: The -store bit, does it make sense?
-        qconfig = intf_defs[kind + "-store"]
+        qconfig = intf_defs[int_kind]
 
         id = str(uuid.uuid4())
         dispatcher = export_dispatchers[kind](
