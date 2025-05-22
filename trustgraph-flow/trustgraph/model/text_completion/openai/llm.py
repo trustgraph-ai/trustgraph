@@ -24,7 +24,10 @@ default_model = 'gpt-3.5-turbo'
 default_temperature = 0.0
 default_max_output = 4096
 default_api_key = os.getenv("OPENAI_TOKEN")
-default_base_url = os.getenv("OPENAI_BASE_URL", None)
+default_base_url = os.getenv("OPENAI_BASE_URL")
+
+if default_base_url is None or default_base_url == "":
+    default_base_url = "https://api.openai.com/v1"
 
 class Processor(ConsumerProducer):
 
@@ -35,7 +38,7 @@ class Processor(ConsumerProducer):
         subscriber = params.get("subscriber", default_subscriber)
         model = params.get("model", default_model)
         api_key = params.get("api_key", default_api_key)
-        base_url = params.get("base_url", default_base_url)
+        base_url = params.get("url", default_base_url)
         temperature = params.get("temperature", default_temperature)
         max_output = params.get("max_output", default_max_output)
 
@@ -72,7 +75,11 @@ class Processor(ConsumerProducer):
         self.model = model
         self.temperature = temperature
         self.max_output = max_output
-        self.openai = OpenAI(base_url=base_url, api_key=api_key)
+
+        if base_url:
+            self.openai = OpenAI(base_url=base_url, api_key=api_key)
+        else:
+            self.openai = OpenAI(api_key=api_key)
 
         print("Initialised", flush=True)
 
@@ -144,7 +151,7 @@ class Processor(ConsumerProducer):
 
             # Apart from rate limits, treat all exceptions as unrecoverable
 
-            print(f"Exception: {e}")
+            print(f"Exception: {type(e)} {e}")
 
             print("Send error response...", flush=True)
 
