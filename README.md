@@ -2,7 +2,7 @@
 
 <div align="center">
 
-## The AI Provisioning Platform
+## The Knowledge Platform for AI
 
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
@@ -11,9 +11,9 @@
 
 </div>
 
-**TrustGraph streamlines the delivery and management of complex AI environments, acting as a comprehensive provisioning platform for your containerized AI tools, pipelines, and integrations.**
+**TrustGraph streamlines the delivery and management of knowledge to AI, acting as a comprehensive knowledge platform for your containerized AI tools, pipelines, and integrations.**
 
-Deploying state-of-the-art AI requires managing a complex web of models, frameworks, data pipelines, and monitoring tools. TrustGraph simplifies this by providing a unified, open-source solution to **provision complete, trusted AI environments** anywhere you need them – from cloud instances and on-premises servers to edge devices.
+Deploying state-of-the-art AI requires managing a complex web of models, frameworks, data pipelines, and monitoring tools. TrustGraph simplifies this complexity by providing a unified, open-source platform to **configure, build, and ship a complete knowledge solution** anywhere you need it – from cloud, on-prem, or edge devices.
 
 ---
 
@@ -39,7 +39,7 @@ Deploying state-of-the-art AI requires managing a complex web of models, framewo
 
 ## 🎯 Why TrustGraph?
 
-*   **Unified Provisioning:** Define and deploy complete AI environments, including models, dependencies, and tooling, as a single, manageable unit. Stop managing piecemeal installations.
+*   **Unified Knowledge:** Define and deploy complete knowledge environments, including models, dependencies, and tooling, as a single, manageable unit.
 *   **No-code TrustRAG Pipelines:** Deploy full end-to-end RAG pipelines using unique TrustGraph algorithms leveraging both Knowledge graphs and VectorDBs.
 *   **Environment-Agnostic Deployment:** Provision consistently across diverse infrastructures (Cloud, On-Prem, Edge, Dev environments). Build once, provision anywhere.
 *   **Trusted & Secure Delivery:** Focuses on providing a secure supply chain for AI components.
@@ -68,32 +68,32 @@ For users, **TrustGraph** has the following interfaces:
 - [**Configuration Builder**](#-configuration-builder)
 - [**Test Suite**](#test-suite)
 
-The `TrustGraph CLI` installs the commands for interacting with TrustGraph while running along with the Python SDK. The `Configuration Builder` enables customization of TrustGraph deployments prior to launching. The **REST API** can be accessed through port `8088` of the TrustGraph host machine with JSON request and response bodies.
+The `trustgraph-cli` installs the commands for interacting with TrustGraph while running along with the Python SDK. The **Configuration Builder** enables customization of TrustGraph deployments prior to launching. The **REST API** can be accessed through port `8088` of the TrustGraph host machine with JSON request and response bodies.
 
 ### Install the TrustGraph CLI
 
 ```
-pip3 install trustgraph-cli==0.21.17
+pip3 install trustgraph-cli==<trustgraph-version>
 ```
 
-> [!NOTE]
-> The `TrustGraph CLI` version must match the desired `TrustGraph` release version.
+> [!CAUTION]
+> The `trustgraph-cli` version *must* match the selected **TrustGraph** release version. 
 
 ## 🔧 Configuration Builder
 
-TrustGraph is endlessly customizable by editing the `YAML` launch files. The `Configuration Builder` provides a quick and intuitive tool for building a custom configuration that deploys with Docker, Podman, Minikube, AWS, Azure, Google Cloud, or Scaleway. There is a `Configuration Builder` for the both the lastest and stable `TrustGraph` releases.
+TrustGraph is endlessly customizable by editing the `YAML` resource files. The **Configuration Builder** provides a tool for building a custom configuration that deploys with your selected orchestration method in your target environment.
 
-- [**Configuration Builder** (Stable 0.21.17) 🚀](https://config-ui.demo.trustgraph.ai/)
-- [**Configuration Builder** (Latest 0.22.5) 🚀](https://dev.config-ui.demo.trustgraph.ai/)
+- [**Configuration Builder** 🚀](https://config-ui.demo.trustgraph.ai/)
 
-The `Configuration Builder` has 4 important sections:
+The **Configuration Builder** has 5 important sections:
 
-- **Component Selection** ✅: Choose from the available deployment platforms, LLMs, graph store, VectorDB, chunking algorithm, chunking parameters, and LLM parameters
-- **Customization** 🧰: Customize the prompts for the LLM System, Data Extraction Agents, and Agent Flow
-- **Test Suite** 🕵️: Add the **Test Suite** to the configuration available on port `8888`
-- **Finish Deployment** 🚀: Download the launch `YAML` files with deployment instructions
+- 🚢 **TrustGraph Version**: Select the version of TrustGraph you'd like to deploy
+- ✅ **Component Selection**: Choose from the available deployment platforms, LLMs, graph store, VectorDB, chunking algorithm, chunking parameters, and LLM parameters
+- 🧰 **Customization**: Customize the prompts for the LLM System, Data Extraction Agents, and Agent Flow
+- 🕵️ **Test Suite**: Add the **Test Suite** to the configuration available on port `8888`
+- 🚀 **Finish Deployment**: Download the launch `YAML` files with deployment instructions
 
-The `Configuration Builder` will generate the `YAML` files in `deploy.zip`. Once `deploy.zip` has been downloaded and unzipped, launching TrustGraph is as simple as navigating to the `deploy` directory and running:
+The **Configuration Builder** will generate the `YAML` files in `deploy.zip`. Once `deploy.zip` has been downloaded and unzipped, launching TrustGraph is as simple as navigating to the `deploy` directory and running:
 
 ```
 docker compose up -d
@@ -123,7 +123,7 @@ All data previously in TrustGraph will be saved and usable on restart.
 
 ### Test Suite
 
-If added to the build in the `Configuration Builder`, the `Test Suite` will be available at port `8888`. The `Test Suite` has the following capabilities:
+If added to the build in the **Configuration Builder**, the **Test Suite** will be available at port `8888`. The **Test Suite** has the following capabilities:
 
 - **Graph RAG Chat** 💬: Graph RAG queries in a chat interface
 - **Vector Search** 🔎: Semantic similarity search with cosine similarity scores
@@ -302,4 +302,4 @@ The default Grafana dashboard tracks the following:
 ## 📞 Support & Community
 - Bug Reports & Feature Requests: [Discord](https://discord.gg/sQMwkRz5GX)
 - Discussions & Questions: [Discord](https://discord.gg/sQMwkRz5GX)
-- Documentation: [Docs](https://trustgraph.ai/docs/getstarted)
+- Documentation: [Docs](https://docs.trustgraph.ai/docs/getstarted)
