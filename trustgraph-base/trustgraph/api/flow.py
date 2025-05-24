@@ -24,7 +24,7 @@ class Flow:
         else:
             return self.api.request(f"flow", request)
 
-    def id(self, id="0000"):
+    def id(self, id="default"):
         return FlowInstance(api=self, id=id)
 
     def list_classes(self):
