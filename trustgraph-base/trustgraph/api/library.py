@@ -208,7 +208,7 @@ class Library:
         return {}
 
     def start_processing(
-            self, id, document_id, flow="0000",
+            self, id, document_id, flow="default",
             user="trustgraph", collection="default", tags=[],
     ):
 
