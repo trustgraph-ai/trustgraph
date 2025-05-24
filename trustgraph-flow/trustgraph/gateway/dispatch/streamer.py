@@ -76,8 +76,6 @@ class ServiceRequestor:
 
                     resp, fin = self.from_inbound(resp)
 
-                    print(resp, fin)
-
                     await self.receiver(resp, fin)
 
                 if fin: break

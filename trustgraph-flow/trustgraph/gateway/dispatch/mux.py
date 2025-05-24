@@ -149,7 +149,6 @@ class Mux:
                 break
 
             try:
-                print(id, svc, request)
 
                 await self.start_request_task(
                     self.ws, id, flow, svc, request, workers

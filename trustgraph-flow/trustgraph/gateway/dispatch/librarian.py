@@ -65,8 +65,6 @@ class LibrarianRequestor(ServiceRequestor):
 
     def from_response(self, message):
 
-        print(message)
-
         response = {}
 
         if message.document_metadata:
