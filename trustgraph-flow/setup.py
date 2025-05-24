@@ -42,7 +42,7 @@ setuptools.setup(
         "cryptography",
         "falkordb",
         "fastembed",
-        "google-generativeai",
+        "google-genai",
         "ibis",
         "jsonschema",
         "langchain",

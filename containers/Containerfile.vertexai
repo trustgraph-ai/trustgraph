@@ -13,6 +13,7 @@ RUN dnf install -y python3.12 && \
   python -m ensurepip --upgrade && \
   pip3 install --no-cache-dir wheel aiohttp && \
   pip3 install --no-cache-dir pulsar-client==3.7.0 && \
+  pip3 install --no-cache-dir google-cloud-aiplatform && \
   dnf clean all
 
 # ----------------------------------------------------------------------------
@@ -47,6 +48,4 @@ RUN \
     rm -rf /root/wheels
 
 WORKDIR /
-
-
 

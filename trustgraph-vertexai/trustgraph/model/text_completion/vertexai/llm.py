@@ -4,13 +4,26 @@ Simple LLM service, performs text prompt completion using VertexAI on
 Google Cloud.   Input is prompt, output is response.
 """
 
+# 
+# Somewhat perplexed by the Google Cloud SDK choices.  We're going off this
+# one, which uses the google-cloud-aiplatform library:
+#   https://cloud.google.com/python/docs/reference/vertexai/1.94.0
+# It seems it is possible to invoke VertexAI from the google-genai
+# SDK too:
+#   https://googleapis.github.io/python-genai/genai.html#module-genai.client
+# That would make this code look very much like the GoogleAIStudio
+# code.  And maybe not reliant on the google-cloud-aiplatform library?
+#
+# This module's imports bring in a lot of libraries.
+
 from google.oauth2 import service_account
 import google
 import vertexai
 
-from vertexai.preview.generative_models import (
+# Why is preview here?
+from vertexai.generative_models import (
     Content, FunctionDeclaration, GenerativeModel, GenerationConfig,
-    HarmCategory, HarmBlockThreshold, Part, Tool,
+    HarmCategory, HarmBlockThreshold, Part, Tool, SafetySetting,
 )
 
 from .... exceptions import TooManyRequests
@@ -18,7 +31,7 @@ from .... base import LlmService, LlmResult
 
 default_ident = "text-completion"
 
-default_model = 'gemini-1.0-pro-001'
+default_model = 'gemini-2.0-flash-001'
 default_region = 'us-central1'
 default_temperature = 0.0
 default_max_output = 8192
@@ -59,12 +72,24 @@ class Processor(LlmService):
         block_level = HarmBlockThreshold.BLOCK_ONLY_HIGH
         #     block_level = HarmBlockThreshold.BLOCK_NONE
 
-        self.safety_settings = {
-            HarmCategory.HARM_CATEGORY_HARASSMENT: block_level,
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: block_level,
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: block_level,
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: block_level,
-        }
+        self.safety_settings = [
+            SafetySetting(
+                category = HarmCategory.HARM_CATEGORY_HARASSMENT,
+                threshold = block_level,
+            ),
+            SafetySetting(
+                category = HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                threshold = block_level,
+            ),
+            SafetySetting(
+                category = HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                threshold = block_level,
+            ),
+            SafetySetting(
+                category = HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                threshold = block_level,
+            ),
+        ]
 
         print("Initialise VertexAI...", flush=True)
 
@@ -101,8 +126,8 @@ class Processor(LlmService):
             prompt = system + "\n\n" + prompt
 
             response = self.llm.generate_content(
-                prompt, generation_config=self.generation_config,
-                safety_settings=self.safety_settings
+                prompt, generation_config = self.generation_config,
+                safety_settings = self.safety_settings,
             )
 
             resp = LlmResult(
