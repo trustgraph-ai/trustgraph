@@ -77,16 +77,10 @@ class Processor(LlmService):
                     json=request,
             ) as response:
 
-                print("GOT A SRESPONSE")
-
                 if response.status != 200:
                     raise RuntimeError("Bad status: " + str(response.status))
 
-                print("GOT A GOOD STATUS")
-
                 resp = await response.json()
-
-                print("RESPONSE>", resp)
             
             inputtokens = resp["usage"]["prompt_tokens"]
             outputtokens = resp["usage"]["completion_tokens"]
