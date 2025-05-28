@@ -40,8 +40,7 @@ documents = [
         "id": "https://trustgraph.ai/doc/challenger-report-vol-1",
         "title": "Report of the Presidential Commission on the Space Shuttle Challenger Accident, Volume 1",
         "comments": "The findings of the Commission regarding the circumstances surrounding the Challenger accident are reported and recommendations for corrective action are outlined",
-#        "url": "https://ntrs.nasa.gov/api/citations/19860015255/downloads/19860015255.pdf",
-        "url": "file://19860015255.pdf",
+        "url": "https://ntrs.nasa.gov/api/citations/19860015255/downloads/19860015255.pdf",
         "kind": "application/pdf",
         "date": datetime.datetime.now().date(),
         "tags": ["nasa", "safety-engineering", "space-shuttle"],
@@ -739,11 +738,4 @@ def main():
         raise e
 
 main()
-
-
-
-
-# https://warwick.ac.uk/fac/soc/pais/people/aldrich/publications/beyond.pdf
-
-# https://www.ialeia.org/docs/Psychology_of_Intelligence_Analysis.pdf
 

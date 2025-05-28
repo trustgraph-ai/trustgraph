@@ -47,10 +47,8 @@ class ConstantEndpoint:
 
             data = await request.json()
 
-            print(data)
-
             async def responder(x, fin):
-                print(x)
+                pass
 
             resp = await self.dispatcher.process(data, responder)
 

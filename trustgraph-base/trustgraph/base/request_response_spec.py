@@ -127,8 +127,12 @@ class RequestResponseSpec(Spec):
 
         rr = self.impl(
             client = processor.pulsar_client,
+
+            # Make subscription names unique, so that all subscribers get
+            # to see all response messages
             subscription = (
-                processor.id + "--" + flow.name + "--" + self.request_name
+                processor.id + "--" + flow.name + "--" + self.request_name +
+                "--" + str(uuid.uuid4())
             ),
             consumer_name = flow.id,
             request_topic = definition[self.request_name],

@@ -34,7 +34,7 @@ setuptools.setup(
     python_requires='>=3.8',
     download_url = "https://github.com/trustgraph-ai/trustgraph/archive/refs/tags/v" + version + ".tar.gz",
     install_requires=[
-        "trustgraph-base>=0.23,<0.24",
+        "trustgraph-base>=1.0,<1.1",
         "pulsar-client",
         "google-cloud-aiplatform",
         "prometheus-client",

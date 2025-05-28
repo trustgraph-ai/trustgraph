@@ -82,8 +82,6 @@ class ServiceRequestor:
 
                 resp, fin = self.from_response(resp)
 
-                print(resp, fin, flush=True)
-
                 if responder:
                     await responder(resp, fin)
 

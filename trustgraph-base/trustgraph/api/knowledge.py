@@ -39,7 +39,7 @@ class Knowledge:
 
         self.request(request = input)
 
-    def load_kg_core(self, id, user="trustgraph", flow="0000",
+    def load_kg_core(self, id, user="trustgraph", flow="default",
                      collection="default"):
 
         # The input consists of system and prompt strings
@@ -53,7 +53,7 @@ class Knowledge:
 
         self.request(request = input)
 
-    def unload_kg_core(self, id, user="trustgraph", flow="0000"):
+    def unload_kg_core(self, id, user="trustgraph", flow="default"):
 
         # The input consists of system and prompt strings
         input = {

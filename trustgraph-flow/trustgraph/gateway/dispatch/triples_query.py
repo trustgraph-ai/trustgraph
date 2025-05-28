@@ -48,7 +48,6 @@ class TriplesQueryRequestor(ServiceRequestor):
         )
 
     def from_response(self, message):
-        print(message)
         return {
             "response": serialize_subgraph(message.triples)
         }, True
