@@ -1,6 +1,9 @@
 
 import asyncio
+from aiohttp import web
 import uuid
+import json
+import msgpack
 
 from . config import ConfigRequestor
 from . flow import FlowRequestor
@@ -29,6 +32,9 @@ from . triples_import import TriplesImport
 from . graph_embeddings_import import GraphEmbeddingsImport
 from . document_embeddings_import import DocumentEmbeddingsImport
 from . entity_contexts_import import EntityContextsImport
+
+from . core_export import CoreExport
+from . core_import import CoreImport
 
 from . mux import Mux
 
@@ -97,6 +103,22 @@ class DispatcherManager:
 
     def dispatch_global_service(self):
         return DispatcherWrapper(self.process_global_service)
+
+    def dispatch_core_export(self):
+        return DispatcherWrapper(self.process_core_export)
+
+    def dispatch_core_import(self):
+        return DispatcherWrapper(self.process_core_import)
+
+    async def process_core_import(self, data, error, ok, params):
+
+        ci = CoreImport(self.pulsar_client)
+        return await ci.process(data, error, ok, params)
+
+    async def process_core_export(self, data, error, ok, params):
+
+        ce = CoreExport(self.pulsar_client)
+        return await ce.process(data, error, ok, params)
 
     async def process_global_service(self, data, responder, params):
 

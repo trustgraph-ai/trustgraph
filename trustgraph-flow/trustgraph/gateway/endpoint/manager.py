@@ -3,7 +3,7 @@ import asyncio
 
 from aiohttp import web
 
-from . constant_endpoint import ConstantEndpoint
+from . stream_endpoint import StreamEndpoint
 from . variable_endpoint import VariableEndpoint
 from . socket import SocketEndpoint
 from . metrics import MetricsEndpoint
@@ -51,6 +51,16 @@ class EndpointManager:
                 endpoint_path = "/api/v1/flow/{flow}/export/{kind}",
                 auth = auth,
                 dispatcher = dispatcher_manager.dispatch_flow_export()
+            ),
+            StreamEndpoint(
+                endpoint_path = "/api/v1/import-core/{user}/{id:.*}",
+                auth = auth,
+                dispatcher = dispatcher_manager.dispatch_core_import(),
+            ),
+            StreamEndpoint(
+                endpoint_path = "/api/v1/export-core/{user}/{id:.*}",
+                auth = auth,
+                dispatcher = dispatcher_manager.dispatch_core_export(),
             ),
         ]
 
