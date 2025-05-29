@@ -49,7 +49,9 @@ class StreamEndpoint:
             async def error(err):
                 return web.HTTPInternalServerError(text = err)
 
-            async def ok(status=200, reason="OK", type="application/octet-stream"):
+            async def ok(
+                    status=200, reason="OK", type="application/octet-stream"
+            ):
                 response = web.StreamResponse(
                     status = status, reason = reason,
                     headers = {"Content-Type": type}
@@ -58,7 +60,7 @@ class StreamEndpoint:
                 return response
 
             resp = await self.dispatcher.process(
-                data, error, ok, request.match_info
+                data, error, ok, request
             )
 
             return resp
