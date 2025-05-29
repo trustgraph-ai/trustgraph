@@ -6,7 +6,7 @@ import logging
 logger = logging.getLogger("endpoint")
 logger.setLevel(logging.INFO)
 
-class VariableEndpoint:
+class StreamEndpoint:
 
     def __init__(self, endpoint_path, auth, dispatcher):
 
@@ -44,16 +44,24 @@ class VariableEndpoint:
 
         try:
 
-            data = await request.json()
+            data = request.content
 
-            async def responder(x, fin):
-                pass
+            async def error(err):
+                return web.HTTPInternalServerError(text = err)
+
+            async def ok(status=200, reason="OK", type="application/octet-stream"):
+                response = web.StreamResponse(
+                    status = status, reason = reason,
+                    headers = {"Content-Type": type}
+                )
+                await response.prepare(request)
+                return response
 
             resp = await self.dispatcher.process(
-                data, responder, request.match_info
+                data, error, ok, request.match_info
             )
 
-            return web.json_response(resp)
+            return resp
 
         except Exception as e:
             logging.error(f"Exception: {e}")
