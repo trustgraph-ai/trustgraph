@@ -53,12 +53,12 @@ class EndpointManager:
                 dispatcher = dispatcher_manager.dispatch_flow_export()
             ),
             StreamEndpoint(
-                endpoint_path = "/api/v1/import-core/{user}/{id:.*}",
+                endpoint_path = "/api/v1/import-core",
                 auth = auth,
                 dispatcher = dispatcher_manager.dispatch_core_import(),
             ),
             StreamEndpoint(
-                endpoint_path = "/api/v1/export-core/{user}/{id:.*}",
+                endpoint_path = "/api/v1/export-core",
                 auth = auth,
                 dispatcher = dispatcher_manager.dispatch_core_export(),
             ),

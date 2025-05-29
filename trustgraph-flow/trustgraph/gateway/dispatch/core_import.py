@@ -10,10 +10,10 @@ class CoreImport:
     def __init__(self, pulsar_client):
         self.pulsar_client = pulsar_client
 
-    async def process(self, data, error, ok, params):
+    async def process(self, data, error, ok, request):
 
-        id = params["id"]
-        user = params["user"]
+        id = request.query["id"]
+        user = request.query["user"]
 
         kr = KnowledgeRequestor(
             pulsar_client = self.pulsar_client,

@@ -2,8 +2,6 @@
 import asyncio
 from aiohttp import web
 import uuid
-import json
-import msgpack
 
 from . config import ConfigRequestor
 from . flow import FlowRequestor
@@ -110,15 +108,15 @@ class DispatcherManager:
     def dispatch_core_import(self):
         return DispatcherWrapper(self.process_core_import)
 
-    async def process_core_import(self, data, error, ok, params):
+    async def process_core_import(self, data, error, ok, request):
 
         ci = CoreImport(self.pulsar_client)
-        return await ci.process(data, error, ok, params)
+        return await ci.process(data, error, ok, request)
 
-    async def process_core_export(self, data, error, ok, params):
+    async def process_core_export(self, data, error, ok, request):
 
         ce = CoreExport(self.pulsar_client)
-        return await ce.process(data, error, ok, params)
+        return await ce.process(data, error, ok, request)
 
     async def process_global_service(self, data, responder, params):
 
