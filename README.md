@@ -2,7 +2,7 @@
 
 <div align="center">
 
-## The Knowledge Platform for AI
+## The AI Knowledge Supply Chain Platform
 
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
@@ -11,9 +11,7 @@
 
 </div>
 
-**TrustGraph streamlines the delivery and management of knowledge to AI, acting as a comprehensive knowledge platform for your containerized AI tools, pipelines, and integrations.**
-
-Deploying state-of-the-art AI requires managing a complex web of models, frameworks, data pipelines, and monitoring tools. TrustGraph simplifies this complexity by providing a unified, open-source platform to **configure, build, and ship a complete knowledge solution** anywhere you need it – from cloud, on-prem, or edge devices.
+**TrustGraph** is your AI Knowledge Supply Chain Platform, seamlessly managing and delivering interconnected knowledge to power your AI. With a Services Warehouse for AI components, Knowledge Graphs for deep relationships, and VectorDBs for semantic discovery, **TrustGraph** unifies these critical capabilities to ensure your AI operates with private, traceable, and contextually rich knowledge – anywhere you deploy.
 
 ---
 
