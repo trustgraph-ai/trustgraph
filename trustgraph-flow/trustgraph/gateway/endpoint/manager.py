@@ -55,11 +55,13 @@ class EndpointManager:
             StreamEndpoint(
                 endpoint_path = "/api/v1/import-core",
                 auth = auth,
+                method = "POST",
                 dispatcher = dispatcher_manager.dispatch_core_import(),
             ),
             StreamEndpoint(
                 endpoint_path = "/api/v1/export-core",
                 auth = auth,
+                method = "GET",
                 dispatcher = dispatcher_manager.dispatch_core_export(),
             ),
         ]
