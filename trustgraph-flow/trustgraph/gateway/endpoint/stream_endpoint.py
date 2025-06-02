@@ -8,12 +8,13 @@ logger.setLevel(logging.INFO)
 
 class StreamEndpoint:
 
-    def __init__(self, endpoint_path, auth, dispatcher):
+    def __init__(self, endpoint_path, auth, dispatcher, method="POST"):
 
         self.path = endpoint_path
 
         self.auth = auth
         self.operation = "service"
+        self.method = method
 
         self.dispatcher = dispatcher
 
@@ -22,9 +23,16 @@ class StreamEndpoint:
 
     def add_routes(self, app):
 
-        app.add_routes([
-            web.post(self.path, self.handle),
-        ])
+        if self.method == "POST":
+            app.add_routes([
+                web.post(self.path, self.handle),
+            ])
+        elif self.method == "GET":
+            app.add_routes([
+                web.get(self.path, self.handle),
+            ])
+        else:
+            raise RuntimeError("Bad method" + self.method)
 
     async def handle(self, request):
 
