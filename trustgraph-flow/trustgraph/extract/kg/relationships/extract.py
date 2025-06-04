@@ -20,16 +20,19 @@ RDF_LABEL_VALUE = Value(value=RDF_LABEL, is_uri=True)
 SUBJECT_OF_VALUE = Value(value=SUBJECT_OF, is_uri=True)
 
 default_ident = "kg-extract-relationships"
+default_concurrency = 1
 
 class Processor(FlowProcessor):
 
     def __init__(self, **params):
 
         id = params.get("id")
+        concurrency = params.get("concurrency", 1)
 
         super(Processor, self).__init__(
             **params | {
                 "id": id,
+                "concurrency": concurrency,
             }
         )
 
@@ -37,7 +40,8 @@ class Processor(FlowProcessor):
             ConsumerSpec(
                 name = "input",
                 schema = Chunk,
-                handler = self.on_message
+                handler = self.on_message,
+                concurrency = concurrency,
             )
         )
 
@@ -191,6 +195,13 @@ class Processor(FlowProcessor):
 
     @staticmethod
     def add_args(parser):
+
+        parser.add_argument(
+            '-c', '--concurrency',
+            type=int,
+            default=default_concurrency,
+            help=f'Concurrent processing threads (default: {default_concurrency})'
+        )
 
         FlowProcessor.add_args(parser)
 

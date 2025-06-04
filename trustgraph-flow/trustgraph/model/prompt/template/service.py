@@ -18,12 +18,14 @@ from .... base import ProducerSpec, ConsumerSpec, TextCompletionClientSpec
 from . prompt_manager import PromptConfiguration, Prompt, PromptManager
 
 default_ident = "prompt"
+default_concurrency = 1
 
 class Processor(FlowProcessor):
 
     def __init__(self, **params):
 
         id = params.get("id")
+        concurrency = params.get("concurrency", 1)
 
         # Config key for prompts
         self.config_key = params.get("config_type", "prompt")
@@ -31,6 +33,7 @@ class Processor(FlowProcessor):
         super(Processor, self).__init__(
             **params | {
                 "id": id,
+                "concurrency": concurrency,
             }
         )
 
@@ -38,7 +41,8 @@ class Processor(FlowProcessor):
             ConsumerSpec(
                 name = "request",
                 schema = PromptRequest,
-                handler = self.on_request
+                handler = self.on_request,
+                concurrency = concurrency,
             )
         )
 
@@ -218,6 +222,13 @@ class Processor(FlowProcessor):
 
     @staticmethod
     def add_args(parser):
+
+        parser.add_argument(
+            '-c', '--concurrency',
+            type=int,
+            default=default_concurrency,
+            help=f'Concurrent processing threads (default: {default_concurrency})'
+        )
 
         FlowProcessor.add_args(parser)
 
