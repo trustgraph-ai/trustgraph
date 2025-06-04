@@ -11,20 +11,26 @@ from .. exceptions import TooManyRequests
 from .. base import FlowProcessor, ConsumerSpec, ProducerSpec
 
 default_ident = "embeddings"
+default_concurrency = 1
 
 class EmbeddingsService(FlowProcessor):
 
     def __init__(self, **params):
 
         id = params.get("id")
+        concurrency = params.get("concurrency", 1)
 
-        super(EmbeddingsService, self).__init__(**params | { "id": id })
+        super(EmbeddingsService, self).__init__(**params | {
+            "id": id,
+            "concurrency": concurrency,
+        })
 
         self.register_specification(
             ConsumerSpec(
                 name = "request",
                 schema = EmbeddingsRequest,
-                handler = self.on_request
+                handler = self.on_request,
+                concurrency = concurrency,
             )
         )
 
@@ -83,6 +89,13 @@ class EmbeddingsService(FlowProcessor):
 
     @staticmethod
     def add_args(parser):
+
+        parser.add_argument(
+            '-c', '--concurrency',
+            type=int,
+            default=default_concurrency,
+            help=f'Concurrent processing threads (default: {default_concurrency})'
+        )
 
         FlowProcessor.add_args(parser)
 

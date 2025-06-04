@@ -128,7 +128,7 @@ class LlmService(FlowProcessor):
             '-c', '--concurrency',
             type=int,
             default=default_concurrency,
-            help=f'LLM max output tokens (default: {default_concurrency})'
+            help=f'Concurrent processing threads (default: {default_concurrency})'
         )
 
         FlowProcessor.add_args(parser)
