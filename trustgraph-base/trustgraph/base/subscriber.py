@@ -1,4 +1,8 @@
 
+# Subscriber is similar to consumer: It provides a service to take stuff
+# off of a queue and make it available using an internal broker system,
+# so suitable for when multiple recipients are reading from the same queue
+
 from pulsar.schema import JsonSchema
 import asyncio
 import _pulsar
