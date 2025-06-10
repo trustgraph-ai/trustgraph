@@ -118,6 +118,7 @@ setuptools.setup(
         "scripts/text-completion-ollama",
         "scripts/text-completion-openai",
         "scripts/text-completion-tgi",
+        "scripts/text-completion-vllm",
         "scripts/triples-query-cassandra",
         "scripts/triples-query-falkordb",
         "scripts/triples-query-memgraph",
