@@ -88,12 +88,12 @@ class Processor(LlmService):
                 text = ans,
                 in_token = inputtokens,
                 out_token = outputtokens,
-                model = "tgi",
+                model = self.model,
             )
 
             return resp
 
-        # FIXME: Assuming TGI won't produce rate limits?
+        # FIXME: Assuming vLLM won't produce rate limits?
 
         except Exception as e:
 
@@ -110,7 +110,7 @@ class Processor(LlmService):
         parser.add_argument(
             '-u', '--url',
             default=default_base_url,
-            help=f'TGI service base URL (default: {default_base_url})'
+            help=f'vLLM service base URL (default: {default_base_url})'
         )
 
         parser.add_argument(
