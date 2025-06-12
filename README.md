@@ -194,12 +194,13 @@ As a full-stack platform, TrustGraph provides all the stack layers needed to con
 ## 🧩 Integrations
 TrustGraph seamlessly integrates API services, data stores, observability, telemetry, and control flow for a unified platform experience.
 
-- LLM Providers: **Anthropic**, **AWS Bedrock**, **AzureAI**, **AzureOpenAI**, **Cohere**, **Google AI Studio**, **Google VertexAI**, **Llamafiles**, **LM Studio**, **Mistral**, **Ollama**, and **OpenAI**
+- LLM APIs: **Anthropic**, **AWS Bedrock**, **AzureAI**, **AzureOpenAI**, **Cohere**, **Google AI Studio**, **Google VertexAI**, **Mistral**, and **OpenAI**
+- LLM Orchestration: **LM Studio**, **Llamafiles**, **Ollama**, **TGI**, and **vLLM**
 - Vector Databases: **Qdrant**, **Pinecone**, and **Milvus**
 - Knowledge Graphs: **Memgraph**, **Neo4j**, and **FalkorDB** 
 - Data Stores: **Apache Cassandra**
 - Observability: **Prometheus** and **Grafana**
-- Control Flow: **Apache Pulsar**
+- Control Plane: **Apache Pulsar**
 
 ### Pulsar Control Flows
 
