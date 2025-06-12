@@ -201,6 +201,7 @@ TrustGraph seamlessly integrates API services, data stores, observability, telem
 - Data Stores: **Apache Cassandra**
 - Observability: **Prometheus** and **Grafana**
 - Control Plane: **Apache Pulsar**
+- Clouds: **AWS**, **Azure**, **Google Cloud**, **Scaleway**, and **Intel Tiber Cloud**
 
 ### Pulsar Control Flows
 
