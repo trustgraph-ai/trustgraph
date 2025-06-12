@@ -189,7 +189,7 @@ When a Knowledge Core is loaded into TrustGraph, the corresponding graph edges a
 
 As a full-stack platform, TrustGraph provides all the stack layers needed to connect the data layer to the app layer for autonomous operations.
 
-![architecture](TG-layer-diagram.svg)
+![architecture](TG-platform-diagram.svg)
 
 ## 🧩 Integrations
 TrustGraph seamlessly integrates API services, data stores, observability, telemetry, and control flow for a unified platform experience.
