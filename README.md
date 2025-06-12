@@ -11,7 +11,7 @@
 
 </div>
 
-**TrustGraph** is your AI Knowledge Supply Chain Platform, seamlessly managing and delivering interconnected knowledge to power your AI. With a Services Warehouse for AI components, Knowledge Graphs for deep relationships, and VectorDBs for semantic discovery, **TrustGraph** unifies these critical capabilities to ensure your AI operates with private, traceable, and contextually rich knowledge – anywhere you deploy.
+Seamlessly manage and deliver modular intelligence to power your AI agents. With a Services Warehouse for AI components, Knowledge Graphs for deep relationships, and VectorDBs for semantic discovery, **TrustGraph** unifies these critical capabilities to ensure your AI operates with private, traceable, and contextually rich knowledge – anywhere you deploy.
 
 ---
 
