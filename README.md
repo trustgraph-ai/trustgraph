@@ -2,7 +2,7 @@
 
 <div align="center">
 
-## The AI Knowledge Supply Chain Platform
+## The Agent Intelligence Platform
 
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
