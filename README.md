@@ -11,7 +11,7 @@
 
 </div>
 
-Seamlessly manage and deliver modular intelligence to power your AI agents. With a Services Warehouse for AI components, Knowledge Graphs for deep relationships, and VectorDBs for semantic discovery, **TrustGraph** unifies these critical capabilities to ensure your AI operates with private, traceable, and contextually rich knowledge – anywhere you deploy.
+Define and deploy trustworthy, intelligent AI agents. **TrustGraph** overcomes the "black box" limitations of other platforms by providing a transparent, deploy-anywhere solution with sophisticated GraphRAG that grounds agent responses with accessed-controlled, modular knowledge packages built from your data.
 
 ---
 
@@ -155,11 +155,11 @@ kubectl apply -f <launch-file.yaml>
 
 TrustGraph is designed to be modular to support as many LLMs and environments as possible. A natural fit for a modular architecture is to decompose functions into a set of modules connected through a pub/sub backbone. [Apache Pulsar](https://github.com/apache/pulsar/) serves as this pub/sub backbone. Pulsar acts as the data broker managing data processing queues connected to procesing modules.
 
-## 🔎 TrustRAG
+## 🔎 GraphRAG
 
 TrustGraph incorporates **TrustRAG**, an advanced RAG approach that leverages automatically constructed Knowledge Graphs to provide richer and more accurate context to LLMs. Instead of relying solely on unstructured text chunks, TrustRAG understands and utilizes the relationships *between* pieces of information.
 
-**How TrustRAG Works:**
+**How TrustGraph's GraphRAG Works:**
 
 1.  **Automated Knowledge Graph Construction:**
     *   TrustGraph processes source data to automatically **extract key entities, topics, and the relationships** connecting them.
@@ -174,25 +174,25 @@ TrustGraph incorporates **TrustRAG**, an advanced RAG approach that leverages au
     *   It starts from the identified entry points and traverses the connections within the Knowledge Graph. Users can configure the **number of 'hops'** (relationship traversals) to expand the contextual window, gathering interconnected information.
     *   This structured **subgraph**, containing entities and their relationships, forms a highly relevant and context-aware input prompt for the LLM that is endlessly configurable with options for the number of entities, relationships, and overall subgraph size.
 
-## 🧠 Knowledge Cores
+## 🧠 Knowledge Packages
 
-One of the biggest challenges currently facing RAG architectures is the ability to quickly reuse and integrate knowledge sets. **TrustGraph** solves this problem by storing the results of the document ingestion process in reusable Knowledge Cores. Being able to store and reuse the Knowledge Cores means the process has to be run only once for a set of documents. These reusable Knowledge Cores can be loaded back into **TrustGraph** and used for TrustRAG.
+One of the biggest challenges currently facing RAG architectures is the ability to quickly reuse and integrate knowledge sets. **TrustGraph** solves this problem by storing the results of the data ingestion process in reusable Knowledge Packages. Being able to store and reuse the Knowledge Packages means the data transformation process has to be run only once. These reusable Knowledge Packages can be loaded back into **TrustGraph** and used for GraphRAG.
 
-A Knowledge Core has two components:
+A Knowledge Package has two components:
 
 - Set of Graph Edges
 - Set of mapped Vector Embeddings
 
-When a Knowledge Core is loaded into TrustGraph, the corresponding graph edges and vector embeddings are queued and loaded into the chosen graph and vector stores.
+When a Knowledge Package is loaded into TrustGraph, the corresponding graph edges and vector embeddings are queued and loaded into the chosen graph and vector stores.
 
 ## 📐 Architecture
 
-As a full-stack platform, TrustGraph provides all the stack layers needed to connect the data layer to the app layer for autonomous operations.
+TrustGraph provides all the services, stores, control plane, and API gateway needed to connect your data to intelligent agents.
 
 ![architecture](TG-platform-diagram.svg)
 
 ## 🧩 Integrations
-TrustGraph seamlessly integrates API services, data stores, observability, telemetry, and control flow for a unified platform experience.
+TrustGraph provides maximum flexibility so your agents are always powered by the latest and greatest components.
 
 - LLM APIs: **Anthropic**, **AWS Bedrock**, **AzureAI**, **AzureOpenAI**, **Cohere**, **Google AI Studio**, **Google VertexAI**, **Mistral**, and **OpenAI**
 - LLM Orchestration: **LM Studio**, **Llamafiles**, **Ollama**, **TGI**, and **vLLM**
@@ -203,14 +203,14 @@ TrustGraph seamlessly integrates API services, data stores, observability, telem
 - Control Plane: **Apache Pulsar**
 - Clouds: **AWS**, **Azure**, **Google Cloud**, **Scaleway**, and **Intel Tiber Cloud**
 
-### Pulsar Control Flows
+### Pulsar Control Plane
 
-- For control flows, Pulsar accepts the output of a processing module and queues it for input to the next subscribed module.
+- For flows, Pulsar accepts the output of a processing module and queues it for input to the next subscribed module.
 - For services such as LLMs and embeddings, Pulsar provides a client/server model.  A Pulsar queue is used as the input to the service.  When processed, the output is then delivered to a separate queue where a client subscriber can request that output.
 
-### Document Extraction Agents
+### Data Transformation Agents
 
-TrustGraph extracts knowledge documents to an ultra-dense knowledge graph using 3 automonous data extraction agents. These agents focus on individual elements needed to build the knowledge graph. The agents are:
+TrustGraph transforms data to an ultra-dense knowledge graph using 3 automonous data transformation agents. These agents focus on individual elements needed to build the knowledge graph. The agents are:
 
 - Topic Extraction Agent
 - Entity Extraction Agent
@@ -228,7 +228,7 @@ Text or Markdown file:
 tg-load-text <document.txt>
 ```
 
-### Graph RAG Queries
+### GraphRAG Queries
 
 Once the knowledge graph and embeddings have been built or a cognitive core has been loaded, RAG queries are launched with a single line:
 
