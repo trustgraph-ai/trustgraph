@@ -204,7 +204,7 @@ When a Knowledge Package is loaded into TrustGraph, the corresponding graph edge
 
 ## 📐 Architecture
 
-TrustGraph deploys the services, stores, control plane, and API gateway needed to connect your data to intelligent agents.
+The platform contains the services, stores, control plane, and API gateway needed to connect your data to intelligent agents.
 
 ![architecture](TG-platform-diagram.svg)
 
