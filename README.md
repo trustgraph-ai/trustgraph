@@ -7,7 +7,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
 
-📑 [Full Docs](https://docs.trustgraph.ai/docs/TrustGraph) 📺 [YouTube](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) 🔧 [Configuration Builder](https://config-ui.demo.trustgraph.ai/) ⚙️ [API Docs](docs/apis/README.md) 🧑‍💻 [CLI Docs](https://docs.trustgraph.ai/docs/running/cli) 💬 [Discord](https://discord.gg/sQMwkRz5GX) 📖 [Blog](https://blog.trustgraph.ai/subscribe)
+[Full Docs](https://docs.trustgraph.ai/docs/TrustGraph) | [YouTube](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) | [Configuration Builder](https://config-ui.demo.trustgraph.ai/) | [API Docs](docs/apis/README.md) | [CLI Docs](https://docs.trustgraph.ai/docs/running/cli) | [Discord](https://discord.gg/sQMwkRz5GX) | [Blog](https://blog.trustgraph.ai/subscribe)
 
 </div>
 
@@ -19,23 +19,23 @@ Build AI Agents you can ***actually*** trust. Define and deploy trustworthy AI a
 <summary>Table of Contents</summary>
 <br>
 
-- 🎯 [**Why TrustGraph?**](#-why-trustgraph)<br>
-- 🚀 [**Getting Started**](#-getting-started)<br>
-- 🔧 [**Configuration Builder**](#-configuration-builder)<br>
-- 🔎 [**GraphRAG**](#-graphrag)<br>
-- 🧠 [**Knowledge Packages**](#-knowledge-packages)<br>
-- 📐 [**Architecture**](#-architecture)<br>
-- 🧩 [**Integrations**](#-integrations)<br>
-- 📊 [**Observability & Telemetry**](#-observability--telemetry)<br>
-- 🤝 [**Contributing**](#-contributing)<br>
-- 📄 [**License**](#-license)<br>
-- 📞 [**Support & Community**](#-support--community)<br>
+- [**Why TrustGraph?**](#-why-trustgraph)<br>
+- [**Getting Started**](#-getting-started)<br>
+- [**Configuration Builder**](#-configuration-builder)<br>
+- [**GraphRAG**](#-graphrag)<br>
+- [**Knowledge Packages**](#-knowledge-packages)<br>
+- [**Architecture**](#-architecture)<br>
+- [**Integrations**](#-integrations)<br>
+- [**Observability & Telemetry**](#-observability--telemetry)<br>
+- [**Contributing**](#-contributing)<br>
+- [**License**](#-license)<br>
+- [**Support & Community**](#-support--community)<br>
 
 </details>
 
 ---
 
-## 🎯 Why TrustGraph?
+## Why TrustGraph?
 
 Deploying truly intelligent and reliable AI agents is challenging. Many platforms are opaque, offer limited control, or rely on simplistic knowledge retrieval that falls short for complex or large datasets. TrustGraph provides a robust, open-source alternative, empowering you to build AI agents that are:
 
@@ -62,7 +62,7 @@ Deploying truly intelligent and reliable AI agents is challenging. Many platform
 
 **In short, choose TrustGraph if you need to build powerful AI agents that are truly intelligent, transparently auditable, fully under your control, and grounded in the rich, interconnected reality of your unique enterprise knowledge.**
 
-## 🚀 Getting Started
+## Getting Started
 - [Install the CLI](#install-the-trustgraph-cli)
 - [Configuration Builder](#-configuration-builder)
 - [Platform Restarts](#platform-restarts)
@@ -102,11 +102,11 @@ TrustGraph is endlessly customizable by editing the `YAML` resource files. The *
 
 The **Configuration Builder** has 5 important sections:
 
-- 🚢 **TrustGraph Version**: Select the version of TrustGraph you'd like to deploy
-- ✅ **Component Selection**: Choose from the available deployment platforms, LLMs, graph store, VectorDB, chunking algorithm, chunking parameters, and LLM parameters
-- 🧰 **Customization**: Customize the prompts for the LLM System, Data Extraction Agents, and Agent Flow
-- 🕵️ **Test Suite**: Add the **Test Suite** to the configuration available on port `8888`
-- 🚀 **Finish Deployment**: Download the launch `YAML` files with deployment instructions
+- **TrustGraph Version**: Select the version of TrustGraph you'd like to deploy
+- **Component Selection**: Choose from the available deployment platforms, LLMs, graph store, VectorDB, chunking algorithm, chunking parameters, and LLM parameters
+- **Customization**: Customize the prompts for the LLM System, Data Extraction Agents, and Agent Flow
+- **Test Suite**: Add the **Test Suite** to the configuration available on port `8888`
+- **Finish Deployment**: Download the launch `YAML` files with deployment instructions
 
 The **Configuration Builder** will generate the `YAML` files in `deploy.zip`. Once `deploy.zip` has been downloaded and unzipped, launching TrustGraph is as simple as navigating to the `deploy` directory and running:
 
@@ -140,11 +140,11 @@ All data previously in TrustGraph will be saved and usable on restart.
 
 If added to the build in the **Configuration Builder**, the **Test Suite** will be available at port `8888`. The **Test Suite** has the following capabilities:
 
-- **Graph RAG Chat** 💬: Graph RAG queries in a chat interface
-- **Vector Search** 🔎: Semantic similarity search with cosine similarity scores
-- **Semantic Relationships** 🕵️: See semantic relationships in a list structure
-- **Graph Visualizer** 🌐: Visualize semantic relationships in **3D**
-- **Data Loader** 📂: Directly load `.pdf`, `.txt`, or `.md` into the system with document metadata
+- **Graph RAG Chat**: Graph RAG queries in a chat interface
+- **Vector Search**: Semantic similarity search with cosine similarity scores
+- **Semantic Relationships**: See semantic relationships in a list structure
+- **Graph Visualizer**: Visualize semantic relationships in **3D**
+- **Data Loader**: Directly load `.pdf`, `.txt`, or `.md` into the system with document metadata
 
 ### Example TrustGraph Notebooks
 
@@ -191,7 +191,7 @@ TrustGraph features an advanced GraphRAG approach that automatically constructs 
     *   Users can configure the **number of 'hops'** (relationship traversals) to extend the depth of knowledge availabe to the agents.
     *   This structured **subgraph**, containing entities and their relationships, forms a highly relevant and context-aware input prompt for the LLM that is endlessly configurable with options for the number of entities, relationships, and overall subgraph size.
 
-## 🧠 Knowledge Packages
+## Knowledge Packages
 
 One of the biggest challenges currently facing RAG architectures is the ability to quickly reuse and integrate knowledge sets. **TrustGraph** solves this problem by storing the results of the data ingestion process in reusable Knowledge Packages. Being able to store and reuse the Knowledge Packages means the data transformation process has to be run only once. These reusable Knowledge Packages can be loaded back into **TrustGraph** and used for GraphRAG.
 
@@ -202,13 +202,13 @@ A Knowledge Package has two components:
 
 When a Knowledge Package is loaded into TrustGraph, the corresponding graph edges and vector embeddings are queued and loaded into the chosen graph and vector stores.
 
-## 📐 Architecture
+## Architecture
 
 The platform contains the services, stores, control plane, and API gateway needed to connect your data to intelligent agents.
 
 ![architecture](TG-platform-diagram.svg)
 
-## 🧩 Integrations
+## Integrations
 TrustGraph provides maximum flexibility so your agents are always powered by the latest and greatest components.
 
 - LLM APIs: **Anthropic**, **AWS Bedrock**, **AzureAI**, **AzureOpenAI**, **Cohere**, **Google AI Studio**, **Google VertexAI**, **Mistral**, and **OpenAI**
@@ -264,7 +264,7 @@ tg-invoke-agent -v -q "Write a blog post on the top 3 takeaways from the documen
 > [!TIP]
 > Adding `-v` to the agent request will return all of the agent manager's thoughts and observations that led to the final response.
 
-## 📊 Observability & Telemetry
+## Observability & Telemetry
 
 Once the platform is running, access the Grafana dashboard at:
 
@@ -294,11 +294,11 @@ The default Grafana dashboard tracks the following:
 - Token Throughput (Tokens/second)
 - Cost Throughput (Cost/second)
 
-## 🤝 Contributing
+## Contributing
 
 [Developing for TrustGraph](docs/README.development.md)
 
-## 📄 License
+## License
 
 **TrustGraph** is licensed under [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0).
 
