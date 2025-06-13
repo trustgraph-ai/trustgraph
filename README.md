@@ -211,14 +211,48 @@ The platform contains the services, stores, control plane, and API gateway neede
 ## Integrations
 TrustGraph provides maximum flexibility so your agents are always powered by the latest and greatest components.
 
-- LLM APIs: **Anthropic**, **AWS Bedrock**, **AzureAI**, **AzureOpenAI**, **Cohere**, **Google AI Studio**, **Google VertexAI**, **Mistral**, and **OpenAI**
-- LLM Orchestration: **LM Studio**, **Llamafiles**, **Ollama**, **TGI**, and **vLLM**
-- Vector Databases: **Qdrant**, **Pinecone**, and **Milvus**
-- Knowledge Graphs: **Memgraph**, **Neo4j**, and **FalkorDB** 
-- Data Stores: **Apache Cassandra**
-- Observability: **Prometheus** and **Grafana**
-- Control Plane: **Apache Pulsar**
-- Clouds: **AWS**, **Azure**, **Google Cloud**, **Scaleway**, and **Intel Tiber Cloud**
+**LLM APIs**:
+- Anthropic
+- AWS Bedrock
+- AzureAI
+- AzureOpenAI
+- Cohere
+- Google AI Studio
+- Google VertexAI
+- Mistral
+- OpenAI
+
+**LLM Orchestration**:
+- LM Studio
+- Llamafiles
+- Ollama
+- TGI
+- vLLM
+
+**VectorDBs**
+- Qdrant (default)
+- Pinecone
+- Milvus
+
+**Graph Storage**:
+- Apache Cassandra (default)
+- Memgraph
+- Neo4j
+- FalkorDB 
+
+**Observability**:
+- Prometheus
+- Grafana
+
+**Control Plane**:
+- Apache Pulsar
+
+**Clouds**:
+- AWS
+- Azure
+- Google Cloud
+- Scaleway
+- Intel Tiber Cloud
 
 ### Pulsar Control Plane
 
