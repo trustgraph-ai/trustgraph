@@ -22,7 +22,7 @@ Build AI Agents you can ***actually*** trust. Define and deploy trustworthy, int
 - 🎯 [**Why TrustGraph?**](#-why-trustgraph)<br>
 - 🚀 [**Getting Started**](#-getting-started)<br>
 - 🔧 [**Configuration Builder**](#-configuration-builder)<br>
-- 🔎 [**TrustRAG**](#-trustrag)<br>
+- 🔎 [**GraphRAG**](#-graphrag)<br>
 - 🧠 [**Knowledge Cores**](#-knowledge-cores)<br>
 - 📐 [**Architecture**](#-architecture)<br>
 - 🧩 [**Integrations**](#-integrations)<br>
@@ -174,7 +174,7 @@ TrustGraph is designed to be modular to support as many LLMs and environments as
 
 ## 🔎 GraphRAG
 
-TrustGraph incorporates **TrustRAG**, an advanced RAG approach that leverages automatically constructed Knowledge Graphs to provide richer and more accurate context to LLMs. Instead of relying solely on unstructured text chunks, TrustRAG understands and utilizes the relationships *between* pieces of information.
+TrustGraph features an advanced GraphRAG approach that automatically constructs Knowledge Graphs with mapped Vector Embeddings to provide richer and more accurate context to LLMs for trustworthy agents.
 
 **How TrustGraph's GraphRAG Works:**
 
@@ -183,12 +183,12 @@ TrustGraph incorporates **TrustRAG**, an advanced RAG approach that leverages au
     *   It then maps these extracted **semantic relationships and concepts to high-dimensional vector embeddings**, capturing the nuanced meaning beyond simple keyword matching.
 
 2.  **Hybrid Retrieval Process:**
-    *   When a query is received, TrustRAG first performs a **cosine similarity search** on the vector embeddings to identify potentially relevant concepts and relationships within the knowledge graph.
+    *   When an agent needs to perform deep research, it first performs a **cosine similarity search** on the vector embeddings to identify potentially relevant concepts and relationships within the knowledge graph.
     *   This initial vector search **pinpoints relevant entry points** within the structured Knowledge Graph.
 
 3.  **Context Generation via Subgraph Traversal:**
-    *   Based on the ranked results from the similarity search, TrustRAG dynamically **generates relevant subgraphs**.
-    *   It starts from the identified entry points and traverses the connections within the Knowledge Graph. Users can configure the **number of 'hops'** (relationship traversals) to expand the contextual window, gathering interconnected information.
+    *   Based on the ranked results from the similarity search, agents are provided with only the relevant subgraphs for **deep context**.
+    *   Users can configure the **number of 'hops'** (relationship traversals) to extend the depth of knowledge availabe to the agents.
     *   This structured **subgraph**, containing entities and their relationships, forms a highly relevant and context-aware input prompt for the LLM that is endlessly configurable with options for the number of entities, relationships, and overall subgraph size.
 
 ## 🧠 Knowledge Packages
@@ -204,7 +204,7 @@ When a Knowledge Package is loaded into TrustGraph, the corresponding graph edge
 
 ## 📐 Architecture
 
-TrustGraph provides all the services, stores, control plane, and API gateway needed to connect your data to intelligent agents.
+TrustGraph deploys the services, stores, control plane, and API gateway needed to connect your data to intelligent agents.
 
 ![architecture](TG-platform-diagram.svg)
 
