@@ -23,7 +23,7 @@ Build AI Agents you can ***actually*** trust. Define and deploy trustworthy, int
 - 🚀 [**Getting Started**](#-getting-started)<br>
 - 🔧 [**Configuration Builder**](#-configuration-builder)<br>
 - 🔎 [**GraphRAG**](#-graphrag)<br>
-- 🧠 [**Knowledge Cores**](#-knowledge-cores)<br>
+- 🧠 [**Knowledge Packages**](#-knowledge-packages)<br>
 - 📐 [**Architecture**](#-architecture)<br>
 - 🧩 [**Integrations**](#-integrations)<br>
 - 📊 [**Observability & Telemetry**](#-observability--telemetry)<br>
