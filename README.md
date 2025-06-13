@@ -11,8 +11,7 @@
 
 </div>
 
-Build AI Agents you can ***actually*** trust. Define and deploy trustworthy, intelligent AI agents in a single, unified open source platform. **TrustGraph** overcomes the "black box" limitations of other platforms by providing a transparent, deploy-anywhere solution with sophisticated GraphRAG that grounds agent responses with accessed-controlled, modular knowledge packages built from your data.
-
+Build AI Agents you can ***actually*** trust. Define and deploy trustworthy AI agents in a single, unified platform. TrustGraph overcomes the "black box" limitations of other platforms with a transparent, deploy-anywhere solution. Ground agent responses with advanced GraphRAG using access-controlled, modular knowledge packages built from your data.
 ---
 
 <details>
