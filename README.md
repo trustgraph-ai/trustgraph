@@ -19,17 +19,17 @@ Build AI Agents you can ***actually*** trust. Define and deploy trustworthy AI a
 <summary>Table of Contents</summary>
 <br>
 
-- [**Why TrustGraph?**](#-why-trustgraph)<br>
-- [**Getting Started**](#-getting-started)<br>
-- [**Configuration Builder**](#-configuration-builder)<br>
-- [**GraphRAG**](#-graphrag)<br>
-- [**Knowledge Packages**](#-knowledge-packages)<br>
-- [**Architecture**](#-architecture)<br>
-- [**Integrations**](#-integrations)<br>
-- [**Observability & Telemetry**](#-observability--telemetry)<br>
-- [**Contributing**](#-contributing)<br>
-- [**License**](#-license)<br>
-- [**Support & Community**](#-support--community)<br>
+- [**Why TrustGraph?**](#why-trustgraph)<br>
+- [**Getting Started**](#getting-started)<br>
+- [**Configuration Builder**](#configuration-builder)<br>
+- [**GraphRAG**](#graphrag)<br>
+- [**Knowledge Packages**](#knowledge-packages)<br>
+- [**Architecture**](#architecture)<br>
+- [**Integrations**](#integrations)<br>
+- [**Observability & Telemetry**](#observability--telemetry)<br>
+- [**Contributing**](#contributing)<br>
+- [**License**](#license)<br>
+- [**Support & Community**](#support--community)<br>
 
 </details>
 
@@ -94,11 +94,11 @@ pip3 install trustgraph-cli==<trustgraph-version>
 > [!CAUTION]
 > The `trustgraph-cli` version *must* match the selected **TrustGraph** release version. 
 
-## 🔧 Configuration Builder
+## Configuration Builder
 
 TrustGraph is endlessly customizable by editing the `YAML` resource files. The **Configuration Builder** provides a tool for building a custom configuration that deploys with your selected orchestration method in your target environment.
 
-- [**Configuration Builder** 🚀](https://config-ui.demo.trustgraph.ai/)
+- [**Configuration Builder**](https://config-ui.demo.trustgraph.ai/)
 
 The **Configuration Builder** has 5 important sections:
 
@@ -172,7 +172,7 @@ kubectl apply -f <launch-file.yaml>
 
 TrustGraph is designed to be modular to support as many LLMs and environments as possible. A natural fit for a modular architecture is to decompose functions into a set of modules connected through a pub/sub backbone. [Apache Pulsar](https://github.com/apache/pulsar/) serves as this pub/sub backbone. Pulsar acts as the data broker managing data processing queues connected to procesing modules.
 
-## 🔎 GraphRAG
+## GraphRAG
 
 TrustGraph features an advanced GraphRAG approach that automatically constructs Knowledge Graphs with mapped Vector Embeddings to provide richer and more accurate context to LLMs for trustworthy agents.
 
@@ -316,7 +316,7 @@ The default Grafana dashboard tracks the following:
    See the License for the specific language governing permissions and
    limitations under the License.
 
-## 📞 Support & Community
+## Support & Community
 - Bug Reports & Feature Requests: [Discord](https://discord.gg/sQMwkRz5GX)
 - Discussions & Questions: [Discord](https://discord.gg/sQMwkRz5GX)
 - Documentation: [Docs](https://docs.trustgraph.ai/docs/getstarted)
