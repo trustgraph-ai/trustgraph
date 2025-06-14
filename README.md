@@ -211,48 +211,56 @@ The platform contains the services, stores, control plane, and API gateway neede
 ## Integrations
 TrustGraph provides maximum flexibility so your agents are always powered by the latest and greatest components.
 
-**LLM APIs**:
-- Anthropic
-- AWS Bedrock
-- AzureAI
-- AzureOpenAI
-- Cohere
-- Google AI Studio
-- Google VertexAI
-- Mistral
-- OpenAI
-
-**LLM Orchestration**:
-- LM Studio
-- Llamafiles
-- Ollama
-- TGI
-- vLLM
-
-**VectorDBs**
-- Qdrant (default)
-- Pinecone
-- Milvus
-
-**Graph Storage**:
-- Apache Cassandra (default)
-- Memgraph
-- Neo4j
-- FalkorDB 
-
-**Observability**:
-- Prometheus
-- Grafana
-
-**Control Plane**:
-- Apache Pulsar
-
-**Clouds**:
-- AWS
-- Azure
-- Google Cloud
-- Scaleway
-- Intel Tiber Cloud
+<details>
+<summary>LLM APIs</summary>
+- Anthropic<br>
+- AWS Bedrock<br>
+- AzureAI<br>
+- AzureOpenAI<br>
+- Cohere<br>
+- Google AI Studio<br>
+- Google VertexAI<br>
+- Mistral<br>
+- OpenAI<br>
+</details>
+<details>
+<summary>LLM Orchestration</summary>
+- LM Studio<br>
+- Llamafiles<br>
+- Ollama<br>
+- TGI<br>
+- vLLM<br>
+</details>
+<details>
+<summary>VectorDBs</summary>
+- Qdrant (default)<br>
+- Pinecone<br>
+- Milvus<br>
+</details>
+<details>
+<summary>Graph Storage</summary>
+- Apache Cassandra (default)<br>
+- Memgraph<br>
+- Neo4j<br>
+- FalkorDB<br>
+</details>
+<details>
+<summary>Observability</summary>
+- Prometheus<br>
+- Grafana<br>
+</details>
+<details>
+<summary>Control Plane</summary>
+- Apache Pulsar<br>
+</details>
+<details>
+<summary>Clouds</summary>
+- AWS<br>
+- Azure<br>
+- Google Cloud<br>
+- Intel Tiber Cloud<br>
+- Scaleway<br>
+</details>
 
 ### Pulsar Control Plane
 
