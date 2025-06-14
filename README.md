@@ -140,7 +140,7 @@ All data previously in TrustGraph will be saved and usable on restart.
 
 If added to the build in the **Configuration Builder**, the **Test Suite** will be available at port `8888`. The **Test Suite** has the following capabilities:
 
-- **Graph RAG Chat**: Graph RAG queries in a chat interface
+- **GraphRAG Chat**: GraphRAG queries in a chat interface
 - **Vector Search**: Semantic similarity search with cosine similarity scores
 - **Semantic Relationships**: See semantic relationships in a list structure
 - **Graph Visualizer**: Visualize semantic relationships in **3D**
