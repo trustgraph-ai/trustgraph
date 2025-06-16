@@ -80,6 +80,7 @@ setuptools.setup(
         "scripts/tg-show-processor-state",
         "scripts/tg-show-prompts",
         "scripts/tg-show-token-costs",
+        "scripts/tg-show-token-rate",
         "scripts/tg-show-tools",
         "scripts/tg-start-flow",
         "scripts/tg-unload-kg-core",
