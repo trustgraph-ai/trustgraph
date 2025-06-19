@@ -89,8 +89,6 @@ class Loader:
 
             await ws.send(json.dumps(req))
 
-            print(req)
-
 def main():
 
     parser = argparse.ArgumentParser(
