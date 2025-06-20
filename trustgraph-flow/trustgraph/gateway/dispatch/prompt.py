@@ -2,6 +2,7 @@
 import json
 
 from ... schema import PromptRequest, PromptResponse
+from .... base.messaging import TranslatorRegistry
 
 from . requestor import ServiceRequestor
 
@@ -22,22 +23,12 @@ class PromptRequestor(ServiceRequestor):
             timeout=timeout,
         )
 
+        self.request_translator = TranslatorRegistry.get_request_translator("prompt")
+        self.response_translator = TranslatorRegistry.get_response_translator("prompt")
+
     def to_request(self, body):
-        return PromptRequest(
-            id=body["id"],
-            terms={
-                k: json.dumps(v)
-                for k, v in body["variables"].items()
-            }
-        )
+        return self.request_translator.to_pulsar(body)
 
     def from_response(self, message):
-        if message.object:
-            return {
-                "object": message.object
-            }, True
-        else:
-            return {
-                "text": message.text
-            }, True
+        return self.response_translator.from_response_with_completion(message)
 

@@ -6,8 +6,7 @@ from aiohttp import WSMsgType
 from ... schema import Metadata
 from ... schema import DocumentEmbeddings, ChunkEmbeddings
 from ... base import Publisher
-
-from . serialize import to_subgraph
+from .... base.messaging.translators.document_loading import DocumentEmbeddingsTranslator
 
 class DocumentEmbeddingsImport:
 
@@ -17,6 +16,7 @@ class DocumentEmbeddingsImport:
 
         self.ws = ws
         self.running = running
+        self.translator = DocumentEmbeddingsTranslator()
         
         self.publisher = Publisher(
             pulsar_client, topic = queue, schema = DocumentEmbeddings
@@ -36,23 +36,7 @@ class DocumentEmbeddingsImport:
     async def receive(self, msg):
 
         data = msg.json()
-
-        elt = DocumentEmbeddings(
-            metadata=Metadata(
-                id=data["metadata"]["id"],
-                metadata=to_subgraph(data["metadata"]["metadata"]),
-                user=data["metadata"]["user"],
-                collection=data["metadata"]["collection"],
-            ),
-            chunks=[
-                ChunkEmbeddings(
-                    chunk=de["chunk"].encode("utf-8"),
-                    vectors=de["vectors"],
-                )
-                for de in data["chunks"]
-            ],
-        )
-
+        elt = self.translator.to_pulsar(data)
         await self.publisher.send(None, elt)
 
     async def run(self):

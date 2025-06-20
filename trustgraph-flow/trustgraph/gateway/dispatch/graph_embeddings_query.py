@@ -1,8 +1,8 @@
 
 from ... schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
+from .... base.messaging import TranslatorRegistry
 
 from . requestor import ServiceRequestor
-from . serialize import serialize_value
 
 class GraphEmbeddingsQueryRequestor(ServiceRequestor):
     def __init__(
@@ -21,22 +21,12 @@ class GraphEmbeddingsQueryRequestor(ServiceRequestor):
             timeout=timeout,
         )
 
+        self.request_translator = TranslatorRegistry.get_request_translator("graph-embeddings-query")
+        self.response_translator = TranslatorRegistry.get_response_translator("graph-embeddings-query")
+
     def to_request(self, body):
-
-        limit = int(body.get("limit", 20))
-
-        return GraphEmbeddingsRequest(
-            vectors = body["vectors"],
-            limit = limit,
-            user = body.get("user", "trustgraph"),
-            collection = body.get("collection", "default"),
-        )
+        return self.request_translator.to_pulsar(body)
 
     def from_response(self, message):
-
-        return {
-            "entities": [
-                serialize_value(ent) for ent in message.entities
-            ]
-        }, True
+        return self.response_translator.from_response_with_completion(message)
 

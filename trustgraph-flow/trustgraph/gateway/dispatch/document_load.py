@@ -2,9 +2,9 @@
 import base64
 
 from ... schema import Document, Metadata
+from .... base.messaging import TranslatorRegistry
 
 from . sender import ServiceSender
-from . serialize import to_subgraph
 
 class DocumentLoad(ServiceSender):
     def __init__(self, pulsar_client, queue):
@@ -15,26 +15,9 @@ class DocumentLoad(ServiceSender):
             schema = Document,
         )
 
+        self.translator = TranslatorRegistry.get_request_translator("document")
+
     def to_request(self, body):
-
-        if "metadata" in body:
-            metadata = to_subgraph(body["metadata"])
-        else:
-            metadata = []
-
-        # Doing a base64 decoe/encode here to make sure the
-        # content is valid base64
-        doc = base64.b64decode(body["data"])
-
         print("Document received")
-
-        return Document(
-            metadata=Metadata(
-                id=body.get("id"),
-                metadata=metadata,
-                user=body.get("user", "trustgraph"),
-                collection=body.get("collection", "default"),
-            ),
-            data=base64.b64encode(doc).decode("utf-8")
-        )
+        return self.translator.to_pulsar(body)
 

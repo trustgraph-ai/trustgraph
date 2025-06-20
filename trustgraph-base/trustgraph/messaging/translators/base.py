@@ -25,6 +25,14 @@ class MessageTranslator(Translator):
         return self.from_pulsar(obj), True
 
 
+class SendTranslator(Translator):
+    """For fire-and-forget send operations (like ServiceSender)"""
+    
+    def from_pulsar(self, obj: Record) -> Dict[str, Any]:
+        """Usually not needed for send-only operations"""
+        raise NotImplementedError("Send translators typically don't need from_pulsar")
+
+
 def handle_optional_fields(obj: Record, fields: list) -> Dict[str, Any]:
     """Helper to extract optional fields from Pulsar object"""
     result = {}

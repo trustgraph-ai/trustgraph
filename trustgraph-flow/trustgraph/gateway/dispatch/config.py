@@ -2,6 +2,7 @@
 from ... schema import ConfigRequest, ConfigResponse, ConfigKey, ConfigValue
 from ... schema import config_request_queue
 from ... schema import config_response_queue
+from .... base.messaging import TranslatorRegistry
 
 from . requestor import ServiceRequestor
 
@@ -19,60 +20,12 @@ class ConfigRequestor(ServiceRequestor):
             timeout=timeout,
         )
 
+        self.request_translator = TranslatorRegistry.get_request_translator("config")
+        self.response_translator = TranslatorRegistry.get_response_translator("config")
+
     def to_request(self, body):
-
-        if "keys" in body:
-            keys = [
-                ConfigKey(
-                    type = k["type"],
-                    key = k["key"],
-                )
-                for k in body["keys"]
-            ]
-        else:
-            keys = None
-
-        if "values" in body:
-            values = [
-                ConfigValue(
-                    type = v["type"],
-                    key = v["key"],
-                    value = v["value"],
-                )
-                for v in body["values"]
-            ]
-        else:
-            values = None
-
-        return ConfigRequest(
-            operation = body.get("operation", None),
-            keys = keys,
-            type = body.get("type", None),
-            values = values
-        )
+        return self.request_translator.to_pulsar(body)
 
     def from_response(self, message):
-
-        response = { }
-
-        if message.version is not None:
-            response["version"] = message.version
-
-        if message.values is not None:
-            response["values"] = [
-                {
-                    "type": v.type,
-                    "key": v.key,
-                    "value": v.value,
-                }
-                for v in message.values
-            ]
-
-        if message.directory is not None:
-            response["directory"] = message.directory
-
-        if message.config is not None:
-            response["config"] = message.config
-
-        return response, True
+        return self.response_translator.from_response_with_completion(message)
 

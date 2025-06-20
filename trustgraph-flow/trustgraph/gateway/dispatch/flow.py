@@ -2,6 +2,7 @@
 from ... schema import FlowRequest, FlowResponse
 from ... schema import flow_request_queue
 from ... schema import flow_response_queue
+from .... base.messaging import TranslatorRegistry
 
 from . requestor import ServiceRequestor
 
@@ -19,34 +20,12 @@ class FlowRequestor(ServiceRequestor):
             timeout=timeout,
         )
 
-    def to_request(self, body):
+        self.request_translator = TranslatorRegistry.get_request_translator("flow")
+        self.response_translator = TranslatorRegistry.get_response_translator("flow")
 
-        return FlowRequest(
-            operation = body.get("operation", None),
-            class_name = body.get("class-name", None),
-            class_definition = body.get("class-definition", None),
-            description = body.get("description", None),
-            flow_id = body.get("flow-id", None),
-        )
+    def to_request(self, body):
+        return self.request_translator.to_pulsar(body)
 
     def from_response(self, message):
-
-        response = { }
-
-        if message.class_names is not None:
-            response["class-names"] = message.class_names
-
-        if message.flow_ids is not None:
-            response["flow-ids"] = message.flow_ids
-
-        if message.class_definition is not None:
-            response["class-definition"] = message.class_definition
-
-        if message.flow is not None:
-            response["flow"] = message.flow
-
-        if message.description is not None:
-            response["description"] = message.description
-
-        return response, True
+        return self.response_translator.from_response_with_completion(message)
 
