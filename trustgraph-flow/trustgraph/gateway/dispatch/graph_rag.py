@@ -1,5 +1,6 @@
 
 from ... schema import GraphRagQuery, GraphRagResponse
+from .... base.messaging import TranslatorRegistry
 
 from . requestor import ServiceRequestor
 
@@ -20,17 +21,12 @@ class GraphRagRequestor(ServiceRequestor):
             timeout=timeout,
         )
 
+        self.request_translator = TranslatorRegistry.get_request_translator("graph-rag")
+        self.response_translator = TranslatorRegistry.get_response_translator("graph-rag")
+
     def to_request(self, body):
-        return GraphRagQuery(
-            query=body["query"],
-            user=body.get("user", "trustgraph"),
-            collection=body.get("collection", "default"),
-            entity_limit=int(body.get("entity-limit", 50)),
-            triple_limit=int(body.get("triple-limit", 30)),
-            max_subgraph_size=int(body.get("max-subgraph-size", 1000)),
-            max_path_length=int(body.get("max-path-length", 2)),
-        )
+        return self.request_translator.to_pulsar(body)
 
     def from_response(self, message):
-        return { "response": message.response }, True
+        return self.response_translator.from_response_with_completion(message)
 

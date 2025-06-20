@@ -1,5 +1,6 @@
 
 from ... schema import AgentRequest, AgentResponse
+from .... base.messaging import TranslatorRegistry
 
 from . requestor import ServiceRequestor
 
@@ -20,24 +21,12 @@ class AgentRequestor(ServiceRequestor):
             timeout=timeout,
         )
 
+        self.request_translator = TranslatorRegistry.get_request_translator("agent")
+        self.response_translator = TranslatorRegistry.get_response_translator("agent")
+
     def to_request(self, body):
-        return AgentRequest(
-            question=body["question"]
-        )
+        return self.request_translator.to_pulsar(body)
 
     def from_response(self, message):
-        resp = {
-        }
-
-        if message.answer:
-            resp["answer"] = message.answer
-
-        if message.thought:
-            resp["thought"] = message.thought
-
-        if message.observation:
-            resp["observation"] = message.observation
-
-        # The 2nd boolean expression indicates whether we're done responding
-        return resp, (message.answer is not None)
+        return self.response_translator.from_response_with_completion(message)
 

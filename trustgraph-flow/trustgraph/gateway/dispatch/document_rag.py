@@ -1,5 +1,6 @@
 
 from ... schema import DocumentRagQuery, DocumentRagResponse
+from .... base.messaging import TranslatorRegistry
 
 from . requestor import ServiceRequestor
 
@@ -20,14 +21,12 @@ class DocumentRagRequestor(ServiceRequestor):
             timeout=timeout,
         )
 
+        self.request_translator = TranslatorRegistry.get_request_translator("document-rag")
+        self.response_translator = TranslatorRegistry.get_response_translator("document-rag")
+
     def to_request(self, body):
-        return DocumentRagQuery(
-            query=body["query"],
-            user=body.get("user", "trustgraph"),
-            collection=body.get("collection", "default"),
-            doc_limit=int(body.get("doc-limit", 20)),
-        )
+        return self.request_translator.to_pulsar(body)
 
     def from_response(self, message):
-        return { "response": message.response }, True
+        return self.response_translator.from_response_with_completion(message)
 
