@@ -1,5 +1,6 @@
 
 from ... schema import TextCompletionRequest, TextCompletionResponse
+from ... messaging import TranslatorRegistry
 
 from . requestor import ServiceRequestor
 
@@ -20,12 +21,12 @@ class TextCompletionRequestor(ServiceRequestor):
             timeout=timeout,
         )
 
+        self.request_translator = TranslatorRegistry.get_request_translator("text-completion")
+        self.response_translator = TranslatorRegistry.get_response_translator("text-completion")
+
     def to_request(self, body):
-        return TextCompletionRequest(
-            system=body["system"],
-            prompt=body["prompt"]
-        )
+        return self.request_translator.to_pulsar(body)
 
     def from_response(self, message):
-        return { "response": message.response }, True
+        return self.response_translator.from_response_with_completion(message)
 
