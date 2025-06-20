@@ -2,7 +2,7 @@
 from ... schema import ConfigRequest, ConfigResponse, ConfigKey, ConfigValue
 from ... schema import config_request_queue
 from ... schema import config_response_queue
-from .... base.messaging import TranslatorRegistry
+from ... messaging import TranslatorRegistry
 
 from . requestor import ServiceRequestor
 

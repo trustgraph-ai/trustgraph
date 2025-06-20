@@ -2,7 +2,7 @@
 from ... schema import FlowRequest, FlowResponse
 from ... schema import flow_request_queue
 from ... schema import flow_response_queue
-from .... base.messaging import TranslatorRegistry
+from ... messaging import TranslatorRegistry
 
 from . requestor import ServiceRequestor
 

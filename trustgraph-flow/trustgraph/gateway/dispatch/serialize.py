@@ -3,10 +3,10 @@ import base64
 
 from ... schema import Value, Triple, DocumentMetadata, ProcessingMetadata
 
-# DEPRECATED: These functions have been moved to trustgraph.base.messaging.translators
+# DEPRECATED: These functions have been moved to trustgraph.... messaging.translators
 # Use the new messaging translation system instead for consistency and reusability.
 # Examples:
-#   from trustgraph.base.messaging.translators.primitives import ValueTranslator
+#   from trustgraph.... messaging.translators.primitives import ValueTranslator
 #   value_translator = ValueTranslator()
 #   pulsar_value = value_translator.to_pulsar({"v": "example", "e": True})
 

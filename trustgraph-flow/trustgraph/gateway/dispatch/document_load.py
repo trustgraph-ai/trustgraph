@@ -2,7 +2,7 @@
 import base64
 
 from ... schema import Document, Metadata
-from .... base.messaging import TranslatorRegistry
+from ... messaging import TranslatorRegistry
 
 from . sender import ServiceSender
 

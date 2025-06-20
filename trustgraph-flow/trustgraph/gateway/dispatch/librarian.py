@@ -4,7 +4,7 @@ import base64
 from ... schema import LibrarianRequest, LibrarianResponse
 from ... schema import librarian_request_queue
 from ... schema import librarian_response_queue
-from .... base.messaging import TranslatorRegistry
+from ... messaging import TranslatorRegistry
 
 from . requestor import ServiceRequestor
 

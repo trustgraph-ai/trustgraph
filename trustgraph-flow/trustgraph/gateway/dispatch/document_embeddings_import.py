@@ -6,7 +6,7 @@ from aiohttp import WSMsgType
 from ... schema import Metadata
 from ... schema import DocumentEmbeddings, ChunkEmbeddings
 from ... base import Publisher
-from .... base.messaging.translators.document_loading import DocumentEmbeddingsTranslator
+from ... messaging.translators.document_loading import DocumentEmbeddingsTranslator
 
 class DocumentEmbeddingsImport:
 

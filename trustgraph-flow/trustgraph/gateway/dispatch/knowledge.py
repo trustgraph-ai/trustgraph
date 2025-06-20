@@ -5,7 +5,7 @@ from ... schema import KnowledgeRequest, KnowledgeResponse, Triples
 from ... schema import GraphEmbeddings, Metadata, EntityEmbeddings
 from ... schema import knowledge_request_queue
 from ... schema import knowledge_response_queue
-from .... base.messaging import TranslatorRegistry
+from ... messaging import TranslatorRegistry
 
 from . requestor import ServiceRequestor
 

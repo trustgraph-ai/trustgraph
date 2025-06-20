@@ -1,6 +1,6 @@
 
 from ... schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
-from .... base.messaging import TranslatorRegistry
+from ... messaging import TranslatorRegistry
 
 from . requestor import ServiceRequestor
 
