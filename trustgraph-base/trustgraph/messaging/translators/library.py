@@ -4,8 +4,8 @@ from .base import MessageTranslator
 from .metadata import DocumentMetadataTranslator, ProcessingMetadataTranslator
 
 
-class LibraryDocumentTranslator(MessageTranslator):
-    """Translator for LibrarianRequest/Response schema objects"""
+class LibraryRequestTranslator(MessageTranslator):
+    """Translator for LibrarianRequest schema objects"""
     
     def __init__(self):
         self.doc_metadata_translator = DocumentMetadataTranslator()
@@ -86,7 +86,7 @@ class LibraryDocumentTranslator(MessageTranslator):
         return result
 
 
-class LibraryProcessingTranslator(MessageTranslator):
+class LibraryResponseTranslator(MessageTranslator):
     """Translator for LibrarianResponse schema objects"""
     
     def __init__(self):
