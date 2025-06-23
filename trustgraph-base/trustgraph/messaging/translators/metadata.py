@@ -18,7 +18,7 @@ class DocumentMetadataTranslator(Translator):
             kind=data.get("kind"),
             title=data.get("title"),
             comments=data.get("comments"),
-            metadata=self.subgraph_translator.to_pulsar(metadata) if metadata else [],
+            metadata=self.subgraph_translator.to_pulsar(metadata) if metadata is not None else [],
             user=data.get("user"),
             tags=data.get("tags")
         )
@@ -36,7 +36,7 @@ class DocumentMetadataTranslator(Translator):
             result["title"] = obj.title
         if obj.comments:
             result["comments"] = obj.comments
-        if obj.metadata:
+        if obj.metadata is not None:
             result["metadata"] = self.subgraph_translator.from_pulsar(obj.metadata)
         if obj.user:
             result["user"] = obj.user

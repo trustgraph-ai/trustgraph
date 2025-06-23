@@ -4,8 +4,8 @@ from .base import MessageTranslator
 from .metadata import DocumentMetadataTranslator, ProcessingMetadataTranslator
 
 
-class LibraryDocumentTranslator(MessageTranslator):
-    """Translator for LibrarianRequest/Response schema objects"""
+class LibraryRequestTranslator(MessageTranslator):
+    """Translator for LibrarianRequest schema objects"""
     
     def __init__(self):
         self.doc_metadata_translator = DocumentMetadataTranslator()
@@ -73,7 +73,7 @@ class LibraryDocumentTranslator(MessageTranslator):
             result["user"] = obj.user
         if obj.collection:
             result["collection"] = obj.collection
-        if obj.criteria:
+        if obj.criteria is not None:
             result["criteria"] = [
                 {
                     "key": c.key,
@@ -86,7 +86,7 @@ class LibraryDocumentTranslator(MessageTranslator):
         return result
 
 
-class LibraryProcessingTranslator(MessageTranslator):
+class LibraryResponseTranslator(MessageTranslator):
     """Translator for LibrarianResponse schema objects"""
     
     def __init__(self):
@@ -105,13 +105,13 @@ class LibraryProcessingTranslator(MessageTranslator):
         if obj.content:
             result["content"] = obj.content.decode("utf-8") if isinstance(obj.content, bytes) else obj.content
         
-        if obj.document_metadatas:
+        if obj.document_metadatas is not None:
             result["document-metadatas"] = [
                 self.doc_metadata_translator.from_pulsar(dm)
                 for dm in obj.document_metadatas
             ]
         
-        if obj.processing_metadatas:
+        if obj.processing_metadatas is not None:
             result["processing-metadatas"] = [
                 self.proc_metadata_translator.from_pulsar(pm)
                 for pm in obj.processing_metadatas
