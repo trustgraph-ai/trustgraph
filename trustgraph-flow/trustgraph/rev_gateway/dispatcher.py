@@ -3,16 +3,36 @@ import logging
 import uuid
 from typing import Dict, Any, Optional
 from trustgraph.messaging import TranslatorRegistry
+from ..gateway.dispatch.manager import DispatcherManager
 
 logger = logging.getLogger("dispatcher")
 logger.setLevel(logging.INFO)
 
+class WebSocketResponder:
+    """Simple responder that captures response for websocket return"""
+    def __init__(self):
+        self.response = None
+        self.completed = False
+        
+    async def send(self, data):
+        """Capture the response data"""
+        self.response = data
+        self.completed = True
+
 class MessageDispatcher:
     
-    def __init__(self, max_workers: int = 10):
+    def __init__(self, max_workers: int = 10, config_receiver=None, pulsar_client=None):
         self.max_workers = max_workers
         self.semaphore = asyncio.Semaphore(max_workers)
         self.active_tasks = set()
+        self.pulsar_client = pulsar_client
+        
+        # Use DispatcherManager for flow and service management
+        if pulsar_client and config_receiver:
+            self.dispatcher_manager = DispatcherManager(pulsar_client, config_receiver)
+        else:
+            self.dispatcher_manager = None
+            logger.warning("No pulsar_client or config_receiver provided - using fallback mode")
         
         # Service name mapping from websocket protocol to translator registry
         self.service_mapping = {
@@ -46,38 +66,35 @@ class MessageDispatcher:
         request_id = message.get('id', str(uuid.uuid4()))
         service = message.get('service')
         request_data = message.get('request', {})
+        flow_id = message.get('flow', 'default')  # Default flow
         
-        logger.info(f"Processing message {request_id} for service {service}")
+        logger.info(f"Processing message {request_id} for service {service} on flow {flow_id}")
         
         try:
-            # Map websocket service name to translator service name
-            translator_service = self.service_mapping.get(service, service)
+            if not self.dispatcher_manager:
+                raise RuntimeError("DispatcherManager not available - pulsar_client and config_receiver required")
             
-            # Get the request translator 
-            if TranslatorRegistry.has_service(translator_service):
-                request_translator = TranslatorRegistry.get_request_translator(translator_service)
-                response_translator = TranslatorRegistry.get_response_translator(translator_service)
-                
-                # Convert websocket request to Pulsar message
-                pulsar_request = request_translator.to_pulsar(request_data)
-                logger.info(f"Converted to Pulsar request: {type(pulsar_request)}")
-                
-                # Send to fixme function (placeholder for actual processing)
-                pulsar_response = await self.fixme(pulsar_request)
-                
-                # Convert Pulsar response back to websocket format
-                response_data = response_translator.from_pulsar(pulsar_response)
-                
-                response = {
-                    'id': request_id,
-                    'response': response_data
-                }
+            # Use DispatcherManager for flow-based processing
+            responder = WebSocketResponder()
+            
+            # Map websocket service name to dispatcher service name
+            dispatcher_service = self.service_mapping.get(service, service)
+            
+            # Use DispatcherManager to process the request through Pulsar queues
+            await self.dispatcher_manager.invoke_flow_service(
+                request_data, responder, flow_id, dispatcher_service
+            )
+            
+            # Get the response from the responder
+            if responder.completed and responder.response:
+                response_data = responder.response
             else:
-                logger.warning(f"No translator found for service: {service}")
-                response = {
-                    'id': request_id,
-                    'response': {'error': f'Unsupported service: {service}'}
-                }
+                response_data = {'error': 'No response received'}
+                
+            response = {
+                'id': request_id,
+                'response': response_data
+            }
                 
         except Exception as e:
             logger.error(f"Error processing message {request_id}: {e}")
@@ -88,36 +105,12 @@ class MessageDispatcher:
         
         logger.info(f"Completed processing message {request_id}")
         return response
-        
-    async def fixme(self, pulsar_request) -> Any:
-        """Placeholder function for actual message processing"""
-        logger.info(f"FIXME: Processing Pulsar request of type {type(pulsar_request)}")
-        
-        # Wait 2 seconds as before
-        await asyncio.sleep(2.0)
-        
-        # For now, create a mock response based on request type
-        # This will be replaced with actual processing logic later
-        request_type = type(pulsar_request).__name__
-        
-        # Import appropriate response schema - this is a temporary mock
-        if "TextCompletion" in request_type:
-            from trustgraph.schema import TextCompletionResponse
-            return TextCompletionResponse(response="hello world")
-        elif "Agent" in request_type:
-            from trustgraph.schema import AgentResponse  
-            return AgentResponse(answer="hello world")
-        elif "Embeddings" in request_type:
-            from trustgraph.schema import EmbeddingsResponse
-            return EmbeddingsResponse(vectors=[[0.1, 0.2, 0.3]])
-        else:
-            # Generic response for unknown types
-            logger.warning(f"Unknown request type: {request_type}")
-            # Return a simple dict that can be handled
-            return {"response": "hello world"}
+    
     
     async def shutdown(self):
         if self.active_tasks:
             logger.info(f"Waiting for {len(self.active_tasks)} active tasks to complete")
             await asyncio.gather(*self.active_tasks, return_exceptions=True)
+            
+        # DispatcherManager handles its own cleanup
         logger.info("Dispatcher shutdown complete")

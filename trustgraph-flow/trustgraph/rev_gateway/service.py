@@ -23,7 +23,6 @@ class ReverseGateway:
         self.max_workers = max_workers
         self.ws: Optional[ClientWebSocketResponse] = None
         self.session: Optional[ClientSession] = None
-        self.dispatcher = MessageDispatcher(max_workers)
         self.running = False
         self.reconnect_delay = 3.0
         
@@ -47,6 +46,9 @@ class ReverseGateway:
         
         # Initialize config receiver
         self.config_receiver = ConfigReceiver(self.pulsar_client)
+        
+        # Initialize dispatcher with config_receiver and pulsar_client - must be created after config_receiver
+        self.dispatcher = MessageDispatcher(max_workers, self.config_receiver, self.pulsar_client)
         
     async def connect(self) -> bool:
         try:
