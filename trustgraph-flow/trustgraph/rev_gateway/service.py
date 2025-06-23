@@ -2,17 +2,22 @@ import asyncio
 import logging
 import json
 import sys
+import os
 from aiohttp import ClientSession, WSMsgType, ClientWebSocketResponse
 from typing import Optional
+import pulsar
 
 from .dispatcher import MessageDispatcher
+from ..gateway.config.receiver import ConfigReceiver
 
 logger = logging.getLogger("rev_gateway")
 logger.setLevel(logging.INFO)
 
 class ReverseGateway:
     
-    def __init__(self, host: str = "api.trustgraph.ai", max_workers: int = 10):
+    def __init__(self, host: str = "api.trustgraph.ai", max_workers: int = 10, 
+                 pulsar_host: str = None, pulsar_api_key: str = None, 
+                 pulsar_listener: str = None):
         self.host = host
         self.url = f"wss://{host}/ws"
         self.max_workers = max_workers
@@ -21,6 +26,27 @@ class ReverseGateway:
         self.dispatcher = MessageDispatcher(max_workers)
         self.running = False
         self.reconnect_delay = 3.0
+        
+        # Pulsar configuration
+        self.pulsar_host = pulsar_host or os.getenv("PULSAR_HOST", "pulsar://pulsar:6650")
+        self.pulsar_api_key = pulsar_api_key or os.getenv("PULSAR_API_KEY", None)
+        self.pulsar_listener = pulsar_listener
+        
+        # Initialize Pulsar client
+        if self.pulsar_api_key:
+            self.pulsar_client = pulsar.Client(
+                self.pulsar_host, 
+                listener_name=self.pulsar_listener,
+                authentication=pulsar.AuthenticationToken(self.pulsar_api_key)
+            )
+        else:
+            self.pulsar_client = pulsar.Client(
+                self.pulsar_host,
+                listener_name=self.pulsar_listener
+            )
+        
+        # Initialize config receiver
+        self.config_receiver = ConfigReceiver(self.pulsar_client)
         
     async def connect(self) -> bool:
         try:
@@ -85,6 +111,10 @@ class ReverseGateway:
         self.running = True
         logger.info("Starting reverse gateway")
         
+        # Start config receiver
+        logger.info("Starting config receiver")
+        await self.config_receiver.start()
+        
         while self.running:
             try:
                 if await self.connect():
@@ -112,6 +142,10 @@ class ReverseGateway:
         self.running = False
         await self.dispatcher.shutdown()
         await self.disconnect()
+        
+        # Close Pulsar client
+        if hasattr(self, 'pulsar_client'):
+            self.pulsar_client.close()
     
     def stop(self):
         self.running = False
