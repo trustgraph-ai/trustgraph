@@ -5,6 +5,7 @@ import sys
 import os
 from aiohttp import ClientSession, WSMsgType, ClientWebSocketResponse
 from typing import Optional
+from urllib.parse import urlparse, urlunparse
 import pulsar
 
 from .dispatcher import MessageDispatcher
@@ -15,11 +16,33 @@ logger.setLevel(logging.INFO)
 
 class ReverseGateway:
     
-    def __init__(self, host: str = "api.trustgraph.ai", max_workers: int = 10, 
+    def __init__(self, websocket_uri: str = None, max_workers: int = 10, 
                  pulsar_host: str = None, pulsar_api_key: str = None, 
                  pulsar_listener: str = None):
-        self.host = host
-        self.url = f"wss://{host}/ws"
+        # Set default WebSocket URI with environment variable support
+        if websocket_uri is None:
+            websocket_uri = os.getenv("WEBSOCKET_URI", "wss://api.trustgraph.ai/ws")
+        
+        # Parse and validate the WebSocket URI
+        parsed_uri = urlparse(websocket_uri)
+        if parsed_uri.scheme not in ('ws', 'wss'):
+            raise ValueError(f"WebSocket URI must use ws:// or wss:// scheme, got: {parsed_uri.scheme}")
+        if not parsed_uri.netloc:
+            raise ValueError(f"WebSocket URI must include hostname, got: {websocket_uri}")
+        
+        # Store parsed components for debugging/logging
+        self.websocket_uri = websocket_uri
+        self.host = parsed_uri.hostname
+        self.port = parsed_uri.port
+        self.scheme = parsed_uri.scheme
+        self.path = parsed_uri.path or "/ws"
+        
+        # Construct the full URL (in case path was missing)
+        if not parsed_uri.path:
+            self.url = f"{self.scheme}://{parsed_uri.netloc}/ws"
+        else:
+            self.url = websocket_uri
+            
         self.max_workers = max_workers
         self.ws: Optional[ClientWebSocketResponse] = None
         self.session: Optional[ClientSession] = None
@@ -57,11 +80,11 @@ class ReverseGateway:
                 
             logger.info(f"Connecting to {self.url}")
             self.ws = await self.session.ws_connect(self.url)
-            logger.info("WebSocket connection established")
+            logger.info(f"WebSocket connection established to {self.host}:{self.port or 'default'}")
             return True
             
         except Exception as e:
-            logger.error(f"Failed to connect: {e}")
+            logger.error(f"Failed to connect to {self.url}: {e}")
             return False
     
     async def disconnect(self):
