@@ -8,7 +8,7 @@ from .retrieval import DocumentRagRequestTranslator, DocumentRagResponseTranslat
 from .retrieval import GraphRagRequestTranslator, GraphRagResponseTranslator
 from .triples import TriplesQueryRequestTranslator, TriplesQueryResponseTranslator
 from .knowledge import KnowledgeRequestTranslator, KnowledgeResponseTranslator
-from .library import LibraryDocumentTranslator, LibraryProcessingTranslator
+from .library import LibraryRequestTranslator, LibraryResponseTranslator
 from .document_loading import DocumentTranslator, TextDocumentTranslator, ChunkTranslator, DocumentEmbeddingsTranslator
 from .config import ConfigRequestTranslator, ConfigResponseTranslator
 from .flow import FlowRequestTranslator, FlowResponseTranslator

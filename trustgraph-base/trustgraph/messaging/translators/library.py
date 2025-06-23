@@ -73,7 +73,7 @@ class LibraryRequestTranslator(MessageTranslator):
             result["user"] = obj.user
         if obj.collection:
             result["collection"] = obj.collection
-        if obj.criteria:
+        if obj.criteria is not None:
             result["criteria"] = [
                 {
                     "key": c.key,
@@ -105,13 +105,13 @@ class LibraryResponseTranslator(MessageTranslator):
         if obj.content:
             result["content"] = obj.content.decode("utf-8") if isinstance(obj.content, bytes) else obj.content
         
-        if obj.document_metadatas:
+        if obj.document_metadatas is not None:
             result["document-metadatas"] = [
                 self.doc_metadata_translator.from_pulsar(dm)
                 for dm in obj.document_metadatas
             ]
         
-        if obj.processing_metadatas:
+        if obj.processing_metadatas is not None:
             result["processing-metadatas"] = [
                 self.proc_metadata_translator.from_pulsar(pm)
                 for pm in obj.processing_metadatas

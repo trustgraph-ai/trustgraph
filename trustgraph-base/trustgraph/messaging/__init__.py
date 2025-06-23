@@ -11,7 +11,7 @@ from .translators.retrieval import (
 )
 from .translators.triples import TriplesQueryRequestTranslator, TriplesQueryResponseTranslator
 from .translators.knowledge import KnowledgeRequestTranslator, KnowledgeResponseTranslator
-from .translators.library import LibraryDocumentTranslator, LibraryProcessingTranslator
+from .translators.library import LibraryRequestTranslator, LibraryResponseTranslator
 from .translators.document_loading import DocumentTranslator, TextDocumentTranslator
 from .translators.config import ConfigRequestTranslator, ConfigResponseTranslator
 from .translators.flow import FlowRequestTranslator, FlowResponseTranslator
@@ -66,8 +66,8 @@ TranslatorRegistry.register_service(
 
 TranslatorRegistry.register_service(
     "librarian", 
-    LibraryDocumentTranslator(), 
-    LibraryProcessingTranslator()
+    LibraryRequestTranslator(), 
+    LibraryResponseTranslator()
 )
 
 TranslatorRegistry.register_service(
