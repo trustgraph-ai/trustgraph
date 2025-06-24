@@ -86,10 +86,18 @@ class MessageDispatcher:
             # Map websocket service name to dispatcher service name
             dispatcher_service = self.service_mapping.get(service, service)
             
-            # Use DispatcherManager to process the request through Pulsar queues
-            await self.dispatcher_manager.invoke_flow_service(
-                request_data, responder, flow_id, dispatcher_service
-            )
+            # Check if this is a global service or flow service
+            from ..gateway.dispatch.manager import global_dispatchers
+            if dispatcher_service in global_dispatchers:
+                # Use global service dispatcher
+                await self.dispatcher_manager.invoke_global_service(
+                    request_data, responder, dispatcher_service
+                )
+            else:
+                # Use DispatcherManager to process the request through Pulsar queues
+                await self.dispatcher_manager.invoke_flow_service(
+                    request_data, responder, flow_id, dispatcher_service
+                )
             
             # Get the response from the responder
             if responder.completed and responder.response:
