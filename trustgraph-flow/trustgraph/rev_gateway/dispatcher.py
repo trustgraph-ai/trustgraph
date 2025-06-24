@@ -100,7 +100,7 @@ class MessageDispatcher:
                 )
             
             # Get the response from the responder
-            if responder.completed and responder.response:
+            if responder.completed:
                 response_data = responder.response
             else:
                 response_data = {'error': 'No response received'}
