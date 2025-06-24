@@ -71,6 +71,7 @@ setuptools.setup(
     scripts=[
         "scripts/agent-manager-react",
         "scripts/api-gateway",
+        "scripts/rev-gateway",
         "scripts/chunker-recursive",
         "scripts/chunker-token",
         "scripts/config-svc",
