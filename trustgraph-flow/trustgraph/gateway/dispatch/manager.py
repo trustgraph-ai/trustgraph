@@ -81,10 +81,11 @@ class DispatcherWrapper:
 
 class DispatcherManager:
 
-    def __init__(self, pulsar_client, config_receiver):
+    def __init__(self, pulsar_client, config_receiver, prefix="api-gateway"):
         self.pulsar_client = pulsar_client
         self.config_receiver = config_receiver
         self.config_receiver.add_handler(self)
+        self.prefix = prefix
 
         self.flows = {}
         self.dispatchers = {}
@@ -133,8 +134,8 @@ class DispatcherManager:
         dispatcher = global_dispatchers[kind](
             pulsar_client = self.pulsar_client,
             timeout = 120,
-            consumer = f"api-gateway-{kind}-request",
-            subscriber = f"api-gateway-{kind}-request",
+            consumer = f"{self.prefix}-{kind}-request",
+            subscriber = f"{self.prefix}-{kind}-request",
         )
 
         await dispatcher.start()
@@ -226,8 +227,8 @@ class DispatcherManager:
             ws = ws,
             running = running,
             queue = qconfig,
-            consumer = f"api-gateway-{id}",
-            subscriber = f"api-gateway-{id}",
+            consumer = f"{self.prefix}-{id}",
+            subscriber = f"{self.prefix}-{id}",
         )
 
         return dispatcher
@@ -268,8 +269,8 @@ class DispatcherManager:
                 request_queue = qconfig["request"],
                 response_queue = qconfig["response"],
                 timeout = 120,
-                consumer = f"api-gateway-{flow}-{kind}-request",
-                subscriber = f"api-gateway-{flow}-{kind}-request",
+                consumer = f"{self.prefix}-{flow}-{kind}-request",
+                subscriber = f"{self.prefix}-{flow}-{kind}-request",
             )
         elif kind in sender_dispatchers:
             dispatcher = sender_dispatchers[kind](
