@@ -35,7 +35,7 @@ class MessageDispatcher:
         
         # Use DispatcherManager for flow and service management
         if pulsar_client and config_receiver:
-            self.dispatcher_manager = DispatcherManager(pulsar_client, config_receiver)
+            self.dispatcher_manager = DispatcherManager(pulsar_client, config_receiver, prefix="rev-gateway")
         else:
             self.dispatcher_manager = None
             logger.warning("No pulsar_client or config_receiver provided - using fallback mode")

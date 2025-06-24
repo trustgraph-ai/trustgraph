@@ -73,6 +73,7 @@ class Api:
         self.dispatcher_manager = DispatcherManager(
             pulsar_client = self.pulsar_client,
             config_receiver = self.config_receiver,
+            prefix = "gateway",
         )
 
         self.endpoint_manager = EndpointManager(
