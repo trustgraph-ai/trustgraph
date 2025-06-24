@@ -15,6 +15,8 @@ from ..gateway.config.receiver import ConfigReceiver
 logger = logging.getLogger("rev_gateway")
 logger.setLevel(logging.INFO)
 
+default_websocket = "ws://localhost:7650/out"
+
 class ReverseGateway:
     
     def __init__(self, websocket_uri: str = None, max_workers: int = 10, 
@@ -22,7 +24,7 @@ class ReverseGateway:
                  pulsar_listener: str = None):
         # Set default WebSocket URI with environment variable support
         if websocket_uri is None:
-            websocket_uri = os.getenv("WEBSOCKET_URI", "wss://api.trustgraph.ai/ws")
+            websocket_uri = os.getenv("WEBSOCKET_URI", default_websocket)
         
         # Parse and validate the WebSocket URI
         parsed_uri = urlparse(websocket_uri)
@@ -185,7 +187,7 @@ def parse_args():
     parser.add_argument(
         '--websocket-uri',
         default=None,
-        help='WebSocket URI to connect to (default: wss://api.trustgraph.ai/ws or WEBSOCKET_URI env var)'
+        help=f'WebSocket URI to connect to (default: {default_websocket} or WEBSOCKET_URI env var)'
     )
     
     parser.add_argument(
@@ -196,7 +198,7 @@ def parse_args():
     )
     
     parser.add_argument(
-        '--pulsar-host',
+        '-p', '--pulsar-host',
         default=None,
         help='Pulsar host URL (default: pulsar://pulsar:6650 or PULSAR_HOST env var)'
     )
