@@ -18,6 +18,12 @@ class WebSocketResponder:
         """Capture the response data"""
         self.response = data
         self.completed = True
+    
+    async def __call__(self, data, final=False):
+        """Make the responder callable for compatibility with requestor"""
+        await self.send(data)
+        if final:
+            self.completed = True
 
 class MessageDispatcher:
     
