@@ -1,8 +1,8 @@
-<img src="TG-ship.jpg" width=100% />
+<img src="tg-adapter.png" width=100% />
 
 <div align="center">
 
-## The Agent Intelligence Platform
+## The Sovereign Universal AI Adapter
 
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
@@ -11,7 +11,7 @@
 
 </div>
 
-Build AI Agents you can ***actually*** trust. Define and deploy trustworthy AI agents in a single, unified platform. TrustGraph overcomes the "black box" limitations of other platforms with a transparent, deploy-anywhere solution. Ground agent responses with advanced GraphRAG using access-controlled, modular knowledge packages built from your data.
+Take control of your data and AI future with **TrustGraph**. Universal connectors can call the latest LLMs or deploy models on your hardware. **TrustGraph** future-proofs your AI strategy with graph driven intelligence that can deploy in any environment.
 
 ---
 
