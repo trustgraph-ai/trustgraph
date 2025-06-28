@@ -1,8 +1,8 @@
 
 from ... schema import TriplesQueryRequest, TriplesQueryResponse, Triples
+from ... messaging import TranslatorRegistry
 
 from . requestor import ServiceRequestor
-from . serialize import to_value, serialize_subgraph
 
 class TriplesQueryRequestor(ServiceRequestor):
     def __init__(
@@ -21,34 +21,12 @@ class TriplesQueryRequestor(ServiceRequestor):
             timeout=timeout,
         )
 
+        self.request_translator = TranslatorRegistry.get_request_translator("triples-query")
+        self.response_translator = TranslatorRegistry.get_response_translator("triples-query")
+
     def to_request(self, body):
-
-        if "s" in body:
-            s = to_value(body["s"])
-        else:
-            s = None
-
-        if "p" in body:
-            p = to_value(body["p"])
-        else:
-            p = None
-
-        if "o" in body:
-            o = to_value(body["o"])
-        else:
-            o = None
-
-        limit = int(body.get("limit", 10000))
-
-        return TriplesQueryRequest(
-            s = s, p = p, o = o,
-            limit = limit,
-            user = body.get("user", "trustgraph"),
-            collection = body.get("collection", "default"),
-        )
+        return self.request_translator.to_pulsar(body)
 
     def from_response(self, message):
-        return {
-            "response": serialize_subgraph(message.triples)
-        }, True
+        return self.response_translator.from_response_with_completion(message)
 

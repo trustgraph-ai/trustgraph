@@ -1,7 +1,6 @@
 
 import asyncio
 from aiohttp import web
-import uuid
 import logging
 
 logger = logging.getLogger("endpoint")

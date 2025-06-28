@@ -11,12 +11,14 @@ from ... base import PromptClientSpec, EmbeddingsClientSpec
 from ... base import GraphEmbeddingsClientSpec, TriplesClientSpec
 
 default_ident = "graph-rag"
+default_concurrency = 1
 
 class Processor(FlowProcessor):
 
     def __init__(self, **params):
 
         id = params.get("id", default_ident)
+        concurrency = params.get("concurrency", 1)
 
         entity_limit = params.get("entity_limit", 50)
         triple_limit = params.get("triple_limit", 30)
@@ -26,6 +28,7 @@ class Processor(FlowProcessor):
         super(Processor, self).__init__(
             **params | {
                 "id": id,
+                "concurrency": concurrency,
                 "entity_limit": entity_limit,
                 "triple_limit": triple_limit,
                 "max_subgraph_size": max_subgraph_size,
@@ -43,6 +46,7 @@ class Processor(FlowProcessor):
                 name = "request",
                 schema = GraphRagQuery,
                 handler = self.on_request,
+                concurrency = concurrency,
             )
         )
 
@@ -156,6 +160,13 @@ class Processor(FlowProcessor):
 
     @staticmethod
     def add_args(parser):
+
+        parser.add_argument(
+            '-c', '--concurrency',
+            type=int,
+            default=default_concurrency,
+            help=f'Concurrent processing threads (default: {default_concurrency})'
+        )
 
         FlowProcessor.add_args(parser)
 

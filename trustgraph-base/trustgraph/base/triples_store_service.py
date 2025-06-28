@@ -5,6 +5,7 @@ Triples store base class
 
 from .. schema import Triples
 from .. base import FlowProcessor, ConsumerSpec
+from .. exceptions import TooManyRequests
 
 default_ident = "triples-write"
 

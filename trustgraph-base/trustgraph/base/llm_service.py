@@ -11,9 +11,13 @@ from .. exceptions import TooManyRequests
 from .. base import FlowProcessor, ConsumerSpec, ProducerSpec
 
 default_ident = "text-completion"
+default_concurrency = 1
 
 class LlmResult:
-    def __init__(self, text=None, in_token=None, out_token=None, model=None):
+    def __init__(
+            self, text = None, in_token = None, out_token = None,
+            model = None,
+    ):
         self.text = text
         self.in_token = in_token
         self.out_token = out_token
@@ -25,14 +29,19 @@ class LlmService(FlowProcessor):
     def __init__(self, **params):
 
         id = params.get("id")
+        concurrency = params.get("concurrency", 1)
 
-        super(LlmService, self).__init__(**params | { "id": id })
+        super(LlmService, self).__init__(**params | {
+            "id": id,
+            "concurrency": concurrency,
+        })
 
         self.register_specification(
             ConsumerSpec(
                 name = "request",
                 schema = TextCompletionRequest,
-                handler = self.on_request
+                handler = self.on_request,
+                concurrency = concurrency,
             )
         )
 
@@ -114,6 +123,13 @@ class LlmService(FlowProcessor):
 
     @staticmethod
     def add_args(parser):
+
+        parser.add_argument(
+            '-c', '--concurrency',
+            type=int,
+            default=default_concurrency,
+            help=f'Concurrent processing threads (default: {default_concurrency})'
+        )
 
         FlowProcessor.add_args(parser)
 

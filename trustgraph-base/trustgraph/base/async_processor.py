@@ -13,7 +13,6 @@ from prometheus_client import start_http_server, Info
 
 from .. schema import ConfigPush, config_push_queue
 from .. log_level import LogLevel
-from .. exceptions import TooManyRequests
 from . pubsub import PulsarClient
 from . producer import Producer
 from . consumer import Consumer

@@ -1,5 +1,6 @@
 
 from ... schema import EmbeddingsRequest, EmbeddingsResponse
+from ... messaging import TranslatorRegistry
 
 from . requestor import ServiceRequestor
 
@@ -20,11 +21,12 @@ class EmbeddingsRequestor(ServiceRequestor):
             timeout=timeout,
         )
 
+        self.request_translator = TranslatorRegistry.get_request_translator("embeddings")
+        self.response_translator = TranslatorRegistry.get_response_translator("embeddings")
+
     def to_request(self, body):
-        return EmbeddingsRequest(
-            text=body["text"]
-        )
+        return self.request_translator.to_pulsar(body)
 
     def from_response(self, message):
-        return { "vectors": message.vectors }, True
+        return self.response_translator.from_response_with_completion(message)
 
