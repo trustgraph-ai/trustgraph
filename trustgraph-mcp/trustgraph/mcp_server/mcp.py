@@ -17,9 +17,6 @@ from websockets.asyncio.client import connect
 
 from . tg_socket import WebSocketManager
 
-# TrustGraph
-from trustgraph.api import Api
-
 @dataclass
 class AppContext:
     sockets: dict[str, WebSocketManager]
@@ -50,7 +47,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 # Create an MCP server
 mcp = FastMCP(
     "TrustGraph", dependencies=["trustgraph-base"],
-    host="0.0.0.0", port=8092,
+    host="0.0.0.0", port=8000,
     lifespan=app_lifespan,
 )
 
