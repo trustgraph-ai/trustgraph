@@ -1,0 +1,46 @@
+
+# ----------------------------------------------------------------------------
+# Build an AI container.  This does the torch install which is huge, and I
+# like to avoid re-doing this.
+# ----------------------------------------------------------------------------
+
+FROM docker.io/fedora:42 AS base
+
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
+
+RUN dnf install -y python3.12 && \
+  alternatives --install /usr/bin/python python /usr/bin/python3.12 1 && \
+  python -m ensurepip --upgrade && \
+  pip3 install --no-cache-dir mcp websockets && \
+  dnf clean all
+
+# ----------------------------------------------------------------------------
+# Build a container which contains the built Python packages.  The build
+# creates a bunch of left-over cruft, a separate phase means this is only
+# needed to support package build
+# ----------------------------------------------------------------------------
+
+FROM base AS build
+
+COPY trustgraph-mcp/ /root/build/trustgraph-mcp/
+
+WORKDIR /root/build/
+
+RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-mcp/
+
+RUN ls /root/wheels
+
+# ----------------------------------------------------------------------------
+# Finally, the target container.  Start with base and add the package.
+# ----------------------------------------------------------------------------
+
+FROM base
+
+COPY --from=build /root/wheels /root/wheels
+
+RUN \
+    pip3 install --no-cache-dir /root/wheels/trustgraph_mcp-* && \
+    rm -rf /root/wheels
+
+WORKDIR /
+
