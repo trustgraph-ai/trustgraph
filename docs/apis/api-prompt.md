@@ -15,7 +15,7 @@ The request contains the following fields:
 
 ### Response
 
-The request contains either of these fields:
+The response contains either of these fields:
 - `text`: A plain text response
 - `object`: A structured object, JSON-encoded
 
@@ -60,6 +60,7 @@ Request:
 {
     "id": "akshfkiehfkseffh-142",
     "service": "prompt",
+    "flow": "default",
     "request": {
         "id": "extract-definitions",
         "variables": {

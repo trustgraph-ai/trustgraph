@@ -3,8 +3,10 @@
 
 ## Overview
 
-If you want to interact with TrustGraph through APIs, there are 3
-forms of API which may be of interest to you:
+If you want to interact with TrustGraph through APIs, there are 4
+forms of API which may be of interest to you. All four mechanisms
+invoke the same underlying TrustGraph functionality but are made
+available for integration in different ways:
 
 ### Pulsar APIs
 
@@ -56,6 +58,31 @@ Cons:
     using a basic REST API, particular if you want to cover all of the error
     scenarios well
 
+### Python SDK API
+
+The `trustgraph-base` package provides a Python SDK that wraps the underlying
+service invocations in a convenient Python API.
+
+Pros:
+  - Native Python integration with type hints and documentation
+  - Simplified service invocation without manual message handling
+  - Built-in error handling and response parsing
+  - Convenient for Python-based applications and scripts
+
+Cons:
+  - Python-specific, not available for other programming languages
+  - Requires Python environment and trustgraph-base package installation
+  - Less control over low-level message handling
+
+## Flow-hosted APIs
+
+There are two types of APIs: Flow-hosted which need a flow to be running
+to operate.  Non-flow-hosted which are core to the system, and can
+be seen as 'global' - they are not dependent on a flow to be running.
+
+Knowledge, Librarian, Config and Flow APIs fall into the latter
+category.
+
 ## See also
 
 - [TrustGraph websocket overview](websocket.md)
@@ -64,9 +91,19 @@ Cons:
   - [Text completion](api-text-completion.md)
   - [Prompt completion](api-prompt.md)
   - [Graph RAG](api-graph-rag.md)
+  - [Document RAG](api-document-rag.md)
   - [Agent](api-agent.md)
   - [Embeddings](api-embeddings.md)
   - [Graph embeddings](api-graph-embeddings.md)
+  - [Document embeddings](api-document-embeddings.md)
+  - [Entity contexts](api-entity-contexts.md)
   - [Triples query](api-triples-query.md)
   - [Document load](api-document-load.md)
+  - [Text load](api-text-load.md)
+  - [Config](api-config.md)
+  - [Flow](api-flow.md)
+  - [Librarian](api-librarian.md)
+  - [Knowledge](api-knowledge.md)
+  - [Metrics](api-metrics.md)
+  - [Core import/export](api-core-import-export.md)
 
