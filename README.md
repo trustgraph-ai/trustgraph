@@ -7,7 +7,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
 
-📑 [Full Docs](https://docs.trustgraph.ai/docs/TrustGraph) 📺 [YouTube](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) 🔧 [Configuration Builder](https://config-ui.demo.trustgraph.ai/) ⚙️ [API Docs](docs/apis/README.md) 🧑‍💻 [CLI Docs](https://docs.trustgraph.ai/docs/running/cli) 💬 [Discord](https://discord.gg/sQMwkRz5GX) 📖 [Blog](https://blog.trustgraph.ai/subscribe)
+📑 [Full Docs](https://docs.trustgraph.ai/docs/TrustGraph) 📺 [YouTube](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) 🔧 [Configuration Builder](https://config-ui.demo.trustgraph.ai/) ⚙️ [API Docs](docs/apis/README.md) 🧑‍💻 [CLI Docs](docs/cli/README.md) 💬 [Discord](https://discord.gg/sQMwkRz5GX) 📖 [Blog](https://blog.trustgraph.ai/subscribe)
 
 </div>
 
@@ -48,6 +48,9 @@ Deploying state-of-the-art AI requires managing a complex web of models, framewo
 *   **Component Flexibility:** Avoid component lock-in. TrustGraph integrates multiple options for all system components.
 
 ## 🚀 Getting Started
+
+This is a very-quickstart.  See [other installation options](docs/README.md).
+
 - [Install the CLI](#install-the-trustgraph-cli)
 - [Configuration Builder](#-configuration-builder)
 - [Platform Restarts](#platform-restarts)
