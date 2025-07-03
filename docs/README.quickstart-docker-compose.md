@@ -1,6 +1,8 @@
 
 # Getting Started
 
+## Preparation
+
 > [!TIP]
 > Before launching `TrustGraph`, be sure to have the `Docker Engine`  or `Podman Machine` installed and running on the host machine. 
 > 
@@ -13,16 +15,29 @@
 > [!TIP]
 > If using `Podman`, the only change will be to substitute `podman` instead of `docker` in all commands.
 
-All `TrustGraph` components are deployed through a `Docker Compose` file. There are **16** `Docker Compose` files to choose from, depending on the desired model deployment and choosing between the graph stores `Cassandra` or `Neo4j` or `FalkorDB`:
+## Create the configuration
 
-- `AzureAI` serverless endpoint for deployed models in Azure
-- `Bedrock` API for models deployed in AWS Bedrock
-- `Claude` through Anthropic's API
-- `Cohere` through Cohere's API
-- `Mix` for mixed model deployments
-- `Ollama` for local model deployments
-- `OpenAI` for OpenAI's API
-- `VertexAI` for models deployed in Google Cloud
+This guide talks you through the Compose file launch, which is the easiest
+way to lauch on a standalone machine, or a single cloud instance.
+See [README](README.md) for links to other deployment mechanisms.
+
+To create the deployment configuration, go to the
+[deployment portal](https://config-ui.demo.trustgraph.ai/) and follow the
+instructions.
+- Select Docker Compose or Podman Compose as the deployment
+  mechanism.
+- Use Cassandra for the graph store, it's easiest and most tested.
+- Use Qdrant for the vector store, it's easiest and most tested.
+- Chunker: Recursive, chunk size of 1000, 50 overlap should be fine.
+- Pick your favourite LLM model:
+  - If you have enough horsepower in a local GPU, LMStudio is an easy
+    starting point for a local model deployment.  Ollama is fairly easy.
+  - VertexAI on Google is relatively straightforward for a cloud
+    model-as-a-service LLM, and you can get some free credits.
+- Max output tokens as per the model, 2048 is safe.
+- Customisation, check LLM Prompt Manager and Agent Tools.
+- Finish deployment, Generate and download the deployment bundle.
+  Read the extra deploy steps on that page.
 
 `Docker Compose` enables the following functions:
 
