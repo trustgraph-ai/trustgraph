@@ -14,7 +14,7 @@ The request contains the following fields:
 
 ### Response
 
-The request contains the following fields:
+The response contains the following fields:
 - `response`: LLM response
 
 ## REST service
@@ -52,6 +52,7 @@ Request:
 {
     "id": "blrqotfefnmnh7de-14",
     "service": "graph-rag",
+    "flow": "default",
     "request": {
         "query": "What does NASA stand for?"
     }

@@ -18,13 +18,16 @@ When hosted using docker compose, you can access the service at
 
 ## Request
 
-A request message is a JSON message containing 3 fields:
+A request message is a JSON message containing 3/4 fields:
 
 - `id`: A unique ID which is used to correlate requests and responses.
   You should make sure it is unique.
 - `service`: The name of the service to invoke.
 - `request`: The request body which is passed to the service - this is
   defined in the API documentation for that service.
+- `flow`: Some APIs are supported by processors launched within a flow,
+  are are dependent on a flow running.  For such APIs, the flow identifier
+  needs to be provided.
 
 e.g.
 
@@ -32,6 +35,7 @@ e.g.
 {
     "id": "qgzw1287vfjc8wsk-1",
     "service": "graph-rag",
+    "flow": "default",
     "request": {
         "query": "What does NASA stand for?"
     }
@@ -86,6 +90,7 @@ Request:
 {
     "id": "blrqotfefnmnh7de-20",
     "service": "agent",
+    "flow": "default",
     "request": {
         "question": "What does NASA stand for?"
     }

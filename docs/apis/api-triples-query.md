@@ -21,7 +21,7 @@ Returned triples will match all of `s`, `p` and `o` where provided.
 
 ### Response
 
-The request contains the following fields:
+The response contains the following fields:
 - `response`: A list of triples.
 
 Each triple contains `s`, `p` and `o` fields describing the
@@ -58,6 +58,7 @@ Request:
 {
     "id": "qgzw1287vfjc8wsk-4",
     "service": "triples-query",
+    "flow": "default",
     "request": {
         "s": {
             "v": "http://trustgraph.ai/e/space-station-modules",

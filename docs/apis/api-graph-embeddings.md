@@ -17,7 +17,7 @@ The request contains the following fields:
 
 ### Response
 
-The request contains the following fields:
+The response contains the following fields:
 - `entities`: An array of graph entities.  The entity type is described here:
 
 TrustGraph uses the same schema for knowledge graph elements:
@@ -85,6 +85,7 @@ Request:
 {
     "id": "qgzw1287vfjc8wsk-3",
     "service": "graph-embeddings-query",
+    "flow": "default",
     "request": {
         "vectors": [
           [
