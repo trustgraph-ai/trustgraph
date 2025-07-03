@@ -60,13 +60,10 @@ Deploying truly intelligent and reliable AI agents is challenging. Many platform
     *   **Optimize Your AI Spend:** Choose the most cost-effective LLMs, infrastructure, and storage for your needs without being locked into a single provider's ecosystem.
     *   **Scale with Confidence:** Designed to handle growing knowledge bases and increasing agent interaction loads.
 
-**In short, choose TrustGraph if you need to build powerful AI agents that are truly intelligent, transparently auditable, fully under your control, and grounded in the rich, interconnected reality of your unique enterprise knowledge.**
-
 ## Getting Started
 - [Configuration Builder](#configuration-builder)
 - [Install the CLI](#install-the-trustgraph-cli)
 - [Test Suite](#test-suite)
-- [Restarting the Platform](#platform-restarts)
 
 ### Developer APIs and CLI
 
@@ -74,15 +71,6 @@ Deploying truly intelligent and reliable AI agents is challenging. Many platform
 - [**Websocket API**](docs/apis/README.md#websocket-api)
 - [**Python SDK**](https://trustgraph.ai/docs/api/apistarted)
 - [**TrustGraph CLI**](https://trustgraph.ai/docs/running/cli)
-
-See the [API Developer's Guide](#api-documentation) for more information.
-
-For users, **TrustGraph** has the following interfaces:
-
-- [**Configuration Builder**](#-configuration-builder)
-- [**Test Suite**](#test-suite)
-
-The `trustgraph-cli` installs the commands for interacting with TrustGraph while running along with the Python SDK. The **Configuration Builder** enables customization of TrustGraph deployments prior to launching. The **REST API** can be accessed through port `8088` of the TrustGraph host machine with JSON request and response bodies.
 
 ### Install the TrustGraph CLI
 
@@ -102,18 +90,6 @@ The [**Configuration Builder**](https://config-ui.demo.trustgraph.ai/) assembles
 - **Customization**: Customize the prompts for the LLM System, Data Extraction Agents, and Agent Flow
 - **Finish Deployment**: Download the launch `YAML` files with deployment instructions
 
-### Restarting the Platform
-
-The `-v` flag will destroy all data on shut down. To restart the system, it's necessary to keep the volumes. To keep the volumes, shut down without the `-v` flag:
-```
-docker compose down
-```
-
-With the volumes preserved, restarting will preserve all system data:
-```
-docker compose up -d
-```
-
 ### Test Suite
 
 If added to the build in the **Configuration Builder**, the **Test Suite** will be available at port `8888`. The **Test Suite** has the following capabilities:
@@ -124,32 +100,6 @@ If added to the build in the **Configuration Builder**, the **Test Suite** will 
 - **Graph Visualizer**: Visualize semantic relationships in **3D**
 - **Data Loader**: Directly load `.pdf`, `.txt`, or `.md` into the system with document metadata
 
-### Example TrustGraph Notebooks
-
-- [**REST API Notebooks**](https://github.com/trustgraph-ai/example-notebooks/tree/master/api-examples)
-- [**Python SDK Notebooks**](https://github.com/trustgraph-ai/example-notebooks/tree/master/api-library)
-
-TrustGraph is fully containerized and is launched with a `YAML` configuration file. Unzipping the `deploy.zip` will add the `deploy` directory with the following subdirectories:
-
-- `docker-compose`
-- `minikube-k8s`
-- `gcp-k8s`
-
-> [!NOTE]
-> As more integrations have been added, the number of possible combinations of configurations has become quite large. It is recommended to use the `Configuration Builder` to build your deployment configuration. Each directory contains `YAML` configuration files for the default component selections.
-
-**Docker**:
-```
-docker compose -f <launch-file.yaml> up -d
-```
-
-**Kubernetes**:
-```
-kubectl apply -f <launch-file.yaml>
-```
-
-TrustGraph is designed to be modular to support as many LLMs and environments as possible. A natural fit for a modular architecture is to decompose functions into a set of modules connected through a pub/sub backbone. [Apache Pulsar](https://github.com/apache/pulsar/) serves as this pub/sub backbone. Pulsar acts as the data broker managing data processing queues connected to procesing modules.
-
 ## GraphRAG
 
 TrustGraph features an advanced GraphRAG approach that automatically constructs Knowledge Graphs with mapped Vector Embeddings to provide richer and more accurate context to LLMs for trustworthy agents.
@@ -157,10 +107,10 @@ TrustGraph features an advanced GraphRAG approach that automatically constructs 
 **How TrustGraph's GraphRAG Works:**
 
 1.  **Automated Knowledge Graph Construction:**
-    *   TrustGraph processes source data to automatically **extract key entities, topics, and the relationships** connecting them.
-    *   It then maps these extracted **semantic relationships and concepts to high-dimensional vector embeddings**, capturing the nuanced meaning beyond simple keyword matching.
+    *   Data Transformation Agents processes source data to automatically **extract key entities, topics, and the relationships** connecting them.
+    *   Vector emebeddings are then mapped to these semantic relationships for context retrieval.
 
-2.  **Hybrid Retrieval Process:**
+2.  **Hybrid Retrieval:**
     *   When an agent needs to perform deep research, it first performs a **cosine similarity search** on the vector embeddings to identify potentially relevant concepts and relationships within the knowledge graph.
     *   This initial vector search **pinpoints relevant entry points** within the structured Knowledge Graph.
 
@@ -290,16 +240,6 @@ TrustGraph provides maximum flexibility so your agents are always powered by the
 
 - For flows, Pulsar accepts the output of a processing module and queues it for input to the next subscribed module.
 - For services such as LLMs and embeddings, Pulsar provides a client/server model.  A Pulsar queue is used as the input to the service.  When processed, the output is then delivered to a separate queue where a client subscriber can request that output.
-
-### Data Transformation Agents
-
-TrustGraph transforms data to an ultra-dense knowledge graph using 3 automonous data transformation agents. These agents focus on individual elements needed to build the knowledge graph. The agents are:
-
-- Topic Extraction Agent
-- Entity Extraction Agent
-- Relationship Extraction Agent
-
-The agent prompts are built through templates, enabling customized data extraction agents for a specific use case. The data extraction agents are launched automatically with the loader commands.
 
 PDF file:
 ```
