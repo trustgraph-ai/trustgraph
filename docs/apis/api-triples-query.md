@@ -33,14 +33,52 @@ Each triple element uses the same schema:
 - `is_uri`: A boolean value which is true if this is a graph entity i.e.
   `value` is a URI, not a literal value.
 
+## Data Format Details
+
+### Triple Element Format
+
+To reduce the size of JSON messages, triple elements (subject, predicate, object) are encoded using a compact format:
+
+- `v`: The value as a string (maps to `value` in the full schema)
+- `e`: Boolean indicating if this is an entity/URI (maps to `is_uri` in the full schema)
+
+Each triple element (`s`, `p`, `o`) contains:
+- `v`: The actual value as a string
+- `e`: Boolean indicating the value type
+  - `true`: The value is a URI/entity (e.g., `"http://example.com/Person1"`)
+  - `false`: The value is a literal (e.g., `"John Doe"`, `"42"`, `"2023-01-01"`)
+
+### Examples
+
+**URI/Entity Element:**
+```json
+{
+    "v": "http://trustgraph.ai/e/space-station-modules",
+    "e": true
+}
+```
+
+**Literal Element:**
+```json
+{
+    "v": "space station modules", 
+    "e": false
+}
+```
+
+**Numeric Literal:**
+```json
+{
+    "v": "42",
+    "e": false
+}
+```
+
 ## REST service
 
 The REST service accepts a request object containing the `s`, `p`, `o`
 and `limit` fields.
 The response is a JSON object containing the `response` field.
-
-To reduce the size of the JSON, the graph entities are encoded as an
-object with `value` and `is_uri` mapped to `v` and `e` respectively.
 
 e.g.
 
@@ -98,12 +136,8 @@ Response:
 
 ## Websocket
 
-Requests have a `request` object containing the `system` and
-`prompt` fields.
+Requests have a `request` object containing the query fields (`s`, `p`, `o`, `limit`).
 Responses have a `response` object containing `response` field.
-
-To reduce the size of the JSON, the graph entities are encoded as an
-object with `value` and `is_uri` mapped to `v` and `e` respectively.
 
 e.g.
 
@@ -178,11 +212,4 @@ The client class is
 `trustgraph.clients.TriplesQueryClient`
 
 https://github.com/trustgraph-ai/trustgraph/blob/master/trustgraph-base/trustgraph/clients/triples_query_client.py
-
-
-
-
-
-
-
 
