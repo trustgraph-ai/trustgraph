@@ -74,6 +74,15 @@ Cons:
   - Requires Python environment and trustgraph-base package installation
   - Less control over low-level message handling
 
+## Flow-hosted APIs
+
+There are two types of APIs: Flow-hosted which need a flow to be running
+to operate.  Non-flow-hosted which are core to the system, and can
+be seen as 'global' - they are not dependent on a flow to be running.
+
+Knowledge, Librarian, Config and Flow APIs fall into the latter
+category.
+
 ## See also
 
 - [TrustGraph websocket overview](websocket.md)
