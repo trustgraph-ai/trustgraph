@@ -19,7 +19,7 @@ The request contains the following fields:
 
 ### Response
 
-The request contains the following fields:
+The response contains the following fields:
 - `response`: LLM response
 
 ## REST service
@@ -59,6 +59,7 @@ Request:
 {
     "id": "blrqotfefnmnh7de-1",
     "service": "text-completion",
+    "flow": "default",
     "request": {
         "system": "You are a helpful agent",
         "prompt": "What does NASA stand for?"

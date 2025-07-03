@@ -10,7 +10,7 @@ The request contains the following fields:
 
 ### Response
 
-The request contains the following fields:
+The response contains the following fields:
 - `vectors`: Embeddings response, an array of arrays.  An embedding is
   an array of floating-point numbers.  As multiple embeddings may be
   returned, an array of embeddings is returned, hence an array
@@ -51,6 +51,7 @@ Request:
 {
     "id": "qgzw1287vfjc8wsk-2",
     "service": "embeddings",
+    "flow": "default",
     "request": {
         "text": "What is a cat?"
     }

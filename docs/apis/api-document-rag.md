@@ -1,9 +1,8 @@
+# TrustGraph Document RAG API
 
-# TrustGraph Graph RAG API
-
-This presents a prompt to the Graph RAG service and retrieves the answer.
+This presents a prompt to the Document RAG service and retrieves the answer.
 This makes use of a number of the other APIs behind the scenes:
-Embeddings, Graph Embeddings, Prompt, TextCompletion, Triples Query.
+Embeddings, Document Embeddings, Prompt, TextCompletion, Triples Query.
 
 ## Request/response
 
@@ -51,7 +50,7 @@ Request:
 ```
 {
     "id": "blrqotfefnmnh7de-14",
-    "service": "graph-rag",
+    "service": "document-rag",
     "flow": "default",
     "request": {
         "query": "What does NASA stand for?"
@@ -73,26 +72,25 @@ Response:
 
 ## Pulsar
 
-The Pulsar schema for the Graph RAG API is defined in Python code here:
+The Pulsar schema for the Document RAG API is defined in Python code here:
 
 https://github.com/trustgraph-ai/trustgraph/blob/master/trustgraph-base/trustgraph/schema/retrieval.py
 
 Default request queue:
-`non-persistent://tg/request/graph-rag`
+`non-persistent://tg/request/document-rag`
 
 Default response queue:
-`non-persistent://tg/response/graph-rag`
+`non-persistent://tg/response/document-rag`
 
 Request schema:
-`trustgraph.schema.GraphRagRequest`
+`trustgraph.schema.DocumentRagQuery`
 
 Response schema:
-`trustgraph.schema.GraphRagResponse`
+`trustgraph.schema.DocumentRagResponse`
 
 ## Pulsar Python client
 
 The client class is
-`trustgraph.clients.GraphRagClient`
+`trustgraph.clients.DocumentRagClient`
 
-https://github.com/trustgraph-ai/trustgraph/blob/master/trustgraph-base/trustgraph/clients/graph_rag_client.py
-
+https://github.com/trustgraph-ai/trustgraph/blob/master/trustgraph-base/trustgraph/clients/document_rag_client.py
