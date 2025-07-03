@@ -33,6 +33,10 @@ Most CLI commands support these common options:
 - [`tg-show-token-costs`](tg-show-token-costs.md) - Display token cost configuration
 - [`tg-show-token-rate`](tg-show-token-rate.md) - Show token usage rates
 
+**Prompt Management:**
+- [`tg-set-prompt`](tg-set-prompt.md) - Configure prompt templates and system prompts
+- [`tg-show-prompts`](tg-show-prompts.md) - Display configured prompt templates
+
 ### Flow Management
 
 **Flow Operations:**
@@ -71,9 +75,9 @@ Most CLI commands support these common options:
 
 **Library Management:**
 - [`tg-add-library-document`](tg-add-library-document.md) - Add documents to library
+- [`tg-show-library-documents`](tg-show-library-documents.md) - List documents in library
 - [`tg-remove-library-document`](tg-remove-library-document.md) - Remove documents from library
-- [`tg-show-library-documents`](tg-show-library-documents.md) - List library documents
-- [`tg-start-library-processing`](tg-start-library-processing.md) - Start library document processing
+- [`tg-start-library-processing`](tg-start-library-processing.md) - Start processing library documents
 - [`tg-stop-library-processing`](tg-stop-library-processing.md) - Stop library document processing
 - [`tg-show-library-processing`](tg-show-library-processing.md) - Show library processing status
 
