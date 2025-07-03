@@ -64,7 +64,7 @@ Deploying truly intelligent and reliable AI agents is challenging. Many platform
 
 ## Getting Started
 - [Install the CLI](#install-the-trustgraph-cli)
-- [Configuration Builder](#-configuration-builder)
+- [Configuration Builder](#configuration-builder)
 - [Platform Restarts](#platform-restarts)
 - [Test Suite](#test-suite)
 - [Example Notebooks](#example-trustgraph-notebooks)
