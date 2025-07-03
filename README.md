@@ -63,11 +63,10 @@ Deploying truly intelligent and reliable AI agents is challenging. Many platform
 **In short, choose TrustGraph if you need to build powerful AI agents that are truly intelligent, transparently auditable, fully under your control, and grounded in the rich, interconnected reality of your unique enterprise knowledge.**
 
 ## Getting Started
-- [Install the CLI](#install-the-trustgraph-cli)
 - [Configuration Builder](#configuration-builder)
-- [Platform Restarts](#platform-restarts)
+- [Install the CLI](#install-the-trustgraph-cli)
 - [Test Suite](#test-suite)
-- [Example Notebooks](#example-trustgraph-notebooks)
+- [Restarting the Platform](#platform-restarts)
 
 ### Developer APIs and CLI
 
@@ -96,45 +95,24 @@ pip3 install trustgraph-cli==<trustgraph-version>
 
 ## Configuration Builder
 
-TrustGraph is endlessly customizable by editing the `YAML` resource files. The **Configuration Builder** provides a tool for building a custom configuration that deploys with your selected orchestration method in your target environment.
+The [**Configuration Builder**](https://config-ui.demo.trustgraph.ai/) assembles all of the selected components and builds them into a deployable package. It has 4 sections:
 
-- [**Configuration Builder**](https://config-ui.demo.trustgraph.ai/)
-
-The **Configuration Builder** has 5 important sections:
-
-- **TrustGraph Version**: Select the version of TrustGraph you'd like to deploy
+- **Version**: Select the version of TrustGraph you'd like to deploy
 - **Component Selection**: Choose from the available deployment platforms, LLMs, graph store, VectorDB, chunking algorithm, chunking parameters, and LLM parameters
 - **Customization**: Customize the prompts for the LLM System, Data Extraction Agents, and Agent Flow
-- **Test Suite**: Add the **Test Suite** to the configuration available on port `8888`
 - **Finish Deployment**: Download the launch `YAML` files with deployment instructions
 
-The **Configuration Builder** will generate the `YAML` files in `deploy.zip`. Once `deploy.zip` has been downloaded and unzipped, launching TrustGraph is as simple as navigating to the `deploy` directory and running:
-
-```
-docker compose up -d
-```
-
-> [!TIP]
-> Docker is the recommended container orchestration platform for first getting started with TrustGraph.
-
-When finished, shutting down TrustGraph is as simple as:
-```
-docker compose down -v
-```
-
-### Platform Restarts
+### Restarting the Platform
 
 The `-v` flag will destroy all data on shut down. To restart the system, it's necessary to keep the volumes. To keep the volumes, shut down without the `-v` flag:
 ```
 docker compose down
 ```
 
-With the volumes preserved, restarting the system is as simple as:
+With the volumes preserved, restarting will preserve all system data:
 ```
 docker compose up -d
 ```
-
-All data previously in TrustGraph will be saved and usable on restart.
 
 ### Test Suite
 
