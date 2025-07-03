@@ -94,6 +94,7 @@ push:
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-vertexai:${VERSION}
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-hf:${VERSION}
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-ocr:${VERSION}
+	${DOCKER} push ${CONTAINER_BASE}/trustgraph-mcp:${VERSION}
 
 clean:
 	rm -rf wheels/
