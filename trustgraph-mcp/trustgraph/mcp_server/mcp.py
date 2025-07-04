@@ -10,6 +10,7 @@ import uuid
 import argparse
 from dataclasses import dataclass
 from collections.abc import AsyncIterator
+from functools import partial
 
 from mcp.server.fastmcp import FastMCP, Context
 from mcp.types import TextContent
@@ -20,9 +21,10 @@ from . tg_socket import WebSocketManager
 @dataclass
 class AppContext:
     sockets: dict[str, WebSocketManager]
+    websocket_url: str
 
 @asynccontextmanager
-async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
+async def app_lifespan(server: FastMCP, websocket_url: str = "ws://api-gateway:8088/api/v1/socket") -> AsyncIterator[AppContext]:
 
     """
     Manage application lifecycle with type-safe context
@@ -32,7 +34,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     sockets = {}
 
     try:
-        yield AppContext(sockets=sockets)
+        yield AppContext(sockets=sockets, websocket_url=websocket_url)
     finally:
 
         # Cleanup on shutdown
@@ -46,16 +48,18 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 
 async def get_socket_manager(ctx, user):
 
-    sockets = ctx.request_context.lifespan_context.sockets
+    lifespan_context = ctx.request_context.lifespan_context
+    sockets = lifespan_context.sockets
+    websocket_url = lifespan_context.websocket_url
 
     if user in sockets:
         logging.info("Return existing socket manager")
         return sockets[user]
 
-    logging.info("Opening socket...")
+    logging.info(f"Opening socket to {websocket_url}...")
     
     # Create manager with empty pending requests
-    manager = WebSocketManager("ws://localhost:8088/api/v1/socket")
+    manager = WebSocketManager(websocket_url)
     
     # Start reader task with the proper manager
     await manager.start()
@@ -187,13 +191,18 @@ class GetSystemPromptResponse:
     prompt: str
 
 class McpServer:
-    def __init__(self, host: str = "0.0.0.0", port: int = 8000):
+    def __init__(self, host: str = "0.0.0.0", port: int = 8000, websocket_url: str = "ws://api-gateway:8088/api/v1/socket"):
         self.host = host
         self.port = port
+        self.websocket_url = websocket_url
+        
+        # Create a partial function to pass websocket_url to app_lifespan
+        lifespan_with_url = partial(app_lifespan, websocket_url=websocket_url)
+        
         self.mcp = FastMCP(
             "TrustGraph", dependencies=["trustgraph-base"],
             host=self.host, port=self.port,
-            lifespan=app_lifespan,
+            lifespan=lifespan_with_url,
         )
         self._register_tools()
     
@@ -1460,11 +1469,12 @@ def main():
     parser = argparse.ArgumentParser(description='TrustGraph MCP Server')
     parser.add_argument('--host', default='0.0.0.0', help='Host to bind to (default: 0.0.0.0)')
     parser.add_argument('--port', type=int, default=8000, help='Port to bind to (default: 8000)')
+    parser.add_argument('--websocket-url', default='ws://api-gateway:8088/api/v1/socket', help='WebSocket URL to connect to (default: ws://api-gateway:8088/api/v1/socket)')
     
     args = parser.parse_args()
     
     # Create and run the MCP server
-    server = McpServer(host=args.host, port=args.port)
+    server = McpServer(host=args.host, port=args.port, websocket_url=args.websocket_url)
     server.run()
 
 def run():
