@@ -249,9 +249,26 @@ class McpServer:
             flow_id: str | None = None,
             ctx: Context = None,
     ) -> EmbeddingsResponse:
-
         """
-        Compute text embeddings
+        Generate vector embeddings for the given text using TrustGraph's embedding models.
+        
+        This tool converts text into high-dimensional vectors that capture semantic meaning,
+        enabling similarity searches, clustering, and other vector-based operations.
+        
+        Args:
+            text: The input text to convert into embeddings. Can be a sentence, paragraph, 
+                  or document. The text will be processed by the configured embedding model.
+            flow_id: Optional flow identifier to use for processing (default: "default").
+                     Different flows may use different embedding models or configurations.
+        
+        Returns:
+            EmbeddingsResponse containing a list of vectors. Each vector is a list of floats
+            representing the text's semantic embedding in the model's vector space.
+        
+        Example usage:
+            - Convert a query into embeddings for similarity search
+            - Generate embeddings for documents before storing them
+            - Create embeddings for comparison with existing knowledge
         """
 
         logging.info("Embeddings request made")
@@ -291,7 +308,30 @@ class McpServer:
             flow_id: str | None = None,
             ctx: Context = None,
     ) -> TextCompletionResponse:
-        """Execute an LLM prompt"""
+        """
+        Generate text completions using TrustGraph's language models.
+        
+        This tool sends prompts to configured language models and returns generated text.
+        It supports both user prompts and system instructions for controlling generation.
+        
+        Args:
+            prompt: The main prompt or question to send to the language model.
+                    This is the primary input that guides the model's response.
+            system: Optional system prompt that sets the context, role, or behavior
+                    for the AI assistant (e.g., "You are a helpful coding assistant").
+                    System prompts influence how the model interprets and responds.
+            flow_id: Optional flow identifier (default: "default"). Different flows
+                     may use different models, parameters, or processing pipelines.
+        
+        Returns:
+            TextCompletionResponse containing the generated text response from the model.
+        
+        Example usage:
+            - Ask questions and get AI-generated answers
+            - Generate code, documentation, or creative content
+            - Perform text analysis, summarization, or transformation tasks
+            - Use system prompts to control tone, style, or domain expertise
+        """
 
         if system is None: system = ""
         if flow_id is None: flow_id = "default"
@@ -336,7 +376,38 @@ class McpServer:
             flow_id: str | None = None,
             ctx: Context = None,
     ) -> GraphRagResponse:
-        """Execute a GraphRAG question"""
+        """
+        Perform Graph-based Retrieval Augmented Generation (GraphRAG) queries.
+        
+        GraphRAG combines knowledge graph traversal with language model generation to provide
+        contextually rich answers. It explores relationships between entities to build relevant
+        context before generating responses.
+        
+        Args:
+            question: The question or query to answer using the knowledge graph.
+                      The system will find relevant entities and relationships to inform the response.
+            user: User identifier for access control and personalization (default: "trustgraph").
+            collection: Knowledge collection to query (default: "default").
+                        Different collections may contain domain-specific knowledge.
+            entity_limit: Maximum number of entities to retrieve during graph traversal.
+                          Higher limits provide more context but increase processing time.
+            triple_limit: Maximum number of relationship triples to consider.
+                          Controls the depth of relationship exploration.
+            max_subgraph_size: Maximum size of the subgraph to extract for context.
+                               Larger subgraphs provide richer context but use more resources.
+            max_path_length: Maximum path length to traverse in the knowledge graph.
+                             Longer paths can discover distant but relevant relationships.
+            flow_id: Processing flow to use (default: "default").
+        
+        Returns:
+            GraphRagResponse containing the generated answer informed by knowledge graph context.
+        
+        Example usage:
+            - Answer complex questions requiring multi-hop reasoning
+            - Explore relationships between entities in your knowledge base
+            - Generate responses grounded in structured knowledge
+            - Perform research queries across connected information
+        """
 
         if user is None: user = "trustgraph"
         if collection is None: collection = "default"
@@ -386,7 +457,35 @@ class McpServer:
             flow_id: str | None = None,
             ctx: Context = None,
     ) -> AgentResponse:
-        """Execute an agent question"""
+        """
+        Execute intelligent agent queries with reasoning and tool usage capabilities.
+        
+        The agent can perform complex multi-step reasoning, use tools, and provide
+        detailed thought processes. It's designed for tasks requiring planning,
+        analysis, and iterative problem-solving.
+        
+        Args:
+            question: The question or task for the agent to solve. Can be complex
+                      queries requiring multiple steps, analysis, or tool usage.
+            user: User identifier for personalization and access control (default: "trustgraph").
+            collection: Knowledge collection the agent can access (default: "default").
+                        Determines what information and tools are available.
+            flow_id: Agent workflow to use (default: "default"). Different flows
+                     may have different capabilities, tools, or reasoning strategies.
+        
+        Returns:
+            AgentResponse containing the final answer after the agent's reasoning process.
+            During execution, you'll see intermediate thoughts and observations.
+        
+        Example usage:
+            - Solve complex analytical problems requiring multiple steps
+            - Perform research tasks across multiple information sources
+            - Handle queries that need tool usage and decision-making
+            - Get detailed explanations of reasoning processes
+        
+        Note: This tool provides real-time updates on the agent's thinking process
+        through log messages, so you can follow its reasoning steps.
+        """
 
         if user is None: user = "trustgraph"
         if collection is None: collection = "default"
@@ -454,8 +553,36 @@ class McpServer:
             ctx: Context = None,
     ) -> TriplesQueryResponse:
         """
-        Query knowledge graph triples (subject-predicate-object relationships)
-        All parameters are optional - omitted parameters act as wildcards
+        Query knowledge graph triples using subject-predicate-object patterns.
+        
+        Knowledge graphs store information as triples (subject, predicate, object).
+        This tool allows flexible querying by specifying any combination of these
+        components, with wildcards for unspecified parts.
+        
+        Args:
+            s_v: Subject value to match (e.g., "John", "Apple Inc."). Leave None for wildcard.
+            s_e: Whether subject should be treated as an entity (True) or literal (False).
+            p_v: Predicate/relationship value (e.g., "works_for", "type_of"). Leave None for wildcard.
+            p_e: Whether predicate should be treated as an entity (True) or literal (False).
+            o_v: Object value to match (e.g., "Engineer", "Company"). Leave None for wildcard.
+            o_e: Whether object should be treated as an entity (True) or literal (False).
+            limit: Maximum number of triples to return (default: 20).
+            flow_id: Processing flow identifier (default: "default").
+        
+        Returns:
+            TriplesQueryResponse containing matching triples from the knowledge graph.
+        
+        Example queries:
+            - Find all relationships for an entity: s_v="John", others None
+            - Find all instances of a relationship: p_v="works_for", others None
+            - Find specific facts: s_v="John", p_v="works_for", o_v=None
+            - Explore entity types: p_v="type_of", others None
+        
+        Use this for:
+            - Exploring knowledge graph structure
+            - Finding specific facts or relationships
+            - Discovering connections between entities
+            - Validating or debugging knowledge content
         """
 
         if flow_id is None: flow_id = "default"
@@ -509,7 +636,34 @@ class McpServer:
             ctx: Context = None,
     ) -> GraphEmbeddingsQueryResponse:
         """
-        Query graph using embedding vectors
+        Find entities in the knowledge graph using vector similarity search.
+        
+        This tool performs semantic search by comparing embedding vectors to find
+        the most similar entities in the knowledge graph. It's useful for finding
+        conceptually related information even when exact text matches don't exist.
+        
+        Args:
+            vectors: List of embedding vectors to search with. Each vector should be
+                     a list of floats representing semantic embeddings (typically from
+                     the embeddings tool). Multiple vectors can be provided for batch queries.
+            limit: Maximum number of similar entities to return (default: 20).
+                   Higher limits provide more results but may include less relevant matches.
+            flow_id: Processing flow identifier (default: "default").
+        
+        Returns:
+            GraphEmbeddingsQueryResponse containing entities ranked by similarity to the
+            input vectors, along with similarity scores and entity metadata.
+        
+        Example workflow:
+            1. Use the 'embeddings' tool to convert text to vectors
+            2. Use this tool to find similar entities in the knowledge graph
+            3. Explore the returned entities for relevant information
+        
+        Use this for:
+            - Semantic search across knowledge entities
+            - Finding conceptually similar content
+            - Discovering related entities without exact keyword matches
+            - Building recommendation systems based on entity similarity
         """
 
         if flow_id is None: flow_id = "default"
@@ -549,7 +703,20 @@ class McpServer:
             ctx: Context = None,
     ) -> ConfigResponse:
         """
-        Retrieves complete configuration
+        Retrieve the complete TrustGraph system configuration.
+        
+        This tool returns all configuration settings for the TrustGraph system,
+        including model configurations, API keys, flow definitions, and system parameters.
+        
+        Returns:
+            ConfigResponse containing the full configuration as a nested dictionary
+            with all system settings, organized by category (e.g., models, flows, storage).
+        
+        Use this for:
+            - Inspecting current system configuration
+            - Debugging configuration issues
+            - Understanding available models and settings
+            - Auditing system setup and parameters
         """
 
         if ctx is None:
@@ -584,8 +751,29 @@ class McpServer:
             ctx: Context = None,
     ) -> ConfigGetResponse:
         """
-        Retrieves specific configuration entries
-        Keys should be list of dicts with 'type' and 'key' fields
+        Retrieve specific configuration values by key.
+        
+        This tool allows you to fetch specific configuration settings without
+        retrieving the entire configuration. Useful for checking particular
+        settings or API keys.
+        
+        Args:
+            keys: List of configuration keys to retrieve. Each key should be a dict with:
+                  - 'type': Configuration category (e.g., 'llm', 'embeddings', 'storage')
+                  - 'key': Specific setting name within that category
+        
+        Returns:
+            ConfigGetResponse containing the requested configuration values.
+        
+        Example keys:
+            - {'type': 'llm', 'key': 'openai.model'}
+            - {'type': 'embeddings', 'key': 'default.model'}
+            - {'type': 'storage', 'key': 'database.url'}
+        
+        Use this for:
+            - Checking specific model configurations
+            - Validating API key settings
+            - Inspecting individual system parameters
         """
 
         if ctx is None:
@@ -621,8 +809,31 @@ class McpServer:
             ctx: Context = None,
     ) -> PutConfigResponse:
         """
-        Updates configuration values
-        Values should be list of dicts with 'type', 'key', and 'value' fields
+        Update system configuration values.
+        
+        This tool allows you to modify TrustGraph system settings, such as
+        model parameters, API keys, and system behavior configurations.
+        
+        Args:
+            values: List of configuration updates. Each update should be a dict with:
+                    - 'type': Configuration category (e.g., 'llm', 'embeddings')
+                    - 'key': Specific setting name to update
+                    - 'value': New value for the setting
+        
+        Returns:
+            PutConfigResponse confirming the configuration update.
+        
+        Example updates:
+            - {'type': 'llm', 'key': 'openai.model', 'value': 'gpt-4'}
+            - {'type': 'embeddings', 'key': 'batch_size', 'value': '100'}
+        
+        Use this for:
+            - Switching between different models
+            - Updating API credentials
+            - Modifying system behavior parameters
+            - Configuring processing settings
+        
+        Note: Configuration changes may require system restart to take effect.
         """
 
         if ctx is None:
@@ -655,8 +866,27 @@ class McpServer:
             ctx: Context = None,
     ) -> DeleteConfigResponse:
         """
-        Deletes configuration entries
-        Keys should be list of dicts with 'type' and 'key' fields
+        Delete specific configuration entries from the system.
+        
+        This tool removes configuration settings, reverting them to system defaults
+        or disabling specific features.
+        
+        Args:
+            keys: List of configuration keys to delete. Each key should be a dict with:
+                  - 'type': Configuration category (e.g., 'llm', 'embeddings')
+                  - 'key': Specific setting name to remove
+        
+        Returns:
+            DeleteConfigResponse confirming the deletion.
+        
+        Use this for:
+            - Removing custom model configurations
+            - Clearing API credentials
+            - Resetting settings to defaults
+            - Cleaning up obsolete configurations
+        
+        Warning: Deleting essential configuration may cause system functionality
+        to be disabled until properly reconfigured.
         """
 
         if ctx is None:
@@ -688,7 +918,20 @@ class McpServer:
             ctx: Context = None,
     ) -> GetPromptsResponse:
         """
-        Retrieves available prompt templates
+        List all available prompt templates in the system.
+        
+        Prompt templates are reusable prompts that can be used with language models
+        for consistent behavior across different queries and use cases.
+        
+        Returns:
+            GetPromptsResponse containing a list of available prompt template IDs.
+            Each ID can be used with get_prompt to retrieve the full template.
+        
+        Use this for:
+            - Discovering available prompt templates
+            - Exploring pre-configured prompts for different tasks
+            - Finding templates for specific use cases
+            - Understanding what prompt options are available
         """
 
         if ctx is None:
@@ -725,7 +968,24 @@ class McpServer:
             ctx: Context = None,
     ) -> GetPromptResponse:
         """
-        Retrieves a specific prompt template
+        Retrieve a specific prompt template by ID.
+        
+        Prompt templates contain structured prompts with placeholders, instructions,
+        and metadata for specific tasks or domains.
+        
+        Args:
+            prompt_id: The unique identifier of the prompt template to retrieve.
+                       Use get_prompts to see available template IDs.
+        
+        Returns:
+            GetPromptResponse containing the complete prompt template with its
+            structure, placeholders, and usage instructions.
+        
+        Use this for:
+            - Examining prompt template structure
+            - Understanding how to use specific templates
+            - Copying or modifying existing prompts
+            - Learning prompt engineering patterns
         """
 
         if ctx is None:
@@ -762,7 +1022,19 @@ class McpServer:
             ctx: Context = None,
     ) -> GetSystemPromptResponse:
         """
-        Retrieves system prompt configuration
+        Retrieve the current system prompt configuration.
+        
+        The system prompt defines the default behavior, personality, and instructions
+        for language models across the TrustGraph system.
+        
+        Returns:
+            GetSystemPromptResponse containing the system prompt text and configuration.
+        
+        Use this for:
+            - Understanding default AI behavior settings
+            - Checking current system-wide prompt configuration
+            - Auditing AI personality and instruction settings
+            - Debugging unexpected AI responses
         """
 
         if ctx is None:
@@ -798,7 +1070,22 @@ class McpServer:
             ctx: Context = None,
     ) -> ConfigTokenCostsResponse:
         """
-        Retrieves token cost information for different AI models
+        Retrieve token pricing information for all configured AI models.
+        
+        This tool provides cost information for input and output tokens across
+        different language models, helping with budget planning and cost optimization.
+        
+        Returns:
+            ConfigTokenCostsResponse containing pricing data for each model including:
+            - Model name/identifier
+            - Input token cost (per token)
+            - Output token cost (per token)
+        
+        Use this for:
+            - Estimating costs for different models
+            - Choosing cost-effective models for tasks
+            - Budget planning and cost analysis
+            - Monitoring and optimizing AI spending
         """
 
         if ctx is None:
@@ -846,7 +1133,24 @@ class McpServer:
             ctx: Context = None,
     ) -> KnowledgeCoresResponse:
         """
-        Retrieves list of available knowledge graph cores
+        List all available knowledge graph cores for a user.
+        
+        Knowledge cores are packaged collections of structured knowledge that can
+        be loaded into the system for querying and reasoning. They contain entities,
+        relationships, and facts organized as knowledge graphs.
+        
+        Args:
+            user: User identifier to list cores for (default: "trustgraph").
+                  Different users may have access to different knowledge cores.
+        
+        Returns:
+            KnowledgeCoresResponse containing a list of available knowledge core IDs.
+        
+        Use this for:
+            - Discovering available knowledge collections
+            - Understanding what knowledge domains are accessible
+            - Planning which cores to load for specific tasks
+            - Managing knowledge resources
         """
 
         if user is None: user = "trustgraph"
@@ -885,7 +1189,26 @@ class McpServer:
             ctx: Context = None,
     ) -> DeleteKgCoreResponse:
         """
-        Deletes a knowledge graph core
+        Permanently delete a knowledge graph core.
+        
+        This operation removes a knowledge core from storage. Use with caution
+        as this action cannot be undone.
+        
+        Args:
+            core_id: Unique identifier of the knowledge core to delete.
+            user: User identifier (default: "trustgraph"). Only cores owned
+                  by this user can be deleted.
+        
+        Returns:
+            DeleteKgCoreResponse confirming the deletion.
+        
+        Use this for:
+            - Cleaning up obsolete knowledge cores
+            - Removing test or experimental data
+            - Managing storage space
+            - Maintaining organized knowledge collections
+        
+        Warning: This permanently deletes the knowledge core and all its data.
         """
 
         if user is None: user = "trustgraph"
@@ -926,7 +1249,27 @@ class McpServer:
             ctx: Context = None,
     ) -> LoadKgCoreResponse:
         """
-        Loads a knowledge graph core
+        Load a knowledge graph core into the active system for querying.
+        
+        This operation makes a knowledge core available for GraphRAG queries,
+        triple searches, and other knowledge-based operations.
+        
+        Args:
+            core_id: Unique identifier of the knowledge core to load.
+            flow: Processing flow to use for loading the core. Different flows
+                  may apply different processing, indexing, or optimization steps.
+            user: User identifier (default: "trustgraph").
+            collection: Target collection name (default: "default"). The loaded
+                        knowledge will be available under this collection name.
+        
+        Returns:
+            LoadKgCoreResponse confirming the core has been loaded.
+        
+        Use this for:
+            - Making knowledge cores available for queries
+            - Switching between different knowledge domains
+            - Loading domain-specific knowledge for tasks
+            - Preparing knowledge for GraphRAG operations
         """
 
         if user is None: user = "trustgraph"
@@ -968,8 +1311,28 @@ class McpServer:
             ctx: Context = None,
     ) -> GetKgCoreResponse:
         """
-        Retrieves a knowledge graph core with streaming data
-        Returns all chunks as a list
+        Download and retrieve the complete content of a knowledge graph core.
+        
+        This tool streams the entire content of a knowledge core, returning all
+        entities, relationships, and metadata. Due to potentially large data sizes,
+        the content is streamed in chunks.
+        
+        Args:
+            core_id: Unique identifier of the knowledge core to retrieve.
+            user: User identifier (default: "trustgraph").
+        
+        Returns:
+            GetKgCoreResponse containing all chunks of the knowledge core data.
+            Each chunk contains part of the knowledge graph structure.
+        
+        Use this for:
+            - Examining knowledge core content and structure
+            - Debugging knowledge graph data
+            - Exporting knowledge for backup or analysis
+            - Understanding the scope and quality of knowledge
+        
+        Note: Large knowledge cores may take significant time to download.
+        Progress updates are provided through log messages during streaming.
         """
 
         if user is None: user = "trustgraph"
@@ -1024,7 +1387,20 @@ class McpServer:
             ctx: Context = None,
     ) -> FlowsResponse:
         """
-        Retrieves list of available flows
+        List all available processing flows in the system.
+        
+        Flows define processing pipelines for different types of operations
+        (e.g., document processing, knowledge extraction, query handling).
+        Each flow encapsulates a specific workflow with configured steps.
+        
+        Returns:
+            FlowsResponse containing a list of available flow identifiers.
+        
+        Use this for:
+            - Discovering available processing workflows
+            - Understanding what processing options are available
+            - Choosing appropriate flows for specific tasks
+            - Planning workflow-based operations
         """
 
         if ctx is None:
@@ -1059,7 +1435,26 @@ class McpServer:
             ctx: Context = None,
     ) -> FlowResponse:
         """
-        Retrieves definition of a specific flow
+        Retrieve the complete definition of a specific processing flow.
+        
+        This tool returns the detailed configuration, steps, and parameters
+        of a processing flow, showing how it processes data and what operations it performs.
+        
+        Args:
+            flow_id: Unique identifier of the flow to retrieve.
+        
+        Returns:
+            FlowResponse containing the complete flow definition including:
+            - Flow configuration and parameters
+            - Processing steps and their order
+            - Input/output specifications
+            - Dependencies and requirements
+        
+        Use this for:
+            - Understanding how specific flows work
+            - Debugging flow processing issues
+            - Learning flow configuration patterns
+            - Customizing or duplicating flows
         """
 
         if ctx is None:
@@ -1096,7 +1491,20 @@ class McpServer:
             ctx: Context = None,
     ) -> FlowClassesResponse:
         """
-        Retrieves list of available flow classes (templates)
+        List all available flow class templates.
+        
+        Flow classes are templates that define types of processing workflows.
+        They serve as blueprints for creating specific flow instances with
+        customized parameters.
+        
+        Returns:
+            FlowClassesResponse containing a list of available flow class names.
+        
+        Use this for:
+            - Discovering available flow templates
+            - Understanding what types of processing are supported
+            - Planning new flow creation
+            - Exploring system capabilities
         """
 
         if ctx is None:
@@ -1131,7 +1539,26 @@ class McpServer:
             ctx: Context = None,
     ) -> FlowClassResponse:
         """
-        Retrieves definition of a specific flow class
+        Retrieve the definition of a specific flow class template.
+        
+        Flow classes define the structure, parameters, and capabilities of
+        flow types. This tool returns the class specification including
+        configurable parameters and processing logic.
+        
+        Args:
+            class_name: Name of the flow class to retrieve.
+        
+        Returns:
+            FlowClassResponse containing the flow class definition with:
+            - Class parameters and configuration options
+            - Processing capabilities and requirements
+            - Usage instructions and examples
+        
+        Use this for:
+            - Understanding flow class capabilities
+            - Learning how to configure new flows
+            - Troubleshooting flow creation issues
+            - Exploring advanced flow features
         """
 
         if ctx is None:
@@ -1171,7 +1598,25 @@ class McpServer:
             ctx: Context = None,
     ) -> StartFlowResponse:
         """
-        Starts a new flow instance
+        Create and start a new processing flow instance.
+        
+        This tool creates a new flow based on a flow class template and starts
+        it running. The flow will begin processing according to its configuration.
+        
+        Args:
+            flow_id: Unique identifier for the new flow instance.
+            class_name: Flow class template to use for creating the flow.
+                        Use get_flow_classes to see available classes.
+            description: Human-readable description of the flow's purpose.
+        
+        Returns:
+            StartFlowResponse confirming the flow has been started.
+        
+        Use this for:
+            - Creating new processing workflows
+            - Starting automated processing tasks
+            - Launching background operations
+            - Initiating data processing pipelines
         """
 
         if ctx is None:
@@ -1208,7 +1653,22 @@ class McpServer:
             ctx: Context = None,
     ) -> StopFlowResponse:
         """
-        Stops a running flow instance
+        Stop a running flow instance.
+        
+        This tool gracefully stops a running flow, allowing it to complete
+        current operations before shutting down.
+        
+        Args:
+            flow_id: Unique identifier of the flow instance to stop.
+        
+        Returns:
+            StopFlowResponse confirming the flow has been stopped.
+        
+        Use this for:
+            - Stopping unwanted or completed flows
+            - Managing system resources
+            - Interrupting long-running processes
+            - Maintaining flow lifecycle
         """
 
         if ctx is None:
@@ -1243,7 +1703,28 @@ class McpServer:
             ctx: Context = None,
     ) -> DocumentsResponse:
         """
-        Retrieves list of all documents in the system
+        List all documents stored in the TrustGraph document library.
+        
+        This tool returns metadata for all documents that have been uploaded
+        to the system, including their processing status and properties.
+        
+        Args:
+            user: User identifier to list documents for (default: "trustgraph").
+                  Only documents owned by this user will be returned.
+        
+        Returns:
+            DocumentsResponse containing metadata for each document including:
+            - Document ID and title
+            - Upload timestamp and user
+            - MIME type and size information
+            - Tags and custom metadata
+            - Processing status
+        
+        Use this for:
+            - Browsing available documents
+            - Managing document collections
+            - Finding documents by metadata
+            - Auditing document storage
         """
 
         if user is None: user = "trustgraph"
@@ -1281,7 +1762,27 @@ class McpServer:
             ctx: Context = None,
     ) -> ProcessingResponse:
         """
-        Retrieves list of documents currently being processed
+        List all documents currently in the processing queue.
+        
+        This tool shows documents that are being processed or waiting to be
+        processed, along with their processing status and configuration.
+        
+        Args:
+            user: User identifier (default: "trustgraph"). Only processing
+                  jobs for this user will be returned.
+        
+        Returns:
+            ProcessingResponse containing processing metadata including:
+            - Processing job ID and document ID
+            - Processing flow and status
+            - Target collection and user
+            - Timestamp and progress information
+        
+        Use this for:
+            - Monitoring document processing progress
+            - Debugging processing issues
+            - Managing processing queues
+            - Understanding system workload
         """
 
         if user is None: user = "trustgraph"
@@ -1326,7 +1827,31 @@ class McpServer:
             ctx: Context = None,
     ) -> LoadDocumentResponse:
         """
-        Uploads a document to the library with full metadata
+        Upload a document to the TrustGraph document library.
+        
+        This tool stores documents with rich metadata for later processing,
+        search, and knowledge extraction. Documents can be text files, PDFs,
+        or other supported formats.
+        
+        Args:
+            document: The document content as a string. For binary files,
+                      this should be base64-encoded content.
+            document_id: Optional unique identifier. If not provided, one will be generated.
+            metadata: Optional list of custom metadata key-value pairs.
+            mime_type: MIME type of the document (e.g., 'text/plain', 'application/pdf').
+            title: Human-readable title for the document.
+            comments: Optional description or notes about the document.
+            tags: List of tags for categorizing and finding the document.
+            user: User identifier (default: "trustgraph").
+        
+        Returns:
+            LoadDocumentResponse confirming the document has been stored.
+        
+        Use this for:
+            - Adding new documents to the knowledge base
+            - Storing reference materials and data sources
+            - Building document collections for processing
+            - Importing external content for analysis
         """
 
         if user is None: user = "trustgraph"
@@ -1378,7 +1903,26 @@ class McpServer:
             ctx: Context = None,
     ) -> RemoveDocumentResponse:
         """
-        Removes a document from the library
+        Permanently remove a document from the library.
+        
+        This operation deletes a document and all its associated metadata.
+        Use with caution as this action cannot be undone.
+        
+        Args:
+            document_id: Unique identifier of the document to remove.
+            user: User identifier (default: "trustgraph"). Only documents
+                  owned by this user can be removed.
+        
+        Returns:
+            RemoveDocumentResponse confirming the document has been deleted.
+        
+        Use this for:
+            - Cleaning up obsolete or incorrect documents
+            - Managing storage space
+            - Removing sensitive or inappropriate content
+            - Maintaining organized document collections
+        
+        Warning: This permanently deletes the document and all its metadata.
         """
 
         if user is None: user = "trustgraph"
@@ -1421,7 +1965,33 @@ class McpServer:
             ctx: Context = None,
     ) -> AddProcessingResponse:
         """
-        Adds a document to the processing queue
+        Queue a document for processing through a specific workflow.
+        
+        This tool adds a document to the processing queue where it will be
+        processed by the specified flow to extract knowledge, create embeddings,
+        or perform other analysis operations.
+        
+        Args:
+            processing_id: Unique identifier for this processing job.
+            document_id: ID of the document to process (must exist in library).
+            flow: Processing flow to use. Different flows perform different
+                  types of analysis (e.g., knowledge extraction, summarization).
+            user: User identifier (default: "trustgraph").
+            collection: Target collection for processed knowledge (default: "default").
+                        Results will be stored under this collection name.
+            tags: Optional tags for categorizing this processing job.
+        
+        Returns:
+            AddProcessingResponse confirming the document has been queued.
+        
+        Use this for:
+            - Processing uploaded documents into knowledge
+            - Extracting entities and relationships from text
+            - Creating searchable embeddings
+            - Converting documents into structured knowledge
+        
+        Note: Processing may take time depending on document size and flow complexity.
+        Use get_processing to monitor progress.
         """
 
         if user is None: user = "trustgraph"
