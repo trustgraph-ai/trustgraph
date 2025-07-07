@@ -44,10 +44,17 @@ class Service(ToolService):
                     )
 
                     print(result)
+
                     if result.structuredContent:
                         return result.structuredContent
+                    elif hasattr(result, "content"):
+                            return "".join([
+                                x.text
+                                for x in result.content
+                            ])
                     else:
-                        return result.unstructuredContent
+                        return "No content"
+
         except BaseExceptionGroup as e:
 
             for child in e.exceptions:

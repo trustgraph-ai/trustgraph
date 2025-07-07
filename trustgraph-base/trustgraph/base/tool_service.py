@@ -81,7 +81,7 @@ class ToolService(FlowProcessor):
                 )
 
             __class__.tool_invocation_metric.labels(
-                id = self.id, flow = self.flow, name = request.name,
+                id = self.id, flow = flow.name, name = request.name,
             ).inc()
 
         except TooManyRequests as e:
