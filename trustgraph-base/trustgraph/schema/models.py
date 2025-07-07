@@ -30,3 +30,22 @@ class EmbeddingsResponse(Record):
     error = Error()
     vectors = Array(Array(Double()))
 
+############################################################################
+
+# Tool request/response
+
+class ToolRequest(Record):
+    name = String()
+
+    # Parameters are JSON encoded
+    parameters = String()
+
+class ToolResponse(Record):
+    error = Error()
+
+    # Plain text aka "unstructured"
+    text = String()
+
+    # JSON-encoded object aka "structured"
+    object = String()
+
