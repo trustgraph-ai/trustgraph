@@ -4,10 +4,11 @@ MCP tool-calling service, calls an external MCP tool.  Input is
 name + parameters, output is the response, either a string or an object.
 """
 
-from ... base import ToolService
-
+import json
 from mcp.client.streamable_http import streamablehttp_client
 from mcp import ClientSession
+
+from ... base import ToolService
 
 default_ident = "mcp-tool"
 
@@ -19,14 +20,42 @@ class Service(ToolService):
             **params
         )
 
+        self.register_config_handler(self.on_mcp_config)
+
+        self.mcp_services = {}
+
+    async def on_mcp_config(self, config, version):
+
+        print("Got config version", version)
+
+        if "mcp" not in config: return
+
+        self.mcp_services = {
+            k: json.loads(v)
+            for k, v in config["mcp"].items()
+        }
+
     async def invoke_tool(self, name, parameters):
 
         try:
-            print(name)
-            print(parameters)
+
+            if name not in self.mcp_services:
+                raise RuntimeError(f"MCP service {name} not known")
+
+            if "url" not in self.mcp_services[name]:
+                raise RuntimeError(f"MCP service {name} URL not defined")
+
+            url = self.mcp_services[name]["url"]
+
+            if "name" in self.mcp_services[name]:
+                remote_name = self.mcp_services[name]["name"]
+            else:
+                remote_name = name
+
+            print("Invoking", remote_name, "at", url, flush=True)
+
             # Connect to a streamable HTTP server
-#            async with streamablehttp_client("http://mcp-server:8000/mcp/") as (
-            async with streamablehttp_client("http://host.containers.internal:9870/mcp/") as (
+            async with streamablehttp_client(url) as (
                     read_stream,
                     write_stream,
                     _,
@@ -40,11 +69,9 @@ class Service(ToolService):
 
                     # Call a tool
                     result = await session.call_tool(
-                        name,
+                        remote_name,
                         parameters
                     )
-
-                    print(result)
 
                     if result.structuredContent:
                         return result.structuredContent
