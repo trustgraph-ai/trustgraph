@@ -25,7 +25,8 @@ class Service(ToolService):
             print(name)
             print(parameters)
             # Connect to a streamable HTTP server
-            async with streamablehttp_client("http://mcp-server:8000/mcp/") as (
+#            async with streamablehttp_client("http://mcp-server:8000/mcp/") as (
+            async with streamablehttp_client("http://host.containers.internal:9870/mcp/") as (
                     read_stream,
                     write_stream,
                     _,
