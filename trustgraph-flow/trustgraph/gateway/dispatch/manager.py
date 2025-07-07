@@ -17,7 +17,7 @@ from . document_rag import DocumentRagRequestor
 from . triples_query import TriplesQueryRequestor
 from . embeddings import EmbeddingsRequestor
 from . graph_embeddings_query import GraphEmbeddingsQueryRequestor
-from . prompt import PromptRequestor
+from . mcp_tool import McpToolRequestor
 from . text_load import TextLoad
 from . document_load import DocumentLoad
 
@@ -40,6 +40,7 @@ request_response_dispatchers = {
     "agent": AgentRequestor,
     "text-completion": TextCompletionRequestor,
     "prompt": PromptRequestor,
+    "mcp-tool": McpToolRequestor,
     "graph-rag": GraphRagRequestor,
     "document-rag": DocumentRagRequestor,
     "embeddings": EmbeddingsRequestor,
