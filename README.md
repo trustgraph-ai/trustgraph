@@ -54,6 +54,15 @@ This is a very-quickstart.  See [other installation options](docs/README.md#ways
 - [Workbench](#workbench)
 - [Developer APIs](docs/apis#readme)
 
+### Cloud Deployment Options
+
+- [AWS EC2 single instance deployment using Pulumi](https://github.com/trustgraph-ai/pulumi-trustgraph-ec2)
+- [AWS deployment with RKE Kubernetes using Pulumi](https://github.com/trustgraph-ai/pulumi-trustgraph-aws-rke)
+- [Azure Kubernetes deployment using Pulumi](https://github.com/trustgraph-ai/pulumi-trustgraph-aks)
+- [GCP GKE cloud deployment using Pulumi](https://github.com/trustgraph-ai/pulumi-trustgraph-gke)
+- [Intel Gaudi and GPU (tested on Intel Tiber cloud)](https://github.com/trustgraph-ai/trustgraph-tiber-cloud)
+- [Scaleway Kubernetes deployment using Pulumi](https://github.com/trustgraph-ai/pulumi-trustgraph-scaleway)
+
 ## Configuration Builder
 
 The [**Configuration Builder**](https://config-ui.demo.trustgraph.ai/) assembles all of the selected components and builds them into a deployable package. It has 4 sections:
