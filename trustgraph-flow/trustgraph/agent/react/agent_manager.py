@@ -14,11 +14,18 @@ class AgentManager:
 
     async def reason(self, question, history, context):
 
+        print(f"calling reason: {question}", flush=True)
+
         tools = self.tools
+
+        print(f"in reason", flush=True)
+        print(tools, flush=True)
 
         tool_names = ",".join([
             t for t in self.tools.keys()
         ])
+
+        print("Tool names:", tool_names, flush=True)
 
         variables = {
             "question": question,
@@ -83,6 +90,9 @@ class AgentManager:
 
     async def react(self, question, history, think, observe, context):
 
+        logger.info(f"question: {question}")
+        print(f"question: {question}", flush=True)
+
         act = await self.reason(
             question = question,
             history = history,
@@ -104,12 +114,11 @@ class AgentManager:
             else:
                 raise RuntimeError(f"No action for {act.name}!")
 
-            print("TOOL>>>", act)
+            print("TOOL>>>", act, flush=True)
+
             resp = await action.implementation(context).invoke(
                 **act.arguments
             )
-
-            print("RSETUL", resp)
 
             resp = resp.strip()
 

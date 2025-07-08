@@ -1,0 +1,127 @@
+#!/usr/bin/env python3
+
+"""
+Deletes tools from the TrustGraph system.
+Removes tool configurations by ID from the agent configuration
+and updates the tool index accordingly.
+"""
+
+import argparse
+import os
+from trustgraph.api import Api, ConfigKey, ConfigValue
+import json
+import textwrap
+
+default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+
+def delete_tool(
+        url : str,
+        id : str,
+):
+
+    api = Api(url).config()
+
+    # Get the current tool index
+    try:
+        values = api.get([
+            ConfigKey(type="agent", key="tool-index")
+        ])
+        
+        ix = json.loads(values[0].value)
+        
+    except Exception as e:
+        print(f"Error reading tool index: {e}")
+        return False
+
+    # Check if the tool exists in the index
+    if id not in ix:
+        print(f"Tool '{id}' not found in tool index.")
+        return False
+
+    # Check if the tool configuration exists
+    try:
+        tool_values = api.get([
+            ConfigKey(type="agent", key=f"tool.{id}")
+        ])
+        
+        if not tool_values or not tool_values[0].value:
+            print(f"Tool configuration for '{id}' not found.")
+            return False
+            
+    except Exception as e:
+        print(f"Tool configuration for '{id}' not found.")
+        return False
+
+    # Remove the tool ID from the index
+    ix.remove(id)
+
+    # Delete the tool configuration and update the index
+    try:
+
+        # Update the tool index
+        api.put([
+            ConfigValue(
+                type="agent", key="tool-index", value=json.dumps(ix)
+            )
+        ])
+        
+        # Delete the tool configuration
+        api.delete([
+            ConfigKey(type="agent", key=f"tool.{id}")
+        ])
+        
+        print(f"Tool '{id}' deleted successfully.")
+        return True
+        
+    except Exception as e:
+        print(f"Error deleting tool '{id}': {e}")
+        return False
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        prog='tg-delete-tool',
+        description=__doc__,
+        epilog=textwrap.dedent('''
+            This utility removes tool configurations from the TrustGraph system.
+            It removes the tool from both the tool index and deletes the tool
+            configuration. Once deleted, the tool will no longer be available for use.
+            
+            Examples:
+              %(prog)s --id weather
+              %(prog)s --id calculator
+              %(prog)s --api-url http://localhost:9000/ --id file-reader
+        ''').strip(),
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+
+    parser.add_argument(
+        '-u', '--api-url',
+        default=default_url,
+        help=f'API URL (default: {default_url})',
+    )
+
+    parser.add_argument(
+        '--id',
+        required=True,
+        help='Tool ID to delete',
+    )
+
+    args = parser.parse_args()
+
+    try:
+
+        if not args.id:
+            raise RuntimeError("Must specify --id for tool to delete")
+
+        delete_tool(
+            url=args.api_url, 
+            id=args.id
+        )
+
+    except Exception as e:
+
+        print("Exception:", e, flush=True)
+
+main()
+

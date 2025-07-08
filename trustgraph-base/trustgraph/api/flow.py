@@ -4,6 +4,7 @@ import base64
 
 from .. knowledge import hash, Uri, Literal
 from . types import Triple
+from . exceptions import ProtocolException
 
 def to_value(x):
     if x["e"]: return Uri(x["v"])
@@ -197,7 +198,6 @@ class FlowInstance:
 
     def prompt(self, id, variables):
 
-        # The input consists of system and prompt strings
         input = {
             "id": id,
             "variables": variables
@@ -221,12 +221,37 @@ class FlowInstance:
 
         raise ProtocolException("Response not formatted correctly")
 
+    def mcp_tool(self, name, parameters={}):
+
+        # The input consists of name and parameters
+        input = {
+            "name": name,
+            "parameters": parameters,
+        }
+
+        object = self.request(
+            "service/mcp-tool",
+            input
+        )
+
+        if "text" in object:
+            return object["text"]
+
+        if "object" in object:
+            try:
+                return object["object"]
+            except Exception as e:
+                raise ProtocolException(
+                    "Returned object not well-formed JSON"
+                )
+
+        raise ProtocolException("Response not formatted correctly")
+
     def triples_query(
             self, s=None, p=None, o=None,
             user=None, collection=None, limit=10000
     ):
 
-        # The input consists of system and prompt strings
         input = {
             "limit": limit
         }

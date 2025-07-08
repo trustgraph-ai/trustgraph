@@ -17,37 +17,20 @@ def show_config(url):
 
     api = Api(url).config()
 
-    values = api.get([
-        ConfigKey(type="agent", key="tool-index")
-    ])
+    values = api.get_values(type="mcp")
 
-    ix = json.loads(values[0].value)
+    for n, value in enumerate(values):
 
-    values = api.get([
-        ConfigKey(type="agent", key=f"tool.{v}")
-        for v in ix
-    ])
-
-    for n, key in enumerate(ix):
-
-        data = json.loads(values[n].value)
+        data = json.loads(value.value)
 
         table = []
 
-        table.append(("id", data["id"]))
+        table.append(("id", value.key))
         table.append(("name", data["name"]))
-        table.append(("description", data["description"]))
-        table.append(("type", data["type"]))
-
-        for n, arg in enumerate(data["arguments"]):
-            table.append((
-                f"arg {n}",
-                f"{arg['name']}: {arg['type']}\n{arg['description']}"
-            ))
-            
+        table.append(("url", data["url"]))
 
         print()
-        print(key + ":")
+        print(value.key + ":")
 
         print(tabulate.tabulate(
             table,
@@ -61,7 +44,7 @@ def show_config(url):
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-show-tools',
+        prog='tg-show-mcp-tools',
         description=__doc__,
     )
 

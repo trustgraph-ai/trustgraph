@@ -49,6 +49,19 @@ class Config:
 
         self.request(input)
 
+    def delete(self, keys):
+
+        # The input consists of system and prompt strings
+        input = {
+            "operation": "delete",
+            "keys": [
+                { "type": v.type, "key": v.key }
+                for v in keys
+            ]
+        }
+
+        self.request(input)
+
     def list(self, type):
 
         # The input consists of system and prompt strings
@@ -67,7 +80,7 @@ class Config:
             "type": type,
         }
 
-        object = self.request(input)["directory"]
+        object = self.request(input)
 
         try:
             return [
