@@ -56,6 +56,7 @@ setuptools.setup(
         "scripts/tg-invoke-document-rag",
         "scripts/tg-invoke-graph-rag",
         "scripts/tg-invoke-llm",
+        "scripts/tg-invoke-mcp-tool",
         "scripts/tg-invoke-prompt",
         "scripts/tg-load-doc-embeds",
         "scripts/tg-load-kg-core",
