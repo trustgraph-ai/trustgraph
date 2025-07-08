@@ -70,6 +70,7 @@ setuptools.setup(
         "scripts/tg-save-doc-embeds",
         "scripts/tg-set-prompt",
         "scripts/tg-set-token-costs",
+        "scripts/tg-set-tool",
         "scripts/tg-show-config",
         "scripts/tg-show-flow-classes",
         "scripts/tg-show-flow-state",

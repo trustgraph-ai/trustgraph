@@ -37,6 +37,7 @@ def show_config(url):
         table.append(("id", data["id"]))
         table.append(("name", data["name"]))
         table.append(("description", data["description"]))
+        table.append(("type", data["type"]))
 
         for n, arg in enumerate(data["arguments"]):
             table.append((
