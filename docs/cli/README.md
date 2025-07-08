@@ -10,6 +10,9 @@ The CLI tools are installed as part of the `trustgraph-cli` package:
 pip install trustgraph-cli
 ```
 
+> [!NOTE]
+> The CLI version should match the version of TrustGraph being deployed. 
+
 ## Global Options
 
 Most CLI commands support these common options:
