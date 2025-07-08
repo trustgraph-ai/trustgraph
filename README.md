@@ -7,7 +7,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
 
-[Full Docs](https://docs.trustgraph.ai/docs/TrustGraph) | [YouTube](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) | [Configuration Builder](https://config-ui.demo.trustgraph.ai/) | [API Docs](docs/apis/README.md) | [CLI Docs](docs/cli/README.md) | [Discord](https://discord.gg/sQMwkRz5GX) | [Blog](https://blog.trustgraph.ai/subscribe)
+[YouTube](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) | [Configuration Builder](https://config-ui.demo.trustgraph.ai/) | [Discord](https://discord.gg/sQMwkRz5GX) | [Blog](https://blog.trustgraph.ai/subscribe)
 
 </div>
 
