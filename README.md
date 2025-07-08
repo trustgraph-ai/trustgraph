@@ -194,40 +194,6 @@ TrustGraph provides maximum flexibility so your agents are always powered by the
 
 </details>
 
-### Pulsar Control Plane
-
-- For flows, Pulsar accepts the output of a processing module and queues it for input to the next subscribed module.
-- For services such as LLMs and embeddings, Pulsar provides a client/server model.  A Pulsar queue is used as the input to the service.  When processed, the output is then delivered to a separate queue where a client subscriber can request that output.
-
-PDF file:
-```
-tg-load-pdf <document.pdf>
-```
-
-Text or Markdown file:
-```
-tg-load-text <document.txt>
-```
-
-### GraphRAG Queries
-
-Once the knowledge graph and embeddings have been built or a cognitive core has been loaded, RAG queries are launched with a single line:
-
-```
-tg-invoke-graph-rag -q "What are the top 3 takeaways from the document?"
-```
-
-### Agent Flow
-
-Invoking the Agent Flow will use a ReAct style approach the combines Graph RAG and text completion requests to think through a problem solution.
-
-```
-tg-invoke-agent -v -q "Write a blog post on the top 3 takeaways from the document."
-```
-
-> [!TIP]
-> Adding `-v` to the agent request will return all of the agent manager's thoughts and observations that led to the final response.
-
 ## Observability & Telemetry
 
 Once the platform is running, access the Grafana dashboard at:
