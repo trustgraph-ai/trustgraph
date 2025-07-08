@@ -93,7 +93,7 @@ TrustGraph features an advanced GraphRAG approach that automatically constructs 
 
 ## Knowledge Packages
 
-One of the biggest challenges currently facing RAG architectures is the ability to quickly reuse and integrate knowledge sets. **TrustGraph** solves this problem by storing the results of the data ingestion process in reusable Knowledge Packages. Being able to store and reuse the Knowledge Packages means the data transformation process has to be run only once. These reusable Knowledge Packages can be loaded back into **TrustGraph** and used for GraphRAG.
+One of the biggest challenges currently facing RAG architectures is the ability to quickly reuse and integrate knowledge sets. **TrustGraph** solves this problem by storing the results of the data ingestion process in reusable Knowledge Packages. Being able to store and reuse the Knowledge Packages means the data transformation process has to be run only once. These reusable Knowledge Packages can be loaded back into **TrustGraph** and used for GraphRAG. Some sample knowledge packages are available for download [here](https://github.com/trustgraph-ai/catalog/tree/master/v3).
 
 A Knowledge Package has two components:
 
