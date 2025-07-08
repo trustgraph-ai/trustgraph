@@ -46,6 +46,7 @@ setuptools.setup(
     scripts=[
         "scripts/tg-add-library-document",
         "scripts/tg-delete-flow-class",
+        "scripts/tg-delete-mcp-tool",
         "scripts/tg-delete-kg-core",
         "scripts/tg-dump-msgpack",
         "scripts/tg-get-flow-class",
@@ -68,6 +69,7 @@ setuptools.setup(
         "scripts/tg-put-kg-core",
         "scripts/tg-remove-library-document",
         "scripts/tg-save-doc-embeds",
+        "scripts/tg-set-mcp-tool",
         "scripts/tg-set-prompt",
         "scripts/tg-set-token-costs",
         "scripts/tg-set-tool",
@@ -79,6 +81,7 @@ setuptools.setup(
         "scripts/tg-show-kg-cores",
         "scripts/tg-show-library-documents",
         "scripts/tg-show-library-processing",
+        "scripts/tg-show-mcp-tools",
         "scripts/tg-show-processor-state",
         "scripts/tg-show-prompts",
         "scripts/tg-show-token-costs",

@@ -1,0 +1,93 @@
+#!/usr/bin/env python3
+
+"""
+Configures and registers MCP (Model Control Protocol) tools in the
+TrustGraph system.  Allows defining MCP tool configurations with name and
+URL. Tools are stored in the 'mcp' configuration group for discovery and
+execution.
+"""
+
+import argparse
+import os
+from trustgraph.api import Api, ConfigValue
+import textwrap
+import json
+
+default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+
+def set_mcp_tool(
+        url : str,
+        name : str,
+        tool_url : str,
+):
+
+    api = Api(url).config()
+
+    # Store the MCP tool configuration in the 'mcp' group
+    values = api.put([
+        ConfigValue(
+            type="mcp", key=name, value=json.dumps({
+                "name": name,
+                "url": tool_url,
+            })
+        )
+    ])
+
+    print(f"MCP tool '{name}' set with URL: {tool_url}")
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        prog='tg-set-mcp-tool',
+        description=__doc__,
+        epilog=textwrap.dedent('''
+            MCP tools are configured with just a name and URL. The URL should point
+            to the MCP server endpoint that provides the tool functionality.
+            
+            Examples:
+              %(prog)s --name weather --tool-url "http://localhost:3000/weather"
+              %(prog)s --name calculator --tool-url "http://mcp-tools.example.com/calc"
+        ''').strip(),
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+
+    parser.add_argument(
+        '-u', '--api-url',
+        default=default_url,
+        help=f'API URL (default: {default_url})',
+    )
+
+    parser.add_argument(
+        '--name',
+        required=True,
+        help='MCP tool name',
+    )
+
+    parser.add_argument(
+        '--tool-url',
+        required=True,
+        help='MCP tool URL endpoint',
+    )
+
+    args = parser.parse_args()
+
+    try:
+
+        if not args.name:
+            raise RuntimeError("Must specify --name for MCP tool")
+
+        if not args.tool_url:
+            raise RuntimeError("Must specify --url for MCP tool")
+
+        set_mcp_tool(
+            url=args.api_url, 
+            name=args.name,
+            tool_url=args.tool_url
+        )
+
+    except Exception as e:
+
+        print("Exception:", e, flush=True)
+
+main()
+
