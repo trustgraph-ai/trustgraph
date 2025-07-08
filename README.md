@@ -48,6 +48,7 @@ If you want to build powerful, intelligent AI applications without getting bogge
 
 This is a very-quickstart.  See [other installation options](docs/README.md#ways-to-deploy).
 
+- [Quickstart Guide](docs/README.quickstart-docker-compose.md)
 - [Configuration Builder](#configuration-builder)
 - [Install the CLI](#install-the-trustgraph-cli)
 - [Test Suite](#test-suite)
