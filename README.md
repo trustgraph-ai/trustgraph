@@ -51,6 +51,7 @@ If you want to build powerful, intelligent AI applications without getting bogge
 - [Install the CLI](docs/cli/README.md)
 - [Workbench](#workbench)
 - [Developer APIs](docs/apis#readme)
+- [Example Notebooks](https://github.com/trustgraph-ai/example-notebooks)
 
 ### Cloud Deployment Options
 
