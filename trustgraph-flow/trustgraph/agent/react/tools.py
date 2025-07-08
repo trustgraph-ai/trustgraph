@@ -23,3 +23,22 @@ class TextCompletionImpl:
             arguments.get("question")
         )
 
+# This tool implementation knows how to do MCP tool invocation.  This uses
+# the mcp-tool service.
+class McpToolImpl:
+    def __init__(self, context):
+        self.context = context
+    async def invoke(self, **arguments):
+        client = self.context("mcp-tool-request")
+        print("MCP tool invocation...", flush=True)
+        output = await client.invoke(
+            name = "time",
+            parameters = {},
+        )
+
+        print(output)
+
+        print(type(output))
+
+        return output["result"]
+

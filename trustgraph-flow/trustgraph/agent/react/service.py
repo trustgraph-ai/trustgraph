@@ -7,11 +7,11 @@ import re
 import sys
 
 from ... base import AgentService, TextCompletionClientSpec, PromptClientSpec
-from ... base import GraphRagClientSpec
+from ... base import GraphRagClientSpec, ToolClientSpec
 
 from ... schema import AgentRequest, AgentResponse, AgentStep, Error
 
-from . tools import KnowledgeQueryImpl, TextCompletionImpl
+from . tools import KnowledgeQueryImpl, TextCompletionImpl, McpToolImpl
 from . agent_manager import AgentManager
 
 from . types import Final, Action, Tool, Argument
@@ -67,6 +67,13 @@ class Processor(AgentService):
             )
         )
 
+        self.register_specification(
+            ToolClientSpec(
+                request_name = "mcp-tool-request",
+                response_name = "mcp-tool-response",
+            )
+        )
+
     async def on_tools_config(self, config, version):
 
         print("Loading configuration version", version)
@@ -106,6 +113,8 @@ class Processor(AgentService):
                     impl = KnowledgeQueryImpl
                 elif impl_id == "text-completion":
                     impl = TextCompletionImpl
+                elif impl_id == "mcp-tool":
+                    impl = McpToolImpl
                 else:
                     raise RuntimeError(
                         f"Tool-kind {impl_id} not known"
@@ -180,6 +189,8 @@ class Processor(AgentService):
                 )
 
                 await respond(r)
+
+            print("Call React", flush=True)
 
             act = await self.agent.react(
                 question = request.question,

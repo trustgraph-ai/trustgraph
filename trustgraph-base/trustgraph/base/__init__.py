@@ -29,4 +29,5 @@ from . document_embeddings_client import DocumentEmbeddingsClientSpec
 from . agent_service import AgentService
 from . graph_rag_client import GraphRagClientSpec
 from . tool_service import ToolService
+from . tool_client import ToolClientSpec
 
