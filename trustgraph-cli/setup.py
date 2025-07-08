@@ -48,6 +48,7 @@ setuptools.setup(
         "scripts/tg-delete-flow-class",
         "scripts/tg-delete-mcp-tool",
         "scripts/tg-delete-kg-core",
+        "scripts/tg-delete-tool",
         "scripts/tg-dump-msgpack",
         "scripts/tg-get-flow-class",
         "scripts/tg-get-kg-core",
