@@ -1,4 +1,6 @@
 
+import json
+
 # This tool implementation knows how to put a question to the graph RAG
 # service
 class KnowledgeQueryImpl:
@@ -26,19 +28,26 @@ class TextCompletionImpl:
 # This tool implementation knows how to do MCP tool invocation.  This uses
 # the mcp-tool service.
 class McpToolImpl:
-    def __init__(self, context):
+
+    def __init__(self, context, name):
         self.context = context
+        self.name = name
+
     async def invoke(self, **arguments):
+
         client = self.context("mcp-tool-request")
-        print("MCP tool invocation...", flush=True)
+
+        print(f"MCP tool invocation: {self.name}...", flush=True)
         output = await client.invoke(
-            name = "time",
+            name = self.name,
             parameters = {},
         )
 
         print(output)
 
-        print(type(output))
+        if isinstance(output, str):
+            return output
+        else:
+            return json.dumps(output)
 
-        return output["result"]
-
+        

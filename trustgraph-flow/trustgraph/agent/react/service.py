@@ -5,6 +5,7 @@ Simple agent infrastructure broadly implements the ReAct flow.
 import json
 import re
 import sys
+import functools
 
 from ... base import AgentService, TextCompletionClientSpec, PromptClientSpec
 from ... base import GraphRagClientSpec, ToolClientSpec
@@ -109,19 +110,21 @@ class Processor(AgentService):
 
                 impl_id = data.get("type")
 
+                name = data.get("name")
+
                 if impl_id == "knowledge-query":
                     impl = KnowledgeQueryImpl
                 elif impl_id == "text-completion":
                     impl = TextCompletionImpl
                 elif impl_id == "mcp-tool":
-                    impl = McpToolImpl
+                    impl = functools.partial(McpToolImpl, name=k)
                 else:
                     raise RuntimeError(
                         f"Tool-kind {impl_id} not known"
                     )
 
                 tools[data.get("name")] = Tool(
-                    name = data.get("name"),
+                    name = name,
                     description = data.get("description"),
                     implementation = impl,
                     config=data.get("config", {}),
