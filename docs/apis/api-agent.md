@@ -18,7 +18,7 @@ The request contains the following fields:
 
 ### Response
 
-The request contains the following fields:
+The response contains the following fields:
 - `thought`: Optional, a string, provides an interim agent thought
 - `observation`: Optional, a string, provides an interim agent thought
 - `answer`: Optional, a string, provides the final answer
@@ -61,6 +61,7 @@ Request:
 {
     "id": "blrqotfefnmnh7de-20",
     "service": "agent",
+    "flow": "default",
     "request": {
         "question": "What does NASA stand for?"
     }
