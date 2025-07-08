@@ -50,24 +50,9 @@ This is a very-quickstart.  See [other installation options](docs/README.md#ways
 
 - [Quickstart Guide](docs/README.quickstart-docker-compose.md)
 - [Configuration Builder](#configuration-builder)
-- [Install the CLI](#install-the-trustgraph-cli)
-- [Test Suite](#test-suite)
-
-### Developer APIs and CLI
-
-- [**REST API**](docs/apis/README.md#rest-apis)
-- [**Websocket API**](docs/apis/README.md#websocket-api)
-- [**Python SDK**](https://trustgraph.ai/docs/api/apistarted)
-- [**TrustGraph CLI**](https://trustgraph.ai/docs/running/cli)
-
-### Install the TrustGraph CLI
-
-```
-pip3 install trustgraph-cli==<trustgraph-version>
-```
-
-> [!CAUTION]
-> The `trustgraph-cli` version *must* match the selected **TrustGraph** release version. 
+- [Install the CLI](docs/cli/README.md)
+- [Workbench](#workbench)
+- [Developer APIs](docs/apis#readme)
 
 ## Configuration Builder
 
@@ -78,7 +63,7 @@ The [**Configuration Builder**](https://config-ui.demo.trustgraph.ai/) assembles
 - **Customization**: Customize the prompts for the LLM System, Data Extraction Agents, and Agent Flow
 - **Finish Deployment**: Download the launch `YAML` files with deployment instructions
 
-### Test Suite
+### Workbench
 
 If added to the build in the **Configuration Builder**, the **Test Suite** will be available at port `8888`. The **Test Suite** has the following capabilities:
 
