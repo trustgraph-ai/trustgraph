@@ -71,15 +71,16 @@ The [**Configuration Builder**](https://config-ui.demo.trustgraph.ai/) assembles
 - **Customization**: Customize the prompts for the LLM System, Data Extraction Agents, and Agent Flow
 - **Finish Deployment**: Download the launch `YAML` files with deployment instructions
 
-### Workbench
+## Workbench
 
-If added to the build in the **Configuration Builder**, the **Test Suite** will be available at port `8888`. The **Test Suite** has the following capabilities:
+The **Workbench** is a UI that provides tools for interacting with all major features of the platform. The **Workbench** is enabled by default in the **Configuration Builder** and is available at port `8888` on deployment. The **Workbench** has the following capabilities:
 
-- **GraphRAG Chat**: GraphRAG queries in a chat interface
-- **Vector Search**: Semantic similarity search with cosine similarity scores
-- **Semantic Relationships**: See semantic relationships in a list structure
-- **Graph Visualizer**: Visualize semantic relationships in **3D**
-- **Data Loader**: Directly load `.pdf`, `.txt`, or `.md` into the system with document metadata
+- **GraphRAG and Agentic Chat**: Chat interface for GraphRAG queries and Agents
+- **Semantic Discovery**: Analyze semantic relationships with vector search, knowledge graph relationships, and 3D graph visualization
+- **Data Management**: Load data into the **Librarian** for processing, create and upload **Knowledge Packages**
+- **Flow Management**: Create and delete processing flow patterns
+- **Prompt Management**: Edit all LLM prompts used in the platform
+- **Agent Tools**: Define tools used by the Agent Flow
 
 ## GraphRAG
 
