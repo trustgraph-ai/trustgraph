@@ -53,6 +53,10 @@ If you want to build powerful, intelligent AI applications without getting bogge
 - [Developer APIs](docs/apis#readme)
 - [Example Notebooks](https://github.com/trustgraph-ai/example-notebooks)
 
+### TrustGraph 101
+
+[![TrustGraph 101](https://img.youtube.com/vi/rWYl_yhKCng/0.jpg)](https://www.youtube.com/watch?v=rWYl_yhKCng)
+
 ### Cloud Deployment Options
 
 - [AWS EC2 single instance deployment using Pulumi](https://github.com/trustgraph-ai/pulumi-trustgraph-ec2)
