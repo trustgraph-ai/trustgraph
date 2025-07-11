@@ -393,3 +393,107 @@ def mock_vllm_error_response():
     mock_response = MagicMock()
     mock_response.status = 500
     return mock_response
+
+
+# === Cohere Specific Fixtures ===
+
+@pytest.fixture
+def cohere_processor_config(base_processor_config):
+    """Default configuration for Cohere processor"""
+    config = base_processor_config.copy()
+    config.update({
+        'model': 'c4ai-aya-23-8b',
+        'api_key': 'test-api-key',
+        'temperature': 0.0
+    })
+    return config
+
+
+@pytest.fixture
+def mock_cohere_client():
+    """Mock Cohere client"""
+    mock_client = MagicMock()
+    
+    # Mock the response structure
+    mock_output = MagicMock()
+    mock_output.text = "Test response from Cohere"
+    mock_output.meta.billed_units.input_tokens = 18
+    mock_output.meta.billed_units.output_tokens = 10
+    
+    mock_client.chat.return_value = mock_output
+    return mock_client
+
+
+@pytest.fixture
+def mock_cohere_rate_limit_error():
+    """Mock Cohere rate limit error"""
+    import cohere
+    return cohere.TooManyRequestsError("Rate limit exceeded")
+
+
+# === Google AI Studio Specific Fixtures ===
+
+@pytest.fixture
+def googleaistudio_processor_config(base_processor_config):
+    """Default configuration for Google AI Studio processor"""
+    config = base_processor_config.copy()
+    config.update({
+        'model': 'gemini-2.0-flash-001',
+        'api_key': 'test-api-key',
+        'temperature': 0.0,
+        'max_output': 8192
+    })
+    return config
+
+
+@pytest.fixture
+def mock_googleaistudio_client():
+    """Mock Google AI Studio client"""
+    mock_client = MagicMock()
+    
+    # Mock the response structure
+    mock_response = MagicMock()
+    mock_response.text = "Test response from Google AI Studio"
+    mock_response.usage_metadata.prompt_token_count = 20
+    mock_response.usage_metadata.candidates_token_count = 12
+    
+    mock_client.models.generate_content.return_value = mock_response
+    return mock_client
+
+
+@pytest.fixture
+def mock_googleaistudio_rate_limit_error():
+    """Mock Google AI Studio rate limit error"""
+    from google.api_core.exceptions import ResourceExhausted
+    return ResourceExhausted("Rate limit exceeded")
+
+
+# === LlamaFile Specific Fixtures ===
+
+@pytest.fixture
+def llamafile_processor_config(base_processor_config):
+    """Default configuration for LlamaFile processor"""
+    config = base_processor_config.copy()
+    config.update({
+        'model': 'LLaMA_CPP',
+        'llamafile': 'http://localhost:8080/v1',
+        'temperature': 0.0,
+        'max_output': 4096
+    })
+    return config
+
+
+@pytest.fixture
+def mock_llamafile_client():
+    """Mock OpenAI client for LlamaFile"""
+    mock_client = MagicMock()
+    
+    # Mock the response structure
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message.content = "Test response from LlamaFile"
+    mock_response.usage.prompt_tokens = 14
+    mock_response.usage.completion_tokens = 8
+    
+    mock_client.chat.completions.create.return_value = mock_response
+    return mock_client
