@@ -46,25 +46,16 @@ If you want to build powerful, intelligent AI applications without getting bogge
 
 ## Getting Started
 
-- [Quickstart Guide](docs/README.quickstart-docker-compose.md)
+- [Quickstart Guide](https://docs.trustgraph.ai/getting-started/)
 - [Configuration Builder](#configuration-builder)
-- [Install the CLI](docs/cli/README.md)
 - [Workbench](#workbench)
-- [Developer APIs](docs/apis#readme)
+- [Developer APIs and CLI](https://docs.trustgraph.ai/reference/)
 - [Example Notebooks](https://github.com/trustgraph-ai/example-notebooks)
+- [Deployment Guide](https://docs.trustgraph.ai/deployment/)
 
 ### Watch TrustGraph 101
 
 [![TrustGraph 101](https://img.youtube.com/vi/rWYl_yhKCng/maxresdefault.jpg)](https://www.youtube.com/watch?v=rWYl_yhKCng)
-
-### Cloud Deployment Options
-
-- [AWS EC2 single instance deployment using Pulumi](https://github.com/trustgraph-ai/pulumi-trustgraph-ec2)
-- [AWS deployment with RKE Kubernetes using Pulumi](https://github.com/trustgraph-ai/pulumi-trustgraph-aws-rke)
-- [Azure Kubernetes deployment using Pulumi](https://github.com/trustgraph-ai/pulumi-trustgraph-aks)
-- [GCP GKE cloud deployment using Pulumi](https://github.com/trustgraph-ai/pulumi-trustgraph-gke)
-- [Intel Gaudi and GPU (tested on Intel Tiber cloud)](https://github.com/trustgraph-ai/trustgraph-tiber-cloud)
-- [Scaleway Kubernetes deployment using Pulumi](https://github.com/trustgraph-ai/pulumi-trustgraph-scaleway)
 
 ## Configuration Builder
 
@@ -232,7 +223,7 @@ The default Grafana dashboard tracks the following:
 
 ## Contributing
 
-[Developing for TrustGraph](docs/README.development.md)
+[Developer's Guide](https://docs.trustgraph.ai/community/developer.html)
 
 ## License
 
