@@ -4,8 +4,8 @@ Pytest configuration and fixtures for text completion tests
 
 import pytest
 from unittest.mock import MagicMock, AsyncMock
-from trustgraph.base.types import TextCompletionRequest, TextCompletionResponse, LlmResult
-
+from trustgraph.schema import TextCompletionRequest, TextCompletionResponse
+from trustgraph.base import LlmResult
 
 @pytest.fixture
 def mock_vertexai_credentials():

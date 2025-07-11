@@ -218,8 +218,19 @@ pytest tests/unit/test_text_completion/test_vertexai_processor.py::TestVertexAIM
 
 ### Running All VertexAI Tests
 
+#### Option 1: Simple Tests (Recommended for getting started)
 ```bash
-# Run all VertexAI tests
+# Run simple tests that don't require full TrustGraph infrastructure
+./run_simple_tests.sh
+
+# Or run manually:
+pytest tests/unit/test_text_completion/test_vertexai_simple.py -v
+pytest tests/unit/test_text_completion/test_vertexai_core.py -v
+```
+
+#### Option 2: Full Infrastructure Tests
+```bash
+# Run all VertexAI tests (requires full TrustGraph setup)
 pytest tests/unit/test_text_completion/test_vertexai_processor.py -v
 
 # Run with coverage
@@ -227,6 +238,12 @@ pytest tests/unit/test_text_completion/test_vertexai_processor.py --cov=trustgra
 
 # Run with detailed output
 pytest tests/unit/test_text_completion/test_vertexai_processor.py -v -s
+```
+
+#### Option 3: All VertexAI Tests
+```bash
+# Run all VertexAI-related tests
+pytest tests/unit/test_text_completion/ -k "vertexai" -v
 ```
 
 ## Test Configuration
@@ -367,7 +384,26 @@ pytest tests/unit/test_text_completion/test_vertexai_processor.py -v
 - Python path not set correctly
 - Missing dependencies (install with `pip install -r tests/requirements.txt`)
 
-#### 2. Async Test Issues
+#### 2. TaskGroup/Infrastructure Errors
+
+**Symptom**: `RuntimeError: Essential taskgroup missing` or similar infrastructure errors
+
+**Solution**:
+```bash
+# Try the simple tests first - they don't require full TrustGraph infrastructure
+./run_simple_tests.sh
+
+# Or run specific simple test files
+pytest tests/unit/test_text_completion/test_vertexai_simple.py -v
+pytest tests/unit/test_text_completion/test_vertexai_core.py -v
+```
+
+**Why this happens**:
+- The full TrustGraph processors require async task groups and Pulsar infrastructure
+- The simple tests focus on testing the core logic without infrastructure dependencies
+- Use simple tests to verify the VertexAI logic works correctly
+
+#### 3. Async Test Issues
 ```python
 # Use IsolatedAsyncioTestCase for async tests
 class TestAsyncService(IsolatedAsyncioTestCase):
