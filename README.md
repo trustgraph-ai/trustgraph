@@ -46,12 +46,12 @@ If you want to build powerful, intelligent AI applications without getting bogge
 
 ## Getting Started
 
-- [Quickstart Guide](https://docs.trustgraph.ai/getting-started/)
-- [Configuration Builder](#configuration-builder)
-- [Workbench](#workbench)
-- [Developer APIs and CLI](https://docs.trustgraph.ai/reference/)
-- [Example Notebooks](https://github.com/trustgraph-ai/example-notebooks)
-- [Deployment Guide](https://docs.trustgraph.ai/deployment/)
+- [**Quickstart Guide**](https://docs.trustgraph.ai/getting-started/)
+- [**Configuration Builder**](#configuration-builder)
+- [**Workbench**](#workbench)
+- [**Developer APIs and CLI**](https://docs.trustgraph.ai/reference/)
+- [**Example Notebooks**](https://github.com/trustgraph-ai/example-notebooks)
+- [**Deployment Guide**](https://docs.trustgraph.ai/deployment/)
 
 ### Watch TrustGraph 101
 
