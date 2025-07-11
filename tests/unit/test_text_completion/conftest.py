@@ -221,3 +221,89 @@ def mock_openai_rate_limit_error():
     """Mock OpenAI rate limit error"""
     from openai import RateLimitError
     return RateLimitError("Rate limit exceeded", response=MagicMock(), body=None)
+
+
+# === Azure OpenAI Specific Fixtures ===
+
+@pytest.fixture
+def azure_openai_processor_config(base_processor_config):
+    """Default configuration for Azure OpenAI processor"""
+    config = base_processor_config.copy()
+    config.update({
+        'model': 'gpt-4',
+        'endpoint': 'https://test.openai.azure.com/',
+        'token': 'test-token',
+        'api_version': '2024-12-01-preview',
+        'temperature': 0.0,
+        'max_output': 4192
+    })
+    return config
+
+
+@pytest.fixture
+def mock_azure_openai_client():
+    """Mock Azure OpenAI client"""
+    mock_client = MagicMock()
+    
+    # Mock the response structure
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message.content = "Test response from Azure OpenAI"
+    mock_response.usage.prompt_tokens = 20
+    mock_response.usage.completion_tokens = 10
+    
+    mock_client.chat.completions.create.return_value = mock_response
+    return mock_client
+
+
+@pytest.fixture
+def mock_azure_openai_rate_limit_error():
+    """Mock Azure OpenAI rate limit error"""
+    from openai import RateLimitError
+    return RateLimitError("Rate limit exceeded", response=MagicMock(), body=None)
+
+
+# === Azure Specific Fixtures ===
+
+@pytest.fixture
+def azure_processor_config(base_processor_config):
+    """Default configuration for Azure processor"""
+    config = base_processor_config.copy()
+    config.update({
+        'endpoint': 'https://test.inference.ai.azure.com/v1/chat/completions',
+        'token': 'test-token',
+        'temperature': 0.0,
+        'max_output': 4192
+    })
+    return config
+
+
+@pytest.fixture
+def mock_azure_requests():
+    """Mock requests for Azure processor"""
+    mock_requests = MagicMock()
+    
+    # Mock successful response
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        'choices': [{
+            'message': {
+                'content': 'Test response from Azure'
+            }
+        }],
+        'usage': {
+            'prompt_tokens': 18,
+            'completion_tokens': 9
+        }
+    }
+    mock_requests.post.return_value = mock_response
+    return mock_requests
+
+
+@pytest.fixture
+def mock_azure_rate_limit_response():
+    """Mock Azure rate limit response"""
+    mock_response = MagicMock()
+    mock_response.status_code = 429
+    return mock_response
