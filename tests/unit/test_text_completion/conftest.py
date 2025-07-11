@@ -307,3 +307,89 @@ def mock_azure_rate_limit_response():
     mock_response = MagicMock()
     mock_response.status_code = 429
     return mock_response
+
+
+# === Claude Specific Fixtures ===
+
+@pytest.fixture
+def claude_processor_config(base_processor_config):
+    """Default configuration for Claude processor"""
+    config = base_processor_config.copy()
+    config.update({
+        'model': 'claude-3-5-sonnet-20240620',
+        'api_key': 'test-api-key',
+        'temperature': 0.0,
+        'max_output': 8192
+    })
+    return config
+
+
+@pytest.fixture
+def mock_claude_client():
+    """Mock Claude (Anthropic) client"""
+    mock_client = MagicMock()
+    
+    # Mock the response structure
+    mock_response = MagicMock()
+    mock_response.content = [MagicMock()]
+    mock_response.content[0].text = "Test response from Claude"
+    mock_response.usage.input_tokens = 22
+    mock_response.usage.output_tokens = 12
+    
+    mock_client.messages.create.return_value = mock_response
+    return mock_client
+
+
+@pytest.fixture
+def mock_claude_rate_limit_error():
+    """Mock Claude rate limit error"""
+    import anthropic
+    return anthropic.RateLimitError("Rate limit exceeded", response=MagicMock(), body=None)
+
+
+# === vLLM Specific Fixtures ===
+
+@pytest.fixture
+def vllm_processor_config(base_processor_config):
+    """Default configuration for vLLM processor"""
+    config = base_processor_config.copy()
+    config.update({
+        'model': 'TheBloke/Mistral-7B-v0.1-AWQ',
+        'url': 'http://vllm-service:8899/v1',
+        'temperature': 0.0,
+        'max_output': 2048
+    })
+    return config
+
+
+@pytest.fixture
+def mock_vllm_session():
+    """Mock aiohttp ClientSession for vLLM"""
+    mock_session = MagicMock()
+    
+    # Mock successful response
+    mock_response = MagicMock()
+    mock_response.status = 200
+    mock_response.json = AsyncMock(return_value={
+        'choices': [{
+            'text': 'Test response from vLLM'
+        }],
+        'usage': {
+            'prompt_tokens': 16,
+            'completion_tokens': 8
+        }
+    })
+    
+    # Mock the async context manager
+    mock_session.post.return_value.__aenter__.return_value = mock_response
+    mock_session.post.return_value.__aexit__.return_value = None
+    
+    return mock_session
+
+
+@pytest.fixture
+def mock_vllm_error_response():
+    """Mock vLLM error response"""
+    mock_response = MagicMock()
+    mock_response.status = 500
+    return mock_response

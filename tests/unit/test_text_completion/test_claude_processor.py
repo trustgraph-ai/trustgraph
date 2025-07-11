@@ -113,7 +113,11 @@ class TestClaudeProcessorSimple(IsolatedAsyncioTestCase):
         import anthropic
         
         mock_claude_client = MagicMock()
-        mock_claude_client.messages.create.side_effect = anthropic.RateLimitError("Rate limit exceeded")
+        mock_claude_client.messages.create.side_effect = anthropic.RateLimitError(
+            "Rate limit exceeded", 
+            response=MagicMock(), 
+            body=None
+        )
         mock_anthropic_class.return_value = mock_claude_client
         
         mock_async_init.return_value = None
