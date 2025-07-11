@@ -11,7 +11,7 @@ from unittest import IsolatedAsyncioTestCase
 from trustgraph.storage.graph_embeddings.qdrant.write import Processor
 
 
-class TestQdrantGraphEmbeddingsSimple(IsolatedAsyncioTestCase):
+class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
     """Test Qdrant graph embeddings storage functionality"""
 
     @patch('trustgraph.storage.graph_embeddings.qdrant.write.QdrantClient')

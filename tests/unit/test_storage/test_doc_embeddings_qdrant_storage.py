@@ -11,7 +11,7 @@ from unittest import IsolatedAsyncioTestCase
 from trustgraph.storage.doc_embeddings.qdrant.write import Processor
 
 
-class TestQdrantDocEmbeddingsProcessor(IsolatedAsyncioTestCase):
+class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
     """Test Qdrant document embeddings storage functionality"""
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
