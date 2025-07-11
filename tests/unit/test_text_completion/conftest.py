@@ -154,7 +154,7 @@ def mock_vertexai_exception():
     return ResourceExhausted("Test resource exhausted error")
 
 
-# === Ollama Specific Fixtures (for next implementation) ===
+# === Ollama Specific Fixtures ===
 
 @pytest.fixture
 def ollama_processor_config(base_processor_config):
@@ -182,3 +182,42 @@ def mock_ollama_client():
     }
     mock_client.generate.return_value = mock_response
     return mock_client
+
+
+# === OpenAI Specific Fixtures ===
+
+@pytest.fixture
+def openai_processor_config(base_processor_config):
+    """Default configuration for OpenAI processor"""
+    config = base_processor_config.copy()
+    config.update({
+        'model': 'gpt-3.5-turbo',
+        'api_key': 'test-api-key',
+        'url': 'https://api.openai.com/v1',
+        'temperature': 0.0,
+        'max_output': 4096
+    })
+    return config
+
+
+@pytest.fixture
+def mock_openai_client():
+    """Mock OpenAI client"""
+    mock_client = MagicMock()
+    
+    # Mock the response structure
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message.content = "Test response from OpenAI"
+    mock_response.usage.prompt_tokens = 15
+    mock_response.usage.completion_tokens = 8
+    
+    mock_client.chat.completions.create.return_value = mock_response
+    return mock_client
+
+
+@pytest.fixture
+def mock_openai_rate_limit_error():
+    """Mock OpenAI rate limit error"""
+    from openai import RateLimitError
+    return RateLimitError("Rate limit exceeded", response=MagicMock(), body=None)
