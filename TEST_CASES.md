@@ -109,6 +109,43 @@ This document provides comprehensive test cases for all TrustGraph microservices
   - Test content filtering rejection error
   - Test quota exceeded error
 
+### Google Vertex AI Text Completion (`trustgraph.model.text_completion.vertexai`)
+
+#### Unit Tests
+- **test_vertexai_processor_initialization**
+  - Test processor initialization with GCP credentials
+  - Test processor initialization with project ID and location
+  - Test processor initialization with model selection (gemini-pro, gemini-ultra)
+  - Test processor initialization with custom generation config
+
+- **test_vertexai_message_processing**
+  - Test successful text completion with Gemini models
+  - Test text completion with system instructions
+  - Test text completion with safety settings
+  - Test text completion with function calling
+  - Test text completion with multi-turn conversation
+  - Test text completion with streaming responses
+
+- **test_vertexai_safety_filtering**
+  - Test safety filter configuration
+  - Test blocked content handling
+  - Test safety threshold adjustments
+  - Test safety filter bypass scenarios
+
+- **test_vertexai_error_handling**
+  - Test authentication error handling (service account, ADC)
+  - Test quota exceeded error handling
+  - Test model not found error handling
+  - Test region availability error handling
+  - Test safety filter rejection error handling
+  - Test token limit exceeded error handling
+
+- **test_vertexai_metrics_collection**
+  - Test token usage metrics collection
+  - Test request duration metrics
+  - Test safety filter metrics
+  - Test cost calculation metrics per model type
+
 ---
 
 ## Embeddings Services
@@ -222,6 +259,56 @@ This document provides comprehensive test cases for all TrustGraph microservices
   - Test index building error
   - Test search timeout error
 
+### Graph Embeddings Storage
+
+#### Qdrant Storage (`trustgraph.storage.graph_embeddings.qdrant`)
+
+##### Unit Tests
+- **test_qdrant_graph_storage_initialization**
+  - Test Qdrant client initialization for graph embeddings
+  - Test collection creation with graph-specific schema
+  - Test index configuration for entity and relationship embeddings
+
+- **test_qdrant_graph_storage_operations**
+  - Test entity embedding insertion with metadata
+  - Test relationship embedding insertion
+  - Test subgraph embedding storage
+  - Test batch insertion of graph embeddings
+  - Test embedding updates and versioning
+
+- **test_qdrant_graph_storage_queries**
+  - Test entity similarity search
+  - Test relationship similarity search
+  - Test subgraph similarity search
+  - Test filtered search by graph properties
+  - Test multi-vector search operations
+
+- **test_qdrant_graph_storage_error_handling**
+  - Test connection error handling
+  - Test collection not found error
+  - Test vector dimension mismatch for graph embeddings
+  - Test storage quota exceeded error
+
+#### Milvus Storage (`trustgraph.storage.graph_embeddings.milvus`)
+
+##### Unit Tests
+- **test_milvus_graph_storage_initialization**
+  - Test Milvus client initialization for graph embeddings
+  - Test collection schema creation for graph data
+  - Test index creation for entity and relationship vectors
+
+- **test_milvus_graph_storage_operations**
+  - Test entity embedding insertion with graph metadata
+  - Test relationship embedding insertion
+  - Test graph structure preservation
+  - Test bulk graph embedding operations
+
+- **test_milvus_graph_storage_error_handling**
+  - Test connection timeout error
+  - Test graph schema validation error
+  - Test index building error for graph embeddings
+  - Test search timeout error
+
 ### Graph Storage
 
 #### Cassandra Storage (`trustgraph.storage.triples.cassandra`)
@@ -300,6 +387,64 @@ This document provides comprehensive test cases for all TrustGraph microservices
   - Test hybrid search with scalar filters
   - Test range search operations
   - Test top-k result retrieval
+
+### Graph Embeddings Query
+
+#### Qdrant Query (`trustgraph.query.graph_embeddings.qdrant`)
+
+##### Unit Tests
+- **test_qdrant_graph_query_initialization**
+  - Test graph query service initialization with collection
+  - Test graph query service initialization with custom parameters
+  - Test entity and relationship collection configuration
+
+- **test_qdrant_graph_query_operations**
+  - Test entity similarity search with single vector
+  - Test relationship similarity search
+  - Test subgraph pattern matching
+  - Test multi-hop graph traversal queries
+  - Test filtered graph similarity search
+  - Test ranked graph result retrieval
+  - Test graph query pagination
+
+- **test_qdrant_graph_query_optimization**
+  - Test graph query performance optimization
+  - Test graph query result caching
+  - Test concurrent graph query handling
+  - Test graph query timeout handling
+
+- **test_qdrant_graph_query_error_handling**
+  - Test graph collection not found error
+  - Test graph query timeout error
+  - Test invalid graph query parameter error
+  - Test graph result limit exceeded error
+
+#### Milvus Query (`trustgraph.query.graph_embeddings.milvus`)
+
+##### Unit Tests
+- **test_milvus_graph_query_initialization**
+  - Test graph query service initialization
+  - Test graph index selection for queries
+  - Test graph collection configuration
+
+- **test_milvus_graph_query_operations**
+  - Test entity vector similarity search
+  - Test relationship vector similarity search
+  - Test graph hybrid search with scalar filters
+  - Test graph range search operations
+  - Test top-k graph result retrieval
+  - Test graph query result aggregation
+
+- **test_milvus_graph_query_performance**
+  - Test graph query performance with large datasets
+  - Test graph query optimization strategies
+  - Test graph query result caching
+
+- **test_milvus_graph_query_error_handling**
+  - Test graph connection timeout error
+  - Test graph collection not found error
+  - Test graph query syntax error
+  - Test graph search timeout error
 
 ### Graph Query
 
