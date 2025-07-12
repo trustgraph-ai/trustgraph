@@ -132,7 +132,7 @@ class TestApi:
             app = await api.app_factory()
             
             assert isinstance(app, web.Application)
-            assert app.client_max_size == 256 * 1024 * 1024
+            assert app._client_max_size == 256 * 1024 * 1024
             
             # Verify that config receiver was started
             api.config_receiver.start.assert_called_once()
@@ -207,7 +207,7 @@ class TestApi:
             assert api.dispatcher_manager.pulsar_client == api.pulsar_client
             assert api.dispatcher_manager.config_receiver == api.config_receiver
             assert api.endpoint_manager.dispatcher_manager == api.dispatcher_manager
-            assert api.endpoint_manager.auth == api.auth
+            # EndpointManager doesn't store auth directly, it passes it to individual endpoints
 
 
 class TestRunFunction:

@@ -406,6 +406,9 @@ class TestDispatcherManager:
         mock_config_receiver = Mock()
         manager = DispatcherManager(mock_pulsar_client, mock_config_receiver)
         
+        # Add flow to the flows dictionary
+        manager.flows["test_flow"] = {"services": {"agent": {}}}
+        
         # Pre-populate with existing dispatcher
         mock_dispatcher = Mock()
         mock_dispatcher.process = AsyncMock(return_value="cached_result")

@@ -119,7 +119,7 @@ class TestReverseGateway:
     @patch('trustgraph.rev_gateway.service.ConfigReceiver')
     @patch('trustgraph.rev_gateway.service.MessageDispatcher')
     @patch('pulsar.Client')
-    @patch('aiohttp.ClientSession')
+    @patch('trustgraph.rev_gateway.service.ClientSession')
     @pytest.mark.asyncio
     async def test_reverse_gateway_connect_success(self, mock_session_class, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
         """Test ReverseGateway successful connection"""
@@ -143,7 +143,7 @@ class TestReverseGateway:
     @patch('trustgraph.rev_gateway.service.ConfigReceiver')
     @patch('trustgraph.rev_gateway.service.MessageDispatcher')
     @patch('pulsar.Client')
-    @patch('aiohttp.ClientSession')
+    @patch('trustgraph.rev_gateway.service.ClientSession')
     @pytest.mark.asyncio
     async def test_reverse_gateway_connect_failure(self, mock_session_class, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
         """Test ReverseGateway connection failure"""
