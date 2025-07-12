@@ -119,46 +119,46 @@ class TestReverseGateway:
     @patch('trustgraph.rev_gateway.service.ConfigReceiver')
     @patch('trustgraph.rev_gateway.service.MessageDispatcher')
     @patch('pulsar.Client')
+    @patch('aiohttp.ClientSession')
     @pytest.mark.asyncio
-    async def test_reverse_gateway_connect_success(self, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
+    async def test_reverse_gateway_connect_success(self, mock_session_class, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
         """Test ReverseGateway successful connection"""
         mock_client_instance = MagicMock()
         mock_pulsar_client.return_value = mock_client_instance
         
+        mock_session = AsyncMock()
+        mock_ws = AsyncMock()
+        mock_session.ws_connect.return_value = mock_ws
+        mock_session_class.return_value = mock_session
+        
         gateway = ReverseGateway()
         
-        with patch('aiohttp.ClientSession') as mock_session_class:
-            mock_session = AsyncMock()
-            mock_ws = AsyncMock()
-            mock_session.ws_connect.return_value = mock_ws
-            mock_session_class.return_value = mock_session
-            
-            result = await gateway.connect()
-            
-            assert result is True
-            assert gateway.session == mock_session
-            assert gateway.ws == mock_ws
-            mock_session.ws_connect.assert_called_once_with(gateway.url)
+        result = await gateway.connect()
+        
+        assert result is True
+        assert gateway.session == mock_session
+        assert gateway.ws == mock_ws
+        mock_session.ws_connect.assert_called_once_with(gateway.url)
 
     @patch('trustgraph.rev_gateway.service.ConfigReceiver')
     @patch('trustgraph.rev_gateway.service.MessageDispatcher')
     @patch('pulsar.Client')
+    @patch('aiohttp.ClientSession')
     @pytest.mark.asyncio
-    async def test_reverse_gateway_connect_failure(self, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
+    async def test_reverse_gateway_connect_failure(self, mock_session_class, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
         """Test ReverseGateway connection failure"""
         mock_client_instance = MagicMock()
         mock_pulsar_client.return_value = mock_client_instance
         
+        mock_session = AsyncMock()
+        mock_session.ws_connect.side_effect = Exception("Connection failed")
+        mock_session_class.return_value = mock_session
+        
         gateway = ReverseGateway()
         
-        with patch('aiohttp.ClientSession') as mock_session_class:
-            mock_session = AsyncMock()
-            mock_session.ws_connect.side_effect = Exception("Connection failed")
-            mock_session_class.return_value = mock_session
-            
-            result = await gateway.connect()
-            
-            assert result is False
+        result = await gateway.connect()
+        
+        assert result is False
 
     @patch('trustgraph.rev_gateway.service.ConfigReceiver')
     @patch('trustgraph.rev_gateway.service.MessageDispatcher')
