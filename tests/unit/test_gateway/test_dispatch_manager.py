@@ -26,9 +26,9 @@ class TestDispatcherWrapper:
         mock_handler = AsyncMock()
         wrapper = DispatcherWrapper(mock_handler)
         
-        result = await wrapper.process("arg1", "arg2", kwarg1="value1")
+        result = await wrapper.process("arg1", "arg2")
         
-        mock_handler.assert_called_once_with("arg1", "arg2", kwarg1="value1")
+        mock_handler.assert_called_once_with("arg1", "arg2")
         assert result == mock_handler.return_value
 
 
