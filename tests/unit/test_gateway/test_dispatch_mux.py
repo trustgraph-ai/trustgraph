@@ -101,7 +101,7 @@ class TestMux:
     async def test_mux_receive_message_without_request(self):
         """Test Mux receive method with message missing request field"""
         mock_dispatcher_manager = MagicMock()
-        mock_ws = MagicMock()
+        mock_ws = AsyncMock()
         mock_running = MagicMock()
         
         mux = Mux(
@@ -119,12 +119,14 @@ class TestMux:
         # receive method should handle the RuntimeError internally
         # Based on the code, it seems to catch exceptions
         await mux.receive(mock_msg)
+        
+        mock_ws.send_json.assert_called_once_with({"error": "Bad message"})
 
     @pytest.mark.asyncio
     async def test_mux_receive_message_without_id(self):
         """Test Mux receive method with message missing id field"""
         mock_dispatcher_manager = MagicMock()
-        mock_ws = MagicMock()
+        mock_ws = AsyncMock()
         mock_running = MagicMock()
         
         mux = Mux(
@@ -141,12 +143,14 @@ class TestMux:
         
         # receive method should handle the RuntimeError internally
         await mux.receive(mock_msg)
+        
+        mock_ws.send_json.assert_called_once_with({"error": "Bad message"})
 
     @pytest.mark.asyncio
     async def test_mux_receive_invalid_json(self):
         """Test Mux receive method with invalid JSON"""
         mock_dispatcher_manager = MagicMock()
-        mock_ws = MagicMock()
+        mock_ws = AsyncMock()
         mock_running = MagicMock()
         
         mux = Mux(
@@ -163,3 +167,4 @@ class TestMux:
         await mux.receive(mock_msg)
         
         mock_msg.json.assert_called_once()
+        mock_ws.send_json.assert_called_once_with({"error": "Invalid JSON"})
