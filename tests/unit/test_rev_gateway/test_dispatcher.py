@@ -143,7 +143,7 @@ class TestMessageDispatcher:
     async def test_message_dispatcher_handle_message_with_exception(self):
         """Test MessageDispatcher handle_message with exception during processing"""
         mock_dispatcher_manager = MagicMock()
-        mock_dispatcher_manager.invoke_global_service.side_effect = Exception("Test error")
+        mock_dispatcher_manager.invoke_global_service = AsyncMock(side_effect=Exception("Test error"))
         
         dispatcher = MessageDispatcher()
         dispatcher.dispatcher_manager = mock_dispatcher_manager
@@ -154,7 +154,7 @@ class TestMessageDispatcher:
             "request": {"prompt": "test"}
         }
         
-        with patch('trustgraph.rev_gateway.dispatcher.global_dispatchers', {"text-completion": True}):
+        with patch('trustgraph.gateway.dispatch.manager.global_dispatchers', {"text-completion": True}):
             result = await dispatcher.handle_message(test_message)
         
         assert result["id"] == "test-456"
@@ -165,6 +165,7 @@ class TestMessageDispatcher:
     async def test_message_dispatcher_handle_message_global_service(self):
         """Test MessageDispatcher handle_message with global service"""
         mock_dispatcher_manager = MagicMock()
+        mock_dispatcher_manager.invoke_global_service = AsyncMock()
         mock_responder = MagicMock()
         mock_responder.completed = True
         mock_responder.response = {"result": "success"}
@@ -178,7 +179,7 @@ class TestMessageDispatcher:
             "request": {"prompt": "hello"}
         }
         
-        with patch('trustgraph.rev_gateway.dispatcher.global_dispatchers', {"text-completion": True}):
+        with patch('trustgraph.gateway.dispatch.manager.global_dispatchers', {"text-completion": True}):
             with patch('trustgraph.rev_gateway.dispatcher.WebSocketResponder', return_value=mock_responder):
                 result = await dispatcher.handle_message(test_message)
         
@@ -190,6 +191,7 @@ class TestMessageDispatcher:
     async def test_message_dispatcher_handle_message_flow_service(self):
         """Test MessageDispatcher handle_message with flow service"""
         mock_dispatcher_manager = MagicMock()
+        mock_dispatcher_manager.invoke_flow_service = AsyncMock()
         mock_responder = MagicMock()
         mock_responder.completed = True
         mock_responder.response = {"data": "flow_result"}
@@ -204,7 +206,7 @@ class TestMessageDispatcher:
             "flow": "custom-flow"
         }
         
-        with patch('trustgraph.rev_gateway.dispatcher.global_dispatchers', {}):
+        with patch('trustgraph.gateway.dispatch.manager.global_dispatchers', {}):
             with patch('trustgraph.rev_gateway.dispatcher.WebSocketResponder', return_value=mock_responder):
                 result = await dispatcher.handle_message(test_message)
         
@@ -218,6 +220,7 @@ class TestMessageDispatcher:
     async def test_message_dispatcher_handle_message_incomplete_response(self):
         """Test MessageDispatcher handle_message with incomplete response"""
         mock_dispatcher_manager = MagicMock()
+        mock_dispatcher_manager.invoke_flow_service = AsyncMock()
         mock_responder = MagicMock()
         mock_responder.completed = False
         mock_responder.response = None
@@ -231,7 +234,7 @@ class TestMessageDispatcher:
             "request": {"input": "test"}
         }
         
-        with patch('trustgraph.rev_gateway.dispatcher.global_dispatchers', {}):
+        with patch('trustgraph.gateway.dispatch.manager.global_dispatchers', {}):
             with patch('trustgraph.rev_gateway.dispatcher.WebSocketResponder', return_value=mock_responder):
                 result = await dispatcher.handle_message(test_message)
         
@@ -241,17 +244,25 @@ class TestMessageDispatcher:
     @pytest.mark.asyncio
     async def test_message_dispatcher_shutdown(self):
         """Test MessageDispatcher shutdown method"""
+        import asyncio
+        
         dispatcher = MessageDispatcher()
         
-        # Add mock tasks
-        mock_task1 = AsyncMock()
-        mock_task2 = AsyncMock()
-        dispatcher.active_tasks = {mock_task1, mock_task2}
+        # Create actual async tasks
+        async def dummy_task():
+            await asyncio.sleep(0.01)
+            return "done"
+        
+        task1 = asyncio.create_task(dummy_task())
+        task2 = asyncio.create_task(dummy_task())
+        dispatcher.active_tasks = {task1, task2}
         
         # Call shutdown
         await dispatcher.shutdown()
         
-        # Verify tasks were handled (they should be empty after shutdown)
+        # Verify tasks were completed
+        assert task1.done()
+        assert task2.done()
         assert len(dispatcher.active_tasks) == 2  # Tasks remain in set but are completed
 
     @pytest.mark.asyncio
