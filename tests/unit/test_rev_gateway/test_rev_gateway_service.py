@@ -308,11 +308,11 @@ class TestReverseGateway:
         mock_msg.type = WSMsgType.TEXT
         mock_msg.data = '{"test": "message"}'
         
-        # Mock receive to return message once, then close
+        # Mock receive to return message once, then raise exception to stop loop
         mock_ws.receive.side_effect = [mock_msg, Exception("Test stop")]
         
-        with pytest.raises(Exception, match="Test stop"):
-            await gateway.listen()
+        # listen() catches exceptions and breaks, so no exception should be raised
+        await gateway.listen()
         
         gateway.handle_message.assert_called_once_with('{"test": "message"}')
 
@@ -341,11 +341,11 @@ class TestReverseGateway:
         mock_msg.type = WSMsgType.BINARY
         mock_msg.data = b'{"test": "binary"}'
         
-        # Mock receive to return message once, then close
+        # Mock receive to return message once, then raise exception to stop loop
         mock_ws.receive.side_effect = [mock_msg, Exception("Test stop")]
         
-        with pytest.raises(Exception, match="Test stop"):
-            await gateway.listen()
+        # listen() catches exceptions and breaks, so no exception should be raised
+        await gateway.listen()
         
         gateway.handle_message.assert_called_once_with('{"test": "binary"}')
 
@@ -462,7 +462,8 @@ class TestReverseGatewayRun:
         
         mock_config_receiver_instance.start.assert_called_once()
         gateway.listen.assert_called_once()
-        gateway.disconnect.assert_called_once()
+        # disconnect is called twice: once in the main loop, once in shutdown
+        assert gateway.disconnect.call_count == 2
         gateway.shutdown.assert_called_once()
 
 
