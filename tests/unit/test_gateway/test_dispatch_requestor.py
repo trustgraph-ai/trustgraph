@@ -74,7 +74,9 @@ class TestServiceRequestor:
         """Test ServiceRequestor start method"""
         mock_pulsar_client = MagicMock()
         mock_sub_instance = AsyncMock()
+        mock_pub_instance = AsyncMock()
         mock_subscriber.return_value = mock_sub_instance
+        mock_publisher.return_value = mock_pub_instance
         
         requestor = ServiceRequestor(
             pulsar_client=mock_pulsar_client,
@@ -87,8 +89,9 @@ class TestServiceRequestor:
         # Call start
         await requestor.start()
         
-        # Verify subscriber start was called
+        # Verify both subscriber and publisher start were called
         mock_sub_instance.start.assert_called_once()
+        mock_pub_instance.start.assert_called_once()
         assert requestor.running is True
 
     @patch('trustgraph.gateway.dispatch.requestor.Publisher')
@@ -96,8 +99,8 @@ class TestServiceRequestor:
     def test_service_requestor_attributes(self, mock_subscriber, mock_publisher):
         """Test ServiceRequestor has correct attributes"""
         mock_pulsar_client = MagicMock()
-        mock_pub_instance = MagicMock()
-        mock_sub_instance = MagicMock()
+        mock_pub_instance = AsyncMock()
+        mock_sub_instance = AsyncMock()
         mock_publisher.return_value = mock_pub_instance
         mock_subscriber.return_value = mock_sub_instance
         

@@ -61,8 +61,8 @@ class TestSocketEndpoint:
         async def async_iter():
             yield mock_msg
         
-        mock_ws = MagicMock()
-        mock_ws.__aiter__ = lambda: async_iter()
+        mock_ws = AsyncMock()
+        mock_ws.__aiter__ = lambda self: async_iter()
         mock_running = MagicMock()
         
         # Call listener method
@@ -70,6 +70,9 @@ class TestSocketEndpoint:
         
         # Verify dispatcher.receive was called with the message
         mock_dispatcher.receive.assert_called_once_with(mock_msg)
+        # Verify cleanup methods were called
+        mock_running.stop.assert_called_once()
+        mock_ws.close.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_listener_method_with_binary_message(self):
@@ -87,8 +90,8 @@ class TestSocketEndpoint:
         async def async_iter():
             yield mock_msg
         
-        mock_ws = MagicMock()
-        mock_ws.__aiter__ = lambda: async_iter()
+        mock_ws = AsyncMock()
+        mock_ws.__aiter__ = lambda self: async_iter()
         mock_running = MagicMock()
         
         # Call listener method
@@ -96,6 +99,9 @@ class TestSocketEndpoint:
         
         # Verify dispatcher.receive was called with the message
         mock_dispatcher.receive.assert_called_once_with(mock_msg)
+        # Verify cleanup methods were called
+        mock_running.stop.assert_called_once()
+        mock_ws.close.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_listener_method_with_close_message(self):
@@ -113,8 +119,8 @@ class TestSocketEndpoint:
         async def async_iter():
             yield mock_msg
         
-        mock_ws = MagicMock()
-        mock_ws.__aiter__ = lambda: async_iter()
+        mock_ws = AsyncMock()
+        mock_ws.__aiter__ = lambda self: async_iter()
         mock_running = MagicMock()
         
         # Call listener method
@@ -122,3 +128,6 @@ class TestSocketEndpoint:
         
         # Verify dispatcher.receive was NOT called for close message
         mock_dispatcher.receive.assert_not_called()
+        # Verify cleanup methods were called after break
+        mock_running.stop.assert_called_once()
+        mock_ws.close.assert_called_once()

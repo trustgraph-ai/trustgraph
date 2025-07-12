@@ -22,7 +22,8 @@ class TestEndpointManager:
         mock_dispatcher_manager.dispatch_flow_service.return_value = MagicMock()
         mock_dispatcher_manager.dispatch_flow_import.return_value = MagicMock()
         mock_dispatcher_manager.dispatch_flow_export.return_value = MagicMock()
-        mock_dispatcher_manager.dispatch_flow_stream.return_value = MagicMock()
+        mock_dispatcher_manager.dispatch_core_import.return_value = MagicMock()
+        mock_dispatcher_manager.dispatch_core_export.return_value = MagicMock()
         
         manager = EndpointManager(
             dispatcher_manager=mock_dispatcher_manager,
@@ -47,7 +48,8 @@ class TestEndpointManager:
         mock_dispatcher_manager.dispatch_flow_service.return_value = MagicMock()
         mock_dispatcher_manager.dispatch_flow_import.return_value = MagicMock()
         mock_dispatcher_manager.dispatch_flow_export.return_value = MagicMock()
-        mock_dispatcher_manager.dispatch_flow_stream.return_value = MagicMock()
+        mock_dispatcher_manager.dispatch_core_import.return_value = MagicMock()
+        mock_dispatcher_manager.dispatch_core_export.return_value = MagicMock()
         
         manager = EndpointManager(
             dispatcher_manager=mock_dispatcher_manager,
@@ -62,13 +64,14 @@ class TestEndpointManager:
         mock_dispatcher_manager = MagicMock()
         mock_auth = MagicMock()
         
-        # Mock dispatcher methods
+        # Mock dispatcher methods that are actually called
         mock_dispatcher_manager.dispatch_global_service.return_value = MagicMock()
         mock_dispatcher_manager.dispatch_socket.return_value = MagicMock()
         mock_dispatcher_manager.dispatch_flow_service.return_value = MagicMock()
         mock_dispatcher_manager.dispatch_flow_import.return_value = MagicMock()
         mock_dispatcher_manager.dispatch_flow_export.return_value = MagicMock()
-        mock_dispatcher_manager.dispatch_flow_stream.return_value = MagicMock()
+        mock_dispatcher_manager.dispatch_core_import.return_value = MagicMock()
+        mock_dispatcher_manager.dispatch_core_export.return_value = MagicMock()
         
         EndpointManager(
             dispatcher_manager=mock_dispatcher_manager,
@@ -78,8 +81,9 @@ class TestEndpointManager:
         
         # Verify all dispatcher methods were called during initialization
         mock_dispatcher_manager.dispatch_global_service.assert_called_once()
-        mock_dispatcher_manager.dispatch_socket.assert_called()
+        mock_dispatcher_manager.dispatch_socket.assert_called()  # Called twice
         mock_dispatcher_manager.dispatch_flow_service.assert_called_once()
-        mock_dispatcher_manager.dispatch_flow_import.assert_called()
-        mock_dispatcher_manager.dispatch_flow_export.assert_called()
-        mock_dispatcher_manager.dispatch_flow_stream.assert_called()
+        mock_dispatcher_manager.dispatch_flow_import.assert_called_once()
+        mock_dispatcher_manager.dispatch_flow_export.assert_called_once()
+        mock_dispatcher_manager.dispatch_core_import.assert_called_once()
+        mock_dispatcher_manager.dispatch_core_export.assert_called_once()
