@@ -75,7 +75,7 @@ class TestMux:
     async def test_mux_receive_valid_message(self):
         """Test Mux receive method with valid message"""
         mock_dispatcher_manager = MagicMock()
-        mock_ws = MagicMock()
+        mock_ws = AsyncMock()
         mock_running = MagicMock()
         
         mux = Mux(
@@ -88,7 +88,8 @@ class TestMux:
         mock_msg = MagicMock()
         mock_msg.json.return_value = {
             "request": {"type": "test"},
-            "id": "test-id-123"
+            "id": "test-id-123",
+            "service": "test-service"
         }
         
         # Call receive
