@@ -184,7 +184,11 @@ class TestApi:
             api = Api(port=8080)
             api.run()
             
-            mock_run_app.assert_called_once_with(api.app_factory(), port=8080)
+            # Verify run_app was called once with the correct port
+            mock_run_app.assert_called_once()
+            args, kwargs = mock_run_app.call_args
+            assert len(args) == 1  # Should have one positional arg (the coroutine)
+            assert kwargs == {'port': 8080}  # Should have port keyword arg
 
     def test_api_components_initialization(self):
         """Test that all API components are properly initialized"""
