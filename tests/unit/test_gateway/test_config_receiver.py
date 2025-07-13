@@ -10,6 +10,9 @@ import uuid
 
 from trustgraph.gateway.config.receiver import ConfigReceiver
 
+# Save the real method before patching
+_real_config_loader = ConfigReceiver.config_loader
+
 # Patch async methods at module level to prevent coroutine warnings
 ConfigReceiver.config_loader = AsyncMock()
 
@@ -243,7 +246,10 @@ class TestConfigReceiver:
     async def test_config_loader_creates_consumer(self):
         """Test config_loader method creates Pulsar consumer"""
         mock_pulsar_client = Mock()
+        
         config_receiver = ConfigReceiver(mock_pulsar_client)
+        # Temporarily restore the real config_loader for this test
+        config_receiver.config_loader = _real_config_loader.__get__(config_receiver)
         
         # Mock Consumer class
         with patch('trustgraph.gateway.config.receiver.Consumer') as mock_consumer_class, \
