@@ -3,9 +3,12 @@ Tests for Gateway Config Dispatch
 """
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, AsyncMock
 
 from trustgraph.gateway.dispatch.config import ConfigRequestor
+
+# Import parent class for local patching
+from trustgraph.gateway.dispatch.requestor import ServiceRequestor
 
 
 class TestConfigRequestor:
@@ -48,11 +51,14 @@ class TestConfigRequestor:
         # Setup translator response
         mock_request_translator.to_pulsar.return_value = "translated_request"
         
-        requestor = ConfigRequestor(
-            pulsar_client=MagicMock(),
-            consumer="test-consumer", 
-            subscriber="test-subscriber"
-        )
+        # Temporarily patch ServiceRequestor async methods to prevent coroutine warnings
+        with patch.object(ServiceRequestor, 'start', new_callable=AsyncMock), \
+             patch.object(ServiceRequestor, 'process', new_callable=AsyncMock):
+            requestor = ConfigRequestor(
+                pulsar_client=MagicMock(),
+                consumer="test-consumer", 
+                subscriber="test-subscriber"
+            )
         
         # Call to_request
         result = requestor.to_request({"test": "body"})

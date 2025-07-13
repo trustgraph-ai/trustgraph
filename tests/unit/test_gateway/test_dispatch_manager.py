@@ -9,6 +9,8 @@ import uuid
 
 from trustgraph.gateway.dispatch.manager import DispatcherManager, DispatcherWrapper
 
+# Keep the real methods intact for proper testing
+
 
 class TestDispatcherWrapper:
     """Test cases for DispatcherWrapper class"""
@@ -313,9 +315,12 @@ class TestDispatcherManager:
     @pytest.mark.asyncio
     async def test_process_flow_import_with_invalid_kind(self):
         """Test process_flow_import with invalid kind"""
-        mock_pulsar_client = Mock()
-        mock_config_receiver = Mock()
-        manager = DispatcherManager(mock_pulsar_client, mock_config_receiver)
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            mock_pulsar_client = Mock()
+            mock_config_receiver = Mock()
+            manager = DispatcherManager(mock_pulsar_client, mock_config_receiver)
         
         # Setup test flow
         manager.flows["test_flow"] = {
