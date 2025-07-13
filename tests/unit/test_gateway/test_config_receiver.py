@@ -312,32 +312,35 @@ class TestConfigReceiver:
             "flow2": {"name": "test_flow_2", "steps": []}
         }
         
-        # Mock the flow methods
-        config_receiver.start_flow = AsyncMock()
-        config_receiver.stop_flow = AsyncMock()
+        # Mock the flow methods using patch.object to avoid coroutine creation during assignment
+        start_flow_mock = AsyncMock()
+        stop_flow_mock = AsyncMock()
         
-        # Create mock message with flow1 removed and flow3 added
-        mock_msg = Mock()
-        mock_msg.value.return_value = Mock(
-            version="1.0",
-            config={
-                "flows": {
-                    "flow2": '{"name": "test_flow_2", "steps": []}',
-                    "flow3": '{"name": "test_flow_3", "steps": []}'
+        with patch.object(config_receiver, 'start_flow', start_flow_mock), \
+             patch.object(config_receiver, 'stop_flow', stop_flow_mock):
+            
+            # Create mock message with flow1 removed and flow3 added
+            mock_msg = Mock()
+            mock_msg.value.return_value = Mock(
+                version="1.0",
+                config={
+                    "flows": {
+                        "flow2": '{"name": "test_flow_2", "steps": []}',
+                        "flow3": '{"name": "test_flow_3", "steps": []}'
+                    }
                 }
-            }
-        )
-        
-        await config_receiver.on_config(mock_msg, None, None)
-        
-        # Verify final state
-        assert "flow1" not in config_receiver.flows
-        assert "flow2" in config_receiver.flows
-        assert "flow3" in config_receiver.flows
-        
-        # Verify operations
-        config_receiver.start_flow.assert_called_once_with("flow3", {"name": "test_flow_3", "steps": []})
-        config_receiver.stop_flow.assert_called_once_with("flow1", {"name": "test_flow_1", "steps": []})
+            )
+            
+            await config_receiver.on_config(mock_msg, None, None)
+            
+            # Verify final state
+            assert "flow1" not in config_receiver.flows
+            assert "flow2" in config_receiver.flows
+            assert "flow3" in config_receiver.flows
+            
+            # Verify operations
+            start_flow_mock.assert_called_once_with("flow3", {"name": "test_flow_3", "steps": []})
+            stop_flow_mock.assert_called_once_with("flow1", {"name": "test_flow_1", "steps": []})
 
     @pytest.mark.asyncio
     async def test_on_config_invalid_json_flow_data(self):
