@@ -10,29 +10,20 @@ from pinecone.grpc import PineconeGRPC, GRPCClientConfig
 import uuid
 import os
 
-from .... schema import DocumentEmbeddingsRequest, DocumentEmbeddingsResponse
-from .... schema import Error, Value
-from .... schema import document_embeddings_request_queue
-from .... schema import document_embeddings_response_queue
-from .... base import ConsumerProducer
+from .... base import DocumentEmbeddingsQueryService
 
-module = "de-query"
-
-default_input_queue = document_embeddings_request_queue
-default_output_queue = document_embeddings_response_queue
-default_subscriber = module
+default_ident = "de-query"
 default_api_key = os.getenv("PINECONE_API_KEY", "not-specified")
 
-class Processor(ConsumerProducer):
+class Processor(DocumentEmbeddingsQueryService):
 
     def __init__(self, **params):
 
-        input_queue = params.get("input_queue", default_input_queue)
-        output_queue = params.get("output_queue", default_output_queue)
-        subscriber = params.get("subscriber", default_subscriber)
-
         self.url = params.get("url", None)
         self.api_key = params.get("api_key", default_api_key)
+
+        if self.api_key is None or self.api_key == "not-specified":
+            raise RuntimeError("Pinecone API key must be specified")
 
         if self.url:
 
@@ -47,88 +38,53 @@ class Processor(ConsumerProducer):
 
         super(Processor, self).__init__(
             **params | {
-                "input_queue": input_queue,
-                "output_queue": output_queue,
-                "subscriber": subscriber,
-                "input_schema": DocumentEmbeddingsRequest,
-                "output_schema": DocumentEmbeddingsResponse,
                 "url": self.url,
+                "api_key": self.api_key,
             }
         )
 
-    async def handle(self, msg):
+    async def query_document_embeddings(self, msg):
 
         try:
 
-            v = msg.value()
-
-            # Sender-produced ID
-            id = msg.properties()["id"]
-
-            print(f"Handling input {id}...", flush=True)
+            # Handle zero limit case
+            if msg.limit <= 0:
+                return []
 
             chunks = []
 
-            for vec in v.vectors:
+            for vec in msg.vectors:
 
                 dim = len(vec)
 
                 index_name = (
-                    "d-" + v.user + "-" + str(dim)
+                    "d-" + msg.user + "-" + msg.collection + "-" + str(dim)
                 )
 
                 index = self.pinecone.Index(index_name)
 
                 results = index.query(
-                    namespace=v.collection,
                     vector=vec,
-                    top_k=v.limit,
+                    top_k=msg.limit,
                     include_values=False,
                     include_metadata=True
                 )
 
-                search_result = self.client.query_points(
-                    collection_name=collection,
-                    query=vec,
-                    limit=v.limit,
-                    with_payload=True,
-                ).points
-
                 for r in results.matches:
                     doc = r.metadata["doc"]
-                    chunks.add(doc)
+                    chunks.append(doc)
 
-            print("Send response...", flush=True)
-            r = DocumentEmbeddingsResponse(documents=chunks, error=None)
-            await self.send(r, properties={"id": id})
-
-            print("Done.", flush=True)
+            return chunks
 
         except Exception as e:
 
             print(f"Exception: {e}")
-
-            print("Send error response...", flush=True)
-
-            r = DocumentEmbeddingsResponse(
-                error=Error(
-                    type = "llm-error",
-                    message = str(e),
-                ),
-                documents=None,
-            )
-
-            await self.send(r, properties={"id": id})
-
-            self.consumer.acknowledge(msg)
+            raise e
 
     @staticmethod
     def add_args(parser):
 
-        ConsumerProducer.add_args(
-            parser, default_input_queue, default_subscriber,
-            default_output_queue,
-        )
+        DocumentEmbeddingsQueryService.add_args(parser)
 
         parser.add_argument(
             '-a', '--api-key',
@@ -143,5 +99,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 
