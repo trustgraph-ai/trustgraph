@@ -64,6 +64,29 @@ class TestConversationStateLogic:
     def test_turn_management(self):
         """Test adding and managing conversation turns"""
         # Arrange
+        class ConversationState:
+            def __init__(self, conversation_id=None, user_id=None):
+                self.conversation_id = conversation_id or f"conv_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                self.user_id = user_id
+                self.created_at = datetime.now()
+                self.updated_at = datetime.now()
+                self.turns = []
+                self.context = {}
+                self.metadata = {}
+                self.is_active = True
+            
+            def to_dict(self):
+                return {
+                    "conversation_id": self.conversation_id,
+                    "user_id": self.user_id,
+                    "created_at": self.created_at.isoformat(),
+                    "updated_at": self.updated_at.isoformat(),
+                    "turns": self.turns,
+                    "context": self.context,
+                    "metadata": self.metadata,
+                    "is_active": self.is_active
+                }
+        
         class ConversationTurn:
             def __init__(self, role, content, timestamp=None, metadata=None):
                 self.role = role  # "user" or "assistant"
@@ -109,8 +132,9 @@ class TestConversationStateLogic:
         manager = ConversationManager()
         conv_id = "test_conv"
         
-        # Create conversation
-        manager.conversations[conv_id] = ConversationState(conv_id)
+        # Create conversation - use the local ConversationState class
+        conv_state = ConversationState(conv_id)
+        manager.conversations[conv_id] = conv_state
         
         # Add turns
         success1, turn1 = manager.add_turn(conv_id, "user", "Hello, what is 2+2?")

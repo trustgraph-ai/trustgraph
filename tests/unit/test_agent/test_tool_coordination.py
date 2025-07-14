@@ -440,7 +440,7 @@ class TestToolCoordinationLogic:
                 for node in graph:
                     for dependency in graph[node]:
                         if dependency in in_degree:
-                            in_degree[dependency] += 1
+                            in_degree[node] += 1
                 
                 # Find nodes with no dependencies
                 queue = [node for node in in_degree if in_degree[node] == 0]
@@ -576,7 +576,7 @@ class TestToolCoordinationLogic:
         
         # Set up resource manager
         resource_manager = ToolResourceManager({
-            "memory": 1000,  # MB
+            "memory": 800,  # MB (reduced to make test fail properly)
             "cpu": 4,       # cores
             "network": 10   # concurrent connections
         })
@@ -601,9 +601,9 @@ class TestToolCoordinationLogic:
         assert resource_manager.get_resource_usage()["memory"] == 500
         assert resource_manager.get_resource_usage()["cpu"] == 2
         
-        # Test resource limit enforcement (would exceed limit)
+        # Test trying to allocate another heavy_analysis (would exceed limit)
         can_execute, reason = resource_manager.can_execute_tool("heavy_analysis")
-        assert can_execute is False  # Would exceed memory limit (500 + 500 > 1000)
+        assert can_execute is False  # Would exceed memory limit (500 + 500 > 800)
         assert "memory" in reason.lower()
         
         # Test resource release
