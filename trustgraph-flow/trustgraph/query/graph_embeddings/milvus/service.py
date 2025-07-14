@@ -5,35 +5,21 @@ entities
 """
 
 from .... direct.milvus_graph_embeddings import EntityVectors
-from .... schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
+from .... schema import GraphEmbeddingsResponse
 from .... schema import Error, Value
-from .... schema import graph_embeddings_request_queue
-from .... schema import graph_embeddings_response_queue
-from .... base import ConsumerProducer
+from .... base import GraphEmbeddingsQueryService
 
-module = "ge-query"
-
-default_input_queue = graph_embeddings_request_queue
-default_output_queue = graph_embeddings_response_queue
-default_subscriber = module
+default_ident = "ge-query"
 default_store_uri = 'http://localhost:19530'
 
-class Processor(ConsumerProducer):
+class Processor(GraphEmbeddingsQueryService):
 
     def __init__(self, **params):
 
-        input_queue = params.get("input_queue", default_input_queue)
-        output_queue = params.get("output_queue", default_output_queue)
-        subscriber = params.get("subscriber", default_subscriber)
         store_uri = params.get("store_uri", default_store_uri)
 
         super(Processor, self).__init__(
             **params | {
-                "input_queue": input_queue,
-                "output_queue": output_queue,
-                "subscriber": subscriber,
-                "input_schema": GraphEmbeddingsRequest,
-                "output_schema": GraphEmbeddingsResponse,
                 "store_uri": store_uri,
             }
         )
@@ -46,29 +32,30 @@ class Processor(ConsumerProducer):
         else:
             return Value(value=ent, is_uri=False)
         
-    async def handle(self, msg):
+    async def query_graph_embeddings(self, msg):
 
         try:
 
-            v = msg.value()
+            entity_set = set()
+            entities = []
 
-            # Sender-produced ID
-            id = msg.properties()["id"]
+            for vec in msg.vectors:
 
-            print(f"Handling input {id}...", flush=True)
-
-            entities = set()
-
-            for vec in v.vectors:
-
-                resp = self.vecstore.search(vec, limit=v.limit)
+                resp = self.vecstore.search(vec, limit=msg.limit * 2)
 
                 for r in resp:
                     ent = r["entity"]["entity"]
-                    entities.add(ent)
+                    
+                    # De-dupe entities
+                    if ent not in entity_set:
+                        entity_set.add(ent)
+                        entities.append(ent)
 
-            # Convert set to list
-            entities = list(entities)
+                    # Keep adding entities until limit
+                    if len(entity_set) >= msg.limit: break
+
+                # Keep adding entities until limit
+                if len(entity_set) >= msg.limit: break
 
             ents2 = []
 
@@ -78,36 +65,19 @@ class Processor(ConsumerProducer):
             entities = ents2
 
             print("Send response...", flush=True)
-            r = GraphEmbeddingsResponse(entities=entities, error=None)
-            await self.send(r, properties={"id": id})
+            return entities
 
             print("Done.", flush=True)
 
         except Exception as e:
 
             print(f"Exception: {e}")
-
-            print("Send error response...", flush=True)
-
-            r = GraphEmbeddingsResponse(
-                error=Error(
-                    type = "llm-error",
-                    message = str(e),
-                ),
-                entities=None,
-            )
-
-            await self.send(r, properties={"id": id})
-
-            self.consumer.acknowledge(msg)
+            raise e
 
     @staticmethod
     def add_args(parser):
 
-        ConsumerProducer.add_args(
-            parser, default_input_queue, default_subscriber,
-            default_output_queue,
-        )
+        GraphEmbeddingsQueryService.add_args(parser)
 
         parser.add_argument(
             '-t', '--store-uri',
@@ -117,5 +87,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 
