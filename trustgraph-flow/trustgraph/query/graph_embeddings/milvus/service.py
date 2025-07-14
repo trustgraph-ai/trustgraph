@@ -39,6 +39,10 @@ class Processor(GraphEmbeddingsQueryService):
             entity_set = set()
             entities = []
 
+            # Handle zero limit case
+            if msg.limit <= 0:
+                return []
+
             for vec in msg.vectors:
 
                 resp = self.vecstore.search(vec, limit=msg.limit * 2)

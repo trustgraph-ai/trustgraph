@@ -443,16 +443,10 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
             limit=0
         )
         
-        # Mock search results
-        mock_results = [
-            {"entity": {"entity": "http://example.com/entity1"}},
-        ]
-        processor.vecstore.search.return_value = mock_results
-        
         result = await processor.query_graph_embeddings(query)
         
-        # Verify search was called with 0 limit
-        processor.vecstore.search.assert_called_once_with([0.1, 0.2, 0.3], limit=0)
+        # Verify no search was called (optimization for zero limit)
+        processor.vecstore.search.assert_not_called()
         
         # Verify empty results due to zero limit
         assert len(result) == 0
