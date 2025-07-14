@@ -216,45 +216,47 @@ class TestApi:
 class TestRunFunction:
     """Test cases for the run() function"""
 
-    @patch('trustgraph.gateway.service.start_http_server')
-    @patch('argparse.ArgumentParser.parse_args')
-    def test_run_function_with_metrics_enabled(self, mock_parse_args, mock_start_http_server):
+    def test_run_function_with_metrics_enabled(self):
         """Test run function with metrics enabled"""
         import warnings
-        # Suppress the specific async warning for this test
-        warnings.filterwarnings("ignore", message="coroutine 'Api.app_factory' was never awaited")
-        # Mock command line arguments
-        mock_args = Mock()
-        mock_args.metrics = True
-        mock_args.metrics_port = 8000
-        mock_parse_args.return_value = mock_args
+        # Suppress the specific async warning with a broader pattern
+        warnings.filterwarnings("ignore", message=".*Api.app_factory.*was never awaited", category=RuntimeWarning)
         
-        # Create a simple mock instance without any async methods
-        mock_api_instance = Mock()
-        mock_api_instance.run = Mock()
-        
-        # Create a mock Api class without importing the real one
-        mock_api = Mock(return_value=mock_api_instance)
-        
-        # Patch using context manager to avoid importing the real Api class
-        with patch('trustgraph.gateway.service.Api', mock_api):
-            # Mock vars() to return a dict
-            with patch('builtins.vars') as mock_vars:
-                mock_vars.return_value = {
-                    'metrics': True,
-                    'metrics_port': 8000,
-                    'pulsar_host': default_pulsar_host,
-                    'timeout': default_timeout
-                }
-                
-                run()
-                
-                # Verify metrics server was started
-                mock_start_http_server.assert_called_once_with(8000)
-                
-                # Verify Api was created and run was called
-                mock_api.assert_called_once()
-                mock_api_instance.run.assert_called_once()
+        with patch('argparse.ArgumentParser.parse_args') as mock_parse_args, \
+             patch('trustgraph.gateway.service.start_http_server') as mock_start_http_server:
+            
+            # Mock command line arguments
+            mock_args = Mock()
+            mock_args.metrics = True
+            mock_args.metrics_port = 8000
+            mock_parse_args.return_value = mock_args
+            
+            # Create a simple mock instance without any async methods
+            mock_api_instance = Mock()
+            mock_api_instance.run = Mock()
+            
+            # Create a mock Api class without importing the real one
+            mock_api = Mock(return_value=mock_api_instance)
+            
+            # Patch using context manager to avoid importing the real Api class
+            with patch('trustgraph.gateway.service.Api', mock_api):
+                # Mock vars() to return a dict
+                with patch('builtins.vars') as mock_vars:
+                    mock_vars.return_value = {
+                        'metrics': True,
+                        'metrics_port': 8000,
+                        'pulsar_host': default_pulsar_host,
+                        'timeout': default_timeout
+                    }
+                    
+                    run()
+                    
+                    # Verify metrics server was started
+                    mock_start_http_server.assert_called_once_with(8000)
+                    
+                    # Verify Api was created and run was called
+                    mock_api.assert_called_once()
+                    mock_api_instance.run.assert_called_once()
 
     @patch('trustgraph.gateway.service.start_http_server')
     @patch('argparse.ArgumentParser.parse_args')
