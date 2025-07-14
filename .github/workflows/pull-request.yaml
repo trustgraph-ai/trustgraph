@@ -39,12 +39,15 @@ jobs:
       - name: Install trustgraph-vertexai
         run: (cd trustgraph-vertexai; pip install .)
 
-      - name: Install trustgraph-vertexai
-        run: (cd trustgraph-vertexai; pip install .)
+      - name: Install trustgraph-bedrock
+        run: (cd trustgraph-bedrock; pip install .)
 
       - name: Install some stuff
         run: pip install pytest pytest-cov pytest-asyncio pytest-mock testcontainers
 
       - name: Unit tests
         run: pytest tests/unit
+
+      - name: Integration tests
+        run: pytest tests/integration
 
