@@ -36,11 +36,15 @@ jobs:
       - name: Install trustgraph-flow
         run: (cd trustgraph-flow; pip install .)
 
+      - name: Install trustgraph-vertexai
+        run: (cd trustgraph-vertexai; pip install .)
+
+      - name: Install trustgraph-vertexai
+        run: (cd trustgraph-vertexai; pip install .)
+
       - name: Install some stuff
-        run: pip install pytest pytest-cov testcontainers
+        run: pip install pytest pytest-cov pytest-asyncio pytest-mock testcontainers
 
       - name: Unit tests
         run: pytest tests/unit
 
-
-        
