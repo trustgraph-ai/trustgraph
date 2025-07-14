@@ -55,7 +55,7 @@ class TestConfigRequestor:
         with patch.object(ServiceRequestor, 'start', return_value=None), \
              patch.object(ServiceRequestor, 'process', return_value=None):
             requestor = ConfigRequestor(
-                pulsar_client=MagicMock(),
+                pulsar_client=Mock(),
                 consumer="test-consumer", 
                 subscriber="test-subscriber"
             )

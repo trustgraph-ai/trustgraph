@@ -312,12 +312,15 @@ class TestConfigReceiver:
             "flow2": {"name": "test_flow_2", "steps": []}
         }
         
-        # Mock the flow methods using patch.object to avoid coroutine creation during assignment
-        start_flow_mock = Mock()
-        stop_flow_mock = Mock()
+        # Mock the flow methods to return awaitables
+        async def mock_start_flow(*args):
+            pass
         
-        with patch.object(config_receiver, 'start_flow', start_flow_mock), \
-             patch.object(config_receiver, 'stop_flow', stop_flow_mock):
+        async def mock_stop_flow(*args):
+            pass
+        
+        with patch.object(config_receiver, 'start_flow', side_effect=mock_start_flow) as start_flow_mock, \
+             patch.object(config_receiver, 'stop_flow', side_effect=mock_stop_flow) as stop_flow_mock:
             
             # Create mock message with flow1 removed and flow3 added
             mock_msg = Mock()
