@@ -15,6 +15,7 @@ from trustgraph.gateway.service import Api, run, default_pulsar_host, default_pr
 
 class TestApi:
     """Test cases for Api class"""
+    
 
     def test_api_initialization_with_defaults(self):
         """Test Api initialization with default values"""
@@ -215,12 +216,13 @@ class TestApi:
 class TestRunFunction:
     """Test cases for the run() function"""
 
-    @patch.object(Api, 'app_factory', Mock())
-    @patch('trustgraph.gateway.service.Api')
     @patch('trustgraph.gateway.service.start_http_server')
     @patch('argparse.ArgumentParser.parse_args')
-    def test_run_function_with_metrics_enabled(self, mock_parse_args, mock_start_http_server, mock_api):
+    def test_run_function_with_metrics_enabled(self, mock_parse_args, mock_start_http_server):
         """Test run function with metrics enabled"""
+        import warnings
+        # Suppress the specific async warning for this test
+        warnings.filterwarnings("ignore", message="coroutine 'Api.app_factory' was never awaited")
         # Mock command line arguments
         mock_args = Mock()
         mock_args.metrics = True
@@ -230,30 +232,33 @@ class TestRunFunction:
         # Create a simple mock instance without any async methods
         mock_api_instance = Mock()
         mock_api_instance.run = Mock()
-        mock_api.return_value = mock_api_instance
         
-        # Mock vars() to return a dict
-        with patch('builtins.vars') as mock_vars:
-            mock_vars.return_value = {
-                'metrics': True,
-                'metrics_port': 8000,
-                'pulsar_host': default_pulsar_host,
-                'timeout': default_timeout
-            }
-            
-            run()
-            
-            # Verify metrics server was started
-            mock_start_http_server.assert_called_once_with(8000)
-            
-            # Verify Api was created and run was called
-            mock_api.assert_called_once()
-            mock_api_instance.run.assert_called_once()
+        # Create a mock Api class without importing the real one
+        mock_api = Mock(return_value=mock_api_instance)
+        
+        # Patch using context manager to avoid importing the real Api class
+        with patch('trustgraph.gateway.service.Api', mock_api):
+            # Mock vars() to return a dict
+            with patch('builtins.vars') as mock_vars:
+                mock_vars.return_value = {
+                    'metrics': True,
+                    'metrics_port': 8000,
+                    'pulsar_host': default_pulsar_host,
+                    'timeout': default_timeout
+                }
+                
+                run()
+                
+                # Verify metrics server was started
+                mock_start_http_server.assert_called_once_with(8000)
+                
+                # Verify Api was created and run was called
+                mock_api.assert_called_once()
+                mock_api_instance.run.assert_called_once()
 
-    @patch('trustgraph.gateway.service.Api')
     @patch('trustgraph.gateway.service.start_http_server')
     @patch('argparse.ArgumentParser.parse_args')
-    def test_run_function_with_metrics_disabled(self, mock_parse_args, mock_start_http_server, mock_api):
+    def test_run_function_with_metrics_disabled(self, mock_parse_args, mock_start_http_server):
         """Test run function with metrics disabled"""
         # Mock command line arguments
         mock_args = Mock()
@@ -264,35 +269,30 @@ class TestRunFunction:
         mock_api_instance = Mock()
         mock_api_instance.run = Mock()
         
-        # Completely replace the Api class to prevent any reference to real methods
-        def mock_api_constructor(*args, **kwargs):
-            return mock_api_instance
-        
-        mock_api.side_effect = mock_api_constructor
-        # Also ensure the class itself doesn't have app_factory
-        mock_api.app_factory = Mock()
-        
-        # Mock vars() to return a dict
-        with patch('builtins.vars') as mock_vars:
-            mock_vars.return_value = {
-                'metrics': False,
-                'metrics_port': 8000,
-                'pulsar_host': default_pulsar_host,
-                'timeout': default_timeout
-            }
+        # Patch the Api class inside the test without using decorators
+        with patch('trustgraph.gateway.service.Api') as mock_api:
+            mock_api.return_value = mock_api_instance
             
-            run()
-            
-            # Verify metrics server was NOT started
-            mock_start_http_server.assert_not_called()
-            
-            # Verify Api was created and run was called
-            mock_api.assert_called_once()
-            mock_api_instance.run.assert_called_once()
+            # Mock vars() to return a dict
+            with patch('builtins.vars') as mock_vars:
+                mock_vars.return_value = {
+                    'metrics': False,
+                    'metrics_port': 8000,
+                    'pulsar_host': default_pulsar_host,
+                    'timeout': default_timeout
+                }
+                
+                run()
+                
+                # Verify metrics server was NOT started
+                mock_start_http_server.assert_not_called()
+                
+                # Verify Api was created and run was called
+                mock_api.assert_called_once()
+                mock_api_instance.run.assert_called_once()
 
-    @patch('trustgraph.gateway.service.Api')
     @patch('argparse.ArgumentParser.parse_args')
-    def test_run_function_argument_parsing(self, mock_parse_args, mock_api):
+    def test_run_function_argument_parsing(self, mock_parse_args):
         """Test that run function properly parses command line arguments"""
         # Mock command line arguments
         mock_args = Mock()
@@ -302,14 +302,6 @@ class TestRunFunction:
         # Create a simple mock instance without any async methods
         mock_api_instance = Mock()
         mock_api_instance.run = Mock()
-        
-        # Completely replace the Api class to prevent any reference to real methods
-        def mock_api_constructor(*args, **kwargs):
-            return mock_api_instance
-        
-        mock_api.side_effect = mock_api_constructor
-        # Also ensure the class itself doesn't have app_factory
-        mock_api.app_factory = Mock()
         
         # Mock vars() to return a dict with all expected arguments
         expected_args = {
@@ -325,14 +317,18 @@ class TestRunFunction:
             'metrics_port': 8001
         }
         
-        with patch('builtins.vars') as mock_vars:
-            mock_vars.return_value = expected_args
+        # Patch the Api class inside the test without using decorators
+        with patch('trustgraph.gateway.service.Api') as mock_api:
+            mock_api.return_value = mock_api_instance
             
-            run()
-            
-            # Verify Api was created with the parsed arguments
-            mock_api.assert_called_once_with(**expected_args)
-            mock_api_instance.run.assert_called_once()
+            with patch('builtins.vars') as mock_vars:
+                mock_vars.return_value = expected_args
+                
+                run()
+                
+                # Verify Api was created with the parsed arguments
+                mock_api.assert_called_once_with(**expected_args)
+                mock_api_instance.run.assert_called_once()
 
     def test_run_function_creates_argument_parser(self):
         """Test that run function creates argument parser with correct arguments"""
