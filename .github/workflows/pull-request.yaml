@@ -51,3 +51,6 @@ jobs:
       - name: Integration tests
         run: pytest tests/integration
 
+      - name: Contract tests
+        run: pytest tests/contract
+
