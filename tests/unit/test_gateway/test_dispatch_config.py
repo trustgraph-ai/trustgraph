@@ -18,13 +18,13 @@ class TestConfigRequestor:
     def test_config_requestor_initialization(self, mock_translator_registry):
         """Test ConfigRequestor initialization"""
         # Mock translators
-        mock_request_translator = MagicMock()
-        mock_response_translator = MagicMock()
+        mock_request_translator = Mock()
+        mock_response_translator = Mock()
         mock_translator_registry.get_request_translator.return_value = mock_request_translator
         mock_translator_registry.get_response_translator.return_value = mock_response_translator
         
         # Mock dependencies
-        mock_pulsar_client = MagicMock()
+        mock_pulsar_client = Mock()
         
         requestor = ConfigRequestor(
             pulsar_client=mock_pulsar_client,
@@ -44,9 +44,9 @@ class TestConfigRequestor:
     def test_config_requestor_to_request(self, mock_translator_registry):
         """Test ConfigRequestor to_request method"""
         # Mock translators
-        mock_request_translator = MagicMock()
+        mock_request_translator = Mock()
         mock_translator_registry.get_request_translator.return_value = mock_request_translator
-        mock_translator_registry.get_response_translator.return_value = MagicMock()
+        mock_translator_registry.get_response_translator.return_value = Mock()
         
         # Setup translator response
         mock_request_translator.to_pulsar.return_value = "translated_request"
@@ -71,21 +71,21 @@ class TestConfigRequestor:
     def test_config_requestor_from_response(self, mock_translator_registry):
         """Test ConfigRequestor from_response method"""
         # Mock translators
-        mock_response_translator = MagicMock()
-        mock_translator_registry.get_request_translator.return_value = MagicMock()
+        mock_response_translator = Mock()
+        mock_translator_registry.get_request_translator.return_value = Mock()
         mock_translator_registry.get_response_translator.return_value = mock_response_translator
         
         # Setup translator response
         mock_response_translator.from_response_with_completion.return_value = "translated_response"
         
         requestor = ConfigRequestor(
-            pulsar_client=MagicMock(),
+            pulsar_client=Mock(),
             consumer="test-consumer",
             subscriber="test-subscriber"
         )
         
         # Call from_response
-        mock_message = MagicMock()
+        mock_message = Mock()
         result = requestor.from_response(mock_message)
         
         # Verify translator was called correctly

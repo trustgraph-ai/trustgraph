@@ -215,6 +215,7 @@ class TestApi:
 class TestRunFunction:
     """Test cases for the run() function"""
 
+    @patch.object(Api, 'app_factory', Mock())
     @patch('trustgraph.gateway.service.Api')
     @patch('trustgraph.gateway.service.start_http_server')
     @patch('argparse.ArgumentParser.parse_args')
@@ -226,10 +227,9 @@ class TestRunFunction:
         mock_args.metrics_port = 8000
         mock_parse_args.return_value = mock_args
         
-        # Mock the Api instance and its methods to avoid any async behavior
+        # Create a simple mock instance without any async methods
         mock_api_instance = Mock()
         mock_api_instance.run = Mock()
-        mock_api_instance.app_factory = Mock()
         mock_api.return_value = mock_api_instance
         
         # Mock vars() to return a dict
@@ -260,11 +260,17 @@ class TestRunFunction:
         mock_args.metrics = False
         mock_parse_args.return_value = mock_args
         
-        # Mock the Api instance and its methods to avoid any async behavior
+        # Create a simple mock instance without any async methods
         mock_api_instance = Mock()
         mock_api_instance.run = Mock()
-        mock_api_instance.app_factory = Mock()
-        mock_api.return_value = mock_api_instance
+        
+        # Completely replace the Api class to prevent any reference to real methods
+        def mock_api_constructor(*args, **kwargs):
+            return mock_api_instance
+        
+        mock_api.side_effect = mock_api_constructor
+        # Also ensure the class itself doesn't have app_factory
+        mock_api.app_factory = Mock()
         
         # Mock vars() to return a dict
         with patch('builtins.vars') as mock_vars:
@@ -293,11 +299,17 @@ class TestRunFunction:
         mock_args.metrics = False
         mock_parse_args.return_value = mock_args
         
-        # Mock the Api instance and its methods to avoid any async behavior
+        # Create a simple mock instance without any async methods
         mock_api_instance = Mock()
         mock_api_instance.run = Mock()
-        mock_api_instance.app_factory = Mock()
-        mock_api.return_value = mock_api_instance
+        
+        # Completely replace the Api class to prevent any reference to real methods
+        def mock_api_constructor(*args, **kwargs):
+            return mock_api_instance
+        
+        mock_api.side_effect = mock_api_constructor
+        # Also ensure the class itself doesn't have app_factory
+        mock_api.app_factory = Mock()
         
         # Mock vars() to return a dict with all expected arguments
         expected_args = {
