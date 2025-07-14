@@ -10,11 +10,7 @@ import pulsar
 
 from trustgraph.gateway.service import Api, run, default_pulsar_host, default_prometheus_url, default_timeout, default_port, default_api_token
 
-# Store the original method before patching
-_original_app_factory = Api.app_factory
-
-# Replace with AsyncMock to prevent coroutine warnings during introspection
-Api.app_factory = AsyncMock()
+# Tests for Gateway Service API
 
 
 class TestApi:
@@ -128,9 +124,6 @@ class TestApi:
             
             api = Api()
             
-            # Temporarily restore the real app_factory for this test
-            api.app_factory = _original_app_factory.__get__(api, Api)
-            
             # Mock the dependencies
             api.config_receiver = Mock()
             api.config_receiver.start = AsyncMock()
@@ -157,9 +150,6 @@ class TestApi:
             mock_client.return_value = Mock()
             
             api = Api()
-            
-            # Temporarily restore the real app_factory for this test
-            api.app_factory = _original_app_factory.__get__(api, Api)
             
             # Mock custom endpoints
             mock_endpoint1 = Mock()

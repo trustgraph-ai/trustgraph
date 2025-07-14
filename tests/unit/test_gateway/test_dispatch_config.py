@@ -51,9 +51,9 @@ class TestConfigRequestor:
         # Setup translator response
         mock_request_translator.to_pulsar.return_value = "translated_request"
         
-        # Temporarily patch ServiceRequestor async methods to prevent coroutine warnings
-        with patch.object(ServiceRequestor, 'start', new_callable=AsyncMock), \
-             patch.object(ServiceRequestor, 'process', new_callable=AsyncMock):
+        # Patch ServiceRequestor async methods with regular mocks (not AsyncMock)
+        with patch.object(ServiceRequestor, 'start', return_value=None), \
+             patch.object(ServiceRequestor, 'process', return_value=None):
             requestor = ConfigRequestor(
                 pulsar_client=MagicMock(),
                 consumer="test-consumer", 
