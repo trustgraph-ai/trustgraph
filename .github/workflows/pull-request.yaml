@@ -37,7 +37,7 @@ jobs:
         run: (cd trustgraph-flow; pip install .)
 
       - name: Install some stuff
-        run: pip install pytest testcontainers
+        run: pip install pytest pytest-cov testcontainers
 
       - name: Unit tests
         run: pytest tests/unit
