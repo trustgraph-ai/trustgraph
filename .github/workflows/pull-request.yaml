@@ -11,10 +11,36 @@ jobs:
 
   container-push:
 
-    name: Do nothing
+    name: Run tests
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - name: Setup packages
+        run: make update-package-versions VERSION=0.0.0
+
+      - name: Setup environment
+        run: python3 -m venv env
+
+      - name: Invoke environment
+        run: . env/bin/activate
+
+      - name: Install trustgraph-base
+        run: (cd trustgraph-base; pip install .)
+
+      - name: Install trustgraph-cli
+        run: (cd trustgraph-cli; pip install .)
+
+      - name: Install trustgraph-flow
+        run: (cd trustgraph-flow; pip install .)
+
+      - name: Install some stuff
+        run: pip install pytest testcontainers
+
+      - name: Unit tests
+        run: pytest tests/unit
+
+
+        
