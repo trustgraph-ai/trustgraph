@@ -226,8 +226,9 @@ class TestRunFunction:
         mock_args.metrics_port = 8000
         mock_parse_args.return_value = mock_args
         
-        # Mock the Api instance
+        # Mock the Api instance and its run method
         mock_api_instance = Mock()
+        mock_api_instance.run = Mock()
         mock_api.return_value = mock_api_instance
         
         # Mock vars() to return a dict
@@ -258,8 +259,9 @@ class TestRunFunction:
         mock_args.metrics = False
         mock_parse_args.return_value = mock_args
         
-        # Mock the Api instance
+        # Mock the Api instance and its run method
         mock_api_instance = Mock()
+        mock_api_instance.run = Mock()
         mock_api.return_value = mock_api_instance
         
         # Mock vars() to return a dict
@@ -289,8 +291,9 @@ class TestRunFunction:
         mock_args.metrics = False
         mock_parse_args.return_value = mock_args
         
-        # Mock the Api instance
+        # Mock the Api instance and its run method
         mock_api_instance = Mock()
+        mock_api_instance.run = Mock()
         mock_api.return_value = mock_api_instance
         
         # Mock vars() to return a dict with all expected arguments

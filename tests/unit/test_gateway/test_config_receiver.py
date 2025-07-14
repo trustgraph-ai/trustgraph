@@ -313,8 +313,8 @@ class TestConfigReceiver:
         }
         
         # Mock the flow methods using patch.object to avoid coroutine creation during assignment
-        start_flow_mock = AsyncMock()
-        stop_flow_mock = AsyncMock()
+        start_flow_mock = Mock()
+        stop_flow_mock = Mock()
         
         with patch.object(config_receiver, 'start_flow', start_flow_mock), \
              patch.object(config_receiver, 'stop_flow', stop_flow_mock):
