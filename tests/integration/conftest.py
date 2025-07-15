@@ -384,3 +384,21 @@ def sample_kg_triples():
 
 # Test markers for integration tests
 pytestmark = pytest.mark.integration
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """
+    Called after whole test run finished, right before returning the exit status.
+    
+    This hook is used to ensure Cassandra driver threads have time to shut down
+    properly before pytest exits, preventing "cannot schedule new futures after
+    shutdown" errors.
+    """
+    import time
+    import gc
+    
+    # Force garbage collection to clean up any remaining objects
+    gc.collect()
+    
+    # Give Cassandra driver threads more time to clean up
+    time.sleep(2)

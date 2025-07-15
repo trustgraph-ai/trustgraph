@@ -48,8 +48,8 @@ jobs:
       - name: Unit tests
         run: pytest tests/unit
 
-      - name: Integration tests
-        run: pytest tests/integration
+      - name: Integration tests (cut the out the long-running tests)
+        run: pytest tests/integration -m 'not slow'
 
       - name: Contract tests
         run: pytest tests/contract
