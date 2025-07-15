@@ -38,12 +38,13 @@ class ConfigRequestTranslator(MessageTranslator):
     def from_pulsar(self, obj: ConfigRequest) -> Dict[str, Any]:
         result = {}
         
-        if obj.operation:
+        if obj.operation is not None:
             result["operation"] = obj.operation
-        if obj.type:
+
+        if obj.type is not None:
             result["type"] = obj.type
         
-        if obj.keys:
+        if obj.keys is not None:
             result["keys"] = [
                 {
                     "type": k.type,
@@ -52,7 +53,7 @@ class ConfigRequestTranslator(MessageTranslator):
                 for k in obj.keys
             ]
         
-        if obj.values:
+        if obj.values is not None:
             result["values"] = [
                 {
                     "type": v.type,
@@ -77,7 +78,7 @@ class ConfigResponseTranslator(MessageTranslator):
         if obj.version is not None:
             result["version"] = obj.version
         
-        if obj.values:
+        if obj.values is not None:
             result["values"] = [
                 {
                     "type": v.type,
@@ -87,10 +88,10 @@ class ConfigResponseTranslator(MessageTranslator):
                 for v in obj.values
             ]
         
-        if obj.directory:
+        if obj.directory is not None:
             result["directory"] = obj.directory
         
-        if obj.config:
+        if obj.config is not None:
             result["config"] = obj.config
         
         return result
