@@ -10,32 +10,23 @@ import time
 import uuid
 import os
 
-from .... schema import GraphEmbeddings
-from .... schema import graph_embeddings_store_queue
-from .... log_level import LogLevel
-from .... base import Consumer
+from .... base import GraphEmbeddingsStoreService
 
-module = "ge-write"
-
-default_input_queue = graph_embeddings_store_queue
-default_subscriber = module
+default_ident = "ge-write"
 default_api_key = os.getenv("PINECONE_API_KEY", "not-specified")
 default_cloud = "aws"
 default_region = "us-east-1"
 
-class Processor(Consumer):
+class Processor(GraphEmbeddingsStoreService):
 
     def __init__(self, **params):
-
-        input_queue = params.get("input_queue", default_input_queue)
-        subscriber = params.get("subscriber", default_subscriber)
 
         self.url = params.get("url", None)
         self.cloud = params.get("cloud", default_cloud)
         self.region = params.get("region", default_region)
         self.api_key = params.get("api_key", default_api_key)
 
-        if self.api_key is None:
+        if self.api_key is None or self.api_key == "not-specified":
             raise RuntimeError("Pinecone API key must be specified")
 
         if self.url:
@@ -51,10 +42,10 @@ class Processor(Consumer):
 
         super(Processor, self).__init__(
             **params | {
-                "input_queue": input_queue,
-                "subscriber": subscriber,
-                "input_schema": GraphEmbeddings,
                 "url": self.url,
+                "cloud": self.cloud,
+                "region": self.region,
+                "api_key": self.api_key,
             }
         )
 
@@ -88,13 +79,9 @@ class Processor(Consumer):
                 "Gave up waiting for index creation"
             )
 
-    async def handle(self, msg):
+    async def store_graph_embeddings(self, message):
 
-        v = msg.value()
-
-        id = str(uuid.uuid4())
-
-        for entity in v.entities:
+        for entity in message.entities:
 
             if entity.entity.value == "" or entity.entity.value is None:
                 continue
@@ -104,7 +91,7 @@ class Processor(Consumer):
                 dim = len(vec)
 
                 index_name = (
-                    "t-" + v.metadata.user + "-" + str(dim)
+                    "t-" + message.metadata.user + "-" + message.metadata.collection + "-" + str(dim)
                 )
 
                 if index_name != self.last_index_name:
@@ -125,9 +112,12 @@ class Processor(Consumer):
 
                 index = self.pinecone.Index(index_name)
 
+                # Generate unique ID for each vector
+                vector_id = str(uuid.uuid4())
+
                 records = [
                     {
-                        "id": id,
+                        "id": vector_id,
                         "values": vec,
                         "metadata": { "entity": entity.entity.value },
                     }
@@ -135,15 +125,12 @@ class Processor(Consumer):
 
                 index.upsert(
                     vectors = records,
-                    namespace = v.metadata.collection,
                 )
 
     @staticmethod
     def add_args(parser):
 
-        Consumer.add_args(
-            parser, default_input_queue, default_subscriber,
-        )
+        GraphEmbeddingsStoreService.add_args(parser)
 
         parser.add_argument(
             '-a', '--api-key',
@@ -170,5 +157,5 @@ class Processor(Consumer):
 
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 

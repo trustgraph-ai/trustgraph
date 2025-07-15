@@ -3,42 +3,29 @@
 Accepts entity/vector pairs and writes them to a Milvus store.
 """
 
-from .... schema import GraphEmbeddings
-from .... schema import graph_embeddings_store_queue
-from .... log_level import LogLevel
 from .... direct.milvus_graph_embeddings import EntityVectors
-from .... base import Consumer
+from .... base import GraphEmbeddingsStoreService
 
-module = "ge-write"
-
-default_input_queue = graph_embeddings_store_queue
-default_subscriber = module
+default_ident = "ge-write"
 default_store_uri = 'http://localhost:19530'
 
-class Processor(Consumer):
+class Processor(GraphEmbeddingsStoreService):
 
     def __init__(self, **params):
 
-        input_queue = params.get("input_queue", default_input_queue)
-        subscriber = params.get("subscriber", default_subscriber)
         store_uri = params.get("store_uri", default_store_uri)
 
         super(Processor, self).__init__(
             **params | {
-                "input_queue": input_queue,
-                "subscriber": subscriber,
-                "input_schema": GraphEmbeddings,
                 "store_uri": store_uri,
             }
         )
 
         self.vecstore = EntityVectors(store_uri)
 
-    async def handle(self, msg):
+    async def store_graph_embeddings(self, message):
 
-        v = msg.value()
-
-        for entity in v.entities:
+        for entity in message.entities:
 
             if entity.entity.value != "" and entity.entity.value is not None:
                 for vec in entity.vectors:
@@ -47,9 +34,7 @@ class Processor(Consumer):
     @staticmethod
     def add_args(parser):
 
-        Consumer.add_args(
-            parser, default_input_queue, default_subscriber,
-        )
+        GraphEmbeddingsStoreService.add_args(parser)
 
         parser.add_argument(
             '-t', '--store-uri',
@@ -59,5 +44,5 @@ class Processor(Consumer):
 
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 

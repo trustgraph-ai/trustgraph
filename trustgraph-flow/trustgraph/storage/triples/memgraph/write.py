@@ -11,27 +11,19 @@ import time
 
 from neo4j import GraphDatabase
 
-from .... schema import Triples
-from .... schema import triples_store_queue
-from .... log_level import LogLevel
-from .... base import Consumer
+from .... base import TriplesStoreService
 
-module = "triples-write"
-
-default_input_queue = triples_store_queue
-default_subscriber = module
+default_ident = "triples-write"
 
 default_graph_host = 'bolt://memgraph:7687'
 default_username = 'memgraph'
 default_password = 'password'
 default_database = 'memgraph'
 
-class Processor(Consumer):
+class Processor(TriplesStoreService):
 
     def __init__(self, **params):
         
-        input_queue = params.get("input_queue", default_input_queue)
-        subscriber = params.get("subscriber", default_subscriber)
         graph_host = params.get("graph_host", default_graph_host)
         username = params.get("username", default_username)
         password = params.get("password", default_password)
@@ -39,10 +31,10 @@ class Processor(Consumer):
 
         super(Processor, self).__init__(
             **params | {
-                "input_queue": input_queue,
-                "subscriber": subscriber,
-                "input_schema": Triples,
                 "graph_host": graph_host,
+                "username": username,
+                "password": password,
+                "database": database,
             }
         )
 
@@ -205,11 +197,9 @@ class Processor(Consumer):
                 src=t.s.value, dest=t.o.value, uri=t.p.value,
             )
         
-    async def handle(self, msg):
+    async def store_triples(self, message):
 
-        v = msg.value()
-
-        for t in v.triples:
+        for t in message.triples:
 
             # self.create_node(t.s.value)
 
@@ -226,12 +216,10 @@ class Processor(Consumer):
     @staticmethod
     def add_args(parser):
 
-        Consumer.add_args(
-            parser, default_input_queue, default_subscriber,
-        )
+        TriplesStoreService.add_args(parser)
 
         parser.add_argument(
-            '-g', '--graph_host',
+            '-g', '--graph-host',
             default=default_graph_host,
             help=f'Graph host (default: {default_graph_host})'
         )
@@ -256,5 +244,5 @@ class Processor(Consumer):
 
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 
