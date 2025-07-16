@@ -26,11 +26,10 @@ def show_config(url):
         table = []
 
         table.append(("id", value.key))
-        table.append(("name", data["name"]))
+        table.append(("remote-name", data["remote-name"]))
         table.append(("url", data["url"]))
 
         print()
-        print(value.key + ":")
 
         print(tabulate.tabulate(
             table,

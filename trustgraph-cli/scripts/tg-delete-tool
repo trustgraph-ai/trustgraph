@@ -21,27 +21,10 @@ def delete_tool(
 
     api = Api(url).config()
 
-    # Get the current tool index
-    try:
-        values = api.get([
-            ConfigKey(type="agent", key="tool-index")
-        ])
-        
-        ix = json.loads(values[0].value)
-        
-    except Exception as e:
-        print(f"Error reading tool index: {e}")
-        return False
-
-    # Check if the tool exists in the index
-    if id not in ix:
-        print(f"Tool '{id}' not found in tool index.")
-        return False
-
     # Check if the tool configuration exists
     try:
         tool_values = api.get([
-            ConfigKey(type="agent", key=f"tool.{id}")
+            ConfigKey(type="tool", key=id)
         ])
         
         if not tool_values or not tool_values[0].value:
@@ -52,22 +35,12 @@ def delete_tool(
         print(f"Tool configuration for '{id}' not found.")
         return False
 
-    # Remove the tool ID from the index
-    ix.remove(id)
-
     # Delete the tool configuration and update the index
     try:
 
-        # Update the tool index
-        api.put([
-            ConfigValue(
-                type="agent", key="tool-index", value=json.dumps(ix)
-            )
-        ])
-        
         # Delete the tool configuration
         api.delete([
-            ConfigKey(type="agent", key=f"tool.{id}")
+            ConfigKey(type="agent", key=id)
         ])
         
         print(f"Tool '{id}' deleted successfully.")

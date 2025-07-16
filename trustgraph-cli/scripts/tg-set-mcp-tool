@@ -17,7 +17,8 @@ default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 
 def set_mcp_tool(
         url : str,
-        name : str,
+        id : str,
+        remote_name : str,
         tool_url : str,
 ):
 
@@ -26,14 +27,12 @@ def set_mcp_tool(
     # Store the MCP tool configuration in the 'mcp' group
     values = api.put([
         ConfigValue(
-            type="mcp", key=name, value=json.dumps({
-                "name": name,
+            type="mcp", key=id, value=json.dumps({
+                "remote-name": remote_name,
                 "url": tool_url,
             })
         )
     ])
-
-    print(f"MCP tool '{name}' set with URL: {tool_url}")
 
 def main():
 
@@ -58,8 +57,14 @@ def main():
     )
 
     parser.add_argument(
-        '--name',
+        '-i', '--id',
         required=True,
+        help='MCP tool name',
+    )
+
+    parser.add_argument(
+        '-r', '--remote-name',
+        required=False,
         help='MCP tool name',
     )
 
@@ -73,15 +78,21 @@ def main():
 
     try:
 
-        if not args.name:
+        if not args.id:
             raise RuntimeError("Must specify --name for MCP tool")
 
         if not args.tool_url:
             raise RuntimeError("Must specify --url for MCP tool")
 
+        if args.remote_name:
+            remote_name = args.remote_name
+        else:
+            remote_name = args.id
+
         set_mcp_tool(
-            url=args.api_url, 
-            name=args.name,
+            url=args.api_url,
+            id=args.id,
+            remote_name=remote_name,
             tool_url=args.tool_url
         )
 

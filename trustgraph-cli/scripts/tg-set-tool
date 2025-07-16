@@ -51,6 +51,9 @@ def set_tool(
         name : str,
         description : str,
         type : str,
+        mcp_tool : str,
+        collection : str,
+        template : str,
         arguments : List[Argument],
 ):
 
@@ -60,14 +63,20 @@ def set_tool(
         ConfigKey(type="agent", key="tool-index")
     ])
 
-    ix = json.loads(values[0].value)
-
     object = {
-        "id": id,
         "name": name,
         "description": description,
         "type": type,
-        "arguments": [
+    }
+
+    if mcp_tool: object["mcp-tool"] = mcp_tool
+
+    if collection: object["collection"] = collection
+
+    if template: object["template"] = template
+
+    if arguments:
+        object["arguments"] = [
             {
                 "name": a.name,
                 "type": a.type,
@@ -75,17 +84,10 @@ def set_tool(
             }
             for a in arguments
         ]
-    }
-
-    if id not in ix:
-        ix.append(id)
 
     values = api.put([
         ConfigValue(
-            type="agent", key="tool-index", value=json.dumps(ix)
-        ),
-        ConfigValue(
-            type="agent", key=f"tool.{id}", value=json.dumps(object)
+            type="tool", key=f"{id}", value=json.dumps(object)
         )
     ])
 
@@ -100,7 +102,8 @@ def main():
             Valid tool types:
               knowledge-query    - Query knowledge bases
               text-completion    - Text completion/generation
-              mcp-tool          - Model Control Protocol tool
+              mcp-tool           - Model Control Protocol tool
+              prompt             - Prompt template query
             
             Valid argument types:
               string            - String/text parameter
@@ -143,13 +146,28 @@ def main():
 
     parser.add_argument(
         '--type',
-        help=f'Tool type, one of: knowledge-query, text-completion, mcp-tool',
+        help=f'Tool type, one of: knowledge-query, text-completion, mcp-tool, prompt',
     )
 
     parser.add_argument(
-        '--argument',
-        nargs="*",
-        help=f'Arguments, form: name:type:description',
+        '--mcp-tool',
+        help=f'For MCP, ID of MCP tool, as defined in TrustGraph config',
+    )
+
+    parser.add_argument(
+        '--collection',
+        help=f'For knowledge query, collection to use',
+    )
+
+    parser.add_argument(
+        '--template',
+        help=f'For prompt, template to use',
+    )
+
+    parser.add_argument(
+       '--argument',
+       nargs="*",
+       help=f'For prompts, arguments in the form: name:type:description',
     )
 
     args = parser.parse_args()
@@ -157,7 +175,7 @@ def main():
     try:
 
         valid_types = [
-            "knowledge-query", "text-completion", "mcp-tool"
+            "knowledge-query", "text-completion", "mcp-tool", "prompt"
         ]
 
         if args.id is None:
@@ -172,6 +190,8 @@ def main():
                     "Type must be one of: " + ", ".join(valid_types)
                 )
 
+        mcp_tool = args.mcp_tool
+
         if args.argument:
             arguments = [
                 Argument.parse(a)
@@ -181,10 +201,15 @@ def main():
             arguments = []
 
         set_tool(
-            url=args.api_url, id=args.id, name=args.name,
+            url=args.api_url,
+            id=args.id,
+            name=args.name,
             description=args.description,
             type=args.type,
-            arguments=arguments
+            mcp_tool=mcp_tool,
+            collection=args.collection,
+            template=args.template,
+            arguments=arguments,
         )
 
     except Exception as e:

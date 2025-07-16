@@ -17,37 +17,37 @@ def show_config(url):
 
     api = Api(url).config()
 
-    values = api.get([
-        ConfigKey(type="agent", key="tool-index")
-    ])
+    values = api.get_values(type="tool")
 
-    ix = json.loads(values[0].value)
+    for item in values:
 
-    values = api.get([
-        ConfigKey(type="agent", key=f"tool.{v}")
-        for v in ix
-    ])
+        id = item.key
+        data = json.loads(item.value)
 
-    for n, key in enumerate(ix):
-
-        data = json.loads(values[n].value)
+        tp = data["type"]
 
         table = []
 
-        table.append(("id", data["id"]))
+        table.append(("id", id))
         table.append(("name", data["name"]))
         table.append(("description", data["description"]))
-        table.append(("type", data["type"]))
+        table.append(("type", tp))
 
-        for n, arg in enumerate(data["arguments"]):
-            table.append((
-                f"arg {n}",
-                f"{arg['name']}: {arg['type']}\n{arg['description']}"
-            ))
-            
+        if tp == "mcp-tool":
+            table.append(("mcp-tool", data["mcp-tool"]))
+          
+        if tp == "knowledge-query":
+            table.append(("collection", data["collection"]))
+
+        if tp == "prompt":
+            table.append(("template", data["template"]))
+            for n, arg in enumerate(data["arguments"]):
+                table.append((
+                    f"arg {n}",
+                    f"{arg['name']}: {arg['type']}\n{arg['description']}"
+                ))
 
         print()
-        print(key + ":")
 
         print(tabulate.tabulate(
             table,
