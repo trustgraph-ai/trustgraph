@@ -95,7 +95,7 @@ class PromptImpl:
     async def invoke(self, **arguments):
         client = self.context("prompt-request")
         print(f"Prompt template invocation: {self.template_id}...", flush=True)
-        return await client.template(
-            template_id=self.template_id,
+        return await client.prompt(
+            id=self.template_id,
             variables=arguments
         )
