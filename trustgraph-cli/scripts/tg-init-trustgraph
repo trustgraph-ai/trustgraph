@@ -118,7 +118,10 @@ def ensure_config(config, pulsar_host, pulsar_api_key):
             print("Retrying...", flush=True)
             continue
     
-def init(pulsar_admin_url, pulsar_host, pulsar_api_key, config, tenant):
+def init(
+        pulsar_admin_url, pulsar_host, pulsar_api_key, tenant,
+        config, config_file,
+):
 
     clusters = get_clusters(pulsar_admin_url)
 
@@ -156,6 +159,18 @@ def init(pulsar_admin_url, pulsar_host, pulsar_api_key, config, tenant):
 
         ensure_config(dec, pulsar_host, pulsar_api_key)
 
+    elif config_file is not None:
+
+        try:
+            print("Decoding config...", flush=True)
+            dec = json.load(open(config_file))
+            print("Decoded.", flush=True)
+        except Exception as e:
+            print("Exception:", e, flush=True)
+            raise e
+
+        ensure_config(dec, pulsar_host, pulsar_api_key)
+
     else:
         print("No config to update.", flush=True)
 
@@ -186,6 +201,11 @@ def main():
     parser.add_argument(
         '-c', '--config',
         help=f'Initial configuration to load',
+    )
+
+    parser.add_argument(
+        '-C', '--config-file',
+        help=f'Initial configuration to load from file',
     )
 
     parser.add_argument(
