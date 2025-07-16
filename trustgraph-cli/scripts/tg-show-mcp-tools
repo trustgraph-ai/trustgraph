@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Dumps out the current agent tool configuration
+Displays the current MCP (Model Context Protocol) tool configuration
 """
 
 import argparse

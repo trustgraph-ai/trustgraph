@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 
 """
-Dumps out the current agent tool configuration
+Displays the current agent tool configurations
+
+Shows all configured tools including their types:
+- knowledge-query: Tools that query knowledge bases
+- text-completion: Tools for text generation
+- mcp-tool: References to MCP (Model Context Protocol) tools  
+- prompt: Tools that execute prompt templates
 """
 
 import argparse

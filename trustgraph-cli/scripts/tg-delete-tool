@@ -40,7 +40,7 @@ def delete_tool(
 
         # Delete the tool configuration
         api.delete([
-            ConfigKey(type="agent", key=id)
+            ConfigKey(type="tool", key=id)
         ])
         
         print(f"Tool '{id}' deleted successfully.")

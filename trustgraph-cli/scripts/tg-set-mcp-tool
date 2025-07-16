@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 
 """
-Configures and registers MCP (Model Control Protocol) tools in the
-TrustGraph system.  Allows defining MCP tool configurations with name and
-URL. Tools are stored in the 'mcp' configuration group for discovery and
-execution.
+Configures and registers MCP (Model Context Protocol) tools in the
+TrustGraph system.
+
+MCP tools are external services that follow the Model Context Protocol
+specification. This script stores MCP tool configurations with:
+- id: Unique identifier for the tool
+- remote-name: Name used by the MCP server (defaults to id)
+- url: MCP server endpoint URL
+
+Configurations are stored in the 'mcp' configuration group and can be
+referenced by agent tools using the 'mcp-tool' type.
 """
 
 import argparse
@@ -44,8 +51,8 @@ def main():
             to the MCP server endpoint that provides the tool functionality.
             
             Examples:
-              %(prog)s --name weather --tool-url "http://localhost:3000/weather"
-              %(prog)s --name calculator --tool-url "http://mcp-tools.example.com/calc"
+              %(prog)s --id weather --tool-url "http://localhost:3000/weather"
+              %(prog)s --id calculator --tool-url "http://mcp-tools.example.com/calc"
         ''').strip(),
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -59,13 +66,13 @@ def main():
     parser.add_argument(
         '-i', '--id',
         required=True,
-        help='MCP tool name',
+        help='MCP tool identifier',
     )
 
     parser.add_argument(
         '-r', '--remote-name',
         required=False,
-        help='MCP tool name',
+        help='Remote MCP tool name (defaults to --id if not specified)',
     )
 
     parser.add_argument(
@@ -79,10 +86,10 @@ def main():
     try:
 
         if not args.id:
-            raise RuntimeError("Must specify --name for MCP tool")
+            raise RuntimeError("Must specify --id for MCP tool")
 
         if not args.tool_url:
-            raise RuntimeError("Must specify --url for MCP tool")
+            raise RuntimeError("Must specify --tool-url for MCP tool")
 
         if args.remote_name:
             remote_name = args.remote_name
