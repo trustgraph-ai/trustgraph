@@ -47,8 +47,8 @@ class Service(ToolService):
 
             url = self.mcp_services[name]["url"]
 
-            if "name" in self.mcp_services[name]:
-                remote_name = self.mcp_services[name]["name"]
+            if "remote-name" in self.mcp_services[name]:
+                remote_name = self.mcp_services[name]["remote-name"]
             else:
                 remote_name = name
 
