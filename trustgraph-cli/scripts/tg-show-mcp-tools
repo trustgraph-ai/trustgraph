@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Dumps out the current agent tool configuration
+Displays the current MCP (Model Context Protocol) tool configuration
 """
 
 import argparse
@@ -26,11 +26,10 @@ def show_config(url):
         table = []
 
         table.append(("id", value.key))
-        table.append(("name", data["name"]))
+        table.append(("remote-name", data["remote-name"]))
         table.append(("url", data["url"]))
 
         print()
-        print(value.key + ":")
 
         print(tabulate.tabulate(
             table,

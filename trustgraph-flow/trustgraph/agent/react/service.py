@@ -12,7 +12,7 @@ from ... base import GraphRagClientSpec, ToolClientSpec
 
 from ... schema import AgentRequest, AgentResponse, AgentStep, Error
 
-from . tools import KnowledgeQueryImpl, TextCompletionImpl, McpToolImpl
+from . tools import KnowledgeQueryImpl, TextCompletionImpl, McpToolImpl, PromptImpl
 from . agent_manager import AgentManager
 
 from . types import Final, Action, Tool, Argument
@@ -79,64 +79,76 @@ class Processor(AgentService):
 
         print("Loading configuration version", version)
 
-        if self.config_key not in config:
-            print(f"No key {self.config_key} in config", flush=True)
-            return
-
-        config = config[self.config_key]
-
         try:
-
-            # This is some extra stuff to put in the prompt
-            additional = config.get("additional-context", None)
-
-            ix = json.loads(config["tool-index"])
 
             tools = {}
 
-            for k in ix:
-
-                pc = config[f"tool.{k}"]
-                data = json.loads(pc)
-
-                arguments = {
-                    v.get("name"): Argument(
-                        name = v.get("name"),
-                        type = v.get("type"),
-                        description = v.get("description")
+            # Load tool configurations from the new location
+            if "tool" in config:
+                for tool_id, tool_value in config["tool"].items():
+                    data = json.loads(tool_value)
+                    
+                    impl_id = data.get("type")
+                    name = data.get("name")
+                    
+                    # Create the appropriate implementation
+                    if impl_id == "knowledge-query":
+                        impl = functools.partial(
+                            KnowledgeQueryImpl, 
+                            collection=data.get("collection")
+                        )
+                        arguments = KnowledgeQueryImpl.get_arguments()
+                    elif impl_id == "text-completion":
+                        impl = TextCompletionImpl
+                        arguments = TextCompletionImpl.get_arguments()
+                    elif impl_id == "mcp-tool":
+                        impl = functools.partial(
+                            McpToolImpl, 
+                            mcp_tool_id=data.get("mcp-tool")
+                        )
+                        arguments = McpToolImpl.get_arguments()
+                    elif impl_id == "prompt":
+                        # For prompt tools, arguments come from config
+                        config_args = data.get("arguments", [])
+                        arguments = [
+                            Argument(
+                                name=arg.get("name"),
+                                type=arg.get("type"),
+                                description=arg.get("description")
+                            )
+                            for arg in config_args
+                        ]
+                        impl = functools.partial(
+                            PromptImpl,
+                            template_id=data.get("template"),
+                            arguments=arguments
+                        )
+                    else:
+                        raise RuntimeError(
+                            f"Tool type {impl_id} not known"
+                        )
+                    
+                    tools[name] = Tool(
+                        name=name,
+                        description=data.get("description"),
+                        implementation=impl,
+                        config=data,  # Store full config for reference
+                        arguments=arguments,
                     )
-                    for v in data["arguments"]
-                }
-
-                impl_id = data.get("type")
-
-                name = data.get("name")
-
-                if impl_id == "knowledge-query":
-                    impl = KnowledgeQueryImpl
-                elif impl_id == "text-completion":
-                    impl = TextCompletionImpl
-                elif impl_id == "mcp-tool":
-                    impl = functools.partial(McpToolImpl, name=k)
-                else:
-                    raise RuntimeError(
-                        f"Tool-kind {impl_id} not known"
-                    )
-
-                tools[data.get("name")] = Tool(
-                    name = name,
-                    description = data.get("description"),
-                    implementation = impl,
-                    config=data.get("config", {}),
-                    arguments = arguments,
-                )
-
+            
+            # Load additional context from agent config if it exists
+            additional = None
+            if self.config_key in config:
+                agent_config = config[self.config_key]
+                additional = agent_config.get("additional-context", None)
+            
             self.agent = AgentManager(
                 tools=tools,
                 additional_context=additional
             )
 
-            print("Prompt configuration reloaded.", flush=True)
+            print(f"Loaded {len(tools)} tools", flush=True)
+            print("Tool configuration reloaded.", flush=True)
 
         except Exception as e:
 

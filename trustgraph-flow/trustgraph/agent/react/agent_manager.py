@@ -39,7 +39,7 @@ class AgentManager:
                             "type": arg.type,
                             "description": arg.description
                         }
-                        for arg in tool.arguments.values()
+                        for arg in tool.arguments
                     ]
                 }
                 for tool in self.tools.values()

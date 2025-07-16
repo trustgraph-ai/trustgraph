@@ -69,39 +69,39 @@ class TestAgentManagerIntegration:
             "knowledge_query": Tool(
                 name="knowledge_query",
                 description="Query the knowledge graph for information",
-                arguments={
-                    "question": Argument(
+                arguments=[
+                    Argument(
                         name="question",
                         type="string", 
                         description="The question to ask the knowledge graph"
                     )
-                },
+                ],
                 implementation=KnowledgeQueryImpl,
                 config={}
             ),
             "text_completion": Tool(
                 name="text_completion",
                 description="Generate text completion using LLM",
-                arguments={
-                    "question": Argument(
+                arguments=[
+                    Argument(
                         name="question",
                         type="string",
                         description="The question to ask the LLM"
                     )
-                },
+                ],
                 implementation=TextCompletionImpl,
                 config={}
             ),
             "web_search": Tool(
                 name="web_search",
                 description="Search the web for information",
-                arguments={
-                    "query": Argument(
+                arguments=[
+                    Argument(
                         name="query",
                         type="string",
                         description="The search query"
                     )
-                },
+                ],
                 implementation=lambda context: AsyncMock(invoke=AsyncMock(return_value="Web search results")),
                 config={}
             )

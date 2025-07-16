@@ -2,9 +2,15 @@
 
 """
 Configures and registers tools in the TrustGraph system.
-Allows defining tool metadata including ID, name, description, type,
-and argument specifications. Tools are stored in the agent configuration
-and indexed for discovery and execution.
+
+This script allows you to define agent tools with various types including:
+- knowledge-query: Query knowledge bases  
+- text-completion: Text generation
+- mcp-tool: Reference to MCP (Model Context Protocol) tools
+- prompt: Prompt template execution
+
+Tools are stored in the 'tool' configuration group and can include
+argument specifications for parameterized execution.
 """
 
 from typing import List
@@ -51,6 +57,9 @@ def set_tool(
         name : str,
         description : str,
         type : str,
+        mcp_tool : str,
+        collection : str,
+        template : str,
         arguments : List[Argument],
 ):
 
@@ -60,14 +69,20 @@ def set_tool(
         ConfigKey(type="agent", key="tool-index")
     ])
 
-    ix = json.loads(values[0].value)
-
     object = {
-        "id": id,
         "name": name,
         "description": description,
         "type": type,
-        "arguments": [
+    }
+
+    if mcp_tool: object["mcp-tool"] = mcp_tool
+
+    if collection: object["collection"] = collection
+
+    if template: object["template"] = template
+
+    if arguments:
+        object["arguments"] = [
             {
                 "name": a.name,
                 "type": a.type,
@@ -75,17 +90,10 @@ def set_tool(
             }
             for a in arguments
         ]
-    }
-
-    if id not in ix:
-        ix.append(id)
 
     values = api.put([
         ConfigValue(
-            type="agent", key="tool-index", value=json.dumps(ix)
-        ),
-        ConfigValue(
-            type="agent", key=f"tool.{id}", value=json.dumps(object)
+            type="tool", key=f"{id}", value=json.dumps(object)
         )
     ])
 
@@ -100,7 +108,8 @@ def main():
             Valid tool types:
               knowledge-query    - Query knowledge bases
               text-completion    - Text completion/generation
-              mcp-tool          - Model Control Protocol tool
+              mcp-tool           - Model Control Protocol tool
+              prompt             - Prompt template query
             
             Valid argument types:
               string            - String/text parameter
@@ -128,28 +137,43 @@ def main():
 
     parser.add_argument(
         '--id',
-        help=f'Tool ID',
+        help=f'Unique tool identifier',
     )
 
     parser.add_argument(
         '--name',
-        help=f'Tool name',
+        help=f'Human-readable tool name',
     )
 
     parser.add_argument(
         '--description',
-        help=f'Tool description',
+        help=f'Detailed description of what the tool does',
     )
 
     parser.add_argument(
         '--type',
-        help=f'Tool type, one of: knowledge-query, text-completion, mcp-tool',
+        help=f'Tool type, one of: knowledge-query, text-completion, mcp-tool, prompt',
     )
 
     parser.add_argument(
-        '--argument',
-        nargs="*",
-        help=f'Arguments, form: name:type:description',
+        '--mcp-tool',
+        help=f'For MCP type: ID of MCP tool configuration (as defined by tg-set-mcp-tool)',
+    )
+
+    parser.add_argument(
+        '--collection',
+        help=f'For knowledge-query type: collection to query',
+    )
+
+    parser.add_argument(
+        '--template',
+        help=f'For prompt type: template ID to use',
+    )
+
+    parser.add_argument(
+       '--argument',
+       nargs="*",
+       help=f'Tool arguments in the form: name:type:description (can specify multiple)',
     )
 
     args = parser.parse_args()
@@ -157,20 +181,22 @@ def main():
     try:
 
         valid_types = [
-            "knowledge-query", "text-completion", "mcp-tool"
+            "knowledge-query", "text-completion", "mcp-tool", "prompt"
         ]
 
         if args.id is None:
-            raise RuntimeError("Must specify --id for prompt")
+            raise RuntimeError("Must specify --id for tool")
 
         if args.name is None:
-            raise RuntimeError("Must specify --name for prompt")
+            raise RuntimeError("Must specify --name for tool")
 
         if args.type:
             if args.type not in valid_types:
                 raise RuntimeError(
                     "Type must be one of: " + ", ".join(valid_types)
                 )
+
+        mcp_tool = args.mcp_tool
 
         if args.argument:
             arguments = [
@@ -181,10 +207,15 @@ def main():
             arguments = []
 
         set_tool(
-            url=args.api_url, id=args.id, name=args.name,
+            url=args.api_url,
+            id=args.id,
+            name=args.name,
             description=args.description,
             type=args.type,
-            arguments=arguments
+            mcp_tool=mcp_tool,
+            collection=args.collection,
+            template=args.template,
+            arguments=arguments,
         )
 
     except Exception as e:

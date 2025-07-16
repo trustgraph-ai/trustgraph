@@ -2,7 +2,7 @@
 
 """
 Deletes MCP (Model Control Protocol) tools from the TrustGraph system.
-Removes MCP tool configurations by name from the 'mcp' configuration group.
+Removes MCP tool configurations by ID from the 'mcp' configuration group.
 """
 
 import argparse
@@ -14,7 +14,7 @@ default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 
 def delete_mcp_tool(
         url : str,
-        name : str,
+        id : str,
 ):
 
     api = Api(url).config()
@@ -22,28 +22,28 @@ def delete_mcp_tool(
     # Check if the tool exists first
     try:
         values = api.get([
-            ConfigKey(type="mcp", key=name)
+            ConfigKey(type="mcp", key=id)
         ])
         
         if not values or not values[0].value:
-            print(f"MCP tool '{name}' not found.")
+            print(f"MCP tool '{id}' not found.")
             return False
             
     except Exception as e:
-        print(f"MCP tool '{name}' not found.")
+        print(f"MCP tool '{id}' not found.")
         return False
 
     # Delete the MCP tool configuration from the 'mcp' group
     try:
         api.delete([
-            ConfigKey(type="mcp", key=name)
+            ConfigKey(type="mcp", key=id)
         ])
         
-        print(f"MCP tool '{name}' deleted successfully.")
+        print(f"MCP tool '{id}' deleted successfully.")
         return True
         
     except Exception as e:
-        print(f"Error deleting MCP tool '{name}': {e}")
+        print(f"Error deleting MCP tool '{id}': {e}")
         return False
 
 def main():
@@ -56,9 +56,9 @@ def main():
             Once deleted, the tool will no longer be available for use.
             
             Examples:
-              %(prog)s --name weather
-              %(prog)s --name calculator
-              %(prog)s --api-url http://localhost:9000/ --name file-reader
+              %(prog)s --id weather
+              %(prog)s --id calculator
+              %(prog)s --api-url http://localhost:9000/ --id file-reader
         ''').strip(),
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -70,21 +70,21 @@ def main():
     )
 
     parser.add_argument(
-        '--name',
+        '--id',
         required=True,
-        help='MCP tool name to delete',
+        help='MCP tool ID to delete',
     )
 
     args = parser.parse_args()
 
     try:
 
-        if not args.name:
-            raise RuntimeError("Must specify --name for MCP tool to delete")
+        if not args.id:
+            raise RuntimeError("Must specify --id for MCP tool to delete")
 
         delete_mcp_tool(
             url=args.api_url, 
-            name=args.name
+            id=args.id
         )
 
     except Exception as e:
