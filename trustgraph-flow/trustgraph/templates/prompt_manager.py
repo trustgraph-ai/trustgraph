@@ -19,10 +19,10 @@ class Prompt:
 
 class PromptManager:
 
-    def __init__(self, config):
-        self.config = config
-        self.terms = config.global_terms
+    def __init__(self, {}):
 
+        self.config = PromptConfiguration("", {}, {})
+        self.terms = config.global_terms
         self.prompts = config.prompts
 
         try:
@@ -40,6 +40,35 @@ class PromptManager:
             if v.terms is None:
                 v.terms = {}
 
+    def load_config(self, config):
+
+        system = json.loads(config["system"])
+        ix = json.loads(config["template-index"])
+
+        prompts = {}
+
+        for k in ix:
+
+            pc = config[f"template.{k}"]
+            data = json.loads(pc)
+
+            prompt = data.get("prompt")
+            rtype = data.get("response-type", "text")
+            schema = data.get("schema", None)
+
+            prompts[k] = Prompt(
+                template = prompt,
+                response_type = rtype,
+                schema = schema,
+                terms = {}
+            )
+
+        self.config = PromptConfiguration(
+            system,
+            {},
+            prompts
+        )
+
     def parse_json(self, text):
         json_match = re.search(r'```(?:json)?(.*?)```', text, re.DOTALL)
     
@@ -51,9 +80,7 @@ class PromptManager:
 
         return json.loads(json_str)
 
-    async def invoke(self, id, input, llm):
-
-        print("Invoke...", flush=True)
+    async def render(self, id, input):
 
         if id not in self.prompts:
             raise RuntimeError("ID invalid")
@@ -62,9 +89,17 @@ class PromptManager:
 
         resp_type = self.prompts[id].response_type
 
+        return self.templates[id].render(terms)
+
+    async def invoke(self, id, input, llm):
+
+        print("Invoke...", flush=True)
+
+        resp_type = self.prompts[id].response_type
+
         prompt = {
             "system": self.system_template.render(terms),
-            "prompt": self.templates[id].render(terms)
+            "prompt": self.render(id, input)
         }
 
         resp = await llm(**prompt)
