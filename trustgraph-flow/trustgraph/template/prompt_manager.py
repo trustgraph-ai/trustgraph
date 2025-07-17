@@ -19,7 +19,7 @@ class Prompt:
 
 class PromptManager:
 
-    def __init__(self, {}):
+    def __init__(self):
 
         self.config = PromptConfiguration("", {}, {})
         self.terms = config.global_terms

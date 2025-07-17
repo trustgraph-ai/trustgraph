@@ -7,15 +7,15 @@ import asyncio
 import json
 import re
 
-from ....schema import Definition, Relationship, Triple
-from ....schema import Topic
-from ....schema import PromptRequest, PromptResponse, Error
-from ....schema import TextCompletionRequest, TextCompletionResponse
+from ...schema import Definition, Relationship, Triple
+from ...schema import Topic
+from ...schema import PromptRequest, PromptResponse, Error
+from ...schema import TextCompletionRequest, TextCompletionResponse
 
-from ....base import FlowProcessor
-from ....base import ProducerSpec, ConsumerSpec, TextCompletionClientSpec
+from ...base import FlowProcessor
+from ...base import ProducerSpec, ConsumerSpec, TextCompletionClientSpec
 
-from .template import PromptConfiguration, Prompt, PromptManager
+from ...template import PromptConfiguration, Prompt, PromptManager
 
 default_ident = "prompt"
 default_concurrency = 1
