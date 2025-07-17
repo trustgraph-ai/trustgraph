@@ -4,7 +4,7 @@ from .. schema import AgentRequest, AgentResponse
 from .. knowledge import Uri, Literal
 
 class AgentClient(RequestResponse):
-    async def request(self, recipient, question, plan=None, state=None,
+    async def request(self, question, plan=None, state=None,
                     history=[], timeout=300):
 
         resp = await self.request(
@@ -31,9 +31,9 @@ class AgentClientSpec(RequestResponseSpec):
     ):
         super(AgentClientSpec, self).__init__(
             request_name = request_name,
-            request_schema = GraphEmbeddingsRequest,
+            request_schema = AgentRequest,
             response_name = response_name,
-            response_schema = GraphEmbeddingsResponse,
+            response_schema = AgentResponse,
             impl = AgentClient,
         )
 

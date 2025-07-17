@@ -1,16 +1,18 @@
 import json
 import urllib.parse
 
-from .... schema import Chunk, Triple, Triples, Metadata, Value
-from .... schema import AgentRequest, AgentResponse, EntityContext, EntityContexts
-from .... schema import ConfigRequest, ConfigResponse
+from ....schema import Chunk, Triple, Triples, Metadata, Value
+from ....schema import AgentRequest, AgentResponse, EntityContext, EntityContexts
+from ....schema import ConfigRequest, ConfigResponse
 
-from .... rdf import TRUSTGRAPH_ENTITIES, RDF_LABEL, SUBJECT_OF, DEFINITION
+from ....rdf import TRUSTGRAPH_ENTITIES, RDF_LABEL, SUBJECT_OF, DEFINITION
 
-from .... base import FlowProcessor, ConsumerSpec, ProducerSpec
-from .... base import AgentClientSpec
+from ....base import FlowProcessor, ConsumerSpec, ProducerSpec
+from ....base import AgentClientSpec
 
-default_ident = "kg-extract-relationships"
+from ....template import PromptManager
+
+default_ident = "kg-extract-agent"
 default_concurrency = 1
 default_template_id = "agent-kg-extract"
 default_config_type = "prompt"
@@ -67,9 +69,12 @@ class Processor(FlowProcessor):
             )
         )
 
+        # Null configuration, should reload quickly
+        self.manager = PromptManager()
+
     async def on_prompt_config(self, config, version):
 
-        print("Got config version", version)
+        print("Loading configuration version", version)
 
         if self.config_key not in config:
             print(f"No key {self.config_key} in config", flush=True)
@@ -79,28 +84,14 @@ class Processor(FlowProcessor):
 
         try:
 
-            tmpl = json.loads(config[self.template_id])
+            self.manager.load_config(config)
 
-            self.c
-
-            self.prompt = data.get("prompt")
-            self.rtype = data.get("response-type", "text")
-            schema = data.get("schema", None)
-
-            if schema:
-                self.schema = json.loads(schema)
-            else:
-                self.schema = {}
-
-            print("Prompt template reloaded.", flush=True)
+            print("Prompt configuration reloaded.", flush=True)
 
         except Exception as e:
 
-            print(f"Exception: {e}")
-            
-            self.prompt = ""
-            self.rtype = "text"
-            self.schema = {}
+            print("Exception:", e, flush=True)
+            print("Configuration reload failed", flush=True)
 
     def to_uri(self, text):
         return TRUSTGRAPH_ENTITIES + urllib.parse.quote(text)
@@ -121,30 +112,32 @@ class Processor(FlowProcessor):
 
         try:
 
-            # Get template from config
-            template_key = f"template.{self.template_id}"
-            config_response = await flow("config-request").get(
-                keys=[template_key]
-            )
-            
-            if template_key not in config_response.values:
-                raise ValueError(f"Template '{self.template_id}' not found in config")
-            
-            template = config_response.values[template_key]
-            
+            v = msg.value()
+
             # Extract chunk text
-            chunk_text = msg.chunk.decode('utf-8')
-            
-            # Render template with chunk content
-            rendered_prompt = template.prompt.replace("{{text}}", chunk_text)
+            chunk_text = v.chunk.decode('utf-8')
+
+            print("Got chunk", flush=True)
+
+            prompt = self.manager.render(
+                self.template_id,
+                {
+                    "text": chunk_text
+                }
+            )
+
+            print("Prompt:", prompt)
             
             # Send to agent API
             agent_response = await flow("agent-request").request(
-                question=rendered_prompt
+                question=prompt
             )
             
             if agent_response.error:
                 raise Exception(f"Agent error: {agent_response.error}")
+
+            print("response:", agent_response)
+            return
             
             # Parse JSON response
             try:
@@ -154,7 +147,7 @@ class Processor(FlowProcessor):
             
             # Process extraction data
             triples, entity_contexts = self.process_extraction_data(
-                extraction_data, msg.metadata
+                extraction_data, v.metadata
             )
             
             # Emit outputs
@@ -281,7 +274,7 @@ class Processor(FlowProcessor):
         parser.add_argument(
             "--template-id",
             type=str,
-            default="agent-kg-extract",
+            default=default_template_id,
             help="Template ID to use for agent extraction"
         )
 

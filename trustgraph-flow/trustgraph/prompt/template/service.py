@@ -15,7 +15,7 @@ from ...schema import TextCompletionRequest, TextCompletionResponse
 from ...base import FlowProcessor
 from ...base import ProducerSpec, ConsumerSpec, TextCompletionClientSpec
 
-from ...template import PromptConfiguration, Prompt, PromptManager
+from ...template import PromptManager
 
 default_ident = "prompt"
 default_concurrency = 1
