@@ -17,7 +17,7 @@ default_config_key = "prompt"
 
 class Processor(FlowProcessor):
 
-    def __init__(self, , **params):
+    def __init__(self, **params):
 
         id = params.get("id")
         concurrency = params.get("concurrency", 1)
