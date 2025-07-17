@@ -33,7 +33,7 @@ class Processor(FlowProcessor):
         super(Processor, self).__init__(
             **params | {
                 "id": id,
-                "config-type": config_key,
+                "config-type": self.config_key,
                 "concurrency": concurrency,
             }
         )
