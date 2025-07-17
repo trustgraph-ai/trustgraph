@@ -25,15 +25,15 @@ class AgentClient(RequestResponse):
 
         return resp
 
-class GraphEmbeddingsClientSpec(RequestResponseSpec):
+class AgentClientSpec(RequestResponseSpec):
     def __init__(
             self, request_name, response_name,
     ):
-        super(GraphEmbeddingsClientSpec, self).__init__(
+        super(AgentClientSpec, self).__init__(
             request_name = request_name,
             request_schema = GraphEmbeddingsRequest,
             response_name = response_name,
             response_schema = GraphEmbeddingsResponse,
-            impl = GraphEmbeddingsClient,
+            impl = AgentClient,
         )
 

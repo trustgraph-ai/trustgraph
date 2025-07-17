@@ -8,7 +8,7 @@ from .... schema import ConfigRequest, ConfigResponse
 from .... rdf import TRUSTGRAPH_ENTITIES, RDF_LABEL, SUBJECT_OF, DEFINITION
 
 from .... base import FlowProcessor, ConsumerSpec, ProducerSpec
-from .... base import AgentClientSpec, ConfigClientSpec
+from .... base import AgentClientSpec
 
 default_ident = "kg-extract-relationships"
 default_concurrency = 1
@@ -50,13 +50,6 @@ class Processor(FlowProcessor):
             AgentClientSpec(
                 request_name = "agent-request",
                 response_name = "agent-response",
-            )
-        )
-
-        self.register_specification(
-            ConfigClientSpec(
-                request_name="config-request",
-                response_name="config-response",
             )
         )
 
@@ -277,6 +270,14 @@ class Processor(FlowProcessor):
 
     @staticmethod
     def add_args(parser):
+
+        parser.add_argument(
+            '-c', '--concurrency',
+            type=int,
+            default=default_concurrency,
+            help=f'Concurrent processing threads (default: {default_concurrency})'
+        )
+
         parser.add_argument(
             "--template-id",
             type=str,
@@ -284,19 +285,14 @@ class Processor(FlowProcessor):
             help="Template ID to use for agent extraction"
         )
 
-    @staticmethod
-    def run():
-        import argparse
-        from .... base import run_processor
-        
-        parser = argparse.ArgumentParser(
-            description="Agent-based knowledge extractor"
+        parser.add_argument(
+            '--config-type',
+            default="prompt",
+            help=f'Configuration key for prompts (default: prompt)',
         )
-        Processor.add_args(parser)
-        args = parser.parse_args()
-        
-        processor = Processor(
-            template_id=args.template_id
-        )
-        
-        run_processor(processor)
+
+        FlowProcessor.add_args(parser)
+
+def run():
+
+    Processor.launch(default_ident, __doc__)

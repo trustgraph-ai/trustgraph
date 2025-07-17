@@ -230,13 +230,13 @@ class Processor(FlowProcessor):
             help=f'Concurrent processing threads (default: {default_concurrency})'
         )
 
-        FlowProcessor.add_args(parser)
-
         parser.add_argument(
             '--config-type',
             default="prompt",
             help=f'Configuration key for prompts (default: prompt)',
         )
+
+        FlowProcessor.add_args(parser)
 
 def run():
 
