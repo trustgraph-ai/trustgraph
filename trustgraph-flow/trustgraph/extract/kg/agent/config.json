@@ -1,0 +1,40 @@
+{
+  "prompt": {
+    "template.agent-kg-extract": {
+      "id": "agent-kg-extract",
+      "prompt": "Analyze the following text and extract both entity definitions and relationships. Return the results as JSON with 'definitions' and 'relationships' arrays.\n\nFor definitions, extract entities and their explanations or descriptions.\nFor relationships, extract subject-predicate-object triples where subjects and objects are entities, and predicates are relationship types.\n\nText: {{text}}\n\nReturn JSON only, no other text. Use this exact format:\n{\n  \"definitions\": [\n    {\n      \"entity\": \"entity_name\",\n      \"definition\": \"definition_text\",\n      \"context\": \"surrounding_context\"\n    }\n  ],\n  \"relationships\": [\n    {\n      \"subject\": \"subject_entity\",\n      \"predicate\": \"relationship_type\",\n      \"object\": \"object_entity_or_literal\",\n      \"object-entity\": true\n    }\n  ]\n}",
+      "response-type": "json",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "definitions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "entity": {"type": "string"},
+                "definition": {"type": "string"},
+                "context": {"type": "string"}
+              },
+              "required": ["entity", "definition", "context"]
+            }
+          },
+          "relationships": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "subject": {"type": "string"},
+                "predicate": {"type": "string"},
+                "object": {"type": "string"},
+                "object-entity": {"type": "boolean"}
+              },
+              "required": ["subject", "predicate", "object"]
+            }
+          }
+        },
+        "required": ["definitions", "relationships"]
+      }
+    }
+  }
+}
