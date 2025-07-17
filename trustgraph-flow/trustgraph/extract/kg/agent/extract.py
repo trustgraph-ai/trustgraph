@@ -13,7 +13,7 @@ from .... base import AgentClientSpec
 default_ident = "kg-extract-relationships"
 default_concurrency = 1
 default_template_id = "agent-kg-extract"
-default_config_key = "prompt"
+default_config_type = "prompt"
 
 class Processor(FlowProcessor):
 
@@ -22,12 +22,12 @@ class Processor(FlowProcessor):
         id = params.get("id")
         concurrency = params.get("concurrency", 1)
         template_id = params.get("template-id", default_template_id)
-        config_key = params.get("config-key", default_config_key)
+        config_key = params.get("config-type", default_config_type)
 
         super().__init__(**params | {
             "id": id,
             "template-id": template_id,
-            "config-key": config_key,
+            "config-type": config_key,
             "concurrency": concurrency,
         })
 
