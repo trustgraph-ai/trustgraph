@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from trustgraph.model.prompt.template import run
+from trustgraph.prompt.template import run
 
 run()
 
