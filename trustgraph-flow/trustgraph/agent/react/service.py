@@ -221,6 +221,11 @@ class Processor(AgentService):
 
                 print("Send final response...", flush=True)
 
+                if isinstance(act.final, str):
+                    f = act.final
+                else:
+                    f = json.dumps(act.final)
+
                 r = AgentResponse(
                     answer=act.final,
                     error=None,

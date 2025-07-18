@@ -4,9 +4,9 @@ from .. schema import AgentRequest, AgentResponse
 from .. knowledge import Uri, Literal
 
 class AgentClient(RequestResponse):
-    async def request(self, question, plan=None, state=None,
+    async def invoke(self, recipient, question, plan=None, state=None,
                     history=[], timeout=300):
-
+        
         resp = await self.request(
             AgentRequest(
                 question = question,
@@ -18,12 +18,10 @@ class AgentClient(RequestResponse):
             timeout=timeout,
         )
 
-        print(resp, flush=True)
-
         if resp.error:
             raise RuntimeError(resp.error.message)
 
-        return resp
+        return resp.answer
 
 class AgentClientSpec(RequestResponseSpec):
     def __init__(

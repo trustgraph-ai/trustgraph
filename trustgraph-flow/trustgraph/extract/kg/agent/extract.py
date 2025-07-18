@@ -1,9 +1,9 @@
+import re
 import json
 import urllib.parse
 
 from ....schema import Chunk, Triple, Triples, Metadata, Value
-from ....schema import AgentRequest, AgentResponse, EntityContext, EntityContexts
-from ....schema import ConfigRequest, ConfigResponse
+from ....schema import EntityContext, EntityContexts
 
 from ....rdf import TRUSTGRAPH_ENTITIES, RDF_LABEL, SUBJECT_OF, DEFINITION
 
@@ -74,7 +74,7 @@ class Processor(FlowProcessor):
 
     async def on_prompt_config(self, config, version):
 
-        print("Loading configuration version", version)
+        print("Loading configuration version", version, flush=True)
 
         if self.config_key not in config:
             print(f"No key {self.config_key} in config", flush=True)
@@ -108,6 +108,17 @@ class Processor(FlowProcessor):
         ecs.entity_contexts = entity_contexts
         pub.publish(ecs)
 
+    def parse_json(self, text):
+        json_match = re.search(r'```(?:json)?(.*?)```', text, re.DOTALL)
+    
+        if json_match:
+            json_str = json_match.group(1).strip()
+        else:
+            # If no delimiters, assume the entire output is JSON
+            json_str = text.strip()
+
+        return json.loads(json_str)
+
     async def on_message(self, msg, consumer, flow):
 
         try:
@@ -126,22 +137,36 @@ class Processor(FlowProcessor):
                 }
             )
 
-            print("Prompt:", prompt)
+            print("Prompt:", prompt, flush=True)
+
+            async def handle(response):
+
+                print("Response:", response, flush=True)
+
+                print("Done?", response.answer is not None, flush=True)
+
+                if response.error is not None:
+                    raise RuntimeError(response.error)
+
+                if response.answer is not None:
+                    return True
+                else:
+                    return False
             
             # Send to agent API
-            agent_response = await flow("agent-request").request(
-                question=prompt
+            agent_response = await flow("agent-request").invoke(
+                recipient = handle,
+                question = prompt
             )
-            
-            if agent_response.error:
-                raise Exception(f"Agent error: {agent_response.error}")
 
-            print("response:", agent_response)
-            return
+            if agent_response.error:
+                raise RuntimeError(f"Agent error: {agent_response.error}")
+
+            print("response:", agent_response, flush=True)
             
             # Parse JSON response
             try:
-                extraction_data = json.loads(agent_response.answer)
+                extraction_data = self.parse_json(agent_response.answer)
             except json.JSONDecodeError as e:
                 raise ValueError(f"Invalid JSON response from agent: {e}")
             
@@ -152,17 +177,17 @@ class Processor(FlowProcessor):
             
             # Emit outputs
             if triples:
-                self.emit_triples(flow.producer("triples"), msg.metadata, triples)
+                self.emit_triples(flow("triples"), msg.metadata, triples)
             
             if entity_contexts:
                 self.emit_entity_contexts(
-                    flow.producer("entity-contexts"), 
+                    flow("entity-contexts"), 
                     msg.metadata, 
                     entity_contexts
                 )
 
         except Exception as e:
-            print(f"Error processing chunk: {e}")
+            print(f"Error processing chunk: {e}", flush=True)
             raise
 
     def process_extraction_data(self, data, metadata):
