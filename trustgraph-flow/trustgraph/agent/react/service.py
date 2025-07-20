@@ -6,6 +6,10 @@ import json
 import re
 import sys
 import functools
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 from ... base import AgentService, TextCompletionClientSpec, PromptClientSpec
 from ... base import GraphRagClientSpec, ToolClientSpec
@@ -297,6 +301,5 @@ class Processor(AgentService):
         )
 
 def run():
-
     Processor.launch(default_ident, __doc__)
 

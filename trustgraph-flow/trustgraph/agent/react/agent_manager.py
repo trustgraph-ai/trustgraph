@@ -80,11 +80,12 @@ class AgentManager:
                         i += 1
                     
                     # Try to parse as JSON
-                    try:
-                        final_answer = json.loads(json_text)
-                    except json.JSONDecodeError:
-                        # Not valid JSON, treat as regular text
-                        final_answer = json_text
+                    # try:
+                    #     final_answer = json.loads(json_text)
+                    # except json.JSONDecodeError:
+                    #     # Not valid JSON, treat as regular text
+                    #     final_answer = json_text
+                    final_answer = json_text
                 else:
                     # Regular text answer
                     while i < len(lines):
@@ -262,6 +263,9 @@ class AgentManager:
             )
 
             if isinstance(resp, str):
+                resp = resp.strip()
+            else:
+                resp = str(resp)
                 resp = resp.strip()
 
             logger.info(f"resp: {resp}")
