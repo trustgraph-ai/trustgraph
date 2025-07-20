@@ -71,8 +71,8 @@ class PromptManager:
         for k, v in self.prompts.items():
             try:
                 self.templates[k] = ibis.Template(v.template)
-            except:
-                raise RuntimeError(f"Error in template: {k}")
+            except Exception as e:
+                raise RuntimeError(f"Error in template: {k}: {e}")
 
             if v.terms is None:
                 v.terms = {}
