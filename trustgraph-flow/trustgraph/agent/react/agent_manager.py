@@ -261,7 +261,8 @@ class AgentManager:
                 **act.arguments
             )
 
-            resp = resp.strip()
+            if isinstance(resp, str):
+                resp = resp.strip()
 
             logger.info(f"resp: {resp}")
 

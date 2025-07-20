@@ -146,7 +146,10 @@ class Processor(FlowProcessor):
                 print("Done?", response.answer is not None, flush=True)
 
                 if response.error is not None:
-                    raise RuntimeError(response.error)
+                    if response.error.message:
+                        raise RuntimeError(str(response.error.message))
+                    else:
+                        raise RuntimeError(str(response.error))
 
                 if response.answer is not None:
                     return True
