@@ -19,14 +19,51 @@ class Prompt:
 
 class PromptManager:
 
-    def __init__(self, config):
-        self.config = config
-        self.terms = config.global_terms
+    def __init__(self):
 
-        self.prompts = config.prompts
+        self.load_config({})
+
+    def load_config(self, config):
 
         try:
-            self.system_template = ibis.Template(config.system_template)
+            system = json.loads(config["system"])
+        except:
+            system = "Be helpful."
+
+        try:
+            ix = json.loads(config["template-index"])
+        except:
+            ix = []
+
+        prompts = {}
+
+        for k in ix:
+
+            pc = config[f"template.{k}"]
+            data = json.loads(pc)
+
+            prompt = data.get("prompt")
+            rtype = data.get("response-type", "text")
+            schema = data.get("schema", None)
+
+            prompts[k] = Prompt(
+                template = prompt,
+                response_type = rtype,
+                schema = schema,
+                terms = {}
+            )
+
+        self.config = PromptConfiguration(
+            system,
+            {},
+            prompts
+        )
+
+        self.terms = self.config.global_terms
+        self.prompts = self.config.prompts
+
+        try:
+            self.system_template = ibis.Template(self.config.system_template)
         except:
             raise RuntimeError("Error in system template")
 
@@ -34,8 +71,8 @@ class PromptManager:
         for k, v in self.prompts.items():
             try:
                 self.templates[k] = ibis.Template(v.template)
-            except:
-                raise RuntimeError(f"Error in template: {k}")
+            except Exception as e:
+                raise RuntimeError(f"Error in template: {k}: {e}")
 
             if v.terms is None:
                 v.terms = {}
@@ -51,9 +88,7 @@ class PromptManager:
 
         return json.loads(json_str)
 
-    async def invoke(self, id, input, llm):
-
-        print("Invoke...", flush=True)
+    def render(self, id, input):
 
         if id not in self.prompts:
             raise RuntimeError("ID invalid")
@@ -62,9 +97,19 @@ class PromptManager:
 
         resp_type = self.prompts[id].response_type
 
+        return self.templates[id].render(terms)
+
+    async def invoke(self, id, input, llm):
+
+        print("Invoke...", flush=True)
+
+        terms = self.terms | self.prompts[id].terms | input
+
+        resp_type = self.prompts[id].response_type
+
         prompt = {
             "system": self.system_template.render(terms),
-            "prompt": self.templates[id].render(terms)
+            "prompt": self.render(id, input)
         }
 
         resp = await llm(**prompt)

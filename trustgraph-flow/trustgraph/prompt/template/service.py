@@ -7,15 +7,15 @@ import asyncio
 import json
 import re
 
-from .... schema import Definition, Relationship, Triple
-from .... schema import Topic
-from .... schema import PromptRequest, PromptResponse, Error
-from .... schema import TextCompletionRequest, TextCompletionResponse
+from ...schema import Definition, Relationship, Triple
+from ...schema import Topic
+from ...schema import PromptRequest, PromptResponse, Error
+from ...schema import TextCompletionRequest, TextCompletionResponse
 
-from .... base import FlowProcessor
-from .... base import ProducerSpec, ConsumerSpec, TextCompletionClientSpec
+from ...base import FlowProcessor
+from ...base import ProducerSpec, ConsumerSpec, TextCompletionClientSpec
 
-from . prompt_manager import PromptConfiguration, Prompt, PromptManager
+from ...template import PromptManager
 
 default_ident = "prompt"
 default_concurrency = 1
@@ -33,6 +33,7 @@ class Processor(FlowProcessor):
         super(Processor, self).__init__(
             **params | {
                 "id": id,
+                "config-type": self.config_key,
                 "concurrency": concurrency,
             }
         )
@@ -63,9 +64,7 @@ class Processor(FlowProcessor):
         self.register_config_handler(self.on_prompt_config)
 
         # Null configuration, should reload quickly
-        self.manager = PromptManager(
-            config = PromptConfiguration("", {}, {})
-        )
+        self.manager = PromptManager()
 
     async def on_prompt_config(self, config, version):
 
@@ -79,34 +78,7 @@ class Processor(FlowProcessor):
 
         try:
 
-            system = json.loads(config["system"])
-            ix = json.loads(config["template-index"])
-
-            prompts = {}
-
-            for k in ix:
-
-                pc = config[f"template.{k}"]
-                data = json.loads(pc)
-
-                prompt = data.get("prompt")
-                rtype = data.get("response-type", "text")
-                schema = data.get("schema", None)
-
-                prompts[k] = Prompt(
-                    template = prompt,
-                    response_type = rtype,
-                    schema = schema,
-                    terms = {}
-                )
-
-            self.manager = PromptManager(
-                PromptConfiguration(
-                    system,
-                    {},
-                    prompts
-                )
-            )
+            self.manager.load_config(config)
 
             print("Prompt configuration reloaded.", flush=True)
 
@@ -230,13 +202,13 @@ class Processor(FlowProcessor):
             help=f'Concurrent processing threads (default: {default_concurrency})'
         )
 
-        FlowProcessor.add_args(parser)
-
         parser.add_argument(
             '--config-type',
             default="prompt",
             help=f'Configuration key for prompts (default: prompt)',
         )
+
+        FlowProcessor.add_args(parser)
 
 def run():
 

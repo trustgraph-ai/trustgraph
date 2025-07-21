@@ -6,6 +6,10 @@ import json
 import re
 import sys
 import functools
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 from ... base import AgentService, TextCompletionClientSpec, PromptClientSpec
 from ... base import GraphRagClientSpec, ToolClientSpec
@@ -221,6 +225,11 @@ class Processor(AgentService):
 
                 print("Send final response...", flush=True)
 
+                if isinstance(act.final, str):
+                    f = act.final
+                else:
+                    f = json.dumps(act.final)
+
                 r = AgentResponse(
                     answer=act.final,
                     error=None,
@@ -292,6 +301,5 @@ class Processor(AgentService):
         )
 
 def run():
-
     Processor.launch(default_ident, __doc__)
 

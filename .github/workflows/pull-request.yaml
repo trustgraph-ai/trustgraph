@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Setup packages
-        run: make update-package-versions VERSION=0.0.0
+        run: make update-package-versions VERSION=1.2.999
 
       - name: Setup environment
         run: python3 -m venv env
