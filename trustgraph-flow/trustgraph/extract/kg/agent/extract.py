@@ -100,12 +100,16 @@ class Processor(FlowProcessor):
         tpls = Triples()
         tpls.metadata = metadata
         tpls.triples = triples
+
+        print("triples: ", tpls, flush=True)
         await pub.send(tpls)
 
     async def emit_entity_contexts(self, pub, metadata, entity_contexts):
         ecs = EntityContexts()
         ecs.metadata = metadata
         ecs.entities = entity_contexts
+
+        print("entity contexts: ", ecs, flush=True)
         await pub.send(ecs)
 
     def parse_json(self, text):
@@ -174,6 +178,12 @@ class Processor(FlowProcessor):
             triples, entity_contexts = self.process_extraction_data(
                 extraction_data, v.metadata
             )
+
+            for tpl in triples:
+                print("TRIPLE>>>", tpl.s, tpl.p, tpl.o)
+
+            for ec in entity_contexts:
+                print("ENTITY CONTEXT>>>", tpl)
             
             # Emit outputs
             if triples:
@@ -202,24 +212,24 @@ class Processor(FlowProcessor):
             
             # Add entity label
             triples.append(Triple(
-                subject=Value(value=entity_uri, is_uri=True),
-                predicate=Value(value=RDF_LABEL, is_uri=True),
-                object=Value(value=defn["entity"], is_uri=False),
+                s = Value(value=entity_uri, is_uri=True),
+                p = Value(value=RDF_LABEL, is_uri=True),
+                o = Value(value=defn["entity"], is_uri=False),
             ))
             
             # Add definition
             triples.append(Triple(
-                subject=Value(value=entity_uri, is_uri=True),
-                predicate=Value(value=DEFINITION, is_uri=True),
-                object=Value(value=defn["definition"], is_uri=False),
+                s = Value(value=entity_uri, is_uri=True),
+                p = Value(value=DEFINITION, is_uri=True),
+                o = Value(value=defn["definition"], is_uri=False),
             ))
             
             # Add subject-of relationship to document
             if metadata.id:
                 triples.append(Triple(
-                    subject=Value(value=entity_uri, is_uri=True),
-                    predicate=Value(value=SUBJECT_OF, is_uri=True),
-                    object=metadata.id,
+                    s = Value(value=entity_uri, is_uri=True),
+                    p = Value(value=SUBJECT_OF, is_uri=True),
+                    o = Value(value=metadata.id, is_uri=True),
                 ))
             
             # Create entity context for embeddings
@@ -243,52 +253,51 @@ class Processor(FlowProcessor):
             
             # Add subject and predicate labels
             triples.append(Triple(
-                subject=subject_value,
-                predicate=Value(value=RDF_LABEL, is_uri=True),
-                object=Value(value=rel["subject"], is_uri=False),
+                s = subject_value,
+                p = Value(value=RDF_LABEL, is_uri=True),
+                o = Value(value=rel["subject"], is_uri=False),
             ))
             
             triples.append(Triple(
-                subject=predicate_value,
-                predicate=Value(value=RDF_LABEL, is_uri=True),
-                object=Value(value=rel["predicate"], is_uri=False),
+                s = predicate_value,
+                p = Value(value=RDF_LABEL, is_uri=True),
+                o = Value(value=rel["predicate"], is_uri=False),
             ))
             
             # Handle object (entity vs literal)
             if rel.get("object-entity", True):
-                object_uri = self.to_uri(rel["object"])
                 triples.append(Triple(
-                    subject=object_value,
-                    predicate=Value(value=RDF_LABEL, is_uri=True),
-                    object=rel["object"],
+                    s = object_value,
+                    p = Value(value=RDF_LABEL, is_uri=True),
+                    o = Value(value=rel["object"], is_uri=True),
                 ))
             
             # Add the main relationship triple
             triples.append(Triple(
-                subject=subject_value,
-                predicate=predicate_value,
-                object=object_value
+                s = subject_value,
+                p = predicate_value,
+                o = object_value
             ))
             
             # Add subject-of relationships to document
             if metadata.id:
                 triples.append(Triple(
-                    subject=subject_value,
-                    predicate=Value(value=SUBJECT_OF, is_uri=True),
-                    object=metadata.id,
+                    s = subject_value,
+                    p = Value(value=SUBJECT_OF, is_uri=True),
+                    o = Value(value=metadata.id, is_uri=True),
                 ))
                 
                 triples.append(Triple(
-                    subject=predicate_value,
-                    predicate=Value(SUBJECT_OF, is_uri=True),
-                    object=metadata.id,
+                    s = predicate_value,
+                    p = Value(value=SUBJECT_OF, is_uri=True),
+                    o = Value(value=metadata.id, is_uri=True),
                 ))
                 
                 if rel.get("object-entity", True):
                     triples.append(Triple(
-                        subject=object_value,
-                        predicate=Value(SUBJECT_OF, is_uri=True),
-                        object=metadata.id,
+                        s = object_value,
+                        p = Value(value=SUBJECT_OF, is_uri=True),
+                        o = Value(value=metadata.id, is_uri=True),
                     ))
         
         return triples, entity_contexts
