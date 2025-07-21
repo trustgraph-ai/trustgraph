@@ -97,16 +97,28 @@ class Processor(FlowProcessor):
         return TRUSTGRAPH_ENTITIES + urllib.parse.quote(text)
 
     async def emit_triples(self, pub, metadata, triples):
-        tpls = Triples()
-        tpls.metadata = metadata
-        tpls.triples = triples
+        tpls = Triples(
+            metadata = Metadata(
+                id = metadata.id,
+                metadata = [],
+                user = metadata.user,
+                collection = metadata.collection,
+            ),
+            triples = triples,
+        )
 
         await pub.send(tpls)
 
     async def emit_entity_contexts(self, pub, metadata, entity_contexts):
-        ecs = EntityContexts()
-        ecs.metadata = metadata
-        ecs.entities = entity_contexts
+        ecs = EntityContexts(
+            metadata = Metadata(
+                id = metadata.id,
+                metadata = [],
+                user = metadata.user,
+                collection = metadata.collection,
+            ),
+            entities = entity_contexts,
+        )
 
         await pub.send(ecs)
 
