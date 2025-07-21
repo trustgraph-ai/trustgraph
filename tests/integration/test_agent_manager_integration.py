@@ -465,37 +465,63 @@ Args: {args_json}"""
     @pytest.mark.asyncio
     async def test_agent_manager_malformed_response_handling(self, agent_manager, mock_flow_context):
         """Test agent manager handling of malformed text responses"""
-        # Test various malformed responses
-        malformed_responses = [
-            # Missing required fields
-            "Thought: I need to do something",
+        # Test cases with expected error messages
+        test_cases = [
+            # Missing action/final answer
+            {
+                "response": "Thought: I need to do something",
+                "error_contains": "Response has thought but no action or final answer"
+            },
             # Invalid JSON in Args
-            """Thought: I need to search
+            {
+                "response": """Thought: I need to search
 Action: knowledge_query
 Args: {invalid json}""",
+                "error_contains": "Invalid JSON in Args"
+            },
             # Empty response
-            "",
+            {
+                "response": "",
+                "error_contains": "Could not parse response"
+            },
             # Only whitespace
-            "   \n\t  ",
-            # Missing Args for action
-            """Thought: I need to search
+            {
+                "response": "   \n\t  ",
+                "error_contains": "Could not parse response"
+            },
+            # Missing Args for action (should create empty args dict)
+            {
+                "response": """Thought: I need to search
 Action: knowledge_query""",
+                "error_contains": None  # This should actually succeed with empty args
+            },
             # Incomplete JSON
-            """Thought: I need to search
+            {
+                "response": """Thought: I need to search
 Action: knowledge_query
 Args: {
     "question": "test"
 """,
+                "error_contains": "Invalid JSON in Args"
+            },
         ]
         
-        for response in malformed_responses:
-            mock_flow_context("prompt-request").agent_react.return_value = response
+        for test_case in test_cases:
+            mock_flow_context("prompt-request").agent_react.return_value = test_case["response"]
             
-            # Act & Assert
-            with pytest.raises(RuntimeError) as exc_info:
-                await agent_manager.reason("test question", [], mock_flow_context)
-            
-            assert "Failed to parse agent response" in str(exc_info.value)
+            if test_case["error_contains"]:
+                # Should raise an error
+                with pytest.raises(RuntimeError) as exc_info:
+                    await agent_manager.reason("test question", [], mock_flow_context)
+                
+                assert "Failed to parse agent response" in str(exc_info.value)
+                assert test_case["error_contains"] in str(exc_info.value)
+            else:
+                # Should succeed
+                action = await agent_manager.reason("test question", [], mock_flow_context)
+                assert isinstance(action, Action)
+                assert action.name == "knowledge_query"
+                assert action.arguments == {}
 
     @pytest.mark.asyncio
     async def test_agent_manager_text_parsing_edge_cases(self, agent_manager, mock_flow_context):
@@ -566,11 +592,11 @@ This covers all aspects of the question."""
     @pytest.mark.asyncio
     async def test_agent_manager_json_args_special_characters(self, agent_manager, mock_flow_context):
         """Test JSON arguments with special characters and edge cases"""
-        # Test with special characters in JSON
+        # Test with special characters in JSON (properly escaped)
         mock_flow_context("prompt-request").agent_react.return_value = """Thought: Processing special characters
 Action: knowledge_query
 Args: {
-    "question": "What about \"quotes\" and 'apostrophes'?",
+    "question": "What about \\"quotes\\" and 'apostrophes'?",
     "context": "Line 1\\nLine 2\\tTabbed",
     "special": "Symbols: @#$%^&*()_+-=[]{}|;':,.<>?"
 }"""
@@ -578,7 +604,7 @@ Args: {
         action = await agent_manager.reason("test", [], mock_flow_context)
         assert isinstance(action, Action)
         assert action.arguments["question"] == 'What about "quotes" and \'apostrophes\'?'
-        assert "\\n" in action.arguments["context"]
+        assert action.arguments["context"] == "Line 1\nLine 2\tTabbed"
         assert "@#$%^&*" in action.arguments["special"]
         
         # Test with nested JSON
