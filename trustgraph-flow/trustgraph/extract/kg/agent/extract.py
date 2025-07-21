@@ -101,7 +101,6 @@ class Processor(FlowProcessor):
         tpls.metadata = metadata
         tpls.triples = triples
 
-        print("triples: ", tpls, flush=True)
         await pub.send(tpls)
 
     async def emit_entity_contexts(self, pub, metadata, entity_contexts):
@@ -109,7 +108,6 @@ class Processor(FlowProcessor):
         ecs.metadata = metadata
         ecs.entities = entity_contexts
 
-        print("entity contexts: ", ecs, flush=True)
         await pub.send(ecs)
 
     def parse_json(self, text):
@@ -147,8 +145,6 @@ class Processor(FlowProcessor):
 
                 print("Response:", response, flush=True)
 
-                print("Done?", response.answer is not None, flush=True)
-
                 if response.error is not None:
                     if response.error.message:
                         raise RuntimeError(str(response.error.message))
@@ -165,8 +161,6 @@ class Processor(FlowProcessor):
                 recipient = handle,
                 question = prompt
             )
-
-            print("response:", agent_response, flush=True)
             
             # Parse JSON response
             try:
@@ -183,12 +177,6 @@ class Processor(FlowProcessor):
             for t in v.metadata.metadata:
                 triples.append(t)
         
-            for tpl in triples:
-                print("TRIPLE>>>", tpl.s, tpl.p, tpl.o)
-
-            for ec in entity_contexts:
-                print("ENTITY CONTEXT>>>", tpl)
-            
             # Emit outputs
             if triples:
                 await self.emit_triples(flow("triples"), v.metadata, triples)
