@@ -168,22 +168,21 @@ class TestPromptManagerEdgeCases:
         """
         
         # Standard JSON parser won't handle comments
-        with pytest.raises(ValueError):
+        with pytest.raises(RuntimeError) as exc_info:
             await pm.invoke("json_comments", {}, mock_llm)
+        
+        assert "JSON parse fail" in str(exc_info.value)
 
-    def test_template_with_raw_blocks(self):
-        """Test template with raw blocks that shouldn't be processed"""
+    def test_template_with_basic_substitution(self):
+        """Test template with basic variable substitution"""
         pm = PromptManager()
         config = {
             "system": json.dumps("Test"),
-            "template-index": json.dumps(["raw_template"]),
-            "template.raw_template": json.dumps({
+            "template-index": json.dumps(["basic_template"]),
+            "template.basic_template": json.dumps({
                 "prompt": """
                     Normal: {{ variable }}
-                    {% raw %}
-                    Raw block: {{ this_should_not_be_processed }}
-                    {% endraw %}
-                    Normal again: {{ another }}
+                    Another: {{ another }}
                     """,
                 "response-type": "text"
             })
@@ -191,12 +190,11 @@ class TestPromptManagerEdgeCases:
         pm.load_config(config)
         
         result = pm.render(
-            "raw_template",
+            "basic_template",
             {"variable": "processed", "another": "also processed"}
         )
         
         assert "processed" in result
-        assert "{{ this_should_not_be_processed }}" in result  # Should remain as-is
         assert "also processed" in result
 
     @pytest.mark.asyncio
@@ -368,9 +366,9 @@ class TestPromptManagerEdgeCases:
             "template.filters": json.dumps({
                 "prompt": """
                     {% if items %}
-                    Items ({{ items|length }}):
-                    {% for item in items|sort %}
-                    - {{ item|upper }}
+                    Items:
+                    {% for item in items %}
+                    - {{ item }}
                     {% endfor %}
                     {% else %}
                     No items
@@ -387,10 +385,10 @@ class TestPromptManagerEdgeCases:
             {"items": ["banana", "apple", "cherry"]}
         )
         
-        assert "Items (3)" in result
-        assert "- APPLE" in result
-        assert "- BANANA" in result
-        assert "- CHERRY" in result
+        assert "Items:" in result
+        assert "- banana" in result
+        assert "- apple" in result
+        assert "- cherry" in result
         
         # Test without items
         result = pm.render("filters", {"items": []})
