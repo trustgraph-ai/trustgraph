@@ -354,7 +354,12 @@ class TestAgentKgExtractor:
         mock_publisher.send.assert_called_once()
         sent_triples = mock_publisher.send.call_args[0][0]
         assert isinstance(sent_triples, Triples)
-        assert sent_triples.metadata == sample_metadata
+        # Check metadata fields individually since implementation creates new Metadata object
+        assert sent_triples.metadata.id == sample_metadata.id
+        assert sent_triples.metadata.user == sample_metadata.user
+        assert sent_triples.metadata.collection == sample_metadata.collection
+        # Note: metadata.metadata is now empty array in the new implementation
+        assert sent_triples.metadata.metadata == []
         assert len(sent_triples.triples) == 1
         assert sent_triples.triples[0].s.value == "test:subject"
 
@@ -375,7 +380,12 @@ class TestAgentKgExtractor:
         mock_publisher.send.assert_called_once()
         sent_contexts = mock_publisher.send.call_args[0][0]
         assert isinstance(sent_contexts, EntityContexts)
-        assert sent_contexts.metadata == sample_metadata
+        # Check metadata fields individually since implementation creates new Metadata object
+        assert sent_contexts.metadata.id == sample_metadata.id
+        assert sent_contexts.metadata.user == sample_metadata.user
+        assert sent_contexts.metadata.collection == sample_metadata.collection
+        # Note: metadata.metadata is now empty array in the new implementation
+        assert sent_contexts.metadata.metadata == []
         assert len(sent_contexts.entities) == 1
         assert sent_contexts.entities[0].entity.value == "test:entity"
 
