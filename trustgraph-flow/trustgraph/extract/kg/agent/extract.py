@@ -179,6 +179,10 @@ class Processor(FlowProcessor):
                 extraction_data, v.metadata
             )
 
+            # Put document metadata into triples
+            for t in v.metadata.metadata:
+                triples.append(t)
+        
             for tpl in triples:
                 print("TRIPLE>>>", tpl.s, tpl.p, tpl.o)
 
@@ -204,7 +208,7 @@ class Processor(FlowProcessor):
         """Process combined extraction data to generate triples and entity contexts"""
         triples = []
         entity_contexts = []
-        
+
         # Process definitions
         for defn in data.get("definitions", []):
 
