@@ -27,7 +27,7 @@ jobs:
 
       - name: Setup environment
         run: |
-          dnf install -y python3.12
+          dnf install -y python3.12 make
           alternatives --install /usr/bin/python python /usr/bin/python3.12 1
           python -m ensurepip --upgrade
           python3.12 -m venv env
