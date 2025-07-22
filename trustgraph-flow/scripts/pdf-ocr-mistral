@@ -1,6 +1,0 @@
-#!/usr/bin/env python3
-
-from trustgraph.decoding.mistral_ocr import run
-
-run()
-

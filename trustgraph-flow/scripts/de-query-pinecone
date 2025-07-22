@@ -1,6 +1,0 @@
-#!/usr/bin/env python3
-
-from trustgraph.query.doc_embeddings.pinecone import run
-
-run()
-
