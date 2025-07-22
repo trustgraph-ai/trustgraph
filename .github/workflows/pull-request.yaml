@@ -15,11 +15,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
+      - name: Set version
+        run: VERSION=1.2.999
+
       - name: Checkout
         uses: actions/checkout@v3
 
       - name: Setup packages
-        run: make update-package-versions VERSION=1.2.999
+        run: make update-package-versions VERSION=${VERSION}
 
       - name: Setup environment
         run: python3 -m venv env
@@ -27,20 +31,14 @@ jobs:
       - name: Invoke environment
         run: . env/bin/activate
 
-      - name: Install trustgraph-base
-        run: (cd trustgraph-base; pip install -e .)
+      - name: Install some stuff
+        run: pip install build wheel
 
-      - name: Install trustgraph-cli
-        run: (cd trustgraph-cli; pip install -e .)
+      - name: Build packages
+        run: make packages VERSION=${VERSION}
 
-      - name: Install trustgraph-flow
-        run: (cd trustgraph-flow; pip install -e .)
-
-      - name: Install trustgraph-vertexai
-        run: (cd trustgraph-vertexai; pip install -e .)
-
-      - name: Install trustgraph-bedrock
-        run: (cd trustgraph-bedrock; pip install -e .)
+      - name: Install packages
+        run: pip install dist/trustgraph_base-${VERSION}.tar.gz dist/trustgraph_cli-${VERSION}.tar.gz dist/trustgraph_flow-${VERSION}.tar.gz dist/trustgraph_bedrock-${VERSION}.tar.gz dist/trustgraph_vertexai-${VERSION}.tar.gz      
 
       - name: Install some stuff
         run: pip install pytest pytest-cov pytest-asyncio pytest-mock testcontainers
