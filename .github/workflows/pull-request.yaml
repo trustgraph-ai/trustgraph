@@ -26,7 +26,7 @@ jobs:
         run: make update-package-versions VERSION=1.2.999
 
       - name: Setup environment
-        run: python3 -m venv env
+        run: python3.12 -m venv env
 
       - name: Invoke environment
         run: . env/bin/activate
