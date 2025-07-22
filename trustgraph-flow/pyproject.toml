@@ -1,0 +1,123 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trustgraph-flow"
+dynamic = ["version"]
+authors = [{name = "trustgraph.ai", email = "security@trustgraph.ai"}]
+description = "TrustGraph provides a means to run a pipeline of flexible AI processing components in a flexible means to achieve a processing pipeline."
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "trustgraph-base>=1.2,<1.3",
+    "aiohttp",
+    "anthropic",
+    "cassandra-driver",
+    "cohere",
+    "cryptography",
+    "falkordb",
+    "fastembed",
+    "google-genai",
+    "ibis",
+    "jsonschema",
+    "langchain",
+    "langchain-community",
+    "langchain-core",
+    "langchain-text-splitters",
+    "mcp",
+    "minio",
+    "mistralai",
+    "neo4j",
+    "ollama",
+    "openai",
+    "pinecone[grpc]",
+    "prometheus-client",
+    "pulsar-client",
+    "pymilvus",
+    "pypdf",
+    "mistralai",
+    "pyyaml",
+    "qdrant-client",
+    "rdflib",
+    "requests",
+    "tabulate",
+    "tiktoken",
+    "urllib3",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/trustgraph-ai/trustgraph"
+
+[project.scripts]
+agent-manager-react = "trustgraph.agent.react:run"
+api-gateway = "trustgraph.gateway.api:run"
+rev-gateway = "trustgraph.gateway.reverse:run"
+chunker-recursive = "trustgraph.chunker.recursive:run"
+chunker-token = "trustgraph.chunker.token:run"
+config-svc = "trustgraph.config.service:run"
+de-query-milvus = "trustgraph.document_embeddings.query.milvus:run"
+de-query-pinecone = "trustgraph.document_embeddings.query.pinecone:run"
+de-query-qdrant = "trustgraph.document_embeddings.query.qdrant:run"
+de-write-milvus = "trustgraph.document_embeddings.write.milvus:run"
+de-write-pinecone = "trustgraph.document_embeddings.write.pinecone:run"
+de-write-qdrant = "trustgraph.document_embeddings.write.qdrant:run"
+document-embeddings = "trustgraph.model.embedding.document:run"
+document-rag = "trustgraph.retrieval.document_rag:run"
+embeddings-fastembed = "trustgraph.embeddings.fastembed:run"
+embeddings-ollama = "trustgraph.embeddings.ollama:run"
+ge-query-milvus = "trustgraph.graph_embeddings.query.milvus:run"
+ge-query-pinecone = "trustgraph.graph_embeddings.query.pinecone:run"
+ge-query-qdrant = "trustgraph.graph_embeddings.query.qdrant:run"
+ge-write-milvus = "trustgraph.graph_embeddings.write.milvus:run"
+ge-write-pinecone = "trustgraph.graph_embeddings.write.pinecone:run"
+ge-write-qdrant = "trustgraph.graph_embeddings.write.qdrant:run"
+graph-embeddings = "trustgraph.model.embedding.graph:run"
+graph-rag = "trustgraph.retrieval.graph_rag:run"
+kg-extract-definitions = "trustgraph.extract.definitions:run"
+kg-extract-relationships = "trustgraph.extract.relationships:run"
+kg-extract-agent = "trustgraph.extract.agent:run"
+kg-store = "trustgraph.cores.triples_store:run"
+kg-manager = "trustgraph.cores.manager:run"
+librarian = "trustgraph.processing.librarian:run"
+mcp-tool = "trustgraph.tool.mcp:run"
+metering = "trustgraph.metering.service:run"
+object-extract-row = "trustgraph.object.extract_row:run"
+oe-write-milvus = "trustgraph.object_embeddings.write.milvus:run"
+pdf-decoder = "trustgraph.decoding.pdf_decoder:run"
+pdf-ocr-mistral = "trustgraph.decoding.pdf_ocr_mistral:run"
+prompt-template = "trustgraph.prompt.template:run"
+rows-write-cassandra = "trustgraph.rows.write.cassandra:run"
+run-processing = "trustgraph.processing.run:run"
+text-completion-azure = "trustgraph.model.text_completion.azure:run"
+text-completion-azure-openai = "trustgraph.model.text_completion.azure_openai:run"
+text-completion-claude = "trustgraph.model.text_completion.claude:run"
+text-completion-cohere = "trustgraph.model.text_completion.cohere:run"
+text-completion-googleaistudio = "trustgraph.model.text_completion.googleaistudio:run"
+text-completion-llamafile = "trustgraph.model.text_completion.llamafile:run"
+text-completion-lmstudio = "trustgraph.model.text_completion.lmstudio:run"
+text-completion-mistral = "trustgraph.model.text_completion.mistral:run"
+text-completion-ollama = "trustgraph.model.text_completion.ollama:run"
+text-completion-openai = "trustgraph.model.text_completion.openai:run"
+text-completion-tgi = "trustgraph.model.text_completion.tgi:run"
+text-completion-vllm = "trustgraph.model.text_completion.vllm:run"
+triples-query-cassandra = "trustgraph.triples.query.cassandra:run"
+triples-query-falkordb = "trustgraph.triples.query.falkordb:run"
+triples-query-memgraph = "trustgraph.triples.query.memgraph:run"
+triples-query-neo4j = "trustgraph.triples.query.neo4j:run"
+triples-write-cassandra = "trustgraph.triples.write.cassandra:run"
+triples-write-falkordb = "trustgraph.triples.write.falkordb:run"
+triples-write-memgraph = "trustgraph.triples.write.memgraph:run"
+triples-write-neo4j = "trustgraph.triples.write.neo4j:run"
+wikipedia-lookup = "trustgraph.retrieval.wikipedia_lookup:run"
+
+[tool.setuptools]
+packages = ["trustgraph"]
+
+[tool.setuptools.dynamic]
+version = {attr = "trustgraph.flow_version.__version__"}

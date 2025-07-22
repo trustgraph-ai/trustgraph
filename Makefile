@@ -21,15 +21,15 @@ wheels:
 
 packages: update-package-versions
 	rm -rf dist/
-	cd trustgraph && python3 setup.py sdist --dist-dir ../dist/
-	cd trustgraph-base && python3 setup.py sdist --dist-dir ../dist/
-	cd trustgraph-flow && python3 setup.py sdist --dist-dir ../dist/
-	cd trustgraph-vertexai && python3 setup.py sdist --dist-dir ../dist/
-	cd trustgraph-bedrock && python3 setup.py sdist --dist-dir ../dist/
-	cd trustgraph-embeddings-hf && python3 setup.py sdist --dist-dir ../dist/
-	cd trustgraph-cli && python3 setup.py sdist --dist-dir ../dist/
-	cd trustgraph-ocr && python3 setup.py sdist --dist-dir ../dist/
-	cd trustgraph-mcp && python3 setup.py sdist --dist-dir ../dist/
+	cd trustgraph && python3 -m build --outdir ../dist/
+	cd trustgraph-base && python3 -m build --outdir ../dist/
+	cd trustgraph-flow && python3 -m build --outdir ../dist/
+	cd trustgraph-vertexai && python3 -m build --outdir ../dist/
+	cd trustgraph-bedrock && python3 -m build --outdir ../dist/
+	cd trustgraph-embeddings-hf && python3 -m build --outdir ../dist/
+	cd trustgraph-cli && python3 -m build --outdir ../dist/
+	cd trustgraph-ocr && python3 -m build --outdir ../dist/
+	cd trustgraph-mcp && python3 -m build --outdir ../dist/
 
 pypi-upload:
 	twine upload dist/*-${VERSION}.*
