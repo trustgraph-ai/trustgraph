@@ -36,12 +36,11 @@ jobs:
 
       - name: Setup packages
         run: make update-package-versions VERSION=1.2.999
+      - run: which python
 
       - name: Build packages
         run: make packages VERSION=1.2.999
 
-      - run: which python
-      - run: which python3.12
       - name: Install packages
         run: pip install dist/trustgraph_base-1.2.999.tar.gz dist/trustgraph_cli-1.2.999.tar.gz dist/trustgraph_flow-1.2.999.tar.gz dist/trustgraph_bedrock-1.2.999.tar.gz dist/trustgraph_vertexai-1.2.999.tar.gz      
 
