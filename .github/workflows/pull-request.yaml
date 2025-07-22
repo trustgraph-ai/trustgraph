@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Setup packages
-        run: make update-package-versions VERSION=${VERSION}
+        run: make update-package-versions VERSION=1.2.999
 
       - name: Setup environment
         run: python3 -m venv env
@@ -35,10 +35,10 @@ jobs:
         run: pip install build wheel
 
       - name: Build packages
-        run: make packages VERSION=${VERSION}
+        run: make packages VERSION=1.2.999
 
       - name: Install packages
-        run: pip install dist/trustgraph_base-${VERSION}.tar.gz dist/trustgraph_cli-${VERSION}.tar.gz dist/trustgraph_flow-${VERSION}.tar.gz dist/trustgraph_bedrock-${VERSION}.tar.gz dist/trustgraph_vertexai-${VERSION}.tar.gz      
+        run: pip install dist/trustgraph_base-1.2.999.tar.gz dist/trustgraph_cli-1.2.999.tar.gz dist/trustgraph_flow-1.2.999.tar.gz dist/trustgraph_bedrock-1.2.999.tar.gz dist/trustgraph_vertexai-1.2.999.tar.gz      
 
       - name: Install some stuff
         run: pip install pytest pytest-cov pytest-asyncio pytest-mock testcontainers
