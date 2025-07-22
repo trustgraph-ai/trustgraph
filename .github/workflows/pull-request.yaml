@@ -33,10 +33,10 @@ jobs:
           python3.12 -m venv env
           . env/bin/activate
           pip install build wheel
+          which pip
 
       - name: Setup packages
         run: make update-package-versions VERSION=1.2.999
-      - run: pip list
       - run: which pip
 
       - name: Build packages
