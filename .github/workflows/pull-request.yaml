@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
 
     container:
-      image: python:3.12
+      image: fedora:42
 
     steps:
 
