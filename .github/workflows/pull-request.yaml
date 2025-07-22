@@ -28,19 +28,19 @@ jobs:
         run: . env/bin/activate
 
       - name: Install trustgraph-base
-        run: (cd trustgraph-base; pip install .)
+        run: (cd trustgraph-base; pip install -e .)
 
       - name: Install trustgraph-cli
-        run: (cd trustgraph-cli; pip install .)
+        run: (cd trustgraph-cli; pip install -e .)
 
       - name: Install trustgraph-flow
-        run: (cd trustgraph-flow; pip install .)
+        run: (cd trustgraph-flow; pip install -e .)
 
       - name: Install trustgraph-vertexai
-        run: (cd trustgraph-vertexai; pip install .)
+        run: (cd trustgraph-vertexai; pip install -e .)
 
       - name: Install trustgraph-bedrock
-        run: (cd trustgraph-bedrock; pip install .)
+        run: (cd trustgraph-bedrock; pip install -e .)
 
       - name: Install some stuff
         run: pip install pytest pytest-cov pytest-asyncio pytest-mock testcontainers

@@ -6,11 +6,11 @@ env/
 *.parquet
 templates/values/version.jsonnet
 trustgraph-base/trustgraph/base_version.py
+trustgraph-cli/trustgraph/cli_version.py
 trustgraph-bedrock/trustgraph/bedrock_version.py
 trustgraph-embeddings-hf/trustgraph/embeddings_hf_version.py
 trustgraph-flow/trustgraph/flow_version.py
 trustgraph-ocr/trustgraph/ocr_version.py
 trustgraph-parquet/trustgraph/parquet_version.py
 trustgraph-vertexai/trustgraph/vertexai_version.py
-trustgraph-cli/trustgraph/
 vertexai/
