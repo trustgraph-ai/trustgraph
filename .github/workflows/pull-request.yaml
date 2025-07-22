@@ -46,11 +46,11 @@ jobs:
         run: pip install pytest pytest-cov pytest-asyncio pytest-mock testcontainers
 
       - name: Unit tests
-        run: pytest tests/unit
+        run: python3 -m pytest tests/unit
 
       - name: Integration tests (cut the out the long-running tests)
-        run: pytest tests/integration -m 'not slow'
+        run: python3 -m pytest tests/integration -m 'not slow'
 
       - name: Contract tests
-        run: pytest tests/contract
+        run: python3 -m pytest tests/contract
 
