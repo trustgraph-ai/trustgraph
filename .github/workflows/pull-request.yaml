@@ -22,14 +22,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Setup packages
-        run: make update-package-versions VERSION=1.2.999
-
       - name: Setup environment
         run: python3.12 -m venv env
 
       - name: Invoke environment
         run: . env/bin/activate
+
+      - name: Setup packages
+        run: make update-package-versions VERSION=1.2.999
 
       - name: Install some stuff
         run: pip install build wheel
@@ -42,6 +42,15 @@ jobs:
 
       - name: Install some stuff
         run: pip install pytest pytest-cov pytest-asyncio pytest-mock testcontainers
+
+      - name: Pre-test test
+        run: python -c 'import trustgraph.base;print(dir(trustgraph.base))'
+
+      - name: Pre-test test 2
+        run: python -c 'import trustgraph.schema;print(dir(trustgraph.schema))'
+
+      - name: Pre-test test 3
+        run: python -c 'import trustgraph.model;print(dir(trustgraph.model))'
 
       - name: Unit tests
         run: python3 -m pytest tests/unit
