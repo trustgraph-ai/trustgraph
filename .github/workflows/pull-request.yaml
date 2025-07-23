@@ -28,58 +28,18 @@ jobs:
       - name: Setup environment
         run: |
           python -m ensurepip --upgrade
-          apt install -y make
-          python --version
-          python3 -m venv env
+#          apt install -y make
+'          python --version
+          python -m venv env
           . env/bin/activate
           pip install build wheel
-          which pip
-
-      - name: Setup packages
-        run: make update-package-versions VERSION=1.2.999
-
-      - name: Build packages
-        run: |
-          . env/bin/activate
-          make packages VERSION=1.2.999
-
-      - name: Install packages
-        run: |
-          . env/bin/activate
-          pip install dist/trustgraph_base-1.2.999.tar.gz dist/trustgraph_cli-1.2.999.tar.gz dist/trustgraph_flow-1.2.999.tar.gz dist/trustgraph_bedrock-1.2.999.tar.gz dist/trustgraph_vertexai-1.2.999.tar.gz      
-
-      - name: Install some stuff
-        run: |
-          . env/bin/activate
+          make update-package-versions VERSION=1.2.999
+          pip install ./trustgraph-base ./trustgraph-cli ./trustgraph-flow ./trustgraph-bedrock ./trustgraph-vertexai
           pip install pytest pytest-cov pytest-asyncio pytest-mock
-
-      - name: Pre-test test
-        run: |
-          . env/bin/activate
           python -c 'import trustgraph.base;print(dir(trustgraph.base))'
-
-      - name: Pre-test test 2
-        run: |
-          . env/bin/activate
           python -c 'import trustgraph.schema;print(dir(trustgraph.schema))'
-
-      - name: Pre-test test 3
-        run: |
-          . env/bin/activate
           python -c 'import trustgraph.model;print(dir(trustgraph.model))'
-
-      - name: Unit tests
-        run: |
-          . env/bin/activate
           python -m pytest tests/unit
-
-      - name: Integration tests (cut the out the long-running tests)
-        run: |
-          . env/bin/activate
           python -m pytest tests/integration -m 'not slow'
-
-      - name: Contract tests
-        run: |
-          . env/bin/activate
           python -m pytest tests/contract
 
