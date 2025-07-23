@@ -31,6 +31,9 @@ jobs:
         id: version
         run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
 
+      - name: Install dependencies
+        run: pip install build wheel
+
       - name: Build packages
         run: make packages VERSION=${{ steps.version.outputs.VERSION }}
 
@@ -61,9 +64,6 @@ jobs:
       - name: Get version
         id: version
         run: echo VERSION=$(git describe --exact-match --tags | sed 's/^v//') >> $GITHUB_OUTPUT
-
-      - name: Install dependencies
-        run: pip install build wheel
 
       - name: Put version into package manifests
         run: make update-package-versions VERSION=${{ steps.version.outputs.VERSION }}
