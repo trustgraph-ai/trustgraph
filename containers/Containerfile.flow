@@ -11,7 +11,7 @@ ENV PIP_BREAK_SYSTEM_PACKAGES=1
 RUN dnf install -y python3.12 && \
   alternatives --install /usr/bin/python python /usr/bin/python3.12 1 && \
   python -m ensurepip --upgrade && \
-  pip3 install --no-cache-dir wheel aiohttp rdflib && \
+  pip3 install --no-cache-dir build wheel aiohttp rdflib && \
   pip3 install --no-cache-dir pulsar-client==3.7.0 && \
   dnf clean all
 
