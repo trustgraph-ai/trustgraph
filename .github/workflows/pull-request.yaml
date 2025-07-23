@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
 
     container:
-      image: fedora:42
+      image: python:3.12
 
     steps:
 
@@ -27,10 +27,10 @@ jobs:
 
       - name: Setup environment
         run: |
-          dnf install -y python3.12 make which
-          alternatives --install /usr/bin/python python /usr/bin/python3.12 1
           python -m ensurepip --upgrade
-          python3.12 -m venv env
+          apt install -y make
+          python --version
+          python3 -m venv env
           . env/bin/activate
           pip install build wheel
           which pip
