@@ -37,32 +37,49 @@ jobs:
 
       - name: Setup packages
         run: make update-package-versions VERSION=1.2.999
-      - run: which pip
 
       - name: Build packages
-        run: make packages VERSION=1.2.999
+        run: |
+          . env/bin/activate
+          make packages VERSION=1.2.999
 
       - name: Install packages
-        run: pip install dist/trustgraph_base-1.2.999.tar.gz dist/trustgraph_cli-1.2.999.tar.gz dist/trustgraph_flow-1.2.999.tar.gz dist/trustgraph_bedrock-1.2.999.tar.gz dist/trustgraph_vertexai-1.2.999.tar.gz      
+        run: |
+          . env/bin/activate
+          pip install dist/trustgraph_base-1.2.999.tar.gz dist/trustgraph_cli-1.2.999.tar.gz dist/trustgraph_flow-1.2.999.tar.gz dist/trustgraph_bedrock-1.2.999.tar.gz dist/trustgraph_vertexai-1.2.999.tar.gz      
 
       - name: Install some stuff
-        run: pip install pytest pytest-cov pytest-asyncio pytest-mock testcontainers
+        run: |
+          . env/bin/activate
+          pip install pytest pytest-cov pytest-asyncio pytest-mock
 
       - name: Pre-test test
-        run: python -c 'import trustgraph.base;print(dir(trustgraph.base))'
+        run: |
+          . env/bin/activate
+          python -c 'import trustgraph.base;print(dir(trustgraph.base))'
 
       - name: Pre-test test 2
-        run: python -c 'import trustgraph.schema;print(dir(trustgraph.schema))'
+        run: |
+          . env/bin/activate
+          python -c 'import trustgraph.schema;print(dir(trustgraph.schema))'
 
       - name: Pre-test test 3
-        run: python -c 'import trustgraph.model;print(dir(trustgraph.model))'
+        run: |
+          . env/bin/activate
+          python -c 'import trustgraph.model;print(dir(trustgraph.model))'
 
       - name: Unit tests
-        run: python -m pytest tests/unit
+        run: |
+          . env/bin/activate
+          python -m pytest tests/unit
 
       - name: Integration tests (cut the out the long-running tests)
-        run: python -m pytest tests/integration -m 'not slow'
+        run: |
+          . env/bin/activate
+          python -m pytest tests/integration -m 'not slow'
 
       - name: Contract tests
-        run: python -m pytest tests/contract
+        run: |
+          . env/bin/activate
+          python -m pytest tests/contract
 
