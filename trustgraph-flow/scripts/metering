@@ -1,5 +1,0 @@
-#!/usr/bin/env python3
-
-from trustgraph.metering import run
-
-run()

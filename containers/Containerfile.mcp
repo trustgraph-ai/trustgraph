@@ -26,6 +26,8 @@ COPY trustgraph-mcp/ /root/build/trustgraph-mcp/
 
 WORKDIR /root/build/
 
+RUN pip3 install --no-cache-dir build wheel
+
 RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-mcp/
 
 RUN ls /root/wheels

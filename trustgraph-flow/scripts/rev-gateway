@@ -1,6 +1,0 @@
-#!/usr/bin/env python3
-
-from trustgraph.rev_gateway import run
-
-run()
-

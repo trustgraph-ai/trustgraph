@@ -1,6 +1,0 @@
-#!/usr/bin/env python3
-
-from trustgraph.external.wikipedia import run
-
-run()
-

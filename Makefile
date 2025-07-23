@@ -21,15 +21,15 @@ wheels:
 
 packages: update-package-versions
 	rm -rf dist/
-	cd trustgraph && python3 setup.py sdist --dist-dir ../dist/
-	cd trustgraph-base && python3 setup.py sdist --dist-dir ../dist/
-	cd trustgraph-flow && python3 setup.py sdist --dist-dir ../dist/
-	cd trustgraph-vertexai && python3 setup.py sdist --dist-dir ../dist/
-	cd trustgraph-bedrock && python3 setup.py sdist --dist-dir ../dist/
-	cd trustgraph-embeddings-hf && python3 setup.py sdist --dist-dir ../dist/
-	cd trustgraph-cli && python3 setup.py sdist --dist-dir ../dist/
-	cd trustgraph-ocr && python3 setup.py sdist --dist-dir ../dist/
-	cd trustgraph-mcp && python3 setup.py sdist --dist-dir ../dist/
+	cd trustgraph && python -m build --sdist --outdir ../dist/
+	cd trustgraph-base && python -m build --sdist --outdir ../dist/
+	cd trustgraph-flow && python -m build --sdist --outdir ../dist/
+	cd trustgraph-vertexai && python -m build --sdist --outdir ../dist/
+	cd trustgraph-bedrock && python -m build --sdist --outdir ../dist/
+	cd trustgraph-embeddings-hf && python -m build --sdist --outdir ../dist/
+	cd trustgraph-cli && python -m build --sdist --outdir ../dist/
+	cd trustgraph-ocr && python -m build --sdist --outdir ../dist/
+	cd trustgraph-mcp && python -m build --sdist --outdir ../dist/
 
 pypi-upload:
 	twine upload dist/*-${VERSION}.*
@@ -124,7 +124,7 @@ JSONNET_FLAGS=-J templates -J .
 
 update-templates: update-dcs
 
-JSON_TO_YAML=python3 -c 'import sys, yaml, json; j=json.loads(sys.stdin.read()); print(yaml.safe_dump(j))'
+JSON_TO_YAML=python -c 'import sys, yaml, json; j=json.loads(sys.stdin.read()); print(yaml.safe_dump(j))'
 
 update-dcs: set-version
 	for graph in ${GRAPHS}; do \

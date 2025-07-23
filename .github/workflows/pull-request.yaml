@@ -9,10 +9,13 @@ permissions:
 
 jobs:
 
-  container-push:
+  test:
 
     name: Run tests
     runs-on: ubuntu-latest
+
+    container:
+      image: python:3.12
 
     steps:
       - name: Checkout
