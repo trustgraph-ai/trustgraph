@@ -28,7 +28,6 @@ jobs:
       - name: Setup environment
         run: |
           python -m ensurepip --upgrade
-#          apt install -y make
           python --version
           python -m venv env
           . env/bin/activate
