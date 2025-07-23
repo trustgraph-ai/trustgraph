@@ -79,7 +79,7 @@ tg-stop-flow = "trustgraph.cli.stop_flow:main"
 tg-stop-library-processing = "trustgraph.cli.stop_library_processing:main"
 
 [tool.setuptools.packages.find]
-include = ["trustgraph"]
+include = ["trustgraph*"]
 
 [tool.setuptools.dynamic]
 version = {attr = "trustgraph.cli_version.__version__"}

@@ -37,7 +37,7 @@ Homepage = "https://github.com/trustgraph-ai/trustgraph"
 embeddings-hf = "trustgraph.embeddings.hf:run"
 
 [tool.setuptools.packages.find]
-include = ["trustgraph"]
+include = ["trustgraph*"]
 
 [tool.setuptools.dynamic]
 version = {attr = "trustgraph.embeddings_hf_version.__version__"}

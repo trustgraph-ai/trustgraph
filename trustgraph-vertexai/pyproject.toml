@@ -27,7 +27,7 @@ Homepage = "https://github.com/trustgraph-ai/trustgraph"
 text-completion-vertexai = "trustgraph.model.text_completion.vertexai:run"
 
 [tool.setuptools.packages.find]
-include = ["trustgraph"]
+include = ["trustgraph*"]
 
 [tool.setuptools.dynamic]
 version = {attr = "trustgraph.vertexai_version.__version__"}

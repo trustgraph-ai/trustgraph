@@ -25,7 +25,7 @@ Homepage = "https://github.com/trustgraph-ai/trustgraph"
 mcp-server = "trustgraph.mcp_server:run"
 
 [tool.setuptools.packages.find]
-include = ["trustgraph"]
+include = ["trustgraph*"]
 
 [tool.setuptools.dynamic]
 version = {attr = "trustgraph.mcp_version.__version__"}

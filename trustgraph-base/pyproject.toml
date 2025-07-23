@@ -22,7 +22,7 @@ classifiers = [
 Homepage = "https://github.com/trustgraph-ai/trustgraph"
 
 [tool.setuptools.packages.find]
-include = ["trustgraph"]
+include = ["trustgraph*"]
 
 [tool.setuptools.dynamic]
 version = {attr = "trustgraph.base_version.__version__"}
