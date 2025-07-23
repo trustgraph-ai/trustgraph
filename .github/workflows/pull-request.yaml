@@ -29,7 +29,7 @@ jobs:
         run: |
           python -m ensurepip --upgrade
 #          apt install -y make
-'          python --version
+          python --version
           python -m venv env
           . env/bin/activate
           pip install build wheel
