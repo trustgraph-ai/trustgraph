@@ -28,8 +28,8 @@ Homepage = "https://github.com/trustgraph-ai/trustgraph"
 [project.scripts]
 pdf-ocr = "trustgraph.decoding.ocr:run"
 
-[tool.setuptools]
-packages = ["trustgraph"]
+[tool.setuptools.packages.find]
+include = ["trustgraph"]
 
 [tool.setuptools.dynamic]
 version = {attr = "trustgraph.ocr_version.__version__"}

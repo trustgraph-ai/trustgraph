@@ -116,8 +116,8 @@ triples-write-memgraph = "trustgraph.storage.triples.memgraph:run"
 triples-write-neo4j = "trustgraph.storage.triples.neo4j:run"
 wikipedia-lookup = "trustgraph.external.wikipedia:run"
 
-[tool.setuptools]
-packages = ["trustgraph"]
+[tool.setuptools.packages.find]
+include = ["trustgraph"]
 
 [tool.setuptools.dynamic]
 version = {attr = "trustgraph.flow_version.__version__"}

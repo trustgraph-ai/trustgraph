@@ -26,8 +26,8 @@ Homepage = "https://github.com/trustgraph-ai/trustgraph"
 [project.scripts]
 text-completion-bedrock = "trustgraph.model.text_completion.bedrock:run"
 
-[tool.setuptools]
-packages = ["trustgraph"]
+[tool.setuptools.packages.find]
+include = ["trustgraph"]
 
 [tool.setuptools.dynamic]
 version = {attr = "trustgraph.bedrock_version.__version__"}
