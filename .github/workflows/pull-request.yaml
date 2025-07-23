@@ -18,28 +18,42 @@ jobs:
       image: python:3.12
 
     steps:
-
-      - name: Set version
-        run: VERSION=1.2.999
-
       - name: Checkout
         uses: actions/checkout@v3
 
+      - name: Setup packages
+        run: make update-package-versions VERSION=1.2.999
+
       - name: Setup environment
-        run: |
-          python -m ensurepip --upgrade
-          python --version
-          python -m venv env
-          . env/bin/activate
-          pip install build wheel
-          make update-package-versions VERSION=1.2.999
-          pip install ./trustgraph-base ./trustgraph-cli ./trustgraph-flow ./trustgraph-bedrock ./trustgraph-vertexai
-          tg-show-processor-state --help
-          pip install pytest pytest-cov pytest-asyncio pytest-mock
-          python -c 'import trustgraph.base;print(dir(trustgraph.base))'
-          python -c 'import trustgraph.schema;print(dir(trustgraph.schema))'
-          python -c 'import trustgraph.model;print(dir(trustgraph.model))'
-          python -m pytest tests/unit
-          python -m pytest tests/integration -m 'not slow'
-          python -m pytest tests/contract
+        run: python3 -m venv env
+
+      - name: Invoke environment
+        run: . env/bin/activate
+
+      - name: Install trustgraph-base
+        run: (cd trustgraph-base; pip install .)
+
+      - name: Install trustgraph-cli
+        run: (cd trustgraph-cli; pip install .)
+
+      - name: Install trustgraph-flow
+        run: (cd trustgraph-flow; pip install .)
+
+      - name: Install trustgraph-vertexai
+        run: (cd trustgraph-vertexai; pip install .)
+
+      - name: Install trustgraph-bedrock
+        run: (cd trustgraph-bedrock; pip install .)
+
+      - name: Install some stuff
+        run: pip install pytest pytest-cov pytest-asyncio pytest-mock testcontainers
+
+      - name: Unit tests
+        run: pytest tests/unit
+
+      - name: Integration tests (cut the out the long-running tests)
+        run: pytest tests/integration -m 'not slow'
+
+      - name: Contract tests
+        run: pytest tests/contract
 
