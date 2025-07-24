@@ -2,7 +2,7 @@
 
 <div align="center">
 
-## The Sovereign Universal AI Adapter
+## The Run Anywhere AI Platform
 
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
@@ -11,7 +11,7 @@
 
 </div>
 
-Take control of your data and AI future with **TrustGraph**. Universal connectors can call the latest LLMs or deploy models on your hardware. **TrustGraph** future-proofs your AI strategy with graph driven intelligence that can deploy in any environment.
+Take control of your data and AI future with **TrustGraph**. Connect to the latest LLMs or deploy models on your hardware. Connect data silos with graph automation that builds modular and reusable graph components linked to vector embeddings. Deploy the platform locally, in all major Clouds, and even on bare metal.
 
 ---
 
