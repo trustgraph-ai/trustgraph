@@ -1,8 +1,8 @@
-<img src="tg-adapter.png" width=100% />
-
 <div align="center">
 
-## The Run Anywhere AI Platform
+## TrustGraph: The Run Anywhere AI Platform
+
+<img src="tg-arch-transparent.svg" width=100% />
 
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
@@ -24,7 +24,7 @@ Take control of your data and AI future with **TrustGraph**. Connect to the late
 - [**Configuration Builder**](#configuration-builder)<br>
 - [**GraphRAG**](#graphrag)<br>
 - [**Knowledge Packages**](#knowledge-packages)<br>
-- [**Architecture**](#architecture)<br>
+- [**Platform Architecture**](#platform-architecture)<br>
 - [**Integrations**](#integrations)<br>
 - [**Observability & Telemetry**](#observability--telemetry)<br>
 - [**Contributing**](#contributing)<br>
@@ -98,11 +98,7 @@ A Knowledge Package has two components:
 
 When a Knowledge Package is loaded into TrustGraph, the corresponding graph edges and vector embeddings are queued and loaded into the chosen graph and vector stores.
 
-## Architecture
-
-The platform contains the services, stores, control plane, and API gateway needed to connect your data to intelligent agents.
-
-![architecture](TG-platform-diagram.svg)
+## Platform Architecture
 
 The platform orchestrates a comprehensive suite of services to transform external data into intelligent, actionable outputs for AI agents and users. It interacts with external data sources and external services (like LLM APIs) via an **API Gateway**.
 
