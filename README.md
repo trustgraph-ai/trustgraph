@@ -2,7 +2,7 @@
 
 ## TrustGraph: The Run Anywhere AI Platform
 
-<img src="tg-arch-transparent.svg" width=100% />
+<img src="layer-diagram.svg" width=100% />
 
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
