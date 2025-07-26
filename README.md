@@ -2,7 +2,7 @@
 
 ## TrustGraph: The Run Anywhere AI Platform
 
-<img src="layer-diagram.svg" width=100% />
+<img src="tg-arch-transparent.svg" width=100% />
 
 ---
 
