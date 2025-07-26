@@ -4,6 +4,8 @@
 
 <img src="layer-diagram.svg" width=100% />
 
+---
+
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX)
 
@@ -12,8 +14,6 @@
 </div>
 
 Take control of your data and AI future with **TrustGraph**. Connect to the latest LLMs or deploy models on your hardware. Connect data silos with graph automation that builds modular and reusable graph components linked to vector embeddings. Deploy the platform locally, in all major Clouds, and even on bare metal.
-
----
 
 <details>
 <summary>Table of Contents</summary>
@@ -32,8 +32,6 @@ Take control of your data and AI future with **TrustGraph**. Connect to the late
 - [**Support & Community**](#support--community)<br>
 
 </details>
-
----
 
 ## Why TrustGraph?
 
