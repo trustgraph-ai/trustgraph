@@ -1,6 +1,6 @@
 <div align="center">
 
-## TrustGraph: The Run Anywhere AI Platform
+## TrustGraph: The Run Anywhere Context Engineering Platform
 
 <img src="tg-arch-transparent.svg" width=100% />
 
@@ -13,7 +13,7 @@
 
 </div>
 
-Take control of your data and AI future with **TrustGraph**. Connect to the latest LLMs or deploy models on your hardware. Connect data silos with graph automation that builds modular and reusable graph components linked to vector embeddings. Deploy the platform locally, in all major Clouds, and even on bare metal.
+Take control of your data and context with **TrustGraph**. Connect to the latest LLMs or deploy models on your hardware. Connect data silos with context automation that builds modular and reusable graph components linked to vector embeddings. Deploy the platform locally, in all major Clouds, and even on bare metal.
 
 <details>
 <summary>Table of Contents</summary>
