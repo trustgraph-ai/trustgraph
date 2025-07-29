@@ -2,7 +2,7 @@
 
 ## TrustGraph: The Run Anywhere Context Engineering Platform
 
-<img src="context-architecture.svg" width=100% />
+<img src="context-arch.svg" width=100% />
 
 ---
 
