@@ -248,9 +248,13 @@ class TestDocumentRagIntegration:
     @pytest.mark.asyncio
     async def test_document_rag_verbose_logging(self, mock_embeddings_client, 
                                                mock_doc_embeddings_client, mock_prompt_client, 
-                                               capsys):
+                                               caplog):
         """Test DocumentRAG verbose logging functionality"""
-        # Arrange
+        import logging
+        
+        # Arrange - Configure logging to capture debug messages
+        caplog.set_level(logging.DEBUG)
+        
         document_rag = DocumentRag(
             embeddings_client=mock_embeddings_client,
             doc_embeddings_client=mock_doc_embeddings_client,
@@ -261,14 +265,14 @@ class TestDocumentRagIntegration:
         # Act
         await document_rag.query("test query for verbose logging")
 
-        # Assert
-        captured = capsys.readouterr()
-        assert "Initialised" in captured.out
-        assert "Construct prompt..." in captured.out
-        assert "Compute embeddings..." in captured.out
-        assert "Get docs..." in captured.out
-        assert "Invoke LLM..." in captured.out
-        assert "Done" in captured.out
+        # Assert - Check for new logging messages
+        log_messages = caplog.text
+        assert "DocumentRag initialized" in log_messages
+        assert "Constructing prompt..." in log_messages
+        assert "Computing embeddings..." in log_messages
+        assert "Getting documents..." in log_messages
+        assert "Invoking LLM..." in log_messages
+        assert "Query processing complete" in log_messages
 
     @pytest.mark.asyncio
     @pytest.mark.slow
