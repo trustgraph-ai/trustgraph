@@ -1,6 +1,7 @@
 
 import os
 import pulsar
+import _pulsar
 import uuid
 from pulsar.schema import JsonSchema
 
