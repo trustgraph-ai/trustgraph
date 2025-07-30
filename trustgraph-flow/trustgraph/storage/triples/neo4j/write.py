@@ -8,9 +8,13 @@ import base64
 import os
 import argparse
 import time
+import logging
 
 from neo4j import GraphDatabase
 from .... base import TriplesStoreService
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "triples-write"
 
@@ -55,40 +59,40 @@ class Processor(TriplesStoreService):
         # and this process will restart several times until Pulsar arrives,
         # so should be safe
 
-        print("Create indexes...", flush=True)
+        logger.info("Create indexes...")
 
         try:
             session.run(
                 "CREATE INDEX Node_uri FOR (n:Node) ON (n.uri)",
             )
         except Exception as e:
-            print(e, flush=True)
+            logger.warning(f"Index create failure: {e}")
             # Maybe index already exists
-            print("Index create failure ignored", flush=True)
+            logger.warning("Index create failure ignored")
 
         try:
             session.run(
                 "CREATE INDEX Literal_value FOR (n:Literal) ON (n.value)",
             )
         except Exception as e:
-            print(e, flush=True)
+            logger.warning(f"Index create failure: {e}")
             # Maybe index already exists
-            print("Index create failure ignored", flush=True)
+            logger.warning("Index create failure ignored")
 
         try:
             session.run(
                 "CREATE INDEX Rel_uri FOR ()-[r:Rel]-() ON (r.uri)",
             )
         except Exception as e:
-            print(e, flush=True)
+            logger.warning(f"Index create failure: {e}")
             # Maybe index already exists
-            print("Index create failure ignored", flush=True)
+            logger.warning("Index create failure ignored")
 
-        print("Index creation done", flush=True)
+        logger.info("Index creation done")
 
     def create_node(self, uri):
 
-        print("Create node", uri)
+        logger.debug(f"Create node {uri}")
 
         summary = self.io.execute_query(
             "MERGE (n:Node {uri: $uri})",
@@ -96,14 +100,14 @@ class Processor(TriplesStoreService):
             database_=self.db,
         ).summary
 
-        print("Created {nodes_created} nodes in {time} ms.".format(
+        logger.debug("Created {nodes_created} nodes in {time} ms.".format(
             nodes_created=summary.counters.nodes_created,
             time=summary.result_available_after
         ))
 
     def create_literal(self, value):
 
-        print("Create literal", value)
+        logger.debug(f"Create literal {value}")
 
         summary = self.io.execute_query(
             "MERGE (n:Literal {value: $value})",
@@ -111,14 +115,14 @@ class Processor(TriplesStoreService):
             database_=self.db,
         ).summary
 
-        print("Created {nodes_created} nodes in {time} ms.".format(
+        logger.debug("Created {nodes_created} nodes in {time} ms.".format(
             nodes_created=summary.counters.nodes_created,
             time=summary.result_available_after
         ))
 
     def relate_node(self, src, uri, dest):
 
-        print("Create node rel", src, uri, dest)
+        logger.debug(f"Create node rel {src} {uri} {dest}")
 
         summary = self.io.execute_query(
             "MATCH (src:Node {uri: $src}) "
@@ -128,14 +132,14 @@ class Processor(TriplesStoreService):
             database_=self.db,
         ).summary
 
-        print("Created {nodes_created} nodes in {time} ms.".format(
+        logger.debug("Created {nodes_created} nodes in {time} ms.".format(
             nodes_created=summary.counters.nodes_created,
             time=summary.result_available_after
         ))
 
     def relate_literal(self, src, uri, dest):
 
-        print("Create literal rel", src, uri, dest)
+        logger.debug(f"Create literal rel {src} {uri} {dest}")
 
         summary = self.io.execute_query(
             "MATCH (src:Node {uri: $src}) "
@@ -145,7 +149,7 @@ class Processor(TriplesStoreService):
             database_=self.db,
         ).summary
 
-        print("Created {nodes_created} nodes in {time} ms.".format(
+        logger.debug("Created {nodes_created} nodes in {time} ms.".format(
             nodes_created=summary.counters.nodes_created,
             time=summary.result_available_after
         ))
