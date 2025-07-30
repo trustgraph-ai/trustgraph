@@ -6,6 +6,10 @@ get topics which are output as graph edges.
 
 import urllib.parse
 import json
+import logging
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 from .... schema import Chunk, Triple, Triples, Metadata, Value
 from .... schema import chunk_ingest_queue, triples_store_queue
@@ -81,7 +85,7 @@ class Processor(ConsumerProducer):
     async def handle(self, msg):
 
         v = msg.value()
-        print(f"Indexing {v.metadata.id}...", flush=True)
+        logger.info(f"Extracting topics from {v.metadata.id}...")
 
         chunk = v.chunk.decode("utf-8")
 
@@ -110,9 +114,9 @@ class Processor(ConsumerProducer):
                 )
 
         except Exception as e:
-            print("Exception: ", e, flush=True)
+            logger.error(f"Topic extraction exception: {e}", exc_info=True)
 
-        print("Done.", flush=True)
+        logger.debug("Topic extraction complete")
 
     @staticmethod
     def add_args(parser):

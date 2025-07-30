@@ -1,6 +1,7 @@
 import re
 import json
 import urllib.parse
+import logging
 
 from ....schema import Chunk, Triple, Triples, Metadata, Value
 from ....schema import EntityContext, EntityContexts
@@ -11,6 +12,9 @@ from ....base import FlowProcessor, ConsumerSpec, ProducerSpec
 from ....base import AgentClientSpec
 
 from ....template import PromptManager
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "kg-extract-agent"
 default_concurrency = 1
@@ -74,10 +78,10 @@ class Processor(FlowProcessor):
 
     async def on_prompt_config(self, config, version):
 
-        print("Loading configuration version", version, flush=True)
+        logger.info(f"Loading configuration version {version}")
 
         if self.config_key not in config:
-            print(f"No key {self.config_key} in config", flush=True)
+            logger.warning(f"No key {self.config_key} in config")
             return
 
         config = config[self.config_key]
@@ -86,12 +90,12 @@ class Processor(FlowProcessor):
 
             self.manager.load_config(config)
 
-            print("Prompt configuration reloaded.", flush=True)
+            logger.info("Prompt configuration reloaded")
 
         except Exception as e:
 
-            print("Exception:", e, flush=True)
-            print("Configuration reload failed", flush=True)
+            logger.error(f"Configuration reload exception: {e}", exc_info=True)
+            logger.error("Configuration reload failed")
 
     def to_uri(self, text):
         return TRUSTGRAPH_ENTITIES + urllib.parse.quote(text)
@@ -142,7 +146,7 @@ class Processor(FlowProcessor):
             # Extract chunk text
             chunk_text = v.chunk.decode('utf-8')
 
-            print("Got chunk", flush=True)
+            logger.debug("Processing chunk for agent extraction")
 
             prompt = self.manager.render(
                 self.template_id,
@@ -151,11 +155,11 @@ class Processor(FlowProcessor):
                 }
             )
 
-            print("Prompt:", prompt, flush=True)
+            logger.debug(f"Agent prompt: {prompt}")
 
             async def handle(response):
 
-                print("Response:", response, flush=True)
+                logger.debug(f"Agent response: {response}")
 
                 if response.error is not None:
                     if response.error.message:
@@ -201,7 +205,7 @@ class Processor(FlowProcessor):
                 )
 
         except Exception as e:
-            print(f"Error processing chunk: {e}", flush=True)
+            logger.error(f"Error processing chunk: {e}", exc_info=True)
             raise
 
     def process_extraction_data(self, data, metadata):
