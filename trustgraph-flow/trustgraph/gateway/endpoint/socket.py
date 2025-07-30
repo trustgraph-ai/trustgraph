@@ -74,24 +74,24 @@ class SocketEndpoint:
                     self.listener(ws, dispatcher, running)
                 )
 
-                print("Created taskgroup, waiting...")
+                logger.debug("Created task group, waiting for completion...")
 
                 # Wait for threads to complete
 
-            print("Task group closed")
+            logger.debug("Task group closed")
 
             # Finally?
             await dispatcher.destroy()
 
         except ExceptionGroup as e:
 
-            print("Exception group:", flush=True)
+            logger.error("Exception group occurred:", exc_info=True)
 
             for se in e.exceptions:
-                print("  Type:", type(se), flush=True)
-                print(f"  Exception: {se}", flush=True)
+                logger.error(f"  Exception type: {type(se)}")
+                logger.error(f"  Exception: {se}")
         except Exception as e:
-            print("Socket exception:", e, flush=True)
+            logger.error(f"Socket exception: {e}", exc_info=True)
 
         await ws.close()
 

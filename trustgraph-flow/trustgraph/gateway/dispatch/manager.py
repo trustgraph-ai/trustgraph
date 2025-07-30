@@ -2,6 +2,10 @@
 import asyncio
 from aiohttp import web
 import uuid
+import logging
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 from . config import ConfigRequestor
 from . flow import FlowRequestor
@@ -92,12 +96,12 @@ class DispatcherManager:
         self.dispatchers = {}
 
     async def start_flow(self, id, flow):
-        print("Start flow", id)
+        logger.info(f"Starting flow {id}")
         self.flows[id] = flow
         return
 
     async def stop_flow(self, id, flow):
-        print("Stop flow", id)
+        logger.info(f"Stopping flow {id}")
         del self.flows[id]
         return
 
