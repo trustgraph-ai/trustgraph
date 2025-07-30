@@ -277,9 +277,3 @@ class AsyncProcessor:
             help=f'Pulsar host (default: 8000)',
         )
 
-        parser.add_argument(
-            '--log-level',
-            default='INFO',
-            choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
-            help='Set the logging level (default: INFO)',
-        )
