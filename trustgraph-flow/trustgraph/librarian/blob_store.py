@@ -5,6 +5,10 @@ from .. exceptions import RequestError
 from minio import Minio
 import time
 import io
+import logging
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 class BlobStore:
 
@@ -23,7 +27,7 @@ class BlobStore:
 
         self.bucket_name = bucket_name
 
-        print("Connected to minio", flush=True)
+        logger.info("Connected to MinIO")
 
         self.ensure_bucket()
 
@@ -33,9 +37,9 @@ class BlobStore:
         found = self.minio.bucket_exists(self.bucket_name)
         if not found:
             self.minio.make_bucket(self.bucket_name)
-            print("Created bucket", self.bucket_name, flush=True)
+            logger.info(f"Created bucket {self.bucket_name}")
         else:
-            print("Bucket", self.bucket_name, "already exists", flush=True)
+            logger.debug(f"Bucket {self.bucket_name} already exists")
 
     async def add(self, object_id, blob, kind):
 
@@ -48,7 +52,7 @@ class BlobStore:
             content_type = kind,
         )
 
-        print("Add blob complete", flush=True)
+        logger.debug("Add blob complete")
 
     async def remove(self, object_id):
 
@@ -58,7 +62,7 @@ class BlobStore:
             object_name = "doc/" + str(object_id),
         )
 
-        print("Remove blob complete", flush=True)
+        logger.debug("Remove blob complete")
 
 
     async def get(self, object_id):
