@@ -4,9 +4,13 @@ Simple token counter for each LLM response.
 
 from prometheus_client import Counter
 import json
+import logging
 
 from .. schema import TextCompletionResponse, Error
 from .. base import FlowProcessor, ConsumerSpec
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "metering"
 
@@ -59,10 +63,10 @@ class Processor(FlowProcessor):
     # Load token costs from the config service
     async def on_cost_config(self, config, version):
 
-        print("Loading configuration version", version)
+        logger.info(f"Loading metering configuration version {version}")
 
         if self.config_key not in config:
-            print(f"No key {self.config_key} in config", flush=True)
+            logger.warning(f"No key {self.config_key} in config")
             return
 
         config = config[self.config_key]
@@ -102,9 +106,9 @@ class Processor(FlowProcessor):
             __class__.input_cost_metric.inc(cost_in)
             __class__.output_cost_metric.inc(cost_out)
 
-        print(f"Input Tokens: {num_in}", flush=True)
-        print(f"Output Tokens: {num_out}", flush=True)
-        print(f"Cost for call: ${cost_per_call}", flush=True)
+        logger.info(f"Input Tokens: {num_in}")
+        logger.info(f"Output Tokens: {num_out}")
+        logger.info(f"Cost for call: ${cost_per_call}")
 
     @staticmethod
     def add_args(parser):
