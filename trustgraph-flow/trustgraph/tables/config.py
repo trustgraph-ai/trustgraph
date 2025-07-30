@@ -9,6 +9,9 @@ from ssl import SSLContext, PROTOCOL_TLSv1_2
 import uuid
 import time
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 
 class ConfigTableStore:
 
@@ -19,7 +22,7 @@ class ConfigTableStore:
 
         self.keyspace = keyspace
 
-        print("Connecting to Cassandra...", flush=True)
+        logger.info("Connecting to Cassandra...")
 
         if cassandra_user and cassandra_password:
             ssl_context = SSLContext(PROTOCOL_TLSv1_2)
@@ -36,7 +39,7 @@ class ConfigTableStore:
 
         self.cassandra = self.cluster.connect()
         
-        print("Connected.", flush=True)
+        logger.info("Connected.")
 
         self.ensure_cassandra_schema()
 
@@ -44,9 +47,9 @@ class ConfigTableStore:
 
     def ensure_cassandra_schema(self):
 
-        print("Ensure Cassandra schema...", flush=True)
+        logger.debug("Ensure Cassandra schema...")
 
-        print("Keyspace...", flush=True)
+        logger.debug("Keyspace...")
         
         # FIXME: Replication factor should be configurable
         self.cassandra.execute(f"""
@@ -59,7 +62,7 @@ class ConfigTableStore:
 
         self.cassandra.set_keyspace(self.keyspace)
 
-        print("config table...", flush=True)
+        logger.debug("config table...")
 
         self.cassandra.execute("""
             CREATE TABLE IF NOT EXISTS config (
@@ -70,7 +73,7 @@ class ConfigTableStore:
             );
         """);
 
-        print("version table...", flush=True)
+        logger.debug("version table...")
 
         self.cassandra.execute("""
             CREATE TABLE IF NOT EXISTS version (
@@ -84,14 +87,14 @@ class ConfigTableStore:
             SELECT version FROM version
         """)
 
-        print("ensure version...", flush=True)
+        logger.debug("ensure version...")
 
         self.cassandra.execute("""
             UPDATE version set version = version + 0
             WHERE id = 'version'
         """)
 
-        print("Cassandra schema OK.", flush=True)
+        logger.info("Cassandra schema OK.")
 
     async def inc_version(self):
 
@@ -160,10 +163,8 @@ class ConfigTableStore:
 
             except Exception as e:
 
-                print("Exception:", type(e))
+                logger.error("Exception occurred", exc_info=True)
                 raise e
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 
     async def get_value(self, cls, key):
 
@@ -180,10 +181,8 @@ class ConfigTableStore:
 
             except Exception as e:
 
-                print("Exception:", type(e))
+                logger.error("Exception occurred", exc_info=True)
                 raise e
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 
         for row in resp:
             return row[0]
@@ -205,10 +204,8 @@ class ConfigTableStore:
 
             except Exception as e:
 
-                print("Exception:", type(e))
+                logger.error("Exception occurred", exc_info=True)
                 raise e
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 
         return [
             [row[0], row[1]]
@@ -230,10 +227,8 @@ class ConfigTableStore:
 
             except Exception as e:
 
-                print("Exception:", type(e))
+                logger.error("Exception occurred", exc_info=True)
                 raise e
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 
         return [
             row[0] for row in resp
@@ -254,10 +249,8 @@ class ConfigTableStore:
 
             except Exception as e:
 
-                print("Exception:", type(e))
+                logger.error("Exception occurred", exc_info=True)
                 raise e
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 
         return [
             (row[0], row[1], row[2])
@@ -279,10 +272,8 @@ class ConfigTableStore:
 
             except Exception as e:
 
-                print("Exception:", type(e))
+                logger.error("Exception occurred", exc_info=True)
                 raise e
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 
         return [
             row[0] for row in resp
@@ -302,8 +293,6 @@ class ConfigTableStore:
                 break
 
             except Exception as e:
-                print("Exception:", type(e))
+                logger.error("Exception occurred", exc_info=True)
                 raise e
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 

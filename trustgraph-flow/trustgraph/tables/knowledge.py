@@ -9,6 +9,9 @@ from ssl import SSLContext, PROTOCOL_TLSv1_2
 import uuid
 import time
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 
 class KnowledgeTableStore:
 
@@ -19,7 +22,7 @@ class KnowledgeTableStore:
 
         self.keyspace = keyspace
 
-        print("Connecting to Cassandra...", flush=True)
+        logger.info("Connecting to Cassandra...")
 
         if cassandra_user and cassandra_password:
             ssl_context = SSLContext(PROTOCOL_TLSv1_2)
@@ -36,7 +39,7 @@ class KnowledgeTableStore:
 
         self.cassandra = self.cluster.connect()
         
-        print("Connected.", flush=True)
+        logger.info("Connected.")
 
         self.ensure_cassandra_schema()
 
@@ -44,9 +47,9 @@ class KnowledgeTableStore:
 
     def ensure_cassandra_schema(self):
 
-        print("Ensure Cassandra schema...", flush=True)
+        logger.debug("Ensure Cassandra schema...")
 
-        print("Keyspace...", flush=True)
+        logger.debug("Keyspace...")
         
         # FIXME: Replication factor should be configurable
         self.cassandra.execute(f"""
@@ -59,7 +62,7 @@ class KnowledgeTableStore:
 
         self.cassandra.set_keyspace(self.keyspace)
 
-        print("triples table...", flush=True)
+        logger.debug("triples table...")
 
         self.cassandra.execute("""
             CREATE TABLE IF NOT EXISTS triples (
@@ -77,7 +80,7 @@ class KnowledgeTableStore:
             );
         """);
 
-        print("graph_embeddings table...", flush=True)
+        logger.debug("graph_embeddings table...")
 
         self.cassandra.execute("""
             create table if not exists graph_embeddings (
@@ -103,7 +106,7 @@ class KnowledgeTableStore:
             graph_embeddings ( user );
         """);
 
-        print("document_embeddings table...", flush=True)
+        logger.debug("document_embeddings table...")
 
         self.cassandra.execute("""
             create table if not exists document_embeddings (
@@ -129,7 +132,7 @@ class KnowledgeTableStore:
             document_embeddings ( user );
         """);
 
-        print("Cassandra schema OK.", flush=True)
+        logger.info("Cassandra schema OK.")
 
     def prepare_statements(self):
 
@@ -231,10 +234,8 @@ class KnowledgeTableStore:
 
             except Exception as e:
 
-                print("Exception:", type(e))
+                logger.error("Exception occurred", exc_info=True)
                 raise e
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 
     async def add_graph_embeddings(self, m):
 
@@ -276,10 +277,8 @@ class KnowledgeTableStore:
 
             except Exception as e:
 
-                print("Exception:", type(e))
+                logger.error("Exception occurred", exc_info=True)
                 raise e
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 
     async def add_document_embeddings(self, m):
 
@@ -321,14 +320,12 @@ class KnowledgeTableStore:
 
             except Exception as e:
 
-                print("Exception:", type(e))
+                logger.error("Exception occurred", exc_info=True)
                 raise e
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 
     async def list_kg_cores(self, user):
 
-        print("List kg cores...")
+        logger.debug("List kg cores...")
 
         while True:
 
@@ -342,10 +339,8 @@ class KnowledgeTableStore:
                 break
 
             except Exception as e:
-                print("Exception:", type(e))
+                logger.error("Exception occurred", exc_info=True)
                 raise e
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 
 
         lst = [
@@ -353,13 +348,13 @@ class KnowledgeTableStore:
             for row in resp
         ]
 
-        print("Done")
+        logger.debug("Done")
 
         return lst
 
     async def delete_kg_core(self, user, document_id):
 
-        print("Delete kg cores...")
+        logger.debug("Delete kg cores...")
 
         while True:
 
@@ -373,10 +368,8 @@ class KnowledgeTableStore:
                 break
 
             except Exception as e:
-                print("Exception:", type(e))
+                logger.error("Exception occurred", exc_info=True)
                 raise e
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 
         while True:
 
@@ -390,14 +383,12 @@ class KnowledgeTableStore:
                 break
 
             except Exception as e:
-                print("Exception:", type(e))
+                logger.error("Exception occurred", exc_info=True)
                 raise e
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 
     async def get_triples(self, user, document_id, receiver):
 
-        print("Get triples...")
+        logger.debug("Get triples...")
 
         while True:
 
@@ -411,10 +402,8 @@ class KnowledgeTableStore:
                 break
 
             except Exception as e:
-                print("Exception:", type(e))
+                logger.error("Exception occurred", exc_info=True)
                 raise e
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 
         for row in resp:
 
@@ -451,11 +440,11 @@ class KnowledgeTableStore:
                 )
             )
 
-        print("Done")
+        logger.debug("Done")
 
     async def get_graph_embeddings(self, user, document_id, receiver):
 
-        print("Get GE...")
+        logger.debug("Get GE...")
 
         while True:
 
@@ -469,10 +458,8 @@ class KnowledgeTableStore:
                 break
 
             except Exception as e:
-                print("Exception:", type(e))
+                logger.error("Exception occurred", exc_info=True)
                 raise e
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 
         for row in resp:
 
@@ -508,5 +495,5 @@ class KnowledgeTableStore:
                 )
             )                    
 
-        print("Done")
+        logger.debug("Done")
 

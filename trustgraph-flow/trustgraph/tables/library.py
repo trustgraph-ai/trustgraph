@@ -13,6 +13,9 @@ from ssl import SSLContext, PROTOCOL_TLSv1_2
 import uuid
 import time
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 
 class LibraryTableStore:
 
@@ -23,7 +26,7 @@ class LibraryTableStore:
 
         self.keyspace = keyspace
 
-        print("Connecting to Cassandra...", flush=True)
+        logger.info("Connecting to Cassandra...")
 
         if cassandra_user and cassandra_password:
             ssl_context = SSLContext(PROTOCOL_TLSv1_2)
@@ -40,7 +43,7 @@ class LibraryTableStore:
 
         self.cassandra = self.cluster.connect()
         
-        print("Connected.", flush=True)
+        logger.info("Connected.")
 
         self.ensure_cassandra_schema()
 
@@ -48,9 +51,9 @@ class LibraryTableStore:
 
     def ensure_cassandra_schema(self):
 
-        print("Ensure Cassandra schema...", flush=True)
+        logger.debug("Ensure Cassandra schema...")
 
-        print("Keyspace...", flush=True)
+        logger.debug("Keyspace...")
         
         # FIXME: Replication factor should be configurable
         self.cassandra.execute(f"""
@@ -63,7 +66,7 @@ class LibraryTableStore:
 
         self.cassandra.set_keyspace(self.keyspace)
 
-        print("document table...", flush=True)
+        logger.debug("document table...")
 
         self.cassandra.execute("""
             CREATE TABLE IF NOT EXISTS document (
@@ -82,14 +85,14 @@ class LibraryTableStore:
             );
         """);
 
-        print("object index...", flush=True)
+        logger.debug("object index...")
 
         self.cassandra.execute("""
             CREATE INDEX IF NOT EXISTS document_object
             ON document (object_id)
         """);
 
-        print("processing table...", flush=True)
+        logger.debug("processing table...")
 
         self.cassandra.execute("""
             CREATE TABLE IF NOT EXISTS processing (
@@ -104,7 +107,7 @@ class LibraryTableStore:
             );
         """);
 
-        print("Cassandra schema OK.", flush=True)
+        logger.info("Cassandra schema OK.")
 
     def prepare_statements(self):
 
@@ -204,7 +207,7 @@ class LibraryTableStore:
 
     async def add_document(self, document, object_id):
 
-        print("Adding document", document.id, object_id)
+        logger.info(f"Adding document {document.id} {object_id}")
 
         metadata = [
             (
@@ -231,16 +234,14 @@ class LibraryTableStore:
 
             except Exception as e:
 
-                print("Exception:", type(e))
+                logger.error("Exception occurred", exc_info=True)
                 raise e
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 
-        print("Add complete", flush=True)
+        logger.debug("Add complete")
 
     async def update_document(self, document):
 
-        print("Updating document", document.id)
+        logger.info(f"Updating document {document.id}")
 
         metadata = [
             (
@@ -267,16 +268,14 @@ class LibraryTableStore:
 
             except Exception as e:
 
-                print("Exception:", type(e))
+                logger.error("Exception occurred", exc_info=True)
                 raise e
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 
-        print("Update complete", flush=True)
+        logger.debug("Update complete")
 
     async def remove_document(self, user, document_id):
 
-        print("Removing document", document_id)
+        logger.info(f"Removing document {document_id}")
 
         while True:
 
@@ -293,16 +292,14 @@ class LibraryTableStore:
 
             except Exception as e:
 
-                print("Exception:", type(e))
+                logger.error("Exception occurred", exc_info=True)
                 raise e
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 
-        print("Delete complete", flush=True)
+        logger.debug("Delete complete")
 
     async def list_documents(self, user):
 
-        print("List documents...")
+        logger.debug("List documents...")
 
         while True:
 
@@ -316,10 +313,8 @@ class LibraryTableStore:
                 break
 
             except Exception as e:
-                print("Exception:", type(e))
+                logger.error("Exception occurred", exc_info=True)
                 raise e
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 
 
         lst = [
@@ -344,13 +339,13 @@ class LibraryTableStore:
             for row in resp
         ]
 
-        print("Done")
+        logger.debug("Done")
 
         return lst
 
     async def get_document(self, user, id):
 
-        print("Get document")
+        logger.debug("Get document")
 
         while True:
 
@@ -364,10 +359,8 @@ class LibraryTableStore:
                 break
 
             except Exception as e:
-                print("Exception:", type(e))
+                logger.error("Exception occurred", exc_info=True)
                 raise e
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 
 
         for row in resp:
@@ -390,14 +383,14 @@ class LibraryTableStore:
                 object_id = row[6],
             )
 
-            print("Done")
+            logger.debug("Done")
             return doc
 
         raise RuntimeError("No such document row?")
 
     async def get_document_object_id(self, user, id):
 
-        print("Get document obj ID")
+        logger.debug("Get document obj ID")
 
         while True:
 
@@ -411,14 +404,12 @@ class LibraryTableStore:
                 break
 
             except Exception as e:
-                print("Exception:", type(e))
+                logger.error("Exception occurred", exc_info=True)
                 raise e
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 
 
         for row in resp:
-            print("Done")
+            logger.debug("Done")
             return row[6]
 
         raise RuntimeError("No such document row?")
@@ -440,7 +431,7 @@ class LibraryTableStore:
 
     async def add_processing(self, processing):
 
-        print("Adding processing", processing.id)
+        logger.info(f"Adding processing {processing.id}")
 
         while True:
 
@@ -460,16 +451,14 @@ class LibraryTableStore:
 
             except Exception as e:
 
-                print("Exception:", type(e))
+                logger.error("Exception occurred", exc_info=True)
                 raise e
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 
-        print("Add complete", flush=True)
+        logger.debug("Add complete")
 
     async def remove_processing(self, user, processing_id):
 
-        print("Removing processing", processing_id)
+        logger.info(f"Removing processing {processing_id}")
 
         while True:
 
@@ -486,16 +475,14 @@ class LibraryTableStore:
 
             except Exception as e:
 
-                print("Exception:", type(e))
+                logger.error("Exception occurred", exc_info=True)
                 raise e
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 
-        print("Delete complete", flush=True)
+        logger.debug("Delete complete")
 
     async def list_processing(self, user):
 
-        print("List processing objects")
+        logger.debug("List processing objects")
 
         while True:
 
@@ -509,10 +496,8 @@ class LibraryTableStore:
                 break
 
             except Exception as e:
-                print("Exception:", type(e))
+                logger.error("Exception occurred", exc_info=True)
                 raise e
-                print(f"{e}, retry...", flush=True)
-                await asyncio.sleep(1)
 
 
         lst = [
@@ -528,7 +513,7 @@ class LibraryTableStore:
             for row in resp
         ]
 
-        print("Done")
+        logger.debug("Done")
 
         return lst
 
