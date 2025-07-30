@@ -107,7 +107,7 @@ class ReverseGateway:
     
     async def handle_message(self, message: str):
         try:
-            print(f"Received: {message}", flush=True)
+            logger.debug(f"Received message: {message}")
             
             msg_data = json.loads(message)
             response = await self.dispatcher.handle_message(msg_data)
@@ -228,15 +228,15 @@ def run():
         pulsar_listener=args.pulsar_listener
     )
     
-    print(f"Starting reverse gateway:")
-    print(f"  WebSocket URI: {gateway.url}")
-    print(f"  Max workers: {args.max_workers}")
-    print(f"  Pulsar host: {gateway.pulsar_host}")
+    logger.info(f"Starting reverse gateway:")
+    logger.info(f"  WebSocket URI: {gateway.url}")
+    logger.info(f"  Max workers: {args.max_workers}")
+    logger.info(f"  Pulsar host: {gateway.pulsar_host}")
     
     try:
         asyncio.run(gateway.run())
     except KeyboardInterrupt:
-        print("\nShutdown requested by user")
+        logger.info("Shutdown requested by user")
     except Exception as e:
-        print(f"Fatal error: {e}")
+        logger.error(f"Fatal error: {e}", exc_info=True)
         sys.exit(1)

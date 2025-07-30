@@ -3,6 +3,10 @@ import ibis
 import json
 from jsonschema import validate
 import re
+import logging
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 class PromptConfiguration:
     def __init__(self, system_template, global_terms={}, prompts={}):
@@ -101,7 +105,7 @@ class PromptManager:
 
     async def invoke(self, id, input, llm):
 
-        print("Invoke...", flush=True)
+        logger.debug("Invoking prompt template...")
 
         terms = self.terms | self.prompts[id].terms | input
 
@@ -123,13 +127,13 @@ class PromptManager:
         try:
             obj = self.parse_json(resp)
         except:
-            print("Parse fail:", resp, flush=True)
+            logger.error(f"JSON parse failed: {resp}")
             raise RuntimeError("JSON parse fail")
 
         if self.prompts[id].schema:
             try:
                 validate(instance=obj, schema=self.prompts[id].schema)
-                print("Validated", flush=True)
+                logger.debug("Schema validation successful")
             except Exception as e:
                 raise RuntimeError(f"Schema validation fail: {e}")
 

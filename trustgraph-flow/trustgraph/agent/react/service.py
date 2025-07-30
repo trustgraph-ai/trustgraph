@@ -263,7 +263,7 @@ class Processor(AgentService):
 
             await next(r)
 
-            print("Done.", flush=True)
+            logger.debug("React agent processing complete")
 
             return
 
