@@ -147,10 +147,9 @@ def run():
 
     parser.add_argument(
         '-l', '--log-level',
-        type=LogLevel,
-        default=LogLevel.INFO,
-        choices=list(LogLevel),
-        help=f'Output queue (default: info)'
+        default='INFO',
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+        help=f'Log level (default: INFO)'
     )
 
     parser.add_argument(
