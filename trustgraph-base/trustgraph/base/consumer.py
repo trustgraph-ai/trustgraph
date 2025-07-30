@@ -14,8 +14,12 @@ import pulsar
 import _pulsar
 import asyncio
 import time
+import logging
 
 from .. exceptions import TooManyRequests
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 class Consumer:
 
@@ -90,7 +94,7 @@ class Consumer:
 
             try:
 
-                print(self.topic, "subscribing...", flush=True)
+                logger.info(f"Subscribing to topic: {self.topic}")
 
                 if self.start_of_messages:
                     pos = pulsar.InitialPosition.Earliest
@@ -108,21 +112,18 @@ class Consumer:
 
             except Exception as e:
 
-                print("consumer subs Exception:", e, flush=True)
+                logger.error(f"Consumer subscription exception: {e}", exc_info=True)
                 await asyncio.sleep(self.reconnect_time)
                 continue
 
-            print(self.topic, "subscribed", flush=True)
+            logger.info(f"Successfully subscribed to topic: {self.topic}")
 
             if self.metrics:
                 self.metrics.state("running")
 
             try:
 
-                print(
-                    "Starting", self.concurrency, "receiver threads",
-                    flush=True
-                )
+                logger.info(f"Starting {self.concurrency} receiver threads")
 
                 async with asyncio.TaskGroup() as tg:
 
@@ -138,7 +139,7 @@ class Consumer:
 
             except Exception as e:
 
-                print("consumer loop exception:", e, flush=True)
+                logger.error(f"Consumer loop exception: {e}", exc_info=True)
                 self.consumer.unsubscribe()
                 self.consumer.close()
                 self.consumer = None
@@ -174,7 +175,7 @@ class Consumer:
 
             if time.time() > expiry:
 
-                print("Gave up waiting for rate-limit retry", flush=True)
+                logger.warning("Gave up waiting for rate-limit retry")
 
                 # Message failed to be processed, this causes it to
                 # be retried
@@ -188,7 +189,7 @@ class Consumer:
 
             try:
 
-                print("Handle...", flush=True)
+                logger.debug("Processing message...")
 
                 if self.metrics:
 
@@ -198,7 +199,7 @@ class Consumer:
                 else:
                     await self.handler(msg, self, self.flow)
 
-                print("Handled.", flush=True)
+                logger.debug("Message processed successfully")
 
                 # Acknowledge successful processing of the message
                 self.consumer.acknowledge(msg)
@@ -211,7 +212,7 @@ class Consumer:
 
             except TooManyRequests:
 
-                print("TooManyRequests: will retry...", flush=True)
+                logger.warning("Rate limit exceeded, will retry...")
 
                 if self.metrics:
                     self.metrics.rate_limit()
@@ -224,7 +225,7 @@ class Consumer:
 
             except Exception as e:
 
-                print("consume exception:", e, flush=True)
+                logger.error(f"Message processing exception: {e}", exc_info=True)
 
                 # Message failed to be processed, this causes it to
                 # be retried

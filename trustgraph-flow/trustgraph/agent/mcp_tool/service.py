@@ -5,10 +5,14 @@ name + parameters, output is the response, either a string or an object.
 """
 
 import json
+import logging
 from mcp.client.streamable_http import streamablehttp_client
 from mcp import ClientSession
 
 from ... base import ToolService
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "mcp-tool"
 
@@ -26,7 +30,7 @@ class Service(ToolService):
 
     async def on_mcp_config(self, config, version):
 
-        print("Got config version", version)
+        logger.info(f"Got config version {version}")
 
         if "mcp" not in config: return
 
@@ -52,7 +56,7 @@ class Service(ToolService):
             else:
                 remote_name = name
 
-            print("Invoking", remote_name, "at", url, flush=True)
+            logger.info(f"Invoking {remote_name} at {url}")
 
             # Connect to a streamable HTTP server
             async with streamablehttp_client(url) as (
@@ -86,13 +90,13 @@ class Service(ToolService):
         except BaseExceptionGroup as e:
 
             for child in e.exceptions:
-                print(child)
+                logger.debug(f"Child: {child}")
 
             raise e.exceptions[0]
 
         except Exception as e:
 
-            print(e)
+            logger.error(f"Error invoking MCP tool: {e}", exc_info=True)
             raise e
             
     @staticmethod

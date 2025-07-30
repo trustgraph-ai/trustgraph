@@ -7,8 +7,12 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct
 from qdrant_client.models import Distance, VectorParams
 import uuid
+import logging
 
 from .... base import GraphEmbeddingsStoreService
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "ge-write"
 
@@ -50,7 +54,7 @@ class Processor(GraphEmbeddingsStoreService):
                         ),
                     )
                 except Exception as e:
-                    print("Qdrant collection creation failed")
+                    logger.error("Qdrant collection creation failed")
                     raise e
 
             self.last_collection = cname

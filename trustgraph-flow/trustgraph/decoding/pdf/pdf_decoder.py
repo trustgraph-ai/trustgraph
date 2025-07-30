@@ -6,10 +6,14 @@ PDF document as text as separate output objects.
 
 import tempfile
 import base64
+import logging
 from langchain_community.document_loaders import PyPDFLoader
 
 from ... schema import Document, TextDocument, Metadata
 from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "pdf-decoder"
 
@@ -40,15 +44,15 @@ class Processor(FlowProcessor):
             )
         )
 
-        print("PDF inited", flush=True)
+        logger.info("PDF decoder initialized")
 
     async def on_message(self, msg, consumer, flow):
 
-        print("PDF message received", flush=True)
+        logger.debug("PDF message received")
 
         v = msg.value()
 
-        print(f"Decoding {v.metadata.id}...", flush=True)
+        logger.info(f"Decoding PDF {v.metadata.id}...")
 
         with tempfile.NamedTemporaryFile(delete_on_close=False) as fp:
 
@@ -62,7 +66,7 @@ class Processor(FlowProcessor):
 
                 for ix, page in enumerate(pages):
 
-                    print("page", ix, flush=True)
+                    logger.debug(f"Processing page {ix}")
 
                     r = TextDocument(
                         metadata=v.metadata,
@@ -71,7 +75,7 @@ class Processor(FlowProcessor):
 
                     await flow("output").send(r)
 
-        print("Done.", flush=True)
+        logger.debug("PDF decoding complete")
 
     @staticmethod
     def add_args(parser):

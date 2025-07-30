@@ -9,8 +9,12 @@ from pinecone.grpc import PineconeGRPC, GRPCClientConfig
 import time
 import uuid
 import os
+import logging
 
 from .... base import GraphEmbeddingsStoreService
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "ge-write"
 default_api_key = os.getenv("PINECONE_API_KEY", "not-specified")
@@ -103,10 +107,10 @@ class Processor(GraphEmbeddingsStoreService):
                             self.create_index(index_name, dim)
 
                         except Exception as e:
-                            print("Pinecone index creation failed")
+                            logger.error("Pinecone index creation failed")
                             raise e
 
-                        print(f"Index {index_name} created", flush=True)
+                        logger.info(f"Index {index_name} created")
 
                     self.last_index_name = index_name
 

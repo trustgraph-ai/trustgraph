@@ -8,6 +8,10 @@ import json
 from prometheus_client import Histogram
 from openai import AzureOpenAI, RateLimitError
 import os
+import logging
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 from .... exceptions import TooManyRequests
 from .... base import LlmService, LlmResult
@@ -84,10 +88,10 @@ class Processor(LlmService):
 
             inputtokens = resp.usage.prompt_tokens
             outputtokens = resp.usage.completion_tokens
-            print(resp.choices[0].message.content, flush=True)
-            print(f"Input Tokens: {inputtokens}", flush=True)
-            print(f"Output Tokens: {outputtokens}", flush=True)
-            print("Send response...", flush=True)
+            logger.debug(f"LLM response: {resp.choices[0].message.content}")
+            logger.info(f"Input Tokens: {inputtokens}")
+            logger.info(f"Output Tokens: {outputtokens}")
+            logger.debug("Sending response...")
 
             r = LlmResult(
                 text = resp.choices[0].message.content,
@@ -100,7 +104,7 @@ class Processor(LlmService):
 
         except RateLimitError:
 
-            print("Send rate limit response...", flush=True)
+            logger.warning("Rate limit exceeded")
 
             # Leave rate limit retries to the base handler
             raise TooManyRequests()
@@ -108,10 +112,10 @@ class Processor(LlmService):
         except Exception as e:
 
             # Apart from rate limits, treat all exceptions as unrecoverable
-            print(f"Exception: {e}")
+            logger.error(f"Azure OpenAI LLM exception ({type(e).__name__}): {e}", exc_info=True)
             raise e
 
-        print("Done.", flush=True)
+        logger.debug("Azure OpenAI LLM processing complete")
 
     @staticmethod
     def add_args(parser):

@@ -2,6 +2,10 @@
 import asyncio
 import queue
 import uuid
+import logging
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 MAX_OUTSTANDING_REQUESTS = 15
 WORKER_CLOSE_WAIT = 0.01
@@ -46,7 +50,7 @@ class Mux:
             ))
 
         except Exception as e:
-            print("receive exception:", str(e), flush=True)
+            logger.error(f"Receive exception: {str(e)}", exc_info=True)
             await self.ws.send_json({"error": str(e)})
 
     async def maybe_tidy_workers(self, workers):
@@ -138,7 +142,7 @@ class Mux:
 
             except Exception as e:
                 # This is an internal working error, may not be recoverable
-                print("run prepare exception:", e)
+                logger.error(f"Run prepare exception: {e}", exc_info=True)
                 await self.ws.send_json({"id": id, "error": str(e)})
                 self.running.stop()
 
@@ -155,7 +159,7 @@ class Mux:
                 )
 
             except Exception as e:
-                print("Exception2:", e)
+                logger.error(f"Exception in mux: {e}", exc_info=True)
                 await self.ws.send_json({"error": str(e)})
 
         self.running.stop()

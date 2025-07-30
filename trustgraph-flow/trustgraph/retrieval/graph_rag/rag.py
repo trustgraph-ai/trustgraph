@@ -4,11 +4,15 @@ Simple RAG service, performs query using graph RAG an LLM.
 Input is query, output is response.
 """
 
+import logging
 from ... schema import GraphRagQuery, GraphRagResponse, Error
 from . graph_rag import GraphRag
 from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
 from ... base import PromptClientSpec, EmbeddingsClientSpec
 from ... base import GraphEmbeddingsClientSpec, TriplesClientSpec
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "graph-rag"
 default_concurrency = 1
@@ -102,7 +106,7 @@ class Processor(FlowProcessor):
             # Sender-produced ID
             id = msg.properties()["id"]
          
-            print(f"Handling input {id}...", flush=True)
+            logger.info(f"Handling input {id}...")
 
             if v.entity_limit:
                 entity_limit = v.entity_limit
@@ -139,13 +143,13 @@ class Processor(FlowProcessor):
                 properties = {"id": id}
             )
 
-            print("Done.", flush=True)
+            logger.info("Request processing complete")
 
         except Exception as e:
 
-            print(f"Exception: {e}")
+            logger.error(f"Graph RAG service exception: {e}", exc_info=True)
 
-            print("Send error response...", flush=True)
+            logger.debug("Sending error response...")
 
             await flow("response").send(
                 GraphRagResponse(

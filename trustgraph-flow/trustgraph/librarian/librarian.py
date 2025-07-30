@@ -5,8 +5,12 @@ from .. exceptions import RequestError
 from .. tables.library import LibraryTableStore
 from . blob_store import BlobStore
 import base64
+import logging
 
 import uuid
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 class Librarian:
 
@@ -45,20 +49,20 @@ class Librarian:
         # Create object ID for blob
         object_id = uuid.uuid4()
 
-        print("Add blob...")
+        logger.debug("Adding blob...")
 
         await self.blob_store.add(
             object_id, base64.b64decode(request.content),
             request.document_metadata.kind
         )
 
-        print("Add table...")
+        logger.debug("Adding to table...")
 
         await self.table_store.add_document(
             request.document_metadata, object_id
         )
 
-        print("Add complete", flush=True)
+        logger.debug("Add complete")
 
         return LibrarianResponse(
             error = None,
@@ -70,7 +74,7 @@ class Librarian:
 
     async def remove_document(self, request):
 
-        print("Removing doc...")
+        logger.debug("Removing document...")
 
         if not await self.table_store.document_exists(
                 request.user,
@@ -92,7 +96,7 @@ class Librarian:
             request.document_id
         )
 
-        print("Remove complete", flush=True)
+        logger.debug("Remove complete")
 
         return LibrarianResponse(
             error = None,
@@ -104,7 +108,7 @@ class Librarian:
 
     async def update_document(self, request):
 
-        print("Updating doc...")
+        logger.debug("Updating document...")
 
         # You can't update the document ID, user or kind.
 
@@ -116,7 +120,7 @@ class Librarian:
 
         await self.table_store.update_document(request.document_metadata)
 
-        print("Update complete", flush=True)
+        logger.debug("Update complete")
 
         return LibrarianResponse(
             error = None,
@@ -128,14 +132,14 @@ class Librarian:
 
     async def get_document_metadata(self, request):
 
-        print("Get doc...")
+        logger.debug("Getting document metadata...")
 
         doc = await self.table_store.get_document(
             request.user,
             request.document_id
         )
 
-        print("Get complete", flush=True)
+        logger.debug("Get complete")
 
         return LibrarianResponse(
             error = None,
@@ -147,7 +151,7 @@ class Librarian:
 
     async def get_document_content(self, request):
 
-        print("Get doc content...")
+        logger.debug("Getting document content...")
 
         object_id = await self.table_store.get_document_object_id(
             request.user,
@@ -158,7 +162,7 @@ class Librarian:
             object_id
         )
 
-        print("Get complete", flush=True)
+        logger.debug("Get complete")
 
         return LibrarianResponse(
             error = None,
@@ -170,7 +174,7 @@ class Librarian:
 
     async def add_processing(self, request):
 
-        print("Add processing")
+        logger.debug("Adding processing metadata...")
 
         if await self.table_store.processing_exists(
                 request.processing_metadata.user,
@@ -192,13 +196,13 @@ class Librarian:
             object_id
         )
 
-        print("Got content")
+        logger.debug("Retrieved content")
 
-        print("Add processing...")
+        logger.debug("Adding processing to table...")
 
         await self.table_store.add_processing(request.processing_metadata)
 
-        print("Invoke document processing...")
+        logger.debug("Invoking document processing...")
 
         await self.load_document(
             document = doc,
@@ -206,7 +210,7 @@ class Librarian:
             content = content,
         )
 
-        print("Add complete", flush=True)
+        logger.debug("Add complete")
 
         return LibrarianResponse(
             error = None,
@@ -218,7 +222,7 @@ class Librarian:
 
     async def remove_processing(self, request):
 
-        print("Removing processing...")
+        logger.debug("Removing processing metadata...")
 
         if not await self.table_store.processing_exists(
                 request.user,
@@ -232,7 +236,7 @@ class Librarian:
             request.processing_id
         )
 
-        print("Remove complete", flush=True)
+        logger.debug("Remove complete")
 
         return LibrarianResponse(
             error = None,

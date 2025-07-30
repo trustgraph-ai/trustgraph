@@ -4,15 +4,19 @@ Graph embeddings query service.  Input is vector, output is list of
 entities.  Pinecone implementation.
 """
 
-from pinecone import Pinecone, ServerlessSpec
-from pinecone.grpc import PineconeGRPC, GRPCClientConfig
-
+import logging
 import uuid
 import os
+
+from pinecone import Pinecone, ServerlessSpec
+from pinecone.grpc import PineconeGRPC, GRPCClientConfig
 
 from .... schema import GraphEmbeddingsResponse
 from .... schema import Error, Value
 from .... base import GraphEmbeddingsQueryService
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "ge-query"
 default_api_key = os.getenv("PINECONE_API_KEY", "not-specified")
@@ -107,7 +111,7 @@ class Processor(GraphEmbeddingsQueryService):
 
         except Exception as e:
 
-            print(f"Exception: {e}")
+            logger.error(f"Exception querying graph embeddings: {e}", exc_info=True)
             raise e
 
     @staticmethod

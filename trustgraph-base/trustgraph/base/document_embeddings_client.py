@@ -1,7 +1,12 @@
 
+import logging
+
 from . request_response_spec import RequestResponse, RequestResponseSpec
 from .. schema import DocumentEmbeddingsRequest, DocumentEmbeddingsResponse
 from .. knowledge import Uri, Literal
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 class DocumentEmbeddingsClient(RequestResponse):
     async def query(self, vectors, limit=20, user="trustgraph",
@@ -17,7 +22,7 @@ class DocumentEmbeddingsClient(RequestResponse):
             timeout=timeout
         )
 
-        print(resp, flush=True)
+        logger.debug(f"Document embeddings response: {resp}")
 
         if resp.error:
             raise RuntimeError(resp.error.message)

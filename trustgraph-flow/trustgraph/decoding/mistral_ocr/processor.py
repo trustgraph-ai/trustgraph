@@ -19,6 +19,10 @@ from ... schema import document_ingest_queue, text_ingest_queue
 from ... log_level import LogLevel
 from ... base import InputOutputProcessor
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 module = "ocr"
 
 default_subscriber = module
@@ -94,18 +98,18 @@ class Processor(InputOutputProcessor):
         # Used with Mistral doc upload
         self.unique_id = str(uuid.uuid4())
 
-        print("PDF inited")
+        logger.info("PDF inited")
 
     def ocr(self, blob):
 
-        print("Parse PDF...", flush=True)
+        logger.debug("Parse PDF...")
 
         pdfbuf = BytesIO(blob)
         pdf = PdfReader(pdfbuf)
 
         for chunk in chunks(pdf.pages, pages_per_chunk):
             
-            print("Get next pages...", flush=True)
+            logger.debug("Get next pages...")
 
             part = PdfWriter()
             for page in chunk:
@@ -114,7 +118,7 @@ class Processor(InputOutputProcessor):
             buf = BytesIO()
             part.write_stream(buf)
 
-            print("Upload chunk...", flush=True)
+            logger.debug("Upload chunk...")
 
             uploaded_file = self.mistral.files.upload(
                 file={
@@ -128,7 +132,7 @@ class Processor(InputOutputProcessor):
                 file_id=uploaded_file.id, expiry=1
             )
 
-            print("OCR...", flush=True)
+            logger.debug("OCR...")
 
             processed = self.mistral.ocr.process(
                 model="mistral-ocr-latest",
@@ -139,21 +143,21 @@ class Processor(InputOutputProcessor):
                 }
             )
 
-            print("Extract markdown...", flush=True)
+            logger.debug("Extract markdown...")
 
             markdown = get_combined_markdown(processed)
 
-            print("OCR complete.", flush=True)
+            logger.info("OCR complete.")
 
             return markdown
 
     async def on_message(self, msg, consumer):
 
-        print("PDF message received")
+        logger.debug("PDF message received")
 
         v = msg.value()
 
-        print(f"Decoding {v.metadata.id}...", flush=True)
+        logger.info(f"Decoding {v.metadata.id}...")
 
         markdown = self.ocr(base64.b64decode(v.data))
 
@@ -164,7 +168,7 @@ class Processor(InputOutputProcessor):
 
         await consumer.q.output.send(r)
 
-        print("Done.", flush=True)
+        logger.info("Done.")
 
     @staticmethod
     def add_args(parser):

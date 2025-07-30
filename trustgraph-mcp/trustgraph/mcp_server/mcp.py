@@ -517,7 +517,7 @@ class McpServer:
 
         async for response in gen:
 
-            print(response)
+            logging.debug(f"Agent response: {response}")
 
             if "thought" in response:
                 await ctx.session.send_log_message(

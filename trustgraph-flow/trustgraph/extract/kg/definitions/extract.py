@@ -7,8 +7,12 @@ entity/context definitions for embedding.
 
 import json
 import urllib.parse
+import logging
 
 from .... schema import Chunk, Triple, Triples, Metadata, Value
+
+# Module logger
+logger = logging.getLogger(__name__)
 from .... schema import EntityContext, EntityContexts
 from .... schema import PromptRequest, PromptResponse
 from .... rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL, SUBJECT_OF
@@ -94,11 +98,11 @@ class Processor(FlowProcessor):
     async def on_message(self, msg, consumer, flow):
 
         v = msg.value()
-        print(f"Indexing {v.metadata.id}...", flush=True)
+        logger.info(f"Extracting definitions from {v.metadata.id}...")
 
         chunk = v.chunk.decode("utf-8")
 
-        print(chunk, flush=True)
+        logger.debug(f"Processing chunk: {chunk[:200]}...")  # Log first 200 chars
 
         try:
 
@@ -108,13 +112,13 @@ class Processor(FlowProcessor):
                     text = chunk
                 )
 
-                print("Response", defs, flush=True)
+                logger.debug(f"Definitions response: {defs}")
 
                 if type(defs) != list:
                     raise RuntimeError("Expecting array in prompt response")
 
             except Exception as e:
-                print("Prompt exception:", e, flush=True)
+                logger.error(f"Prompt exception: {e}", exc_info=True)
                 raise e
 
             triples = []
@@ -187,9 +191,9 @@ class Processor(FlowProcessor):
             )
 
         except Exception as e:
-            print("Exception: ", e, flush=True)
+            logger.error(f"Definitions extraction exception: {e}", exc_info=True)
 
-        print("Done.", flush=True)
+        logger.debug("Definitions extraction complete")
 
     @staticmethod
     def add_args(parser):

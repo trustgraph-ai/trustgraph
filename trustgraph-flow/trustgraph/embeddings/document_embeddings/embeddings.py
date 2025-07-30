@@ -11,6 +11,10 @@ from ... schema import EmbeddingsRequest, EmbeddingsResponse
 from ... base import FlowProcessor, RequestResponseSpec, ConsumerSpec
 from ... base import ProducerSpec
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 default_ident = "document-embeddings"
 
 class Processor(FlowProcessor):
@@ -52,7 +56,7 @@ class Processor(FlowProcessor):
     async def on_message(self, msg, consumer, flow):
 
         v = msg.value()
-        print(f"Indexing {v.metadata.id}...", flush=True)
+        logger.info(f"Indexing {v.metadata.id}...")
 
         try:
 
@@ -79,12 +83,12 @@ class Processor(FlowProcessor):
             await flow("output").send(r)
 
         except Exception as e:
-            print("Exception:", e, flush=True)
+            logger.error("Exception occurred", exc_info=True)
 
             # Retry
             raise e
 
-        print("Done.", flush=True)
+        logger.info("Done.")
 
     @staticmethod
     def add_args(parser):

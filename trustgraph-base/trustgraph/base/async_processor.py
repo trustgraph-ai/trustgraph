@@ -9,6 +9,8 @@ import argparse
 import _pulsar
 import time
 import uuid
+import logging
+import os
 from prometheus_client import start_http_server, Info
 
 from .. schema import ConfigPush, config_push_queue
@@ -19,6 +21,9 @@ from . consumer import Consumer
 from . metrics import ProcessorMetrics, ConsumerMetrics
 
 default_config_queue = config_push_queue
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 # Async processor
 class AsyncProcessor:
@@ -113,7 +118,7 @@ class AsyncProcessor:
         version = message.value().version
 
         # Invoke message handlers
-        print("Config change event", version, flush=True)
+        logger.info(f"Config change event: version={version}")
         for ch in self.config_handlers:
             await ch(config, version)
 
@@ -156,8 +161,22 @@ class AsyncProcessor:
 
         # This is here to output a debug message, shouldn't be needed.
         except Exception as e:
-            print("Exception, closing taskgroup", flush=True)
+            logger.error("Exception, closing taskgroup", exc_info=True)
             raise e
+
+    @classmethod
+    def setup_logging(cls, log_level='INFO'):
+        """Configure logging for the entire application"""
+        # Support environment variable override
+        env_log_level = os.environ.get('TRUSTGRAPH_LOG_LEVEL', log_level)
+        
+        # Configure logging
+        logging.basicConfig(
+            level=getattr(logging, env_log_level.upper()),
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            handlers=[logging.StreamHandler()]
+        )
+        logger.info(f"Logging configured with level: {env_log_level}")
 
     # Startup fabric.  launch calls launch_async in async mode.
     @classmethod
@@ -183,8 +202,11 @@ class AsyncProcessor:
         args = parser.parse_args()
         args = vars(args)
 
+        # Setup logging before anything else
+        cls.setup_logging(args.get('log_level', 'INFO').upper())
+
         # Debug
-        print(args, flush=True)
+        logger.debug(f"Arguments: {args}")
 
         # Start the Prometheus metrics service if needed
         if args["metrics"]:
@@ -193,7 +215,7 @@ class AsyncProcessor:
         # Loop forever, exception handler
         while True:
 
-            print("Starting...", flush=True)
+            logger.info("Starting...")
 
             try:
 
@@ -203,30 +225,30 @@ class AsyncProcessor:
                 ))
 
             except KeyboardInterrupt:
-                print("Keyboard interrupt.", flush=True)
+                logger.info("Keyboard interrupt.")
                 return
 
             except _pulsar.Interrupted:
-                print("Pulsar Interrupted.", flush=True)
+                logger.info("Pulsar Interrupted.")
                 return
 
             # Exceptions from a taskgroup come in as an exception group
             except ExceptionGroup as e:
 
-                print("Exception group:", flush=True)
+                logger.error("Exception group:")
 
                 for se in e.exceptions:
-                    print("  Type:", type(se), flush=True)
-                    print(f"  Exception: {se}", flush=True)
+                    logger.error(f"  Type: {type(se)}")
+                    logger.error(f"  Exception: {se}", exc_info=se)
 
             except Exception as e:
-                print("Type:", type(e), flush=True)
-                print("Exception:", e, flush=True)
+                logger.error(f"Type: {type(e)}")
+                logger.error(f"Exception: {e}", exc_info=True)
 
             # Retry occurs here
-            print("Will retry...", flush=True)
+            logger.warning("Will retry...")
             time.sleep(4)
-            print("Retrying...", flush=True)
+            logger.info("Retrying...")
 
     # The command-line arguments are built using a stack of add_args
     # invocations
@@ -254,3 +276,4 @@ class AsyncProcessor:
             default=8000,
             help=f'Pulsar host (default: 8000)',
         )
+

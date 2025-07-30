@@ -1,5 +1,9 @@
 
 import asyncio
+import logging
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 LABEL="http://www.w3.org/2000/01/rdf-schema#label"
 
@@ -18,12 +22,12 @@ class Query:
     async def get_vector(self, query):
 
         if self.verbose:
-            print("Compute embeddings...", flush=True)
+            logger.debug("Computing embeddings...")
 
         qembeds = await  self.rag.embeddings_client.embed(query)
 
         if self.verbose:
-            print("Done.", flush=True)
+            logger.debug("Embeddings computed")
 
         return qembeds
 
@@ -32,7 +36,7 @@ class Query:
         vectors = await self.get_vector(query)
 
         if self.verbose:
-            print("Get docs...", flush=True)
+            logger.debug("Getting documents...")
 
         docs = await self.rag.doc_embeddings_client.query(
             vectors, limit=self.doc_limit,
@@ -40,9 +44,9 @@ class Query:
         )
 
         if self.verbose:
-            print("Docs:", flush=True)
+            logger.debug("Documents:")
             for doc in docs:
-                print(doc, flush=True)
+                logger.debug(f"  {doc}")
 
         return docs
 
@@ -60,7 +64,7 @@ class DocumentRag:
         self.doc_embeddings_client = doc_embeddings_client
 
         if self.verbose:
-            print("Initialised", flush=True)
+            logger.debug("DocumentRag initialized")
 
     async def query(
             self, query, user="trustgraph", collection="default",
@@ -68,7 +72,7 @@ class DocumentRag:
     ):
 
         if self.verbose:
-            print("Construct prompt...", flush=True)
+            logger.debug("Constructing prompt...")
 
         q = Query(
             rag=self, user=user, collection=collection, verbose=self.verbose,
@@ -78,9 +82,9 @@ class DocumentRag:
         docs = await q.get_docs(query)
 
         if self.verbose:
-            print("Invoke LLM...", flush=True)
-            print(docs)
-            print(query)
+            logger.debug("Invoking LLM...")
+            logger.debug(f"Documents: {docs}")
+            logger.debug(f"Query: {query}")
 
         resp = await self.prompt_client.document_prompt(
             query = query,
@@ -88,7 +92,7 @@ class DocumentRag:
         )
 
         if self.verbose:
-            print("Done", flush=True)
+            logger.debug("Query processing complete")
 
         return resp
 

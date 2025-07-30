@@ -6,7 +6,11 @@ graph edges.
 """
 
 import json
+import logging
 import urllib.parse
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 from .... schema import Chunk, Triple, Triples
 from .... schema import Metadata, Value
@@ -78,11 +82,11 @@ class Processor(FlowProcessor):
     async def on_message(self, msg, consumer, flow):
 
         v = msg.value()
-        print(f"Indexing {v.metadata.id}...", flush=True)
+        logger.info(f"Extracting relationships from {v.metadata.id}...")
 
         chunk = v.chunk.decode("utf-8")
 
-        print(chunk, flush=True)
+        logger.debug(f"Processing chunk: {chunk[:100]}..." if len(chunk) > 100 else f"Processing chunk: {chunk}")
 
         try:
 
@@ -92,13 +96,13 @@ class Processor(FlowProcessor):
                     text = chunk
                 )
 
-                print("Response", rels, flush=True)
+                logger.debug(f"Prompt response: {rels}")
 
                 if type(rels) != list:
                     raise RuntimeError("Expecting array in prompt response")
 
             except Exception as e:
-                print("Prompt exception:", e, flush=True)
+                logger.error(f"Prompt exception: {e}", exc_info=True)
                 raise e
 
             triples = []
@@ -189,9 +193,9 @@ class Processor(FlowProcessor):
             )
 
         except Exception as e:
-            print("Exception: ", e, flush=True)
+            logger.error(f"Relationship extraction exception: {e}", exc_info=True)
 
-        print("Done.", flush=True)
+        logger.debug("Relationship extraction complete")
 
     @staticmethod
     def add_args(parser):

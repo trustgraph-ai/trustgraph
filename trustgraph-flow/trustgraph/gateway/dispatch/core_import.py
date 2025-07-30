@@ -3,7 +3,11 @@ import asyncio
 import json
 import uuid
 import msgpack
+import logging
 from . knowledge import KnowledgeRequestor
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 class CoreImport:
 
@@ -80,14 +84,14 @@ class CoreImport:
                         await kr.process(msg)
 
         except Exception as e:
-            print("Exception:", e)
+            logger.error(f"Core import exception: {e}", exc_info=True)
             await error(str(e))
 
         finally:
 
             await kr.stop()
 
-        print("All done.")
+        logger.info("Core import completed")
         response = await ok()
         await response.write_eof()
 

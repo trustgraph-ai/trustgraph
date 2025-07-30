@@ -17,6 +17,10 @@ from google.genai import types
 from google.genai.types import HarmCategory, HarmBlockThreshold
 from google.api_core.exceptions import ResourceExhausted
 import os
+import logging
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 from .... exceptions import TooManyRequests
 from .... base import LlmService, LlmResult
@@ -77,7 +81,7 @@ class Processor(LlmService):
             # HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY: block_level,
         ]
 
-        print("Initialised", flush=True)
+        logger.info("GoogleAIStudio LLM service initialized")
 
     async def generate_content(self, system, prompt):
 
@@ -102,9 +106,9 @@ class Processor(LlmService):
             resp = response.text
             inputtokens = int(response.usage_metadata.prompt_token_count)
             outputtokens = int(response.usage_metadata.candidates_token_count)
-            print(resp, flush=True)
-            print(f"Input Tokens: {inputtokens}", flush=True)
-            print(f"Output Tokens: {outputtokens}", flush=True)
+            logger.debug(f"LLM response: {resp}")
+            logger.info(f"Input Tokens: {inputtokens}")
+            logger.info(f"Output Tokens: {outputtokens}")
 
             resp = LlmResult(
                 text = resp,
@@ -117,7 +121,7 @@ class Processor(LlmService):
 
         except ResourceExhausted as e:
 
-            print("Hit rate limit:", e, flush=True)
+            logger.warning("Rate limit exceeded")
 
             # Leave rate limit retries to the default handler
             raise TooManyRequests()
@@ -126,8 +130,7 @@ class Processor(LlmService):
 
             # Apart from rate limits, treat all exceptions as unrecoverable
 
-            print(type(e), flush=True)
-            print(f"Exception: {e}", flush=True)
+            logger.error(f"GoogleAIStudio LLM exception ({type(e).__name__}): {e}", exc_info=True)
             raise e
 
     @staticmethod

@@ -8,9 +8,13 @@ import base64
 import os
 import argparse
 import time
+import logging
 
 from .... direct.cassandra import TrustGraph
 from .... base import TriplesStoreService
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "triples-write"
 
@@ -61,7 +65,7 @@ class Processor(TriplesStoreService):
                         table=message.metadata.collection,
                     )
             except Exception as e:
-                print("Exception", e, flush=True)
+                logger.error(f"Exception: {e}", exc_info=True)
                 time.sleep(1)
                 raise e
 

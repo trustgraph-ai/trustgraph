@@ -6,6 +6,7 @@ Language service abstracts prompt engineering from LLM.
 import asyncio
 import json
 import re
+import logging
 
 from ...schema import Definition, Relationship, Triple
 from ...schema import Topic
@@ -16,6 +17,9 @@ from ...base import FlowProcessor
 from ...base import ProducerSpec, ConsumerSpec, TextCompletionClientSpec
 
 from ...template import PromptManager
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "prompt"
 default_concurrency = 1
@@ -68,10 +72,10 @@ class Processor(FlowProcessor):
 
     async def on_prompt_config(self, config, version):
 
-        print("Loading configuration version", version)
+        logger.info(f"Loading prompt configuration version {version}")
 
         if self.config_key not in config:
-            print(f"No key {self.config_key} in config", flush=True)
+            logger.warning(f"No key {self.config_key} in config")
             return
 
         config = config[self.config_key]
@@ -80,12 +84,12 @@ class Processor(FlowProcessor):
 
             self.manager.load_config(config)
 
-            print("Prompt configuration reloaded.", flush=True)
+            logger.info("Prompt configuration reloaded")
 
         except Exception as e:
 
-            print("Exception:", e, flush=True)
-            print("Configuration reload failed", flush=True)
+            logger.error(f"Prompt configuration exception: {e}", exc_info=True)
+            logger.error("Configuration reload failed")
 
     async def on_request(self, msg, consumer, flow):
 
@@ -99,19 +103,19 @@ class Processor(FlowProcessor):
 
         try:
 
-            print(v.terms, flush=True)
+            logger.debug(f"Prompt terms: {v.terms}")
 
             input = {
                 k: json.loads(v)
                 for k, v in v.terms.items()
             }
             
-            print(f"Handling kind {kind}...", flush=True)
+            logger.debug(f"Handling prompt kind {kind}...")
 
             async def llm(system, prompt):
 
-                print(system, flush=True)
-                print(prompt, flush=True)
+                logger.debug(f"System prompt: {system}")
+                logger.debug(f"User prompt: {prompt}")
 
                 resp = await flow("text-completion-request").text_completion(
                     system = system, prompt = prompt,
@@ -120,20 +124,20 @@ class Processor(FlowProcessor):
                 try:
                     return resp
                 except Exception as e:
-                    print("LLM Exception:", e, flush=True)
+                    logger.error(f"LLM Exception: {e}", exc_info=True)
                     return None
 
             try:
                 resp = await self.manager.invoke(kind, input, llm)
             except Exception as e:
-                print("Invocation exception:", e, flush=True)
+                logger.error(f"Prompt invocation exception: {e}", exc_info=True)
                 raise e
 
-            print(resp, flush=True)
+            logger.debug(f"Prompt response: {resp}")
 
             if isinstance(resp, str):
 
-                print("Send text response...", flush=True)
+                logger.debug("Sending text response...")
 
                 r = PromptResponse(
                     text=resp,
@@ -147,8 +151,8 @@ class Processor(FlowProcessor):
 
             else:
 
-                print("Send object response...", flush=True)
-                print(json.dumps(resp, indent=4), flush=True)
+                logger.debug("Sending object response...")
+                logger.debug(f"Response object: {json.dumps(resp, indent=4)}")
 
                 r = PromptResponse(
                     text=None,
@@ -162,9 +166,9 @@ class Processor(FlowProcessor):
             
         except Exception as e:
 
-            print(f"Exception: {e}", flush=True)
+            logger.error(f"Prompt service exception: {e}", exc_info=True)
 
-            print("Send error response...", flush=True)
+            logger.debug("Sending error response...")
 
             r = PromptResponse(
                 error=Error(
@@ -178,9 +182,9 @@ class Processor(FlowProcessor):
 
         except Exception as e:
 
-            print(f"Exception: {e}", flush=True)
+            logger.error(f"Prompt service exception: {e}", exc_info=True)
 
-            print("Send error response...", flush=True)
+            logger.debug("Sending error response...")
 
             r = PromptResponse(
                 error=Error(

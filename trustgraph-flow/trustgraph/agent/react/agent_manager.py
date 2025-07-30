@@ -164,18 +164,18 @@ class AgentManager:
 
     async def reason(self, question, history, context):
 
-        print(f"calling reason: {question}", flush=True)
+        logger.debug(f"calling reason: {question}")
 
         tools = self.tools
 
-        print(f"in reason", flush=True)
-        print(tools, flush=True)
+        logger.debug("in reason")
+        logger.debug(f"tools: {tools}")
 
         tool_names = ",".join([
             t for t in self.tools.keys()
         ])
 
-        print("Tool names:", tool_names, flush=True)
+        logger.debug(f"Tool names: {tool_names}")
 
         variables = {
             "question": question,
@@ -208,14 +208,14 @@ class AgentManager:
             ]
         }
 
-        print(json.dumps(variables, indent=4), flush=True)
+        logger.debug(f"Variables: {json.dumps(variables, indent=4)}")
 
         logger.info(f"prompt: {variables}")
 
         # Get text response from prompt service
         response_text = await context("prompt-request").agent_react(variables)
 
-        print(f"Response text:\n{response_text}", flush=True)
+        logger.debug(f"Response text:\n{response_text}")
 
         logger.info(f"response: {response_text}")
 
@@ -233,7 +233,6 @@ class AgentManager:
     async def react(self, question, history, think, observe, context):
 
         logger.info(f"question: {question}")
-        print(f"question: {question}", flush=True)
 
         act = await self.reason(
             question = question,
@@ -256,7 +255,7 @@ class AgentManager:
             else:
                 raise RuntimeError(f"No action for {act.name}!")
 
-            print("TOOL>>>", act, flush=True)
+            logger.debug(f"TOOL>>> {act}")
 
             resp = await action.implementation(context).invoke(
                 **act.arguments

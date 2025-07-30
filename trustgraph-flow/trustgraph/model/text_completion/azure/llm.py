@@ -8,9 +8,13 @@ import requests
 import json
 from prometheus_client import Histogram
 import os
+import logging
 
 from .... exceptions import TooManyRequests
 from .... base import LlmService, LlmResult
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "text-completion"
 
@@ -111,11 +115,11 @@ class Processor(LlmService):
             inputtokens = response['usage']['prompt_tokens']
             outputtokens = response['usage']['completion_tokens']
 
-            print(resp, flush=True)
-            print(f"Input Tokens: {inputtokens}", flush=True)
-            print(f"Output Tokens: {outputtokens}", flush=True)
+            logger.debug(f"LLM response: {resp}")
+            logger.info(f"Input Tokens: {inputtokens}")
+            logger.info(f"Output Tokens: {outputtokens}")
 
-            print("Send response...", flush=True)
+            logger.debug("Sending response...")
 
             resp = LlmResult(
                 text = resp,
@@ -128,7 +132,7 @@ class Processor(LlmService):
 
         except TooManyRequests:
 
-            print("Rate limit...")
+            logger.warning("Rate limit exceeded")
 
             # Leave rate limit retries to the base handler
             raise TooManyRequests()
@@ -137,10 +141,10 @@ class Processor(LlmService):
 
             # Apart from rate limits, treat all exceptions as unrecoverable
 
-            print(f"Exception: {e}")
+            logger.error(f"Azure LLM exception ({type(e).__name__}): {e}", exc_info=True)
             raise e
 
-        print("Done.", flush=True)
+        logger.debug("Azure LLM processing complete")
 
     @staticmethod
     def add_args(parser):

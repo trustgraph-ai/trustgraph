@@ -7,6 +7,7 @@ from functools import partial
 import asyncio
 import base64
 import json
+import logging
 
 from .. base import AsyncProcessor, Consumer, Producer, Publisher, Subscriber
 from .. base import ConsumerMetrics, ProducerMetrics
@@ -20,6 +21,9 @@ from .. schema import TextDocument, Metadata
 from .. exceptions import RequestError
 
 from . knowledge import KnowledgeManager
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "knowledge"
 
@@ -96,7 +100,7 @@ class Processor(AsyncProcessor):
 
         self.flows = {}
 
-        print("Initialised.", flush=True)
+        logger.info("Knowledge service initialized")
 
     async def start(self):
 
@@ -106,7 +110,7 @@ class Processor(AsyncProcessor):
 
     async def on_knowledge_config(self, config, version):
 
-        print("config version", version)
+        logger.info(f"Configuration version: {version}")
 
         if "flows" in config:
 
@@ -115,14 +119,14 @@ class Processor(AsyncProcessor):
                 for k, v in config["flows"].items()
             }
 
-        print(self.flows)
+        logger.debug(f"Flows: {self.flows}")
 
     async def process_request(self, v, id):
 
         if v.operation is None:
             raise RequestError("Null operation")
 
-        print("request", v.operation)
+        logger.debug(f"Knowledge request: {v.operation}")
 
         impls = {
             "list-kg-cores": self.knowledge.list_kg_cores,
@@ -150,7 +154,7 @@ class Processor(AsyncProcessor):
 
         id = msg.properties()["id"]
 
-        print(f"Handling input {id}...", flush=True)
+        logger.info(f"Handling knowledge input {id}...")
 
         try:
 
@@ -187,7 +191,7 @@ class Processor(AsyncProcessor):
 
             return
 
-        print("Done.", flush=True)
+        logger.debug("Knowledge input processing complete")
 
     @staticmethod
     def add_args(parser):

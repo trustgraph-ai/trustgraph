@@ -3,9 +3,14 @@
 Graph embeddings store base class
 """
 
+import logging
+
 from .. schema import GraphEmbeddings
 from .. base import FlowProcessor, ConsumerSpec
 from .. exceptions import TooManyRequests
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "graph-embeddings-write"
 
@@ -40,7 +45,7 @@ class GraphEmbeddingsStoreService(FlowProcessor):
 
         except Exception as e:
             
-            print(f"Exception: {e}")
+            logger.error(f"Exception in graph embeddings store service: {e}", exc_info=True)
             raise e
 
     @staticmethod

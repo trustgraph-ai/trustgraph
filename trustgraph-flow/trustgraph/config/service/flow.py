@@ -1,6 +1,10 @@
 
 from trustgraph.schema import FlowResponse, Error
 import json
+import logging
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 class FlowConfig:
     def __init__(self, config):
@@ -41,7 +45,7 @@ class FlowConfig:
     
     async def handle_delete_class(self, msg):
 
-        print(msg)
+        logger.debug(f"Flow config message: {msg}")
 
         await self.config.get("flow-classes").delete(msg.class_name)
 
@@ -218,7 +222,7 @@ class FlowConfig:
     
     async def handle(self, msg):
 
-        print("Handle message ", msg.operation)
+        logger.debug(f"Handling flow message: {msg.operation}")
 
         if msg.operation == "list-classes":
             resp = await self.handle_list_classes(msg)

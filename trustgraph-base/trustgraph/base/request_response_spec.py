@@ -1,11 +1,15 @@
 
 import uuid
 import asyncio
+import logging
 
 from . subscriber import Subscriber
 from . producer import Producer
 from . spec import Spec
 from . metrics import ConsumerMetrics, ProducerMetrics, SubscriberMetrics
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 class RequestResponse(Subscriber):
 
@@ -45,7 +49,7 @@ class RequestResponse(Subscriber):
 
         id = str(uuid.uuid4())
 
-        print("Request", id, "...", flush=True)
+        logger.debug(f"Sending request {id}...")
 
         q = await self.subscribe(id)
 
@@ -58,7 +62,7 @@ class RequestResponse(Subscriber):
 
         except Exception as e:
 
-            print("Exception:", e)
+            logger.error(f"Exception sending request: {e}", exc_info=True)
             raise e
 
 
@@ -71,7 +75,7 @@ class RequestResponse(Subscriber):
                     timeout=timeout
                 )
 
-                print("Got response.", flush=True)
+                logger.debug("Received response")
 
                 if recipient is None:
 
@@ -93,7 +97,7 @@ class RequestResponse(Subscriber):
 
         except Exception as e:
 
-            print("Exception:", e)
+            logger.error(f"Exception processing response: {e}", exc_info=True)
             raise e
 
         finally:

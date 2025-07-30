@@ -8,6 +8,7 @@ import base64
 import os
 import argparse
 import time
+import logging
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
 from ssl import SSLContext, PROTOCOL_TLSv1_2
@@ -16,6 +17,9 @@ from .... schema import Rows
 from .... schema import rows_store_queue
 from .... log_level import LogLevel
 from .... base import Consumer
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 module = "rows-write"
 ssl_context = SSLContext(PROTOCOL_TLSv1_2)
@@ -111,7 +115,7 @@ class Processor(Consumer):
 
         except Exception as e:
 
-            print("Exception:", str(e), flush=True)
+            logger.error(f"Exception: {str(e)}", exc_info=True)
 
             # If there's an error make sure to do table creation etc.
             self.tables.remove(name)

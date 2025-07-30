@@ -4,9 +4,14 @@ Embeddings service, applies an embeddings model using fastembed
 Input is text, output is embeddings vector.
 """
 
+import logging
+
 from ... base import EmbeddingsService
 
 from fastembed import TextEmbedding
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "embeddings"
 
@@ -22,7 +27,7 @@ class Processor(EmbeddingsService):
             **params | { "model": model }
         )
 
-        print("Get model...", flush=True)
+        logger.info("Loading FastEmbed model...")
         self.embeddings = TextEmbedding(model_name = model)
 
     async def on_embeddings(self, text):

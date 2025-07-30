@@ -4,6 +4,7 @@
 # configuration service which can't manage itself.
 
 import json
+import logging
 
 from pulsar.schema import JsonSchema
 
@@ -13,6 +14,9 @@ from .. schema import config_push_queue
 from .. log_level import LogLevel
 from . async_processor import AsyncProcessor
 from . flow import Flow
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 # Parent class for configurable processors, configured with flows by
 # the config service
@@ -34,7 +38,7 @@ class FlowProcessor(AsyncProcessor):
         # Array of specifications: ConsumerSpec, ProducerSpec, SettingSpec
         self.specifications = []
 
-        print("Service initialised.")
+        logger.info("Service initialised.")
 
     # Register a configuration variable
     def register_specification(self, spec):
@@ -44,19 +48,19 @@ class FlowProcessor(AsyncProcessor):
     async def start_flow(self, flow, defn):
         self.flows[flow] = Flow(self.id, flow, self, defn)
         await self.flows[flow].start()
-        print("Started flow: ", flow)
+        logger.info(f"Started flow: {flow}")
         
     # Stop processing for a new flow
     async def stop_flow(self, flow):
         if flow in self.flows:
             await self.flows[flow].stop()
             del self.flows[flow]
-            print("Stopped flow: ", flow, flush=True)
+            logger.info(f"Stopped flow: {flow}")
 
     # Event handler - called for a configuration change
     async def on_configure_flows(self, config, version):
 
-        print("Got config version", version, flush=True)
+        logger.info(f"Got config version {version}")
 
         # Skip over invalid data
         if "flows-active" not in config: return
@@ -69,7 +73,7 @@ class FlowProcessor(AsyncProcessor):
 
         else:
 
-            print("No configuration settings for me.", flush=True)
+            logger.debug("No configuration settings for me.")
             flow_config = {}
 
         # Get list of flows which should be running and are currently
@@ -88,7 +92,7 @@ class FlowProcessor(AsyncProcessor):
             if flow not in wanted_flows:
                 await self.stop_flow(flow)
 
-        print("Handled config update")
+        logger.info("Handled config update")
 
     # Start threads, just call parent
     async def start(self):

@@ -4,10 +4,15 @@ Graph embeddings query service.  Input is vector, output is list of
 entities
 """
 
+import logging
+
 from .... direct.milvus_graph_embeddings import EntityVectors
 from .... schema import GraphEmbeddingsResponse
 from .... schema import Error, Value
 from .... base import GraphEmbeddingsQueryService
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "ge-query"
 default_store_uri = 'http://localhost:19530'
@@ -68,14 +73,12 @@ class Processor(GraphEmbeddingsQueryService):
 
             entities = ents2
 
-            print("Send response...", flush=True)
+            logger.debug("Send response...")
             return entities
-
-            print("Done.", flush=True)
 
         except Exception as e:
 
-            print(f"Exception: {e}")
+            logger.error(f"Exception querying graph embeddings: {e}", exc_info=True)
             raise e
 
     @staticmethod

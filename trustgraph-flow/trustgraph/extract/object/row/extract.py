@@ -6,7 +6,11 @@ out a row of fields.  Output as a vector plus object.
 
 import urllib.parse
 import os
+import logging
 from pulsar.schema import JsonSchema
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 from .... schema import ChunkEmbeddings, Rows, ObjectEmbeddings, Metadata
 from .... schema import RowSchema, Field
@@ -75,7 +79,7 @@ class Processor(ConsumerProducer):
         flds = __class__.parse_fields(params["field"])
 
         for fld in flds:
-            print(fld)
+            logger.debug(f"Field configuration: {fld}")
 
         self.primary = None
 
@@ -142,7 +146,7 @@ class Processor(ConsumerProducer):
     async def handle(self, msg):
 
         v = msg.value()
-        print(f"Indexing {v.metadata.id}...", flush=True)
+        logger.info(f"Extracting rows from {v.metadata.id}...")
 
         chunk = v.chunk.decode("utf-8")
 
@@ -163,12 +167,12 @@ class Processor(ConsumerProducer):
                 )
 
             for row in rows:
-                print(row)
+                logger.debug(f"Extracted row: {row}")
 
         except Exception as e:
-            print("Exception: ", e, flush=True)
+            logger.error(f"Row extraction exception: {e}", exc_info=True)
 
-        print("Done.", flush=True)
+        logger.debug("Row extraction complete")
 
     @staticmethod
     def add_args(parser):

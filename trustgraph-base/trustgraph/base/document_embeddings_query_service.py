@@ -4,12 +4,17 @@ Document embeddings query service.  Input is vectors.  Output is list of
 embeddings.
 """
 
+import logging
+
 from .. schema import DocumentEmbeddingsRequest, DocumentEmbeddingsResponse
 from .. schema import Error, Value
 
 from . flow_processor import FlowProcessor
 from . consumer_spec import ConsumerSpec
 from . producer_spec import ProducerSpec
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "ge-query"
 
@@ -47,21 +52,21 @@ class DocumentEmbeddingsQueryService(FlowProcessor):
             # Sender-produced ID
             id = msg.properties()["id"]
 
-            print(f"Handling input {id}...", flush=True)
+            logger.debug(f"Handling document embeddings query request {id}...")
 
             docs = await self.query_document_embeddings(request)
 
-            print("Send response...", flush=True)
+            logger.debug("Sending document embeddings query response...")
             r = DocumentEmbeddingsResponse(documents=docs, error=None)
             await flow("response").send(r, properties={"id": id})
 
-            print("Done.", flush=True)
+            logger.debug("Document embeddings query request completed")
 
         except Exception as e:
 
-            print(f"Exception: {e}")
+            logger.error(f"Exception in document embeddings query service: {e}", exc_info=True)
 
-            print("Send error response...", flush=True)
+            logger.info("Sending error response...")
 
             r = DocumentEmbeddingsResponse(
                 error=Error(
