@@ -1,6 +1,10 @@
 
 import json
+import logging
 from .types import Argument
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 # This tool implementation knows how to put a question to the graph RAG
 # service
@@ -21,7 +25,7 @@ class KnowledgeQueryImpl:
     
     async def invoke(self, **arguments):
         client = self.context("graph-rag-request")
-        print("Graph RAG question...", flush=True)
+        logger.debug("Graph RAG question...")
         return await client.rag(
             arguments.get("question")
         )
@@ -44,7 +48,7 @@ class TextCompletionImpl:
     
     async def invoke(self, **arguments):
         client = self.context("prompt-request")
-        print("Prompt question...", flush=True)
+        logger.debug("Prompt question...")
         return await client.question(
             arguments.get("question")
         )
@@ -67,13 +71,13 @@ class McpToolImpl:
 
         client = self.context("mcp-tool-request")
 
-        print(f"MCP tool invocation: {self.mcp_tool_id}...", flush=True)
+        logger.debug(f"MCP tool invocation: {self.mcp_tool_id}...")
         output = await client.invoke(
             name = self.mcp_tool_id,
             parameters = arguments,  # Pass the actual arguments
         )
 
-        print(output)
+        logger.debug(f"MCP tool output: {output}")
 
         if isinstance(output, str):
             return output
@@ -94,7 +98,7 @@ class PromptImpl:
     
     async def invoke(self, **arguments):
         client = self.context("prompt-request")
-        print(f"Prompt template invocation: {self.template_id}...", flush=True)
+        logger.debug(f"Prompt template invocation: {self.template_id}...")
         return await client.prompt(
             id=self.template_id,
             variables=arguments

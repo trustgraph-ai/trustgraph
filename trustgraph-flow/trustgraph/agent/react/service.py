@@ -8,7 +8,7 @@ import sys
 import functools
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+# Module logger
 logger = logging.getLogger(__name__)
 
 from ... base import AgentService, TextCompletionClientSpec, PromptClientSpec
@@ -81,7 +81,7 @@ class Processor(AgentService):
 
     async def on_tools_config(self, config, version):
 
-        print("Loading configuration version", version)
+        logger.info(f"Loading configuration version {version}")
 
         try:
 
@@ -151,13 +151,13 @@ class Processor(AgentService):
                 additional_context=additional
             )
 
-            print(f"Loaded {len(tools)} tools", flush=True)
-            print("Tool configuration reloaded.", flush=True)
+            logger.info(f"Loaded {len(tools)} tools")
+            logger.info("Tool configuration reloaded.")
 
         except Exception as e:
 
-            print("on_tools_config Exception:", e, flush=True)
-            print("Configuration reload failed", flush=True)
+            logger.error(f"on_tools_config Exception: {e}", exc_info=True)
+            logger.error("Configuration reload failed")
 
     async def agent_request(self, request, respond, next, flow):
 
@@ -176,16 +176,16 @@ class Processor(AgentService):
             else:
                 history = []
 
-            print(f"Question: {request.question}", flush=True)
+            logger.info(f"Question: {request.question}")
 
             if len(history) >= self.max_iterations:
                 raise RuntimeError("Too many agent iterations")
 
-            print(f"History: {history}", flush=True)
+            logger.debug(f"History: {history}")
 
             async def think(x):
 
-                print(f"Think: {x}", flush=True)
+                logger.debug(f"Think: {x}")
 
                 r = AgentResponse(
                     answer=None,
@@ -198,7 +198,7 @@ class Processor(AgentService):
 
             async def observe(x):
 
-                print(f"Observe: {x}", flush=True)
+                logger.debug(f"Observe: {x}")
 
                 r = AgentResponse(
                     answer=None,
@@ -209,7 +209,7 @@ class Processor(AgentService):
 
                 await respond(r)
 
-            print("Call React", flush=True)
+            logger.debug("Call React")
 
             act = await self.agent.react(
                 question = request.question,
@@ -219,11 +219,11 @@ class Processor(AgentService):
                 context = flow,
             )
 
-            print(f"Action: {act}", flush=True)
+            logger.debug(f"Action: {act}")
 
             if isinstance(act, Final):
 
-                print("Send final response...", flush=True)
+                logger.debug("Send final response...")
 
                 if isinstance(act.final, str):
                     f = act.final
@@ -238,11 +238,11 @@ class Processor(AgentService):
 
                 await respond(r)
 
-                print("Done.", flush=True)
+                logger.debug("Done.")
 
                 return
 
-            print("Send next...", flush=True)
+            logger.debug("Send next...")
 
             history.append(act)
 
@@ -269,9 +269,9 @@ class Processor(AgentService):
 
         except Exception as e:
 
-            print(f"agent_request Exception: {e}")
+            logger.error(f"agent_request Exception: {e}", exc_info=True)
 
-            print("Send error response...", flush=True)
+            logger.debug("Send error response...")
 
             r = AgentResponse(
                 error=Error(
