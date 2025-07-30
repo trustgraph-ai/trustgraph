@@ -50,21 +50,21 @@ class TriplesQueryService(FlowProcessor):
             # Sender-produced ID
             id = msg.properties()["id"]
 
-            print(f"Handling input {id}...", flush=True)
+            logger.debug(f"Handling triples query request {id}...")
 
             triples = await self.query_triples(request)
 
-            print("Send response...", flush=True)
+            logger.debug("Sending triples query response...")
             r = TriplesQueryResponse(triples=triples, error=None)
             await flow("response").send(r, properties={"id": id})
 
-            print("Done.", flush=True)
+            logger.debug("Triples query request completed")
 
         except Exception as e:
 
-            print(f"Exception: {e}")
+            logger.error(f"Exception in triples query service: {e}", exc_info=True)
 
-            print("Send error response...", flush=True)
+            logger.info("Sending error response...")
 
             r = TriplesQueryResponse(
                 error = Error(
