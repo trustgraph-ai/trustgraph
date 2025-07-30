@@ -45,20 +45,20 @@ class Librarian:
         # Create object ID for blob
         object_id = uuid.uuid4()
 
-        print("Add blob...")
+        logger.debug("Adding blob...")
 
         await self.blob_store.add(
             object_id, base64.b64decode(request.content),
             request.document_metadata.kind
         )
 
-        print("Add table...")
+        logger.debug("Adding to table...")
 
         await self.table_store.add_document(
             request.document_metadata, object_id
         )
 
-        print("Add complete", flush=True)
+        logger.debug("Add complete")
 
         return LibrarianResponse(
             error = None,
@@ -206,7 +206,7 @@ class Librarian:
             content = content,
         )
 
-        print("Add complete", flush=True)
+        logger.debug("Add complete")
 
         return LibrarianResponse(
             error = None,

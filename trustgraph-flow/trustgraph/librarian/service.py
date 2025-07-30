@@ -7,6 +7,7 @@ from functools import partial
 import asyncio
 import base64
 import json
+import logging
 
 from .. base import AsyncProcessor, Consumer, Producer, Publisher, Subscriber
 from .. base import ConsumerMetrics, ProducerMetrics
@@ -20,6 +21,9 @@ from .. schema import TextDocument, Metadata
 from .. exceptions import RequestError
 
 from . librarian import Librarian
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "librarian"
 
@@ -119,7 +123,7 @@ class Processor(AsyncProcessor):
 
         self.flows = {}
 
-        print("Initialised.", flush=True)
+        logger.info("Librarian service initialized")
 
     async def start(self):
 
@@ -129,7 +133,7 @@ class Processor(AsyncProcessor):
 
     async def on_librarian_config(self, config, version):
 
-        print("config version", version)
+        logger.info(f"Configuration version: {version}")
 
         if "flows" in config:
 
@@ -138,7 +142,7 @@ class Processor(AsyncProcessor):
                 for k, v in config["flows"].items()
             }
 
-        print(self.flows)
+        logger.debug(f"Flows: {self.flows}")
 
     def __del__(self):
 
@@ -146,9 +150,9 @@ class Processor(AsyncProcessor):
 
     async def load_document(self, document, processing, content):
 
-        print("Ready for processing...")
+        logger.debug("Ready for document processing...")
 
-        print(document, processing, len(content))
+        logger.debug(f"Document: {document}, processing: {processing}, content length: {len(content)}")
 
         if processing.flow not in self.flows:
             raise RuntimeError("Invalid flow ID")
@@ -188,7 +192,7 @@ class Processor(AsyncProcessor):
             )
             schema = Document
 
-        print(f"Submit on queue {q}...")
+        logger.debug(f"Submitting to queue {q}...")
 
         pub = Publisher(
             self.pulsar_client, q, schema=schema
@@ -203,14 +207,14 @@ class Processor(AsyncProcessor):
 
         await pub.stop()
 
-        print("Document submitted")
+        logger.debug("Document submitted")
 
     async def process_request(self, v):
 
         if v.operation is None:
             raise RequestError("Null operation")
 
-        print("request", v.operation)
+        logger.debug(f"Librarian request: {v.operation}")
 
         impls = {
             "add-document": self.librarian.add_document,
@@ -237,7 +241,7 @@ class Processor(AsyncProcessor):
 
         id = msg.properties()["id"]
 
-        print(f"Handling input {id}...", flush=True)
+        logger.info(f"Handling librarian input {id}...")
 
         try:
 
@@ -276,7 +280,7 @@ class Processor(AsyncProcessor):
 
             return
 
-        print("Done.", flush=True)
+        logger.debug("Librarian input processing complete")
 
     @staticmethod
     def add_args(parser):
