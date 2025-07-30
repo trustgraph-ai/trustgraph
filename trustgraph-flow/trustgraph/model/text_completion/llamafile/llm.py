@@ -6,6 +6,10 @@ Input is prompt, output is response.
 
 from openai import OpenAI
 import os
+import logging
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 from .... exceptions import TooManyRequests
 from .... base import LlmService, LlmResult
@@ -44,7 +48,7 @@ class Processor(LlmService):
             api_key = "sk-no-key-required",
             )
 
-        print("Initialised", flush=True)
+        logger.info("Llamafile LLM service initialized")
 
     async def generate_content(self, system, prompt):
 
@@ -70,9 +74,9 @@ class Processor(LlmService):
             inputtokens = resp.usage.prompt_tokens
             outputtokens = resp.usage.completion_tokens
 
-            print(resp.choices[0].message.content, flush=True)
-            print(f"Input Tokens: {inputtokens}", flush=True)
-            print(f"Output Tokens: {outputtokens}", flush=True)
+            logger.debug(f"LLM response: {resp.choices[0].message.content}")
+            logger.info(f"Input Tokens: {inputtokens}")
+            logger.info(f"Output Tokens: {outputtokens}")
 
             resp = LlmResult(
                 text = resp.choices[0].message.content,
@@ -87,7 +91,7 @@ class Processor(LlmService):
 
         except Exception as e:
 
-            print(f"Exception: {e}")
+            logger.error(f"Llamafile LLM exception ({type(e).__name__}): {e}", exc_info=True)
             raise e
 
     @staticmethod

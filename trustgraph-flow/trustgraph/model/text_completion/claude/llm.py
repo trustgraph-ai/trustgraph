@@ -6,9 +6,13 @@ Input is prompt, output is response.
 
 import anthropic
 import os
+import logging
 
 from .... exceptions import TooManyRequests
 from .... base import LlmService, LlmResult
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "text-completion"
 
@@ -42,7 +46,7 @@ class Processor(LlmService):
         self.temperature = temperature
         self.max_output = max_output
 
-        print("Initialised", flush=True)
+        logger.info("Claude LLM service initialized")
 
     async def generate_content(self, system, prompt):
 
@@ -69,9 +73,9 @@ class Processor(LlmService):
             resp = response.content[0].text
             inputtokens = response.usage.input_tokens
             outputtokens = response.usage.output_tokens
-            print(resp, flush=True)
-            print(f"Input Tokens: {inputtokens}", flush=True)
-            print(f"Output Tokens: {outputtokens}", flush=True)
+            logger.debug(f"LLM response: {resp}")
+            logger.info(f"Input Tokens: {inputtokens}")
+            logger.info(f"Output Tokens: {outputtokens}")
 
             resp = LlmResult(
                 text = resp,
@@ -91,7 +95,7 @@ class Processor(LlmService):
 
             # Apart from rate limits, treat all exceptions as unrecoverable
 
-            print(f"Exception: {e}")
+            logger.error(f"Claude LLM exception ({type(e).__name__}): {e}", exc_info=True)
             raise e
 
     @staticmethod

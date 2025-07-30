@@ -6,6 +6,10 @@ Input is prompt, output is response.
 
 import os
 import aiohttp
+import logging
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 from .... exceptions import TooManyRequests
 from .... base import LlmService, LlmResult
@@ -45,9 +49,8 @@ class Processor(LlmService):
 
         self.session = aiohttp.ClientSession()
 
-        print("Using vLLM service at", base_url)
-
-        print("Initialised", flush=True)
+        logger.info(f"Using vLLM service at {base_url}")
+        logger.info("vLLM LLM service initialized")
 
     async def generate_content(self, system, prompt):
 
@@ -80,9 +83,9 @@ class Processor(LlmService):
             inputtokens = resp["usage"]["prompt_tokens"]
             outputtokens = resp["usage"]["completion_tokens"]
             ans = resp["choices"][0]["text"]
-            print(f"Input Tokens: {inputtokens}", flush=True)
-            print(f"Output Tokens: {outputtokens}", flush=True)
-            print(ans, flush=True)
+            logger.info(f"Input Tokens: {inputtokens}")
+            logger.info(f"Output Tokens: {outputtokens}")
+            logger.debug(f"LLM response: {ans}")
 
             resp = LlmResult(
                 text = ans,
@@ -99,7 +102,7 @@ class Processor(LlmService):
 
             # Apart from rate limits, treat all exceptions as unrecoverable
 
-            print(f"Exception: {type(e)} {e}")
+            logger.error(f"vLLM LLM exception ({type(e).__name__}): {e}", exc_info=True)
             raise e
 
     @staticmethod
