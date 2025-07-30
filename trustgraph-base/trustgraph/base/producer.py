@@ -1,6 +1,10 @@
 
 from pulsar.schema import JsonSchema
 import asyncio
+import logging
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 class Producer:
 
@@ -39,15 +43,15 @@ class Producer:
         while self.running and self.producer is None:
 
             try:
-                print("Connect publisher to", self.topic, "...", flush=True)
+                logger.info(f"Connecting publisher to {self.topic}...")
                 self.producer = self.client.create_producer(
                     topic = self.topic,
                     schema = JsonSchema(self.schema),
                     chunking_enabled = self.chunking_enabled,
                 )
-                print("Connected to", self.topic, flush=True)
+                logger.info(f"Connected publisher to {self.topic}")
             except Exception as e:
-                print("Exception:", e, flush=True)
+                logger.error(f"Exception connecting publisher: {e}", exc_info=True)
                 await asyncio.sleep(2)
 
             if not self.running: break
@@ -68,7 +72,7 @@ class Producer:
                 break
 
             except Exception as e:
-                print("Exception:", e, flush=True)
+                logger.error(f"Exception sending message: {e}", exc_info=True)
                 self.producer.close()
                 self.producer = None
 

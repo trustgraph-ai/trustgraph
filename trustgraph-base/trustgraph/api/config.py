@@ -1,6 +1,10 @@
 
+import logging
+
 from . exceptions import *
 from . types import ConfigValue
+
+logger = logging.getLogger(__name__)
 
 class Config:
 
@@ -33,7 +37,7 @@ class Config:
                 for v in object["values"]
             ]
         except Exception as e:
-            print(e)
+            logger.error("Failed to parse config get response", exc_info=True)
             raise ProtocolException("Response not formatted correctly")
 
     def put(self, values):
