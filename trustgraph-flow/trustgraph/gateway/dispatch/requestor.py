@@ -68,7 +68,7 @@ class ServiceRequestor:
                         q.get(), timeout=self.timeout
                     )
                 except Exception as e:
-                    print("Exception", e)
+                    logger.error(f"Request timeout exception: {e}", exc_info=True)
                     raise RuntimeError("Timeout")
 
                 if resp.error:

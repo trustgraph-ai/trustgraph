@@ -2,11 +2,15 @@
 import asyncio
 import queue
 import uuid
+import logging
 
 from ... schema import GraphEmbeddings
 from ... base import Subscriber
 
 from . serialize import serialize_graph_embeddings
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 class GraphEmbeddingsExport:
 
@@ -55,7 +59,7 @@ class GraphEmbeddingsExport:
                 continue
 
             except Exception as e:
-                print(f"Exception: {str(e)}", flush=True)
+                logger.error(f"Exception: {str(e)}", exc_info=True)
                 break
 
         await subs.unsubscribe_all(id)
