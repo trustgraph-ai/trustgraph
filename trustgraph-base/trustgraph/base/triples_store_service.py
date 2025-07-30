@@ -3,9 +3,14 @@
 Triples store base class
 """
 
+import logging
+
 from .. schema import Triples
 from .. base import FlowProcessor, ConsumerSpec
 from .. exceptions import TooManyRequests
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "triples-write"
 
@@ -38,7 +43,7 @@ class TriplesStoreService(FlowProcessor):
 
         except Exception as e:
             
-            print(f"Exception: {e}")
+            logger.error(f"Exception in triples store service: {e}", exc_info=True)
             raise e
 
     @staticmethod
