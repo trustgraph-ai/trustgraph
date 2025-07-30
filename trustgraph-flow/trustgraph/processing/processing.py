@@ -19,8 +19,7 @@ def fn(module_name, class_name, params, w):
 
     logger.info(f"Starting {module_name}...")
 
-    if "log_level" in params:
-        params["log_level"] = LogLevel(params["log_level"])
+    # log_level is already a string, no conversion needed
 
     while True:
 
@@ -147,10 +146,9 @@ def run():
 
     parser.add_argument(
         '-l', '--log-level',
-        type=LogLevel,
-        default=LogLevel.INFO,
-        choices=list(LogLevel),
-        help=f'Output queue (default: info)'
+        default='INFO',
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+        help=f'Log level (default: INFO)'
     )
 
     parser.add_argument(
