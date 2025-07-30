@@ -4,6 +4,8 @@ Document embeddings query service.  Input is vector, output is an array
 of chunks
 """
 
+import logging
+
 from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct
 from qdrant_client.models import Distance, VectorParams
@@ -11,6 +13,9 @@ from qdrant_client.models import Distance, VectorParams
 from .... schema import DocumentEmbeddingsResponse
 from .... schema import Error, Value
 from .... base import DocumentEmbeddingsQueryService
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "de-query"
 
@@ -63,7 +68,7 @@ class Processor(DocumentEmbeddingsQueryService):
 
         except Exception as e:
 
-            print(f"Exception: {e}")
+            logger.error(f"Exception querying document embeddings: {e}", exc_info=True)
             raise e
 
     @staticmethod

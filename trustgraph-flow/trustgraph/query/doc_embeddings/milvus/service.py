@@ -4,10 +4,15 @@ Document embeddings query service.  Input is vector, output is an array
 of chunks
 """
 
+import logging
+
 from .... direct.milvus_doc_embeddings import DocVectors
 from .... schema import DocumentEmbeddingsResponse
 from .... schema import Error, Value
 from .... base import DocumentEmbeddingsQueryService
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "de-query"
 default_store_uri = 'http://localhost:19530'
@@ -48,7 +53,7 @@ class Processor(DocumentEmbeddingsQueryService):
 
         except Exception as e:
 
-            print(f"Exception: {e}")
+            logger.error(f"Exception querying document embeddings: {e}", exc_info=True)
             raise e
 
     @staticmethod

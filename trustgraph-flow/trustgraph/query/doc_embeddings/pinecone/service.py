@@ -4,13 +4,17 @@ Document embeddings query service.  Input is vector, output is an array
 of chunks.  Pinecone implementation.
 """
 
-from pinecone import Pinecone, ServerlessSpec
-from pinecone.grpc import PineconeGRPC, GRPCClientConfig
-
+import logging
 import uuid
 import os
 
+from pinecone import Pinecone, ServerlessSpec
+from pinecone.grpc import PineconeGRPC, GRPCClientConfig
+
 from .... base import DocumentEmbeddingsQueryService
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "de-query"
 default_api_key = os.getenv("PINECONE_API_KEY", "not-specified")
@@ -78,7 +82,7 @@ class Processor(DocumentEmbeddingsQueryService):
 
         except Exception as e:
 
-            print(f"Exception: {e}")
+            logger.error(f"Exception querying document embeddings: {e}", exc_info=True)
             raise e
 
     @staticmethod

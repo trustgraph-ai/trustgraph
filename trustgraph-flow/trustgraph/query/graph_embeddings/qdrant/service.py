@@ -4,6 +4,8 @@ Graph embeddings query service.  Input is vector, output is list of
 entities
 """
 
+import logging
+
 from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct
 from qdrant_client.models import Distance, VectorParams
@@ -11,6 +13,9 @@ from qdrant_client.models import Distance, VectorParams
 from .... schema import GraphEmbeddingsResponse
 from .... schema import Error, Value
 from .... base import GraphEmbeddingsQueryService
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "ge-query"
 
@@ -85,14 +90,12 @@ class Processor(GraphEmbeddingsQueryService):
 
             entities = ents2
 
-            print("Send response...", flush=True)
+            logger.debug("Send response...")
             return entities
-
-            print("Done.", flush=True)
 
         except Exception as e:
 
-            print(f"Exception: {e}")
+            logger.error(f"Exception querying graph embeddings: {e}", exc_info=True)
             raise e
 
     @staticmethod

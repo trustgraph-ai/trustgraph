@@ -5,11 +5,16 @@ Input is a (s, p, o) triple, some values may be null.  Output is a list of
 triples.
 """
 
+import logging
+
 from falkordb import FalkorDB
 
 from .... schema import TriplesQueryRequest, TriplesQueryResponse, Error
 from .... schema import Value, Triple
 from .... base import TriplesQueryService
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "triples-query"
 
@@ -299,7 +304,7 @@ class Processor(TriplesQueryService):
 
         except Exception as e:
 
-            print(f"Exception: {e}")
+            logger.error(f"Exception querying triples: {e}", exc_info=True)
             raise e
             
     @staticmethod
