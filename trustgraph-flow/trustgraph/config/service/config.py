@@ -1,8 +1,13 @@
 
+import logging
+
 from trustgraph.schema import ConfigResponse
 from trustgraph.schema import ConfigValue, Error
 
 from ... tables.config import ConfigTableStore
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 class ConfigurationClass:
     
@@ -228,7 +233,7 @@ class Configuration:
 
     async def handle(self, msg):
 
-        print("Handle message ", msg.operation)
+        logger.debug(f"Handling config message: {msg.operation}")
 
         if msg.operation == "get":
 

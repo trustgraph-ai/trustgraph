@@ -3,6 +3,8 @@
 Config service.  Manages system global configuration state
 """
 
+import logging
+
 from trustgraph.schema import Error
 
 from trustgraph.schema import ConfigRequest, ConfigResponse, ConfigPush
@@ -19,6 +21,9 @@ from . flow import FlowConfig
 
 from ... base import ProcessorMetrics, ConsumerMetrics, ProducerMetrics
 from ... base import Consumer, Producer
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 # FIXME: How to ensure this doesn't conflict with other usage?
 keyspace = "config"
@@ -146,7 +151,7 @@ class Processor(AsyncProcessor):
 
         self.flow = FlowConfig(self.config)
 
-        print("Service initialised.")
+        logger.info("Config service initialized")
 
     async def start(self):
 
@@ -172,7 +177,7 @@ class Processor(AsyncProcessor):
 
         # Race condition, should make sure version & config sync
 
-        print("Pushed version ", await self.config.get_version())
+        logger.info(f"Pushed configuration version {await self.config.get_version()}")
         
     async def on_config_request(self, msg, consumer, flow):
 
@@ -183,7 +188,7 @@ class Processor(AsyncProcessor):
             # Sender-produced ID
             id = msg.properties()["id"]
 
-            print(f"Handling {id}...", flush=True)
+            logger.info(f"Handling config request {id}...")
 
             resp = await self.config.handle(v)
 
@@ -214,7 +219,7 @@ class Processor(AsyncProcessor):
             # Sender-produced ID
             id = msg.properties()["id"]
 
-            print(f"Handling {id}...", flush=True)
+            logger.info(f"Handling flow request {id}...")
 
             resp = await self.flow.handle(v)
 

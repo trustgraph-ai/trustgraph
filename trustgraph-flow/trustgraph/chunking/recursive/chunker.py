@@ -4,11 +4,15 @@ Simple decoder, accepts text documents on input, outputs chunks from the
 as text as separate output objects.
 """
 
+import logging
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from prometheus_client import Histogram
 
 from ... schema import TextDocument, Chunk
 from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "chunker"
 
@@ -54,12 +58,12 @@ class Processor(FlowProcessor):
             )
         )
 
-        print("Chunker initialised", flush=True)
+        logger.info("Recursive chunker initialized")
 
     async def on_message(self, msg, consumer, flow):
 
         v = msg.value()
-        print(f"Chunking {v.metadata.id}...", flush=True)
+        logger.info(f"Chunking document {v.metadata.id}...")
 
         texts = self.text_splitter.create_documents(
             [v.text.decode("utf-8")]
@@ -67,7 +71,7 @@ class Processor(FlowProcessor):
 
         for ix, chunk in enumerate(texts):
 
-            print("Chunk", len(chunk.page_content), flush=True)
+            logger.debug(f"Created chunk of size {len(chunk.page_content)}")
 
             r = Chunk(
                 metadata=v.metadata,
@@ -80,7 +84,7 @@ class Processor(FlowProcessor):
 
             await flow("output").send(r)
 
-        print("Done.", flush=True)
+        logger.debug("Document chunking complete")
 
     @staticmethod
     def add_args(parser):
