@@ -1,6 +1,6 @@
 <div align="center">
 
-## TrustGraph: The Run Anywhere Context Engineering Platform
+## The Run Anywhere Context Engineering AI Platform
 
 <img src="context-arch.svg" width=100% />
 
