@@ -138,7 +138,16 @@ This approach allows:
 
 ### APIs
 
-[API endpoints and interfaces]
+New APIs:
+- `POST /api/v1/nlp-to-query` - Convert natural language to structured query
+- `POST /api/v1/structured-data/ingest` - Ingest structured data (CSV, JSON, XML)
+- `POST /api/v1/structured-data/query` - Execute structured queries
+- `GET /api/v1/schemas` - List available schemas
+- `GET /api/v1/schemas/{name}` - Get specific schema definition
+
+Modified APIs:
+- Knowledge extraction endpoints - Add structured object output option
+- Agent endpoints - Add structured data tool support
 
 ### Implementation Details
 
@@ -146,7 +155,7 @@ This approach allows:
 
 ## Security Considerations
 
-[Security requirements and considerations]
+No extra considerations.
 
 ## Performance Considerations
 
@@ -166,8 +175,12 @@ Not specified.
 
 ## Open Questions
 
-[Any unresolved questions or decisions to be made]
+- Can this be made to work with other store types?  We're aiming to use
+  interfaces which make modules which work with one store applicable to
+  other stores.
 
 ## References
 
-[Related documents and resources]
+n/a.
+
+
