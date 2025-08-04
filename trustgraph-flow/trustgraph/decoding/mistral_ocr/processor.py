@@ -21,7 +21,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-default_ident = "mistral-ocr"
+default_ident = "pdf-decoder"
 default_api_key = os.getenv("MISTRAL_TOKEN")
 
 pages_per_chunk = 5
