@@ -18,56 +18,54 @@ trustgraph-base/trustgraph/schema/
 │   ├── metadata.py    # Metadata record
 │   └── topic.py       # Topic utilities
 │
-├── domain/            # Domain-specific data models
+├── knowledge/         # Knowledge domain models and extraction
 │   ├── __init__.py
 │   ├── graph.py       # EntityContext, EntityEmbeddings, Triples
 │   ├── document.py    # Document, TextDocument, Chunk
 │   ├── knowledge.py   # Knowledge extraction types
-│   └── embeddings.py  # All embedding-related types (moved from multiple files)
+│   ├── embeddings.py  # All embedding-related types (moved from multiple files)
+│   └── nlp.py         # Definition, Topic, Relationship, Fact types
 │
-├── api/               # API request/response contracts
-│   ├── __init__.py
-│   ├── llm.py         # TextCompletion, Embeddings, Tool requests/responses
-│   ├── retrieval.py   # GraphRAG, DocumentRAG queries/responses
-│   ├── query.py       # GraphEmbeddingsRequest/Response, DocumentEmbeddingsRequest/Response
-│   ├── agent.py       # Agent requests/responses
-│   ├── flow.py        # Flow requests/responses
-│   ├── config.py      # Configuration API
-│   ├── library.py     # Librarian API
-│   └── lookup.py      # Lookup API
-│
-└── extraction/        # Data extraction schemas
+└── services/          # Service request/response contracts
     ├── __init__.py
-    └── nlp.py         # Definition, Topic, Relationship, Fact, Prompt types
+    ├── llm.py         # TextCompletion, Embeddings, Tool requests/responses
+    ├── retrieval.py   # GraphRAG, DocumentRAG queries/responses
+    ├── query.py       # GraphEmbeddingsRequest/Response, DocumentEmbeddingsRequest/Response
+    ├── agent.py       # Agent requests/responses
+    ├── flow.py        # Flow requests/responses
+    ├── prompt.py      # Prompt service requests/responses
+    ├── config.py      # Configuration service
+    ├── library.py     # Librarian service
+    └── lookup.py      # Lookup service
 ```
 
 ## Key Changes
 
-1. **Hierarchical organization** - Clear separation between core types, domain models, and API contracts
+1. **Hierarchical organization** - Clear separation between core types, knowledge models, and service contracts
 2. **Better naming**:
    - `types.py` → `core/primitives.py` (clearer purpose)
    - `object.py` → Split between appropriate files based on actual content
-   - `documents.py` → `domain/document.py` (singular, consistent)
-   - `models.py` → `api/llm.py` (clearer what kind of models)
-   - `prompt.py` → `extraction/nlp.py` (clearer purpose)
+   - `documents.py` → `knowledge/document.py` (singular, consistent)
+   - `models.py` → `services/llm.py` (clearer what kind of models)
+   - `prompt.py` → Split: service parts to `services/prompt.py`, data types to `knowledge/nlp.py`
 
 3. **Logical grouping**:
-   - All embedding types consolidated in `domain/embeddings.py`
-   - All LLM-related APIs in `api/llm.py`
-   - Clear separation of request/response pairs in API directory
+   - All embedding types consolidated in `knowledge/embeddings.py`
+   - All LLM-related service contracts in `services/llm.py`
+   - Clear separation of request/response pairs in services directory
+   - Knowledge extraction types grouped with other knowledge domain models
 
 4. **Dependency clarity**:
    - Core types have no dependencies
-   - Domain models depend only on core
-   - API contracts can depend on both core and domain
-   - Extraction schemas depend on core
+   - Knowledge models depend only on core
+   - Service contracts can depend on both core and knowledge models
 
 ## Migration Benefits
 
 1. **Easier navigation** - Developers can quickly find what they need
 2. **Better modularity** - Clear boundaries between different concerns
 3. **Simpler imports** - More intuitive import paths
-4. **Future-proof** - Easy to add new domains or APIs without cluttering
+4. **Future-proof** - Easy to add new knowledge types or services without cluttering
 
 ## Example Import Changes
 
@@ -77,8 +75,8 @@ from trustgraph.schema import Error, Triple, GraphEmbeddings, TextCompletionRequ
 
 # After
 from trustgraph.schema.core import Error, Triple
-from trustgraph.schema.domain import GraphEmbeddings
-from trustgraph.schema.api import TextCompletionRequest
+from trustgraph.schema.knowledge import GraphEmbeddings
+from trustgraph.schema.services import TextCompletionRequest
 ```
 
 ## Implementation Notes
