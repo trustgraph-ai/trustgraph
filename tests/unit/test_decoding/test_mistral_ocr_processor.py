@@ -288,7 +288,7 @@ class TestMistralOcrProcessor(IsolatedAsyncioTestCase):
         run()
         
         # Assert
-        mock_launch.assert_called_once_with("mistral-ocr", 
+        mock_launch.assert_called_once_with("pdf-decoder",
             "\nSimple decoder, accepts PDF documents on input, outputs pages from the\nPDF document as text as separate output objects.\n")
 
 
