@@ -40,7 +40,41 @@ This specification addresses these gaps by introducing a structured data layer t
 
 ### Architecture
 
-[High-level architecture description]
+The structured data integration requires the following technical components:
+
+1. **NLP-to-Structured-Query Service**
+   - Converts natural language questions into structured queries
+   - Supports multiple query language targets (initially SQL-like syntax)
+   - Integrates with existing TrustGraph NLP capabilities
+
+2. **Configuration Schema Support**
+   - Extended configuration system to store structured data schemas
+   - Support for defining table structures, field types, and relationships
+   - Schema versioning and migration capabilities
+
+3. **Object Extraction Module**
+   - Enhanced knowledge extractor flow integration
+   - Builds on existing prototype in `trustgraph-flow/trustgraph/extract/objects`
+   - Identifies and extracts structured objects from unstructured sources
+   - Maintains provenance and confidence scores
+
+4. **Structured Store Writer Module**
+   - Handles object persistence to structured data stores
+   - Initial implementation targeting Apache Cassandra
+   - Supports batch and streaming write operations
+   - Manages schema mapping and data transformation
+
+5. **Structured Query Service**
+   - Accepts structured queries in defined formats
+   - Executes queries against the structured store
+   - Returns objects matching query criteria
+   - Supports pagination and result filtering
+
+6. **Agent Tool Integration**
+   - New tool class for agent frameworks
+   - Enables agents to query structured data stores
+   - Provides natural language and structured query interfaces
+   - Integrates with existing agent decision-making processes
 
 ### Data Models
 
