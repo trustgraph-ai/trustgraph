@@ -2,7 +2,7 @@
 
 ## The Run Anywhere LLM Orchestration Platform
 
-<img src="context-arch.svg" width=100% />
+<img src="llm-orchestrate.svg" width=100% />
 
 ---
 
