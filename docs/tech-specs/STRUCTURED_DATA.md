@@ -46,6 +46,8 @@ The structured data integration requires the following technical components:
    - Converts natural language questions into structured queries
    - Supports multiple query language targets (initially SQL-like syntax)
    - Integrates with existing TrustGraph NLP capabilities
+   
+   Module: trustgraph-flow/trustgraph/query/nlp_query/cassandra
 
 2. **Configuration Schema Support**
    - Extended configuration system to store structured data schemas
@@ -58,17 +60,23 @@ The structured data integration requires the following technical components:
    - Identifies and extracts structured objects from unstructured sources
    - Maintains provenance and confidence scores
 
+   Module: trustgraph-flow/trustgraph/extract/object/row/
+
 4. **Structured Store Writer Module**
    - Handles object persistence to structured data stores
    - Initial implementation targeting Apache Cassandra
    - Supports batch and streaming write operations
    - Manages schema mapping and data transformation
 
+   Module: trustgraph-flow/trustgraph/storage/objects/cassandra
+
 5. **Structured Query Service**
    - Accepts structured queries in defined formats
    - Executes queries against the structured store
    - Returns objects matching query criteria
    - Supports pagination and result filtering
+
+   Module: trustgraph-flow/trustgraph/query/objects/cassandra
 
 6. **Agent Tool Integration**
    - New tool class for agent frameworks
@@ -82,6 +90,16 @@ The structured data integration requires the following technical components:
    - Converts data into normalized object streams
    - Emits objects to appropriate message queues for processing
    - Supports bulk uploads and streaming ingestion
+
+   Module: trustgraph-flow/trustgraph/decoding/structured
+
+8. **Object Embedding Service**
+   - Generates vector embeddings for structured objects
+   - Enables semantic search across structured data
+   - Supports hybrid search combining structured queries with semantic similarity
+   - Integrates with existing vector stores
+
+   Module: trustgraph-flow/trustgraph/embeddings/object_embeddings/qdrant
 
 ### Data Models
 
@@ -139,11 +157,11 @@ This approach allows:
 ### APIs
 
 New APIs:
-- `POST /api/v1/nlp-to-query` - Convert natural language to structured query
-- `POST /api/v1/structured-data/ingest` - Ingest structured data (CSV, JSON, XML)
-- `POST /api/v1/structured-data/query` - Execute structured queries
-- `GET /api/v1/schemas` - List available schemas
-- `GET /api/v1/schemas/{name}` - Get specific schema definition
+  - Pulsar schemas for above types
+  - Pulsar interfaces in new flows
+  - Need a means to specify schema types in flows so that flows know which
+    schema types to load
+  - APIs added to gateway and rev-gateway
 
 Modified APIs:
 - Knowledge extraction endpoints - Add structured object output option
