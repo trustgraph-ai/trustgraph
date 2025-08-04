@@ -169,7 +169,12 @@ Modified APIs:
 
 ### Implementation Details
 
-[Key implementation considerations]
+Following existing conventions - these are just new processing modules.
+Everything is in the trustgraph-flow packages except for schema items
+in trustgraph-base.
+
+Need some UI work in the Workbench to be able to demo / pilot this
+capability.
 
 ## Security Considerations
 
@@ -177,11 +182,12 @@ No extra considerations.
 
 ## Performance Considerations
 
-[Performance requirements and optimization strategies]
+Some questions around using Cassandra queries and indexes so that queries
+don't slow down.
 
 ## Testing Strategy
 
-[Testing approach and requirements]
+Use existing test strategy, will build unit, contract and integration tests.
 
 ## Migration Plan
 
@@ -200,5 +206,4 @@ Not specified.
 ## References
 
 n/a.
-
 
