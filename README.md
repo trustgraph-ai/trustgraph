@@ -1,6 +1,6 @@
 <div align="center">
 
-## The Run Anywhere Context Engineering AI Platform
+## The Run Anywhere LLM Orchestration Platform
 
 <img src="context-arch.svg" width=100% />
 
@@ -13,7 +13,7 @@
 
 </div>
 
-Take control of your data and context with **TrustGraph**. Connect to the latest LLMs or deploy models on your hardware. Connect data silos with context automation that builds modular and reusable graph components linked to vector embeddings. Deploy the platform locally, in all major Clouds, and even on bare metal.
+Take control of your data and context with **TrustGraph**. Connect to the latest LLMs or deploy models privately on your hardware. Connect data silos with context automation that builds modular and reusable graph components linked to vector embeddings. Deploy the platform locally, in all major Clouds, and even on bare metal.
 
 <details>
 <summary>Table of Contents</summary>
