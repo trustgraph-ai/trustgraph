@@ -76,6 +76,13 @@ The structured data integration requires the following technical components:
    - Provides natural language and structured query interfaces
    - Integrates with existing agent decision-making processes
 
+7. **Structured Data Ingestion Service**
+   - Accepts structured data in multiple formats (JSON, CSV, XML)
+   - Parses and validates incoming data against defined schemas
+   - Converts data into normalized object streams
+   - Emits objects to appropriate message queues for processing
+   - Supports bulk uploads and streaming ingestion
+
 ### Data Models
 
 #### Schema Storage Mechanism
