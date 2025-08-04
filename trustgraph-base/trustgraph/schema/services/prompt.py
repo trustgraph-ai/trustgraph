@@ -1,31 +1,11 @@
+from pulsar.schema import Record, String, Map
 
-from pulsar.schema import Record, Bytes, String, Boolean, Array, Map, Integer
-
-from . topic import topic
-from . types import Error, RowSchema
+from ..core.primitives import Error
+from ..core.topic import topic
 
 ############################################################################
 
 # Prompt services, abstract the prompt generation
-
-class Definition(Record):
-    name = String()
-    definition = String()
-
-class Topic(Record):
-    name = String()
-    definition = String()
-
-class Relationship(Record):
-    s = String()
-    p = String()
-    o = String()
-    o_entity = Boolean()
-
-class Fact(Record):
-    s = String()
-    p = String()
-    o = String()
 
 # extract-definitions:
 #   chunk -> definitions
@@ -56,4 +36,3 @@ class PromptResponse(Record):
     object = String()
 
 ############################################################################
-

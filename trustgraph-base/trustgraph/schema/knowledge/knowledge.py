@@ -1,11 +1,11 @@
 
 from pulsar.schema import Record, Bytes, String, Array, Long, Boolean
-from . types import Triple
-from . topic import topic
-from . types import Error
-from . metadata import Metadata
-from . documents import Document, TextDocument
-from . graph import Triples, GraphEmbeddings
+from ..core.primitives import Triple, Error
+from ..core.topic import topic
+from ..core.metadata import Metadata
+from .document import Document, TextDocument
+from .graph import Triples
+from .embeddings import GraphEmbeddings
 
 # get-kg-core
 #   -> (???)

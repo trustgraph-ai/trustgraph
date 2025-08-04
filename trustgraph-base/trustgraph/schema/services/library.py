@@ -1,10 +1,9 @@
 
 from pulsar.schema import Record, Bytes, String, Array, Long
-from . types import Triple
-from . topic import topic
-from . types import Error
-from . metadata import Metadata
-from . documents import Document, TextDocument
+from ..core.primitives import Triple, Error
+from ..core.topic import topic
+from ..core.metadata import Metadata
+from ..knowledge.document import Document, TextDocument
 
 # add-document
 #   -> (document_id, document_metadata, content)
