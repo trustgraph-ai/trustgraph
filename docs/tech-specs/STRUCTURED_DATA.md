@@ -78,7 +78,56 @@ The structured data integration requires the following technical components:
 
 ### Data Models
 
-[Description of data structures and schemas]
+#### Schema Storage Mechanism
+
+Schemas are stored in TrustGraph's configuration system using the following structure:
+
+- **Type**: `schema` (fixed value for all structured data schemas)
+- **Key**: The unique name/identifier of the schema (e.g., `customer_records`, `transaction_log`)
+- **Value**: JSON schema definition containing the structure
+
+Example configuration entry:
+```
+Type: schema
+Key: customer_records
+Value: {
+  "name": "customer_records",
+  "description": "Customer information table",
+  "fields": [
+    {
+      "name": "customer_id",
+      "type": "string",
+      "primary_key": true
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "email",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "registration_date",
+      "type": "timestamp"
+    },
+    {
+      "name": "status",
+      "type": "string",
+      "enum": ["active", "inactive", "suspended"]
+    }
+  ],
+  "indexes": ["email", "registration_date"]
+}
+```
+
+This approach allows:
+- Dynamic schema definition without code changes
+- Easy schema updates and versioning
+- Consistent integration with existing TrustGraph configuration management
+- Support for multiple schemas within a single deployment
 
 ### APIs
 
