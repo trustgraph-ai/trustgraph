@@ -11,11 +11,30 @@ This specification describes the integration of TrustGraph with structured data 
 
 ## Goals
 
-[List the primary goals and objectives]
+- **Unified Data Access**: Provide a single interface for accessing both structured and unstructured data within TrustGraph
+- **Seamless Integration**: Enable smooth interoperability between TrustGraph's graph-based knowledge representation and traditional structured data formats
+- **Flexible Extraction**: Support automatic extraction of structured data from various unstructured sources (documents, text, etc.)
+- **Query Versatility**: Allow users to query data using both natural language and structured query languages
+- **Data Consistency**: Maintain data integrity and consistency across different data representations
+- **Performance Optimization**: Ensure efficient storage and retrieval of structured data at scale
+- **Schema Flexibility**: Support both schema-on-write and schema-on-read approaches to accommodate diverse data sources
+- **Backwards Compatibility**: Preserve existing TrustGraph functionality while adding structured data capabilities
 
 ## Background
 
-[Context and motivation for this specification]
+TrustGraph currently excels at processing unstructured data and building knowledge graphs from diverse sources. However, many enterprise use cases involve data that is inherently structured - customer records, transaction logs, inventory databases, and other tabular datasets. These structured datasets often need to be analyzed alongside unstructured content to provide comprehensive insights.
+
+Current limitations include:
+- No native support for ingesting pre-structured data formats (CSV, JSON arrays, database exports)
+- Inability to preserve the inherent structure when extracting tabular data from documents
+- Lack of efficient querying mechanisms for structured data patterns
+- Missing bridge between SQL-like queries and TrustGraph's graph queries
+
+This specification addresses these gaps by introducing a structured data layer that complements TrustGraph's existing capabilities. By supporting structured data natively, TrustGraph can:
+- Serve as a unified platform for both structured and unstructured data analysis
+- Enable hybrid queries that span both graph relationships and tabular data
+- Provide familiar interfaces for users accustomed to working with structured data
+- Unlock new use cases in data integration and business intelligence
 
 ## Technical Design
 
