@@ -36,7 +36,6 @@ dependencies = [
     "pulsar-client",
     "pymilvus",
     "pypdf",
-    "mistralai",
     "pyyaml",
     "qdrant-client",
     "rdflib",
