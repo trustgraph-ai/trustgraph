@@ -4,3 +4,5 @@ from .embeddings import *
 from .knowledge import *
 from .nlp import *
 from .rows import *
+from .structured import *
+from .extraction import *
