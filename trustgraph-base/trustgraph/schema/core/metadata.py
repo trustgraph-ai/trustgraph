@@ -1,6 +1,6 @@
 
 from pulsar.schema import Record, String, Array
-from . types import Triple
+from .primitives import Triple
 
 class Metadata(Record):
 

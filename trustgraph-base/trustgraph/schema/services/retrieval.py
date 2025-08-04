@@ -1,7 +1,7 @@
 
 from pulsar.schema import Record, Bytes, String, Boolean, Integer, Array, Double
-from . topic import topic
-from . types import Error, Value
+from ..core.topic import topic
+from ..core.primitives import Error, Value
 
 ############################################################################
 

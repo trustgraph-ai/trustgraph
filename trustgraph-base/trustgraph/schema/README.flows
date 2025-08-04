@@ -1,0 +1,35 @@
+
+                                  pdf-
+                                decoder
+
+                                   |
+                                   v
+
+                                chunker
+
+                                   |
+                ,------------------+----------- . . .
+                |                  |
+                v                  v
+
+             extract-           extract-
+           relationships      definitions
+
+                |                |   |
+                +----------------'   |
+                |                    v
+                v
+                                 vectorize
+             triple-
+              store                  |
+                                     v
+
+                                  ge-write
+
+Refactor:
+
+[] Change vectorize
+[] Re-route chunker to extract-*
+[] Re-route vectorize to ge-write*
+[] Re-route extract-definitions to ge-write*
+[] Remove extract-relationships to ge-write routing

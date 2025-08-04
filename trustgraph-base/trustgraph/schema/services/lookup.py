@@ -1,9 +1,9 @@
 
 from pulsar.schema import Record, String
 
-from . types import Error, Value, Triple
-from . topic import topic
-from . metadata import Metadata
+from ..core.primitives import Error, Value, Triple
+from ..core.topic import topic
+from ..core.metadata import Metadata
 
 ############################################################################
 
