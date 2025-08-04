@@ -15,13 +15,9 @@ from mistralai import DocumentURLChunk, ImageURLChunk, TextChunk
 from mistralai.models import OCRResponse
 
 from ... schema import Document, TextDocument, Metadata
-from ... schema import document_ingest_queue, text_ingest_queue
-from ... log_level import LogLevel
-from ... base import InputOutputProcessor
+from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
 
-module = "ocr"
-
-default_subscriber = module
+default_ident = "mistral-ocr"
 default_api_key = os.getenv("MISTRAL_TOKEN")
 
 pages_per_chunk = 5
@@ -69,21 +65,32 @@ def get_combined_markdown(ocr_response: OCRResponse) -> str:
 
     return "\n\n".join(markdowns)
 
-class Processor(InputOutputProcessor):
+class Processor(FlowProcessor):
 
     def __init__(self, **params):
 
-        id = params.get("id")
-        subscriber = params.get("subscriber", default_subscriber)
+        id = params.get("id", default_ident)
         api_key = params.get("api_key", default_api_key)
 
         super(Processor, self).__init__(
             **params | {
                 "id": id,
-                "subscriber": subscriber,
-                "input_schema": Document,
-                "output_schema": TextDocument,
             }
+        )
+
+        self.register_specification(
+            ConsumerSpec(
+                name = "input",
+                schema = Document,
+                handler = self.on_message,
+            )
+        )
+
+        self.register_specification(
+            ProducerSpec(
+                name = "output",
+                schema = TextDocument,
+            )
         )
 
         if api_key is None:
@@ -95,6 +102,7 @@ class Processor(InputOutputProcessor):
         self.unique_id = str(uuid.uuid4())
 
         print("PDF inited")
+        logger.info("Mistral OCR processor initialized")
 
     def ocr(self, blob):
 
@@ -147,7 +155,7 @@ class Processor(InputOutputProcessor):
 
             return markdown
 
-    async def on_message(self, msg, consumer):
+    async def on_message(self, msg, consumer, flow):
 
         print("PDF message received")
 
@@ -162,14 +170,14 @@ class Processor(InputOutputProcessor):
             text=markdown.encode("utf-8"),
         )
 
-        await consumer.q.output.send(r)
+        await flow("output").send(r)
 
         print("Done.", flush=True)
 
     @staticmethod
     def add_args(parser):
 
-        InputOutputProcessor.add_args(parser, default_subscriber)
+        FlowProcessor.add_args(parser)
 
         parser.add_argument(
             '-k', '--api-key',
@@ -179,5 +187,5 @@ class Processor(InputOutputProcessor):
 
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 
