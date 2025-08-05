@@ -19,6 +19,25 @@ from .... base import PromptClientSpec
 from .... messaging.translators import row_schema_translator
 
 default_ident = "kg-extract-objects"
+
+
+def convert_values_to_strings(obj: Dict[str, Any]) -> Dict[str, str]:
+    """Convert all values in a dictionary to strings for Pulsar Map(String()) compatibility"""
+    result = {}
+    for key, value in obj.items():
+        if value is None:
+            result[key] = ""
+        elif isinstance(value, str):
+            result[key] = value
+        elif isinstance(value, (int, float, bool)):
+            result[key] = str(value)
+        elif isinstance(value, (list, dict)):
+            # For complex types, serialize as JSON
+            result[key] = json.dumps(value)
+        else:
+            # For any other type, convert to string
+            result[key] = str(value)
+    return result
 default_concurrency = 1
 
 class Processor(FlowProcessor):
@@ -173,6 +192,9 @@ class Processor(FlowProcessor):
                     # Calculate confidence (could be enhanced with actual confidence from prompt)
                     confidence = 0.8  # Default confidence
                     
+                    # Convert all values to strings for Pulsar compatibility
+                    string_values = convert_values_to_strings(obj)
+                    
                     # Create ExtractedObject
                     extracted = ExtractedObject(
                         metadata=Metadata(
@@ -182,7 +204,7 @@ class Processor(FlowProcessor):
                             collection=v.metadata.collection,
                         ),
                         schema_name=schema_name,
-                        values=obj,
+                        values=string_values,
                         confidence=confidence,
                         source_span=chunk_text[:100]  # First 100 chars as source reference
                     )

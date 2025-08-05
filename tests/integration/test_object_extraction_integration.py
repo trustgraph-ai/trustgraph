@@ -108,9 +108,11 @@ class TestObjectExtractionServiceIntegration:
         # Mock prompt client with realistic responses
         prompt_client = AsyncMock()
         
-        def mock_extract_rows(schema, text):
-            """Mock extract_rows with schema-aware responses"""
-            if schema.name == "customer_records":
+        def mock_extract_objects(schema, text):
+            """Mock extract_objects with schema-aware responses"""
+            # Schema is now a dict (converted by row_schema_translator)
+            schema_name = schema.get("name") if isinstance(schema, dict) else schema.name
+            if schema_name == "customer_records":
                 if "john" in text.lower():
                     return [
                         {
@@ -132,7 +134,7 @@ class TestObjectExtractionServiceIntegration:
                 else:
                     return []
             
-            elif schema.name == "product_catalog":
+            elif schema_name == "product_catalog":
                 if "laptop" in text.lower():
                     return [
                         {
@@ -156,7 +158,7 @@ class TestObjectExtractionServiceIntegration:
             
             return []
         
-        prompt_client.extract_rows.side_effect = mock_extract_rows
+        prompt_client.extract_objects.side_effect = mock_extract_objects
         
         # Mock output producer
         output_producer = AsyncMock()
@@ -216,6 +218,10 @@ class TestObjectExtractionServiceIntegration:
         processor.on_schema_config = Processor.on_schema_config.__get__(processor, Processor)
         processor.on_chunk = Processor.on_chunk.__get__(processor, Processor)
         processor.extract_objects_for_schema = Processor.extract_objects_for_schema.__get__(processor, Processor)
+        
+        # Import and bind the convert_values_to_strings function
+        from trustgraph.extract.kg.objects.processor import convert_values_to_strings
+        processor.convert_values_to_strings = convert_values_to_strings
         
         # Load configuration
         await processor.on_schema_config(integration_config, version=1)
@@ -281,6 +287,10 @@ class TestObjectExtractionServiceIntegration:
         processor.on_chunk = Processor.on_chunk.__get__(processor, Processor)
         processor.extract_objects_for_schema = Processor.extract_objects_for_schema.__get__(processor, Processor)
         
+        # Import and bind the convert_values_to_strings function
+        from trustgraph.extract.kg.objects.processor import convert_values_to_strings
+        processor.convert_values_to_strings = convert_values_to_strings
+        
         # Load configuration
         await processor.on_schema_config(integration_config, version=1)
         
@@ -341,6 +351,10 @@ class TestObjectExtractionServiceIntegration:
         processor.on_schema_config = Processor.on_schema_config.__get__(processor, Processor)
         processor.on_chunk = Processor.on_chunk.__get__(processor, Processor)
         processor.extract_objects_for_schema = Processor.extract_objects_for_schema.__get__(processor, Processor)
+        
+        # Import and bind the convert_values_to_strings function
+        from trustgraph.extract.kg.objects.processor import convert_values_to_strings
+        processor.convert_values_to_strings = convert_values_to_strings
         
         # Load configuration
         await processor.on_schema_config(integration_config, version=1)
@@ -432,6 +446,10 @@ class TestObjectExtractionServiceIntegration:
         processor.on_chunk = Processor.on_chunk.__get__(processor, Processor)
         processor.extract_objects_for_schema = Processor.extract_objects_for_schema.__get__(processor, Processor)
         
+        # Import and bind the convert_values_to_strings function
+        from trustgraph.extract.kg.objects.processor import convert_values_to_strings
+        processor.convert_values_to_strings = convert_values_to_strings
+        
         # Mock flow with failing prompt service
         failing_flow = MagicMock()
         failing_prompt = AsyncMock()
@@ -476,6 +494,10 @@ class TestObjectExtractionServiceIntegration:
         processor.on_schema_config = Processor.on_schema_config.__get__(processor, Processor)
         processor.on_chunk = Processor.on_chunk.__get__(processor, Processor)
         processor.extract_objects_for_schema = Processor.extract_objects_for_schema.__get__(processor, Processor)
+        
+        # Import and bind the convert_values_to_strings function
+        from trustgraph.extract.kg.objects.processor import convert_values_to_strings
+        processor.convert_values_to_strings = convert_values_to_strings
         
         # Load configuration
         await processor.on_schema_config(integration_config, version=1)
