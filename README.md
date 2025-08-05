@@ -35,12 +35,7 @@ Take control of your data and context with **TrustGraph**. Connect to the latest
 
 ## Why TrustGraph?
 
-If you want to build powerful, intelligent AI applications without getting bogged down by complex infrastructure, brittle data pipelines, or opaque "black box" systems, TrustGraph is the platform that accelerates your AI transformation by solving these core problems.
-
-- **Go Beyond Basic RAG with GraphRAG**: Stop building agents that just retrieve text snippets. TrustGraph provides the tooling to automatically build and query Knowledge Graphs combined with Vector Embeddings, enabling you to create applications with deep contextual reasoning and higher accuracy.
-- **Decouple Your App from the AI Stack**: Our modular, containerized architecture lets you deploy anywhere (Docker, K8s, bare-metal) and swap out components (LLMs, vector DBs, graph DBs) without re-architecting your core application. Write your app once, knowing the underlying AI stack can evolve.
-- **Automate the Knowledge Pipeline**: Focus on building your application's logic, not on writing ETL scripts for AI. TrustGraph provides a unified platform to ingest data from silos, transform it into structured Knowledge Packages, and deliver it to your AI – streamlining the entire "knowledge supply chain."
-- **Enjoy Full Transparency & Control**: As an open-source platform, you get complete visibility into the system's inner workings. Debug more effectively, customize components to your needs, and maintain total control over your application's data flow and security, eliminating vendor lock-in.
+[![Why TrustGraph?](https://img.youtube.com/vi/_CCuuARqYkw/maxresdefault.jpg)](https://www.youtube.com/watch?v=_CCuuARqYkw)
 
 ## Getting Started
 
