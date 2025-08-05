@@ -56,9 +56,11 @@ The structured data integration requires the following technical components:
 
 3. **Object Extraction Module**
    - Enhanced knowledge extractor flow integration
-   - Builds on existing prototype in `trustgraph-flow/trustgraph/extract/object/row/`
    - Identifies and extracts structured objects from unstructured sources
    - Maintains provenance and confidence scores
+   - Registers a config handler (example: trustgraph-flow/trustgraph/prompt/template/service.py) to receive config data and decode schema information
+   - Receives objects and decodes them to ExtractedObject objects for delivery on the Pulsar queue
+   - NOTE: There's existing code at `trustgraph-flow/trustgraph/extract/object/row/`. This was a previous attempt and will need to be majorly refactored as it doesn't conform to current APIs. Use it if it's useful, start from scratch if not.
 
    Module: trustgraph-flow/trustgraph/extract/object/row/
 
