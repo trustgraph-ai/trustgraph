@@ -193,6 +193,16 @@ class Processor(FlowProcessor):
         import re
         safe_name = re.sub(r'[^a-zA-Z0-9_]', '_', name)
         # Ensure it starts with a letter
+        if safe_name and not safe_name[0].isalpha():
+            safe_name = 'o_' + safe_name
+        return safe_name.lower()
+
+    def sanitize_table(self, name: str) -> str:
+        """Sanitize names for Cassandra compatibility"""
+        # Replace non-alphanumeric characters with underscore
+        import re
+        safe_name = re.sub(r'[^a-zA-Z0-9_]', '_', name)
+        # Ensure it starts with a letter
         safe_name = 'o_' + safe_name
         return safe_name.lower()
 
@@ -206,7 +216,7 @@ class Processor(FlowProcessor):
         self.ensure_keyspace(keyspace)
         
         safe_keyspace = self.sanitize_name(keyspace)
-        safe_table = self.sanitize_name(table_name)
+        safe_table = self.sanitize_table(table_name)
         
         # Build column definitions
         columns = ["collection text"]  # Collection is always part of table
@@ -303,7 +313,7 @@ class Processor(FlowProcessor):
         
         # Prepare data for insertion
         safe_keyspace = self.sanitize_name(keyspace)
-        safe_table = self.sanitize_name(table_name)
+        safe_table = self.sanitize_table(table_name)
         
         # Build column names and values
         columns = ["collection"]

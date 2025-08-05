@@ -52,6 +52,7 @@ class TestObjectsCassandraIntegration:
         processor.ensure_keyspace = Processor.ensure_keyspace.__get__(processor, Processor)
         processor.ensure_table = Processor.ensure_table.__get__(processor, Processor)
         processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
+        processor.sanitize_table = Processor.sanitize_table.__get__(processor, Processor)
         processor.get_cassandra_type = Processor.get_cassandra_type.__get__(processor, Processor)
         processor.convert_value = Processor.convert_value.__get__(processor, Processor)
         processor.on_schema_config = Processor.on_schema_config.__get__(processor, Processor)
@@ -122,7 +123,7 @@ class TestObjectsCassandraIntegration:
             table_calls = [call for call in mock_session.execute.call_args_list 
                          if "CREATE TABLE" in str(call)]
             assert len(table_calls) == 1
-            assert "customer_records" in str(table_calls[0])
+            assert "o_customer_records" in str(table_calls[0])  # Table gets o_ prefix
             assert "collection text" in str(table_calls[0])
             assert "PRIMARY KEY ((collection, customer_id))" in str(table_calls[0])
             
@@ -137,7 +138,7 @@ class TestObjectsCassandraIntegration:
                           if "INSERT INTO" in str(call)]
             assert len(insert_calls) == 1
             insert_call = insert_calls[0]
-            assert "test_user.customer_records" in str(insert_call)
+            assert "test_user.o_customer_records" in str(insert_call)  # Table gets o_ prefix
             
             # Check inserted values
             values = insert_call[0][1]
@@ -205,8 +206,8 @@ class TestObjectsCassandraIntegration:
             table_calls = [call for call in mock_session.execute.call_args_list 
                          if "CREATE TABLE" in str(call)]
             assert len(table_calls) == 2
-            assert any("products" in str(call) for call in table_calls)
-            assert any("orders" in str(call) for call in table_calls)
+            assert any("o_products" in str(call) for call in table_calls)  # Tables get o_ prefix
+            assert any("o_orders" in str(call) for call in table_calls)    # Tables get o_ prefix
 
     @pytest.mark.asyncio
     async def test_missing_required_fields(self, processor_with_mocks):

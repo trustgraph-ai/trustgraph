@@ -225,24 +225,39 @@ class TestObjectsCassandraContracts:
         """Test Cassandra naming conventions and constraints"""
         processor = Processor.__new__(Processor)
         
-        # Test various naming scenarios
-        test_names = [
+        # Test table naming (always gets o_ prefix)
+        table_test_names = [
+            ("simple_name", "o_simple_name"),
+            ("Name-With-Dashes", "o_name_with_dashes"),
+            ("name.with.dots", "o_name_with_dots"),
+            ("123_numbers", "o_123_numbers"),
+            ("special!@#chars", "o_special___chars"),  # 3 special chars become 3 underscores
+            ("UPPERCASE", "o_uppercase"),
+            ("CamelCase", "o_camelcase"),
+            ("", "o_"),  # Edge case - empty string becomes o_
+        ]
+        
+        for input_name, expected_name in table_test_names:
+            result = processor.sanitize_table(input_name)
+            assert result == expected_name
+            # Verify result is valid Cassandra identifier (starts with letter)
+            assert result.startswith('o_')
+            assert result.replace('o_', '').replace('_', '').isalnum() or result == 'o_'
+        
+        # Test regular name sanitization (only adds o_ prefix if starts with number)
+        name_test_cases = [
             ("simple_name", "simple_name"),
             ("Name-With-Dashes", "name_with_dashes"),
             ("name.with.dots", "name_with_dots"),
-            ("123_numbers", "x_123_numbers"),  # Can't start with number
-            ("special!@#chars", "special___chars"),
+            ("123_numbers", "o_123_numbers"),  # Only this gets o_ prefix
+            ("special!@#chars", "special___chars"),  # 3 special chars become 3 underscores
             ("UPPERCASE", "uppercase"),
             ("CamelCase", "camelcase"),
-            ("", ""),  # Edge case
         ]
         
-        for input_name, expected_name in test_names:
-            if input_name:  # Skip empty string test
-                result = processor.sanitize_name(input_name)
-                assert result == expected_name
-                # Verify result is valid Cassandra identifier
-                assert result.replace('_', '').isalnum() or not result
+        for input_name, expected_name in name_test_cases:
+            result = processor.sanitize_name(input_name)
+            assert result == expected_name
 
     def test_primary_key_structure_contract(self):
         """Test that primary key structure follows Cassandra best practices"""

@@ -24,11 +24,11 @@ class TestObjectsCassandraStorageLogic:
         processor = MagicMock()
         processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
         
-        # Test various name patterns
+        # Test various name patterns (back to original logic)
         assert processor.sanitize_name("simple_name") == "simple_name"
         assert processor.sanitize_name("Name-With-Dashes") == "name_with_dashes"
         assert processor.sanitize_name("name.with.dots") == "name_with_dots"
-        assert processor.sanitize_name("123_starts_with_number") == "x_123_starts_with_number"
+        assert processor.sanitize_name("123_starts_with_number") == "o_123_starts_with_number"
         assert processor.sanitize_name("name with spaces") == "name_with_spaces"
         assert processor.sanitize_name("special!@#$%^chars") == "special______chars"
 
@@ -88,6 +88,7 @@ class TestObjectsCassandraStorageLogic:
         processor.known_tables = {}
         processor.session = MagicMock()
         processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
+        processor.sanitize_table = Processor.sanitize_table.__get__(processor, Processor)
         processor.get_cassandra_type = Processor.get_cassandra_type.__get__(processor, Processor)
         def mock_ensure_keyspace(keyspace):
             processor.known_keyspaces.add(keyspace)
@@ -135,8 +136,8 @@ class TestObjectsCassandraStorageLogic:
         all_calls = processor.session.execute.call_args_list
         table_creation_cql = all_calls[0][0][0]  # First call
         
-        # Verify table structure
-        assert "CREATE TABLE IF NOT EXISTS test_user.customer_records" in table_creation_cql
+        # Verify table structure (keyspace uses sanitize_name, table uses sanitize_table)
+        assert "CREATE TABLE IF NOT EXISTS test_user.o_customer_records" in table_creation_cql
         assert "collection text" in table_creation_cql
         assert "customer_id text" in table_creation_cql
         assert "email text" in table_creation_cql
@@ -151,6 +152,7 @@ class TestObjectsCassandraStorageLogic:
         processor.known_tables = {}
         processor.session = MagicMock()
         processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
+        processor.sanitize_table = Processor.sanitize_table.__get__(processor, Processor)
         processor.get_cassandra_type = Processor.get_cassandra_type.__get__(processor, Processor)
         def mock_ensure_keyspace(keyspace):
             processor.known_keyspaces.add(keyspace)
@@ -171,7 +173,7 @@ class TestObjectsCassandraStorageLogic:
         # Call ensure_table
         processor.ensure_table("test_user", "events", schema)
         
-        # Check the CQL includes synthetic_id
+        # Check the CQL includes synthetic_id (field names don't get o_ prefix)
         executed_cql = processor.session.execute.call_args[0][0]
         assert "synthetic_id uuid" in executed_cql
         assert "PRIMARY KEY ((collection, synthetic_id))" in executed_cql
@@ -245,6 +247,7 @@ class TestObjectsCassandraStorageLogic:
         }
         processor.ensure_table = MagicMock()
         processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
+        processor.sanitize_table = Processor.sanitize_table.__get__(processor, Processor)
         processor.convert_value = Processor.convert_value.__get__(processor, Processor)
         processor.session = MagicMock()
         processor.on_object = Processor.on_object.__get__(processor, Processor)
@@ -273,12 +276,12 @@ class TestObjectsCassandraStorageLogic:
         # Verify table was ensured
         processor.ensure_table.assert_called_once_with("test_user", "test_schema", processor.schemas["test_schema"])
         
-        # Verify insert was executed
+        # Verify insert was executed (keyspace normal, table with o_ prefix)
         processor.session.execute.assert_called_once()
         insert_cql = processor.session.execute.call_args[0][0]
         values = processor.session.execute.call_args[0][1]
         
-        assert "INSERT INTO test_user.test_schema" in insert_cql
+        assert "INSERT INTO test_user.o_test_schema" in insert_cql
         assert "collection" in insert_cql
         assert values[0] == "test_collection"  # collection value
         assert values[1] == "123"  # id value
@@ -292,6 +295,7 @@ class TestObjectsCassandraStorageLogic:
         processor.known_tables = {}
         processor.session = MagicMock()
         processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
+        processor.sanitize_table = Processor.sanitize_table.__get__(processor, Processor)
         processor.get_cassandra_type = Processor.get_cassandra_type.__get__(processor, Processor)
         def mock_ensure_keyspace(keyspace):
             processor.known_keyspaces.add(keyspace)
@@ -316,9 +320,9 @@ class TestObjectsCassandraStorageLogic:
         # Should have 3 calls: create table + 2 indexes
         assert processor.session.execute.call_count == 3
         
-        # Check index creation calls
+        # Check index creation calls (table has o_ prefix, fields don't)
         calls = processor.session.execute.call_args_list
         index_calls = [call[0][0] for call in calls if "CREATE INDEX" in call[0][0]]
         assert len(index_calls) == 2
-        assert any("products_category_idx" in call for call in index_calls)
-        assert any("products_price_idx" in call for call in index_calls)
+        assert any("o_products_category_idx" in call for call in index_calls)
+        assert any("o_products_price_idx" in call for call in index_calls)
