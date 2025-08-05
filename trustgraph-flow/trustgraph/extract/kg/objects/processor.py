@@ -16,6 +16,7 @@ from .... schema import RowSchema, Field
 
 from .... base import FlowProcessor, ConsumerSpec, ProducerSpec
 from .... base import PromptClientSpec
+from .... messaging.translators import row_schema_translator
 
 default_ident = "kg-extract-objects"
 default_concurrency = 1
@@ -124,9 +125,12 @@ class Processor(FlowProcessor):
         """Extract objects from text for a specific schema"""
         
         try:
+            # Convert Pulsar RowSchema to JSON-serializable dict
+            schema_dict = row_schema_translator.from_pulsar(schema)
+            
             # Use prompt client to extract rows based on schema
             objects = await flow("prompt-request").extract_objects(
-                schema=schema,
+                schema=schema_dict,
                 text=text
             )
             
