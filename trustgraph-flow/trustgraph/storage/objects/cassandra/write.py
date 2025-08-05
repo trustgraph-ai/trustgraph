@@ -193,8 +193,7 @@ class Processor(FlowProcessor):
         import re
         safe_name = re.sub(r'[^a-zA-Z0-9_]', '_', name)
         # Ensure it starts with a letter
-        if safe_name and not safe_name[0].isalpha():
-            safe_name = 'x_' + safe_name
+        safe_name = 'o_' + safe_name
         return safe_name.lower()
 
     def ensure_table(self, keyspace: str, table_name: str, schema: RowSchema):
