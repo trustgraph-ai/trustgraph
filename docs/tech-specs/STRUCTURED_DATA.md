@@ -49,12 +49,12 @@ The structured data integration requires the following technical components:
    
    Module: trustgraph-flow/trustgraph/query/nlp_query/cassandra
 
-2. **Configuration Schema Support**
+2. **Configuration Schema Support** ✅ **[COMPLETE]**
    - Extended configuration system to store structured data schemas
    - Support for defining table structures, field types, and relationships
    - Schema versioning and migration capabilities
 
-3. **Object Extraction Module**
+3. **Object Extraction Module** ✅ **[COMPLETE]**
    - Enhanced knowledge extractor flow integration
    - Identifies and extracts structured objects from unstructured sources
    - Maintains provenance and confidence scores
@@ -63,13 +63,54 @@ The structured data integration requires the following technical components:
    - NOTE: There's existing code at `trustgraph-flow/trustgraph/extract/object/row/`. This was a previous attempt and will need to be majorly refactored as it doesn't conform to current APIs. Use it if it's useful, start from scratch if not.
    - Requires a command-line interface: `kg-extract-objects`
 
-   Module: trustgraph-flow/trustgraph/extract/object/row/
+   Module: trustgraph-flow/trustgraph/extract/kg/objects/
 
 4. **Structured Store Writer Module**
-   - Handles object persistence to structured data stores
-   - Initial implementation targeting Apache Cassandra
-   - Supports batch and streaming write operations
-   - Manages schema mapping and data transformation
+   - Receives objects in ExtractedObject format from Pulsar queues
+   - Initial implementation targeting Apache Cassandra as the structured data store
+   - Handles dynamic table creation based on schemas encountered
+   - Manages schema-to-Cassandra table mapping and data transformation
+   - Provides batch and streaming write operations for performance optimization
+   - No Pulsar outputs - this is a terminal service in the data flow
+
+   **Schema Handling**:
+   - Monitors incoming ExtractedObject messages for schema references
+   - When a new schema is encountered for the first time, automatically creates the corresponding Cassandra table
+   - Maintains a cache of known schemas to avoid redundant table creation attempts
+   - Should consider whether to receive schema definitions directly or rely on schema names in ExtractedObject messages
+
+   **Cassandra Table Mapping**:
+   - Keyspace is named after the `user` field from ExtractedObject's Metadata
+   - Table is named after the `schema_name` field from ExtractedObject
+   - Collection from Metadata becomes part of the partition key to ensure:
+     - Natural data distribution across Cassandra nodes
+     - Efficient queries within a specific collection
+     - Logical isolation between different data imports/sources
+   - Primary key structure: `PRIMARY KEY ((collection, <schema_primary_key_fields>), <clustering_keys>)`
+     - Collection is always the first component of the partition key
+     - Schema-defined primary key fields follow as part of the composite partition key
+     - This requires queries to specify the collection, ensuring predictable performance
+   - Field definitions map to Cassandra columns with type conversions:
+     - `string` → `text`
+     - `integer` → `int` or `bigint` based on size hint
+     - `float` → `float` or `double` based on precision needs
+     - `boolean` → `boolean`
+     - `timestamp` → `timestamp`
+     - `enum` → `text` with application-level validation
+   - Indexed fields create Cassandra secondary indexes (excluding fields already in the primary key)
+   - Required fields are enforced at the application level (Cassandra doesn't support NOT NULL)
+
+   **Object Storage**:
+   - Extracts values from ExtractedObject.values map
+   - Performs type conversion and validation before insertion
+   - Handles missing optional fields gracefully
+   - Maintains metadata about object provenance (source document, confidence scores)
+   - Supports idempotent writes to handle message replay scenarios
+
+   **Implementation Notes**:
+   - Existing code at `trustgraph-flow/trustgraph/storage/objects/cassandra/` is outdated and doesn't comply with current APIs
+   - Should reference `trustgraph-flow/trustgraph/storage/triples/cassandra` as an example of a working storage processor
+   - Needs evaluation of existing code for any reusable components before deciding to refactor or rewrite
 
    Module: trustgraph-flow/trustgraph/storage/objects/cassandra
 
