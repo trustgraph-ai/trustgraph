@@ -11,7 +11,8 @@ from cassandra.auth import PlainTextAuthProvider
 from cassandra.cqlengine import connection
 from cassandra import ConsistencyLevel
 
-from .... schema import ExtractedObject, RowSchema, Field
+from .... schema import ExtractedObject
+from .... schema import RowSchema, Field
 from .... base import FlowProcessor, ConsumerSpec
 
 # Module logger
