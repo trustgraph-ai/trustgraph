@@ -35,7 +35,7 @@ Take control of your data and context with **TrustGraph**. Connect to the latest
 
 ## Why TrustGraph?
 
-[![Why TrustGraph?](https://img.youtube.com/vi/_CCuuARqYkw/maxresdefault.jpg)](https://www.youtube.com/watch?v=_CCuuARqYkw)
+[![Why TrustGraph?](https://img.youtube.com/vi/Norboj8YP2M/maxresdefault.jpg)](https://www.youtube.com/watch?v=Norboj8YP2M)
 
 ## Getting Started
 
