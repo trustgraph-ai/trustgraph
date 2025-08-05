@@ -75,19 +75,20 @@ class Processor(FlowProcessor):
         # Clear existing schemas
         self.schemas = {}
 
-        # Process each schema in the config
-        for type_key, schema_value in config.items():
-            
-            # Only process schema types
-            if not type_key.startswith(self.config_key + "."):
-                continue
-                
-            # Extract schema name from key (e.g., "schema.customer_records" -> "customer_records")
-            schema_name = type_key[len(self.config_key) + 1:]
+        # Check if our config type exists
+        if self.config_key not in config:
+            logger.warning(f"No '{self.config_key}' type in configuration")
+            return
+
+        # Get the schemas dictionary for our type
+        schemas_config = config[self.config_key]
+        
+        # Process each schema in the schemas config
+        for schema_name, schema_json in schemas_config.items():
             
             try:
                 # Parse the JSON schema definition
-                schema_def = json.loads(schema_value)
+                schema_def = json.loads(schema_json)
                 
                 # Create Field objects
                 fields = []
