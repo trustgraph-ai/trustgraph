@@ -170,6 +170,10 @@ class Processor(FlowProcessor):
 
     def get_cassandra_type(self, field_type: str, size: int = 0) -> str:
         """Convert schema field type to Cassandra type"""
+        # Handle None size
+        if size is None:
+            size = 0
+            
         type_mapping = {
             "string": "text",
             "integer": "bigint" if size > 4 else "int",
