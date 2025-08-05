@@ -318,7 +318,7 @@ class Processor(FlowProcessor):
         # Build column names and values
         columns = ["collection"]
         values = [obj.metadata.collection]
-        placeholders = ["?"]
+        placeholders = ["%s"]
         
         # Check if we need a synthetic ID
         has_primary_key = any(field.primary for field in schema.fields)
@@ -326,7 +326,7 @@ class Processor(FlowProcessor):
             import uuid
             columns.append("synthetic_id")
             values.append(uuid.uuid4())
-            placeholders.append("?")
+            placeholders.append("%s")
         
         # Process fields
         for field in schema.fields:
@@ -338,12 +338,17 @@ class Processor(FlowProcessor):
                 logger.warning(f"Required field {field.name} is missing in object")
                 # Continue anyway - Cassandra doesn't enforce NOT NULL
             
+            # Check if primary key field is NULL
+            if field.primary and raw_value is None:
+                logger.error(f"Primary key field {field.name} cannot be NULL - skipping object")
+                return
+            
             # Convert value to appropriate type
             converted_value = self.convert_value(raw_value, field.type)
             
             columns.append(safe_field_name)
             values.append(converted_value)
-            placeholders.append("?")
+            placeholders.append("%s")
         
         # Build and execute insert query
         insert_cql = f"""
@@ -351,8 +356,18 @@ class Processor(FlowProcessor):
         VALUES ({', '.join(placeholders)})
         """
         
+        # Debug: Check if counts match
+        logger.debug(f"Columns count: {len(columns)}, Values count: {len(values)}, Placeholders count: {len(placeholders)}")
+        logger.debug(f"Columns: {columns}")
+        logger.debug(f"Values: {values}")
+        logger.debug(f"Insert CQL: {insert_cql}")
+        
+        if len(columns) != len(values) or len(columns) != len(placeholders):
+            raise ValueError(f"Mismatch in counts - columns: {len(columns)}, values: {len(values)}, placeholders: {len(placeholders)}")
+        
         try:
-            self.session.execute(insert_cql, values)
+            # Convert to tuple - Cassandra driver requires tuple for parameters
+            self.session.execute(insert_cql, tuple(values))
             logger.debug(f"Successfully stored object in {safe_keyspace}.{safe_table}")
         except Exception as e:
             logger.error(f"Failed to insert object: {e}", exc_info=True)
