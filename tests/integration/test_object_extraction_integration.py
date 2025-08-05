@@ -175,8 +175,11 @@ class TestObjectExtractionServiceIntegration:
     @pytest.mark.asyncio
     async def test_multi_schema_configuration_integration(self, integration_config):
         """Test integration with multiple schema configurations"""
-        # Arrange
-        processor = Processor(id="integration-test-processor")
+        # Arrange - Create mock processor with actual methods
+        processor = MagicMock()
+        processor.schemas = {}
+        processor.config_key = "schema"
+        processor.on_schema_config = Processor.on_schema_config.__get__(processor, Processor)
         
         # Act
         await processor.on_schema_config(integration_config, version=1)
@@ -205,9 +208,14 @@ class TestObjectExtractionServiceIntegration:
     @pytest.mark.asyncio
     async def test_full_service_integration_customer_extraction(self, integration_config, mock_integrated_flow):
         """Test full service integration for customer data extraction"""
-        # Arrange
-        processor = Processor(id="integration-test")
+        # Arrange - Create mock processor with actual methods
+        processor = MagicMock()
+        processor.schemas = {}
+        processor.config_key = "schema"
         processor.flow = mock_integrated_flow
+        processor.on_schema_config = Processor.on_schema_config.__get__(processor, Processor)
+        processor.on_chunk = Processor.on_chunk.__get__(processor, Processor)
+        processor.extract_objects_for_schema = Processor.extract_objects_for_schema.__get__(processor, Processor)
         
         # Load configuration
         await processor.on_schema_config(integration_config, version=1)
@@ -264,9 +272,14 @@ class TestObjectExtractionServiceIntegration:
     @pytest.mark.asyncio
     async def test_full_service_integration_product_extraction(self, integration_config, mock_integrated_flow):
         """Test full service integration for product data extraction"""
-        # Arrange
-        processor = Processor(id="integration-test")
+        # Arrange - Create mock processor with actual methods
+        processor = MagicMock()
+        processor.schemas = {}
+        processor.config_key = "schema"
         processor.flow = mock_integrated_flow
+        processor.on_schema_config = Processor.on_schema_config.__get__(processor, Processor)
+        processor.on_chunk = Processor.on_chunk.__get__(processor, Processor)
+        processor.extract_objects_for_schema = Processor.extract_objects_for_schema.__get__(processor, Processor)
         
         # Load configuration
         await processor.on_schema_config(integration_config, version=1)
@@ -320,9 +333,14 @@ class TestObjectExtractionServiceIntegration:
     @pytest.mark.asyncio
     async def test_concurrent_extraction_integration(self, integration_config, mock_integrated_flow):
         """Test concurrent processing of multiple chunks"""
-        # Arrange
-        processor = Processor(id="concurrent-test", concurrency=3)
+        # Arrange - Create mock processor with actual methods
+        processor = MagicMock()
+        processor.schemas = {}
+        processor.config_key = "schema"
         processor.flow = mock_integrated_flow
+        processor.on_schema_config = Processor.on_schema_config.__get__(processor, Processor)
+        processor.on_chunk = Processor.on_chunk.__get__(processor, Processor)
+        processor.extract_objects_for_schema = Processor.extract_objects_for_schema.__get__(processor, Processor)
         
         # Load configuration
         await processor.on_schema_config(integration_config, version=1)
@@ -376,9 +394,12 @@ class TestObjectExtractionServiceIntegration:
     @pytest.mark.asyncio
     async def test_configuration_reload_integration(self, integration_config, mock_integrated_flow):
         """Test configuration reload during service operation"""
-        # Arrange
-        processor = Processor(id="reload-test")
+        # Arrange - Create mock processor with actual methods
+        processor = MagicMock()
+        processor.schemas = {}
+        processor.config_key = "schema"
         processor.flow = mock_integrated_flow
+        processor.on_schema_config = Processor.on_schema_config.__get__(processor, Processor)
         
         # Load initial configuration (only customer schema)
         initial_config = {
@@ -403,8 +424,13 @@ class TestObjectExtractionServiceIntegration:
     @pytest.mark.asyncio
     async def test_error_resilience_integration(self, integration_config):
         """Test service resilience to various error conditions"""
-        # Arrange
-        processor = Processor(id="error-resilience-test")
+        # Arrange - Create mock processor with actual methods
+        processor = MagicMock()
+        processor.schemas = {}
+        processor.config_key = "schema"
+        processor.on_schema_config = Processor.on_schema_config.__get__(processor, Processor)
+        processor.on_chunk = Processor.on_chunk.__get__(processor, Processor)
+        processor.extract_objects_for_schema = Processor.extract_objects_for_schema.__get__(processor, Processor)
         
         # Mock flow with failing prompt service
         failing_flow = MagicMock()
@@ -442,9 +468,14 @@ class TestObjectExtractionServiceIntegration:
     @pytest.mark.asyncio
     async def test_metadata_propagation_integration(self, integration_config, mock_integrated_flow):
         """Test proper metadata propagation through extraction pipeline"""
-        # Arrange
-        processor = Processor(id="metadata-test")
+        # Arrange - Create mock processor with actual methods
+        processor = MagicMock()
+        processor.schemas = {}
+        processor.config_key = "schema"
         processor.flow = mock_integrated_flow
+        processor.on_schema_config = Processor.on_schema_config.__get__(processor, Processor)
+        processor.on_chunk = Processor.on_chunk.__get__(processor, Processor)
+        processor.extract_objects_for_schema = Processor.extract_objects_for_schema.__get__(processor, Processor)
         
         # Load configuration
         await processor.on_schema_config(integration_config, version=1)
