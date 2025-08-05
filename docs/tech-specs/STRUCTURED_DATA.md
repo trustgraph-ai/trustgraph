@@ -56,7 +56,7 @@ The structured data integration requires the following technical components:
 
 3. **Object Extraction Module**
    - Enhanced knowledge extractor flow integration
-   - Builds on existing prototype in `trustgraph-flow/trustgraph/extract/objects`
+   - Builds on existing prototype in `trustgraph-flow/trustgraph/extract/object/row/`
    - Identifies and extracts structured objects from unstructured sources
    - Maintains provenance and confidence scores
 

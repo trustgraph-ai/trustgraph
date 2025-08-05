@@ -82,7 +82,7 @@ class StructuredQueryResponse(Record):
 ```
 
 #### 2.2 Object Extraction Output
-New file: `knowledge/extraction.py`
+New file: `knowledge/object.py`
 
 ```python
 from pulsar.schema import Record, String, Map, Double
