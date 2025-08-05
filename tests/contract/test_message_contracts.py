@@ -18,7 +18,11 @@ from trustgraph.schema import (
     Chunk, Triple, Triples, Value, Error,
     EntityContext, EntityContexts,
     GraphEmbeddings, EntityEmbeddings,
-    Metadata
+    Metadata, Field, RowSchema,
+    StructuredDataSubmission, ExtractedObject,
+    NLPToStructuredQueryRequest, NLPToStructuredQueryResponse,
+    StructuredQueryRequest, StructuredQueryResponse,
+    StructuredObjectEmbedding
 )
 from .conftest import validate_schema_contract, serialize_deserialize_test
 
