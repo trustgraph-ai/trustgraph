@@ -40,6 +40,13 @@ class PromptClient(RequestResponse):
             timeout = timeout,
         )
 
+    async def extract_objects(self, text, schema, timeout=600):
+        return await self.prompt(
+            id = "extract-rows",
+            variables = { "text": text, "schema": schema, },
+            timeout = timeout,
+        )
+
     async def kg_prompt(self, query, kg, timeout=600):
         return await self.prompt(
             id = "kg-prompt",

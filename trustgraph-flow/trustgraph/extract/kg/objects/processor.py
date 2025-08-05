@@ -120,12 +120,12 @@ class Processor(FlowProcessor):
 
         logger.info(f"Schema configuration loaded: {len(self.schemas)} schemas")
 
-    async def extract_objects_for_schema(self, text: str, schema_name: str, schema: RowSchema) -> List[Dict[str, Any]]:
+    async def extract_objects_for_schema(self, text: str, schema_name: str, schema: RowSchema, flow) -> List[Dict[str, Any]]:
         """Extract objects from text for a specific schema"""
         
         try:
             # Use prompt client to extract rows based on schema
-            objects = await self.flow("prompt-request").extract_rows(
+            objects = await flow("prompt-request").extract_objects(
                 schema=schema,
                 text=text
             )
@@ -159,7 +159,8 @@ class Processor(FlowProcessor):
                 objects = await self.extract_objects_for_schema(
                     chunk_text, 
                     schema_name, 
-                    schema
+                    schema,
+                    flow
                 )
                 
                 # Emit each extracted object
