@@ -7,3 +7,5 @@ from .prompt import *
 from .config import *
 from .library import *
 from .lookup import *
+from .nlp_query import *
+from .structured_query import *

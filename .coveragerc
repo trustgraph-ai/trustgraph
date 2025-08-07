@@ -1,0 +1,35 @@
+[run]
+source = 
+    trustgraph-base/trustgraph
+    trustgraph-flow/trustgraph
+    trustgraph-bedrock/trustgraph
+    trustgraph-vertexai/trustgraph
+    trustgraph-embeddings-hf/trustgraph
+omit = 
+    */tests/*
+    */test_*
+    */conftest.py
+    */__pycache__/*
+    */venv/*
+    */env/*
+    */site-packages/*
+
+# Disable coverage warnings for contract tests
+disable_warnings = no-data-collected
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    class .*\(Protocol\):
+    @(abc\.)?abstractmethod
+
+[html]
+directory = htmlcov
+skip_covered = False
+
+[xml]
+output = coverage.xml

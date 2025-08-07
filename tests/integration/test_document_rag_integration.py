@@ -8,7 +8,6 @@ Following the TEST_STRATEGY.md approach for integration testing.
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from testcontainers.compose import DockerCompose
 from trustgraph.retrieval.document_rag.document_rag import DocumentRag
 
 

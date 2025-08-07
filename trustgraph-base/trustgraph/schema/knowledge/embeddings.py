@@ -41,3 +41,16 @@ class ObjectEmbeddings(Record):
     name = String()
     key_name = String()
     id = String()
+
+############################################################################
+
+# Structured object embeddings with enhanced capabilities
+
+class StructuredObjectEmbedding(Record):
+    metadata = Metadata()
+    vectors = Array(Array(Double()))
+    schema_name = String()
+    object_id = String()  # Primary key value
+    field_embeddings = Map(Array(Double()))  # Per-field embeddings
+
+############################################################################
