@@ -176,6 +176,9 @@ class Librarian:
 
         logger.debug("Adding processing metadata...")
 
+        if not request.processing_metadata.collection:
+            raise RuntimeError("Collection parameter is required")
+
         if await self.table_store.processing_exists(
                 request.processing_metadata.user,
                 request.processing_metadata.id
