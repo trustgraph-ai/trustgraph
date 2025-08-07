@@ -12,6 +12,17 @@ The request contains the following fields:
 - `operation`: The operation to perform (see operations below)
 - `document_id`: Document identifier (for document operations)
 - `document_metadata`: Document metadata object (for add/update operations)
+  - `id`: Document identifier (required)
+  - `time`: Unix timestamp in seconds as a float (required for add operations)
+  - `kind`: MIME type of document (required, e.g., "text/plain", "application/pdf")
+  - `title`: Document title (optional)
+  - `comments`: Document comments (optional)
+  - `user`: Document owner (required)
+  - `tags`: Array of tags (optional)
+  - `metadata`: Array of RDF triples (optional) - each triple has:
+    - `s`: Subject with `v` (value) and `e` (is_uri boolean)
+    - `p`: Predicate with `v` (value) and `e` (is_uri boolean)
+    - `o`: Object with `v` (value) and `e` (is_uri boolean)
 - `content`: Document content as base64-encoded bytes (for add operations)
 - `processing_id`: Processing job identifier (for processing operations)
 - `processing_metadata`: Processing metadata object (for add-processing)
@@ -38,7 +49,7 @@ Request:
     "operation": "add-document",
     "document_metadata": {
         "id": "doc-123",
-        "time": 1640995200000,
+        "time": 1640995200.0,
         "kind": "application/pdf",
         "title": "Research Paper",
         "comments": "Important research findings",
@@ -46,9 +57,18 @@ Request:
         "tags": ["research", "ai", "machine-learning"],
         "metadata": [
             {
-                "subject": "doc-123",
-                "predicate": "dc:creator",
-                "object": "Dr. Smith"
+                "s": {
+                    "v": "http://example.com/doc-123",
+                    "e": true
+                },
+                "p": {
+                    "v": "http://purl.org/dc/elements/1.1/creator",
+                    "e": true
+                },
+                "o": {
+                    "v": "Dr. Smith",
+                    "e": false
+                }
             }
         ]
     },
@@ -77,7 +97,7 @@ Response:
 {
     "document_metadata": {
         "id": "doc-123",
-        "time": 1640995200000,
+        "time": 1640995200.0,
         "kind": "application/pdf",
         "title": "Research Paper",
         "comments": "Important research findings",
@@ -85,9 +105,18 @@ Response:
         "tags": ["research", "ai", "machine-learning"],
         "metadata": [
             {
-                "subject": "doc-123",
-                "predicate": "dc:creator",
-                "object": "Dr. Smith"
+                "s": {
+                    "v": "http://example.com/doc-123",
+                    "e": true
+                },
+                "p": {
+                    "v": "http://purl.org/dc/elements/1.1/creator",
+                    "e": true
+                },
+                "o": {
+                    "v": "Dr. Smith",
+                    "e": false
+                }
             }
         ]
     }
@@ -129,7 +158,7 @@ Response:
     "document_metadatas": [
         {
             "id": "doc-123",
-            "time": 1640995200000,
+            "time": 1640995200.0,
             "kind": "application/pdf",
             "title": "Research Paper",
             "comments": "Important research findings",
@@ -138,7 +167,7 @@ Response:
         },
         {
             "id": "doc-124",
-            "time": 1640995300000,
+            "time": 1640995300.0,
             "kind": "text/plain",
             "title": "Meeting Notes",
             "comments": "Team meeting discussion",
@@ -157,10 +186,12 @@ Request:
     "operation": "update-document",
     "document_metadata": {
         "id": "doc-123",
+        "time": 1640995500.0,
         "title": "Updated Research Paper",
         "comments": "Updated findings and conclusions",
         "user": "alice",
-        "tags": ["research", "ai", "machine-learning", "updated"]
+        "tags": ["research", "ai", "machine-learning", "updated"],
+        "metadata": []
     }
 }
 ```
@@ -197,7 +228,7 @@ Request:
     "processing_metadata": {
         "id": "proc-456",
         "document_id": "doc-123",
-        "time": 1640995400000,
+        "time": 1640995400.0,
         "flow": "pdf-extraction",
         "user": "alice",
         "collection": "research",
@@ -229,7 +260,7 @@ Response:
         {
             "id": "proc-456",
             "document_id": "doc-123",
-            "time": 1640995400000,
+            "time": 1640995400.0,
             "flow": "pdf-extraction",
             "user": "alice",
             "collection": "research",

@@ -357,11 +357,8 @@ class Processor(FlowProcessor):
         VALUES ({', '.join(placeholders)})
         """
         
-        # Debug: Check if counts match
-        logger.debug(f"Columns count: {len(columns)}, Values count: {len(values)}, Placeholders count: {len(placeholders)}")
-        logger.debug(f"Columns: {columns}")
-        logger.debug(f"Values: {values}")
-        logger.debug(f"Insert CQL: {insert_cql}")
+        # Debug: Show data being inserted
+        logger.debug(f"Storing {obj.schema_name}: {dict(zip(columns, values))}")
         
         if len(columns) != len(values) or len(columns) != len(placeholders):
             raise ValueError(f"Mismatch in counts - columns: {len(columns)}, values: {len(values)}, placeholders: {len(placeholders)}")
@@ -369,7 +366,6 @@ class Processor(FlowProcessor):
         try:
             # Convert to tuple - Cassandra driver requires tuple for parameters
             self.session.execute(insert_cql, tuple(values))
-            logger.debug(f"Successfully stored object in {safe_keyspace}.{safe_table}")
         except Exception as e:
             logger.error(f"Failed to insert object: {e}", exc_info=True)
             raise
