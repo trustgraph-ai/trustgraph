@@ -9,7 +9,7 @@ from langchain_text_splitters import TokenTextSplitter
 from prometheus_client import Histogram
 
 from ... schema import TextDocument, Chunk
-from ... base import FlowProcessor
+from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ class Processor(FlowProcessor):
 
     def __init__(self, **params):
 
-        id = params.get("id")
+        id = params.get("id", default_ident)
         chunk_size = params.get("chunk_size", 250)
         chunk_overlap = params.get("chunk_overlap", 15)
         
