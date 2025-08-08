@@ -1,8 +1,9 @@
 import pytest
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 from trustgraph.schema import TextDocument, Metadata
 from trustgraph.chunking.recursive.chunker import Processor as RecursiveChunker
 from trustgraph.chunking.token.chunker import Processor as TokenChunker
+from prometheus_client import REGISTRY
 
 
 @pytest.fixture
@@ -109,14 +110,31 @@ def clear_metrics():
     """Clear metrics before each test to avoid duplicates."""
     # Clear the chunk_metric class attribute if it exists
     if hasattr(RecursiveChunker, 'chunk_metric'):
+        # Unregister from Prometheus registry first
+        try:
+            REGISTRY.unregister(RecursiveChunker.chunk_metric)
+        except KeyError:
+            pass  # Already unregistered
         delattr(RecursiveChunker, 'chunk_metric')
     if hasattr(TokenChunker, 'chunk_metric'):
+        try:
+            REGISTRY.unregister(TokenChunker.chunk_metric)
+        except KeyError:
+            pass  # Already unregistered
         delattr(TokenChunker, 'chunk_metric')
     yield
     # Clean up after test as well
     if hasattr(RecursiveChunker, 'chunk_metric'):
+        try:
+            REGISTRY.unregister(RecursiveChunker.chunk_metric)
+        except KeyError:
+            pass
         delattr(RecursiveChunker, 'chunk_metric')
     if hasattr(TokenChunker, 'chunk_metric'):
+        try:
+            REGISTRY.unregister(TokenChunker.chunk_metric)
+        except KeyError:
+            pass
         delattr(TokenChunker, 'chunk_metric')
 
 
@@ -131,5 +149,5 @@ def mock_async_processor_init():
         self.id = kwargs.get('id', 'test-processor')
         # Don't call the real __init__
     
-    with pytest.mock.patch('trustgraph.base.async_processor.AsyncProcessor.__init__', init_mock):
+    with patch('trustgraph.base.async_processor.AsyncProcessor.__init__', init_mock):
         yield
