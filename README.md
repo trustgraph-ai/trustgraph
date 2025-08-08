@@ -80,7 +80,7 @@ TrustGraph features an advanced GraphRAG approach that automatically constructs 
 - **Hybrid Retrieval:** When an agent needs to perform deep research, it first performs a **cosine similarity search** on the vector embeddings to identify potentially relevant concepts and relationships within the knowledge graph. This initial vector search **pinpoints relevant entry points** within the structured Knowledge Graph.
 - **Context Generation via Subgraph Traversal:** Based on the ranked results from the similarity search, agents are provided with only the relevant subgraphs for **deep context**. Users can configure the **number of 'hops'** (relationship traversals) to extend the depth of knowledge availabe to the agents. This structured **subgraph**, containing entities and their relationships, forms a highly relevant and context-aware input prompt for the LLM that is endlessly configurable with options for the number of entities, relationships, and overall subgraph size.
 
-## Knowledge Coress
+## Knowledge Cores
 
 One of the biggest challenges currently facing RAG architectures is the ability to quickly reuse and integrate knowledge sets like long-term memory for LLMs. **TrustGraph** solves this problem by storing the results of the data ingestion process in reusable Knowledge Cores. Being able to store and reuse the Knowledge Cores means the data transformation process has to be run only once. These reusable Knowledge Cores can be loaded back into **TrustGraph** and used for GraphRAG. Some sample knowledge cores are available for download [here](https://github.com/trustgraph-ai/catalog/tree/master/v3).
 
