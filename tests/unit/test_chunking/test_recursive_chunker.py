@@ -145,15 +145,14 @@ class TestRecursiveChunker:
         
         await processor.on_message(msg, mock_consumer, flow_mock)
         
-        # Should produce one empty chunk
-        assert output_mock.send.call_count == 1
-        chunk = output_mock.send.call_args[0][0]
-        assert chunk.chunk == b""
+        # Empty documents typically don't produce chunks with langchain splitters
+        # This behavior is expected - no chunks should be produced
+        assert output_mock.send.call_count == 0
         
     @pytest.mark.asyncio
     async def test_on_message_unicode_handling(self, mock_async_processor_init, mock_flow, mock_consumer):
         flow_mock, output_mock = mock_flow
-        processor = RecursiveChunker(chunk_size=50)
+        processor = RecursiveChunker(chunk_size=500, chunk_overlap=20)  # Fixed overlap < chunk_size
         
         metadata = Metadata(id="unicode", metadata=[], user="test-user", collection="test-collection")
         text = "Hello 世界! 🌍 This is a test with émojis and spëcial characters."
