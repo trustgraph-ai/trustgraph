@@ -1,6 +1,6 @@
 <div align="center">
 
-## The Run Anywhere LLM Orchestration Platform
+## The Run Anywhere Agentic AI Platform
 
 <img src="llm-orchestrate.svg" width=100% />
 
