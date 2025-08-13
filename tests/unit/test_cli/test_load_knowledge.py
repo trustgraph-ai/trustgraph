@@ -8,7 +8,8 @@ while mocking WebSocket connections and external dependencies.
 import pytest
 import json
 import tempfile
-from unittest.mock import AsyncMock, patch, mock_open
+import asyncio
+from unittest.mock import AsyncMock, Mock, patch, mock_open, MagicMock
 from pathlib import Path
 
 from trustgraph.cli.load_knowledge import KnowledgeLoader, main
@@ -45,7 +46,20 @@ def temp_turtle_file(sample_turtle_content):
 @pytest.fixture
 def mock_websocket():
     """Mock WebSocket connection."""
-    mock_ws = AsyncMock()
+    mock_ws = MagicMock()
+    
+    async def async_send(data):
+        return None
+    
+    async def async_recv():
+        return ""
+        
+    async def async_close():
+        return None
+    
+    mock_ws.send = Mock(side_effect=async_send)
+    mock_ws.recv = Mock(side_effect=async_recv) 
+    mock_ws.close = Mock(side_effect=async_close)
     return mock_ws
 
 
@@ -210,11 +224,30 @@ ex:mary ex:knows ex:bob .
         """Test that run() calls both triple and entity context loaders."""
         knowledge_loader.files = [temp_turtle_file]
         
-        mock_ws = AsyncMock()
-        mock_connect.return_value.__aenter__.return_value = mock_ws
+        # Create a simple mock websocket
+        mock_ws = MagicMock()
+        async def mock_send(data):
+            pass
+        mock_ws.send = mock_send
         
-        with patch.object(knowledge_loader, 'load_triples') as mock_load_triples, \
-             patch.object(knowledge_loader, 'load_entity_contexts') as mock_load_contexts:
+        # Create async context manager mock
+        async def mock_aenter(self):
+            return mock_ws
+            
+        async def mock_aexit(self, exc_type, exc_val, exc_tb):
+            return None
+            
+        mock_connection = MagicMock()
+        mock_connection.__aenter__ = mock_aenter
+        mock_connection.__aexit__ = mock_aexit
+        mock_connect.return_value = mock_connection
+        
+        # Create AsyncMock objects that can track calls properly
+        mock_load_triples = AsyncMock(return_value=None)
+        mock_load_contexts = AsyncMock(return_value=None)
+        
+        with patch.object(knowledge_loader, 'load_triples', mock_load_triples), \
+             patch.object(knowledge_loader, 'load_entity_contexts', mock_load_contexts):
             
             await knowledge_loader.run()
             
@@ -233,7 +266,7 @@ class TestCLIArgumentParsing:
     @patch('trustgraph.cli.load_knowledge.asyncio.run')
     def test_main_parses_args_correctly(self, mock_asyncio_run, mock_loader_class):
         """Test that main() parses arguments correctly."""
-        mock_loader_instance = AsyncMock()
+        mock_loader_instance = MagicMock()
         mock_loader_class.return_value = mock_loader_instance
         
         test_args = [
@@ -260,14 +293,14 @@ class TestCLIArgumentParsing:
             collection='my-collection'
         )
         
-        # Verify the loader's run method was called
+        # Verify asyncio.run was called once
         mock_asyncio_run.assert_called_once()
 
     @patch('trustgraph.cli.load_knowledge.KnowledgeLoader')
     @patch('trustgraph.cli.load_knowledge.asyncio.run')
     def test_main_uses_defaults(self, mock_asyncio_run, mock_loader_class):
         """Test that main() uses default values when not specified."""
-        mock_loader_instance = AsyncMock()
+        mock_loader_instance = MagicMock()
         mock_loader_class.return_value = mock_loader_instance
         
         test_args = [
@@ -336,7 +369,8 @@ class TestErrorHandling:
 
     @pytest.mark.asyncio
     @patch('trustgraph.cli.load_knowledge.connect')
-    async def test_run_handles_connection_errors(self, mock_connect, knowledge_loader, temp_turtle_file):
+    @patch('builtins.print')  # Mock print to avoid output during tests
+    async def test_run_handles_connection_errors(self, mock_print, mock_connect, knowledge_loader, temp_turtle_file):
         """Test handling of WebSocket connection errors."""
         knowledge_loader.files = [temp_turtle_file]
         
@@ -349,9 +383,10 @@ class TestErrorHandling:
     @patch('trustgraph.cli.load_knowledge.KnowledgeLoader')
     @patch('trustgraph.cli.load_knowledge.asyncio.run')
     @patch('trustgraph.cli.load_knowledge.time.sleep')
-    def test_main_retries_on_exception(self, mock_sleep, mock_asyncio_run, mock_loader_class):
+    @patch('builtins.print')  # Mock print to avoid output during tests
+    def test_main_retries_on_exception(self, mock_print, mock_sleep, mock_asyncio_run, mock_loader_class):
         """Test that main() retries on exceptions."""
-        mock_loader_instance = AsyncMock()
+        mock_loader_instance = MagicMock()
         mock_loader_class.return_value = mock_loader_instance
         
         # First call raises exception, second succeeds

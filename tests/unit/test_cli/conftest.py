@@ -9,10 +9,21 @@ from unittest.mock import AsyncMock, MagicMock
 @pytest.fixture
 def mock_websocket_connection():
     """Mock WebSocket connection for CLI tools."""
-    mock_ws = AsyncMock()
-    mock_ws.send = AsyncMock()
-    mock_ws.recv = AsyncMock()
-    mock_ws.close = AsyncMock()
+    mock_ws = MagicMock()
+    
+    # Create simple async functions that don't leave coroutines hanging
+    async def mock_send(data):
+        return None
+        
+    async def mock_recv():
+        return ""
+        
+    async def mock_close():
+        return None
+    
+    mock_ws.send = mock_send
+    mock_ws.recv = mock_recv
+    mock_ws.close = mock_close
     return mock_ws
 
 
