@@ -99,49 +99,14 @@ class KnowledgeLoader:
         g = rdflib.Graph()
         g.parse(file, format="turtle")
 
-        # Build entity contexts by collecting all triples involving each entity
-        entity_contexts = {}
-        
         for s, p, o in g:
-            s_str = str(s)
-            p_str = str(p)
-            o_str = str(o)
-            
-            # Build context for subject entity
-            if s_str not in entity_contexts:
-                entity_contexts[s_str] = {
-                    "entity": s_str,
-                    "is_uri": isinstance(s, rdflib.term.URIRef),
-                    "triples": []
-                }
-            entity_contexts[s_str]["triples"].append(f"{p_str} -> {o_str}")
-            
-            # Build context for object entity if it's a URI
+            # If object is a URI, do nothing
             if isinstance(o, rdflib.term.URIRef):
-                if o_str not in entity_contexts:
-                    entity_contexts[o_str] = {
-                        "entity": o_str,
-                        "is_uri": True,
-                        "triples": []
-                    }
-                entity_contexts[o_str]["triples"].append(f"<- {p_str} <- {s_str}")
-
-        # Generate context text and send entity contexts
-        for entity_data in entity_contexts.values():
-            # Create a descriptive context from the entity's relationships
-            context_parts = []
-            context_parts.append(f"Entity: {entity_data['entity']}")
-            
-            if entity_data["triples"]:
-                context_parts.append("Relationships:")
-                # Limit to first 10 relationships to avoid overly long contexts
-                for triple in entity_data["triples"][:10]:
-                    context_parts.append(f"  {triple}")
+                continue
                 
-                if len(entity_data["triples"]) > 10:
-                    context_parts.append(f"  ... and {len(entity_data['triples']) - 10} more relationships")
-            
-            context_text = "\n".join(context_parts)
+            # If object is a literal, create entity context for subject with literal as context
+            s_str = str(s)
+            o_str = str(o)
             
             req = {
                 "metadata": {
@@ -153,15 +118,16 @@ class KnowledgeLoader:
                 "entities": [
                     {
                         "entity": {
-                            "v": entity_data["entity"],
-                            "e": entity_data["is_uri"]
+                            "v": s_str,
+                            "e": True
                         },
-                        "context": context_text
+                        "context": o_str
                     }
                 ]
             }
 
             await ws.send(json.dumps(req))
+
 
 def main():
 
