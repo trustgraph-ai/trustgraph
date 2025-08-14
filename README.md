@@ -1,6 +1,6 @@
 <div align="center">
 
-## The Run Anywhere Agentic AI Platform
+## The Agentic Context Engineering Foundation
 
 <img src="llm-orchestrate.svg" width=100% />
 
