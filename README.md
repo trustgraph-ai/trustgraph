@@ -22,7 +22,7 @@ Take control of your data and context with **TrustGraph**. Connect to the latest
 - [**Why TrustGraph?**](#why-trustgraph)<br>
 - [**Getting Started**](#getting-started)<br>
 - [**Configuration Builder**](#configuration-builder)<br>
-- [**GraphRAG**](#graphrag)<br>
+- [**Context Engineering**](#context-engineering)<br>
 - [**Knowledge Cores**](#knowledge-cores)<br>
 - [**Platform Architecture**](#platform-architecture)<br>
 - [**Integrations**](#integrations)<br>
@@ -70,11 +70,9 @@ The **Workbench** is a UI that provides tools for interacting with all major fea
 - **Prompt Management**: Edit all LLM prompts used in the platform
 - **Agent Tools**: Define tools used by the Agent Flow
 
-## GraphRAG
+## Context Engineering
 
-TrustGraph features an advanced GraphRAG approach that automatically constructs Knowledge Graphs with mapped Vector Embeddings to provide richer and more accurate context to LLMs for trustworthy agents.
-
-**How TrustGraph's GraphRAG Works:**
+TrustGraph features a complete context engineering solution combinging the power of Knowledge Graphs and VectorDBs. Connect your data to automatically constructs Knowledge Graphs with mapped Vector Embeddings to deliver richer and more accurate context to LLMs for trustworthy agents.
 
 - **Automated Knowledge Graph Construction:** Data Transformation Agents processes source data to automatically **extract key entities, topics, and the relationships** connecting them. Vector emebeddings are then mapped to these semantic relationships for context retrieval.
 - **Hybrid Retrieval:** When an agent needs to perform deep research, it first performs a **cosine similarity search** on the vector embeddings to identify potentially relevant concepts and relationships within the knowledge graph. This initial vector search **pinpoints relevant entry points** within the structured Knowledge Graph.
