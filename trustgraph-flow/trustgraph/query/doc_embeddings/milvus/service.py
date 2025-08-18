@@ -4,95 +4,62 @@ Document embeddings query service.  Input is vector, output is an array
 of chunks
 """
 
+import logging
+
 from .... direct.milvus_doc_embeddings import DocVectors
-from .... schema import DocumentEmbeddingsRequest, DocumentEmbeddingsResponse
+from .... schema import DocumentEmbeddingsResponse
 from .... schema import Error, Value
-from .... schema import document_embeddings_request_queue
-from .... schema import document_embeddings_response_queue
-from .... base import ConsumerProducer
+from .... base import DocumentEmbeddingsQueryService
 
-module = "de-query"
+# Module logger
+logger = logging.getLogger(__name__)
 
-default_input_queue = document_embeddings_request_queue
-default_output_queue = document_embeddings_response_queue
-default_subscriber = module
+default_ident = "de-query"
 default_store_uri = 'http://localhost:19530'
 
-class Processor(ConsumerProducer):
+class Processor(DocumentEmbeddingsQueryService):
 
     def __init__(self, **params):
 
-        input_queue = params.get("input_queue", default_input_queue)
-        output_queue = params.get("output_queue", default_output_queue)
-        subscriber = params.get("subscriber", default_subscriber)
         store_uri = params.get("store_uri", default_store_uri)
 
         super(Processor, self).__init__(
             **params | {
-                "input_queue": input_queue,
-                "output_queue": output_queue,
-                "subscriber": subscriber,
-                "input_schema": DocumentEmbeddingsRequest,
-                "output_schema": DocumentEmbeddingsResponse,
                 "store_uri": store_uri,
             }
         )
 
         self.vecstore = DocVectors(store_uri)
 
-    async def handle(self, msg):
+    async def query_document_embeddings(self, msg):
 
         try:
 
-            v = msg.value()
-
-            # Sender-produced ID
-            id = msg.properties()["id"]
-
-            print(f"Handling input {id}...", flush=True)
+            # Handle zero limit case
+            if msg.limit <= 0:
+                return []
 
             chunks = []
 
-            for vec in v.vectors:
+            for vec in msg.vectors:
 
-                resp = self.vecstore.search(vec, limit=v.limit)
+                resp = self.vecstore.search(vec, limit=msg.limit)
 
                 for r in resp:
                     chunk = r["entity"]["doc"]
-                    chunk = chunk.encode("utf-8")
                     chunks.append(chunk)
 
-            print("Send response...", flush=True)
-            r = DocumentEmbeddingsResponse(documents=chunks, error=None)
-            await self.send(r, properties={"id": id})
-
-            print("Done.", flush=True)
+            return chunks
 
         except Exception as e:
 
-            print(f"Exception: {e}")
-
-            print("Send error response...", flush=True)
-
-            r = DocumentEmbeddingsResponse(
-                error=Error(
-                    type = "llm-error",
-                    message = str(e),
-                ),
-                documents=None,
-            )
-
-            await self.send(r, properties={"id": id})
-
-            self.consumer.acknowledge(msg)
+            logger.error(f"Exception querying document embeddings: {e}", exc_info=True)
+            raise e
 
     @staticmethod
     def add_args(parser):
 
-        ConsumerProducer.add_args(
-            parser, default_input_queue, default_subscriber,
-            default_output_queue,
-        )
+        DocumentEmbeddingsQueryService.add_args(parser)
 
         parser.add_argument(
             '-t', '--store-uri',
@@ -102,5 +69,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 

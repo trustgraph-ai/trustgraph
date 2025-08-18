@@ -1,7 +1,12 @@
 
+import logging
+
 from . request_response_spec import RequestResponse, RequestResponseSpec
 from .. schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
 from .. knowledge import Uri, Literal
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 def to_value(x):
     if x.is_uri: return Uri(x.value)
@@ -21,7 +26,7 @@ class GraphEmbeddingsClient(RequestResponse):
             timeout=timeout
         )
 
-        print(resp, flush=True)
+        logger.debug(f"Graph embeddings response: {resp}")
 
         if resp.error:
             raise RuntimeError(resp.error.message)

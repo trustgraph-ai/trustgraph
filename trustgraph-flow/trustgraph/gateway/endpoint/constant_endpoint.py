@@ -29,7 +29,7 @@ class ConstantEndpoint:
 
     async def handle(self, request):
 
-        print(request.path, "...")
+        logger.debug(f"Processing request: {request.path}")
 
         try:
             ht = request.headers["Authorization"]

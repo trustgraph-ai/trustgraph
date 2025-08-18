@@ -1,6 +1,10 @@
 
+import logging
+
 from . exceptions import *
 from . types import ConfigValue
+
+logger = logging.getLogger(__name__)
 
 class Config:
 
@@ -33,7 +37,7 @@ class Config:
                 for v in object["values"]
             ]
         except Exception as e:
-            print(e)
+            logger.error("Failed to parse config get response", exc_info=True)
             raise ProtocolException("Response not formatted correctly")
 
     def put(self, values):
@@ -44,6 +48,19 @@ class Config:
             "values": [
                 { "type": v.type, "key": v.key, "value": v.value }
                 for v in values
+            ]
+        }
+
+        self.request(input)
+
+    def delete(self, keys):
+
+        # The input consists of system and prompt strings
+        input = {
+            "operation": "delete",
+            "keys": [
+                { "type": v.type, "key": v.key }
+                for v in keys
             ]
         }
 
@@ -67,7 +84,7 @@ class Config:
             "type": type,
         }
 
-        object = self.request(input)["directory"]
+        object = self.request(input)
 
         try:
             return [

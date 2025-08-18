@@ -7,6 +7,10 @@ from pulsar.schema import JsonSchema
 import asyncio
 import _pulsar
 import time
+import logging
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 class Subscriber:
 
@@ -66,7 +70,7 @@ class Subscriber:
                 if self.metrics:
                     self.metrics.state("running")
 
-                print("Subscriber running...", flush=True)
+                logger.info("Subscriber running...")
 
                 while self.running:
 
@@ -78,8 +82,7 @@ class Subscriber:
                     except _pulsar.Timeout:
                         continue
                     except Exception as e:
-                        print("Exception:", e, flush=True)
-                        print(type(e))
+                        logger.error(f"Exception in subscriber receive: {e}", exc_info=True)
                         raise e
 
                     if self.metrics:
@@ -110,7 +113,7 @@ class Subscriber:
 
                             except Exception as e:
                                 self.metrics.dropped()
-                                print("Q Put:", e, flush=True)
+                                logger.warning(f"Failed to put message in queue: {e}")
 
                         for q in self.full.values():
                             try:
@@ -121,10 +124,10 @@ class Subscriber:
                                 )
                             except Exception as e:
                                 self.metrics.dropped()
-                                print("Q Put:", e, flush=True)
+                                logger.warning(f"Failed to put message in full queue: {e}")
 
             except Exception as e:
-                print("Subscriber exception:", e, flush=True)
+                logger.error(f"Subscriber exception: {e}", exc_info=True)
 
             finally:
 

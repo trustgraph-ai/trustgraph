@@ -17,17 +17,19 @@ wheels:
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-embeddings-hf/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-cli/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-ocr/
+	pip3 wheel --no-deps --wheel-dir dist trustgraph-mcp/
 
 packages: update-package-versions
 	rm -rf dist/
-	cd trustgraph && python3 setup.py sdist --dist-dir ../dist/
-	cd trustgraph-base && python3 setup.py sdist --dist-dir ../dist/
-	cd trustgraph-flow && python3 setup.py sdist --dist-dir ../dist/
-	cd trustgraph-vertexai && python3 setup.py sdist --dist-dir ../dist/
-	cd trustgraph-bedrock && python3 setup.py sdist --dist-dir ../dist/
-	cd trustgraph-embeddings-hf && python3 setup.py sdist --dist-dir ../dist/
-	cd trustgraph-cli && python3 setup.py sdist --dist-dir ../dist/
-	cd trustgraph-ocr && python3 setup.py sdist --dist-dir ../dist/
+	cd trustgraph && python -m build --sdist --outdir ../dist/
+	cd trustgraph-base && python -m build --sdist --outdir ../dist/
+	cd trustgraph-flow && python -m build --sdist --outdir ../dist/
+	cd trustgraph-vertexai && python -m build --sdist --outdir ../dist/
+	cd trustgraph-bedrock && python -m build --sdist --outdir ../dist/
+	cd trustgraph-embeddings-hf && python -m build --sdist --outdir ../dist/
+	cd trustgraph-cli && python -m build --sdist --outdir ../dist/
+	cd trustgraph-ocr && python -m build --sdist --outdir ../dist/
+	cd trustgraph-mcp && python -m build --sdist --outdir ../dist/
 
 pypi-upload:
 	twine upload dist/*-${VERSION}.*
@@ -45,6 +47,7 @@ update-package-versions:
 	echo __version__ = \"${VERSION}\" > trustgraph-cli/trustgraph/cli_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-ocr/trustgraph/ocr_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph/trustgraph/trustgraph_version.py
+	echo __version__ = \"${VERSION}\" > trustgraph-mcp/trustgraph/mcp_version.py
 
 container: update-package-versions
 	${DOCKER} build -f containers/Containerfile.base \
@@ -59,12 +62,16 @@ container: update-package-versions
 	    -t ${CONTAINER_BASE}/trustgraph-hf:${VERSION} .
 	${DOCKER} build -f containers/Containerfile.ocr \
 	    -t ${CONTAINER_BASE}/trustgraph-ocr:${VERSION} .
+	${DOCKER} build -f containers/Containerfile.mcp \
+	    -t ${CONTAINER_BASE}/trustgraph-mcp:${VERSION} .
 
 some-containers:
 	${DOCKER} build -f containers/Containerfile.base \
 	    -t ${CONTAINER_BASE}/trustgraph-base:${VERSION} .
 	${DOCKER} build -f containers/Containerfile.flow \
 	    -t ${CONTAINER_BASE}/trustgraph-flow:${VERSION} .
+#	${DOCKER} build -f containers/Containerfile.mcp \
+#	    -t ${CONTAINER_BASE}/trustgraph-mcp:${VERSION} .
 #	${DOCKER} build -f containers/Containerfile.vertexai \
 #	    -t ${CONTAINER_BASE}/trustgraph-vertexai:${VERSION} .
 #	${DOCKER} build -f containers/Containerfile.bedrock \
@@ -87,6 +94,7 @@ push:
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-vertexai:${VERSION}
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-hf:${VERSION}
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-ocr:${VERSION}
+	${DOCKER} push ${CONTAINER_BASE}/trustgraph-mcp:${VERSION}
 
 clean:
 	rm -rf wheels/
@@ -116,7 +124,7 @@ JSONNET_FLAGS=-J templates -J .
 
 update-templates: update-dcs
 
-JSON_TO_YAML=python3 -c 'import sys, yaml, json; j=json.loads(sys.stdin.read()); print(yaml.safe_dump(j))'
+JSON_TO_YAML=python -c 'import sys, yaml, json; j=json.loads(sys.stdin.read()); print(yaml.safe_dump(j))'
 
 update-dcs: set-version
 	for graph in ${GRAPHS}; do \

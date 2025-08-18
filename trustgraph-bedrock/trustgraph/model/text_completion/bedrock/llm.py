@@ -8,9 +8,13 @@ import boto3
 import json
 import os
 import enum
+import logging
 
 from .... exceptions import TooManyRequests
 from .... base import LlmService, LlmResult
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "text-completion"
 
@@ -145,7 +149,7 @@ class Processor(LlmService):
 
     def __init__(self, **params):
 
-        print(params)
+        logger.debug(f"Bedrock LLM initialized with params: {params}")
     
         model = params.get("model", default_model)
         temperature = params.get("temperature", default_temperature)
@@ -197,7 +201,7 @@ class Processor(LlmService):
 
         self.bedrock = self.session.client(service_name='bedrock-runtime')
 
-        print("Initialised", flush=True)
+        logger.info("Bedrock LLM service initialized")
 
     def determine_variant(self, model):
 
@@ -250,9 +254,9 @@ class Processor(LlmService):
             inputtokens = int(metadata['x-amzn-bedrock-input-token-count'])
             outputtokens = int(metadata['x-amzn-bedrock-output-token-count'])
 
-            print(outputtext, flush=True)
-            print(f"Input Tokens: {inputtokens}", flush=True)
-            print(f"Output Tokens: {outputtokens}", flush=True)
+            logger.debug(f"LLM output: {outputtext}")
+            logger.info(f"Input Tokens: {inputtokens}")
+            logger.info(f"Output Tokens: {outputtokens}")
 
             resp = LlmResult(
                 text = outputtext,
@@ -265,7 +269,7 @@ class Processor(LlmService):
 
         except self.bedrock.exceptions.ThrottlingException as e:
 
-            print("Hit rate limit:", e, flush=True)
+            logger.warning(f"Hit rate limit: {e}")
 
             # Leave rate limit retries to the base handler
             raise TooManyRequests()
@@ -274,8 +278,7 @@ class Processor(LlmService):
 
             # Apart from rate limits, treat all exceptions as unrecoverable
 
-            print(type(e))
-            print(f"Exception: {e}")
+            logger.error(f"Bedrock LLM exception ({type(e).__name__}): {e}", exc_info=True)
             raise e
 
     @staticmethod

@@ -18,6 +18,9 @@ import logging
 import os
 import base64
 import uuid
+
+# Module logger
+logger = logging.getLogger(__name__)
 import json
 
 import pulsar
@@ -48,7 +51,7 @@ class ConfigReceiver:
 
             v = msg.value()
 
-            print(f"Config version", v.version)
+            logger.info(f"Config version: {v.version}")
 
             if "flows" in v.config:
 
@@ -68,29 +71,29 @@ class ConfigReceiver:
                         del self.flows[k]
 
         except Exception as e:
-            print(f"Exception: {e}", flush=True)
+            logger.error(f"Config processing exception: {e}", exc_info=True)
 
     async def start_flow(self, id, flow):
 
-        print("Start flow", id)
+        logger.info(f"Starting flow: {id}")
 
         for handler in self.flow_handlers:
 
             try:
                 await handler.start_flow(id, flow)
             except Exception as e:
-                print(f"Exception: {e}", flush=True)
+                logger.error(f"Config processing exception: {e}", exc_info=True)
 
     async def stop_flow(self, id, flow):
 
-        print("Stop flow", id)
+        logger.info(f"Stopping flow: {id}")
 
         for handler in self.flow_handlers:
 
             try:
                 await handler.stop_flow(id, flow)
             except Exception as e:
-                print(f"Exception: {e}", flush=True)
+                logger.error(f"Config processing exception: {e}", exc_info=True)
 
     async def config_loader(self):
 
@@ -111,9 +114,9 @@ class ConfigReceiver:
 
             await self.config_cons.start()
 
-            print("Waiting...")
+            logger.debug("Waiting for config updates...")
 
-        print("Config consumer done. :/")
+        logger.info("Config consumer finished")
 
     async def start(self):
         

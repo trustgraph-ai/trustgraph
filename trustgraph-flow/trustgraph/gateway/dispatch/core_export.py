@@ -2,7 +2,11 @@
 import asyncio
 import uuid
 import msgpack
+import logging
 from . knowledge import KnowledgeRequestor
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 class CoreExport:
 
@@ -84,7 +88,7 @@ class CoreExport:
 
         except Exception as e:
 
-            print("Exception:", e)
+            logger.error(f"Core export exception: {e}", exc_info=True)
 
         finally:
 

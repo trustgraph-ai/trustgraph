@@ -8,6 +8,10 @@ from .. base import Publisher
 import base64
 import asyncio
 import uuid
+import logging
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 class KnowledgeManager:
 
@@ -26,7 +30,7 @@ class KnowledgeManager:
 
     async def delete_kg_core(self, request, respond):
 
-        print("Deleting core...", flush=True)
+        logger.info("Deleting knowledge core...")
 
         await self.table_store.delete_kg_core(
             request.user, request.id
@@ -44,7 +48,7 @@ class KnowledgeManager:
 
     async def get_kg_core(self, request, respond):
 
-        print("Get core...", flush=True)
+        logger.info("Getting knowledge core...")
 
         async def publish_triples(t):
             await respond(
@@ -82,7 +86,7 @@ class KnowledgeManager:
             publish_ge,
         )
 
-        print("Get complete", flush=True)
+        logger.debug("Knowledge core retrieval complete")
 
         await respond(
             KnowledgeResponse(
@@ -158,13 +162,13 @@ class KnowledgeManager:
 
     async def core_loader(self):
 
-        print("Running...", flush=True)
+        logger.info("Knowledge background processor running...")
         while True:
 
-            print("Wait for next load...", flush=True)
+            logger.debug("Waiting for next load...")
             request, respond = await self.loader_queue.get()
 
-            print("Loading...", request.id, flush=True)
+            logger.info(f"Loading knowledge: {request.id}")
 
             try:
 
@@ -204,7 +208,7 @@ class KnowledgeManager:
 
             except Exception as e:
 
-                print("Exception:", e, flush=True)
+                logger.error(f"Knowledge exception: {e}", exc_info=True)
                 await respond(
                     KnowledgeResponse(
                         error = Error(
@@ -219,15 +223,15 @@ class KnowledgeManager:
                 )
 
 
-            print("Going to start loading...", flush=True)
+            logger.debug("Starting knowledge loading process...")
 
             try:
 
                 t_pub = None
                 ge_pub = None
 
-                print(t_q, flush=True)
-                print(ge_q, flush=True)
+                logger.debug(f"Triples queue: {t_q}")
+                logger.debug(f"Graph embeddings queue: {ge_q}")
 
                 t_pub = Publisher(
                     self.flow_config.pulsar_client, t_q,
@@ -238,7 +242,7 @@ class KnowledgeManager:
                     schema=GraphEmbeddings
                 )
 
-                print("Start publishers...", flush=True)
+                logger.debug("Starting publishers...")
 
                 await t_pub.start()
                 await ge_pub.start()
@@ -246,7 +250,7 @@ class KnowledgeManager:
                 async def publish_triples(t):
                     await t_pub.send(None, t)
 
-                print("Publish triples...", flush=True)
+                logger.debug("Publishing triples...")
 
                 # Remove doc table row
                 await self.table_store.get_triples(
@@ -258,7 +262,7 @@ class KnowledgeManager:
                 async def publish_ge(g):
                     await ge_pub.send(None, g)
 
-                print("Publish GEs...", flush=True)
+                logger.debug("Publishing graph embeddings...")
 
                 # Remove doc table row
                 await self.table_store.get_graph_embeddings(
@@ -267,19 +271,19 @@ class KnowledgeManager:
                     publish_ge,
                 )
 
-                print("Completed that.", flush=True)
+                logger.debug("Knowledge loading completed")
 
             except Exception as e:
 
-                print("Exception:", e, flush=True)
+                logger.error(f"Knowledge exception: {e}", exc_info=True)
 
             finally:
 
-                print("Stopping publishers...", flush=True)
+                logger.debug("Stopping publishers...")
 
                 if t_pub: await t_pub.stop()
                 if ge_pub: await ge_pub.stop()
 
-            print("Done", flush=True)
+            logger.debug("Knowledge processing done")
 
             continue

@@ -1,0 +1,78 @@
+"""
+Starts a load operation on a knowledge core which is already stored by
+the knowledge manager.  You could load a core with tg-put-kg-core and then
+run this utility.
+"""
+
+import argparse
+import os
+import tabulate
+from trustgraph.api import Api
+import json
+
+default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_flow = "default"
+default_collection = "default"
+
+def load_kg_core(url, user, id, flow, collection):
+
+    api = Api(url).knowledge()
+
+    class_names = api.load_kg_core(user = user, id = id, flow=flow,
+                                   collection=collection)
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        prog='tg-delete-flow-class',
+        description=__doc__,
+    )
+
+    parser.add_argument(
+        '-u', '--api-url',
+        default=default_url,
+        help=f'API URL (default: {default_url})',
+    )
+
+    parser.add_argument(
+        '-U', '--user',
+        default="trustgraph",
+        help='API URL (default: trustgraph)',
+    )
+
+    parser.add_argument(
+        '--id', '--identifier',
+        required=True,
+        help=f'Knowledge core ID',
+    )
+
+    parser.add_argument(
+        '-f', '--flow-id',
+        default=default_flow,
+        help=f'Flow ID (default: {default_flow}',
+    )
+
+    parser.add_argument(
+        '-c', '--collection',
+        default=default_collection,
+        help=f'Collection ID (default: {default_collection}',
+    )
+
+    args = parser.parse_args()
+
+    try:
+
+        load_kg_core(
+            url=args.api_url,
+            user=args.user,
+            id=args.id,
+            flow=args.flow_id,
+            collection=args.collection,
+        )
+
+    except Exception as e:
+
+        print("Exception:", e, flush=True)
+
+if __name__ == "__main__":
+    main()

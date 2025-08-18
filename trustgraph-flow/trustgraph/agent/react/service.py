@@ -5,13 +5,18 @@ Simple agent infrastructure broadly implements the ReAct flow.
 import json
 import re
 import sys
+import functools
+import logging
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 from ... base import AgentService, TextCompletionClientSpec, PromptClientSpec
-from ... base import GraphRagClientSpec
+from ... base import GraphRagClientSpec, ToolClientSpec
 
 from ... schema import AgentRequest, AgentResponse, AgentStep, Error
 
-from . tools import KnowledgeQueryImpl, TextCompletionImpl
+from . tools import KnowledgeQueryImpl, TextCompletionImpl, McpToolImpl, PromptImpl
 from . agent_manager import AgentManager
 
 from . types import Final, Action, Tool, Argument
@@ -67,69 +72,92 @@ class Processor(AgentService):
             )
         )
 
+        self.register_specification(
+            ToolClientSpec(
+                request_name = "mcp-tool-request",
+                response_name = "mcp-tool-response",
+            )
+        )
+
     async def on_tools_config(self, config, version):
 
-        print("Loading configuration version", version)
-
-        if self.config_key not in config:
-            print(f"No key {self.config_key} in config", flush=True)
-            return
-
-        config = config[self.config_key]
+        logger.info(f"Loading configuration version {version}")
 
         try:
 
-            # This is some extra stuff to put in the prompt
-            additional = config.get("additional-context", None)
-
-            ix = json.loads(config["tool-index"])
-
             tools = {}
 
-            for k in ix:
-
-                pc = config[f"tool.{k}"]
-                data = json.loads(pc)
-
-                arguments = {
-                    v.get("name"): Argument(
-                        name = v.get("name"),
-                        type = v.get("type"),
-                        description = v.get("description")
+            # Load tool configurations from the new location
+            if "tool" in config:
+                for tool_id, tool_value in config["tool"].items():
+                    data = json.loads(tool_value)
+                    
+                    impl_id = data.get("type")
+                    name = data.get("name")
+                    
+                    # Create the appropriate implementation
+                    if impl_id == "knowledge-query":
+                        impl = functools.partial(
+                            KnowledgeQueryImpl, 
+                            collection=data.get("collection")
+                        )
+                        arguments = KnowledgeQueryImpl.get_arguments()
+                    elif impl_id == "text-completion":
+                        impl = TextCompletionImpl
+                        arguments = TextCompletionImpl.get_arguments()
+                    elif impl_id == "mcp-tool":
+                        impl = functools.partial(
+                            McpToolImpl, 
+                            mcp_tool_id=data.get("mcp-tool")
+                        )
+                        arguments = McpToolImpl.get_arguments()
+                    elif impl_id == "prompt":
+                        # For prompt tools, arguments come from config
+                        config_args = data.get("arguments", [])
+                        arguments = [
+                            Argument(
+                                name=arg.get("name"),
+                                type=arg.get("type"),
+                                description=arg.get("description")
+                            )
+                            for arg in config_args
+                        ]
+                        impl = functools.partial(
+                            PromptImpl,
+                            template_id=data.get("template"),
+                            arguments=arguments
+                        )
+                    else:
+                        raise RuntimeError(
+                            f"Tool type {impl_id} not known"
+                        )
+                    
+                    tools[name] = Tool(
+                        name=name,
+                        description=data.get("description"),
+                        implementation=impl,
+                        config=data,  # Store full config for reference
+                        arguments=arguments,
                     )
-                    for v in data["arguments"]
-                }
-
-                impl_id = data.get("type")
-
-                if impl_id == "knowledge-query":
-                    impl = KnowledgeQueryImpl
-                elif impl_id == "text-completion":
-                    impl = TextCompletionImpl
-                else:
-                    raise RuntimeError(
-                        f"Tool-kind {impl_id} not known"
-                    )
-
-                tools[data.get("name")] = Tool(
-                    name = data.get("name"),
-                    description = data.get("description"),
-                    implementation = impl,
-                    config=data.get("config", {}),
-                    arguments = arguments,
-                )
-
+            
+            # Load additional context from agent config if it exists
+            additional = None
+            if self.config_key in config:
+                agent_config = config[self.config_key]
+                additional = agent_config.get("additional-context", None)
+            
             self.agent = AgentManager(
                 tools=tools,
                 additional_context=additional
             )
 
-            print("Prompt configuration reloaded.", flush=True)
+            logger.info(f"Loaded {len(tools)} tools")
+            logger.info("Tool configuration reloaded.")
 
         except Exception as e:
 
-            print("on_tools_config Exception:", e, flush=True)
-            print("Configuration reload failed", flush=True)
+            logger.error(f"on_tools_config Exception: {e}", exc_info=True)
+            logger.error("Configuration reload failed")
 
     async def agent_request(self, request, respond, next, flow):
 
@@ -148,16 +176,16 @@ class Processor(AgentService):
             else:
                 history = []
 
-            print(f"Question: {request.question}", flush=True)
+            logger.info(f"Question: {request.question}")
 
             if len(history) >= self.max_iterations:
                 raise RuntimeError("Too many agent iterations")
 
-            print(f"History: {history}", flush=True)
+            logger.debug(f"History: {history}")
 
             async def think(x):
 
-                print(f"Think: {x}", flush=True)
+                logger.debug(f"Think: {x}")
 
                 r = AgentResponse(
                     answer=None,
@@ -170,7 +198,7 @@ class Processor(AgentService):
 
             async def observe(x):
 
-                print(f"Observe: {x}", flush=True)
+                logger.debug(f"Observe: {x}")
 
                 r = AgentResponse(
                     answer=None,
@@ -181,6 +209,8 @@ class Processor(AgentService):
 
                 await respond(r)
 
+            logger.debug("Call React")
+
             act = await self.agent.react(
                 question = request.question,
                 history = history,
@@ -189,11 +219,16 @@ class Processor(AgentService):
                 context = flow,
             )
 
-            print(f"Action: {act}", flush=True)
+            logger.debug(f"Action: {act}")
 
             if isinstance(act, Final):
 
-                print("Send final response...", flush=True)
+                logger.debug("Send final response...")
+
+                if isinstance(act.final, str):
+                    f = act.final
+                else:
+                    f = json.dumps(act.final)
 
                 r = AgentResponse(
                     answer=act.final,
@@ -203,11 +238,11 @@ class Processor(AgentService):
 
                 await respond(r)
 
-                print("Done.", flush=True)
+                logger.debug("Done.")
 
                 return
 
-            print("Send next...", flush=True)
+            logger.debug("Send next...")
 
             history.append(act)
 
@@ -228,15 +263,15 @@ class Processor(AgentService):
 
             await next(r)
 
-            print("Done.", flush=True)
+            logger.debug("React agent processing complete")
 
             return
 
         except Exception as e:
 
-            print(f"agent_request Exception: {e}")
+            logger.error(f"agent_request Exception: {e}", exc_info=True)
 
-            print("Send error response...", flush=True)
+            logger.debug("Send error response...")
 
             r = AgentResponse(
                 error=Error(
@@ -266,6 +301,5 @@ class Processor(AgentService):
         )
 
 def run():
-
     Processor.launch(default_ident, __doc__)
 

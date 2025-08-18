@@ -16,6 +16,7 @@ from .translators.document_loading import DocumentTranslator, TextDocumentTransl
 from .translators.config import ConfigRequestTranslator, ConfigResponseTranslator
 from .translators.flow import FlowRequestTranslator, FlowResponseTranslator
 from .translators.prompt import PromptRequestTranslator, PromptResponseTranslator
+from .translators.tool import ToolRequestTranslator, ToolResponseTranslator
 from .translators.embeddings_query import (
     DocumentEmbeddingsRequestTranslator, DocumentEmbeddingsResponseTranslator,
     GraphEmbeddingsRequestTranslator, GraphEmbeddingsResponseTranslator
@@ -86,6 +87,12 @@ TranslatorRegistry.register_service(
     "prompt", 
     PromptRequestTranslator(), 
     PromptResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "tool", 
+    ToolRequestTranslator(), 
+    ToolResponseTranslator()
 )
 
 TranslatorRegistry.register_service(

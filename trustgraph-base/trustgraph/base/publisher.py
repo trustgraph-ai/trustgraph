@@ -4,6 +4,10 @@ from pulsar.schema import JsonSchema
 import asyncio
 import time
 import pulsar
+import logging
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 class Publisher:
 
@@ -62,7 +66,7 @@ class Publisher:
                         producer.send(item)
 
             except Exception as e:
-                print("Exception:", e, flush=True)
+                logger.error(f"Exception in publisher: {e}", exc_info=True)
 
             if not self.running:
                 return

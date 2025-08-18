@@ -49,17 +49,12 @@ class Api:
 
         url = f"{self.url}{path}"
 
-#        print("uri:", url)
-#        print(json.dumps(request, indent=4))
-
         # Invoke the API, input is passed as JSON
         resp = requests.post(url, json=request, timeout=self.timeout)
 
         # Should be a 200 status code
         if resp.status_code != 200:
             raise ProtocolException(f"Status code {resp.status_code}")
-
-#        print(resp.text)
 
         try:
             # Parse the response as JSON

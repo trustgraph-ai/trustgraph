@@ -3,9 +3,14 @@
 Document embeddings store base class
 """
 
+import logging
+
 from .. schema import DocumentEmbeddings
 from .. base import FlowProcessor, ConsumerSpec
 from .. exceptions import TooManyRequests
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "document-embeddings-write"
 
@@ -40,7 +45,7 @@ class DocumentEmbeddingsStoreService(FlowProcessor):
 
         except Exception as e:
             
-            print(f"Exception: {e}")
+            logger.error(f"Exception in document embeddings store service: {e}", exc_info=True)
             raise e
 
     @staticmethod

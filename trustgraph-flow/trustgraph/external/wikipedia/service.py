@@ -10,6 +10,9 @@ from trustgraph.schema import encyclopedia_lookup_response_queue
 from trustgraph.log_level import LogLevel
 from trustgraph.base import ConsumerProducer
 import requests
+import logging
+
+logger = logging.getLogger(__name__)
 
 module = "wikipedia"
 
@@ -46,7 +49,7 @@ class Processor(ConsumerProducer):
         # Sender-produced ID
         id = msg.properties()["id"]
 
-        print(f"Handling {v.kind} / {v.term}...", flush=True)
+        logger.info(f"Handling {v.kind} / {v.term}...")
 
         try:
 

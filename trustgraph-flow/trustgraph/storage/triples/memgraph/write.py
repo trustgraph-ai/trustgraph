@@ -8,30 +8,26 @@ import base64
 import os
 import argparse
 import time
+import logging
 
 from neo4j import GraphDatabase
 
-from .... schema import Triples
-from .... schema import triples_store_queue
-from .... log_level import LogLevel
-from .... base import Consumer
+from .... base import TriplesStoreService
 
-module = "triples-write"
+# Module logger
+logger = logging.getLogger(__name__)
 
-default_input_queue = triples_store_queue
-default_subscriber = module
+default_ident = "triples-write"
 
 default_graph_host = 'bolt://memgraph:7687'
 default_username = 'memgraph'
 default_password = 'password'
 default_database = 'memgraph'
 
-class Processor(Consumer):
+class Processor(TriplesStoreService):
 
     def __init__(self, **params):
         
-        input_queue = params.get("input_queue", default_input_queue)
-        subscriber = params.get("subscriber", default_subscriber)
         graph_host = params.get("graph_host", default_graph_host)
         username = params.get("username", default_username)
         password = params.get("password", default_password)
@@ -39,10 +35,10 @@ class Processor(Consumer):
 
         super(Processor, self).__init__(
             **params | {
-                "input_queue": input_queue,
-                "subscriber": subscriber,
-                "input_schema": Triples,
                 "graph_host": graph_host,
+                "username": username,
+                "password": password,
+                "database": database,
             }
         )
 
@@ -63,49 +59,49 @@ class Processor(Consumer):
         # and this process will restart several times until Pulsar arrives,
         # so should be safe
 
-        print("Create indexes...", flush=True)
+        logger.info("Create indexes...")
 
         try:
             session.run(
                 "CREATE INDEX ON :Node",
             )
         except Exception as e:
-            print(e, flush=True)
+            logger.warning(f"Index create failure: {e}")
             # Maybe index already exists
-            print("Index create failure ignored", flush=True)
+            logger.warning("Index create failure ignored")
 
         try:
             session.run(
                 "CREATE INDEX ON :Node(uri)"
             )
         except Exception as e:
-            print(e, flush=True)
+            logger.warning(f"Index create failure: {e}")
             # Maybe index already exists
-            print("Index create failure ignored", flush=True)
+            logger.warning("Index create failure ignored")
 
         try:
             session.run(
                 "CREATE INDEX ON :Literal",
             )
         except Exception as e:
-            print(e, flush=True)
+            logger.warning(f"Index create failure: {e}")
             # Maybe index already exists
-            print("Index create failure ignored", flush=True)
+            logger.warning("Index create failure ignored")
 
         try:
             session.run(
                 "CREATE INDEX ON :Literal(value)"
             )
         except Exception as e:
-            print(e, flush=True)
+            logger.warning(f"Index create failure: {e}")
             # Maybe index already exists
-            print("Index create failure ignored", flush=True)
+            logger.warning("Index create failure ignored")
 
-        print("Index creation done", flush=True)
+        logger.info("Index creation done")
 
     def create_node(self, uri):
 
-        print("Create node", uri)
+        logger.debug(f"Create node {uri}")
 
         summary = self.io.execute_query(
             "MERGE (n:Node {uri: $uri})",
@@ -113,14 +109,14 @@ class Processor(Consumer):
             database_=self.db,
         ).summary
 
-        print("Created {nodes_created} nodes in {time} ms.".format(
+        logger.debug("Created {nodes_created} nodes in {time} ms.".format(
             nodes_created=summary.counters.nodes_created,
             time=summary.result_available_after
         ))
 
     def create_literal(self, value):
 
-        print("Create literal", value)
+        logger.debug(f"Create literal {value}")
 
         summary = self.io.execute_query(
             "MERGE (n:Literal {value: $value})",
@@ -128,14 +124,14 @@ class Processor(Consumer):
             database_=self.db,
         ).summary
 
-        print("Created {nodes_created} nodes in {time} ms.".format(
+        logger.debug("Created {nodes_created} nodes in {time} ms.".format(
             nodes_created=summary.counters.nodes_created,
             time=summary.result_available_after
         ))
 
     def relate_node(self, src, uri, dest):
 
-        print("Create node rel", src, uri, dest)
+        logger.debug(f"Create node rel {src} {uri} {dest}")
 
         summary = self.io.execute_query(
             "MATCH (src:Node {uri: $src}) "
@@ -145,14 +141,14 @@ class Processor(Consumer):
             database_=self.db,
         ).summary
 
-        print("Created {nodes_created} nodes in {time} ms.".format(
+        logger.debug("Created {nodes_created} nodes in {time} ms.".format(
             nodes_created=summary.counters.nodes_created,
             time=summary.result_available_after
         ))
 
     def relate_literal(self, src, uri, dest):
 
-        print("Create literal rel", src, uri, dest)
+        logger.debug(f"Create literal rel {src} {uri} {dest}")
 
         summary = self.io.execute_query(
             "MATCH (src:Node {uri: $src}) "
@@ -162,7 +158,7 @@ class Processor(Consumer):
             database_=self.db,
         ).summary
 
-        print("Created {nodes_created} nodes in {time} ms.".format(
+        logger.debug("Created {nodes_created} nodes in {time} ms.".format(
             nodes_created=summary.counters.nodes_created,
             time=summary.result_available_after
         ))
@@ -205,11 +201,9 @@ class Processor(Consumer):
                 src=t.s.value, dest=t.o.value, uri=t.p.value,
             )
         
-    async def handle(self, msg):
+    async def store_triples(self, message):
 
-        v = msg.value()
-
-        for t in v.triples:
+        for t in message.triples:
 
             # self.create_node(t.s.value)
 
@@ -226,12 +220,10 @@ class Processor(Consumer):
     @staticmethod
     def add_args(parser):
 
-        Consumer.add_args(
-            parser, default_input_queue, default_subscriber,
-        )
+        TriplesStoreService.add_args(parser)
 
         parser.add_argument(
-            '-g', '--graph_host',
+            '-g', '--graph-host',
             default=default_graph_host,
             help=f'Graph host (default: {default_graph_host})'
         )
@@ -256,5 +248,5 @@ class Processor(Consumer):
 
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 

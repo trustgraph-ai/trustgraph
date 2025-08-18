@@ -2,6 +2,10 @@
 import asyncio
 from aiohttp import web
 import uuid
+import logging
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 from . config import ConfigRequestor
 from . flow import FlowRequestor
@@ -17,7 +21,7 @@ from . document_rag import DocumentRagRequestor
 from . triples_query import TriplesQueryRequestor
 from . embeddings import EmbeddingsRequestor
 from . graph_embeddings_query import GraphEmbeddingsQueryRequestor
-from . prompt import PromptRequestor
+from . mcp_tool import McpToolRequestor
 from . text_load import TextLoad
 from . document_load import DocumentLoad
 
@@ -40,6 +44,7 @@ request_response_dispatchers = {
     "agent": AgentRequestor,
     "text-completion": TextCompletionRequestor,
     "prompt": PromptRequestor,
+    "mcp-tool": McpToolRequestor,
     "graph-rag": GraphRagRequestor,
     "document-rag": DocumentRagRequestor,
     "embeddings": EmbeddingsRequestor,
@@ -91,12 +96,12 @@ class DispatcherManager:
         self.dispatchers = {}
 
     async def start_flow(self, id, flow):
-        print("Start flow", id)
+        logger.info(f"Starting flow {id}")
         self.flows[id] = flow
         return
 
     async def stop_flow(self, id, flow):
-        print("Stop flow", id)
+        logger.info(f"Stopping flow {id}")
         del self.flows[id]
         return
 

@@ -7,8 +7,12 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct
 from qdrant_client.models import Distance, VectorParams
 import uuid
+import logging
 
 from .... base import DocumentEmbeddingsStoreService
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "de-write"
 
@@ -60,7 +64,7 @@ class Processor(DocumentEmbeddingsStoreService):
                                 ),
                             )
                         except Exception as e:
-                            print("Qdrant collection creation failed")
+                            logger.error("Qdrant collection creation failed")
                             raise e
 
                     self.last_collection = collection

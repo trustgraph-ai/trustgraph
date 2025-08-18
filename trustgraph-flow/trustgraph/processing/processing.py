@@ -11,18 +11,21 @@ import importlib
 
 from .. log_level import LogLevel
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 def fn(module_name, class_name, params, w):
 
-    print(f"Starting {module_name}...")
+    logger.info(f"Starting {module_name}...")
 
-    if "log_level" in params:
-        params["log_level"] = LogLevel(params["log_level"])
+    # log_level is already a string, no conversion needed
 
     while True:
 
         try:
 
-            print(f"Starting {class_name} using {module_name}...")
+            logger.info(f"Starting {class_name} using {module_name}...")
 
             module = importlib.import_module(module_name)
             class_object = getattr(module, class_name)
@@ -30,16 +33,16 @@ def fn(module_name, class_name, params, w):
             processor = class_object(**params)
 
             processor.run()
-            print(f"{module_name} stopped.")
+            logger.info(f"{module_name} stopped.")
 
         except Exception as e:
-            print("Exception:", e)
+            logger.error("Exception occurred", exc_info=True)
 
-        print("Restarting in 10...")
+        logger.info("Restarting in 10...")
 
         time.sleep(10)
 
-    print("Closing")
+    logger.info("Closing")
     w.close()
 
 class Processing:
@@ -108,7 +111,7 @@ class Processing:
                     readers.remove(r)
                     wait_for -= 1
 
-        print("All processes exited")
+        logger.info("All processes exited")
 
         for p in procs:
             p.join()
@@ -143,10 +146,9 @@ def run():
 
     parser.add_argument(
         '-l', '--log-level',
-        type=LogLevel,
-        default=LogLevel.INFO,
-        choices=list(LogLevel),
-        help=f'Output queue (default: info)'
+        default='INFO',
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+        help=f'Log level (default: INFO)'
     )
 
     parser.add_argument(
@@ -169,13 +171,12 @@ def run():
 
             p.run()
 
-            print("Finished.")
+            logger.info("Finished.")
             break
 
         except Exception as e:
 
-            print("Exception:", e, flush=True)
-            print("Will retry...", flush=True)
+            logger.error("Exception occurred, will retry...", exc_info=True)
 
         time.sleep(10)
 

@@ -1,5 +1,5 @@
 from .base import Translator, MessageTranslator
-from .primitives import ValueTranslator, TripleTranslator, SubgraphTranslator
+from .primitives import ValueTranslator, TripleTranslator, SubgraphTranslator, RowSchemaTranslator, FieldTranslator, row_schema_translator, field_translator
 from .metadata import DocumentMetadataTranslator, ProcessingMetadataTranslator
 from .agent import AgentRequestTranslator, AgentResponseTranslator
 from .embeddings import EmbeddingsRequestTranslator, EmbeddingsResponseTranslator

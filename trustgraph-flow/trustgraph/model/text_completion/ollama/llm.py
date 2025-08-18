@@ -6,6 +6,10 @@ Input is prompt, output is response.
 
 from ollama import Client
 import os
+import logging
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 from .... exceptions import TooManyRequests
 from .... base import LlmService, LlmResult
@@ -41,8 +45,8 @@ class Processor(LlmService):
             response = self.llm.generate(self.model, prompt)
 
             response_text = response['response']
-            print("Send response...", flush=True)
-            print(response_text, flush=True)
+            logger.debug("Sending response...")
+            logger.debug(f"LLM response: {response_text}")
 
             inputtokens = int(response['prompt_eval_count'])
             outputtokens = int(response['eval_count'])
@@ -60,7 +64,7 @@ class Processor(LlmService):
 
         except Exception as e:
 
-            print(f"Exception: {e}")
+            logger.error(f"Ollama LLM exception ({type(e).__name__}): {e}", exc_info=True)
             raise e
 
     @staticmethod

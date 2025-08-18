@@ -4,11 +4,15 @@ Simple RAG service, performs query using document RAG an LLM.
 Input is query, output is response.
 """
 
+import logging
 from ... schema import DocumentRagQuery, DocumentRagResponse, Error
 from . document_rag import DocumentRag
 from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
 from ... base import PromptClientSpec, EmbeddingsClientSpec
 from ... base import DocumentEmbeddingsClientSpec
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "document-rag"
 
@@ -81,7 +85,7 @@ class Processor(FlowProcessor):
             # Sender-produced ID
             id = msg.properties()["id"]
 
-            print(f"Handling input {id}...", flush=True)
+            logger.info(f"Handling input {id}...")
 
             if v.doc_limit:
                 doc_limit = v.doc_limit
@@ -98,13 +102,13 @@ class Processor(FlowProcessor):
                 properties = {"id": id}
             )
 
-            print("Done.", flush=True)
+            logger.info("Request processing complete")
 
         except Exception as e:
 
-            print(f"Exception: {e}")
+            logger.error(f"Document RAG service exception: {e}", exc_info=True)
 
-            print("Send error response...", flush=True)
+            logger.debug("Sending error response...")
 
             await flow("response").send(
                 DocumentRagResponse(

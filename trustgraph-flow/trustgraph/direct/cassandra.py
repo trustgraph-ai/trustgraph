@@ -3,6 +3,9 @@ from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
 from ssl import SSLContext, PROTOCOL_TLSv1_2
 
+# Global list to track clusters for cleanup
+_active_clusters = []
+
 class TrustGraph:
 
     def __init__(
@@ -24,6 +27,9 @@ class TrustGraph:
         else:
             self.cluster = Cluster(hosts)
         self.session = self.cluster.connect()
+        
+        # Track this cluster globally
+        _active_clusters.append(self.cluster)
 
         self.init()
 
@@ -119,3 +125,13 @@ class TrustGraph:
             f"""select s as x from {self.table} where s = %s and p = %s and o = %s limit {limit}""",
             (s, p, o)
         )
+
+    def close(self):
+        """Close the Cassandra session and cluster connections properly"""
+        if hasattr(self, 'session') and self.session:
+            self.session.shutdown()
+        if hasattr(self, 'cluster') and self.cluster:
+            self.cluster.shutdown()
+            # Remove from global tracking
+            if self.cluster in _active_clusters:
+                _active_clusters.remove(self.cluster)

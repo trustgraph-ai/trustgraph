@@ -1,6 +1,9 @@
 
 from pymilvus import MilvusClient, CollectionSchema, FieldSchema, DataType
 import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 class ObjectVectors:
 
@@ -21,7 +24,7 @@ class ObjectVectors:
 
         # Next time to reload - this forces a reload at next window
         self.next_reload = time.time() + self.reload_time
-        print("Reload at", self.next_reload)
+        logger.debug(f"Reload at {self.next_reload}")
 
     def init_collection(self, dimension, name):
 
@@ -126,12 +129,12 @@ class ObjectVectors:
             }
         }
 
-        print("Loading...")
+        logger.debug("Loading...")
         self.client.load_collection(
             collection_name=coll,
         )
 
-        print("Searching...")
+        logger.debug("Searching...")
 
         res = self.client.search(
             collection_name=coll,
@@ -144,7 +147,7 @@ class ObjectVectors:
 
         # If reload time has passed, unload collection
         if time.time() > self.next_reload:
-            print("Unloading, reload at", self.next_reload)
+            logger.debug(f"Unloading, reload at {self.next_reload}")
             self.client.release_collection(
                 collection_name=coll,
             )

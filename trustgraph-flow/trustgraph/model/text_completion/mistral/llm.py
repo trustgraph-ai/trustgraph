@@ -6,6 +6,10 @@ Input is prompt, output is response.
 
 from mistralai import Mistral
 import os
+import logging
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 from .... exceptions import TooManyRequests
 from .... base import LlmService, LlmResult
@@ -42,7 +46,7 @@ class Processor(LlmService):
         self.max_output = max_output
         self.mistral = Mistral(api_key=api_key)
 
-        print("Initialised", flush=True)
+        logger.info("Mistral LLM service initialized")
 
     async def generate_content(self, system, prompt):
 
@@ -75,9 +79,9 @@ class Processor(LlmService):
             
             inputtokens = resp.usage.prompt_tokens
             outputtokens = resp.usage.completion_tokens
-            print(resp.choices[0].message.content, flush=True)
-            print(f"Input Tokens: {inputtokens}", flush=True)
-            print(f"Output Tokens: {outputtokens}", flush=True)
+            logger.debug(f"LLM response: {resp.choices[0].message.content}")
+            logger.info(f"Input Tokens: {inputtokens}")
+            logger.info(f"Output Tokens: {outputtokens}")
 
             resp = LlmResult(
                 text = resp.choices[0].message.content,
@@ -105,7 +109,7 @@ class Processor(LlmService):
 
             # Apart from rate limits, treat all exceptions as unrecoverable
 
-            print(f"Exception: {e}")
+            logger.error(f"Mistral LLM exception ({type(e).__name__}): {e}", exc_info=True)
             raise e
 
     @staticmethod

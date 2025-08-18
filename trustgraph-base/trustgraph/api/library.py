@@ -2,10 +2,13 @@
 import datetime
 import time
 import base64
+import logging
 
 from . types import DocumentMetadata, ProcessingMetadata, Triple
 from .. knowledge import hash, Uri, Literal
 from . exceptions import *
+
+logger = logging.getLogger(__name__)
 
 def to_value(x):
     if x["e"]: return Uri(x["v"])
@@ -112,7 +115,7 @@ class Library:
                 for v in object["document-metadatas"]
             ]
         except Exception as e:
-            print(e)
+            logger.error("Failed to parse document list response", exc_info=True)
             raise ProtocolException(f"Response not formatted correctly")
 
     def get_document(self, user, id):
@@ -145,7 +148,7 @@ class Library:
                 tags = doc["tags"]
             )
         except Exception as e:
-            print(e)
+            logger.error("Failed to parse document response", exc_info=True)
             raise ProtocolException(f"Response not formatted correctly")
 
     def update_document(self, user, id, metadata):
@@ -192,7 +195,7 @@ class Library:
                 tags = doc["tags"]
             )
         except Exception as e:
-            print(e)
+            logger.error("Failed to parse document update response", exc_info=True)
             raise ProtocolException(f"Response not formatted correctly")
 
     def remove_document(self, user, id):
@@ -266,6 +269,6 @@ class Library:
                 for v in object["processing-metadatas"]
             ]
         except Exception as e:
-            print(e)
+            logger.error("Failed to parse processing list response", exc_info=True)
             raise ProtocolException(f"Response not formatted correctly")
 

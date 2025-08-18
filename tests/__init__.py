@@ -1,0 +1,3 @@
+"""
+TrustGraph test suite
+"""

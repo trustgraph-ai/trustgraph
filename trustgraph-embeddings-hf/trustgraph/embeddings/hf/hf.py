@@ -4,9 +4,13 @@ Embeddings service, applies an embeddings model selected from HuggingFace.
 Input is text, output is embeddings vector.
 """
 
+import logging
 from ... base import EmbeddingsService
 
 from langchain_huggingface import HuggingFaceEmbeddings
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "embeddings"
 
@@ -22,13 +26,13 @@ class Processor(EmbeddingsService):
             **params | { "model": model }
         )
 
-        print("Get model...", flush=True)
+        logger.info(f"Loading HuggingFace embeddings model: {model}")
         self.embeddings = HuggingFaceEmbeddings(model_name=model)
 
     async def on_embeddings(self, text):
 
         embeds = self.embeddings.embed_documents([text])
-        print("Done.", flush=True)
+        logger.debug("Embeddings generation complete")
         return embeds
 
     @staticmethod

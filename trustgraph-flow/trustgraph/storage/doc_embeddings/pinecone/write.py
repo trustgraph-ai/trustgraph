@@ -1,42 +1,36 @@
 
 """
-Accepts entity/vector pairs and writes them to a Qdrant store.
+Accepts document chunks/vector pairs and writes them to a Pinecone store.
 """
 
-from qdrant_client import QdrantClient
-from qdrant_client.models import PointStruct
-from qdrant_client.models import Distance, VectorParams
+from pinecone import Pinecone, ServerlessSpec
+from pinecone.grpc import PineconeGRPC, GRPCClientConfig
 
 import time
 import uuid
 import os
+import logging
 
-from .... schema import DocumentEmbeddings
-from .... schema import document_embeddings_store_queue
-from .... log_level import LogLevel
-from .... base import Consumer
+from .... base import DocumentEmbeddingsStoreService
 
-module = "de-write"
+# Module logger
+logger = logging.getLogger(__name__)
 
-default_input_queue = document_embeddings_store_queue
-default_subscriber = module
+default_ident = "de-write"
 default_api_key = os.getenv("PINECONE_API_KEY", "not-specified")
 default_cloud = "aws"
 default_region = "us-east-1"
 
-class Processor(Consumer):
+class Processor(DocumentEmbeddingsStoreService):
 
     def __init__(self, **params):
-
-        input_queue = params.get("input_queue", default_input_queue)
-        subscriber = params.get("subscriber", default_subscriber)
 
         self.url = params.get("url", None)
         self.cloud = params.get("cloud", default_cloud)
         self.region = params.get("region", default_region)
         self.api_key = params.get("api_key", default_api_key)
 
-        if self.api_key is None:
+        if self.api_key is None or self.api_key == "not-specified":
             raise RuntimeError("Pinecone API key must be specified")
 
         if self.url:
@@ -52,94 +46,96 @@ class Processor(Consumer):
 
         super(Processor, self).__init__(
             **params | {
-                "input_queue": input_queue,
-                "subscriber": subscriber,
-                "input_schema": DocumentEmbeddings,
                 "url": self.url,
+                "cloud": self.cloud,
+                "region": self.region,
+                "api_key": self.api_key,
             }
         )
 
         self.last_index_name = None
 
-    async def handle(self, msg):
+    def create_index(self, index_name, dim):
 
-        v = msg.value()
+        self.pinecone.create_index(
+            name = index_name,
+            dimension = dim,
+            metric = "cosine",
+            spec = ServerlessSpec(
+                cloud = self.cloud,
+                region = self.region,
+            )
+        )
 
-        for emb in v.chunks:
+        for i in range(0, 1000):
 
+            if self.pinecone.describe_index(
+                    index_name
+            ).status["ready"]:
+                break
+
+            time.sleep(1)
+
+        if not self.pinecone.describe_index(
+                index_name
+        ).status["ready"]:
+            raise RuntimeError(
+                "Gave up waiting for index creation"
+            )
+
+    async def store_document_embeddings(self, message):
+
+        for emb in message.chunks:
+
+            if emb.chunk is None or emb.chunk == b"": continue
+            
             chunk = emb.chunk.decode("utf-8")
-            if chunk == "" or chunk is None: continue
+            if chunk == "": continue
 
             for vec in emb.vectors:
 
-                for vec in v.vectors:
+                dim = len(vec)
+                index_name = (
+                    "d-" + message.metadata.user + "-" + message.metadata.collection + "-" + str(dim)
+                )
 
-                    dim = len(vec)
-                    collection = (
-                        "d-" + v.metadata.user + "-" + str(dim)
-                    )
+                if index_name != self.last_index_name:
 
-                    if index_name != self.last_index_name:
+                    if not self.pinecone.has_index(index_name):
 
-                        if not self.pinecone.has_index(index_name):
+                        try:
 
-                            try:
+                            self.create_index(index_name, dim)
 
-                                self.pinecone.create_index(
-                                    name = index_name,
-                                    dimension = dim,
-                                    metric = "cosine",
-                                    spec = ServerlessSpec(
-                                        cloud = self.cloud,
-                                        region = self.region,
-                                    )
-                                )
+                        except Exception as e:
+                            logger.error("Pinecone index creation failed")
+                            raise e
 
-                                for i in range(0, 1000):
+                        logger.info(f"Index {index_name} created")
 
-                                    if self.pinecone.describe_index(
-                                            index_name
-                                    ).status["ready"]:
-                                        break
+                    self.last_index_name = index_name
 
-                                    time.sleep(1)
+                index = self.pinecone.Index(index_name)
 
-                                if not self.pinecone.describe_index(
-                                        index_name
-                                ).status["ready"]:
-                                    raise RuntimeError(
-                                        "Gave up waiting for index creation"
-                                    )
+                # Generate unique ID for each vector
+                vector_id = str(uuid.uuid4())
 
-                            except Exception as e:
-                                print("Pinecone index creation failed")
-                                raise e
+                records = [
+                    {
+                        "id": vector_id,
+                        "values": vec,
+                        "metadata": { "doc": chunk },
+                    }
+                ]
 
-                            print(f"Index {index_name} created", flush=True)
-
-                        self.last_index_name = index_name
-
-                    index = self.pinecone.Index(index_name)
-
-                    records = [
-                        {
-                            "id": id,
-                            "values": vec,
-                            "metadata": { "doc": chunk },
-                        }
-                    ]
-
-                    index.upsert(
-                        vectors = records,
-                        namespace = v.metadata.collection,
-                    )
+                index.upsert(
+                    vectors = records,
+                )
 
     @staticmethod
     def add_args(parser):
 
-        Consumer.add_args(
-            parser, default_input_queue, default_subscriber,
-        )
+        DocumentEmbeddingsStoreService.add_args(parser)
 
         parser.add_argument(
             '-a', '--api-key',
@@ -166,5 +162,5 @@ class Processor(Consumer):
 
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 

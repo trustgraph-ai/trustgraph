@@ -210,6 +210,51 @@ Request schema:
 Response schema:
 `trustgraph.schema.FlowResponse`
 
+## Flow Service Methods
+
+Flow instances provide access to various TrustGraph services through flow-specific endpoints:
+
+### MCP Tool Service - Invoke MCP Tools
+
+The `mcp_tool` method allows invoking MCP (Model Control Protocol) tools within a flow context.
+
+Request:
+```json
+{
+    "name": "file-reader",
+    "parameters": {
+        "path": "/path/to/file.txt"
+    }
+}
+```
+
+Response:
+```json
+{
+    "object": {"content": "file contents here", "size": 1024}
+}
+```
+
+Or for text responses:
+```json
+{
+    "text": "plain text response"
+}
+```
+
+### Other Service Methods
+
+Flow instances also provide access to:
+- `text_completion` - LLM text completion
+- `agent` - Agent question answering
+- `graph_rag` - Graph-based RAG queries
+- `document_rag` - Document-based RAG queries
+- `embeddings` - Text embeddings
+- `prompt` - Prompt template processing
+- `triples_query` - Knowledge graph queries
+- `load_document` - Document loading
+- `load_text` - Text loading
+
 ## Python SDK
 
 The Python SDK provides convenient access to the Flow API:
@@ -233,6 +278,10 @@ flows = await client.list_flows()
 
 # Stop a flow instance
 await client.stop_flow("flow-123")
+
+# Use flow instance services
+flow = client.id("flow-123")
+result = await flow.mcp_tool("file-reader", {"path": "/path/to/file.txt"})
 ```
 
 ## Features

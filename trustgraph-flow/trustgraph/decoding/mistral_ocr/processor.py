@@ -15,13 +15,13 @@ from mistralai import DocumentURLChunk, ImageURLChunk, TextChunk
 from mistralai.models import OCRResponse
 
 from ... schema import Document, TextDocument, Metadata
-from ... schema import document_ingest_queue, text_ingest_queue
-from ... log_level import LogLevel
-from ... base import InputOutputProcessor
+from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
 
-module = "ocr"
+import logging
 
-default_subscriber = module
+logger = logging.getLogger(__name__)
+
+default_ident = "pdf-decoder"
 default_api_key = os.getenv("MISTRAL_TOKEN")
 
 pages_per_chunk = 5
@@ -69,21 +69,32 @@ def get_combined_markdown(ocr_response: OCRResponse) -> str:
 
     return "\n\n".join(markdowns)
 
-class Processor(InputOutputProcessor):
+class Processor(FlowProcessor):
 
     def __init__(self, **params):
 
-        id = params.get("id")
-        subscriber = params.get("subscriber", default_subscriber)
+        id = params.get("id", default_ident)
         api_key = params.get("api_key", default_api_key)
 
         super(Processor, self).__init__(
             **params | {
                 "id": id,
-                "subscriber": subscriber,
-                "input_schema": Document,
-                "output_schema": TextDocument,
             }
+        )
+
+        self.register_specification(
+            ConsumerSpec(
+                name = "input",
+                schema = Document,
+                handler = self.on_message,
+            )
+        )
+
+        self.register_specification(
+            ProducerSpec(
+                name = "output",
+                schema = TextDocument,
+            )
         )
 
         if api_key is None:
@@ -94,18 +105,18 @@ class Processor(InputOutputProcessor):
         # Used with Mistral doc upload
         self.unique_id = str(uuid.uuid4())
 
-        print("PDF inited")
+        logger.info("Mistral OCR processor initialized")
 
     def ocr(self, blob):
 
-        print("Parse PDF...", flush=True)
+        logger.debug("Parse PDF...")
 
         pdfbuf = BytesIO(blob)
         pdf = PdfReader(pdfbuf)
 
         for chunk in chunks(pdf.pages, pages_per_chunk):
             
-            print("Get next pages...", flush=True)
+            logger.debug("Get next pages...")
 
             part = PdfWriter()
             for page in chunk:
@@ -114,7 +125,7 @@ class Processor(InputOutputProcessor):
             buf = BytesIO()
             part.write_stream(buf)
 
-            print("Upload chunk...", flush=True)
+            logger.debug("Upload chunk...")
 
             uploaded_file = self.mistral.files.upload(
                 file={
@@ -128,7 +139,7 @@ class Processor(InputOutputProcessor):
                 file_id=uploaded_file.id, expiry=1
             )
 
-            print("OCR...", flush=True)
+            logger.debug("OCR...")
 
             processed = self.mistral.ocr.process(
                 model="mistral-ocr-latest",
@@ -139,21 +150,21 @@ class Processor(InputOutputProcessor):
                 }
             )
 
-            print("Extract markdown...", flush=True)
+            logger.debug("Extract markdown...")
 
             markdown = get_combined_markdown(processed)
 
-            print("OCR complete.", flush=True)
+            logger.info("OCR complete.")
 
             return markdown
 
-    async def on_message(self, msg, consumer):
+    async def on_message(self, msg, consumer, flow):
 
-        print("PDF message received")
+        logger.debug("PDF message received")
 
         v = msg.value()
 
-        print(f"Decoding {v.metadata.id}...", flush=True)
+        logger.info(f"Decoding {v.metadata.id}...")
 
         markdown = self.ocr(base64.b64decode(v.data))
 
@@ -162,14 +173,14 @@ class Processor(InputOutputProcessor):
             text=markdown.encode("utf-8"),
         )
 
-        await consumer.q.output.send(r)
+        await flow("output").send(r)
 
-        print("Done.", flush=True)
+        logger.info("Done.")
 
     @staticmethod
     def add_args(parser):
 
-        InputOutputProcessor.add_args(parser, default_subscriber)
+        FlowProcessor.add_args(parser)
 
         parser.add_argument(
             '-k', '--api-key',
@@ -179,5 +190,5 @@ class Processor(InputOutputProcessor):
 
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 

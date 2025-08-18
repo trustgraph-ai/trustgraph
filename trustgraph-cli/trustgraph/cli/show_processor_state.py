@@ -1,0 +1,53 @@
+"""
+Dump out TrustGraph processor states.
+"""
+
+import requests
+import argparse
+
+default_metrics_url = "http://localhost:8088/api/metrics"
+
+def dump_status(url):
+
+    url = f"{url}/query?query=processor_info"
+
+    resp = requests.get(url)
+
+    obj = resp.json()
+
+    tbl = [
+        [
+            m["metric"]["job"],
+            "\U0001f49a"
+        ]
+        for m in obj["data"]["result"]
+    ]
+
+    for row in tbl:
+        print(f"  {row[0]:30} {row[1]}")
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        prog='tg-show-processor-state',
+        description=__doc__,
+    )
+
+    parser.add_argument(
+        '-m', '--metrics-url',
+        default=default_metrics_url,
+        help=f'Metrics URL (default: {default_metrics_url})',
+    )
+
+    args = parser.parse_args()
+
+    try:
+
+        dump_status(args.metrics_url)
+
+    except Exception as e:
+
+        print("Exception:", e, flush=True)
+
+if __name__ == "__main__":
+    main()

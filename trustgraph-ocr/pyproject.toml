@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trustgraph-ocr"
+dynamic = ["version"]
+authors = [{name = "trustgraph.ai", email = "security@trustgraph.ai"}]
+description = "TrustGraph provides a means to run a pipeline of flexible AI processing components in a flexible means to achieve a processing pipeline."
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "trustgraph-base>=1.2,<1.3",
+    "pulsar-client",
+    "prometheus-client",
+    "boto3",
+    "pdf2image",
+    "pytesseract",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/trustgraph-ai/trustgraph"
+
+[project.scripts]
+pdf-ocr = "trustgraph.decoding.ocr:run"
+
+[tool.setuptools.packages.find]
+include = ["trustgraph*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "trustgraph.ocr_version.__version__"}

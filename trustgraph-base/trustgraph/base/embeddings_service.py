@@ -4,11 +4,15 @@ Embeddings resolution base class
 """
 
 import time
+import logging
 from prometheus_client import Histogram
 
 from .. schema import EmbeddingsRequest, EmbeddingsResponse, Error
 from .. exceptions import TooManyRequests
 from .. base import FlowProcessor, ConsumerSpec, ProducerSpec
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "embeddings"
 default_concurrency = 1
@@ -51,7 +55,7 @@ class EmbeddingsService(FlowProcessor):
 
             id = msg.properties()["id"]
 
-            print("Handling request", id, "...", flush=True)
+            logger.debug(f"Handling embeddings request {id}...")
 
             vectors = await self.on_embeddings(request.text)
 
@@ -63,7 +67,7 @@ class EmbeddingsService(FlowProcessor):
                 properties={"id": id}
             )
 
-            print("Handled.", flush=True)
+            logger.debug("Embeddings request handled successfully")
 
         except TooManyRequests as e:
             raise e
@@ -72,9 +76,9 @@ class EmbeddingsService(FlowProcessor):
 
             # Apart from rate limits, treat all exceptions as unrecoverable
 
-            print(f"Exception: {e}", flush=True)
+            logger.error(f"Exception in embeddings service: {e}", exc_info=True)
 
-            print("Send error response...", flush=True)
+            logger.info("Sending error response...")
 
             await flow.producer["response"].send(
                 EmbeddingsResponse(

@@ -5,41 +5,33 @@ Input is a (s, p, o) triple, some values may be null.  Output is a list of
 triples.
 """
 
+import logging
+
 from falkordb import FalkorDB
 
 from .... schema import TriplesQueryRequest, TriplesQueryResponse, Error
 from .... schema import Value, Triple
-from .... schema import triples_request_queue
-from .... schema import triples_response_queue
-from .... base import ConsumerProducer
+from .... base import TriplesQueryService
 
-module = "triples-query"
+# Module logger
+logger = logging.getLogger(__name__)
 
-default_input_queue = triples_request_queue
-default_output_queue = triples_response_queue
-default_subscriber = module
+default_ident = "triples-query"
 
 default_graph_url = 'falkor://falkordb:6379'
 default_database = 'falkordb'
 
-class Processor(ConsumerProducer):
+class Processor(TriplesQueryService):
 
     def __init__(self, **params):
 
-        input_queue = params.get("input_queue", default_input_queue)
-        output_queue = params.get("output_queue", default_output_queue)
-        subscriber = params.get("subscriber", default_subscriber)
-        graph_url = params.get("graph_host", default_graph_url)
+        graph_url = params.get("graph_url", default_graph_url)
         database = params.get("database", default_database)
 
         super(Processor, self).__init__(
             **params | {
-                "input_queue": input_queue,
-                "output_queue": output_queue,
-                "subscriber": subscriber,
-                "input_schema": TriplesQueryRequest,
-                "output_schema": TriplesQueryResponse,
                 "graph_url": graph_url,
+                "database": database,
             }
         )
 
@@ -54,50 +46,45 @@ class Processor(ConsumerProducer):
         else:
             return Value(value=ent, is_uri=False)
 
-    async def handle(self, msg):
+    async def query_triples(self, query):
 
         try:
 
-            v = msg.value()
-
-            # Sender-produced ID
-            id = msg.properties()["id"]
-
-            print(f"Handling input {id}...", flush=True)
-
             triples = []
 
-            if v.s is not None:
-                if v.p is not None:
-                    if v.o is not None:
+            if query.s is not None:
+                if query.p is not None:
+                    if query.o is not None:
 
                         # SPO
 
                         records = self.io.query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Literal {value: $value}) "
-                            "RETURN $src as src",
+                            "RETURN $src as src "
+                            "LIMIT " + str(query.limit),
                             params={
-                                "src": v.s.value,
-                                "rel": v.p.value,
-                                "value": v.o.value,
+                                "src": query.s.value,
+                                "rel": query.p.value,
+                                "value": query.o.value,
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((v.s.value, v.p.value, v.o.value))
+                            triples.append((query.s.value, query.p.value, query.o.value))
 
                         records = self.io.query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Node {uri: $uri}) "
-                            "RETURN $src as src",
+                            "RETURN $src as src "
+                            "LIMIT " + str(query.limit),
                             params={
-                                "src": v.s.value,
-                                "rel": v.p.value,
-                                "uri": v.o.value,
+                                "src": query.s.value,
+                                "rel": query.p.value,
+                                "uri": query.o.value,
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((v.s.value, v.p.value, v.o.value))
+                            triples.append((query.s.value, query.p.value, query.o.value))
 
                     else:
 
@@ -105,116 +92,124 @@ class Processor(ConsumerProducer):
 
                         records = self.io.query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Literal) "
-                            "RETURN dest.value as dest",
+                            "RETURN dest.value as dest "
+                            "LIMIT " + str(query.limit),
                             params={
-                                "src": v.s.value,
-                                "rel": v.p.value,
+                                "src": query.s.value,
+                                "rel": query.p.value,
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((v.s.value, v.p.value, rec[0]))
+                            triples.append((query.s.value, query.p.value, rec[0]))
 
                         records = self.io.query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Node) "
-                            "RETURN dest.uri as dest",
+                            "RETURN dest.uri as dest "
+                            "LIMIT " + str(query.limit),
                             params={
-                                "src": v.s.value,
-                                "rel": v.p.value,
+                                "src": query.s.value,
+                                "rel": query.p.value,
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((v.s.value, v.p.value, rec[0]))
+                            triples.append((query.s.value, query.p.value, rec[0]))
 
                 else:
 
-                    if v.o is not None:
+                    if query.o is not None:
 
                         # SO
 
                         records = self.io.query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Literal {value: $value}) "
-                            "RETURN rel.uri as rel",
+                            "RETURN rel.uri as rel "
+                            "LIMIT " + str(query.limit),
                             params={
-                                "src": v.s.value,
-                                "value": v.o.value,
+                                "src": query.s.value,
+                                "value": query.o.value,
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((v.s.value, rec[0], v.o.value))
+                            triples.append((query.s.value, rec[0], query.o.value))
 
                         records = self.io.query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Node {uri: $uri}) "
-                            "RETURN rel.uri as rel",
+                            "RETURN rel.uri as rel "
+                            "LIMIT " + str(query.limit),
                             params={
-                                "src": v.s.value,
-                                "uri": v.o.value,
+                                "src": query.s.value,
+                                "uri": query.o.value,
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((v.s.value, rec[0], v.o.value))
+                            triples.append((query.s.value, rec[0], query.o.value))
 
                     else:
 
                         # s
 
                         records = self.io.query(
-                            "match (src:node {uri: $src})-[rel:rel]->(dest:literal) "
-                            "return rel.uri as rel, dest.value as dest",
+                            "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Literal) "
+                            "RETURN rel.uri as rel, dest.value as dest "
+                            "LIMIT " + str(query.limit),
                             params={
-                                "src": v.s.value,
+                                "src": query.s.value,
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((v.s.value, rec[0], rec[1]))
+                            triples.append((query.s.value, rec[0], rec[1]))
 
                         records = self.io.query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Node) "
-                            "RETURN rel.uri as rel, dest.uri as dest",
+                            "RETURN rel.uri as rel, dest.uri as dest "
+                            "LIMIT " + str(query.limit),
                             params={
-                                "src": v.s.value,
+                                "src": query.s.value,
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((v.s.value, rec[0], rec[1]))
+                            triples.append((query.s.value, rec[0], rec[1]))
 
 
             else:
 
-                if v.p is not None:
+                if query.p is not None:
 
-                    if v.o is not None:
+                    if query.o is not None:
 
                         # PO
 
                         records = self.io.query(
                             "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Literal {value: $value}) "
-                            "RETURN src.uri as src",
+                            "RETURN src.uri as src "
+                            "LIMIT " + str(query.limit),
                             params={
-                                "uri": v.p.value,
-                                "value": v.o.value,
+                                "uri": query.p.value,
+                                "value": query.o.value,
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((rec[0], v.p.value, v.o.value))
+                            triples.append((rec[0], query.p.value, query.o.value))
 
                         records = self.io.query(
-                            "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Node {uri: $uri}) "
-                            "RETURN src.uri as src",
+                            "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Node {uri: $dest}) "
+                            "RETURN src.uri as src "
+                            "LIMIT " + str(query.limit),
                             params={
-                                "uri": v.p.value,
-                                "dest": v.o.value,
+                                "uri": query.p.value,
+                                "dest": query.o.value,
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((rec[0], v.p.value, v.o.value))
+                            triples.append((rec[0], query.p.value, query.o.value))
 
                     else:
 
@@ -222,53 +217,57 @@ class Processor(ConsumerProducer):
 
                         records = self.io.query(
                             "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Literal) "
-                            "RETURN src.uri as src, dest.value as dest",
+                            "RETURN src.uri as src, dest.value as dest "
+                            "LIMIT " + str(query.limit),
                             params={
-                                "uri": v.p.value,
+                                "uri": query.p.value,
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((rec[0], v.p.value, rec[1]))
+                            triples.append((rec[0], query.p.value, rec[1]))
 
                         records = self.io.query(
                             "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Node) "
-                            "RETURN src.uri as src, dest.uri as dest",
+                            "RETURN src.uri as src, dest.uri as dest "
+                            "LIMIT " + str(query.limit),
                             params={
-                                "uri": v.p.value,
+                                "uri": query.p.value,
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((rec[0], v.p.value, rec[1]))
+                            triples.append((rec[0], query.p.value, rec[1]))
 
                 else:
 
-                    if v.o is not None:
+                    if query.o is not None:
 
                         # O
 
                         records = self.io.query(
                             "MATCH (src:Node)-[rel:Rel]->(dest:Literal {value: $value}) "
-                            "RETURN src.uri as src, rel.uri as rel",
+                            "RETURN src.uri as src, rel.uri as rel "
+                            "LIMIT " + str(query.limit),
                             params={
-                                "value": v.o.value,
+                                "value": query.o.value,
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((rec[0], rec[1], v.o.value))
+                            triples.append((rec[0], rec[1], query.o.value))
 
                         records = self.io.query(
                             "MATCH (src:Node)-[rel:Rel]->(dest:Node {uri: $uri}) "
-                            "RETURN src.uri as src, rel.uri as rel",
+                            "RETURN src.uri as src, rel.uri as rel "
+                            "LIMIT " + str(query.limit),
                             params={
-                                "uri": v.o.value,
+                                "uri": query.o.value,
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((rec[0], rec[1], v.o.value))
+                            triples.append((rec[0], rec[1], query.o.value))
 
                     else:
 
@@ -276,7 +275,8 @@ class Processor(ConsumerProducer):
 
                         records = self.io.query(
                             "MATCH (src:Node)-[rel:Rel]->(dest:Literal) "
-                            "RETURN src.uri as src, rel.uri as rel, dest.value as dest",
+                            "RETURN src.uri as src, rel.uri as rel, dest.value as dest "
+                            "LIMIT " + str(query.limit),
                         ).result_set
 
                         for rec in records:
@@ -284,7 +284,8 @@ class Processor(ConsumerProducer):
 
                         records = self.io.query(
                             "MATCH (src:Node)-[rel:Rel]->(dest:Node) "
-                            "RETURN src.uri as src, rel.uri as rel, dest.uri as dest",
+                            "RETURN src.uri as src, rel.uri as rel, dest.uri as dest "
+                            "LIMIT " + str(query.limit),
                         ).result_set
 
                         for rec in records:
@@ -296,40 +297,20 @@ class Processor(ConsumerProducer):
                     p=self.create_value(t[1]), 
                     o=self.create_value(t[2])
                 )
-                for t in triples
+                for t in triples[:query.limit]
             ]
 
-            print("Send response...", flush=True)
-            r = TriplesQueryResponse(triples=triples, error=None)
-            await self.send(r, properties={"id": id})
-
-            print("Done.", flush=True)
+            return triples
 
         except Exception as e:
 
-            print(f"Exception: {e}")
-
-            print("Send error response...", flush=True)
-
-            r = TriplesQueryResponse(
-                error=Error(
-                    type = "llm-error",
-                    message = str(e),
-                ),
-                response=None,
-            )
-
-            await self.send(r, properties={"id": id})
-
-            self.consumer.acknowledge(msg)
+            logger.error(f"Exception querying triples: {e}", exc_info=True)
+            raise e
             
     @staticmethod
     def add_args(parser):
 
-        ConsumerProducer.add_args(
-            parser, default_input_queue, default_subscriber,
-            default_output_queue,
-        )
+        TriplesQueryService.add_args(parser)
 
         parser.add_argument(
             '-g', '--graph-url',
@@ -345,5 +326,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 

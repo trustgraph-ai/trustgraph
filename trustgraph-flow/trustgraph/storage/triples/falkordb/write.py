@@ -8,37 +8,31 @@ import base64
 import os
 import argparse
 import time
+import logging
 
 from falkordb import FalkorDB
 
-from .... schema import Triples
-from .... schema import triples_store_queue
-from .... log_level import LogLevel
-from .... base import Consumer
+from .... base import TriplesStoreService
 
-module = "triples-write"
+# Module logger
+logger = logging.getLogger(__name__)
 
-default_input_queue = triples_store_queue
-default_subscriber = module
+default_ident = "triples-write"
 
 default_graph_url = 'falkor://falkordb:6379'
 default_database = 'falkordb'
 
-class Processor(Consumer):
+class Processor(TriplesStoreService):
 
     def __init__(self, **params):
         
-        input_queue = params.get("input_queue", default_input_queue)
-        subscriber = params.get("subscriber", default_subscriber)
-        graph_url = params.get("graph_host", default_graph_url)
+        graph_url = params.get("graph_url", default_graph_url)
         database = params.get("database", default_database)
 
         super(Processor, self).__init__(
             **params | {
-                "input_queue": input_queue,
-                "subscriber": subscriber,
-                "input_schema": Triples,
                 "graph_url": graph_url,
+                "database": database,
             }
         )
 
@@ -48,7 +42,7 @@ class Processor(Consumer):
 
     def create_node(self, uri):
 
-        print("Create node", uri)
+        logger.debug(f"Create node {uri}")
 
         res = self.io.query(
             "MERGE (n:Node {uri: $uri})",
@@ -57,14 +51,14 @@ class Processor(Consumer):
             },
         )
 
-        print("Created {nodes_created} nodes in {time} ms.".format(
+        logger.debug("Created {nodes_created} nodes in {time} ms.".format(
             nodes_created=res.nodes_created,
             time=res.run_time_ms
         ))
 
     def create_literal(self, value):
 
-        print("Create literal", value)
+        logger.debug(f"Create literal {value}")
 
         res = self.io.query(
             "MERGE (n:Literal {value: $value})",
@@ -73,14 +67,14 @@ class Processor(Consumer):
             },
         )
 
-        print("Created {nodes_created} nodes in {time} ms.".format(
+        logger.debug("Created {nodes_created} nodes in {time} ms.".format(
             nodes_created=res.nodes_created,
             time=res.run_time_ms
         ))
 
     def relate_node(self, src, uri, dest):
 
-        print("Create node rel", src, uri, dest)
+        logger.debug(f"Create node rel {src} {uri} {dest}")
 
         res = self.io.query(
             "MATCH (src:Node {uri: $src}) "
@@ -93,14 +87,14 @@ class Processor(Consumer):
             },
         )
 
-        print("Created {nodes_created} nodes in {time} ms.".format(
+        logger.debug("Created {nodes_created} nodes in {time} ms.".format(
             nodes_created=res.nodes_created,
             time=res.run_time_ms
         ))
 
     def relate_literal(self, src, uri, dest):
 
-        print("Create literal rel", src, uri, dest)
+        logger.debug(f"Create literal rel {src} {uri} {dest}")
 
         res = self.io.query(
             "MATCH (src:Node {uri: $src}) "
@@ -113,16 +107,14 @@ class Processor(Consumer):
             },
         )
 
-        print("Created {nodes_created} nodes in {time} ms.".format(
+        logger.debug("Created {nodes_created} nodes in {time} ms.".format(
             nodes_created=res.nodes_created,
             time=res.run_time_ms
         ))
 
-    async def handle(self, msg):
+    async def store_triples(self, message):
 
-        v = msg.value()
-
-        for t in v.triples:
+        for t in message.triples:
 
             self.create_node(t.s.value)
 
@@ -136,14 +128,12 @@ class Processor(Consumer):
     @staticmethod
     def add_args(parser):
 
-        Consumer.add_args(
-            parser, default_input_queue, default_subscriber,
-        )
+        TriplesStoreService.add_args(parser)
 
         parser.add_argument(
-            '-g', '--graph_host',
+            '-g', '--graph-url',
             default=default_graph_url,
-            help=f'Graph host (default: {default_graph_url})'
+            help=f'Graph URL (default: {default_graph_url})'
         )
 
         parser.add_argument(
@@ -154,5 +144,5 @@ class Processor(Consumer):
 
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 

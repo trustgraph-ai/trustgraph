@@ -19,6 +19,7 @@ Google Cloud.   Input is prompt, output is response.
 from google.oauth2 import service_account
 import google
 import vertexai
+import logging
 
 # Why is preview here?
 from vertexai.generative_models import (
@@ -28,6 +29,9 @@ from vertexai.generative_models import (
 
 from .... exceptions import TooManyRequests
 from .... base import LlmService, LlmResult
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 default_ident = "text-completion"
 
@@ -91,7 +95,7 @@ class Processor(LlmService):
             ),
         ]
 
-        print("Initialise VertexAI...", flush=True)
+        logger.info("Initializing VertexAI...")
 
         if private_key:
             credentials = (
@@ -113,11 +117,11 @@ class Processor(LlmService):
                 location=region
             )
 
-        print(f"Initialise model {model}", flush=True)
+        logger.info(f"Initializing model {model}")
         self.llm = GenerativeModel(model)
         self.model = model
 
-        print("Initialisation complete", flush=True)
+        logger.info("VertexAI initialization complete")
 
     async def generate_content(self, system, prompt):
 
@@ -137,16 +141,16 @@ class Processor(LlmService):
                 model = self.model
             )
 
-            print(f"Input Tokens: {resp.in_token}", flush=True)
-            print(f"Output Tokens: {resp.out_token}", flush=True)
+            logger.info(f"Input Tokens: {resp.in_token}")
+            logger.info(f"Output Tokens: {resp.out_token}")
 
-            print("Send response...", flush=True)
+            logger.debug("Send response...")
 
             return resp
 
         except google.api_core.exceptions.ResourceExhausted as e:
 
-            print("Hit rate limit:", e, flush=True)
+            logger.warning(f"Hit rate limit: {e}")
 
             # Leave rate limit retries to the base handler
             raise TooManyRequests()
@@ -154,7 +158,7 @@ class Processor(LlmService):
         except Exception as e:
 
             # Apart from rate limits, treat all exceptions as unrecoverable
-            print(f"Exception: {e}")
+            logger.error(f"VertexAI LLM exception: {e}", exc_info=True)
             raise e
 
     @staticmethod

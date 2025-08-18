@@ -1,5 +1,9 @@
 
 import asyncio
+import logging
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 LABEL="http://www.w3.org/2000/01/rdf-schema#label"
 
@@ -22,12 +26,12 @@ class Query:
     async def get_vector(self, query):
 
         if self.verbose:
-            print("Compute embeddings...", flush=True)
+            logger.debug("Computing embeddings...")
 
         qembeds = await  self.rag.embeddings_client.embed(query)
 
         if self.verbose:
-            print("Done.", flush=True)
+            logger.debug("Done.")
 
         return qembeds
 
@@ -36,7 +40,7 @@ class Query:
         vectors = await self.get_vector(query)
 
         if self.verbose:
-            print("Get entities...", flush=True)
+            logger.debug("Getting entities...")
 
         entities = await self.rag.graph_embeddings_client.query(
             vectors=vectors, limit=self.entity_limit,
@@ -49,9 +53,9 @@ class Query:
         ]
 
         if self.verbose:
-            print("Entities:", flush=True)
+            logger.debug("Entities:")
             for ent in entities:
-                print(" ", ent, flush=True)
+                logger.debug(f"  {ent}")
 
         return entities
         
@@ -126,7 +130,7 @@ class Query:
         entities = await self.get_entities(query)
 
         if self.verbose:
-            print("Get subgraph...", flush=True)
+            logger.debug("Getting subgraph...")
 
         subgraph = set()
 
@@ -157,12 +161,12 @@ class Query:
         sg2 = sg2[0:self.max_subgraph_size]
 
         if self.verbose:
-            print("Subgraph:", flush=True)
+            logger.debug("Subgraph:")
             for edge in sg2:
-                print(" ", str(edge), flush=True)
+                logger.debug(f"  {str(edge)}")
 
         if self.verbose:
-            print("Done.", flush=True)
+            logger.debug("Done.")
 
         return sg2
     
@@ -183,7 +187,7 @@ class GraphRag:
         self.label_cache = {}
 
         if self.verbose:
-            print("Initialised", flush=True)
+            logger.debug("GraphRag initialized")
 
     async def query(
             self, query, user = "trustgraph", collection = "default",
@@ -192,7 +196,7 @@ class GraphRag:
     ):
 
         if self.verbose:
-            print("Construct prompt...", flush=True)
+            logger.debug("Constructing prompt...")
 
         q = Query(
             rag = self, user = user, collection = collection,
@@ -205,14 +209,14 @@ class GraphRag:
         kg = await q.get_labelgraph(query)
 
         if self.verbose:
-            print("Invoke LLM...", flush=True)
-            print(kg)
-            print(query)
+            logger.debug("Invoking LLM...")
+            logger.debug(f"Knowledge graph: {kg}")
+            logger.debug(f"Query: {query}")
 
         resp = await self.prompt_client.kg_prompt(query, kg)
 
         if self.verbose:
-            print("Done", flush=True)
+            logger.debug("Query processing complete")
 
         return resp
 

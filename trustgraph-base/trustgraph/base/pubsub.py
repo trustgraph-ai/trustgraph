@@ -1,6 +1,7 @@
 
 import os
 import pulsar
+import _pulsar
 import uuid
 from pulsar.schema import JsonSchema
 
@@ -21,7 +22,7 @@ class PulsarClient:
             "pulsar_api_key",
             self.default_pulsar_api_key
         )
-        log_level = params.get("log_level", LogLevel.INFO)
+        # Hard-code Pulsar logging to ERROR level to minimize noise
 
         self.pulsar_host = pulsar_host
         self.pulsar_api_key = pulsar_api_key
@@ -31,13 +32,13 @@ class PulsarClient:
             self.client = pulsar.Client(
                 pulsar_host,
                 authentication=auth,
-                logger=pulsar.ConsoleLogger(log_level.to_pulsar())
+                logger=pulsar.ConsoleLogger(_pulsar.LoggerLevel.Error)
             )
         else:
             self.client = pulsar.Client(
                 pulsar_host,
                 listener_name=pulsar_listener,
-                logger=pulsar.ConsoleLogger(log_level.to_pulsar())
+                logger=pulsar.ConsoleLogger(_pulsar.LoggerLevel.Error)
             )
 
         self.pulsar_listener = pulsar_listener
@@ -73,8 +74,7 @@ class PulsarClient:
 
         parser.add_argument(
             '-l', '--log-level',
-            type=LogLevel,
-            default=LogLevel.INFO,
-            choices=list(LogLevel),
-            help=f'Output queue (default: info)'
+            default='INFO',
+            choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+            help=f'Log level (default: INFO)'
         )

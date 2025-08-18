@@ -4,35 +4,32 @@ Graph embeddings query service.  Input is vector, output is list of
 entities.  Pinecone implementation.
 """
 
-from pinecone import Pinecone, ServerlessSpec
-from pinecone.grpc import PineconeGRPC, GRPCClientConfig
-
+import logging
 import uuid
 import os
 
-from .... schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
+from pinecone import Pinecone, ServerlessSpec
+from pinecone.grpc import PineconeGRPC, GRPCClientConfig
+
+from .... schema import GraphEmbeddingsResponse
 from .... schema import Error, Value
-from .... schema import graph_embeddings_request_queue
-from .... schema import graph_embeddings_response_queue
-from .... base import ConsumerProducer
+from .... base import GraphEmbeddingsQueryService
 
-module = "ge-query"
+# Module logger
+logger = logging.getLogger(__name__)
 
-default_input_queue = graph_embeddings_request_queue
-default_output_queue = graph_embeddings_response_queue
-default_subscriber = module
+default_ident = "ge-query"
 default_api_key = os.getenv("PINECONE_API_KEY", "not-specified")
 
-class Processor(ConsumerProducer):
+class Processor(GraphEmbeddingsQueryService):
 
     def __init__(self, **params):
 
-        input_queue = params.get("input_queue", default_input_queue)
-        output_queue = params.get("output_queue", default_output_queue)
-        subscriber = params.get("subscriber", default_subscriber)
-
         self.url = params.get("url", None)
         self.api_key = params.get("api_key", default_api_key)
+
+        if self.api_key is None or self.api_key == "not-specified":
+            raise RuntimeError("Pinecone API key must be specified")
 
         if self.url:
 
@@ -47,12 +44,8 @@ class Processor(ConsumerProducer):
 
         super(Processor, self).__init__(
             **params | {
-                "input_queue": input_queue,
-                "output_queue": output_queue,
-                "subscriber": subscriber,
-                "input_schema": GraphEmbeddingsRequest,
-                "output_schema": GraphEmbeddingsResponse,
                 "url": self.url,
+                "api_key": self.api_key,
             }
         )
 
@@ -62,26 +55,23 @@ class Processor(ConsumerProducer):
         else:
             return Value(value=ent, is_uri=False)
         
-    async def handle(self, msg):
+    async def query_graph_embeddings(self, msg):
 
         try:
 
-            v = msg.value()
-
-            # Sender-produced ID
-            id = msg.properties()["id"]
-
-            print(f"Handling input {id}...", flush=True)
+            # Handle zero limit case
+            if msg.limit <= 0:
+                return []
 
             entity_set = set()
             entities = []
 
-            for vec in v.vectors:
+            for vec in msg.vectors:
 
                 dim = len(vec)
 
                 index_name = (
-                    "t-" + v.user + "-" + str(dim)
+                    "t-" + msg.user + "-" + msg.collection + "-" + str(dim)
                 )
 
                 index = self.pinecone.Index(index_name)
@@ -89,9 +79,8 @@ class Processor(ConsumerProducer):
                 # Heuristic hack, get (2*limit), so that we have more chance
                 # of getting (limit) entities
                 results = index.query(
-                    namespace=v.collection,
                     vector=vec,
-                    top_k=v.limit * 2,
+                    top_k=msg.limit * 2,
                     include_values=False,
                     include_metadata=True
                 )
@@ -106,10 +95,10 @@ class Processor(ConsumerProducer):
                         entities.append(ent)
 
                     # Keep adding entities until limit
-                    if len(entity_set) >= v.limit: break
+                    if len(entity_set) >= msg.limit: break
 
                 # Keep adding entities until limit
-                if len(entity_set) >= v.limit: break
+                if len(entity_set) >= msg.limit: break
 
             ents2 = []
 
@@ -118,37 +107,17 @@ class Processor(ConsumerProducer):
 
             entities = ents2
 
-            print("Send response...", flush=True)
-            r = GraphEmbeddingsResponse(entities=entities, error=None)
-            await self.send(r, properties={"id": id})
-
-            print("Done.", flush=True)
+            return entities
 
         except Exception as e:
 
-            print(f"Exception: {e}")
-
-            print("Send error response...", flush=True)
-
-            r = GraphEmbeddingsResponse(
-                error=Error(
-                    type = "llm-error",
-                    message = str(e),
-                ),
-                entities=None,
-            )
-
-            await self.send(r, properties={"id": id})
-
-            self.consumer.acknowledge(msg)
+            logger.error(f"Exception querying graph embeddings: {e}", exc_info=True)
+            raise e
 
     @staticmethod
     def add_args(parser):
 
-        ConsumerProducer.add_args(
-            parser, default_input_queue, default_subscriber,
-            default_output_queue,
-        )
+        GraphEmbeddingsQueryService.add_args(parser)
 
         parser.add_argument(
             '-a', '--api-key',
@@ -163,5 +132,5 @@ class Processor(ConsumerProducer):
 
 def run():
 
-    Processor.launch(module, __doc__)
+    Processor.launch(default_ident, __doc__)
 

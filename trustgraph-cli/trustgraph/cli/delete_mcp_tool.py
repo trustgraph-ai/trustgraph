@@ -1,0 +1,93 @@
+"""
+Deletes MCP (Model Control Protocol) tools from the TrustGraph system.
+Removes MCP tool configurations by ID from the 'mcp' configuration group.
+"""
+
+import argparse
+import os
+from trustgraph.api import Api, ConfigKey
+import textwrap
+
+default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+
+def delete_mcp_tool(
+        url : str,
+        id : str,
+):
+
+    api = Api(url).config()
+
+    # Check if the tool exists first
+    try:
+        values = api.get([
+            ConfigKey(type="mcp", key=id)
+        ])
+        
+        if not values or not values[0].value:
+            print(f"MCP tool '{id}' not found.")
+            return False
+            
+    except Exception as e:
+        print(f"MCP tool '{id}' not found.")
+        return False
+
+    # Delete the MCP tool configuration from the 'mcp' group
+    try:
+        api.delete([
+            ConfigKey(type="mcp", key=id)
+        ])
+        
+        print(f"MCP tool '{id}' deleted successfully.")
+        return True
+        
+    except Exception as e:
+        print(f"Error deleting MCP tool '{id}': {e}")
+        return False
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        prog='tg-delete-mcp-tool',
+        description=__doc__,
+        epilog=textwrap.dedent('''
+            This utility removes MCP tool configurations from the TrustGraph system.
+            Once deleted, the tool will no longer be available for use.
+            
+            Examples:
+              %(prog)s --id weather
+              %(prog)s --id calculator
+              %(prog)s --api-url http://localhost:9000/ --id file-reader
+        ''').strip(),
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+
+    parser.add_argument(
+        '-u', '--api-url',
+        default=default_url,
+        help=f'API URL (default: {default_url})',
+    )
+
+    parser.add_argument(
+        '--id',
+        required=True,
+        help='MCP tool ID to delete',
+    )
+
+    args = parser.parse_args()
+
+    try:
+
+        if not args.id:
+            raise RuntimeError("Must specify --id for MCP tool to delete")
+
+        delete_mcp_tool(
+            url=args.api_url, 
+            id=args.id
+        )
+
+    except Exception as e:
+
+        print("Exception:", e, flush=True)
+
+if __name__ == "__main__":
+    main()
