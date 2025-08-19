@@ -188,16 +188,25 @@ class TestVertexAIProcessorSimple(IsolatedAsyncioTestCase):
         assert result.out_token == 0
         assert result.model == 'gemini-2.0-flash-001'
 
+    @patch('trustgraph.model.text_completion.vertexai.llm.google.auth.default')
     @patch('trustgraph.model.text_completion.vertexai.llm.service_account')
     @patch('trustgraph.model.text_completion.vertexai.llm.vertexai')
     @patch('trustgraph.model.text_completion.vertexai.llm.GenerativeModel')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
     @patch('trustgraph.base.llm_service.LlmService.__init__')
-    async def test_processor_initialization_without_private_key(self, mock_llm_init, mock_async_init, mock_generative_model, mock_vertexai, mock_service_account):
-        """Test processor initialization without private key (should fail)"""
+    async def test_processor_initialization_without_private_key(self, mock_llm_init, mock_async_init, mock_generative_model, mock_vertexai, mock_service_account, mock_auth_default):
+        """Test processor initialization without private key (uses default credentials)"""
         # Arrange
         mock_async_init.return_value = None
         mock_llm_init.return_value = None
+        
+        # Mock google.auth.default() to return credentials and project ID
+        mock_credentials = MagicMock()
+        mock_auth_default.return_value = (mock_credentials, "test-project-123")
+        
+        # Mock GenerativeModel
+        mock_model = MagicMock()
+        mock_generative_model.return_value = mock_model
 
         config = {
             'region': 'us-central1',
@@ -210,9 +219,16 @@ class TestVertexAIProcessorSimple(IsolatedAsyncioTestCase):
             'id': 'test-processor'
         }
 
-        # Act & Assert
-        with pytest.raises(RuntimeError, match="Private key file not specified"):
-            processor = Processor(**config)
+        # Act
+        processor = Processor(**config)
+        
+        # Assert
+        assert processor.model == 'gemini-2.0-flash-001'
+        mock_auth_default.assert_called_once()
+        mock_vertexai.init.assert_called_once_with(
+            location='us-central1', 
+            project='test-project-123'
+        )
 
     @patch('trustgraph.model.text_completion.vertexai.llm.service_account')
     @patch('trustgraph.model.text_completion.vertexai.llm.vertexai')
@@ -292,12 +308,11 @@ class TestVertexAIProcessorSimple(IsolatedAsyncioTestCase):
         # Verify service account was called with custom key
         mock_service_account.Credentials.from_service_account_file.assert_called_once_with('custom-key.json')
         
-        # Verify that parameters dict has the correct values (this is accessible)
-        assert processor.parameters["temperature"] == 0.7
-        assert processor.parameters["max_output_tokens"] == 4096
-        assert processor.parameters["top_p"] == 1.0
-        assert processor.parameters["top_k"] == 32
-        assert processor.parameters["candidate_count"] == 1
+        # Verify that api_params dict has the correct values (this is accessible)
+        assert processor.api_params["temperature"] == 0.7
+        assert processor.api_params["max_output_tokens"] == 4096
+        assert processor.api_params["top_p"] == 1.0
+        assert processor.api_params["top_k"] == 32
 
     @patch('trustgraph.model.text_completion.vertexai.llm.service_account')
     @patch('trustgraph.model.text_completion.vertexai.llm.vertexai')
