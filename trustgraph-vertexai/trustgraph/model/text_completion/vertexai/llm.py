@@ -92,9 +92,15 @@ class Processor(LlmService):
         # Initialize the appropriate client based on the model type
         if self.is_anthropic:
             logger.info(f"Initializing Anthropic model '{model}' via AnthropicVertex SDK")
-            # AnthropicVertex uses Application Default Credentials, so we just
-            # need to provide the region and project ID.
-            self.llm = AnthropicVertex(region=region, project_id=project_id)
+            # Initialize AnthropicVertex with credentials if provided, otherwise use ADC
+            anthropic_kwargs = {'region': region, 'project_id': project_id}
+            if credentials and private_key:  # Pass credentials only if from a file
+                anthropic_kwargs['credentials'] = credentials
+                logger.debug(f"Using service account credentials for Anthropic model")
+            else:
+                logger.debug(f"Using Application Default Credentials for Anthropic model")
+            
+            self.llm = AnthropicVertex(**anthropic_kwargs)
         else:
             # For Gemini models, initialize the Vertex AI SDK
             logger.info(f"Initializing Google model '{model}' via Vertex AI SDK")
