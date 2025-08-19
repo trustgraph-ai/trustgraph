@@ -407,6 +407,58 @@ class TestVertexAIProcessorSimple(IsolatedAsyncioTestCase):
         # The prompt should be "" + "\n\n" + "" = "\n\n"
         assert call_args[0][0] == "\n\n"
 
+    @patch('trustgraph.model.text_completion.vertexai.llm.AnthropicVertex')
+    @patch('trustgraph.model.text_completion.vertexai.llm.service_account')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_anthropic_processor_initialization_with_private_key(self, mock_llm_init, mock_async_init, mock_service_account, mock_anthropic_vertex):
+        """Test Anthropic processor initialization with private key credentials"""
+        # Arrange
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+        
+        mock_credentials = MagicMock()
+        mock_credentials.project_id = "test-project-456"
+        mock_service_account.Credentials.from_service_account_file.return_value = mock_credentials
+        
+        # Mock AnthropicVertex
+        mock_anthropic_client = MagicMock()
+        mock_anthropic_vertex.return_value = mock_anthropic_client
+
+        config = {
+            'region': 'us-west1',
+            'model': 'claude-3-sonnet@20240229',  # Anthropic model
+            'temperature': 0.5,
+            'max_output': 2048,
+            'private_key': 'anthropic-key.json',
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-anthropic-processor'
+        }
+
+        # Act
+        processor = Processor(**config)
+        
+        # Assert
+        assert processor.model == 'claude-3-sonnet@20240229'
+        assert processor.is_anthropic == True
+        
+        # Verify service account was called with private key
+        mock_service_account.Credentials.from_service_account_file.assert_called_once_with('anthropic-key.json')
+        
+        # Verify AnthropicVertex was initialized with credentials
+        mock_anthropic_vertex.assert_called_once_with(
+            region='us-west1',
+            project_id='test-project-456',
+            credentials=mock_credentials
+        )
+        
+        # Verify api_params are set correctly
+        assert processor.api_params["temperature"] == 0.5
+        assert processor.api_params["max_output_tokens"] == 2048
+        assert processor.api_params["top_p"] == 1.0
+        assert processor.api_params["top_k"] == 32
+
 
 if __name__ == '__main__':
     pytest.main([__file__])
