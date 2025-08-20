@@ -446,6 +446,202 @@ Answer: The capital of France is Paris."""
         # Verify all 3 tools were invoked in sequence
         assert result["tool_invocations"] == 3
 
+    def test_multi_iteration_with_dynamic_tool_selection(self):
+        """Test multi-iteration ReACT with mocked LLM reasoning dynamically selecting tools
+        
+        This test simulates how an LLM would dynamically choose tools based on:
+        1. The original question
+        2. Previous observations
+        3. Accumulated context
+        
+        The mocked LLM reasoning adapts its tool selection based on what it has learned
+        in previous iterations, mimicking real agent behavior.
+        """
+        # Arrange
+        question = "What are the main exports of the largest city in Brazil by population?"
+        
+        # Track reasoning and tool selection
+        reasoning_log = []
+        tool_invocation_log = []
+        
+        def mock_llm_reasoning(question, history, available_tools):
+            """Mock LLM that reasons about tool selection based on context"""
+            # Analyze what we know from history
+            context = {}
+            for step in history:
+                if "observation" in step:
+                    # Extract information from observations
+                    obs = step["observation"]
+                    if "São Paulo" in obs:
+                        context["city"] = "São Paulo"
+                    if "largest city" in obs:
+                        context["is_largest"] = True
+                    if "million" in obs and "population" in obs:
+                        context["has_population"] = True
+                    if "exports" in obs:
+                        context["has_exports"] = True
+            
+            # Decide next action based on what we know
+            if not context.get("city"):
+                # Step 1: Need to find the largest city
+                reasoning = "I need to find the largest city in Brazil by population"
+                tool = "geo_search"
+                args = {"query": "largest city Brazil population"}
+            elif not context.get("has_population"):
+                # Step 2: Confirm population data
+                reasoning = f"I found {context['city']}. Now I need to verify it's the largest by checking population"
+                tool = "demographic_data"
+                args = {"query": f"population {context['city']} Brazil"}
+            elif not context.get("has_exports"):
+                # Step 3: Get export information
+                reasoning = f"Confirmed {context['city']} is the largest. Now I need export information"
+                tool = "economic_data"
+                args = {"query": f"main exports {context['city']} Brazil"}
+            else:
+                # Final: Have all information
+                reasoning = "I have all the information needed to answer"
+                tool = "final_answer"
+                args = None
+            
+            reasoning_log.append({"reasoning": reasoning, "tool": tool, "context": context.copy()})
+            return reasoning, tool, args
+        
+        def mock_geo_search(query):
+            """Mock geographic search tool"""
+            tool_invocation_log.append(("geo_search", query))
+            if "largest city brazil" in query.lower():
+                return {
+                    "result": "São Paulo is the largest city in Brazil",
+                    "details": {"city": "São Paulo", "country": "Brazil", "rank": 1}
+                }
+            return {"error": "No results found"}
+        
+        def mock_demographic_data(query):
+            """Mock demographic data tool"""
+            tool_invocation_log.append(("demographic_data", query))
+            if "são paulo" in query.lower():
+                return {
+                    "result": "São Paulo has a population of 12.4 million in the city proper, 22.8 million in the metro area",
+                    "details": {"city_population": 12.4, "metro_population": 22.8, "unit": "million"}
+                }
+            return {"error": "No demographic data found"}
+        
+        def mock_economic_data(query):
+            """Mock economic data tool"""
+            tool_invocation_log.append(("economic_data", query))
+            if "são paulo" in query.lower() and "export" in query.lower():
+                return {
+                    "result": "São Paulo's main exports include aircraft, vehicles, machinery, coffee, and soybeans",
+                    "details": {
+                        "top_exports": ["aircraft", "vehicles", "machinery", "coffee", "soybeans"],
+                        "export_value_billions_usd": 65.2
+                    }
+                }
+            return {"error": "No economic data found"}
+        
+        # Execute multi-iteration ReACT with dynamic tool selection
+        def execute_dynamic_react(question, tools, llm_reasoner):
+            """Execute ReACT with dynamic LLM-based tool selection"""
+            iterations = []
+            history = []
+            available_tools = list(tools.keys())
+            
+            max_iterations = 4
+            for i in range(max_iterations):
+                # LLM reasons about next action
+                reasoning, tool_name, args = llm_reasoner(question, history, available_tools)
+                
+                if tool_name == "final_answer":
+                    # Agent has decided it has enough information
+                    final_answer = {
+                        "reasoning": reasoning,
+                        "answer": "São Paulo, Brazil's largest city with 12.4 million people, " +
+                                "has main exports including aircraft, vehicles, machinery, coffee, and soybeans."
+                    }
+                    break
+                
+                # Execute selected tool
+                iteration = {
+                    "iteration": i + 1,
+                    "think": reasoning,
+                    "act": {"tool": tool_name, "args": args},
+                    "observe": None
+                }
+                
+                # Get tool result
+                if tool_name in tools:
+                    result = tools[tool_name](args["query"])
+                    iteration["observe"] = result.get("result", "No information found")
+                else:
+                    iteration["observe"] = f"Tool {tool_name} not available"
+                
+                iterations.append(iteration)
+                
+                # Add to history for next iteration
+                history.append({
+                    "thought": reasoning,
+                    "action": tool_name,
+                    "args": args,
+                    "observation": iteration["observe"]
+                })
+            
+            return {
+                "iterations": iterations,
+                "final_answer": final_answer if 'final_answer' in locals() else None,
+                "reasoning_log": reasoning_log,
+                "tool_invocations": len(tool_invocation_log)
+            }
+        
+        tools = {
+            "geo_search": mock_geo_search,
+            "demographic_data": mock_demographic_data,
+            "economic_data": mock_economic_data
+        }
+        
+        # Act
+        result = execute_dynamic_react(question, tools, mock_llm_reasoning)
+        
+        # Assert - Verify dynamic multi-iteration execution
+        assert len(result["iterations"]) == 3, "Should have 3 iterations before final answer"
+        
+        # Verify reasoning adapts based on observations
+        assert len(reasoning_log) == 4, "Should have 4 reasoning steps (3 tools + final)"
+        
+        # Verify first iteration searches for largest city
+        assert reasoning_log[0]["tool"] == "geo_search"
+        assert "largest city" in reasoning_log[0]["reasoning"].lower()
+        assert not reasoning_log[0]["context"].get("city")
+        
+        # Verify second iteration uses city name from first observation
+        assert reasoning_log[1]["tool"] == "demographic_data"
+        assert "São Paulo" in reasoning_log[1]["reasoning"]
+        assert reasoning_log[1]["context"]["city"] == "São Paulo"
+        
+        # Verify third iteration builds on previous knowledge
+        assert reasoning_log[2]["tool"] == "economic_data"
+        assert "export" in reasoning_log[2]["reasoning"].lower()
+        assert reasoning_log[2]["context"]["has_population"] is True
+        
+        # Verify final reasoning has all information
+        assert reasoning_log[3]["tool"] == "final_answer"
+        assert reasoning_log[3]["context"]["has_exports"] is True
+        
+        # Verify tool invocation sequence
+        assert tool_invocation_log[0][0] == "geo_search"
+        assert tool_invocation_log[1][0] == "demographic_data"
+        assert tool_invocation_log[2][0] == "economic_data"
+        
+        # Verify observations influence subsequent tool selection
+        assert "São Paulo" in result["iterations"][1]["act"]["args"]["query"]
+        assert "São Paulo" in result["iterations"][2]["act"]["args"]["query"]
+        
+        # Verify final answer synthesizes all gathered information
+        assert result["final_answer"] is not None
+        assert "São Paulo" in result["final_answer"]["answer"]
+        assert "12.4 million" in result["final_answer"]["answer"]
+        assert "aircraft" in result["final_answer"]["answer"]
+        assert "vehicles" in result["final_answer"]["answer"]
+
     def test_error_handling_in_react_cycle(self):
         """Test error handling during ReAct execution"""
         # Arrange
