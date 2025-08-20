@@ -305,6 +305,147 @@ Answer: The capital of France is Paris."""
         assert reasoning_plan[1]["action"] == "find_population"
         assert all("step" in step for step in reasoning_plan)
 
+    def test_multi_iteration_react_execution(self):
+        """Test complete multi-iteration ReACT cycle with sequential tool invocations
+        
+        This test simulates a complex query that requires:
+        1. Tool #1: Search for initial information
+        2. Tool #2: Analyze/refine based on Tool #1's output  
+        3. Tool #3: Generate final answer using accumulated context
+        
+        Each iteration includes Think -> Act -> Observe phases with
+        observations feeding into subsequent thinking phases.
+        """
+        # Arrange
+        question = "Find the GDP of the capital of Japan and compare it to Tokyo's population"
+        
+        # Mock tools that build on each other's outputs
+        tool_invocation_log = []
+        
+        def mock_geo_search(query):
+            """Tool 1: Geographic information search"""
+            tool_invocation_log.append(("geo_search", query))
+            if "capital" in query.lower() and "japan" in query.lower():
+                return {"city": "Tokyo", "country": "Japan", "is_capital": True}
+            return {"error": "Location not found"}
+        
+        def mock_economic_data(query, context=None):
+            """Tool 2: Economic data retrieval (uses context from Tool 1)"""
+            tool_invocation_log.append(("economic_data", query, context))
+            if context and context.get("city") == "Tokyo":
+                return {"city": "Tokyo", "gdp_trillion_yen": 115.7, "year": 2023}
+            return {"error": "Economic data not available"}
+        
+        def mock_demographic_data(query, context=None):
+            """Tool 3: Demographic data and comparison (uses context from Tools 1 & 2)"""
+            tool_invocation_log.append(("demographic_data", query, context))
+            if context and context.get("city") == "Tokyo":
+                population_millions = 14.0
+                gdp_from_context = context.get("gdp_trillion_yen", 0)
+                return {
+                    "city": "Tokyo",
+                    "population_millions": population_millions,
+                    "gdp_trillion_yen": gdp_from_context,
+                    "gdp_per_capita_million_yen": round(gdp_from_context / population_millions, 2) if population_millions > 0 else 0
+                }
+            return {"error": "Demographic data not available"}
+        
+        # Execute multi-iteration ReACT cycle
+        def execute_multi_iteration_react(question, tools):
+            """Execute a complete multi-iteration ReACT cycle"""
+            iterations = []
+            context = {}
+            
+            # Iteration 1: Initial geographic search
+            iteration_1 = {
+                "iteration": 1,
+                "think": "I need to first identify the capital of Japan to get its GDP",
+                "act": {"tool": "geo_search", "query": "capital of Japan"},
+                "observe": None
+            }
+            result_1 = tools["geo_search"](iteration_1["act"]["query"])
+            iteration_1["observe"] = f"Found that {result_1['city']} is the capital of {result_1['country']}"
+            context.update(result_1)
+            iterations.append(iteration_1)
+            
+            # Iteration 2: Get economic data using context from iteration 1
+            iteration_2 = {
+                "iteration": 2,
+                "think": f"Now I know {context['city']} is the capital. I need to get its GDP data",
+                "act": {"tool": "economic_data", "query": f"GDP of {context['city']}"},
+                "observe": None
+            }
+            result_2 = tools["economic_data"](iteration_2["act"]["query"], context)
+            iteration_2["observe"] = f"Retrieved GDP data: {result_2['gdp_trillion_yen']} trillion yen for {result_2['year']}"
+            context.update(result_2)
+            iterations.append(iteration_2)
+            
+            # Iteration 3: Get demographic data and compare using accumulated context
+            iteration_3 = {
+                "iteration": 3,
+                "think": f"I have the GDP ({context['gdp_trillion_yen']} trillion yen). Now I need population data to compare",
+                "act": {"tool": "demographic_data", "query": f"population of {context['city']}"},
+                "observe": None
+            }
+            result_3 = tools["demographic_data"](iteration_3["act"]["query"], context)
+            iteration_3["observe"] = f"Population is {result_3['population_millions']} million. GDP per capita is {result_3['gdp_per_capita_million_yen']} million yen"
+            context.update(result_3)
+            iterations.append(iteration_3)
+            
+            # Final answer synthesis
+            final_answer = {
+                "think": "I now have all the information needed to answer the question",
+                "answer": f"Tokyo, the capital of Japan, has a GDP of {context['gdp_trillion_yen']} trillion yen and a population of {context['population_millions']} million people, resulting in a GDP per capita of {context['gdp_per_capita_million_yen']} million yen."
+            }
+            
+            return {
+                "iterations": iterations,
+                "final_answer": final_answer,
+                "context": context,
+                "tool_invocations": len(tool_invocation_log)
+            }
+        
+        tools = {
+            "geo_search": mock_geo_search,
+            "economic_data": mock_economic_data,
+            "demographic_data": mock_demographic_data
+        }
+        
+        # Act
+        result = execute_multi_iteration_react(question, tools)
+        
+        # Assert - Verify complete multi-iteration execution
+        assert len(result["iterations"]) == 3, "Should have exactly 3 iterations"
+        
+        # Verify each iteration has complete Think-Act-Observe cycle
+        for i, iteration in enumerate(result["iterations"], 1):
+            assert iteration["iteration"] == i
+            assert "think" in iteration and len(iteration["think"]) > 0
+            assert "act" in iteration and "tool" in iteration["act"]
+            assert "observe" in iteration and iteration["observe"] is not None
+        
+        # Verify sequential tool invocations
+        assert tool_invocation_log[0][0] == "geo_search"
+        assert tool_invocation_log[1][0] == "economic_data"
+        assert tool_invocation_log[2][0] == "demographic_data"
+        
+        # Verify context accumulation across iterations
+        assert "Tokyo" in tool_invocation_log[1][1], "Iteration 2 should use data from iteration 1"
+        assert tool_invocation_log[2][2].get("gdp_trillion_yen") == 115.7, "Iteration 3 should have accumulated GDP data"
+        
+        # Verify observations feed into subsequent thinking
+        assert "Tokyo" in result["iterations"][1]["think"], "Iteration 2 thinking should reference observation from iteration 1"
+        assert "115.7" in result["iterations"][2]["think"], "Iteration 3 thinking should reference GDP from iteration 2"
+        
+        # Verify final answer synthesis
+        assert "Tokyo" in result["final_answer"]["answer"]
+        assert "115.7" in result["final_answer"]["answer"]
+        assert "14.0" in result["final_answer"]["answer"]
+        assert "8.26" in result["final_answer"]["answer"], "Should include calculated GDP per capita"
+        
+        # Verify all 3 tools were invoked in sequence
+        assert result["tool_invocations"] == 3
+
     def test_error_handling_in_react_cycle(self):
         """Test error handling during ReAct execution"""
         # Arrange
