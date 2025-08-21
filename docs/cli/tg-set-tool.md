@@ -31,9 +31,9 @@ The command updates both the tool index and stores the complete tool configurati
   - Must be unique within the tool registry
 
 - `--name NAME`
-  - **Required.** Human-readable name for the tool
-  - Displayed in tool listings and user interfaces
-  - Should be descriptive and clear
+  - **Required.** Tool name used by agents to invoke this tool
+  - Must be a valid function identifier (use snake_case, no spaces or special characters)
+  - Examples: `get_weather`, `calculate_distance`, `search_documents`
 
 - `--type TYPE`
   - **Required.** Tool type defining its functionality
@@ -63,7 +63,7 @@ The command updates both the tool index and stores the complete tool configurati
 
 Register a simple weather lookup tool:
 ```bash
-tg-set-tool --id weather --name "Weather Lookup" \
+tg-set-tool --id weather_tool --name get_weather \
             --type knowledge-query \
             --description "Get current weather information" \
             --argument location:string:"Location to query" \
@@ -74,7 +74,8 @@ tg-set-tool --id weather --name "Weather Lookup" \
 
 Register a calculator tool with MCP type:
 ```bash
-tg-set-tool --id calculator --name "Calculator" --type mcp-tool \
+tg-set-tool --id calc_tool --name calculate \
+            --type mcp-tool \
             --description "Perform mathematical calculations" \
             --argument expression:string:"Mathematical expression to evaluate"
 ```
@@ -83,7 +84,7 @@ tg-set-tool --id calculator --name "Calculator" --type mcp-tool \
 
 Register a text completion tool:
 ```bash
-tg-set-tool --id text-generator --name "Text Generator" \
+tg-set-tool --id text_gen_tool --name generate_text \
             --type text-completion \
             --description "Generate text based on prompts" \
             --argument prompt:string:"Text prompt for generation" \
@@ -95,7 +96,7 @@ tg-set-tool --id text-generator --name "Text Generator" \
 Register a tool with custom API endpoint:
 ```bash
 tg-set-tool -u http://trustgraph.example.com:8088/ \
-            --id custom-tool --name "Custom Tool" \
+            --id custom_tool --name custom_search \
             --type knowledge-query \
             --description "Custom tool functionality"
 ```
@@ -104,7 +105,7 @@ tg-set-tool -u http://trustgraph.example.com:8088/ \
 
 Register a simple tool with no arguments:
 ```bash
-tg-set-tool --id status-check --name "Status Check" \
+tg-set-tool --id status_tool --name check_status \
             --type knowledge-query \
             --description "Check system status"
 ```

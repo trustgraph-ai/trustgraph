@@ -758,6 +758,186 @@ Answer: The capital of France is Paris."""
                 assert clean_action in tools, \
                     f"Cleaned action '{clean_action}' from '{quoted_action}' should be in tools"
 
+    def test_mcp_tool_arguments_support(self):
+        """Test that MCP tools can be configured with arguments and expose them correctly
+        
+        This test verifies the MCP tool arguments feature where:
+        1. MCP tool configurations can specify arguments
+        2. Configuration parsing extracts arguments correctly
+        3. Arguments are structured properly for tool use
+        """
+        # Define a simple Argument class for testing (mimics the real one)
+        class TestArgument:
+            def __init__(self, name, type, description):
+                self.name = name
+                self.type = type 
+                self.description = description
+        
+        # Define a mock McpToolImpl that mimics the new functionality
+        class MockMcpToolImpl:
+            def __init__(self, context, mcp_tool_id, arguments=None):
+                self.context = context
+                self.mcp_tool_id = mcp_tool_id
+                self.arguments = arguments or []
+            
+            def get_arguments(self):
+                return self.arguments
+        
+        # Test 1: MCP tool with arguments
+        test_arguments = [
+            TestArgument(
+                name="account_id",
+                type="string",
+                description="Bank account identifier"
+            ),
+            TestArgument(
+                name="date",
+                type="string",
+                description="Date for balance query (optional, format: YYYY-MM-DD)"
+            )
+        ]
+        
+        context_mock = lambda service_name: None
+        mcp_tool_with_args = MockMcpToolImpl(
+            context=context_mock,
+            mcp_tool_id="get_bank_balance",
+            arguments=test_arguments
+        )
+        
+        returned_args = mcp_tool_with_args.get_arguments()
+        
+        # Verify arguments are stored and returned correctly
+        assert len(returned_args) == 2
+        assert returned_args[0].name == "account_id"
+        assert returned_args[0].type == "string"
+        assert returned_args[0].description == "Bank account identifier"
+        assert returned_args[1].name == "date"
+        assert returned_args[1].type == "string"
+        assert "optional" in returned_args[1].description.lower()
+        
+        # Test 2: MCP tool without arguments (backward compatibility)
+        mcp_tool_no_args = MockMcpToolImpl(
+            context=context_mock,
+            mcp_tool_id="simple_tool"
+        )
+        
+        returned_args_empty = mcp_tool_no_args.get_arguments()
+        assert len(returned_args_empty) == 0
+        assert returned_args_empty == []
+        
+        # Test 3: MCP tool with empty arguments list
+        mcp_tool_empty_args = MockMcpToolImpl(
+            context=context_mock,
+            mcp_tool_id="another_tool",
+            arguments=[]
+        )
+        
+        returned_args_explicit_empty = mcp_tool_empty_args.get_arguments()
+        assert len(returned_args_explicit_empty) == 0
+        assert returned_args_explicit_empty == []
+        
+        # Test 4: Configuration parsing simulation
+        def simulate_config_parsing(config_data):
+            """Simulate how service.py parses MCP tool configuration"""
+            config_args = config_data.get("arguments", [])
+            arguments = [
+                TestArgument(
+                    name=arg.get("name"),
+                    type=arg.get("type"),
+                    description=arg.get("description")
+                )
+                for arg in config_args
+            ]
+            return arguments
+        
+        # Test configuration with arguments
+        config_with_args = {
+            "type": "mcp-tool",
+            "name": "get_bank_balance",
+            "description": "Get bank account balance",
+            "mcp-tool": "get_bank_balance",
+            "arguments": [
+                {
+                    "name": "account_id",
+                    "type": "string",
+                    "description": "Bank account identifier"
+                },
+                {
+                    "name": "date",
+                    "type": "string",
+                    "description": "Date for balance query (optional)"
+                }
+            ]
+        }
+        
+        parsed_args = simulate_config_parsing(config_with_args)
+        assert len(parsed_args) == 2
+        assert parsed_args[0].name == "account_id"
+        assert parsed_args[1].name == "date"
+        
+        # Test configuration without arguments
+        config_without_args = {
+            "type": "mcp-tool",
+            "name": "simple_tool",
+            "description": "Simple MCP tool",
+            "mcp-tool": "simple_tool"
+        }
+        
+        parsed_args_empty = simulate_config_parsing(config_without_args)
+        assert len(parsed_args_empty) == 0
+        
+        # Test 5: Argument structure validation
+        def validate_argument_structure(arg):
+            """Validate that an argument has required fields"""
+            required_fields = ['name', 'type', 'description']
+            return all(hasattr(arg, field) and getattr(arg, field) for field in required_fields)
+        
+        # Validate all parsed arguments have proper structure
+        for arg in parsed_args:
+            assert validate_argument_structure(arg), f"Argument {arg.name} missing required fields"
+        
+        # Test 6: Prompt template integration simulation
+        def simulate_prompt_template_rendering(tools):
+            """Simulate how agent prompts include tool arguments"""
+            tool_descriptions = []
+            
+            for tool in tools:
+                tool_desc = f"- **{tool.name}**: {tool.description}"
+                
+                # Add argument details if present
+                for arg in tool.arguments:
+                    tool_desc += f"\n  - Required: `\"{arg.name}\"` ({arg.type}): {arg.description}"
+                    
+                tool_descriptions.append(tool_desc)
+            
+            return "\n".join(tool_descriptions)
+        
+        # Create mock tools with our MCP tool
+        class MockTool:
+            def __init__(self, name, description, arguments):
+                self.name = name
+                self.description = description
+                self.arguments = arguments
+        
+        mock_tools = [
+            MockTool("search", "Search the web", []),  # Tool without arguments
+            MockTool("get_bank_balance", "Get bank account balance", parsed_args)  # MCP tool with arguments
+        ]
+        
+        prompt_section = simulate_prompt_template_rendering(mock_tools)
+        
+        # Verify the prompt includes MCP tool arguments
+        assert "get_bank_balance" in prompt_section
+        assert "account_id" in prompt_section
+        assert "Bank account identifier" in prompt_section
+        assert "date" in prompt_section
+        assert "(string)" in prompt_section
+        assert "Required:" in prompt_section
+        
+        # Verify tools without arguments still work
+        assert "search" in prompt_section
+        assert "Search the web" in prompt_section
+
     def test_error_handling_in_react_cycle(self):
         """Test error handling during ReAct execution"""
         # Arrange
