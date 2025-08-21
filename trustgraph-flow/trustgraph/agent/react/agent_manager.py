@@ -106,10 +106,10 @@ class AgentManager:
                 action = line[7:].strip()
 
                 # Get rid of quotation prefix/suffix if present
-                while action[0] == '"':
+                while action and action[0] == '"':
                     action = action[1:]
 
-                while action[-1] == '"':
+                while action and action[-1] == '"':
                     action = action[:-1]
             
             # Parse Args
