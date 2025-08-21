@@ -18,15 +18,15 @@ class FlowRequestTranslator(MessageTranslator):
     def from_pulsar(self, obj: FlowRequest) -> Dict[str, Any]:
         result = {}
         
-        if obj.operation:
+        if obj.operation is not None:
             result["operation"] = obj.operation
-        if obj.class_name:
+        if obj.class_name is not None:
             result["class-name"] = obj.class_name
-        if obj.class_definition:
+        if obj.class_definition is not None:
             result["class-definition"] = obj.class_definition
-        if obj.description:
+        if obj.description is not None:
             result["description"] = obj.description
-        if obj.flow_id:
+        if obj.flow_id is not None:
             result["flow-id"] = obj.flow_id
         
         return result
@@ -41,15 +41,15 @@ class FlowResponseTranslator(MessageTranslator):
     def from_pulsar(self, obj: FlowResponse) -> Dict[str, Any]:
         result = {}
         
-        if obj.class_names:
+        if obj.class_names is not None:
             result["class-names"] = obj.class_names
-        if obj.flow_ids:
+        if obj.flow_ids is not None:
             result["flow-ids"] = obj.flow_ids
-        if obj.class_definition:
+        if obj.class_definition is not None:
             result["class-definition"] = obj.class_definition
-        if obj.flow:
+        if obj.flow is not None:
             result["flow"] = obj.flow
-        if obj.description:
+        if obj.description is not None:
             result["description"] = obj.description
         
         return result
