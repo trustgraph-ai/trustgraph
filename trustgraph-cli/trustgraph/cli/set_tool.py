@@ -9,6 +9,10 @@ This script allows you to define agent tools with various types including:
 
 Tools are stored in the 'tool' configuration group and can include
 argument specifications for parameterized execution.
+
+IMPORTANT: The tool 'name' is used by agents to invoke the tool and must
+be a valid function identifier (use snake_case, no spaces or special chars).
+The 'description' provides human-readable information about the tool.
 """
 
 from typing import List
@@ -114,14 +118,15 @@ def main():
               number            - Numeric parameter
             
             Examples:
-              %(prog)s --id weather --name "Weather lookup" \\
+              %(prog)s --id weather_tool --name get_weather \\
                        --type knowledge-query \\
-                       --description "Get weather information" \\
+                       --description "Get weather information for a location" \\
                        --argument location:string:"Location to query" \\
                        --argument units:string:"Temperature units (C/F)"
               
-              %(prog)s --id calculator --name "Calculator" --type mcp-tool \\
-                       --description "Perform calculations" \\
+              %(prog)s --id calc_tool --name calculate --type mcp-tool \\
+                       --description "Perform mathematical calculations" \\
+                       --mcp-tool calculator \\
                        --argument expression:string:"Mathematical expression"
         ''').strip(),
         formatter_class=argparse.RawDescriptionHelpFormatter
@@ -140,7 +145,7 @@ def main():
 
     parser.add_argument(
         '--name',
-        help=f'Human-readable tool name',
+        help=f'Tool name used by agents to invoke this tool (use snake_case, e.g., get_weather)',
     )
 
     parser.add_argument(
