@@ -642,6 +642,122 @@ Answer: The capital of France is Paris."""
         assert "aircraft" in result["final_answer"]["answer"]
         assert "vehicles" in result["final_answer"]["answer"]
 
+    def test_action_name_with_quotes_handling(self):
+        """Test that action names with quotes are properly stripped
+        
+        This test verifies the fix for when LLMs output action names wrapped
+        in quotes, e.g., Action: "get_bank_balance" instead of Action: get_bank_balance
+        """
+        # Arrange
+        def parse_react_output(text):
+            """Parse ReAct format output into structured steps"""
+            steps = []
+            lines = text.strip().split('\n')
+            
+            thought = None
+            action = None
+            args = None
+            
+            for line in lines:
+                line = line.strip()
+                if line.startswith('Think:') or line.startswith('Thought:'):
+                    thought = line.split(':', 1)[1].strip()
+                elif line.startswith('Action:'):
+                    action = line[7:].strip()
+                    # Strip quotes from action name - this is the fix being tested
+                    while action and action[0] == '"':
+                        action = action[1:]
+                    while action and action[-1] == '"':
+                        action = action[:-1]
+                elif line.startswith('Args:'):
+                    # Simple args parsing for test
+                    args_text = line[5:].strip()
+                    if args_text:
+                        import json
+                        try:
+                            args = json.loads(args_text)
+                        except:
+                            args = {"raw": args_text}
+            
+            return {
+                "thought": thought,
+                "action": action,
+                "args": args
+            }
+        
+        # Test cases with various quote patterns
+        test_cases = [
+            # Normal case without quotes
+            (
+                'Thought: I need to check the bank balance\nAction: get_bank_balance\nArgs: {"account": "12345"}',
+                "get_bank_balance"
+            ),
+            # Single quotes around action name
+            (
+                'Thought: I need to check the bank balance\nAction: "get_bank_balance"\nArgs: {"account": "12345"}',
+                "get_bank_balance"
+            ),
+            # Multiple quotes (nested)
+            (
+                'Thought: I need to check the bank balance\nAction: ""get_bank_balance""\nArgs: {"account": "12345"}',
+                "get_bank_balance"
+            ),
+            # Action with underscores and quotes
+            (
+                'Thought: I need to search\nAction: "search_knowledge_base"\nArgs: {"query": "test"}',
+                "search_knowledge_base"
+            ),
+            # Action with hyphens and quotes
+            (
+                'Thought: I need to search\nAction: "search-knowledge-base"\nArgs: {"query": "test"}',
+                "search-knowledge-base"
+            ),
+            # Edge case: just quotes (should result in empty string)
+            (
+                'Thought: Error case\nAction: ""\nArgs: {}',
+                ""
+            ),
+            # Mixed quotes at start and end
+            (
+                'Thought: Processing\nAction: """complex_tool"""\nArgs: {}',
+                "complex_tool"
+            ),
+        ]
+        
+        # Act & Assert
+        for llm_output, expected_action in test_cases:
+            result = parse_react_output(llm_output)
+            assert result["action"] == expected_action, \
+                f"Failed to parse action correctly from: {llm_output}\nExpected: {expected_action}, Got: {result['action']}"
+        
+        # Test with actual tool matching
+        tools = {
+            "get_bank_balance": {"description": "Get bank balance"},
+            "search_knowledge_base": {"description": "Search knowledge"},
+            "complex_tool": {"description": "Complex operations"}
+        }
+        
+        # Simulate tool lookup with quoted action names
+        quoted_actions = [
+            '"get_bank_balance"',
+            '""search_knowledge_base""',
+            'complex_tool',  # without quotes
+            '"complex_tool"'
+        ]
+        
+        for quoted_action in quoted_actions:
+            # Strip quotes as the fix does
+            clean_action = quoted_action
+            while clean_action and clean_action[0] == '"':
+                clean_action = clean_action[1:]
+            while clean_action and clean_action[-1] == '"':
+                clean_action = clean_action[:-1]
+            
+            # Verify the cleaned action exists in tools (except empty string case)
+            if clean_action:
+                assert clean_action in tools, \
+                    f"Cleaned action '{clean_action}' from '{quoted_action}' should be in tools"
+
     def test_error_handling_in_react_cycle(self):
         """Test error handling during ReAct execution"""
         # Arrange

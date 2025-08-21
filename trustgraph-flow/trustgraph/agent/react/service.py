@@ -45,7 +45,7 @@ class Processor(AgentService):
         )
 
         self.agent = AgentManager(
-            tools=[],
+            tools={},
             additional_context="",
         )
 
