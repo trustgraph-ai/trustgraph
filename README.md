@@ -20,6 +20,7 @@ Take control of your data and context with **TrustGraph**. Connect to the latest
 <br>
 
 - [**Why TrustGraph?**](#why-trustgraph)<br>
+- [**Agentic MCP Demo**](#agentic-mcp-demo)<br>
 - [**Getting Started**](#getting-started)<br>
 - [**Configuration Builder**](#configuration-builder)<br>
 - [**Context Engineering**](#context-engineering)<br>
@@ -36,6 +37,10 @@ Take control of your data and context with **TrustGraph**. Connect to the latest
 ## Why TrustGraph?
 
 [![Why TrustGraph?](https://img.youtube.com/vi/Norboj8YP2M/maxresdefault.jpg)](https://www.youtube.com/watch?v=Norboj8YP2M)
+
+## Agentic MCP Demo
+
+[![Agentic MCP Demo](https://img.youtube.com/vi/mUCL1b1lmbA/maxresdefault.jpg)](https://www.youtube.com/watch?v=mUCL1b1lmbA)
 
 ## Getting Started
 
