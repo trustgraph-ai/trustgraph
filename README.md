@@ -61,7 +61,7 @@ The [**Configuration Builder**](https://config-ui.demo.trustgraph.ai/) assembles
 
 - **Version**: Select the version of TrustGraph you'd like to deploy
 - **Component Selection**: Choose from the available deployment platforms, LLMs, graph store, VectorDB, chunking algorithm, chunking parameters, and LLM parameters
-- **Customization**: Customize the prompts for the LLM System, Data Extraction Agents, and Agent Flow
+- **Customization**: Enable OCR pipelines and custom embeddings models
 - **Finish Deployment**: Download the launch `YAML` files with deployment instructions
 
 ## Workbench
@@ -72,7 +72,7 @@ The **Workbench** is a UI that provides tools for interacting with all major fea
 - **Semantic Discovery**: Analyze semantic relationships with vector search, knowledge graph relationships, and 3D graph visualization
 - **Data Management**: Load data into the **Librarian** for processing, create and upload **Knowledge Packages**
 - **Flow Management**: Create and delete processing flow patterns
-- **Prompt Management**: Edit all LLM prompts used in the platform
+- **Prompt Management**: Edit all LLM prompts used in the platform during runtime
 - **Agent Tools**: Define tools used by the Agent Flow including MCP tools
 - **MCP Tools**: Connect to MCP servers
 
