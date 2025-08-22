@@ -192,13 +192,33 @@ No migration required - these are new CLI commands that complement existing func
 - New commands can be added incrementally
 - No breaking changes to existing configuration workflows
 
+## Packaging and Distribution
+
+These commands will be added to the existing `trustgraph-cli` package:
+
+**Package Location**: `trustgraph-cli/`
+**Module Files**:
+- `trustgraph-cli/trustgraph/cli/list_config_items.py`
+- `trustgraph-cli/trustgraph/cli/get_config_item.py` 
+- `trustgraph-cli/trustgraph/cli/put_config_item.py`
+- `trustgraph-cli/trustgraph/cli/delete_config_item.py`
+
+**Entry Points**: Added to `trustgraph-cli/pyproject.toml` in `[project.scripts]` section:
+```toml
+tg-list-config-items = "trustgraph.cli.list_config_items:main"
+tg-get-config-item = "trustgraph.cli.get_config_item:main"
+tg-put-config-item = "trustgraph.cli.put_config_item:main"
+tg-delete-config-item = "trustgraph.cli.delete_config_item:main"
+```
+
 ## Implementation Tasks
 
-1. **Create CLI Modules**: Implement the four CLI command modules
-2. **Update pyproject.toml**: Add new command entry points
-3. **Documentation**: Create CLI documentation for each command
+1. **Create CLI Modules**: Implement the four CLI command modules in `trustgraph-cli/trustgraph/cli/`
+2. **Update pyproject.toml**: Add new command entry points to `trustgraph-cli/pyproject.toml`
+3. **Documentation**: Create CLI documentation for each command in `docs/cli/`
 4. **Testing**: Implement comprehensive test coverage
 5. **Integration**: Ensure commands work with existing TrustGraph infrastructure
+6. **Package Build**: Verify commands are properly installed with `pip install trustgraph-cli`
 
 ## Usage Examples
 
