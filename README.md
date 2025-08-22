@@ -1,8 +1,8 @@
 <div align="center">
 
-## The Agentic Context Engineering Foundation
+## The AI Product Creation Platform
 
-<img src="tg-platform-diagram.svg" width=100% />
+<img src="product-platform-diagram.svg" width=100% />
 
 ---
 
