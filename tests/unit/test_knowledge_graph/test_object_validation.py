@@ -13,56 +13,63 @@ from trustgraph.schema import RowSchema, Field
 @pytest.fixture
 def cities_schema():
     """Cities schema matching the production schema"""
-    fields = [
-        Field(
-            name="city",
-            type="string",
-            primary=True,
-            required=True,
-            description="City name"
-        ),
-        Field(
-            name="country",
-            type="string",
-            primary=True,
-            required=True,
-            description="Country name"
-        ),
-        Field(
-            name="population",
-            type="integer",
-            primary=False,
-            required=True,
-            description="Population count"
-        ),
-        Field(
-            name="climate",
-            type="string",
-            primary=False,
-            required=True,
-            description="Climate type"
-        ),
-        Field(
-            name="primary_language",
-            type="string",
-            primary=False,
-            required=True,
-            description="Primary language spoken"
-        ),
-        Field(
-            name="currency",
-            type="string",
-            primary=False,
-            required=True,
-            description="Currency used"
-        ),
-    ]
+    fields = []
     
-    return RowSchema(
-        name="Cities",
-        description="City demographics",
-        fields=fields
-    )
+    # Create fields with proper attribute assignment
+    f1 = Field()
+    f1.name = "city"
+    f1.type = "string"
+    f1.primary = True
+    f1.required = True
+    f1.description = "City name"
+    fields.append(f1)
+    
+    f2 = Field()
+    f2.name = "country"
+    f2.type = "string"
+    f2.primary = True
+    f2.required = True
+    f2.description = "Country name"
+    fields.append(f2)
+    
+    f3 = Field()
+    f3.name = "population"
+    f3.type = "integer"
+    f3.primary = False
+    f3.required = True
+    f3.description = "Population count"
+    fields.append(f3)
+    
+    f4 = Field()
+    f4.name = "climate"
+    f4.type = "string"
+    f4.primary = False
+    f4.required = True
+    f4.description = "Climate type"
+    fields.append(f4)
+    
+    f5 = Field()
+    f5.name = "primary_language"
+    f5.type = "string"
+    f5.primary = False
+    f5.required = True
+    f5.description = "Primary language spoken"
+    fields.append(f5)
+    
+    f6 = Field()
+    f6.name = "currency"
+    f6.type = "string"
+    f6.primary = False
+    f6.required = True
+    f6.description = "Currency used"
+    fields.append(f6)
+    
+    schema = RowSchema()
+    schema.name = "Cities"
+    schema.description = "City demographics"
+    schema.fields = fields
+    
+    return schema
 
 
 @pytest.fixture
