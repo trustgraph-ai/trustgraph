@@ -2,7 +2,7 @@
 
 ## The Agentic Context Engineering Foundation
 
-<img src="llm-orchestrate.svg" width=100% />
+<img src="tg-platform-diagram.svg" width=100% />
 
 ---
 
