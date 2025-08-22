@@ -174,6 +174,7 @@ TrustGraph provides maximum flexibility so your agents are always powered by the
 - Azure<br>
 - Google Cloud<br>
 - Intel Tiber Cloud<br>
+- OVHcloud<br>
 - Scaleway<br>
 
 </details>
