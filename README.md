@@ -63,12 +63,13 @@ The [**Configuration Builder**](https://config-ui.demo.trustgraph.ai/) assembles
 
 The **Workbench** is a UI that provides tools for interacting with all major features of the platform. The **Workbench** is enabled by default in the **Configuration Builder** and is available at port `8888` on deployment. The **Workbench** has the following capabilities:
 
-- **GraphRAG and Agentic Chat**: Chat interface for GraphRAG queries and Agents
+- **Agentic, GraphRAG and LLM Chat**: Chat interface for agentic flows, GraphRAG queries, or directly interfacing with a LLM
 - **Semantic Discovery**: Analyze semantic relationships with vector search, knowledge graph relationships, and 3D graph visualization
 - **Data Management**: Load data into the **Librarian** for processing, create and upload **Knowledge Packages**
 - **Flow Management**: Create and delete processing flow patterns
 - **Prompt Management**: Edit all LLM prompts used in the platform
-- **Agent Tools**: Define tools used by the Agent Flow
+- **Agent Tools**: Define tools used by the Agent Flow including MCP tools
+- **MCP Tools**: Connect to MCP servers
 
 ## Context Engineering
 
