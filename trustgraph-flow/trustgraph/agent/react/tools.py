@@ -27,7 +27,8 @@ class KnowledgeQueryImpl:
         client = self.context("graph-rag-request")
         logger.debug("Graph RAG question...")
         return await client.rag(
-            arguments.get("question")
+            arguments.get("question"),
+            collection=self.collection if self.collection else "default"
         )
 
 # This tool implementation knows how to do text completion.  This uses
