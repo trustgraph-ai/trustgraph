@@ -187,7 +187,7 @@ Final Answer: Machine learning is a field of AI that enables computers to learn 
 
         # Verify tool was executed
         graph_rag_client = mock_flow_context("graph-rag-request")
-        graph_rag_client.rag.assert_called_once_with("What is machine learning?")
+        graph_rag_client.rag.assert_called_once_with("What is machine learning?", collection="default")
 
     @pytest.mark.asyncio
     async def test_agent_manager_react_with_final_answer(self, agent_manager, mock_flow_context):
@@ -272,7 +272,7 @@ Args: {{
             
             # Verify correct service was called
             if tool_name == "knowledge_query":
-                mock_flow_context("graph-rag-request").rag.assert_called()
+                mock_flow_context("graph-rag-request").rag.assert_called_with("test question", collection="default")
             elif tool_name == "text_completion":
                 mock_flow_context("prompt-request").question.assert_called()
 
