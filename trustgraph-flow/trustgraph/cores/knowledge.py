@@ -248,6 +248,9 @@ class KnowledgeManager:
                 await ge_pub.start()
 
                 async def publish_triples(t):
+                    # Override collection with request collection
+                    if hasattr(t, 'metadata') and hasattr(t.metadata, 'collection'):
+                        t.metadata.collection = request.collection or "default"
                     await t_pub.send(None, t)
 
                 logger.debug("Publishing triples...")
@@ -260,6 +263,9 @@ class KnowledgeManager:
                 )
 
                 async def publish_ge(g):
+                    # Override collection with request collection
+                    if hasattr(g, 'metadata') and hasattr(g.metadata, 'collection'):
+                        g.metadata.collection = request.collection or "default"
                     await ge_pub.send(None, g)
 
                 logger.debug("Publishing graph embeddings...")
