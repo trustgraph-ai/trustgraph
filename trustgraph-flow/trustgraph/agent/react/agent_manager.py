@@ -269,7 +269,13 @@ class AgentManager:
 
             logger.debug(f"TOOL>>> {act}")
 
-            resp = await action.implementation(context).invoke(
+            # Instantiate the tool implementation with context and config
+            if action.config:
+                tool_instance = action.implementation(context, **action.config)
+            else:
+                tool_instance = action.implementation(context)
+            
+            resp = await tool_instance.invoke(
                 **act.arguments
             )
 
