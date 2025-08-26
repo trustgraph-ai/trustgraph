@@ -45,7 +45,7 @@ class Processor(AgentService):
         )
 
         self.agent = AgentManager(
-            tools=[],
+            tools={},
             additional_context="",
         )
 
@@ -106,11 +106,21 @@ class Processor(AgentService):
                         impl = TextCompletionImpl
                         arguments = TextCompletionImpl.get_arguments()
                     elif impl_id == "mcp-tool":
+                        # For MCP tools, arguments come from config (similar to prompt tools)
+                        config_args = data.get("arguments", [])
+                        arguments = [
+                            Argument(
+                                name=arg.get("name"),
+                                type=arg.get("type"),
+                                description=arg.get("description")
+                            )
+                            for arg in config_args
+                        ]
                         impl = functools.partial(
                             McpToolImpl, 
-                            mcp_tool_id=data.get("mcp-tool")
+                            mcp_tool_id=data.get("mcp-tool"),
+                            arguments=arguments
                         )
-                        arguments = McpToolImpl.get_arguments()
                     elif impl_id == "prompt":
                         # For prompt tools, arguments come from config
                         config_args = data.get("arguments", [])

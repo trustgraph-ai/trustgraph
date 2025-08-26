@@ -27,7 +27,8 @@ class KnowledgeQueryImpl:
         client = self.context("graph-rag-request")
         logger.debug("Graph RAG question...")
         return await client.rag(
-            arguments.get("question")
+            arguments.get("question"),
+            collection=self.collection if self.collection else "default"
         )
 
 # This tool implementation knows how to do text completion.  This uses
@@ -57,15 +58,14 @@ class TextCompletionImpl:
 # the mcp-tool service.
 class McpToolImpl:
 
-    def __init__(self, context, mcp_tool_id):
+    def __init__(self, context, mcp_tool_id, arguments=None):
         self.context = context
         self.mcp_tool_id = mcp_tool_id
+        self.arguments = arguments or []
     
-    @staticmethod
-    def get_arguments():
-        # MCP tools define their own arguments dynamically
-        # For now, we return empty list and let the MCP service handle validation
-        return []
+    def get_arguments(self):
+        # Return configured arguments if available, otherwise empty list for backward compatibility
+        return self.arguments
 
     async def invoke(self, **arguments):
 

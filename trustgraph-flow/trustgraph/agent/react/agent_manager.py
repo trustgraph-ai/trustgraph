@@ -104,6 +104,13 @@ class AgentManager:
             # Parse Action
             if line.startswith("Action:"):
                 action = line[7:].strip()
+
+                # Get rid of quotation prefix/suffix if present
+                while action and action[0] == '"':
+                    action = action[1:]
+
+                while action and action[-1] == '"':
+                    action = action[:-1]
             
             # Parse Args
             if line.startswith("Args:"):
@@ -250,14 +257,25 @@ class AgentManager:
 
             await think(act.thought)
 
+            logger.debug(f"ACTION: {act.name}")
+
+            logger.debug(f"Tools: {self.tools.keys()}")
+
             if act.name in self.tools:
                 action = self.tools[act.name]
             else:
+                logger.debug(f"Tools: {self.tools}")
                 raise RuntimeError(f"No action for {act.name}!")
 
             logger.debug(f"TOOL>>> {act}")
 
-            resp = await action.implementation(context).invoke(
+            # Instantiate the tool implementation with context and config
+            if action.config:
+                tool_instance = action.implementation(context, **action.config)
+            else:
+                tool_instance = action.implementation(context)
+            
+            resp = await tool_instance.invoke(
                 **act.arguments
             )
 
