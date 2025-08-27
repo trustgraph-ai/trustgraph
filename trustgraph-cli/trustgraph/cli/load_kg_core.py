@@ -24,7 +24,7 @@ def load_kg_core(url, user, id, flow, collection):
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-delete-flow-class',
+        prog='tg-load-kg-core',
         description=__doc__,
     )
 
@@ -53,7 +53,7 @@ def main():
     )
 
     parser.add_argument(
-        '-c', '--collection',
+        '-C', '--collection',
         default=default_collection,
         help=f'Collection ID (default: {default_collection}',
     )
