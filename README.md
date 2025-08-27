@@ -1,6 +1,6 @@
 <div align="center">
 
-## The AI Product Creation Platform
+## The Next Generation AI Product Creation Platform
 
 <img src="product-platform-diagram.svg" width=100% />
 
