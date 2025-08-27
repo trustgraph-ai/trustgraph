@@ -23,7 +23,7 @@ def unload_kg_core(url, user, id, flow):
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-delete-flow-class',
+        prog='tg-unload-kg-core',
         description=__doc__,
     )
 
