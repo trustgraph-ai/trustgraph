@@ -1,6 +1,7 @@
 
 import asyncio
 import uuid
+import logging
 from aiohttp import WSMsgType
 
 from ... schema import Metadata
@@ -8,6 +9,9 @@ from ... schema import GraphEmbeddings, EntityEmbeddings
 from ... base import Publisher
 
 from . serialize import to_subgraph, to_value
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 class GraphEmbeddingsImport:
 
@@ -26,12 +30,16 @@ class GraphEmbeddingsImport:
         await self.publisher.start()
 
     async def destroy(self):
+        # Step 1: Stop accepting new messages
         self.running.stop()
 
+        # Step 2: Wait for publisher to drain its queue
+        logger.info("Draining publisher queue...")
+        await self.publisher.stop()
+
+        # Step 3: Close websocket only after queue is drained
         if self.ws:
             await self.ws.close()
-
-        await self.publisher.stop()
 
     async def receive(self, msg):
 

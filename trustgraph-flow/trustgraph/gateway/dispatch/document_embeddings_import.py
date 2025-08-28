@@ -1,12 +1,16 @@
 
 import asyncio
 import uuid
+import logging
 from aiohttp import WSMsgType
 
 from ... schema import Metadata
 from ... schema import DocumentEmbeddings, ChunkEmbeddings
 from ... base import Publisher
 from ... messaging.translators.document_loading import DocumentEmbeddingsTranslator
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 class DocumentEmbeddingsImport:
 
@@ -26,12 +30,16 @@ class DocumentEmbeddingsImport:
         await self.publisher.start()
 
     async def destroy(self):
+        # Step 1: Stop accepting new messages
         self.running.stop()
 
+        # Step 2: Wait for publisher to drain its queue
+        logger.info("Draining publisher queue...")
+        await self.publisher.stop()
+
+        # Step 3: Close websocket only after queue is drained
         if self.ws:
             await self.ws.close()
-
-        await self.publisher.stop()
 
     async def receive(self, msg):
 

@@ -25,24 +25,43 @@ class SocketEndpoint:
         await dispatcher.run()
 
     async def listener(self, ws, dispatcher, running):
-
-        async for msg in ws:
-
-            # On error, finish
-            if msg.type == WSMsgType.TEXT:
-                await dispatcher.receive(msg)
-                continue
-            elif msg.type == WSMsgType.BINARY:
-                await dispatcher.receive(msg)
-                continue
+        """Enhanced listener with graceful shutdown"""
+        try:
+            async for msg in ws:
+                # On error, finish
+                if msg.type == WSMsgType.TEXT:
+                    await dispatcher.receive(msg)
+                    continue
+                elif msg.type == WSMsgType.BINARY:
+                    await dispatcher.receive(msg)
+                    continue
+                else:
+                    # Graceful shutdown on close
+                    logger.info("Websocket closing, initiating graceful shutdown")
+                    running.stop()
+                    
+                    # Allow time for dispatcher cleanup
+                    await asyncio.sleep(1.0)
+                    
+                    # Close websocket if not already closed
+                    if not ws.closed:
+                        await ws.close()
+                    break
             else:
-                break
-
-        running.stop()
-        await ws.close()
+                # This executes when the async for loop completes normally (no break)
+                logger.debug("Websocket iteration completed, performing cleanup")
+                running.stop()
+                if not ws.closed:
+                    await ws.close()
+        except Exception:
+            # Handle exceptions and cleanup
+            running.stop()
+            if not ws.closed:
+                await ws.close()
+            raise
         
     async def handle(self, request):
-
+        """Enhanced handler with better cleanup"""
         try:
             token = request.query['token']
         except:
@@ -55,7 +74,9 @@ class SocketEndpoint:
         ws = web.WebSocketResponse(max_msg_size=52428800)
 
         await ws.prepare(request)
-
+        
+        dispatcher = None
+        
         try:
 
             async with asyncio.TaskGroup() as tg:
@@ -80,9 +101,6 @@ class SocketEndpoint:
 
             logger.debug("Task group closed")
 
-            # Finally?
-            await dispatcher.destroy()
-
         except ExceptionGroup as e:
 
             logger.error("Exception group occurred:", exc_info=True)
@@ -90,11 +108,34 @@ class SocketEndpoint:
             for se in e.exceptions:
                 logger.error(f"  Exception type: {type(se)}")
                 logger.error(f"  Exception: {se}")
+                
+            # Attempt graceful dispatcher shutdown
+            if dispatcher and hasattr(dispatcher, 'destroy'):
+                try:
+                    await asyncio.wait_for(
+                        dispatcher.destroy(), 
+                        timeout=5.0
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning("Dispatcher shutdown timed out")
+                except Exception as de:
+                    logger.error(f"Error during dispatcher cleanup: {de}")
+                    
         except Exception as e:
             logger.error(f"Socket exception: {e}", exc_info=True)
-
-        await ws.close()
-
+            
+        finally:
+            # Ensure dispatcher cleanup
+            if dispatcher and hasattr(dispatcher, 'destroy'):
+                try:
+                    await dispatcher.destroy()
+                except Exception as de:
+                    logger.error(f"Error in final dispatcher cleanup: {de}")
+                    
+            # Ensure websocket is closed
+            if ws and not ws.closed:
+                await ws.close()
+                
         return ws
 
     async def start(self):
