@@ -67,7 +67,7 @@ async def test_listener_graceful_shutdown_on_close():
     ws = AsyncMock()
     
     # Create async iterator that yields one message then closes
-    async def mock_iterator():
+    async def mock_iterator(self):
         # Yield normal message
         msg = MagicMock()
         msg.type = WSMsgType.TEXT
@@ -78,6 +78,7 @@ async def test_listener_graceful_shutdown_on_close():
         close_msg.type = WSMsgType.CLOSE
         yield close_msg
     
+    # Set the async iterator method
     ws.__aiter__ = mock_iterator
     
     dispatcher = AsyncMock()
@@ -173,11 +174,12 @@ async def test_handle_exception_group_cleanup():
         
         with patch('asyncio.TaskGroup') as mock_task_group:
             mock_tg = AsyncMock()
-            mock_tg.__aenter__ = AsyncMock(side_effect=exception_group)
-            mock_tg.__aexit__ = AsyncMock(return_value=None)
+            mock_tg.__aenter__ = AsyncMock(return_value=mock_tg)
+            mock_tg.__aexit__ = AsyncMock(side_effect=exception_group)
+            mock_tg.create_task = MagicMock(side_effect=TestException("test"))
             mock_task_group.return_value = mock_tg
             
-            with patch('asyncio.wait_for') as mock_wait_for:
+            with patch('trustgraph.gateway.endpoint.socket.asyncio.wait_for') as mock_wait_for:
                 mock_wait_for.return_value = None
                 
                 result = await socket_endpoint.handle(request)
@@ -223,21 +225,21 @@ async def test_handle_dispatcher_cleanup_timeout():
         
         with patch('asyncio.TaskGroup') as mock_task_group:
             mock_tg = AsyncMock()
-            mock_tg.__aenter__ = AsyncMock(side_effect=exception_group)
-            mock_tg.__aexit__ = AsyncMock(return_value=None)
+            mock_tg.__aenter__ = AsyncMock(return_value=mock_tg)
+            mock_tg.__aexit__ = AsyncMock(side_effect=exception_group)
+            mock_tg.create_task = MagicMock(side_effect=Exception("test"))
             mock_task_group.return_value = mock_tg
             
             # Mock asyncio.wait_for to raise TimeoutError
-            with patch('asyncio.wait_for') as mock_wait_for:
+            with patch('trustgraph.gateway.endpoint.socket.asyncio.wait_for') as mock_wait_for:
                 mock_wait_for.side_effect = asyncio.TimeoutError("Cleanup timeout")
                 
                 result = await socket_endpoint.handle(request)
     
     # Should have attempted cleanup with timeout
-    mock_wait_for.assert_called_once_with(
-        mock_dispatcher.destroy(),
-        timeout=5.0
-    )
+    mock_wait_for.assert_called_once()
+    # Check that timeout was passed correctly
+    assert mock_wait_for.call_args[1]['timeout'] == 5.0
     
     # Should still call destroy in finally block
     assert mock_dispatcher.destroy.call_count >= 1

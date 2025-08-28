@@ -26,23 +26,39 @@ class SocketEndpoint:
 
     async def listener(self, ws, dispatcher, running):
         """Enhanced listener with graceful shutdown"""
-        async for msg in ws:
-
-            # On error, finish
-            if msg.type == WSMsgType.TEXT:
-                await dispatcher.receive(msg)
-                continue
-            elif msg.type == WSMsgType.BINARY:
-                await dispatcher.receive(msg)
-                continue
+        try:
+            async for msg in ws:
+                # On error, finish
+                if msg.type == WSMsgType.TEXT:
+                    await dispatcher.receive(msg)
+                    continue
+                elif msg.type == WSMsgType.BINARY:
+                    await dispatcher.receive(msg)
+                    continue
+                else:
+                    # Graceful shutdown on close
+                    logger.info("Websocket closing, initiating graceful shutdown")
+                    running.stop()
+                    
+                    # Allow time for dispatcher cleanup
+                    await asyncio.sleep(1.0)
+                    
+                    # Close websocket if not already closed
+                    if not ws.closed:
+                        await ws.close()
+                    break
             else:
-                # Graceful shutdown on close
-                logger.info("Websocket closing, initiating graceful shutdown")
+                # This executes when the async for loop completes normally (no break)
+                logger.debug("Websocket iteration completed, performing cleanup")
                 running.stop()
-                
-                # Allow time for dispatcher cleanup
-                await asyncio.sleep(1.0)
-                break
+                if not ws.closed:
+                    await ws.close()
+        except Exception:
+            # Handle exceptions and cleanup
+            running.stop()
+            if not ws.closed:
+                await ws.close()
+            raise
         
     async def handle(self, request):
         """Enhanced handler with better cleanup"""

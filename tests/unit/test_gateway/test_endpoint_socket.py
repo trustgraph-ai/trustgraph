@@ -63,6 +63,7 @@ class TestSocketEndpoint:
         
         mock_ws = AsyncMock()
         mock_ws.__aiter__ = lambda self: async_iter()
+        mock_ws.closed = False  # Set closed attribute
         mock_running = MagicMock()
         
         # Call listener method
@@ -92,6 +93,7 @@ class TestSocketEndpoint:
         
         mock_ws = AsyncMock()
         mock_ws.__aiter__ = lambda self: async_iter()
+        mock_ws.closed = False  # Set closed attribute
         mock_running = MagicMock()
         
         # Call listener method
@@ -121,6 +123,7 @@ class TestSocketEndpoint:
         
         mock_ws = AsyncMock()
         mock_ws.__aiter__ = lambda self: async_iter()
+        mock_ws.closed = False  # Set closed attribute
         mock_running = MagicMock()
         
         # Call listener method
