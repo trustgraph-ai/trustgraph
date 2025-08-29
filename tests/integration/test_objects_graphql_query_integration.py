@@ -12,7 +12,17 @@ import pytest
 import json
 import asyncio
 from unittest.mock import MagicMock, AsyncMock
-from testcontainers.cassandra import CassandraContainer
+
+# Check if Docker/testcontainers is available
+try:
+    from testcontainers.cassandra import CassandraContainer
+    import docker
+    # Test Docker connection
+    docker.from_env().ping()
+    DOCKER_AVAILABLE = True
+except Exception:
+    DOCKER_AVAILABLE = False
+    CassandraContainer = None
 
 from trustgraph.query.objects.cassandra.service import Processor
 from trustgraph.schema import ObjectsQueryRequest, ObjectsQueryResponse, GraphQLError
@@ -20,12 +30,16 @@ from trustgraph.schema import RowSchema, Field, ExtractedObject, Metadata
 
 
 @pytest.mark.integration
+@pytest.mark.skipif(not DOCKER_AVAILABLE, reason="Docker/testcontainers not available")
 class TestObjectsGraphQLQueryIntegration:
     """Integration tests with real Cassandra database"""
 
     @pytest.fixture(scope="class")
     def cassandra_container(self):
         """Start Cassandra container for testing"""
+        if not DOCKER_AVAILABLE:
+            pytest.skip("Docker/testcontainers not available")
+        
         with CassandraContainer("cassandra:3.11") as cassandra:
             # Wait for Cassandra to be ready
             cassandra.get_connection_url()
@@ -559,6 +573,7 @@ class TestObjectsGraphQLQueryIntegration:
 
 
 @pytest.mark.integration
+@pytest.mark.skipif(not DOCKER_AVAILABLE, reason="Docker/testcontainers not available")
 class TestObjectsGraphQLQueryPerformance:
     """Performance-focused integration tests"""
     
