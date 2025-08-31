@@ -202,18 +202,24 @@ password: admin
 
 The default Grafana dashboard tracks the following:
 
-- LLM Latency
-- Error Rate
-- Service Request Rates
-- Queue Backlogs
-- Chunking Histogram
-- Error Source by Service
-- Rate Limit Events
-- CPU usage by Service
-- Memory usage by Service
-- Models Deployed
-- Token Throughput (Tokens/second)
-- Cost Throughput (Cost/second)
+<details>
+<summary>Telemetry</summary>
+<br>
+
+- LLM Latency<br>
+- Error Rate<br>
+- Service Request Rates<br>
+- Queue Backlogs<br>
+- Chunking Histogram<br>
+- Error Source by Service<br>
+- Rate Limit Events<br>
+- CPU usage by Service<br>
+- Memory usage by Service<br>
+- Models Deployed<br>
+- Token Throughput (Tokens/second)<br>
+- Cost Throughput (Cost/second)<br>
+   
+</details>
 
 ## Contributing
 
