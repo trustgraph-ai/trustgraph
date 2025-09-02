@@ -47,5 +47,5 @@ class DocumentEmbeddingsClient(BaseClient):
         return self.call(
             user=user, collection=collection,
             vectors=vectors, limit=limit, timeout=timeout
-        ).documents
+        ).chunks
 
