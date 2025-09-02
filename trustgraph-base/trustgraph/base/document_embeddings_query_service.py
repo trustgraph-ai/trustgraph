@@ -57,7 +57,7 @@ class DocumentEmbeddingsQueryService(FlowProcessor):
             docs = await self.query_document_embeddings(request)
 
             logger.debug("Sending document embeddings query response...")
-            r = DocumentEmbeddingsResponse(documents=docs, error=None)
+            r = DocumentEmbeddingsResponse(chunks=docs, error=None)
             await flow("response").send(r, properties={"id": id})
 
             logger.debug("Document embeddings query request completed")
@@ -73,7 +73,7 @@ class DocumentEmbeddingsQueryService(FlowProcessor):
                     type = "document-embeddings-query-error",
                     message = str(e),
                 ),
-                response=None,
+                chunks=None,
             )
 
             await flow("response").send(r, properties={"id": id})
