@@ -46,3 +46,10 @@ class DocumentEmbeddingsRequest(Record):
 class DocumentEmbeddingsResponse(Record):
     error = Error()
     chunks = Array(String())
+
+document_embeddings_request_queue = topic(
+    "non-persistent://trustgraph/document-embeddings-request"
+)
+document_embeddings_response_queue = topic(
+    "non-persistent://trustgraph/document-embeddings-response"
+)
