@@ -42,11 +42,15 @@ def format_table_data(rows, table_name, output_format):
         return json.dumps({table_name: rows}, indent=2)
     
     elif output_format == 'csv':
-        # Get all unique field names
-        fieldnames = set()
+        # Get field names in order from first row, then add any missing ones
+        fieldnames = list(rows[0].keys()) if rows else []
+        # Add any additional fields from other rows that might be missing
+        all_fields = set(fieldnames)
         for row in rows:
-            fieldnames.update(row.keys())
-        fieldnames = sorted(fieldnames)
+            for field in row.keys():
+                if field not in all_fields:
+                    fieldnames.append(field)
+                    all_fields.add(field)
         
         # Create CSV string
         output = io.StringIO()
@@ -56,11 +60,15 @@ def format_table_data(rows, table_name, output_format):
         return output.getvalue().rstrip()
     
     elif output_format == 'table':
-        # Get all unique field names
-        fieldnames = set()
+        # Get field names in order from first row, then add any missing ones
+        fieldnames = list(rows[0].keys()) if rows else []
+        # Add any additional fields from other rows that might be missing
+        all_fields = set(fieldnames)
         for row in rows:
-            fieldnames.update(row.keys())
-        fieldnames = sorted(fieldnames)
+            for field in row.keys():
+                if field not in all_fields:
+                    fieldnames.append(field)
+                    all_fields.add(field)
         
         # Create table data
         table_data = []
