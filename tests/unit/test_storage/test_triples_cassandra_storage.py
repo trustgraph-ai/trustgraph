@@ -16,23 +16,25 @@ class TestCassandraStorageProcessor:
         """Test processor initialization with default parameters"""
         taskgroup_mock = MagicMock()
         
-        processor = Processor(taskgroup=taskgroup_mock)
+        # Patch environment to ensure clean defaults
+        with patch.dict('os.environ', {}, clear=True):
+            processor = Processor(taskgroup=taskgroup_mock)
         
-        assert processor.graph_host == ['localhost']
+        assert processor.graph_host == ['cassandra']  # Updated default
         assert processor.username is None
         assert processor.password is None
         assert processor.table is None
 
     def test_processor_initialization_with_custom_params(self):
-        """Test processor initialization with custom parameters"""
+        """Test processor initialization with custom parameters (new cassandra_* names)"""
         taskgroup_mock = MagicMock()
         
         processor = Processor(
             taskgroup=taskgroup_mock,
             id='custom-storage',
-            graph_host='cassandra.example.com',
-            graph_username='testuser',
-            graph_password='testpass'
+            cassandra_host='cassandra.example.com',
+            cassandra_username='testuser',
+            cassandra_password='testpass'
         )
         
         assert processor.graph_host == ['cassandra.example.com']
@@ -46,11 +48,41 @@ class TestCassandraStorageProcessor:
         
         processor = Processor(
             taskgroup=taskgroup_mock,
-            graph_username='testuser'
+            cassandra_username='testuser'
         )
         
         assert processor.username == 'testuser'
         assert processor.password is None
+    
+    def test_processor_initialization_backward_compatibility(self):
+        \"\"\"Test processor initialization with old graph_* parameters (backward compatibility)\"\"\"
+        taskgroup_mock = MagicMock()
+        
+        processor = Processor(
+            taskgroup=taskgroup_mock,
+            graph_host='old-host',
+            graph_username='old-user',
+            graph_password='old-pass'
+        )
+        
+        assert processor.graph_host == ['old-host']
+        assert processor.username == 'old-user'
+        assert processor.password == 'old-pass'
+    
+    def test_processor_parameter_precedence(self):
+        \"\"\"Test that new cassandra_* parameters take precedence over old graph_* parameters\"\"\"
+        taskgroup_mock = MagicMock()
+        
+        processor = Processor(
+            taskgroup=taskgroup_mock,
+            cassandra_host='new-host',
+            graph_host='old-host',  # Should be ignored
+            cassandra_username='new-user',
+            graph_username='old-user'  # Should be ignored
+        )
+        
+        assert processor.graph_host == ['new-host']  # New parameter wins
+        assert processor.username == 'new-user'     # New parameter wins
 
     @pytest.mark.asyncio
     @patch('trustgraph.storage.triples.cassandra.write.TrustGraph')
@@ -62,8 +94,8 @@ class TestCassandraStorageProcessor:
         
         processor = Processor(
             taskgroup=taskgroup_mock,
-            graph_username='testuser',
-            graph_password='testpass'
+            cassandra_username='testuser',
+            cassandra_password='testpass'
         )
         
         # Create mock message
@@ -76,7 +108,7 @@ class TestCassandraStorageProcessor:
         
         # Verify TrustGraph was called with auth parameters
         mock_trustgraph.assert_called_once_with(
-            hosts=['localhost'],
+            hosts=['cassandra'],  # Updated default
             keyspace='user1',
             table='collection1',
             username='testuser',
@@ -104,7 +136,7 @@ class TestCassandraStorageProcessor:
         
         # Verify TrustGraph was called without auth parameters
         mock_trustgraph.assert_called_once_with(
-            hosts=['localhost'],
+            hosts=['cassandra'],  # Updated default
             keyspace='user2',
             table='collection2'
         )
@@ -225,16 +257,16 @@ class TestCassandraStorageProcessor:
             # Verify parent add_args was called
             mock_parent_add_args.assert_called_once_with(parser)
         
-        # Verify our specific arguments were added
+        # Verify our specific arguments were added (now using cassandra_* names)
         # Parse empty args to check defaults
         args = parser.parse_args([])
         
-        assert hasattr(args, 'graph_host')
-        assert args.graph_host == 'localhost'
-        assert hasattr(args, 'graph_username')
-        assert args.graph_username is None
-        assert hasattr(args, 'graph_password')
-        assert args.graph_password is None
+        assert hasattr(args, 'cassandra_host')
+        assert args.cassandra_host == 'cassandra'  # Updated default
+        assert hasattr(args, 'cassandra_username')
+        assert args.cassandra_username is None
+        assert hasattr(args, 'cassandra_password')
+        assert args.cassandra_password is None
 
     def test_add_args_with_custom_values(self):
         """Test add_args with custom command line values"""
@@ -246,31 +278,42 @@ class TestCassandraStorageProcessor:
         with patch('trustgraph.storage.triples.cassandra.write.TriplesStoreService.add_args'):
             Processor.add_args(parser)
         
-        # Test parsing with custom values
+        # Test parsing with custom values (new cassandra_* arguments)
         args = parser.parse_args([
-            '--graph-host', 'cassandra.example.com',
-            '--graph-username', 'testuser',
-            '--graph-password', 'testpass'
+            '--cassandra-host', 'cassandra.example.com',
+            '--cassandra-username', 'testuser',
+            '--cassandra-password', 'testpass'
         ])
         
-        assert args.graph_host == 'cassandra.example.com'
-        assert args.graph_username == 'testuser'
-        assert args.graph_password == 'testpass'
+        assert args.cassandra_host == 'cassandra.example.com'
+        assert args.cassandra_username == 'testuser'
+        assert args.cassandra_password == 'testpass'
 
-    def test_add_args_short_form(self):
-        """Test add_args with short form arguments"""
+    def test_add_args_with_env_vars(self):
+        """Test add_args shows environment variables in help text"""
         from argparse import ArgumentParser
         from unittest.mock import patch
+        import os
         
         parser = ArgumentParser()
         
+        # Set environment variables
+        env_vars = {
+            'CASSANDRA_HOST': 'env-host1,env-host2',
+            'CASSANDRA_USERNAME': 'env-user',
+            'CASSANDRA_PASSWORD': 'env-pass'
+        }
+        
         with patch('trustgraph.storage.triples.cassandra.write.TriplesStoreService.add_args'):
-            Processor.add_args(parser)
-        
-        # Test parsing with short form
-        args = parser.parse_args(['-g', 'short.example.com'])
-        
-        assert args.graph_host == 'short.example.com'
+            with patch.dict(os.environ, env_vars, clear=True):
+                Processor.add_args(parser)
+                
+                # Check that help text includes environment variable info
+                help_text = parser.format_help()
+                assert 'env-host1,env-host2' in help_text
+                assert 'env-user' in help_text
+                assert '<set>' in help_text  # Password should be hidden
+                assert 'env-pass' not in help_text  # Password value not shown
 
     @patch('trustgraph.storage.triples.cassandra.write.Processor.launch')
     def test_run_function(self, mock_launch):
