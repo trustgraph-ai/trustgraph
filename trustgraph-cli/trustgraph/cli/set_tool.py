@@ -65,7 +65,7 @@ def set_tool(
         arguments : List[Argument],
         group : List[str],
         state : str,
-        available_in_states : List[str],
+        applicable_states : List[str],
 ):
 
     api = Api(url).config()
@@ -100,7 +100,7 @@ def set_tool(
 
     if state: object["state"] = state
 
-    if available_in_states: object["available_in_states"] = available_in_states
+    if applicable_states: object["applicable-states"] = applicable_states
 
     values = api.put([
         ConfigValue(
@@ -200,8 +200,8 @@ def main():
     )
 
     parser.add_argument(
-        '--available-in-states',
-        nargs="*",
+        '--applicable-states',
+        nargs="*", 
         help=f'States in which this tool is available',
     )
 
@@ -247,7 +247,7 @@ def main():
             arguments=arguments,
             group=args.group or [],
             state=args.state,
-            available_in_states=getattr(args, 'available_in_states', None) or [],
+            applicable_states=getattr(args, 'applicable_states', None) or [],
         )
 
     except Exception as e:

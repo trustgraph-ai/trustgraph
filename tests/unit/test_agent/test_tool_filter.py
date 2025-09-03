@@ -80,10 +80,10 @@ class TestToolFiltering:
         assert all(tool in filtered for tool in tools)
 
     def test_filter_tools_by_state(self):
-        """Test filtering based on available_in_states."""
+        """Test filtering based on applicable-states."""
         tools = {
-            'init_tool': Mock(config={'available_in_states': ['undefined']}),
-            'analysis_tool': Mock(config={'available_in_states': ['analysis']}),
+            'init_tool': Mock(config={'applicable-states': ['undefined']}),
+            'analysis_tool': Mock(config={'applicable-states': ['analysis']}),
             'any_state_tool': Mock(config={})  # available in all states
         }
         
@@ -95,10 +95,10 @@ class TestToolFiltering:
         assert 'any_state_tool' in filtered
 
     def test_filter_tools_state_wildcard(self):
-        """Test tools with '*' in available_in_states are always available."""
+        """Test tools with '*' in applicable-states are always available."""
         tools = {
-            'wildcard_tool': Mock(config={'available_in_states': ['*']}),
-            'specific_tool': Mock(config={'available_in_states': ['research']})
+            'wildcard_tool': Mock(config={'applicable-states': ['*']}),
+            'specific_tool': Mock(config={'applicable-states': ['research']})
         }
         
         # Filter for 'analysis' state
@@ -112,19 +112,19 @@ class TestToolFiltering:
         tools = {
             'valid_tool': Mock(config={
                 'group': ['read-only'],
-                'available_in_states': ['analysis']
+                'applicable-states': ['analysis']
             }),
             'wrong_group': Mock(config={
                 'group': ['admin'],
-                'available_in_states': ['analysis']
+                'applicable-states': ['analysis']
             }),
             'wrong_state': Mock(config={
                 'group': ['read-only'],
-                'available_in_states': ['research']
+                'applicable-states': ['research']
             }),
             'wrong_both': Mock(config={
                 'group': ['admin'],
-                'available_in_states': ['research']
+                'applicable-states': ['research']
             })
         }
         
@@ -186,7 +186,7 @@ class TestConfigValidation:
         config = {
             'group': ['read-only', 'basic'],
             'state': 'analysis',
-            'available_in_states': ['undefined', 'research']
+            'applicable-states': ['undefined', 'research']
         }
         
         # Should not raise an exception
@@ -213,16 +213,16 @@ class TestConfigValidation:
         with pytest.raises(ValueError, match="'state' field must be a string"):
             validate_tool_config(config)
 
-    def test_validate_available_in_states_not_list(self):
-        """Test validation fails when available_in_states is not a list."""
-        config = {'available_in_states': 'undefined'}  # Should be list
+    def test_validate_applicable_states_not_list(self):
+        """Test validation fails when applicable-states is not a list."""
+        config = {'applicable-states': 'undefined'}  # Should be list
         
-        with pytest.raises(ValueError, match="'available_in_states' field must be a list"):
+        with pytest.raises(ValueError, match="'applicable-states' field must be a list"):
             validate_tool_config(config)
 
-    def test_validate_available_in_states_non_string_elements(self):
-        """Test validation fails when available_in_states contains non-strings."""
-        config = {'available_in_states': ['undefined', 123]}
+    def test_validate_applicable_states_non_string_elements(self):
+        """Test validation fails when applicable-states contains non-strings."""
+        config = {'applicable-states': ['undefined', 123]}
         
         with pytest.raises(ValueError, match="All state names must be strings"):
             validate_tool_config(config)
@@ -257,7 +257,7 @@ class TestToolAvailability:
 
     def test_tool_available_string_state_conversion(self):
         """Test that single state string is converted to list."""
-        tool = Mock(config={'available_in_states': 'analysis'})  # Single string
+        tool = Mock(config={'applicable-states': 'analysis'})  # Single string
         
         assert _is_tool_available(tool, ['default'], 'analysis')
         assert not _is_tool_available(tool, ['default'], 'research')
@@ -281,16 +281,16 @@ class TestWorkflowScenarios:
             'knowledge_query': Mock(config={
                 'group': ['read-only', 'knowledge'],
                 'state': 'analysis',
-                'available_in_states': ['undefined', 'research']
+                'applicable-states': ['undefined', 'research']
             }),
             'complex_analysis': Mock(config={
                 'group': ['advanced', 'compute'],
                 'state': 'results',
-                'available_in_states': ['analysis']
+                'applicable-states': ['analysis']
             }),
             'text_completion': Mock(config={
                 'group': ['read-only', 'text', 'basic']
-                # No available_in_states = available in all states
+                # No applicable-states = available in all states
             })
         }
         

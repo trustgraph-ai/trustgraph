@@ -31,7 +31,7 @@ def sample_tools():
             config={
                 'group': ['read-only', 'knowledge', 'basic'],
                 'state': 'analysis',
-                'available_in_states': ['undefined', 'research']
+                'applicable-states': ['undefined', 'research']
             },
             arguments=[]
         ),
@@ -41,7 +41,7 @@ def sample_tools():
             implementation=Mock(),
             config={
                 'group': ['write', 'knowledge', 'admin'],
-                'available_in_states': ['analysis', 'modification']
+                'applicable-states': ['analysis', 'modification']
             },
             arguments=[]
         ),
@@ -52,7 +52,7 @@ def sample_tools():
             config={
                 'group': ['read-only', 'text', 'basic'],
                 'state': 'undefined'
-                # No available_in_states = available in all states
+                # No applicable-states = available in all states
             },
             arguments=[]
         ),
@@ -63,7 +63,7 @@ def sample_tools():
             config={
                 'group': ['advanced', 'compute', 'expensive'],
                 'state': 'results',
-                'available_in_states': ['analysis']
+                'applicable-states': ['analysis']
             },
             arguments=[]
         )
@@ -332,7 +332,7 @@ class TestToolConfigurationLoading:
                     "type": "text-completion",
                     "group": ["read-only", "text"],
                     "state": "analysis",
-                    "available_in_states": ["undefined", "research"]
+                    "applicable-states": ["undefined", "research"]
                 })
             }
         }
