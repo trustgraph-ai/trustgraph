@@ -59,6 +59,7 @@ class TestTriplesWriterConfiguration:
     def test_backward_compatibility_graph_params(self, mock_trust_graph):
         """Test backward compatibility with old graph_* parameter names."""
         processor = TriplesWriter(
+            taskgroup=MagicMock(),
             graph_host='compat-host',
             graph_username='compat-user',
             graph_password='compat-pass'
@@ -116,7 +117,7 @@ class TestObjectsWriterConfiguration:
         mock_cluster.return_value = mock_cluster_instance
         
         with patch.dict(os.environ, env_vars, clear=True):
-            processor = ObjectsWriter()
+            processor = ObjectsWriter(taskgroup=MagicMock())
             processor.connect_cassandra()
             
             # Verify cluster was called with hosts list
