@@ -56,55 +56,63 @@ The existing tool configuration is enhanced with a `group` field:
 - **Multi-membership**: Tools can belong to multiple groups
 - **Case-sensitive**: Group names are exact string matches
 
+#### 2.1.2 Tool State Transition Enhancement
+
+Tools can optionally specify state transitions and state-based availability:
+
+```json
+{
+  "name": "knowledge-query",
+  "type": "knowledge-query",
+  "description": "Query the knowledge graph",
+  "group": ["read-only", "knowledge", "basic"],
+  "state": "analysis",
+  "available_in_states": ["undefined", "research"]
+}
+```
+
+**State Field Specification:**
+- `state`: String - **Optional** - State to transition to after successful tool execution
+- `available_in_states`: Array(String) - **Optional** - States in which this tool is available
+- **Default behavior**: Tools without `available_in_states` are available in all states
+- **State transition**: Only occurs after successful tool execution
+
 #### 2.2 AgentRequest Schema Enhancement
 
 The `AgentRequest` schema in `trustgraph-base/trustgraph/schema/services/agent.py` is enhanced:
 
 **Current AgentRequest:**
 - `question`: String - User query
-- `plan`: String - Execution plan  
+- `plan`: String - Execution plan (can be removed)
 - `state`: String - Agent state
 - `history`: Array(AgentStep) - Execution history
 
 **Enhanced AgentRequest:**
 - `question`: String - User query
-- `plan`: String - Execution plan
-- `state`: String - Agent state  
+- `state`: String - Agent execution state (now actively used for tool filtering)
 - `history`: Array(AgentStep) - Execution history
 - `group`: Array(String) - **NEW** - Tool groups allowed for this request
 
-**Group Field Behavior:**
+**Schema Changes:**
+- **Removed**: `plan` field is no longer needed and can be removed (was originally intended for tool specification)
+- **Added**: `group` field for tool group specification
+- **Enhanced**: `state` field now controls tool availability during execution
+
+**Field Behaviors:**
+
+**Group Field:**
 - **Optional**: If not specified, defaults to ["default"]
 - **Intersection**: Only tools matching at least one specified group are available
 - **Empty array**: No tools available (agent can only use internal reasoning)
 - **Wildcard**: Special group "*" grants access to all tools
 
-### 3. Tool Group Categories
+**State Field:**
+- **Optional**: If not specified, defaults to "undefined"
+- **State-based filtering**: Only tools available in current state are eligible
+- **Default state**: "undefined" state allows all tools (subject to group filtering)
+- **State transitions**: Tools can change state after successful execution
 
-#### 3.1 Predefined Group Categories
-
-**Security-Based Groups:**
-- `read-only`: Tools that only read data (GraphQuery, KnowledgeQuery)
-- `write`: Tools that modify data (GraphUpdate, DocumentStore)
-- `admin`: Administrative tools (SystemConfig, UserManagement)
-
-**Functional Groups:**
-- `knowledge`: Knowledge graph operations
-- `text`: Text processing and completion
-- `search`: Search and retrieval operations
-- `compute`: Computation and analysis tools
-
-**Complexity Groups:**
-- `basic`: Simple, fast tools for common operations
-- `advanced`: Complex tools for specialized tasks  
-- `experimental`: Beta/experimental tools
-
-**Resource Groups:**
-- `local`: Tools that run locally
-- `remote`: Tools that require external services
-- `expensive`: Resource-intensive tools
-
-#### 3.2 Custom Group Examples
+### 3. Custom Group Examples
 
 Organizations can define domain-specific groups:
 
@@ -131,36 +139,54 @@ Organizations can define domain-specific groups:
 3. Only matching tools are passed to agent execution context
 4. Agent operates with filtered tool set throughout request lifecycle
 
-#### 4.2 Group Resolution Logic
+#### 4.2 Tool Filtering Logic
+
+**Combined Group and State Filtering:**
 
 ```
 For each configured tool:
   tool_groups = tool.group || ["default"]
+  tool_states = tool.available_in_states || ["*"]  // Available in all states
   
 For each request:
   requested_groups = request.group || ["default"]
+  current_state = request.state || "undefined"
   
 Tool is available if:
-  intersection(tool_groups, requested_groups) is not empty
-  OR
-  "*" in requested_groups
+  // Group filtering
+  (intersection(tool_groups, requested_groups) is not empty OR "*" in requested_groups)
+  AND
+  // State filtering  
+  (current_state in tool_states OR "*" in tool_states)
+```
+
+**State Transition Logic:**
+
+```
+After successful tool execution:
+  if tool.state is defined:
+    next_request.state = tool.state
+  else:
+    next_request.state = current_request.state  // No change
 ```
 
 #### 4.3 Agent Integration Points
 
 **ReAct Agent:**
 - Tool filtering occurs in agent_manager.py during tool registry creation
-- Available tools list is pre-filtered before plan generation
-- No changes to execution logic required
+- Available tools list is filtered by both group and state before plan generation
+- State transitions update AgentRequest.state field after successful tool execution
+- Next iteration uses updated state for tool filtering
 
 **Confidence-Based Agent:**
 - Tool filtering occurs in planner.py during plan generation
-- ExecutionStep validation ensures only available tools are used
+- ExecutionStep validation ensures only group+state eligible tools are used
 - Flow controller enforces tool availability at runtime
+- State transitions managed by Flow Controller between steps
 
 ### 5. Configuration Examples
 
-#### 5.1 Tool Configuration with Groups
+#### 5.1 Tool Configuration with Groups and States
 
 ```yaml
 tool:
@@ -169,64 +195,82 @@ tool:
     name: "Knowledge Graph Query"
     description: "Query the knowledge graph for entities and relationships"
     group: ["read-only", "knowledge", "basic"]
+    state: "analysis"
+    available_in_states: ["undefined", "research"]
     
   graph-update:
     type: graph-update
     name: "Graph Update"
     description: "Add or modify entities in the knowledge graph"
     group: ["write", "knowledge", "admin"]
+    available_in_states: ["analysis", "modification"]
     
   text-completion:
     type: text-completion
     name: "Text Completion"
     description: "Generate text using language models"
     group: ["read-only", "text", "basic"]
+    state: "undefined"
+    # No available_in_states = available in all states
     
   complex-analysis:
     type: mcp-tool
     name: "Complex Analysis Tool"
     description: "Perform complex data analysis"
     group: ["advanced", "compute", "expensive"]
+    state: "results"
+    available_in_states: ["analysis"]
     mcp_tool_id: "analysis-server"
+    
+  reset-workflow:
+    type: mcp-tool
+    name: "Reset Workflow"
+    description: "Reset to initial state"
+    group: ["admin"]
+    state: "undefined"
+    available_in_states: ["analysis", "results"]
 ```
 
-#### 5.2 Request Examples
+#### 5.2 Request Examples with State Workflows
 
-**Read-only Knowledge Query:**
+**Initial Research Request:**
 ```json
 {
   "question": "What entities are connected to Company X?",
-  "group": ["read-only", "knowledge"]
-}
-```
-*Available tools: knowledge-query only*
-
-**Administrative Task:**
-```json
-{
-  "question": "Update the company profile and analyze impact",
-  "group": ["write", "knowledge", "compute"]
-}
-```
-*Available tools: graph-update, complex-analysis*
-
-**Unrestricted Access:**
-```json
-{
-  "question": "Perform comprehensive analysis",
-  "group": ["*"]
-}
-```
-*Available tools: All configured tools*
-
-**Basic Operations Only:**
-```json
-{
-  "question": "Simple information lookup",
-  "group": ["basic"]
+  "group": ["read-only", "knowledge"],
+  "state": "undefined"
 }
 ```
 *Available tools: knowledge-query, text-completion*
+*After knowledge-query: state → "analysis"*
+
+**Analysis Phase:**
+```json
+{
+  "question": "Continue analysis based on previous results",
+  "group": ["advanced", "compute", "write"],
+  "state": "analysis"
+}
+```
+*Available tools: complex-analysis, graph-update, reset-workflow*
+*After complex-analysis: state → "results"*
+
+**Results Phase:**
+```json
+{
+  "question": "What should I do with these results?",
+  "group": ["admin"],
+  "state": "results"
+}
+```
+*Available tools: reset-workflow only*
+*After reset-workflow: state → "undefined"*
+
+**Workflow Example - Complete Flow:**
+1. **Start (undefined)**: Use knowledge-query → transitions to "analysis"
+2. **Analysis state**: Use complex-analysis → transitions to "results" 
+3. **Results state**: Use reset-workflow → transitions back to "undefined"
+4. **Back to start**: All initial tools available again
 
 ### 6. Security Considerations
 
@@ -251,10 +295,10 @@ if not is_subset(requested_groups, allowed_groups):
 #### 6.2 Audit and Monitoring
 
 **Enhanced Audit Trail:**
-- Log requested tool groups per request
-- Track tool usage by group membership
-- Monitor unauthorized group access attempts
-- Alert on unusual group usage patterns
+- Log requested tool groups and initial state per request
+- Track state transitions and tool usage by group membership
+- Monitor unauthorized group access attempts and invalid state transitions
+- Alert on unusual group usage patterns or suspicious state workflows
 
 ### 7. Migration Strategy
 
@@ -267,29 +311,11 @@ if not is_subset(requested_groups, allowed_groups):
 - Existing requests without group field use "default" group
 
 **Existing Behavior Preserved:**
-- Tools without group configuration continue to work
-- Requests without group specification access all tools
+- Tools without group configuration continue to work (default group)
+- Tools without state configuration are available in all states
+- Requests without group specification access all tools (default group)
+- Requests without state specification use "undefined" state (all tools available)
 - No breaking changes to existing deployments
-
-#### 7.2 Migration Path
-
-**Step 1: Schema Deployment**
-- Deploy enhanced schemas with optional fields
-- Verify existing tools and requests continue to work
-
-**Step 2: Tool Classification**
-- Gradually add group classifications to tool configurations
-- Start with security-critical tools (read-only vs write)
-- Expand to functional and complexity groups
-
-**Step 3: Request Integration**
-- Update client applications to specify appropriate groups
-- Implement gateway-level access control
-- Monitor usage patterns and refine groups
-
-**Step 4: Enforcement**
-- Gradually tighten default permissions
-- Eventually require explicit group specification for new deployments
 
 ### 8. Monitoring and Observability
 
@@ -298,10 +324,16 @@ if not is_subset(requested_groups, allowed_groups):
 **Tool Group Usage:**
 - `agent_tool_group_requests_total` - Counter of requests by group
 - `agent_tool_group_availability` - Gauge of tools available per group
-- `agent_filtered_tools_count` - Histogram of tool count after filtering
+- `agent_filtered_tools_count` - Histogram of tool count after group+state filtering
+
+**State Workflow Metrics:**
+- `agent_state_transitions_total` - Counter of state transitions by tool
+- `agent_workflow_duration_seconds` - Histogram of time spent in each state
+- `agent_state_availability` - Gauge of tools available per state
 
 **Security Metrics:**
 - `agent_group_access_denied_total` - Counter of unauthorized group access
+- `agent_invalid_state_transition_total` - Counter of invalid state transitions
 - `agent_privilege_escalation_attempts_total` - Counter of suspicious requests
 
 #### 8.2 Logging Enhancements
@@ -311,8 +343,13 @@ if not is_subset(requested_groups, allowed_groups):
 {
   "request_id": "req-123",
   "requested_groups": ["read-only", "knowledge"],
-  "available_tools": ["knowledge-query"],
-  "filtered_tools": ["graph-update", "admin-tool"],
+  "initial_state": "undefined",
+  "state_transitions": [
+    {"tool": "knowledge-query", "from": "undefined", "to": "analysis", "timestamp": "2024-01-01T10:00:01Z"}
+  ],
+  "available_tools": ["knowledge-query", "text-completion"],
+  "filtered_by_group": ["graph-update", "admin-tool"],
+  "filtered_by_state": [],
   "execution_time": "1.2s"
 }
 ```
@@ -323,21 +360,26 @@ if not is_subset(requested_groups, allowed_groups):
 
 **Tool Filtering Logic:**
 - Test group intersection calculations
-- Verify default group assignment
+- Test state-based filtering logic
+- Verify default group and state assignment
 - Test wildcard group behavior
 - Validate empty group handling
+- Test combined group+state filtering scenarios
 
 **Configuration Validation:**
-- Test tool loading with various group configurations
-- Verify schema validation for invalid group specifications
+- Test tool loading with various group and state configurations
+- Verify schema validation for invalid group and state specifications
 - Test backward compatibility with existing configurations
+- Validate state transition definitions and cycles
 
 #### 9.2 Integration Tests
 
 **Agent Behavior:**
-- Verify agents only see filtered tools
+- Verify agents only see group+state filtered tools
 - Test request execution with various group combinations
+- Test state transitions during agent execution
 - Validate error handling when no tools are available
+- Test workflow progression through multiple states
 
 **Security Testing:**
 - Test privilege escalation prevention
@@ -346,15 +388,28 @@ if not is_subset(requested_groups, allowed_groups):
 
 #### 9.3 End-to-End Scenarios
 
-**Multi-tenant Usage:**
+**Multi-tenant Usage with State Workflows:**
 ```
-Scenario: Different users with different tool access
-Given: User A has "read-only" permissions
-  And: User B has "write" permissions
+Scenario: Different users with different tool access and workflow states
+Given: User A has "read-only" permissions, state "undefined"
+  And: User B has "write" permissions, state "analysis"
 When: Both request knowledge operations
-Then: User A gets filtered tool set
-  And: User B gets full tool set
-  And: All usage is properly audited
+Then: User A gets read-only tools available in "undefined" state
+  And: User B gets write tools available in "analysis" state
+  And: State transitions are tracked per user session
+  And: All usage and transitions are properly audited
+```
+
+**Workflow State Progression:**
+```
+Scenario: Complete workflow execution
+Given: Request with groups ["knowledge", "compute"] and state "undefined"
+When: Agent executes knowledge-query tool (transitions to "analysis")
+  And: Agent executes complex-analysis tool (transitions to "results")
+  And: Agent executes reset-workflow tool (transitions to "undefined")
+Then: Each step has correctly filtered available tools
+  And: State transitions are logged with timestamps
+  And: Final state allows initial workflow to repeat
 ```
 
 ### 10. Performance Considerations
@@ -362,21 +417,22 @@ Then: User A gets filtered tool set
 #### 10.1 Tool Loading Impact
 
 **Configuration Loading:**
-- Group metadata is loaded once at startup
-- Minimal memory overhead per tool
+- Group and state metadata loaded once at startup
+- Minimal memory overhead per tool (additional fields)
 - No impact on tool initialization time
 
 **Request Processing:**
-- Tool filtering occurs once per request
+- Combined group+state filtering occurs once per request
 - O(n) complexity where n = number of configured tools
+- State transitions add minimal overhead (string assignment)
 - Negligible impact for typical tool counts (< 100)
 
 #### 10.2 Optimization Strategies
 
-**Pre-computed Group Sets:**
-- Cache tool sets by group combination
-- Avoid repeated filtering for common group patterns
-- Memory vs computation tradeoff
+**Pre-computed Tool Sets:**
+- Cache tool sets by group+state combination
+- Avoid repeated filtering for common group/state patterns
+- Memory vs computation tradeoff for frequently used combinations
 
 **Lazy Loading:**
 - Load tool implementations only when needed
