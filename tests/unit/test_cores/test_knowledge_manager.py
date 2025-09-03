@@ -56,7 +56,7 @@ def knowledge_manager(mock_flow_config):
     with patch('trustgraph.cores.knowledge.KnowledgeTableStore') as mock_store_class:
         manager = KnowledgeManager(
             cassandra_host=["localhost"],
-            cassandra_user="test_user", 
+            cassandra_username="test_user", 
             cassandra_password="test_pass",
             keyspace="test_keyspace",
             flow_config=mock_flow_config

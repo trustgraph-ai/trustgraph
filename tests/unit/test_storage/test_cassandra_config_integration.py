@@ -216,7 +216,7 @@ class TestKgStoreConfiguration:
             # Verify KnowledgeTableStore was called with resolved config
             mock_table_store.assert_called_once_with(
                 cassandra_host=['kg-env-host1', 'kg-env-host2', 'kg-env-host3'],
-                cassandra_user='kg-env-user',
+                cassandra_username='kg-env-user',
                 cassandra_password='kg-env-pass',
                 keyspace='knowledge'
             )
@@ -237,28 +237,28 @@ class TestKgStoreConfiguration:
         # Verify KnowledgeTableStore was called with explicit config
         mock_table_store.assert_called_once_with(
             cassandra_host=['explicit-host'],
-            cassandra_user='explicit-user',
+            cassandra_username='explicit-user',
             cassandra_password='explicit-pass',
             keyspace='knowledge'
         )
     
     @patch('trustgraph.storage.knowledge.store.KnowledgeTableStore')
-    def test_backward_compatibility_cassandra_user(self, mock_table_store):
-        """Test backward compatibility with cassandra_user parameter."""
+    def test_no_backward_compatibility_cassandra_user(self, mock_table_store):
+        """Test that cassandra_user parameter is no longer supported."""
         mock_store_instance = MagicMock()
         mock_table_store.return_value = mock_store_instance
         
         processor = KgStore(
             taskgroup=MagicMock(),
             cassandra_host='compat-host',
-            cassandra_user='compat-user',  # Old parameter name
+            cassandra_user='compat-user',  # Old parameter name - should be ignored
             cassandra_password='compat-pass'
         )
         
-        # Should still work with old parameter name
+        # cassandra_user should be ignored
         mock_table_store.assert_called_once_with(
             cassandra_host=['compat-host'],
-            cassandra_user='compat-user',
+            cassandra_username=None,  # Should be None since cassandra_user is ignored
             cassandra_password='compat-pass',
             keyspace='knowledge'
         )
@@ -275,7 +275,7 @@ class TestKgStoreConfiguration:
             # Should use defaults
             mock_table_store.assert_called_once_with(
                 cassandra_host=['cassandra'],
-                cassandra_user=None,
+                cassandra_username=None,
                 cassandra_password=None,
                 keyspace='knowledge'
             )
@@ -423,7 +423,7 @@ class TestConfigurationPriorityIntegration:
             # Verify correct priority resolution
             mock_table_store.assert_called_once_with(
                 cassandra_host=['param-host'],  # From parameter
-                cassandra_user='env-user',      # From environment
+                cassandra_username='env-user',      # From environment
                 cassandra_password='env-pass',  # From environment
                 keyspace='knowledge'
             )
