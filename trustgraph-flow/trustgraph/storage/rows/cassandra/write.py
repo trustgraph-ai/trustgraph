@@ -3,6 +3,8 @@
 Graph writer.  Input is graph edge.  Writes edges to Cassandra graph.
 """
 
+raise RuntimeError("This code is no longer in use")
+
 import pulsar
 import base64
 import os
