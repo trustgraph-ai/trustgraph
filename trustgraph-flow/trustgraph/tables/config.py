@@ -24,6 +24,10 @@ class ConfigTableStore:
 
         logger.info("Connecting to Cassandra...")
 
+        # Ensure cassandra_host is a list
+        if isinstance(cassandra_host, str):
+            cassandra_host = [h.strip() for h in cassandra_host.split(',')]
+
         if cassandra_user and cassandra_password:
             ssl_context = SSLContext(PROTOCOL_TLSv1_2)
             auth_provider = PlainTextAuthProvider(
