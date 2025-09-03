@@ -7,7 +7,13 @@ tool filtering and execution in the ReAct agent service.
 
 import pytest
 import json
+import sys
+import os
 from unittest.mock import Mock, AsyncMock, patch
+
+# Add trustgraph paths for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'trustgraph-base'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'trustgraph-flow'))
 
 from trustgraph.schema import AgentRequest, AgentResponse, AgentStep
 from trustgraph.agent.react.service import Processor
