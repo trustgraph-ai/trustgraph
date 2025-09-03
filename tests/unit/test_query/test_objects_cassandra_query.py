@@ -188,6 +188,7 @@ class TestObjectsGraphQLQueryLogic:
         processor.connect_cassandra = MagicMock()
         processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
         processor.sanitize_table = Processor.sanitize_table.__get__(processor, Processor)
+        processor.parse_filter_key = Processor.parse_filter_key.__get__(processor, Processor)
         processor.query_cassandra = Processor.query_cassandra.__get__(processor, Processor)
         
         # Mock session execute to capture the query

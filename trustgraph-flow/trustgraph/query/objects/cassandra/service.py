@@ -158,8 +158,11 @@ class Processor(FlowProcessor):
         safe_name = 'o_' + safe_name
         return safe_name.lower()
 
-    def parse_filter_key(self, filter_key: str) -> tuple:
+    def parse_filter_key(self, filter_key: str) -> tuple[str, str]:
         """Parse GraphQL filter key into field name and operator"""
+        if not filter_key:
+            return ("", "eq")
+            
         # Support common GraphQL filter patterns:
         # field_name -> (field_name, "eq")
         # field_name_gt -> (field_name, "gt") 
@@ -174,10 +177,10 @@ class Processor(FlowProcessor):
             if filter_key.endswith(op_suffix):
                 field_name = filter_key[:-len(op_suffix)]
                 operator = op_suffix[1:]  # Remove the leading underscore
-                return field_name, operator
+                return (field_name, operator)
         
         # Default to equality if no operator suffix found
-        return filter_key, "eq"
+        return (filter_key, "eq")
 
     async def on_schema_config(self, config, version):
         """Handle schema configuration updates"""
@@ -475,7 +478,15 @@ class Processor(FlowProcessor):
         for filter_key, value in filters.items():
             if value is not None:
                 # Parse field name and operator from filter key
-                field_name, operator = self.parse_filter_key(filter_key)
+                logger.debug(f"Parsing filter key: '{filter_key}' (type: {type(filter_key)})")
+                result = self.parse_filter_key(filter_key)
+                logger.debug(f"parse_filter_key returned: {result} (type: {type(result)}, len: {len(result) if hasattr(result, '__len__') else 'N/A'})")
+                
+                if not result or len(result) != 2:
+                    logger.error(f"parse_filter_key returned invalid result: {result}")
+                    continue  # Skip this filter
+                    
+                field_name, operator = result
                 
                 # Find the field in schema
                 schema_field = None
