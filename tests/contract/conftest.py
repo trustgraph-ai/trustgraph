@@ -82,8 +82,8 @@ def sample_message_data():
         },
         "AgentRequest": {
             "question": "What is machine learning?",
-            "plan": "",
             "state": "",
+            "group": [],
             "history": []
         },
         "AgentResponse": {

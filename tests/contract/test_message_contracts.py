@@ -198,8 +198,8 @@ class TestAgentMessageContracts:
         # Test required fields
         request = AgentRequest(**request_data)
         assert hasattr(request, 'question')
-        assert hasattr(request, 'plan')
         assert hasattr(request, 'state')
+        assert hasattr(request, 'group')
         assert hasattr(request, 'history')
 
     def test_agent_response_schema_contract(self, sample_message_data):
