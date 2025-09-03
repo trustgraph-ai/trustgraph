@@ -6,14 +6,75 @@ import argparse
 import os
 import json
 import sys
+import csv
+import io
 from trustgraph.api import Api
+from tabulate import tabulate
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_user = 'trustgraph'
 default_collection = 'default'
 
+def format_output(data, output_format):
+    """Format GraphQL response data in the specified format"""
+    if not data:
+        return "No data returned"
+    
+    # Handle case where data contains multiple query results
+    if len(data) == 1:
+        # Single query result - extract the list
+        query_name, result_list = next(iter(data.items()))
+        if isinstance(result_list, list):
+            return format_table_data(result_list, query_name, output_format)
+    
+    # Multiple queries or non-list data - use JSON format
+    if output_format == 'json':
+        return json.dumps(data, indent=2)
+    else:
+        return json.dumps(data, indent=2)  # Fallback to JSON
+
+def format_table_data(rows, table_name, output_format):
+    """Format a list of rows in the specified format"""
+    if not rows:
+        return f"No {table_name} found"
+    
+    if output_format == 'json':
+        return json.dumps({table_name: rows}, indent=2)
+    
+    elif output_format == 'csv':
+        # Get all unique field names
+        fieldnames = set()
+        for row in rows:
+            fieldnames.update(row.keys())
+        fieldnames = sorted(fieldnames)
+        
+        # Create CSV string
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+        return output.getvalue().rstrip()
+    
+    elif output_format == 'table':
+        # Get all unique field names
+        fieldnames = set()
+        for row in rows:
+            fieldnames.update(row.keys())
+        fieldnames = sorted(fieldnames)
+        
+        # Create table data
+        table_data = []
+        for row in rows:
+            table_row = [row.get(field, '') for field in fieldnames]
+            table_data.append(table_row)
+        
+        return tabulate(table_data, headers=fieldnames, tablefmt='pretty')
+    
+    else:
+        return json.dumps({table_name: rows}, indent=2)
+
 def objects_query(
-        url, flow_id, query, user, collection, variables, operation_name
+        url, flow_id, query, user, collection, variables, operation_name, output_format='table'
 ):
 
     api = Api(url).flow().id(flow_id)
@@ -44,12 +105,12 @@ def objects_query(
                 print(f"    Path: {error['path']}", file=sys.stderr)
         # Still print data if available
         if "data" in resp and resp["data"]:
-            print(json.dumps(resp["data"], indent=2))
+            print(format_output(resp["data"], output_format))
         sys.exit(1)
 
     # Print the data
     if "data" in resp:
-        print(json.dumps(resp["data"], indent=2))
+        print(format_output(resp["data"], output_format))
     else:
         print("No data returned", file=sys.stderr)
         sys.exit(1)
@@ -101,6 +162,13 @@ def main():
         help='Operation name for multi-operation GraphQL documents'
     )
 
+    parser.add_argument(
+        '--format', 
+        choices=['table', 'json', 'csv'],
+        default='table',
+        help='Output format (default: table)'
+    )
+
     args = parser.parse_args()
 
     try:
@@ -113,6 +181,7 @@ def main():
             collection=args.collection,
             variables=args.variables,
             operation_name=args.operation_name,
+            output_format=args.format,
         )
 
     except Exception as e:
