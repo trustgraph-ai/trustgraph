@@ -35,8 +35,8 @@ class IntFilter:
     gte: Optional[int] = None
     lt: Optional[int] = None
     lte: Optional[int] = None
-    in_: Optional[List[int]] = strawberry.field(name="in")
-    not_: Optional[int] = strawberry.field(name="not")
+    in_: Optional[List[int]] = strawberry.field(name="in", default=None)
+    not_: Optional[int] = strawberry.field(name="not", default=None)
     not_in: Optional[List[int]] = None
 
 @strawberry.input
@@ -45,8 +45,8 @@ class StringFilter:
     contains: Optional[str] = None
     startsWith: Optional[str] = None
     endsWith: Optional[str] = None
-    in_: Optional[List[str]] = strawberry.field(name="in")
-    not_: Optional[str] = strawberry.field(name="not")
+    in_: Optional[List[str]] = strawberry.field(name="in", default=None)
+    not_: Optional[str] = strawberry.field(name="not", default=None)
     not_in: Optional[List[str]] = None
 
 @strawberry.input  
@@ -56,8 +56,8 @@ class FloatFilter:
     gte: Optional[float] = None
     lt: Optional[float] = None
     lte: Optional[float] = None
-    in_: Optional[List[float]] = strawberry.field(name="in")
-    not_: Optional[float] = strawberry.field(name="not")
+    in_: Optional[List[float]] = strawberry.field(name="in", default=None)
+    not_: Optional[float] = strawberry.field(name="not", default=None)
     not_in: Optional[List[float]] = None
 
 
@@ -287,15 +287,27 @@ class Processor(FlowProcessor):
         annotations = {}
         defaults = {}
         
+        logger.info(f"Creating filter type {filter_type_name} for schema {schema_name}")
+        
         for field in row_schema.fields:
-            if field.indexed or field.primary:
-                if field.type == "integer":
-                    annotations[field.name] = Optional[IntFilter]
-                elif field.type == "float": 
-                    annotations[field.name] = Optional[FloatFilter]
-                elif field.type == "string":
-                    annotations[field.name] = Optional[StringFilter]
+            logger.info(f"Field {field.name}: type={field.type}, indexed={field.indexed}, primary={field.primary}")
+            
+            # Allow filtering on any field for now, not just indexed/primary
+            # if field.indexed or field.primary:
+            if field.type == "integer":
+                annotations[field.name] = Optional[IntFilter]
                 defaults[field.name] = None
+                logger.info(f"Added IntFilter for {field.name}")
+            elif field.type == "float": 
+                annotations[field.name] = Optional[FloatFilter]
+                defaults[field.name] = None
+                logger.info(f"Added FloatFilter for {field.name}")
+            elif field.type == "string":
+                annotations[field.name] = Optional[StringFilter]
+                defaults[field.name] = None
+                logger.info(f"Added StringFilter for {field.name}")
+        
+        logger.info(f"Filter type {filter_type_name} will have fields: {list(annotations.keys())}")
         
         # Create the class dynamically
         FilterType = type(
