@@ -14,7 +14,6 @@ from unittest.mock import Mock, AsyncMock, patch
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'trustgraph-base'))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'trustgraph-flow'))
 
-from trustgraph.schema import AgentRequest, AgentResponse, AgentStep
 from trustgraph.agent.tool_filter import filter_tools_by_group_and_state, get_next_state, validate_tool_config
 
 
@@ -238,48 +237,31 @@ class TestCompleteWorkflow:
         final_state = get_next_state(analysis_tool, 'analysis')
         assert final_state == 'results'  # Transition to results state
 
-    @pytest.mark.asyncio
-    async def test_multi_tenant_scenario(self, agent_processor, sample_tools):
+    def test_multi_tenant_scenario(self, sample_tools):
         """Test different users with different permissions."""
         
-        agent_processor.agent.tools = sample_tools
-        
-        from trustgraph.agent.react.types import Final
-        
-        # User A: Read-only permissions
-        user_a_final = Final(final="Read-only operations completed")
-        agent_processor.agent.react = AsyncMock(return_value=user_a_final)
-        
-        request_a = AgentRequest(
-            question="What information is available about X?",
-            state="undefined",
-            group=["read-only"],
-            history=[]
+        # User A: Read-only permissions in undefined state
+        user_a_tools = filter_tools_by_group_and_state(
+            sample_tools,
+            ['read-only'],
+            'undefined'
         )
         
-        responses_a = []
-        await agent_processor.agent_request(request_a, 
-                                          lambda r: responses_a.append(r), 
-                                          lambda x: None, {})
+        # Should only have access to read-only tools in undefined state
+        assert 'knowledge_query' in user_a_tools  # read-only + available in undefined
+        assert 'text_completion' in user_a_tools  # read-only + available in all states
+        assert 'graph_update' not in user_a_tools  # write permissions required
+        assert 'complex_analysis' not in user_a_tools  # advanced permissions required
         
-        # User B: Admin permissions  
-        user_b_final = Final(final="Administrative tasks completed")
-        agent_processor.agent.react = AsyncMock(return_value=user_b_final)
-        
-        request_b = AgentRequest(
-            question="Update the knowledge base",
-            state="analysis", 
-            group=["write", "admin"],
-            history=[]
+        # User B: Admin permissions in analysis state
+        user_b_tools = filter_tools_by_group_and_state(
+            sample_tools,
+            ['write', 'admin'],
+            'analysis'
         )
         
-        responses_b = []
-        await agent_processor.agent_request(request_b,
-                                          lambda r: responses_b.append(r),
-                                          lambda x: None, {})
-        
-        # Verify both users got appropriate responses
-        assert len(responses_a) == 1
-        assert len(responses_b) == 1
-        assert "Read-only" in responses_a[0].answer
-        assert "Administrative" in responses_b[0].answer
+        # Should have access to admin tools available in analysis state
+        assert 'graph_update' in user_b_tools  # admin + available in analysis
+        assert 'complex_analysis' not in user_b_tools  # wrong group (needs advanced/compute)
+        assert 'knowledge_query' not in user_b_tools  # not available in analysis state
+        assert 'text_completion' not in user_b_tools  # wrong group (no admin)
