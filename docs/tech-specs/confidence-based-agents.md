@@ -29,14 +29,14 @@ This document specifies a new agent architecture for TrustGraph that introduces 
 │            (agent/confidence/service.py)                         │
 │                                                                  │
 │  ┌──────────────┐   ┌─────────────────┐   ┌────────────────┐     │
-│  │   Planner    │   │ Flow Controller │   │ Confidence     │     │
-│  │   Module     │─▶│   Module        │─▶│  Evaluator     │     │
+│  │   Planner    │   │ Flow Controller │   │   Confidence   │     │
+│  │   Module     │─▶│   Module        │─▶│    Evaluator   │     │
 │  └──────────────┘   └─────────────────┘   └────────────────┘     │
 │         │                  │                    │                │
 │         ▼                  ▼                    ▼                │
 │  ┌──────────────┐   ┌───────────────┐     ┌────────────────┐     │
-│  │ Execution    │   │    Memory     │     │   Audit        │     │
-│  │   Engine     │◄──│    Manager    │     │   Logger       │     │
+│  │ Execution    │   │    Memory     │     │     Audit      │     │
+│  │   Engine     │◄──│    Manager    │     │     Logger     │     │
 │  └──────────────┘   └───────────────┘     └────────────────┘     │
 └──────────────────────────────────────────────────────────────────┘
                              │
