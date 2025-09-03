@@ -271,8 +271,8 @@ class Processor(FlowProcessor):
                 
                 return resolver
             
-            # Add resolver to query
-            resolver_name = f"{schema_name}_objects"
+            # Add resolver to query - just use the schema name directly
+            resolver_name = schema_name
             resolver_func = make_resolver(schema_name, row_schema, graphql_type)
             self.resolvers[resolver_name] = resolver_func
             
