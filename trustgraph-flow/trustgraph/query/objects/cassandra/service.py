@@ -331,14 +331,19 @@ class Processor(FlowProcessor):
         
         conditions = {}
         
+        logger.info(f"Parsing where clause: {where_obj}")
+        
         for field_name, filter_obj in where_obj.__dict__.items():
             if filter_obj is None:
                 continue
+                
+            logger.info(f"Processing field {field_name} with filter_obj: {filter_obj}")
                 
             if hasattr(filter_obj, '__dict__'):
                 # This is a filter object (StringFilter, IntFilter, etc.)
                 for operator, value in filter_obj.__dict__.items():
                     if value is not None:
+                        logger.info(f"Found operator {operator} with value {value}")
                         # Map GraphQL operators to our internal format
                         if operator == "eq":
                             conditions[field_name] = value
@@ -349,6 +354,7 @@ class Processor(FlowProcessor):
                         elif operator == "contains":
                             conditions[f"{field_name}_contains"] = value
         
+        logger.info(f"Final parsed conditions: {conditions}")
         return conditions
 
     def generate_graphql_schema(self):
@@ -462,7 +468,7 @@ class Processor(FlowProcessor):
                         schema_field = f
                         break
                 
-                if schema_field and (schema_field.indexed or schema_field.primary):
+                if schema_field:
                     safe_field = self.sanitize_name(field_name)
                     
                     # Build WHERE clause based on operator
