@@ -30,13 +30,13 @@ This document specifies a new agent architecture for TrustGraph that introduces 
 │                                                                  │
 │  ┌──────────────┐   ┌─────────────────┐   ┌────────────────┐     │
 │  │   Planner    │   │ Flow Controller │   │   Confidence   │     │
-│  │   Module     │─▶│   Module        │─▶│    Evaluator   │     │
+│  │   Module     │─▶│      Module     │─▶│   Evaluator    │     │
 │  └──────────────┘   └─────────────────┘   └────────────────┘     │
 │         │                  │                    │                │
 │         ▼                  ▼                    ▼                │
 │  ┌──────────────┐   ┌───────────────┐     ┌────────────────┐     │
-│  │ Execution    │   │    Memory     │     │     Audit      │     │
-│  │   Engine     │◄──│    Manager    │     │     Logger     │     │
+│  │   Execution  │   │    Memory     │     │     Audit      │     │
+│  │    Engine    │◄──│    Manager    │     │     Logger     │     │
 │  └──────────────┘   └───────────────┘     └────────────────┘     │
 └──────────────────────────────────────────────────────────────────┘
                              │
@@ -233,52 +233,204 @@ The confidence agent reuses existing tool implementations:
 
 No changes required to existing tools.
 
-### 5. Execution Flow
+### 5. End-to-End Execution Flow
 
-#### 5.1 Request Processing
+#### 5.1 Module Interaction Overview
+
+When an `AgentRequest` arrives, the confidence agent orchestrates the following flow:
+
+1. **Service Entry**: The main service receives the `AgentRequest` via Pulsar
+2. **Planning Phase**: Service invokes Planner Module to generate an `ExecutionPlan`
+3. **Execution Loop**: Service passes plan to Flow Controller, which:
+   - Resolves step dependencies
+   - For each step, calls Executor with context from Memory Manager
+   - Evaluator assesses confidence after each execution
+   - Retry logic triggered if confidence below threshold
+4. **Response Stream**: Service sends `AgentResponse` messages at key points
+5. **Audit Trail**: Logger records all decisions and confidence scores
+
+#### 5.2 Detailed Message Flow
 
 ```mermaid
 sequenceDiagram
     participant Client
-    participant Gateway
-    participant ConfidenceAgent
+    participant Service as ConfidenceAgent<br/>Service
     participant Planner
-    participant FlowController
+    participant FlowCtrl as Flow<br/>Controller
+    participant Memory
     participant Executor
+    participant Evaluator
     participant Tools
     
-    Client->>Gateway: Request
-    Gateway->>ConfidenceAgent: ConfidenceAgentRequest
-    ConfidenceAgent->>Planner: Generate plan
-    Planner->>ConfidenceAgent: ExecutionPlan
+    Client->>Service: AgentRequest
+    Service->>Service: Parse request,<br/>extract config
     
-    loop For each step
-        ConfidenceAgent->>FlowController: Execute step
-        FlowController->>Executor: Run tool
-        Executor->>Tools: Tool invocation
-        Tools->>Executor: Result
-        Executor->>FlowController: StepResult + Confidence
+    %% Planning Phase
+    Service->>Planner: generate_plan(request)
+    Planner->>Tools: Query available tools
+    Planner->>Planner: LLM generates<br/>ExecutionPlan
+    Planner-->>Service: ExecutionPlan
+    Service->>Client: AgentResponse<br/>(planning thought)
+    
+    %% Execution Phase
+    Service->>FlowCtrl: execute_plan(plan)
+    
+    loop For each ExecutionStep
+        FlowCtrl->>Memory: get_context(step)
+        Memory-->>FlowCtrl: context + dependencies
         
-        alt Confidence >= Threshold
-            FlowController->>ConfidenceAgent: Continue
-        else Confidence < Threshold
-            FlowController->>FlowController: Retry logic
+        FlowCtrl->>Executor: execute_step(step, context)
+        Executor->>Tools: invoke_tool(name, args)
+        Tools-->>Executor: raw_result
+        
+        Executor->>Evaluator: evaluate(result)
+        Evaluator-->>Executor: ConfidenceMetrics
+        
+        alt Confidence >= threshold
+            Executor-->>FlowCtrl: StepResult (success)
+            FlowCtrl->>Memory: store_result(step, result)
+            FlowCtrl->>Service: Send progress
+            Service->>Client: AgentResponse<br/>(step observation)
+        else Confidence < threshold
+            FlowCtrl->>FlowCtrl: Retry with backoff
+            Note over FlowCtrl: Max 3 retries by default
+            alt After max retries
+                FlowCtrl->>Service: Request override
+                Service->>Client: AgentResponse<br/>(override request)
+            end
         end
     end
     
-    ConfidenceAgent->>Gateway: ConfidenceAgentResponse
-    Gateway->>Client: Response
+    FlowCtrl-->>Service: All StepResults
+    Service->>Service: Generate final answer
+    Service->>Client: AgentResponse<br/>(final answer)
 ```
 
-#### 5.2 Confidence-Based Control Flow
+#### 5.3 Confidence Decision Points
 
-The control flow implements a retry loop with exponential backoff:
+The confidence mechanism affects execution at three critical points:
 
-1. Execute step and evaluate confidence
-2. If confidence meets threshold, proceed to next step
-3. If below threshold, retry with backoff delay
-4. After max retries, either request user override or fail
-5. Log all attempts and decisions for audit trail
+**1. Planning Confidence**
+- Planner assigns confidence thresholds to each step based on:
+  - Operation criticality (graph mutations = higher threshold)
+  - Tool reliability history
+  - Query complexity
+- Default thresholds: GraphQuery (0.8), TextCompletion (0.7), McpTool (0.6)
+
+**2. Execution Confidence**
+- After each tool execution, Evaluator calculates confidence based on:
+  - Output completeness and structure
+  - Consistency with expected schemas
+  - Semantic coherence (for text outputs)
+  - Result size and validity (for graph queries)
+
+**3. Retry Decision**
+- If confidence < threshold:
+  - First retry: Same parameters with backoff
+  - Second retry: Adjusted parameters (e.g., broader query)
+  - Third retry: Simplified approach
+  - After max retries: User override or graceful failure
+
+#### 5.4 Example: Graph Query with Low Confidence
+
+**Scenario**: User asks "What are the connections between Entity X and Entity Y?"
+
+**Step 1: Planning**
+```
+AgentRequest arrives:
+  question: "What are the connections between Entity X and Entity Y?"
+  
+Planner generates ExecutionPlan:
+  Step 1: GraphQuery
+    function: "GraphQuery"
+    arguments: {"query": "MATCH path=(x:Entity {name:'X'})-[*..3]-(y:Entity {name:'Y'}) RETURN path"}
+    confidence_threshold: 0.8
+```
+
+**Step 2: First Execution**
+```
+Executor runs GraphQuery:
+  Result: Empty result set []
+  
+Evaluator assesses confidence:
+  Score: 0.3 (low - empty results suspicious)
+  Reasoning: "Empty result may indicate entities don't exist or query too restrictive"
+  
+Flow Controller decides:
+  0.3 < 0.8 threshold → RETRY
+```
+
+**Step 3: Retry with Adjusted Query**
+```
+Flow Controller adjusts parameters:
+  New query: "MATCH (x:Entity), (y:Entity) WHERE x.name CONTAINS 'X' AND y.name CONTAINS 'Y' RETURN x, y"
+  
+Executor runs adjusted query:
+  Result: Found 2 entities but no connections
+  
+Evaluator assesses confidence:
+  Score: 0.85
+  Reasoning: "Entities exist but genuinely unconnected"
+  
+Flow Controller decides:
+  0.85 >= 0.8 threshold → SUCCESS
+```
+
+**Step 4: Response Stream**
+```
+AgentResponse 1 (planning):
+  thought: "Planning graph traversal query to find connections"
+  observation: "Generated query with 3-hop path search"
+
+AgentResponse 2 (retry):
+  thought: "Initial query returned empty, adjusting search parameters"
+  observation: "Retrying with broader entity matching"
+
+AgentResponse 3 (final):
+  answer: "Entity X and Entity Y exist in the graph but have no direct or indirect connections within 3 hops"
+  thought: "Query successful with high confidence after parameter adjustment"
+  observation: "Confidence: 0.85 - Entities verified to exist but unconnected"
+```
+
+#### 5.5 Example: Multi-Step Plan with Dependencies
+
+**Scenario**: "Summarize the main topics discussed about AI regulation"
+
+**ExecutionPlan Generated**:
+```
+Step 1: GraphQuery - Find documents about AI regulation
+  confidence_threshold: 0.75
+  
+Step 2: TextCompletion - Extract key topics from documents
+  dependencies: [Step 1]
+  confidence_threshold: 0.7
+  
+Step 3: TextCompletion - Generate summary
+  dependencies: [Step 2]
+  confidence_threshold: 0.8
+```
+
+**Execution Flow**:
+1. **Step 1 Success** (confidence: 0.9)
+   - Found 15 relevant documents
+   - Memory Manager stores document list
+   
+2. **Step 2 Initial Failure** (confidence: 0.5)
+   - Topics extraction unclear
+   - Retry with more specific prompt
+   - **Retry Success** (confidence: 0.75)
+   - Memory Manager stores topics list
+   
+3. **Step 3 Success** (confidence: 0.85)
+   - Uses topics from memory
+   - Generates coherent summary
+   
+**Total AgentResponses sent**: 6
+- 1 for planning
+- 2 for Step 1 (execution + success)
+- 2 for Step 2 (failure + retry success)  
+- 1 for Step 3
+- 1 final response
 
 ### 6. Monitoring and Observability
 
