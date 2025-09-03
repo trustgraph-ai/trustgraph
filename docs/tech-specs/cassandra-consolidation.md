@@ -22,50 +22,86 @@ The codebase currently uses two distinct sets of Cassandra configuration paramet
    - `graph_username`
    - `graph_password`
 
+3. **Inconsistent command-line exposure**:
+   - Some processors (e.g., `kg-store`) don't expose Cassandra settings as command-line arguments
+   - Other processors expose them with different names and formats
+   - Help text doesn't reflect environment variable defaults
+
 Both parameter sets connect to the same Cassandra cluster but with different naming conventions, causing:
 - Configuration confusion for users
 - Increased maintenance burden
 - Inconsistent documentation
 - Potential for misconfiguration
+- Inability to override settings via command-line in some processors
 
 ## Proposed Solution
 
 ### 1. Standardize Parameter Names
 
 All modules will use consistent `cassandra_*` parameter names:
-- `cassandra_host` - Single host string or comma-separated list
+- `cassandra_host` - List of hosts (internally stored as list)
 - `cassandra_username` - Username for authentication  
 - `cassandra_password` - Password for authentication
 
-### 2. Environment Variable Fallback
+### 2. Command-Line Arguments
 
-If parameters are not explicitly provided, the system will check environment variables:
-- `CASSANDRA_HOST`
-- `CASSANDRA_USERNAME` 
-- `CASSANDRA_PASSWORD`
+All processors MUST expose Cassandra configuration via command-line arguments:
+- `--cassandra-host` - Comma-separated list of hosts
+- `--cassandra-username` - Username for authentication
+- `--cassandra-password` - Password for authentication
 
-### 3. Default Values
+### 3. Environment Variable Fallback
 
-If neither parameters nor environment variables are specified:
-- `cassandra_host` defaults to `"cassandra"`
+If command-line parameters are not explicitly provided, the system will check environment variables:
+- `CASSANDRA_HOST` - Comma-separated list of hosts
+- `CASSANDRA_USERNAME` - Username for authentication
+- `CASSANDRA_PASSWORD` - Password for authentication
+
+### 4. Default Values
+
+If neither command-line parameters nor environment variables are specified:
+- `cassandra_host` defaults to `["cassandra"]`
 - `cassandra_username` defaults to `None` (no authentication)
 - `cassandra_password` defaults to `None` (no authentication)
+
+### 5. Help Text Requirements
+
+The `--help` output must:
+- Show environment variable values as defaults when set
+- Never display password values (show `****` or `<set>` instead)
+- Clearly indicate the resolution order in help text
+
+Example help output:
+```
+--cassandra-host HOST
+    Cassandra host list, comma-separated (default: prod-cluster-1,prod-cluster-2)
+    [from CASSANDRA_HOST environment variable]
+
+--cassandra-username USERNAME
+    Cassandra username (default: cassandra_user)
+    [from CASSANDRA_USERNAME environment variable]
+    
+--cassandra-password PASSWORD  
+    Cassandra password (default: <set from environment>)
+```
 
 ## Implementation Details
 
 ### Parameter Resolution Order
 
 For each Cassandra parameter, the resolution order will be:
-1. Explicitly passed parameter value
+1. Command-line argument value
 2. Environment variable (`CASSANDRA_*`)
 3. Default value
 
 ### Host Parameter Handling
 
-The `cassandra_host` parameter will accept both formats:
+The `cassandra_host` parameter:
+- Command-line accepts comma-separated string: `--cassandra-host "host1,host2,host3"`
+- Environment variable accepts comma-separated string: `CASSANDRA_HOST="host1,host2,host3"`
+- Internally always stored as list: `["host1", "host2", "host3"]`
 - Single host: `"localhost"` → converted to `["localhost"]`
-- Multiple hosts: `"host1,host2,host3"` → converted to `["host1", "host2", "host3"]`
-- List format: `["host1", "host2"]` → used as-is
+- Already a list: `["host1", "host2"]` → used as-is
 
 ### Authentication Logic
 
@@ -105,44 +141,112 @@ else:
 ## Implementation Strategy
 
 ### Phase 1: Create Common Configuration Helper
-Create a utility function to resolve Cassandra configuration:
+Create utility functions to standardize Cassandra configuration across all processors:
 
 ```python
-def resolve_cassandra_config(
-    host=None, username=None, password=None
-) -> tuple[list[str], str|None, str|None]:
+import os
+import argparse
+
+def get_cassandra_defaults():
+    """Get default values from environment variables or fallback."""
+    return {
+        'host': os.getenv('CASSANDRA_HOST', 'cassandra'),
+        'username': os.getenv('CASSANDRA_USERNAME'),
+        'password': os.getenv('CASSANDRA_PASSWORD')
+    }
+
+def add_cassandra_args(parser: argparse.ArgumentParser):
     """
-    Resolve Cassandra configuration with fallback to environment variables.
+    Add standardized Cassandra arguments to an argument parser.
+    Shows environment variable values in help text.
+    """
+    defaults = get_cassandra_defaults()
+    
+    # Format help text with env var indication
+    host_help = f"Cassandra host list, comma-separated (default: {defaults['host']})"
+    if 'CASSANDRA_HOST' in os.environ:
+        host_help += " [from CASSANDRA_HOST]"
+    
+    username_help = f"Cassandra username"
+    if defaults['username']:
+        username_help += f" (default: {defaults['username']})"
+        if 'CASSANDRA_USERNAME' in os.environ:
+            username_help += " [from CASSANDRA_USERNAME]"
+    
+    password_help = "Cassandra password"
+    if defaults['password']:
+        password_help += " (default: <set>)"
+        if 'CASSANDRA_PASSWORD' in os.environ:
+            password_help += " [from CASSANDRA_PASSWORD]"
+    
+    parser.add_argument(
+        '--cassandra-host',
+        default=defaults['host'],
+        help=host_help
+    )
+    
+    parser.add_argument(
+        '--cassandra-username',
+        default=defaults['username'],
+        help=username_help
+    )
+    
+    parser.add_argument(
+        '--cassandra-password',
+        default=defaults['password'],
+        help=password_help
+    )
+
+def resolve_cassandra_config(args) -> tuple[list[str], str|None, str|None]:
+    """
+    Convert argparse args to Cassandra configuration.
     
     Returns:
         tuple: (hosts_list, username, password)
     """
-    import os
-    
-    # Resolve host
-    resolved_host = host or os.getenv('CASSANDRA_HOST', 'cassandra')
-    if isinstance(resolved_host, str):
-        hosts = [h.strip() for h in resolved_host.split(',')]
+    # Convert host string to list
+    if isinstance(args.cassandra_host, str):
+        hosts = [h.strip() for h in args.cassandra_host.split(',')]
     else:
-        hosts = resolved_host
+        hosts = args.cassandra_host
     
-    # Resolve credentials
-    resolved_username = username or os.getenv('CASSANDRA_USERNAME')
-    resolved_password = password or os.getenv('CASSANDRA_PASSWORD')
-    
-    return hosts, resolved_username, resolved_password
+    return hosts, args.cassandra_username, args.cassandra_password
 ```
 
 ### Phase 2: Update Modules Using `graph_*` Parameters
 1. Change parameter names from `graph_*` to `cassandra_*`
-2. Update argument parsing in `add_args()` methods
-3. Use the common configuration helper
+2. Replace custom `add_args()` methods with standardized `add_cassandra_args()`
+3. Use the common configuration helper functions
 4. Update documentation strings
 
+Example transformation:
+```python
+# OLD CODE
+@staticmethod
+def add_args(parser):
+    parser.add_argument(
+        '-g', '--graph-host',
+        default="localhost",
+        help=f'Graph host (default: localhost)'
+    )
+    parser.add_argument(
+        '--graph-username',
+        default=None,
+        help=f'Cassandra username'
+    )
+
+# NEW CODE  
+@staticmethod
+def add_args(parser):
+    FlowProcessor.add_args(parser)
+    add_cassandra_args(parser)  # Use standard helper
+```
+
 ### Phase 3: Update Modules Using `cassandra_*` Parameters  
-1. Add environment variable fallback using the common helper
-2. Ensure consistent host list handling
-3. Update tests to use new configuration resolution
+1. Add command-line argument support where missing (e.g., `kg-store`)
+2. Replace existing argument definitions with `add_cassandra_args()`
+3. Use `resolve_cassandra_config()` for consistent resolution
+4. Ensure consistent host list handling
 
 ### Phase 4: Update Tests and Documentation
 1. Update all test files to use new parameter names
@@ -202,7 +306,11 @@ def __init__(self, **params):
 ## Success Criteria
 
 - [ ] All modules use consistent `cassandra_*` parameter names
+- [ ] All processors expose Cassandra settings via command-line arguments
+- [ ] Command-line help text shows environment variable defaults
+- [ ] Password values are never displayed in help text
 - [ ] Environment variable fallback works correctly
+- [ ] `cassandra_host` is consistently handled as a list internally
 - [ ] Backward compatibility maintained for at least 2 releases
 - [ ] All tests pass with new configuration system
 - [ ] Documentation fully updated
