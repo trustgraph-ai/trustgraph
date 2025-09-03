@@ -16,12 +16,12 @@ logger = logging.getLogger(__name__)
 class KnowledgeManager:
 
     def __init__(
-            self, cassandra_host, cassandra_user, cassandra_password,
+            self, cassandra_host, cassandra_username, cassandra_password,
             keyspace, flow_config,
     ):
 
         self.table_store = KnowledgeTableStore(
-            cassandra_host, cassandra_user, cassandra_password, keyspace
+            cassandra_host, cassandra_username, cassandra_password, keyspace
         )
 
         self.loader_queue = asyncio.Queue(maxsize=20)

@@ -257,8 +257,8 @@ class TestGetCassandraConfigFromParams:
         assert username == 'new-user'
         assert password == 'new-pass'
     
-    def test_backward_compatibility_graph_params(self):
-        """Test backward compatibility with old graph_* parameter names."""
+    def test_no_backward_compatibility_graph_params(self):
+        """Test that old graph_* parameter names are no longer supported."""
         params = {
             'graph_host': 'old-host',
             'graph_username': 'old-user',
@@ -267,26 +267,27 @@ class TestGetCassandraConfigFromParams:
         
         hosts, username, password = get_cassandra_config_from_params(params)
         
-        assert hosts == ['old-host']
-        assert username == 'old-user'
-        assert password == 'old-pass'
+        # Should use defaults since graph_* params are not recognized
+        assert hosts == ['cassandra']  # Default
+        assert username is None
+        assert password is None
     
-    def test_old_cassandra_user_compatibility(self):
-        """Test backward compatibility with cassandra_user (vs cassandra_username)."""
+    def test_no_old_cassandra_user_compatibility(self):
+        """Test that cassandra_user is no longer supported (must be cassandra_username)."""
         params = {
             'cassandra_host': 'compat-host',
-            'cassandra_user': 'compat-user',  # Old name
+            'cassandra_user': 'compat-user',  # Old name - not supported
             'cassandra_password': 'compat-pass'
         }
         
         hosts, username, password = get_cassandra_config_from_params(params)
         
         assert hosts == ['compat-host']
-        assert username == 'compat-user'
+        assert username is None  # cassandra_user is not recognized
         assert password == 'compat-pass'
     
-    def test_parameter_precedence(self):
-        """Test that new parameter names take precedence over old ones."""
+    def test_only_new_parameters_work(self):
+        """Test that only new parameter names are recognized."""
         params = {
             'cassandra_host': 'new-host',
             'graph_host': 'old-host',
@@ -299,9 +300,9 @@ class TestGetCassandraConfigFromParams:
         
         hosts, username, password = get_cassandra_config_from_params(params)
         
-        assert hosts == ['new-host']  # New takes precedence
-        assert username == 'new-user'  # New takes precedence
-        assert password == 'new-pass'  # New takes precedence
+        assert hosts == ['new-host']  # Only cassandra_* params work
+        assert username == 'new-user'  # Only cassandra_* params work
+        assert password == 'new-pass'  # Only cassandra_* params work
     
     def test_empty_params_with_env_fallback(self):
         """Test that empty params falls back to environment variables."""

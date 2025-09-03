@@ -107,7 +107,7 @@ class TestEndToEndConfigurationFlow:
             # Verify KnowledgeTableStore was created with env config
             mock_table_store.assert_called_once_with(
                 cassandra_host=['kg-host1', 'kg-host2', 'kg-host3', 'kg-host4'],
-                cassandra_user='kg-user',
+                cassandra_username='kg-user',
                 cassandra_password='kg-pass',
                 keyspace='knowledge'
             )
@@ -177,9 +177,9 @@ class TestConfigurationPriorityEndToEnd:
             
             # Verify mixed configuration
             mock_table_store.assert_called_once_with(
-                cassandra_host=['partial-host'],     # From parameter
-                cassandra_user='fallback-user',      # From environment
-                cassandra_password='fallback-pass',  # From environment
+                cassandra_host=['partial-host'],         # From parameter
+                cassandra_username='fallback-user',      # From environment
+                cassandra_password='fallback-pass',      # From environment
                 keyspace='knowledge'
             )
     
@@ -218,19 +218,19 @@ class TestConfigurationPriorityEndToEnd:
             assert 'auth_provider' not in call_args.kwargs  # No auth with default config
 
 
-class TestBackwardCompatibilityEndToEnd:
-    """Test backward compatibility with old parameter names end-to-end."""
+class TestNoBackwardCompatibilityEndToEnd:
+    """Test that backward compatibility with old parameter names is removed."""
     
     @pytest.mark.asyncio
     @patch('trustgraph.direct.cassandra.Cluster')
-    async def test_old_graph_params_still_work_end_to_end(self, mock_cluster):
-        """Test that old graph_* parameters still work end-to-end."""
+    async def test_old_graph_params_no_longer_work_end_to_end(self, mock_cluster):
+        """Test that old graph_* parameters no longer work end-to-end."""
         mock_cluster_instance = MagicMock()
         mock_session = MagicMock()
         mock_cluster_instance.connect.return_value = mock_session
         mock_cluster.return_value = mock_cluster_instance
         
-        # Use old parameter names
+        # Use old parameter names (should be ignored)
         processor = TriplesWriter(
             taskgroup=MagicMock(),
             graph_host='legacy-host',
@@ -246,30 +246,30 @@ class TestBackwardCompatibilityEndToEnd:
         
         await processor.store_triples(mock_message)
         
-        # Should work with legacy parameters
+        # Should use defaults since old parameters are not recognized
         mock_cluster.assert_called_once()
         call_args = mock_cluster.call_args
-        assert call_args.args[0] == ['legacy-host']
-        assert 'auth_provider' in call_args.kwargs  # Should have auth since credentials provided
+        assert call_args.args[0] == ['cassandra']  # Default, not legacy-host
+        assert 'auth_provider' not in call_args.kwargs  # No auth since no valid credentials
     
     @patch('trustgraph.storage.knowledge.store.KnowledgeTableStore')
-    def test_old_cassandra_user_param_still_works_end_to_end(self, mock_table_store):
-        """Test that old cassandra_user parameter still works end-to-end."""
+    def test_old_cassandra_user_param_no_longer_works_end_to_end(self, mock_table_store):
+        """Test that old cassandra_user parameter no longer works."""
         mock_store_instance = MagicMock()
         mock_table_store.return_value = mock_store_instance
         
-        # Use old cassandra_user parameter
+        # Use old cassandra_user parameter (should be ignored)
         processor = KgStore(
             taskgroup=MagicMock(),
             cassandra_host='legacy-kg-host',
-            cassandra_user='legacy-kg-user',  # Old parameter name
+            cassandra_user='legacy-kg-user',  # Old parameter name - not supported
             cassandra_password='legacy-kg-pass'
         )
         
-        # Should work with old parameter name
+        # cassandra_user should be ignored, only cassandra_username works
         mock_table_store.assert_called_once_with(
             cassandra_host=['legacy-kg-host'],
-            cassandra_user='legacy-kg-user',
+            cassandra_username=None,  # Should be None since cassandra_user is not recognized
             cassandra_password='legacy-kg-pass',
             keyspace='knowledge'
         )

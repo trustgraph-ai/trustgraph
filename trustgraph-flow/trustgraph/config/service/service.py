@@ -61,7 +61,7 @@ class Processor(AsyncProcessor):
         )
 
         cassandra_host = params.get("cassandra_host", default_cassandra_host)
-        cassandra_user = params.get("cassandra_user")
+        cassandra_username = params.get("cassandra_username")
         cassandra_password = params.get("cassandra_password")
 
         id = params.get("id")
@@ -77,7 +77,7 @@ class Processor(AsyncProcessor):
                 "flow_request_schema": FlowRequest.__name__,
                 "flow_response_schema": FlowResponse.__name__,
                 "cassandra_host": cassandra_host,
-                "cassandra_user": cassandra_user,
+                "cassandra_username": cassandra_username,
             }
         )
 
@@ -143,7 +143,7 @@ class Processor(AsyncProcessor):
 
         self.config = Configuration(
             host = cassandra_host.split(","),
-            user = cassandra_user,
+            username = cassandra_username,
             password = cassandra_password,
             keyspace = keyspace,
             push = self.push

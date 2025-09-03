@@ -50,7 +50,7 @@ class Processor(AsyncProcessor):
         )
 
         cassandra_host = params.get("cassandra_host", default_cassandra_host)
-        cassandra_user = params.get("cassandra_user")
+        cassandra_username = params.get("cassandra_username")
         cassandra_password = params.get("cassandra_password")
 
         super(Processor, self).__init__(
@@ -90,7 +90,7 @@ class Processor(AsyncProcessor):
 
         self.knowledge = KnowledgeManager(
             cassandra_host = cassandra_host.split(","),
-            cassandra_user = cassandra_user,
+            cassandra_username = cassandra_username,
             cassandra_password = cassandra_password,
             keyspace = keyspace,
             flow_config = self,

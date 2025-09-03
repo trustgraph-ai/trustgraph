@@ -119,26 +119,16 @@ def get_cassandra_config_from_params(params: dict) -> Tuple[List[str], Optional[
     """
     Extract and resolve Cassandra configuration from a parameters dictionary.
     
-    Handles both old graph_* and new cassandra_* parameter names for backward compatibility.
-    
     Args:
         params: Dictionary of parameters that may contain Cassandra configuration
     
     Returns:
         tuple: (hosts_list, username, password)
     """
-    # Check for new parameter names first
+    # Get Cassandra parameters
     host = params.get('cassandra_host')
     username = params.get('cassandra_username')
     password = params.get('cassandra_password')
-    
-    # Fall back to old graph_* names for backward compatibility
-    if not host:
-        host = params.get('graph_host')
-    if not username:
-        username = params.get('graph_username', params.get('cassandra_user'))
-    if not password:
-        password = params.get('graph_password')
     
     # Use resolve function to handle defaults and list conversion
     return resolve_cassandra_config(host=host, username=username, password=password)

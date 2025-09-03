@@ -22,10 +22,10 @@ class Processor(TriplesQueryService):
 
     def __init__(self, **params):
 
-        # Use new parameter names, fall back to old for compatibility
-        cassandra_host = params.get("cassandra_host", params.get("graph_host"))
-        cassandra_username = params.get("cassandra_username", params.get("graph_username"))
-        cassandra_password = params.get("cassandra_password", params.get("graph_password"))
+        # Get Cassandra parameters
+        cassandra_host = params.get("cassandra_host")
+        cassandra_username = params.get("cassandra_username")
+        cassandra_password = params.get("cassandra_password")
 
         # Resolve configuration with environment variable fallback
         hosts, username, password = resolve_cassandra_config(
@@ -41,9 +41,9 @@ class Processor(TriplesQueryService):
             }
         )
 
-        self.graph_host = hosts
-        self.username = username
-        self.password = password
+        self.cassandra_host = hosts
+        self.cassandra_username = username
+        self.cassandra_password = password
         self.table = None
 
     def create_value(self, ent):
@@ -59,15 +59,15 @@ class Processor(TriplesQueryService):
             table = (query.user, query.collection)
 
             if table != self.table:
-                if self.username and self.password:
+                if self.cassandra_username and self.cassandra_password:
                     self.tg = TrustGraph(
-                        hosts=self.graph_host,
+                        hosts=self.cassandra_host,
                         keyspace=query.user, table=query.collection,
-                        username=self.username, password=self.password
+                        username=self.cassandra_username, password=self.cassandra_password
                     )
                 else:
                     self.tg = TrustGraph(
-                        hosts=self.graph_host,
+                        hosts=self.cassandra_host,
                         keyspace=query.user, table=query.collection,
                     )
                 self.table = table

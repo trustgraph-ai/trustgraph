@@ -36,10 +36,10 @@ class Processor(Consumer):
         input_queue = params.get("input_queue", default_input_queue)
         subscriber = params.get("subscriber", default_subscriber)
         
-        # Use new parameter names, fall back to old for compatibility
-        cassandra_host = params.get("cassandra_host", params.get("graph_host"))
-        cassandra_username = params.get("cassandra_username", params.get("graph_username"))
-        cassandra_password = params.get("cassandra_password", params.get("graph_password"))
+        # Get Cassandra parameters
+        cassandra_host = params.get("cassandra_host")
+        cassandra_username = params.get("cassandra_username")
+        cassandra_password = params.get("cassandra_password")
         
         # Resolve configuration with environment variable fallback
         hosts, username, password = resolve_cassandra_config(

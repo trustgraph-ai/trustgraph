@@ -45,13 +45,13 @@ class Configuration:
 
     # FIXME: Some version vs config race conditions
 
-    def __init__(self, push, host, user, password, keyspace):
+    def __init__(self, push, host, username, password, keyspace):
 
         # External function to respond to update
         self.push = push
 
         self.table_store = ConfigTableStore(
-            host, user, password, keyspace
+            host, username, password, keyspace
         )
 
     async def inc_version(self):

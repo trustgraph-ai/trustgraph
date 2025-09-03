@@ -83,7 +83,7 @@ class TestCassandraQueryProcessor:
         processor = Processor(
             taskgroup=MagicMock(),
             id='test-cassandra-query',
-            graph_host='localhost'
+            cassandra_host='localhost'
         )
         
         # Create query request with all SPO values
@@ -122,9 +122,9 @@ class TestCassandraQueryProcessor:
         
         processor = Processor(taskgroup=taskgroup_mock)
         
-        assert processor.graph_host == ['cassandra']  # Updated default
-        assert processor.username is None
-        assert processor.password is None
+        assert processor.cassandra_host == ['cassandra']  # Updated default
+        assert processor.cassandra_username is None
+        assert processor.cassandra_password is None
         assert processor.table is None
 
     def test_processor_initialization_with_custom_params(self):
@@ -133,14 +133,14 @@ class TestCassandraQueryProcessor:
         
         processor = Processor(
             taskgroup=taskgroup_mock,
-            graph_host='cassandra.example.com',
-            graph_username='queryuser',
-            graph_password='querypass'
+            cassandra_host='cassandra.example.com',
+            cassandra_username='queryuser',
+            cassandra_password='querypass'
         )
         
-        assert processor.graph_host == ['cassandra.example.com']
-        assert processor.username == 'queryuser'
-        assert processor.password == 'querypass'
+        assert processor.cassandra_host == ['cassandra.example.com']
+        assert processor.cassandra_username == 'queryuser'
+        assert processor.cassandra_password == 'querypass'
         assert processor.table is None
 
     @pytest.mark.asyncio
@@ -387,8 +387,8 @@ class TestCassandraQueryProcessor:
         
         processor = Processor(
             taskgroup=MagicMock(),
-            graph_username='authuser',
-            graph_password='authpass'
+            cassandra_username='authuser',
+            cassandra_password='authpass'
         )
         
         query = TriplesQueryRequest(
