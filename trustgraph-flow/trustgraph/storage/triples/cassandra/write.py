@@ -12,13 +12,13 @@ import logging
 
 from .... direct.cassandra import TrustGraph
 from .... base import TriplesStoreService
+from .... base.cassandra_config import add_cassandra_args, resolve_cassandra_config
 
 # Module logger
 logger = logging.getLogger(__name__)
 
 default_ident = "triples-write"
 
-default_graph_host='localhost'
 
 class Processor(TriplesStoreService):
 
@@ -26,20 +26,28 @@ class Processor(TriplesStoreService):
         
         id = params.get("id", default_ident)
 
-        graph_host = params.get("graph_host", default_graph_host)
-        graph_username = params.get("graph_username", None)
-        graph_password = params.get("graph_password", None)
+        # Use new parameter names, fall back to old for compatibility
+        cassandra_host = params.get("cassandra_host", params.get("graph_host"))
+        cassandra_username = params.get("cassandra_username", params.get("graph_username"))
+        cassandra_password = params.get("cassandra_password", params.get("graph_password"))
+
+        # Resolve configuration with environment variable fallback
+        hosts, username, password = resolve_cassandra_config(
+            host=cassandra_host,
+            username=cassandra_username,
+            password=cassandra_password
+        )
 
         super(Processor, self).__init__(
             **params | {
-                "graph_host": graph_host,
-                "graph_username": graph_username
+                "cassandra_host": ','.join(hosts),
+                "cassandra_username": username
             }
         )
         
-        self.graph_host = [graph_host]
-        self.username = graph_username
-        self.password = graph_password
+        self.graph_host = hosts
+        self.username = username
+        self.password = password
         self.table = None
 
     async def store_triples(self, message):
@@ -82,24 +90,7 @@ class Processor(TriplesStoreService):
     def add_args(parser):
 
         TriplesStoreService.add_args(parser)
-
-        parser.add_argument(
-            '-g', '--graph-host',
-            default="localhost",
-            help=f'Graph host (default: localhost)'
-        )
-        
-        parser.add_argument(
-            '--graph-username',
-            default=None,
-            help=f'Cassandra username'
-        )
-        
-        parser.add_argument(
-            '--graph-password',
-            default=None,
-            help=f'Cassandra password'
-        )
+        add_cassandra_args(parser)
 
 def run():
 

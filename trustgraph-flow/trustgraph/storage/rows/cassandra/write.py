@@ -3,6 +3,8 @@
 Graph writer.  Input is graph edge.  Writes edges to Cassandra graph.
 """
 
+raise RuntimeError("This code is no longer in use")
+
 import pulsar
 import base64
 import os
@@ -14,9 +16,9 @@ from cassandra.auth import PlainTextAuthProvider
 from ssl import SSLContext, PROTOCOL_TLSv1_2
 
 from .... schema import Rows
-from .... schema import rows_store_queue
 from .... log_level import LogLevel
 from .... base import Consumer
+from .... base.cassandra_config import add_cassandra_args, resolve_cassandra_config
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -24,9 +26,8 @@ logger = logging.getLogger(__name__)
 module = "rows-write"
 ssl_context = SSLContext(PROTOCOL_TLSv1_2)
 
-default_input_queue = rows_store_queue
+default_input_queue = "rows-store"  # Default queue name
 default_subscriber = module
-default_graph_host='localhost'
 
 class Processor(Consumer):
 
@@ -34,26 +35,35 @@ class Processor(Consumer):
         
         input_queue = params.get("input_queue", default_input_queue)
         subscriber = params.get("subscriber", default_subscriber)
-        graph_host = params.get("graph_host", default_graph_host)
-        graph_username = params.get("graph_username", None)
-        graph_password = params.get("graph_password", None)
+        
+        # Use new parameter names, fall back to old for compatibility
+        cassandra_host = params.get("cassandra_host", params.get("graph_host"))
+        cassandra_username = params.get("cassandra_username", params.get("graph_username"))
+        cassandra_password = params.get("cassandra_password", params.get("graph_password"))
+        
+        # Resolve configuration with environment variable fallback
+        hosts, username, password = resolve_cassandra_config(
+            host=cassandra_host,
+            username=cassandra_username,
+            password=cassandra_password
+        )
 
         super(Processor, self).__init__(
             **params | {
                 "input_queue": input_queue,
                 "subscriber": subscriber,
                 "input_schema": Rows,
-                "graph_host": graph_host,
-                "graph_username": graph_username,
-                "graph_password": graph_password,
+                "cassandra_host": ','.join(hosts),
+                "cassandra_username": username,
+                "cassandra_password": password,
             }
         )
         
-        if graph_username and graph_password:
-            auth_provider = PlainTextAuthProvider(username=graph_username, password=graph_password)
-            self.cluster = Cluster(graph_host.split(","), auth_provider=auth_provider, ssl_context=ssl_context)
+        if username and password:
+            auth_provider = PlainTextAuthProvider(username=username, password=password)
+            self.cluster = Cluster(hosts, auth_provider=auth_provider, ssl_context=ssl_context)
         else:
-            self.cluster = Cluster(graph_host.split(","))
+            self.cluster = Cluster(hosts)
         self.session = self.cluster.connect()
 
         self.tables = set()
@@ -128,24 +138,7 @@ class Processor(Consumer):
         Consumer.add_args(
             parser, default_input_queue, default_subscriber,
         )
-
-        parser.add_argument(
-            '-g', '--graph-host',
-            default="localhost",
-            help=f'Graph host (default: localhost)'
-        )
-        
-        parser.add_argument(
-            '--graph-username',
-            default=None,
-            help=f'Cassandra username'
-        )
-        
-        parser.add_argument(
-            '--graph-password',
-            default=None,
-            help=f'Cassandra password'
-        )
+        add_cassandra_args(parser)
 
 def run():
 
