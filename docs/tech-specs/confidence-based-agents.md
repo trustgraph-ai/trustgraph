@@ -519,48 +519,9 @@ Location: `tests/integration/test_agent_confidence/`
 - Gateway dispatcher protocol compliance
 - Response format consistency with ReAct agent where applicable
 
-### 8. Migration and Rollout
+### 8. Performance Considerations
 
-#### 8.1 Phased Rollout Plan
-
-**Phase 1: Development (Weeks 1-2)**
-- Implement core modules
-- Unit testing
-- Local integration testing
-
-**Phase 2: Testing (Weeks 3-4)**
-- Integration with test environment
-- Performance benchmarking
-- A/B testing setup
-
-**Phase 3: Canary Deployment (Week 5)**
-- Deploy alongside existing agent
-- Route 5% of traffic initially
-- Monitor metrics and confidence scores
-
-**Phase 4: Progressive Rollout (Weeks 6-8)**
-- Gradually increase traffic percentage
-- Collect feedback and tune thresholds
-- Full rollout decision
-
-#### 8.2 Feature Flags
-
-```yaml
-feature_flags:
-  confidence_agent_enabled: true
-  confidence_agent_traffic_percentage: 5
-  confidence_agent_fallback_to_react: true
-```
-
-#### 8.3 Rollback Strategy
-
-- Existing ReAct agent remains fully operational
-- Gateway can instantly route all traffic back to ReAct agent
-- No data migration required (stateless services)
-
-### 9. Performance Considerations
-
-#### 9.1 Expected Performance Impact
+#### 8.1 Expected Performance Impact
 
 | Metric | ReAct Agent | Confidence Agent | Impact |
 |--------|------------|------------------|--------|
@@ -569,32 +530,178 @@ feature_flags:
 | Success Rate | 85% | 92% | +7% improvement |
 | Memory Usage | 512MB | 768MB | +50% for context |
 
-#### 9.2 Optimization Strategies
+#### 8.2 Optimization Strategies
 
 - **Plan Caching**: Cache plans for similar requests
 - **Parallel Execution**: Execute independent steps concurrently
 - **Confidence Precomputation**: Pre-calculate confidence for common operations
 - **Context Pruning**: Aggressive memory management for large contexts
 
-### 10. Security Considerations
+### 9. Security Considerations
 
-#### 10.1 Data Protection
+#### 9.1 Data Protection
 
 - Confidence scores must not leak sensitive information
 - Audit trails sanitized before logging
 - Memory manager respects data classification levels
 
-#### 10.2 Access Control
+#### 9.2 Access Control
 
 - Inherit existing TrustGraph RBAC policies
 - Override functionality requires elevated privileges
 - Audit trail access restricted to administrators
 
+### 10. Phase 2: Microservices Architecture
+
+#### 10.1 Evolution from Monolithic to Microservices
+
+The initial implementation of the confidence-based agent will be a single monolithic service containing all modules (Planner, Flow Controller, Executor, Evaluator, Memory Manager, and Audit Logger) as described in this specification. This approach simplifies initial development and testing.
+
+In Phase 2, the monolithic service will be decomposed into separate microservices, each exposed as independent Pulsar request/response services. This evolution provides:
+- Better scalability and resource allocation
+- Independent deployment and versioning
+- Fault isolation and resilience
+- Reusability across different agent architectures
+
+#### 10.2 Proposed Microservice Decomposition
+
+The following microservices will be created, each with its own request/response schema:
+
+**1. Planning Service** (`trustgraph-flow/trustgraph/planning/`)
+- **Purpose**: Generate execution plans from natural language requests
+- **Request Schema**: `PlanningRequest` (question, context, available_tools)
+- **Response Schema**: `PlanningResponse` (execution_plan, confidence_thresholds)
+- **Queue**: `planning-request` / `planning-response`
+- **Reusability**: Can be used by other agent architectures needing structured plans
+
+**2. Confidence Evaluation Service** (`trustgraph-flow/trustgraph/confidence/`)
+- **Purpose**: Evaluate confidence scores for any execution result
+- **Request Schema**: `ConfidenceRequest` (function_name, input, output, context)
+- **Response Schema**: `ConfidenceResponse` (score, reasoning, recommendations)
+- **Queue**: `confidence-request` / `confidence-response`
+- **Reusability**: Can evaluate confidence for any service output
+
+**3. Execution Context Service** (`trustgraph-flow/trustgraph/context/`)
+- **Purpose**: Manage execution context and memory across steps
+- **Request Schema**: `ContextRequest` (operation: store/retrieve, step_id, data)
+- **Response Schema**: `ContextResponse` (context_data, dependencies)
+- **Queue**: `context-request` / `context-response`
+- **Reusability**: General-purpose context management for workflows
+
+**4. Flow Orchestration Service** (`trustgraph-flow/trustgraph/orchestration/`)
+- **Purpose**: Execute plans with dependency resolution and retry logic
+- **Request Schema**: `OrchestrationRequest` (execution_plan, config)
+- **Response Schema**: `OrchestrationResponse` (step_results, status)
+- **Queue**: `orchestration-request` / `orchestration-response`
+- **Reusability**: Can orchestrate any structured execution plan
+
+**5. Audit Service** (`trustgraph-flow/trustgraph/audit/`)
+- **Purpose**: Centralized audit logging for all agent operations
+- **Request Schema**: `AuditRequest` (execution_id, event_type, details)
+- **Response Schema**: `AuditResponse` (logged, audit_id)
+- **Queue**: `audit-request` / `audit-response`
+- **Reusability**: System-wide audit trail service
+
+#### 10.3 Phase 2 Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                      Gateway Service Layer                       │
+└─────────────────────────────┬─────────────────────────────────────┘
+                              │
+                     Pulsar Message Bus
+                              │
+┌─────────────────────────────┴────────────────────────────────────┐
+│         Confidence Agent Coordinator Service                     │
+│            (thin orchestration layer)                            │
+└─────────────────────────────┬────────────────────────────────────┘
+                              │
+            ┌─────────────────┼─────────────────┐
+            │                 │                 │
+     ┌──────▼───────┐  ┌─────▼──────┐  ┌──────▼───────┐
+     │   Planning   │  │ Confidence │  │   Context    │
+     │   Service    │  │ Evaluation │  │   Service    │
+     └──────────────┘  │  Service   │  └──────────────┘
+                       └────────────┘
+            │                 │                 │
+     ┌──────▼───────┐  ┌─────▼──────┐
+     │     Flow     │  │   Audit    │
+     │ Orchestration│  │  Service   │
+     │   Service    │  └────────────┘
+     └──────────────┘
+```
+
+#### 10.4 Migration Strategy
+
+**Phase 1 to Phase 2 Migration Path:**
+
+1. **Extract Interfaces**: Define clean interfaces between existing modules
+2. **Create Service Wrappers**: Wrap each module with Pulsar service endpoints
+3. **Gradual Extraction**: Extract one service at a time:
+   - Start with Audit Service (least coupled)
+   - Then Confidence Evaluation Service
+   - Follow with Context Service
+   - Extract Planning Service
+   - Finally, Flow Orchestration Service
+4. **Coordinator Simplification**: Reduce main service to thin coordination layer
+5. **Testing**: Ensure backward compatibility at each step
+
+#### 10.5 Benefits of Microservices Architecture
+
+**Operational Benefits:**
+- **Independent Scaling**: Scale planning service during peak analysis
+- **Fault Isolation**: Confidence service failure doesn't affect execution
+- **Technology Flexibility**: Use specialized models for different services
+- **Development Velocity**: Teams can work on services independently
+
+**Architectural Benefits:**
+- **Reusability**: Planning service usable by other agents
+- **Composability**: Mix and match services for different use cases
+- **Versioning**: Deploy service updates without full system changes
+- **Testing**: Easier unit and integration testing per service
+
+#### 10.6 Configuration for Phase 2
+
+```yaml
+# Phase 2 microservices configuration
+services:
+  - name: confidence-agent-coordinator
+    module: trustgraph.agent.confidence_coordinator
+    dependencies:
+      - planning-service
+      - confidence-service
+      - context-service
+      - orchestration-service
+      - audit-service
+      
+  - name: planning-service
+    module: trustgraph.planning
+    instances: 3
+    
+  - name: confidence-service
+    module: trustgraph.confidence
+    instances: 2
+    
+  - name: context-service
+    module: trustgraph.context
+    instances: 2
+    storage: redis
+    
+  - name: orchestration-service
+    module: trustgraph.orchestration
+    instances: 4
+    
+  - name: audit-service
+    module: trustgraph.audit
+    instances: 1
+    storage: postgresql
+```
+
 ### 11. Open Questions and Future Work
 
 #### 11.1 Immediate Questions for Implementation
 
-1. **LLM Selection for Planning**: Should we use a specialized fine-tuned model for plan generation, or leverage the existing text completion service?
+1. **LLM Integration**: The Planning Module will use the existing prompt service for all LLM interactions, with prompt templates stored in the configuration service following TrustGraph's standard approach. This ensures consistency with existing patterns and centralized template management.
 
 2. **Confidence Calibration**: What specific calibration methodology should be used to ensure confidence scores are meaningful across different operation types?
 
@@ -621,54 +728,101 @@ This specification defines a confidence-based agent architecture that:
 
 The architecture is designed to be implemented incrementally, tested thoroughly, and deployed safely alongside the existing ReAct agent system.
 
-### Appendix A: Example Configuration
+### Appendix A: Configuration Strategy
 
-Complete configuration example for deployment:
+#### A.1 Configuration Hierarchy
+
+The confidence-based agent follows TrustGraph's standard configuration approach with multiple override levels:
+
+**1. Command Line Parameters** (highest precedence)
+```bash
+# Example command line with overrides
+tg-confidence-agent \
+  --confidence-threshold=0.8 \
+  --max-retries=5 \
+  --timeout-ms=45000 \
+  --audit-enabled=true
+```
+
+**2. Built-in Defaults** (lowest precedence)
+- Ensures useful functionality without any configuration
+- Default confidence threshold: 0.75
+- Default max retries: 3
+- Default timeout: 30000ms
+- All core functionality enabled by default
+
+**3. Future Configuration Sources** (open question)
+- Request-level overrides in AgentRequest.plan field
+- Configuration service stored settings
+- Runtime dynamic adjustment based on performance
+
+#### A.2 Default Configuration Values
+
+The service operates with sensible defaults when no parameters are specified:
 
 ```yaml
-# confidence-agent-config.yaml
-service:
-  name: confidence-agent
-  type: trustgraph.agent.confidence
-  
-pulsar:
-  request_queue: confidence-agent-request
-  response_queue: confidence-agent-response
-  
-config:
-  # Core settings
+# Built-in defaults (no configuration required)
+defaults:
+  confidence_threshold: 0.75
+  max_retries: 3
+  retry_backoff_factor: 2.0
+  step_timeout_ms: 30000
   max_iterations: 15
-  default_confidence_threshold: 0.75
   
-  # Retry settings
-  retry:
-    max_attempts: 3
-    backoff_factor: 2.0
-    max_delay_ms: 5000
-    
-  # Tool-specific thresholds
-  tool_confidence:
+  # Tool-specific defaults
+  tool_thresholds:
     GraphQuery: 0.8
     TextCompletion: 0.7
     McpTool: 0.6
     
-  # Memory management
-  memory:
-    max_context_size: 8192
-    cache_ttl_seconds: 300
-    
-  # Audit settings
-  audit:
-    enabled: true
-    log_level: INFO
-    include_raw_outputs: false
-    
-  # Performance
-  performance:
-    parallel_execution: false
-    plan_cache_size: 100
-    timeout_ms: 30000
+  # Memory defaults
+  max_context_size: 8192
+  cache_ttl_seconds: 300
+  
+  # Audit defaults
+  audit_enabled: true
+  audit_level: INFO
+  
+  # Performance defaults
+  parallel_execution: false
+  plan_cache_size: 100
 ```
+
+#### A.3 Command Line Override Examples
+
+```bash
+# High confidence mode
+tg-confidence-agent --confidence-threshold=0.9 --max-retries=1
+
+# Development mode with verbose audit
+tg-confidence-agent --audit-level=DEBUG --timeout-ms=60000
+
+# Performance optimized
+tg-confidence-agent --parallel-execution=true --plan-cache-size=500
+
+# Tool-specific threshold override
+tg-confidence-agent --graph-query-threshold=0.85
+```
+
+#### A.4 Open Questions for Future Configuration
+
+1. **Request-Level Overrides**: Should confidence thresholds be configurable per-request via the AgentRequest.plan field?
+
+2. **Dynamic Configuration**: Should the service support runtime configuration updates via the configuration service?
+
+3. **User Profiles**: Should different user types have different default confidence thresholds?
+
+4. **Context-Aware Thresholds**: Should confidence thresholds adapt based on query complexity or domain?
+
+5. **Configuration Persistence**: Should override settings be persisted across service restarts?
+
+#### A.5 Configuration Priority Resolution
+
+When multiple configuration sources are present:
+1. Command line parameters override all others
+2. Built-in defaults provide baseline functionality
+3. Future sources (request/config service) will insert between these levels
+4. Configuration validation ensures all values remain within acceptable ranges
 
 ### Appendix B: API Examples
 
