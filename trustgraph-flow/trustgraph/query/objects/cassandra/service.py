@@ -271,11 +271,21 @@ class Processor(FlowProcessor):
                     info: Info,
                     collection: str,
                     limit: Optional[int] = 100,
-                    **filters
+                    where: Optional[str] = None  # JSON string containing filter conditions
                 ) -> List[g_type]:
                     # Get the processor instance from context
                     processor = info.context["processor"]
                     user = info.context["user"]
+                    
+                    # Parse filters from where clause if provided
+                    filters = {}
+                    if where:
+                        try:
+                            import json
+                            filters = json.loads(where)
+                        except json.JSONDecodeError as e:
+                            # Invalid JSON, ignore filters
+                            filters = {}
                     
                     # Query Cassandra
                     results = await processor.query_cassandra(
