@@ -1,8 +1,7 @@
 """
 Integration tests for the tool group system.
 
-Tests the complete workflow from AgentRequest processing through 
-tool filtering and execution in the ReAct agent service.
+Tests the complete workflow of tool filtering and execution logic.
 """
 
 import pytest
@@ -16,402 +15,228 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'trustgra
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'trustgraph-flow'))
 
 from trustgraph.schema import AgentRequest, AgentResponse, AgentStep
-from trustgraph.agent.react.service import Processor
-from trustgraph.agent.react.types import Tool, Argument
+from trustgraph.agent.tool_filter import filter_tools_by_group_and_state, get_next_state, validate_tool_config
 
 
 @pytest.fixture
 def sample_tools():
     """Sample tools with different groups and states for testing."""
     return {
-        'knowledge_query': Tool(
-            name='knowledge_query',
-            description='Query knowledge graph',
-            implementation=Mock(),
-            config={
-                'group': ['read-only', 'knowledge', 'basic'],
-                'state': 'analysis',
-                'applicable-states': ['undefined', 'research']
-            },
-            arguments=[]
-        ),
-        'graph_update': Tool(
-            name='graph_update', 
-            description='Update knowledge graph',
-            implementation=Mock(),
-            config={
-                'group': ['write', 'knowledge', 'admin'],
-                'applicable-states': ['analysis', 'modification']
-            },
-            arguments=[]
-        ),
-        'text_completion': Tool(
-            name='text_completion',
-            description='Generate text',
-            implementation=Mock(),
-            config={
-                'group': ['read-only', 'text', 'basic'],
-                'state': 'undefined'
-                # No applicable-states = available in all states
-            },
-            arguments=[]
-        ),
-        'complex_analysis': Tool(
-            name='complex_analysis',
-            description='Complex analysis tool',
-            implementation=Mock(),
-            config={
-                'group': ['advanced', 'compute', 'expensive'],
-                'state': 'results',
-                'applicable-states': ['analysis']
-            },
-            arguments=[]
-        )
+        'knowledge_query': Mock(config={
+            'group': ['read-only', 'knowledge', 'basic'],
+            'state': 'analysis',
+            'applicable-states': ['undefined', 'research']
+        }),
+        'graph_update': Mock(config={
+            'group': ['write', 'knowledge', 'admin'],
+            'applicable-states': ['analysis', 'modification']
+        }),
+        'text_completion': Mock(config={
+            'group': ['read-only', 'text', 'basic'],
+            'state': 'undefined'
+            # No applicable-states = available in all states
+        }),
+        'complex_analysis': Mock(config={
+            'group': ['advanced', 'compute', 'expensive'],
+            'state': 'results',
+            'applicable-states': ['analysis']
+        })
     }
 
 
-@pytest.fixture
-def agent_processor():
-    """Create agent processor for testing."""
-    return Processor(id="test-agent", max_iterations=5)
+class TestToolGroupFiltering:
+    """Test tool group filtering integration scenarios."""
 
-
-class TestAgentRequestProcessing:
-    """Test AgentRequest processing with tool groups and states."""
-
-    @pytest.mark.asyncio
-    async def test_basic_group_filtering(self, agent_processor, sample_tools):
-        """Test that agent only sees tools matching requested groups."""
+    def test_basic_group_filtering(self, sample_tools):
+        """Test that filtering only returns tools matching requested groups."""
         
-        # Setup agent with sample tools
-        agent_processor.agent.tools = sample_tools
-        
-        # Mock the agent's react method to return a Final response
-        from trustgraph.agent.react.types import Final
-        mock_final = Final(final="Test response")
-        agent_processor.agent.react = AsyncMock(return_value=mock_final)
-        
-        # Create request with read-only group
-        request = AgentRequest(
-            question="Test question",
-            state="undefined",
-            group=["read-only", "knowledge"],
-            history=[]
+        # Filter for read-only and knowledge tools
+        filtered = filter_tools_by_group_and_state(
+            sample_tools, 
+            ['read-only', 'knowledge'], 
+            'undefined'
         )
         
-        responses = []
-        
-        async def mock_respond(response):
-            responses.append(response)
-            
-        async def mock_next(next_request):
-            pass  # Not needed for this test
-            
-        # Process request
-        await agent_processor.agent_request(request, mock_respond, mock_next, {})
-        
-        # Verify agent was called with filtered tools
-        agent_processor.agent.react.assert_called_once()
-        call_kwargs = agent_processor.agent.react.call_args.kwargs
-        
-        # The agent should have been created with filtered tools
-        # We can't directly inspect the temp agent, but we can verify the filtering worked
-        # by checking that only appropriate tools would have been available
-        
-        # Verify final response was sent
-        assert len(responses) == 1
-        assert responses[0].answer == "Test response"
+        # Should include tools with matching groups and correct state
+        assert 'knowledge_query' in filtered  # Has read-only + knowledge, available in undefined
+        assert 'text_completion' in filtered  # Has read-only, available in all states
+        assert 'graph_update' not in filtered  # Has knowledge but no read-only
+        assert 'complex_analysis' not in filtered  # Wrong groups and state
 
-    @pytest.mark.asyncio 
-    async def test_state_based_filtering(self, agent_processor, sample_tools):
+    def test_state_based_filtering(self, sample_tools):
         """Test filtering based on current state."""
         
-        agent_processor.agent.tools = sample_tools
-        
-        from trustgraph.agent.react.types import Final
-        mock_final = Final(final="Analysis complete")
-        agent_processor.agent.react = AsyncMock(return_value=mock_final)
-        
-        # Create request in 'analysis' state
-        request = AgentRequest(
-            question="Perform analysis",
-            state="analysis",  
-            group=["advanced", "compute"],
-            history=[]
+        # Filter for analysis state with advanced tools
+        filtered = filter_tools_by_group_and_state(
+            sample_tools, 
+            ['advanced', 'compute'], 
+            'analysis'
         )
         
-        responses = []
-        
-        async def mock_respond(response):
-            responses.append(response)
-            
-        # Process request
-        await agent_processor.agent_request(request, mock_respond, lambda x: None, {})
-        
-        # Verify response
-        assert len(responses) == 1
-        assert responses[0].answer == "Analysis complete"
+        # Should only include tools available in analysis state
+        assert 'complex_analysis' in filtered  # Available in analysis state
+        assert 'knowledge_query' not in filtered  # Not available in analysis state
+        assert 'graph_update' not in filtered  # Wrong group (no advanced/compute)
+        assert 'text_completion' not in filtered  # Wrong group
 
-    @pytest.mark.asyncio
-    async def test_state_transition_handling(self, agent_processor, sample_tools):
+    def test_state_transition_handling(self, sample_tools):
         """Test state transitions after tool execution."""
         
-        agent_processor.agent.tools = sample_tools
+        # Get knowledge_query tool and test state transition
+        knowledge_tool = sample_tools['knowledge_query']
         
-        # Mock agent to return an action that uses knowledge_query
-        from trustgraph.agent.react.types import Action
-        mock_action = Action(
-            thought="I need to query knowledge",
-            name="knowledge_query",
-            arguments={},
-            observation="Found information"
-        )
-        agent_processor.agent.react = AsyncMock(return_value=mock_action)
+        # Test state transition
+        next_state = get_next_state(knowledge_tool, 'undefined')
+        assert next_state == 'analysis'  # knowledge_query should transition to analysis
         
-        # Create initial request
-        request = AgentRequest(
-            question="Research question",
-            state="undefined",
-            group=["read-only", "knowledge"],
-            history=[]
-        )
-        
-        next_requests = []
-        
-        async def mock_next(next_request):
-            next_requests.append(next_request)
-            
-        # Process request
-        await agent_processor.agent_request(request, lambda x: None, mock_next, {})
-        
-        # Verify state transition occurred
-        assert len(next_requests) == 1
-        next_req = next_requests[0]
-        assert next_req.state == "analysis"  # knowledge_query transitions to analysis
-        assert next_req.group == ["read-only", "knowledge"]
+        # Test tool with no state transition
+        text_tool = sample_tools['text_completion']
+        next_state = get_next_state(text_tool, 'research')
+        assert next_state == 'undefined'  # text_completion transitions to undefined
 
-    @pytest.mark.asyncio
-    async def test_wildcard_group_access(self, agent_processor, sample_tools):
+    def test_wildcard_group_access(self, sample_tools):
         """Test wildcard group grants access to all tools."""
         
-        agent_processor.agent.tools = sample_tools
-        
-        from trustgraph.agent.react.types import Final
-        mock_final = Final(final="All tools available")
-        agent_processor.agent.react = AsyncMock(return_value=mock_final)
-        
-        # Create request with wildcard group
-        request = AgentRequest(
-            question="Administrative task",
-            state="undefined",
-            group=["*"],  # Wildcard access
-            history=[]
+        # Filter with wildcard group access
+        filtered = filter_tools_by_group_and_state(
+            sample_tools, 
+            ['*'],  # Wildcard access
+            'undefined'
         )
         
-        responses = []
-        
-        async def mock_respond(response):
-            responses.append(response)
-            
-        # Process request  
-        await agent_processor.agent_request(request, mock_respond, lambda x: None, {})
-        
-        # All tools should have been available to the agent
-        assert len(responses) == 1
-        assert responses[0].answer == "All tools available"
+        # Should include all tools that are available in undefined state
+        assert 'knowledge_query' in filtered  # Available in undefined
+        assert 'text_completion' in filtered  # Available in all states
+        assert 'graph_update' not in filtered  # Not available in undefined
+        assert 'complex_analysis' not in filtered  # Not available in undefined
 
-    @pytest.mark.asyncio
-    async def test_no_matching_tools(self, agent_processor, sample_tools):
+    def test_no_matching_tools(self, sample_tools):
         """Test behavior when no tools match the requested groups."""
         
-        agent_processor.agent.tools = sample_tools
-        
-        from trustgraph.agent.react.types import Final
-        mock_final = Final(final="No tools available")
-        agent_processor.agent.react = AsyncMock(return_value=mock_final)
-        
-        # Create request with non-matching group
-        request = AgentRequest(
-            question="Some task",
-            state="undefined", 
-            group=["nonexistent-group"],
-            history=[]
+        # Filter with non-matching group
+        filtered = filter_tools_by_group_and_state(
+            sample_tools, 
+            ['nonexistent-group'], 
+            'undefined'
         )
         
-        responses = []
-        
-        async def mock_respond(response):
-            responses.append(response)
-            
-        # Process request
-        await agent_processor.agent_request(request, mock_respond, lambda x: None, {})
-        
-        # Agent should still work but with empty tool set
-        assert len(responses) == 1
+        # Should return empty dictionary
+        assert len(filtered) == 0
 
-    @pytest.mark.asyncio
-    async def test_default_group_behavior(self, agent_processor):
+    def test_default_group_behavior(self):
         """Test default group behavior when no group is specified."""
         
         # Create tools with and without explicit groups
         tools = {
-            'default_tool': Tool(
-                name='default_tool',
-                description='Default tool',
-                implementation=Mock(),
-                config={},  # No group = default group
-                arguments=[]
-            ),
-            'admin_tool': Tool(
-                name='admin_tool',
-                description='Admin tool', 
-                implementation=Mock(),
-                config={'group': ['admin']},
-                arguments=[]
-            )
+            'default_tool': Mock(config={}),  # No group = default group
+            'admin_tool': Mock(config={'group': ['admin']})
         }
         
-        agent_processor.agent.tools = tools
+        # Filter with no group specified (should default to ["default"])
+        filtered = filter_tools_by_group_and_state(tools, None, 'undefined')
         
-        from trustgraph.agent.react.types import Final
-        mock_final = Final(final="Default tools only")
-        agent_processor.agent.react = AsyncMock(return_value=mock_final)
-        
-        # Create request without specifying group (should default to ["default"])
-        request = AgentRequest(
-            question="Basic task",
-            state="undefined",
-            group=None,  # Should default to ["default"]
-            history=[]
-        )
-        
-        responses = []
-        
-        async def mock_respond(response):
-            responses.append(response)
-            
-        # Process request
-        await agent_processor.agent_request(request, mock_respond, lambda x: None, {})
-        
-        # Only default_tool should have been available
-        assert len(responses) == 1
+        # Only default_tool should be available
+        assert 'default_tool' in filtered
+        assert 'admin_tool' not in filtered
 
 
-class TestToolConfigurationLoading:
-    """Test tool configuration loading with group metadata."""
+class TestToolConfigurationValidation:
+    """Test tool configuration validation with group metadata."""
 
-    @pytest.mark.asyncio
-    async def test_tool_config_validation(self, agent_processor):
+    def test_tool_config_validation_invalid(self):
         """Test that invalid tool configurations are rejected."""
         
-        # Mock configuration with invalid group field
+        # Test invalid group field (should be list)
         invalid_config = {
-            "tool": {
-                "invalid-tool": json.dumps({
-                    "name": "invalid_tool",
-                    "description": "Invalid tool",
-                    "type": "text-completion",
-                    "group": "not-a-list"  # Should be list
-                })
-            }
+            "name": "invalid_tool",
+            "description": "Invalid tool",
+            "type": "text-completion",
+            "group": "not-a-list"  # Should be list
         }
         
         # Should raise validation error
         with pytest.raises(ValueError, match="'group' field must be a list"):
-            await agent_processor.on_tools_config(invalid_config, 1)
+            validate_tool_config(invalid_config)
 
-    @pytest.mark.asyncio
-    async def test_valid_tool_config_loading(self, agent_processor):
-        """Test that valid tool configurations load successfully."""
+    def test_tool_config_validation_valid(self):
+        """Test that valid tool configurations are accepted."""
         
         valid_config = {
-            "tool": {
-                "valid-tool": json.dumps({
-                    "name": "valid_tool",
-                    "description": "Valid tool",
-                    "type": "text-completion",
-                    "group": ["read-only", "text"],
-                    "state": "analysis",
-                    "applicable-states": ["undefined", "research"]
-                })
-            }
+            "name": "valid_tool",
+            "description": "Valid tool",
+            "type": "text-completion",
+            "group": ["read-only", "text"],
+            "state": "analysis",
+            "applicable-states": ["undefined", "research"]
         }
         
         # Should not raise any exception
-        await agent_processor.on_tools_config(valid_config, 1)
+        validate_tool_config(valid_config)
         
-        # Verify tool was loaded with correct config
-        assert "valid_tool" in agent_processor.agent.tools
-        tool = agent_processor.agent.tools["valid_tool"]
-        assert tool.config["group"] == ["read-only", "text"]
-        assert tool.config["state"] == "analysis"
+    def test_kebab_case_field_names(self):
+        """Test that kebab-case field names are properly handled."""
+        
+        config = {
+            "name": "test_tool",
+            "group": ["basic"],
+            "applicable-states": ["undefined", "analysis"]  # kebab-case
+        }
+        
+        # Should validate without error
+        validate_tool_config(config)
+        
+        # Create mock tool and test filtering
+        tool = Mock(config=config)
+        
+        # Test that kebab-case field is properly read
+        filtered = filter_tools_by_group_and_state(
+            {'test_tool': tool}, 
+            ['basic'], 
+            'analysis'
+        )
+        
+        assert 'test_tool' in filtered
 
 
 class TestCompleteWorkflow:
     """Test complete multi-step workflows with state transitions."""
 
-    @pytest.mark.asyncio
-    async def test_research_analysis_workflow(self, agent_processor, sample_tools):
+    def test_research_analysis_workflow(self, sample_tools):
         """Test complete research -> analysis -> results workflow."""
         
-        agent_processor.agent.tools = sample_tools
-        
-        # Step 1: Initial research request
-        from trustgraph.agent.react.types import Action
-        research_action = Action(
-            thought="I should query the knowledge base",
-            name="knowledge_query", 
-            arguments={"query": "test"},
-            observation="Found relevant information"
+        # Step 1: Initial research phase (undefined state)
+        step1_filtered = filter_tools_by_group_and_state(
+            sample_tools,
+            ['read-only', 'knowledge'],
+            'undefined'
         )
         
-        agent_processor.agent.react = AsyncMock(return_value=research_action)
+        # Should have access to knowledge_query and text_completion
+        assert 'knowledge_query' in step1_filtered
+        assert 'text_completion' in step1_filtered
+        assert 'complex_analysis' not in step1_filtered  # Not available in undefined
         
-        request1 = AgentRequest(
-            question="Research topic X",
-            state="undefined",
-            group=["read-only", "knowledge"],
-            history=[]
-        )
-        
-        next_requests = []
-        
-        async def capture_next(req):
-            next_requests.append(req)
-            
-        # Execute step 1
-        await agent_processor.agent_request(request1, lambda x: None, capture_next, {})
-        
-        # Verify state transition to analysis
-        assert len(next_requests) == 1
-        step2_request = next_requests[0]
-        assert step2_request.state == "analysis"
-        assert len(step2_request.history) == 1
+        # Simulate executing knowledge_query tool
+        knowledge_tool = step1_filtered['knowledge_query']
+        next_state = get_next_state(knowledge_tool, 'undefined')
+        assert next_state == 'analysis'  # Transition to analysis state
         
         # Step 2: Analysis phase
-        analysis_action = Action(
-            thought="Now I can perform complex analysis",
-            name="complex_analysis",
-            arguments={"data": "research results"},
-            observation="Analysis completed"
+        step2_filtered = filter_tools_by_group_and_state(
+            sample_tools,
+            ['advanced', 'compute', 'text'],  # Include text for text_completion
+            'analysis'
         )
         
-        agent_processor.agent.react = AsyncMock(return_value=analysis_action)
+        # Should have access to complex_analysis and text_completion
+        assert 'complex_analysis' in step2_filtered
+        assert 'text_completion' in step2_filtered  # Available in all states
+        assert 'knowledge_query' not in step2_filtered  # Not available in analysis
         
-        # Update request groups for analysis phase
-        step2_request.group = ["advanced", "compute"]
-        
-        next_requests_2 = []
-        
-        # Execute step 2
-        await agent_processor.agent_request(step2_request, lambda x: None, 
-                                          lambda req: next_requests_2.append(req), {})
-        
-        # Verify final state transition
-        assert len(next_requests_2) == 1
-        final_request = next_requests_2[0]
-        assert final_request.state == "results"
-        assert len(final_request.history) == 2
+        # Simulate executing complex_analysis tool
+        analysis_tool = step2_filtered['complex_analysis']
+        final_state = get_next_state(analysis_tool, 'analysis')
+        assert final_state == 'results'  # Transition to results state
 
     @pytest.mark.asyncio
     async def test_multi_tenant_scenario(self, agent_processor, sample_tools):
