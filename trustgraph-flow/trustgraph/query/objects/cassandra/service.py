@@ -280,20 +280,35 @@ class Processor(FlowProcessor):
 
     def create_filter_type_for_schema(self, schema_name: str, row_schema: RowSchema):
         """Create a dynamic filter input type for a schema"""
-        filter_fields = {}
+        # Create the filter type dynamically
+        filter_type_name = f"{schema_name.capitalize()}Filter"
+        
+        # Add __annotations__ and defaults for the fields
+        annotations = {}
+        defaults = {}
         
         for field in row_schema.fields:
             if field.indexed or field.primary:
                 if field.type == "integer":
-                    filter_fields[field.name] = Optional[IntFilter]
-                elif field.type == "float":
-                    filter_fields[field.name] = Optional[FloatFilter]  
+                    annotations[field.name] = Optional[IntFilter]
+                elif field.type == "float": 
+                    annotations[field.name] = Optional[FloatFilter]
                 elif field.type == "string":
-                    filter_fields[field.name] = Optional[StringFilter]
+                    annotations[field.name] = Optional[StringFilter]
+                defaults[field.name] = None
         
-        # Create the filter type dynamically
-        filter_type_name = f"{schema_name.capitalize()}Filter"
-        FilterType = create_type(filter_type_name, filter_fields, is_input=True)
+        # Create the class dynamically
+        FilterType = type(
+            filter_type_name,
+            (),
+            {
+                "__annotations__": annotations,
+                **defaults
+            }
+        )
+        
+        # Apply strawberry input decorator
+        FilterType = strawberry.input(FilterType)
         
         return FilterType
 
