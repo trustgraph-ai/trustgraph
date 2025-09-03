@@ -66,9 +66,18 @@ trustgraph-flow/trustgraph/agent/confidence/
 └── types.py           # Type definitions
 ```
 
-#### 2.2 Schema Extensions
+#### 2.2 External Interface - Drop-in Replacement
 
-New schemas in `trustgraph-base/trustgraph/schema/services/agent_confidence.py`:
+The confidence-based agent uses the existing `AgentRequest` and `AgentResponse` schemas as its external interface, making it a drop-in replacement for the ReAct agent:
+
+**Input:** `AgentRequest` (from `trustgraph-base/trustgraph/schema/services/agent.py`)
+**Output:** `AgentResponse` (from `trustgraph-base/trustgraph/schema/services/agent.py`)
+
+This ensures complete compatibility with existing gateway dispatchers and client code.
+
+#### 2.3 Internal Schemas
+
+New internal schemas in `trustgraph-base/trustgraph/schema/services/agent_confidence.py`:
 
 **ConfidenceMetrics**
 - `score`: Float - Confidence score (0.0 to 1.0)
@@ -95,20 +104,22 @@ New schemas in `trustgraph-base/trustgraph/schema/services/agent_confidence.py`:
 - `confidence`: ConfidenceMetrics - Confidence evaluation
 - `execution_time_ms`: Integer - Actual execution time
 
-**ConfidenceAgentRequest**
-- `question`: String - User query
-- `confidence_threshold`: Float - Global confidence threshold
-- `max_retries`: Integer - Maximum retry attempts
-- `override_enabled`: Boolean - Allow user overrides
-- `context`: Map(String) - Request context
+These internal schemas are used for:
+- Passing structured data between confidence agent modules
+- Storing execution state and metrics
+- Audit logging and debugging
 
-**ConfidenceAgentResponse**
-- `answer`: String - Final answer to user
-- `plan`: ExecutionPlan - Generated execution plan
-- `results`: Array(StepResult) - All step results
-- `final_confidence`: Float - Overall confidence score
-- `audit_trail`: String - Reference to detailed audit log
-- `error`: Error - Error details if failed
+#### 2.4 Communication Pattern
+
+The confidence agent sends multiple `AgentResponse` messages during execution, similar to ReAct's thought/observation pattern:
+
+1. **Planning Phase**: Sends responses with planning thoughts and observations about the generated execution plan
+2. **Execution Phase**: For each step, sends responses with:
+   - `thought`: Current step being executed and confidence reasoning
+   - `observation`: Tool output and confidence evaluation
+3. **Final Response**: Sends the final answer with overall confidence assessment
+
+This streaming approach provides real-time visibility into the agent's reasoning and confidence evaluations while maintaining compatibility with existing clients.
 
 ### 3. Module Implementation Details
 
@@ -191,7 +202,7 @@ The main service class coordinates all confidence agent components and handles r
 
 #### 4.1 Gateway Integration
 
-A new dispatcher will be created in `trustgraph-flow/trustgraph/gateway/dispatch/agent_confidence.py` that extends the existing ServiceRequestor pattern, using the ConfidenceAgentRequest and ConfidenceAgentResponse schemas for Pulsar message serialization.
+The confidence agent reuses the existing gateway dispatcher `trustgraph-flow/trustgraph/gateway/dispatch/agent.py` since it uses the same AgentRequest and AgentResponse schemas. No new dispatcher is needed, making it a true drop-in replacement.
 
 #### 4.2 Configuration Integration
 
@@ -509,53 +520,46 @@ config:
 
 ### Appendix B: API Examples
 
-#### Request Example
+#### Request Example (AgentRequest)
 
 ```json
 {
   "question": "What are the relationships between Company A and Company B in the knowledge graph?",
-  "confidence_threshold": 0.8,
-  "max_retries": 3,
-  "override_enabled": true,
-  "context": {
-    "user_id": "user123",
-    "session_id": "session456"
-  }
+  "plan": "{\"confidence_threshold\": 0.8, \"max_retries\": 3}",
+  "state": "initial",
+  "history": []
 }
 ```
 
-#### Response Example
+#### Interim Response Example (AgentResponse - Planning)
+
+```json
+{
+  "answer": "",
+  "thought": "Creating execution plan with confidence thresholds for graph query",
+  "observation": "Plan generated: 1 step with GraphQuery function, confidence threshold 0.8",
+  "error": null
+}
+```
+
+#### Interim Response Example (AgentResponse - Execution)
+
+```json
+{
+  "answer": "",
+  "thought": "Executing GraphQuery to find relationships between Company A and Company B",
+  "observation": "Query returned 3 relationships with confidence score 0.92",
+  "error": null
+}
+```
+
+#### Final Response Example (AgentResponse)
 
 ```json
 {
   "answer": "Company A and Company B have 3 relationships: 1) Partnership agreement signed 2023, 2) Shared board member John Doe, 3) Joint venture in Project X",
-  "plan": {
-    "id": "plan-789",
-    "steps": [
-      {
-        "id": "step-1",
-        "function": "GraphQuery",
-        "arguments": {
-          "query": "MATCH (a:Company {name: 'Company A'})-[r]-(b:Company {name: 'Company B'}) RETURN r"
-        },
-        "confidence_threshold": 0.8
-      }
-    ]
-  },
-  "results": [
-    {
-      "step_id": "step-1",
-      "success": true,
-      "output": "[partnership, board_member, joint_venture]",
-      "confidence": {
-        "score": 0.92,
-        "reasoning": "Query returned consistent, well-formed results",
-        "retry_count": 0
-      },
-      "execution_time_ms": 145
-    }
-  ],
-  "final_confidence": 0.92,
-  "audit_trail": "execution-log-url"
+  "thought": "Analysis complete with high confidence (0.92)",
+  "observation": "All steps executed successfully. Audit trail available at: execution-log-789",
+  "error": null
 }
 ```
