@@ -27,10 +27,10 @@ class Processor(FlowProcessor):
         
         id = params.get("id", default_ident)
         
-        # Use new parameter names, fall back to old for compatibility
-        cassandra_host = params.get("cassandra_host", params.get("graph_host"))
-        cassandra_username = params.get("cassandra_username", params.get("graph_username"))
-        cassandra_password = params.get("cassandra_password", params.get("graph_password"))
+        # Get Cassandra parameters
+        cassandra_host = params.get("cassandra_host")
+        cassandra_username = params.get("cassandra_username")
+        cassandra_password = params.get("cassandra_password")
         
         # Resolve configuration with environment variable fallback
         hosts, username, password = resolve_cassandra_config(
@@ -39,10 +39,10 @@ class Processor(FlowProcessor):
             password=cassandra_password
         )
         
-        # Store resolved configuration
-        self.graph_host = hosts  # Store as list
-        self.graph_username = username
-        self.graph_password = password
+        # Store resolved configuration with proper names
+        self.cassandra_host = hosts  # Store as list
+        self.cassandra_username = username
+        self.cassandra_password = password
         
         # Config key for schemas
         self.config_key = params.get("config_type", "schema")
@@ -82,20 +82,20 @@ class Processor(FlowProcessor):
             return
             
         try:
-            if self.graph_username and self.graph_password:
+            if self.cassandra_username and self.cassandra_password:
                 auth_provider = PlainTextAuthProvider(
-                    username=self.graph_username,
-                    password=self.graph_password
+                    username=self.cassandra_username,
+                    password=self.cassandra_password
                 )
                 self.cluster = Cluster(
-                    contact_points=self.graph_host,
+                    contact_points=self.cassandra_host,
                     auth_provider=auth_provider
                 )
             else:
-                self.cluster = Cluster(contact_points=self.graph_host)
+                self.cluster = Cluster(contact_points=self.cassandra_host)
             
             self.session = self.cluster.connect()
-            logger.info(f"Connected to Cassandra cluster at {self.graph_host}")
+            logger.info(f"Connected to Cassandra cluster at {self.cassandra_host}")
             
         except Exception as e:
             logger.error(f"Failed to connect to Cassandra: {e}", exc_info=True)
