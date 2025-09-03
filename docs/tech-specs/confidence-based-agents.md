@@ -20,10 +20,10 @@ This document specifies a new agent architecture for TrustGraph that introduces 
 ┌──────────────────────────────────────────────────────────────────┐
 │                      Gateway Service Layer                       │
 │                   (dispatch/agent_confidence.py)                 │
-└────────────────────────────┬─────────────────────────────────────┘
-                             │
-                    Pulsar Message Bus
-                             │
+└─────────────────────────────┬─────────────────────────────────────┘
+                              │
+                     Pulsar Message Bus
+                              │
 ┌─────────────────────────────┴────────────────────────────────────┐
 │              Confidence Agent Service                            │
 │            (agent/confidence/service.py)                         │
@@ -32,8 +32,8 @@ This document specifies a new agent architecture for TrustGraph that introduces 
 │  │   Planner    │   │ Flow Controller │   │   Confidence   │     │
 │  │   Module     │─▶│      Module     │─▶│   Evaluator    │     │
 │  └──────────────┘   └─────────────────┘   └────────────────┘     │
-│         │                  │                    │                │
-│         ▼                  ▼                    ▼                │
+│         │                  │                       │             │
+│         ▼                  ▼                       ▼             │
 │  ┌──────────────┐   ┌───────────────┐     ┌────────────────┐     │
 │  │   Execution  │   │    Memory     │     │     Audit      │     │
 │  │    Engine    │◄──│    Manager    │     │     Logger     │     │
