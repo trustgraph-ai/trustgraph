@@ -18,6 +18,7 @@ from ... schema import AgentRequest, AgentResponse, AgentStep, Error
 
 from . tools import KnowledgeQueryImpl, TextCompletionImpl, McpToolImpl, PromptImpl
 from . agent_manager import AgentManager
+from ..tool_filter import validate_tool_config, filter_tools_by_group_and_state, get_next_state
 
 from . types import Final, Action, Tool, Argument
 
@@ -142,6 +143,9 @@ class Processor(AgentService):
                             f"Tool type {impl_id} not known"
                         )
                     
+                    # Validate tool configuration
+                    validate_tool_config(data)
+                    
                     tools[name] = Tool(
                         name=name,
                         description=data.get("description"),
@@ -219,9 +223,24 @@ class Processor(AgentService):
 
                 await respond(r)
 
+            # Apply tool filtering based on request groups and state
+            filtered_tools = filter_tools_by_group_and_state(
+                tools=self.agent.tools,
+                requested_groups=getattr(request, 'group', None),
+                current_state=getattr(request, 'state', None)
+            )
+            
+            logger.info(f"Filtered from {len(self.agent.tools)} to {len(filtered_tools)} available tools")
+            
+            # Create temporary agent with filtered tools
+            temp_agent = AgentManager(
+                tools=filtered_tools,
+                additional_context=self.agent.additional_context
+            )
+            
             logger.debug("Call React")
 
-            act = await self.agent.react(
+            act = await temp_agent.react(
                 question = request.question,
                 history = history,
                 think = think,
@@ -255,11 +274,17 @@ class Processor(AgentService):
             logger.debug("Send next...")
 
             history.append(act)
+            
+            # Handle state transitions if tool execution was successful
+            next_state = request.state
+            if act.name in filtered_tools:
+                executed_tool = filtered_tools[act.name]
+                next_state = get_next_state(executed_tool, request.state or "undefined")
 
             r = AgentRequest(
                 question=request.question,
-                plan=request.plan,
-                state=request.state,
+                state=next_state,
+                group=getattr(request, 'group', []),
                 history=[
                     AgentStep(
                         thought=h.thought,

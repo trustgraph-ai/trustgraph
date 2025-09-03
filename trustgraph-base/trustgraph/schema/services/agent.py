@@ -16,8 +16,8 @@ class AgentStep(Record):
 
 class AgentRequest(Record):
     question = String()
-    plan = String()
     state = String()
+    group = Array(String())
     history = Array(AgentStep())
 
 class AgentResponse(Record):
