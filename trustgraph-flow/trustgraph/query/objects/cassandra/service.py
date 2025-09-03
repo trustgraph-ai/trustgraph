@@ -7,6 +7,7 @@ import json
 import logging
 import asyncio
 from typing import Dict, Any, Optional, List, Set
+from enum import Enum
 from dataclasses import dataclass, field
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
@@ -324,6 +325,15 @@ class Processor(FlowProcessor):
         
         return FilterType
 
+    def create_sort_direction_enum(self):
+        """Create sort direction enum"""
+        @strawberry.enum
+        class SortDirection(Enum):
+            ASC = "asc"
+            DESC = "desc"
+        
+        return SortDirection
+
     def parse_idiomatic_where_clause(self, where_obj) -> Dict[str, Any]:
         """Parse the idiomatic nested filter structure"""
         if not where_obj:
@@ -366,6 +376,8 @@ class Processor(FlowProcessor):
         
         # Create GraphQL types and filter types for each schema
         filter_types = {}
+        sort_direction_enum = self.create_sort_direction_enum()
+        
         for schema_name, row_schema in self.schemas.items():
             graphql_type = self.create_graphql_type(schema_name, row_schema)
             filter_type = self.create_filter_type_for_schema(schema_name, row_schema)
@@ -381,11 +393,13 @@ class Processor(FlowProcessor):
             filter_type = filter_types[schema_name]
             
             # Create resolver function for this schema
-            def make_resolver(s_name, r_schema, g_type, f_type):
+            def make_resolver(s_name, r_schema, g_type, f_type, sort_enum):
                 async def resolver(
                     info: Info,
                     collection: str,
                     where: Optional[f_type] = None,
+                    order_by: Optional[str] = None,
+                    direction: Optional[sort_enum] = None,
                     limit: Optional[int] = 100
                 ) -> List[g_type]:
                     # Get the processor instance from context
@@ -398,7 +412,7 @@ class Processor(FlowProcessor):
                     # Query Cassandra
                     results = await processor.query_cassandra(
                         user, collection, s_name, r_schema, 
-                        filters, limit
+                        filters, limit, order_by, direction
                     )
                     
                     # Convert to GraphQL types
@@ -413,7 +427,7 @@ class Processor(FlowProcessor):
             
             # Add resolver to query
             resolver_name = schema_name
-            resolver_func = make_resolver(schema_name, row_schema, graphql_type, filter_type)
+            resolver_func = make_resolver(schema_name, row_schema, graphql_type, filter_type, sort_direction_enum)
             
             # Add field to query dictionary
             query_dict[resolver_name] = strawberry.field(resolver=resolver_func)
@@ -437,7 +451,9 @@ class Processor(FlowProcessor):
         schema_name: str,
         row_schema: RowSchema,
         filters: Dict[str, Any],
-        limit: int
+        limit: int,
+        order_by: Optional[str] = None,
+        direction: Optional[Any] = None
     ) -> List[Dict[str, Any]]:
         """Execute a query against Cassandra"""
         
@@ -500,6 +516,17 @@ class Processor(FlowProcessor):
         if where_clauses:
             query += " WHERE " + " AND ".join(where_clauses)
         
+        # Add ORDER BY if requested (will try Cassandra first, then fall back to post-query sort)
+        cassandra_order_by_added = False
+        if order_by and direction:
+            # Validate that order_by field exists in schema
+            order_field_exists = any(f.name == order_by for f in row_schema.fields)
+            if order_field_exists:
+                safe_order_field = self.sanitize_name(order_by)
+                direction_str = "ASC" if direction.value == "asc" else "DESC"
+                # Add ORDER BY - if Cassandra rejects it, we'll catch the error during execution
+                query += f" ORDER BY {safe_order_field} {direction_str}"
+        
         # Add limit first (must come before ALLOW FILTERING)
         if limit:
             query += f" LIMIT {limit}"
@@ -510,10 +537,25 @@ class Processor(FlowProcessor):
         # Execute query
         try:
             result = self.session.execute(query, params)
-            
-            # Convert rows to dicts
-            results = []
-            for row in result:
+            cassandra_order_by_added = True  # If we get here, Cassandra handled ORDER BY
+        except Exception as e:
+            # If ORDER BY fails, try without it
+            if order_by and direction and "ORDER BY" in query:
+                logger.info(f"Cassandra rejected ORDER BY, falling back to post-query sorting: {e}")
+                # Remove ORDER BY clause and retry
+                query_parts = query.split(" ORDER BY ")
+                if len(query_parts) == 2:
+                    query_without_order = query_parts[0] + " LIMIT " + str(limit) + " ALLOW FILTERING" if limit else " ALLOW FILTERING"
+                    result = self.session.execute(query_without_order, params)
+                    cassandra_order_by_added = False
+                else:
+                    raise
+            else:
+                raise
+        
+        # Convert rows to dicts
+        results = []
+        for row in result:
                 row_dict = {}
                 for field in row_schema.fields:
                     safe_field = self.sanitize_name(field.name)
@@ -522,12 +564,16 @@ class Processor(FlowProcessor):
                         # Use original field name in result
                         row_dict[field.name] = value
                 results.append(row_dict)
-            
-            return results
-            
-        except Exception as e:
-            logger.error(f"Failed to query Cassandra: {e}", exc_info=True)
-            raise
+        
+        # Post-query sorting if Cassandra didn't handle ORDER BY
+        if order_by and direction and not cassandra_order_by_added:
+            reverse_order = (direction.value == "desc")
+            try:
+                results.sort(key=lambda x: x.get(order_by, 0), reverse=reverse_order)
+            except Exception as e:
+                logger.warning(f"Failed to sort results by {order_by}: {e}")
+        
+        return results
 
     async def execute_graphql_query(
         self, 
