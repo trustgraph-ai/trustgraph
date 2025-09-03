@@ -284,8 +284,11 @@ class Processor(FlowProcessor):
         Query = type('Query', (), query_dict)
         Query = strawberry.type(Query)
         
-        # Create the schema
-        self.graphql_schema = strawberry.Schema(query=Query)
+        # Create the schema with auto_camel_case disabled to keep snake_case field names
+        self.graphql_schema = strawberry.Schema(
+            query=Query,
+            config=strawberry.schema.config.StrawberryConfig(auto_camel_case=False)
+        )
         logger.info(f"Generated GraphQL schema with {len(self.schemas)} types")
 
     async def query_cassandra(
@@ -331,9 +334,12 @@ class Processor(FlowProcessor):
         if where_clauses:
             query += " WHERE " + " AND ".join(where_clauses)
         
-        # Add limit
+        # Add limit first (must come before ALLOW FILTERING)
         if limit:
             query += f" LIMIT {limit}"
+        
+        # Add ALLOW FILTERING for now (should optimize with proper indexes later)
+        query += " ALLOW FILTERING"
         
         # Execute query
         try:
