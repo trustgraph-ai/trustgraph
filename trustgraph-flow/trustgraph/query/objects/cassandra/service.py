@@ -15,6 +15,7 @@ import strawberry
 from strawberry import Schema
 from strawberry.types import Info
 from strawberry.scalars import JSON
+from strawberry.tools import create_type
 
 from .... schema import ObjectsQueryRequest, ObjectsQueryResponse, GraphQLError
 from .... schema import Error, RowSchema, Field as SchemaField
@@ -25,6 +26,39 @@ logger = logging.getLogger(__name__)
 
 default_ident = "objects-query"
 default_graph_host = 'localhost'
+
+# GraphQL filter input types
+@strawberry.input
+class IntFilter:
+    eq: Optional[int] = None
+    gt: Optional[int] = None
+    gte: Optional[int] = None
+    lt: Optional[int] = None
+    lte: Optional[int] = None
+    in_: Optional[List[int]] = strawberry.field(name="in")
+    not_: Optional[int] = strawberry.field(name="not")
+    not_in: Optional[List[int]] = None
+
+@strawberry.input
+class StringFilter:
+    eq: Optional[str] = None
+    contains: Optional[str] = None
+    startsWith: Optional[str] = None
+    endsWith: Optional[str] = None
+    in_: Optional[List[str]] = strawberry.field(name="in")
+    not_: Optional[str] = strawberry.field(name="not")
+    not_in: Optional[List[str]] = None
+
+@strawberry.input  
+class FloatFilter:
+    eq: Optional[float] = None
+    gt: Optional[float] = None
+    gte: Optional[float] = None
+    lt: Optional[float] = None
+    lte: Optional[float] = None
+    in_: Optional[List[float]] = strawberry.field(name="in")
+    not_: Optional[float] = strawberry.field(name="not")
+    not_in: Optional[List[float]] = None
 
 
 class Processor(FlowProcessor):
@@ -244,48 +278,89 @@ class Processor(FlowProcessor):
         # Apply strawberry decorator
         return strawberry.type(graphql_class)
 
+    def create_filter_type_for_schema(self, schema_name: str, row_schema: RowSchema):
+        """Create a dynamic filter input type for a schema"""
+        filter_fields = {}
+        
+        for field in row_schema.fields:
+            if field.indexed or field.primary:
+                if field.type == "integer":
+                    filter_fields[field.name] = Optional[IntFilter]
+                elif field.type == "float":
+                    filter_fields[field.name] = Optional[FloatFilter]  
+                elif field.type == "string":
+                    filter_fields[field.name] = Optional[StringFilter]
+        
+        # Create the filter type dynamically
+        filter_type_name = f"{schema_name.capitalize()}Filter"
+        FilterType = create_type(filter_type_name, filter_fields, is_input=True)
+        
+        return FilterType
+
+    def parse_idiomatic_where_clause(self, where_obj) -> Dict[str, Any]:
+        """Parse the idiomatic nested filter structure"""
+        if not where_obj:
+            return {}
+        
+        conditions = {}
+        
+        for field_name, filter_obj in where_obj.__dict__.items():
+            if filter_obj is None:
+                continue
+                
+            if hasattr(filter_obj, '__dict__'):
+                # This is a filter object (StringFilter, IntFilter, etc.)
+                for operator, value in filter_obj.__dict__.items():
+                    if value is not None:
+                        # Map GraphQL operators to our internal format
+                        if operator == "eq":
+                            conditions[field_name] = value
+                        elif operator in ["gt", "gte", "lt", "lte"]:
+                            conditions[f"{field_name}_{operator}"] = value
+                        elif operator == "in_":
+                            conditions[f"{field_name}_in"] = value
+                        elif operator == "contains":
+                            conditions[f"{field_name}_contains"] = value
+        
+        return conditions
+
     def generate_graphql_schema(self):
-        """Generate GraphQL schema from loaded schemas"""
+        """Generate GraphQL schema from loaded schemas using dynamic filter types"""
         if not self.schemas:
             logger.warning("No schemas loaded, cannot generate GraphQL schema")
             self.graphql_schema = None
             return
         
-        # Create GraphQL types for each schema
+        # Create GraphQL types and filter types for each schema
+        filter_types = {}
         for schema_name, row_schema in self.schemas.items():
             graphql_type = self.create_graphql_type(schema_name, row_schema)
+            filter_type = self.create_filter_type_for_schema(schema_name, row_schema)
+            
             self.graphql_types[schema_name] = graphql_type
-        
-        # Store resolvers separately to avoid closure issues
-        self.resolvers = {}
+            filter_types[schema_name] = filter_type
         
         # Create the Query class with resolvers
         query_dict = {'__annotations__': {}}
         
         for schema_name, row_schema in self.schemas.items():
             graphql_type = self.graphql_types[schema_name]
+            filter_type = filter_types[schema_name]
             
             # Create resolver function for this schema
-            def make_resolver(s_name, r_schema, g_type):
+            def make_resolver(s_name, r_schema, g_type, f_type):
                 async def resolver(
                     info: Info,
                     collection: str,
-                    limit: Optional[int] = 100,
-                    where: Optional[str] = None  # JSON string containing filter conditions
+                    where: Optional[f_type] = None,
+                    limit: Optional[int] = 100
                 ) -> List[g_type]:
                     # Get the processor instance from context
                     processor = info.context["processor"]
                     user = info.context["user"]
                     
-                    # Parse filters from where clause if provided
-                    filters = {}
-                    if where:
-                        try:
-                            import json
-                            filters = json.loads(where)
-                        except json.JSONDecodeError as e:
-                            # Invalid JSON, ignore filters
-                            filters = {}
+                    # Parse the idiomatic where clause
+                    filters = processor.parse_idiomatic_where_clause(where)
                     
                     # Query Cassandra
                     results = await processor.query_cassandra(
@@ -303,10 +378,9 @@ class Processor(FlowProcessor):
                 
                 return resolver
             
-            # Add resolver to query - just use the schema name directly
+            # Add resolver to query
             resolver_name = schema_name
-            resolver_func = make_resolver(schema_name, row_schema, graphql_type)
-            self.resolvers[resolver_name] = resolver_func
+            resolver_func = make_resolver(schema_name, row_schema, graphql_type, filter_type)
             
             # Add field to query dictionary
             query_dict[resolver_name] = strawberry.field(resolver=resolver_func)
