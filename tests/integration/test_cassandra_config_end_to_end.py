@@ -253,23 +253,23 @@ class TestNoBackwardCompatibilityEndToEnd:
         assert 'auth_provider' not in call_args.kwargs  # No auth since no valid credentials
     
     @patch('trustgraph.storage.knowledge.store.KnowledgeTableStore')
-    def test_old_cassandra_user_param_still_works_end_to_end(self, mock_table_store):
-        """Test that old cassandra_user parameter still works end-to-end."""
+    def test_old_cassandra_user_param_no_longer_works_end_to_end(self, mock_table_store):
+        """Test that old cassandra_user parameter no longer works."""
         mock_store_instance = MagicMock()
         mock_table_store.return_value = mock_store_instance
         
-        # Use old cassandra_user parameter
+        # Use old cassandra_user parameter (should be ignored)
         processor = KgStore(
             taskgroup=MagicMock(),
             cassandra_host='legacy-kg-host',
-            cassandra_user='legacy-kg-user',  # Old parameter name
+            cassandra_user='legacy-kg-user',  # Old parameter name - not supported
             cassandra_password='legacy-kg-pass'
         )
         
-        # Should work with old parameter name
+        # cassandra_user should be ignored, only cassandra_username works
         mock_table_store.assert_called_once_with(
             cassandra_host=['legacy-kg-host'],
-            cassandra_user='legacy-kg-user',
+            cassandra_user=None,  # Should be None since cassandra_user is not recognized
             cassandra_password='legacy-kg-pass',
             keyspace='knowledge'
         )
