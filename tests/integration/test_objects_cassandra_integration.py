@@ -294,8 +294,8 @@ class TestObjectsCassandraIntegration:
     async def test_authentication_handling(self, processor_with_mocks):
         """Test Cassandra authentication"""
         processor, mock_cluster, mock_session = processor_with_mocks
-        processor.graph_username = "cassandra_user"
-        processor.graph_password = "cassandra_pass"
+        processor.cassandra_username = "cassandra_user"
+        processor.cassandra_password = "cassandra_pass"
         
         with patch('trustgraph.storage.objects.cassandra.write.Cluster') as mock_cluster_class:
             with patch('trustgraph.storage.objects.cassandra.write.PlainTextAuthProvider') as mock_auth:

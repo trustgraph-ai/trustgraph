@@ -218,19 +218,19 @@ class TestConfigurationPriorityEndToEnd:
             assert 'auth_provider' not in call_args.kwargs  # No auth with default config
 
 
-class TestBackwardCompatibilityEndToEnd:
-    """Test backward compatibility with old parameter names end-to-end."""
+class TestNoBackwardCompatibilityEndToEnd:
+    """Test that backward compatibility with old parameter names is removed."""
     
     @pytest.mark.asyncio
     @patch('trustgraph.direct.cassandra.Cluster')
-    async def test_old_graph_params_still_work_end_to_end(self, mock_cluster):
-        """Test that old graph_* parameters still work end-to-end."""
+    async def test_old_graph_params_no_longer_work_end_to_end(self, mock_cluster):
+        """Test that old graph_* parameters no longer work end-to-end."""
         mock_cluster_instance = MagicMock()
         mock_session = MagicMock()
         mock_cluster_instance.connect.return_value = mock_session
         mock_cluster.return_value = mock_cluster_instance
         
-        # Use old parameter names
+        # Use old parameter names (should be ignored)
         processor = TriplesWriter(
             taskgroup=MagicMock(),
             graph_host='legacy-host',
@@ -246,11 +246,11 @@ class TestBackwardCompatibilityEndToEnd:
         
         await processor.store_triples(mock_message)
         
-        # Should work with legacy parameters
+        # Should use defaults since old parameters are not recognized
         mock_cluster.assert_called_once()
         call_args = mock_cluster.call_args
-        assert call_args.args[0] == ['legacy-host']
-        assert 'auth_provider' in call_args.kwargs  # Should have auth since credentials provided
+        assert call_args.args[0] == ['cassandra']  # Default, not legacy-host
+        assert 'auth_provider' not in call_args.kwargs  # No auth since no valid credentials
     
     @patch('trustgraph.storage.knowledge.store.KnowledgeTableStore')
     def test_old_cassandra_user_param_still_works_end_to_end(self, mock_table_store):
