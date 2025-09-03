@@ -40,6 +40,7 @@ dependencies = [
     "qdrant-client",
     "rdflib",
     "requests",
+    "strawberry-graphql",
     "tabulate",
     "tiktoken",
     "urllib3",
