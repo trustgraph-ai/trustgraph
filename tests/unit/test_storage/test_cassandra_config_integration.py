@@ -30,9 +30,9 @@ class TestTriplesWriterConfiguration:
         with patch.dict(os.environ, env_vars, clear=True):
             processor = TriplesWriter(taskgroup=MagicMock())
             
-            assert processor.graph_host == ['env-host1', 'env-host2']
-            assert processor.username == 'env-user'
-            assert processor.password == 'env-pass'
+            assert processor.cassandra_host == ['env-host1', 'env-host2']
+            assert processor.cassandra_username == 'env-user'
+            assert processor.cassandra_password == 'env-pass'
     
     @patch('trustgraph.direct.cassandra.TrustGraph')
     def test_parameter_override_environment(self, mock_trust_graph):
@@ -51,13 +51,13 @@ class TestTriplesWriterConfiguration:
                 cassandra_password='param-pass'
             )
             
-            assert processor.graph_host == ['param-host1', 'param-host2']
-            assert processor.username == 'param-user'
-            assert processor.password == 'param-pass'
+            assert processor.cassandra_host == ['param-host1', 'param-host2']
+            assert processor.cassandra_username == 'param-user'
+            assert processor.cassandra_password == 'param-pass'
     
     @patch('trustgraph.direct.cassandra.TrustGraph')
-    def test_backward_compatibility_graph_params(self, mock_trust_graph):
-        """Test backward compatibility with old graph_* parameter names."""
+    def test_no_backward_compatibility_graph_params(self, mock_trust_graph):
+        """Test that old graph_* parameter names are no longer supported."""
         processor = TriplesWriter(
             taskgroup=MagicMock(),
             graph_host='compat-host',
@@ -65,9 +65,10 @@ class TestTriplesWriterConfiguration:
             graph_password='compat-pass'
         )
         
-        assert processor.graph_host == ['compat-host']
-        assert processor.username == 'compat-user'
-        assert processor.password == 'compat-pass'
+        # Should use defaults since graph_* params are not recognized
+        assert processor.cassandra_host == ['cassandra']  # Default
+        assert processor.cassandra_username is None
+        assert processor.cassandra_password is None
     
     @patch('trustgraph.direct.cassandra.TrustGraph')
     def test_default_configuration(self, mock_trust_graph):
@@ -75,9 +76,9 @@ class TestTriplesWriterConfiguration:
         with patch.dict(os.environ, {}, clear=True):
             processor = TriplesWriter(taskgroup=MagicMock())
             
-            assert processor.graph_host == ['cassandra']
-            assert processor.username is None
-            assert processor.password is None
+            assert processor.cassandra_host == ['cassandra']
+            assert processor.cassandra_username is None
+            assert processor.cassandra_password is None
 
 
 class TestObjectsWriterConfiguration:
@@ -98,9 +99,9 @@ class TestObjectsWriterConfiguration:
         with patch.dict(os.environ, env_vars, clear=True):
             processor = ObjectsWriter(taskgroup=MagicMock())
             
-            assert processor.graph_host == ['obj-env-host1', 'obj-env-host2']
-            assert processor.graph_username == 'obj-env-user'
-            assert processor.graph_password == 'obj-env-pass'
+            assert processor.cassandra_host == ['obj-env-host1', 'obj-env-host2']
+            assert processor.cassandra_username == 'obj-env-user'
+            assert processor.cassandra_password == 'obj-env-pass'
     
     @patch('trustgraph.storage.objects.cassandra.write.Cluster')
     def test_cassandra_connection_with_hosts_list(self, mock_cluster):
@@ -174,24 +175,24 @@ class TestTriplesQueryConfiguration:
         with patch.dict(os.environ, env_vars, clear=True):
             processor = TriplesQuery(taskgroup=MagicMock())
             
-            assert processor.graph_host == ['query-env-host1', 'query-env-host2']
-            assert processor.username == 'query-env-user'
-            assert processor.password == 'query-env-pass'
+            assert processor.cassandra_host == ['query-env-host1', 'query-env-host2']
+            assert processor.cassandra_username == 'query-env-user'
+            assert processor.cassandra_password == 'query-env-pass'
     
     @patch('trustgraph.direct.cassandra.TrustGraph')
-    def test_mixed_old_new_parameters(self, mock_trust_graph):
-        """Test mixing old and new parameter names (new should win)."""
+    def test_only_new_parameters_work(self, mock_trust_graph):
+        """Test that only new parameters work."""
         processor = TriplesQuery(
             taskgroup=MagicMock(),
             cassandra_host='new-host',
-            graph_host='old-host',
+            graph_host='old-host',  # Should be ignored
             cassandra_username='new-user',
-            graph_username='old-user'
+            graph_username='old-user'  # Should be ignored
         )
         
-        # New parameters should take precedence
-        assert processor.graph_host == ['new-host']
-        assert processor.username == 'new-user'
+        # Only new parameters should work
+        assert processor.cassandra_host == ['new-host']
+        assert processor.cassandra_username == 'new-user'
 
 
 class TestKgStoreConfiguration:
@@ -396,9 +397,9 @@ class TestConfigurationPriorityIntegration:
                 # Password not provided - should fall back to env
             )
             
-            assert processor.graph_host == ['cli-host1', 'cli-host2']  # From CLI
-            assert processor.username == 'cli-user'                   # From CLI
-            assert processor.password == 'env-pass'                   # From env
+            assert processor.cassandra_host == ['cli-host1', 'cli-host2']  # From CLI
+            assert processor.cassandra_username == 'cli-user'              # From CLI
+            assert processor.cassandra_password == 'env-pass'              # From env
     
     @patch('trustgraph.storage.knowledge.store.KnowledgeTableStore')
     def test_kg_store_priority_chain(self, mock_table_store):

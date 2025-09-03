@@ -20,9 +20,9 @@ class TestCassandraStorageProcessor:
         with patch.dict('os.environ', {}, clear=True):
             processor = Processor(taskgroup=taskgroup_mock)
         
-        assert processor.graph_host == ['cassandra']  # Updated default
-        assert processor.username is None
-        assert processor.password is None
+        assert processor.cassandra_host == ['cassandra']  # Updated default
+        assert processor.cassandra_username is None
+        assert processor.cassandra_password is None
         assert processor.table is None
 
     def test_processor_initialization_with_custom_params(self):
@@ -37,9 +37,9 @@ class TestCassandraStorageProcessor:
             cassandra_password='testpass'
         )
         
-        assert processor.graph_host == ['cassandra.example.com']
-        assert processor.username == 'testuser'
-        assert processor.password == 'testpass'
+        assert processor.cassandra_host == ['cassandra.example.com']
+        assert processor.cassandra_username == 'testuser'
+        assert processor.cassandra_password == 'testpass'
         assert processor.table is None
 
     def test_processor_initialization_with_partial_auth(self):
@@ -51,11 +51,11 @@ class TestCassandraStorageProcessor:
             cassandra_username='testuser'
         )
         
-        assert processor.username == 'testuser'
-        assert processor.password is None
+        assert processor.cassandra_username == 'testuser'
+        assert processor.cassandra_password is None
     
-    def test_processor_initialization_backward_compatibility(self):
-        """Test processor initialization with old graph_* parameters (backward compatibility)"""
+    def test_processor_no_backward_compatibility(self):
+        """Test that old graph_* parameters are no longer supported"""
         taskgroup_mock = MagicMock()
         
         processor = Processor(
@@ -65,12 +65,13 @@ class TestCassandraStorageProcessor:
             graph_password='old-pass'
         )
         
-        assert processor.graph_host == ['old-host']
-        assert processor.username == 'old-user'
-        assert processor.password == 'old-pass'
+        # Should use defaults since graph_* params are not recognized
+        assert processor.cassandra_host == ['cassandra']  # Default
+        assert processor.cassandra_username is None
+        assert processor.cassandra_password is None
     
-    def test_processor_parameter_precedence(self):
-        """Test that new cassandra_* parameters take precedence over old graph_* parameters"""
+    def test_processor_only_new_parameters_work(self):
+        """Test that only new cassandra_* parameters work"""
         taskgroup_mock = MagicMock()
         
         processor = Processor(
@@ -81,8 +82,8 @@ class TestCassandraStorageProcessor:
             graph_username='old-user'  # Should be ignored
         )
         
-        assert processor.graph_host == ['new-host']  # New parameter wins
-        assert processor.username == 'new-user'     # New parameter wins
+        assert processor.cassandra_host == ['new-host']  # Only cassandra_* params work
+        assert processor.cassandra_username == 'new-user'  # Only cassandra_* params work
 
     @pytest.mark.asyncio
     @patch('trustgraph.storage.triples.cassandra.write.TrustGraph')
