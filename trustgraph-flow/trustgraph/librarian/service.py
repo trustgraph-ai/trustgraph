@@ -67,7 +67,7 @@ class Processor(AsyncProcessor):
         )
 
         cassandra_host = params.get("cassandra_host", default_cassandra_host)
-        cassandra_user = params.get("cassandra_user")
+        cassandra_username = params.get("cassandra_username")
         cassandra_password = params.get("cassandra_password")
 
         super(Processor, self).__init__(
@@ -77,7 +77,7 @@ class Processor(AsyncProcessor):
                 "minio_host": minio_host,
                 "minio_access_key": minio_access_key,
                 "cassandra_host": cassandra_host,
-                "cassandra_user": cassandra_user,
+                "cassandra_username": cassandra_username,
             }
         )
 
@@ -109,7 +109,7 @@ class Processor(AsyncProcessor):
 
         self.librarian = Librarian(
             cassandra_host = cassandra_host.split(","),
-            cassandra_user = cassandra_user,
+            cassandra_username = cassandra_username,
             cassandra_password = cassandra_password,
             minio_host = minio_host,
             minio_access_key = minio_access_key,

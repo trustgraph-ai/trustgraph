@@ -107,7 +107,7 @@ class TestEndToEndConfigurationFlow:
             # Verify KnowledgeTableStore was created with env config
             mock_table_store.assert_called_once_with(
                 cassandra_host=['kg-host1', 'kg-host2', 'kg-host3', 'kg-host4'],
-                cassandra_user='kg-user',
+                cassandra_username='kg-user',
                 cassandra_password='kg-pass',
                 keyspace='knowledge'
             )
@@ -177,9 +177,9 @@ class TestConfigurationPriorityEndToEnd:
             
             # Verify mixed configuration
             mock_table_store.assert_called_once_with(
-                cassandra_host=['partial-host'],     # From parameter
-                cassandra_user='fallback-user',      # From environment
-                cassandra_password='fallback-pass',  # From environment
+                cassandra_host=['partial-host'],         # From parameter
+                cassandra_username='fallback-user',      # From environment
+                cassandra_password='fallback-pass',      # From environment
                 keyspace='knowledge'
             )
     
@@ -269,7 +269,7 @@ class TestNoBackwardCompatibilityEndToEnd:
         # cassandra_user should be ignored, only cassandra_username works
         mock_table_store.assert_called_once_with(
             cassandra_host=['legacy-kg-host'],
-            cassandra_user=None,  # Should be None since cassandra_user is not recognized
+            cassandra_username=None,  # Should be None since cassandra_user is not recognized
             cassandra_password='legacy-kg-pass',
             keyspace='knowledge'
         )

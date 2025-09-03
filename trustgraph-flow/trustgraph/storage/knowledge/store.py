@@ -25,7 +25,7 @@ class Processor(FlowProcessor):
         # Use helper to resolve configuration
         hosts, username, password = resolve_cassandra_config(
             host=params.get("cassandra_host"),
-            username=params.get("cassandra_user", params.get("cassandra_username")),
+            username=params.get("cassandra_username"),
             password=params.get("cassandra_password")
         )
 
@@ -55,7 +55,7 @@ class Processor(FlowProcessor):
 
         self.table_store = KnowledgeTableStore(
             cassandra_host = hosts,
-            cassandra_user = username,
+            cassandra_username = username,
             cassandra_password = password,
             keyspace = keyspace,
         )
