@@ -28,7 +28,7 @@ class TestTriplesWriterConfiguration:
         }
         
         with patch.dict(os.environ, env_vars, clear=True):
-            processor = TriplesWriter()
+            processor = TriplesWriter(taskgroup=MagicMock())
             
             assert processor.graph_host == ['env-host1', 'env-host2']
             assert processor.username == 'env-user'
@@ -45,6 +45,7 @@ class TestTriplesWriterConfiguration:
         
         with patch.dict(os.environ, env_vars, clear=True):
             processor = TriplesWriter(
+                taskgroup=MagicMock(),
                 cassandra_host='param-host1,param-host2',
                 cassandra_username='param-user',
                 cassandra_password='param-pass'
@@ -71,7 +72,7 @@ class TestTriplesWriterConfiguration:
     def test_default_configuration(self, mock_trust_graph):
         """Test default configuration when no params or env vars provided."""
         with patch.dict(os.environ, {}, clear=True):
-            processor = TriplesWriter()
+            processor = TriplesWriter(taskgroup=MagicMock())
             
             assert processor.graph_host == ['cassandra']
             assert processor.username is None
@@ -94,7 +95,7 @@ class TestObjectsWriterConfiguration:
         mock_cluster.return_value = mock_cluster_instance
         
         with patch.dict(os.environ, env_vars, clear=True):
-            processor = ObjectsWriter()
+            processor = ObjectsWriter(taskgroup=MagicMock())
             
             assert processor.graph_host == ['obj-env-host1', 'obj-env-host2']
             assert processor.graph_username == 'obj-env-user'
@@ -170,7 +171,7 @@ class TestTriplesQueryConfiguration:
         }
         
         with patch.dict(os.environ, env_vars, clear=True):
-            processor = TriplesQuery()
+            processor = TriplesQuery(taskgroup=MagicMock())
             
             assert processor.graph_host == ['query-env-host1', 'query-env-host2']
             assert processor.username == 'query-env-user'
@@ -207,7 +208,7 @@ class TestKgStoreConfiguration:
         mock_table_store.return_value = mock_store_instance
         
         with patch.dict(os.environ, env_vars, clear=True):
-            processor = KgStore()
+            processor = KgStore(taskgroup=MagicMock())
             
             # Verify KnowledgeTableStore was called with resolved config
             mock_table_store.assert_called_once_with(
@@ -264,7 +265,7 @@ class TestKgStoreConfiguration:
         mock_table_store.return_value = mock_store_instance
         
         with patch.dict(os.environ, {}, clear=True):
-            processor = KgStore()
+            processor = KgStore(taskgroup=MagicMock())
             
             # Should use defaults
             mock_table_store.assert_called_once_with(

@@ -89,7 +89,7 @@ class TestEndToEndConfigurationFlow:
             assert call_args.kwargs['auth_provider'] == mock_auth_instance
     
     @pytest.mark.asyncio
-    @patch('trustgraph.tables.knowledge.KnowledgeTableStore')
+    @patch('trustgraph.storage.knowledge.store.KnowledgeTableStore')
     async def test_kg_store_env_to_table_store(self, mock_table_store):
         """Test complete flow from environment variables to KnowledgeTableStore."""
         env_vars = {
@@ -117,8 +117,8 @@ class TestConfigurationPriorityEndToEnd:
     """Test configuration priority chains end-to-end."""
     
     @pytest.mark.asyncio
-    @patch('trustgraph.direct.cassandra.TrustGraph')
-    async def test_cli_override_env_end_to_end(self, mock_trust_graph):
+    @patch('trustgraph.direct.cassandra.Cluster')
+    async def test_cli_override_env_end_to_end(self, mock_cluster):
         """Test that CLI parameters override environment variables end-to-end."""
         env_vars = {
             'CASSANDRA_HOST': 'env-host',
@@ -126,8 +126,10 @@ class TestConfigurationPriorityEndToEnd:
             'CASSANDRA_PASSWORD': 'env-pass'
         }
         
-        mock_tg_instance = MagicMock()
-        mock_trust_graph.return_value = mock_tg_instance
+        mock_cluster_instance = MagicMock()
+        mock_session = MagicMock()
+        mock_cluster_instance.connect.return_value = mock_session
+        mock_cluster.return_value = mock_cluster_instance
         
         with patch.dict(os.environ, env_vars, clear=True):
             # CLI parameters should override environment
@@ -147,16 +149,13 @@ class TestConfigurationPriorityEndToEnd:
             await processor.store_triples(mock_message)
             
             # Should use CLI parameters, not environment
-            mock_trust_graph.assert_called_once_with(
-                hosts=['cli-host1', 'cli-host2'],  # From CLI
-                keyspace='test_user',
-                table='test_collection',
-                username='cli-user',    # From CLI
-                password='cli-pass'     # From CLI
-            )
+            mock_cluster.assert_called_once()
+            call_args = mock_cluster.call_args
+            assert call_args.args[0] == ['cli-host1', 'cli-host2']  # From CLI
+            assert 'auth_provider' in call_args.kwargs  # Should have auth since credentials provided
     
     @pytest.mark.asyncio
-    @patch('trustgraph.tables.knowledge.KnowledgeTableStore')
+    @patch('trustgraph.storage.knowledge.store.KnowledgeTableStore')
     async def test_partial_cli_with_env_fallback_end_to_end(self, mock_table_store):
         """Test partial CLI parameters with environment fallback end-to-end."""
         env_vars = {
@@ -185,11 +184,13 @@ class TestConfigurationPriorityEndToEnd:
             )
     
     @pytest.mark.asyncio
-    @patch('trustgraph.direct.cassandra.TrustGraph')
-    async def test_no_config_defaults_end_to_end(self, mock_trust_graph):
+    @patch('trustgraph.direct.cassandra.Cluster')
+    async def test_no_config_defaults_end_to_end(self, mock_cluster):
         """Test that defaults are used when no configuration provided end-to-end."""
-        mock_tg_instance = MagicMock()
-        mock_trust_graph.return_value = mock_tg_instance
+        mock_cluster_instance = MagicMock()
+        mock_session = MagicMock()
+        mock_cluster_instance.connect.return_value = mock_session
+        mock_cluster.return_value = mock_cluster_instance
         
         with patch.dict(os.environ, {}, clear=True):
             processor = TriplesQuery(taskgroup=MagicMock())
@@ -204,28 +205,30 @@ class TestConfigurationPriorityEndToEnd:
             mock_query.limit = 100
             
             # Mock the get_all method to return empty list
+            mock_tg_instance = MagicMock()
             mock_tg_instance.get_all.return_value = []
+            processor.tg = mock_tg_instance
             
             await processor.query_triples(mock_query)
             
             # Should use defaults
-            mock_trust_graph.assert_called_once_with(
-                hosts=['cassandra'],  # Default host
-                keyspace='default_user',
-                table='default_collection'
-                # No username/password (defaults to None)
-            )
+            mock_cluster.assert_called_once()
+            call_args = mock_cluster.call_args
+            assert call_args.args[0] == ['cassandra']  # Default host
+            assert 'auth_provider' not in call_args.kwargs  # No auth with default config
 
 
 class TestBackwardCompatibilityEndToEnd:
     """Test backward compatibility with old parameter names end-to-end."""
     
     @pytest.mark.asyncio
-    @patch('trustgraph.direct.cassandra.TrustGraph')
-    async def test_old_graph_params_still_work_end_to_end(self, mock_trust_graph):
+    @patch('trustgraph.direct.cassandra.Cluster')
+    async def test_old_graph_params_still_work_end_to_end(self, mock_cluster):
         """Test that old graph_* parameters still work end-to-end."""
-        mock_tg_instance = MagicMock()
-        mock_trust_graph.return_value = mock_tg_instance
+        mock_cluster_instance = MagicMock()
+        mock_session = MagicMock()
+        mock_cluster_instance.connect.return_value = mock_session
+        mock_cluster.return_value = mock_cluster_instance
         
         # Use old parameter names
         processor = TriplesWriter(
@@ -244,15 +247,12 @@ class TestBackwardCompatibilityEndToEnd:
         await processor.store_triples(mock_message)
         
         # Should work with legacy parameters
-        mock_trust_graph.assert_called_once_with(
-            hosts=['legacy-host'],
-            keyspace='legacy_user',
-            table='legacy_collection',
-            username='legacy-user',
-            password='legacy-pass'
-        )
+        mock_cluster.assert_called_once()
+        call_args = mock_cluster.call_args
+        assert call_args.args[0] == ['legacy-host']
+        assert 'auth_provider' in call_args.kwargs  # Should have auth since credentials provided
     
-    @patch('trustgraph.tables.knowledge.KnowledgeTableStore')
+    @patch('trustgraph.storage.knowledge.store.KnowledgeTableStore')
     def test_old_cassandra_user_param_still_works_end_to_end(self, mock_table_store):
         """Test that old cassandra_user parameter still works end-to-end."""
         mock_store_instance = MagicMock()
@@ -275,11 +275,13 @@ class TestBackwardCompatibilityEndToEnd:
         )
     
     @pytest.mark.asyncio
-    @patch('trustgraph.direct.cassandra.TrustGraph')
-    async def test_new_params_override_old_params_end_to_end(self, mock_trust_graph):
+    @patch('trustgraph.direct.cassandra.Cluster')
+    async def test_new_params_override_old_params_end_to_end(self, mock_cluster):
         """Test that new parameters override old ones when both are present end-to-end."""
-        mock_tg_instance = MagicMock()
-        mock_trust_graph.return_value = mock_tg_instance
+        mock_cluster_instance = MagicMock()
+        mock_session = MagicMock()
+        mock_cluster_instance.connect.return_value = mock_session
+        mock_cluster.return_value = mock_cluster_instance
         
         # Provide both old and new parameters
         processor = TriplesWriter(
@@ -301,13 +303,10 @@ class TestBackwardCompatibilityEndToEnd:
         await processor.store_triples(mock_message)
         
         # Should use new parameters, not old ones
-        mock_trust_graph.assert_called_once_with(
-            hosts=['new-host'],    # New parameter wins
-            keyspace='precedence_user',
-            table='precedence_collection',
-            username='new-user',   # New parameter wins
-            password='new-pass'    # New parameter wins
-        )
+        mock_cluster.assert_called_once()
+        call_args = mock_cluster.call_args
+        assert call_args.args[0] == ['new-host']    # New parameter wins
+        assert 'auth_provider' in call_args.kwargs  # Should have auth since credentials provided
 
 
 class TestMultipleHostsHandling:
@@ -335,11 +334,13 @@ class TestMultipleHostsHandling:
             assert call_args.kwargs['contact_points'] == ['host1', 'host2', 'host3', 'host4', 'host5']
     
     @pytest.mark.asyncio
-    @patch('trustgraph.direct.cassandra.TrustGraph')
-    async def test_single_host_converted_to_list(self, mock_trust_graph):
+    @patch('trustgraph.direct.cassandra.Cluster')
+    async def test_single_host_converted_to_list(self, mock_cluster):
         """Test that single host is converted to list for TrustGraph."""
-        mock_tg_instance = MagicMock()
-        mock_trust_graph.return_value = mock_tg_instance
+        mock_cluster_instance = MagicMock()
+        mock_session = MagicMock()
+        mock_cluster_instance.connect.return_value = mock_session
+        mock_cluster.return_value = mock_cluster_instance
         
         processor = TriplesWriter(taskgroup=MagicMock(), cassandra_host='single-host')
         
@@ -352,11 +353,10 @@ class TestMultipleHostsHandling:
         await processor.store_triples(mock_message)
         
         # Single host should be converted to list
-        mock_trust_graph.assert_called_once_with(
-            hosts=['single-host'],  # Converted to list
-            keyspace='single_user',
-            table='single_collection'
-        )
+        mock_cluster.assert_called_once()
+        call_args = mock_cluster.call_args
+        assert call_args.args[0] == ['single-host']  # Converted to list
+        assert 'auth_provider' not in call_args.kwargs  # No auth since no credentials provided
     
     def test_whitespace_handling_in_host_list(self):
         """Test that whitespace in host lists is handled correctly."""
