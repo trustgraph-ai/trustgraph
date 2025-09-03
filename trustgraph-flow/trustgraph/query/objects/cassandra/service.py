@@ -243,11 +243,11 @@ class Processor(FlowProcessor):
             # Create resolver function for this schema
             def make_resolver(schema_name, row_schema, graphql_type):
                 async def resolver(
-                    self_query,
+                    self_query: Any,
                     info: Info,
                     collection: str,
                     limit: Optional[int] = 100,
-                    **filters
+                    **filters: Any
                 ) -> List[Any]:
                     # Get the processor instance from context
                     processor = info.context["processor"]
@@ -508,3 +508,4 @@ class Processor(FlowProcessor):
 def run():
     """Entry point for objects-query-graphql-cassandra command"""
     Processor.launch(default_ident, __doc__)
+
