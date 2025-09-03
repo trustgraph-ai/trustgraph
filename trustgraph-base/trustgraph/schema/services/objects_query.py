@@ -22,7 +22,7 @@ class ObjectsQueryRequest(Record):
 class ObjectsQueryResponse(Record):
     error = Error()              # System-level error (connection, timeout, etc.)
     data = String()              # JSON-encoded GraphQL response data
-    errors = Array(GraphQLError) # GraphQL field-level errors
+    errors = Array(GraphQLError()) # GraphQL field-level errors
     extensions = Map(String())   # Query metadata (execution time, etc.)
 
 ############################################################################

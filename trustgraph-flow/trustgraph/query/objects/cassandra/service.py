@@ -14,6 +14,7 @@ from cassandra.auth import PlainTextAuthProvider
 import strawberry
 from strawberry import Schema
 from strawberry.types import Info
+from strawberry.scalars import JSON
 
 from .... schema import ObjectsQueryRequest, ObjectsQueryResponse, GraphQLError
 from .... schema import Error, RowSchema, Field as SchemaField
@@ -234,6 +235,9 @@ class Processor(FlowProcessor):
             graphql_type = self.create_graphql_type(schema_name, row_schema)
             self.graphql_types[schema_name] = graphql_type
         
+        # Store resolvers separately to avoid closure issues
+        self.resolvers = {}
+        
         # Create the Query class with resolvers
         query_dict = {'__annotations__': {}}
         
@@ -241,28 +245,26 @@ class Processor(FlowProcessor):
             graphql_type = self.graphql_types[schema_name]
             
             # Create resolver function for this schema
-            def make_resolver(schema_name, row_schema, graphql_type):
+            def make_resolver(s_name, r_schema, g_type):
                 async def resolver(
-                    self_query: Any,
                     info: Info,
                     collection: str,
-                    limit: Optional[int] = 100,
-                    **filters: Any
-                ) -> List[Any]:
+                    limit: Optional[int] = 100
+                ) -> List[g_type]:
                     # Get the processor instance from context
                     processor = info.context["processor"]
                     user = info.context["user"]
                     
                     # Query Cassandra
                     results = await processor.query_cassandra(
-                        user, collection, schema_name, row_schema, 
-                        filters, limit
+                        user, collection, s_name, r_schema, 
+                        {}, limit
                     )
                     
                     # Convert to GraphQL types
                     graphql_results = []
                     for row in results:
-                        graphql_obj = graphql_type(**row)
+                        graphql_obj = g_type(**row)
                         graphql_results.append(graphql_obj)
                     
                     return graphql_results
@@ -272,9 +274,10 @@ class Processor(FlowProcessor):
             # Add resolver to query
             resolver_name = f"{schema_name}_objects"
             resolver_func = make_resolver(schema_name, row_schema, graphql_type)
+            self.resolvers[resolver_name] = resolver_func
             
-            # Create field with proper annotations
-            query_dict[resolver_name] = strawberry.field(resolver_func)
+            # Add field to query dictionary
+            query_dict[resolver_name] = strawberry.field(resolver=resolver_func)
             query_dict['__annotations__'][resolver_name] = List[graphql_type]
         
         # Create the Query class
