@@ -122,7 +122,7 @@ class TestCassandraQueryProcessor:
         
         processor = Processor(taskgroup=taskgroup_mock)
         
-        assert processor.graph_host == ['localhost']
+        assert processor.graph_host == ['cassandra']  # Updated default
         assert processor.username is None
         assert processor.password is None
         assert processor.table is None
@@ -325,12 +325,12 @@ class TestCassandraQueryProcessor:
         # Verify our specific arguments were added
         args = parser.parse_args([])
         
-        assert hasattr(args, 'graph_host')
-        assert args.graph_host == 'localhost'
-        assert hasattr(args, 'graph_username')
-        assert args.graph_username is None
-        assert hasattr(args, 'graph_password')
-        assert args.graph_password is None
+        assert hasattr(args, 'cassandra_host')
+        assert args.cassandra_host == 'cassandra'  # Updated to new parameter name and default
+        assert hasattr(args, 'cassandra_username')
+        assert args.cassandra_username is None
+        assert hasattr(args, 'cassandra_password')
+        assert args.cassandra_password is None
 
     def test_add_args_with_custom_values(self):
         """Test add_args with custom command line values"""
@@ -341,16 +341,16 @@ class TestCassandraQueryProcessor:
         with patch('trustgraph.query.triples.cassandra.service.TriplesQueryService.add_args'):
             Processor.add_args(parser)
         
-        # Test parsing with custom values
+        # Test parsing with custom values (new cassandra_* arguments)
         args = parser.parse_args([
-            '--graph-host', 'query.cassandra.com',
-            '--graph-username', 'queryuser',
-            '--graph-password', 'querypass'
+            '--cassandra-host', 'query.cassandra.com',
+            '--cassandra-username', 'queryuser',
+            '--cassandra-password', 'querypass'
         ])
         
-        assert args.graph_host == 'query.cassandra.com'
-        assert args.graph_username == 'queryuser'
-        assert args.graph_password == 'querypass'
+        assert args.cassandra_host == 'query.cassandra.com'
+        assert args.cassandra_username == 'queryuser'
+        assert args.cassandra_password == 'querypass'
 
     def test_add_args_short_form(self):
         """Test add_args with short form arguments"""
@@ -361,10 +361,10 @@ class TestCassandraQueryProcessor:
         with patch('trustgraph.query.triples.cassandra.service.TriplesQueryService.add_args'):
             Processor.add_args(parser)
         
-        # Test parsing with short form
-        args = parser.parse_args(['-g', 'short.query.com'])
+        # Test parsing with cassandra arguments (no short form)
+        args = parser.parse_args(['--cassandra-host', 'short.query.com'])
         
-        assert args.graph_host == 'short.query.com'
+        assert args.cassandra_host == 'short.query.com'
 
     @patch('trustgraph.query.triples.cassandra.service.Processor.launch')
     def test_run_function(self, mock_launch):
@@ -404,7 +404,7 @@ class TestCassandraQueryProcessor:
         
         # Verify TrustGraph was created with authentication
         mock_trustgraph.assert_called_once_with(
-            hosts=['localhost'],
+            hosts=['cassandra'],  # Updated default
             keyspace='test_user',
             table='test_collection',
             username='authuser',
