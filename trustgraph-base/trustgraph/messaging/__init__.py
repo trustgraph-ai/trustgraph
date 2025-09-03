@@ -21,6 +21,7 @@ from .translators.embeddings_query import (
     DocumentEmbeddingsRequestTranslator, DocumentEmbeddingsResponseTranslator,
     GraphEmbeddingsRequestTranslator, GraphEmbeddingsResponseTranslator
 )
+from .translators.objects_query import ObjectsQueryRequestTranslator, ObjectsQueryResponseTranslator
 
 # Register all service translators
 TranslatorRegistry.register_service(
@@ -105,6 +106,12 @@ TranslatorRegistry.register_service(
     "graph-embeddings-query", 
     GraphEmbeddingsRequestTranslator(), 
     GraphEmbeddingsResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "objects-query", 
+    ObjectsQueryRequestTranslator(), 
+    ObjectsQueryResponseTranslator()
 )
 
 # Register single-direction translators for document loading

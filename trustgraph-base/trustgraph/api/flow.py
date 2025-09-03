@@ -383,3 +383,46 @@ class FlowInstance:
             input
         )
 
+    def objects_query(
+            self, query, user="trustgraph", collection="default",
+            variables=None, operation_name=None
+    ):
+
+        # The input consists of a GraphQL query and optional variables
+        input = {
+            "query": query,
+            "user": user,
+            "collection": collection,
+        }
+
+        if variables:
+            input["variables"] = variables
+
+        if operation_name:
+            input["operation_name"] = operation_name
+
+        response = self.request(
+            "service/objects",
+            input
+        )
+
+        # Check for system-level error
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        # Return the GraphQL response structure
+        result = {}
+        
+        if "data" in response:
+            result["data"] = response["data"]
+            
+        if "errors" in response and response["errors"]:
+            result["errors"] = response["errors"]
+            
+        if "extensions" in response and response["extensions"]:
+            result["extensions"] = response["extensions"]
+            
+        return result
+

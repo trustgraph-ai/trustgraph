@@ -46,7 +46,7 @@ jobs:
         run: (cd trustgraph-bedrock; pip install .)
 
       - name: Install some stuff
-        run: pip install pytest pytest-cov pytest-asyncio pytest-mock testcontainers
+        run: pip install pytest pytest-cov pytest-asyncio pytest-mock
 
       - name: Unit tests
         run: pytest tests/unit

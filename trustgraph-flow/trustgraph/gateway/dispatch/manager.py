@@ -19,6 +19,7 @@ from . prompt import PromptRequestor
 from . graph_rag import GraphRagRequestor
 from . document_rag import DocumentRagRequestor
 from . triples_query import TriplesQueryRequestor
+from . objects_query import ObjectsQueryRequestor
 from . embeddings import EmbeddingsRequestor
 from . graph_embeddings_query import GraphEmbeddingsQueryRequestor
 from . mcp_tool import McpToolRequestor
@@ -50,6 +51,7 @@ request_response_dispatchers = {
     "embeddings": EmbeddingsRequestor,
     "graph-embeddings": GraphEmbeddingsQueryRequestor,
     "triples": TriplesQueryRequestor,
+    "objects": ObjectsQueryRequestor,
 }
 
 global_dispatchers = {

@@ -40,6 +40,7 @@ dependencies = [
     "qdrant-client",
     "rdflib",
     "requests",
+    "strawberry-graphql",
     "tabulate",
     "tiktoken",
     "urllib3",
@@ -87,12 +88,12 @@ librarian = "trustgraph.librarian:run"
 mcp-tool = "trustgraph.agent.mcp_tool:run"
 metering = "trustgraph.metering:run"
 objects-write-cassandra = "trustgraph.storage.objects.cassandra:run"
+objects-query-cassandra = "trustgraph.query.objects.cassandra:run"
 oe-write-milvus = "trustgraph.storage.object_embeddings.milvus:run"
 pdf-decoder = "trustgraph.decoding.pdf:run"
 pdf-ocr-mistral = "trustgraph.decoding.mistral_ocr:run"
 prompt-template = "trustgraph.prompt.template:run"
 rev-gateway = "trustgraph.rev_gateway:run"
-rows-write-cassandra = "trustgraph.storage.rows.cassandra:run"
 run-processing = "trustgraph.processing:run"
 text-completion-azure = "trustgraph.model.text_completion.azure:run"
 text-completion-azure-openai = "trustgraph.model.text_completion.azure_openai:run"
