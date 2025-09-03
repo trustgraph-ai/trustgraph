@@ -123,6 +123,27 @@ class Processor(FlowProcessor):
         safe_name = 'o_' + safe_name
         return safe_name.lower()
 
+    def parse_filter_key(self, filter_key: str) -> tuple:
+        """Parse GraphQL filter key into field name and operator"""
+        # Support common GraphQL filter patterns:
+        # field_name -> (field_name, "eq")
+        # field_name_gt -> (field_name, "gt") 
+        # field_name_gte -> (field_name, "gte")
+        # field_name_lt -> (field_name, "lt")
+        # field_name_lte -> (field_name, "lte")
+        # field_name_in -> (field_name, "in")
+        
+        operators = ["_gte", "_lte", "_gt", "_lt", "_in", "_eq"]
+        
+        for op_suffix in operators:
+            if filter_key.endswith(op_suffix):
+                field_name = filter_key[:-len(op_suffix)]
+                operator = op_suffix[1:]  # Remove the leading underscore
+                return field_name, operator
+        
+        # Default to equality if no operator suffix found
+        return filter_key, "eq"
+
     async def on_schema_config(self, config, version):
         """Handle schema configuration updates"""
         logger.info(f"Loading schema configuration version {version}")
@@ -249,7 +270,8 @@ class Processor(FlowProcessor):
                 async def resolver(
                     info: Info,
                     collection: str,
-                    limit: Optional[int] = 100
+                    limit: Optional[int] = 100,
+                    **filters
                 ) -> List[g_type]:
                     # Get the processor instance from context
                     processor = info.context["processor"]
@@ -258,7 +280,7 @@ class Processor(FlowProcessor):
                     # Query Cassandra
                     results = await processor.query_cassandra(
                         user, collection, s_name, r_schema, 
-                        {}, limit
+                        filters, limit
                     )
                     
                     # Convert to GraphQL types
@@ -317,8 +339,11 @@ class Processor(FlowProcessor):
         params = [collection]
         
         # Add filters for indexed or primary key fields
-        for field_name, value in filters.items():
+        for filter_key, value in filters.items():
             if value is not None:
+                # Parse field name and operator from filter key
+                field_name, operator = self.parse_filter_key(filter_key)
+                
                 # Find the field in schema
                 schema_field = None
                 for f in row_schema.fields:
@@ -328,8 +353,32 @@ class Processor(FlowProcessor):
                 
                 if schema_field and (schema_field.indexed or schema_field.primary):
                     safe_field = self.sanitize_name(field_name)
-                    where_clauses.append(f"{safe_field} = %s")
-                    params.append(value)
+                    
+                    # Build WHERE clause based on operator
+                    if operator == "eq":
+                        where_clauses.append(f"{safe_field} = %s")
+                        params.append(value)
+                    elif operator == "gt":
+                        where_clauses.append(f"{safe_field} > %s")
+                        params.append(value)
+                    elif operator == "gte":
+                        where_clauses.append(f"{safe_field} >= %s")
+                        params.append(value)
+                    elif operator == "lt":
+                        where_clauses.append(f"{safe_field} < %s")
+                        params.append(value)
+                    elif operator == "lte":
+                        where_clauses.append(f"{safe_field} <= %s")
+                        params.append(value)
+                    elif operator == "in":
+                        if isinstance(value, list):
+                            placeholders = ",".join(["%s"] * len(value))
+                            where_clauses.append(f"{safe_field} IN ({placeholders})")
+                            params.extend(value)
+                    else:
+                        # Default to equality for unknown operators
+                        where_clauses.append(f"{safe_field} = %s")
+                        params.append(value)
         
         if where_clauses:
             query += " WHERE " + " AND ".join(where_clauses)
