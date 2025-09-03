@@ -63,6 +63,9 @@ def set_tool(
         collection : str,
         template : str,
         arguments : List[Argument],
+        group : List[str],
+        state : str,
+        available_in_states : List[str],
 ):
 
     api = Api(url).config()
@@ -92,6 +95,12 @@ def set_tool(
             }
             for a in arguments
         ]
+
+    if group: object["group"] = group
+
+    if state: object["state"] = state
+
+    if available_in_states: object["available_in_states"] = available_in_states
 
     values = api.put([
         ConfigValue(
@@ -179,6 +188,23 @@ def main():
        help=f'Tool arguments in the form: name:type:description (can specify multiple)',
     )
 
+    parser.add_argument(
+        '--group',
+        nargs="*",
+        help=f'Tool groups (e.g., read-only, knowledge, admin)',
+    )
+
+    parser.add_argument(
+        '--state',
+        help=f'State to transition to after successful execution',
+    )
+
+    parser.add_argument(
+        '--available-in-states',
+        nargs="*",
+        help=f'States in which this tool is available',
+    )
+
     args = parser.parse_args()
 
     try:
@@ -219,6 +245,9 @@ def main():
             collection=args.collection,
             template=args.template,
             arguments=arguments,
+            group=args.group or [],
+            state=args.state,
+            available_in_states=getattr(args, 'available_in_states', None) or [],
         )
 
     except Exception as e:
