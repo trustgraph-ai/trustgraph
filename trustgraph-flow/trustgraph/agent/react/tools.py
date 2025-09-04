@@ -85,6 +85,43 @@ class McpToolImpl:
             return json.dumps(output)
 
 
+# This tool implementation knows how to query structured data using natural language
+class StructuredQueryImpl:
+    def __init__(self, context, collection=None):
+        self.context = context
+        self.collection = collection  # For multi-tenant scenarios
+    
+    @staticmethod
+    def get_arguments():
+        return [
+            Argument(
+                name="question",
+                type="string", 
+                description="Natural language question about structured data (tables, databases, etc.)"
+            )
+        ]
+    
+    async def invoke(self, **arguments):
+        client = self.context("structured-query-request")
+        logger.debug("Structured query question...")
+        
+        result = await client.structured_query(
+            arguments.get("question")
+        )
+        
+        # Format the result for the agent
+        if isinstance(result, dict):
+            if result.get("error"):
+                return f"Error: {result['error']['message']}"
+            elif result.get("data"):
+                # Pretty format JSON data for agent consumption
+                return json.dumps(result["data"], indent=2)
+            else:
+                return "No data returned"
+        else:
+            return str(result)
+
+
 # This tool implementation knows how to execute prompt templates
 class PromptImpl:
     def __init__(self, context, template_id, arguments=None):

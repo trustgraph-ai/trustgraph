@@ -12,11 +12,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 from ... base import AgentService, TextCompletionClientSpec, PromptClientSpec
-from ... base import GraphRagClientSpec, ToolClientSpec
+from ... base import GraphRagClientSpec, ToolClientSpec, StructuredQueryClientSpec
 
 from ... schema import AgentRequest, AgentResponse, AgentStep, Error
 
-from . tools import KnowledgeQueryImpl, TextCompletionImpl, McpToolImpl, PromptImpl
+from . tools import KnowledgeQueryImpl, TextCompletionImpl, McpToolImpl, PromptImpl, StructuredQueryImpl
 from . agent_manager import AgentManager
 from ..tool_filter import validate_tool_config, filter_tools_by_group_and_state, get_next_state
 
@@ -80,6 +80,13 @@ class Processor(AgentService):
             )
         )
 
+        self.register_specification(
+            StructuredQueryClientSpec(
+                request_name = "structured-query-request",
+                response_name = "structured-query-response",
+            )
+        )
+
     async def on_tools_config(self, config, version):
 
         logger.info(f"Loading configuration version {version}")
@@ -138,6 +145,12 @@ class Processor(AgentService):
                             template_id=data.get("template"),
                             arguments=arguments
                         )
+                    elif impl_id == "structured-query":
+                        impl = functools.partial(
+                            StructuredQueryImpl, 
+                            collection=data.get("collection")
+                        )
+                        arguments = StructuredQueryImpl.get_arguments()
                     else:
                         raise RuntimeError(
                             f"Tool type {impl_id} not known"
