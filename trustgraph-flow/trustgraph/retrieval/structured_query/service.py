@@ -13,7 +13,7 @@ from ...schema import QuestionToStructuredQueryRequest, QuestionToStructuredQuer
 from ...schema import ObjectsQueryRequest, ObjectsQueryResponse
 from ...schema import Error
 
-from ...base import FlowProcessor, ConsumerSpec, ProducerSpec, ClientSpec
+from ...base import FlowProcessor, ConsumerSpec, ProducerSpec, RequestResponseSpec
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ class Processor(FlowProcessor):
         
         # Client spec for calling NLP query service
         self.register_specification(
-            ClientSpec(
+            RequestResponseSpec(
                 request_name = "nlp-query-request",
                 response_name = "nlp-query-response", 
                 request_schema = QuestionToStructuredQueryRequest,
@@ -59,7 +59,7 @@ class Processor(FlowProcessor):
         
         # Client spec for calling objects query service
         self.register_specification(
-            ClientSpec(
+            RequestResponseSpec(
                 request_name = "objects-query-request",
                 response_name = "objects-query-response",
                 request_schema = ObjectsQueryRequest, 
