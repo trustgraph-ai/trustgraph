@@ -11,6 +11,7 @@ import logging
 
 from .. base import AsyncProcessor, Consumer, Producer, Publisher, Subscriber
 from .. base import ConsumerMetrics, ProducerMetrics
+from .. base.cassandra_config import add_cassandra_args, resolve_cassandra_config
 
 from .. schema import LibrarianRequest, LibrarianResponse, Error
 from .. schema import librarian_request_queue, librarian_response_queue
@@ -66,9 +67,21 @@ class Processor(AsyncProcessor):
             default_minio_secret_key
         )
 
-        cassandra_host = params.get("cassandra_host", default_cassandra_host)
+        cassandra_host = params.get("cassandra_host")
         cassandra_username = params.get("cassandra_username")
         cassandra_password = params.get("cassandra_password")
+        
+        # Resolve configuration with environment variable fallback
+        hosts, username, password = resolve_cassandra_config(
+            host=cassandra_host,
+            username=cassandra_username,
+            password=cassandra_password
+        )
+        
+        # Store resolved configuration
+        self.cassandra_host = hosts
+        self.cassandra_username = username
+        self.cassandra_password = password
 
         super(Processor, self).__init__(
             **params | {
@@ -76,8 +89,9 @@ class Processor(AsyncProcessor):
                 "librarian_response_queue": librarian_response_queue,
                 "minio_host": minio_host,
                 "minio_access_key": minio_access_key,
-                "cassandra_host": cassandra_host,
-                "cassandra_username": cassandra_username,
+                "cassandra_host": self.cassandra_host,
+                "cassandra_username": self.cassandra_username,
+                "cassandra_password": self.cassandra_password,
             }
         )
 
@@ -108,9 +122,9 @@ class Processor(AsyncProcessor):
         )
 
         self.librarian = Librarian(
-            cassandra_host = cassandra_host.split(","),
-            cassandra_username = cassandra_username,
-            cassandra_password = cassandra_password,
+            cassandra_host = self.cassandra_host,
+            cassandra_username = self.cassandra_username,
+            cassandra_password = self.cassandra_password,
             minio_host = minio_host,
             minio_access_key = minio_access_key,
             minio_secret_key = minio_secret_key,
@@ -319,23 +333,7 @@ class Processor(AsyncProcessor):
             f'(default: {default_minio_access_key})',
         )
 
-        parser.add_argument(
-            '--cassandra-host',
-            default="cassandra",
-            help=f'Graph host (default: cassandra)'
-        )
-
-        parser.add_argument(
-            '--cassandra-user',
-            default=None,
-            help=f'Cassandra user'
-        )
-
-        parser.add_argument(
-            '--cassandra-password',
-            default=None,
-            help=f'Cassandra password'
-        )
+        add_cassandra_args(parser)
 
 def run():
 

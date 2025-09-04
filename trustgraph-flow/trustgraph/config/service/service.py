@@ -15,6 +15,7 @@ from trustgraph.schema import FlowRequest, FlowResponse
 from trustgraph.schema import flow_request_queue, flow_response_queue
 
 from trustgraph.base import AsyncProcessor, Consumer, Producer
+from trustgraph.base.cassandra_config import add_cassandra_args, resolve_cassandra_config
 
 from . config import Configuration
 from . flow import FlowConfig
@@ -60,9 +61,21 @@ class Processor(AsyncProcessor):
             "flow_response_queue", default_flow_response_queue
         )
 
-        cassandra_host = params.get("cassandra_host", default_cassandra_host)
+        cassandra_host = params.get("cassandra_host")
         cassandra_username = params.get("cassandra_username")
         cassandra_password = params.get("cassandra_password")
+        
+        # Resolve configuration with environment variable fallback
+        hosts, username, password = resolve_cassandra_config(
+            host=cassandra_host,
+            username=cassandra_username,
+            password=cassandra_password
+        )
+        
+        # Store resolved configuration
+        self.cassandra_host = hosts
+        self.cassandra_username = username
+        self.cassandra_password = password
 
         id = params.get("id")
 
@@ -76,8 +89,9 @@ class Processor(AsyncProcessor):
                 "config_push_schema": ConfigPush.__name__,
                 "flow_request_schema": FlowRequest.__name__,
                 "flow_response_schema": FlowResponse.__name__,
-                "cassandra_host": cassandra_host,
-                "cassandra_username": cassandra_username,
+                "cassandra_host": self.cassandra_host,
+                "cassandra_username": self.cassandra_username,
+                "cassandra_password": self.cassandra_password,
             }
         )
 
@@ -142,9 +156,9 @@ class Processor(AsyncProcessor):
         )
 
         self.config = Configuration(
-            host = cassandra_host.split(","),
-            username = cassandra_username,
-            password = cassandra_password,
+            host = self.cassandra_host,
+            username = self.cassandra_username,
+            password = self.cassandra_password,
             keyspace = keyspace,
             push = self.push
         )
@@ -276,23 +290,7 @@ class Processor(AsyncProcessor):
             help=f'Flow response queue {default_flow_response_queue}',
         )
 
-        parser.add_argument(
-            '--cassandra-host',
-            default="cassandra",
-            help=f'Graph host (default: cassandra)'
-        )
-
-        parser.add_argument(
-            '--cassandra-user',
-            default=None,
-            help=f'Cassandra user'
-        )
-
-        parser.add_argument(
-            '--cassandra-password',
-            default=None,
-            help=f'Cassandra password'
-        )
+        add_cassandra_args(parser)
 
 def run():
 
