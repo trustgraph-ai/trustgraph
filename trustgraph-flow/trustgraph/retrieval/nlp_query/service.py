@@ -142,7 +142,7 @@ class Processor(FlowProcessor):
         # Create prompt variables
         variables = {
             "question": question,
-            "schemas": json.dumps(schema_info, indent=2)
+            "schemas": schema_info  # Pass structured data directly
         }
         
         # Call prompt service for schema selection
@@ -198,7 +198,7 @@ class Processor(FlowProcessor):
         # Create prompt variables for GraphQL generation
         variables = {
             "question": question,
-            "schemas": json.dumps(selected_schema_info, indent=2)
+            "schemas": selected_schema_info  # Pass structured data directly
         }
         
         # Call prompt service for GraphQL generation

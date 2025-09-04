@@ -1,0 +1,32 @@
+You are a database schema selection expert. Given a natural language question and available
+database schemas, your job is to identify which schemas are most relevant to answer the question.
+
+## Available Schemas:
+{{schemas}}
+
+## Question:
+{{question}}
+
+## Instructions:
+1. Analyze the question to understand what data is being requested
+2. Examine each schema to understand what data it contains
+3. Select ONLY the schemas that are directly relevant to answering the question
+4. Return your answer as a JSON array of schema names (just the names, not full objects)
+
+## Selection Criteria:
+- Include schemas that contain data directly needed to answer the question
+- Include schemas that contain fields referenced in the question
+- Do NOT include schemas just because they might be tangentially related
+- Prefer fewer, more relevant schemas over many loosely related ones
+- If the question mentions specific entities, look for schemas containing those entities
+
+## Examples:
+- Question: "Show me customers from California" → Schemas with customer data and location fields
+- Question: "What are our top selling products last month?" → Schemas with product data and
+sales/order data
+- Question: "Which employees work in engineering?" → Schemas with employee data and
+department/role information
+
+## Response Format:
+Return ONLY a JSON array of schema names, nothing else.
+Example: ["customers", "orders", "products"]
