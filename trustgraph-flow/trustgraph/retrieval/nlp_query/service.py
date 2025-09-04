@@ -122,7 +122,7 @@ class Processor(FlowProcessor):
         
         logger.info(f"Schema configuration loaded: {len(self.schemas)} schemas")
 
-    async def phase1_select_schemas(self, question: str) -> List[str]:
+    async def phase1_select_schemas(self, question: str, flow) -> List[str]:
         """Phase 1: Use prompt service to select relevant schemas for the question"""
         logger.info("Starting Phase 1: Schema selection")
         
@@ -144,20 +144,27 @@ class Processor(FlowProcessor):
         }
         
         # Call prompt service for schema selection
+        # Convert variables to JSON-encoded terms
+        terms = {k: json.dumps(v) for k, v in variables.items()}
         prompt_request = PromptRequest(
-            template=self.schema_selection_template,
-            variables=variables
+            id=self.schema_selection_template,
+            terms=terms
         )
         
         try:
-            response = await self.client("prompt-request").request(prompt_request)
+            response = await flow("prompt-request").request(prompt_request)
             
             if response.error is not None:
                 raise Exception(f"Prompt service error: {response.error}")
             
             # Parse the response to get selected schema names
-            # Expecting response.text to contain JSON array of schema names
-            selected_schemas = json.loads(response.text)
+            # Response could be in either text or object field
+            response_data = response.text if response.text else response.object
+            if response_data is None:
+                raise Exception("Prompt service returned empty response")
+            
+            # Parse JSON array of schema names
+            selected_schemas = json.loads(response_data)
             
             logger.info(f"Phase 1 selected schemas: {selected_schemas}")
             return selected_schemas
@@ -166,7 +173,7 @@ class Processor(FlowProcessor):
             logger.error(f"Phase 1 schema selection failed: {e}")
             raise
 
-    async def phase2_generate_graphql(self, question: str, selected_schemas: List[str]) -> Dict[str, Any]:
+    async def phase2_generate_graphql(self, question: str, selected_schemas: List[str], flow) -> Dict[str, Any]:
         """Phase 2: Generate GraphQL query using selected schemas"""
         logger.info(f"Starting Phase 2: GraphQL generation for schemas: {selected_schemas}")
         
@@ -200,20 +207,27 @@ class Processor(FlowProcessor):
         }
         
         # Call prompt service for GraphQL generation
+        # Convert variables to JSON-encoded terms
+        terms = {k: json.dumps(v) for k, v in variables.items()}
         prompt_request = PromptRequest(
-            template=self.graphql_generation_template,
-            variables=variables
+            id=self.graphql_generation_template,
+            terms=terms
         )
         
         try:
-            response = await self.client("prompt-request").request(prompt_request)
+            response = await flow("prompt-request").request(prompt_request)
             
             if response.error is not None:
                 raise Exception(f"Prompt service error: {response.error}")
             
             # Parse the response to get GraphQL query and variables
-            # Expecting response.text to contain JSON with "query" and "variables" fields
-            result = json.loads(response.text)
+            # Response could be in either text or object field
+            response_data = response.text if response.text else response.object
+            if response_data is None:
+                raise Exception("Prompt service returned empty response")
+            
+            # Parse JSON with "query" and "variables" fields
+            result = json.loads(response_data)
             
             logger.info(f"Phase 2 generated GraphQL: {result.get('query', '')[:100]}...")
             return result
@@ -234,10 +248,10 @@ class Processor(FlowProcessor):
             logger.info(f"Handling NLP query request {id}: {request.question[:100]}...")
             
             # Phase 1: Select relevant schemas
-            selected_schemas = await self.phase1_select_schemas(request.question)
+            selected_schemas = await self.phase1_select_schemas(request.question, flow)
             
             # Phase 2: Generate GraphQL query
-            graphql_result = await self.phase2_generate_graphql(request.question, selected_schemas)
+            graphql_result = await self.phase2_generate_graphql(request.question, selected_schemas, flow)
             
             # Create response
             response = QuestionToStructuredQueryResponse(
