@@ -20,7 +20,7 @@ from trustgraph.schema import (
     GraphEmbeddings, EntityEmbeddings,
     Metadata, Field, RowSchema,
     StructuredDataSubmission, ExtractedObject,
-    NLPToStructuredQueryRequest, NLPToStructuredQueryResponse,
+    QuestionToStructuredQueryRequest, QuestionToStructuredQueryResponse,
     StructuredQueryRequest, StructuredQueryResponse,
     StructuredObjectEmbedding
 )
