@@ -124,7 +124,7 @@ class TestNLPQueryServiceIntegration:
         phase2_response = PromptResponse(
             text=json.dumps({
                 "query": expected_graphql.strip(),
-                "variables": {"min_total": 500.0},
+                "variables": {"min_total": "500.0"},
                 "confidence": 0.92
             }),
             error=None
@@ -153,7 +153,7 @@ class TestNLPQueryServiceIntegration:
         assert "California" in response.graphql_query
         assert response.detected_schemas == ["customers", "orders"]
         assert response.confidence == 0.92
-        assert response.variables["min_total"] == 500.0
+        assert response.variables["min_total"] == "500.0"
 
     @pytest.mark.asyncio
     async def test_complex_multi_table_query_integration(self, integration_processor):
@@ -444,7 +444,7 @@ class TestNLPQueryServiceIntegration:
             msg.properties.return_value = {"id": f"concurrent-test-{i}"}
             
             flow = MagicMock()
-            flow_response = MagicMock()
+            flow_response = AsyncMock()
             flow.return_value = flow_response
             
             requests.append(request)

@@ -162,7 +162,7 @@ class TestNLPQueryProcessor:
         
         consumer = MagicMock()
         flow = MagicMock()
-        flow_response = MagicMock()
+        flow_response = AsyncMock()
         flow.return_value = flow_response
         
         # Mock Phase 1 response
@@ -217,7 +217,7 @@ class TestNLPQueryProcessor:
         
         consumer = MagicMock()
         flow = MagicMock()
-        flow_response = MagicMock()
+        flow_response = AsyncMock()
         flow.return_value = flow_response
         
         # Mock Phase 1 error
