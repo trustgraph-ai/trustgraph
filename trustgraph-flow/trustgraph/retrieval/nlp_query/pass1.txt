@@ -23,13 +23,3 @@ Fields:
 ## Response Format:
 Return ONLY a JSON array of schema names, nothing else.
 Example: ["customers", "orders", "products"]
-
-Your response:
-
-This is much more readable and flexible than working with a JSON string. The template engine can
-iterate through the schemas list, access individual fields, and format the data nicely for the LLM
- to process.
-
-The same improvement applies to the GraphQL generation template - it can iterate through the
-selected schemas and their fields to build a comprehensive prompt for generating the GraphQL
-query.
