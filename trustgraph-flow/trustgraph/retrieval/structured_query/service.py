@@ -111,11 +111,11 @@ class Processor(FlowProcessor):
                     else:
                         variables_as_strings[key] = str(value)
             
-            # For now, we'll use default user/collection values
-            # In a real implementation, these would come from authentication/context
+            # Use standard TrustGraph user/collection values
+            # These should eventually come from authentication/context
             objects_request = ObjectsQueryRequest(
-                user="default",  # TODO: Get from authentication context
-                collection="default",  # TODO: Get from request context
+                user="trustgraph",  # Standard TrustGraph user
+                collection="default",  # Standard default collection
                 query=nlp_response.graphql_query,
                 variables=variables_as_strings,
                 operation_name=None
