@@ -20,6 +20,8 @@ from . graph_rag import GraphRagRequestor
 from . document_rag import DocumentRagRequestor
 from . triples_query import TriplesQueryRequestor
 from . objects_query import ObjectsQueryRequestor
+from . nlp_query import NLPQueryRequestor
+from . structured_query import StructuredQueryRequestor
 from . embeddings import EmbeddingsRequestor
 from . graph_embeddings_query import GraphEmbeddingsQueryRequestor
 from . mcp_tool import McpToolRequestor
@@ -52,6 +54,8 @@ request_response_dispatchers = {
     "graph-embeddings": GraphEmbeddingsQueryRequestor,
     "triples": TriplesQueryRequestor,
     "objects": ObjectsQueryRequestor,
+    "nlp-query": NLPQueryRequestor,
+    "structured-query": StructuredQueryRequestor,
 }
 
 global_dispatchers = {
