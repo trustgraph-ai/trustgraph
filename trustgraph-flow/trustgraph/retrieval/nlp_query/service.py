@@ -8,10 +8,10 @@ import logging
 from typing import Dict, Any, Optional, List
 
 from ...schema import QuestionToStructuredQueryRequest, QuestionToStructuredQueryResponse
-from ...schema import PromptRequest, PromptResponse
+from ...schema import PromptRequest
 from ...schema import Error, RowSchema, Field as SchemaField
 
-from ...base import FlowProcessor, ConsumerSpec, ProducerSpec, ClientSpec
+from ...base import FlowProcessor, ConsumerSpec, ProducerSpec, PromptClientSpec
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -57,11 +57,9 @@ class Processor(FlowProcessor):
         
         # Client spec for calling prompt service
         self.register_specification(
-            ClientSpec(
+            PromptClientSpec(
                 request_name = "prompt-request",
                 response_name = "prompt-response",
-                request_schema = PromptRequest,
-                response_schema = PromptResponse
             )
         )
         
