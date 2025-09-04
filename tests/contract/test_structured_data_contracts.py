@@ -12,7 +12,7 @@ from typing import Dict, Any
 
 from trustgraph.schema import (
     StructuredDataSubmission, ExtractedObject,
-    NLPToStructuredQueryRequest, NLPToStructuredQueryResponse,
+    QuestionToStructuredQueryRequest, QuestionToStructuredQueryResponse,
     StructuredQueryRequest, StructuredQueryResponse,
     StructuredObjectEmbedding, Field, RowSchema,
     Metadata, Error, Value
@@ -146,23 +146,21 @@ class TestStructuredQueryServiceContracts:
     """Contract tests for structured query services"""
 
     def test_nlp_to_structured_query_request_contract(self):
-        """Test NLPToStructuredQueryRequest schema contract"""
+        """Test QuestionToStructuredQueryRequest schema contract"""
         # Act
-        request = NLPToStructuredQueryRequest(
-            natural_language_query="Show me all customers who registered last month",
-            max_results=100,
-            context_hints={"time_range": "last_month", "entity_type": "customer"}
+        request = QuestionToStructuredQueryRequest(
+            question="Show me all customers who registered last month",
+            max_results=100
         )
 
         # Assert
-        assert "customers" in request.natural_language_query
+        assert "customers" in request.question
         assert request.max_results == 100
-        assert request.context_hints["time_range"] == "last_month"
 
     def test_nlp_to_structured_query_response_contract(self):
-        """Test NLPToStructuredQueryResponse schema contract"""
+        """Test QuestionToStructuredQueryResponse schema contract"""
         # Act
-        response = NLPToStructuredQueryResponse(
+        response = QuestionToStructuredQueryResponse(
             error=None,
             graphql_query="query { customers(filter: {registered: {gte: \"2024-01-01\"}}) { id name email } }",
             variables={"start_date": "2024-01-01"},
@@ -180,15 +178,11 @@ class TestStructuredQueryServiceContracts:
         """Test StructuredQueryRequest schema contract"""
         # Act
         request = StructuredQueryRequest(
-            query="query GetCustomers($limit: Int) { customers(limit: $limit) { id name email } }",
-            variables={"limit": "10"},
-            operation_name="GetCustomers"
+            question="Show me customers with limit 10"
         )
 
         # Assert
-        assert "customers" in request.query
-        assert request.variables["limit"] == "10"
-        assert request.operation_name == "GetCustomers"
+        assert "customers" in request.question
 
     def test_structured_query_response_contract(self):
         """Test StructuredQueryResponse schema contract"""
@@ -291,11 +285,10 @@ class TestStructuredDataSerializationContracts:
         """Test NLP query request/response serialization contract"""
         # Test request
         request_data = {
-            "natural_language_query": "test query",
-            "max_results": 10,
-            "context_hints": {}
+            "question": "test query",
+            "max_results": 10
         }
-        assert serialize_deserialize_test(NLPToStructuredQueryRequest, request_data)
+        assert serialize_deserialize_test(QuestionToStructuredQueryRequest, request_data)
 
         # Test response
         response_data = {
@@ -305,4 +298,20 @@ class TestStructuredDataSerializationContracts:
             "detected_schemas": ["test"],
             "confidence": 0.9
         }
-        assert serialize_deserialize_test(NLPToStructuredQueryResponse, response_data)
+        assert serialize_deserialize_test(QuestionToStructuredQueryResponse, response_data)
+
+    def test_structured_query_serialization(self):
+        """Test structured query request/response serialization contract"""
+        # Test request
+        request_data = {
+            "question": "Show me all customers"
+        }
+        assert serialize_deserialize_test(StructuredQueryRequest, request_data)
+
+        # Test response
+        response_data = {
+            "error": None,
+            "data": '{"customers": [{"id": "1", "name": "John"}]}',
+            "errors": []
+        }
+        assert serialize_deserialize_test(StructuredQueryResponse, response_data)

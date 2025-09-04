@@ -22,6 +22,8 @@ from .translators.embeddings_query import (
     GraphEmbeddingsRequestTranslator, GraphEmbeddingsResponseTranslator
 )
 from .translators.objects_query import ObjectsQueryRequestTranslator, ObjectsQueryResponseTranslator
+from .translators.nlp_query import QuestionToStructuredQueryRequestTranslator, QuestionToStructuredQueryResponseTranslator
+from .translators.structured_query import StructuredQueryRequestTranslator, StructuredQueryResponseTranslator
 
 # Register all service translators
 TranslatorRegistry.register_service(
@@ -112,6 +114,18 @@ TranslatorRegistry.register_service(
     "objects-query", 
     ObjectsQueryRequestTranslator(), 
     ObjectsQueryResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "nlp-query", 
+    QuestionToStructuredQueryRequestTranslator(), 
+    QuestionToStructuredQueryResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "structured-query", 
+    StructuredQueryRequestTranslator(), 
+    StructuredQueryResponseTranslator()
 )
 
 # Register single-direction translators for document loading
