@@ -411,7 +411,6 @@ class Processor(FlowProcessor):
             def make_resolver(s_name, r_schema, g_type, f_type, sort_enum):
                 async def resolver(
                     info: Info,
-                    collection: str,
                     where: Optional[f_type] = None,
                     order_by: Optional[str] = None,
                     direction: Optional[sort_enum] = None,
@@ -420,6 +419,7 @@ class Processor(FlowProcessor):
                     # Get the processor instance from context
                     processor = info.context["processor"]
                     user = info.context["user"]
+                    collection = info.context["collection"]
                     
                     # Parse the idiomatic where clause
                     filters = processor.parse_idiomatic_where_clause(where)
