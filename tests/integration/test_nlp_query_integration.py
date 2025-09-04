@@ -94,7 +94,7 @@ class TestNLPQueryServiceIntegration:
         
         consumer = MagicMock()
         flow = MagicMock()
-        flow_response = MagicMock()
+        flow_response = AsyncMock()
         flow.return_value = flow_response
         
         # Mock Phase 1 - Schema Selection Response
@@ -170,7 +170,7 @@ class TestNLPQueryServiceIntegration:
         
         consumer = MagicMock()
         flow = MagicMock()
-        flow_response = MagicMock()
+        flow_response = AsyncMock()
         flow.return_value = flow_response
         
         # Mock responses
@@ -237,7 +237,7 @@ class TestNLPQueryServiceIntegration:
         
         consumer = MagicMock()
         flow = MagicMock()
-        flow_response = MagicMock()
+        flow_response = AsyncMock()
         flow.return_value = flow_response
         
         # Mock responses that use the new schema
@@ -284,7 +284,7 @@ class TestNLPQueryServiceIntegration:
         
         consumer = MagicMock()
         flow = MagicMock()
-        flow_response = MagicMock()
+        flow_response = AsyncMock()
         flow.return_value = flow_response
         
         # Mock Phase 1 error
@@ -336,7 +336,7 @@ class TestNLPQueryServiceIntegration:
         
         consumer = MagicMock()
         flow = MagicMock()
-        flow_response = MagicMock()
+        flow_response = AsyncMock()
         flow.return_value = flow_response
         
         # Mock responses
@@ -375,9 +375,8 @@ class TestNLPQueryServiceIntegration:
                 name=schema_name,
                 description=f"Test table {i} with sample data",
                 fields=[
-                    SchemaField(name="id", type="string", primary=True),
-                    SchemaField(name=f"field_{j}", type="string") for j in range(5)
-                ]
+                    SchemaField(name="id", type="string", primary=True)
+                ] + [SchemaField(name=f"field_{j}", type="string") for j in range(5)]
             )
         
         integration_processor.schemas.update(large_schema_set)
@@ -393,7 +392,7 @@ class TestNLPQueryServiceIntegration:
         
         consumer = MagicMock()
         flow = MagicMock()
-        flow_response = MagicMock()
+        flow_response = AsyncMock()
         flow.return_value = flow_response
         
         # Mock responses
@@ -505,7 +504,7 @@ class TestNLPQueryServiceIntegration:
         
         consumer = MagicMock()
         flow = MagicMock()
-        flow_response = MagicMock()
+        flow_response = AsyncMock()
         flow.return_value = flow_response
         
         # Mock fast responses

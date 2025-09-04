@@ -69,7 +69,8 @@ class TestStructuredQueryProcessor:
         objects_response = ObjectsQueryResponse(
             error=None,
             data='{"customers": [{"id": "1", "name": "John", "email": "john@example.com"}]}',
-            errors=None
+            errors=None,
+            extensions={}
         )
         
         # Set up mock clients
@@ -226,7 +227,8 @@ class TestStructuredQueryProcessor:
         objects_response = ObjectsQueryResponse(
             error=Error(type="graphql-execution-error", message="Table 'customers' not found"),
             data=None,
-            errors=None
+            errors=None,
+            extensions={}
         )
         
         mock_nlp_client = AsyncMock()
@@ -280,14 +282,16 @@ class TestStructuredQueryProcessor:
         graphql_errors = [
             GraphQLError(
                 message="Cannot query field 'invalid_field' on type 'Customer'",
-                path=["customers", 0, "invalid_field"]
+                path=["customers", "0", "invalid_field"],  # All path elements must be strings
+                extensions={}
             )
         ]
         
         objects_response = ObjectsQueryResponse(
             error=None,
             data=None,
-            errors=graphql_errors
+            errors=graphql_errors,
+            extensions={}
         )
         
         mock_nlp_client = AsyncMock()
@@ -346,7 +350,7 @@ class TestStructuredQueryProcessor:
             }
             ''',
             variables={
-                "minTotal": 100.0,
+                "minTotal": "100.0",  # Convert to string for Pulsar schema
                 "startDate": "2024-01-01"
             },
             detected_schemas=["customers", "orders"],
@@ -374,9 +378,9 @@ class TestStructuredQueryProcessor:
         await processor.on_message(msg, consumer, flow)
         
         # Assert
-        # Verify variables were passed correctly
+        # Verify variables were passed correctly (converted to strings)
         objects_call_args = mock_objects_client.request.call_args[0][0]
-        assert objects_call_args.variables["minTotal"] == 100.0
+        assert objects_call_args.variables["minTotal"] == "100.0"  # Should be converted to string
         assert objects_call_args.variables["startDate"] == "2024-01-01"
         
         # Verify response
@@ -413,7 +417,8 @@ class TestStructuredQueryProcessor:
         objects_response = ObjectsQueryResponse(
             error=None,
             data=None,  # Null data
-            errors=None
+            errors=None,
+            extensions={}
         )
         
         mock_nlp_client = AsyncMock()

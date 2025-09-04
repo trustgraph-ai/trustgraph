@@ -102,13 +102,22 @@ class Processor(FlowProcessor):
             # Step 2: Execute GraphQL query using objects query service
             logger.info("Step 2: Executing GraphQL query")
             
+            # Convert variables to strings (GraphQL variables can be various types, but Pulsar schema expects strings)
+            variables_as_strings = {}
+            if nlp_response.variables:
+                for key, value in nlp_response.variables.items():
+                    if isinstance(value, str):
+                        variables_as_strings[key] = value
+                    else:
+                        variables_as_strings[key] = str(value)
+            
             # For now, we'll use default user/collection values
             # In a real implementation, these would come from authentication/context
             objects_request = ObjectsQueryRequest(
                 user="default",  # TODO: Get from authentication context
                 collection="default",  # TODO: Get from request context
                 query=nlp_response.graphql_query,
-                variables=nlp_response.variables,
+                variables=variables_as_strings,
                 operation_name=None
             )
             
