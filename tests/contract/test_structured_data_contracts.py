@@ -299,3 +299,19 @@ class TestStructuredDataSerializationContracts:
             "confidence": 0.9
         }
         assert serialize_deserialize_test(QuestionToStructuredQueryResponse, response_data)
+
+    def test_structured_query_serialization(self):
+        """Test structured query request/response serialization contract"""
+        # Test request
+        request_data = {
+            "question": "Show me all customers"
+        }
+        assert serialize_deserialize_test(StructuredQueryRequest, request_data)
+
+        # Test response
+        response_data = {
+            "error": None,
+            "data": '{"customers": [{"id": "1", "name": "John"}]}',
+            "errors": []
+        }
+        assert serialize_deserialize_test(StructuredQueryResponse, response_data)
