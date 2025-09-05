@@ -906,7 +906,7 @@ For more information on the descriptor format, see:
     )
     
     parser.add_argument(
-        '--flow',
+        '-f', '--flow',
         default='default',
         help='TrustGraph flow name to use for import (default: default)'
     )
