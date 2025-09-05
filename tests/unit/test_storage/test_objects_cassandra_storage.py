@@ -261,7 +261,7 @@ class TestObjectsCassandraStorageLogic:
                 metadata=[]
             ),
             schema_name="test_schema",
-            values={"id": "123", "value": "456"},
+            values=[{"id": "123", "value": "456"}],
             confidence=0.9,
             source_span="test source"
         )
@@ -284,8 +284,8 @@ class TestObjectsCassandraStorageLogic:
         assert "INSERT INTO test_user.o_test_schema" in insert_cql
         assert "collection" in insert_cql
         assert values[0] == "test_collection"  # collection value
-        assert values[1] == "123"  # id value
-        assert values[2] == 456  # converted integer value
+        assert values[1] == "123"  # id value (from values[0])
+        assert values[2] == 456  # converted integer value (from values[0])
 
     def test_secondary_index_creation(self):
         """Test that secondary indexes are created for indexed fields"""
@@ -326,3 +326,200 @@ class TestObjectsCassandraStorageLogic:
         assert len(index_calls) == 2
         assert any("o_products_category_idx" in call for call in index_calls)
         assert any("o_products_price_idx" in call for call in index_calls)
+
+
+class TestObjectsCassandraStorageBatchLogic:
+    """Test batch processing logic in Cassandra storage"""
+
+    @pytest.mark.asyncio
+    async def test_batch_object_processing_logic(self):
+        """Test processing of batch ExtractedObjects"""
+        processor = MagicMock()
+        processor.schemas = {
+            "batch_schema": RowSchema(
+                name="batch_schema",
+                description="Test batch schema",
+                fields=[
+                    Field(name="id", type="string", size=50, primary=True),
+                    Field(name="name", type="string", size=100),
+                    Field(name="value", type="integer", size=4)
+                ]
+            )
+        }
+        processor.ensure_table = MagicMock()
+        processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
+        processor.sanitize_table = Processor.sanitize_table.__get__(processor, Processor) 
+        processor.convert_value = Processor.convert_value.__get__(processor, Processor)
+        processor.session = MagicMock()
+        processor.on_object = Processor.on_object.__get__(processor, Processor)
+        
+        # Create batch object with multiple values
+        batch_obj = ExtractedObject(
+            metadata=Metadata(
+                id="batch-001",
+                user="test_user",
+                collection="batch_collection", 
+                metadata=[]
+            ),
+            schema_name="batch_schema",
+            values=[
+                {"id": "001", "name": "First", "value": "100"},
+                {"id": "002", "name": "Second", "value": "200"},
+                {"id": "003", "name": "Third", "value": "300"}
+            ],
+            confidence=0.95,
+            source_span="batch source"
+        )
+        
+        # Create mock message
+        msg = MagicMock()
+        msg.value.return_value = batch_obj
+        
+        # Process batch object
+        await processor.on_object(msg, None, None)
+        
+        # Verify table was ensured once
+        processor.ensure_table.assert_called_once_with("test_user", "batch_schema", processor.schemas["batch_schema"])
+        
+        # Verify 3 separate insert calls (one per batch item)
+        assert processor.session.execute.call_count == 3
+        
+        # Check each insert call
+        calls = processor.session.execute.call_args_list
+        for i, call in enumerate(calls):
+            insert_cql = call[0][0]
+            values = call[0][1]
+            
+            assert "INSERT INTO test_user.o_batch_schema" in insert_cql
+            assert "collection" in insert_cql
+            
+            # Check values for each batch item
+            assert values[0] == "batch_collection"  # collection
+            assert values[1] == f"00{i+1}"  # id from batch item i
+            assert values[2] == f"First" if i == 0 else f"Second" if i == 1 else f"Third"  # name
+            assert values[3] == (i+1) * 100  # converted integer value
+
+    @pytest.mark.asyncio  
+    async def test_empty_batch_processing_logic(self):
+        """Test processing of empty batch ExtractedObjects"""
+        processor = MagicMock()
+        processor.schemas = {
+            "empty_schema": RowSchema(
+                name="empty_schema",
+                fields=[Field(name="id", type="string", size=50, primary=True)]
+            )
+        }
+        processor.ensure_table = MagicMock()
+        processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
+        processor.sanitize_table = Processor.sanitize_table.__get__(processor, Processor)
+        processor.convert_value = Processor.convert_value.__get__(processor, Processor)
+        processor.session = MagicMock()
+        processor.on_object = Processor.on_object.__get__(processor, Processor)
+        
+        # Create empty batch object
+        empty_batch_obj = ExtractedObject(
+            metadata=Metadata(
+                id="empty-001",
+                user="test_user",
+                collection="empty_collection",
+                metadata=[]
+            ),
+            schema_name="empty_schema",
+            values=[],  # Empty batch
+            confidence=1.0,
+            source_span="empty source"
+        )
+        
+        msg = MagicMock()
+        msg.value.return_value = empty_batch_obj
+        
+        # Process empty batch object
+        await processor.on_object(msg, None, None)
+        
+        # Verify table was ensured
+        processor.ensure_table.assert_called_once()
+        
+        # Verify no insert calls for empty batch
+        processor.session.execute.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_single_item_batch_processing_logic(self):
+        """Test processing of single-item batch (backward compatibility)"""
+        processor = MagicMock()
+        processor.schemas = {
+            "single_schema": RowSchema(
+                name="single_schema",
+                fields=[
+                    Field(name="id", type="string", size=50, primary=True),
+                    Field(name="data", type="string", size=100)
+                ]
+            )
+        }
+        processor.ensure_table = MagicMock()
+        processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
+        processor.sanitize_table = Processor.sanitize_table.__get__(processor, Processor)
+        processor.convert_value = Processor.convert_value.__get__(processor, Processor)
+        processor.session = MagicMock()
+        processor.on_object = Processor.on_object.__get__(processor, Processor)
+        
+        # Create single-item batch object (backward compatibility case)
+        single_batch_obj = ExtractedObject(
+            metadata=Metadata(
+                id="single-001",
+                user="test_user",
+                collection="single_collection",
+                metadata=[]
+            ),
+            schema_name="single_schema",
+            values=[{"id": "single-1", "data": "single data"}],  # Array with one item
+            confidence=0.8,
+            source_span="single source"
+        )
+        
+        msg = MagicMock()
+        msg.value.return_value = single_batch_obj
+        
+        # Process single-item batch object
+        await processor.on_object(msg, None, None)
+        
+        # Verify table was ensured
+        processor.ensure_table.assert_called_once()
+        
+        # Verify exactly one insert call
+        processor.session.execute.assert_called_once()
+        
+        insert_cql = processor.session.execute.call_args[0][0]
+        values = processor.session.execute.call_args[0][1]
+        
+        assert "INSERT INTO test_user.o_single_schema" in insert_cql
+        assert values[0] == "single_collection"  # collection
+        assert values[1] == "single-1"  # id value
+        assert values[2] == "single data"  # data value
+
+    def test_batch_value_conversion_logic(self):
+        """Test value conversion works correctly for batch items"""
+        processor = MagicMock()
+        processor.convert_value = Processor.convert_value.__get__(processor, Processor)
+        
+        # Test various conversion scenarios that would occur in batch processing
+        test_cases = [
+            # Integer conversions for batch items
+            ("123", "integer", 123),
+            ("456", "integer", 456), 
+            ("789", "integer", 789),
+            # Float conversions for batch items
+            ("12.5", "float", 12.5),
+            ("34.7", "float", 34.7),
+            # Boolean conversions for batch items  
+            ("true", "boolean", True),
+            ("false", "boolean", False),
+            ("1", "boolean", True),
+            ("0", "boolean", False),
+            # String conversions for batch items
+            (123, "string", "123"),
+            (45.6, "string", "45.6"),
+        ]
+        
+        for input_val, field_type, expected_output in test_cases:
+            result = processor.convert_value(input_val, field_type)
+            assert result == expected_output, f"Failed for {input_val} -> {field_type}: got {result}, expected {expected_output}"

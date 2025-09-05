@@ -66,11 +66,11 @@ def sample_objects_message():
             "collection": "testcollection"
         },
         "schema_name": "person",
-        "values": {
+        "values": [{
             "name": "John Doe",
             "age": "30",
             "city": "New York"
-        },
+        }],
         "confidence": 0.95,
         "source_span": "John Doe, age 30, lives in New York"
     }
@@ -86,9 +86,9 @@ def minimal_objects_message():
             "collection": "testcollection"
         },
         "schema_name": "simple_schema",
-        "values": {
+        "values": [{
             "field1": "value1"
-        }
+        }]
     }
 
 
@@ -235,8 +235,8 @@ class TestObjectsImportMessageProcessing:
         sent_object = call_args[0][1]
         assert isinstance(sent_object, ExtractedObject)
         assert sent_object.schema_name == "person"
-        assert sent_object.values["name"] == "John Doe"
-        assert sent_object.values["age"] == "30"
+        assert sent_object.values[0]["name"] == "John Doe"
+        assert sent_object.values[0]["age"] == "30"
         assert sent_object.confidence == 0.95
         assert sent_object.source_span == "John Doe, age 30, lives in New York"
         
@@ -274,7 +274,7 @@ class TestObjectsImportMessageProcessing:
         sent_object = mock_publisher_instance.send.call_args[0][1]
         assert isinstance(sent_object, ExtractedObject)
         assert sent_object.schema_name == "simple_schema"
-        assert sent_object.values["field1"] == "value1"
+        assert sent_object.values[0]["field1"] == "value1"
         assert sent_object.confidence == 1.0  # Default value
         assert sent_object.source_span == ""  # Default value
         assert len(sent_object.metadata.metadata) == 0  # Default empty list
@@ -302,7 +302,7 @@ class TestObjectsImportMessageProcessing:
                 "collection": "testcollection"
             },
             "schema_name": "test_schema",
-            "values": {"key": "value"}
+            "values": [{"key": "value"}]
             # No confidence or source_span
         }
         
@@ -372,6 +372,134 @@ class TestObjectsImportRunMethod:
         
         # Verify websocket remains None
         assert objects_import.ws is None
+
+
+class TestObjectsImportBatchProcessing:
+    """Test ObjectsImport batch processing functionality."""
+
+    @pytest.fixture
+    def batch_objects_message(self):
+        """Sample batch objects message data."""
+        return {
+            "metadata": {
+                "id": "batch-001",
+                "metadata": [
+                    {
+                        "s": {"v": "batch-001", "e": False},
+                        "p": {"v": "source", "e": False},
+                        "o": {"v": "test", "e": False}
+                    }
+                ],
+                "user": "testuser",
+                "collection": "testcollection"
+            },
+            "schema_name": "person",
+            "values": [
+                {
+                    "name": "John Doe",
+                    "age": "30",
+                    "city": "New York"
+                },
+                {
+                    "name": "Jane Smith",
+                    "age": "25",
+                    "city": "Boston"
+                },
+                {
+                    "name": "Bob Johnson",
+                    "age": "45",
+                    "city": "Chicago"
+                }
+            ],
+            "confidence": 0.85,
+            "source_span": "Multiple people found in document"
+        }
+
+    @patch('trustgraph.gateway.dispatch.objects_import.Publisher')
+    @pytest.mark.asyncio
+    async def test_receive_processes_batch_message_correctly(self, mock_publisher_class, mock_pulsar_client, mock_websocket, mock_running, batch_objects_message):
+        """Test that receive() processes batch message correctly."""
+        mock_publisher_instance = Mock()
+        mock_publisher_instance.send = AsyncMock()
+        mock_publisher_class.return_value = mock_publisher_instance
+        
+        objects_import = ObjectsImport(
+            ws=mock_websocket,
+            running=mock_running,
+            pulsar_client=mock_pulsar_client,
+            queue="test-queue"
+        )
+        
+        # Create mock message
+        mock_msg = Mock()
+        mock_msg.json.return_value = batch_objects_message
+        
+        await objects_import.receive(mock_msg)
+        
+        # Verify publisher.send was called
+        mock_publisher_instance.send.assert_called_once()
+        
+        # Get the call arguments
+        call_args = mock_publisher_instance.send.call_args
+        assert call_args[0][0] is None  # First argument should be None
+        
+        # Check the ExtractedObject that was sent
+        sent_object = call_args[0][1]
+        assert isinstance(sent_object, ExtractedObject)
+        assert sent_object.schema_name == "person"
+        
+        # Check that all batch values are present
+        assert len(sent_object.values) == 3
+        assert sent_object.values[0]["name"] == "John Doe"
+        assert sent_object.values[0]["age"] == "30"
+        assert sent_object.values[0]["city"] == "New York"
+        
+        assert sent_object.values[1]["name"] == "Jane Smith"
+        assert sent_object.values[1]["age"] == "25"
+        assert sent_object.values[1]["city"] == "Boston"
+        
+        assert sent_object.values[2]["name"] == "Bob Johnson"
+        assert sent_object.values[2]["age"] == "45"
+        assert sent_object.values[2]["city"] == "Chicago"
+        
+        assert sent_object.confidence == 0.85
+        assert sent_object.source_span == "Multiple people found in document"
+
+    @patch('trustgraph.gateway.dispatch.objects_import.Publisher')
+    @pytest.mark.asyncio
+    async def test_receive_handles_empty_batch(self, mock_publisher_class, mock_pulsar_client, mock_websocket, mock_running):
+        """Test that receive() handles empty batch correctly."""
+        mock_publisher_instance = Mock()
+        mock_publisher_instance.send = AsyncMock()
+        mock_publisher_class.return_value = mock_publisher_instance
+        
+        objects_import = ObjectsImport(
+            ws=mock_websocket,
+            running=mock_running,
+            pulsar_client=mock_pulsar_client,
+            queue="test-queue"
+        )
+        
+        # Message with empty values array
+        empty_batch_message = {
+            "metadata": {
+                "id": "empty-batch-001",
+                "user": "testuser",
+                "collection": "testcollection"
+            },
+            "schema_name": "empty_schema",
+            "values": []
+        }
+        
+        mock_msg = Mock()
+        mock_msg.json.return_value = empty_batch_message
+        
+        await objects_import.receive(mock_msg)
+        
+        # Should still send the message
+        mock_publisher_instance.send.assert_called_once()
+        sent_object = mock_publisher_instance.send.call_args[0][1]
+        assert len(sent_object.values) == 0
 
 
 class TestObjectsImportErrorHandling:
