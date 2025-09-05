@@ -37,6 +37,7 @@ from . triples_import import TriplesImport
 from . graph_embeddings_import import GraphEmbeddingsImport
 from . document_embeddings_import import DocumentEmbeddingsImport
 from . entity_contexts_import import EntityContextsImport
+from . objects_import import ObjectsImport
 
 from . core_export import CoreExport
 from . core_import import CoreImport
@@ -82,6 +83,7 @@ import_dispatchers = {
     "graph-embeddings": GraphEmbeddingsImport,
     "document-embeddings": DocumentEmbeddingsImport,
     "entity-contexts": EntityContextsImport,
+    "objects": ObjectsImport,
 }
 
 class DispatcherWrapper:
