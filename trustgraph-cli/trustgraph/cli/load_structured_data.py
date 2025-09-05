@@ -152,154 +152,45 @@ def load_structured_data(
         logger.info(f"Sample size: {sample_size} records")
         logger.info(f"Sample chars: {sample_chars} characters")
         
-        # Read sample data from input file
-        try:
-            with open(input_file, 'r', encoding='utf-8') as f:
-                # Read up to sample_chars characters
-                sample_data = f.read(sample_chars)
-                if len(sample_data) < sample_chars:
-                    logger.info(f"Read entire file ({len(sample_data)} characters)")
-                else:
-                    logger.info(f"Read sample ({sample_chars} characters)")
-        except Exception as e:
-            logger.error(f"Failed to read input file: {e}")
-            raise
+        # Use the helper function to discover schema (get raw response for display)
+        response = _auto_discover_schema(api_url, input_file, sample_chars, logger, return_raw_response=True)
         
-        # Fetch available schemas from Config API
-        try:
-            from trustgraph.api import Api
-            from trustgraph.api.types import ConfigKey
-            
-            api = Api(api_url)
-            config_api = api.config()
-            
-            # Get list of available schema keys
-            logger.info("Fetching available schemas from Config API...")
-            schema_keys = config_api.list("schema")
-            logger.info(f"Found {len(schema_keys)} schemas: {schema_keys}")
-            
-            if not schema_keys:
-                logger.warning("No schemas found in configuration")
-                print("No schemas available in TrustGraph configuration")
-                return
-            
-            # Fetch each schema definition
-            schemas = []
-            config_keys = [ConfigKey(type="schema", key=key) for key in schema_keys]
-            schema_values = config_api.get(config_keys)
-            
-            for value in schema_values:
-                try:
-                    # Schema values are JSON strings, parse them
-                    schema_def = json.loads(value.value) if isinstance(value.value, str) else value.value
-                    schemas.append(schema_def)
-                    logger.debug(f"Loaded schema: {value.key}")
-                except json.JSONDecodeError as e:
-                    logger.warning(f"Failed to parse schema {value.key}: {e}")
-                    continue
-            
-            logger.info(f"Successfully loaded {len(schemas)} schema definitions")
-            
-            # Use TrustGraph prompt service for schema suggestion
-            flow_api = api.flow().id("default")
-            
-            # Call schema-selection prompt with actual schemas and data sample
-            logger.info("Calling TrustGraph schema-selection prompt...")
-            response = flow_api.prompt(
-                id="schema-selection",
-                variables={
-                    "schemas": schemas,  # Array of actual schema definitions (note: plural 'schemas')
-                    "data": sample_data
-                }
-            )
-            
+        if response:
             print("Schema Suggestion Results:")
             print("=" * 50)
             print(response)
-            
-        except ImportError as e:
-            logger.error(f"Failed to import TrustGraph API: {e}")
-            raise
-        except Exception as e:
-            logger.error(f"Failed to call TrustGraph prompt service: {e}")
-            raise
+            print("=" * 50)
+            print("\nUse --generate-descriptor with --schema-name to create a descriptor configuration.")
+        else:
+            print("Could not determine the best matching schema for your data.")
+            print("Available schemas can be viewed using: tg-config-list schema")
         
     elif generate_descriptor:
         logger.info(f"Generating descriptor from {input_file}...")
         logger.info(f"Sample size: {sample_size} records")
         logger.info(f"Sample chars: {sample_chars} characters")
-        if schema_name:
+        
+        # If no schema specified, discover it first
+        if not schema_name:
+            logger.info("No schema specified, auto-discovering...")
+            schema_name = _auto_discover_schema(api_url, input_file, sample_chars, logger)
+            if not schema_name:
+                print("Error: Could not determine schema automatically.")
+                print("Please specify a schema using --schema-name or run --suggest-schema first.")
+                return
+            logger.info(f"Auto-selected schema: {schema_name}")
+        else:
             logger.info(f"Target schema: {schema_name}")
         
-        # Read sample data from input file
-        try:
-            with open(input_file, 'r', encoding='utf-8') as f:
-                # Read up to sample_chars characters
-                sample_data = f.read(sample_chars)
-                if len(sample_data) < sample_chars:
-                    logger.info(f"Read entire file ({len(sample_data)} characters)")
-                else:
-                    logger.info(f"Read sample ({sample_chars} characters)")
-        except Exception as e:
-            logger.error(f"Failed to read input file: {e}")
-            raise
+        # Generate descriptor using helper function
+        descriptor = _auto_generate_descriptor(api_url, input_file, schema_name, sample_chars, logger)
         
-        # Fetch available schemas from Config API (same as suggest-schema mode)
-        try:
-            from trustgraph.api import Api
-            from trustgraph.api.types import ConfigKey
-            
-            api = Api(api_url)
-            config_api = api.config()
-            
-            # Get list of available schema keys
-            logger.info("Fetching available schemas from Config API...")
-            schema_keys = config_api.list("schema")
-            logger.info(f"Found {len(schema_keys)} schemas: {schema_keys}")
-            
-            if not schema_keys:
-                logger.warning("No schemas found in configuration")
-                print("No schemas available in TrustGraph configuration")
-                return
-            
-            # Fetch each schema definition
-            schemas = []
-            config_keys = [ConfigKey(type="schema", key=key) for key in schema_keys]
-            schema_values = config_api.get(config_keys)
-            
-            for value in schema_values:
-                try:
-                    # Schema values are JSON strings, parse them
-                    schema_def = json.loads(value.value) if isinstance(value.value, str) else value.value
-                    schemas.append(schema_def)
-                    logger.debug(f"Loaded schema: {value.key}")
-                except json.JSONDecodeError as e:
-                    logger.warning(f"Failed to parse schema {value.key}: {e}")
-                    continue
-            
-            logger.info(f"Successfully loaded {len(schemas)} schema definitions")
-            
-            # Use TrustGraph prompt service for descriptor generation
-            flow_api = api.flow().id("default")
-            
-            # Call diagnose-structured-data prompt with schemas and data sample
-            logger.info("Calling TrustGraph diagnose-structured-data prompt...")
-            response = flow_api.prompt(
-                id="diagnose-structured-data",
-                variables={
-                    "schemas": schemas,  # Array of actual schema definitions
-                    "sample": sample_data  # Note: using 'sample' instead of 'data'
-                }
-            )
-            
+        if descriptor:
             # Output the generated descriptor
             if output_file:
                 try:
                     with open(output_file, 'w', encoding='utf-8') as f:
-                        if isinstance(response, str):
-                            f.write(response)
-                        else:
-                            f.write(json.dumps(response, indent=2))
+                        f.write(json.dumps(descriptor, indent=2))
                     print(f"Generated descriptor saved to: {output_file}")
                     logger.info(f"Descriptor saved to {output_file}")
                 except Exception as e:
@@ -308,17 +199,12 @@ def load_structured_data(
             else:
                 print("Generated Descriptor:")
                 print("=" * 50)
-                if isinstance(response, str):
-                    print(response)
-                else:
-                    print(json.dumps(response, indent=2))
-                
-        except ImportError as e:
-            logger.error(f"Failed to import TrustGraph API: {e}")
-            raise
-        except Exception as e:
-            logger.error(f"Failed to call TrustGraph prompt service: {e}")
-            raise
+                print(json.dumps(descriptor, indent=2))
+                print("=" * 50)
+                print("Use this descriptor with --parse-only to validate or without modes to import.")
+        else:
+            print("Error: Failed to generate descriptor.")
+            print("Check the logs for details or try --suggest-schema to verify schema availability.")
             
     elif parse_only:
         if not descriptor_file:
@@ -585,12 +471,24 @@ def load_structured_data(
 
 
 # Helper functions for auto mode
-def _auto_discover_schema(api_url, input_file, sample_chars, logger):
-    """Auto-discover the best matching schema for the input data"""
+def _auto_discover_schema(api_url, input_file, sample_chars, logger, return_raw_response=False):
+    """Auto-discover the best matching schema for the input data
+    
+    Args:
+        api_url: TrustGraph API URL
+        input_file: Path to input data file
+        sample_chars: Number of characters to sample from file
+        logger: Logger instance
+        return_raw_response: If True, return raw prompt response; if False, parse to extract schema name
+        
+    Returns:
+        Schema name (str) if return_raw_response=False, or full response if True
+    """
     try:
         # Read sample data
         with open(input_file, 'r', encoding='utf-8') as f:
             sample_data = f.read(sample_chars)
+            logger.info(f"Read {len(sample_data)} characters for analysis")
         
         # Import API modules
         from trustgraph.api import Api
@@ -599,7 +497,10 @@ def _auto_discover_schema(api_url, input_file, sample_chars, logger):
         config_api = api.config()
         
         # Get available schemas
+        logger.info("Fetching available schemas from Config API...")
         schema_keys = config_api.list("schema")
+        logger.info(f"Found {len(schema_keys)} schemas: {schema_keys}")
+        
         if not schema_keys:
             logger.error("No schemas available in TrustGraph configuration")
             return None
@@ -613,6 +514,7 @@ def _auto_discover_schema(api_url, input_file, sample_chars, logger):
                 if schema_values:
                     schema_def = json.loads(schema_values[0].value) if isinstance(schema_values[0].value, str) else schema_values[0].value
                     schemas[key] = schema_def
+                    logger.debug(f"Loaded schema: {key}")
             except Exception as e:
                 logger.warning(f"Could not load schema {key}: {e}")
                 
@@ -620,17 +522,24 @@ def _auto_discover_schema(api_url, input_file, sample_chars, logger):
             logger.error("No valid schemas could be loaded")
             return None
             
+        logger.info(f"Successfully loaded {len(schemas)} schema definitions")
+            
         # Use prompt service for schema selection
         flow_api = api.flow().id("default")
         
         # Call schema-selection prompt with actual schemas and data sample
+        logger.info("Calling TrustGraph schema-selection prompt...")
         response = flow_api.prompt(
             id="schema-selection",
             variables={
                 "schemas": list(schemas.values()),  # Array of actual schema definitions
-                "data": sample_data[:1000]  # Truncate sample data
+                "question": sample_data  # Truncate sample data
             }
         )
+        
+        # Return raw response if requested (for suggest_schema mode)
+        if return_raw_response:
+            return response
         
         # Extract schema name from response
         if isinstance(response, dict) and 'schema' in response:
