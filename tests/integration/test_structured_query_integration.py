@@ -594,10 +594,11 @@ class TestStructuredQueryServiceIntegration:
             def create_flow_router(nlp_client, objects_client, response_producer):
                 def flow_router(service_name):
                     nonlocal service_call_count
-                    service_call_count += 1
                     if service_name == "nlp-query-request":
+                        service_call_count += 1
                         return nlp_client
                     elif service_name == "objects-query-request":
+                        service_call_count += 1
                         return objects_client
                     elif service_name == "response":
                         return response_producer
@@ -619,7 +620,7 @@ class TestStructuredQueryServiceIntegration:
         await asyncio.gather(*tasks)
         
         # Assert - All requests should be processed
-        assert call_count == 6  # 2 calls per request (NLP + Objects)
+        assert service_call_count == 6  # 2 calls per request (NLP + Objects) 
         for flow in flows:
             flow.return_value.send.assert_called_once()
 
