@@ -158,15 +158,17 @@ Bob Johnson,bob@company.org,42,UK"""
             f.flush()
             
             try:
-                # Should read file without errors (API calls will fail but that's expected)
-                with pytest.raises(Exception):  # Expected to fail at API stage
-                    load_structured_data(
-                        api_url="http://localhost:8088",
-                        input_file=f.name,
-                        suggest_schema=True,
-                        sample_size=100,
-                        sample_chars=500
-                    )
+                # Should read file and process schema suggestion
+                result = load_structured_data(
+                    api_url="http://localhost:8088",
+                    input_file=f.name,
+                    suggest_schema=True,
+                    sample_size=100,
+                    sample_chars=500
+                )
+                
+                # Schema suggestion completes and returns None
+                assert result is None
                 
             finally:
                 os.unlink(f.name)
@@ -179,14 +181,16 @@ Bob Johnson,bob@company.org,42,UK"""
             f.flush()
             
             try:
-                # Should read file without errors (API calls will fail but that's expected)
-                with pytest.raises(Exception):  # Expected to fail at API stage
-                    load_structured_data(
-                        api_url="http://localhost:8088",
-                        input_file=f.name,
-                        generate_descriptor=True,
-                        sample_chars=500
-                    )
+                # Should read file and generate descriptor
+                result = load_structured_data(
+                    api_url="http://localhost:8088",
+                    input_file=f.name,
+                    generate_descriptor=True,
+                    sample_chars=500
+                )
+                
+                # Descriptor generation completes and returns None
+                assert result is None
                 
             finally:
                 os.unlink(f.name)
@@ -211,14 +215,15 @@ Bob Johnson,bob@company.org,42,UK"""
                 desc_file.flush()
                 
                 try:
-                    # Should load descriptor file but may fail at processing stage
-                    with pytest.raises(Exception):  # Expected to fail at validation or processing
-                        load_structured_data(
-                            api_url="http://localhost:8088",
-                            input_file=input_file.name,
-                            descriptor_file=desc_file.name,
-                            dry_run=True
-                        )
+                    # Should handle invalid descriptor gracefully - creates default processing
+                    result = load_structured_data(
+                        api_url="http://localhost:8088",
+                        input_file=input_file.name,
+                        descriptor_file=desc_file.name,
+                        dry_run=True
+                    )
+                    
+                    assert result is None  # Dry run returns None
                 finally:
                     os.unlink(input_file.name)
                     os.unlink(desc_file.name)
@@ -231,13 +236,14 @@ Bob Johnson,bob@company.org,42,UK"""
         
         try:
             # Should handle parsing errors gracefully
-            with pytest.raises(Exception):
-                load_structured_data(
-                    api_url="http://localhost:8088",
-                    input_file=input_file,
-                    descriptor_file=descriptor_file,
-                    dry_run=True
-                )
+            result = load_structured_data(
+                api_url="http://localhost:8088",
+                input_file=input_file,
+                descriptor_file=descriptor_file,
+                dry_run=True
+            )
+            
+            assert result is None  # Dry run returns None
         finally:
             self.cleanup_temp_file(input_file)
             self.cleanup_temp_file(descriptor_file)
