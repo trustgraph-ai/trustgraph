@@ -270,9 +270,9 @@ class TestObjectExtractionServiceIntegration:
         assert len(customer_calls) == 1
         customer_obj = customer_calls[0]
         
-        assert customer_obj.values["customer_id"] == "CUST001"
-        assert customer_obj.values["name"] == "John Smith"
-        assert customer_obj.values["email"] == "john.smith@email.com"
+        assert customer_obj.values[0]["customer_id"] == "CUST001"
+        assert customer_obj.values[0]["name"] == "John Smith"
+        assert customer_obj.values[0]["email"] == "john.smith@email.com"
         assert customer_obj.confidence > 0.5
 
     @pytest.mark.asyncio
@@ -335,10 +335,10 @@ class TestObjectExtractionServiceIntegration:
         assert len(product_calls) == 1
         product_obj = product_calls[0]
         
-        assert product_obj.values["product_id"] == "PROD001"
-        assert product_obj.values["name"] == "Gaming Laptop"
-        assert product_obj.values["price"] == "1299.99"
-        assert product_obj.values["category"] == "electronics"
+        assert product_obj.values[0]["product_id"] == "PROD001"
+        assert product_obj.values[0]["name"] == "Gaming Laptop"
+        assert product_obj.values[0]["price"] == "1299.99"
+        assert product_obj.values[0]["category"] == "electronics"
 
     @pytest.mark.asyncio
     async def test_concurrent_extraction_integration(self, integration_config, mock_integrated_flow):
