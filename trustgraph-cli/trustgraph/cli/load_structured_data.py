@@ -804,7 +804,18 @@ def load_structured_data(
             print(f"Target schema: {schema_name}")
             print(f"Sample record:")
             if processed_records:
-                print(json.dumps(processed_records[0], indent=2))
+                # Show what the batched format will look like
+                sample_batch = processed_records[:min(3, len(processed_records))]
+                batch_values = [record["values"] for record in sample_batch]
+                first_record = processed_records[0]
+                batched_sample = {
+                    "metadata": first_record["metadata"],
+                    "schema_name": first_record["schema_name"],
+                    "values": batch_values,
+                    "confidence": first_record["confidence"],
+                    "source_span": first_record["source_span"]
+                }
+                print(json.dumps(batched_sample, indent=2))
             return
         
         # Import to TrustGraph using objects import endpoint via WebSocket
@@ -828,10 +839,26 @@ def load_structured_data(
                 async with connect(objects_url) as ws:
                     imported_count = 0
                     
-                    for record in processed_records:
-                        # Send individual ExtractedObject records
-                        await ws.send(json.dumps(record))
-                        imported_count += 1
+                    # Process records in batches
+                    for i in range(0, len(processed_records), batch_size):
+                        batch_records = processed_records[i:i + batch_size]
+                        
+                        # Extract values from each record in the batch
+                        batch_values = [record["values"] for record in batch_records]
+                        
+                        # Create batched ExtractedObject message using first record as template
+                        first_record = batch_records[0]
+                        batched_record = {
+                            "metadata": first_record["metadata"],
+                            "schema_name": first_record["schema_name"],
+                            "values": batch_values,  # Array of value dictionaries
+                            "confidence": first_record["confidence"],
+                            "source_span": first_record["source_span"]
+                        }
+                        
+                        # Send batched ExtractedObject
+                        await ws.send(json.dumps(batched_record))
+                        imported_count += len(batch_records)
                         
                         if imported_count % 100 == 0:
                             logger.info(f"Imported {imported_count}/{len(processed_records)} records...")

@@ -311,7 +311,7 @@ class Processor(FlowProcessor):
         """Process incoming ExtractedObject and store in Cassandra"""
         
         obj = msg.value()
-        logger.info(f"Storing object for schema {obj.schema_name} from {obj.metadata.id}")
+        logger.info(f"Storing {len(obj.values)} objects for schema {obj.schema_name} from {obj.metadata.id}")
         
         # Get schema definition
         schema = self.schemas.get(obj.schema_name)
@@ -328,59 +328,67 @@ class Processor(FlowProcessor):
         safe_keyspace = self.sanitize_name(keyspace)
         safe_table = self.sanitize_table(table_name)
         
-        # Build column names and values
-        columns = ["collection"]
-        values = [obj.metadata.collection]
-        placeholders = ["%s"]
-        
-        # Check if we need a synthetic ID
-        has_primary_key = any(field.primary for field in schema.fields)
-        if not has_primary_key:
-            import uuid
-            columns.append("synthetic_id")
-            values.append(uuid.uuid4())
-            placeholders.append("%s")
-        
-        # Process fields
-        for field in schema.fields:
-            safe_field_name = self.sanitize_name(field.name)
-            raw_value = obj.values.get(field.name)
+        # Process each object in the batch
+        for obj_index, value_map in enumerate(obj.values):
+            # Build column names and values for this object
+            columns = ["collection"]
+            values = [obj.metadata.collection]
+            placeholders = ["%s"]
             
-            # Handle required fields
-            if field.required and raw_value is None:
-                logger.warning(f"Required field {field.name} is missing in object")
-                # Continue anyway - Cassandra doesn't enforce NOT NULL
+            # Check if we need a synthetic ID
+            has_primary_key = any(field.primary for field in schema.fields)
+            if not has_primary_key:
+                import uuid
+                columns.append("synthetic_id")
+                values.append(uuid.uuid4())
+                placeholders.append("%s")
             
-            # Check if primary key field is NULL
-            if field.primary and raw_value is None:
-                logger.error(f"Primary key field {field.name} cannot be NULL - skipping object")
-                return
+            # Process fields for this object
+            skip_object = False
+            for field in schema.fields:
+                safe_field_name = self.sanitize_name(field.name)
+                raw_value = value_map.get(field.name)
+                
+                # Handle required fields
+                if field.required and raw_value is None:
+                    logger.warning(f"Required field {field.name} is missing in object {obj_index}")
+                    # Continue anyway - Cassandra doesn't enforce NOT NULL
+                
+                # Check if primary key field is NULL
+                if field.primary and raw_value is None:
+                    logger.error(f"Primary key field {field.name} cannot be NULL - skipping object {obj_index}")
+                    skip_object = True
+                    break
+                
+                # Convert value to appropriate type
+                converted_value = self.convert_value(raw_value, field.type)
+                
+                columns.append(safe_field_name)
+                values.append(converted_value)
+                placeholders.append("%s")
             
-            # Convert value to appropriate type
-            converted_value = self.convert_value(raw_value, field.type)
+            # Skip this object if primary key validation failed
+            if skip_object:
+                continue
             
-            columns.append(safe_field_name)
-            values.append(converted_value)
-            placeholders.append("%s")
-        
-        # Build and execute insert query
-        insert_cql = f"""
-        INSERT INTO {safe_keyspace}.{safe_table} ({', '.join(columns)})
-        VALUES ({', '.join(placeholders)})
-        """
-        
-        # Debug: Show data being inserted
-        logger.debug(f"Storing {obj.schema_name}: {dict(zip(columns, values))}")
-        
-        if len(columns) != len(values) or len(columns) != len(placeholders):
-            raise ValueError(f"Mismatch in counts - columns: {len(columns)}, values: {len(values)}, placeholders: {len(placeholders)}")
-        
-        try:
-            # Convert to tuple - Cassandra driver requires tuple for parameters
-            self.session.execute(insert_cql, tuple(values))
-        except Exception as e:
-            logger.error(f"Failed to insert object: {e}", exc_info=True)
-            raise
+            # Build and execute insert query for this object
+            insert_cql = f"""
+            INSERT INTO {safe_keyspace}.{safe_table} ({', '.join(columns)})
+            VALUES ({', '.join(placeholders)})
+            """
+            
+            # Debug: Show data being inserted
+            logger.debug(f"Storing {obj.schema_name} object {obj_index}: {dict(zip(columns, values))}")
+            
+            if len(columns) != len(values) or len(columns) != len(placeholders):
+                raise ValueError(f"Mismatch in counts - columns: {len(columns)}, values: {len(values)}, placeholders: {len(placeholders)}")
+            
+            try:
+                # Convert to tuple - Cassandra driver requires tuple for parameters
+                self.session.execute(insert_cql, tuple(values))
+            except Exception as e:
+                logger.error(f"Failed to insert object {obj_index}: {e}", exc_info=True)
+                raise
 
     def close(self):
         """Clean up Cassandra connections"""
