@@ -31,6 +31,7 @@ def load_structured_data(
     suggest_schema: bool = False,
     generate_descriptor: bool = False,
     parse_only: bool = False,
+    auto: bool = False,
     output_file: str = None,
     sample_size: int = 100,
     sample_chars: int = 500,
@@ -49,6 +50,7 @@ def load_structured_data(
         suggest_schema: Analyze data and suggest matching schemas
         generate_descriptor: Generate descriptor from data sample
         parse_only: Parse data but don't import to TrustGraph
+        auto: Run full automatic pipeline (suggest schema + generate descriptor + import)
         output_file: Path to write output (descriptor/parsed data)
         sample_size: Number of records to sample for analysis
         sample_chars: Maximum characters to read for sampling
@@ -62,7 +64,67 @@ def load_structured_data(
         logging.basicConfig(level=logging.INFO)
     
     # Determine operation mode
-    if suggest_schema:
+    if auto:
+        logger.info(f"🚀 Starting automatic pipeline for {input_file}...")
+        logger.info("Step 1: Analyzing data to discover best matching schema...")
+        
+        # Step 1: Auto-discover schema (reuse suggest_schema logic)
+        discovered_schema = _auto_discover_schema(api_url, input_file, sample_chars, logger)
+        if not discovered_schema:
+            logger.error("Failed to discover suitable schema automatically")
+            print("❌ Could not automatically determine the best schema for your data.")
+            print("💡 Try running with --suggest-schema first to see available options.")
+            return None
+            
+        logger.info(f"✅ Discovered schema: {discovered_schema}")
+        print(f"🎯 Auto-selected schema: {discovered_schema}")
+        
+        # Step 2: Auto-generate descriptor
+        logger.info("Step 2: Generating descriptor configuration...")
+        auto_descriptor = _auto_generate_descriptor(api_url, input_file, discovered_schema, sample_chars, logger)
+        if not auto_descriptor:
+            logger.error("Failed to generate descriptor automatically")
+            print("❌ Could not automatically generate descriptor configuration.")
+            return None
+            
+        logger.info("✅ Generated descriptor configuration")
+        print("📝 Generated descriptor configuration")
+        
+        # Step 3: Parse and preview data
+        logger.info("Step 3: Parsing and validating data...")
+        preview_records = _auto_parse_preview(input_file, auto_descriptor, min(sample_size, 5), logger)
+        if preview_records is None:
+            logger.error("Failed to parse data with generated descriptor")
+            print("❌ Could not parse data with generated descriptor.")
+            return None
+            
+        # Show preview
+        print("📊 Data Preview (first few records):")
+        print("=" * 50)
+        for i, record in enumerate(preview_records[:3], 1):
+            print(f"Record {i}: {record}")
+        print("=" * 50)
+        
+        # Step 4: Import (unless dry_run)
+        if dry_run:
+            logger.info("✅ Dry run complete - data is ready for import")
+            print("✅ Dry run successful! Data is ready for import.")
+            print(f"💡 Run without --dry-run to import {len(preview_records)} records to TrustGraph.")
+            return None
+        else:
+            logger.info("Step 4: Importing data to TrustGraph...")
+            print("🚀 Importing data to TrustGraph...")
+            
+            # Use the existing full pipeline logic with our auto-generated descriptor
+            # We'll fall through to the main import logic by setting descriptor_file to None
+            # and schema_name to our discovered schema, then let existing logic handle import
+            schema_name = discovered_schema
+            descriptor = auto_descriptor
+            
+            # Continue to import logic below...
+            logger.info("Proceeding with data import...")
+    
+    elif suggest_schema:
         logger.info(f"Analyzing {input_file} to suggest schemas...")
         logger.info(f"Sample size: {sample_size} records")
         logger.info(f"Sample chars: {sample_chars} characters")
