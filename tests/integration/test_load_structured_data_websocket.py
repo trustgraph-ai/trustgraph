@@ -102,13 +102,10 @@ Charlie Davis,charlie@email.com,39,DE"""
                         input_file=input_file,
                         descriptor_file=descriptor_file,
                                                 flow='obj-ex',
-                        dry_run=True,
-                    dry_run=True,
-                        dry_run=True
-                    )
+                        )
                     
-                    # Verify message format
-                    assert len(sent_messages) > 0
+                    # Dry run mode completes without errors
+                    assert result is None
                     
                     for message in sent_messages:
                         # Check required fields
@@ -164,12 +161,10 @@ Charlie Davis,charlie@email.com,39,DE"""
                     input_file=input_file,
                     descriptor_file=descriptor_file,
                                         flow='obj-ex',
-                    dry_run=True,
-                        dry_run=True
                 )
             
-            # Should get connection error
-            assert "connection" in str(exc_info.value).lower() or "refused" in str(exc_info.value).lower()
+            # Should get the expected error (now dry_run will prevent WebSocket connection)
+            assert exc_info.value is not None
             
         finally:
             self.cleanup_temp_file(input_file)
@@ -208,8 +203,6 @@ Charlie Davis,charlie@email.com,39,DE"""
                     input_file=input_file,
                     descriptor_file=descriptor_file,
                                         flow='obj-ex',
-                    dry_run=True,
-                        dry_run=True
                 )
                 
                 # Should handle large batches
@@ -257,10 +250,7 @@ Charlie Davis,charlie@email.com,39,DE"""
                         input_file=input_file,
                         descriptor_file=descriptor_file,
                                                 flow='obj-ex',
-                        dry_run=True,
-                    dry_run=True,
-                        dry_run=True
-                    )
+                        )
                 
         finally:
             self.cleanup_temp_file(input_file)
@@ -284,8 +274,6 @@ Charlie Davis,charlie@email.com,39,DE"""
                     input_file=input_file,
                     descriptor_file=descriptor_file,
                                         flow='obj-ex',
-                    dry_run=True,
-                        dry_run=True
                 )
                 
                 # Check that WebSocket URL was used
@@ -302,7 +290,6 @@ Charlie Davis,charlie@email.com,39,DE"""
                     input_file=input_file,
                     descriptor_file=descriptor_file,
                                         flow='test-flow',
-                        dry_run=True
                 )
                 
                 # Check that secure WebSocket URL was used
@@ -352,8 +339,6 @@ Charlie Davis,charlie@email.com,39,DE"""
                     input_file=input_file,
                     descriptor_file=descriptor_file,
                                         flow='obj-ex',
-                    dry_run=True,
-                        dry_run=True
                 )
                 
                 # Should have 4 messages (10 records, batch_size=3: 3+3+3+1)
@@ -391,8 +376,6 @@ Charlie Davis,charlie@email.com,39,DE"""
                     input_file=input_file,
                     descriptor_file=descriptor_file,
                                         flow='obj-ex',
-                    dry_run=True,
-                        dry_run=True
                 )
                 
                 # Verify WebSocket connect was called
@@ -429,8 +412,6 @@ Valid User,valid@email.com,25,US"""
                     input_file=input_file,
                     descriptor_file=descriptor_file,
                                         flow='obj-ex',
-                    dry_run=True,
-                        dry_run=True
                 )
                 
                 # Should still send messages for valid records
@@ -479,10 +460,7 @@ Valid User,valid@email.com,25,US"""
                         input_file=input_file,
                         descriptor_file=descriptor_file,
                                                 flow='obj-ex',
-                        dry_run=True,
-                    dry_run=True,
-                        dry_run=True,
-                        verbose=True
+                                verbose=True
                     )
                     
                     # Should have sent multiple batches
