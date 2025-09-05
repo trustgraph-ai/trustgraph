@@ -544,6 +544,10 @@ def _auto_discover_schema(api_url, input_file, sample_chars, logger, return_raw_
         # Extract schema name from response
         if isinstance(response, dict) and 'schema' in response:
             return response['schema']
+        elif isinstance(response, list) and len(response) > 0:
+            # If response is a list, use the first element
+            logger.info(f"Extracted schema '{response[0]}' from list response")
+            return response[0]
         elif isinstance(response, str):
             # Try to extract schema name from text response
             response_lower = response.lower().strip()
