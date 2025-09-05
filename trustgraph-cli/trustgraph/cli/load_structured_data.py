@@ -441,7 +441,8 @@ def load_structured_data(
                             except (ValueError, TypeError):
                                 logger.warning(f"Failed to convert '{value}' to float in record {record_num}")
                     
-                    processed_record[target_field] = value
+                    # Convert all values to strings as required by ExtractedObject schema
+                    processed_record[target_field] = str(value) if value is not None else ""
                 else:
                     logger.warning(f"Source field '{source_field}' not found in record {record_num}")
             
@@ -776,7 +777,8 @@ def load_structured_data(
                             except (ValueError, TypeError):
                                 logger.warning(f"Failed to convert '{value}' to float in record {record_num}")
                     
-                    processed_record[target_field] = value
+                    # Convert all values to strings as required by ExtractedObject schema
+                    processed_record[target_field] = str(value) if value is not None else ""
                 else:
                     logger.warning(f"Source field '{source_field}' not found in record {record_num}")
             
