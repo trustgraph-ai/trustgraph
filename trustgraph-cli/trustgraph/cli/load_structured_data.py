@@ -582,11 +582,6 @@ def load_structured_data(
         print(f"- Records processed: {len(output_records)}")
         print(f"- Target schema: {schema_name}")
         print(f"- Field mappings: {len(mappings)}")
-            
-        if args.verbose:
-            import traceback
-            traceback.print_exc()
-        sys.exit(1)
 
 
 # Helper functions for auto mode

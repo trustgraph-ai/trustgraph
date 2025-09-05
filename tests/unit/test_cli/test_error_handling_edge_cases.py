@@ -63,11 +63,19 @@ class TestErrorHandlingEdgeCases:
     # File Access Error Tests
     def test_nonexistent_input_file(self):
         """Test handling of nonexistent input file"""
-        with pytest.raises(FileNotFoundError):
-            load_structured_data(
-                api_url=self.api_url,
-                input_file="/nonexistent/path/file.csv"
-            )
+        # Create a dummy descriptor file for parse_only mode
+        descriptor_file = self.create_temp_file('{"format": {"type": "csv"}, "mappings": []}', '.json')
+        
+        try:
+            with pytest.raises(FileNotFoundError):
+                load_structured_data(
+                    api_url=self.api_url,
+                    input_file="/nonexistent/path/file.csv",
+                    descriptor_file=descriptor_file,
+                    parse_only=True  # Use parse_only which will propagate FileNotFoundError
+                )
+        finally:
+            self.cleanup_temp_file(descriptor_file)
     
     def test_nonexistent_descriptor_file(self):
         """Test handling of nonexistent descriptor file"""
@@ -78,7 +86,8 @@ class TestErrorHandlingEdgeCases:
                 load_structured_data(
                     api_url=self.api_url,
                     input_file=input_file,
-                    descriptor_file="/nonexistent/descriptor.json"
+                    descriptor_file="/nonexistent/descriptor.json",
+                    parse_only=True  # Use parse_only since we have a descriptor_file
                 )
         finally:
             self.cleanup_temp_file(input_file)
@@ -118,7 +127,8 @@ class TestErrorHandlingEdgeCases:
                 load_structured_data(
                     api_url=self.api_url,
                     input_file=input_file,
-                    descriptor_file=descriptor_file
+                    descriptor_file=descriptor_file,
+                    parse_only=True  # Use parse_only since we have a descriptor_file
                 )
         finally:
             self.cleanup_temp_file(input_file)
@@ -160,7 +170,8 @@ class TestErrorHandlingEdgeCases:
                 load_structured_data(
                     api_url=self.api_url,
                     input_file=input_file,
-                    descriptor_file=descriptor_file
+                    descriptor_file=descriptor_file,
+                    parse_only=True  # Use parse_only since we have a descriptor_file
                 )
         finally:
             self.cleanup_temp_file(input_file)

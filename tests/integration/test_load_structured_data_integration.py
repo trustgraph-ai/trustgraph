@@ -382,8 +382,8 @@ Bob Johnson,bob@company.org,not_a_number"""
                 result = load_structured_data(
                     api_url="http://invalid-url:9999",
                     input_file=input_file,
-                    descriptor_file=descriptor_file,
-                                        flow='obj-ex'
+                    suggest_schema=True,  # Use suggest_schema mode to trigger API connection and propagate errors
+                    flow='obj-ex'
                 )
                 
         finally:

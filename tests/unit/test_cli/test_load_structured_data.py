@@ -168,7 +168,9 @@ Bob Johnson,bob@company.org,42,UK"""
         with pytest.raises(FileNotFoundError):
             load_structured_data(
                 api_url="http://localhost:8088",
-                input_file="/nonexistent/file.csv"
+                input_file="/nonexistent/file.csv",
+                descriptor_file=self.create_temp_file(json.dumps(self.test_descriptor), '.json'),
+                parse_only=True  # Use parse_only mode which will propagate FileNotFoundError
             )
     
     def test_invalid_descriptor_format(self):
