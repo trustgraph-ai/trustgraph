@@ -342,8 +342,17 @@ def load_structured_data(
                 root = ET.fromstring(raw_data)
                 
                 # Find record elements using XPath
-                records = root.findall(record_path)
-                logger.info(f"Found {len(records)} records using XPath: {record_path}")
+                # ElementTree XPath support is limited, convert absolute paths to relative
+                xpath_expr = record_path
+                if xpath_expr.startswith('/ROOT/'):
+                    # Remove /ROOT/ prefix since we're already at the root
+                    xpath_expr = xpath_expr[6:]
+                elif xpath_expr.startswith('/'):
+                    # Convert absolute path to relative by removing leading /
+                    xpath_expr = '.' + xpath_expr
+                
+                records = root.findall(xpath_expr)
+                logger.info(f"Found {len(records)} records using XPath: {record_path} (converted to: {xpath_expr})")
                 
                 # Convert XML elements to dictionaries
                 record_count = 0
