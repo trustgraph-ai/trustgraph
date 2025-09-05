@@ -809,7 +809,6 @@ def load_structured_data(
         
         try:
             import asyncio
-            import json
             from websockets.asyncio.client import connect
             
             # Construct objects import URL similar to load_knowledge pattern
