@@ -44,6 +44,12 @@ class ObjectsImport:
 
         data = msg.json()
 
+        # Handle both single object and array of objects for backward compatibility
+        values_data = data["values"]
+        if not isinstance(values_data, list):
+            # Single object - wrap in array
+            values_data = [values_data]
+
         elt = ExtractedObject(
             metadata=Metadata(
                 id=data["metadata"]["id"],
@@ -52,7 +58,7 @@ class ObjectsImport:
                 collection=data["metadata"]["collection"],
             ),
             schema_name=data["schema_name"],
-            values=data["values"],
+            values=values_data,
             confidence=data.get("confidence", 1.0),
             source_span=data.get("source_span", ""),
         )

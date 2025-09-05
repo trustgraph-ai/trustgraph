@@ -256,31 +256,34 @@ class Processor(FlowProcessor):
                     flow
                 )
                 
-                # Emit each extracted object
-                for obj in objects:
+                # Emit extracted objects as a batch if any were found
+                if objects:
                     
                     # Calculate confidence (could be enhanced with actual confidence from prompt)
                     confidence = 0.8  # Default confidence
                     
-                    # Convert all values to strings for Pulsar compatibility
-                    string_values = convert_values_to_strings(obj)
+                    # Convert all objects' values to strings for Pulsar compatibility
+                    batch_values = []
+                    for obj in objects:
+                        string_values = convert_values_to_strings(obj)
+                        batch_values.append(string_values)
                     
-                    # Create ExtractedObject
+                    # Create ExtractedObject with batched values
                     extracted = ExtractedObject(
                         metadata=Metadata(
-                            id=f"{v.metadata.id}:{schema_name}:{hash(str(obj))}",
+                            id=f"{v.metadata.id}:{schema_name}",
                             metadata=[],
                             user=v.metadata.user,
                             collection=v.metadata.collection,
                         ),
                         schema_name=schema_name,
-                        values=string_values,
+                        values=batch_values,  # Array of objects
                         confidence=confidence,
                         source_span=chunk_text[:100]  # First 100 chars as source reference
                     )
                     
                     await flow("output").send(extracted)
-                    logger.debug(f"Emitted extracted object for schema {schema_name}")
+                    logger.debug(f"Emitted batch of {len(objects)} objects for schema {schema_name}")
 
         except Exception as e:
             logger.error(f"Object extraction exception: {e}", exc_info=True)
