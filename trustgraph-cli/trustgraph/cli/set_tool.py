@@ -3,6 +3,7 @@ Configures and registers tools in the TrustGraph system.
 
 This script allows you to define agent tools with various types including:
 - knowledge-query: Query knowledge bases  
+- structured-query: Query structured data using natural language
 - text-completion: Text generation
 - mcp-tool: Reference to MCP (Model Context Protocol) tools
 - prompt: Prompt template execution
@@ -117,21 +118,29 @@ def main():
         description=__doc__,
         epilog=textwrap.dedent('''
             Valid tool types:
-              knowledge-query    - Query knowledge bases
-              text-completion    - Text completion/generation
-              mcp-tool           - Model Control Protocol tool
-              prompt             - Prompt template query
+              knowledge-query    - Query knowledge bases (fixed args)
+              structured-query   - Query structured data using natural language (fixed args)
+              text-completion    - Text completion/generation (fixed args)
+              mcp-tool           - Model Control Protocol tool (configurable args)
+              prompt             - Prompt template query (configurable args)
+            
+            Note: Tools marked "(fixed args)" have predefined arguments and don't need 
+            --argument specified. Tools marked "(configurable args)" require --argument.
             
             Valid argument types:
-              string            - String/text parameter
+              string            - String/text parameter  
               number            - Numeric parameter
             
             Examples:
               %(prog)s --id weather_tool --name get_weather \\
                        --type knowledge-query \\
                        --description "Get weather information for a location" \\
-                       --argument location:string:"Location to query" \\
-                       --argument units:string:"Temperature units (C/F)"
+                       --collection weather_data
+              
+              %(prog)s --id data_query_tool --name query_data \\
+                       --type structured-query \\
+                       --description "Query structured data using natural language" \\
+                       --collection sales_data
               
               %(prog)s --id calc_tool --name calculate --type mcp-tool \\
                        --description "Perform mathematical calculations" \\
@@ -164,7 +173,7 @@ def main():
 
     parser.add_argument(
         '--type',
-        help=f'Tool type, one of: knowledge-query, text-completion, mcp-tool, prompt',
+        help=f'Tool type, one of: knowledge-query, structured-query, text-completion, mcp-tool, prompt',
     )
 
     parser.add_argument(
@@ -174,7 +183,7 @@ def main():
 
     parser.add_argument(
         '--collection',
-        help=f'For knowledge-query type: collection to query',
+        help=f'For knowledge-query and structured-query types: collection to query',
     )
 
     parser.add_argument(
@@ -210,7 +219,7 @@ def main():
     try:
 
         valid_types = [
-            "knowledge-query", "text-completion", "mcp-tool", "prompt"
+            "knowledge-query", "structured-query", "text-completion", "mcp-tool", "prompt"
         ]
 
         if args.id is None:
