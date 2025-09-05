@@ -506,18 +506,22 @@ def main():
 Examples:
   # Step 1: Analyze data and suggest matching schemas
   %(prog)s --input customers.csv --suggest-schema
+  %(prog)s --input products.xml --suggest-schema --sample-chars 1000
   
   # Step 2: Generate descriptor configuration from data sample
   %(prog)s --input customers.csv --generate-descriptor --schema-name customer --output descriptor.json
+  %(prog)s --input products.xml --generate-descriptor --schema-name product --output xml_descriptor.json
   
   # Generate descriptor with custom sampling (more data for better analysis)
   %(prog)s --input large_dataset.csv --generate-descriptor --schema-name product --sample-chars 100000 --sample-size 500
   
-  # Step 3: Parse data and review output without importing
+  # Step 3: Parse data and review output without importing (supports CSV, JSON, XML)
   %(prog)s --input customers.csv --descriptor descriptor.json --parse-only --output parsed.json
+  %(prog)s --input products.xml --descriptor xml_descriptor.json --parse-only
   
   # Step 4: Import data to TrustGraph using descriptor
   %(prog)s --input customers.csv --descriptor descriptor.json
+  %(prog)s --input products.xml --descriptor xml_descriptor.json
   
   # All-in-one: Auto-generate descriptor and import (for simple cases)
   %(prog)s --input customers.csv --schema-name customer
@@ -527,8 +531,11 @@ Examples:
 
 Use Cases:
   --suggest-schema     : Diagnose which TrustGraph schemas might match your data
-  --generate-descriptor: Create/review the structured data language configuration
+                        (uses --sample-chars to limit data sent for analysis)
+  --generate-descriptor: Create/review the structured data language configuration  
+                        (uses --sample-chars to limit data sent for analysis)
   --parse-only        : Validate that parsed data looks correct before import
+                        (uses --sample-size to limit records processed, ignores --sample-chars)
   (no mode flags)     : Full pipeline - parse and import to TrustGraph
 
 For more information on the descriptor format, see:
@@ -580,14 +587,14 @@ For more information on the descriptor format, see:
         '--sample-size',
         type=int,
         default=100,
-        help='Number of records to sample for analysis/generation (default: 100)'
+        help='Number of records to process (parse-only mode) or sample for analysis (default: 100)'
     )
     
     parser.add_argument(
         '--sample-chars',
         type=int,
         default=500,
-        help='Maximum characters to read from data file for sampling (default: 500)'
+        help='Maximum characters to read for sampling (suggest-schema/generate-descriptor modes only, default: 500)'
     )
     
     parser.add_argument(
@@ -632,6 +639,13 @@ For more information on the descriptor format, see:
     if args.parse_only and not args.descriptor:
         print("Error: --descriptor is required when using --parse-only", file=sys.stderr)
         sys.exit(1)
+    
+    # Warn about irrelevant parameters
+    if args.parse_only and args.sample_chars != 500:  # 500 is the default
+        print("Warning: --sample-chars is ignored in --parse-only mode (entire file is processed)", file=sys.stderr)
+    
+    if (args.suggest_schema or args.generate_descriptor) and args.sample_size != 100:  # 100 is default
+        print("Warning: --sample-size is ignored in analysis modes, use --sample-chars instead", file=sys.stderr)
     
     if not any([args.suggest_schema, args.generate_descriptor, args.parse_only]) and not args.descriptor:
         # Full pipeline mode without descriptor - schema_name should be provided
