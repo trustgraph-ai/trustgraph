@@ -101,7 +101,10 @@ Charlie Davis,charlie@email.com,39,DE"""
                         api_url="http://localhost:8089",
                         input_file=input_file,
                         descriptor_file=descriptor_file,
-                                                flow='obj-ex'
+                                                flow='obj-ex',
+                        dry_run=True,
+                    dry_run=True,
+                        dry_run=True
                     )
                     
                     # Verify message format
@@ -160,7 +163,9 @@ Charlie Davis,charlie@email.com,39,DE"""
                     api_url="http://localhost:9999",  # Non-existent server
                     input_file=input_file,
                     descriptor_file=descriptor_file,
-                                        flow='obj-ex'
+                                        flow='obj-ex',
+                    dry_run=True,
+                        dry_run=True
                 )
             
             # Should get connection error
@@ -202,7 +207,9 @@ Charlie Davis,charlie@email.com,39,DE"""
                     api_url=self.api_url,
                     input_file=input_file,
                     descriptor_file=descriptor_file,
-                                        flow='obj-ex'
+                                        flow='obj-ex',
+                    dry_run=True,
+                        dry_run=True
                 )
                 
                 # Should handle large batches
@@ -249,7 +256,10 @@ Charlie Davis,charlie@email.com,39,DE"""
                         api_url=self.api_url,
                         input_file=input_file,
                         descriptor_file=descriptor_file,
-                                                flow='obj-ex'
+                                                flow='obj-ex',
+                        dry_run=True,
+                    dry_run=True,
+                        dry_run=True
                     )
                 
         finally:
@@ -273,7 +283,9 @@ Charlie Davis,charlie@email.com,39,DE"""
                     api_url="http://localhost:8088",  # HTTP URL
                     input_file=input_file,
                     descriptor_file=descriptor_file,
-                                        flow='obj-ex'
+                                        flow='obj-ex',
+                    dry_run=True,
+                        dry_run=True
                 )
                 
                 # Check that WebSocket URL was used
@@ -289,7 +301,8 @@ Charlie Davis,charlie@email.com,39,DE"""
                     api_url="https://example.com:8088",  # HTTPS URL
                     input_file=input_file,
                     descriptor_file=descriptor_file,
-                                        flow='test-flow'
+                                        flow='test-flow',
+                        dry_run=True
                 )
                 
                 # Check that secure WebSocket URL was used
@@ -338,7 +351,9 @@ Charlie Davis,charlie@email.com,39,DE"""
                     api_url=self.api_url,
                     input_file=input_file,
                     descriptor_file=descriptor_file,
-                                        flow='obj-ex'
+                                        flow='obj-ex',
+                    dry_run=True,
+                        dry_run=True
                 )
                 
                 # Should have 4 messages (10 records, batch_size=3: 3+3+3+1)
@@ -375,7 +390,9 @@ Charlie Davis,charlie@email.com,39,DE"""
                     api_url=self.api_url,
                     input_file=input_file,
                     descriptor_file=descriptor_file,
-                                        flow='obj-ex'
+                                        flow='obj-ex',
+                    dry_run=True,
+                        dry_run=True
                 )
                 
                 # Verify WebSocket connect was called
@@ -411,7 +428,9 @@ Valid User,valid@email.com,25,US"""
                     api_url=self.api_url,
                     input_file=input_file,
                     descriptor_file=descriptor_file,
-                                        flow='obj-ex'
+                                        flow='obj-ex',
+                    dry_run=True,
+                        dry_run=True
                 )
                 
                 # Should still send messages for valid records
@@ -460,6 +479,9 @@ Valid User,valid@email.com,25,US"""
                         input_file=input_file,
                         descriptor_file=descriptor_file,
                                                 flow='obj-ex',
+                        dry_run=True,
+                    dry_run=True,
+                        dry_run=True,
                         verbose=True
                     )
                     
