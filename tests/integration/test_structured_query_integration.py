@@ -562,34 +562,50 @@ class TestStructuredQueryServiceIntegration:
             messages.append(msg)
             flows.append(flow)
         
-        # Mock responses for all requests (6 total: 3 NLP + 3 Objects)
-        mock_responses = []
-        for i in range(6):
-            if i % 2 == 0:  # NLP responses
-                mock_responses.append(QuestionToStructuredQueryResponse(
-                    error=None,
-                    graphql_query=f'query {{ test_{i//2} {{ id }} }}',
-                    variables={},
-                    detected_schemas=[f"test_{i//2}"],
-                    confidence=0.9
-                ))
-            else:  # Objects responses  
-                mock_responses.append(ObjectsQueryResponse(
-                    error=None,
-                    data=f'{{"test_{i//2}": [{{"id": "{i//2}"}}]}}',
-                    errors=None,
-                    extensions={}
-                ))
+        # Set up individual flow routing for each concurrent request
+        service_call_count = 0
         
-        call_count = 0
-        def mock_client_side_effect(name):
-            nonlocal call_count
-            client = AsyncMock()
-            client.request.return_value = mock_responses[call_count]
-            call_count += 1
-            return client
-        
-        integration_processor.client.side_effect = mock_client_side_effect
+        for i in range(3):  # 3 concurrent requests
+            # Create NLP and Objects responses for this request
+            nlp_response = QuestionToStructuredQueryResponse(
+                error=None,
+                graphql_query=f'query {{ test_{i} {{ id }} }}',
+                variables={},
+                detected_schemas=[f"test_{i}"],
+                confidence=0.9
+            )
+            
+            objects_response = ObjectsQueryResponse(
+                error=None,
+                data=f'{{"test_{i}": [{{"id": "{i}"}}]}}',
+                errors=None,
+                extensions={}
+            )
+            
+            # Create mock services for this request
+            mock_nlp_client = AsyncMock()
+            mock_nlp_client.request.return_value = nlp_response
+            
+            mock_objects_client = AsyncMock()
+            mock_objects_client.request.return_value = objects_response
+            
+            # Set up flow routing for this specific request
+            flow_response = flows[i].return_value
+            def create_flow_router(nlp_client, objects_client, response_producer):
+                def flow_router(service_name):
+                    nonlocal service_call_count
+                    service_call_count += 1
+                    if service_name == "nlp-query-request":
+                        return nlp_client
+                    elif service_name == "objects-query-request":
+                        return objects_client
+                    elif service_name == "response":
+                        return response_producer
+                    else:
+                        return AsyncMock()
+                return flow_router
+            
+            flows[i].side_effect = create_flow_router(mock_nlp_client, mock_objects_client, flow_response)
         
         # Act - Process all messages concurrently
         import asyncio
