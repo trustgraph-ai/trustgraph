@@ -35,6 +35,7 @@ def load_structured_data(
     sample_size: int = 100,
     sample_chars: int = 500,
     schema_name: str = None,
+    flow: str = 'default',
     dry_run: bool = False,
     verbose: bool = False
 ):
@@ -547,7 +548,7 @@ def load_structured_data(
                 logger.info(f"Successfully loaded {len(schemas)} schema definitions")
                 
                 # Generate descriptor using diagnose-structured-data prompt
-                flow_api = api.flow().id("default")
+                flow_api = api.flow().id(flow)
                 
                 logger.info("Calling TrustGraph diagnose-structured-data prompt for descriptor generation...")
                 response = flow_api.prompt(
@@ -817,7 +818,7 @@ def load_structured_data(
             
             # Convert HTTP URL to WebSocket URL if needed
             ws_url = api_url.replace("http://", "ws://").replace("https://", "wss://")
-            objects_url = ws_url + "api/v1/flow/default/import/objects"
+            objects_url = ws_url + f"api/v1/flow/{flow}/import/objects"
             
             logger.info(f"Connecting to objects import endpoint: {objects_url}")
             
@@ -902,6 +903,12 @@ For more information on the descriptor format, see:
         '-u', '--api-url',
         default=default_url,
         help=f'TrustGraph API URL (default: {default_url})'
+    )
+    
+    parser.add_argument(
+        '--flow',
+        default='default',
+        help='TrustGraph flow name to use for import (default: default)'
     )
     
     parser.add_argument(
@@ -1020,6 +1027,7 @@ For more information on the descriptor format, see:
             sample_size=args.sample_size,
             sample_chars=args.sample_chars,
             schema_name=args.schema_name,
+            flow=args.flow,
             dry_run=args.dry_run,
             verbose=args.verbose
         )
