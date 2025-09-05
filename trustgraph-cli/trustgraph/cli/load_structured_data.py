@@ -79,19 +79,50 @@ def load_structured_data(
             logger.error(f"Failed to read input file: {e}")
             raise
         
-        # Use TrustGraph prompt service for schema suggestion
+        # Fetch available schemas from Config API
         try:
             from trustgraph.api import Api
+            from trustgraph.api.types import ConfigKey
             
             api = Api(api_url)
+            config_api = api.config()
+            
+            # Get list of available schema keys
+            logger.info("Fetching available schemas from Config API...")
+            schema_keys = config_api.list("schema")
+            logger.info(f"Found {len(schema_keys)} schemas: {schema_keys}")
+            
+            if not schema_keys:
+                logger.warning("No schemas found in configuration")
+                print("No schemas available in TrustGraph configuration")
+                return
+            
+            # Fetch each schema definition
+            schemas = []
+            config_keys = [ConfigKey(type="schema", key=key) for key in schema_keys]
+            schema_values = config_api.get(config_keys)
+            
+            for value in schema_values:
+                try:
+                    # Schema values are JSON strings, parse them
+                    schema_def = json.loads(value.value) if isinstance(value.value, str) else value.value
+                    schemas.append(schema_def)
+                    logger.debug(f"Loaded schema: {value.key}")
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Failed to parse schema {value.key}: {e}")
+                    continue
+            
+            logger.info(f"Successfully loaded {len(schemas)} schema definitions")
+            
+            # Use TrustGraph prompt service for schema suggestion
             flow_api = api.flow().id("default")
             
-            # Call schema-selection prompt with placeholder schema and data sample
+            # Call schema-selection prompt with actual schemas and data sample
             logger.info("Calling TrustGraph schema-selection prompt...")
             response = flow_api.prompt(
                 id="schema-selection",
                 variables={
-                    "schema": "**PLACEHOLDER**",
+                    "schemas": schemas,  # Array of actual schema definitions (note: plural 'schemas')
                     "data": sample_data
                 }
             )
