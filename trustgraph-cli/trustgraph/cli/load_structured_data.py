@@ -115,14 +115,37 @@ def load_structured_data(
             logger.info("Step 4: Importing data to TrustGraph...")
             print("🚀 Importing data to TrustGraph...")
             
-            # Use the existing full pipeline logic with our auto-generated descriptor
-            # We'll fall through to the main import logic by setting descriptor_file to None
-            # and schema_name to our discovered schema, then let existing logic handle import
-            schema_name = discovered_schema
-            descriptor = auto_descriptor
+            # Recursively call ourselves with the auto-generated descriptor
+            # This reuses all the existing import logic
+            import tempfile
+            import os
             
-            # Continue to import logic below...
-            logger.info("Proceeding with data import...")
+            # Save auto-generated descriptor to temp file
+            temp_descriptor = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
+            json.dump(auto_descriptor, temp_descriptor, indent=2)
+            temp_descriptor.close()
+            
+            try:
+                # Call the full pipeline mode with our auto-generated descriptor
+                result = load_structured_data(
+                    api_url=api_url,
+                    input_file=input_file,
+                    descriptor_file=temp_descriptor.name,
+                    flow=flow,
+                    dry_run=False,  # We already handled dry_run above
+                    verbose=verbose
+                )
+                
+                print("✅ Auto-import completed successfully!")
+                logger.info("Auto-import pipeline completed successfully")
+                return result
+                
+            finally:
+                # Clean up temp descriptor file
+                try:
+                    os.unlink(temp_descriptor.name)
+                except:
+                    pass
     
     elif suggest_schema:
         logger.info(f"Analyzing {input_file} to suggest schemas...")
@@ -970,9 +993,6 @@ Examples:
   %(prog)s --input customers.csv --descriptor descriptor.json
   %(prog)s --input products.xml --descriptor xml_descriptor.json
   
-  # All-in-one: Auto-generate descriptor and import (for simple cases)
-  %(prog)s --input customers.csv --schema-name customer
-  
   # FULLY AUTOMATIC: Discover schema + generate descriptor + import (zero manual steps!)
   %(prog)s --input customers.csv --auto
   %(prog)s --input products.xml --auto --dry-run  # Preview before importing
@@ -1111,11 +1131,15 @@ For more information on the descriptor format, see:
     if (args.suggest_schema or args.generate_descriptor) and args.sample_size != 100:  # 100 is default
         print("Warning: --sample-size is ignored in analysis modes, use --sample-chars instead", file=sys.stderr)
     
-    if not any([args.suggest_schema, args.generate_descriptor, args.parse_only]) and not args.descriptor:
-        # Full pipeline mode without descriptor - schema_name should be provided
-        if not args.schema_name:
-            print("Error: --descriptor or --schema-name is required for full import", file=sys.stderr)
-            sys.exit(1)
+    # Require explicit mode selection - no implicit behavior
+    if not any([args.suggest_schema, args.generate_descriptor, args.parse_only, args.auto]):
+        print("Error: Must specify an operation mode", file=sys.stderr)
+        print("Available modes:", file=sys.stderr)
+        print("  --auto                 : Discover schema + generate descriptor + import", file=sys.stderr)
+        print("  --suggest-schema       : Analyze data and suggest schemas", file=sys.stderr)
+        print("  --generate-descriptor  : Generate descriptor from data", file=sys.stderr)
+        print("  --parse-only          : Parse data without importing", file=sys.stderr)
+        sys.exit(1)
     
     try:
         load_structured_data(
@@ -1125,6 +1149,7 @@ For more information on the descriptor format, see:
             suggest_schema=args.suggest_schema,
             generate_descriptor=args.generate_descriptor,
             parse_only=args.parse_only,
+            auto=args.auto,
             output_file=args.output,
             sample_size=args.sample_size,
             sample_chars=args.sample_chars,
