@@ -973,10 +973,16 @@ Examples:
   # All-in-one: Auto-generate descriptor and import (for simple cases)
   %(prog)s --input customers.csv --schema-name customer
   
+  # FULLY AUTOMATIC: Discover schema + generate descriptor + import (zero manual steps!)
+  %(prog)s --input customers.csv --auto
+  %(prog)s --input products.xml --auto --dry-run  # Preview before importing
+  
   # Dry run to validate without importing
   %(prog)s --input customers.csv --descriptor descriptor.json --dry-run
 
 Use Cases:
+  --auto              : 🚀 FULLY AUTOMATIC: Discover schema + generate descriptor + import data
+                        (zero manual configuration required!)
   --suggest-schema     : Diagnose which TrustGraph schemas might match your data
                         (uses --sample-chars to limit data sent for analysis)
   --generate-descriptor: Create/review the structured data language configuration  
@@ -1029,6 +1035,11 @@ For more information on the descriptor format, see:
         '--parse-only',
         action='store_true',
         help='Parse data using descriptor but don\'t import to TrustGraph'
+    )
+    mode_group.add_argument(
+        '--auto',
+        action='store_true',
+        help='Run full automatic pipeline: discover schema + generate descriptor + import data'
     )
     
     parser.add_argument(
@@ -1134,6 +1145,197 @@ For more information on the descriptor format, see:
             import traceback
             traceback.print_exc()
         sys.exit(1)
+
+
+# Helper functions for auto mode
+def _auto_discover_schema(api_url, input_file, sample_chars, logger):
+    """Auto-discover the best matching schema for the input data"""
+    try:
+        # Read sample data
+        with open(input_file, 'r', encoding='utf-8') as f:
+            sample_data = f.read(sample_chars)
+        
+        # Import API modules
+        from trustgraph.api import Api
+        api = Api(api_url)
+        config_api = api.config()
+        
+        # Get available schemas
+        schema_keys = config_api.list("schema")
+        if not schema_keys:
+            logger.error("No schemas available in TrustGraph configuration")
+            return None
+            
+        # Get schema definitions
+        schemas = {}
+        for key in schema_keys:
+            try:
+                schema_def = config_api.get("schema", key)
+                schemas[key] = schema_def
+            except Exception as e:
+                logger.warning(f"Could not load schema {key}: {e}")
+                
+        if not schemas:
+            logger.error("No valid schemas could be loaded")
+            return None
+            
+        # Use prompt service for schema selection
+        flow_api = api.flow().id("default")
+        prompt_client = flow_api.prompt()
+        
+        prompt = f"""Analyze this data sample and determine the best matching schema:
+
+DATA SAMPLE:
+{sample_data[:1000]}
+
+AVAILABLE SCHEMAS:
+{json.dumps(schemas, indent=2)}
+
+Return ONLY the schema name (key) that best matches this data. Consider:
+1. Field names and types in the data
+2. Data structure and format
+3. Domain and use case alignment
+
+Schema name:"""
+
+        response = prompt_client.schema_selection(
+            schemas=schemas,
+            sample=sample_data[:1000]
+        )
+        
+        # Extract schema name from response
+        if isinstance(response, dict) and 'schema' in response:
+            return response['schema']
+        elif isinstance(response, str):
+            # Try to extract schema name from text response
+            response_lower = response.lower().strip()
+            for schema_key in schema_keys:
+                if schema_key.lower() in response_lower:
+                    return schema_key
+                    
+            # If no exact match, try first mentioned schema
+            words = response.split()
+            for word in words:
+                clean_word = word.strip('.,!?":').lower()
+                if clean_word in [s.lower() for s in schema_keys]:
+                    matching_schema = next(s for s in schema_keys if s.lower() == clean_word)
+                    return matching_schema
+                    
+        logger.warning(f"Could not parse schema selection from response: {response}")
+        
+        # Fallback: return first available schema
+        logger.info(f"Using fallback: first available schema '{schema_keys[0]}'")
+        return schema_keys[0]
+        
+    except Exception as e:
+        logger.error(f"Schema discovery failed: {e}")
+        return None
+
+
+def _auto_generate_descriptor(api_url, input_file, schema_name, sample_chars, logger):
+    """Auto-generate descriptor configuration for the discovered schema"""
+    try:
+        # Read sample data
+        with open(input_file, 'r', encoding='utf-8') as f:
+            sample_data = f.read(sample_chars)
+        
+        # Import API modules
+        from trustgraph.api import Api
+        api = Api(api_url)
+        config_api = api.config()
+        
+        # Get schema definition
+        schema_def = config_api.get("schema", schema_name)
+        
+        # Use prompt service for descriptor generation
+        flow_api = api.flow().id("default") 
+        prompt_client = flow_api.prompt()
+        
+        response = prompt_client.diagnose_structured_data(
+            sample=sample_data,
+            schema_name=schema_name,
+            schema=schema_def
+        )
+        
+        if isinstance(response, str):
+            try:
+                return json.loads(response)
+            except json.JSONDecodeError:
+                logger.error("Generated descriptor is not valid JSON")
+                return None
+        else:
+            return response
+            
+    except Exception as e:
+        logger.error(f"Descriptor generation failed: {e}")
+        return None
+
+
+def _auto_parse_preview(input_file, descriptor, max_records, logger):
+    """Parse and preview data using the auto-generated descriptor"""
+    try:
+        # Simplified parsing logic for preview (reuse existing logic)
+        format_info = descriptor.get('format', {})
+        format_type = format_info.get('type', 'csv').lower()
+        encoding = format_info.get('encoding', 'utf-8')
+        
+        with open(input_file, 'r', encoding=encoding) as f:
+            raw_data = f.read()
+        
+        parsed_records = []
+        
+        if format_type == 'csv':
+            import csv
+            from io import StringIO
+            
+            options = format_info.get('options', {})
+            delimiter = options.get('delimiter', ',')
+            has_header = options.get('has_header', True) or options.get('header', True)
+            
+            reader = csv.DictReader(StringIO(raw_data), delimiter=delimiter)
+            if not has_header:
+                first_row = next(reader)
+                fieldnames = [f"field_{i+1}" for i in range(len(first_row))]
+                reader = csv.DictReader(StringIO(raw_data), fieldnames=fieldnames, delimiter=delimiter)
+            
+            count = 0
+            for row in reader:
+                if count >= max_records:
+                    break
+                parsed_records.append(dict(row))
+                count += 1
+                
+        elif format_type == 'json':
+            import json
+            data = json.loads(raw_data)
+            
+            if isinstance(data, list):
+                parsed_records = data[:max_records] 
+            else:
+                parsed_records = [data]
+                
+        # Apply basic field mappings for preview
+        mappings = descriptor.get('mappings', [])
+        preview_records = []
+        
+        for record in parsed_records:
+            processed_record = {}
+            for mapping in mappings:
+                source_field = mapping.get('source_field')
+                target_field = mapping.get('target_field', source_field)
+                
+                if source_field in record:
+                    value = record[source_field]
+                    processed_record[target_field] = str(value) if value is not None else ""
+                    
+            if processed_record:  # Only add if we got some data
+                preview_records.append(processed_record)
+        
+        return preview_records if preview_records else parsed_records
+        
+    except Exception as e:
+        logger.error(f"Preview parsing failed: {e}")
+        return None
 
 
 if __name__ == "__main__":
