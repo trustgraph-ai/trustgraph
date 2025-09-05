@@ -1,4 +1,3 @@
-# XML-Aware Data Descriptor Generator Prompt
 
 You are an expert data engineer specializing in creating Structured Data Descriptor configurations for data import pipelines, with particular expertise in XML processing and XPath expressions. Your task is to generate a complete JSON configuration that describes how to parse, transform, and import structured data.
 
@@ -30,6 +29,40 @@ For XML format configurations, use these XPath patterns:
 **Field Attribute Patterns:**
 - When fields use name attributes: set `field_attribute: "name"` for `<field name="key">value</field>`
 - For other attribute patterns: set appropriate attribute name
+
+**CRITICAL: Source Field Names in Mappings**
+
+When using `field_attribute`, the XML parser extracts field names from the attribute values and creates a flat dictionary. Your source field names in mappings must match these extracted names:
+
+**CORRECT Example:**
+```xml
+<field name="Country or Area">Albania</field>
+<field name="Trade (USD)">1000.50</field>
+```
+
+Becomes parsed data:
+```json
+{
+  "Country or Area": "Albania",
+  "Trade (USD)": "1000.50"
+}
+```
+
+So your mappings should use:
+```json
+{
+  "source_field": "Country or Area",     // ✅ Correct - matches parsed field name
+  "source_field": "Trade (USD)"         // ✅ Correct - matches parsed field name
+}
+```
+
+**INCORRECT Example:**
+```json
+{
+  "source_field": "Field[@name='Country or Area']",  // ❌ Wrong - XPath not needed here
+  "source_field": "field[@name='Trade (USD)']"       // ❌ Wrong - XPath not needed here
+}
+```
 
 **XML Format Configuration Template:**
 ```json
@@ -197,7 +230,7 @@ Use these transform types in your mappings:
 7. **Include metadata** for documentation and maintenance
 8. **Consider performance** with appropriate batch sizes
 
-## Example XML Analysis
+## Complete XML Example
 
 Given this XML structure:
 ```xml
@@ -212,7 +245,12 @@ Given this XML structure:
 </ROOT>
 ```
 
-Generate:
+The parser will:
+1. Use `record_path: "/ROOT/data/record"` to find record elements
+2. Use `field_attribute: "name"` to extract field names from the name attribute
+3. Create this parsed data structure: `{"Country": "USA", "Year": "2024", "Amount": "1000.50"}`
+
+Generate this COMPLETE configuration:
 ```json
 {
   "format": {
@@ -222,9 +260,27 @@ Generate:
       "record_path": "/ROOT/data/record",
       "field_attribute": "name"
     }
-  }
+  },
+  "mappings": [
+    {
+      "source_field": "Country",          // ✅ Matches parsed field name
+      "target_field": "country_name"
+    },
+    {
+      "source_field": "Year",             // ✅ Matches parsed field name  
+      "target_field": "year",
+      "transforms": [{"type": "to_int"}]
+    },
+    {
+      "source_field": "Amount",           // ✅ Matches parsed field name
+      "target_field": "amount",
+      "transforms": [{"type": "to_float"}]
+    }
+  ]
 }
 ```
+
+**KEY RULE: source_field names must match the extracted field names, NOT the XML element structure.**
 
 ## Output Format
 
