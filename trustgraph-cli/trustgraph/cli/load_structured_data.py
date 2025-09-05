@@ -324,30 +324,26 @@ def load_structured_data(
             import xml.etree.ElementTree as ET
             
             options = format_info.get('options', {})
-            root_xpath = options.get('root_element')  # XPath to records container
-            record_element = options.get('record_element', 'record')  # Element name for each record
+            record_path = options.get('record_path', '//record')  # XPath to find record elements
+            field_attribute = options.get('field_attribute')  # Attribute name for field names (e.g., "name")
             
-            logger.info(f"XML options - root_element: '{root_xpath}', record_element: '{record_element}'")
+            # Legacy support for old options format
+            if 'root_element' in options or 'record_element' in options:
+                root_element = options.get('root_element')
+                record_element = options.get('record_element', 'record')
+                if root_element:
+                    record_path = f"//{root_element}/{record_element}"
+                else:
+                    record_path = f"//{record_element}"
+                    
+            logger.info(f"XML options - record_path: '{record_path}', field_attribute: '{field_attribute}'")
             
             try:
                 root = ET.fromstring(raw_data)
                 
-                # Find record elements
-                if root_xpath:
-                    # Check if root_xpath matches the document root element
-                    if root.tag == root_xpath:
-                        # The root_xpath IS the document root, find records directly
-                        records = root.findall(record_element)
-                    else:
-                        # Look for root_xpath as a child element
-                        record_parent = root.find(root_xpath)
-                        if record_parent is not None:
-                            records = record_parent.findall(record_element)
-                        else:
-                            logger.warning(f"Root element '{root_xpath}' not found, using document root")
-                            records = root.findall(record_element)
-                else:
-                    records = root.findall(record_element)
+                # Find record elements using XPath
+                records = root.findall(record_path)
+                logger.info(f"Found {len(records)} records using XPath: {record_path}")
                 
                 # Convert XML elements to dictionaries
                 record_count = 0
@@ -357,19 +353,30 @@ def load_structured_data(
                         break
                     
                     record = {}
-                    # Convert element attributes to fields
-                    record.update(element.attrib)
                     
-                    # Convert child elements to fields
-                    for child in element:
-                        if child.text:
-                            record[child.tag] = child.text.strip()
-                        else:
-                            record[child.tag] = ""
-                    
-                    # If no children or attributes, use element text as single field
-                    if not record and element.text:
-                        record['value'] = element.text.strip()
+                    if field_attribute:
+                        # Handle field elements with name attributes (UN data format)
+                        # <field name="Country or Area">Albania</field>
+                        for child in element:
+                            if child.tag == 'field' and field_attribute in child.attrib:
+                                field_name = child.attrib[field_attribute]
+                                field_value = child.text.strip() if child.text else ""
+                                record[field_name] = field_value
+                    else:
+                        # Handle standard XML structure
+                        # Convert element attributes to fields
+                        record.update(element.attrib)
+                        
+                        # Convert child elements to fields
+                        for child in element:
+                            if child.text:
+                                record[child.tag] = child.text.strip()
+                            else:
+                                record[child.tag] = ""
+                        
+                        # If no children or attributes, use element text as single field
+                        if not record and element.text:
+                            record['value'] = element.text.strip()
                     
                     parsed_records.append(record)
                     record_count += 1
