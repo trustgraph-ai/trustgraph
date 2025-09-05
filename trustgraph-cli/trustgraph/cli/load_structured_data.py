@@ -804,32 +804,46 @@ def load_structured_data(
                 print(json.dumps(processed_records[0], indent=2))
             return
         
-        # Import to TrustGraph using objects dispatcher
+        # Import to TrustGraph using objects import endpoint via WebSocket
         logger.info(f"Importing {len(processed_records)} records to TrustGraph...")
         
         try:
-            import trustgraph.publish.writer as writer
+            import asyncio
+            import json
+            from websockets.asyncio.client import connect
             
-            # Initialize the objects writer
-            objects_writer = writer.Writer(api_url, "objects")
+            # Construct objects import URL similar to load_knowledge pattern
+            if not api_url.endswith("/"):
+                api_url += "/"
             
-            # Send records in batches
-            imported_count = 0
-            for i in range(0, len(processed_records), batch_size):
-                batch = processed_records[i:i + batch_size]
-                
-                for record in batch:
-                    objects_writer.write(record)
-                    imported_count += 1
-                
-                logger.info(f"Imported {imported_count}/{len(processed_records)} records...")
+            # Convert HTTP URL to WebSocket URL if needed
+            ws_url = api_url.replace("http://", "ws://").replace("https://", "wss://")
+            objects_url = ws_url + "api/v1/flow/default/import/objects"
             
-            logger.info(f"Successfully imported {imported_count} records to TrustGraph")
+            logger.info(f"Connecting to objects import endpoint: {objects_url}")
+            
+            async def import_objects():
+                async with connect(objects_url) as ws:
+                    imported_count = 0
+                    
+                    for record in processed_records:
+                        # Send individual ExtractedObject records
+                        await ws.send(json.dumps(record))
+                        imported_count += 1
+                        
+                        if imported_count % 100 == 0:
+                            logger.info(f"Imported {imported_count}/{len(processed_records)} records...")
+                    
+                    logger.info(f"Successfully imported {imported_count} records to TrustGraph")
+                    return imported_count
+            
+            # Run the async import
+            imported_count = asyncio.run(import_objects())
             print(f"Import completed: {imported_count} records imported to schema '{schema_name}'")
             
         except ImportError as e:
-            logger.error(f"Failed to import TrustGraph writer: {e}")
-            print(f"Error: TrustGraph writer not available - {e}")
+            logger.error(f"Failed to import required modules: {e}")
+            print(f"Error: Required modules not available - {e}")
             raise
         except Exception as e:
             logger.error(f"Failed to import data to TrustGraph: {e}")
