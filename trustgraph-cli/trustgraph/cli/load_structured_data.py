@@ -65,9 +65,47 @@ def load_structured_data(
         logger.info(f"Analyzing {input_file} to suggest schemas...")
         logger.info(f"Sample size: {sample_size} records")
         logger.info(f"Sample chars: {sample_chars} characters")
-        # TODO: Implement schema suggestion
-        print(f"Would analyze {input_file} and suggest matching schemas")
-        print(f"Using sample of {sample_size} records, max {sample_chars} characters")
+        
+        # Read sample data from input file
+        try:
+            with open(input_file, 'r', encoding='utf-8') as f:
+                # Read up to sample_chars characters
+                sample_data = f.read(sample_chars)
+                if len(sample_data) < sample_chars:
+                    logger.info(f"Read entire file ({len(sample_data)} characters)")
+                else:
+                    logger.info(f"Read sample ({sample_chars} characters)")
+        except Exception as e:
+            logger.error(f"Failed to read input file: {e}")
+            raise
+        
+        # Use TrustGraph prompt service for schema suggestion
+        try:
+            from trustgraph.api import Api
+            
+            api = Api(api_url)
+            flow_api = api.flow().id("default")
+            
+            # Call schema-selection prompt with placeholder schema and data sample
+            logger.info("Calling TrustGraph schema-selection prompt...")
+            response = flow_api.prompt(
+                id="schema-selection",
+                variables={
+                    "schema": "**PLACEHOLDER**",
+                    "data": sample_data
+                }
+            )
+            
+            print("Schema Suggestion Results:")
+            print("=" * 50)
+            print(response)
+            
+        except ImportError as e:
+            logger.error(f"Failed to import TrustGraph API: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Failed to call TrustGraph prompt service: {e}")
+            raise
         
     elif generate_descriptor:
         logger.info(f"Generating descriptor from {input_file}...")
