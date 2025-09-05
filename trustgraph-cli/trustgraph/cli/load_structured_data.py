@@ -320,6 +320,67 @@ def load_structured_data(
                 logger.error(f"Failed to parse JSON data: {e}")
                 raise
                 
+        elif format_type == 'xml':
+            import xml.etree.ElementTree as ET
+            
+            options = format_info.get('options', {})
+            root_xpath = options.get('root_element')  # XPath to records container
+            record_element = options.get('record_element', 'record')  # Element name for each record
+            
+            logger.info(f"XML options - root_element: '{root_xpath}', record_element: '{record_element}'")
+            
+            try:
+                root = ET.fromstring(raw_data)
+                
+                # Find record elements
+                if root_xpath:
+                    # Check if root_xpath matches the document root element
+                    if root.tag == root_xpath:
+                        # The root_xpath IS the document root, find records directly
+                        records = root.findall(record_element)
+                    else:
+                        # Look for root_xpath as a child element
+                        record_parent = root.find(root_xpath)
+                        if record_parent is not None:
+                            records = record_parent.findall(record_element)
+                        else:
+                            logger.warning(f"Root element '{root_xpath}' not found, using document root")
+                            records = root.findall(record_element)
+                else:
+                    records = root.findall(record_element)
+                
+                # Convert XML elements to dictionaries
+                record_count = 0
+                for element in records:
+                    if record_count >= sample_size:
+                        logger.info(f"Reached sample size limit of {sample_size} records")
+                        break
+                    
+                    record = {}
+                    # Convert element attributes to fields
+                    record.update(element.attrib)
+                    
+                    # Convert child elements to fields
+                    for child in element:
+                        if child.text:
+                            record[child.tag] = child.text.strip()
+                        else:
+                            record[child.tag] = ""
+                    
+                    # If no children or attributes, use element text as single field
+                    if not record and element.text:
+                        record['value'] = element.text.strip()
+                    
+                    parsed_records.append(record)
+                    record_count += 1
+                    
+            except ET.ParseError as e:
+                logger.error(f"Failed to parse XML data: {e}")
+                raise
+            except Exception as e:
+                logger.error(f"Failed to process XML data: {e}")
+                raise
+                
         else:
             raise ValueError(f"Unsupported format type: {format_type}")
             
