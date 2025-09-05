@@ -238,10 +238,186 @@ def load_structured_data(
         if not descriptor_file:
             raise ValueError("--descriptor is required when using --parse-only")
         logger.info(f"Parsing {input_file} with descriptor {descriptor_file}...")
-        # TODO: Implement parsing
-        print(f"Would parse {input_file} using {descriptor_file}")
+        
+        # Load descriptor configuration
+        try:
+            with open(descriptor_file, 'r', encoding='utf-8') as f:
+                descriptor = json.load(f)
+            logger.info(f"Loaded descriptor configuration from {descriptor_file}")
+        except Exception as e:
+            logger.error(f"Failed to load descriptor file: {e}")
+            raise
+            
+        # Read input data based on format in descriptor
+        try:
+            format_info = descriptor.get('format', {})
+            format_type = format_info.get('type', 'csv').lower()
+            encoding = format_info.get('encoding', 'utf-8')
+            
+            logger.info(f"Input format: {format_type}, encoding: {encoding}")
+            
+            with open(input_file, 'r', encoding=encoding) as f:
+                raw_data = f.read()
+            
+            logger.info(f"Read {len(raw_data)} characters from input file")
+            
+        except Exception as e:
+            logger.error(f"Failed to read input file: {e}")
+            raise
+            
+        # Parse data based on format type
+        parsed_records = []
+        
+        if format_type == 'csv':
+            import csv
+            from io import StringIO
+            
+            options = format_info.get('options', {})
+            delimiter = options.get('delimiter', ',')
+            has_header = options.get('has_header', True) or options.get('header', True)
+            
+            logger.info(f"CSV options - delimiter: '{delimiter}', has_header: {has_header}")
+            
+            try:
+                reader = csv.DictReader(StringIO(raw_data), delimiter=delimiter)
+                if not has_header:
+                    # If no header, create field names from first row or use generic names
+                    first_row = next(reader)
+                    fieldnames = [f"field_{i+1}" for i in range(len(first_row))]
+                    reader = csv.DictReader(StringIO(raw_data), fieldnames=fieldnames, delimiter=delimiter)
+                
+                for row_num, row in enumerate(reader, start=1):
+                    # Respect sample_size limit
+                    if row_num > sample_size:
+                        logger.info(f"Reached sample size limit of {sample_size} records")
+                        break
+                    parsed_records.append(row)
+                    
+            except Exception as e:
+                logger.error(f"Failed to parse CSV data: {e}")
+                raise
+                
+        elif format_type == 'json':
+            try:
+                data = json.loads(raw_data)
+                if isinstance(data, list):
+                    parsed_records = data[:sample_size]  # Respect sample_size
+                elif isinstance(data, dict):
+                    # Handle single object or extract array from root path
+                    root_path = format_info.get('options', {}).get('root_path')
+                    if root_path:
+                        # Simple JSONPath-like extraction (basic implementation)
+                        if root_path.startswith('$.'):
+                            key = root_path[2:]
+                            data = data.get(key, data)
+                    
+                    if isinstance(data, list):
+                        parsed_records = data[:sample_size]
+                    else:
+                        parsed_records = [data]
+                        
+            except Exception as e:
+                logger.error(f"Failed to parse JSON data: {e}")
+                raise
+                
+        else:
+            raise ValueError(f"Unsupported format type: {format_type}")
+            
+        logger.info(f"Successfully parsed {len(parsed_records)} records")
+        
+        # Apply basic transformations and validation (simplified version)
+        mappings = descriptor.get('mappings', [])
+        processed_records = []
+        
+        for record_num, record in enumerate(parsed_records, start=1):
+            processed_record = {}
+            
+            for mapping in mappings:
+                source_field = mapping.get('source_field') or mapping.get('source')
+                target_field = mapping.get('target_field') or mapping.get('target')
+                
+                if source_field in record:
+                    value = record[source_field]
+                    
+                    # Apply basic transforms (simplified)
+                    transforms = mapping.get('transforms', [])
+                    for transform in transforms:
+                        transform_type = transform.get('type')
+                        
+                        if transform_type == 'trim' and isinstance(value, str):
+                            value = value.strip()
+                        elif transform_type == 'upper' and isinstance(value, str):
+                            value = value.upper()
+                        elif transform_type == 'lower' and isinstance(value, str):
+                            value = value.lower()
+                        elif transform_type == 'title_case' and isinstance(value, str):
+                            value = value.title()
+                        elif transform_type == 'to_int':
+                            try:
+                                value = int(value) if value != '' else None
+                            except (ValueError, TypeError):
+                                logger.warning(f"Failed to convert '{value}' to int in record {record_num}")
+                        elif transform_type == 'to_float':
+                            try:
+                                value = float(value) if value != '' else None
+                            except (ValueError, TypeError):
+                                logger.warning(f"Failed to convert '{value}' to float in record {record_num}")
+                    
+                    processed_record[target_field] = value
+                else:
+                    logger.warning(f"Source field '{source_field}' not found in record {record_num}")
+            
+            processed_records.append(processed_record)
+        
+        # Format output for TrustGraph ExtractedObject structure
+        output_records = []
+        schema_name = descriptor.get('output', {}).get('schema_name', 'default')
+        confidence = descriptor.get('output', {}).get('options', {}).get('confidence', 0.9)
+        
+        for record in processed_records:
+            output_record = {
+                "metadata": {
+                    "id": f"parsed-{len(output_records)+1}",
+                    "metadata": [],  # Empty metadata triples
+                    "user": "trustgraph",
+                    "collection": "default"
+                },
+                "schema_name": schema_name,
+                "values": record,
+                "confidence": confidence,
+                "source_span": ""
+            }
+            output_records.append(output_record)
+        
+        # Output results
         if output_file:
-            print(f"Would save parsed data to {output_file}")
+            try:
+                with open(output_file, 'w', encoding='utf-8') as f:
+                    json.dump(output_records, f, indent=2)
+                print(f"Parsed data saved to: {output_file}")
+                logger.info(f"Parsed {len(output_records)} records saved to {output_file}")
+            except Exception as e:
+                logger.error(f"Failed to save parsed data to {output_file}: {e}")
+                print(f"Error saving parsed data: {e}")
+        else:
+            print("Parsed Data Preview:")
+            print("=" * 50)
+            # Show first few records for preview
+            preview_count = min(3, len(output_records))
+            for i in range(preview_count):
+                print(f"Record {i+1}:")
+                print(json.dumps(output_records[i], indent=2))
+                print()
+            
+            if len(output_records) > preview_count:
+                print(f"... and {len(output_records) - preview_count} more records")
+                print(f"Total records processed: {len(output_records)}")
+        
+        print(f"\nParsing Summary:")
+        print(f"- Input format: {format_type}")
+        print(f"- Records processed: {len(output_records)}")
+        print(f"- Target schema: {schema_name}")
+        print(f"- Field mappings: {len(mappings)}")
             
     else:
         # Full pipeline: parse and import
