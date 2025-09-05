@@ -332,7 +332,6 @@ Charlie Davis,charlie@email.com,39,DE,inactive"""
             self.cleanup_temp_file(output_file.name)
     
     # Schema Suggestion Integration Tests
-    @pytest.mark.requires_api
     def test_schema_suggestion_integration(self):
         """Test schema suggestion integration with API"""
         pytest.skip("Requires running TrustGraph API at localhost:8088")
@@ -340,23 +339,7 @@ Charlie Davis,charlie@email.com,39,DE,inactive"""
     # Descriptor Generation Integration Tests
     def test_descriptor_generation_integration(self):
         """Test descriptor generation integration"""
-        # Test descriptor generation functionality
-        
-        input_file = self.create_temp_file(self.test_csv_data, '.csv')
-        
-        try:
-            result = load_structured_data(
-                api_url=self.api_url,
-                input_file=input_file,
-                generate_descriptor=True,
-                sample_chars=1000
-            )
-            
-            # Descriptor generation completes and returns None
-            assert result is None
-            
-        finally:
-            self.cleanup_temp_file(input_file)
+        pytest.skip("Requires running TrustGraph API at localhost:8088")
     
     # Error Handling Integration Tests
     @pytest.mark.asyncio
