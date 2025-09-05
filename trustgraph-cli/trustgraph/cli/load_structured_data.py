@@ -144,11 +144,95 @@ def load_structured_data(
         logger.info(f"Sample chars: {sample_chars} characters")
         if schema_name:
             logger.info(f"Target schema: {schema_name}")
-        # TODO: Implement descriptor generation
-        print(f"Would generate descriptor from {input_file}")
-        print(f"Using sample of {sample_size} records, max {sample_chars} characters")
-        if output_file:
-            print(f"Would save descriptor to {output_file}")
+        
+        # Read sample data from input file
+        try:
+            with open(input_file, 'r', encoding='utf-8') as f:
+                # Read up to sample_chars characters
+                sample_data = f.read(sample_chars)
+                if len(sample_data) < sample_chars:
+                    logger.info(f"Read entire file ({len(sample_data)} characters)")
+                else:
+                    logger.info(f"Read sample ({sample_chars} characters)")
+        except Exception as e:
+            logger.error(f"Failed to read input file: {e}")
+            raise
+        
+        # Fetch available schemas from Config API (same as suggest-schema mode)
+        try:
+            from trustgraph.api import Api
+            from trustgraph.api.types import ConfigKey
+            
+            api = Api(api_url)
+            config_api = api.config()
+            
+            # Get list of available schema keys
+            logger.info("Fetching available schemas from Config API...")
+            schema_keys = config_api.list("schema")
+            logger.info(f"Found {len(schema_keys)} schemas: {schema_keys}")
+            
+            if not schema_keys:
+                logger.warning("No schemas found in configuration")
+                print("No schemas available in TrustGraph configuration")
+                return
+            
+            # Fetch each schema definition
+            schemas = []
+            config_keys = [ConfigKey(type="schema", key=key) for key in schema_keys]
+            schema_values = config_api.get(config_keys)
+            
+            for value in schema_values:
+                try:
+                    # Schema values are JSON strings, parse them
+                    schema_def = json.loads(value.value) if isinstance(value.value, str) else value.value
+                    schemas.append(schema_def)
+                    logger.debug(f"Loaded schema: {value.key}")
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Failed to parse schema {value.key}: {e}")
+                    continue
+            
+            logger.info(f"Successfully loaded {len(schemas)} schema definitions")
+            
+            # Use TrustGraph prompt service for descriptor generation
+            flow_api = api.flow().id("default")
+            
+            # Call diagnose-structured-data prompt with schemas and data sample
+            logger.info("Calling TrustGraph diagnose-structured-data prompt...")
+            response = flow_api.prompt(
+                id="diagnose-structured-data",
+                variables={
+                    "schemas": schemas,  # Array of actual schema definitions
+                    "sample": sample_data  # Note: using 'sample' instead of 'data'
+                }
+            )
+            
+            # Output the generated descriptor
+            if output_file:
+                try:
+                    with open(output_file, 'w', encoding='utf-8') as f:
+                        if isinstance(response, str):
+                            f.write(response)
+                        else:
+                            f.write(json.dumps(response, indent=2))
+                    print(f"Generated descriptor saved to: {output_file}")
+                    logger.info(f"Descriptor saved to {output_file}")
+                except Exception as e:
+                    logger.error(f"Failed to save descriptor to {output_file}: {e}")
+                    print(f"Error saving descriptor: {e}")
+            else:
+                print("Generated Descriptor:")
+                print("=" * 50)
+                if isinstance(response, str):
+                    print(response)
+                else:
+                    print(json.dumps(response, indent=2))
+                
+        except ImportError as e:
+            logger.error(f"Failed to import TrustGraph API: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Failed to call TrustGraph prompt service: {e}")
+            raise
             
     elif parse_only:
         if not descriptor_file:
