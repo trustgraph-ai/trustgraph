@@ -594,6 +594,7 @@ def _auto_discover_schema(api_url, input_file, sample_chars, logger):
         
         # Import API modules
         from trustgraph.api import Api
+        from trustgraph.api.types import ConfigKey
         api = Api(api_url)
         config_api = api.config()
         
@@ -607,8 +608,11 @@ def _auto_discover_schema(api_url, input_file, sample_chars, logger):
         schemas = {}
         for key in schema_keys:
             try:
-                schema_def = config_api.get("schema", key)
-                schemas[key] = schema_def
+                config_key = ConfigKey(type="schema", key=key)
+                schema_values = config_api.get([config_key])
+                if schema_values:
+                    schema_def = json.loads(schema_values[0].value) if isinstance(schema_values[0].value, str) else schema_values[0].value
+                    schemas[key] = schema_def
             except Exception as e:
                 logger.warning(f"Could not load schema {key}: {e}")
                 
@@ -618,26 +622,14 @@ def _auto_discover_schema(api_url, input_file, sample_chars, logger):
             
         # Use prompt service for schema selection
         flow_api = api.flow().id("default")
-        prompt_client = flow_api.prompt()
         
-        prompt = f"""Analyze this data sample and determine the best matching schema:
-
-DATA SAMPLE:
-{sample_data[:1000]}
-
-AVAILABLE SCHEMAS:
-{json.dumps(schemas, indent=2)}
-
-Return ONLY the schema name (key) that best matches this data. Consider:
-1. Field names and types in the data
-2. Data structure and format
-3. Domain and use case alignment
-
-Schema name:"""
-
-        response = prompt_client.schema_selection(
-            schemas=schemas,
-            sample=sample_data[:1000]
+        # Call schema-selection prompt with actual schemas and data sample
+        response = flow_api.prompt(
+            id="schema-selection",
+            variables={
+                "schemas": list(schemas.values()),  # Array of actual schema definitions
+                "data": sample_data[:1000]  # Truncate sample data
+            }
         )
         
         # Extract schema name from response
@@ -678,20 +670,28 @@ def _auto_generate_descriptor(api_url, input_file, schema_name, sample_chars, lo
         
         # Import API modules
         from trustgraph.api import Api
+        from trustgraph.api.types import ConfigKey
         api = Api(api_url)
         config_api = api.config()
         
         # Get schema definition
-        schema_def = config_api.get("schema", schema_name)
+        config_key = ConfigKey(type="schema", key=schema_name)
+        schema_values = config_api.get([config_key])
+        if not schema_values:
+            logger.error(f"Schema '{schema_name}' not found")
+            return None
+        schema_def = json.loads(schema_values[0].value) if isinstance(schema_values[0].value, str) else schema_values[0].value
         
         # Use prompt service for descriptor generation
-        flow_api = api.flow().id("default") 
-        prompt_client = flow_api.prompt()
+        flow_api = api.flow().id("default")
         
-        response = prompt_client.diagnose_structured_data(
-            sample=sample_data,
-            schema_name=schema_name,
-            schema=schema_def
+        # Call diagnose-structured-data prompt with schema and data sample
+        response = flow_api.prompt(
+            id="diagnose-structured-data",
+            variables={
+                "schemas": [schema_def],  # Array with single schema definition
+                "sample": sample_data  # Data sample for analysis
+            }
         )
         
         if isinstance(response, str):
