@@ -87,14 +87,18 @@ class TestNLPQueryProcessor:
             error=None
         )
         
-        processor.client.return_value.request = AsyncMock(return_value=mock_response)
+        # Mock flow context
+        flow = MagicMock()
+        mock_prompt_service = AsyncMock()
+        mock_prompt_service.request = AsyncMock(return_value=mock_response)
+        flow.side_effect = lambda service_name: mock_prompt_service if service_name == "prompt-request" else AsyncMock()
         
         # Act
-        result = await processor.phase1_select_schemas(question)
+        result = await processor.phase1_select_schemas(question, flow)
         
         # Assert
         assert result == expected_schemas
-        processor.client.assert_called_once_with("prompt-request")
+        mock_prompt_service.request.assert_called_once()
 
     async def test_phase1_select_schemas_prompt_error(self, processor):
         """Test schema selection with prompt service error"""
@@ -103,11 +107,15 @@ class TestNLPQueryProcessor:
         error = Error(type="prompt-error", message="Template not found")
         mock_response = PromptResponse(text="", error=error)
         
-        processor.client.return_value.request = AsyncMock(return_value=mock_response)
+        # Mock flow context
+        flow = MagicMock()
+        mock_prompt_service = AsyncMock()
+        mock_prompt_service.request = AsyncMock(return_value=mock_response)
+        flow.side_effect = lambda service_name: mock_prompt_service if service_name == "prompt-request" else AsyncMock()
         
         # Act & Assert
         with pytest.raises(Exception, match="Prompt service error"):
-            await processor.phase1_select_schemas(question)
+            await processor.phase1_select_schemas(question, flow)
 
     async def test_phase2_generate_graphql_success(self, processor):
         """Test successful GraphQL generation (Phase 2)"""
@@ -125,14 +133,18 @@ class TestNLPQueryProcessor:
             error=None
         )
         
-        processor.client.return_value.request = AsyncMock(return_value=mock_response)
+        # Mock flow context
+        flow = MagicMock()
+        mock_prompt_service = AsyncMock()
+        mock_prompt_service.request = AsyncMock(return_value=mock_response)
+        flow.side_effect = lambda service_name: mock_prompt_service if service_name == "prompt-request" else AsyncMock()
         
         # Act
-        result = await processor.phase2_generate_graphql(question, selected_schemas)
+        result = await processor.phase2_generate_graphql(question, selected_schemas, flow)
         
         # Assert
         assert result == expected_result
-        processor.client.assert_called_once_with("prompt-request")
+        mock_prompt_service.request.assert_called_once()
 
     async def test_phase2_generate_graphql_prompt_error(self, processor):
         """Test GraphQL generation with prompt service error"""
@@ -142,11 +154,15 @@ class TestNLPQueryProcessor:
         error = Error(type="prompt-error", message="Generation failed")
         mock_response = PromptResponse(text="", error=error)
         
-        processor.client.return_value.request = AsyncMock(return_value=mock_response)
+        # Mock flow context
+        flow = MagicMock()
+        mock_prompt_service = AsyncMock()
+        mock_prompt_service.request = AsyncMock(return_value=mock_response)
+        flow.side_effect = lambda service_name: mock_prompt_service if service_name == "prompt-request" else AsyncMock()
         
         # Act & Assert
         with pytest.raises(Exception, match="Prompt service error"):
-            await processor.phase2_generate_graphql(question, selected_schemas)
+            await processor.phase2_generate_graphql(question, selected_schemas, flow)
 
     async def test_on_message_full_flow_success(self, processor):
         """Test complete message processing flow"""
@@ -181,16 +197,18 @@ class TestNLPQueryProcessor:
             error=None
         )
         
-        # Set up mock to return different responses for each call
-        processor.client.return_value.request = AsyncMock(
+        # Mock flow context to return prompt service responses
+        mock_prompt_service = AsyncMock()
+        mock_prompt_service.request = AsyncMock(
             side_effect=[phase1_response, phase2_response]
         )
+        flow.side_effect = lambda service_name: mock_prompt_service if service_name == "prompt-request" else flow_response if service_name == "response" else AsyncMock()
         
         # Act
         await processor.on_message(msg, consumer, flow)
         
         # Assert
-        assert processor.client.return_value.request.call_count == 2
+        assert mock_prompt_service.request.call_count == 2
         flow_response.send.assert_called_once()
         
         # Verify response structure
