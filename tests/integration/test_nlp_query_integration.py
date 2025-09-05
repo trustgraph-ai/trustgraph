@@ -131,15 +131,18 @@ class TestNLPQueryServiceIntegration:
         )
         
         # Set up mock to return different responses for each call
-        integration_processor.client.return_value.request = AsyncMock(
+        # Mock the flow context to return prompt service responses  
+        prompt_service = AsyncMock()
+        prompt_service.request = AsyncMock(
             side_effect=[phase1_response, phase2_response]
         )
+        flow.side_effect = lambda service_name: prompt_service if service_name == "prompt-request" else flow_response if service_name == "response" else AsyncMock()
         
         # Act - Process the message
         await integration_processor.on_message(msg, consumer, flow)
         
         # Assert - Verify the complete pipeline
-        assert integration_processor.client.return_value.request.call_count == 2
+        assert prompt_service.request.call_count == 2
         flow_response.send.assert_called_once()
         
         # Verify response structure and content
@@ -188,9 +191,12 @@ class TestNLPQueryServiceIntegration:
             error=None
         )
         
-        integration_processor.client.return_value.request = AsyncMock(
+        # Mock the flow context to return prompt service responses  
+        prompt_service = AsyncMock()
+        prompt_service.request = AsyncMock(
             side_effect=[phase1_response, phase2_response]
         )
+        flow.side_effect = lambda service_name: prompt_service if service_name == "prompt-request" else flow_response if service_name == "response" else AsyncMock()
         
         # Act
         await integration_processor.on_message(msg, consumer, flow)
@@ -255,9 +261,12 @@ class TestNLPQueryServiceIntegration:
             error=None
         )
         
-        integration_processor.client.return_value.request = AsyncMock(
+        # Mock the flow context to return prompt service responses  
+        prompt_service = AsyncMock()
+        prompt_service.request = AsyncMock(
             side_effect=[phase1_response, phase2_response]
         )
+        flow.side_effect = lambda service_name: prompt_service if service_name == "prompt-request" else flow_response if service_name == "response" else AsyncMock()
         
         # Act
         await integration_processor.on_message(msg, consumer, flow)
@@ -293,9 +302,12 @@ class TestNLPQueryServiceIntegration:
             error=Error(type="template-not-found", message="Schema selection template not available")
         )
         
-        integration_processor.client.return_value.request = AsyncMock(
+        # Mock the flow context to return prompt service error response  
+        prompt_service = AsyncMock()
+        prompt_service.request = AsyncMock(
             return_value=phase1_error_response
         )
+        flow.side_effect = lambda service_name: prompt_service if service_name == "prompt-request" else flow_response if service_name == "response" else AsyncMock()
         
         # Act
         await integration_processor.on_message(msg, consumer, flow)
@@ -410,9 +422,12 @@ class TestNLPQueryServiceIntegration:
             error=None
         )
         
-        integration_processor.client.return_value.request = AsyncMock(
+        # Mock the flow context to return prompt service responses  
+        prompt_service = AsyncMock()
+        prompt_service.request = AsyncMock(
             side_effect=[phase1_response, phase2_response]
         )
+        flow.side_effect = lambda service_name: prompt_service if service_name == "prompt-request" else flow_response if service_name == "response" else AsyncMock()
         
         # Act
         await integration_processor.on_message(msg, consumer, flow)
@@ -469,9 +484,12 @@ class TestNLPQueryServiceIntegration:
                     error=None
                 ))
         
-        integration_processor.client.return_value.request = AsyncMock(
+        # Mock the flow context to return prompt service responses  
+        prompt_service = AsyncMock()
+        prompt_service.request = AsyncMock(
             side_effect=mock_responses
         )
+        flow.side_effect = lambda service_name: prompt_service if service_name == "prompt-request" else flow_response if service_name == "response" else AsyncMock()
         
         # Act - Process all messages concurrently
         import asyncio
@@ -485,7 +503,7 @@ class TestNLPQueryServiceIntegration:
         await asyncio.gather(*tasks)
         
         # Assert - All requests should be processed
-        assert integration_processor.client.return_value.request.call_count == 10
+        assert prompt_service.request.call_count == 10
         for flow in flows:
             flow.return_value.send.assert_called_once()
 
@@ -518,9 +536,12 @@ class TestNLPQueryServiceIntegration:
             error=None
         )
         
-        integration_processor.client.return_value.request = AsyncMock(
+        # Mock the flow context to return prompt service responses  
+        prompt_service = AsyncMock()
+        prompt_service.request = AsyncMock(
             side_effect=[phase1_response, phase2_response]
         )
+        flow.side_effect = lambda service_name: prompt_service if service_name == "prompt-request" else flow_response if service_name == "response" else AsyncMock()
         
         # Act
         import time

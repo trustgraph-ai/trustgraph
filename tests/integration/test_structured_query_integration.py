@@ -93,9 +93,17 @@ class TestStructuredQueryServiceIntegration:
         mock_objects_client = AsyncMock()
         mock_objects_client.request.return_value = objects_response
         
-        integration_processor.client.side_effect = lambda name: (
-            mock_nlp_client if name == "nlp-query-request" else mock_objects_client
-        )
+        # Mock flow context to route to appropriate services
+        def flow_router(service_name):
+            if service_name == "nlp-query-request":
+                return mock_nlp_client
+            elif service_name == "objects-query-request": 
+                return mock_objects_client
+            elif service_name == "response":
+                return flow_response
+            else:
+                return AsyncMock()
+        flow.side_effect = flow_router
         
         # Act - Process the message
         await integration_processor.on_message(msg, consumer, flow)
@@ -116,7 +124,7 @@ class TestStructuredQueryServiceIntegration:
         assert "orders" in objects_call_args.query
         assert objects_call_args.variables["minAmount"] == "500.0"  # Converted to string
         assert objects_call_args.variables["state"] == "California"
-        assert objects_call_args.user == "default"
+        assert objects_call_args.user == "trustgraph"
         assert objects_call_args.collection == "default"
         
         # Verify response
@@ -159,7 +167,15 @@ class TestStructuredQueryServiceIntegration:
         mock_nlp_client = AsyncMock()
         mock_nlp_client.request.return_value = nlp_error_response
         
-        integration_processor.client.return_value = mock_nlp_client
+        # Mock flow context to route to nlp service
+        def flow_router(service_name):
+            if service_name == "nlp-query-request":
+                return mock_nlp_client
+            elif service_name == "response":
+                return flow_response
+            else:
+                return AsyncMock()
+        flow.side_effect = flow_router
         
         # Act
         await integration_processor.on_message(msg, consumer, flow)
@@ -215,9 +231,17 @@ class TestStructuredQueryServiceIntegration:
         mock_objects_client = AsyncMock()
         mock_objects_client.request.return_value = objects_error_response
         
-        integration_processor.client.side_effect = lambda name: (
-            mock_nlp_client if name == "nlp-query-request" else mock_objects_client
-        )
+        # Mock flow context to route to appropriate services
+        def flow_router(service_name):
+            if service_name == "nlp-query-request":
+                return mock_nlp_client
+            elif service_name == "objects-query-request": 
+                return mock_objects_client
+            elif service_name == "response":
+                return flow_response
+            else:
+                return AsyncMock()
+        flow.side_effect = flow_router
         
         # Act
         await integration_processor.on_message(msg, consumer, flow)
@@ -285,9 +309,17 @@ class TestStructuredQueryServiceIntegration:
         mock_objects_client = AsyncMock()
         mock_objects_client.request.return_value = objects_response
         
-        integration_processor.client.side_effect = lambda name: (
-            mock_nlp_client if name == "nlp-query-request" else mock_objects_client
-        )
+        # Mock flow context to route to appropriate services
+        def flow_router(service_name):
+            if service_name == "nlp-query-request":
+                return mock_nlp_client
+            elif service_name == "objects-query-request": 
+                return mock_objects_client
+            elif service_name == "response":
+                return flow_response
+            else:
+                return AsyncMock()
+        flow.side_effect = flow_router
         
         # Act
         await integration_processor.on_message(msg, consumer, flow)
@@ -405,9 +437,17 @@ class TestStructuredQueryServiceIntegration:
         mock_objects_client = AsyncMock()
         mock_objects_client.request.return_value = objects_response
         
-        integration_processor.client.side_effect = lambda name: (
-            mock_nlp_client if name == "nlp-query-request" else mock_objects_client
-        )
+        # Mock flow context to route to appropriate services
+        def flow_router(service_name):
+            if service_name == "nlp-query-request":
+                return mock_nlp_client
+            elif service_name == "objects-query-request": 
+                return mock_objects_client
+            elif service_name == "response":
+                return flow_response
+            else:
+                return AsyncMock()
+        flow.side_effect = flow_router
         
         # Act
         await integration_processor.on_message(msg, consumer, flow)
@@ -474,9 +514,17 @@ class TestStructuredQueryServiceIntegration:
         mock_objects_client = AsyncMock()
         mock_objects_client.request.return_value = objects_response
         
-        integration_processor.client.side_effect = lambda name: (
-            mock_nlp_client if name == "nlp-query-request" else mock_objects_client
-        )
+        # Mock flow context to route to appropriate services
+        def flow_router(service_name):
+            if service_name == "nlp-query-request":
+                return mock_nlp_client
+            elif service_name == "objects-query-request": 
+                return mock_objects_client
+            elif service_name == "response":
+                return flow_response
+            else:
+                return AsyncMock()
+        flow.side_effect = flow_router
         
         # Act
         await integration_processor.on_message(msg, consumer, flow)
@@ -580,7 +628,15 @@ class TestStructuredQueryServiceIntegration:
         mock_nlp_client = AsyncMock()
         mock_nlp_client.request.side_effect = Exception("Service timeout: Request took longer than 30s")
         
-        integration_processor.client.return_value = mock_nlp_client
+        # Mock flow context to route to nlp service
+        def flow_router(service_name):
+            if service_name == "nlp-query-request":
+                return mock_nlp_client
+            elif service_name == "response":
+                return flow_response
+            else:
+                return AsyncMock()
+        flow.side_effect = flow_router
         
         # Act
         await integration_processor.on_message(msg, consumer, flow)
@@ -638,9 +694,17 @@ class TestStructuredQueryServiceIntegration:
         mock_objects_client = AsyncMock()
         mock_objects_client.request.return_value = objects_response
         
-        integration_processor.client.side_effect = lambda name: (
-            mock_nlp_client if name == "nlp-query-request" else mock_objects_client
-        )
+        # Mock flow context to route to appropriate services
+        def flow_router(service_name):
+            if service_name == "nlp-query-request":
+                return mock_nlp_client
+            elif service_name == "objects-query-request": 
+                return mock_objects_client
+            elif service_name == "response":
+                return flow_response
+            else:
+                return AsyncMock()
+        flow.side_effect = flow_router
         
         # Act
         await integration_processor.on_message(msg, consumer, flow)
