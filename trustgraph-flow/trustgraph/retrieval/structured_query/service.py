@@ -87,7 +87,7 @@ class Processor(FlowProcessor):
                 max_results=100  # Default limit
             )
             
-            nlp_response = await self.client("nlp-query-request").request(nlp_request)
+            nlp_response = await flow("nlp-query-request").request(nlp_request)
             
             if nlp_response.error is not None:
                 raise Exception(f"NLP query service error: {nlp_response.error.message}")
@@ -111,17 +111,17 @@ class Processor(FlowProcessor):
                     else:
                         variables_as_strings[key] = str(value)
             
-            # For now, we'll use default user/collection values
-            # In a real implementation, these would come from authentication/context
+            # Use standard TrustGraph user/collection values
+            # These should eventually come from authentication/context
             objects_request = ObjectsQueryRequest(
-                user="default",  # TODO: Get from authentication context
-                collection="default",  # TODO: Get from request context
+                user="trustgraph",  # Standard TrustGraph user
+                collection="default",  # Standard default collection
                 query=nlp_response.graphql_query,
                 variables=variables_as_strings,
                 operation_name=None
             )
             
-            objects_response = await self.client("objects-query-request").request(objects_request)
+            objects_response = await flow("objects-query-request").request(objects_request)
             
             if objects_response.error is not None:
                 raise Exception(f"Objects query service error: {objects_response.error.message}")
