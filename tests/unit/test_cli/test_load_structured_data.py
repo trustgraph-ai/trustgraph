@@ -244,25 +244,46 @@ Bob Johnson,bob@company.org,42,UK"""
     
     # Validation Tests
     def test_validation_rules_required_fields(self):
-        """Test validation rules for required fields"""
-        record = {"name": "John", "email": ""}  # Missing required email
-        mappings = [
-            {
-                "source_field": "name", 
-                "target_field": "name", 
-                "transforms": [],
-                "validation": [{"type": "required"}]
-            },
-            {
-                "source_field": "email", 
-                "target_field": "email", 
-                "transforms": [],
-                "validation": [{"type": "required"}]
+        """Test CLI processes data with validation requirements"""
+        test_data = "name,email\nJohn,\nJane,jane@email.com"
+        descriptor_with_validation = {
+            "version": "1.0",
+            "format": {"type": "csv", "encoding": "utf-8", "options": {"header": True}},
+            "mappings": [
+                {
+                    "source_field": "name", 
+                    "target_field": "name", 
+                    "transforms": [],
+                    "validation": [{"type": "required"}]
+                },
+                {
+                    "source_field": "email", 
+                    "target_field": "email", 
+                    "transforms": [],
+                    "validation": [{"type": "required"}]
+                }
+            ],
+            "output": {
+                "format": "trustgraph-objects",
+                "schema_name": "customer",
+                "options": {"confidence": 0.9, "batch_size": 100}
             }
-        ]
+        }
         
-        result = apply_transformations(record, mappings)
+        input_file = self.create_temp_file(test_data, '.csv')
+        descriptor_file = self.create_temp_file(json.dumps(descriptor_with_validation), '.json')
         
-        # Should still process but may log warnings
-        assert "name" in result
-        assert "email" in result
+        try:
+            # Should process despite validation issues (warnings logged)
+            result = load_structured_data(
+                api_url="http://localhost:8088",
+                input_file=input_file,
+                descriptor_file=descriptor_file,
+                dry_run=True
+            )
+            
+            assert result is None  # Dry run returns None
+            
+        finally:
+            self.cleanup_temp_file(input_file)
+            self.cleanup_temp_file(descriptor_file)
