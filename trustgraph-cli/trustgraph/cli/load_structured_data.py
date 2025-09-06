@@ -564,59 +564,69 @@ def _process_data_pipeline(input_file, descriptor_file, user, collection, sample
 
 
 def _send_to_trustgraph(objects, api_url, flow, batch_size=1000):
-    """Send ExtractedObject records to TrustGraph"""
-    from trustgraph.api import Api
+    """Send ExtractedObject records to TrustGraph using WebSocket"""
+    import json
+    import asyncio
+    from websockets.asyncio.client import connect
     
     try:
-        # Initialize TrustGraph API
-        api = Api(api_url)
-        flow_api = api.flow().id(flow)
+        # Construct objects import URL similar to load_knowledge pattern
+        if not api_url.endswith("/"):
+            api_url += "/"
         
-        # Process records in batches
-        total_records = len(objects)
-        logger.info(f"Importing {total_records} records to TrustGraph in batches of {batch_size}")
+        # Convert HTTP URL to WebSocket URL if needed
+        ws_url = api_url.replace("http://", "ws://").replace("https://", "wss://")
+        objects_url = ws_url + f"api/v1/flow/{flow}/import/objects"
         
-        imported_count = 0
-        error_count = 0
+        logger.info(f"Connecting to objects import endpoint: {objects_url}")
         
-        for i in range(0, total_records, batch_size):
-            batch = objects[i:i + batch_size]
-            batch_num = (i // batch_size) + 1
-            
-            logger.info(f"Processing batch {batch_num}: records {i+1}-{min(i+batch_size, total_records)}")
-            
-            try:
-                # Send batch to objects import dispatcher
-                response = flow_api.call(
-                    service="objects-import",
-                    input_data=batch
-                )
+        async def import_objects():
+            async with connect(objects_url) as ws:
+                imported_count = 0
                 
-                imported_count += len(batch)
-                logger.info(f"Batch {batch_num} imported successfully ({len(batch)} records)")
-                print(f"✅ Batch {batch_num}/{(total_records + batch_size - 1) // batch_size} imported ({len(batch)} records)")
+                for record in objects:
+                    try:
+                        # Send individual ExtractedObject records
+                        await ws.send(json.dumps(record))
+                        imported_count += 1
+                        
+                        if imported_count % 100 == 0:
+                            logger.info(f"Imported {imported_count}/{len(objects)} records...")
+                            print(f"✅ Imported {imported_count}/{len(objects)} records...")
+                            
+                    except Exception as e:
+                        logger.error(f"Failed to send record {imported_count + 1}: {e}")
+                        print(f"❌ Failed to send record {imported_count + 1}: {e}")
                 
-            except Exception as e:
-                error_count += len(batch)
-                logger.error(f"Failed to import batch {batch_num}: {e}")
-                print(f"❌ Batch {batch_num} failed: {e}")
-                
+                logger.info(f"Successfully imported {imported_count} records to TrustGraph")
+                return imported_count
+        
+        # Run the async import
+        imported_count = asyncio.run(import_objects())
+        
         # Summary
-        logger.info(f"Import complete: {imported_count} imported, {error_count} failed")
+        total_records = len(objects)
+        failed_count = total_records - imported_count
+        
         print(f"\n📊 Import Summary:")
         print(f"- Total records: {total_records}")
         print(f"- Successfully imported: {imported_count}")
-        print(f"- Failed: {error_count}")
+        print(f"- Failed: {failed_count}")
         
-        if error_count > 0:
-            print(f"⚠️  {error_count} records failed to import. Check logs for details.")
+        if failed_count > 0:
+            print(f"⚠️  {failed_count} records failed to import. Check logs for details.")
         else:
             print("✅ All records imported successfully!")
             
         return imported_count
         
+    except ImportError as e:
+        logger.error(f"Failed to import required modules: {e}")
+        print(f"Error: Required modules not available - {e}")
+        raise
     except Exception as e:
-        logger.error(f"TrustGraph import failed: {e}")
+        logger.error(f"Failed to import data to TrustGraph: {e}")
+        print(f"Import failed: {e}")
         raise
 
 
