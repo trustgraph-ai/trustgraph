@@ -27,13 +27,13 @@ class Processor(FlowProcessor):
 
         id = params.get("id")
         concurrency = params.get("concurrency", 1)
-        template_id = params.get("template-id", default_template_id)
-        config_key = params.get("config-type", default_config_type)
+        template_id = params.get("template_id", default_template_id)
+        config_key = params.get("config_type", default_config_type)
 
         super().__init__(**params | {
             "id": id,
-            "template-id": template_id,
-            "config-type": config_key,
+            "template_id": template_id,
+            "config_type": config_key,
             "concurrency": concurrency,
         })
 

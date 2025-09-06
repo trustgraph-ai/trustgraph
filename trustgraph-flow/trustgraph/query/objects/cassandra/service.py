@@ -91,7 +91,7 @@ class Processor(FlowProcessor):
         super(Processor, self).__init__(
             **params | {
                 "id": id,
-                "config-type": self.config_key,
+                "config_type": self.config_key,
             }
         )
         
