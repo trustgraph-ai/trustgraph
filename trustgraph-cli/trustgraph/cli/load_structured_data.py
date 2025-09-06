@@ -31,6 +31,7 @@ def load_structured_data(
     discover_schema: bool = False,
     generate_descriptor: bool = False,
     parse_only: bool = False,
+    load: bool = False,
     auto: bool = False,
     output_file: str = None,
     sample_size: int = 100,
@@ -52,6 +53,7 @@ def load_structured_data(
         discover_schema: Analyze data and discover matching schemas
         generate_descriptor: Generate descriptor from data sample
         parse_only: Parse data but don't import to TrustGraph
+        load: Load data to TrustGraph using existing descriptor
         auto: Run full automatic pipeline (discover schema + generate descriptor + import)
         output_file: Path to write output (descriptor/parsed data)
         sample_size: Number of records to sample for analysis
@@ -229,233 +231,8 @@ def load_structured_data(
             raise ValueError("--descriptor is required when using --parse-only")
         logger.info(f"Parsing {input_file} with descriptor {descriptor_file}...")
         
-        # Load descriptor configuration
-        try:
-            with open(descriptor_file, 'r', encoding='utf-8') as f:
-                descriptor = json.load(f)
-            logger.info(f"Loaded descriptor configuration from {descriptor_file}")
-        except Exception as e:
-            logger.error(f"Failed to load descriptor file: {e}")
-            raise
-            
-        # Read input data based on format in descriptor
-        try:
-            format_info = descriptor.get('format', {})
-            format_type = format_info.get('type', 'csv').lower()
-            encoding = format_info.get('encoding', 'utf-8')
-            
-            logger.info(f"Input format: {format_type}, encoding: {encoding}")
-            
-            with open(input_file, 'r', encoding=encoding) as f:
-                raw_data = f.read()
-            
-            logger.info(f"Read {len(raw_data)} characters from input file")
-            
-        except Exception as e:
-            logger.error(f"Failed to read input file: {e}")
-            raise
-            
-        # Parse data based on format type
-        parsed_records = []
-        
-        if format_type == 'csv':
-            import csv
-            from io import StringIO
-            
-            options = format_info.get('options', {})
-            delimiter = options.get('delimiter', ',')
-            has_header = options.get('has_header', True) or options.get('header', True)
-            
-            logger.info(f"CSV options - delimiter: '{delimiter}', has_header: {has_header}")
-            
-            try:
-                reader = csv.DictReader(StringIO(raw_data), delimiter=delimiter)
-                if not has_header:
-                    # If no header, create field names from first row or use generic names
-                    first_row = next(reader)
-                    fieldnames = [f"field_{i+1}" for i in range(len(first_row))]
-                    reader = csv.DictReader(StringIO(raw_data), fieldnames=fieldnames, delimiter=delimiter)
-                
-                for row_num, row in enumerate(reader, start=1):
-                    # Respect sample_size limit
-                    if row_num > sample_size:
-                        logger.info(f"Reached sample size limit of {sample_size} records")
-                        break
-                    parsed_records.append(row)
-                    
-            except Exception as e:
-                logger.error(f"Failed to parse CSV data: {e}")
-                raise
-                
-        elif format_type == 'json':
-            try:
-                data = json.loads(raw_data)
-                if isinstance(data, list):
-                    parsed_records = data[:sample_size]  # Respect sample_size
-                elif isinstance(data, dict):
-                    # Handle single object or extract array from root path
-                    root_path = format_info.get('options', {}).get('root_path')
-                    if root_path:
-                        # Simple JSONPath-like extraction (basic implementation)
-                        if root_path.startswith('$.'):
-                            key = root_path[2:]
-                            data = data.get(key, data)
-                    
-                    if isinstance(data, list):
-                        parsed_records = data[:sample_size]
-                    else:
-                        parsed_records = [data]
-                        
-            except Exception as e:
-                logger.error(f"Failed to parse JSON data: {e}")
-                raise
-                
-        elif format_type == 'xml':
-            import xml.etree.ElementTree as ET
-            
-            options = format_info.get('options', {})
-            record_path = options.get('record_path', '//record')  # XPath to find record elements
-            field_attribute = options.get('field_attribute')  # Attribute name for field names (e.g., "name")
-            
-            # Legacy support for old options format
-            if 'root_element' in options or 'record_element' in options:
-                root_element = options.get('root_element')
-                record_element = options.get('record_element', 'record')
-                if root_element:
-                    record_path = f"//{root_element}/{record_element}"
-                else:
-                    record_path = f"//{record_element}"
-                    
-            logger.info(f"XML options - record_path: '{record_path}', field_attribute: '{field_attribute}'")
-            
-            try:
-                root = ET.fromstring(raw_data)
-                
-                # Find record elements using XPath
-                # ElementTree XPath support is limited, convert absolute paths to relative
-                xpath_expr = record_path
-                if xpath_expr.startswith('/ROOT/'):
-                    # Remove /ROOT/ prefix since we're already at the root
-                    xpath_expr = xpath_expr[6:]
-                elif xpath_expr.startswith('/'):
-                    # Convert absolute path to relative by removing leading /
-                    xpath_expr = '.' + xpath_expr
-                
-                records = root.findall(xpath_expr)
-                logger.info(f"Found {len(records)} records using XPath: {record_path} (converted to: {xpath_expr})")
-                
-                # Convert XML elements to dictionaries
-                record_count = 0
-                for element in records:
-                    if record_count >= sample_size:
-                        logger.info(f"Reached sample size limit of {sample_size} records")
-                        break
-                    
-                    record = {}
-                    
-                    if field_attribute:
-                        # Handle field elements with name attributes (UN data format)
-                        # <field name="Country or Area">Albania</field>
-                        for child in element:
-                            if child.tag == 'field' and field_attribute in child.attrib:
-                                field_name = child.attrib[field_attribute]
-                                field_value = child.text.strip() if child.text else ""
-                                record[field_name] = field_value
-                    else:
-                        # Handle standard XML structure
-                        # Convert element attributes to fields
-                        record.update(element.attrib)
-                        
-                        # Convert child elements to fields
-                        for child in element:
-                            if child.text:
-                                record[child.tag] = child.text.strip()
-                            else:
-                                record[child.tag] = ""
-                        
-                        # If no children or attributes, use element text as single field
-                        if not record and element.text:
-                            record['value'] = element.text.strip()
-                    
-                    parsed_records.append(record)
-                    record_count += 1
-                    
-            except ET.ParseError as e:
-                logger.error(f"Failed to parse XML data: {e}")
-                raise
-            except Exception as e:
-                logger.error(f"Failed to process XML data: {e}")
-                raise
-                
-        else:
-            raise ValueError(f"Unsupported format type: {format_type}")
-            
-        logger.info(f"Successfully parsed {len(parsed_records)} records")
-        
-        # Apply basic transformations and validation (simplified version)
-        mappings = descriptor.get('mappings', [])
-        processed_records = []
-        
-        for record_num, record in enumerate(parsed_records, start=1):
-            processed_record = {}
-            
-            for mapping in mappings:
-                source_field = mapping.get('source_field') or mapping.get('source')
-                target_field = mapping.get('target_field') or mapping.get('target')
-                
-                if source_field in record:
-                    value = record[source_field]
-                    
-                    # Apply basic transforms (simplified)
-                    transforms = mapping.get('transforms', [])
-                    for transform in transforms:
-                        transform_type = transform.get('type')
-                        
-                        if transform_type == 'trim' and isinstance(value, str):
-                            value = value.strip()
-                        elif transform_type == 'upper' and isinstance(value, str):
-                            value = value.upper()
-                        elif transform_type == 'lower' and isinstance(value, str):
-                            value = value.lower()
-                        elif transform_type == 'title_case' and isinstance(value, str):
-                            value = value.title()
-                        elif transform_type == 'to_int':
-                            try:
-                                value = int(value) if value != '' else None
-                            except (ValueError, TypeError):
-                                logger.warning(f"Failed to convert '{value}' to int in record {record_num}")
-                        elif transform_type == 'to_float':
-                            try:
-                                value = float(value) if value != '' else None
-                            except (ValueError, TypeError):
-                                logger.warning(f"Failed to convert '{value}' to float in record {record_num}")
-                    
-                    # Convert all values to strings as required by ExtractedObject schema
-                    processed_record[target_field] = str(value) if value is not None else ""
-                else:
-                    logger.warning(f"Source field '{source_field}' not found in record {record_num}")
-            
-            processed_records.append(processed_record)
-        
-        # Format output for TrustGraph ExtractedObject structure
-        output_records = []
-        schema_name = descriptor.get('output', {}).get('schema_name', 'default')
-        confidence = descriptor.get('output', {}).get('options', {}).get('confidence', 0.9)
-        
-        for record in processed_records:
-            output_record = {
-                "metadata": {
-                    "id": f"parsed-{len(output_records)+1}",
-                    "metadata": [],  # Empty metadata triples
-                    "user": user,
-                    "collection": collection
-                },
-                "schema_name": schema_name,
-                "values": record,
-                "confidence": confidence,
-                "source_span": ""
-            }
-            output_records.append(output_record)
+        # Use shared pipeline
+        output_records, descriptor = _process_data_pipeline(input_file, descriptor_file, user, collection, sample_size)
         
         # Output results
         if output_file:
@@ -481,11 +258,366 @@ def load_structured_data(
                 print(f"... and {len(output_records) - preview_count} more records")
                 print(f"Total records processed: {len(output_records)}")
         
+        # Get summary info from descriptor
+        format_info = descriptor.get('format', {})
+        format_type = format_info.get('type', 'csv').lower()
+        schema_name = descriptor.get('output', {}).get('schema_name', 'default')
+        mappings = descriptor.get('mappings', [])
+        
         print(f"\nParsing Summary:")
         print(f"- Input format: {format_type}")
         print(f"- Records processed: {len(output_records)}")
         print(f"- Target schema: {schema_name}")
         print(f"- Field mappings: {len(mappings)}")
+        
+    elif load:
+        if not descriptor_file:
+            raise ValueError("--descriptor is required when using --load")
+        logger.info(f"Loading {input_file} to TrustGraph using descriptor {descriptor_file}...")
+        
+        # Use shared pipeline (no sample_size limit for full load)
+        output_records, descriptor = _process_data_pipeline(input_file, descriptor_file, user, collection)
+        
+        # Get batch size from descriptor or use default
+        batch_size = descriptor.get('output', {}).get('options', {}).get('batch_size', 1000)
+        
+        # Send to TrustGraph
+        print(f"🚀 Importing {len(output_records)} records to TrustGraph...")
+        imported_count = _send_to_trustgraph(output_records, api_url, flow, batch_size)
+        
+        # Get summary info from descriptor
+        format_info = descriptor.get('format', {})
+        format_type = format_info.get('type', 'csv').lower()
+        schema_name = descriptor.get('output', {}).get('schema_name', 'default')
+        
+        print(f"\n🎉 Load Complete!")
+        print(f"- Input format: {format_type}")
+        print(f"- Target schema: {schema_name}")
+        print(f"- Records imported: {imported_count}")
+        print(f"- Flow used: {flow}")
+
+
+# Shared core functions
+def _load_descriptor(descriptor_file):
+    """Load and validate descriptor configuration"""
+    try:
+        with open(descriptor_file, 'r', encoding='utf-8') as f:
+            descriptor = json.load(f)
+        logger.info(f"Loaded descriptor configuration from {descriptor_file}")
+        return descriptor
+    except Exception as e:
+        logger.error(f"Failed to load descriptor file: {e}")
+        raise
+
+
+def _read_input_data(input_file, format_info):
+    """Read raw data based on format type"""
+    try:
+        encoding = format_info.get('encoding', 'utf-8')
+        
+        with open(input_file, 'r', encoding=encoding) as f:
+            raw_data = f.read()
+        
+        logger.info(f"Read {len(raw_data)} characters from input file")
+        return raw_data
+        
+    except Exception as e:
+        logger.error(f"Failed to read input file: {e}")
+        raise
+
+
+def _parse_data_by_format(raw_data, format_info, sample_size=None):
+    """Parse raw data into records based on format (CSV/JSON/XML)"""
+    format_type = format_info.get('type', 'csv').lower()
+    parsed_records = []
+    
+    logger.info(f"Input format: {format_type}")
+    
+    if format_type == 'csv':
+        import csv
+        from io import StringIO
+        
+        options = format_info.get('options', {})
+        delimiter = options.get('delimiter', ',')
+        has_header = options.get('has_header', True) or options.get('header', True)
+        
+        logger.info(f"CSV options - delimiter: '{delimiter}', has_header: {has_header}")
+        
+        try:
+            reader = csv.DictReader(StringIO(raw_data), delimiter=delimiter)
+            if not has_header:
+                # If no header, create field names from first row or use generic names
+                first_row = next(reader)
+                fieldnames = [f"field_{i+1}" for i in range(len(first_row))]
+                reader = csv.DictReader(StringIO(raw_data), fieldnames=fieldnames, delimiter=delimiter)
+            
+            for row_num, row in enumerate(reader, start=1):
+                # Respect sample_size limit if provided
+                if sample_size and row_num > sample_size:
+                    logger.info(f"Reached sample size limit of {sample_size} records")
+                    break
+                parsed_records.append(row)
+                
+        except Exception as e:
+            logger.error(f"Failed to parse CSV data: {e}")
+            raise
+            
+    elif format_type == 'json':
+        try:
+            data = json.loads(raw_data)
+            if isinstance(data, list):
+                parsed_records = data[:sample_size] if sample_size else data
+            elif isinstance(data, dict):
+                # Handle single object or extract array from root path
+                root_path = format_info.get('options', {}).get('root_path')
+                if root_path:
+                    # Simple JSONPath-like extraction (basic implementation)
+                    if root_path.startswith('$.'):
+                        key = root_path[2:]
+                        data = data.get(key, data)
+                
+                if isinstance(data, list):
+                    parsed_records = data[:sample_size] if sample_size else data
+                else:
+                    parsed_records = [data]
+                    
+        except Exception as e:
+            logger.error(f"Failed to parse JSON data: {e}")
+            raise
+            
+    elif format_type == 'xml':
+        import xml.etree.ElementTree as ET
+        
+        options = format_info.get('options', {})
+        record_path = options.get('record_path', '//record')  # XPath to find record elements
+        field_attribute = options.get('field_attribute')  # Attribute name for field names (e.g., "name")
+        
+        # Legacy support for old options format
+        if 'root_element' in options or 'record_element' in options:
+            root_element = options.get('root_element')
+            record_element = options.get('record_element', 'record')
+            if root_element:
+                record_path = f"//{root_element}/{record_element}"
+            else:
+                record_path = f"//{record_element}"
+                
+        logger.info(f"XML options - record_path: '{record_path}', field_attribute: '{field_attribute}'")
+        
+        try:
+            root = ET.fromstring(raw_data)
+            
+            # Find record elements using XPath
+            # ElementTree XPath support is limited, convert absolute paths to relative
+            xpath_expr = record_path
+            if xpath_expr.startswith('/ROOT/'):
+                # Remove /ROOT/ prefix since we're already at the root
+                xpath_expr = xpath_expr[6:]
+            elif xpath_expr.startswith('/'):
+                # Convert absolute path to relative by removing leading /
+                xpath_expr = '.' + xpath_expr
+            
+            records = root.findall(xpath_expr)
+            logger.info(f"Found {len(records)} records using XPath: {record_path} (converted to: {xpath_expr})")
+            
+            # Convert XML elements to dictionaries
+            record_count = 0
+            for element in records:
+                if sample_size and record_count >= sample_size:
+                    logger.info(f"Reached sample size limit of {sample_size} records")
+                    break
+                
+                record = {}
+                
+                if field_attribute:
+                    # Handle field elements with name attributes (UN data format)
+                    # <field name="Country or Area">Albania</field>
+                    for child in element:
+                        if child.tag == 'field' and field_attribute in child.attrib:
+                            field_name = child.attrib[field_attribute]
+                            field_value = child.text.strip() if child.text else ""
+                            record[field_name] = field_value
+                else:
+                    # Handle standard XML structure
+                    # Convert element attributes to fields
+                    record.update(element.attrib)
+                    
+                    # Convert child elements to fields
+                    for child in element:
+                        if child.text:
+                            record[child.tag] = child.text.strip()
+                        else:
+                            record[child.tag] = ""
+                    
+                    # If no children or attributes, use element text as single field
+                    if not record and element.text:
+                        record['value'] = element.text.strip()
+                
+                parsed_records.append(record)
+                record_count += 1
+                
+        except ET.ParseError as e:
+            logger.error(f"Failed to parse XML data: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Failed to process XML data: {e}")
+            raise
+            
+    else:
+        raise ValueError(f"Unsupported format type: {format_type}")
+        
+    logger.info(f"Successfully parsed {len(parsed_records)} records")
+    return parsed_records
+
+
+def _apply_transformations(records, mappings):
+    """Apply descriptor mappings and transformations"""
+    processed_records = []
+    
+    for record_num, record in enumerate(records, start=1):
+        processed_record = {}
+        
+        for mapping in mappings:
+            source_field = mapping.get('source_field') or mapping.get('source')
+            target_field = mapping.get('target_field') or mapping.get('target')
+            
+            if source_field in record:
+                value = record[source_field]
+                
+                # Apply basic transforms (simplified)
+                transforms = mapping.get('transforms', [])
+                for transform in transforms:
+                    transform_type = transform.get('type')
+                    
+                    if transform_type == 'trim' and isinstance(value, str):
+                        value = value.strip()
+                    elif transform_type == 'upper' and isinstance(value, str):
+                        value = value.upper()
+                    elif transform_type == 'lower' and isinstance(value, str):
+                        value = value.lower()
+                    elif transform_type == 'title_case' and isinstance(value, str):
+                        value = value.title()
+                    elif transform_type == 'to_int':
+                        try:
+                            value = int(value) if value != '' else None
+                        except (ValueError, TypeError):
+                            logger.warning(f"Failed to convert '{value}' to int in record {record_num}")
+                    elif transform_type == 'to_float':
+                        try:
+                            value = float(value) if value != '' else None
+                        except (ValueError, TypeError):
+                            logger.warning(f"Failed to convert '{value}' to float in record {record_num}")
+                
+                # Convert all values to strings as required by ExtractedObject schema
+                processed_record[target_field] = str(value) if value is not None else ""
+            else:
+                logger.warning(f"Source field '{source_field}' not found in record {record_num}")
+        
+        processed_records.append(processed_record)
+    
+    return processed_records
+
+
+def _format_extracted_objects(processed_records, descriptor, user, collection):
+    """Convert to TrustGraph ExtractedObject format"""
+    output_records = []
+    schema_name = descriptor.get('output', {}).get('schema_name', 'default')
+    confidence = descriptor.get('output', {}).get('options', {}).get('confidence', 0.9)
+    
+    for record in processed_records:
+        output_record = {
+            "metadata": {
+                "id": f"parsed-{len(output_records)+1}",
+                "metadata": [],  # Empty metadata triples
+                "user": user,
+                "collection": collection
+            },
+            "schema_name": schema_name,
+            "values": record,
+            "confidence": confidence,
+            "source_span": ""
+        }
+        output_records.append(output_record)
+    
+    return output_records
+
+
+def _process_data_pipeline(input_file, descriptor_file, user, collection, sample_size=None):
+    """Shared pipeline: load descriptor → read → parse → transform → format"""
+    # Load descriptor configuration
+    descriptor = _load_descriptor(descriptor_file)
+    
+    # Read input data based on format in descriptor
+    format_info = descriptor.get('format', {})
+    raw_data = _read_input_data(input_file, format_info)
+    
+    # Parse data based on format type
+    parsed_records = _parse_data_by_format(raw_data, format_info, sample_size)
+    
+    # Apply transformations and validation
+    mappings = descriptor.get('mappings', [])
+    processed_records = _apply_transformations(parsed_records, mappings)
+    
+    # Format output for TrustGraph ExtractedObject structure
+    output_records = _format_extracted_objects(processed_records, descriptor, user, collection)
+    
+    return output_records, descriptor
+
+
+def _send_to_trustgraph(objects, api_url, flow, batch_size=1000):
+    """Send ExtractedObject records to TrustGraph"""
+    from trustgraph.api import Api
+    
+    try:
+        # Initialize TrustGraph API
+        api = Api(api_url)
+        flow_api = api.flow().id(flow)
+        
+        # Process records in batches
+        total_records = len(objects)
+        logger.info(f"Importing {total_records} records to TrustGraph in batches of {batch_size}")
+        
+        imported_count = 0
+        error_count = 0
+        
+        for i in range(0, total_records, batch_size):
+            batch = objects[i:i + batch_size]
+            batch_num = (i // batch_size) + 1
+            
+            logger.info(f"Processing batch {batch_num}: records {i+1}-{min(i+batch_size, total_records)}")
+            
+            try:
+                # Send batch to objects import dispatcher
+                response = flow_api.call(
+                    service="objects-import",
+                    input_data=batch
+                )
+                
+                imported_count += len(batch)
+                logger.info(f"Batch {batch_num} imported successfully ({len(batch)} records)")
+                print(f"✅ Batch {batch_num}/{(total_records + batch_size - 1) // batch_size} imported ({len(batch)} records)")
+                
+            except Exception as e:
+                error_count += len(batch)
+                logger.error(f"Failed to import batch {batch_num}: {e}")
+                print(f"❌ Batch {batch_num} failed: {e}")
+                
+        # Summary
+        logger.info(f"Import complete: {imported_count} imported, {error_count} failed")
+        print(f"\n📊 Import Summary:")
+        print(f"- Total records: {total_records}")
+        print(f"- Successfully imported: {imported_count}")
+        print(f"- Failed: {error_count}")
+        
+        if error_count > 0:
+            print(f"⚠️  {error_count} records failed to import. Check logs for details.")
+        else:
+            print("✅ All records imported successfully!")
+            
+        return imported_count
+        
+    except Exception as e:
+        logger.error(f"TrustGraph import failed: {e}")
+        raise
 
 
 # Helper functions for auto mode
@@ -811,6 +943,11 @@ For more information on the descriptor format, see:
         help='Parse data using descriptor but don\'t import to TrustGraph'
     )
     mode_group.add_argument(
+        '--load',
+        action='store_true',
+        help='Load data to TrustGraph using existing descriptor'
+    )
+    mode_group.add_argument(
         '--auto',
         action='store_true',
         help='Run full automatic pipeline: discover schema + generate descriptor + import data'
@@ -882,6 +1019,10 @@ For more information on the descriptor format, see:
     if args.parse_only and not args.descriptor:
         print("Error: --descriptor is required when using --parse-only", file=sys.stderr)
         sys.exit(1)
+        
+    if args.load and not args.descriptor:
+        print("Error: --descriptor is required when using --load", file=sys.stderr)
+        sys.exit(1)
     
     # Warn about irrelevant parameters
     if args.parse_only and args.sample_chars != 500:  # 500 is the default
@@ -891,13 +1032,14 @@ For more information on the descriptor format, see:
         print("Warning: --sample-size is ignored in analysis modes, use --sample-chars instead", file=sys.stderr)
     
     # Require explicit mode selection - no implicit behavior
-    if not any([args.discover_schema, args.generate_descriptor, args.parse_only, args.auto]):
+    if not any([args.discover_schema, args.generate_descriptor, args.parse_only, args.load, args.auto]):
         print("Error: Must specify an operation mode", file=sys.stderr)
         print("Available modes:", file=sys.stderr)
         print("  --auto                 : Discover schema + generate descriptor + import", file=sys.stderr)
         print("  --discover-schema       : Analyze data and discover schemas", file=sys.stderr)
         print("  --generate-descriptor  : Generate descriptor from data", file=sys.stderr)
         print("  --parse-only          : Parse data without importing", file=sys.stderr)
+        print("  --load                : Import data using existing descriptor", file=sys.stderr)
         sys.exit(1)
     
     try:
@@ -908,6 +1050,7 @@ For more information on the descriptor format, see:
             discover_schema=args.discover_schema,
             generate_descriptor=args.generate_descriptor,
             parse_only=args.parse_only,
+            load=args.load,
             auto=args.auto,
             output_file=args.output,
             sample_size=args.sample_size,
