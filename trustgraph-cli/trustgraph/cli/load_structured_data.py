@@ -97,64 +97,72 @@ def load_structured_data(
         logger.info("✅ Generated descriptor configuration")
         print("📝 Generated descriptor configuration")
         
-        # Step 3: Parse and preview data
+        # Step 3: Parse and preview data using shared pipeline  
         logger.info("Step 3: Parsing and validating data...")
-        preview_records = _auto_parse_preview(input_file, auto_descriptor, min(sample_size, 5), logger)
-        if preview_records is None:
-            logger.error("Failed to parse data with generated descriptor")
-            print("❌ Could not parse data with generated descriptor.")
-            return None
-            
-        # Show preview
-        print("📊 Data Preview (first few records):")
-        print("=" * 50)
-        for i, record in enumerate(preview_records[:3], 1):
-            print(f"Record {i}: {record}")
-        print("=" * 50)
         
-        # Step 4: Import (unless dry_run)
-        if dry_run:
-            logger.info("✅ Dry run complete - data is ready for import")
-            print("✅ Dry run successful! Data is ready for import.")
-            print(f"💡 Run without --dry-run to import {len(preview_records)} records to TrustGraph.")
-            return None
-        else:
-            logger.info("Step 4: Importing data to TrustGraph...")
-            print("🚀 Importing data to TrustGraph...")
+        # Create temporary descriptor file for validation
+        import tempfile
+        temp_descriptor = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
+        json.dump(auto_descriptor, temp_descriptor, indent=2)
+        temp_descriptor.close()
+        
+        try:
+            # Use shared pipeline for preview (small sample)
+            preview_objects, _ = _process_data_pipeline(input_file, temp_descriptor.name, user, collection, sample_size=5)
             
-            # Recursively call ourselves with the auto-generated descriptor
-            # This reuses all the existing import logic
-            import tempfile
-            import os
+            # Show preview
+            print("📊 Data Preview (first few records):")
+            print("=" * 50)
+            for i, obj in enumerate(preview_objects[:3], 1):
+                values = obj.get('values', {})
+                print(f"Record {i}: {values}")
+            print("=" * 50)
             
-            # Save auto-generated descriptor to temp file
-            temp_descriptor = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
-            json.dump(auto_descriptor, temp_descriptor, indent=2)
-            temp_descriptor.close()
-            
-            try:
-                # Call the full pipeline mode with our auto-generated descriptor
-                result = load_structured_data(
-                    api_url=api_url,
-                    input_file=input_file,
-                    descriptor_file=temp_descriptor.name,
-                    flow=flow,
-                    user=user,
-                    collection=collection,
-                    dry_run=False,  # We already handled dry_run above
-                    verbose=verbose
-                )
+            # Step 4: Import (unless dry_run)
+            if dry_run:
+                logger.info("✅ Dry run complete - data is ready for import")
+                print("✅ Dry run successful! Data is ready for import.")
+                print(f"💡 Run without --dry-run to import data to TrustGraph.")
+                return None
+            else:
+                logger.info("Step 4: Importing data to TrustGraph...")
+                print("🚀 Importing data to TrustGraph...")
                 
-                print("✅ Auto-import completed successfully!")
+                # Use shared pipeline for full processing (no sample limit)
+                output_objects, descriptor = _process_data_pipeline(input_file, temp_descriptor.name, user, collection)
+                
+                # Get batch size from descriptor
+                batch_size = descriptor.get('output', {}).get('options', {}).get('batch_size', 1000)
+                
+                # Send to TrustGraph using shared function
+                imported_count = _send_to_trustgraph(output_objects, api_url, flow, batch_size)
+                
+                # Summary
+                format_info = descriptor.get('format', {})
+                format_type = format_info.get('type', 'csv').lower()
+                schema_name = descriptor.get('output', {}).get('schema_name', 'default')
+                
+                print(f"\n🎉 Auto-Import Complete!")
+                print(f"- Input format: {format_type}")
+                print(f"- Target schema: {schema_name}")
+                print(f"- Records imported: {imported_count}")
+                print(f"- Flow used: {flow}")
+                
                 logger.info("Auto-import pipeline completed successfully")
-                return result
+                return imported_count
                 
-            finally:
-                # Clean up temp descriptor file
-                try:
-                    os.unlink(temp_descriptor.name)
-                except:
-                    pass
+        except Exception as e:
+            logger.error(f"Auto-import failed: {e}")
+            print(f"❌ Auto-import failed: {e}")
+            return None
+            
+        finally:
+            # Clean up temp descriptor file
+            try:
+                import os
+                os.unlink(temp_descriptor.name)
+            except:
+                pass
     
     elif discover_schema:
         logger.info(f"Analyzing {input_file} to discover schemas...")
