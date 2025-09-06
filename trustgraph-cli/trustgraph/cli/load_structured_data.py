@@ -163,16 +163,22 @@ def load_structured_data(
         response = _auto_discover_schema(api_url, input_file, sample_chars, flow, logger, return_raw_response=True)
         
         if response:
+            # Debug: print response type and content 
+            logger.debug(f"Response type: {type(response)}, content: {response}")
             if isinstance(response, list) and len(response) == 1:
                 # Just print the schema name for clean output
                 print(response[0])
+            elif isinstance(response, list):
+                # Multiple schemas - show the list
+                print("Multiple schemas found:")
+                for schema in response:
+                    print(f"  - {schema}")
             else:
-                # For multiple schemas or complex responses, show full details
+                # Show full response for debugging
                 print("Schema Discovery Results:")
                 print("=" * 50)
                 print(response)
                 print("=" * 50)
-            print("\nUse --generate-descriptor with --schema-name to create a descriptor configuration.")
         else:
             print("Could not determine the best matching schema for your data.")
             print("Available schemas can be viewed using: tg-config-list schema")
