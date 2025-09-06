@@ -322,7 +322,6 @@ class Processor(FlowProcessor):
 
         parser.add_argument(
             "--template-id",
-            dest="template_id",
             type=str,
             default=default_template_id,
             help="Template ID to use for agent extraction"
@@ -330,7 +329,6 @@ class Processor(FlowProcessor):
 
         parser.add_argument(
             '--config-type',
-            dest="config_type",
             default="prompt",
             help=f'Configuration key for prompts (default: prompt)',
         )
