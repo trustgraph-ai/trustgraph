@@ -2,7 +2,7 @@
 Load structured data into TrustGraph using a descriptor configuration.
 
 This utility can:
-1. Analyze data samples to suggest appropriate schemas
+1. Analyze data samples to discover appropriate schemas
 2. Generate descriptor configurations from data samples
 3. Parse and transform data using descriptor configurations
 4. Import processed data into TrustGraph
@@ -28,7 +28,7 @@ def load_structured_data(
     api_url: str,
     input_file: str,
     descriptor_file: str = None,
-    suggest_schema: bool = False,
+    discover_schema: bool = False,
     generate_descriptor: bool = False,
     parse_only: bool = False,
     auto: bool = False,
@@ -37,6 +37,8 @@ def load_structured_data(
     sample_chars: int = 500,
     schema_name: str = None,
     flow: str = 'default',
+    user: str = 'trustgraph',
+    collection: str = 'default',
     dry_run: bool = False,
     verbose: bool = False
 ):
@@ -47,14 +49,17 @@ def load_structured_data(
         api_url: TrustGraph API URL
         input_file: Path to input data file
         descriptor_file: Path to JSON descriptor configuration
-        suggest_schema: Analyze data and suggest matching schemas
+        discover_schema: Analyze data and discover matching schemas
         generate_descriptor: Generate descriptor from data sample
         parse_only: Parse data but don't import to TrustGraph
-        auto: Run full automatic pipeline (suggest schema + generate descriptor + import)
+        auto: Run full automatic pipeline (discover schema + generate descriptor + import)
         output_file: Path to write output (descriptor/parsed data)
         sample_size: Number of records to sample for analysis
         sample_chars: Maximum characters to read for sampling
         schema_name: Target schema name for generation
+        flow: TrustGraph flow name to use for prompts
+        user: User name for metadata (default: trustgraph)
+        collection: Collection name for metadata (default: default)
         dry_run: If True, validate but don't import data
         verbose: Enable verbose logging
     """
@@ -68,12 +73,12 @@ def load_structured_data(
         logger.info(f"🚀 Starting automatic pipeline for {input_file}...")
         logger.info("Step 1: Analyzing data to discover best matching schema...")
         
-        # Step 1: Auto-discover schema (reuse suggest_schema logic)
-        discovered_schema = _auto_discover_schema(api_url, input_file, sample_chars, logger)
+        # Step 1: Auto-discover schema (reuse discover_schema logic)
+        discovered_schema = _auto_discover_schema(api_url, input_file, sample_chars, flow, logger)
         if not discovered_schema:
             logger.error("Failed to discover suitable schema automatically")
             print("❌ Could not automatically determine the best schema for your data.")
-            print("💡 Try running with --suggest-schema first to see available options.")
+            print("💡 Try running with --discover-schema first to see available options.")
             return None
             
         logger.info(f"✅ Discovered schema: {discovered_schema}")
@@ -81,7 +86,7 @@ def load_structured_data(
         
         # Step 2: Auto-generate descriptor
         logger.info("Step 2: Generating descriptor configuration...")
-        auto_descriptor = _auto_generate_descriptor(api_url, input_file, discovered_schema, sample_chars, logger)
+        auto_descriptor = _auto_generate_descriptor(api_url, input_file, discovered_schema, sample_chars, flow, logger)
         if not auto_descriptor:
             logger.error("Failed to generate descriptor automatically")
             print("❌ Could not automatically generate descriptor configuration.")
@@ -132,6 +137,8 @@ def load_structured_data(
                     input_file=input_file,
                     descriptor_file=temp_descriptor.name,
                     flow=flow,
+                    user=user,
+                    collection=collection,
                     dry_run=False,  # We already handled dry_run above
                     verbose=verbose
                 )
@@ -147,8 +154,8 @@ def load_structured_data(
                 except:
                     pass
     
-    elif suggest_schema:
-        logger.info(f"Analyzing {input_file} to suggest schemas...")
+    elif discover_schema:
+        logger.info(f"Analyzing {input_file} to discover schemas...")
         logger.info(f"Sample size: {sample_size} records")
         logger.info(f"Sample chars: {sample_chars} characters")
         
@@ -156,7 +163,7 @@ def load_structured_data(
         response = _auto_discover_schema(api_url, input_file, sample_chars, logger, return_raw_response=True)
         
         if response:
-            print("Schema Suggestion Results:")
+            print("Schema Discoverion Results:")
             print("=" * 50)
             print(response)
             print("=" * 50)
@@ -176,7 +183,7 @@ def load_structured_data(
             schema_name = _auto_discover_schema(api_url, input_file, sample_chars, logger)
             if not schema_name:
                 print("Error: Could not determine schema automatically.")
-                print("Please specify a schema using --schema-name or run --suggest-schema first.")
+                print("Please specify a schema using --schema-name or run --discover-schema first.")
                 return
             logger.info(f"Auto-selected schema: {schema_name}")
         else:
@@ -204,7 +211,7 @@ def load_structured_data(
                 print("Use this descriptor with --parse-only to validate or without modes to import.")
         else:
             print("Error: Failed to generate descriptor.")
-            print("Check the logs for details or try --suggest-schema to verify schema availability.")
+            print("Check the logs for details or try --discover-schema to verify schema availability.")
             
     elif parse_only:
         if not descriptor_file:
@@ -537,7 +544,7 @@ def _auto_discover_schema(api_url, input_file, sample_chars, logger, return_raw_
             }
         )
         
-        # Return raw response if requested (for suggest_schema mode)
+        # Return raw response if requested (for discover_schema mode)
         if return_raw_response:
             return response
         
@@ -697,9 +704,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Step 1: Analyze data and suggest matching schemas
-  %(prog)s --input customers.csv --suggest-schema
-  %(prog)s --input products.xml --suggest-schema --sample-chars 1000
+  # Step 1: Analyze data and discover matching schemas
+  %(prog)s --input customers.csv --discover-schema
+  %(prog)s --input products.xml --discover-schema --sample-chars 1000
   
   # Step 2: Generate descriptor configuration from data sample
   %(prog)s --input customers.csv --generate-descriptor --schema-name customer --output descriptor.json
@@ -726,7 +733,7 @@ Examples:
 Use Cases:
   --auto              : 🚀 FULLY AUTOMATIC: Discover schema + generate descriptor + import data
                         (zero manual configuration required!)
-  --suggest-schema     : Diagnose which TrustGraph schemas might match your data
+  --discover-schema     : Diagnose which TrustGraph schemas might match your data
                         (uses --sample-chars to limit data sent for analysis)
   --generate-descriptor: Create/review the structured data language configuration  
                         (uses --sample-chars to limit data sent for analysis)
@@ -765,9 +772,9 @@ For more information on the descriptor format, see:
     # Operation modes (mutually exclusive)
     mode_group = parser.add_mutually_exclusive_group()
     mode_group.add_argument(
-        '--suggest-schema',
+        '--discover-schema',
         action='store_true',
-        help='Analyze data sample and suggest matching TrustGraph schemas'
+        help='Analyze data sample and discover matching TrustGraph schemas'
     )
     mode_group.add_argument(
         '--generate-descriptor',
@@ -801,7 +808,7 @@ For more information on the descriptor format, see:
         '--sample-chars',
         type=int,
         default=500,
-        help='Maximum characters to read for sampling (suggest-schema/generate-descriptor modes only, default: 500)'
+        help='Maximum characters to read for sampling (discover-schema/generate-descriptor modes only, default: 500)'
     )
     
     parser.add_argument(
@@ -856,15 +863,15 @@ For more information on the descriptor format, see:
     if args.parse_only and args.sample_chars != 500:  # 500 is the default
         print("Warning: --sample-chars is ignored in --parse-only mode (entire file is processed)", file=sys.stderr)
     
-    if (args.suggest_schema or args.generate_descriptor) and args.sample_size != 100:  # 100 is default
+    if (args.discover_schema or args.generate_descriptor) and args.sample_size != 100:  # 100 is default
         print("Warning: --sample-size is ignored in analysis modes, use --sample-chars instead", file=sys.stderr)
     
     # Require explicit mode selection - no implicit behavior
-    if not any([args.suggest_schema, args.generate_descriptor, args.parse_only, args.auto]):
+    if not any([args.discover_schema, args.generate_descriptor, args.parse_only, args.auto]):
         print("Error: Must specify an operation mode", file=sys.stderr)
         print("Available modes:", file=sys.stderr)
         print("  --auto                 : Discover schema + generate descriptor + import", file=sys.stderr)
-        print("  --suggest-schema       : Analyze data and suggest schemas", file=sys.stderr)
+        print("  --discover-schema       : Analyze data and discover schemas", file=sys.stderr)
         print("  --generate-descriptor  : Generate descriptor from data", file=sys.stderr)
         print("  --parse-only          : Parse data without importing", file=sys.stderr)
         sys.exit(1)
@@ -874,7 +881,7 @@ For more information on the descriptor format, see:
             api_url=args.api_url,
             input_file=args.input,
             descriptor_file=args.descriptor,
-            suggest_schema=args.suggest_schema,
+            discover_schema=args.discover_schema,
             generate_descriptor=args.generate_descriptor,
             parse_only=args.parse_only,
             auto=args.auto,
