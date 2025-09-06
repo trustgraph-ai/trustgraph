@@ -167,7 +167,7 @@ def load_structured_data(
             logger.debug(f"Response type: {type(response)}, content: {response}")
             if isinstance(response, list) and len(response) == 1:
                 # Just print the schema name for clean output
-                print(response[0])
+                print(f"Best matching schema: {response[0]}")
             elif isinstance(response, list):
                 # Multiple schemas - show the list
                 print("Multiple schemas found:")
