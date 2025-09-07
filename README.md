@@ -1,6 +1,6 @@
 <div align="center">
 
-## The Next Generation AI Product Creation Platform
+## The Agentic AI Platform for Enterprise Data Engineers
 
 <img src="product-platform-diagram.svg" width=100% />
 
