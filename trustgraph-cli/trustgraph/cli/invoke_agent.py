@@ -29,7 +29,7 @@ def output(text, prefix="> ", width=78):
 
 async def question(
         url, question, flow_id, user, collection,
-        plan=None, state=None, verbose=False
+        plan=None, state=None, group=None, verbose=False
 ):
 
     if not url.endswith("/"):
@@ -55,19 +55,24 @@ async def question(
 
     async with connect(url) as ws:
 
-        req = json.dumps({
+        req = {
             "id": mid,
             "service": "agent",
             "flow": flow_id,
             "request": {
                 "question": question,
                 "user": user,
-                "state": state or "",
-                "group": [],
                 "history": []
             }
+        }
+        
+        # Only add optional fields if they have values
+        if state is not None:
+            req["request"]["state"] = state
+        if group is not None:
+            req["request"]["group"] = group
             
-        })
+        req = json.dumps(req)
 
         await ws.send(req)
 
@@ -145,6 +150,12 @@ def main():
     )
 
     parser.add_argument(
+        '-g', '--group',
+        nargs='+',
+        help='Agent tool groups (can specify multiple)'
+    )
+
+    parser.add_argument(
         '-v', '--verbose',
         action="store_true",
         help=f'Output thinking/observations'
@@ -163,6 +174,7 @@ def main():
                 collection = args.collection,
                 plan = args.plan,
                 state = args.state,
+                group = args.group,
                 verbose = args.verbose,
             )
         )
