@@ -52,6 +52,29 @@ def show_config(url):
                     f"arg {n}",
                     f"{arg['name']}: {arg['type']}\n{arg['description']}"
                 ))
+        
+        # Display group information
+        if "group" in data:
+            groups = data["group"]
+            if groups:
+                table.append(("groups", ", ".join(groups)))
+            else:
+                table.append(("groups", "(empty - no groups)"))
+        
+        # Display state transition information
+        if "state" in data:
+            table.append(("next state", data["state"]))
+        
+        # Display applicable states
+        if "applicable-states" in data:
+            states = data["applicable-states"]
+            if states:
+                if "*" in states:
+                    table.append(("available in", "all states"))
+                else:
+                    table.append(("available in", ", ".join(states)))
+            else:
+                table.append(("available in", "(empty - never available)"))
 
         print()
 

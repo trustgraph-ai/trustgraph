@@ -97,11 +97,11 @@ def set_tool(
             for a in arguments
         ]
 
-    if group: object["group"] = group
+    if group is not None: object["group"] = group
 
     if state: object["state"] = state
 
-    if applicable_states: object["applicable-states"] = applicable_states
+    if applicable_states is not None: object["applicable-states"] = applicable_states
 
     values = api.put([
         ConfigValue(
@@ -254,9 +254,9 @@ def main():
             collection=args.collection,
             template=args.template,
             arguments=arguments,
-            group=args.group or [],
+            group=args.group,
             state=args.state,
-            applicable_states=getattr(args, 'applicable_states', None) or [],
+            applicable_states=args.applicable_states,
         )
 
     except Exception as e:
