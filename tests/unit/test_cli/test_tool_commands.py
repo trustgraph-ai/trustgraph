@@ -56,9 +56,9 @@ class TestSetToolStructuredQuery:
             collection="sales_data",
             template=None,
             arguments=[],
-            group=[],
+            group=None,
             state=None,
-            applicable_states=[]
+            applicable_states=None
         )
         
         captured = capsys.readouterr()
@@ -93,9 +93,9 @@ class TestSetToolStructuredQuery:
             collection=None,  # No collection specified
             template=None,
             arguments=[],
-            group=[],
+            group=None,
             state=None,
-            applicable_states=[]
+            applicable_states=None
         )
         
         captured = capsys.readouterr()
@@ -133,9 +133,9 @@ class TestSetToolStructuredQuery:
                 collection='sales_data',
                 template=None,
                 arguments=[],
-                group=[],
+                group=None,
                 state=None,
-                applicable_states=[]
+                applicable_states=None
             )
 
     def test_set_main_structured_query_no_arguments_needed(self):
