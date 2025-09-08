@@ -148,7 +148,8 @@ class Processor(AgentService):
                     elif impl_id == "structured-query":
                         impl = functools.partial(
                             StructuredQueryImpl, 
-                            collection=data.get("collection")
+                            collection=data.get("collection"),
+                            user=None  # User will be provided dynamically via context
                         )
                         arguments = StructuredQueryImpl.get_arguments()
                     else:

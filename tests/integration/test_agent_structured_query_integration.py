@@ -120,7 +120,8 @@ Args: {
         # Verify structured query was called
         mock_structured_client.structured_query.assert_called_once()
         call_args = mock_structured_client.structured_query.call_args
-        question_arg = call_args[0][0]  # positional argument
+        # Check keyword arguments
+        question_arg = call_args.kwargs.get("question") or call_args[1].get("question")
         assert "customers" in question_arg.lower()
         assert "new york" in question_arg.lower()
         
@@ -202,8 +203,9 @@ Args: {
         # Agent should handle the error gracefully
         assert any(isinstance(resp, AgentResponse) for resp in responses)
         # The tool should have returned an error response that contains error info
-        structured_query_call_args = mock_structured_client.structured_query.call_args[0]
-        assert "table" in structured_query_call_args[0].lower() or "exist" in structured_query_call_args[0].lower()
+        call_args = mock_structured_client.structured_query.call_args
+        question_arg = call_args.kwargs.get("question") or call_args[1].get("question")
+        assert "table" in question_arg.lower() or "exist" in question_arg.lower()
 
     @pytest.mark.asyncio
     async def test_agent_multi_step_structured_query_reasoning(self, agent_processor, structured_query_tool_config):
@@ -278,8 +280,9 @@ Args: {
         
         assert any(isinstance(resp, AgentResponse) for resp in responses)
         # Verify the structured query was called with customer-related question
-        call_args = mock_structured_client.structured_query.call_args[0]
-        assert "california" in call_args[0].lower()
+        call_args = mock_structured_client.structured_query.call_args
+        question_arg = call_args.kwargs.get("question") or call_args[1].get("question")
+        assert "california" in question_arg.lower()
 
     @pytest.mark.asyncio
     async def test_agent_structured_query_with_collection_parameter(self, agent_processor):
@@ -367,8 +370,9 @@ Args: {
         
         assert any(isinstance(resp, AgentResponse) for resp in responses)
         # Check the query was about sales/transactions
-        call_args = mock_structured_client.structured_query.call_args[0]
-        assert "sales" in call_args[0].lower() or "transactions" in call_args[0].lower()
+        call_args = mock_structured_client.structured_query.call_args
+        question_arg = call_args.kwargs.get("question") or call_args[1].get("question")
+        assert "sales" in question_arg.lower() or "transactions" in question_arg.lower()
 
     @pytest.mark.asyncio
     async def test_agent_structured_query_tool_argument_validation(self, agent_processor, structured_query_tool_config):
@@ -473,5 +477,6 @@ Args: {
         assert any(isinstance(resp, AgentResponse) for resp in responses)
         
         # Check that the query was about customer information
-        call_args = mock_structured_client.structured_query.call_args[0]
-        assert "customer" in call_args[0].lower()
+        call_args = mock_structured_client.structured_query.call_args
+        question_arg = call_args.kwargs.get("question") or call_args[1].get("question")
+        assert "customer" in question_arg.lower()
