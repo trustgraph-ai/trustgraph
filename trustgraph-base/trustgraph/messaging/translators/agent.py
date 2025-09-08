@@ -9,8 +9,8 @@ class AgentRequestTranslator(MessageTranslator):
     def to_pulsar(self, data: Dict[str, Any]) -> AgentRequest:
         return AgentRequest(
             question=data["question"],
-            state=data.get("state", ""),
-            group=data.get("group", []),
+            state=data.get("state", None),
+            group=data.get("group", None),
             history=data.get("history", []),
             user=data.get("user", "trustgraph")
         )
