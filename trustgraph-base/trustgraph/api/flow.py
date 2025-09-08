@@ -456,20 +456,24 @@ class FlowInstance:
         
         return response
 
-    def structured_query(self, question):
+    def structured_query(self, question, user="trustgraph", collection="default"):
         """
         Execute a natural language question against structured data.
         Combines NLP query conversion and GraphQL execution.
         
         Args:
             question: Natural language question
+            user: Cassandra keyspace identifier (default: "trustgraph")
+            collection: Data collection identifier (default: "default")
             
         Returns:
             dict with data and optional errors
         """
         
         input = {
-            "question": question
+            "question": question,
+            "user": user,
+            "collection": collection
         }
         
         response = self.request(

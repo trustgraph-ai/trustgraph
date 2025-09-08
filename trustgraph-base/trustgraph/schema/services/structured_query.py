@@ -9,6 +9,8 @@ from ..core.topic import topic
 
 class StructuredQueryRequest(Record):
     question = String()
+    user = String()        # Cassandra keyspace identifier
+    collection = String()  # Data collection identifier
 
 class StructuredQueryResponse(Record):
     error = Error()

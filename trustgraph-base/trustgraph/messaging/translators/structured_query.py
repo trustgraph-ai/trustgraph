@@ -9,12 +9,16 @@ class StructuredQueryRequestTranslator(MessageTranslator):
     
     def to_pulsar(self, data: Dict[str, Any]) -> StructuredQueryRequest:
         return StructuredQueryRequest(
-            question=data.get("question", "")
+            question=data.get("question", ""),
+            user=data.get("user", "trustgraph"),        # Default fallback
+            collection=data.get("collection", "default") # Default fallback
         )
     
     def from_pulsar(self, obj: StructuredQueryRequest) -> Dict[str, Any]:
         return {
-            "question": obj.question
+            "question": obj.question,
+            "user": obj.user,
+            "collection": obj.collection
         }
 
 

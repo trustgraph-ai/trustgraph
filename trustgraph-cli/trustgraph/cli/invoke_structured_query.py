@@ -79,11 +79,11 @@ def format_table_data(rows, table_name, output_format):
     else:
         return json.dumps({table_name: rows}, indent=2)
 
-def structured_query(url, flow_id, question, output_format='table'):
+def structured_query(url, flow_id, question, user='trustgraph', collection='default', output_format='table'):
 
     api = Api(url).flow().id(flow_id)
 
-    resp = api.structured_query(question=question)
+    resp = api.structured_query(question=question, user=user, collection=collection)
 
     # Check for errors
     if "error" in resp and resp["error"]:
@@ -133,6 +133,18 @@ def main():
     )
 
     parser.add_argument(
+        '--user',
+        default='trustgraph',
+        help='Cassandra keyspace identifier (default: trustgraph)'
+    )
+
+    parser.add_argument(
+        '--collection',
+        default='default',
+        help='Data collection identifier (default: default)'
+    )
+
+    parser.add_argument(
         '--format', 
         choices=['table', 'json', 'csv'],
         default='table',
@@ -147,6 +159,8 @@ def main():
             url=args.url,
             flow_id=args.flow_id,
             question=args.question,
+            user=args.user,
+            collection=args.collection,
             output_format=args.format,
         )
 
