@@ -60,7 +60,7 @@ class TestAgentStructuredQueryIntegration:
         request = AgentRequest(
             question="I need to find all customers from New York. Use the structured query tool to get this information.",
             state="",
-            group=[],
+            group=None,
             history=[],
             user="test_user"
         )
@@ -144,7 +144,7 @@ Args: {
         request = AgentRequest(
             question="Find data from a table that doesn't exist using structured query.",
             state="",
-            group=[],
+            group=None,
             history=[],
             user="test_user"
         )
@@ -216,7 +216,7 @@ Args: {
         request = AgentRequest(
             question="First find all customers from California, then tell me how many orders they have made.",
             state="",
-            group=[],
+            group=None,
             history=[],
             user="test_user"
         )
@@ -305,7 +305,7 @@ Args: {
         request = AgentRequest(
             question="Query the sales data for recent transactions.",
             state="",
-            group=[],
+            group=None,
             history=[],
             user="test_user"
         )
@@ -403,7 +403,7 @@ Args: {
         request = AgentRequest(
             question="Get customer information and format it nicely.",
             state="",
-            group=[],
+            group=None,
             history=[],
             user="test_user"
         )
