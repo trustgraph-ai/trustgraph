@@ -44,7 +44,9 @@ class TestStructuredQueryProcessor:
         """Test successful end-to-end query processing"""
         # Arrange
         request = StructuredQueryRequest(
-            question="Show me all customers from New York"
+            question="Show me all customers from New York",
+            user="trustgraph", 
+            collection="default"
         )
         
         msg = MagicMock()
