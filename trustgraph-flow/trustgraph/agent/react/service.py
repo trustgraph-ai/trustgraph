@@ -148,7 +148,8 @@ class Processor(AgentService):
                     elif impl_id == "structured-query":
                         impl = functools.partial(
                             StructuredQueryImpl, 
-                            collection=data.get("collection")
+                            collection=data.get("collection"),
+                            user=None  # User will be provided dynamically via context
                         )
                         arguments = StructuredQueryImpl.get_arguments()
                     else:
@@ -253,12 +254,26 @@ class Processor(AgentService):
             
             logger.debug("Call React")
 
+            # Create user-aware context wrapper that preserves the flow interface
+            # but adds user information for tools that need it
+            class UserAwareContext:
+                def __init__(self, flow, user):
+                    self._flow = flow
+                    self._user = user
+                
+                def __call__(self, service_name):
+                    client = self._flow(service_name)
+                    # For structured query clients, store user context
+                    if service_name == "structured-query-request":
+                        client._current_user = self._user
+                    return client
+
             act = await temp_agent.react(
                 question = request.question,
                 history = history,
                 think = think,
                 observe = observe,
-                context = flow,
+                context = UserAwareContext(flow, request.user),
             )
 
             logger.debug(f"Action: {act}")

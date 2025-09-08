@@ -41,7 +41,9 @@ class TestStructuredQueryServiceIntegration:
         """Test complete structured query processing pipeline"""
         # Arrange - Create realistic query request
         request = StructuredQueryRequest(
-            question="Show me all customers from California who have made purchases over $500"
+            question="Show me all customers from California who have made purchases over $500",
+            user="trustgraph",
+            collection="default"
         )
         
         msg = MagicMock()

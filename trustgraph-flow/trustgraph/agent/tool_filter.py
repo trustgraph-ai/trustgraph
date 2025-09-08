@@ -31,7 +31,7 @@ def filter_tools_by_group_and_state(
     # Apply defaults as specified in tech spec
     if requested_groups is None:
         requested_groups = ["default"]
-    if current_state is None:
+    if current_state is None or current_state == "":
         current_state = "undefined"
         
     logger.info(f"Filtering tools with groups={requested_groups}, state={current_state}")
