@@ -2,10 +2,12 @@ from . request_response_spec import RequestResponse, RequestResponseSpec
 from .. schema import StructuredQueryRequest, StructuredQueryResponse
 
 class StructuredQueryClient(RequestResponse):
-    async def structured_query(self, question, timeout=600):
+    async def structured_query(self, question, user="trustgraph", collection="default", timeout=600):
         resp = await self.request(
             StructuredQueryRequest(
-                question = question
+                question = question,
+                user = user,
+                collection = collection
             ),
             timeout=timeout
         )

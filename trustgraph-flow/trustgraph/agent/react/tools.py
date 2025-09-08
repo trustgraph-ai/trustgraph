@@ -87,9 +87,10 @@ class McpToolImpl:
 
 # This tool implementation knows how to query structured data using natural language
 class StructuredQueryImpl:
-    def __init__(self, context, collection=None):
+    def __init__(self, context, collection=None, user=None):
         self.context = context
         self.collection = collection  # For multi-tenant scenarios
+        self.user = user              # User context for multi-tenancy
     
     @staticmethod
     def get_arguments():
@@ -105,8 +106,13 @@ class StructuredQueryImpl:
         client = self.context("structured-query-request")
         logger.debug("Structured query question...")
         
+        # Get user from client context if available, otherwise use instance user or default
+        user = getattr(client, '_current_user', self.user or "trustgraph")
+        
         result = await client.structured_query(
-            arguments.get("question")
+            question=arguments.get("question"),
+            user=user,
+            collection=self.collection or "default"
         )
         
         # Format the result for the agent

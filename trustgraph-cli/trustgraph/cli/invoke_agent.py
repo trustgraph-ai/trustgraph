@@ -61,6 +61,10 @@ async def question(
             "flow": flow_id,
             "request": {
                 "question": question,
+                "user": user,
+                "state": state or "",
+                "group": [],
+                "history": []
             }
             
         })

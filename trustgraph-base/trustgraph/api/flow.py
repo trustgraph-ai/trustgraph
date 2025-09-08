@@ -132,11 +132,15 @@ class FlowInstance:
             input
         )["response"]
 
-    def agent(self, question):
+    def agent(self, question, user="trustgraph", state="", group=None, history=None):
 
-        # The input consists of a question
+        # The input consists of a question and optional context
         input = {
-            "question": question
+            "question": question,
+            "user": user,
+            "state": state,
+            "group": group or [],
+            "history": history or []
         }
 
         return self.request(

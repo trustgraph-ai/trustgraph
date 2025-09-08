@@ -59,8 +59,10 @@ class TestAgentStructuredQueryIntegration:
         # Create agent request
         request = AgentRequest(
             question="I need to find all customers from New York. Use the structured query tool to get this information.",
-            user="test_user",
-            collection="test_collection"
+            state="",
+            group=[],
+            history=[],
+            user="test_user"
         )
         
         msg = MagicMock()
@@ -140,8 +142,10 @@ Args: {
         
         request = AgentRequest(
             question="Find data from a table that doesn't exist using structured query.",
-            user="test_user", 
-            collection="test_collection"
+            state="",
+            group=[],
+            history=[],
+            user="test_user"
         )
         
         msg = MagicMock()
@@ -209,8 +213,10 @@ Args: {
         
         request = AgentRequest(
             question="First find all customers from California, then tell me how many orders they have made.",
-            user="test_user",
-            collection="test_collection"
+            state="",
+            group=[],
+            history=[],
+            user="test_user"
         )
         
         msg = MagicMock()
@@ -295,8 +301,10 @@ Args: {
         
         request = AgentRequest(
             question="Query the sales data for recent transactions.",
-            user="test_user",
-            collection="test_collection"
+            state="",
+            group=[],
+            history=[],
+            user="test_user"
         )
         
         msg = MagicMock()
@@ -390,8 +398,10 @@ Args: {
         
         request = AgentRequest(
             question="Get customer information and format it nicely.",
-            user="test_user",
-            collection="test_collection"
+            state="",
+            group=[],
+            history=[],
+            user="test_user"
         )
         
         msg = MagicMock()

@@ -9,17 +9,19 @@ class AgentRequestTranslator(MessageTranslator):
     def to_pulsar(self, data: Dict[str, Any]) -> AgentRequest:
         return AgentRequest(
             question=data["question"],
-            plan=data.get("plan", ""),
             state=data.get("state", ""),
-            history=data.get("history", [])
+            group=data.get("group", []),
+            history=data.get("history", []),
+            user=data.get("user", "trustgraph")
         )
     
     def from_pulsar(self, obj: AgentRequest) -> Dict[str, Any]:
         return {
             "question": obj.question,
-            "plan": obj.plan,
             "state": obj.state,
-            "history": obj.history
+            "group": obj.group,
+            "history": obj.history,
+            "user": obj.user
         }
 
 
