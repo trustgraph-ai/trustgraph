@@ -132,16 +132,24 @@ class FlowInstance:
             input
         )["response"]
 
-    def agent(self, question, user="trustgraph", state="", group=None, history=None):
+    def agent(self, question, user="trustgraph", state=None, group=None, history=None):
 
         # The input consists of a question and optional context
         input = {
             "question": question,
             "user": user,
-            "state": state,
-            "group": group or [],
-            "history": history or []
         }
+        
+        # Only include state if it has a value
+        if state is not None:
+            input["state"] = state
+            
+        # Only include group if it has a value
+        if group is not None:
+            input["group"] = group
+            
+        # Always include history (empty list if None)
+        input["history"] = history or []
 
         return self.request(
             "service/agent",
