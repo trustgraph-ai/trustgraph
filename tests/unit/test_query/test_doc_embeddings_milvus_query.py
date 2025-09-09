@@ -85,8 +85,10 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         
         result = await processor.query_document_embeddings(query)
         
-        # Verify search was called with correct parameters
-        processor.vecstore.search.assert_called_once_with([0.1, 0.2, 0.3], limit=5)
+        # Verify search was called with correct parameters including user/collection
+        processor.vecstore.search.assert_called_once_with(
+            [0.1, 0.2, 0.3], 'test_user', 'test_collection', limit=5
+        )
         
         # Verify results are document chunks
         assert len(result) == 3
