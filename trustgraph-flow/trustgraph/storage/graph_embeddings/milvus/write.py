@@ -29,7 +29,11 @@ class Processor(GraphEmbeddingsStoreService):
 
             if entity.entity.value != "" and entity.entity.value is not None:
                 for vec in entity.vectors:
-                    self.vecstore.insert(vec, entity.entity.value)
+                    self.vecstore.insert(
+                        vec, entity.entity.value,
+                        message.metadata.user,
+                        message.metadata.collection
+                    )
 
     @staticmethod
     def add_args(parser):

@@ -50,7 +50,12 @@ class Processor(GraphEmbeddingsQueryService):
 
             for vec in msg.vectors:
 
-                resp = self.vecstore.search(vec, limit=msg.limit * 2)
+                resp = self.vecstore.search(
+                    vec, 
+                    msg.user, 
+                    msg.collection, 
+                    limit=msg.limit * 2
+                )
 
                 for r in resp:
                     ent = r["entity"]["entity"]
