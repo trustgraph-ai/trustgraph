@@ -33,7 +33,11 @@ class Processor(DocumentEmbeddingsStoreService):
             if chunk == "": continue
 
             for vec in emb.vectors:
-                self.vecstore.insert(vec, chunk)
+                self.vecstore.insert(
+                    vec, chunk, 
+                    message.metadata.user, 
+                    message.metadata.collection
+                )
 
     @staticmethod
     def add_args(parser):

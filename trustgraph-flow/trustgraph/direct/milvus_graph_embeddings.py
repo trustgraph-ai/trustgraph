@@ -2,8 +2,31 @@
 from pymilvus import MilvusClient, CollectionSchema, FieldSchema, DataType
 import time
 import logging
+import re
 
 logger = logging.getLogger(__name__)
+
+def make_safe_collection_name(user, collection, dimension, prefix):
+    """
+    Create a safe Milvus collection name from user/collection parameters.
+    Milvus only allows letters, numbers, and underscores.
+    """
+    def sanitize(s):
+        # Replace non-alphanumeric characters (except underscore) with underscore
+        # Then collapse multiple underscores into single underscore
+        safe = re.sub(r'[^a-zA-Z0-9_]', '_', s)
+        safe = re.sub(r'_+', '_', safe)
+        # Remove leading/trailing underscores
+        safe = safe.strip('_')
+        # Ensure it's not empty
+        if not safe:
+            safe = 'default'
+        return safe
+    
+    safe_user = sanitize(user)
+    safe_collection = sanitize(collection)
+    
+    return f"{prefix}_{safe_user}_{safe_collection}_{dimension}"
 
 class EntityVectors:
 
@@ -26,9 +49,9 @@ class EntityVectors:
         self.next_reload = time.time() + self.reload_time
         logger.debug(f"Reload at {self.next_reload}")
 
-    def init_collection(self, dimension):
+    def init_collection(self, dimension, user, collection):
 
-        collection_name = self.prefix + "_" + str(dimension)
+        collection_name = make_safe_collection_name(user, collection, dimension, self.prefix)
 
         pkey_field = FieldSchema(
             name="id",
@@ -75,14 +98,14 @@ class EntityVectors:
             index_params=index_params
         )
 
-        self.collections[dimension] = collection_name
+        self.collections[(dimension, user, collection)] = collection_name
 
-    def insert(self, embeds, entity):
+    def insert(self, embeds, entity, user, collection):
 
         dim = len(embeds)
 
-        if dim not in self.collections:
-            self.init_collection(dim)
+        if (dim, user, collection) not in self.collections:
+            self.init_collection(dim, user, collection)
     
         data = [
             {
@@ -92,18 +115,18 @@ class EntityVectors:
         ]
 
         self.client.insert(
-            collection_name=self.collections[dim],
+            collection_name=self.collections[(dim, user, collection)],
             data=data
         )
 
-    def search(self, embeds, fields=["entity"], limit=10):
+    def search(self, embeds, user, collection, fields=["entity"], limit=10):
 
         dim = len(embeds)
 
-        if dim not in self.collections:
-            self.init_collection(dim)
+        if (dim, user, collection) not in self.collections:
+            self.init_collection(dim, user, collection)
 
-        coll = self.collections[dim]
+        coll = self.collections[(dim, user, collection)]
 
         search_params = {
             "metric_type": "COSINE",

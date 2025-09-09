@@ -85,8 +85,10 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         
         result = await processor.query_document_embeddings(query)
         
-        # Verify search was called with correct parameters
-        processor.vecstore.search.assert_called_once_with([0.1, 0.2, 0.3], limit=5)
+        # Verify search was called with correct parameters including user/collection
+        processor.vecstore.search.assert_called_once_with(
+            [0.1, 0.2, 0.3], 'test_user', 'test_collection', limit=5
+        )
         
         # Verify results are document chunks
         assert len(result) == 3
@@ -116,10 +118,10 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         
         result = await processor.query_document_embeddings(query)
         
-        # Verify search was called twice with correct parameters
+        # Verify search was called twice with correct parameters including user/collection
         expected_calls = [
-            (([0.1, 0.2, 0.3],), {"limit": 3}),
-            (([0.4, 0.5, 0.6],), {"limit": 3}),
+            (([0.1, 0.2, 0.3], 'test_user', 'test_collection'), {"limit": 3}),
+            (([0.4, 0.5, 0.6], 'test_user', 'test_collection'), {"limit": 3}),
         ]
         assert processor.vecstore.search.call_count == 2
         for i, (expected_args, expected_kwargs) in enumerate(expected_calls):
@@ -155,7 +157,9 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         result = await processor.query_document_embeddings(query)
         
         # Verify search was called with the specified limit
-        processor.vecstore.search.assert_called_once_with([0.1, 0.2, 0.3], limit=2)
+        processor.vecstore.search.assert_called_once_with(
+            [0.1, 0.2, 0.3], 'test_user', 'test_collection', limit=2
+        )
         
         # Verify all results are returned (Milvus handles limit internally)
         assert len(result) == 4
@@ -194,7 +198,9 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         result = await processor.query_document_embeddings(query)
         
         # Verify search was called
-        processor.vecstore.search.assert_called_once_with([0.1, 0.2, 0.3], limit=5)
+        processor.vecstore.search.assert_called_once_with(
+            [0.1, 0.2, 0.3], 'test_user', 'test_collection', limit=5
+        )
         
         # Verify empty results
         assert len(result) == 0
