@@ -62,14 +62,18 @@ class TestNeo4jStorageProcessor:
         
         processor = Processor(taskgroup=taskgroup_mock)
         
-        # Verify index creation queries were executed
+        # Verify index creation queries were executed (now includes 7 indexes)
         expected_calls = [
             "CREATE INDEX Node_uri FOR (n:Node) ON (n.uri)",
             "CREATE INDEX Literal_value FOR (n:Literal) ON (n.value)",
-            "CREATE INDEX Rel_uri FOR ()-[r:Rel]-() ON (r.uri)"
+            "CREATE INDEX Rel_uri FOR ()-[r:Rel]-() ON (r.uri)",
+            "CREATE INDEX node_user_collection_uri FOR (n:Node) ON (n.user, n.collection, n.uri)",
+            "CREATE INDEX literal_user_collection_value FOR (n:Literal) ON (n.user, n.collection, n.value)",
+            "CREATE INDEX rel_user FOR ()-[r:Rel]-() ON (r.user)",
+            "CREATE INDEX rel_collection FOR ()-[r:Rel]-() ON (r.collection)"
         ]
         
-        assert mock_session.run.call_count == 3
+        assert mock_session.run.call_count == 7
         for expected_query in expected_calls:
             mock_session.run.assert_any_call(expected_query)
 
@@ -88,8 +92,8 @@ class TestNeo4jStorageProcessor:
         # Should not raise exception - they should be caught and ignored
         processor = Processor(taskgroup=taskgroup_mock)
         
-        # Should have tried to create all 3 indexes despite exceptions
-        assert mock_session.run.call_count == 3
+        # Should have tried to create all 7 indexes despite exceptions
+        assert mock_session.run.call_count == 7
 
     @patch('trustgraph.storage.triples.neo4j.write.GraphDatabase')
     def test_create_node(self, mock_graph_db):
@@ -111,11 +115,13 @@ class TestNeo4jStorageProcessor:
         processor = Processor(taskgroup=taskgroup_mock)
         
         # Test create_node
-        processor.create_node("http://example.com/node")
+        processor.create_node("http://example.com/node", "test_user", "test_collection")
         
         mock_driver.execute_query.assert_called_with(
-            "MERGE (n:Node {uri: $uri})",
+            "MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",
             uri="http://example.com/node",
+            user="test_user",
+            collection="test_collection",
             database_="neo4j"
         )
 
@@ -139,11 +145,13 @@ class TestNeo4jStorageProcessor:
         processor = Processor(taskgroup=taskgroup_mock)
         
         # Test create_literal
-        processor.create_literal("literal value")
+        processor.create_literal("literal value", "test_user", "test_collection")
         
         mock_driver.execute_query.assert_called_with(
-            "MERGE (n:Literal {value: $value})",
+            "MERGE (n:Literal {value: $value, user: $user, collection: $collection})",
             value="literal value",
+            user="test_user",
+            collection="test_collection",
             database_="neo4j"
         )
 
@@ -170,16 +178,20 @@ class TestNeo4jStorageProcessor:
         processor.relate_node(
             "http://example.com/subject",
             "http://example.com/predicate",
-            "http://example.com/object"
+            "http://example.com/object",
+            "test_user",
+            "test_collection"
         )
         
         mock_driver.execute_query.assert_called_with(
-            "MATCH (src:Node {uri: $src}) "
-            "MATCH (dest:Node {uri: $dest}) "
-            "MERGE (src)-[:Rel {uri: $uri}]->(dest)",
+            "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
+            "MATCH (dest:Node {uri: $dest, user: $user, collection: $collection}) "
+            "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
             src="http://example.com/subject",
             dest="http://example.com/object",
             uri="http://example.com/predicate",
+            user="test_user",
+            collection="test_collection",
             database_="neo4j"
         )
 
@@ -206,16 +218,20 @@ class TestNeo4jStorageProcessor:
         processor.relate_literal(
             "http://example.com/subject",
             "http://example.com/predicate",
-            "literal value"
+            "literal value",
+            "test_user",
+            "test_collection"
         )
         
         mock_driver.execute_query.assert_called_with(
-            "MATCH (src:Node {uri: $src}) "
-            "MATCH (dest:Literal {value: $dest}) "
-            "MERGE (src)-[:Rel {uri: $uri}]->(dest)",
+            "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
+            "MATCH (dest:Literal {value: $dest, user: $user, collection: $collection}) "
+            "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
             src="http://example.com/subject",
             dest="literal value",
             uri="http://example.com/predicate",
+            user="test_user",
+            collection="test_collection",
             database_="neo4j"
         )
 
@@ -246,9 +262,11 @@ class TestNeo4jStorageProcessor:
         triple.o.value = "http://example.com/object"
         triple.o.is_uri = True
         
-        # Create mock message
+        # Create mock message with metadata
         mock_message = MagicMock()
         mock_message.triples = [triple]
+        mock_message.metadata.user = "test_user"
+        mock_message.metadata.collection = "test_collection"
         
         await processor.store_triples(mock_message)
         
@@ -257,23 +275,25 @@ class TestNeo4jStorageProcessor:
         expected_calls = [
             # Subject node creation
             (
-                "MERGE (n:Node {uri: $uri})",
-                {"uri": "http://example.com/subject", "database_": "neo4j"}
+                "MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",
+                {"uri": "http://example.com/subject", "user": "test_user", "collection": "test_collection", "database_": "neo4j"}
             ),
             # Object node creation
             (
-                "MERGE (n:Node {uri: $uri})",
-                {"uri": "http://example.com/object", "database_": "neo4j"}
+                "MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",
+                {"uri": "http://example.com/object", "user": "test_user", "collection": "test_collection", "database_": "neo4j"}
             ),
             # Relationship creation
             (
-                "MATCH (src:Node {uri: $src}) "
-                "MATCH (dest:Node {uri: $dest}) "
-                "MERGE (src)-[:Rel {uri: $uri}]->(dest)",
+                "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
+                "MATCH (dest:Node {uri: $dest, user: $user, collection: $collection}) "
+                "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
                 {
                     "src": "http://example.com/subject",
                     "dest": "http://example.com/object",
                     "uri": "http://example.com/predicate",
+                    "user": "test_user",
+                    "collection": "test_collection",
                     "database_": "neo4j"
                 }
             )
@@ -310,9 +330,11 @@ class TestNeo4jStorageProcessor:
         triple.o.value = "literal value"
         triple.o.is_uri = False
         
-        # Create mock message
+        # Create mock message with metadata
         mock_message = MagicMock()
         mock_message.triples = [triple]
+        mock_message.metadata.user = "test_user"
+        mock_message.metadata.collection = "test_collection"
         
         await processor.store_triples(mock_message)
         
@@ -322,23 +344,25 @@ class TestNeo4jStorageProcessor:
         expected_calls = [
             # Subject node creation
             (
-                "MERGE (n:Node {uri: $uri})",
-                {"uri": "http://example.com/subject", "database_": "neo4j"}
+                "MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",
+                {"uri": "http://example.com/subject", "user": "test_user", "collection": "test_collection", "database_": "neo4j"}
             ),
             # Literal creation
             (
-                "MERGE (n:Literal {value: $value})",
-                {"value": "literal value", "database_": "neo4j"}
+                "MERGE (n:Literal {value: $value, user: $user, collection: $collection})",
+                {"value": "literal value", "user": "test_user", "collection": "test_collection", "database_": "neo4j"}
             ),
             # Relationship creation
             (
-                "MATCH (src:Node {uri: $src}) "
-                "MATCH (dest:Literal {value: $dest}) "
-                "MERGE (src)-[:Rel {uri: $uri}]->(dest)",
+                "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
+                "MATCH (dest:Literal {value: $dest, user: $user, collection: $collection}) "
+                "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
                 {
                     "src": "http://example.com/subject",
                     "dest": "literal value",
                     "uri": "http://example.com/predicate",
+                    "user": "test_user",
+                    "collection": "test_collection",
                     "database_": "neo4j"
                 }
             )
@@ -381,9 +405,11 @@ class TestNeo4jStorageProcessor:
         triple2.o.value = "literal value"
         triple2.o.is_uri = False
         
-        # Create mock message
+        # Create mock message with metadata
         mock_message = MagicMock()
         mock_message.triples = [triple1, triple2]
+        mock_message.metadata.user = "test_user"
+        mock_message.metadata.collection = "test_collection"
         
         await processor.store_triples(mock_message)
         
@@ -405,9 +431,11 @@ class TestNeo4jStorageProcessor:
         
         processor = Processor(taskgroup=taskgroup_mock)
         
-        # Create mock message with empty triples
+        # Create mock message with empty triples and metadata
         mock_message = MagicMock()
         mock_message.triples = []
+        mock_message.metadata.user = "test_user"
+        mock_message.metadata.collection = "test_collection"
         
         await processor.store_triples(mock_message)
         
@@ -521,28 +549,36 @@ class TestNeo4jStorageProcessor:
         
         mock_message = MagicMock()
         mock_message.triples = [triple]
+        mock_message.metadata.user = "test_user"
+        mock_message.metadata.collection = "test_collection"
         
         await processor.store_triples(mock_message)
         
         # Verify the triple was processed with special characters preserved
         mock_driver.execute_query.assert_any_call(
-            "MERGE (n:Node {uri: $uri})",
+            "MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",
             uri="http://example.com/subject with spaces",
+            user="test_user",
+            collection="test_collection",
             database_="neo4j"
         )
         
         mock_driver.execute_query.assert_any_call(
-            "MERGE (n:Literal {value: $value})",
+            "MERGE (n:Literal {value: $value, user: $user, collection: $collection})",
             value='literal with "quotes" and unicode: ñáéíóú',
+            user="test_user",
+            collection="test_collection",
             database_="neo4j"
         )
         
         mock_driver.execute_query.assert_any_call(
-            "MATCH (src:Node {uri: $src}) "
-            "MATCH (dest:Literal {value: $dest}) "
-            "MERGE (src)-[:Rel {uri: $uri}]->(dest)",
+            "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
+            "MATCH (dest:Literal {value: $dest, user: $user, collection: $collection}) "
+            "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
             src="http://example.com/subject with spaces",
             dest='literal with "quotes" and unicode: ñáéíóú',
             uri="http://example.com/predicate:with/symbols",
+            user="test_user",
+            collection="test_collection",
             database_="neo4j"
         )
