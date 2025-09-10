@@ -99,12 +99,16 @@ class TestMemgraphStorageProcessor:
         
         processor = Processor(taskgroup=taskgroup_mock)
         
-        # Verify index creation calls
+        # Verify index creation calls (now includes user/collection indexes)
         expected_calls = [
             "CREATE INDEX ON :Node",
             "CREATE INDEX ON :Node(uri)",
             "CREATE INDEX ON :Literal",
-            "CREATE INDEX ON :Literal(value)"
+            "CREATE INDEX ON :Literal(value)",
+            "CREATE INDEX ON :Node(user)",
+            "CREATE INDEX ON :Node(collection)",
+            "CREATE INDEX ON :Literal(user)",
+            "CREATE INDEX ON :Literal(collection)"
         ]
         
         assert mock_session.run.call_count == len(expected_calls)
@@ -127,8 +131,8 @@ class TestMemgraphStorageProcessor:
         # Should not raise an exception
         processor = Processor(taskgroup=taskgroup_mock)
         
-        # Verify all index creation calls were attempted
-        assert mock_session.run.call_count == 4
+        # Verify all index creation calls were attempted (8 total)
+        assert mock_session.run.call_count == 8
 
     def test_create_node(self, processor):
         """Test node creation"""
@@ -141,11 +145,13 @@ class TestMemgraphStorageProcessor:
         
         processor.io.execute_query.return_value = mock_result
         
-        processor.create_node(test_uri)
+        processor.create_node(test_uri, "test_user", "test_collection")
         
         processor.io.execute_query.assert_called_once_with(
-            "MERGE (n:Node {uri: $uri})",
+            "MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",
             uri=test_uri,
+            user="test_user",
+            collection="test_collection",
             database_=processor.db
         )
 
@@ -160,11 +166,13 @@ class TestMemgraphStorageProcessor:
         
         processor.io.execute_query.return_value = mock_result
         
-        processor.create_literal(test_value)
+        processor.create_literal(test_value, "test_user", "test_collection")
         
         processor.io.execute_query.assert_called_once_with(
-            "MERGE (n:Literal {value: $value})",
+            "MERGE (n:Literal {value: $value, user: $user, collection: $collection})",
             value=test_value,
+            user="test_user",
+            collection="test_collection",
             database_=processor.db
         )
 
@@ -182,13 +190,14 @@ class TestMemgraphStorageProcessor:
         
         processor.io.execute_query.return_value = mock_result
         
-        processor.relate_node(src_uri, pred_uri, dest_uri)
+        processor.relate_node(src_uri, pred_uri, dest_uri, "test_user", "test_collection")
         
         processor.io.execute_query.assert_called_once_with(
-            "MATCH (src:Node {uri: $src}) "
-            "MATCH (dest:Node {uri: $dest}) "
-            "MERGE (src)-[:Rel {uri: $uri}]->(dest)",
+            "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
+            "MATCH (dest:Node {uri: $dest, user: $user, collection: $collection}) "
+            "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
             src=src_uri, dest=dest_uri, uri=pred_uri,
+            user="test_user", collection="test_collection",
             database_=processor.db
         )
 
@@ -206,13 +215,14 @@ class TestMemgraphStorageProcessor:
         
         processor.io.execute_query.return_value = mock_result
         
-        processor.relate_literal(src_uri, pred_uri, literal_value)
+        processor.relate_literal(src_uri, pred_uri, literal_value, "test_user", "test_collection")
         
         processor.io.execute_query.assert_called_once_with(
-            "MATCH (src:Node {uri: $src}) "
-            "MATCH (dest:Literal {value: $dest}) "
-            "MERGE (src)-[:Rel {uri: $uri}]->(dest)",
+            "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
+            "MATCH (dest:Literal {value: $dest, user: $user, collection: $collection}) "
+            "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
             src=src_uri, dest=literal_value, uri=pred_uri,
+            user="test_user", collection="test_collection",
             database_=processor.db
         )
 
@@ -226,19 +236,22 @@ class TestMemgraphStorageProcessor:
             o=Value(value='http://example.com/object', is_uri=True)
         )
         
-        processor.create_triple(mock_tx, triple)
+        processor.create_triple(mock_tx, triple, "test_user", "test_collection")
         
         # Verify transaction calls
         expected_calls = [
             # Create subject node
-            ("MERGE (n:Node {uri: $uri})", {'uri': 'http://example.com/subject'}),
+            ("MERGE (n:Node {uri: $uri, user: $user, collection: $collection})", 
+             {'uri': 'http://example.com/subject', 'user': 'test_user', 'collection': 'test_collection'}),
             # Create object node  
-            ("MERGE (n:Node {uri: $uri})", {'uri': 'http://example.com/object'}),
+            ("MERGE (n:Node {uri: $uri, user: $user, collection: $collection})", 
+             {'uri': 'http://example.com/object', 'user': 'test_user', 'collection': 'test_collection'}),
             # Create relationship
-            ("MATCH (src:Node {uri: $src}) "
-             "MATCH (dest:Node {uri: $dest}) "
-             "MERGE (src)-[:Rel {uri: $uri}]->(dest)",
-             {'src': 'http://example.com/subject', 'dest': 'http://example.com/object', 'uri': 'http://example.com/predicate'})
+            ("MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
+             "MATCH (dest:Node {uri: $dest, user: $user, collection: $collection}) "
+             "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
+             {'src': 'http://example.com/subject', 'dest': 'http://example.com/object', 'uri': 'http://example.com/predicate',
+              'user': 'test_user', 'collection': 'test_collection'})
         ]
         
         assert mock_tx.run.call_count == 3
@@ -257,19 +270,22 @@ class TestMemgraphStorageProcessor:
             o=Value(value='literal object', is_uri=False)
         )
         
-        processor.create_triple(mock_tx, triple)
+        processor.create_triple(mock_tx, triple, "test_user", "test_collection")
         
         # Verify transaction calls
         expected_calls = [
             # Create subject node
-            ("MERGE (n:Node {uri: $uri})", {'uri': 'http://example.com/subject'}),
+            ("MERGE (n:Node {uri: $uri, user: $user, collection: $collection})", 
+             {'uri': 'http://example.com/subject', 'user': 'test_user', 'collection': 'test_collection'}),
             # Create literal object
-            ("MERGE (n:Literal {value: $value})", {'value': 'literal object'}),
+            ("MERGE (n:Literal {value: $value, user: $user, collection: $collection})", 
+             {'value': 'literal object', 'user': 'test_user', 'collection': 'test_collection'}),
             # Create relationship
-            ("MATCH (src:Node {uri: $src}) "
-             "MATCH (dest:Literal {value: $dest}) "
-             "MERGE (src)-[:Rel {uri: $uri}]->(dest)",
-             {'src': 'http://example.com/subject', 'dest': 'literal object', 'uri': 'http://example.com/predicate'})
+            ("MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
+             "MATCH (dest:Literal {value: $dest, user: $user, collection: $collection}) "
+             "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
+             {'src': 'http://example.com/subject', 'dest': 'literal object', 'uri': 'http://example.com/predicate',
+              'user': 'test_user', 'collection': 'test_collection'})
         ]
         
         assert mock_tx.run.call_count == 3
@@ -281,33 +297,42 @@ class TestMemgraphStorageProcessor:
     @pytest.mark.asyncio
     async def test_store_triples_single_triple(self, processor, mock_message):
         """Test storing a single triple"""
-        mock_session = MagicMock()
-        processor.io.session.return_value.__enter__.return_value = mock_session
+        # Mock the execute_query method used by the direct methods
+        mock_result = MagicMock()
+        mock_summary = MagicMock()
+        mock_summary.counters.nodes_created = 1
+        mock_summary.result_available_after = 10
+        mock_result.summary = mock_summary
+        processor.io.execute_query.return_value = mock_result
         
-        # Reset the mock to clear the initialization call
-        processor.io.session.reset_mock()
+        # Reset the mock to clear initialization calls
+        processor.io.execute_query.reset_mock()
         
         await processor.store_triples(mock_message)
         
-        # Verify session was created with correct database
-        processor.io.session.assert_called_once_with(database=processor.db)
+        # Verify execute_query was called for create_node, create_literal, and relate_literal
+        # (since mock_message has a literal object)
+        assert processor.io.execute_query.call_count == 3
         
-        # Verify execute_write was called once per triple
-        mock_session.execute_write.assert_called_once()
-        
-        # Verify the triple was passed to create_triple
-        call_args = mock_session.execute_write.call_args
-        assert call_args[0][0] == processor.create_triple
-        assert call_args[0][1] == mock_message.triples[0]
+        # Verify user/collection parameters were included
+        for call in processor.io.execute_query.call_args_list:
+            call_kwargs = call.kwargs if hasattr(call, 'kwargs') else call[1]
+            assert 'user' in call_kwargs
+            assert 'collection' in call_kwargs
 
     @pytest.mark.asyncio
     async def test_store_triples_multiple_triples(self, processor):
         """Test storing multiple triples"""
-        mock_session = MagicMock()
-        processor.io.session.return_value.__enter__.return_value = mock_session
+        # Mock the execute_query method used by the direct methods
+        mock_result = MagicMock()
+        mock_summary = MagicMock()
+        mock_summary.counters.nodes_created = 1
+        mock_summary.result_available_after = 10
+        mock_result.summary = mock_summary
+        processor.io.execute_query.return_value = mock_result
         
-        # Reset the mock to clear the initialization call
-        processor.io.session.reset_mock()
+        # Reset the mock to clear initialization calls
+        processor.io.execute_query.reset_mock()
         
         # Create message with multiple triples
         message = MagicMock()
@@ -329,16 +354,17 @@ class TestMemgraphStorageProcessor:
         
         await processor.store_triples(message)
         
-        # Verify session was called twice (once per triple)
-        assert processor.io.session.call_count == 2
+        # Verify execute_query was called:
+        # Triple1: create_node(s) + create_literal(o) + relate_literal = 3 calls
+        # Triple2: create_node(s) + create_node(o) + relate_node = 3 calls
+        # Total: 6 calls
+        assert processor.io.execute_query.call_count == 6
         
-        # Verify execute_write was called once per triple
-        assert mock_session.execute_write.call_count == 2
-        
-        # Verify each triple was processed
-        call_args_list = mock_session.execute_write.call_args_list
-        assert call_args_list[0][0][1] == triple1
-        assert call_args_list[1][0][1] == triple2
+        # Verify user/collection parameters were included in all calls
+        for call in processor.io.execute_query.call_args_list:
+            call_kwargs = call.kwargs if hasattr(call, 'kwargs') else call[1]
+            assert call_kwargs['user'] == 'test_user'
+            assert call_kwargs['collection'] == 'test_collection'
 
     @pytest.mark.asyncio
     async def test_store_triples_empty_list(self, processor):

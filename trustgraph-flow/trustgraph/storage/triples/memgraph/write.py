@@ -61,6 +61,7 @@ class Processor(TriplesStoreService):
 
         logger.info("Create indexes...")
 
+        # Legacy indexes for backwards compatibility
         try:
             session.run(
                 "CREATE INDEX ON :Node",
@@ -97,15 +98,48 @@ class Processor(TriplesStoreService):
             # Maybe index already exists
             logger.warning("Index create failure ignored")
 
+        # New indexes for user/collection filtering
+        try:
+            session.run(
+                "CREATE INDEX ON :Node(user)"
+            )
+        except Exception as e:
+            logger.warning(f"User index create failure: {e}")
+            logger.warning("Index create failure ignored")
+
+        try:
+            session.run(
+                "CREATE INDEX ON :Node(collection)"
+            )
+        except Exception as e:
+            logger.warning(f"Collection index create failure: {e}")
+            logger.warning("Index create failure ignored")
+
+        try:
+            session.run(
+                "CREATE INDEX ON :Literal(user)"
+            )
+        except Exception as e:
+            logger.warning(f"User index create failure: {e}")
+            logger.warning("Index create failure ignored")
+
+        try:
+            session.run(
+                "CREATE INDEX ON :Literal(collection)"
+            )
+        except Exception as e:
+            logger.warning(f"Collection index create failure: {e}")
+            logger.warning("Index create failure ignored")
+
         logger.info("Index creation done")
 
-    def create_node(self, uri):
+    def create_node(self, uri, user, collection):
 
-        logger.debug(f"Create node {uri}")
+        logger.debug(f"Create node {uri} for user={user}, collection={collection}")
 
         summary = self.io.execute_query(
-            "MERGE (n:Node {uri: $uri})",
-            uri=uri,
+            "MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",
+            uri=uri, user=user, collection=collection,
             database_=self.db,
         ).summary
 
@@ -114,13 +148,13 @@ class Processor(TriplesStoreService):
             time=summary.result_available_after
         ))
 
-    def create_literal(self, value):
+    def create_literal(self, value, user, collection):
 
-        logger.debug(f"Create literal {value}")
+        logger.debug(f"Create literal {value} for user={user}, collection={collection}")
 
         summary = self.io.execute_query(
-            "MERGE (n:Literal {value: $value})",
-            value=value,
+            "MERGE (n:Literal {value: $value, user: $user, collection: $collection})",
+            value=value, user=user, collection=collection,
             database_=self.db,
         ).summary
 
@@ -129,15 +163,15 @@ class Processor(TriplesStoreService):
             time=summary.result_available_after
         ))
 
-    def relate_node(self, src, uri, dest):
+    def relate_node(self, src, uri, dest, user, collection):
 
-        logger.debug(f"Create node rel {src} {uri} {dest}")
+        logger.debug(f"Create node rel {src} {uri} {dest} for user={user}, collection={collection}")
 
         summary = self.io.execute_query(
-            "MATCH (src:Node {uri: $src}) "
-            "MATCH (dest:Node {uri: $dest}) "
-            "MERGE (src)-[:Rel {uri: $uri}]->(dest)",
-            src=src, dest=dest, uri=uri,
+            "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
+            "MATCH (dest:Node {uri: $dest, user: $user, collection: $collection}) "
+            "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
+            src=src, dest=dest, uri=uri, user=user, collection=collection,
             database_=self.db,
         ).summary
 
@@ -146,15 +180,15 @@ class Processor(TriplesStoreService):
             time=summary.result_available_after
         ))
 
-    def relate_literal(self, src, uri, dest):
+    def relate_literal(self, src, uri, dest, user, collection):
 
-        logger.debug(f"Create literal rel {src} {uri} {dest}")
+        logger.debug(f"Create literal rel {src} {uri} {dest} for user={user}, collection={collection}")
 
         summary = self.io.execute_query(
-            "MATCH (src:Node {uri: $src}) "
-            "MATCH (dest:Literal {value: $dest}) "
-            "MERGE (src)-[:Rel {uri: $uri}]->(dest)",
-            src=src, dest=dest, uri=uri,
+            "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
+            "MATCH (dest:Literal {value: $dest, user: $user, collection: $collection}) "
+            "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
+            src=src, dest=dest, uri=uri, user=user, collection=collection,
             database_=self.db,
         ).summary
 
@@ -163,59 +197,64 @@ class Processor(TriplesStoreService):
             time=summary.result_available_after
         ))
 
-    def create_triple(self, tx, t):
+    def create_triple(self, tx, t, user, collection):
 
         # Create new s node with given uri, if not exists
         result = tx.run(
-            "MERGE (n:Node {uri: $uri})",
-            uri=t.s.value
+            "MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",
+            uri=t.s.value, user=user, collection=collection
         )
 
         if t.o.is_uri:
 
             # Create new o node with given uri, if not exists
             result = tx.run(
-                "MERGE (n:Node {uri: $uri})",
-                uri=t.o.value
+                "MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",
+                uri=t.o.value, user=user, collection=collection
             )
 
             result = tx.run(
-                "MATCH (src:Node {uri: $src}) "
-                "MATCH (dest:Node {uri: $dest}) "
-                "MERGE (src)-[:Rel {uri: $uri}]->(dest)",
-                src=t.s.value, dest=t.o.value, uri=t.p.value,
+                "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
+                "MATCH (dest:Node {uri: $dest, user: $user, collection: $collection}) "
+                "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
+                src=t.s.value, dest=t.o.value, uri=t.p.value, user=user, collection=collection,
             )
 
         else:
         
             # Create new o literal with given uri, if not exists
             result = tx.run(
-                "MERGE (n:Literal {value: $value})",
-                value=t.o.value
+                "MERGE (n:Literal {value: $value, user: $user, collection: $collection})",
+                value=t.o.value, user=user, collection=collection
             )
 
             result = tx.run(
-                "MATCH (src:Node {uri: $src}) "
-                "MATCH (dest:Literal {value: $dest}) "
-                "MERGE (src)-[:Rel {uri: $uri}]->(dest)",
-                src=t.s.value, dest=t.o.value, uri=t.p.value,
+                "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
+                "MATCH (dest:Literal {value: $dest, user: $user, collection: $collection}) "
+                "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
+                src=t.s.value, dest=t.o.value, uri=t.p.value, user=user, collection=collection,
             )
         
     async def store_triples(self, message):
 
+        # Extract user and collection from metadata
+        user = message.metadata.user if message.metadata.user else "default"
+        collection = message.metadata.collection if message.metadata.collection else "default"
+
         for t in message.triples:
 
-            # self.create_node(t.s.value)
+            self.create_node(t.s.value, user, collection)
 
-            # if t.o.is_uri:
-            #     self.create_node(t.o.value)
-            #     self.relate_node(t.s.value, t.p.value, t.o.value)
-            # else:
-            #     self.create_literal(t.o.value)
-            #     self.relate_literal(t.s.value, t.p.value, t.o.value)
+            if t.o.is_uri:
+                self.create_node(t.o.value, user, collection)
+                self.relate_node(t.s.value, t.p.value, t.o.value, user, collection)
+            else:
+                self.create_literal(t.o.value, user, collection)
+                self.relate_literal(t.s.value, t.p.value, t.o.value, user, collection)
 
-            with self.io.session(database=self.db) as session:
-                session.execute_write(self.create_triple, t)
+            # Alternative implementation using transactions
+            # with self.io.session(database=self.db) as session:
+            #     session.execute_write(self.create_triple, t, user, collection)
 
     @staticmethod
     def add_args(parser):
