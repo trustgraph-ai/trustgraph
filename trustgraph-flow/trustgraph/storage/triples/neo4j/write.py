@@ -61,6 +61,7 @@ class Processor(TriplesStoreService):
 
         logger.info("Create indexes...")
 
+        # Legacy indexes for backwards compatibility
         try:
             session.run(
                 "CREATE INDEX Node_uri FOR (n:Node) ON (n.uri)",
@@ -88,15 +89,50 @@ class Processor(TriplesStoreService):
             # Maybe index already exists
             logger.warning("Index create failure ignored")
 
+        # New compound indexes for user/collection filtering
+        try:
+            session.run(
+                "CREATE INDEX node_user_collection_uri FOR (n:Node) ON (n.user, n.collection, n.uri)",
+            )
+        except Exception as e:
+            logger.warning(f"Compound index create failure: {e}")
+            logger.warning("Index create failure ignored")
+
+        try:
+            session.run(
+                "CREATE INDEX literal_user_collection_value FOR (n:Literal) ON (n.user, n.collection, n.value)",
+            )
+        except Exception as e:
+            logger.warning(f"Compound index create failure: {e}")
+            logger.warning("Index create failure ignored")
+
+        # Note: Neo4j doesn't support compound indexes on relationships in all versions
+        # Try to create individual indexes on relationship properties
+        try:
+            session.run(
+                "CREATE INDEX rel_user FOR ()-[r:Rel]-() ON (r.user)",
+            )
+        except Exception as e:
+            logger.warning(f"Relationship index create failure: {e}")
+            logger.warning("Index create failure ignored")
+
+        try:
+            session.run(
+                "CREATE INDEX rel_collection FOR ()-[r:Rel]-() ON (r.collection)",
+            )
+        except Exception as e:
+            logger.warning(f"Relationship index create failure: {e}")
+            logger.warning("Index create failure ignored")
+
         logger.info("Index creation done")
 
-    def create_node(self, uri):
+    def create_node(self, uri, user, collection):
 
-        logger.debug(f"Create node {uri}")
+        logger.debug(f"Create node {uri} for user={user}, collection={collection}")
 
         summary = self.io.execute_query(
-            "MERGE (n:Node {uri: $uri})",
-            uri=uri,
+            "MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",
+            uri=uri, user=user, collection=collection,
             database_=self.db,
         ).summary
 
@@ -105,13 +141,13 @@ class Processor(TriplesStoreService):
             time=summary.result_available_after
         ))
 
-    def create_literal(self, value):
+    def create_literal(self, value, user, collection):
 
-        logger.debug(f"Create literal {value}")
+        logger.debug(f"Create literal {value} for user={user}, collection={collection}")
 
         summary = self.io.execute_query(
-            "MERGE (n:Literal {value: $value})",
-            value=value,
+            "MERGE (n:Literal {value: $value, user: $user, collection: $collection})",
+            value=value, user=user, collection=collection,
             database_=self.db,
         ).summary
 
@@ -120,15 +156,15 @@ class Processor(TriplesStoreService):
             time=summary.result_available_after
         ))
 
-    def relate_node(self, src, uri, dest):
+    def relate_node(self, src, uri, dest, user, collection):
 
-        logger.debug(f"Create node rel {src} {uri} {dest}")
+        logger.debug(f"Create node rel {src} {uri} {dest} for user={user}, collection={collection}")
 
         summary = self.io.execute_query(
-            "MATCH (src:Node {uri: $src}) "
-            "MATCH (dest:Node {uri: $dest}) "
-            "MERGE (src)-[:Rel {uri: $uri}]->(dest)",
-            src=src, dest=dest, uri=uri,
+            "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
+            "MATCH (dest:Node {uri: $dest, user: $user, collection: $collection}) "
+            "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
+            src=src, dest=dest, uri=uri, user=user, collection=collection,
             database_=self.db,
         ).summary
 
@@ -137,15 +173,15 @@ class Processor(TriplesStoreService):
             time=summary.result_available_after
         ))
 
-    def relate_literal(self, src, uri, dest):
+    def relate_literal(self, src, uri, dest, user, collection):
 
-        logger.debug(f"Create literal rel {src} {uri} {dest}")
+        logger.debug(f"Create literal rel {src} {uri} {dest} for user={user}, collection={collection}")
 
         summary = self.io.execute_query(
-            "MATCH (src:Node {uri: $src}) "
-            "MATCH (dest:Literal {value: $dest}) "
-            "MERGE (src)-[:Rel {uri: $uri}]->(dest)",
-            src=src, dest=dest, uri=uri,
+            "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
+            "MATCH (dest:Literal {value: $dest, user: $user, collection: $collection}) "
+            "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
+            src=src, dest=dest, uri=uri, user=user, collection=collection,
             database_=self.db,
         ).summary
 
@@ -156,16 +192,20 @@ class Processor(TriplesStoreService):
 
     async def store_triples(self, message):
 
+        # Extract user and collection from metadata
+        user = message.metadata.user if message.metadata.user else "default"
+        collection = message.metadata.collection if message.metadata.collection else "default"
+
         for t in message.triples:
 
-            self.create_node(t.s.value)
+            self.create_node(t.s.value, user, collection)
 
             if t.o.is_uri:
-                self.create_node(t.o.value)
-                self.relate_node(t.s.value, t.p.value, t.o.value)
+                self.create_node(t.o.value, user, collection)
+                self.relate_node(t.s.value, t.p.value, t.o.value, user, collection)
             else:
-                self.create_literal(t.o.value)
-                self.relate_literal(t.s.value, t.p.value, t.o.value)
+                self.create_literal(t.o.value, user, collection)
+                self.relate_literal(t.s.value, t.p.value, t.o.value, user, collection)
 
     @staticmethod
     def add_args(parser):
