@@ -96,6 +96,50 @@ push:
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-ocr:${VERSION}
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-mcp:${VERSION}
 
+# Individual container build targets
+container-trustgraph-base: update-package-versions
+	${DOCKER} build -f containers/Containerfile.base -t ${CONTAINER_BASE}/trustgraph-base:${VERSION} .
+
+container-trustgraph-flow: update-package-versions
+	${DOCKER} build -f containers/Containerfile.flow -t ${CONTAINER_BASE}/trustgraph-flow:${VERSION} .
+
+container-trustgraph-bedrock: update-package-versions
+	${DOCKER} build -f containers/Containerfile.bedrock -t ${CONTAINER_BASE}/trustgraph-bedrock:${VERSION} .
+
+container-trustgraph-vertexai: update-package-versions
+	${DOCKER} build -f containers/Containerfile.vertexai -t ${CONTAINER_BASE}/trustgraph-vertexai:${VERSION} .
+
+container-trustgraph-hf: update-package-versions
+	${DOCKER} build -f containers/Containerfile.hf -t ${CONTAINER_BASE}/trustgraph-hf:${VERSION} .
+
+container-trustgraph-ocr: update-package-versions
+	${DOCKER} build -f containers/Containerfile.ocr -t ${CONTAINER_BASE}/trustgraph-ocr:${VERSION} .
+
+container-trustgraph-mcp: update-package-versions
+	${DOCKER} build -f containers/Containerfile.mcp -t ${CONTAINER_BASE}/trustgraph-mcp:${VERSION} .
+
+# Individual container push targets
+push-trustgraph-base:
+	${DOCKER} push ${CONTAINER_BASE}/trustgraph-base:${VERSION}
+
+push-trustgraph-flow:
+	${DOCKER} push ${CONTAINER_BASE}/trustgraph-flow:${VERSION}
+
+push-trustgraph-bedrock:
+	${DOCKER} push ${CONTAINER_BASE}/trustgraph-bedrock:${VERSION}
+
+push-trustgraph-vertexai:
+	${DOCKER} push ${CONTAINER_BASE}/trustgraph-vertexai:${VERSION}
+
+push-trustgraph-hf:
+	${DOCKER} push ${CONTAINER_BASE}/trustgraph-hf:${VERSION}
+
+push-trustgraph-ocr:
+	${DOCKER} push ${CONTAINER_BASE}/trustgraph-ocr:${VERSION}
+
+push-trustgraph-mcp:
+	${DOCKER} push ${CONTAINER_BASE}/trustgraph-mcp:${VERSION}
+
 clean:
 	rm -rf wheels/
 

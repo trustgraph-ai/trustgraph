@@ -42,13 +42,23 @@ jobs:
 
   deploy-container-image:
 
-    name: Release container image
+    name: Release container images
     runs-on: ubuntu-24.04
     permissions:
       contents: write
       id-token: write
     environment:
       name: release
+    strategy:
+      matrix:
+        container:
+          - trustgraph-base
+          - trustgraph-flow
+          - trustgraph-bedrock
+          - trustgraph-vertexai
+          - trustgraph-hf
+          - trustgraph-ocr
+          - trustgraph-mcp
 
     steps:
 
@@ -68,9 +78,9 @@ jobs:
       - name: Put version into package manifests
         run: make update-package-versions VERSION=${{ steps.version.outputs.VERSION }}
 
-      - name: Build containers
-        run: make container VERSION=${{ steps.version.outputs.VERSION }}
+      - name: Build container - ${{ matrix.container }}
+        run: make container-${{ matrix.container }} VERSION=${{ steps.version.outputs.VERSION }}
 
-      - name: Push containers
-        run: make push VERSION=${{ steps.version.outputs.VERSION }}
+      - name: Push container - ${{ matrix.container }}
+        run: make push-${{ matrix.container }} VERSION=${{ steps.version.outputs.VERSION }}
 
