@@ -81,7 +81,7 @@ class GraphEmbeddingsResponseTranslator(MessageTranslator):
     def from_pulsar(self, obj: GraphEmbeddingsResponse) -> Dict[str, Any]:
         result = {}
         
-        if obj.entities:
+        if obj.entities is not None:
             result["entities"] = [
                 self.value_translator.from_pulsar(entity)
                 for entity in obj.entities
