@@ -147,7 +147,7 @@ class Mux:
                 self.running.stop()
 
                 if self.ws:
-                    self.ws.close()
+                    await self.ws.close()
                     self.ws = None
 
                 break
@@ -165,6 +165,6 @@ class Mux:
         self.running.stop()
 
         if self.ws:
-            self.ws.close()
+            await self.ws.close()
             self.ws = None
 
