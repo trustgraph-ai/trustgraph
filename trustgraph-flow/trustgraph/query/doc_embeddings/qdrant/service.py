@@ -38,6 +38,24 @@ class Processor(DocumentEmbeddingsQueryService):
         )
 
         self.qdrant = QdrantClient(url=store_uri, api_key=api_key)
+        self.last_collection = None
+
+    def ensure_collection_exists(self, collection, dim):
+        """Ensure collection exists, create if it doesn't"""
+        if collection != self.last_collection:
+            if not self.qdrant.collection_exists(collection):
+                try:
+                    self.qdrant.create_collection(
+                        collection_name=collection,
+                        vectors_config=VectorParams(
+                            size=dim, distance=Distance.COSINE
+                        ),
+                    )
+                    logger.info(f"Created collection: {collection}")
+                except Exception as e:
+                    logger.error(f"Qdrant collection creation failed: {e}")
+                    raise e
+            self.last_collection = collection
 
     async def query_document_embeddings(self, msg):
 
@@ -52,6 +70,8 @@ class Processor(DocumentEmbeddingsQueryService):
                     "d_" + msg.user + "_" + msg.collection + "_" +
                     str(dim)
                 )
+
+                self.ensure_collection_exists(collection, dim)
 
                 search_result = self.qdrant.query_points(
                     collection_name=collection,
