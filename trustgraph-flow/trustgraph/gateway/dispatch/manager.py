@@ -22,6 +22,7 @@ from . triples_query import TriplesQueryRequestor
 from . objects_query import ObjectsQueryRequestor
 from . nlp_query import NLPQueryRequestor
 from . structured_query import StructuredQueryRequestor
+from . structured_diag import StructuredDiagRequestor
 from . embeddings import EmbeddingsRequestor
 from . graph_embeddings_query import GraphEmbeddingsQueryRequestor
 from . mcp_tool import McpToolRequestor
@@ -57,6 +58,7 @@ request_response_dispatchers = {
     "objects": ObjectsQueryRequestor,
     "nlp-query": NLPQueryRequestor,
     "structured-query": StructuredQueryRequestor,
+    "structured-diag": StructuredDiagRequestor,
 }
 
 global_dispatchers = {
