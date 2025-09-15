@@ -10,3 +10,4 @@ from .lookup import *
 from .nlp_query import *
 from .structured_query import *
 from .objects_query import *
+from .diagnosis import *
