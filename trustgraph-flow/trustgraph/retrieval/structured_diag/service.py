@@ -387,3 +387,8 @@ class Processor(FlowProcessor):
         except Exception as e:
             logger.error(f"Error calling prompt service: {e}", exc_info=True)
             return None
+
+
+def run():
+    """Entry point for structured-diag command"""
+    Processor.launch(default_ident, __doc__)
