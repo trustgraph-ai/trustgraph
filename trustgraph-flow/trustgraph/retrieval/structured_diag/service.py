@@ -21,6 +21,7 @@ default_ident = "structured-diag"
 default_csv_prompt = "diagnose-csv"
 default_json_prompt = "diagnose-json"
 default_xml_prompt = "diagnose-xml"
+default_schema_selection_prompt = "schema-selection"
 
 
 class Processor(FlowProcessor):
@@ -36,6 +37,7 @@ class Processor(FlowProcessor):
         self.csv_prompt = params.get("csv_prompt", default_csv_prompt)
         self.json_prompt = params.get("json_prompt", default_json_prompt)
         self.xml_prompt = params.get("xml_prompt", default_xml_prompt)
+        self.schema_selection_prompt = params.get("schema_selection_prompt", default_schema_selection_prompt)
 
         super(Processor, self).__init__(
             **params | {
@@ -336,21 +338,22 @@ class Processor(FlowProcessor):
             all_schemas.append(schema_info)
 
         # Create prompt variables - schemas array contains ALL schemas
+        # Note: The prompt expects 'question' not 'sample'
         variables = {
-            "sample": request.sample,
+            "question": request.sample,  # The prompt template expects 'question'
             "schemas": all_schemas,
             "options": request.options or {}
         }
 
-        # Call prompt service (assuming there's a schema-selection prompt template)
+        # Call prompt service with configurable template
         terms = {k: json.dumps(v) for k, v in variables.items()}
         prompt_request = PromptRequest(
-            id="schema-selection",  # This prompt template needs to exist
+            id=self.schema_selection_prompt,
             terms=terms
         )
 
         try:
-            logger.info("Calling prompt service for schema selection")
+            logger.info(f"Calling prompt service for schema selection with template: {self.schema_selection_prompt}")
             response = await flow("prompt-request").request(prompt_request)
 
             if response.error:
@@ -361,8 +364,16 @@ class Processor(FlowProcessor):
                 )
                 return StructuredDataDiagnosisResponse(error=error, operation=request.operation)
 
-            if not response.text or not response.text.strip():
-                logger.error("Empty response from prompt service")
+            # Check both text and object fields for response
+            response_data = None
+            if response.object and response.object.strip():
+                response_data = response.object.strip()
+                logger.debug(f"Using response from 'object' field: {response_data}")
+            elif response.text and response.text.strip():
+                response_data = response.text.strip()
+                logger.debug(f"Using response from 'text' field: {response_data}")
+            else:
+                logger.error("Empty response from prompt service (checked both text and object fields)")
                 error = Error(
                     type="PromptServiceError",
                     message="Empty response from prompt service"
@@ -371,7 +382,7 @@ class Processor(FlowProcessor):
 
             # Parse the response as JSON array of schema IDs
             try:
-                schema_matches = json.loads(response.text.strip())
+                schema_matches = json.loads(response_data)
                 if not isinstance(schema_matches, list):
                     raise ValueError("Response must be an array")
             except (json.JSONDecodeError, ValueError) as e:

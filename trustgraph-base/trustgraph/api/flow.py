@@ -528,7 +528,7 @@ class FlowInstance:
             error_message = response["error"].get("message", "Unknown error")
             raise ProtocolException(f"{error_type}: {error_message}")
 
-        return response
+        return response["detected-type"]
 
     def generate_descriptor(self, sample, data_type, schema_name, options=None):
         """
@@ -565,7 +565,7 @@ class FlowInstance:
             error_message = response["error"].get("message", "Unknown error")
             raise ProtocolException(f"{error_type}: {error_message}")
 
-        return response
+        return response["descriptor"]
 
     def diagnose_data(self, sample, schema_name=None, options=None):
         """
@@ -635,5 +635,5 @@ class FlowInstance:
             error_message = response["error"].get("message", "Unknown error")
             raise ProtocolException(f"{error_type}: {error_message}")
 
-        return response
+        return response["schema-matches"]
 
