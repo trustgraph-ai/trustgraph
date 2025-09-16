@@ -1,4 +1,4 @@
-from pulsar.schema import Record, String, Map, Double
+from pulsar.schema import Record, String, Map, Double, Array
 from ..core.primitives import Error
 
 ############################################################################
@@ -6,7 +6,7 @@ from ..core.primitives import Error
 # Structured data diagnosis services
 
 class StructuredDataDiagnosisRequest(Record):
-    operation = String()  # "detect-type", "generate-descriptor", or "diagnose"
+    operation = String()  # "detect-type", "generate-descriptor", "diagnose", or "schema-selection"
     sample = String()     # Data sample to analyze (text content)
     type = String()       # Data type (csv, json, xml) - optional, required for generate-descriptor
     schema_name = String() # Target schema name for descriptor generation - optional
@@ -26,5 +26,8 @@ class StructuredDataDiagnosisResponse(Record):
 
     # JSON encoded additional metadata (e.g., field count, sample records)
     metadata = Map(String())
+
+    # Array of matching schema IDs (for schema-selection operation) - optional
+    schema_matches = Array(String())
 
 ############################################################################

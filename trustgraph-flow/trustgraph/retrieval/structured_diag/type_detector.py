@@ -31,28 +31,13 @@ def detect_data_type(sample: str) -> Tuple[Optional[str], float]:
 
     sample = sample.strip()
 
-    # Try each format and calculate confidence scores
-    json_confidence = _check_json_format(sample)
-    xml_confidence = _check_xml_format(sample)
-    csv_confidence = _check_csv_format(sample)
-
-    logger.debug(f"Format confidence scores - JSON: {json_confidence}, XML: {xml_confidence}, CSV: {csv_confidence}")
-
-    # Find the format with highest confidence
-    scores = {
-        "json": json_confidence,
-        "xml": xml_confidence,
-        "csv": csv_confidence
-    }
-
-    best_format = max(scores, key=scores.get)
-    best_confidence = scores[best_format]
-
-    # Only return a result if confidence is above threshold
-    if best_confidence < 0.3:
-        return None, best_confidence
-
-    return best_format, best_confidence
+    # Simple pattern matching
+    if sample.startswith('<?xml') or (sample.startswith('<') and '</' in sample):
+        return 'xml', 0.9
+    elif sample.startswith(('{', '[')):
+        return 'json', 0.9
+    else:
+        return 'csv', 0.8
 
 
 def _check_json_format(sample: str) -> float:
@@ -83,33 +68,20 @@ def _check_json_format(sample: str) -> float:
 
 def _check_xml_format(sample: str) -> float:
     """Check if sample is valid XML format"""
-    try:
-        # Quick heuristic checks first
-        if not sample.startswith('<'):
-            return 0.0
-
-        if not ('>' in sample and '</' in sample):
-            return 0.1  # Might be incomplete XML
-
-        # Try to parse as XML
-        root = ET.fromstring(sample)
-
-        # Higher confidence for XML with multiple child elements
-        child_count = len(list(root))
-        if child_count > 10:
-            return 0.95
-        elif child_count > 5:
-            return 0.9
-        elif child_count > 0:
-            return 0.8
+    # XML declaration or starts with tag
+    if sample.startswith('<?xml') or sample.startswith('<'):
+        # Must have closing tags for valid XML
+        if '</' in sample and '>' in sample:
+            try:
+                # Quick parse test
+                ET.fromstring(sample)
+                return 0.9  # Valid XML
+            except ET.ParseError:
+                return 0.3  # Looks like XML but malformed
         else:
-            return 0.6
+            return 0.1  # Incomplete XML
 
-    except ET.ParseError:
-        # Check for common XML characteristics even if not well-formed
-        xml_indicators = ['</', '<?xml', 'xmlns:', '<![CDATA[']
-        score = sum(0.1 for indicator in xml_indicators if indicator in sample)
-        return min(score, 0.3)  # Max 0.3 for malformed XML
+    return 0.0  # Not XML
 
 
 def _check_csv_format(sample: str) -> float:
