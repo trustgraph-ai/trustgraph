@@ -492,12 +492,148 @@ class FlowInstance:
             "service/structured-query",
             input
         )
-        
+
         # Check for system-level error
         if "error" in response and response["error"]:
             error_type = response["error"].get("type", "unknown")
             error_message = response["error"].get("message", "Unknown error")
             raise ProtocolException(f"{error_type}: {error_message}")
-        
+
         return response
+
+    def detect_type(self, sample):
+        """
+        Detect the data type of a structured data sample.
+
+        Args:
+            sample: Data sample to analyze (string content)
+
+        Returns:
+            dict with detected_type, confidence, and optional metadata
+        """
+
+        input = {
+            "operation": "detect-type",
+            "sample": sample
+        }
+
+        response = self.request(
+            "service/structured-diag",
+            input
+        )
+
+        # Check for system-level error
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        return response["detected-type"]
+
+    def generate_descriptor(self, sample, data_type, schema_name, options=None):
+        """
+        Generate a descriptor for structured data mapping to a specific schema.
+
+        Args:
+            sample: Data sample to analyze (string content)
+            data_type: Data type (csv, json, xml)
+            schema_name: Target schema name for descriptor generation
+            options: Optional parameters (e.g., delimiter for CSV)
+
+        Returns:
+            dict with descriptor and metadata
+        """
+
+        input = {
+            "operation": "generate-descriptor",
+            "sample": sample,
+            "type": data_type,
+            "schema-name": schema_name
+        }
+
+        if options:
+            input["options"] = options
+
+        response = self.request(
+            "service/structured-diag",
+            input
+        )
+
+        # Check for system-level error
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        return response["descriptor"]
+
+    def diagnose_data(self, sample, schema_name=None, options=None):
+        """
+        Perform combined data diagnosis: detect type and generate descriptor.
+
+        Args:
+            sample: Data sample to analyze (string content)
+            schema_name: Optional target schema name for descriptor generation
+            options: Optional parameters (e.g., delimiter for CSV)
+
+        Returns:
+            dict with detected_type, confidence, descriptor, and metadata
+        """
+
+        input = {
+            "operation": "diagnose",
+            "sample": sample
+        }
+
+        if schema_name:
+            input["schema-name"] = schema_name
+
+        if options:
+            input["options"] = options
+
+        response = self.request(
+            "service/structured-diag",
+            input
+        )
+
+        # Check for system-level error
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        return response
+
+    def schema_selection(self, sample, options=None):
+        """
+        Select matching schemas for a data sample using prompt analysis.
+
+        Args:
+            sample: Data sample to analyze (string content)
+            options: Optional parameters
+
+        Returns:
+            dict with schema_matches array and metadata
+        """
+
+        input = {
+            "operation": "schema-selection",
+            "sample": sample
+        }
+
+        if options:
+            input["options"] = options
+
+        response = self.request(
+            "service/structured-diag",
+            input
+        )
+
+        # Check for system-level error
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        return response["schema-matches"]
 

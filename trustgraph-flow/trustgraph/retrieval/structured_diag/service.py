@@ -21,6 +21,7 @@ default_ident = "structured-diag"
 default_csv_prompt = "diagnose-csv"
 default_json_prompt = "diagnose-json"
 default_xml_prompt = "diagnose-xml"
+default_schema_selection_prompt = "schema-selection"
 
 
 class Processor(FlowProcessor):
@@ -36,6 +37,7 @@ class Processor(FlowProcessor):
         self.csv_prompt = params.get("csv_prompt", default_csv_prompt)
         self.json_prompt = params.get("json_prompt", default_json_prompt)
         self.xml_prompt = params.get("xml_prompt", default_xml_prompt)
+        self.schema_selection_prompt = params.get("schema_selection_prompt", default_schema_selection_prompt)
 
         super(Processor, self).__init__(
             **params | {
@@ -143,10 +145,12 @@ class Processor(FlowProcessor):
                 response = await self.generate_descriptor_operation(request, flow)
             elif request.operation == "diagnose":
                 response = await self.diagnose_operation(request, flow)
+            elif request.operation == "schema-selection":
+                response = await self.schema_selection_operation(request, flow)
             else:
                 error = Error(
                     type="InvalidOperation",
-                    message=f"Unknown operation: {request.operation}. Supported: detect-type, generate-descriptor, diagnose"
+                    message=f"Unknown operation: {request.operation}. Supported: detect-type, generate-descriptor, diagnose, schema-selection"
                 )
                 response = StructuredDataDiagnosisResponse(
                     error=error,
@@ -155,7 +159,7 @@ class Processor(FlowProcessor):
 
             # Send response
             await flow("response").send(
-                id, response, properties={"id": id}
+                response, properties={"id": id}
             )
 
         except Exception as e:
@@ -172,7 +176,7 @@ class Processor(FlowProcessor):
             )
 
             await flow("response").send(
-                id, response, properties={"id": id}
+                response, properties={"id": id}
             )
 
     async def detect_type_operation(self, request: StructuredDataDiagnosisRequest, flow) -> StructuredDataDiagnosisResponse:
@@ -306,6 +310,102 @@ class Processor(FlowProcessor):
             descriptor=json.dumps(descriptor),
             metadata=metadata
         )
+
+    async def schema_selection_operation(self, request: StructuredDataDiagnosisRequest, flow) -> StructuredDataDiagnosisResponse:
+        """Handle schema-selection operation"""
+        logger.info("Processing schema-selection operation")
+
+        # Prepare all schemas for the prompt - match the original config format
+        all_schemas = []
+        for schema_name, row_schema in self.schemas.items():
+            schema_info = {
+                "name": row_schema.name,
+                "description": row_schema.description,
+                "fields": [
+                    {
+                        "name": f.name,
+                        "type": f.type,
+                        "description": f.description,
+                        "required": f.required,
+                        "primary_key": f.primary,
+                        "indexed": f.indexed,
+                        "enum": f.enum_values if f.enum_values else [],
+                        "size": f.size if hasattr(f, 'size') else 0
+                    }
+                    for f in row_schema.fields
+                ]
+            }
+            all_schemas.append(schema_info)
+
+        # Create prompt variables - schemas array contains ALL schemas
+        # Note: The prompt expects 'question' not 'sample'
+        variables = {
+            "question": request.sample,  # The prompt template expects 'question'
+            "schemas": all_schemas,
+            "options": request.options or {}
+        }
+
+        # Call prompt service with configurable template
+        terms = {k: json.dumps(v) for k, v in variables.items()}
+        prompt_request = PromptRequest(
+            id=self.schema_selection_prompt,
+            terms=terms
+        )
+
+        try:
+            logger.info(f"Calling prompt service for schema selection with template: {self.schema_selection_prompt}")
+            response = await flow("prompt-request").request(prompt_request)
+
+            if response.error:
+                logger.error(f"Prompt service error: {response.error.message}")
+                error = Error(
+                    type="PromptServiceError",
+                    message="Failed to select schemas using prompt service"
+                )
+                return StructuredDataDiagnosisResponse(error=error, operation=request.operation)
+
+            # Check both text and object fields for response
+            response_data = None
+            if response.object and response.object.strip():
+                response_data = response.object.strip()
+                logger.debug(f"Using response from 'object' field: {response_data}")
+            elif response.text and response.text.strip():
+                response_data = response.text.strip()
+                logger.debug(f"Using response from 'text' field: {response_data}")
+            else:
+                logger.error("Empty response from prompt service (checked both text and object fields)")
+                error = Error(
+                    type="PromptServiceError",
+                    message="Empty response from prompt service"
+                )
+                return StructuredDataDiagnosisResponse(error=error, operation=request.operation)
+
+            # Parse the response as JSON array of schema IDs
+            try:
+                schema_matches = json.loads(response_data)
+                if not isinstance(schema_matches, list):
+                    raise ValueError("Response must be an array")
+            except (json.JSONDecodeError, ValueError) as e:
+                logger.error(f"Failed to parse schema matches response: {e}")
+                error = Error(
+                    type="ParseError",
+                    message="Failed to parse schema selection response as JSON array"
+                )
+                return StructuredDataDiagnosisResponse(error=error, operation=request.operation)
+
+            return StructuredDataDiagnosisResponse(
+                error=None,
+                operation=request.operation,
+                schema_matches=schema_matches
+            )
+
+        except Exception as e:
+            logger.error(f"Error calling prompt service: {e}", exc_info=True)
+            error = Error(
+                type="PromptServiceError",
+                message="Failed to select schemas using prompt service"
+            )
+            return StructuredDataDiagnosisResponse(error=error, operation=request.operation)
 
     async def generate_descriptor_with_prompt(
         self, sample: str, data_type: str, target_schema: RowSchema,
