@@ -313,7 +313,7 @@ class Processor(FlowProcessor):
         """Handle schema-selection operation"""
         logger.info("Processing schema-selection operation")
 
-        # Prepare all schemas for the prompt
+        # Prepare all schemas for the prompt - match the original config format
         all_schemas = []
         for schema_name, row_schema in self.schemas.items():
             schema_info = {
@@ -327,7 +327,8 @@ class Processor(FlowProcessor):
                         "required": f.required,
                         "primary_key": f.primary,
                         "indexed": f.indexed,
-                        "enum_values": f.enum_values if f.enum_values else []
+                        "enum": f.enum_values if f.enum_values else [],
+                        "size": f.size if hasattr(f, 'size') else 0
                     }
                     for f in row_schema.fields
                 ]
