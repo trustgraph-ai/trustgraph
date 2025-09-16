@@ -24,6 +24,7 @@ from .translators.embeddings_query import (
 from .translators.objects_query import ObjectsQueryRequestTranslator, ObjectsQueryResponseTranslator
 from .translators.nlp_query import QuestionToStructuredQueryRequestTranslator, QuestionToStructuredQueryResponseTranslator
 from .translators.structured_query import StructuredQueryRequestTranslator, StructuredQueryResponseTranslator
+from .translators.diagnosis import StructuredDataDiagnosisRequestTranslator, StructuredDataDiagnosisResponseTranslator
 
 # Register all service translators
 TranslatorRegistry.register_service(
@@ -123,9 +124,15 @@ TranslatorRegistry.register_service(
 )
 
 TranslatorRegistry.register_service(
-    "structured-query", 
-    StructuredQueryRequestTranslator(), 
+    "structured-query",
+    StructuredQueryRequestTranslator(),
     StructuredQueryResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "structured-diag",
+    StructuredDataDiagnosisRequestTranslator(),
+    StructuredDataDiagnosisResponseTranslator()
 )
 
 # Register single-direction translators for document loading

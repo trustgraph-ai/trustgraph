@@ -18,3 +18,4 @@ from .embeddings_query import (
     GraphEmbeddingsRequestTranslator, GraphEmbeddingsResponseTranslator
 )
 from .objects_query import ObjectsQueryRequestTranslator, ObjectsQueryResponseTranslator
+from .diagnosis import StructuredDataDiagnosisRequestTranslator, StructuredDataDiagnosisResponseTranslator
