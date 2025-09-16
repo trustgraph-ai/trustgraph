@@ -123,6 +123,7 @@ async def test_schema_selection_success(service, mock_flow):
     mock_response = MagicMock()
     mock_response.error = None
     mock_response.text = '["products", "orders"]'
+    mock_response.object = None  # Explicitly set to None
     prompt_request_flow.return_value = mock_response
 
     # Create request
@@ -162,6 +163,7 @@ async def test_schema_selection_empty_response(service, mock_flow):
     mock_response = MagicMock()
     mock_response.error = None
     mock_response.text = ""
+    mock_response.object = ""  # Both fields empty
     prompt_request_flow.return_value = mock_response
 
     # Create request
@@ -219,6 +221,7 @@ async def test_schema_selection_invalid_json(service, mock_flow):
     mock_response = MagicMock()
     mock_response.error = None
     mock_response.text = "not valid json"
+    mock_response.object = None
     prompt_request_flow.return_value = mock_response
 
     # Create request
@@ -246,6 +249,7 @@ async def test_schema_selection_non_array_response(service, mock_flow):
     mock_response = MagicMock()
     mock_response.error = None
     mock_response.text = '{"schema": "products"}'  # Object instead of array
+    mock_response.object = None
     prompt_request_flow.return_value = mock_response
 
     # Create request
@@ -273,6 +277,7 @@ async def test_schema_selection_with_options(service, mock_flow):
     mock_response = MagicMock()
     mock_response.error = None
     mock_response.text = '["products"]'
+    mock_response.object = None
     prompt_request_flow.return_value = mock_response
 
     # Create request with options
@@ -333,6 +338,7 @@ async def test_schema_selection_empty_schemas(service, mock_flow):
     mock_response = MagicMock()
     mock_response.error = None
     mock_response.text = '[]'
+    mock_response.object = None
     prompt_request_flow.return_value = mock_response
 
     # Create request
