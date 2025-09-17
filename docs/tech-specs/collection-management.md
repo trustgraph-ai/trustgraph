@@ -71,14 +71,14 @@ The collection metadata will be stored in a structured Cassandra table in the li
 
 ```sql
 CREATE TABLE collections (
-    user_id text,
+    user text,
     collection_id text,
     name text,
     description text,
     tags set<text>,
     created_at timestamp,
     updated_at timestamp,
-    PRIMARY KEY (user_id, collection_id)
+    PRIMARY KEY (user, collection_id)
 );
 ```
 
@@ -166,13 +166,34 @@ When a user initiates collection deletion through the librarian service:
 3. **Metadata Cleanup**: Remove collection metadata record from Cassandra
 4. **Error Handling**: If any store deletion fails, maintain consistency through rollback or retry mechanisms
 
-#### Store Writer Requirements
+#### Collection Management Interface
 
-Each store writer must implement a collection deletion interface that:
-- Accepts user_id and collection_id parameters
-- Removes all data associated with the collection
-- Returns success/failure status for coordination
-- Handles cases where collection doesn't exist in that store (no-op)
+All store writers will implement a standardized collection management interface with a common schema across store types:
+
+**Message Schema:**
+```json
+{
+  "operation": "delete-collection",
+  "user": "user123",
+  "collection_id": "documents-2024",
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+**Queue Architecture:**
+- **Object Store Collection Management Queue**: Handles collection operations for object/document stores
+- **Vector Store Collection Management Queue**: Handles collection operations for vector/embedding stores
+- **Triple Store Collection Management Queue**: Handles collection operations for graph/RDF stores
+
+Each store writer implements:
+- **Collection Management Handler**: Separate from standard data storage handlers
+- **Delete Collection Operation**: Removes all data associated with the specified collection
+- **Message Processing**: Consumes from dedicated collection management queue
+- **Status Reporting**: Returns success/failure status for coordination
+- **Idempotent Operations**: Handles cases where collection doesn't exist (no-op)
+
+**Initial Implementation:**
+Only `delete-collection` operation will be implemented initially. The interface supports future operations like `archive-collection`, `migrate-collection`, etc.
 
 Collection operations will be atomic where possible and provide appropriate error handling and validation.
 
