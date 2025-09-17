@@ -96,20 +96,83 @@ This approach allows:
 - Flexible tagging system for organization
 - Lifecycle tracking for operational insights
 
+#### Collection Lifecycle
+
+Collections follow a lazy-creation pattern that aligns with existing TrustGraph behavior:
+
+1. **Lazy Creation**: Collections are automatically created when first referenced during data loading or query operations. No explicit create operation is needed.
+
+2. **Implicit Registration**: When a collection is used (data loading, querying), the system checks if a metadata record exists. If not, a new record is created with default values:
+   - `name`: defaults to collection_id
+   - `description`: empty
+   - `tags`: empty set
+   - `created_at`: current timestamp
+
+3. **Explicit Updates**: Users can update collection metadata (name, description, tags) through management operations after lazy creation.
+
+4. **Explicit Deletion**: Users can delete collections, which removes both the metadata record and the underlying collection data across all store types.
+
+5. **Multi-Store Deletion**: Collection deletion cascades across all storage backends (vector stores, object stores, triple stores) as each implements lazy creation and must support collection deletion.
+
+Operations required:
+- **Collection Use Notification**: Internal operation triggered during data loading/querying to ensure metadata record exists
+- **Update Collection Metadata**: User operation to modify name, description, and tags
+- **Delete Collection**: User operation to remove collection and its data across all stores
+- **List Collections**: User operation to view collections with filtering by tags
+
+#### Multi-Store Collection Management
+
+Collections exist across multiple storage backends in TrustGraph:
+- **Vector Stores**: Store embeddings and vector data for collections
+- **Object Stores**: Store documents and file data for collections
+- **Triple Stores**: Store graph/RDF data for collections
+
+Each store type implements:
+- **Lazy Creation**: Collections are created implicitly when data is first stored
+- **Collection Deletion**: Store-specific deletion operations to remove collection data
+
+The librarian service coordinates collection operations across all store types, ensuring consistent collection lifecycle management.
+
 ### APIs
 
 New APIs:
-- Collection listing with optional filtering by labels/tags
-- Collection deletion with confirmation mechanisms
-- Collection metadata management (labels and tags)
+- **List Collections**: Retrieve collections for a user with optional tag filtering
+- **Update Collection Metadata**: Modify collection name, description, and tags
+- **Delete Collection**: Remove collection and associated data with confirmation, cascading to all store types
+- **Collection Use Notification** (Internal): Ensure metadata record exists when collection is referenced
+
+Store Writer APIs (Enhanced):
+- **Vector Store Collection Deletion**: Remove vector data for specified collection
+- **Object Store Collection Deletion**: Remove object/document data for specified collection
+- **Triple Store Collection Deletion**: Remove graph/RDF data for specified collection
 
 Modified APIs:
-- Collection creation APIs - Enhanced to accept initial labels and tags
-- Query APIs - Enhanced to include collection metadata in responses
+- **Data Loading APIs**: Enhanced to trigger collection use notification for lazy metadata creation
+- **Query APIs**: Enhanced to trigger collection use notification and optionally include metadata in responses
 
 ### Implementation Details
 
 The implementation will follow existing TrustGraph patterns for service integration and CLI command structure.
+
+#### Collection Deletion Cascade
+
+When a user initiates collection deletion through the librarian service:
+
+1. **Metadata Validation**: Verify collection exists and user has permission to delete
+2. **Store Cascade**: Librarian coordinates deletion across all store writers:
+   - Vector store writer: Remove embeddings and vector indexes for the collection
+   - Object store writer: Remove documents and files for the collection
+   - Triple store writer: Remove graph data and triples for the collection
+3. **Metadata Cleanup**: Remove collection metadata record from Cassandra
+4. **Error Handling**: If any store deletion fails, maintain consistency through rollback or retry mechanisms
+
+#### Store Writer Requirements
+
+Each store writer must implement a collection deletion interface that:
+- Accepts user_id and collection_id parameters
+- Removes all data associated with the collection
+- Returns success/failure status for coordination
+- Handles cases where collection doesn't exist in that store (no-op)
 
 Collection operations will be atomic where possible and provide appropriate error handling and validation.
 
