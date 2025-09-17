@@ -215,12 +215,23 @@ As part of this implementation, the Cassandra triple store will be refactored fr
    - Remove `table` parameter from constructor, use fixed "triples" table
    - Add `collection_id` parameter to all methods
    - Update schema to include collection_id as first column
-   - **Index Updates**: Current indexes on `(p)` and `(o)` will need to be recreated to support all 8 query patterns with collection isolation:
-     - Index on `(collection_id, p)` for predicate-based queries (`get_p`, `get_po`)
-     - Index on `(collection_id, o)` for object-based queries (`get_o`, `get_po`, `get_os`)
-     - Primary key `(collection_id, s, p, o)` handles subject-based queries (`get_s`, `get_sp`, `get_os`, `get_spo`)
-     - `get_all` scans within collection partition
-     - This maintains query performance for all combination patterns while ensuring collection isolation
+   - **Index Updates**: New indexes will be created to support all 8 query patterns:
+     - Index on `(s)` for subject-based queries
+     - Index on `(p)` for predicate-based queries
+     - Index on `(o)` for object-based queries
+     - Note: Cassandra doesn't support multi-column secondary indexes, so these are single-column indexes
+
+   - **Query Pattern Performance**:
+     - ✅ `get_all()` - partition scan on `collection_id`
+     - ✅ `get_s(s)` - uses primary key efficiently (`collection_id, s`)
+     - ✅ `get_p(p)` - uses `idx_p` with `collection_id` filtering
+     - ✅ `get_o(o)` - uses `idx_o` with `collection_id` filtering
+     - ✅ `get_sp(s, p)` - uses primary key efficiently (`collection_id, s, p`)
+     - ⚠️ `get_po(p, o)` - requires `ALLOW FILTERING` (uses either `idx_p` or `idx_o` plus filtering)
+     - ✅ `get_os(o, s)` - uses `idx_o` with additional filtering on `s`
+     - ✅ `get_spo(s, p, o)` - uses full primary key efficiently
+
+   - **Note on ALLOW FILTERING**: The `get_po` query pattern requires `ALLOW FILTERING` as it needs both predicate and object constraints without a suitable compound index. This is acceptable as this query pattern is less common than subject-based queries in typical triple store usage
 
 2. **Storage Writer Updates** (`trustgraph/storage/triples/cassandra/write.py`):
    - Maintain single TrustGraph connection per user instead of per (user, collection)
