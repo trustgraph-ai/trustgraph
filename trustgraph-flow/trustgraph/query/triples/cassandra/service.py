@@ -56,21 +56,21 @@ class Processor(TriplesQueryService):
 
         try:
 
-            table = (query.user, query.collection)
+            user = query.user
 
-            if table != self.table:
+            if user != self.table:
                 if self.cassandra_username and self.cassandra_password:
                     self.tg = TrustGraph(
                         hosts=self.cassandra_host,
-                        keyspace=query.user, table=query.collection,
+                        keyspace=query.user,
                         username=self.cassandra_username, password=self.cassandra_password
                     )
                 else:
                     self.tg = TrustGraph(
                         hosts=self.cassandra_host,
-                        keyspace=query.user, table=query.collection,
+                        keyspace=query.user,
                     )
-                self.table = table
+                self.table = user
 
             triples = []
 
@@ -78,13 +78,13 @@ class Processor(TriplesQueryService):
                 if query.p is not None:
                     if query.o is not None:
                         resp = self.tg.get_spo(
-                            query.s.value, query.p.value, query.o.value,
+                            query.collection, query.s.value, query.p.value, query.o.value,
                             limit=query.limit
                         )
                         triples.append((query.s.value, query.p.value, query.o.value))
                     else:
                         resp = self.tg.get_sp(
-                            query.s.value, query.p.value,
+                            query.collection, query.s.value, query.p.value,
                             limit=query.limit
                         )
                         for t in resp:
@@ -92,14 +92,14 @@ class Processor(TriplesQueryService):
                 else:
                     if query.o is not None:
                         resp = self.tg.get_os(
-                            query.o.value, query.s.value, 
+                            query.collection, query.o.value, query.s.value,
                             limit=query.limit
                         )
                         for t in resp:
                             triples.append((query.s.value, t.p, query.o.value))
                     else:
                         resp = self.tg.get_s(
-                            query.s.value,
+                            query.collection, query.s.value,
                             limit=query.limit
                         )
                         for t in resp:
@@ -108,14 +108,14 @@ class Processor(TriplesQueryService):
                 if query.p is not None:
                     if query.o is not None:
                         resp = self.tg.get_po(
-                            query.p.value, query.o.value,
+                            query.collection, query.p.value, query.o.value,
                             limit=query.limit
                         )
                         for t in resp:
                             triples.append((t.s, query.p.value, query.o.value))
                     else:
                         resp = self.tg.get_p(
-                            query.p.value,
+                            query.collection, query.p.value,
                             limit=query.limit
                         )
                         for t in resp:
@@ -123,13 +123,14 @@ class Processor(TriplesQueryService):
                 else:
                     if query.o is not None:
                         resp = self.tg.get_o(
-                            query.o.value,
+                            query.collection, query.o.value,
                             limit=query.limit
                         )
                         for t in resp:
                             triples.append((t.s, t.p, query.o.value))
                     else:
                         resp = self.tg.get_all(
+                            query.collection,
                             limit=query.limit
                         )
                         for t in resp:

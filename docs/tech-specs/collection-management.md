@@ -72,18 +72,18 @@ The collection metadata will be stored in a structured Cassandra table in the li
 ```sql
 CREATE TABLE collections (
     user text,
-    collection_id text,
+    collection text,
     name text,
     description text,
     tags set<text>,
     created_at timestamp,
     updated_at timestamp,
-    PRIMARY KEY (user, collection_id)
+    PRIMARY KEY (user, collection)
 );
 ```
 
 Table structure:
-- **user** + **collection_id**: Composite primary key ensuring user isolation
+- **user** + **collection**: Composite primary key ensuring user isolation
 - **name**: Human-readable collection name
 - **description**: Detailed description of collection purpose
 - **tags**: Set of tags for categorization and filtering
@@ -175,7 +175,7 @@ All store writers will implement a standardized collection management interface 
 {
   "operation": "delete-collection",
   "user": "user123",
-  "collection_id": "documents-2024",
+  "collection": "documents-2024",
   "timestamp": "2024-01-15T10:30:00Z"
 }
 ```
@@ -206,15 +206,15 @@ As part of this implementation, the Cassandra triple store will be refactored fr
 
 **New Architecture:**
 - Keyspace per user, single "triples" table for all collections
-- Schema: `(collection_id, s, p, o)` with `PRIMARY KEY (collection_id, s, p, o)`
-- Collection isolation through collection_id partitioning
+- Schema: `(collection, s, p, o)` with `PRIMARY KEY (collection, s, p, o)`
+- Collection isolation through collection partitioning
 
 **Changes Required:**
 
 1. **TrustGraph Class Refactor** (`trustgraph/direct/cassandra.py`):
    - Remove `table` parameter from constructor, use fixed "triples" table
-   - Add `collection_id` parameter to all methods
-   - Update schema to include collection_id as first column
+   - Add `collection` parameter to all methods
+   - Update schema to include collection as first column
    - **Index Updates**: New indexes will be created to support all 8 query patterns:
      - Index on `(s)` for subject-based queries
      - Index on `(p)` for predicate-based queries
@@ -222,11 +222,11 @@ As part of this implementation, the Cassandra triple store will be refactored fr
      - Note: Cassandra doesn't support multi-column secondary indexes, so these are single-column indexes
 
    - **Query Pattern Performance**:
-     - ✅ `get_all()` - partition scan on `collection_id`
-     - ✅ `get_s(s)` - uses primary key efficiently (`collection_id, s`)
-     - ✅ `get_p(p)` - uses `idx_p` with `collection_id` filtering
-     - ✅ `get_o(o)` - uses `idx_o` with `collection_id` filtering
-     - ✅ `get_sp(s, p)` - uses primary key efficiently (`collection_id, s, p`)
+     - ✅ `get_all()` - partition scan on `collection`
+     - ✅ `get_s(s)` - uses primary key efficiently (`collection, s`)
+     - ✅ `get_p(p)` - uses `idx_p` with `collection` filtering
+     - ✅ `get_o(o)` - uses `idx_o` with `collection` filtering
+     - ✅ `get_sp(s, p)` - uses primary key efficiently (`collection, s, p`)
      - ⚠️ `get_po(p, o)` - requires `ALLOW FILTERING` (uses either `idx_p` or `idx_o` plus filtering)
      - ✅ `get_os(o, s)` - uses `idx_o` with additional filtering on `s`
      - ✅ `get_spo(s, p, o)` - uses full primary key efficiently
@@ -235,16 +235,16 @@ As part of this implementation, the Cassandra triple store will be refactored fr
 
 2. **Storage Writer Updates** (`trustgraph/storage/triples/cassandra/write.py`):
    - Maintain single TrustGraph connection per user instead of per (user, collection)
-   - Pass collection_id to insert operations
+   - Pass collection to insert operations
    - Improved resource utilization with fewer connections
 
 3. **Query Service Updates** (`trustgraph/query/triples/cassandra/service.py`):
    - Single TrustGraph connection per user
-   - Pass collection_id to all query operations
+   - Pass collection to all query operations
    - Maintain same query logic with collection parameter
 
 **Benefits:**
-- **Simplified Collection Deletion**: Simple `DELETE FROM triples WHERE collection_id = ?` instead of dropping tables
+- **Simplified Collection Deletion**: Simple `DELETE FROM triples WHERE collection = ?` instead of dropping tables
 - **Resource Efficiency**: Fewer database connections and table objects
 - **Cross-Collection Operations**: Easier to implement operations spanning multiple collections
 - **Consistent Architecture**: Aligns with unified collection metadata approach
@@ -279,7 +279,7 @@ Existing collections will need to be registered in the new Cassandra collections
 ### Cassandra Triple Store Migration
 The Cassandra storage refactor requires data migration from table-per-collection to unified table:
 - **Pre-migration**: Identify all user keyspaces and collection tables
-- **Data Transfer**: Copy triples from individual collection tables to unified "triples" table with collection_id
+- **Data Transfer**: Copy triples from individual collection tables to unified "triples" table with collection
 - **Schema Validation**: Ensure new primary key structure maintains query performance
 - **Cleanup**: Remove old collection tables after successful migration
 - **Rollback Plan**: Maintain ability to restore table-per-collection structure if needed

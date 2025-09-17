@@ -52,9 +52,9 @@ class Processor(TriplesStoreService):
 
     async def store_triples(self, message):
 
-        table = (message.metadata.user, message.metadata.collection)
+        user = message.metadata.user
 
-        if self.table is None or self.table != table:
+        if self.table is None or self.table != user:
 
             self.tg = None
 
@@ -63,24 +63,23 @@ class Processor(TriplesStoreService):
                     self.tg = TrustGraph(
                         hosts=self.cassandra_host,
                         keyspace=message.metadata.user,
-                        table=message.metadata.collection,
                         username=self.cassandra_username, password=self.cassandra_password
                     )
                 else:
                     self.tg = TrustGraph(
                         hosts=self.cassandra_host,
                         keyspace=message.metadata.user,
-                        table=message.metadata.collection,
                     )
             except Exception as e:
                 logger.error(f"Exception: {e}", exc_info=True)
                 time.sleep(1)
                 raise e
 
-            self.table = table
+            self.table = user
 
         for t in message.triples:
             self.tg.insert(
+                message.metadata.collection,
                 t.s.value,
                 t.p.value,
                 t.o.value
