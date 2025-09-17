@@ -195,6 +195,52 @@ Each store writer implements:
 **Initial Implementation:**
 Only `delete-collection` operation will be implemented initially. The interface supports future operations like `archive-collection`, `migrate-collection`, etc.
 
+#### Cassandra Triple Store Refactor
+
+As part of this implementation, the Cassandra triple store will be refactored from a table-per-collection model to a unified table model:
+
+**Current Architecture:**
+- Keyspace per user, separate table per collection
+- Schema: `(s, p, o)` with `PRIMARY KEY (s, p, o)`
+- Table names: user collections become separate Cassandra tables
+
+**New Architecture:**
+- Keyspace per user, single "triples" table for all collections
+- Schema: `(collection_id, s, p, o)` with `PRIMARY KEY (collection_id, s, p, o)`
+- Collection isolation through collection_id partitioning
+
+**Changes Required:**
+
+1. **TrustGraph Class Refactor** (`trustgraph/direct/cassandra.py`):
+   - Remove `table` parameter from constructor, use fixed "triples" table
+   - Add `collection_id` parameter to all methods
+   - Update schema to include collection_id as first column
+   - **Index Updates**: Current indexes on `(p)` and `(o)` will need to be recreated to support all 8 query patterns with collection isolation:
+     - Index on `(collection_id, p)` for predicate-based queries (`get_p`, `get_po`)
+     - Index on `(collection_id, o)` for object-based queries (`get_o`, `get_po`, `get_os`)
+     - Primary key `(collection_id, s, p, o)` handles subject-based queries (`get_s`, `get_sp`, `get_os`, `get_spo`)
+     - `get_all` scans within collection partition
+     - This maintains query performance for all combination patterns while ensuring collection isolation
+
+2. **Storage Writer Updates** (`trustgraph/storage/triples/cassandra/write.py`):
+   - Maintain single TrustGraph connection per user instead of per (user, collection)
+   - Pass collection_id to insert operations
+   - Improved resource utilization with fewer connections
+
+3. **Query Service Updates** (`trustgraph/query/triples/cassandra/service.py`):
+   - Single TrustGraph connection per user
+   - Pass collection_id to all query operations
+   - Maintain same query logic with collection parameter
+
+**Benefits:**
+- **Simplified Collection Deletion**: Simple `DELETE FROM triples WHERE collection_id = ?` instead of dropping tables
+- **Resource Efficiency**: Fewer database connections and table objects
+- **Cross-Collection Operations**: Easier to implement operations spanning multiple collections
+- **Consistent Architecture**: Aligns with unified collection metadata approach
+
+**Migration Strategy:**
+Existing table-per-collection data will need migration to the new unified schema during the upgrade process.
+
 Collection operations will be atomic where possible and provide appropriate error handling and validation.
 
 ## Security Considerations
@@ -211,7 +257,23 @@ Comprehensive testing will cover collection lifecycle operations, metadata manag
 
 ## Migration Plan
 
-Existing collections will need to be registered in the new metadata system. A migration process will identify and catalog implicit collections.
+This implementation requires both metadata and storage migrations:
+
+### Collection Metadata Migration
+Existing collections will need to be registered in the new Cassandra collections metadata table. A migration process will:
+- Scan existing keyspaces and tables to identify collections
+- Create metadata records with default values (name=collection_id, empty description/tags)
+- Preserve creation timestamps where possible
+
+### Cassandra Triple Store Migration
+The Cassandra storage refactor requires data migration from table-per-collection to unified table:
+- **Pre-migration**: Identify all user keyspaces and collection tables
+- **Data Transfer**: Copy triples from individual collection tables to unified "triples" table with collection_id
+- **Schema Validation**: Ensure new primary key structure maintains query performance
+- **Cleanup**: Remove old collection tables after successful migration
+- **Rollback Plan**: Maintain ability to restore table-per-collection structure if needed
+
+Migration will be performed during a maintenance window to ensure data consistency.
 
 ## Timeline
 
