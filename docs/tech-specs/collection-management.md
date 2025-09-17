@@ -83,7 +83,7 @@ CREATE TABLE collections (
 ```
 
 Table structure:
-- **user_id** + **collection_id**: Composite primary key ensuring user isolation
+- **user** + **collection_id**: Composite primary key ensuring user isolation
 - **name**: Human-readable collection name
 - **description**: Detailed description of collection purpose
 - **tags**: Set of tags for categorization and filtering
@@ -142,9 +142,9 @@ New APIs:
 - **Collection Use Notification** (Internal): Ensure metadata record exists when collection is referenced
 
 Store Writer APIs (Enhanced):
-- **Vector Store Collection Deletion**: Remove vector data for specified collection
-- **Object Store Collection Deletion**: Remove object/document data for specified collection
-- **Triple Store Collection Deletion**: Remove graph/RDF data for specified collection
+- **Vector Store Collection Deletion**: Remove vector data for specified user and collection
+- **Object Store Collection Deletion**: Remove object/document data for specified user and collection
+- **Triple Store Collection Deletion**: Remove graph/RDF data for specified user and collection
 
 Modified APIs:
 - **Data Loading APIs**: Enhanced to trigger collection use notification for lazy metadata creation
@@ -160,9 +160,9 @@ When a user initiates collection deletion through the librarian service:
 
 1. **Metadata Validation**: Verify collection exists and user has permission to delete
 2. **Store Cascade**: Librarian coordinates deletion across all store writers:
-   - Vector store writer: Remove embeddings and vector indexes for the collection
-   - Object store writer: Remove documents and files for the collection
-   - Triple store writer: Remove graph data and triples for the collection
+   - Vector store writer: Remove embeddings and vector indexes for the user and collection
+   - Object store writer: Remove documents and files for the user and collection
+   - Triple store writer: Remove graph data and triples for the user and collection
 3. **Metadata Cleanup**: Remove collection metadata record from Cassandra
 4. **Error Handling**: If any store deletion fails, maintain consistency through rollback or retry mechanisms
 
