@@ -357,10 +357,226 @@ def prepare_statements(self):
     # ... etc for all tables and queries
 ```
 
+## Migration Strategy
+
+### Data Migration Approach
+
+#### Option 1: Blue-Green Deployment (Recommended)
+1. **Deploy new schema alongside existing** - Use different table names temporarily
+2. **Dual-write period** - Write to both old and new schemas during transition
+3. **Background migration** - Copy existing data to new tables
+4. **Switch reads** - Route queries to new tables once data is migrated
+5. **Drop old tables** - After verification period
+
+#### Option 2: In-Place Migration
+1. **Schema addition** - Create new tables in existing keyspace
+2. **Data migration script** - Batch copy from old table to new tables
+3. **Application update** - Deploy new code after migration completes
+4. **Old table cleanup** - Remove old table and indexes
+
+### Backward Compatibility
+
+#### Deployment Strategy
+```python
+# Environment variable to control table usage during migration
+USE_LEGACY_TABLES = os.getenv('CASSANDRA_USE_LEGACY', 'false').lower() == 'true'
+
+class KnowledgeGraph:
+    def __init__(self, ...):
+        if USE_LEGACY_TABLES:
+            self.init_legacy_schema()
+        else:
+            self.init_optimized_schema()
+```
+
+#### Migration Script
+```python
+def migrate_data():
+    # Read from old table
+    old_triples = session.execute("SELECT collection, s, p, o FROM triples")
+
+    # Batch write to new tables
+    for batch in batched(old_triples, 100):
+        batch_stmt = BatchStatement()
+        for row in batch:
+            # Add to all three new tables
+            batch_stmt.add(insert_subject_stmt, row)
+            batch_stmt.add(insert_po_stmt, (row.collection, row.p, row.o, row.s))
+            batch_stmt.add(insert_object_stmt, (row.collection, row.o, row.s, row.p))
+        session.execute(batch_stmt)
+```
+
+### Validation Strategy
+
+#### Data Consistency Checks
+```python
+def validate_migration():
+    # Count total records in old vs new tables
+    old_count = session.execute("SELECT COUNT(*) FROM triples WHERE collection = ?", (collection,))
+    new_count = session.execute("SELECT COUNT(*) FROM triples_by_subject WHERE collection = ?", (collection,))
+
+    assert old_count == new_count, f"Record count mismatch: {old_count} vs {new_count}"
+
+    # Spot check random samples
+    sample_queries = generate_test_queries()
+    for query in sample_queries:
+        old_result = execute_legacy_query(query)
+        new_result = execute_optimized_query(query)
+        assert old_result == new_result, f"Query results differ for {query}"
+```
+
 ## Testing Strategy
 
-[To be defined based on solution approach]
+### Performance Testing
+
+#### Benchmark Scenarios
+1. **Query Performance Comparison**
+   - Before/after performance metrics for all 8 query types
+   - Focus on get_po performance improvement (eliminate ALLOW FILTERING)
+   - Measure query latency under various data sizes
+
+2. **Load Testing**
+   - Concurrent query execution
+   - Write throughput with batch operations
+   - Memory and CPU utilization
+
+3. **Scalability Testing**
+   - Performance with increasing collection sizes
+   - Multi-collection query distribution
+   - Cluster node utilization
+
+#### Test Data Sets
+- **Small:** 10K triples per collection
+- **Medium:** 100K triples per collection
+- **Large:** 1M+ triples per collection
+- **Multiple collections:** Test partition distribution
+
+### Functional Testing
+
+#### Unit Test Updates
+```python
+# Example test structure for new implementation
+class TestCassandraKGPerformance:
+    def test_get_po_no_allow_filtering(self):
+        # Verify get_po queries don't use ALLOW FILTERING
+        with patch('cassandra.cluster.Session.execute') as mock_execute:
+            kg.get_po('test_collection', 'predicate', 'object')
+            executed_query = mock_execute.call_args[0][0]
+            assert 'ALLOW FILTERING' not in executed_query
+
+    def test_multi_table_consistency(self):
+        # Verify all tables stay in sync
+        kg.insert('test', 's1', 'p1', 'o1')
+
+        # Check all tables contain the triple
+        assert_triple_exists('triples_by_subject', 'test', 's1', 'p1', 'o1')
+        assert_triple_exists('triples_by_po', 'test', 'p1', 'o1', 's1')
+        assert_triple_exists('triples_by_object', 'test', 'o1', 's1', 'p1')
+```
+
+#### Integration Test Updates
+```python
+class TestCassandraIntegration:
+    def test_query_performance_regression(self):
+        # Ensure new implementation is faster than old
+        old_time = benchmark_legacy_get_po()
+        new_time = benchmark_optimized_get_po()
+        assert new_time < old_time * 0.5  # At least 50% improvement
+
+    def test_end_to_end_workflow(self):
+        # Test complete write -> query -> delete cycle
+        # Verify no performance degradation in integration
+```
+
+### Rollback Plan
+
+#### Quick Rollback Strategy
+1. **Environment variable toggle** - Switch back to legacy tables immediately
+2. **Keep legacy tables** - Don't drop until performance is proven
+3. **Monitoring alerts** - Automated rollback triggers based on error rates/latency
+
+#### Rollback Validation
+```python
+def rollback_to_legacy():
+    # Set environment variable
+    os.environ['CASSANDRA_USE_LEGACY'] = 'true'
+
+    # Restart services to pick up change
+    restart_cassandra_services()
+
+    # Validate functionality
+    run_smoke_tests()
+```
 
 ## Risks and Considerations
 
-[To be assessed based on proposed changes]
+### Performance Risks
+- **Write latency increase** - 3x write operations per insert
+- **Storage overhead** - 3x storage requirement
+- **Batch write failures** - Need proper error handling
+
+### Operational Risks
+- **Migration complexity** - Data migration for large datasets
+- **Consistency challenges** - Ensuring all tables stay synchronized
+- **Monitoring gaps** - Need new metrics for multi-table operations
+
+### Mitigation Strategies
+1. **Gradual rollout** - Start with small collections
+2. **Comprehensive monitoring** - Track all performance metrics
+3. **Automated validation** - Continuous consistency checking
+4. **Quick rollback capability** - Environment-based table selection
+
+## Success Criteria
+
+### Performance Improvements
+- [ ] **Eliminate ALLOW FILTERING** - get_po and get_os queries run without filtering
+- [ ] **Query latency reduction** - 50%+ improvement in query response times
+- [ ] **Better load distribution** - No hot partitions, even load across cluster nodes
+- [ ] **Scalable performance** - Query time proportional to result size, not total data
+
+### Functional Requirements
+- [ ] **API compatibility** - All existing code continues to work unchanged
+- [ ] **Data consistency** - All three tables remain synchronized
+- [ ] **Zero data loss** - Migration preserves all existing triples
+- [ ] **Backward compatibility** - Ability to rollback to legacy schema
+
+### Operational Requirements
+- [ ] **Safe migration** - Blue-green deployment with rollback capability
+- [ ] **Monitoring coverage** - Comprehensive metrics for multi-table operations
+- [ ] **Test coverage** - All query patterns tested with performance benchmarks
+- [ ] **Documentation** - Updated deployment and operational procedures
+
+## Timeline
+
+### Phase 1: Implementation
+- [ ] Rewrite `cassandra_kg.py` with multi-table schema
+- [ ] Implement batch write operations
+- [ ] Add prepared statement optimization
+- [ ] Update unit tests
+
+### Phase 2: Integration Testing
+- [ ] Update integration tests
+- [ ] Performance benchmarking
+- [ ] Load testing with realistic data volumes
+- [ ] Validation scripts for data consistency
+
+### Phase 3: Migration Planning
+- [ ] Blue-green deployment scripts
+- [ ] Data migration tools
+- [ ] Monitoring dashboard updates
+- [ ] Rollback procedures
+
+### Phase 4: Production Deployment
+- [ ] Staged rollout to production
+- [ ] Performance monitoring and validation
+- [ ] Legacy table cleanup
+- [ ] Documentation updates
+
+## Conclusion
+
+This multi-table denormalization strategy directly addresses the two critical performance bottlenecks:
+
+1. **Eliminates expensive ALLOW FILTERING** by providing optimal table structures for each query pattern
+2. **Improves clustering effectiveness** through composite partition keys that distribute load properly
+
+The approach leverages Cassandra's strengths while maintaining complete API compatibility, ensuring existing code benefits automatically from the performance improvements.
