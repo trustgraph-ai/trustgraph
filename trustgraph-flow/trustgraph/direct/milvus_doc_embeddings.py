@@ -6,7 +6,7 @@ import re
 
 logger = logging.getLogger(__name__)
 
-def make_safe_collection_name(user, collection, dimension, prefix):
+def make_safe_collection_name(user, collection, prefix):
     """
     Create a safe Milvus collection name from user/collection parameters.
     Milvus only allows letters, numbers, and underscores.
@@ -26,7 +26,7 @@ def make_safe_collection_name(user, collection, dimension, prefix):
     safe_user = sanitize(user)
     safe_collection = sanitize(collection)
     
-    return f"{prefix}_{safe_user}_{safe_collection}_{dimension}"
+    return f"{prefix}_{safe_user}_{safe_collection}"
 
 class DocVectors:
 
@@ -51,7 +51,7 @@ class DocVectors:
 
     def init_collection(self, dimension, user, collection):
 
-        collection_name = make_safe_collection_name(user, collection, dimension, self.prefix)
+        collection_name = make_safe_collection_name(user, collection, self.prefix)
 
         pkey_field = FieldSchema(
             name="id",
@@ -161,4 +161,21 @@ class DocVectors:
             self.next_reload = time.time() + self.reload_time
 
         return res
+
+    def delete_collection(self, user, collection):
+        """Delete a collection for the given user and collection"""
+        collection_name = make_safe_collection_name(user, collection, self.prefix)
+
+        # Check if collection exists
+        if self.client.has_collection(collection_name):
+            # Drop the collection
+            self.client.drop_collection(collection_name)
+            logger.info(f"Deleted Milvus collection: {collection_name}")
+
+            # Remove from our local cache
+            keys_to_remove = [key for key in self.collections.keys() if key[1] == user and key[2] == collection]
+            for key in keys_to_remove:
+                del self.collections[key]
+        else:
+            logger.info(f"Collection {collection_name} does not exist, nothing to delete")
 

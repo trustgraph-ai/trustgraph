@@ -41,3 +41,13 @@ class ProcessingMetadata:
     user : str
     collection : str
     tags : List[str]
+
+@dataclasses.dataclass
+class CollectionMetadata:
+    user : str
+    collection : str
+    name : str
+    description : str
+    tags : List[str]
+    created_at : str
+    updated_at : str

@@ -104,7 +104,7 @@ class Processor(GraphEmbeddingsQueryService):
                 dim = len(vec)
 
                 index_name = (
-                    "t-" + msg.user + "-" + msg.collection + "-" + str(dim)
+                    "t-" + msg.user + "-" + msg.collection
                 )
 
                 self.ensure_index_exists(index_name, dim)

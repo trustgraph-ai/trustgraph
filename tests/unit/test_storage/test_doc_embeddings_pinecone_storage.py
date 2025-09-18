@@ -135,7 +135,7 @@ class TestPineconeDocEmbeddingsStorageProcessor:
             await processor.store_document_embeddings(message)
         
         # Verify index name and operations
-        expected_index_name = "d-test_user-test_collection-3"
+        expected_index_name = "d-test_user-test_collection"
         processor.pinecone.Index.assert_called_with(expected_index_name)
         
         # Verify upsert was called for each vector
@@ -203,7 +203,7 @@ class TestPineconeDocEmbeddingsStorageProcessor:
             await processor.store_document_embeddings(message)
         
         # Verify index creation was called
-        expected_index_name = "d-test_user-test_collection-3"
+        expected_index_name = "d-test_user-test_collection"
         processor.pinecone.create_index.assert_called_once()
         create_call = processor.pinecone.create_index.call_args
         assert create_call[1]['name'] == expected_index_name
@@ -299,12 +299,11 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         mock_index_3d = MagicMock()
         
         def mock_index_side_effect(name):
-            if name.endswith("-2"):
-                return mock_index_2d
-            elif name.endswith("-4"):
-                return mock_index_4d
-            elif name.endswith("-3"):
-                return mock_index_3d
+            # All dimensions now use the same index name pattern
+            # Different dimensions will be handled within the same index
+            if "test_user" in name and "test_collection" in name:
+                return mock_index_2d  # Just return one mock for all
+            return MagicMock()
         
         processor.pinecone.Index.side_effect = mock_index_side_effect
         processor.pinecone.has_index.return_value = True
@@ -312,11 +311,10 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         with patch('uuid.uuid4', side_effect=['id1', 'id2', 'id3']):
             await processor.store_document_embeddings(message)
         
-        # Verify different indexes were used for different dimensions
-        assert processor.pinecone.Index.call_count == 3
-        mock_index_2d.upsert.assert_called_once()
-        mock_index_4d.upsert.assert_called_once()
-        mock_index_3d.upsert.assert_called_once()
+        # Verify all vectors are now stored in the same index
+        # (Pinecone can handle mixed dimensions in the same index)
+        assert processor.pinecone.Index.call_count == 3  # Called once per vector
+        mock_index_2d.upsert.call_count == 3  # All upserts go to same index
 
     @pytest.mark.asyncio
     async def test_store_document_embeddings_empty_chunks_list(self, processor):

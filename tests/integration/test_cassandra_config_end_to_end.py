@@ -21,7 +21,7 @@ class TestEndToEndConfigurationFlow:
     """Test complete configuration flow from environment to processors."""
     
     @pytest.mark.asyncio
-    @patch('trustgraph.direct.cassandra.Cluster')
+    @patch('trustgraph.direct.cassandra_kg.Cluster')
     async def test_triples_writer_env_to_connection(self, mock_cluster):
         """Test complete flow from environment variables to TrustGraph connection."""
         env_vars = {
@@ -117,7 +117,7 @@ class TestConfigurationPriorityEndToEnd:
     """Test configuration priority chains end-to-end."""
     
     @pytest.mark.asyncio
-    @patch('trustgraph.direct.cassandra.Cluster')
+    @patch('trustgraph.direct.cassandra_kg.Cluster')
     async def test_cli_override_env_end_to_end(self, mock_cluster):
         """Test that CLI parameters override environment variables end-to-end."""
         env_vars = {
@@ -184,7 +184,7 @@ class TestConfigurationPriorityEndToEnd:
             )
     
     @pytest.mark.asyncio
-    @patch('trustgraph.direct.cassandra.Cluster')
+    @patch('trustgraph.direct.cassandra_kg.Cluster')
     async def test_no_config_defaults_end_to_end(self, mock_cluster):
         """Test that defaults are used when no configuration provided end-to-end."""
         mock_cluster_instance = MagicMock()
@@ -222,7 +222,7 @@ class TestNoBackwardCompatibilityEndToEnd:
     """Test that backward compatibility with old parameter names is removed."""
     
     @pytest.mark.asyncio
-    @patch('trustgraph.direct.cassandra.Cluster')
+    @patch('trustgraph.direct.cassandra_kg.Cluster')
     async def test_old_graph_params_no_longer_work_end_to_end(self, mock_cluster):
         """Test that old graph_* parameters no longer work end-to-end."""
         mock_cluster_instance = MagicMock()
@@ -275,7 +275,7 @@ class TestNoBackwardCompatibilityEndToEnd:
         )
     
     @pytest.mark.asyncio
-    @patch('trustgraph.direct.cassandra.Cluster')
+    @patch('trustgraph.direct.cassandra_kg.Cluster')
     async def test_new_params_override_old_params_end_to_end(self, mock_cluster):
         """Test that new parameters override old ones when both are present end-to-end."""
         mock_cluster_instance = MagicMock()
@@ -334,7 +334,7 @@ class TestMultipleHostsHandling:
             assert call_args.kwargs['contact_points'] == ['host1', 'host2', 'host3', 'host4', 'host5']
     
     @pytest.mark.asyncio
-    @patch('trustgraph.direct.cassandra.Cluster')
+    @patch('trustgraph.direct.cassandra_kg.Cluster')
     async def test_single_host_converted_to_list(self, mock_cluster):
         """Test that single host is converted to list for TrustGraph."""
         mock_cluster_instance = MagicMock()

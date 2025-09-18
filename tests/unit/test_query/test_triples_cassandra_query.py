@@ -70,7 +70,7 @@ class TestCassandraQueryProcessor:
         assert result.is_uri is False
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.TrustGraph')
+    @patch('trustgraph.query.triples.cassandra.service.KnowledgeGraph')
     async def test_query_triples_spo_query(self, mock_trustgraph):
         """Test querying triples with subject, predicate, and object specified"""
         from trustgraph.schema import TriplesQueryRequest, Value
@@ -98,16 +98,15 @@ class TestCassandraQueryProcessor:
         
         result = await processor.query_triples(query)
         
-        # Verify TrustGraph was created with correct parameters
+        # Verify KnowledgeGraph was created with correct parameters
         mock_trustgraph.assert_called_once_with(
             hosts=['localhost'],
-            keyspace='test_user',
-            table='test_collection'
+            keyspace='test_user'
         )
         
         # Verify get_spo was called with correct parameters
         mock_tg_instance.get_spo.assert_called_once_with(
-            'test_subject', 'test_predicate', 'test_object', limit=100
+            'test_collection', 'test_subject', 'test_predicate', 'test_object', limit=100
         )
         
         # Verify result contains the queried triple
@@ -144,7 +143,7 @@ class TestCassandraQueryProcessor:
         assert processor.table is None
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.TrustGraph')
+    @patch('trustgraph.query.triples.cassandra.service.KnowledgeGraph')
     async def test_query_triples_sp_pattern(self, mock_trustgraph):
         """Test SP query pattern (subject and predicate, no object)"""
         from trustgraph.schema import TriplesQueryRequest, Value
@@ -170,14 +169,14 @@ class TestCassandraQueryProcessor:
         
         result = await processor.query_triples(query)
         
-        mock_tg_instance.get_sp.assert_called_once_with('test_subject', 'test_predicate', limit=50)
+        mock_tg_instance.get_sp.assert_called_once_with('test_collection', 'test_subject', 'test_predicate', limit=50)
         assert len(result) == 1
         assert result[0].s.value == 'test_subject'
         assert result[0].p.value == 'test_predicate'
         assert result[0].o.value == 'result_object'
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.TrustGraph')
+    @patch('trustgraph.query.triples.cassandra.service.KnowledgeGraph')
     async def test_query_triples_s_pattern(self, mock_trustgraph):
         """Test S query pattern (subject only)"""
         from trustgraph.schema import TriplesQueryRequest, Value
@@ -203,14 +202,14 @@ class TestCassandraQueryProcessor:
         
         result = await processor.query_triples(query)
         
-        mock_tg_instance.get_s.assert_called_once_with('test_subject', limit=25)
+        mock_tg_instance.get_s.assert_called_once_with('test_collection', 'test_subject', limit=25)
         assert len(result) == 1
         assert result[0].s.value == 'test_subject'
         assert result[0].p.value == 'result_predicate'
         assert result[0].o.value == 'result_object'
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.TrustGraph')
+    @patch('trustgraph.query.triples.cassandra.service.KnowledgeGraph')
     async def test_query_triples_p_pattern(self, mock_trustgraph):
         """Test P query pattern (predicate only)"""
         from trustgraph.schema import TriplesQueryRequest, Value
@@ -236,14 +235,14 @@ class TestCassandraQueryProcessor:
         
         result = await processor.query_triples(query)
         
-        mock_tg_instance.get_p.assert_called_once_with('test_predicate', limit=10)
+        mock_tg_instance.get_p.assert_called_once_with('test_collection', 'test_predicate', limit=10)
         assert len(result) == 1
         assert result[0].s.value == 'result_subject'
         assert result[0].p.value == 'test_predicate'
         assert result[0].o.value == 'result_object'
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.TrustGraph')
+    @patch('trustgraph.query.triples.cassandra.service.KnowledgeGraph')
     async def test_query_triples_o_pattern(self, mock_trustgraph):
         """Test O query pattern (object only)"""
         from trustgraph.schema import TriplesQueryRequest, Value
@@ -269,14 +268,14 @@ class TestCassandraQueryProcessor:
         
         result = await processor.query_triples(query)
         
-        mock_tg_instance.get_o.assert_called_once_with('test_object', limit=75)
+        mock_tg_instance.get_o.assert_called_once_with('test_collection', 'test_object', limit=75)
         assert len(result) == 1
         assert result[0].s.value == 'result_subject'
         assert result[0].p.value == 'result_predicate'
         assert result[0].o.value == 'test_object'
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.TrustGraph')
+    @patch('trustgraph.query.triples.cassandra.service.KnowledgeGraph')
     async def test_query_triples_get_all_pattern(self, mock_trustgraph):
         """Test query pattern with no constraints (get all)"""
         from trustgraph.schema import TriplesQueryRequest
@@ -303,7 +302,7 @@ class TestCassandraQueryProcessor:
         
         result = await processor.query_triples(query)
         
-        mock_tg_instance.get_all.assert_called_once_with(limit=1000)
+        mock_tg_instance.get_all.assert_called_once_with('test_collection', limit=1000)
         assert len(result) == 1
         assert result[0].s.value == 'all_subject'
         assert result[0].p.value == 'all_predicate'
@@ -376,7 +375,7 @@ class TestCassandraQueryProcessor:
         mock_launch.assert_called_once_with(default_ident, '\nTriples query service.  Input is a (s, p, o) triple, some values may be\nnull.  Output is a list of triples.\n')
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.TrustGraph')
+    @patch('trustgraph.query.triples.cassandra.service.KnowledgeGraph')
     async def test_query_triples_with_authentication(self, mock_trustgraph):
         """Test querying with username and password authentication"""
         from trustgraph.schema import TriplesQueryRequest, Value
@@ -402,17 +401,16 @@ class TestCassandraQueryProcessor:
         
         await processor.query_triples(query)
         
-        # Verify TrustGraph was created with authentication
+        # Verify KnowledgeGraph was created with authentication
         mock_trustgraph.assert_called_once_with(
             hosts=['cassandra'],  # Updated default
             keyspace='test_user',
-            table='test_collection',
             username='authuser',
             password='authpass'
         )
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.TrustGraph')
+    @patch('trustgraph.query.triples.cassandra.service.KnowledgeGraph')
     async def test_query_triples_table_reuse(self, mock_trustgraph):
         """Test that TrustGraph is reused for same table"""
         from trustgraph.schema import TriplesQueryRequest, Value
@@ -441,7 +439,7 @@ class TestCassandraQueryProcessor:
         assert mock_trustgraph.call_count == 1  # Should not increase
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.TrustGraph')
+    @patch('trustgraph.query.triples.cassandra.service.KnowledgeGraph')
     async def test_query_triples_table_switching(self, mock_trustgraph):
         """Test table switching creates new TrustGraph"""
         from trustgraph.schema import TriplesQueryRequest, Value
@@ -463,7 +461,7 @@ class TestCassandraQueryProcessor:
         )
         
         await processor.query_triples(query1)
-        assert processor.table == ('user1', 'collection1')
+        assert processor.table == 'user1'
         
         # Second query with different table
         query2 = TriplesQueryRequest(
@@ -476,13 +474,13 @@ class TestCassandraQueryProcessor:
         )
         
         await processor.query_triples(query2)
-        assert processor.table == ('user2', 'collection2')
+        assert processor.table == 'user2'
         
         # Verify TrustGraph was created twice
         assert mock_trustgraph.call_count == 2
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.TrustGraph')
+    @patch('trustgraph.query.triples.cassandra.service.KnowledgeGraph')
     async def test_query_triples_exception_handling(self, mock_trustgraph):
         """Test exception handling during query execution"""
         from trustgraph.schema import TriplesQueryRequest, Value
@@ -506,7 +504,7 @@ class TestCassandraQueryProcessor:
             await processor.query_triples(query)
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.TrustGraph')
+    @patch('trustgraph.query.triples.cassandra.service.KnowledgeGraph')
     async def test_query_triples_multiple_results(self, mock_trustgraph):
         """Test query returning multiple results"""
         from trustgraph.schema import TriplesQueryRequest, Value

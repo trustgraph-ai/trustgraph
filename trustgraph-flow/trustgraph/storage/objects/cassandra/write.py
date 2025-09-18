@@ -13,7 +13,9 @@ from cassandra import ConsistencyLevel
 
 from .... schema import ExtractedObject
 from .... schema import RowSchema, Field
-from .... base import FlowProcessor, ConsumerSpec
+from .... schema import StorageManagementRequest, StorageManagementResponse
+from .... schema import object_storage_management_topic, storage_management_response_topic
+from .... base import FlowProcessor, ConsumerSpec, ProducerSpec
 from .... base.cassandra_config import add_cassandra_args, resolve_cassandra_config
 
 # Module logger
@@ -61,7 +63,38 @@ class Processor(FlowProcessor):
                 handler = self.on_object
             )
         )
-        
+
+        # Set up storage management consumer and producer directly
+        # (FlowProcessor doesn't support topic-based specs outside of flows)
+        from .... base import Consumer, Producer, ConsumerMetrics, ProducerMetrics
+
+        storage_request_metrics = ConsumerMetrics(
+            processor=self.id, flow=None, name="storage-request"
+        )
+        storage_response_metrics = ProducerMetrics(
+            processor=self.id, flow=None, name="storage-response"
+        )
+
+        # Create storage management consumer
+        self.storage_request_consumer = Consumer(
+            taskgroup=self.taskgroup,
+            client=self.pulsar_client,
+            flow=None,
+            topic=object_storage_management_topic,
+            subscriber=f"{id}-storage",
+            schema=StorageManagementRequest,
+            handler=self.on_storage_management,
+            metrics=storage_request_metrics,
+        )
+
+        # Create storage management response producer
+        self.storage_response_producer = Producer(
+            client=self.pulsar_client,
+            topic=storage_management_response_topic,
+            schema=StorageManagementResponse,
+            metrics=storage_response_metrics,
+        )
+
         # Register config handler for schema updates
         self.register_config_handler(self.on_schema_config)
         
@@ -389,6 +422,100 @@ class Processor(FlowProcessor):
             except Exception as e:
                 logger.error(f"Failed to insert object {obj_index}: {e}", exc_info=True)
                 raise
+
+    async def on_storage_management(self, msg, consumer, flow):
+        """Handle storage management requests for collection operations"""
+        logger.info(f"Received storage management request: {msg.operation} for {msg.user}/{msg.collection}")
+
+        try:
+            if msg.operation == "delete-collection":
+                await self.delete_collection(msg.user, msg.collection)
+
+                # Send success response
+                response = StorageManagementResponse(
+                    error=None  # No error means success
+                )
+                await self.storage_response_producer.send(response)
+                logger.info(f"Successfully deleted collection {msg.user}/{msg.collection}")
+            else:
+                logger.warning(f"Unknown storage management operation: {msg.operation}")
+                # Send error response
+                from .... schema import Error
+                response = StorageManagementResponse(
+                    error=Error(
+                        type="unknown_operation",
+                        message=f"Unknown operation: {msg.operation}"
+                    )
+                )
+                await self.storage_response_producer.send(response)
+
+        except Exception as e:
+            logger.error(f"Error handling storage management request: {e}", exc_info=True)
+            # Send error response
+            from .... schema import Error
+            response = StorageManagementResponse(
+                error=Error(
+                    type="processing_error",
+                    message=str(e)
+                )
+            )
+            await self.send("storage-response", response)
+
+    async def delete_collection(self, user: str, collection: str):
+        """Delete all data for a specific collection"""
+        # Connect if not already connected
+        self.connect_cassandra()
+
+        # Sanitize names for safety
+        safe_keyspace = self.sanitize_name(user)
+
+        # Check if keyspace exists
+        if safe_keyspace not in self.known_keyspaces:
+            # Query to verify keyspace exists
+            check_keyspace_cql = """
+            SELECT keyspace_name FROM system_schema.keyspaces
+            WHERE keyspace_name = %s
+            """
+            result = self.session.execute(check_keyspace_cql, (safe_keyspace,))
+            if not result.one():
+                logger.info(f"Keyspace {safe_keyspace} does not exist, nothing to delete")
+                return
+            self.known_keyspaces.add(safe_keyspace)
+
+        # Get all tables in the keyspace that might contain collection data
+        get_tables_cql = """
+        SELECT table_name FROM system_schema.tables
+        WHERE keyspace_name = %s
+        """
+
+        tables = self.session.execute(get_tables_cql, (safe_keyspace,))
+        tables_deleted = 0
+
+        for row in tables:
+            table_name = row.table_name
+
+            # Check if the table has a collection column
+            check_column_cql = """
+            SELECT column_name FROM system_schema.columns
+            WHERE keyspace_name = %s AND table_name = %s AND column_name = 'collection'
+            """
+
+            result = self.session.execute(check_column_cql, (safe_keyspace, table_name))
+            if result.one():
+                # Table has collection column, delete data for this collection
+                try:
+                    delete_cql = f"""
+                    DELETE FROM {safe_keyspace}.{table_name}
+                    WHERE collection = %s
+                    """
+                    self.session.execute(delete_cql, (collection,))
+                    tables_deleted += 1
+                    logger.info(f"Deleted collection {collection} from table {safe_keyspace}.{table_name}")
+                except Exception as e:
+                    logger.error(f"Failed to delete from table {safe_keyspace}.{table_name}: {e}")
+                    raise
+
+        logger.info(f"Deleted collection {collection} from {tables_deleted} tables in keyspace {safe_keyspace}")
 
     def close(self):
         """Clean up Cassandra connections"""

@@ -95,7 +95,7 @@ class Processor(DocumentEmbeddingsQueryService):
                 dim = len(vec)
 
                 index_name = (
-                    "d-" + msg.user + "-" + msg.collection + "-" + str(dim)
+                    "d-" + msg.user + "-" + msg.collection
                 )
 
                 self.ensure_index_exists(index_name, dim)
