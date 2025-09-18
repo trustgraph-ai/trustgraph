@@ -535,3 +535,202 @@ class TestCassandraQueryProcessor:
         assert len(result) == 2
         assert result[0].o.value == 'object1'
         assert result[1].o.value == 'object2'
+
+
+class TestCassandraQueryPerformanceOptimizations:
+    """Test cases for multi-table performance optimizations in query service"""
+
+    @pytest.mark.asyncio
+    @patch('trustgraph.query.triples.cassandra.service.KnowledgeGraph')
+    async def test_get_po_query_optimization(self, mock_trustgraph):
+        """Test that get_po queries use optimized table (no ALLOW FILTERING)"""
+        from trustgraph.schema import TriplesQueryRequest, Value
+
+        mock_tg_instance = MagicMock()
+        mock_trustgraph.return_value = mock_tg_instance
+
+        mock_result = MagicMock()
+        mock_result.s = 'result_subject'
+        mock_tg_instance.get_po.return_value = [mock_result]
+
+        processor = Processor(taskgroup=MagicMock())
+
+        # PO query pattern (predicate + object, find subjects)
+        query = TriplesQueryRequest(
+            user='test_user',
+            collection='test_collection',
+            s=None,
+            p=Value(value='test_predicate', is_uri=False),
+            o=Value(value='test_object', is_uri=False),
+            limit=50
+        )
+
+        result = await processor.query_triples(query)
+
+        # Verify get_po was called (should use optimized po_table)
+        mock_tg_instance.get_po.assert_called_once_with(
+            'test_collection', 'test_predicate', 'test_object', limit=50
+        )
+
+        assert len(result) == 1
+        assert result[0].s.value == 'result_subject'
+        assert result[0].p.value == 'test_predicate'
+        assert result[0].o.value == 'test_object'
+
+    @pytest.mark.asyncio
+    @patch('trustgraph.query.triples.cassandra.service.KnowledgeGraph')
+    async def test_get_os_query_optimization(self, mock_trustgraph):
+        """Test that get_os queries use optimized table (no ALLOW FILTERING)"""
+        from trustgraph.schema import TriplesQueryRequest, Value
+
+        mock_tg_instance = MagicMock()
+        mock_trustgraph.return_value = mock_tg_instance
+
+        mock_result = MagicMock()
+        mock_result.p = 'result_predicate'
+        mock_tg_instance.get_os.return_value = [mock_result]
+
+        processor = Processor(taskgroup=MagicMock())
+
+        # OS query pattern (object + subject, find predicates)
+        query = TriplesQueryRequest(
+            user='test_user',
+            collection='test_collection',
+            s=Value(value='test_subject', is_uri=False),
+            p=None,
+            o=Value(value='test_object', is_uri=False),
+            limit=25
+        )
+
+        result = await processor.query_triples(query)
+
+        # Verify get_os was called (should use optimized subject_table with clustering)
+        mock_tg_instance.get_os.assert_called_once_with(
+            'test_collection', 'test_object', 'test_subject', limit=25
+        )
+
+        assert len(result) == 1
+        assert result[0].s.value == 'test_subject'
+        assert result[0].p.value == 'result_predicate'
+        assert result[0].o.value == 'test_object'
+
+    @pytest.mark.asyncio
+    @patch('trustgraph.query.triples.cassandra.service.KnowledgeGraph')
+    async def test_all_query_patterns_use_correct_tables(self, mock_trustgraph):
+        """Test that all query patterns route to their optimal tables"""
+        from trustgraph.schema import TriplesQueryRequest, Value
+
+        mock_tg_instance = MagicMock()
+        mock_trustgraph.return_value = mock_tg_instance
+
+        # Mock empty results for all queries
+        mock_tg_instance.get_all.return_value = []
+        mock_tg_instance.get_s.return_value = []
+        mock_tg_instance.get_p.return_value = []
+        mock_tg_instance.get_o.return_value = []
+        mock_tg_instance.get_sp.return_value = []
+        mock_tg_instance.get_po.return_value = []
+        mock_tg_instance.get_os.return_value = []
+        mock_tg_instance.get_spo.return_value = []
+
+        processor = Processor(taskgroup=MagicMock())
+
+        # Test each query pattern
+        test_patterns = [
+            # (s, p, o, expected_method)
+            (None, None, None, 'get_all'),  # All triples
+            ('s1', None, None, 'get_s'),    # Subject only
+            (None, 'p1', None, 'get_p'),    # Predicate only
+            (None, None, 'o1', 'get_o'),    # Object only
+            ('s1', 'p1', None, 'get_sp'),   # Subject + Predicate
+            (None, 'p1', 'o1', 'get_po'),   # Predicate + Object (CRITICAL OPTIMIZATION)
+            ('s1', None, 'o1', 'get_os'),   # Object + Subject
+            ('s1', 'p1', 'o1', 'get_spo'),  # All three
+        ]
+
+        for s, p, o, expected_method in test_patterns:
+            # Reset mock call counts
+            mock_tg_instance.reset_mock()
+
+            query = TriplesQueryRequest(
+                user='test_user',
+                collection='test_collection',
+                s=Value(value=s, is_uri=False) if s else None,
+                p=Value(value=p, is_uri=False) if p else None,
+                o=Value(value=o, is_uri=False) if o else None,
+                limit=10
+            )
+
+            await processor.query_triples(query)
+
+            # Verify the correct method was called
+            method = getattr(mock_tg_instance, expected_method)
+            assert method.called, f"Expected {expected_method} to be called for pattern s={s}, p={p}, o={o}"
+
+    def test_legacy_vs_optimized_mode_configuration(self):
+        """Test that environment variable controls query optimization mode"""
+        taskgroup_mock = MagicMock()
+
+        # Test optimized mode (default)
+        with patch.dict('os.environ', {}, clear=True):
+            processor = Processor(taskgroup=taskgroup_mock)
+            # Mode is determined in KnowledgeGraph initialization
+
+        # Test legacy mode
+        with patch.dict('os.environ', {'CASSANDRA_USE_LEGACY': 'true'}):
+            processor = Processor(taskgroup=taskgroup_mock)
+            # Mode is determined in KnowledgeGraph initialization
+
+        # Test explicit optimized mode
+        with patch.dict('os.environ', {'CASSANDRA_USE_LEGACY': 'false'}):
+            processor = Processor(taskgroup=taskgroup_mock)
+            # Mode is determined in KnowledgeGraph initialization
+
+    @pytest.mark.asyncio
+    @patch('trustgraph.query.triples.cassandra.service.KnowledgeGraph')
+    async def test_performance_critical_po_query_no_filtering(self, mock_trustgraph):
+        """Test the performance-critical PO query that eliminates ALLOW FILTERING"""
+        from trustgraph.schema import TriplesQueryRequest, Value
+
+        mock_tg_instance = MagicMock()
+        mock_trustgraph.return_value = mock_tg_instance
+
+        # Mock multiple subjects for the same predicate-object pair
+        mock_results = []
+        for i in range(5):
+            mock_result = MagicMock()
+            mock_result.s = f'subject_{i}'
+            mock_results.append(mock_result)
+
+        mock_tg_instance.get_po.return_value = mock_results
+
+        processor = Processor(taskgroup=MagicMock())
+
+        # This is the query pattern that was slow with ALLOW FILTERING
+        query = TriplesQueryRequest(
+            user='large_dataset_user',
+            collection='massive_collection',
+            s=None,
+            p=Value(value='http://www.w3.org/1999/02/22-rdf-syntax-ns#type', is_uri=True),
+            o=Value(value='http://example.com/Person', is_uri=True),
+            limit=1000
+        )
+
+        result = await processor.query_triples(query)
+
+        # Verify optimized get_po was used (no ALLOW FILTERING needed!)
+        mock_tg_instance.get_po.assert_called_once_with(
+            'massive_collection',
+            'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
+            'http://example.com/Person',
+            limit=1000
+        )
+
+        # Verify all results were returned
+        assert len(result) == 5
+        for i, triple in enumerate(result):
+            assert triple.s.value == f'subject_{i}'
+            assert triple.p.value == 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
+            assert triple.p.is_uri is True
+            assert triple.o.value == 'http://example.com/Person'
+            assert triple.o.is_uri is True

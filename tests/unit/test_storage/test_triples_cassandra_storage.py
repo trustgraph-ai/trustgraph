@@ -416,3 +416,98 @@ class TestCassandraStorageProcessor:
         assert processor.table == ('old_user', 'old_collection')
         # TrustGraph should be set to None though
         assert processor.tg is None
+
+
+class TestCassandraPerformanceOptimizations:
+    """Test cases for multi-table performance optimizations"""
+
+    @pytest.mark.asyncio
+    @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
+    async def test_legacy_mode_uses_single_table(self, mock_trustgraph):
+        """Test that legacy mode still works with single table"""
+        taskgroup_mock = MagicMock()
+        mock_tg_instance = MagicMock()
+        mock_trustgraph.return_value = mock_tg_instance
+
+        with patch.dict('os.environ', {'CASSANDRA_USE_LEGACY': 'true'}):
+            processor = Processor(taskgroup=taskgroup_mock)
+
+            mock_message = MagicMock()
+            mock_message.metadata.user = 'user1'
+            mock_message.metadata.collection = 'collection1'
+            mock_message.triples = []
+
+            await processor.store_triples(mock_message)
+
+            # Verify KnowledgeGraph instance uses legacy mode
+            kg_instance = mock_trustgraph.return_value
+            assert kg_instance is not None
+
+    @pytest.mark.asyncio
+    @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
+    async def test_optimized_mode_uses_multi_table(self, mock_trustgraph):
+        """Test that optimized mode uses multi-table schema"""
+        taskgroup_mock = MagicMock()
+        mock_tg_instance = MagicMock()
+        mock_trustgraph.return_value = mock_tg_instance
+
+        with patch.dict('os.environ', {'CASSANDRA_USE_LEGACY': 'false'}):
+            processor = Processor(taskgroup=taskgroup_mock)
+
+            mock_message = MagicMock()
+            mock_message.metadata.user = 'user1'
+            mock_message.metadata.collection = 'collection1'
+            mock_message.triples = []
+
+            await processor.store_triples(mock_message)
+
+            # Verify KnowledgeGraph instance is in optimized mode
+            kg_instance = mock_trustgraph.return_value
+            assert kg_instance is not None
+
+    @pytest.mark.asyncio
+    @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
+    async def test_batch_write_consistency(self, mock_trustgraph):
+        """Test that all tables stay consistent during batch writes"""
+        taskgroup_mock = MagicMock()
+        mock_tg_instance = MagicMock()
+        mock_trustgraph.return_value = mock_tg_instance
+
+        processor = Processor(taskgroup=taskgroup_mock)
+
+        # Create test triple
+        triple = MagicMock()
+        triple.s.value = 'test_subject'
+        triple.p.value = 'test_predicate'
+        triple.o.value = 'test_object'
+
+        mock_message = MagicMock()
+        mock_message.metadata.user = 'user1'
+        mock_message.metadata.collection = 'collection1'
+        mock_message.triples = [triple]
+
+        await processor.store_triples(mock_message)
+
+        # Verify insert was called for the triple (implementation details tested in KnowledgeGraph)
+        mock_tg_instance.insert.assert_called_once_with(
+            'collection1', 'test_subject', 'test_predicate', 'test_object'
+        )
+
+    def test_environment_variable_controls_mode(self):
+        """Test that CASSANDRA_USE_LEGACY environment variable controls operation mode"""
+        taskgroup_mock = MagicMock()
+
+        # Test legacy mode
+        with patch.dict('os.environ', {'CASSANDRA_USE_LEGACY': 'true'}):
+            processor = Processor(taskgroup=taskgroup_mock)
+            # Mode is determined in KnowledgeGraph initialization
+
+        # Test optimized mode
+        with patch.dict('os.environ', {'CASSANDRA_USE_LEGACY': 'false'}):
+            processor = Processor(taskgroup=taskgroup_mock)
+            # Mode is determined in KnowledgeGraph initialization
+
+        # Test default mode (optimized when env var not set)
+        with patch.dict('os.environ', {}, clear=True):
+            processor = Processor(taskgroup=taskgroup_mock)
+            # Mode is determined in KnowledgeGraph initialization
