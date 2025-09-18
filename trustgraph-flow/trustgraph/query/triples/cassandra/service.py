@@ -6,7 +6,7 @@ null.  Output is a list of triples.
 
 import logging
 
-from .... direct.cassandra import TrustGraph
+from .... direct.cassandra_kg import KnowledgeGraph
 from .... schema import TriplesQueryRequest, TriplesQueryResponse, Error
 from .... schema import Value, Triple
 from .... base import TriplesQueryService
@@ -60,13 +60,13 @@ class Processor(TriplesQueryService):
 
             if user != self.table:
                 if self.cassandra_username and self.cassandra_password:
-                    self.tg = TrustGraph(
+                    self.tg = KnowledgeGraph(
                         hosts=self.cassandra_host,
                         keyspace=query.user,
                         username=self.cassandra_username, password=self.cassandra_password
                     )
                 else:
-                    self.tg = TrustGraph(
+                    self.tg = KnowledgeGraph(
                         hosts=self.cassandra_host,
                         keyspace=query.user,
                     )

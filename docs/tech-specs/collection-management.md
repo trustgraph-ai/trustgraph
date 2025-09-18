@@ -286,12 +286,64 @@ The Cassandra storage refactor requires data migration from table-per-collection
 
 Migration will be performed during a maintenance window to ensure data consistency.
 
+## Implementation Status
+
+### ✅ Completed Components
+
+1. **Librarian Collection Management Service** (`trustgraph-flow/trustgraph/librarian/collection_service.py`)
+   - Complete collection CRUD operations (list, update, delete)
+   - Cassandra collection metadata table integration via `LibraryTableStore`
+   - Async request/response handling with proper error management
+   - Collection deletion cascade coordination across all storage types
+
+2. **Collection Metadata Schema** (`trustgraph-base/trustgraph/schema/services/collection.py`)
+   - `CollectionManagementRequest` and `CollectionManagementResponse` schemas
+   - `CollectionMetadata` schema for collection records
+   - Collection request/response queue topic definitions
+
+3. **Storage Management Schema** (`trustgraph-base/trustgraph/schema/services/storage.py`)
+   - `StorageManagementRequest` and `StorageManagementResponse` schemas
+   - Message format for storage-level collection operations
+
+### ❌ Missing Components
+
+1. **Storage Management Queue Topics**
+   - Missing topic definitions in schema for:
+     - `vector_storage_management_topic`
+     - `object_storage_management_topic`
+     - `triples_storage_management_topic`
+     - `storage_management_response_topic`
+   - These are referenced by the librarian service but not yet defined
+
+2. **Store Collection Management Handlers**
+   - **Vector Store Writers** (Qdrant, Milvus, Pinecone): No collection deletion handlers
+   - **Object Store Writers** (Cassandra): No collection deletion handlers
+   - **Triple Store Writers** (Cassandra, Neo4j, Memgraph, FalkorDB): No collection deletion handlers
+   - Need to implement `StorageManagementRequest` processing in each store writer
+
+3. **Collection Management Interface Implementation**
+   - Store writers need collection management message consumers
+   - Collection deletion operations need to be implemented per store type
+   - Response handling back to librarian service
+
+### Next Implementation Steps
+
+1. **Define Storage Management Topics** in `trustgraph-base/trustgraph/schema/services/storage.py`
+2. **Implement Collection Management Handlers** in each storage writer:
+   - Add `StorageManagementRequest` consumers
+   - Implement collection deletion operations
+   - Add response producers for status reporting
+3. **Test End-to-End Collection Deletion** across all storage types
+
 ## Timeline
 
-[To be determined based on development priorities]
+Phase 1 (Storage Topics): 1-2 days
+Phase 2 (Store Handlers): 1-2 weeks depending on number of storage backends
+Phase 3 (Testing & Integration): 3-5 days
 
 ## Open Questions
 
 - Should collection deletion be soft or hard delete by default?
 - What metadata fields should be required vs optional?
+- Should we implement storage management handlers incrementally by store type?
 

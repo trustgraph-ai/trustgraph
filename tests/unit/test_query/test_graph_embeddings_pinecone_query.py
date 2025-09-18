@@ -148,7 +148,7 @@ class TestPineconeGraphEmbeddingsQueryProcessor:
         entities = await processor.query_graph_embeddings(message)
         
         # Verify index was accessed correctly
-        expected_index_name = "t-test_user-test_collection-3"
+        expected_index_name = "t-test_user-test_collection"
         processor.pinecone.Index.assert_called_once_with(expected_index_name)
         
         # Verify query parameters
@@ -265,7 +265,7 @@ class TestPineconeGraphEmbeddingsQueryProcessor:
 
     @pytest.mark.asyncio
     async def test_query_graph_embeddings_different_vector_dimensions(self, processor):
-        """Test querying with vectors of different dimensions"""
+        """Test querying with vectors of different dimensions using same index"""
         message = MagicMock()
         message.vectors = [
             [0.1, 0.2],  # 2D vector
@@ -274,34 +274,30 @@ class TestPineconeGraphEmbeddingsQueryProcessor:
         message.limit = 5
         message.user = 'test_user'
         message.collection = 'test_collection'
-        
-        mock_index_2d = MagicMock()
-        mock_index_4d = MagicMock()
-        
-        def mock_index_side_effect(name):
-            if name.endswith("-2"):
-                return mock_index_2d
-            elif name.endswith("-4"):
-                return mock_index_4d
-        
-        processor.pinecone.Index.side_effect = mock_index_side_effect
-        
-        # Mock results for different dimensions
+
+        # Mock single index that handles all dimensions
+        mock_index = MagicMock()
+        processor.pinecone.Index.return_value = mock_index
+
+        # Mock results for different vector queries
         mock_results_2d = MagicMock()
         mock_results_2d.matches = [MagicMock(metadata={'entity': 'entity_2d'})]
-        mock_index_2d.query.return_value = mock_results_2d
-        
+
         mock_results_4d = MagicMock()
         mock_results_4d.matches = [MagicMock(metadata={'entity': 'entity_4d'})]
-        mock_index_4d.query.return_value = mock_results_4d
-        
+
+        mock_index.query.side_effect = [mock_results_2d, mock_results_4d]
+
         entities = await processor.query_graph_embeddings(message)
-        
-        # Verify different indexes were used
+
+        # Verify same index used for both vectors
+        expected_index_name = "t-test_user-test_collection"
         assert processor.pinecone.Index.call_count == 2
-        mock_index_2d.query.assert_called_once()
-        mock_index_4d.query.assert_called_once()
-        
+        processor.pinecone.Index.assert_called_with(expected_index_name)
+
+        # Verify both queries were made
+        assert mock_index.query.call_count == 2
+
         # Verify results from both dimensions
         entity_values = [e.value for e in entities]
         assert 'entity_2d' in entity_values

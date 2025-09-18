@@ -13,6 +13,10 @@ import logging
 from neo4j import GraphDatabase
 
 from .... base import TriplesStoreService
+from .... base import AsyncProcessor, Consumer, Producer
+from .... base import ConsumerMetrics, ProducerMetrics
+from .... schema import StorageManagementRequest, StorageManagementResponse, Error
+from .... schema import triples_storage_management_topic, storage_management_response_topic
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -48,6 +52,34 @@ class Processor(TriplesStoreService):
 
         with self.io.session(database=self.db) as session:
             self.create_indexes(session)
+
+        # Set up metrics for storage management
+        storage_request_metrics = ConsumerMetrics(
+            processor=self.id, flow=None, name="storage-request"
+        )
+        storage_response_metrics = ProducerMetrics(
+            processor=self.id, flow=None, name="storage-response"
+        )
+
+        # Set up consumer for storage management requests
+        self.storage_request_consumer = Consumer(
+            taskgroup=self.taskgroup,
+            client=self.pulsar_client,
+            flow=None,
+            topic=triples_storage_management_topic,
+            subscriber=f"{self.id}-storage",
+            schema=StorageManagementRequest,
+            handler=self.on_storage_management,
+            metrics=storage_request_metrics,
+        )
+
+        # Set up producer for storage management responses
+        self.storage_response_producer = Producer(
+            client=self.pulsar_client,
+            topic=storage_management_response_topic,
+            schema=StorageManagementResponse,
+            metrics=storage_response_metrics,
+        )
 
     def create_indexes(self, session):
 
@@ -284,6 +316,67 @@ class Processor(TriplesStoreService):
             default=default_database,
             help=f'Memgraph database (default: {default_database})'
         )
+
+    async def on_storage_management(self, message):
+        """Handle storage management requests"""
+        logger.info(f"Storage management request: {message.operation} for {message.user}/{message.collection}")
+
+        try:
+            if message.operation == "delete-collection":
+                await self.handle_delete_collection(message)
+            else:
+                response = StorageManagementResponse(
+                    error=Error(
+                        type="invalid_operation",
+                        message=f"Unknown operation: {message.operation}"
+                    )
+                )
+                await self.storage_response_producer.send(response)
+
+        except Exception as e:
+            logger.error(f"Error processing storage management request: {e}", exc_info=True)
+            response = StorageManagementResponse(
+                error=Error(
+                    type="processing_error",
+                    message=str(e)
+                )
+            )
+            await self.storage_response_producer.send(response)
+
+    async def handle_delete_collection(self, message):
+        """Delete all data for a specific collection"""
+        try:
+            with self.io.session(database=self.db) as session:
+                # Delete all nodes for this user and collection
+                node_result = session.run(
+                    "MATCH (n:Node {user: $user, collection: $collection}) "
+                    "DETACH DELETE n",
+                    user=message.user, collection=message.collection
+                )
+                nodes_deleted = node_result.consume().counters.nodes_deleted
+
+                # Delete all literals for this user and collection
+                literal_result = session.run(
+                    "MATCH (n:Literal {user: $user, collection: $collection}) "
+                    "DETACH DELETE n",
+                    user=message.user, collection=message.collection
+                )
+                literals_deleted = literal_result.consume().counters.nodes_deleted
+
+                # Note: Relationships are automatically deleted with DETACH DELETE
+
+                logger.info(f"Deleted {nodes_deleted} nodes and {literals_deleted} literals for {message.user}/{message.collection}")
+
+            # Send success response
+            response = StorageManagementResponse(
+                error=None  # No error means success
+            )
+            await self.storage_response_producer.send(response)
+            logger.info(f"Successfully deleted collection {message.user}/{message.collection}")
+
+        except Exception as e:
+            logger.error(f"Failed to delete collection: {e}")
+            raise
 
 def run():
 

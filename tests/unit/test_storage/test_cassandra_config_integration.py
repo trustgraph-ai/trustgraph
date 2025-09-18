@@ -18,7 +18,7 @@ from trustgraph.storage.knowledge.store import Processor as KgStore
 class TestTriplesWriterConfiguration:
     """Test Cassandra configuration in triples writer processor."""
     
-    @patch('trustgraph.direct.cassandra.TrustGraph')
+    @patch('trustgraph.direct.cassandra_kg.KnowledgeGraph')
     def test_environment_variable_configuration(self, mock_trust_graph):
         """Test processor picks up configuration from environment variables."""
         env_vars = {
@@ -34,7 +34,7 @@ class TestTriplesWriterConfiguration:
             assert processor.cassandra_username == 'env-user'
             assert processor.cassandra_password == 'env-pass'
     
-    @patch('trustgraph.direct.cassandra.TrustGraph')
+    @patch('trustgraph.direct.cassandra_kg.KnowledgeGraph')
     def test_parameter_override_environment(self, mock_trust_graph):
         """Test explicit parameters override environment variables."""
         env_vars = {
@@ -55,7 +55,7 @@ class TestTriplesWriterConfiguration:
             assert processor.cassandra_username == 'param-user'
             assert processor.cassandra_password == 'param-pass'
     
-    @patch('trustgraph.direct.cassandra.TrustGraph')
+    @patch('trustgraph.direct.cassandra_kg.KnowledgeGraph')
     def test_no_backward_compatibility_graph_params(self, mock_trust_graph):
         """Test that old graph_* parameter names are no longer supported."""
         processor = TriplesWriter(
@@ -70,7 +70,7 @@ class TestTriplesWriterConfiguration:
         assert processor.cassandra_username is None
         assert processor.cassandra_password is None
     
-    @patch('trustgraph.direct.cassandra.TrustGraph')
+    @patch('trustgraph.direct.cassandra_kg.KnowledgeGraph')
     def test_default_configuration(self, mock_trust_graph):
         """Test default configuration when no params or env vars provided."""
         with patch.dict(os.environ, {}, clear=True):
@@ -163,7 +163,7 @@ class TestObjectsWriterConfiguration:
 class TestTriplesQueryConfiguration:
     """Test Cassandra configuration in triples query processor."""
     
-    @patch('trustgraph.direct.cassandra.TrustGraph')
+    @patch('trustgraph.direct.cassandra_kg.KnowledgeGraph')
     def test_environment_variable_configuration(self, mock_trust_graph):
         """Test processor picks up configuration from environment variables."""
         env_vars = {
@@ -179,7 +179,7 @@ class TestTriplesQueryConfiguration:
             assert processor.cassandra_username == 'query-env-user'
             assert processor.cassandra_password == 'query-env-pass'
     
-    @patch('trustgraph.direct.cassandra.TrustGraph')
+    @patch('trustgraph.direct.cassandra_kg.KnowledgeGraph')
     def test_only_new_parameters_work(self, mock_trust_graph):
         """Test that only new parameters work."""
         processor = TriplesQuery(
@@ -379,7 +379,7 @@ class TestCommandLineArgumentHandling:
 class TestConfigurationPriorityIntegration:
     """Test complete configuration priority chain in processors."""
     
-    @patch('trustgraph.direct.cassandra.TrustGraph')
+    @patch('trustgraph.direct.cassandra_kg.KnowledgeGraph')
     def test_complete_priority_chain(self, mock_trust_graph):
         """Test CLI params > env vars > defaults priority in actual processor."""
         env_vars = {

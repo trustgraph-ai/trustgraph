@@ -6,7 +6,7 @@ from ssl import SSLContext, PROTOCOL_TLSv1_2
 # Global list to track clusters for cleanup
 _active_clusters = []
 
-class TrustGraph:
+class KnowledgeGraph:
 
     def __init__(
             self, hosts=None,

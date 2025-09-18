@@ -11,6 +11,7 @@ from . config import ConfigRequestor
 from . flow import FlowRequestor
 from . librarian import LibrarianRequestor
 from . knowledge import KnowledgeRequestor
+from . collection_management import CollectionManagementRequestor
 
 from . embeddings import EmbeddingsRequestor
 from . agent import AgentRequestor
@@ -66,6 +67,7 @@ global_dispatchers = {
     "flow": FlowRequestor,
     "librarian": LibrarianRequestor,
     "knowledge": KnowledgeRequestor,
+    "collection-management": CollectionManagementRequestor,
 }
 
 sender_dispatchers = {

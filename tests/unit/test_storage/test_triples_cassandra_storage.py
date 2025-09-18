@@ -86,7 +86,7 @@ class TestCassandraStorageProcessor:
         assert processor.cassandra_username == 'new-user'  # Only cassandra_* params work
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.TrustGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
     async def test_table_switching_with_auth(self, mock_trustgraph):
         """Test table switching logic when authentication is provided"""
         taskgroup_mock = MagicMock()
@@ -107,18 +107,17 @@ class TestCassandraStorageProcessor:
         
         await processor.store_triples(mock_message)
         
-        # Verify TrustGraph was called with auth parameters
+        # Verify KnowledgeGraph was called with auth parameters
         mock_trustgraph.assert_called_once_with(
             hosts=['cassandra'],  # Updated default
             keyspace='user1',
-            table='collection1',
             username='testuser',
             password='testpass'
         )
-        assert processor.table == ('user1', 'collection1')
+        assert processor.table == 'user1'
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.TrustGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
     async def test_table_switching_without_auth(self, mock_trustgraph):
         """Test table switching logic when no authentication is provided"""
         taskgroup_mock = MagicMock()
@@ -135,16 +134,15 @@ class TestCassandraStorageProcessor:
         
         await processor.store_triples(mock_message)
         
-        # Verify TrustGraph was called without auth parameters
+        # Verify KnowledgeGraph was called without auth parameters
         mock_trustgraph.assert_called_once_with(
             hosts=['cassandra'],  # Updated default
-            keyspace='user2',
-            table='collection2'
+            keyspace='user2'
         )
-        assert processor.table == ('user2', 'collection2')
+        assert processor.table == 'user2'
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.TrustGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
     async def test_table_reuse_when_same(self, mock_trustgraph):
         """Test that TrustGraph is not recreated when table hasn't changed"""
         taskgroup_mock = MagicMock()
@@ -168,7 +166,7 @@ class TestCassandraStorageProcessor:
         assert mock_trustgraph.call_count == 1  # Should not increase
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.TrustGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
     async def test_triple_insertion(self, mock_trustgraph):
         """Test that triples are properly inserted into Cassandra"""
         taskgroup_mock = MagicMock()
@@ -198,11 +196,11 @@ class TestCassandraStorageProcessor:
         
         # Verify both triples were inserted
         assert mock_tg_instance.insert.call_count == 2
-        mock_tg_instance.insert.assert_any_call('subject1', 'predicate1', 'object1')
-        mock_tg_instance.insert.assert_any_call('subject2', 'predicate2', 'object2')
+        mock_tg_instance.insert.assert_any_call('collection1', 'subject1', 'predicate1', 'object1')
+        mock_tg_instance.insert.assert_any_call('collection1', 'subject2', 'predicate2', 'object2')
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.TrustGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
     async def test_triple_insertion_with_empty_list(self, mock_trustgraph):
         """Test behavior when message has no triples"""
         taskgroup_mock = MagicMock()
@@ -223,7 +221,7 @@ class TestCassandraStorageProcessor:
         mock_tg_instance.insert.assert_not_called()
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.TrustGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
     @patch('trustgraph.storage.triples.cassandra.write.time.sleep')
     async def test_exception_handling_with_retry(self, mock_sleep, mock_trustgraph):
         """Test exception handling during TrustGraph creation"""
@@ -328,7 +326,7 @@ class TestCassandraStorageProcessor:
         mock_launch.assert_called_once_with(default_ident, '\nGraph writer.  Input is graph edge.  Writes edges to Cassandra graph.\n')
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.TrustGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
     async def test_store_triples_table_switching_between_different_tables(self, mock_trustgraph):
         """Test table switching when different tables are used in sequence"""
         taskgroup_mock = MagicMock()
@@ -345,7 +343,7 @@ class TestCassandraStorageProcessor:
         mock_message1.triples = []
         
         await processor.store_triples(mock_message1)
-        assert processor.table == ('user1', 'collection1')
+        assert processor.table == 'user1'
         assert processor.tg == mock_tg_instance1
         
         # Second message with different table
@@ -355,14 +353,14 @@ class TestCassandraStorageProcessor:
         mock_message2.triples = []
         
         await processor.store_triples(mock_message2)
-        assert processor.table == ('user2', 'collection2')
+        assert processor.table == 'user2'
         assert processor.tg == mock_tg_instance2
         
         # Verify TrustGraph was created twice for different tables
         assert mock_trustgraph.call_count == 2
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.TrustGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
     async def test_store_triples_with_special_characters_in_values(self, mock_trustgraph):
         """Test storing triples with special characters and unicode"""
         taskgroup_mock = MagicMock()
@@ -386,13 +384,14 @@ class TestCassandraStorageProcessor:
         
         # Verify the triple was inserted with special characters preserved
         mock_tg_instance.insert.assert_called_once_with(
+            'test_collection',
             'subject with spaces & symbols',
             'predicate:with/colons',
             'object with "quotes" and unicode: ñáéíóú'
         )
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.TrustGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
     async def test_store_triples_preserves_old_table_on_exception(self, mock_trustgraph):
         """Test that table remains unchanged when TrustGraph creation fails"""
         taskgroup_mock = MagicMock()

@@ -32,7 +32,7 @@ class TestMilvusUserCollectionIntegration:
             doc_vectors.insert(vector, "test document", user, collection)
             
             expected_collection_name = make_safe_collection_name(
-                user, collection, len(vector), "doc"
+                user, collection, "doc"
             )
             
             # Verify collection was created with correct name
@@ -58,7 +58,7 @@ class TestMilvusUserCollectionIntegration:
             entity_vectors.insert(vector, "test entity", user, collection)
             
             expected_collection_name = make_safe_collection_name(
-                user, collection, len(vector), "entity"
+                user, collection, "entity"
             )
             
             # Verify collection was created with correct name
@@ -89,7 +89,7 @@ class TestMilvusUserCollectionIntegration:
         result = doc_vectors.search(vector, user, collection, limit=5)
         
         # Verify search was called with correct collection name
-        expected_collection_name = make_safe_collection_name(user, collection, 3, "doc")
+        expected_collection_name = make_safe_collection_name(user, collection, "doc")
         mock_client.search.assert_called_once()
         search_call = mock_client.search.call_args
         assert search_call[1]["collection_name"] == expected_collection_name
@@ -118,7 +118,7 @@ class TestMilvusUserCollectionIntegration:
         result = entity_vectors.search(vector, user, collection, limit=5)
         
         # Verify search was called with correct collection name
-        expected_collection_name = make_safe_collection_name(user, collection, 3, "entity")
+        expected_collection_name = make_safe_collection_name(user, collection, "entity")
         mock_client.search.assert_called_once()
         search_call = mock_client.search.call_args
         assert search_call[1]["collection_name"] == expected_collection_name
@@ -142,9 +142,9 @@ class TestMilvusUserCollectionIntegration:
         
         collection_names = set(doc_vectors.collections.values())
         expected_names = {
-            "doc_user1_collection1_3",
-            "doc_user2_collection2_3", 
-            "doc_user1_collection2_3"
+            "doc_user1_collection1",
+            "doc_user2_collection2",
+            "doc_user1_collection2"
         }
         assert collection_names == expected_names
 
@@ -167,9 +167,9 @@ class TestMilvusUserCollectionIntegration:
         
         collection_names = set(entity_vectors.collections.values())
         expected_names = {
-            "entity_user1_collection1_3",
-            "entity_user2_collection2_3",
-            "entity_user1_collection2_3"
+            "entity_user1_collection1",
+            "entity_user2_collection2",
+            "entity_user1_collection2"
         }
         assert collection_names == expected_names
 
@@ -194,10 +194,13 @@ class TestMilvusUserCollectionIntegration:
         
         collection_names = set(doc_vectors.collections.values())
         expected_names = {
-            "doc_test_user_test_collection_3",  # 3D
-            "doc_test_user_test_collection_4",  # 4D
-            "doc_test_user_test_collection_2"   # 2D
+            "doc_test_user_test_collection",  # Same name for all dimensions
+            "doc_test_user_test_collection",  # now stored per dimension in key
+            "doc_test_user_test_collection"   # but collection name is the same
         }
+        # Note: Now all dimensions use the same collection name, they are differentiated by the key
+        assert len(collection_names) == 1  # Only one unique collection name
+        assert "doc_test_user_test_collection" in collection_names
         assert collection_names == expected_names
 
     @patch('trustgraph.direct.milvus_doc_embeddings.MilvusClient')
@@ -220,7 +223,7 @@ class TestMilvusUserCollectionIntegration:
         # Verify only one collection was created
         assert len(doc_vectors.collections) == 1
         
-        expected_collection_name = "doc_test_user_test_collection_3"
+        expected_collection_name = "doc_test_user_test_collection"
         assert doc_vectors.collections[(3, user, collection)] == expected_collection_name
 
     @patch('trustgraph.direct.milvus_doc_embeddings.MilvusClient')
@@ -233,10 +236,10 @@ class TestMilvusUserCollectionIntegration:
         
         # Test various special character combinations
         test_cases = [
-            ("user@domain.com", "test-collection.v1", "doc_user_domain_com_test_collection_v1_3"),
-            ("user_123", "collection_456", "doc_user_123_collection_456_3"),  
-            ("user with spaces", "collection with spaces", "doc_user_with_spaces_collection_with_spaces_3"),
-            ("user@@@test", "collection---test", "doc_user_test_collection_test_3"),
+            ("user@domain.com", "test-collection.v1", "doc_user_domain_com_test_collection_v1"),
+            ("user_123", "collection_456", "doc_user_123_collection_456"),
+            ("user with spaces", "collection with spaces", "doc_user_with_spaces_collection_with_spaces"),
+            ("user@@@test", "collection---test", "doc_user_test_collection_test"),
         ]
         
         vector = [0.1, 0.2, 0.3]
@@ -250,24 +253,24 @@ class TestMilvusUserCollectionIntegration:
     def test_collection_name_backward_compatibility(self):
         """Test that new collection names don't conflict with old pattern"""
         # Old pattern was: {prefix}_{dimension}
-        # New pattern is: {prefix}_{safe_user}_{safe_collection}_{dimension}
-        
+        # New pattern is: {prefix}_{safe_user}_{safe_collection}
+
         # The new pattern should never generate names that match the old pattern
         old_pattern_examples = ["doc_384", "entity_768", "doc_512"]
-        
+
         test_cases = [
-            ("user", "collection", 384, "doc"),
-            ("test", "test", 768, "entity"), 
-            ("a", "b", 512, "doc"),
+            ("user", "collection", "doc"),
+            ("test", "test", "entity"),
+            ("a", "b", "doc"),
         ]
-        
-        for user, collection, dimension, prefix in test_cases:
-            new_name = make_safe_collection_name(user, collection, dimension, prefix)
-            
-            # New names should have at least 4 underscores (prefix_user_collection_dimension)
+
+        for user, collection, prefix in test_cases:
+            new_name = make_safe_collection_name(user, collection, prefix)
+
+            # New names should have at least 2 underscores (prefix_user_collection)
             # Old names had only 1 underscore (prefix_dimension)
-            assert new_name.count('_') >= 3, f"New name {new_name} doesn't have enough underscores"
-            
+            assert new_name.count('_') >= 2, f"New name {new_name} doesn't have enough underscores"
+
             # New names should not match old pattern
             assert new_name not in old_pattern_examples, f"New name {new_name} conflicts with old pattern"
 
@@ -286,23 +289,23 @@ class TestMilvusUserCollectionIntegration:
         dimension = 384
         
         # Generate collection names
-        doc_name1 = make_safe_collection_name(user1, collection1, dimension, "doc")
-        doc_name2 = make_safe_collection_name(user2, collection2, dimension, "doc")
-        
-        entity_name1 = make_safe_collection_name(user1, collection1, dimension, "entity")
-        entity_name2 = make_safe_collection_name(user2, collection2, dimension, "entity")
+        doc_name1 = make_safe_collection_name(user1, collection1, "doc")
+        doc_name2 = make_safe_collection_name(user2, collection2, "doc")
+
+        entity_name1 = make_safe_collection_name(user1, collection1, "entity")
+        entity_name2 = make_safe_collection_name(user2, collection2, "entity")
         
         # Verify complete isolation
         assert doc_name1 != doc_name2, "Document collections should be isolated"
         assert entity_name1 != entity_name2, "Entity collections should be isolated"
         
-        # Verify names match expected pattern from Qdrant
+        # Verify names match expected pattern from new API
         # Qdrant uses: d_{user}_{collection}_{dimension}, t_{user}_{collection}_{dimension}
-        # Milvus uses: doc_{safe_user}_{safe_collection}_{dimension}, entity_{safe_user}_{safe_collection}_{dimension}
-        assert doc_name1 == "doc_my_user_test_coll_1_384"
-        assert doc_name2 == "doc_other_user_production_data_384"
-        assert entity_name1 == "entity_my_user_test_coll_1_384"
-        assert entity_name2 == "entity_other_user_production_data_384"
+        # New Milvus API uses: doc_{safe_user}_{safe_collection}, entity_{safe_user}_{safe_collection}
+        assert doc_name1 == "doc_my_user_test_coll_1"
+        assert doc_name2 == "doc_other_user_production_data"
+        assert entity_name1 == "entity_my_user_test_coll_1"
+        assert entity_name2 == "entity_other_user_production_data"
         
         # This test would have FAILED with the old implementation that used:
         # - doc_384 for all document embeddings (no user/collection differentiation)

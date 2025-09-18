@@ -8,6 +8,7 @@ from . library import Library
 from . flow import Flow
 from . config import Config
 from . knowledge import Knowledge
+from . collection import Collection
 from . exceptions import *
 from . types import *
 
@@ -68,3 +69,6 @@ class Api:
 
     def library(self):
         return Library(self)
+
+    def collection(self):
+        return Collection(self)
