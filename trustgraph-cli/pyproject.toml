@@ -87,7 +87,7 @@ tg-get-config-item = "trustgraph.cli.get_config_item:main"
 tg-put-config-item = "trustgraph.cli.put_config_item:main"
 tg-delete-config-item = "trustgraph.cli.delete_config_item:main"
 tg-list-collections = "trustgraph.cli.list_collections:main"
-tg-update-collection = "trustgraph.cli.update_collection:main"
+tg-set-collection = "trustgraph.cli.set_collection:main"
 tg-delete-collection = "trustgraph.cli.delete_collection:main"
 
 [tool.setuptools.packages.find]

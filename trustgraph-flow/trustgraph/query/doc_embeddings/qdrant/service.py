@@ -67,8 +67,7 @@ class Processor(DocumentEmbeddingsQueryService):
 
                 dim = len(vec)
                 collection = (
-                    "d_" + msg.user + "_" + msg.collection + "_" +
-                    str(dim)
+                    "d_" + msg.user + "_" + msg.collection
                 )
 
                 self.ensure_collection_exists(collection, dim)

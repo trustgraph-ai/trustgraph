@@ -27,6 +27,14 @@ class Collection:
         object = self.request(input)
 
         try:
+            # Handle case where collections might be None or missing
+            if object is None or "collections" not in object:
+                return []
+
+            collections = object.get("collections", [])
+            if collections is None:
+                return []
+
             return [
                 CollectionMetadata(
                     user = v["user"],
@@ -37,7 +45,7 @@ class Collection:
                     created_at = v["created_at"],
                     updated_at = v["updated_at"]
                 )
-                for v in object["collections"]
+                for v in collections
             ]
         except Exception as e:
             logger.error("Failed to parse collection list response", exc_info=True)

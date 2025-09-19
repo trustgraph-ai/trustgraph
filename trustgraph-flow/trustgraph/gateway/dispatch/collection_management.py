@@ -22,7 +22,9 @@ class CollectionManagementRequestor(ServiceRequestor):
         self.response_translator = TranslatorRegistry.get_response_translator("collection-management")
 
     def to_request(self, body):
+        print("REQUEST", body, flush=True)
         return self.request_translator.to_pulsar(body)
 
     def from_response(self, message):
+        print("RESPONSE", message, flush=True)
         return self.response_translator.from_response_with_completion(message)

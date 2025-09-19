@@ -74,8 +74,7 @@ class Processor(GraphEmbeddingsQueryService):
 
                 dim = len(vec)
                 collection = (
-                    "t_" + msg.user + "_" + msg.collection + "_" +
-                    str(dim)
+                    "t_" + msg.user + "_" + msg.collection
                 )
 
                 self.ensure_collection_exists(collection, dim)

@@ -1,5 +1,5 @@
 """
-Update collection metadata
+Set collection metadata (creates if doesn't exist)
 """
 
 import argparse
@@ -10,7 +10,7 @@ from trustgraph.api import Api
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_user = "trustgraph"
 
-def update_collection(url, user, collection, name, description, tags):
+def set_collection(url, user, collection, name, description, tags):
 
     api = Api(url).collection()
 
@@ -23,7 +23,7 @@ def update_collection(url, user, collection, name, description, tags):
     )
 
     if result:
-        print(f"Collection '{collection}' updated successfully.")
+        print(f"Collection '{collection}' set successfully.")
 
         table = []
         table.append(("Collection", result.collection))
@@ -39,18 +39,18 @@ def update_collection(url, user, collection, name, description, tags):
             maxcolwidths=[None, 67],
         ))
     else:
-        print(f"Failed to update collection '{collection}'.")
+        print(f"Failed to set collection '{collection}'.")
 
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-update-collection',
+        prog='tg-set-collection',
         description=__doc__,
     )
 
     parser.add_argument(
         'collection',
-        help='Collection ID to update'
+        help='Collection ID to set'
     )
 
     parser.add_argument(
@@ -86,7 +86,7 @@ def main():
 
     try:
 
-        update_collection(
+        set_collection(
             url = args.api_url,
             user = args.user,
             collection = args.collection,

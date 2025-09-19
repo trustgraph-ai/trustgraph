@@ -654,7 +654,7 @@ class LibraryTableStore:
             logger.error(f"Error updating collection: {e}")
             raise
 
-    async def delete_collection_metadata(self, user, collection):
+    async def delete_collection(self, user, collection):
         """Delete collection metadata record"""
         try:
             await asyncio.get_event_loop().run_in_executor(
@@ -682,4 +682,36 @@ class LibraryTableStore:
             }
         except Exception as e:
             logger.error(f"Error getting collection: {e}")
+            raise
+
+    async def create_collection(self, user, collection, name=None, description=None, tags=None):
+        """Create a new collection metadata record"""
+        try:
+            import datetime
+            now = datetime.datetime.now()
+
+            # Set defaults for optional parameters
+            name = name if name is not None else collection
+            description = description if description is not None else ""
+            tags = tags if tags is not None else set()
+
+            await asyncio.get_event_loop().run_in_executor(
+                None, self.cassandra.execute, self.insert_collection_stmt,
+                [user, collection, name, description, tags, now, now]
+            )
+
+            logger.info(f"Created collection {user}/{collection}")
+
+            # Return the created collection data
+            return {
+                "user": user,
+                "collection": collection,
+                "name": name,
+                "description": description,
+                "tags": list(tags) if isinstance(tags, set) else tags,
+                "created_at": now.isoformat(),
+                "updated_at": now.isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Error creating collection: {e}")
             raise

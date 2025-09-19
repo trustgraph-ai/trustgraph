@@ -31,9 +31,9 @@ class KnowledgeGraph:
             self.table = "triples"  # Legacy single table
         else:
             # New optimized tables
-            self.subject_table = "triples_by_subject"
-            self.po_table = "triples_by_po"
-            self.object_table = "triples_by_object"
+            self.subject_table = "triples_s"
+            self.po_table = "triples_p"
+            self.object_table = "triples_o"
 
         if username and password:
             ssl_context = SSLContext(PROTOCOL_TLSv1_2)
@@ -157,7 +157,7 @@ class KnowledgeGraph:
 
         # Query statements for optimized access
         self.get_all_stmt = self.session.prepare(
-            f"SELECT s, p, o FROM {self.subject_table} WHERE collection = ? LIMIT ?"
+            f"SELECT s, p, o FROM {self.subject_table} WHERE collection = ? LIMIT ? ALLOW FILTERING"
         )
 
         self.get_s_stmt = self.session.prepare(
@@ -182,7 +182,7 @@ class KnowledgeGraph:
         )
 
         self.get_os_stmt = self.session.prepare(
-            f"SELECT p FROM {self.subject_table} WHERE collection = ? AND s = ? AND o = ? LIMIT ?"
+            f"SELECT p FROM {self.object_table} WHERE collection = ? AND o = ? AND s = ? LIMIT ?"
         )
 
         self.get_spo_stmt = self.session.prepare(
