@@ -441,7 +441,6 @@ class Processor(AsyncProcessor):
             )
         except RequestError as e:
             resp = CollectionManagementResponse(
-                success="false",
                 error=Error(
                     type="request-error",
                     message=str(e),
@@ -453,7 +452,6 @@ class Processor(AsyncProcessor):
             )
         except Exception as e:
             resp = CollectionManagementResponse(
-                success="false",
                 error=Error(
                     type="unexpected-error",
                     message=str(e),

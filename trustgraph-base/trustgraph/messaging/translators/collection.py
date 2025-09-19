@@ -78,7 +78,6 @@ class CollectionManagementResponseTranslator(MessageTranslator):
                 ))
 
         return CollectionManagementResponse(
-            success=data.get("success"),
             error=error,
             timestamp=data.get("timestamp"),
             collections=collections
@@ -87,8 +86,6 @@ class CollectionManagementResponseTranslator(MessageTranslator):
     def from_pulsar(self, obj: CollectionManagementResponse) -> Dict[str, Any]:
         result = {}
 
-        if obj.success is not None:
-            result["success"] = obj.success
         if obj.error is not None:
             result["error"] = {
                 "type": obj.error.type,

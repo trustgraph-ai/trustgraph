@@ -116,7 +116,6 @@ class CollectionManager:
             ]
 
             return CollectionManagementResponse(
-                success="true",
                 collections=collection_metadata,
                 timestamp=datetime.now().isoformat()
             )
@@ -187,7 +186,6 @@ class CollectionManager:
                 )
 
             return CollectionManagementResponse(
-                success="true",
                 collections=[collection_metadata],
                 timestamp=datetime.now().isoformat()
             )
@@ -256,7 +254,6 @@ class CollectionManager:
                 del self.pending_deletions[deletion_key]
 
                 return CollectionManagementResponse(
-                    success="false",
                     error=Error(
                         type="storage_deletion_error",
                         message=error_msg
@@ -272,7 +269,6 @@ class CollectionManager:
             del self.pending_deletions[deletion_key]
 
             return CollectionManagementResponse(
-                success="true",
                 timestamp=datetime.now().isoformat()
             )
 

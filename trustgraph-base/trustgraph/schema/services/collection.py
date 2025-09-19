@@ -42,8 +42,7 @@ class CollectionManagementRequest(Record):
 
 class CollectionManagementResponse(Record):
     """Response for collection management operations"""
-    success = String()  # "true" or "false"
-    error = Error()  # Only populated if success is "false"
+    error = Error()  # Only populated if there's an error
     timestamp = String()  # ISO timestamp
     collections = Array(CollectionMetadata())
 
