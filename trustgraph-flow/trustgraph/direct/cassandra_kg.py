@@ -31,9 +31,9 @@ class KnowledgeGraph:
             self.table = "triples"  # Legacy single table
         else:
             # New optimized tables
-            self.subject_table = "triples_by_subject"
-            self.po_table = "triples_by_po"
-            self.object_table = "triples_by_object"
+            self.subject_table = "triples_s"
+            self.po_table = "triples_p"
+            self.object_table = "triples_o"
 
         if username and password:
             ssl_context = SSLContext(PROTOCOL_TLSv1_2)
