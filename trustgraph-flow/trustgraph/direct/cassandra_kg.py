@@ -157,7 +157,7 @@ class KnowledgeGraph:
 
         # Query statements for optimized access
         self.get_all_stmt = self.session.prepare(
-            f"SELECT s, p, o FROM {self.subject_table} WHERE collection = ? LIMIT ?"
+            f"SELECT s, p, o FROM {self.subject_table} WHERE collection = ? LIMIT ? ALLOW FILTERING"
         )
 
         self.get_s_stmt = self.session.prepare(
