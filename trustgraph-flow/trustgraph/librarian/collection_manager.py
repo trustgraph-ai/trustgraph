@@ -127,7 +127,7 @@ class CollectionManager:
 
     async def update_collection(self, request: CollectionManagementRequest) -> CollectionManagementResponse:
         """
-        Update collection metadata
+        Update collection metadata (creates if doesn't exist)
 
         Args:
             request: Collection management request
@@ -136,24 +136,55 @@ class CollectionManager:
             CollectionManagementResponse with updated collection
         """
         try:
-            # Extract fields for update
-            name = request.name if request.name else None
-            description = request.description if request.description else None
-            tags = list(request.tags) if request.tags else None
+            # Check if collection exists, create if it doesn't
+            existing = await self.table_store.get_collection(request.user, request.collection)
+            if not existing:
+                # Create new collection with provided metadata
+                logger.info(f"Creating new collection {request.user}/{request.collection}")
 
-            updated_collection = await self.table_store.update_collection(
-                request.user, request.collection, name, description, tags
-            )
+                name = request.name if request.name else request.collection
+                description = request.description if request.description else ""
+                tags = set(request.tags) if request.tags else set()
 
-            collection_metadata = CollectionMetadata(
-                user=updated_collection["user"],
-                collection=updated_collection["collection"],
-                name=updated_collection["name"],
-                description=updated_collection["description"],
-                tags=updated_collection["tags"],
-                created_at="",  # Not returned by update
-                updated_at=updated_collection["updated_at"]
-            )
+                await self.table_store.create_collection(
+                    user=request.user,
+                    collection=request.collection,
+                    name=name,
+                    description=description,
+                    tags=tags
+                )
+
+                # Get the newly created collection for response
+                created_collection = await self.table_store.get_collection(request.user, request.collection)
+
+                collection_metadata = CollectionMetadata(
+                    user=created_collection["user"],
+                    collection=created_collection["collection"],
+                    name=created_collection["name"],
+                    description=created_collection["description"],
+                    tags=created_collection["tags"],
+                    created_at=created_collection["created_at"],
+                    updated_at=created_collection["updated_at"]
+                )
+            else:
+                # Collection exists, update it
+                name = request.name if request.name else None
+                description = request.description if request.description else None
+                tags = list(request.tags) if request.tags else None
+
+                updated_collection = await self.table_store.update_collection(
+                    request.user, request.collection, name, description, tags
+                )
+
+                collection_metadata = CollectionMetadata(
+                    user=updated_collection["user"],
+                    collection=updated_collection["collection"],
+                    name=updated_collection["name"],
+                    description=updated_collection["description"],
+                    tags=updated_collection["tags"],
+                    created_at="",  # Not returned by update
+                    updated_at=updated_collection["updated_at"]
+                )
 
             return CollectionManagementResponse(
                 success="true",
