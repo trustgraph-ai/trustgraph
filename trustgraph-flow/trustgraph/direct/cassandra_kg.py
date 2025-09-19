@@ -182,7 +182,7 @@ class KnowledgeGraph:
         )
 
         self.get_os_stmt = self.session.prepare(
-            f"SELECT p FROM {self.subject_table} WHERE collection = ? AND s = ? AND o = ? LIMIT ?"
+            f"SELECT p FROM {self.object_table} WHERE collection = ? AND o = ? AND s = ? LIMIT ?"
         )
 
         self.get_spo_stmt = self.session.prepare(
