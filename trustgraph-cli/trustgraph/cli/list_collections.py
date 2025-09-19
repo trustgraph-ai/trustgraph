@@ -17,8 +17,9 @@ def list_collections(url, user, tag_filter):
 
     collections = api.list_collections(user=user, tag_filter=tag_filter)
 
-    if len(collections) == 0:
-        print("No collections.")
+    # Handle None or empty collections
+    if not collections or len(collections) == 0:
+        print("No collections found.")
         return
 
     table = []
