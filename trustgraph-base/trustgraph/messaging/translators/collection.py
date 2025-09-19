@@ -54,6 +54,7 @@ class CollectionManagementResponseTranslator(MessageTranslator):
     """Translator for CollectionManagementResponse schema objects"""
 
     def to_pulsar(self, data: Dict[str, Any]) -> CollectionManagementResponse:
+
         # Handle error
         error = None
         if "error" in data and data["error"]:
@@ -86,6 +87,8 @@ class CollectionManagementResponseTranslator(MessageTranslator):
     def from_pulsar(self, obj: CollectionManagementResponse) -> Dict[str, Any]:
         result = {}
 
+        print("COLLECTIONMGMT", obj, flush=True)
+
         if obj.error is not None:
             result["error"] = {
                 "type": obj.error.type,
@@ -105,5 +108,7 @@ class CollectionManagementResponseTranslator(MessageTranslator):
                     "created_at": coll.created_at,
                     "updated_at": coll.updated_at
                 })
+
+        print("RESULT IS", result, flush=True)
 
         return result

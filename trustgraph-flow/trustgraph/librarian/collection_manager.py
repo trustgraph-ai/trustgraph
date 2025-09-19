@@ -116,6 +116,7 @@ class CollectionManager:
             ]
 
             return CollectionManagementResponse(
+                error=None,
                 collections=collection_metadata,
                 timestamp=datetime.now().isoformat()
             )
@@ -186,6 +187,7 @@ class CollectionManager:
                 )
 
             return CollectionManagementResponse(
+                error=None,
                 collections=[collection_metadata],
                 timestamp=datetime.now().isoformat()
             )
@@ -269,6 +271,7 @@ class CollectionManager:
             del self.pending_deletions[deletion_key]
 
             return CollectionManagementResponse(
+                error=None,
                 timestamp=datetime.now().isoformat()
             )
 
