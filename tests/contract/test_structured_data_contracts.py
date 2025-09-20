@@ -12,7 +12,7 @@ from typing import Dict, Any
 
 from trustgraph.schema import (
     StructuredDataSubmission, ExtractedObject,
-    NLPToStructuredQueryRequest, NLPToStructuredQueryResponse,
+    QuestionToStructuredQueryRequest, QuestionToStructuredQueryResponse,
     StructuredQueryRequest, StructuredQueryResponse,
     StructuredObjectEmbedding, Field, RowSchema,
     Metadata, Error, Value
@@ -128,17 +128,76 @@ class TestStructuredDataSchemaContracts:
         obj = ExtractedObject(
             metadata=metadata,
             schema_name="customer_records",
-            values={"id": "123", "name": "John Doe", "email": "john@example.com"},
+            values=[{"id": "123", "name": "John Doe", "email": "john@example.com"}],
             confidence=0.95,
             source_span="John Doe (john@example.com) customer ID 123"
         )
 
         # Assert
         assert obj.schema_name == "customer_records"
-        assert obj.values["name"] == "John Doe"
+        assert obj.values[0]["name"] == "John Doe"
         assert obj.confidence == 0.95
         assert len(obj.source_span) > 0
         assert obj.metadata.id == "extracted-obj-001"
+
+    def test_extracted_object_batch_contract(self):
+        """Test ExtractedObject schema contract for batched values"""
+        # Arrange
+        metadata = Metadata(
+            id="extracted-batch-001",
+            user="test_user",
+            collection="test_collection",
+            metadata=[]
+        )
+        
+        # Act - create object with multiple values
+        obj = ExtractedObject(
+            metadata=metadata,
+            schema_name="customer_records",
+            values=[
+                {"id": "123", "name": "John Doe", "email": "john@example.com"},
+                {"id": "124", "name": "Jane Smith", "email": "jane@example.com"},
+                {"id": "125", "name": "Bob Johnson", "email": "bob@example.com"}
+            ],
+            confidence=0.85,
+            source_span="Multiple customers found in document"
+        )
+
+        # Assert
+        assert obj.schema_name == "customer_records"
+        assert len(obj.values) == 3
+        assert obj.values[0]["name"] == "John Doe"
+        assert obj.values[1]["name"] == "Jane Smith" 
+        assert obj.values[2]["name"] == "Bob Johnson"
+        assert obj.values[0]["id"] == "123"
+        assert obj.values[1]["id"] == "124"
+        assert obj.values[2]["id"] == "125"
+        assert obj.confidence == 0.85
+        assert "Multiple customers" in obj.source_span
+
+    def test_extracted_object_empty_batch_contract(self):
+        """Test ExtractedObject schema contract for empty values array"""
+        # Arrange
+        metadata = Metadata(
+            id="extracted-empty-001",
+            user="test_user", 
+            collection="test_collection",
+            metadata=[]
+        )
+        
+        # Act - create object with empty values array
+        obj = ExtractedObject(
+            metadata=metadata,
+            schema_name="empty_schema",
+            values=[],
+            confidence=1.0,
+            source_span="No objects found"
+        )
+
+        # Assert
+        assert obj.schema_name == "empty_schema"
+        assert len(obj.values) == 0
+        assert obj.confidence == 1.0
 
 
 @pytest.mark.contract
@@ -146,23 +205,21 @@ class TestStructuredQueryServiceContracts:
     """Contract tests for structured query services"""
 
     def test_nlp_to_structured_query_request_contract(self):
-        """Test NLPToStructuredQueryRequest schema contract"""
+        """Test QuestionToStructuredQueryRequest schema contract"""
         # Act
-        request = NLPToStructuredQueryRequest(
-            natural_language_query="Show me all customers who registered last month",
-            max_results=100,
-            context_hints={"time_range": "last_month", "entity_type": "customer"}
+        request = QuestionToStructuredQueryRequest(
+            question="Show me all customers who registered last month",
+            max_results=100
         )
 
         # Assert
-        assert "customers" in request.natural_language_query
+        assert "customers" in request.question
         assert request.max_results == 100
-        assert request.context_hints["time_range"] == "last_month"
 
     def test_nlp_to_structured_query_response_contract(self):
-        """Test NLPToStructuredQueryResponse schema contract"""
+        """Test QuestionToStructuredQueryResponse schema contract"""
         # Act
-        response = NLPToStructuredQueryResponse(
+        response = QuestionToStructuredQueryResponse(
             error=None,
             graphql_query="query { customers(filter: {registered: {gte: \"2024-01-01\"}}) { id name email } }",
             variables={"start_date": "2024-01-01"},
@@ -180,15 +237,11 @@ class TestStructuredQueryServiceContracts:
         """Test StructuredQueryRequest schema contract"""
         # Act
         request = StructuredQueryRequest(
-            query="query GetCustomers($limit: Int) { customers(limit: $limit) { id name email } }",
-            variables={"limit": "10"},
-            operation_name="GetCustomers"
+            question="Show me customers with limit 10"
         )
 
         # Assert
-        assert "customers" in request.query
-        assert request.variables["limit"] == "10"
-        assert request.operation_name == "GetCustomers"
+        assert "customers" in request.question
 
     def test_structured_query_response_contract(self):
         """Test StructuredQueryResponse schema contract"""
@@ -279,7 +332,7 @@ class TestStructuredDataSerializationContracts:
         object_data = {
             "metadata": metadata,
             "schema_name": "test_schema",
-            "values": {"field1": "value1"},
+            "values": [{"field1": "value1"}],
             "confidence": 0.8,
             "source_span": "test span"
         }
@@ -291,11 +344,10 @@ class TestStructuredDataSerializationContracts:
         """Test NLP query request/response serialization contract"""
         # Test request
         request_data = {
-            "natural_language_query": "test query",
-            "max_results": 10,
-            "context_hints": {}
+            "question": "test query",
+            "max_results": 10
         }
-        assert serialize_deserialize_test(NLPToStructuredQueryRequest, request_data)
+        assert serialize_deserialize_test(QuestionToStructuredQueryRequest, request_data)
 
         # Test response
         response_data = {
@@ -305,4 +357,54 @@ class TestStructuredDataSerializationContracts:
             "detected_schemas": ["test"],
             "confidence": 0.9
         }
-        assert serialize_deserialize_test(NLPToStructuredQueryResponse, response_data)
+        assert serialize_deserialize_test(QuestionToStructuredQueryResponse, response_data)
+
+    def test_structured_query_serialization(self):
+        """Test structured query request/response serialization contract"""
+        # Test request
+        request_data = {
+            "question": "Show me all customers"
+        }
+        assert serialize_deserialize_test(StructuredQueryRequest, request_data)
+
+        # Test response
+        response_data = {
+            "error": None,
+            "data": '{"customers": [{"id": "1", "name": "John"}]}',
+            "errors": []
+        }
+        assert serialize_deserialize_test(StructuredQueryResponse, response_data)
+
+    def test_extracted_object_batch_serialization(self):
+        """Test ExtractedObject batch serialization contract"""
+        # Arrange
+        metadata = Metadata(id="test", user="user", collection="col", metadata=[])
+        batch_object_data = {
+            "metadata": metadata,
+            "schema_name": "test_schema",
+            "values": [
+                {"field1": "value1", "field2": "value2"},
+                {"field1": "value3", "field2": "value4"},
+                {"field1": "value5", "field2": "value6"}
+            ],
+            "confidence": 0.9,
+            "source_span": "batch test span"
+        }
+
+        # Act & Assert
+        assert serialize_deserialize_test(ExtractedObject, batch_object_data)
+
+    def test_extracted_object_empty_batch_serialization(self):
+        """Test ExtractedObject empty batch serialization contract"""
+        # Arrange
+        metadata = Metadata(id="test", user="user", collection="col", metadata=[])
+        empty_batch_data = {
+            "metadata": metadata,
+            "schema_name": "test_schema", 
+            "values": [],
+            "confidence": 1.0,
+            "source_span": "empty batch"
+        }
+
+        # Act & Assert
+        assert serialize_deserialize_test(ExtractedObject, empty_batch_data)

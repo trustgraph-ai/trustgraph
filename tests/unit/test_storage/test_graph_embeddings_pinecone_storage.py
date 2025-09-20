@@ -135,7 +135,7 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
             await processor.store_graph_embeddings(message)
         
         # Verify index name and operations
-        expected_index_name = "t-test_user-test_collection-3"
+        expected_index_name = "t-test_user-test_collection"
         processor.pinecone.Index.assert_called_with(expected_index_name)
         
         # Verify upsert was called for each vector
@@ -203,7 +203,7 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
             await processor.store_graph_embeddings(message)
         
         # Verify index creation was called
-        expected_index_name = "t-test_user-test_collection-3"
+        expected_index_name = "t-test_user-test_collection"
         processor.pinecone.create_index.assert_called_once()
         create_call = processor.pinecone.create_index.call_args
         assert create_call[1]['name'] == expected_index_name
@@ -256,12 +256,12 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
 
     @pytest.mark.asyncio
     async def test_store_graph_embeddings_different_vector_dimensions(self, processor):
-        """Test storing graph embeddings with different vector dimensions"""
+        """Test storing graph embeddings with different vector dimensions to same index"""
         message = MagicMock()
         message.metadata = MagicMock()
         message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
-        
+
         entity = EntityEmbeddings(
             entity=Value(value="test_entity", is_uri=False),
             vectors=[
@@ -271,30 +271,21 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
             ]
         )
         message.entities = [entity]
-        
-        mock_index_2d = MagicMock()
-        mock_index_4d = MagicMock()
-        mock_index_3d = MagicMock()
-        
-        def mock_index_side_effect(name):
-            if name.endswith("-2"):
-                return mock_index_2d
-            elif name.endswith("-4"):
-                return mock_index_4d
-            elif name.endswith("-3"):
-                return mock_index_3d
-        
-        processor.pinecone.Index.side_effect = mock_index_side_effect
+
+        # All vectors now use the same index (no dimension in name)
+        mock_index = MagicMock()
+        processor.pinecone.Index.return_value = mock_index
         processor.pinecone.has_index.return_value = True
-        
+
         with patch('uuid.uuid4', side_effect=['id1', 'id2', 'id3']):
             await processor.store_graph_embeddings(message)
-        
-        # Verify different indexes were used for different dimensions
-        assert processor.pinecone.Index.call_count == 3
-        mock_index_2d.upsert.assert_called_once()
-        mock_index_4d.upsert.assert_called_once()
-        mock_index_3d.upsert.assert_called_once()
+
+        # Verify same index was used for all dimensions
+        expected_index_name = 't-test_user-test_collection'
+        processor.pinecone.Index.assert_called_with(expected_index_name)
+
+        # Verify all vectors were upserted to the same index
+        assert mock_index.upsert.call_count == 3
 
     @pytest.mark.asyncio
     async def test_store_graph_embeddings_empty_entities_list(self, processor):

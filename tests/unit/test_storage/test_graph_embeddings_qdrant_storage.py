@@ -69,7 +69,7 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         collection_name = processor.get_collection(dim=512, user='test_user', collection='test_collection')
 
         # Assert
-        expected_name = 't_test_user_test_collection_512'
+        expected_name = 't_test_user_test_collection'
         assert collection_name == expected_name
         assert processor.last_collection == expected_name
         
@@ -118,7 +118,7 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         # Assert
         # Verify collection existence was checked
-        expected_collection = 't_test_user_test_collection_3'
+        expected_collection = 't_test_user_test_collection'
         mock_qdrant_instance.collection_exists.assert_called_once_with(expected_collection)
         
         # Verify upsert was called
@@ -156,7 +156,7 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         collection_name = processor.get_collection(dim=256, user='existing_user', collection='existing_collection')
 
         # Assert
-        expected_name = 't_existing_user_existing_collection_256'
+        expected_name = 't_existing_user_existing_collection'
         assert collection_name == expected_name
         assert processor.last_collection == expected_name
         
@@ -194,7 +194,7 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         collection_name2 = processor.get_collection(dim=128, user='cache_user', collection='cache_collection')
 
         # Assert
-        expected_name = 't_cache_user_cache_collection_128'
+        expected_name = 't_cache_user_cache_collection'
         assert collection_name1 == expected_name
         assert collection_name2 == expected_name
         

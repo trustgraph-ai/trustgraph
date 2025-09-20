@@ -13,7 +13,7 @@ import time
 from unittest.mock import MagicMock
 
 from .cassandra_test_helper import cassandra_container
-from trustgraph.direct.cassandra import TrustGraph
+from trustgraph.direct.cassandra_kg import KnowledgeGraph
 from trustgraph.storage.triples.cassandra.write import Processor as StorageProcessor
 from trustgraph.query.triples.cassandra.service import Processor as QueryProcessor
 from trustgraph.schema import Triple, Value, Metadata, Triples, TriplesQueryRequest
@@ -62,29 +62,29 @@ class TestCassandraIntegration:
         print("=" * 60)
         
         # =====================================================
-        # Test 1: Basic TrustGraph Operations
+        # Test 1: Basic KnowledgeGraph Operations
         # =====================================================
-        print("\n1. Testing basic TrustGraph operations...")
-        
-        client = TrustGraph(
+        print("\n1. Testing basic KnowledgeGraph operations...")
+
+        client = KnowledgeGraph(
             hosts=[host],
-            keyspace="test_basic",
-            table="test_table"
+            keyspace="test_basic"
         )
         self.clients_to_close.append(client)
         
         # Insert test data
-        client.insert("http://example.org/alice", "knows", "http://example.org/bob")
-        client.insert("http://example.org/alice", "age", "25")
-        client.insert("http://example.org/bob", "age", "30")
-        
+        collection = "test_collection"
+        client.insert(collection, "http://example.org/alice", "knows", "http://example.org/bob")
+        client.insert(collection, "http://example.org/alice", "age", "25")
+        client.insert(collection, "http://example.org/bob", "age", "30")
+
         # Test get_all
-        all_results = list(client.get_all(limit=10))
+        all_results = list(client.get_all(collection, limit=10))
         assert len(all_results) == 3
         print(f"✓ Stored and retrieved {len(all_results)} triples")
         
         # Test get_s (subject query)
-        alice_results = list(client.get_s("http://example.org/alice", limit=10))
+        alice_results = list(client.get_s(collection, "http://example.org/alice", limit=10))
         assert len(alice_results) == 2
         alice_predicates = [r.p for r in alice_results]
         assert "knows" in alice_predicates
@@ -110,7 +110,7 @@ class TestCassandraIntegration:
             keyspace="test_storage",
             table="test_triples"
         )
-        # Track the TrustGraph instance that will be created
+        # Track the KnowledgeGraph instance that will be created
         self.storage_processor = storage_processor
         
         # Create test message
@@ -202,7 +202,7 @@ class TestCassandraIntegration:
         # Debug: Check what was actually stored
         print("Debug: Checking what was stored for Alice...")
         direct_results = list(query_storage_processor.tg.get_s("http://example.org/alice", limit=10))
-        print(f"Direct TrustGraph results: {len(direct_results)}")
+        print(f"Direct KnowledgeGraph results: {len(direct_results)}")
         for result in direct_results:
             print(f"  S=http://example.org/alice, P={result.p}, O={result.o}")
         

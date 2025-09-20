@@ -43,7 +43,12 @@ class Processor(DocumentEmbeddingsQueryService):
 
             for vec in msg.vectors:
 
-                resp = self.vecstore.search(vec, limit=msg.limit)
+                resp = self.vecstore.search(
+                    vec, 
+                    msg.user, 
+                    msg.collection, 
+                    limit=msg.limit
+                )
 
                 for r in resp:
                     chunk = r["entity"]["doc"]

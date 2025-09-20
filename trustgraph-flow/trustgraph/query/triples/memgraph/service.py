@@ -55,6 +55,10 @@ class Processor(TriplesQueryService):
 
         try:
 
+            # Extract user and collection, use defaults if not provided
+            user = query.user if query.user else "default"
+            collection = query.collection if query.collection else "default"
+            
             triples = []
 
             if query.s is not None:
@@ -64,10 +68,13 @@ class Processor(TriplesQueryService):
                         # SPO
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Literal {value: $value}) "
+                            "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
+                            "[rel:Rel {uri: $rel, user: $user, collection: $collection}]->"
+                            "(dest:Literal {value: $value, user: $user, collection: $collection}) "
                             "RETURN $src as src "
                             "LIMIT " + str(query.limit),
                             src=query.s.value, rel=query.p.value, value=query.o.value,
+                            user=user, collection=collection,
                             database_=self.db,
                         )
 
@@ -75,10 +82,13 @@ class Processor(TriplesQueryService):
                             triples.append((query.s.value, query.p.value, query.o.value))
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Node {uri: $uri}) "
+                            "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
+                            "[rel:Rel {uri: $rel, user: $user, collection: $collection}]->"
+                            "(dest:Node {uri: $uri, user: $user, collection: $collection}) "
                             "RETURN $src as src "
                             "LIMIT " + str(query.limit),
                             src=query.s.value, rel=query.p.value, uri=query.o.value,
+                            user=user, collection=collection,
                             database_=self.db,
                         )
 
@@ -90,10 +100,13 @@ class Processor(TriplesQueryService):
                         # SP
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Literal) "
+                            "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
+                            "[rel:Rel {uri: $rel, user: $user, collection: $collection}]->"
+                            "(dest:Literal {user: $user, collection: $collection}) "
                             "RETURN dest.value as dest "
                             "LIMIT " + str(query.limit),
                             src=query.s.value, rel=query.p.value,
+                            user=user, collection=collection,
                             database_=self.db,
                         )
 
@@ -102,10 +115,13 @@ class Processor(TriplesQueryService):
                             triples.append((query.s.value, query.p.value, data["dest"]))
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Node) "
+                            "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
+                            "[rel:Rel {uri: $rel, user: $user, collection: $collection}]->"
+                            "(dest:Node {user: $user, collection: $collection}) "
                             "RETURN dest.uri as dest "
                             "LIMIT " + str(query.limit),
                             src=query.s.value, rel=query.p.value,
+                            user=user, collection=collection,
                             database_=self.db,
                         )
 
@@ -120,10 +136,13 @@ class Processor(TriplesQueryService):
                         # SO
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Literal {value: $value}) "
+                            "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
+                            "[rel:Rel {user: $user, collection: $collection}]->"
+                            "(dest:Literal {value: $value, user: $user, collection: $collection}) "
                             "RETURN rel.uri as rel "
                             "LIMIT " + str(query.limit),
                             src=query.s.value, value=query.o.value,
+                            user=user, collection=collection,
                             database_=self.db,
                         )
 
@@ -132,10 +151,13 @@ class Processor(TriplesQueryService):
                             triples.append((query.s.value, data["rel"], query.o.value))
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Node {uri: $uri}) "
+                            "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
+                            "[rel:Rel {user: $user, collection: $collection}]->"
+                            "(dest:Node {uri: $uri, user: $user, collection: $collection}) "
                             "RETURN rel.uri as rel "
                             "LIMIT " + str(query.limit),
                             src=query.s.value, uri=query.o.value,
+                            user=user, collection=collection,
                             database_=self.db,
                         )
 
@@ -148,10 +170,13 @@ class Processor(TriplesQueryService):
                         # S
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Literal) "
+                            "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
+                            "[rel:Rel {user: $user, collection: $collection}]->"
+                            "(dest:Literal {user: $user, collection: $collection}) "
                             "RETURN rel.uri as rel, dest.value as dest "
                             "LIMIT " + str(query.limit),
                             src=query.s.value,
+                            user=user, collection=collection,
                             database_=self.db,
                         )
 
@@ -160,10 +185,13 @@ class Processor(TriplesQueryService):
                             triples.append((query.s.value, data["rel"], data["dest"]))
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Node) "
+                            "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
+                            "[rel:Rel {user: $user, collection: $collection}]->"
+                            "(dest:Node {user: $user, collection: $collection}) "
                             "RETURN rel.uri as rel, dest.uri as dest "
                             "LIMIT " + str(query.limit),
                             src=query.s.value,
+                            user=user, collection=collection,
                             database_=self.db,
                         )
 
@@ -181,10 +209,13 @@ class Processor(TriplesQueryService):
                         # PO
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Literal {value: $value}) "
+                            "MATCH (src:Node {user: $user, collection: $collection})-"
+                            "[rel:Rel {uri: $uri, user: $user, collection: $collection}]->"
+                            "(dest:Literal {value: $value, user: $user, collection: $collection}) "
                             "RETURN src.uri as src "
                             "LIMIT " + str(query.limit),
                             uri=query.p.value, value=query.o.value,
+                            user=user, collection=collection,
                             database_=self.db,
                         )
 
@@ -193,10 +224,13 @@ class Processor(TriplesQueryService):
                             triples.append((data["src"], query.p.value, query.o.value))
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Node {uri: $dest}) "
+                            "MATCH (src:Node {user: $user, collection: $collection})-"
+                            "[rel:Rel {uri: $uri, user: $user, collection: $collection}]->"
+                            "(dest:Node {uri: $dest, user: $user, collection: $collection}) "
                             "RETURN src.uri as src "
                             "LIMIT " + str(query.limit),
                             uri=query.p.value, dest=query.o.value,
+                            user=user, collection=collection,
                             database_=self.db,
                         )
 
@@ -209,10 +243,13 @@ class Processor(TriplesQueryService):
                         # P
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Literal) "
+                            "MATCH (src:Node {user: $user, collection: $collection})-"
+                            "[rel:Rel {uri: $uri, user: $user, collection: $collection}]->"
+                            "(dest:Literal {user: $user, collection: $collection}) "
                             "RETURN src.uri as src, dest.value as dest "
                             "LIMIT " + str(query.limit),
                             uri=query.p.value,
+                            user=user, collection=collection,
                             database_=self.db,
                         )
 
@@ -221,10 +258,13 @@ class Processor(TriplesQueryService):
                             triples.append((data["src"], query.p.value, data["dest"]))
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Node) "
+                            "MATCH (src:Node {user: $user, collection: $collection})-"
+                            "[rel:Rel {uri: $uri, user: $user, collection: $collection}]->"
+                            "(dest:Node {user: $user, collection: $collection}) "
                             "RETURN src.uri as src, dest.uri as dest "
                             "LIMIT " + str(query.limit),
                             uri=query.p.value,
+                            user=user, collection=collection,
                             database_=self.db,
                         )
 
@@ -239,10 +279,13 @@ class Processor(TriplesQueryService):
                         # O
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node)-[rel:Rel]->(dest:Literal {value: $value}) "
+                            "MATCH (src:Node {user: $user, collection: $collection})-"
+                            "[rel:Rel {user: $user, collection: $collection}]->"
+                            "(dest:Literal {value: $value, user: $user, collection: $collection}) "
                             "RETURN src.uri as src, rel.uri as rel "
                             "LIMIT " + str(query.limit),
                             value=query.o.value,
+                            user=user, collection=collection,
                             database_=self.db,
                         )
 
@@ -251,10 +294,13 @@ class Processor(TriplesQueryService):
                             triples.append((data["src"], data["rel"], query.o.value))
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node)-[rel:Rel]->(dest:Node {uri: $uri}) "
+                            "MATCH (src:Node {user: $user, collection: $collection})-"
+                            "[rel:Rel {user: $user, collection: $collection}]->"
+                            "(dest:Node {uri: $uri, user: $user, collection: $collection}) "
                             "RETURN src.uri as src, rel.uri as rel "
                             "LIMIT " + str(query.limit),
                             uri=query.o.value,
+                            user=user, collection=collection,
                             database_=self.db,
                         )
 
@@ -267,9 +313,12 @@ class Processor(TriplesQueryService):
                         # *
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node)-[rel:Rel]->(dest:Literal) "
+                            "MATCH (src:Node {user: $user, collection: $collection})-"
+                            "[rel:Rel {user: $user, collection: $collection}]->"
+                            "(dest:Literal {user: $user, collection: $collection}) "
                             "RETURN src.uri as src, rel.uri as rel, dest.value as dest "
                             "LIMIT " + str(query.limit),
+                            user=user, collection=collection,
                             database_=self.db,
                         )
 
@@ -278,9 +327,12 @@ class Processor(TriplesQueryService):
                             triples.append((data["src"], data["rel"], data["dest"]))
 
                         records, summary, keys = self.io.execute_query(
-                            "MATCH (src:Node)-[rel:Rel]->(dest:Node) "
+                            "MATCH (src:Node {user: $user, collection: $collection})-"
+                            "[rel:Rel {user: $user, collection: $collection}]->"
+                            "(dest:Node {user: $user, collection: $collection}) "
                             "RETURN src.uri as src, rel.uri as rel, dest.uri as dest "
                             "LIMIT " + str(query.limit),
+                            user=user, collection=collection,
                             database_=self.db,
                         )
 

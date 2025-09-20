@@ -106,7 +106,7 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         # Assert
         # Verify collection existence was checked
-        expected_collection = 'd_test_user_test_collection_3'
+        expected_collection = 'd_test_user_test_collection'
         mock_qdrant_instance.collection_exists.assert_called_once_with(expected_collection)
         
         # Verify upsert was called
@@ -309,7 +309,7 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         await processor.store_document_embeddings(mock_message)
 
         # Assert
-        expected_collection = 'd_new_user_new_collection_5'
+        expected_collection = 'd_new_user_new_collection'
         
         # Verify collection existence check and creation
         mock_qdrant_instance.collection_exists.assert_called_once_with(expected_collection)
@@ -408,7 +408,7 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         await processor.store_document_embeddings(mock_message2)
 
         # Assert
-        expected_collection = 'd_cache_user_cache_collection_3'
+        expected_collection = 'd_cache_user_cache_collection'
         assert processor.last_collection == expected_collection
         
         # Verify second call skipped existence check (cached)
@@ -455,17 +455,16 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         await processor.store_document_embeddings(mock_message)
 
         # Assert
-        # Should check existence of both collections
-        expected_collections = ['d_dim_user_dim_collection_2', 'd_dim_user_dim_collection_3']
-        actual_calls = [call.args[0] for call in mock_qdrant_instance.collection_exists.call_args_list]
-        assert actual_calls == expected_collections
-        
-        # Should upsert to both collections
+        # Should check existence of the same collection (dimensions no longer create separate collections)
+        expected_collection = 'd_dim_user_dim_collection'
+        mock_qdrant_instance.collection_exists.assert_called_once_with(expected_collection)
+
+        # Should upsert to the same collection for both vectors
         assert mock_qdrant_instance.upsert.call_count == 2
-        
+
         upsert_calls = mock_qdrant_instance.upsert.call_args_list
-        assert upsert_calls[0][1]['collection_name'] == 'd_dim_user_dim_collection_2'
-        assert upsert_calls[1][1]['collection_name'] == 'd_dim_user_dim_collection_3'
+        assert upsert_calls[0][1]['collection_name'] == expected_collection
+        assert upsert_calls[1][1]['collection_name'] == expected_collection
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
     @patch('trustgraph.base.DocumentEmbeddingsStoreService.__init__')

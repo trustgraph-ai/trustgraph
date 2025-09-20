@@ -10,15 +10,19 @@ import argparse
 import time
 import logging
 
-from .... direct.cassandra import TrustGraph
+from .... direct.cassandra_kg import KnowledgeGraph
 from .... base import TriplesStoreService
+from .... base import AsyncProcessor, Consumer, Producer
+from .... base import ConsumerMetrics, ProducerMetrics
+from .... base.cassandra_config import add_cassandra_args, resolve_cassandra_config
+from .... schema import StorageManagementRequest, StorageManagementResponse, Error
+from .... schema import triples_storage_management_topic, storage_management_response_topic
 
 # Module logger
 logger = logging.getLogger(__name__)
 
 default_ident = "triples-write"
 
-default_graph_host='localhost'
 
 class Processor(TriplesStoreService):
 
@@ -26,80 +30,175 @@ class Processor(TriplesStoreService):
         
         id = params.get("id", default_ident)
 
-        graph_host = params.get("graph_host", default_graph_host)
-        graph_username = params.get("graph_username", None)
-        graph_password = params.get("graph_password", None)
+        # Get Cassandra parameters
+        cassandra_host = params.get("cassandra_host")
+        cassandra_username = params.get("cassandra_username")
+        cassandra_password = params.get("cassandra_password")
+
+        # Resolve configuration with environment variable fallback
+        hosts, username, password = resolve_cassandra_config(
+            host=cassandra_host,
+            username=cassandra_username,
+            password=cassandra_password
+        )
 
         super(Processor, self).__init__(
             **params | {
-                "graph_host": graph_host,
-                "graph_username": graph_username
+                "cassandra_host": ','.join(hosts),
+                "cassandra_username": username
             }
         )
         
-        self.graph_host = [graph_host]
-        self.username = graph_username
-        self.password = graph_password
+        self.cassandra_host = hosts
+        self.cassandra_username = username
+        self.cassandra_password = password
         self.table = None
+
+        # Set up metrics for storage management
+        storage_request_metrics = ConsumerMetrics(
+            processor=self.id, flow=None, name="storage-request"
+        )
+        storage_response_metrics = ProducerMetrics(
+            processor=self.id, flow=None, name="storage-response"
+        )
+
+        # Set up consumer for storage management requests
+        self.storage_request_consumer = Consumer(
+            taskgroup=self.taskgroup,
+            client=self.pulsar_client,
+            flow=None,
+            topic=triples_storage_management_topic,
+            subscriber=f"{id}-storage",
+            schema=StorageManagementRequest,
+            handler=self.on_storage_management,
+            metrics=storage_request_metrics,
+        )
+
+        # Set up producer for storage management responses
+        self.storage_response_producer = Producer(
+            client=self.pulsar_client,
+            topic=storage_management_response_topic,
+            schema=StorageManagementResponse,
+            metrics=storage_response_metrics,
+        )
 
     async def store_triples(self, message):
 
-        table = (message.metadata.user, message.metadata.collection)
+        user = message.metadata.user
 
-        if self.table is None or self.table != table:
+        if self.table is None or self.table != user:
 
             self.tg = None
 
             try:
-                if self.username and self.password:
-                    self.tg = TrustGraph(
-                        hosts=self.graph_host,
+                if self.cassandra_username and self.cassandra_password:
+                    self.tg = KnowledgeGraph(
+                        hosts=self.cassandra_host,
                         keyspace=message.metadata.user,
-                        table=message.metadata.collection,
-                        username=self.username, password=self.password
+                        username=self.cassandra_username, password=self.cassandra_password
                     )
                 else:
-                    self.tg = TrustGraph(
-                        hosts=self.graph_host,
+                    self.tg = KnowledgeGraph(
+                        hosts=self.cassandra_host,
                         keyspace=message.metadata.user,
-                        table=message.metadata.collection,
                     )
             except Exception as e:
                 logger.error(f"Exception: {e}", exc_info=True)
                 time.sleep(1)
                 raise e
 
-            self.table = table
+            self.table = user
 
         for t in message.triples:
             self.tg.insert(
+                message.metadata.collection,
                 t.s.value,
                 t.p.value,
                 t.o.value
             )
 
+    async def on_storage_management(self, message):
+        """Handle storage management requests"""
+        logger.info(f"Storage management request: {message.operation} for {message.user}/{message.collection}")
+
+        try:
+            if message.operation == "delete-collection":
+                await self.handle_delete_collection(message)
+            else:
+                response = StorageManagementResponse(
+                    error=Error(
+                        type="invalid_operation",
+                        message=f"Unknown operation: {message.operation}"
+                    )
+                )
+                await self.storage_response_producer.send(response)
+
+        except Exception as e:
+            logger.error(f"Error processing storage management request: {e}", exc_info=True)
+            response = StorageManagementResponse(
+                error=Error(
+                    type="processing_error",
+                    message=str(e)
+                )
+            )
+            await self.storage_response_producer.send(response)
+
+    async def handle_delete_collection(self, message):
+        """Delete all data for a specific collection from the unified triples table"""
+        try:
+            # Create or reuse connection for this user's keyspace
+            if self.table is None or self.table != message.user:
+                self.tg = None
+
+                try:
+                    if self.cassandra_username and self.cassandra_password:
+                        self.tg = KnowledgeGraph(
+                            hosts=self.cassandra_host,
+                            keyspace=message.user,
+                            username=self.cassandra_username,
+                            password=self.cassandra_password
+                        )
+                    else:
+                        self.tg = KnowledgeGraph(
+                            hosts=self.cassandra_host,
+                            keyspace=message.user,
+                        )
+                except Exception as e:
+                    logger.error(f"Failed to connect to Cassandra for user {message.user}: {e}")
+                    raise
+
+                self.table = message.user
+
+            # Delete all triples for this collection from the unified table
+            # In the unified table schema, collection is the partition key
+            delete_cql = """
+                DELETE FROM triples
+                WHERE collection = ?
+            """
+
+            try:
+                self.tg.session.execute(delete_cql, (message.collection,))
+                logger.info(f"Deleted all triples for collection {message.collection} from keyspace {message.user}")
+            except Exception as e:
+                logger.error(f"Failed to delete collection data: {e}")
+                raise
+
+            # Send success response
+            response = StorageManagementResponse(
+                error=None  # No error means success
+            )
+            await self.storage_response_producer.send(response)
+            logger.info(f"Successfully deleted collection {message.user}/{message.collection}")
+
+        except Exception as e:
+            logger.error(f"Failed to delete collection: {e}")
+            raise
+
     @staticmethod
     def add_args(parser):
 
         TriplesStoreService.add_args(parser)
-
-        parser.add_argument(
-            '-g', '--graph-host',
-            default="localhost",
-            help=f'Graph host (default: localhost)'
-        )
-        
-        parser.add_argument(
-            '--graph-username',
-            default=None,
-            help=f'Cassandra username'
-        )
-        
-        parser.add_argument(
-            '--graph-password',
-            default=None,
-            help=f'Cassandra password'
-        )
+        add_cassandra_args(parser)
 
 def run():
 

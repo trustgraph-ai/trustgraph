@@ -757,7 +757,9 @@ Final Answer: {
     @pytest.mark.asyncio
     async def test_agent_manager_knowledge_query_collection_integration(self, mock_flow_context):
         """Test agent manager integration with KnowledgeQueryImpl collection parameter"""
-        # Arrange
+        import functools
+        
+        # Arrange - Use functools.partial like the real service does
         custom_tools = {
             "knowledge_query_custom": Tool(
                 name="knowledge_query_custom",
@@ -769,7 +771,7 @@ Final Answer: {
                         description="The question to ask"
                     )
                 ],
-                implementation=KnowledgeQueryImpl,
+                implementation=functools.partial(KnowledgeQueryImpl, collection="research_papers"),
                 config={"collection": "research_papers"}
             ),
             "knowledge_query_default": Tool(
@@ -813,11 +815,13 @@ Args: {
     @pytest.mark.asyncio
     async def test_knowledge_query_multiple_collections(self, mock_flow_context):
         """Test multiple KnowledgeQueryImpl instances with different collections"""
-        # Arrange
+        import functools
+        
+        # Arrange - Create partial functions like the service does
         tools = {
-            "general_kb": KnowledgeQueryImpl(mock_flow_context, collection="general"),
-            "technical_kb": KnowledgeQueryImpl(mock_flow_context, collection="technical"),
-            "research_kb": KnowledgeQueryImpl(mock_flow_context, collection="research")
+            "general_kb": functools.partial(KnowledgeQueryImpl, collection="general")(mock_flow_context),
+            "technical_kb": functools.partial(KnowledgeQueryImpl, collection="technical")(mock_flow_context),
+            "research_kb": functools.partial(KnowledgeQueryImpl, collection="research")(mock_flow_context)
         }
         
         # Act & Assert for each tool

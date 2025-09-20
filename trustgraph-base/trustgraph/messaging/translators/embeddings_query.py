@@ -36,10 +36,10 @@ class DocumentEmbeddingsResponseTranslator(MessageTranslator):
     def from_pulsar(self, obj: DocumentEmbeddingsResponse) -> Dict[str, Any]:
         result = {}
         
-        if obj.documents:
-            result["documents"] = [
-                doc.decode("utf-8") if isinstance(doc, bytes) else doc
-                for doc in obj.documents
+        if obj.chunks is not None:
+            result["chunks"] = [
+                chunk.decode("utf-8") if isinstance(chunk, bytes) else chunk
+                for chunk in obj.chunks
             ]
         
         return result
@@ -81,7 +81,7 @@ class GraphEmbeddingsResponseTranslator(MessageTranslator):
     def from_pulsar(self, obj: GraphEmbeddingsResponse) -> Dict[str, Any]:
         result = {}
         
-        if obj.entities:
+        if obj.entities is not None:
             result["entities"] = [
                 self.value_translator.from_pulsar(entity)
                 for entity in obj.entities

@@ -3,6 +3,7 @@ Configures and registers tools in the TrustGraph system.
 
 This script allows you to define agent tools with various types including:
 - knowledge-query: Query knowledge bases  
+- structured-query: Query structured data using natural language
 - text-completion: Text generation
 - mcp-tool: Reference to MCP (Model Context Protocol) tools
 - prompt: Prompt template execution
@@ -63,6 +64,9 @@ def set_tool(
         collection : str,
         template : str,
         arguments : List[Argument],
+        group : List[str],
+        state : str,
+        applicable_states : List[str],
 ):
 
     api = Api(url).config()
@@ -93,6 +97,12 @@ def set_tool(
             for a in arguments
         ]
 
+    if group is not None: object["group"] = group
+
+    if state: object["state"] = state
+
+    if applicable_states is not None: object["applicable-states"] = applicable_states
+
     values = api.put([
         ConfigValue(
             type="tool", key=f"{id}", value=json.dumps(object)
@@ -108,21 +118,29 @@ def main():
         description=__doc__,
         epilog=textwrap.dedent('''
             Valid tool types:
-              knowledge-query    - Query knowledge bases
-              text-completion    - Text completion/generation
-              mcp-tool           - Model Control Protocol tool
-              prompt             - Prompt template query
+              knowledge-query    - Query knowledge bases (fixed args)
+              structured-query   - Query structured data using natural language (fixed args)
+              text-completion    - Text completion/generation (fixed args)
+              mcp-tool           - Model Control Protocol tool (configurable args)
+              prompt             - Prompt template query (configurable args)
+            
+            Note: Tools marked "(fixed args)" have predefined arguments and don't need 
+            --argument specified. Tools marked "(configurable args)" require --argument.
             
             Valid argument types:
-              string            - String/text parameter
+              string            - String/text parameter  
               number            - Numeric parameter
             
             Examples:
               %(prog)s --id weather_tool --name get_weather \\
                        --type knowledge-query \\
                        --description "Get weather information for a location" \\
-                       --argument location:string:"Location to query" \\
-                       --argument units:string:"Temperature units (C/F)"
+                       --collection weather_data
+              
+              %(prog)s --id data_query_tool --name query_data \\
+                       --type structured-query \\
+                       --description "Query structured data using natural language" \\
+                       --collection sales_data
               
               %(prog)s --id calc_tool --name calculate --type mcp-tool \\
                        --description "Perform mathematical calculations" \\
@@ -155,7 +173,7 @@ def main():
 
     parser.add_argument(
         '--type',
-        help=f'Tool type, one of: knowledge-query, text-completion, mcp-tool, prompt',
+        help=f'Tool type, one of: knowledge-query, structured-query, text-completion, mcp-tool, prompt',
     )
 
     parser.add_argument(
@@ -165,7 +183,7 @@ def main():
 
     parser.add_argument(
         '--collection',
-        help=f'For knowledge-query type: collection to query',
+        help=f'For knowledge-query and structured-query types: collection to query',
     )
 
     parser.add_argument(
@@ -179,12 +197,29 @@ def main():
        help=f'Tool arguments in the form: name:type:description (can specify multiple)',
     )
 
+    parser.add_argument(
+        '--group',
+        nargs="*",
+        help=f'Tool groups (e.g., read-only, knowledge, admin)',
+    )
+
+    parser.add_argument(
+        '--state',
+        help=f'State to transition to after successful execution',
+    )
+
+    parser.add_argument(
+        '--applicable-states',
+        nargs="*", 
+        help=f'States in which this tool is available',
+    )
+
     args = parser.parse_args()
 
     try:
 
         valid_types = [
-            "knowledge-query", "text-completion", "mcp-tool", "prompt"
+            "knowledge-query", "structured-query", "text-completion", "mcp-tool", "prompt"
         ]
 
         if args.id is None:
@@ -219,6 +254,9 @@ def main():
             collection=args.collection,
             template=args.template,
             arguments=arguments,
+            group=args.group,
+            state=args.state,
+            applicable_states=args.applicable_states,
         )
 
     except Exception as e:

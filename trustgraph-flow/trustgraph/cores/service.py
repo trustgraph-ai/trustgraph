@@ -11,6 +11,7 @@ import logging
 
 from .. base import AsyncProcessor, Consumer, Producer, Publisher, Subscriber
 from .. base import ConsumerMetrics, ProducerMetrics
+from .. base.cassandra_config import add_cassandra_args, resolve_cassandra_config
 
 from .. schema import KnowledgeRequest, KnowledgeResponse, Error
 from .. schema import knowledge_request_queue, knowledge_response_queue
@@ -49,16 +50,29 @@ class Processor(AsyncProcessor):
             "knowledge_response_queue", default_knowledge_response_queue
         )
 
-        cassandra_host = params.get("cassandra_host", default_cassandra_host)
-        cassandra_user = params.get("cassandra_user")
+        cassandra_host = params.get("cassandra_host")
+        cassandra_username = params.get("cassandra_username")
         cassandra_password = params.get("cassandra_password")
+        
+        # Resolve configuration with environment variable fallback
+        hosts, username, password = resolve_cassandra_config(
+            host=cassandra_host,
+            username=cassandra_username,
+            password=cassandra_password
+        )
+        
+        # Store resolved configuration
+        self.cassandra_host = hosts
+        self.cassandra_username = username
+        self.cassandra_password = password
 
         super(Processor, self).__init__(
             **params | {
                 "knowledge_request_queue": knowledge_request_queue,
                 "knowledge_response_queue": knowledge_response_queue,
-                "cassandra_host": cassandra_host,
-                "cassandra_user": cassandra_user,
+                "cassandra_host": self.cassandra_host,
+                "cassandra_username": self.cassandra_username,
+                "cassandra_password": self.cassandra_password,
             }
         )
 
@@ -89,9 +103,9 @@ class Processor(AsyncProcessor):
         )
 
         self.knowledge = KnowledgeManager(
-            cassandra_host = cassandra_host.split(","),
-            cassandra_user = cassandra_user,
-            cassandra_password = cassandra_password,
+            cassandra_host = self.cassandra_host,
+            cassandra_username = self.cassandra_username,
+            cassandra_password = self.cassandra_password,
             keyspace = keyspace,
             flow_config = self,
         )
@@ -210,23 +224,7 @@ class Processor(AsyncProcessor):
             help=f'Config response queue {default_knowledge_response_queue}',
         )
 
-        parser.add_argument(
-            '--cassandra-host',
-            default="cassandra",
-            help=f'Graph host (default: cassandra)'
-        )
-
-        parser.add_argument(
-            '--cassandra-user',
-            default=None,
-            help=f'Cassandra user'
-        )
-
-        parser.add_argument(
-            '--cassandra-password',
-            default=None,
-            help=f'Cassandra password'
-        )
+        add_cassandra_args(parser)
 
 def run():
 

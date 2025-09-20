@@ -95,12 +95,12 @@ class TestObjectsCassandraIntegration:
                     metadata=[]
                 ),
                 schema_name="customer_records",
-                values={
+                values=[{
                     "customer_id": "CUST001",
                     "name": "John Doe",
                     "email": "john@example.com",
                     "age": "30"
-                },
+                }],
                 confidence=0.95,
                 source_span="Customer: John Doe..."
             )
@@ -183,7 +183,7 @@ class TestObjectsCassandraIntegration:
             product_obj = ExtractedObject(
                 metadata=Metadata(id="p1", user="shop", collection="catalog", metadata=[]),
                 schema_name="products",
-                values={"product_id": "P001", "name": "Widget", "price": "19.99"},
+                values=[{"product_id": "P001", "name": "Widget", "price": "19.99"}],
                 confidence=0.9,
                 source_span="Product..."
             )
@@ -191,7 +191,7 @@ class TestObjectsCassandraIntegration:
             order_obj = ExtractedObject(
                 metadata=Metadata(id="o1", user="shop", collection="sales", metadata=[]),
                 schema_name="orders",
-                values={"order_id": "O001", "customer_id": "C001", "total": "59.97"},
+                values=[{"order_id": "O001", "customer_id": "C001", "total": "59.97"}],
                 confidence=0.85,
                 source_span="Order..."
             )
@@ -229,7 +229,7 @@ class TestObjectsCassandraIntegration:
             test_obj = ExtractedObject(
                 metadata=Metadata(id="t1", user="test", collection="test", metadata=[]),
                 schema_name="test_schema",
-                values={"id": "123"},  # missing required_field
+                values=[{"id": "123"}],  # missing required_field
                 confidence=0.8,
                 source_span="Test"
             )
@@ -265,7 +265,7 @@ class TestObjectsCassandraIntegration:
             test_obj = ExtractedObject(
                 metadata=Metadata(id="e1", user="logger", collection="app_events", metadata=[]),
                 schema_name="events",
-                values={"event_type": "login", "timestamp": "2024-01-01T10:00:00Z"},
+                values=[{"event_type": "login", "timestamp": "2024-01-01T10:00:00Z"}],
                 confidence=1.0,
                 source_span="Event"
             )
@@ -294,8 +294,8 @@ class TestObjectsCassandraIntegration:
     async def test_authentication_handling(self, processor_with_mocks):
         """Test Cassandra authentication"""
         processor, mock_cluster, mock_session = processor_with_mocks
-        processor.graph_username = "cassandra_user"
-        processor.graph_password = "cassandra_pass"
+        processor.cassandra_username = "cassandra_user"
+        processor.cassandra_password = "cassandra_pass"
         
         with patch('trustgraph.storage.objects.cassandra.write.Cluster') as mock_cluster_class:
             with patch('trustgraph.storage.objects.cassandra.write.PlainTextAuthProvider') as mock_auth:
@@ -334,7 +334,7 @@ class TestObjectsCassandraIntegration:
             test_obj = ExtractedObject(
                 metadata=Metadata(id="t1", user="test", collection="test", metadata=[]),
                 schema_name="test",
-                values={"id": "123"},
+                values=[{"id": "123"}],
                 confidence=0.9,
                 source_span="Test"
             )
@@ -364,7 +364,7 @@ class TestObjectsCassandraIntegration:
                 obj = ExtractedObject(
                     metadata=Metadata(id=f"{coll}-1", user="analytics", collection=coll, metadata=[]),
                     schema_name="data",
-                    values={"id": f"ID-{coll}"},
+                    values=[{"id": f"ID-{coll}"}],
                     confidence=0.9,
                     source_span="Data"
                 )
@@ -382,3 +382,169 @@ class TestObjectsCassandraIntegration:
             for i, call in enumerate(insert_calls):
                 values = call[0][1]
                 assert collections[i] in values
+
+    @pytest.mark.asyncio
+    async def test_batch_object_processing(self, processor_with_mocks):
+        """Test processing objects with batched values"""
+        processor, mock_cluster, mock_session = processor_with_mocks
+        
+        with patch('trustgraph.storage.objects.cassandra.write.Cluster', return_value=mock_cluster):
+            # Configure schema
+            config = {
+                "schema": {
+                    "batch_customers": json.dumps({
+                        "name": "batch_customers",
+                        "description": "Customer batch data",
+                        "fields": [
+                            {"name": "customer_id", "type": "string", "primary_key": True},
+                            {"name": "name", "type": "string", "required": True},
+                            {"name": "email", "type": "string", "indexed": True}
+                        ]
+                    })
+                }
+            }
+            
+            await processor.on_schema_config(config, version=1)
+            
+            # Process batch object with multiple values
+            batch_obj = ExtractedObject(
+                metadata=Metadata(
+                    id="batch-001",
+                    user="test_user",
+                    collection="batch_import",
+                    metadata=[]
+                ),
+                schema_name="batch_customers",
+                values=[
+                    {
+                        "customer_id": "CUST001",
+                        "name": "John Doe",
+                        "email": "john@example.com"
+                    },
+                    {
+                        "customer_id": "CUST002", 
+                        "name": "Jane Smith",
+                        "email": "jane@example.com"
+                    },
+                    {
+                        "customer_id": "CUST003",
+                        "name": "Bob Johnson", 
+                        "email": "bob@example.com"
+                    }
+                ],
+                confidence=0.92,
+                source_span="Multiple customers extracted from document"
+            )
+            
+            msg = MagicMock()
+            msg.value.return_value = batch_obj
+            
+            await processor.on_object(msg, None, None)
+            
+            # Verify table creation
+            table_calls = [call for call in mock_session.execute.call_args_list 
+                         if "CREATE TABLE" in str(call)]
+            assert len(table_calls) == 1
+            assert "o_batch_customers" in str(table_calls[0])
+            
+            # Verify multiple inserts for batch values
+            insert_calls = [call for call in mock_session.execute.call_args_list 
+                          if "INSERT INTO" in str(call)]
+            # Should have 3 separate inserts for the 3 objects in the batch
+            assert len(insert_calls) == 3
+            
+            # Check each insert has correct data
+            for i, call in enumerate(insert_calls):
+                values = call[0][1]
+                assert "batch_import" in values  # collection
+                assert f"CUST00{i+1}" in values  # customer_id
+                if i == 0:
+                    assert "John Doe" in values
+                    assert "john@example.com" in values
+                elif i == 1:
+                    assert "Jane Smith" in values
+                    assert "jane@example.com" in values
+                elif i == 2:
+                    assert "Bob Johnson" in values
+                    assert "bob@example.com" in values
+
+    @pytest.mark.asyncio
+    async def test_empty_batch_processing(self, processor_with_mocks):
+        """Test processing objects with empty values array"""
+        processor, mock_cluster, mock_session = processor_with_mocks
+        
+        with patch('trustgraph.storage.objects.cassandra.write.Cluster', return_value=mock_cluster):
+            processor.schemas["empty_test"] = RowSchema(
+                name="empty_test",
+                fields=[Field(name="id", type="string", size=50, primary=True)]
+            )
+            
+            # Process empty batch object
+            empty_obj = ExtractedObject(
+                metadata=Metadata(id="empty-1", user="test", collection="empty", metadata=[]),
+                schema_name="empty_test",
+                values=[],  # Empty batch
+                confidence=1.0,
+                source_span="No objects found"
+            )
+            
+            msg = MagicMock()
+            msg.value.return_value = empty_obj
+            
+            await processor.on_object(msg, None, None)
+            
+            # Should still create table
+            table_calls = [call for call in mock_session.execute.call_args_list 
+                         if "CREATE TABLE" in str(call)]
+            assert len(table_calls) == 1
+            
+            # Should not create any insert statements for empty batch
+            insert_calls = [call for call in mock_session.execute.call_args_list 
+                          if "INSERT INTO" in str(call)]
+            assert len(insert_calls) == 0
+
+    @pytest.mark.asyncio
+    async def test_mixed_single_and_batch_objects(self, processor_with_mocks):
+        """Test processing mix of single and batch objects"""
+        processor, mock_cluster, mock_session = processor_with_mocks
+        
+        with patch('trustgraph.storage.objects.cassandra.write.Cluster', return_value=mock_cluster):
+            processor.schemas["mixed_test"] = RowSchema(
+                name="mixed_test",
+                fields=[
+                    Field(name="id", type="string", size=50, primary=True),
+                    Field(name="data", type="string", size=100)
+                ]
+            )
+            
+            # Single object (backward compatibility)
+            single_obj = ExtractedObject(
+                metadata=Metadata(id="single", user="test", collection="mixed", metadata=[]),
+                schema_name="mixed_test",
+                values=[{"id": "single-1", "data": "single data"}],  # Array with single item
+                confidence=0.9,
+                source_span="Single object"
+            )
+            
+            # Batch object
+            batch_obj = ExtractedObject(
+                metadata=Metadata(id="batch", user="test", collection="mixed", metadata=[]),
+                schema_name="mixed_test",
+                values=[
+                    {"id": "batch-1", "data": "batch data 1"},
+                    {"id": "batch-2", "data": "batch data 2"}
+                ],
+                confidence=0.85,
+                source_span="Batch objects"
+            )
+            
+            # Process both
+            for obj in [single_obj, batch_obj]:
+                msg = MagicMock()
+                msg.value.return_value = obj
+                await processor.on_object(msg, None, None)
+            
+            # Should have 3 total inserts (1 + 2)
+            insert_calls = [call for call in mock_session.execute.call_args_list 
+                          if "INSERT INTO" in str(call)]
+            assert len(insert_calls) == 3

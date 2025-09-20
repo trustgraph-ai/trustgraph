@@ -6,36 +6,44 @@ null.  Output is a list of triples.
 
 import logging
 
-from .... direct.cassandra import TrustGraph
+from .... direct.cassandra_kg import KnowledgeGraph
 from .... schema import TriplesQueryRequest, TriplesQueryResponse, Error
 from .... schema import Value, Triple
 from .... base import TriplesQueryService
+from .... base.cassandra_config import add_cassandra_args, resolve_cassandra_config
 
 # Module logger
 logger = logging.getLogger(__name__)
 
 default_ident = "triples-query"
 
-default_graph_host='localhost'
 
 class Processor(TriplesQueryService):
 
     def __init__(self, **params):
 
-        graph_host = params.get("graph_host", default_graph_host)
-        graph_username = params.get("graph_username", None)
-        graph_password = params.get("graph_password", None)
+        # Get Cassandra parameters
+        cassandra_host = params.get("cassandra_host")
+        cassandra_username = params.get("cassandra_username")
+        cassandra_password = params.get("cassandra_password")
+
+        # Resolve configuration with environment variable fallback
+        hosts, username, password = resolve_cassandra_config(
+            host=cassandra_host,
+            username=cassandra_username,
+            password=cassandra_password
+        )
 
         super(Processor, self).__init__(
             **params | {
-                "graph_host": graph_host,
-                "graph_username": graph_username,
+                "cassandra_host": ','.join(hosts),
+                "cassandra_username": username,
             }
         )
 
-        self.graph_host = [graph_host]
-        self.username = graph_username
-        self.password = graph_password
+        self.cassandra_host = hosts
+        self.cassandra_username = username
+        self.cassandra_password = password
         self.table = None
 
     def create_value(self, ent):
@@ -48,21 +56,21 @@ class Processor(TriplesQueryService):
 
         try:
 
-            table = (query.user, query.collection)
+            user = query.user
 
-            if table != self.table:
-                if self.username and self.password:
-                    self.tg = TrustGraph(
-                        hosts=self.graph_host,
-                        keyspace=query.user, table=query.collection,
-                        username=self.username, password=self.password
+            if user != self.table:
+                if self.cassandra_username and self.cassandra_password:
+                    self.tg = KnowledgeGraph(
+                        hosts=self.cassandra_host,
+                        keyspace=query.user,
+                        username=self.cassandra_username, password=self.cassandra_password
                     )
                 else:
-                    self.tg = TrustGraph(
-                        hosts=self.graph_host,
-                        keyspace=query.user, table=query.collection,
+                    self.tg = KnowledgeGraph(
+                        hosts=self.cassandra_host,
+                        keyspace=query.user,
                     )
-                self.table = table
+                self.table = user
 
             triples = []
 
@@ -70,13 +78,13 @@ class Processor(TriplesQueryService):
                 if query.p is not None:
                     if query.o is not None:
                         resp = self.tg.get_spo(
-                            query.s.value, query.p.value, query.o.value,
+                            query.collection, query.s.value, query.p.value, query.o.value,
                             limit=query.limit
                         )
                         triples.append((query.s.value, query.p.value, query.o.value))
                     else:
                         resp = self.tg.get_sp(
-                            query.s.value, query.p.value,
+                            query.collection, query.s.value, query.p.value,
                             limit=query.limit
                         )
                         for t in resp:
@@ -84,14 +92,14 @@ class Processor(TriplesQueryService):
                 else:
                     if query.o is not None:
                         resp = self.tg.get_os(
-                            query.o.value, query.s.value, 
+                            query.collection, query.o.value, query.s.value,
                             limit=query.limit
                         )
                         for t in resp:
                             triples.append((query.s.value, t.p, query.o.value))
                     else:
                         resp = self.tg.get_s(
-                            query.s.value,
+                            query.collection, query.s.value,
                             limit=query.limit
                         )
                         for t in resp:
@@ -100,14 +108,14 @@ class Processor(TriplesQueryService):
                 if query.p is not None:
                     if query.o is not None:
                         resp = self.tg.get_po(
-                            query.p.value, query.o.value,
+                            query.collection, query.p.value, query.o.value,
                             limit=query.limit
                         )
                         for t in resp:
                             triples.append((t.s, query.p.value, query.o.value))
                     else:
                         resp = self.tg.get_p(
-                            query.p.value,
+                            query.collection, query.p.value,
                             limit=query.limit
                         )
                         for t in resp:
@@ -115,13 +123,14 @@ class Processor(TriplesQueryService):
                 else:
                     if query.o is not None:
                         resp = self.tg.get_o(
-                            query.o.value,
+                            query.collection, query.o.value,
                             limit=query.limit
                         )
                         for t in resp:
                             triples.append((t.s, t.p, query.o.value))
                     else:
                         resp = self.tg.get_all(
+                            query.collection,
                             limit=query.limit
                         )
                         for t in resp:
@@ -147,24 +156,7 @@ class Processor(TriplesQueryService):
     def add_args(parser):
 
         TriplesQueryService.add_args(parser)
-
-        parser.add_argument(
-            '-g', '--graph-host',
-            default="localhost",
-            help=f'Graph host (default: localhost)'
-        )
-        
-        parser.add_argument(
-            '--graph-username',
-            default=None,
-            help=f'Cassandra username'
-        )
-        
-        parser.add_argument(
-            '--graph-password',
-            default=None,
-            help=f'Cassandra password'
-        )
+        add_cassandra_args(parser)
 
 
 def run():

@@ -8,9 +8,9 @@ from ..core.topic import topic
 # Structured Query Service - executes GraphQL queries
 
 class StructuredQueryRequest(Record):
-    query = String()  # GraphQL query
-    variables = Map(String())  # GraphQL variables
-    operation_name = String()  # Optional operation name for multi-operation documents
+    question = String()
+    user = String()        # Cassandra keyspace identifier
+    collection = String()  # Data collection identifier
 
 class StructuredQueryResponse(Record):
     error = Error()

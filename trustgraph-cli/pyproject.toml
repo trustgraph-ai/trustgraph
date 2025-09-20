@@ -10,7 +10,7 @@ description = "TrustGraph provides a means to run a pipeline of flexible AI proc
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
-    "trustgraph-base>=1.2,<1.3",
+    "trustgraph-base>=1.4,<1.5",
     "requests",
     "pulsar-client",
     "aiohttp",
@@ -43,7 +43,10 @@ tg-invoke-document-rag = "trustgraph.cli.invoke_document_rag:main"
 tg-invoke-graph-rag = "trustgraph.cli.invoke_graph_rag:main"
 tg-invoke-llm = "trustgraph.cli.invoke_llm:main"
 tg-invoke-mcp-tool = "trustgraph.cli.invoke_mcp_tool:main"
+tg-invoke-nlp-query = "trustgraph.cli.invoke_nlp_query:main"
+tg-invoke-objects-query = "trustgraph.cli.invoke_objects_query:main"
 tg-invoke-prompt = "trustgraph.cli.invoke_prompt:main"
+tg-invoke-structured-query = "trustgraph.cli.invoke_structured_query:main"
 tg-load-doc-embeds = "trustgraph.cli.load_doc_embeds:main"
 tg-load-kg-core = "trustgraph.cli.load_kg_core:main"
 tg-load-pdf = "trustgraph.cli.load_pdf:main"
@@ -51,6 +54,7 @@ tg-load-sample-documents = "trustgraph.cli.load_sample_documents:main"
 tg-load-text = "trustgraph.cli.load_text:main"
 tg-load-turtle = "trustgraph.cli.load_turtle:main"
 tg-load-knowledge = "trustgraph.cli.load_knowledge:main"
+tg-load-structured-data = "trustgraph.cli.load_structured_data:main"
 tg-put-flow-class = "trustgraph.cli.put_flow_class:main"
 tg-put-kg-core = "trustgraph.cli.put_kg_core:main"
 tg-remove-library-document = "trustgraph.cli.remove_library_document:main"
@@ -82,6 +86,9 @@ tg-list-config-items = "trustgraph.cli.list_config_items:main"
 tg-get-config-item = "trustgraph.cli.get_config_item:main"
 tg-put-config-item = "trustgraph.cli.put_config_item:main"
 tg-delete-config-item = "trustgraph.cli.delete_config_item:main"
+tg-list-collections = "trustgraph.cli.list_collections:main"
+tg-set-collection = "trustgraph.cli.set_collection:main"
+tg-delete-collection = "trustgraph.cli.delete_collection:main"
 
 [tool.setuptools.packages.find]
 include = ["trustgraph*"]

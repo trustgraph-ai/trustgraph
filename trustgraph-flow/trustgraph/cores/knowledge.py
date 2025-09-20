@@ -16,12 +16,12 @@ logger = logging.getLogger(__name__)
 class KnowledgeManager:
 
     def __init__(
-            self, cassandra_host, cassandra_user, cassandra_password,
+            self, cassandra_host, cassandra_username, cassandra_password,
             keyspace, flow_config,
     ):
 
         self.table_store = KnowledgeTableStore(
-            cassandra_host, cassandra_user, cassandra_password, keyspace
+            cassandra_host, cassandra_username, cassandra_password, keyspace
         )
 
         self.loader_queue = asyncio.Queue(maxsize=20)
@@ -248,6 +248,9 @@ class KnowledgeManager:
                 await ge_pub.start()
 
                 async def publish_triples(t):
+                    # Override collection with request collection
+                    if hasattr(t, 'metadata') and hasattr(t.metadata, 'collection'):
+                        t.metadata.collection = request.collection or "default"
                     await t_pub.send(None, t)
 
                 logger.debug("Publishing triples...")
@@ -260,6 +263,9 @@ class KnowledgeManager:
                 )
 
                 async def publish_ge(g):
+                    # Override collection with request collection
+                    if hasattr(g, 'metadata') and hasattr(g.metadata, 'collection'):
+                        g.metadata.collection = request.collection or "default"
                     await ge_pub.send(None, g)
 
                 logger.debug("Publishing graph embeddings...")

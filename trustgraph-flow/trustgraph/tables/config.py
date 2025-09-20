@@ -17,17 +17,21 @@ class ConfigTableStore:
 
     def __init__(
             self,
-            cassandra_host, cassandra_user, cassandra_password, keyspace,
+            cassandra_host, cassandra_username, cassandra_password, keyspace,
     ):
 
         self.keyspace = keyspace
 
         logger.info("Connecting to Cassandra...")
 
-        if cassandra_user and cassandra_password:
+        # Ensure cassandra_host is a list
+        if isinstance(cassandra_host, str):
+            cassandra_host = [h.strip() for h in cassandra_host.split(',')]
+
+        if cassandra_username and cassandra_password:
             ssl_context = SSLContext(PROTOCOL_TLSv1_2)
             auth_provider = PlainTextAuthProvider(
-                username=cassandra_user, password=cassandra_password
+                username=cassandra_username, password=cassandra_password
             )
             self.cluster = Cluster(
                 cassandra_host,

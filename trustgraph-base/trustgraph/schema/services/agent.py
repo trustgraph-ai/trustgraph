@@ -13,12 +13,14 @@ class AgentStep(Record):
     action = String()
     arguments = Map(String())
     observation = String()
+    user = String()              # User context for the step
 
 class AgentRequest(Record):
     question = String()
-    plan = String()
     state = String()
+    group = Array(String())
     history = Array(AgentStep())
+    user = String()              # User context for multi-tenancy
 
 class AgentResponse(Record):
     answer = String()

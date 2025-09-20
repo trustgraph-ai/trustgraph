@@ -11,6 +11,7 @@ from . config import ConfigRequestor
 from . flow import FlowRequestor
 from . librarian import LibrarianRequestor
 from . knowledge import KnowledgeRequestor
+from . collection_management import CollectionManagementRequestor
 
 from . embeddings import EmbeddingsRequestor
 from . agent import AgentRequestor
@@ -19,6 +20,10 @@ from . prompt import PromptRequestor
 from . graph_rag import GraphRagRequestor
 from . document_rag import DocumentRagRequestor
 from . triples_query import TriplesQueryRequestor
+from . objects_query import ObjectsQueryRequestor
+from . nlp_query import NLPQueryRequestor
+from . structured_query import StructuredQueryRequestor
+from . structured_diag import StructuredDiagRequestor
 from . embeddings import EmbeddingsRequestor
 from . graph_embeddings_query import GraphEmbeddingsQueryRequestor
 from . mcp_tool import McpToolRequestor
@@ -34,6 +39,7 @@ from . triples_import import TriplesImport
 from . graph_embeddings_import import GraphEmbeddingsImport
 from . document_embeddings_import import DocumentEmbeddingsImport
 from . entity_contexts_import import EntityContextsImport
+from . objects_import import ObjectsImport
 
 from . core_export import CoreExport
 from . core_import import CoreImport
@@ -50,6 +56,10 @@ request_response_dispatchers = {
     "embeddings": EmbeddingsRequestor,
     "graph-embeddings": GraphEmbeddingsQueryRequestor,
     "triples": TriplesQueryRequestor,
+    "objects": ObjectsQueryRequestor,
+    "nlp-query": NLPQueryRequestor,
+    "structured-query": StructuredQueryRequestor,
+    "structured-diag": StructuredDiagRequestor,
 }
 
 global_dispatchers = {
@@ -57,6 +67,7 @@ global_dispatchers = {
     "flow": FlowRequestor,
     "librarian": LibrarianRequestor,
     "knowledge": KnowledgeRequestor,
+    "collection-management": CollectionManagementRequestor,
 }
 
 sender_dispatchers = {
@@ -76,6 +87,7 @@ import_dispatchers = {
     "graph-embeddings": GraphEmbeddingsImport,
     "document-embeddings": DocumentEmbeddingsImport,
     "entity-contexts": EntityContextsImport,
+    "objects": ObjectsImport,
 }
 
 class DispatcherWrapper:

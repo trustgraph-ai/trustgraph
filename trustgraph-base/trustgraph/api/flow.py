@@ -132,12 +132,24 @@ class FlowInstance:
             input
         )["response"]
 
-    def agent(self, question):
+    def agent(self, question, user="trustgraph", state=None, group=None, history=None):
 
-        # The input consists of a question
+        # The input consists of a question and optional context
         input = {
-            "question": question
+            "question": question,
+            "user": user,
         }
+        
+        # Only include state if it has a value
+        if state is not None:
+            input["state"] = state
+            
+        # Only include group if it has a value
+        if group is not None:
+            input["group"] = group
+            
+        # Always include history (empty list if None)
+        input["history"] = history or []
 
         return self.request(
             "service/agent",
@@ -382,4 +394,246 @@ class FlowInstance:
             "service/text-load",
             input
         )
+
+    def objects_query(
+            self, query, user="trustgraph", collection="default",
+            variables=None, operation_name=None
+    ):
+
+        # The input consists of a GraphQL query and optional variables
+        input = {
+            "query": query,
+            "user": user,
+            "collection": collection,
+        }
+
+        if variables:
+            input["variables"] = variables
+
+        if operation_name:
+            input["operation_name"] = operation_name
+
+        response = self.request(
+            "service/objects",
+            input
+        )
+
+        # Check for system-level error
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        # Return the GraphQL response structure
+        result = {}
+        
+        if "data" in response:
+            result["data"] = response["data"]
+            
+        if "errors" in response and response["errors"]:
+            result["errors"] = response["errors"]
+            
+        if "extensions" in response and response["extensions"]:
+            result["extensions"] = response["extensions"]
+            
+        return result
+
+    def nlp_query(self, question, max_results=100):
+        """
+        Convert a natural language question to a GraphQL query.
+        
+        Args:
+            question: Natural language question
+            max_results: Maximum number of results to return (default: 100)
+            
+        Returns:
+            dict with graphql_query, variables, detected_schemas, confidence
+        """
+        
+        input = {
+            "question": question,
+            "max_results": max_results
+        }
+        
+        response = self.request(
+            "service/nlp-query",
+            input
+        )
+        
+        # Check for system-level error
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+        
+        return response
+
+    def structured_query(self, question, user="trustgraph", collection="default"):
+        """
+        Execute a natural language question against structured data.
+        Combines NLP query conversion and GraphQL execution.
+        
+        Args:
+            question: Natural language question
+            user: Cassandra keyspace identifier (default: "trustgraph")
+            collection: Data collection identifier (default: "default")
+            
+        Returns:
+            dict with data and optional errors
+        """
+        
+        input = {
+            "question": question,
+            "user": user,
+            "collection": collection
+        }
+        
+        response = self.request(
+            "service/structured-query",
+            input
+        )
+
+        # Check for system-level error
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        return response
+
+    def detect_type(self, sample):
+        """
+        Detect the data type of a structured data sample.
+
+        Args:
+            sample: Data sample to analyze (string content)
+
+        Returns:
+            dict with detected_type, confidence, and optional metadata
+        """
+
+        input = {
+            "operation": "detect-type",
+            "sample": sample
+        }
+
+        response = self.request(
+            "service/structured-diag",
+            input
+        )
+
+        # Check for system-level error
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        return response["detected-type"]
+
+    def generate_descriptor(self, sample, data_type, schema_name, options=None):
+        """
+        Generate a descriptor for structured data mapping to a specific schema.
+
+        Args:
+            sample: Data sample to analyze (string content)
+            data_type: Data type (csv, json, xml)
+            schema_name: Target schema name for descriptor generation
+            options: Optional parameters (e.g., delimiter for CSV)
+
+        Returns:
+            dict with descriptor and metadata
+        """
+
+        input = {
+            "operation": "generate-descriptor",
+            "sample": sample,
+            "type": data_type,
+            "schema-name": schema_name
+        }
+
+        if options:
+            input["options"] = options
+
+        response = self.request(
+            "service/structured-diag",
+            input
+        )
+
+        # Check for system-level error
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        return response["descriptor"]
+
+    def diagnose_data(self, sample, schema_name=None, options=None):
+        """
+        Perform combined data diagnosis: detect type and generate descriptor.
+
+        Args:
+            sample: Data sample to analyze (string content)
+            schema_name: Optional target schema name for descriptor generation
+            options: Optional parameters (e.g., delimiter for CSV)
+
+        Returns:
+            dict with detected_type, confidence, descriptor, and metadata
+        """
+
+        input = {
+            "operation": "diagnose",
+            "sample": sample
+        }
+
+        if schema_name:
+            input["schema-name"] = schema_name
+
+        if options:
+            input["options"] = options
+
+        response = self.request(
+            "service/structured-diag",
+            input
+        )
+
+        # Check for system-level error
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        return response
+
+    def schema_selection(self, sample, options=None):
+        """
+        Select matching schemas for a data sample using prompt analysis.
+
+        Args:
+            sample: Data sample to analyze (string content)
+            options: Optional parameters
+
+        Returns:
+            dict with schema_matches array and metadata
+        """
+
+        input = {
+            "operation": "schema-selection",
+            "sample": sample
+        }
+
+        if options:
+            input["options"] = options
+
+        response = self.request(
+            "service/structured-diag",
+            input
+        )
+
+        # Check for system-level error
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        return response["schema-matches"]
 

@@ -3,6 +3,7 @@ Displays the current agent tool configurations
 
 Shows all configured tools including their types:
 - knowledge-query: Tools that query knowledge bases
+- structured-query: Tools that query structured data using natural language
 - text-completion: Tools for text generation
 - mcp-tool: References to MCP (Model Context Protocol) tools  
 - prompt: Tools that execute prompt templates
@@ -40,8 +41,9 @@ def show_config(url):
         if tp == "mcp-tool":
             table.append(("mcp-tool", data["mcp-tool"]))
           
-        if tp == "knowledge-query":
-            table.append(("collection", data["collection"]))
+        if tp == "knowledge-query" or tp == "structured-query":
+            if "collection" in data:
+                table.append(("collection", data["collection"]))
 
         if tp == "prompt":
             table.append(("template", data["template"]))
@@ -50,6 +52,29 @@ def show_config(url):
                     f"arg {n}",
                     f"{arg['name']}: {arg['type']}\n{arg['description']}"
                 ))
+        
+        # Display group information
+        if "group" in data:
+            groups = data["group"]
+            if groups:
+                table.append(("groups", ", ".join(groups)))
+            else:
+                table.append(("groups", "(empty - no groups)"))
+        
+        # Display state transition information
+        if "state" in data:
+            table.append(("next state", data["state"]))
+        
+        # Display applicable states
+        if "applicable-states" in data:
+            states = data["applicable-states"]
+            if states:
+                if "*" in states:
+                    table.append(("available in", "all states"))
+                else:
+                    table.append(("available in", ", ".join(states)))
+            else:
+                table.append(("available in", "(empty - never available)"))
 
         print()
 

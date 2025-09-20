@@ -92,7 +92,12 @@ class Processor(FlowProcessor):
             else:
                 doc_limit = self.doc_limit
 
-            response = await self.rag.query(v.query, doc_limit=doc_limit)
+            response = await self.rag.query(
+                v.query, 
+                user=v.user, 
+                collection=v.collection, 
+                doc_limit=doc_limit
+            )
 
             await flow("response").send(
                 DocumentRagResponse(

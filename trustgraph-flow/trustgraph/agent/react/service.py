@@ -12,12 +12,13 @@ import logging
 logger = logging.getLogger(__name__)
 
 from ... base import AgentService, TextCompletionClientSpec, PromptClientSpec
-from ... base import GraphRagClientSpec, ToolClientSpec
+from ... base import GraphRagClientSpec, ToolClientSpec, StructuredQueryClientSpec
 
 from ... schema import AgentRequest, AgentResponse, AgentStep, Error
 
-from . tools import KnowledgeQueryImpl, TextCompletionImpl, McpToolImpl, PromptImpl
+from . tools import KnowledgeQueryImpl, TextCompletionImpl, McpToolImpl, PromptImpl, StructuredQueryImpl
 from . agent_manager import AgentManager
+from ..tool_filter import validate_tool_config, filter_tools_by_group_and_state, get_next_state
 
 from . types import Final, Action, Tool, Argument
 
@@ -79,6 +80,13 @@ class Processor(AgentService):
             )
         )
 
+        self.register_specification(
+            StructuredQueryClientSpec(
+                request_name = "structured-query-request",
+                response_name = "structured-query-response",
+            )
+        )
+
     async def on_tools_config(self, config, version):
 
         logger.info(f"Loading configuration version {version}")
@@ -137,10 +145,20 @@ class Processor(AgentService):
                             template_id=data.get("template"),
                             arguments=arguments
                         )
+                    elif impl_id == "structured-query":
+                        impl = functools.partial(
+                            StructuredQueryImpl, 
+                            collection=data.get("collection"),
+                            user=None  # User will be provided dynamically via context
+                        )
+                        arguments = StructuredQueryImpl.get_arguments()
                     else:
                         raise RuntimeError(
                             f"Tool type {impl_id} not known"
                         )
+                    
+                    # Validate tool configuration
+                    validate_tool_config(data)
                     
                     tools[name] = Tool(
                         name=name,
@@ -219,14 +237,43 @@ class Processor(AgentService):
 
                 await respond(r)
 
+            # Apply tool filtering based on request groups and state
+            filtered_tools = filter_tools_by_group_and_state(
+                tools=self.agent.tools,
+                requested_groups=getattr(request, 'group', None),
+                current_state=getattr(request, 'state', None)
+            )
+            
+            logger.info(f"Filtered from {len(self.agent.tools)} to {len(filtered_tools)} available tools")
+            
+            # Create temporary agent with filtered tools
+            temp_agent = AgentManager(
+                tools=filtered_tools,
+                additional_context=self.agent.additional_context
+            )
+            
             logger.debug("Call React")
 
-            act = await self.agent.react(
+            # Create user-aware context wrapper that preserves the flow interface
+            # but adds user information for tools that need it
+            class UserAwareContext:
+                def __init__(self, flow, user):
+                    self._flow = flow
+                    self._user = user
+                
+                def __call__(self, service_name):
+                    client = self._flow(service_name)
+                    # For structured query clients, store user context
+                    if service_name == "structured-query-request":
+                        client._current_user = self._user
+                    return client
+
+            act = await temp_agent.react(
                 question = request.question,
                 history = history,
                 think = think,
                 observe = observe,
-                context = flow,
+                context = UserAwareContext(flow, request.user),
             )
 
             logger.debug(f"Action: {act}")
@@ -255,11 +302,17 @@ class Processor(AgentService):
             logger.debug("Send next...")
 
             history.append(act)
+            
+            # Handle state transitions if tool execution was successful
+            next_state = request.state
+            if act.name in filtered_tools:
+                executed_tool = filtered_tools[act.name]
+                next_state = get_next_state(executed_tool, request.state or "undefined")
 
             r = AgentRequest(
                 question=request.question,
-                plan=request.plan,
-                state=request.state,
+                state=next_state,
+                group=getattr(request, 'group', []),
                 history=[
                     AgentStep(
                         thought=h.thought,

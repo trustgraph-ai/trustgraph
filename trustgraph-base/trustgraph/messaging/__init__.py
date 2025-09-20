@@ -21,6 +21,11 @@ from .translators.embeddings_query import (
     DocumentEmbeddingsRequestTranslator, DocumentEmbeddingsResponseTranslator,
     GraphEmbeddingsRequestTranslator, GraphEmbeddingsResponseTranslator
 )
+from .translators.objects_query import ObjectsQueryRequestTranslator, ObjectsQueryResponseTranslator
+from .translators.nlp_query import QuestionToStructuredQueryRequestTranslator, QuestionToStructuredQueryResponseTranslator
+from .translators.structured_query import StructuredQueryRequestTranslator, StructuredQueryResponseTranslator
+from .translators.diagnosis import StructuredDataDiagnosisRequestTranslator, StructuredDataDiagnosisResponseTranslator
+from .translators.collection import CollectionManagementRequestTranslator, CollectionManagementResponseTranslator
 
 # Register all service translators
 TranslatorRegistry.register_service(
@@ -105,6 +110,36 @@ TranslatorRegistry.register_service(
     "graph-embeddings-query", 
     GraphEmbeddingsRequestTranslator(), 
     GraphEmbeddingsResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "objects-query", 
+    ObjectsQueryRequestTranslator(), 
+    ObjectsQueryResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "nlp-query", 
+    QuestionToStructuredQueryRequestTranslator(), 
+    QuestionToStructuredQueryResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "structured-query",
+    StructuredQueryRequestTranslator(),
+    StructuredQueryResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "structured-diag",
+    StructuredDataDiagnosisRequestTranslator(),
+    StructuredDataDiagnosisResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "collection-management",
+    CollectionManagementRequestTranslator(),
+    CollectionManagementResponseTranslator()
 )
 
 # Register single-direction translators for document loading

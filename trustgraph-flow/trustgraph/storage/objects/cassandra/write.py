@@ -13,13 +13,15 @@ from cassandra import ConsistencyLevel
 
 from .... schema import ExtractedObject
 from .... schema import RowSchema, Field
-from .... base import FlowProcessor, ConsumerSpec
+from .... schema import StorageManagementRequest, StorageManagementResponse
+from .... schema import object_storage_management_topic, storage_management_response_topic
+from .... base import FlowProcessor, ConsumerSpec, ProducerSpec
+from .... base.cassandra_config import add_cassandra_args, resolve_cassandra_config
 
 # Module logger
 logger = logging.getLogger(__name__)
 
 default_ident = "objects-write"
-default_graph_host = 'localhost'
 
 class Processor(FlowProcessor):
 
@@ -27,10 +29,22 @@ class Processor(FlowProcessor):
         
         id = params.get("id", default_ident)
         
-        # Cassandra connection parameters
-        self.graph_host = params.get("graph_host", default_graph_host)
-        self.graph_username = params.get("graph_username", None)
-        self.graph_password = params.get("graph_password", None)
+        # Get Cassandra parameters
+        cassandra_host = params.get("cassandra_host")
+        cassandra_username = params.get("cassandra_username")
+        cassandra_password = params.get("cassandra_password")
+        
+        # Resolve configuration with environment variable fallback
+        hosts, username, password = resolve_cassandra_config(
+            host=cassandra_host,
+            username=cassandra_username,
+            password=cassandra_password
+        )
+        
+        # Store resolved configuration with proper names
+        self.cassandra_host = hosts  # Store as list
+        self.cassandra_username = username
+        self.cassandra_password = password
         
         # Config key for schemas
         self.config_key = params.get("config_type", "schema")
@@ -38,7 +52,7 @@ class Processor(FlowProcessor):
         super(Processor, self).__init__(
             **params | {
                 "id": id,
-                "config-type": self.config_key,
+                "config_type": self.config_key,
             }
         )
         
@@ -49,7 +63,38 @@ class Processor(FlowProcessor):
                 handler = self.on_object
             )
         )
-        
+
+        # Set up storage management consumer and producer directly
+        # (FlowProcessor doesn't support topic-based specs outside of flows)
+        from .... base import Consumer, Producer, ConsumerMetrics, ProducerMetrics
+
+        storage_request_metrics = ConsumerMetrics(
+            processor=self.id, flow=None, name="storage-request"
+        )
+        storage_response_metrics = ProducerMetrics(
+            processor=self.id, flow=None, name="storage-response"
+        )
+
+        # Create storage management consumer
+        self.storage_request_consumer = Consumer(
+            taskgroup=self.taskgroup,
+            client=self.pulsar_client,
+            flow=None,
+            topic=object_storage_management_topic,
+            subscriber=f"{id}-storage",
+            schema=StorageManagementRequest,
+            handler=self.on_storage_management,
+            metrics=storage_request_metrics,
+        )
+
+        # Create storage management response producer
+        self.storage_response_producer = Producer(
+            client=self.pulsar_client,
+            topic=storage_management_response_topic,
+            schema=StorageManagementResponse,
+            metrics=storage_response_metrics,
+        )
+
         # Register config handler for schema updates
         self.register_config_handler(self.on_schema_config)
         
@@ -70,20 +115,20 @@ class Processor(FlowProcessor):
             return
             
         try:
-            if self.graph_username and self.graph_password:
+            if self.cassandra_username and self.cassandra_password:
                 auth_provider = PlainTextAuthProvider(
-                    username=self.graph_username,
-                    password=self.graph_password
+                    username=self.cassandra_username,
+                    password=self.cassandra_password
                 )
                 self.cluster = Cluster(
-                    contact_points=[self.graph_host],
+                    contact_points=self.cassandra_host,
                     auth_provider=auth_provider
                 )
             else:
-                self.cluster = Cluster(contact_points=[self.graph_host])
+                self.cluster = Cluster(contact_points=self.cassandra_host)
             
             self.session = self.cluster.connect()
-            logger.info(f"Connected to Cassandra cluster at {self.graph_host}")
+            logger.info(f"Connected to Cassandra cluster at {self.cassandra_host}")
             
         except Exception as e:
             logger.error(f"Failed to connect to Cassandra: {e}", exc_info=True)
@@ -299,7 +344,7 @@ class Processor(FlowProcessor):
         """Process incoming ExtractedObject and store in Cassandra"""
         
         obj = msg.value()
-        logger.info(f"Storing object for schema {obj.schema_name} from {obj.metadata.id}")
+        logger.info(f"Storing {len(obj.values)} objects for schema {obj.schema_name} from {obj.metadata.id}")
         
         # Get schema definition
         schema = self.schemas.get(obj.schema_name)
@@ -316,59 +361,161 @@ class Processor(FlowProcessor):
         safe_keyspace = self.sanitize_name(keyspace)
         safe_table = self.sanitize_table(table_name)
         
-        # Build column names and values
-        columns = ["collection"]
-        values = [obj.metadata.collection]
-        placeholders = ["%s"]
-        
-        # Check if we need a synthetic ID
-        has_primary_key = any(field.primary for field in schema.fields)
-        if not has_primary_key:
-            import uuid
-            columns.append("synthetic_id")
-            values.append(uuid.uuid4())
-            placeholders.append("%s")
-        
-        # Process fields
-        for field in schema.fields:
-            safe_field_name = self.sanitize_name(field.name)
-            raw_value = obj.values.get(field.name)
+        # Process each object in the batch
+        for obj_index, value_map in enumerate(obj.values):
+            # Build column names and values for this object
+            columns = ["collection"]
+            values = [obj.metadata.collection]
+            placeholders = ["%s"]
             
-            # Handle required fields
-            if field.required and raw_value is None:
-                logger.warning(f"Required field {field.name} is missing in object")
-                # Continue anyway - Cassandra doesn't enforce NOT NULL
+            # Check if we need a synthetic ID
+            has_primary_key = any(field.primary for field in schema.fields)
+            if not has_primary_key:
+                import uuid
+                columns.append("synthetic_id")
+                values.append(uuid.uuid4())
+                placeholders.append("%s")
             
-            # Check if primary key field is NULL
-            if field.primary and raw_value is None:
-                logger.error(f"Primary key field {field.name} cannot be NULL - skipping object")
-                return
+            # Process fields for this object
+            skip_object = False
+            for field in schema.fields:
+                safe_field_name = self.sanitize_name(field.name)
+                raw_value = value_map.get(field.name)
+                
+                # Handle required fields
+                if field.required and raw_value is None:
+                    logger.warning(f"Required field {field.name} is missing in object {obj_index}")
+                    # Continue anyway - Cassandra doesn't enforce NOT NULL
+                
+                # Check if primary key field is NULL
+                if field.primary and raw_value is None:
+                    logger.error(f"Primary key field {field.name} cannot be NULL - skipping object {obj_index}")
+                    skip_object = True
+                    break
+                
+                # Convert value to appropriate type
+                converted_value = self.convert_value(raw_value, field.type)
+                
+                columns.append(safe_field_name)
+                values.append(converted_value)
+                placeholders.append("%s")
             
-            # Convert value to appropriate type
-            converted_value = self.convert_value(raw_value, field.type)
+            # Skip this object if primary key validation failed
+            if skip_object:
+                continue
             
-            columns.append(safe_field_name)
-            values.append(converted_value)
-            placeholders.append("%s")
-        
-        # Build and execute insert query
-        insert_cql = f"""
-        INSERT INTO {safe_keyspace}.{safe_table} ({', '.join(columns)})
-        VALUES ({', '.join(placeholders)})
-        """
-        
-        # Debug: Show data being inserted
-        logger.debug(f"Storing {obj.schema_name}: {dict(zip(columns, values))}")
-        
-        if len(columns) != len(values) or len(columns) != len(placeholders):
-            raise ValueError(f"Mismatch in counts - columns: {len(columns)}, values: {len(values)}, placeholders: {len(placeholders)}")
-        
+            # Build and execute insert query for this object
+            insert_cql = f"""
+            INSERT INTO {safe_keyspace}.{safe_table} ({', '.join(columns)})
+            VALUES ({', '.join(placeholders)})
+            """
+            
+            # Debug: Show data being inserted
+            logger.debug(f"Storing {obj.schema_name} object {obj_index}: {dict(zip(columns, values))}")
+            
+            if len(columns) != len(values) or len(columns) != len(placeholders):
+                raise ValueError(f"Mismatch in counts - columns: {len(columns)}, values: {len(values)}, placeholders: {len(placeholders)}")
+            
+            try:
+                # Convert to tuple - Cassandra driver requires tuple for parameters
+                self.session.execute(insert_cql, tuple(values))
+            except Exception as e:
+                logger.error(f"Failed to insert object {obj_index}: {e}", exc_info=True)
+                raise
+
+    async def on_storage_management(self, msg, consumer, flow):
+        """Handle storage management requests for collection operations"""
+        logger.info(f"Received storage management request: {msg.operation} for {msg.user}/{msg.collection}")
+
         try:
-            # Convert to tuple - Cassandra driver requires tuple for parameters
-            self.session.execute(insert_cql, tuple(values))
+            if msg.operation == "delete-collection":
+                await self.delete_collection(msg.user, msg.collection)
+
+                # Send success response
+                response = StorageManagementResponse(
+                    error=None  # No error means success
+                )
+                await self.storage_response_producer.send(response)
+                logger.info(f"Successfully deleted collection {msg.user}/{msg.collection}")
+            else:
+                logger.warning(f"Unknown storage management operation: {msg.operation}")
+                # Send error response
+                from .... schema import Error
+                response = StorageManagementResponse(
+                    error=Error(
+                        type="unknown_operation",
+                        message=f"Unknown operation: {msg.operation}"
+                    )
+                )
+                await self.storage_response_producer.send(response)
+
         except Exception as e:
-            logger.error(f"Failed to insert object: {e}", exc_info=True)
-            raise
+            logger.error(f"Error handling storage management request: {e}", exc_info=True)
+            # Send error response
+            from .... schema import Error
+            response = StorageManagementResponse(
+                error=Error(
+                    type="processing_error",
+                    message=str(e)
+                )
+            )
+            await self.send("storage-response", response)
+
+    async def delete_collection(self, user: str, collection: str):
+        """Delete all data for a specific collection"""
+        # Connect if not already connected
+        self.connect_cassandra()
+
+        # Sanitize names for safety
+        safe_keyspace = self.sanitize_name(user)
+
+        # Check if keyspace exists
+        if safe_keyspace not in self.known_keyspaces:
+            # Query to verify keyspace exists
+            check_keyspace_cql = """
+            SELECT keyspace_name FROM system_schema.keyspaces
+            WHERE keyspace_name = %s
+            """
+            result = self.session.execute(check_keyspace_cql, (safe_keyspace,))
+            if not result.one():
+                logger.info(f"Keyspace {safe_keyspace} does not exist, nothing to delete")
+                return
+            self.known_keyspaces.add(safe_keyspace)
+
+        # Get all tables in the keyspace that might contain collection data
+        get_tables_cql = """
+        SELECT table_name FROM system_schema.tables
+        WHERE keyspace_name = %s
+        """
+
+        tables = self.session.execute(get_tables_cql, (safe_keyspace,))
+        tables_deleted = 0
+
+        for row in tables:
+            table_name = row.table_name
+
+            # Check if the table has a collection column
+            check_column_cql = """
+            SELECT column_name FROM system_schema.columns
+            WHERE keyspace_name = %s AND table_name = %s AND column_name = 'collection'
+            """
+
+            result = self.session.execute(check_column_cql, (safe_keyspace, table_name))
+            if result.one():
+                # Table has collection column, delete data for this collection
+                try:
+                    delete_cql = f"""
+                    DELETE FROM {safe_keyspace}.{table_name}
+                    WHERE collection = %s
+                    """
+                    self.session.execute(delete_cql, (collection,))
+                    tables_deleted += 1
+                    logger.info(f"Deleted collection {collection} from table {safe_keyspace}.{table_name}")
+                except Exception as e:
+                    logger.error(f"Failed to delete from table {safe_keyspace}.{table_name}: {e}")
+                    raise
+
+        logger.info(f"Deleted collection {collection} from {tables_deleted} tables in keyspace {safe_keyspace}")
 
     def close(self):
         """Clean up Cassandra connections"""
@@ -381,24 +528,7 @@ class Processor(FlowProcessor):
         """Add command-line arguments"""
         
         FlowProcessor.add_args(parser)
-        
-        parser.add_argument(
-            '-g', '--graph-host',
-            default=default_graph_host,
-            help=f'Cassandra host (default: {default_graph_host})'
-        )
-        
-        parser.add_argument(
-            '--graph-username',
-            default=None,
-            help='Cassandra username'
-        )
-        
-        parser.add_argument(
-            '--graph-password',
-            default=None,
-            help='Cassandra password'
-        )
+        add_cassandra_args(parser)
         
         parser.add_argument(
             '--config-type',

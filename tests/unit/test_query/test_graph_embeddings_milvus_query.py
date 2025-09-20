@@ -133,8 +133,10 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         
         result = await processor.query_graph_embeddings(query)
         
-        # Verify search was called with correct parameters
-        processor.vecstore.search.assert_called_once_with([0.1, 0.2, 0.3], limit=10)
+        # Verify search was called with correct parameters including user/collection
+        processor.vecstore.search.assert_called_once_with(
+            [0.1, 0.2, 0.3], 'test_user', 'test_collection', limit=10
+        )
         
         # Verify results are converted to Value objects
         assert len(result) == 3
@@ -171,10 +173,10 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         
         result = await processor.query_graph_embeddings(query)
         
-        # Verify search was called twice with correct parameters
+        # Verify search was called twice with correct parameters including user/collection
         expected_calls = [
-            (([0.1, 0.2, 0.3],), {"limit": 6}),
-            (([0.4, 0.5, 0.6],), {"limit": 6}),
+            (([0.1, 0.2, 0.3], 'test_user', 'test_collection'), {"limit": 6}),
+            (([0.4, 0.5, 0.6], 'test_user', 'test_collection'), {"limit": 6}),
         ]
         assert processor.vecstore.search.call_count == 2
         for i, (expected_args, expected_kwargs) in enumerate(expected_calls):
@@ -211,7 +213,9 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         result = await processor.query_graph_embeddings(query)
         
         # Verify search was called with 2*limit for better deduplication
-        processor.vecstore.search.assert_called_once_with([0.1, 0.2, 0.3], limit=4)
+        processor.vecstore.search.assert_called_once_with(
+            [0.1, 0.2, 0.3], 'test_user', 'test_collection', limit=4
+        )
         
         # Verify results are limited to the requested limit
         assert len(result) == 2
@@ -269,7 +273,9 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         result = await processor.query_graph_embeddings(query)
         
         # Verify only first vector was searched (limit reached)
-        processor.vecstore.search.assert_called_once_with([0.1, 0.2, 0.3], limit=4)
+        processor.vecstore.search.assert_called_once_with(
+            [0.1, 0.2, 0.3], 'test_user', 'test_collection', limit=4
+        )
         
         # Verify results are limited
         assert len(result) == 2
@@ -308,7 +314,9 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         result = await processor.query_graph_embeddings(query)
         
         # Verify search was called
-        processor.vecstore.search.assert_called_once_with([0.1, 0.2, 0.3], limit=10)
+        processor.vecstore.search.assert_called_once_with(
+            [0.1, 0.2, 0.3], 'test_user', 'test_collection', limit=10
+        )
         
         # Verify empty results
         assert len(result) == 0

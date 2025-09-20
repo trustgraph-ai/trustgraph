@@ -91,37 +91,41 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         
         await processor.store_document_embeddings(message)
         
-        # Verify insert was called for each vector
+        # Verify insert was called for each vector with user/collection parameters
         expected_calls = [
-            ([0.1, 0.2, 0.3], "Test document content"),
-            ([0.4, 0.5, 0.6], "Test document content"),
+            ([0.1, 0.2, 0.3], "Test document content", 'test_user', 'test_collection'),
+            ([0.4, 0.5, 0.6], "Test document content", 'test_user', 'test_collection'),
         ]
         
         assert processor.vecstore.insert.call_count == 2
-        for i, (expected_vec, expected_doc) in enumerate(expected_calls):
+        for i, (expected_vec, expected_doc, expected_user, expected_collection) in enumerate(expected_calls):
             actual_call = processor.vecstore.insert.call_args_list[i]
             assert actual_call[0][0] == expected_vec
             assert actual_call[0][1] == expected_doc
+            assert actual_call[0][2] == expected_user
+            assert actual_call[0][3] == expected_collection
 
     @pytest.mark.asyncio
     async def test_store_document_embeddings_multiple_chunks(self, processor, mock_message):
         """Test storing document embeddings for multiple chunks"""
         await processor.store_document_embeddings(mock_message)
         
-        # Verify insert was called for each vector of each chunk
+        # Verify insert was called for each vector of each chunk with user/collection parameters
         expected_calls = [
             # Chunk 1 vectors
-            ([0.1, 0.2, 0.3], "This is the first document chunk"),
-            ([0.4, 0.5, 0.6], "This is the first document chunk"),
+            ([0.1, 0.2, 0.3], "This is the first document chunk", 'test_user', 'test_collection'),
+            ([0.4, 0.5, 0.6], "This is the first document chunk", 'test_user', 'test_collection'),
             # Chunk 2 vectors
-            ([0.7, 0.8, 0.9], "This is the second document chunk"),
+            ([0.7, 0.8, 0.9], "This is the second document chunk", 'test_user', 'test_collection'),
         ]
         
         assert processor.vecstore.insert.call_count == 3
-        for i, (expected_vec, expected_doc) in enumerate(expected_calls):
+        for i, (expected_vec, expected_doc, expected_user, expected_collection) in enumerate(expected_calls):
             actual_call = processor.vecstore.insert.call_args_list[i]
             assert actual_call[0][0] == expected_vec
             assert actual_call[0][1] == expected_doc
+            assert actual_call[0][2] == expected_user
+            assert actual_call[0][3] == expected_collection
 
     @pytest.mark.asyncio
     async def test_store_document_embeddings_empty_chunk(self, processor):
@@ -185,9 +189,9 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         
         await processor.store_document_embeddings(message)
         
-        # Verify only valid chunk was inserted
+        # Verify only valid chunk was inserted with user/collection parameters
         processor.vecstore.insert.assert_called_once_with(
-            [0.1, 0.2, 0.3], "Valid document content"
+            [0.1, 0.2, 0.3], "Valid document content", 'test_user', 'test_collection'
         )
 
     @pytest.mark.asyncio
@@ -243,18 +247,20 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         
         await processor.store_document_embeddings(message)
         
-        # Verify all vectors were inserted regardless of dimension
+        # Verify all vectors were inserted regardless of dimension with user/collection parameters
         expected_calls = [
-            ([0.1, 0.2], "Document with mixed dimensions"),
-            ([0.3, 0.4, 0.5, 0.6], "Document with mixed dimensions"),
-            ([0.7, 0.8, 0.9], "Document with mixed dimensions"),
+            ([0.1, 0.2], "Document with mixed dimensions", 'test_user', 'test_collection'),
+            ([0.3, 0.4, 0.5, 0.6], "Document with mixed dimensions", 'test_user', 'test_collection'),
+            ([0.7, 0.8, 0.9], "Document with mixed dimensions", 'test_user', 'test_collection'),
         ]
         
         assert processor.vecstore.insert.call_count == 3
-        for i, (expected_vec, expected_doc) in enumerate(expected_calls):
+        for i, (expected_vec, expected_doc, expected_user, expected_collection) in enumerate(expected_calls):
             actual_call = processor.vecstore.insert.call_args_list[i]
             assert actual_call[0][0] == expected_vec
             assert actual_call[0][1] == expected_doc
+            assert actual_call[0][2] == expected_user
+            assert actual_call[0][3] == expected_collection
 
     @pytest.mark.asyncio
     async def test_store_document_embeddings_unicode_content(self, processor):
@@ -272,9 +278,9 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         
         await processor.store_document_embeddings(message)
         
-        # Verify Unicode content was properly decoded and inserted
+        # Verify Unicode content was properly decoded and inserted with user/collection parameters
         processor.vecstore.insert.assert_called_once_with(
-            [0.1, 0.2, 0.3], "Document with Unicode: éñ中文🚀"
+            [0.1, 0.2, 0.3], "Document with Unicode: éñ中文🚀", 'test_user', 'test_collection'
         )
 
     @pytest.mark.asyncio
@@ -295,9 +301,9 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         
         await processor.store_document_embeddings(message)
         
-        # Verify large content was inserted
+        # Verify large content was inserted with user/collection parameters
         processor.vecstore.insert.assert_called_once_with(
-            [0.1, 0.2, 0.3], large_content
+            [0.1, 0.2, 0.3], large_content, 'test_user', 'test_collection'
         )
 
     @pytest.mark.asyncio
@@ -316,9 +322,103 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         
         await processor.store_document_embeddings(message)
         
-        # Verify whitespace content was inserted (not filtered out)
+        # Verify whitespace content was inserted (not filtered out) with user/collection parameters
         processor.vecstore.insert.assert_called_once_with(
-            [0.1, 0.2, 0.3], "   \n\t   "
+            [0.1, 0.2, 0.3], "   \n\t   ", 'test_user', 'test_collection'
+        )
+
+    @pytest.mark.asyncio
+    async def test_store_document_embeddings_different_user_collection_combinations(self, processor):
+        """Test storing document embeddings with different user/collection combinations"""
+        test_cases = [
+            ('user1', 'collection1'),
+            ('user2', 'collection2'), 
+            ('admin', 'production'),
+            ('test@domain.com', 'test-collection.v1'),
+        ]
+        
+        for user, collection in test_cases:
+            processor.vecstore.reset_mock()  # Reset mock for each test case
+            
+            message = MagicMock()
+            message.metadata = MagicMock()
+            message.metadata.user = user
+            message.metadata.collection = collection
+            
+            chunk = ChunkEmbeddings(
+                chunk=b"Test content",
+                vectors=[[0.1, 0.2, 0.3]]
+            )
+            message.chunks = [chunk]
+            
+            await processor.store_document_embeddings(message)
+            
+            # Verify insert was called with the correct user/collection
+            processor.vecstore.insert.assert_called_once_with(
+                [0.1, 0.2, 0.3], "Test content", user, collection
+            )
+
+    @pytest.mark.asyncio
+    async def test_store_document_embeddings_user_collection_parameter_isolation(self, processor):
+        """Test that different user/collection combinations are properly isolated"""
+        # Store embeddings for user1/collection1
+        message1 = MagicMock()
+        message1.metadata = MagicMock()
+        message1.metadata.user = 'user1'
+        message1.metadata.collection = 'collection1'
+        chunk1 = ChunkEmbeddings(
+            chunk=b"User1 content",
+            vectors=[[0.1, 0.2, 0.3]]
+        )
+        message1.chunks = [chunk1]
+        
+        # Store embeddings for user2/collection2
+        message2 = MagicMock()
+        message2.metadata = MagicMock() 
+        message2.metadata.user = 'user2'
+        message2.metadata.collection = 'collection2'
+        chunk2 = ChunkEmbeddings(
+            chunk=b"User2 content",
+            vectors=[[0.4, 0.5, 0.6]]
+        )
+        message2.chunks = [chunk2]
+        
+        await processor.store_document_embeddings(message1)
+        await processor.store_document_embeddings(message2)
+        
+        # Verify both calls were made with correct parameters
+        expected_calls = [
+            ([0.1, 0.2, 0.3], "User1 content", 'user1', 'collection1'),
+            ([0.4, 0.5, 0.6], "User2 content", 'user2', 'collection2'),
+        ]
+        
+        assert processor.vecstore.insert.call_count == 2
+        for i, (expected_vec, expected_doc, expected_user, expected_collection) in enumerate(expected_calls):
+            actual_call = processor.vecstore.insert.call_args_list[i]
+            assert actual_call[0][0] == expected_vec
+            assert actual_call[0][1] == expected_doc
+            assert actual_call[0][2] == expected_user
+            assert actual_call[0][3] == expected_collection
+
+    @pytest.mark.asyncio
+    async def test_store_document_embeddings_special_character_user_collection(self, processor):
+        """Test storing document embeddings with special characters in user/collection names"""
+        message = MagicMock()
+        message.metadata = MagicMock()
+        message.metadata.user = 'user@domain.com'  # Email-like user
+        message.metadata.collection = 'test-collection.v1'  # Collection with special chars
+        
+        chunk = ChunkEmbeddings(
+            chunk=b"Special chars test",
+            vectors=[[0.1, 0.2, 0.3]]
+        )
+        message.chunks = [chunk]
+        
+        await processor.store_document_embeddings(message)
+        
+        # Verify the exact user/collection strings are passed (sanitization happens in DocVectors)
+        processor.vecstore.insert.assert_called_once_with(
+            [0.1, 0.2, 0.3], "Special chars test", 'user@domain.com', 'test-collection.v1'
         )
 
     def test_add_args_method(self):

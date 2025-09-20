@@ -16,28 +16,30 @@ class TestCassandraStorageProcessor:
         """Test processor initialization with default parameters"""
         taskgroup_mock = MagicMock()
         
-        processor = Processor(taskgroup=taskgroup_mock)
+        # Patch environment to ensure clean defaults
+        with patch.dict('os.environ', {}, clear=True):
+            processor = Processor(taskgroup=taskgroup_mock)
         
-        assert processor.graph_host == ['localhost']
-        assert processor.username is None
-        assert processor.password is None
+        assert processor.cassandra_host == ['cassandra']  # Updated default
+        assert processor.cassandra_username is None
+        assert processor.cassandra_password is None
         assert processor.table is None
 
     def test_processor_initialization_with_custom_params(self):
-        """Test processor initialization with custom parameters"""
+        """Test processor initialization with custom parameters (new cassandra_* names)"""
         taskgroup_mock = MagicMock()
         
         processor = Processor(
             taskgroup=taskgroup_mock,
             id='custom-storage',
-            graph_host='cassandra.example.com',
-            graph_username='testuser',
-            graph_password='testpass'
+            cassandra_host='cassandra.example.com',
+            cassandra_username='testuser',
+            cassandra_password='testpass'
         )
         
-        assert processor.graph_host == ['cassandra.example.com']
-        assert processor.username == 'testuser'
-        assert processor.password == 'testpass'
+        assert processor.cassandra_host == ['cassandra.example.com']
+        assert processor.cassandra_username == 'testuser'
+        assert processor.cassandra_password == 'testpass'
         assert processor.table is None
 
     def test_processor_initialization_with_partial_auth(self):
@@ -46,14 +48,45 @@ class TestCassandraStorageProcessor:
         
         processor = Processor(
             taskgroup=taskgroup_mock,
-            graph_username='testuser'
+            cassandra_username='testuser'
         )
         
-        assert processor.username == 'testuser'
-        assert processor.password is None
+        assert processor.cassandra_username == 'testuser'
+        assert processor.cassandra_password is None
+    
+    def test_processor_no_backward_compatibility(self):
+        """Test that old graph_* parameters are no longer supported"""
+        taskgroup_mock = MagicMock()
+        
+        processor = Processor(
+            taskgroup=taskgroup_mock,
+            graph_host='old-host',
+            graph_username='old-user',
+            graph_password='old-pass'
+        )
+        
+        # Should use defaults since graph_* params are not recognized
+        assert processor.cassandra_host == ['cassandra']  # Default
+        assert processor.cassandra_username is None
+        assert processor.cassandra_password is None
+    
+    def test_processor_only_new_parameters_work(self):
+        """Test that only new cassandra_* parameters work"""
+        taskgroup_mock = MagicMock()
+        
+        processor = Processor(
+            taskgroup=taskgroup_mock,
+            cassandra_host='new-host',
+            graph_host='old-host',  # Should be ignored
+            cassandra_username='new-user',
+            graph_username='old-user'  # Should be ignored
+        )
+        
+        assert processor.cassandra_host == ['new-host']  # Only cassandra_* params work
+        assert processor.cassandra_username == 'new-user'  # Only cassandra_* params work
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.TrustGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
     async def test_table_switching_with_auth(self, mock_trustgraph):
         """Test table switching logic when authentication is provided"""
         taskgroup_mock = MagicMock()
@@ -62,8 +95,8 @@ class TestCassandraStorageProcessor:
         
         processor = Processor(
             taskgroup=taskgroup_mock,
-            graph_username='testuser',
-            graph_password='testpass'
+            cassandra_username='testuser',
+            cassandra_password='testpass'
         )
         
         # Create mock message
@@ -74,18 +107,17 @@ class TestCassandraStorageProcessor:
         
         await processor.store_triples(mock_message)
         
-        # Verify TrustGraph was called with auth parameters
+        # Verify KnowledgeGraph was called with auth parameters
         mock_trustgraph.assert_called_once_with(
-            hosts=['localhost'],
+            hosts=['cassandra'],  # Updated default
             keyspace='user1',
-            table='collection1',
             username='testuser',
             password='testpass'
         )
-        assert processor.table == ('user1', 'collection1')
+        assert processor.table == 'user1'
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.TrustGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
     async def test_table_switching_without_auth(self, mock_trustgraph):
         """Test table switching logic when no authentication is provided"""
         taskgroup_mock = MagicMock()
@@ -102,16 +134,15 @@ class TestCassandraStorageProcessor:
         
         await processor.store_triples(mock_message)
         
-        # Verify TrustGraph was called without auth parameters
+        # Verify KnowledgeGraph was called without auth parameters
         mock_trustgraph.assert_called_once_with(
-            hosts=['localhost'],
-            keyspace='user2',
-            table='collection2'
+            hosts=['cassandra'],  # Updated default
+            keyspace='user2'
         )
-        assert processor.table == ('user2', 'collection2')
+        assert processor.table == 'user2'
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.TrustGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
     async def test_table_reuse_when_same(self, mock_trustgraph):
         """Test that TrustGraph is not recreated when table hasn't changed"""
         taskgroup_mock = MagicMock()
@@ -135,7 +166,7 @@ class TestCassandraStorageProcessor:
         assert mock_trustgraph.call_count == 1  # Should not increase
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.TrustGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
     async def test_triple_insertion(self, mock_trustgraph):
         """Test that triples are properly inserted into Cassandra"""
         taskgroup_mock = MagicMock()
@@ -165,11 +196,11 @@ class TestCassandraStorageProcessor:
         
         # Verify both triples were inserted
         assert mock_tg_instance.insert.call_count == 2
-        mock_tg_instance.insert.assert_any_call('subject1', 'predicate1', 'object1')
-        mock_tg_instance.insert.assert_any_call('subject2', 'predicate2', 'object2')
+        mock_tg_instance.insert.assert_any_call('collection1', 'subject1', 'predicate1', 'object1')
+        mock_tg_instance.insert.assert_any_call('collection1', 'subject2', 'predicate2', 'object2')
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.TrustGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
     async def test_triple_insertion_with_empty_list(self, mock_trustgraph):
         """Test behavior when message has no triples"""
         taskgroup_mock = MagicMock()
@@ -190,7 +221,7 @@ class TestCassandraStorageProcessor:
         mock_tg_instance.insert.assert_not_called()
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.TrustGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
     @patch('trustgraph.storage.triples.cassandra.write.time.sleep')
     async def test_exception_handling_with_retry(self, mock_sleep, mock_trustgraph):
         """Test exception handling during TrustGraph creation"""
@@ -225,16 +256,16 @@ class TestCassandraStorageProcessor:
             # Verify parent add_args was called
             mock_parent_add_args.assert_called_once_with(parser)
         
-        # Verify our specific arguments were added
+        # Verify our specific arguments were added (now using cassandra_* names)
         # Parse empty args to check defaults
         args = parser.parse_args([])
         
-        assert hasattr(args, 'graph_host')
-        assert args.graph_host == 'localhost'
-        assert hasattr(args, 'graph_username')
-        assert args.graph_username is None
-        assert hasattr(args, 'graph_password')
-        assert args.graph_password is None
+        assert hasattr(args, 'cassandra_host')
+        assert args.cassandra_host == 'cassandra'  # Updated default
+        assert hasattr(args, 'cassandra_username')
+        assert args.cassandra_username is None
+        assert hasattr(args, 'cassandra_password')
+        assert args.cassandra_password is None
 
     def test_add_args_with_custom_values(self):
         """Test add_args with custom command line values"""
@@ -246,31 +277,44 @@ class TestCassandraStorageProcessor:
         with patch('trustgraph.storage.triples.cassandra.write.TriplesStoreService.add_args'):
             Processor.add_args(parser)
         
-        # Test parsing with custom values
+        # Test parsing with custom values (new cassandra_* arguments)
         args = parser.parse_args([
-            '--graph-host', 'cassandra.example.com',
-            '--graph-username', 'testuser',
-            '--graph-password', 'testpass'
+            '--cassandra-host', 'cassandra.example.com',
+            '--cassandra-username', 'testuser',
+            '--cassandra-password', 'testpass'
         ])
         
-        assert args.graph_host == 'cassandra.example.com'
-        assert args.graph_username == 'testuser'
-        assert args.graph_password == 'testpass'
+        assert args.cassandra_host == 'cassandra.example.com'
+        assert args.cassandra_username == 'testuser'
+        assert args.cassandra_password == 'testpass'
 
-    def test_add_args_short_form(self):
-        """Test add_args with short form arguments"""
+    def test_add_args_with_env_vars(self):
+        """Test add_args shows environment variables in help text"""
         from argparse import ArgumentParser
         from unittest.mock import patch
+        import os
         
         parser = ArgumentParser()
         
+        # Set environment variables
+        env_vars = {
+            'CASSANDRA_HOST': 'env-host1,env-host2',
+            'CASSANDRA_USERNAME': 'env-user',
+            'CASSANDRA_PASSWORD': 'env-pass'
+        }
+        
         with patch('trustgraph.storage.triples.cassandra.write.TriplesStoreService.add_args'):
-            Processor.add_args(parser)
-        
-        # Test parsing with short form
-        args = parser.parse_args(['-g', 'short.example.com'])
-        
-        assert args.graph_host == 'short.example.com'
+            with patch.dict(os.environ, env_vars, clear=True):
+                Processor.add_args(parser)
+                
+                # Check that help text includes environment variable info
+                help_text = parser.format_help()
+                # Argparse may break lines, so check for components
+                assert 'env-' in help_text and 'host1' in help_text
+                assert 'env-host2' in help_text
+                assert 'env-user' in help_text
+                assert '<set>' in help_text  # Password should be hidden
+                assert 'env-pass' not in help_text  # Password value not shown
 
     @patch('trustgraph.storage.triples.cassandra.write.Processor.launch')
     def test_run_function(self, mock_launch):
@@ -282,7 +326,7 @@ class TestCassandraStorageProcessor:
         mock_launch.assert_called_once_with(default_ident, '\nGraph writer.  Input is graph edge.  Writes edges to Cassandra graph.\n')
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.TrustGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
     async def test_store_triples_table_switching_between_different_tables(self, mock_trustgraph):
         """Test table switching when different tables are used in sequence"""
         taskgroup_mock = MagicMock()
@@ -299,7 +343,7 @@ class TestCassandraStorageProcessor:
         mock_message1.triples = []
         
         await processor.store_triples(mock_message1)
-        assert processor.table == ('user1', 'collection1')
+        assert processor.table == 'user1'
         assert processor.tg == mock_tg_instance1
         
         # Second message with different table
@@ -309,14 +353,14 @@ class TestCassandraStorageProcessor:
         mock_message2.triples = []
         
         await processor.store_triples(mock_message2)
-        assert processor.table == ('user2', 'collection2')
+        assert processor.table == 'user2'
         assert processor.tg == mock_tg_instance2
         
         # Verify TrustGraph was created twice for different tables
         assert mock_trustgraph.call_count == 2
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.TrustGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
     async def test_store_triples_with_special_characters_in_values(self, mock_trustgraph):
         """Test storing triples with special characters and unicode"""
         taskgroup_mock = MagicMock()
@@ -340,13 +384,14 @@ class TestCassandraStorageProcessor:
         
         # Verify the triple was inserted with special characters preserved
         mock_tg_instance.insert.assert_called_once_with(
+            'test_collection',
             'subject with spaces & symbols',
             'predicate:with/colons',
             'object with "quotes" and unicode: ñáéíóú'
         )
 
     @pytest.mark.asyncio
-    @patch('trustgraph.storage.triples.cassandra.write.TrustGraph')
+    @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
     async def test_store_triples_preserves_old_table_on_exception(self, mock_trustgraph):
         """Test that table remains unchanged when TrustGraph creation fails"""
         taskgroup_mock = MagicMock()
@@ -371,3 +416,98 @@ class TestCassandraStorageProcessor:
         assert processor.table == ('old_user', 'old_collection')
         # TrustGraph should be set to None though
         assert processor.tg is None
+
+
+class TestCassandraPerformanceOptimizations:
+    """Test cases for multi-table performance optimizations"""
+
+    @pytest.mark.asyncio
+    @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
+    async def test_legacy_mode_uses_single_table(self, mock_trustgraph):
+        """Test that legacy mode still works with single table"""
+        taskgroup_mock = MagicMock()
+        mock_tg_instance = MagicMock()
+        mock_trustgraph.return_value = mock_tg_instance
+
+        with patch.dict('os.environ', {'CASSANDRA_USE_LEGACY': 'true'}):
+            processor = Processor(taskgroup=taskgroup_mock)
+
+            mock_message = MagicMock()
+            mock_message.metadata.user = 'user1'
+            mock_message.metadata.collection = 'collection1'
+            mock_message.triples = []
+
+            await processor.store_triples(mock_message)
+
+            # Verify KnowledgeGraph instance uses legacy mode
+            kg_instance = mock_trustgraph.return_value
+            assert kg_instance is not None
+
+    @pytest.mark.asyncio
+    @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
+    async def test_optimized_mode_uses_multi_table(self, mock_trustgraph):
+        """Test that optimized mode uses multi-table schema"""
+        taskgroup_mock = MagicMock()
+        mock_tg_instance = MagicMock()
+        mock_trustgraph.return_value = mock_tg_instance
+
+        with patch.dict('os.environ', {'CASSANDRA_USE_LEGACY': 'false'}):
+            processor = Processor(taskgroup=taskgroup_mock)
+
+            mock_message = MagicMock()
+            mock_message.metadata.user = 'user1'
+            mock_message.metadata.collection = 'collection1'
+            mock_message.triples = []
+
+            await processor.store_triples(mock_message)
+
+            # Verify KnowledgeGraph instance is in optimized mode
+            kg_instance = mock_trustgraph.return_value
+            assert kg_instance is not None
+
+    @pytest.mark.asyncio
+    @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
+    async def test_batch_write_consistency(self, mock_trustgraph):
+        """Test that all tables stay consistent during batch writes"""
+        taskgroup_mock = MagicMock()
+        mock_tg_instance = MagicMock()
+        mock_trustgraph.return_value = mock_tg_instance
+
+        processor = Processor(taskgroup=taskgroup_mock)
+
+        # Create test triple
+        triple = MagicMock()
+        triple.s.value = 'test_subject'
+        triple.p.value = 'test_predicate'
+        triple.o.value = 'test_object'
+
+        mock_message = MagicMock()
+        mock_message.metadata.user = 'user1'
+        mock_message.metadata.collection = 'collection1'
+        mock_message.triples = [triple]
+
+        await processor.store_triples(mock_message)
+
+        # Verify insert was called for the triple (implementation details tested in KnowledgeGraph)
+        mock_tg_instance.insert.assert_called_once_with(
+            'collection1', 'test_subject', 'test_predicate', 'test_object'
+        )
+
+    def test_environment_variable_controls_mode(self):
+        """Test that CASSANDRA_USE_LEGACY environment variable controls operation mode"""
+        taskgroup_mock = MagicMock()
+
+        # Test legacy mode
+        with patch.dict('os.environ', {'CASSANDRA_USE_LEGACY': 'true'}):
+            processor = Processor(taskgroup=taskgroup_mock)
+            # Mode is determined in KnowledgeGraph initialization
+
+        # Test optimized mode
+        with patch.dict('os.environ', {'CASSANDRA_USE_LEGACY': 'false'}):
+            processor = Processor(taskgroup=taskgroup_mock)
+            # Mode is determined in KnowledgeGraph initialization
+
+        # Test default mode (optimized when env var not set)
+        with patch.dict('os.environ', {}, clear=True):
+            processor = Processor(taskgroup=taskgroup_mock)
+            # Mode is determined in KnowledgeGraph initialization

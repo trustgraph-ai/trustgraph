@@ -8,12 +8,12 @@ import urllib.parse
 
 from ... schema import Triples, GraphEmbeddings
 from ... base import FlowProcessor, ConsumerSpec
+from ... base.cassandra_config import add_cassandra_args, resolve_cassandra_config
 
 from ... tables.knowledge import KnowledgeTableStore
 
 default_ident = "kg-store"
 
-default_cassandra_host = "cassandra"
 keyspace = "knowledge"
 
 class Processor(FlowProcessor):
@@ -22,15 +22,18 @@ class Processor(FlowProcessor):
 
         id = params.get("id")
 
-        cassandra_host = params.get("cassandra_host", default_cassandra_host)
-        cassandra_user = params.get("cassandra_user")
-        cassandra_password = params.get("cassandra_password")
+        # Use helper to resolve configuration
+        hosts, username, password = resolve_cassandra_config(
+            host=params.get("cassandra_host"),
+            username=params.get("cassandra_username"),
+            password=params.get("cassandra_password")
+        )
 
         super(Processor, self).__init__(
             **params | {
                 "id": id,
-                "cassandra_host": cassandra_host,
-                "cassandra_user": cassandra_user,
+                "cassandra_host": ','.join(hosts),
+                "cassandra_username": username,
             }
         )
 
@@ -51,9 +54,9 @@ class Processor(FlowProcessor):
         )
 
         self.table_store = KnowledgeTableStore(
-            cassandra_host = cassandra_host.split(","),
-            cassandra_user = cassandra_user,
-            cassandra_password = cassandra_password,
+            cassandra_host = hosts,
+            cassandra_username = username,
+            cassandra_password = password,
             keyspace = keyspace,
         )
 
@@ -71,6 +74,7 @@ class Processor(FlowProcessor):
     def add_args(parser):
 
         FlowProcessor.add_args(parser)
+        add_cassandra_args(parser)
 
 def run():
 

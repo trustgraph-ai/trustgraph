@@ -16,7 +16,7 @@ class Librarian:
 
     def __init__(
             self,
-            cassandra_host, cassandra_user, cassandra_password,
+            cassandra_host, cassandra_username, cassandra_password,
             minio_host, minio_access_key, minio_secret_key,
             bucket_name, keyspace, load_document,
     ):
@@ -26,7 +26,7 @@ class Librarian:
         )
 
         self.table_store = LibraryTableStore(
-            cassandra_host, cassandra_user, cassandra_password, keyspace
+            cassandra_host, cassandra_username, cassandra_password, keyspace
         )
 
         self.load_document = load_document

@@ -317,12 +317,12 @@ class TestObjectExtractionBusinessLogic:
             metadata=[]
         )
         
-        values = {
+        values = [{
             "customer_id": "CUST001",
             "name": "John Doe",
             "email": "john@example.com",
             "status": "active"
-        }
+        }]
         
         # Act
         extracted_obj = ExtractedObject(
@@ -335,7 +335,7 @@ class TestObjectExtractionBusinessLogic:
         
         # Assert
         assert extracted_obj.schema_name == "customer_records"
-        assert extracted_obj.values["customer_id"] == "CUST001"
+        assert extracted_obj.values[0]["customer_id"] == "CUST001"
         assert extracted_obj.confidence == 0.95
         assert "John Doe" in extracted_obj.source_span
         assert extracted_obj.metadata.user == "test_user"
