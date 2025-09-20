@@ -499,55 +499,134 @@ kg-extract-ontology:
 
 **Purpose**: Provides fast, memory-based similarity search for ontology element matching.
 
-**Algorithm Description**:
-The In-Memory Vector Store is a lightweight implementation optimised for OntoRAG's specific needs. It stores embeddings as numpy arrays along with their associated metadata and unique identifiers. When a search query arrives, it computes cosine similarity between the query embedding and all stored embeddings. The results are sorted by similarity score and filtered by a threshold to ensure quality matches. Only the top-k results above the threshold are returned. This simple approach is sufficient for OntoRAG since ontologies typically contain hundreds to thousands of elements, not millions, making a sophisticated index unnecessary. The entire store resides in RAM for microsecond-level search latency.
+**Recommended Implementation: FAISS**
 
-**Key Features**:
-- Cosine similarity computation for semantic matching
-- Configurable similarity threshold filtering
-- Top-k result limiting to control result set size
-- O(n) search complexity acceptable for moderate-sized ontologies
-- No persistence needed - rebuilt from ontologies at startup
+The system should use **FAISS (Facebook AI Similarity Search)** as the primary vector store implementation for the following reasons:
 
-Simple, efficient vector store implementation:
+1. **Performance**: Optimised for similarity search with microsecond latency, critical for real-time query processing
+2. **Memory Efficiency**: Multiple index types (Flat, IVF, HNSW) allow memory/speed tradeoffs based on ontology size
+3. **Scalability**: Efficiently handles hundreds to tens of thousands of ontology elements
+4. **Production Ready**: Battle-tested in production environments with excellent stability
+5. **Python Integration**: Native Python bindings with numpy compatibility for seamless integration
+
+**FAISS Implementation**:
 
 ```python
-class InMemoryVectorStore:
-    def __init__(self):
-        self.embeddings = []
+import faiss
+import numpy as np
+
+class FAISSVectorStore:
+    def __init__(self, dimension=1536, index_type='flat'):
+        """
+        Initialize FAISS vector store.
+
+        Args:
+            dimension: Embedding dimension (1536 for text-embedding-3-small)
+            index_type: 'flat' for exact search, 'ivf' for larger datasets
+        """
+        self.dimension = dimension
         self.metadata = []
         self.ids = []
 
+        if index_type == 'flat':
+            # Exact search - best for ontologies with <10k elements
+            self.index = faiss.IndexFlatIP(dimension)
+        else:
+            # Approximate search - for larger ontologies
+            quantizer = faiss.IndexFlatIP(dimension)
+            self.index = faiss.IndexIVFFlat(quantizer, dimension, 100)
+            self.index.train(np.random.randn(1000, dimension).astype('float32'))
+
     def add(self, id, embedding, metadata):
-        self.ids.append(id)
-        self.embeddings.append(embedding)
+        """Add single embedding with metadata."""
+        # Normalize for cosine similarity
+        embedding = embedding / np.linalg.norm(embedding)
+        self.index.add(np.array([embedding], dtype=np.float32))
         self.metadata.append(metadata)
+        self.ids.append(id)
+
+    def add_batch(self, ids, embeddings, metadata_list):
+        """Batch add for initial ontology loading."""
+        # Normalize all embeddings
+        norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+        normalized = embeddings / norms
+        self.index.add(normalized.astype(np.float32))
+        self.metadata.extend(metadata_list)
+        self.ids.extend(ids)
 
     def search(self, embedding, top_k=10, threshold=0.0):
-        # Compute cosine similarities
-        similarities = []
-        for stored_emb in self.embeddings:
-            sim = cosine_similarity(embedding, stored_emb)
-            similarities.append(sim)
+        """Search for similar vectors."""
+        # Normalize query
+        embedding = embedding / np.linalg.norm(embedding)
 
-        # Get top-k results above threshold
+        # Search
+        scores, indices = self.index.search(
+            np.array([embedding], dtype=np.float32),
+            min(top_k, self.index.ntotal)
+        )
+
+        # Filter by threshold and format results
         results = []
-        indices = np.argsort(similarities)[::-1][:top_k]
-
-        for idx in indices:
-            if similarities[idx] >= threshold:
+        for score, idx in zip(scores[0], indices[0]):
+            if idx >= 0 and score >= threshold:  # FAISS returns -1 for empty slots
                 results.append({
                     'id': self.ids[idx],
-                    'score': similarities[idx],
+                    'score': float(score),
                     'metadata': self.metadata[idx]
                 })
 
         return results
 
     def clear(self):
+        """Reset the store."""
+        self.index.reset()
+        self.metadata = []
+        self.ids = []
+
+    def size(self):
+        """Return number of stored vectors."""
+        return self.index.ntotal
+```
+
+**Fallback Implementation (NumPy)**:
+
+For development or small-scale deployments, a simple NumPy implementation can be used:
+
+```python
+class SimpleVectorStore:
+    """Fallback implementation using NumPy - suitable for <1000 elements."""
+    def __init__(self):
         self.embeddings = []
         self.metadata = []
         self.ids = []
+
+    def add(self, id, embedding, metadata):
+        self.embeddings.append(embedding / np.linalg.norm(embedding))
+        self.metadata.append(metadata)
+        self.ids.append(id)
+
+    def search(self, embedding, top_k=10, threshold=0.0):
+        if not self.embeddings:
+            return []
+
+        # Normalize and compute similarities
+        embedding = embedding / np.linalg.norm(embedding)
+        similarities = np.dot(self.embeddings, embedding)
+
+        # Get top-k indices
+        top_indices = np.argsort(similarities)[::-1][:top_k]
+
+        # Build results
+        results = []
+        for idx in top_indices:
+            if similarities[idx] >= threshold:
+                results.append({
+                    'id': self.ids[idx],
+                    'score': float(similarities[idx]),
+                    'metadata': self.metadata[idx]
+                })
+
+        return results
 ```
 
 ### Ontology Subset Selection Algorithm
@@ -1064,6 +1143,295 @@ onto-query:
 - Memory usage under load
 - Latency benchmarks
 
+## Delivery Plan
+
+### Overview
+
+The OntoRAG system will be delivered in four major phases, with each phase providing incremental value while building toward the complete system. The plan focuses on establishing core extraction capabilities first, then adding query functionality, followed by optimizations and advanced features.
+
+### Phase 1: Foundation and Core Extraction
+
+**Goal**: Establish the basic ontology-driven extraction pipeline with simple vector matching.
+
+#### Step 1.1: Ontology Management Foundation
+- Implement ontology configuration loader (`OntologyLoader`)
+- Parse and validate ontology JSON structures
+- Create in-memory ontology storage and access patterns
+- Implement ontology refresh mechanism
+
+**Success Criteria**:
+- Successfully load and parse ontology configurations
+- Validate ontology structure and consistency
+- Handle multiple concurrent ontologies
+
+#### Step 1.2: Vector Store Implementation
+- Implement simple NumPy-based vector store as initial prototype
+- Add FAISS vector store implementation
+- Create vector store interface abstraction
+- Implement similarity search with configurable thresholds
+
+**Success Criteria**:
+- Store and retrieve embeddings efficiently
+- Perform similarity search with <100ms latency
+- Support both NumPy and FAISS backends
+
+#### Step 1.3: Ontology Embedding Pipeline
+- Integrate with embedding service
+- Implement `OntologyEmbedder` component
+- Generate embeddings for all ontology elements
+- Store embeddings with metadata in vector store
+
+**Success Criteria**:
+- Generate embeddings for classes and properties
+- Store embeddings with proper metadata
+- Rebuild embeddings on ontology updates
+
+#### Step 1.4: Text Processing Components
+- Implement sentence splitter using NLTK/spaCy
+- Extract phrases and named entities
+- Create text segment hierarchy
+- Generate embeddings for text segments
+
+**Success Criteria**:
+- Accurately split text into sentences
+- Extract meaningful phrases
+- Maintain context relationships
+
+#### Step 1.5: Ontology Selection Algorithm
+- Implement similarity matching between text and ontology
+- Build dependency resolution for ontology elements
+- Create minimal coherent ontology subsets
+- Optimize subset generation performance
+
+**Success Criteria**:
+- Select relevant ontology elements with >80% precision
+- Include all necessary dependencies
+- Generate subsets in <500ms
+
+#### Step 1.6: Basic Extraction Service
+- Implement prompt construction for extraction
+- Integrate with prompt service
+- Parse and validate triple responses
+- Create `kg-extract-ontology` service endpoint
+
+**Success Criteria**:
+- Extract ontology-conformant triples
+- Validate all triples against ontology
+- Handle extraction errors gracefully
+
+### Phase 2: Query System Implementation
+
+**Goal**: Add ontology-aware query capabilities with support for multiple backends.
+
+#### Step 2.1: Query Foundation Components
+- Implement question analyzer
+- Create ontology matcher for queries
+- Adapt vector search for query context
+- Build backend router component
+
+**Success Criteria**:
+- Analyze questions into semantic components
+- Match questions to relevant ontology elements
+- Route queries to appropriate backend
+
+#### Step 2.2: SPARQL Path Implementation
+- Implement `onto-query-sparql` service
+- Create SPARQL query generator using LLM
+- Develop prompt templates for SPARQL generation
+- Validate generated SPARQL syntax
+
+**Success Criteria**:
+- Generate valid SPARQL queries
+- Use appropriate SPARQL patterns
+- Handle complex query types
+
+#### Step 2.3: SPARQL-Cassandra Engine
+- Implement rdflib Store interface for Cassandra
+- Create CQL query translator
+- Optimize triple pattern matching
+- Handle SPARQL result formatting
+
+**Success Criteria**:
+- Execute SPARQL queries on Cassandra
+- Support common SPARQL patterns
+- Return results in standard format
+
+#### Step 2.4: Cypher Path Implementation
+- Implement `onto-query-cypher` service
+- Create Cypher query generator using LLM
+- Develop prompt templates for Cypher generation
+- Validate generated Cypher syntax
+
+**Success Criteria**:
+- Generate valid Cypher queries
+- Use appropriate graph patterns
+- Support Neo4j, Memgraph, FalkorDB
+
+#### Step 2.5: Cypher Executor
+- Implement multi-database Cypher executor
+- Support Bolt protocol (Neo4j/Memgraph)
+- Support Redis protocol (FalkorDB)
+- Handle result normalization
+
+**Success Criteria**:
+- Execute Cypher on all target databases
+- Handle database-specific differences
+- Maintain connection pools efficiently
+
+#### Step 2.6: Answer Generation
+- Implement answer generator component
+- Create prompts for answer synthesis
+- Format query results for LLM consumption
+- Generate natural language answers
+
+**Success Criteria**:
+- Generate accurate answers from query results
+- Maintain context from original question
+- Provide clear, concise responses
+
+### Phase 3: Optimization and Robustness
+
+**Goal**: Optimize performance, add caching, improve error handling, and enhance reliability.
+
+#### Step 3.1: Performance Optimization
+- Implement embedding caching
+- Add query result caching
+- Optimize vector search with FAISS IVF indexes
+- Implement batch processing for embeddings
+
+**Success Criteria**:
+- Reduce average query latency by 50%
+- Support 10x more concurrent requests
+- Maintain sub-second response times
+
+#### Step 3.2: Advanced Error Handling
+- Implement comprehensive error recovery
+- Add fallback mechanisms between query paths
+- Create retry logic with exponential backoff
+- Improve error logging and diagnostics
+
+**Success Criteria**:
+- Gracefully handle all failure scenarios
+- Automatic failover between backends
+- Detailed error reporting for debugging
+
+#### Step 3.3: Monitoring and Observability
+- Add performance metrics collection
+- Implement query tracing
+- Create health check endpoints
+- Add resource usage monitoring
+
+**Success Criteria**:
+- Track all key performance indicators
+- Identify bottlenecks quickly
+- Monitor system health in real-time
+
+#### Step 3.4: Configuration Management
+- Implement dynamic configuration updates
+- Add configuration validation
+- Create configuration templates
+- Support environment-specific settings
+
+**Success Criteria**:
+- Update configuration without restart
+- Validate all configuration changes
+- Support multiple deployment environments
+
+### Phase 4: Advanced Features
+
+**Goal**: Add sophisticated capabilities for production deployment and enhanced functionality.
+
+#### Step 4.1: Multi-Ontology Support
+- Implement ontology selection logic
+- Support cross-ontology queries
+- Handle ontology versioning
+- Create ontology merge capabilities
+
+**Success Criteria**:
+- Query across multiple ontologies
+- Handle ontology conflicts
+- Support ontology evolution
+
+#### Step 4.2: Intelligent Query Routing
+- Implement performance-based routing
+- Add query complexity analysis
+- Create adaptive routing algorithms
+- Support A/B testing for paths
+
+**Success Criteria**:
+- Route queries optimally
+- Learn from query performance
+- Improve routing over time
+
+#### Step 4.3: Advanced Extraction Features
+- Add confidence scoring for triples
+- Implement explanation generation
+- Create feedback loops for improvement
+- Support incremental learning
+
+**Success Criteria**:
+- Provide confidence scores
+- Explain extraction decisions
+- Continuously improve accuracy
+
+#### Step 4.4: Production Hardening
+- Add rate limiting
+- Implement authentication/authorization
+- Create deployment automation
+- Add backup and recovery
+
+**Success Criteria**:
+- Production-ready security
+- Automated deployment pipeline
+- Disaster recovery capability
+
+### Delivery Milestones
+
+1. **Milestone 1** (End of Phase 1): Basic ontology-driven extraction operational
+2. **Milestone 2** (End of Phase 2): Full query system with both SPARQL and Cypher paths
+3. **Milestone 3** (End of Phase 3): Optimized, robust system ready for staging
+4. **Milestone 4** (End of Phase 4): Production-ready system with advanced features
+
+### Risk Mitigation
+
+#### Technical Risks
+- **Vector Store Scalability**: Start with NumPy, migrate to FAISS gradually
+- **Query Generation Accuracy**: Implement validation and fallback mechanisms
+- **Backend Compatibility**: Test extensively with each database type
+- **Performance Bottlenecks**: Profile early and often, optimize iteratively
+
+#### Operational Risks
+- **Ontology Quality**: Implement validation and consistency checking
+- **Service Dependencies**: Add circuit breakers and fallbacks
+- **Resource Constraints**: Monitor and set appropriate limits
+- **Data Consistency**: Implement proper transaction handling
+
+### Success Metrics
+
+#### Phase 1 Success Metrics
+- Extraction accuracy: >90% ontology conformance
+- Processing speed: <1 second per chunk
+- Ontology load time: <10 seconds
+- Vector search latency: <100ms
+
+#### Phase 2 Success Metrics
+- Query success rate: >95%
+- Query latency: <2 seconds end-to-end
+- Backend compatibility: 100% for target databases
+- Answer accuracy: >85% based on available data
+
+#### Phase 3 Success Metrics
+- System uptime: >99.9%
+- Error recovery rate: >95%
+- Cache hit rate: >60%
+- Concurrent users: >100
+
+#### Phase 4 Success Metrics
+- Multi-ontology queries: Fully supported
+- Routing optimization: 30% latency reduction
+- Confidence scoring accuracy: >90%
+- Production deployment: Zero-downtime updates
+
 ## References
 
 - [OWL 2 Web Ontology Language](https://www.w3.org/TR/owl2-overview/)
@@ -1071,3 +1439,5 @@ onto-query:
 - [Sentence Transformers](https://www.sbert.net/)
 - [FAISS Vector Search](https://github.com/facebookresearch/faiss)
 - [spaCy NLP Library](https://spacy.io/)
+- [rdflib Documentation](https://rdflib.readthedocs.io/)
+- [Neo4j Bolt Protocol](https://neo4j.com/docs/bolt/current/)
