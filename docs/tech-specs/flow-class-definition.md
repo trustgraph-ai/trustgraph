@@ -6,7 +6,7 @@ A flow class defines a complete dataflow pattern template in the TrustGraph syst
 
 ## Structure
 
-A flow class definition consists of four main sections:
+A flow class definition consists of five main sections:
 
 ### 1. Class Section
 Defines shared service processors that are instantiated once per flow class. These processors handle requests from all flow instances of this class.
@@ -15,7 +15,11 @@ Defines shared service processors that are instantiated once per flow class. The
 "class": {
   "service-name:{class}": {
     "request": "queue-pattern:{class}",
-    "response": "queue-pattern:{class}"
+    "response": "queue-pattern:{class}",
+    "settings": {
+      "setting-name": "fixed-value",
+      "parameterized-setting": "{parameter-name}"
+    }
   }
 }
 ```
@@ -24,6 +28,7 @@ Defines shared service processors that are instantiated once per flow class. The
 - Shared across all flow instances of the same class
 - Typically expensive or stateless services (LLMs, embedding models)
 - Use `{class}` template variable for queue naming
+- Settings can be fixed values or parameterized with `{parameter-name}` syntax
 - Examples: `embeddings:{class}`, `text-completion:{class}`, `graph-rag:{class}`
 
 ### 2. Flow Section
@@ -33,7 +38,11 @@ Defines flow-specific processors that are instantiated for each individual flow 
 "flow": {
   "processor-name:{id}": {
     "input": "queue-pattern:{id}",
-    "output": "queue-pattern:{id}"
+    "output": "queue-pattern:{id}",
+    "settings": {
+      "setting-name": "fixed-value",
+      "parameterized-setting": "{parameter-name}"
+    }
   }
 }
 ```
@@ -42,6 +51,7 @@ Defines flow-specific processors that are instantiated for each individual flow 
 - Unique instance per flow
 - Handle flow-specific data and state
 - Use `{id}` template variable for queue naming
+- Settings can be fixed values or parameterized with `{parameter-name}` syntax
 - Examples: `chunker:{id}`, `pdf-decoder:{id}`, `kg-extract-relationships:{id}`
 
 ### 3. Interfaces Section
@@ -72,7 +82,24 @@ Interfaces can take two forms:
 - **Service Interfaces**: Request/response patterns for services (`embeddings`, `text-completion`)
 - **Data Interfaces**: Fire-and-forget data flow connection points (`triples-store`, `entity-contexts-load`)
 
-### 4. Metadata
+### 4. Parameters Section
+Maps flow-specific parameter names to centrally-stored parameter definitions:
+
+```json
+"parameters": {
+  "model": "llm-model",
+  "temp": "temperature",
+  "chunk": "chunk-size"
+}
+```
+
+**Characteristics:**
+- Keys are parameter names used in processor settings (e.g., `{model}`)
+- Values reference parameter definitions stored in schema/config
+- Enables reuse of common parameter definitions across flows
+- Reduces duplication of parameter schemas
+
+### 5. Metadata
 Additional information about the flow class:
 
 ```json
@@ -82,15 +109,97 @@ Additional information about the flow class:
 
 ## Template Variables
 
-### {id}
+### System Variables
+
+#### {id}
 - Replaced with the unique flow instance identifier
 - Creates isolated resources for each flow
 - Example: `flow-123`, `customer-A-flow`
 
-### {class}
+#### {class}
 - Replaced with the flow class name
 - Creates shared resources across flows of the same class
 - Example: `standard-rag`, `enterprise-rag`
+
+### Parameter Variables
+
+#### {parameter-name}
+- Custom parameters defined at flow launch time
+- Parameter names match keys in the flow's `parameters` section
+- Used in processor settings to customize behavior
+- Examples: `{model}`, `{temp}`, `{chunk}`
+- Replaced with values provided when launching the flow
+- Validated against centrally-stored parameter definitions
+
+## Processor Settings
+
+Settings provide configuration values to processors at instantiation time. They can be:
+
+### Fixed Settings
+Direct values that don't change:
+```json
+"settings": {
+  "model": "gemma3:12b",
+  "temperature": 0.7,
+  "max_retries": 3
+}
+```
+
+### Parameterized Settings
+Values that use parameters provided at flow launch:
+```json
+"settings": {
+  "model": "{model}",
+  "temperature": "{temp}",
+  "endpoint": "https://{region}.api.example.com"
+}
+```
+
+Parameter names in settings correspond to keys in the flow's `parameters` section.
+
+### Settings Examples
+
+**LLM Processor with Parameters:**
+```json
+// In parameters section:
+"parameters": {
+  "model": "llm-model",
+  "temp": "temperature",
+  "tokens": "max-tokens",
+  "key": "openai-api-key"
+}
+
+// In processor definition:
+"text-completion:{class}": {
+  "request": "non-persistent://tg/request/text-completion:{class}",
+  "response": "non-persistent://tg/response/text-completion:{class}",
+  "settings": {
+    "model": "{model}",
+    "temperature": "{temp}",
+    "max_tokens": "{tokens}",
+    "api_key": "{key}"
+  }
+}
+```
+
+**Chunker with Fixed and Parameterized Settings:**
+```json
+// In parameters section:
+"parameters": {
+  "chunk": "chunk-size"
+}
+
+// In processor definition:
+"chunker:{id}": {
+  "input": "persistent://tg/flow/chunk:{id}",
+  "output": "persistent://tg/flow/chunk-load:{id}",
+  "settings": {
+    "chunk_size": "{chunk}",
+    "chunk_overlap": 100,
+    "encoding": "utf-8"
+  }
+}
+```
 
 ## Queue Patterns (Pulsar)
 
@@ -137,15 +246,27 @@ All processors (both `{id}` and `{class}`) work together as a cohesive dataflow 
 Given:
 - Flow Instance ID: `customer-A-flow`
 - Flow Class: `standard-rag`
+- Flow parameter mappings:
+  - `"model": "llm-model"`
+  - `"temp": "temperature"`
+  - `"chunk": "chunk-size"`
+- User-provided parameters:
+  - `model`: `gpt-4`
+  - `temp`: `0.5`
+  - `chunk`: `512`
 
 Template expansions:
 - `persistent://tg/flow/chunk-load:{id}` → `persistent://tg/flow/chunk-load:customer-A-flow`
 - `non-persistent://tg/request/embeddings:{class}` → `non-persistent://tg/request/embeddings:standard-rag`
+- `"model": "{model}"` → `"model": "gpt-4"`
+- `"temperature": "{temp}"` → `"temperature": "0.5"`
+- `"chunk_size": "{chunk}"` → `"chunk_size": "512"`
 
 This creates:
 - Isolated document processing pipeline for `customer-A-flow`
 - Shared embedding service for all `standard-rag` flows
 - Complete dataflow from document ingestion through querying
+- Processors configured with the provided parameter values
 
 ## Benefits
 
