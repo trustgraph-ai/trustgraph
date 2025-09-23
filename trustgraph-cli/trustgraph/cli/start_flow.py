@@ -54,12 +54,12 @@ def main():
 
     parser.add_argument(
         '-p', '--parameters',
-        help=f'Flow parameters as JSON string (e.g., \'{"model": "gpt-4", "temp": 0.7}\')',
+        help='Flow parameters as JSON string (e.g., \'{"model": "gpt-4", "temp": 0.7}\')',
     )
 
     parser.add_argument(
         '--parameters-file',
-        help=f'Path to JSON file containing flow parameters',
+        help='Path to JSON file containing flow parameters',
     )
 
     args = parser.parse_args()
