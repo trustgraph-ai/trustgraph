@@ -74,6 +74,13 @@ def show_flows(url):
         table.append(("id", id))
         table.append(("class", flow.get("class-name", "")))
         table.append(("desc", flow.get("description", "")))
+
+        # Display parameters if they exist
+        parameters = flow.get("parameters", {})
+        if parameters:
+            param_str = json.dumps(parameters, indent=2)
+            table.append(("parameters", param_str))
+
         table.append(("queue", describe_interfaces(interface_defs, flow)))
 
         print(tabulate.tabulate(
