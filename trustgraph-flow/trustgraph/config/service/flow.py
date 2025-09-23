@@ -68,11 +68,14 @@ class FlowConfig:
     
     async def handle_get_flow(self, msg):
 
-        flow = await self.config.get("flows").get(msg.flow_id)
+        flow_data = await self.config.get("flows").get(msg.flow_id)
+        flow = json.loads(flow_data)
 
         return FlowResponse(
             error = None,
-            flow = flow,
+            flow = flow_data,
+            description = flow.get("description", ""),
+            parameters = flow.get("parameters", {}),
         )
     
     async def handle_start_flow(self, msg):
@@ -92,16 +95,24 @@ class FlowConfig:
         if msg.class_name not in await self.config.get("flow-classes").values():
             raise RuntimeError("Class does not exist")
 
-        def repl_template(tmp):
-            return tmp.replace(
+        cls = json.loads(
+            await self.config.get("flow-classes").get(msg.class_name)
+        )
+
+        # Get parameters from message (default to empty dict if not provided)
+        parameters = msg.parameters if msg.parameters else {}
+
+        # Apply parameter substitution to template replacement function
+        def repl_template_with_params(tmp):
+            result = tmp.replace(
                 "{class}", msg.class_name
             ).replace(
                 "{id}", msg.flow_id
             )
-
-        cls = json.loads(
-            await self.config.get("flow-classes").get(msg.class_name)
-        )
+            # Apply parameter substitutions
+            for param_name, param_value in parameters.items():
+                result = result.replace(f"{{{param_name}}}", str(param_value))
+            return result
 
         for kind in ("class", "flow"):
 
@@ -109,10 +120,10 @@ class FlowConfig:
 
                 processor, variant = k.split(":", 1)
 
-                variant = repl_template(variant)
+                variant = repl_template_with_params(variant)
 
                 v = {
-                    repl_template(k2): repl_template(v2)
+                    repl_template_with_params(k2): repl_template_with_params(v2)
                     for k2, v2 in v.items()
                 }
 
@@ -131,10 +142,10 @@ class FlowConfig:
 
         def repl_interface(i):
             if isinstance(i, str):
-                return repl_template(i)
+                return repl_template_with_params(i)
             else:
                 return {
-                    k: repl_template(v)
+                    k: repl_template_with_params(v)
                     for k, v in i.items()
                 }
 
@@ -152,6 +163,7 @@ class FlowConfig:
                 "description": msg.description,
                 "class-name": msg.class_name,
                 "interfaces": interfaces,
+                "parameters": parameters,
             })
         )
 
@@ -177,15 +189,20 @@ class FlowConfig:
             raise RuntimeError("Internal error: flow has no flow class")
 
         class_name = flow["class-name"]
+        parameters = flow.get("parameters", {})
 
         cls = json.loads(await self.config.get("flow-classes").get(class_name))
 
         def repl_template(tmp):
-            return tmp.replace(
+            result = tmp.replace(
                 "{class}", class_name
             ).replace(
                 "{id}", msg.flow_id
             )
+            # Apply parameter substitutions
+            for param_name, param_value in parameters.items():
+                result = result.replace(f"{{{param_name}}}", str(param_value))
+            return result
 
         for kind in ("flow",):
 

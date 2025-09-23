@@ -10,7 +10,7 @@ import json
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 
-def start_flow(url, class_name, flow_id, description):
+def start_flow(url, class_name, flow_id, description, parameters=None):
 
     api = Api(url).flow()
 
@@ -18,6 +18,7 @@ def start_flow(url, class_name, flow_id, description):
         class_name = class_name,
         id = flow_id,
         description = description,
+        parameters = parameters,
     )
 
 def main():
@@ -51,15 +52,34 @@ def main():
         help=f'Flow description',
     )
 
+    parser.add_argument(
+        '-p', '--parameters',
+        help=f'Flow parameters as JSON string (e.g., \'{"model": "gpt-4", "temp": 0.7}\')',
+    )
+
+    parser.add_argument(
+        '--parameters-file',
+        help=f'Path to JSON file containing flow parameters',
+    )
+
     args = parser.parse_args()
 
     try:
+        # Parse parameters from command line arguments
+        parameters = None
+
+        if args.parameters_file:
+            with open(args.parameters_file, 'r') as f:
+                parameters = json.load(f)
+        elif args.parameters:
+            parameters = json.loads(args.parameters)
 
         start_flow(
             url = args.api_url,
             class_name = args.class_name,
             flow_id = args.flow_id,
             description = args.description,
+            parameters = parameters,
         )
 
     except Exception as e:
