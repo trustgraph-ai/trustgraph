@@ -2,43 +2,43 @@
 
 ## Overview
 
-This specification describes the implementation of configurable parameters for flow classes in TrustGraph. Parameters enable users to customize processor settings at flow launch time by providing values that replace parameter placeholders in the flow class definition.
+This specification describes the implementation of configurable parameters for flow classes in TrustGraph. Parameters enable users to customize processor parameters at flow launch time by providing values that replace parameter placeholders in the flow class definition.
 
-Parameters work through template variable substitution in processor settings, similar to how `{id}` and `{class}` variables work, but with user-provided values.
+Parameters work through template variable substitution in processor parameters, similar to how `{id}` and `{class}` variables work, but with user-provided values.
 
 The integration supports four primary use cases:
 
 1. **Model Selection**: Allowing users to choose different LLM models (e.g., `gemma3:8b`, `gpt-4`, `claude-3`) for processors
-2. **Resource Configuration**: Adjusting processor settings like chunk sizes, batch sizes, and concurrency limits
+2. **Resource Configuration**: Adjusting processor parameters like chunk sizes, batch sizes, and concurrency limits
 3. **Behavioral Tuning**: Modifying processor behavior through parameters like temperature, max-tokens, or retrieval thresholds
-4. **Environment-Specific Settings**: Configuring endpoints, API keys, or region-specific URLs per deployment
+4. **Environment-Specific Parameters**: Configuring endpoints, API keys, or region-specific URLs per deployment
 
 ## Goals
 
-- **Dynamic Processor Configuration**: Enable runtime configuration of processor settings through parameter substitution
+- **Dynamic Processor Configuration**: Enable runtime configuration of processor parameters through parameter substitution
 - **Parameter Validation**: Provide type checking and validation for parameters at flow launch time
 - **Default Values**: Support sensible defaults while allowing overrides for advanced users
-- **Template Substitution**: Seamlessly replace parameter placeholders in processor settings
+- **Template Substitution**: Seamlessly replace parameter placeholders in processor parameters
 - **UI Integration**: Enable parameter input through both API and UI interfaces
-- **Type Safety**: Ensure parameter types match expected processor setting types
+- **Type Safety**: Ensure parameter types match expected processor parameter types
 - **Documentation**: Self-documenting parameter schemas within flow class definitions
 - **Backward Compatibility**: Maintain compatibility with existing flow classes that don't use parameters
 
 ## Background
 
-Flow classes in TrustGraph now support processor settings that can contain either fixed values or parameter placeholders. This creates an opportunity for runtime customization.
+Flow classes in TrustGraph now support processor parameters that can contain either fixed values or parameter placeholders. This creates an opportunity for runtime customization.
 
-Current processor settings support:
+Current processor parameters support:
 - Fixed values: `"model": "gemma3:12b"`
 - Parameter placeholders: `"model": "gemma3:{model-size}"`
 
 This specification defines how parameters are:
 - Declared in flow class definitions
 - Validated when flows are launched
-- Substituted in processor settings
+- Substituted in processor parameters
 - Exposed through APIs and UI
 
-By leveraging parameterized processor settings, TrustGraph can:
+By leveraging parameterized processor parameters, TrustGraph can:
 - Reduce flow class duplication by using parameters for variations
 - Enable users to tune processor behavior without modifying definitions
 - Support environment-specific configurations through parameter values
@@ -144,7 +144,7 @@ Flow classes reference parameter definitions by name:
     "text-completion:{class}": {
       "request": "non-persistent://tg/request/text-completion:{class}",
       "response": "non-persistent://tg/response/text-completion:{class}",
-      "settings": {
+      "parameters": {
         "model": "{model}",
         "temperature": "{temp}"
       }
@@ -154,7 +154,7 @@ Flow classes reference parameter definitions by name:
     "chunker:{id}": {
       "input": "persistent://tg/flow/chunk:{id}",
       "output": "persistent://tg/flow/chunk-load:{id}",
-      "settings": {
+      "parameters": {
         "chunk_size": "{chunk}",
         "chunk_overlap": 100
       }
@@ -193,7 +193,7 @@ The flow launch API accepts parameters using the flow's parameter names:
 The system will:
 1. Map flow parameter names to their definitions (e.g., `model` → `llm-model`)
 2. Validate values against the parameter definitions
-3. Substitute values into processor settings during flow instantiation
+3. Substitute values into processor parameters during flow instantiation
 
 ### Implementation Details
 
@@ -203,8 +203,8 @@ The system will:
 2. **Definition Lookup**: Retrieve parameter definitions from schema/config store
 3. **Validation**: Validate user-provided parameters against definitions
 4. **Default Application**: Apply default values for missing parameters
-5. **Template Substitution**: Replace parameter placeholders in processor settings
-6. **Processor Instantiation**: Create processors with substituted settings
+5. **Template Substitution**: Replace parameter placeholders in processor parameters
+6. **Processor Instantiation**: Create processors with substituted parameters
 
 #### Pulsar Integration
 
@@ -250,7 +250,6 @@ The system will:
    - The config manager needs to store both the original user-provided parameters and the resolved values (with defaults applied)
    - Flow objects in the config system should include:
      - `parameters`: The final resolved parameter values used for the flow
-     - `parameter_definitions`: Reference to the parameter schema used for validation
 
 #### CLI Integration
 
@@ -267,20 +266,20 @@ The system will:
 
 #### Processor Base Class Integration
 
-5. **SettingsSpec Support**
-   - Processor base classes need to support parameter substitution through the existing SettingsSpec mechanism
-   - The SettingsSpec class (located in the same module as ConsumerSpec and ProducerSpec) should be enhanced if necessary to support parameter template substitution
-   - Processors should be able to invoke SettingsSpec to configure their settings with parameter values resolved at flow launch time
-   - The SettingsSpec implementation needs to:
-     - Accept settings configurations that contain parameter placeholders (e.g., `{model}`, `{temperature}`)
+5. **ParameterSpec Support**
+   - Processor base classes need to support parameter substitution through the existing ParametersSpec mechanism
+   - The ParametersSpec class (located in the same module as ConsumerSpec and ProducerSpec) should be enhanced if necessary to support parameter template substitution
+   - Processors should be able to invoke ParametersSpec to configure their parameters with parameter values resolved at flow launch time
+   - The ParametersSpec implementation needs to:
+     - Accept parameters configurations that contain parameter placeholders (e.g., `{model}`, `{temperature}`)
      - Support runtime parameter substitution when the processor is instantiated
      - Validate that substituted values match expected types and constraints
      - Provide error handling for missing or invalid parameter references
 
 #### Substitution Rules
 
-- Parameters use the format `{parameter-name}` in processor settings
-- Parameter names in settings match the keys in the flow's `parameters` section
+- Parameters use the format `{parameter-name}` in processor parameters
+- Parameter names in parameters match the keys in the flow's `parameters` section
 - Substitution occurs alongside `{id}` and `{class}` replacement
 - Invalid parameter references result in launch-time errors
 - Type validation happens based on the centrally-stored parameter definition
@@ -288,15 +287,15 @@ The system will:
 Example resolution:
 ```
 Flow parameter mapping: "model": "llm-model"
-Processor setting: "model": "{model}"
+Processor parameter: "model": "{model}"
 User provides: "model": "gemma3:8b"
-Final setting: "model": "gemma3:8b"
+Final parameter: "model": "gemma3:8b"
 ```
 
 ## Testing Strategy
 
 - Unit tests for parameter schema validation
-- Integration tests for parameter substitution in processor settings
+- Integration tests for parameter substitution in processor parameters
 - End-to-end tests for launching flows with different parameter values
 - UI tests for parameter form generation and validation
 - Performance tests for flows with many parameters
@@ -317,8 +316,8 @@ A: The parameter values will be string encoded, we're probably going to want
    to stick to strings.
 
 Q: Should parameter placeholders be allowed in queue names or only in
-   settings?
-A: Only in settings to remove strange injections and edge-cases.
+   parameters?
+A: Only in parameters to remove strange injections and edge-cases.
 
 Q: How to handle conflicts between parameter names and system variables like
    `id` and `class`?
