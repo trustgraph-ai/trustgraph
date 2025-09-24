@@ -183,13 +183,13 @@ class Processor(LlmService):
             }
         )
 
-        self.model = model
+        # Store default configuration
+        self.default_model = model
         self.temperature = temperature
         self.max_output = max_output
 
-        self.variant = self.determine_variant(self.model)()
-        self.variant.set_temperature(temperature)
-        self.variant.set_max_output(max_output)
+        # Cache for model variants to avoid re-initialization
+        self.model_variants = {}
 
         self.session = boto3.Session(
             aws_access_key_id=aws_access_key_id,
@@ -208,47 +208,66 @@ class Processor(LlmService):
         # FIXME: Missing, Amazon models, Deepseek
 
         # This set of conditions deals with normal bedrock on-demand usage
-        if self.model.startswith("mistral"):
+        if model.startswith("mistral"):
             return Mistral
-        elif self.model.startswith("meta"):
+        elif model.startswith("meta"):
             return Meta
-        elif self.model.startswith("anthropic"):
+        elif model.startswith("anthropic"):
             return Anthropic
-        elif self.model.startswith("ai21"):
+        elif model.startswith("ai21"):
             return Ai21
-        elif self.model.startswith("cohere"):
+        elif model.startswith("cohere"):
             return Cohere
 
         # The inference profiles
-        if self.model.startswith("us.meta"):
+        if model.startswith("us.meta"):
             return Meta
-        elif self.model.startswith("us.anthropic"):
+        elif model.startswith("us.anthropic"):
             return Anthropic
-        elif self.model.startswith("eu.meta"):
+        elif model.startswith("eu.meta"):
             return Meta
-        elif self.model.startswith("eu.anthropic"):
+        elif model.startswith("eu.anthropic"):
             return Anthropic
 
         return Default
                         
-    async def generate_content(self, system, prompt):
+    def _get_or_create_variant(self, model_name):
+        """Get cached model variant or create new one"""
+        if model_name not in self.model_variants:
+            logger.info(f"Creating model variant for '{model_name}'")
+            variant_class = self.determine_variant(model_name)
+            variant = variant_class()
+            variant.set_temperature(self.temperature)
+            variant.set_max_output(self.max_output)
+            self.model_variants[model_name] = variant
+
+        return self.model_variants[model_name]
+
+    async def generate_content(self, system, prompt, model=None):
+
+        # Use provided model or fall back to default
+        model_name = model or self.default_model
+
+        logger.debug(f"Using model: {model_name}")
 
         try:
+            # Get the appropriate variant for this model
+            variant = self._get_or_create_variant(model_name)
 
-            promptbody = self.variant.encode_request(system, prompt)
+            promptbody = variant.encode_request(system, prompt)
 
             accept = 'application/json'
             contentType = 'application/json'
 
             response = self.bedrock.invoke_model(
                 body=promptbody,
-                modelId=self.model,
+                modelId=model_name,
                 accept=accept,
                 contentType=contentType
             )
 
             # Response structure decode
-            outputtext = self.variant.decode_response(response)
+            outputtext = variant.decode_response(response)
 
             metadata = response['ResponseMetadata']['HTTPHeaders']
             inputtokens = int(metadata['x-amzn-bedrock-input-token-count'])
@@ -262,7 +281,7 @@ class Processor(LlmService):
                 text = outputtext,
                 in_token = inputtokens,
                 out_token = outputtokens,
-                model = self.model
+                model = model_name
             )
 
             return resp
