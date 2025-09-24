@@ -18,6 +18,7 @@ Supports both Google's Gemini models and Anthropic's Claude models.
 
 from google.oauth2 import service_account
 import google.auth
+import google.api_core.exceptions
 import vertexai
 import logging
 
@@ -59,8 +60,17 @@ class Processor(LlmService):
 
         super(Processor, self).__init__(**params)
 
-        self.model = model
-        self.is_anthropic = 'claude' in self.model.lower()
+        # Store default model and configuration parameters
+        self.default_model = model
+        self.region = region
+        self.temperature = temperature
+        self.max_output = max_output
+        self.private_key = private_key
+
+        # Model client caches
+        self.model_clients = {}  # Cache for model instances
+        self.generation_configs = {}  # Cache for generation configs (Gemini only)
+        self.anthropic_client = None  # Single Anthropic client (handles multiple models)
 
         # Shared parameters for both model types
         self.api_params = {
@@ -89,71 +99,91 @@ class Processor(LlmService):
                 "Ensure it's set in your environment or service account."
             )
 
-        # Initialize the appropriate client based on the model type
-        if self.is_anthropic:
-            logger.info(f"Initializing Anthropic model '{model}' via AnthropicVertex SDK")
-            # Initialize AnthropicVertex with credentials if provided, otherwise use ADC
-            anthropic_kwargs = {'region': region, 'project_id': project_id}
-            if credentials and private_key:  # Pass credentials only if from a file
-                anthropic_kwargs['credentials'] = credentials
-                logger.debug(f"Using service account credentials for Anthropic model")
-            else:
-                logger.debug(f"Using Application Default Credentials for Anthropic model")
-            
-            self.llm = AnthropicVertex(**anthropic_kwargs)
-        else:
-            # For Gemini models, initialize the Vertex AI SDK
-            logger.info(f"Initializing Google model '{model}' via Vertex AI SDK")
-            init_kwargs = {'location': region, 'project': project_id}
-            if credentials and private_key: # Pass credentials only if from a file
-                init_kwargs['credentials'] = credentials
-            
-            vertexai.init(**init_kwargs)
+        # Store credentials and project info for later use
+        self.credentials = credentials
+        self.project_id = project_id
 
-            self.llm = GenerativeModel(model)
+        # Initialize Vertex AI SDK for Gemini models
+        init_kwargs = {'location': region, 'project': project_id}
+        if credentials and private_key: # Pass credentials only if from a file
+            init_kwargs['credentials'] = credentials
 
-            self.generation_config = GenerationConfig(
-                temperature=temperature,
-                top_p=1.0,
-                top_k=10,
-                candidate_count=1,
-                max_output_tokens=max_output,
-            )
+        vertexai.init(**init_kwargs)
 
-            # Block none doesn't seem to work
-            block_level = HarmBlockThreshold.BLOCK_ONLY_HIGH
-            #     block_level = HarmBlockThreshold.BLOCK_NONE
+        # Pre-initialize Anthropic client if needed (single client handles all Claude models)
+        if 'claude' in self.default_model.lower():
+            self._get_anthropic_client()
 
-            self.safety_settings = [
-                SafetySetting(
-                    category = HarmCategory.HARM_CATEGORY_HARASSMENT,
-                    threshold = block_level,
-                ),
-                SafetySetting(
-                    category = HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-                    threshold = block_level,
-                ),
-                SafetySetting(
-                    category = HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-                    threshold = block_level,
-                ),
-                SafetySetting(
-                    category = HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-                    threshold = block_level,
-                ),
-            ]
-
+        # Safety settings for Gemini models
+        block_level = HarmBlockThreshold.BLOCK_ONLY_HIGH
+        self.safety_settings = [
+            SafetySetting(
+                category = HarmCategory.HARM_CATEGORY_HARASSMENT,
+                threshold = block_level,
+            ),
+            SafetySetting(
+                category = HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                threshold = block_level,
+            ),
+            SafetySetting(
+                category = HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                threshold = block_level,
+            ),
+            SafetySetting(
+                category = HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                threshold = block_level,
+            ),
+        ]
 
         logger.info("VertexAI initialization complete")
 
-    async def generate_content(self, system, prompt):
+    def _get_anthropic_client(self):
+        """Get or create the Anthropic client (single client for all Claude models)"""
+        if self.anthropic_client is None:
+            logger.info(f"Initializing AnthropicVertex client")
+            anthropic_kwargs = {'region': self.region, 'project_id': self.project_id}
+            if self.credentials and self.private_key:  # Pass credentials only if from a file
+                anthropic_kwargs['credentials'] = self.credentials
+                logger.debug(f"Using service account credentials for Anthropic models")
+            else:
+                logger.debug(f"Using Application Default Credentials for Anthropic models")
+
+            self.anthropic_client = AnthropicVertex(**anthropic_kwargs)
+
+        return self.anthropic_client
+
+    def _get_gemini_model(self, model_name):
+        """Get or create a Gemini model instance"""
+        if model_name not in self.model_clients:
+            logger.info(f"Creating GenerativeModel instance for '{model_name}'")
+            self.model_clients[model_name] = GenerativeModel(model_name)
+
+            # Create generation config for this model
+            self.generation_configs[model_name] = GenerationConfig(
+                temperature=self.temperature,
+                top_p=1.0,
+                top_k=10,
+                candidate_count=1,
+                max_output_tokens=self.max_output,
+            )
+
+        return self.model_clients[model_name], self.generation_configs[model_name]
+
+    async def generate_content(self, system, prompt, model=None):
+
+        # Use provided model or fall back to default
+        model_name = model or self.default_model
+
+        logger.debug(f"Using model: {model_name}")
 
         try:
-            if self.is_anthropic:
+            if 'claude' in model_name.lower():
                 # Anthropic API uses a dedicated system prompt
-                logger.debug("Sending request to Anthropic model...")
-                response = self.llm.messages.create(
-                    model=self.model,
+                logger.debug(f"Sending request to Anthropic model '{model_name}'...")
+                client = self._get_anthropic_client()
+
+                response = client.messages.create(
+                    model=model_name,
                     system=system,
                     messages=[{"role": "user", "content": prompt}],
                     max_tokens=self.api_params['max_output_tokens'],
@@ -166,15 +196,17 @@ class Processor(LlmService):
                     text=response.content[0].text,
                     in_token=response.usage.input_tokens,
                     out_token=response.usage.output_tokens,
-                    model=self.model
+                    model=model_name
                 )
             else:
                 # Gemini API combines system and user prompts
-                logger.debug("Sending request to Gemini model...")
+                logger.debug(f"Sending request to Gemini model '{model_name}'...")
                 full_prompt = system + "\n\n" + prompt
 
-                response = self.llm.generate_content(
-                    full_prompt, generation_config = self.generation_config,
+                llm, generation_config = self._get_gemini_model(model_name)
+
+                response = llm.generate_content(
+                    full_prompt, generation_config = generation_config,
                     safety_settings = self.safety_settings,
                 )
 
@@ -182,7 +214,7 @@ class Processor(LlmService):
                     text = response.text,
                     in_token = response.usage_metadata.prompt_token_count,
                     out_token = response.usage_metadata.candidates_token_count,
-                    model = self.model
+                    model = model_name
                 )
 
             logger.info(f"Input Tokens: {resp.in_token}")

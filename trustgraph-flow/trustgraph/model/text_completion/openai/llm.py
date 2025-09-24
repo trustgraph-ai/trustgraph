@@ -47,7 +47,7 @@ class Processor(LlmService):
             }
         )
 
-        self.model = model
+        self.default_model = model
         self.temperature = temperature
         self.max_output = max_output
 
@@ -58,14 +58,19 @@ class Processor(LlmService):
 
         logger.info("OpenAI LLM service initialized")
 
-    async def generate_content(self, system, prompt):
+    async def generate_content(self, system, prompt, model=None):
+
+        # Use provided model or fall back to default
+        model_name = model or self.default_model
+
+        logger.debug(f"Using model: {model_name}")
 
         prompt = system + "\n\n" + prompt
 
         try:
 
             resp = self.openai.chat.completions.create(
-                model=self.model,
+                model=model_name,
                 messages=[
                     {
                         "role": "user",
@@ -97,7 +102,7 @@ class Processor(LlmService):
                 text = resp.choices[0].message.content,
                 in_token = inputtokens,
                 out_token = outputtokens,
-                model = self.model
+                model = model_name
             )
 
             return resp

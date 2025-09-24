@@ -80,11 +80,6 @@ class LlmService(FlowProcessor):
 
         try:
 
-            try:
-                logger.debug(f"MODEL IS {flow('model')}")
-            except:
-                logger.debug(f"CAN'T GET MODEL")
-
             request = msg.value()
 
             # Sender-produced ID
@@ -96,8 +91,10 @@ class LlmService(FlowProcessor):
                     flow=f"{flow.name}-{consumer.name}",
             ).time():
 
+                model = flow("model")
+
                 response = await self.generate_content(
-                    request.system, request.prompt
+                    request.system, request.prompt, model
                 )
 
             await flow("response").send(

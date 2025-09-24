@@ -32,7 +32,7 @@ class Processor(LlmService):
         token = params.get("token", default_token)
         temperature = params.get("temperature", default_temperature)
         max_output = params.get("max_output", default_max_output)
-        model = default_model
+        model = params.get("model", default_model)
 
         if endpoint is None:
             raise RuntimeError("Azure endpoint not specified")
@@ -53,7 +53,7 @@ class Processor(LlmService):
         self.token = token
         self.temperature = temperature
         self.max_output = max_output
-        self.model = model
+        self.default_model = model
 
     def build_prompt(self, system, content):
 
@@ -100,7 +100,12 @@ class Processor(LlmService):
 
         return result
 
-    async def generate_content(self, system, prompt):
+    async def generate_content(self, system, prompt, model=None):
+
+        # Use provided model or fall back to default
+        model_name = model or self.default_model
+
+        logger.debug(f"Using model: {model_name}")
 
         try:
 
@@ -125,7 +130,7 @@ class Processor(LlmService):
                 text = resp,
                 in_token = inputtokens,
                 out_token = outputtokens,
-                model = self.model
+                model = model_name
             )
 
             return resp

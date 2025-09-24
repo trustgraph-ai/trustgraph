@@ -53,9 +53,12 @@ class Processor(LlmService):
         )
 
         self.client = genai.Client(api_key=api_key)
-        self.model = model
+        self.default_model = model
         self.temperature = temperature
         self.max_output = max_output
+
+        # Cache for generation configs per model
+        self.generation_configs = {}
 
         block_level = HarmBlockThreshold.BLOCK_ONLY_HIGH
 
@@ -83,22 +86,36 @@ class Processor(LlmService):
 
         logger.info("GoogleAIStudio LLM service initialized")
 
-    async def generate_content(self, system, prompt):
+    def _get_or_create_config(self, model_name):
+        """Get cached generation config or create new one"""
+        if model_name not in self.generation_configs:
+            logger.info(f"Creating generation config for '{model_name}'")
+            self.generation_configs[model_name] = types.GenerateContentConfig(
+                temperature = self.temperature,
+                top_p = 1,
+                top_k = 40,
+                max_output_tokens = self.max_output,
+                response_mime_type = "text/plain",
+                safety_settings = self.safety_settings,
+            )
 
-        generation_config = types.GenerateContentConfig(
-            temperature = self.temperature,
-            top_p = 1,
-            top_k = 40,
-            max_output_tokens = self.max_output,
-            response_mime_type = "text/plain",
-            system_instruction = system,
-            safety_settings = self.safety_settings,
-        )
+        return self.generation_configs[model_name]
+
+    async def generate_content(self, system, prompt, model=None):
+
+        # Use provided model or fall back to default
+        model_name = model or self.default_model
+
+        logger.debug(f"Using model: {model_name}")
+
+        generation_config = self._get_or_create_config(model_name)
+        # Set system instruction per request (can't be cached)
+        generation_config.system_instruction = system
 
         try:
 
             response = self.client.models.generate_content(
-                model=self.model,
+                model=model_name,
                 config=generation_config,
                 contents=prompt,
             )
@@ -114,7 +131,7 @@ class Processor(LlmService):
                 text = resp,
                 in_token = inputtokens,
                 out_token = outputtokens,
-                model = self.model
+                model = model_name
             )
 
             return resp

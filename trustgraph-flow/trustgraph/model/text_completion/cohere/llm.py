@@ -39,18 +39,23 @@ class Processor(LlmService):
             }
         )
 
-        self.model = model
+        self.default_model = model
         self.temperature = temperature
         self.cohere = cohere.Client(api_key=api_key)
 
         logger.info("Cohere LLM service initialized")
 
-    async def generate_content(self, system, prompt):
+    async def generate_content(self, system, prompt, model=None):
+
+        # Use provided model or fall back to default
+        model_name = model or self.default_model
+
+        logger.debug(f"Using model: {model_name}")
 
         try:
 
-            output = self.cohere.chat( 
-                model=self.model,
+            output = self.cohere.chat(
+                model=model_name,
                 message=prompt,
                 preamble = system,
                 temperature=self.temperature,
@@ -71,7 +76,7 @@ class Processor(LlmService):
                 text = resp,
                 in_token = inputtokens,
                 out_token = outputtokens,
-                model = self.model
+                model = model_name
             )
 
             return resp

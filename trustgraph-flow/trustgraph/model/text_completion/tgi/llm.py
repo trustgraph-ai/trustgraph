@@ -30,32 +30,40 @@ class Processor(LlmService):
         base_url = params.get("url", default_base_url)
         temperature = params.get("temperature", default_temperature)
         max_output = params.get("max_output", default_max_output)
+        model = params.get("model", "tgi")
 
         super(Processor, self).__init__(
             **params | {
                 "temperature": temperature,
                 "max_output": max_output,
                 "url": base_url,
+                "model": model,
             }
         )
 
         self.base_url = base_url
         self.temperature = temperature
         self.max_output = max_output
+        self.default_model = model
 
         self.session = aiohttp.ClientSession()
 
         logger.info(f"Using TGI service at {base_url}")
         logger.info("TGI LLM service initialized")
 
-    async def generate_content(self, system, prompt):
+    async def generate_content(self, system, prompt, model=None):
+
+        # Use provided model or fall back to default
+        model_name = model or self.default_model
+
+        logger.debug(f"Using model: {model_name}")
 
         headers = {
             "Content-Type": "application/json",
         }
 
         request = {
-            "model": "tgi",
+            "model": model_name,
             "messages": [
                 {
                     "role": "system",
@@ -96,7 +104,7 @@ class Processor(LlmService):
                 text = ans,
                 in_token = inputtokens,
                 out_token = outputtokens,
-                model = "tgi",
+                model = model_name,
             )
 
             return resp
