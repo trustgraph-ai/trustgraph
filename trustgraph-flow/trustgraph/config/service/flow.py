@@ -86,13 +86,13 @@ class FlowConfig:
         if msg.flow_id is None:
             raise RuntimeError("No flow ID")
 
-        if msg.flow_id in await self.config.get("flows").values():
+        if msg.flow_id in await self.config.get("flows").keys():
             raise RuntimeError("Flow already exists")
 
         if msg.description is None:
             raise RuntimeError("No description")
 
-        if msg.class_name not in await self.config.get("flow-classes").values():
+        if msg.class_name not in await self.config.get("flow-classes").keys():
             raise RuntimeError("Class does not exist")
 
         cls = json.loads(
@@ -104,6 +104,7 @@ class FlowConfig:
 
         # Apply parameter substitution to template replacement function
         def repl_template_with_params(tmp):
+
             result = tmp.replace(
                 "{class}", msg.class_name
             ).replace(
@@ -112,6 +113,7 @@ class FlowConfig:
             # Apply parameter substitutions
             for param_name, param_value in parameters.items():
                 result = result.replace(f"{{{param_name}}}", str(param_value))
+
             return result
 
         for kind in ("class", "flow"):
@@ -127,11 +129,16 @@ class FlowConfig:
                     for k2, v2 in v.items()
                 }
 
-                flac = await self.config.get("flows-active").values()
-                if processor in flac:
-                    target = json.loads(flac[processor])
+                flac = await self.config.get("flows-active").get(processor)
+                if flac is not None:
+                    target = json.loads(flac)
                 else:
                     target = {}
+
+                # The condition if variant not in target: means it only adds
+                # the configuration if the variant doesn't already exist.
+                # If "everything" already exists in the target with old
+                # values, they won't update.
 
                 if variant not in target:
                     target[variant] = v
@@ -212,10 +219,10 @@ class FlowConfig:
 
                 variant = repl_template(variant)
 
-                flac = await self.config.get("flows-active").values()
+                flac = await self.config.get("flows-active").get(processor)
 
-                if processor in flac:
-                    target = json.loads(flac[processor])
+                if flac is not None:
+                    target = json.loads(flac)
                 else:
                     target = {}
 
@@ -226,7 +233,7 @@ class FlowConfig:
                     processor, json.dumps(target)
                 )
 
-        if msg.flow_id in await self.config.get("flows").values():
+        if msg.flow_id in await self.config.get("flows").keys():
             await self.config.get("flows").delete(msg.flow_id)
 
         await self.config.inc_version()

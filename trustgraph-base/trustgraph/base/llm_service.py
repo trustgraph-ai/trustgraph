@@ -9,7 +9,7 @@ from prometheus_client import Histogram
 
 from .. schema import TextCompletionRequest, TextCompletionResponse, Error
 from .. exceptions import TooManyRequests
-from .. base import FlowProcessor, ConsumerSpec, ProducerSpec
+from .. base import FlowProcessor, ConsumerSpec, ProducerSpec, ParameterSpec
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -56,6 +56,12 @@ class LlmService(FlowProcessor):
             )
         )
 
+        self.register_specification(
+            ParameterSpec(
+                name = "model",
+            )
+        )
+
         if not hasattr(__class__, "text_completion_metric"):
             __class__.text_completion_metric = Histogram(
                 'text_completion_duration',
@@ -73,6 +79,11 @@ class LlmService(FlowProcessor):
     async def on_request(self, msg, consumer, flow):
 
         try:
+
+            try:
+                logger.debug(f"MODEL IS {flow('model')}")
+            except:
+                logger.debug(f"CAN'T GET MODEL")
 
             request = msg.value()
 

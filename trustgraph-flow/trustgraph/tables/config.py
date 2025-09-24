@@ -145,7 +145,7 @@ class ConfigTableStore:
         """)
 
         self.get_all_stmt = self.cassandra.prepare("""
-            SELECT class, key, value FROM config;
+            SELECT class AS cls, key, value FROM config;
         """)
 
         self.get_values_stmt = self.cassandra.prepare("""
