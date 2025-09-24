@@ -33,16 +33,21 @@ class Processor(LlmService):
             }
         )
 
-        self.model = model
+        self.default_model = model
         self.llm = Client(host=ollama)
 
-    async def generate_content(self, system, prompt):
+    async def generate_content(self, system, prompt, model=None):
+
+        # Use provided model or fall back to default
+        model_name = model or self.default_model
+
+        logger.debug(f"Using model: {model_name}")
 
         prompt = system + "\n\n" + prompt
 
         try:
 
-            response = self.llm.generate(self.model, prompt)
+            response = self.llm.generate(model_name, prompt)
 
             response_text = response['response']
             logger.debug("Sending response...")
@@ -55,7 +60,7 @@ class Processor(LlmService):
                 text = response_text,
                 in_token = inputtokens,
                 out_token = outputtokens,
-                model = self.model
+                model = model_name
             )
 
             return resp
