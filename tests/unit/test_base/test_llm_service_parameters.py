@@ -15,6 +15,7 @@ from trustgraph.schema import TextCompletionRequest, TextCompletionResponse
 def mock_async_processor_init(self, **params):
     """Mock AsyncProcessor.__init__ that properly initializes required attributes"""
     self.config_handlers = []
+    self.id = params.get('id', 'test-service')
 
 
 # Apply the mock globally for this test module
