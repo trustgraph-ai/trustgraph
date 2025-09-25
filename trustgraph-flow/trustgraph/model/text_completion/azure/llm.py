@@ -55,7 +55,9 @@ class Processor(LlmService):
         self.max_output = max_output
         self.default_model = model
 
-    def build_prompt(self, system, content):
+    def build_prompt(self, system, content, temperature=None):
+        # Use provided temperature or fall back to default
+        effective_temperature = temperature if temperature is not None else self.temperature
 
         data =  {
             "messages": [
@@ -67,7 +69,7 @@ class Processor(LlmService):
                 }
             ],
             "max_tokens": self.max_output,
-            "temperature": self.temperature,
+            "temperature": effective_temperature,
             "top_p": 1
         }
 
@@ -100,18 +102,22 @@ class Processor(LlmService):
 
         return result
 
-    async def generate_content(self, system, prompt, model=None):
+    async def generate_content(self, system, prompt, model=None, temperature=None):
 
         # Use provided model or fall back to default
         model_name = model or self.default_model
+        # Use provided temperature or fall back to default
+        effective_temperature = temperature if temperature is not None else self.temperature
 
         logger.debug(f"Using model: {model_name}")
+        logger.debug(f"Using temperature: {effective_temperature}")
 
         try:
 
             prompt = self.build_prompt(
                 system,
-                prompt
+                prompt,
+                effective_temperature
             )
 
             response = self.call_llm(prompt)
