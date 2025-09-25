@@ -103,6 +103,10 @@ class TestLlmServiceParameters(IsolatedAsyncioTestCase):
 
         service = LlmService(**config)
 
+        # Mock the metrics
+        service.text_completion_model_metric = MagicMock()
+        service.text_completion_model_metric.labels.return_value.info = AsyncMock()
+
         # Mock the generate_content method to capture parameters
         service.generate_content = AsyncMock(return_value=LlmResult(
             text="test response",
@@ -130,7 +134,7 @@ class TestLlmServiceParameters(IsolatedAsyncioTestCase):
         }.get(param, f"mock-{param}")
 
         mock_producer = AsyncMock()
-        mock_flow.return_value = mock_producer  # flow("response") returns producer
+        mock_flow.producer = {"response": mock_producer}
 
         # Act
         await service.on_request(mock_message, mock_consumer, mock_flow)
@@ -166,6 +170,10 @@ class TestLlmServiceParameters(IsolatedAsyncioTestCase):
 
         service = LlmService(**config)
 
+        # Mock the metrics
+        service.text_completion_model_metric = MagicMock()
+        service.text_completion_model_metric.labels.return_value.info = AsyncMock()
+
         # Mock the generate_content method
         service.generate_content = AsyncMock(return_value=LlmResult(
             text="test response",
@@ -189,7 +197,7 @@ class TestLlmServiceParameters(IsolatedAsyncioTestCase):
         mock_flow.return_value = None  # Both parameters return None
 
         mock_producer = AsyncMock()
-        mock_flow.return_value = mock_producer
+        mock_flow.producer = {"response": mock_producer}
 
         # Act
         await service.on_request(mock_message, mock_consumer, mock_flow)
@@ -220,6 +228,10 @@ class TestLlmServiceParameters(IsolatedAsyncioTestCase):
         }
 
         service = LlmService(**config)
+
+        # Mock the metrics
+        service.text_completion_model_metric = MagicMock()
+        service.text_completion_model_metric.labels.return_value.info = AsyncMock()
 
         # Mock generate_content to raise an exception
         service.generate_content = AsyncMock(side_effect=Exception("Test error"))

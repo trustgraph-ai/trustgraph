@@ -14,6 +14,7 @@ from trustgraph.base import ParameterSpec, ConsumerSpec, ProducerSpec
 def mock_async_processor_init(self, **params):
     """Mock AsyncProcessor.__init__ that properly initializes required attributes"""
     self.config_handlers = []
+    self.id = params.get('id', 'test-service')
 
 
 # Apply the mock globally for this test module
@@ -28,6 +29,7 @@ class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
         # Arrange
         def mock_init(self, **kwargs):
             self.config_handlers = []
+            self.id = kwargs.get('id', 'test-service')
 
         config = {
             'id': 'test-flow-processor',
@@ -60,6 +62,7 @@ class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
         # Arrange
         def mock_init(self, **kwargs):
             self.config_handlers = []
+            self.id = kwargs.get('id', 'test-service')
 
         config = {
             'id': 'test-flow-processor',
@@ -70,7 +73,7 @@ class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
 
         # Create different spec types
         param_spec = ParameterSpec(name="model")
-        consumer_spec = ConsumerSpec(name="input")
+        consumer_spec = ConsumerSpec(name="input", schema=MagicMock(), handler=MagicMock())
         producer_spec = ProducerSpec(name="output")
 
         # Act
@@ -95,6 +98,7 @@ class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
         # Arrange
         def mock_init(self, **kwargs):
             self.config_handlers = []
+            self.id = kwargs.get('id', 'test-service')
 
         config = {
             'id': 'test-flow-processor',
@@ -128,6 +132,7 @@ class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
         # Arrange
         def mock_init(self, **kwargs):
             self.config_handlers = []
+            self.id = kwargs.get('id', 'test-service')
 
         config = {
             'id': 'test-flow-processor',
@@ -152,11 +157,12 @@ class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
         assert len(param_specs) >= 1  # At least one should be registered
 
     @patch('trustgraph.base.flow_processor.Flow')
-    async def test_parameter_specs_available_to_flows(self, mock_async_init, mock_flow_class):
+    async def test_parameter_specs_available_to_flows(self, mock_flow_class):
         """Test that parameter specs are available when flows are created"""
         # Arrange
         def mock_init(self, **kwargs):
             self.config_handlers = []
+            self.id = kwargs.get('id', 'test-service')
 
         config = {
             'id': 'test-flow-processor',
@@ -197,6 +203,7 @@ class TestParameterSpecValidation(IsolatedAsyncioTestCase):
         # Arrange
         def mock_init(self, **kwargs):
             self.config_handlers = []
+            self.id = kwargs.get('id', 'test-service')
 
         config = {
             'id': 'test-flow-processor',
