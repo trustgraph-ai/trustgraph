@@ -86,12 +86,18 @@ class Processor(LlmService):
 
         logger.info("GoogleAIStudio LLM service initialized")
 
-    def _get_or_create_config(self, model_name):
-        """Get cached generation config or create new one"""
-        if model_name not in self.generation_configs:
-            logger.info(f"Creating generation config for '{model_name}'")
-            self.generation_configs[model_name] = types.GenerateContentConfig(
-                temperature = self.temperature,
+    def _get_or_create_config(self, model_name, temperature=None):
+        """Get or create generation config with dynamic temperature"""
+        # Use provided temperature or fall back to default
+        effective_temperature = temperature if temperature is not None else self.temperature
+
+        # Create cache key that includes temperature to avoid conflicts
+        cache_key = f"{model_name}:{effective_temperature}"
+
+        if cache_key not in self.generation_configs:
+            logger.info(f"Creating generation config for '{model_name}' with temperature {effective_temperature}")
+            self.generation_configs[cache_key] = types.GenerateContentConfig(
+                temperature = effective_temperature,
                 top_p = 1,
                 top_k = 40,
                 max_output_tokens = self.max_output,
@@ -99,16 +105,19 @@ class Processor(LlmService):
                 safety_settings = self.safety_settings,
             )
 
-        return self.generation_configs[model_name]
+        return self.generation_configs[cache_key]
 
-    async def generate_content(self, system, prompt, model=None):
+    async def generate_content(self, system, prompt, model=None, temperature=None):
 
         # Use provided model or fall back to default
         model_name = model or self.default_model
+        # Use provided temperature or fall back to default
+        effective_temperature = temperature if temperature is not None else self.temperature
 
         logger.debug(f"Using model: {model_name}")
+        logger.debug(f"Using temperature: {effective_temperature}")
 
-        generation_config = self._get_or_create_config(model_name)
+        generation_config = self._get_or_create_config(model_name, effective_temperature)
         # Set system instruction per request (can't be cached)
         generation_config.system_instruction = system
 

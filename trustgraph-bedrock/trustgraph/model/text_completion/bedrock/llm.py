@@ -231,28 +231,37 @@ class Processor(LlmService):
 
         return Default
                         
-    def _get_or_create_variant(self, model_name):
+    def _get_or_create_variant(self, model_name, temperature=None):
         """Get cached model variant or create new one"""
-        if model_name not in self.model_variants:
-            logger.info(f"Creating model variant for '{model_name}'")
+        # Use provided temperature or fall back to default
+        effective_temperature = temperature if temperature is not None else self.temperature
+
+        # Create a cache key that includes temperature to avoid conflicts
+        cache_key = f"{model_name}:{effective_temperature}"
+
+        if cache_key not in self.model_variants:
+            logger.info(f"Creating model variant for '{model_name}' with temperature {effective_temperature}")
             variant_class = self.determine_variant(model_name)
             variant = variant_class()
-            variant.set_temperature(self.temperature)
+            variant.set_temperature(effective_temperature)
             variant.set_max_output(self.max_output)
-            self.model_variants[model_name] = variant
+            self.model_variants[cache_key] = variant
 
-        return self.model_variants[model_name]
+        return self.model_variants[cache_key]
 
-    async def generate_content(self, system, prompt, model=None):
+    async def generate_content(self, system, prompt, model=None, temperature=None):
 
         # Use provided model or fall back to default
         model_name = model or self.default_model
+        # Use provided temperature or fall back to default
+        effective_temperature = temperature if temperature is not None else self.temperature
 
         logger.debug(f"Using model: {model_name}")
+        logger.debug(f"Using temperature: {effective_temperature}")
 
         try:
             # Get the appropriate variant for this model
-            variant = self._get_or_create_variant(model_name)
+            variant = self._get_or_create_variant(model_name, effective_temperature)
 
             promptbody = variant.encode_request(system, prompt)
 

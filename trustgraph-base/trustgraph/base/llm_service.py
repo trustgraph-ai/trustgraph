@@ -5,7 +5,7 @@ LLM text completion base class
 
 import time
 import logging
-from prometheus_client import Histogram
+from prometheus_client import Histogram, Info
 
 from .. schema import TextCompletionRequest, TextCompletionResponse, Error
 from .. exceptions import TooManyRequests
@@ -62,6 +62,12 @@ class LlmService(FlowProcessor):
             )
         )
 
+        self.register_specification(
+            ParameterSpec(
+                name = "temperature",
+            )
+        )
+
         if not hasattr(__class__, "text_completion_metric"):
             __class__.text_completion_metric = Histogram(
                 'text_completion_duration',
@@ -74,6 +80,13 @@ class LlmService(FlowProcessor):
                     30.0, 35.0, 40.0, 45.0, 50.0, 60.0, 80.0, 100.0,
                     120.0
                 ]
+            )
+
+        if not hasattr(__class__, "text_completion_model_metric"):
+            __class__.text_completion_model_metric = Info(
+                'text_completion_model',
+                'Text completion model',
+                ["processor", "flow"]
             )
 
     async def on_request(self, msg, consumer, flow):
@@ -92,10 +105,18 @@ class LlmService(FlowProcessor):
             ).time():
 
                 model = flow("model")
+                temperature = flow("temperature")
 
                 response = await self.generate_content(
-                    request.system, request.prompt, model
+                    request.system, request.prompt, model, temperature
                 )
+
+            await __class__.text_completion_model_metric.labels(
+                id = flow.id, flow = flow.name
+            ).info({
+                "model": model,
+                "temperature": temperature,
+            })
 
             await flow("response").send(
                 TextCompletionResponse(
