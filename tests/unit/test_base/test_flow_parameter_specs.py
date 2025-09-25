@@ -11,17 +11,23 @@ from trustgraph.base.flow_processor import FlowProcessor
 from trustgraph.base import ParameterSpec, ConsumerSpec, ProducerSpec
 
 
+def mock_async_processor_init(self, **params):
+    """Mock AsyncProcessor.__init__ that properly initializes required attributes"""
+    self.config_handlers = []
+
+
+# Apply the mock globally for this test module
+patch('trustgraph.base.async_processor.AsyncProcessor.__init__', mock_async_processor_init).start()
+
+
 class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
     """Test flow processor parameter specification functionality"""
 
-    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
-    def test_parameter_spec_registration(self, mock_async_init):
+    def test_parameter_spec_registration(self):
         """Test that parameter specs can be registered with flow processors"""
         # Arrange
-        def mock_init(*args, **kwargs):
-            # args[0] is 'self', initialize the required attribute
-            args[0].config_handlers = []
-        mock_async_init.side_effect = mock_init
+        def mock_init(self, **kwargs):
+            self.config_handlers = []
 
         config = {
             'id': 'test-flow-processor',
@@ -49,14 +55,11 @@ class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
         assert "model" in param_names
         assert "temperature" in param_names
 
-    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
-    def test_mixed_specification_types(self, mock_async_init):
+    def test_mixed_specification_types(self):
         """Test registration of mixed specification types (parameters, consumers, producers)"""
         # Arrange
-        def mock_init(*args, **kwargs):
-            # args[0] is 'self', initialize the required attribute
-            args[0].config_handlers = []
-        mock_async_init.side_effect = mock_init
+        def mock_init(self, **kwargs):
+            self.config_handlers = []
 
         config = {
             'id': 'test-flow-processor',
@@ -87,14 +90,11 @@ class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
         assert len(consumer_specs) == 1
         assert len(producer_specs) == 1
 
-    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
-    def test_parameter_spec_metadata(self, mock_async_init):
+    def test_parameter_spec_metadata(self):
         """Test parameter specification metadata handling"""
         # Arrange
-        def mock_init(*args, **kwargs):
-            # args[0] is 'self', initialize the required attribute
-            args[0].config_handlers = []
-        mock_async_init.side_effect = mock_init
+        def mock_init(self, **kwargs):
+            self.config_handlers = []
 
         config = {
             'id': 'test-flow-processor',
@@ -123,14 +123,11 @@ class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
         assert model_spec_registered.name == "model"
         assert temperature_spec_registered.name == "temperature"
 
-    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
-    def test_duplicate_parameter_spec_handling(self, mock_async_init):
+    def test_duplicate_parameter_spec_handling(self):
         """Test handling of duplicate parameter spec registration"""
         # Arrange
-        def mock_init(*args, **kwargs):
-            # args[0] is 'self', initialize the required attribute
-            args[0].config_handlers = []
-        mock_async_init.side_effect = mock_init
+        def mock_init(self, **kwargs):
+            self.config_handlers = []
 
         config = {
             'id': 'test-flow-processor',
@@ -155,14 +152,11 @@ class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
         assert len(param_specs) >= 1  # At least one should be registered
 
     @patch('trustgraph.base.flow_processor.Flow')
-    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
     async def test_parameter_specs_available_to_flows(self, mock_async_init, mock_flow_class):
         """Test that parameter specs are available when flows are created"""
         # Arrange
-        def mock_init(*args, **kwargs):
-            # args[0] is 'self', initialize the required attribute
-            args[0].config_handlers = []
-        mock_async_init.side_effect = mock_init
+        def mock_init(self, **kwargs):
+            self.config_handlers = []
 
         config = {
             'id': 'test-flow-processor',
@@ -198,14 +192,11 @@ class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
 class TestParameterSpecValidation(IsolatedAsyncioTestCase):
     """Test parameter specification validation functionality"""
 
-    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
-    def test_parameter_spec_name_validation(self, mock_async_init):
+    def test_parameter_spec_name_validation(self):
         """Test parameter spec name validation"""
         # Arrange
-        def mock_init(*args, **kwargs):
-            # args[0] is 'self', initialize the required attribute
-            args[0].config_handlers = []
-        mock_async_init.side_effect = mock_init
+        def mock_init(self, **kwargs):
+            self.config_handlers = []
 
         config = {
             'id': 'test-flow-processor',
