@@ -90,7 +90,7 @@ The configurable parameters system requires the following technical components:
 
 #### Parameter Definitions (Stored in Schema/Config)
 
-Parameter definitions are stored centrally in the schema and config system with type "parameters":
+Parameter definitions are stored centrally in the schema and config system with type "parameter-types":
 
 ```json
 {
