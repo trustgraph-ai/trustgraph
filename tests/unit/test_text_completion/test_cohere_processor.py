@@ -442,6 +442,162 @@ class TestCohereProcessorSimple(IsolatedAsyncioTestCase):
         assert call_args[1]['prompt_truncation'] == 'auto'
         assert call_args[1]['connectors'] == []
 
+    @patch('trustgraph.model.text_completion.cohere.llm.cohere.Client')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_temperature_override(self, mock_llm_init, mock_async_init, mock_cohere_class):
+        """Test temperature parameter override functionality"""
+        # Arrange
+        mock_cohere_client = MagicMock()
+        mock_output = MagicMock()
+        mock_output.text = 'Response with custom temperature'
+        mock_output.meta.billed_units.input_tokens = 20
+        mock_output.meta.billed_units.output_tokens = 12
+
+        mock_cohere_client.chat.return_value = mock_output
+        mock_cohere_class.return_value = mock_cohere_client
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'model': 'c4ai-aya-23-8b',
+            'api_key': 'test-api-key',
+            'temperature': 0.0,  # Default temperature
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Override temperature at runtime
+        result = await processor.generate_content(
+            "System prompt",
+            "User prompt",
+            model=None,      # Use default model
+            temperature=0.8  # Override temperature
+        )
+
+        # Assert
+        assert isinstance(result, LlmResult)
+        assert result.text == "Response with custom temperature"
+
+        # Verify Cohere API was called with overridden temperature
+        mock_cohere_client.chat.assert_called_once_with(
+            model='c4ai-aya-23-8b',
+            message='User prompt',
+            preamble='System prompt',
+            temperature=0.8,  # Should use runtime override
+            chat_history=[],
+            prompt_truncation='auto',
+            connectors=[]
+        )
+
+    @patch('trustgraph.model.text_completion.cohere.llm.cohere.Client')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_model_override(self, mock_llm_init, mock_async_init, mock_cohere_class):
+        """Test model parameter override functionality"""
+        # Arrange
+        mock_cohere_client = MagicMock()
+        mock_output = MagicMock()
+        mock_output.text = 'Response with custom model'
+        mock_output.meta.billed_units.input_tokens = 18
+        mock_output.meta.billed_units.output_tokens = 14
+
+        mock_cohere_client.chat.return_value = mock_output
+        mock_cohere_class.return_value = mock_cohere_client
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'model': 'c4ai-aya-23-8b',    # Default model
+            'api_key': 'test-api-key',
+            'temperature': 0.1,   # Default temperature
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Override model at runtime
+        result = await processor.generate_content(
+            "System prompt",
+            "User prompt",
+            model="command-r-plus",    # Override model
+            temperature=None    # Use default temperature
+        )
+
+        # Assert
+        assert isinstance(result, LlmResult)
+        assert result.text == "Response with custom model"
+
+        # Verify Cohere API was called with overridden model
+        mock_cohere_client.chat.assert_called_once_with(
+            model='command-r-plus',  # Should use runtime override
+            message='User prompt',
+            preamble='System prompt',
+            temperature=0.1,  # Should use processor default
+            chat_history=[],
+            prompt_truncation='auto',
+            connectors=[]
+        )
+
+    @patch('trustgraph.model.text_completion.cohere.llm.cohere.Client')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_both_parameters_override(self, mock_llm_init, mock_async_init, mock_cohere_class):
+        """Test overriding both model and temperature parameters simultaneously"""
+        # Arrange
+        mock_cohere_client = MagicMock()
+        mock_output = MagicMock()
+        mock_output.text = 'Response with both overrides'
+        mock_output.meta.billed_units.input_tokens = 22
+        mock_output.meta.billed_units.output_tokens = 16
+
+        mock_cohere_client.chat.return_value = mock_output
+        mock_cohere_class.return_value = mock_cohere_client
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'model': 'c4ai-aya-23-8b',    # Default model
+            'api_key': 'test-api-key',
+            'temperature': 0.0,   # Default temperature
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Override both parameters at runtime
+        result = await processor.generate_content(
+            "System prompt",
+            "User prompt",
+            model="command-r",  # Override model
+            temperature=0.9     # Override temperature
+        )
+
+        # Assert
+        assert isinstance(result, LlmResult)
+        assert result.text == "Response with both overrides"
+
+        # Verify Cohere API was called with both overrides
+        mock_cohere_client.chat.assert_called_once_with(
+            model='command-r',  # Should use runtime override
+            message='User prompt',
+            preamble='System prompt',
+            temperature=0.9,  # Should use runtime override
+            chat_history=[],
+            prompt_truncation='auto',
+            connectors=[]
+        )
+
 
 if __name__ == '__main__':
     pytest.main([__file__])
