@@ -99,7 +99,15 @@ class TestLlamaFileProcessorSimple(IsolatedAsyncioTestCase):
             messages=[{
                 "role": "user",
                 "content": "System prompt\n\nUser prompt"
-            }]
+            }],
+            temperature=0.0,
+            max_tokens=4096,
+            top_p=1,
+            frequency_penalty=0,
+            presence_penalty=0,
+            response_format={
+                "type": "text"
+            }
         )
 
     @patch('trustgraph.model.text_completion.llamafile.llm.OpenAI')

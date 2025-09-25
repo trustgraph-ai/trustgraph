@@ -81,7 +81,7 @@ class TestOllamaProcessorSimple(IsolatedAsyncioTestCase):
         assert result.in_token == 15
         assert result.out_token == 8
         assert result.model == 'llama2'
-        mock_client.generate.assert_called_once_with('llama2', "System prompt\n\nUser prompt")
+        mock_client.generate.assert_called_once_with('llama2', "System prompt\n\nUser prompt", options={'temperature': 0.0})
 
     @patch('trustgraph.model.text_completion.ollama.llm.Client')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
@@ -203,7 +203,7 @@ class TestOllamaProcessorSimple(IsolatedAsyncioTestCase):
         assert result.model == 'llama2'
         
         # The prompt should be "" + "\n\n" + "" = "\n\n"
-        mock_client.generate.assert_called_once_with('llama2', "\n\n")
+        mock_client.generate.assert_called_once_with('llama2', "\n\n", options={'temperature': 0.0})
 
     @patch('trustgraph.model.text_completion.ollama.llm.Client')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
@@ -310,7 +310,7 @@ class TestOllamaProcessorSimple(IsolatedAsyncioTestCase):
         assert result.out_token == 15
         
         # Verify the combined prompt
-        mock_client.generate.assert_called_once_with('llama2', "You are a helpful assistant\n\nWhat is AI?")
+        mock_client.generate.assert_called_once_with('llama2', "You are a helpful assistant\n\nWhat is AI?", options={'temperature': 0.0})
 
 
 if __name__ == '__main__':
