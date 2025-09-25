@@ -91,19 +91,14 @@ class TestLlmServiceParameters(IsolatedAsyncioTestCase):
         assert temperature_spec is not None
         assert temperature_spec.name == "temperature"
 
+    @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_on_request_extracts_parameters_from_flow(self):
         """Test that on_request method extracts model and temperature from flow"""
         # Arrange
-
-        # Create service instance and manually initialize required attributes
-        service = LlmService.__new__(LlmService)
-        service.config_handlers = []  # Required by FlowProcessor
-        service.flows = {}  # Required by FlowProcessor
-        service.specifications = []  # Required by FlowProcessor
-
         config = {
             'id': 'test-llm-service',
-            'concurrency': 1
+            'concurrency': 1,
+            'taskgroup': AsyncMock()
         }
 
         service = LlmService(**config)
@@ -158,19 +153,14 @@ class TestLlmServiceParameters(IsolatedAsyncioTestCase):
         mock_flow.assert_any_call("model")
         mock_flow.assert_any_call("temperature")
 
+    @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_on_request_handles_missing_parameters_gracefully(self):
         """Test that on_request handles missing parameters gracefully"""
         # Arrange
-
-        # Create service instance and manually initialize required attributes
-        service = LlmService.__new__(LlmService)
-        service.config_handlers = []  # Required by FlowProcessor
-        service.flows = {}  # Required by FlowProcessor
-        service.specifications = []  # Required by FlowProcessor
-
         config = {
             'id': 'test-llm-service',
-            'concurrency': 1
+            'concurrency': 1,
+            'taskgroup': AsyncMock()
         }
 
         service = LlmService(**config)
@@ -217,19 +207,14 @@ class TestLlmServiceParameters(IsolatedAsyncioTestCase):
         assert call_args[0][2] is None             # model (will use processor default)
         assert call_args[0][3] is None             # temperature (will use processor default)
 
+    @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_on_request_error_handling_preserves_behavior(self):
         """Test that parameter extraction doesn't break existing error handling"""
         # Arrange
-
-        # Create service instance and manually initialize required attributes
-        service = LlmService.__new__(LlmService)
-        service.config_handlers = []  # Required by FlowProcessor
-        service.flows = {}  # Required by FlowProcessor
-        service.specifications = []  # Required by FlowProcessor
-
         config = {
             'id': 'test-llm-service',
-            'concurrency': 1
+            'concurrency': 1,
+            'taskgroup': AsyncMock()
         }
 
         service = LlmService(**config)

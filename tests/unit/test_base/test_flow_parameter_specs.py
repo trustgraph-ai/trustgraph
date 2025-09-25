@@ -11,21 +11,24 @@ from trustgraph.base.flow_processor import FlowProcessor
 from trustgraph.base import ParameterSpec, ConsumerSpec, ProducerSpec
 
 
+class MockAsyncProcessor:
+    def __init__(self, **params):
+        self.config_handlers = []
+        self.id = params.get('id', 'test-service')
+        self.specifications = []
 
 
 class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
     """Test flow processor parameter specification functionality"""
 
+    @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     def test_parameter_spec_registration(self):
         """Test that parameter specs can be registered with flow processors"""
         # Arrange
-        def mock_init(self, **kwargs):
-            self.config_handlers = []
-            self.id = kwargs.get('id', 'test-service')
-
         config = {
             'id': 'test-flow-processor',
-            'concurrency': 1
+            'concurrency': 1,
+            'taskgroup': AsyncMock()
         }
 
         processor = FlowProcessor(**config)
@@ -49,16 +52,14 @@ class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
         assert "model" in param_names
         assert "temperature" in param_names
 
+    @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     def test_mixed_specification_types(self):
         """Test registration of mixed specification types (parameters, consumers, producers)"""
         # Arrange
-        def mock_init(self, **kwargs):
-            self.config_handlers = []
-            self.id = kwargs.get('id', 'test-service')
-
         config = {
             'id': 'test-flow-processor',
-            'concurrency': 1
+            'concurrency': 1,
+            'taskgroup': AsyncMock()
         }
 
         processor = FlowProcessor(**config)
@@ -85,16 +86,14 @@ class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
         assert len(consumer_specs) == 1
         assert len(producer_specs) == 1
 
+    @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     def test_parameter_spec_metadata(self):
         """Test parameter specification metadata handling"""
         # Arrange
-        def mock_init(self, **kwargs):
-            self.config_handlers = []
-            self.id = kwargs.get('id', 'test-service')
-
         config = {
             'id': 'test-flow-processor',
-            'concurrency': 1
+            'concurrency': 1,
+            'taskgroup': AsyncMock()
         }
 
         processor = FlowProcessor(**config)
@@ -119,16 +118,14 @@ class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
         assert model_spec_registered.name == "model"
         assert temperature_spec_registered.name == "temperature"
 
+    @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     def test_duplicate_parameter_spec_handling(self):
         """Test handling of duplicate parameter spec registration"""
         # Arrange
-        def mock_init(self, **kwargs):
-            self.config_handlers = []
-            self.id = kwargs.get('id', 'test-service')
-
         config = {
             'id': 'test-flow-processor',
-            'concurrency': 1
+            'concurrency': 1,
+            'taskgroup': AsyncMock()
         }
 
         processor = FlowProcessor(**config)
@@ -148,17 +145,15 @@ class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
         # Either should have 2 duplicates or the system should handle deduplication
         assert len(param_specs) >= 1  # At least one should be registered
 
+    @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     @patch('trustgraph.base.flow_processor.Flow')
     async def test_parameter_specs_available_to_flows(self, mock_flow_class):
         """Test that parameter specs are available when flows are created"""
         # Arrange
-        def mock_init(self, **kwargs):
-            self.config_handlers = []
-            self.id = kwargs.get('id', 'test-service')
-
         config = {
             'id': 'test-flow-processor',
-            'concurrency': 1
+            'concurrency': 1,
+            'taskgroup': AsyncMock()
         }
 
         processor = FlowProcessor(**config)
@@ -190,16 +185,14 @@ class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
 class TestParameterSpecValidation(IsolatedAsyncioTestCase):
     """Test parameter specification validation functionality"""
 
+    @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     def test_parameter_spec_name_validation(self):
         """Test parameter spec name validation"""
         # Arrange
-        def mock_init(self, **kwargs):
-            self.config_handlers = []
-            self.id = kwargs.get('id', 'test-service')
-
         config = {
             'id': 'test-flow-processor',
-            'concurrency': 1
+            'concurrency': 1,
+            'taskgroup': AsyncMock()
         }
 
         processor = FlowProcessor(**config)
