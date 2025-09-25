@@ -12,26 +12,26 @@ from trustgraph.base import ParameterSpec, ConsumerSpec, ProducerSpec
 from trustgraph.schema import TextCompletionRequest, TextCompletionResponse
 
 
+class MockAsyncProcessor:
+    def __init__(self, **params):
+        self.config_handlers = []
+        self.id = params.get('id', 'test-service')
+        self.specifications = []
+
+
 
 
 class TestLlmServiceParameters(IsolatedAsyncioTestCase):
     """Test LLM service parameter specification functionality"""
 
-    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
-    def test_parameter_specs_registration(self, mock_async_init):
+    @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
+    def test_parameter_specs_registration(self):
         """Test that LLM service registers model and temperature parameter specs"""
-        # Mock AsyncProcessor.__init__ to set required attributes
-        def mock_init(self, **params):
-            self.config_handlers = []
-            self.id = params.get('id', 'test-service')
-            self.specifications = []
-
-        mock_async_init.side_effect = mock_init
-
         # Arrange
         config = {
             'id': 'test-llm-service',
-            'concurrency': 1
+            'concurrency': 1,
+            'taskgroup': AsyncMock()  # Add required taskgroup
         }
 
         # Act
@@ -45,20 +45,18 @@ class TestLlmServiceParameters(IsolatedAsyncioTestCase):
         assert "temperature" in param_specs
         assert len(param_specs) >= 2  # May have other parameter specs
 
-    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__', return_value=None)
-    def test_model_parameter_spec_properties(self, mock_async_init):
+    @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
+    def test_model_parameter_spec_properties(self):
         """Test that model parameter spec has correct properties"""
         # Arrange
         config = {
             'id': 'test-llm-service',
-            'concurrency': 1
+            'concurrency': 1,
+            'taskgroup': AsyncMock()
         }
 
         # Act
         service = LlmService(**config)
-        # Manually set required attributes that would be set by AsyncProcessor
-        service.config_handlers = []
-        service.id = config['id']
 
         # Assert
         model_spec = None
@@ -70,20 +68,18 @@ class TestLlmServiceParameters(IsolatedAsyncioTestCase):
         assert model_spec is not None
         assert model_spec.name == "model"
 
-    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__', return_value=None)
-    def test_temperature_parameter_spec_properties(self, mock_async_init):
+    @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
+    def test_temperature_parameter_spec_properties(self):
         """Test that temperature parameter spec has correct properties"""
         # Arrange
         config = {
             'id': 'test-llm-service',
-            'concurrency': 1
+            'concurrency': 1,
+            'taskgroup': AsyncMock()
         }
 
         # Act
         service = LlmService(**config)
-        # Manually set required attributes that would be set by AsyncProcessor
-        service.config_handlers = []
-        service.id = config['id']
 
         # Assert
         temperature_spec = None
