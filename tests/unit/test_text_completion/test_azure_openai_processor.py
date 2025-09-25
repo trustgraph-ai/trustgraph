@@ -44,7 +44,7 @@ class TestAzureOpenAIProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'gpt-4'
+        assert processor.default_model == 'gpt-4'
         assert processor.temperature == 0.0
         assert processor.max_output == 4192
         assert hasattr(processor, 'openai')
@@ -254,7 +254,7 @@ class TestAzureOpenAIProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'gpt-35-turbo'
+        assert processor.default_model == 'gpt-35-turbo'
         assert processor.temperature == 0.7
         assert processor.max_output == 2048
         mock_azure_openai_class.assert_called_once_with(
@@ -289,7 +289,7 @@ class TestAzureOpenAIProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'gpt-4'
+        assert processor.default_model == 'gpt-4'
         assert processor.temperature == 0.0  # default_temperature
         assert processor.max_output == 4192  # default_max_output
         mock_azure_openai_class.assert_called_once_with(

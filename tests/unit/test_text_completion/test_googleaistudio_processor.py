@@ -42,7 +42,7 @@ class TestGoogleAIStudioProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'gemini-2.0-flash-001'
+        assert processor.default_model == 'gemini-2.0-flash-001'
         assert processor.temperature == 0.0
         assert processor.max_output == 8192
         assert hasattr(processor, 'client')
@@ -205,7 +205,7 @@ class TestGoogleAIStudioProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'gemini-1.5-pro'
+        assert processor.default_model == 'gemini-1.5-pro'
         assert processor.temperature == 0.7
         assert processor.max_output == 4096
         mock_genai_class.assert_called_once_with(api_key='custom-api-key')
@@ -234,7 +234,7 @@ class TestGoogleAIStudioProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'gemini-2.0-flash-001'  # default_model
+        assert processor.default_model == 'gemini-2.0-flash-001'  # default_model
         assert processor.temperature == 0.0  # default_temperature
         assert processor.max_output == 8192  # default_max_output
         mock_genai_class.assert_called_once_with(api_key='test-api-key')
@@ -431,7 +431,7 @@ class TestGoogleAIStudioProcessorSimple(IsolatedAsyncioTestCase):
         
         # Verify processor has the client
         assert processor.client == mock_genai_client
-        assert processor.model == 'gemini-1.5-flash'
+        assert processor.default_model == 'gemini-1.5-flash'
 
     @patch('trustgraph.model.text_completion.googleaistudio.llm.genai.Client')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')

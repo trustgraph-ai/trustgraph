@@ -42,7 +42,7 @@ class TestLlamaFileProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'LLaMA_CPP'
+        assert processor.default_model == 'LLaMA_CPP'
         assert processor.llamafile == 'http://localhost:8080/v1'
         assert processor.temperature == 0.0
         assert processor.max_output == 4096
@@ -91,7 +91,7 @@ class TestLlamaFileProcessorSimple(IsolatedAsyncioTestCase):
         assert result.text == "Generated response from LlamaFile"
         assert result.in_token == 20
         assert result.out_token == 12
-        assert result.model == 'llama.cpp'  # Note: model in result is hardcoded to 'llama.cpp'
+        assert result.model == 'LLaMA_CPP'  # Uses the default model name
         
         # Verify the OpenAI API call structure
         mock_openai_client.chat.completions.create.assert_called_once_with(
@@ -99,7 +99,15 @@ class TestLlamaFileProcessorSimple(IsolatedAsyncioTestCase):
             messages=[{
                 "role": "user",
                 "content": "System prompt\n\nUser prompt"
-            }]
+            }],
+            temperature=0.0,
+            max_tokens=4096,
+            top_p=1,
+            frequency_penalty=0,
+            presence_penalty=0,
+            response_format={
+                "type": "text"
+            }
         )
 
     @patch('trustgraph.model.text_completion.llamafile.llm.OpenAI')
@@ -157,7 +165,7 @@ class TestLlamaFileProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'custom-llama'
+        assert processor.default_model == 'custom-llama'
         assert processor.llamafile == 'http://custom-host:8080/v1'
         assert processor.temperature == 0.7
         assert processor.max_output == 2048
@@ -189,7 +197,7 @@ class TestLlamaFileProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'LLaMA_CPP'  # default_model
+        assert processor.default_model == 'LLaMA_CPP'  # default_model
         assert processor.llamafile == 'http://localhost:8080/v1'  # default_llamafile
         assert processor.temperature == 0.0  # default_temperature
         assert processor.max_output == 4096  # default_max_output
@@ -237,7 +245,7 @@ class TestLlamaFileProcessorSimple(IsolatedAsyncioTestCase):
         assert result.text == "Default response"
         assert result.in_token == 2
         assert result.out_token == 3
-        assert result.model == 'llama.cpp'
+        assert result.model == 'LLaMA_CPP'
         
         # Verify the combined prompt is sent correctly
         call_args = mock_openai_client.chat.completions.create.call_args
@@ -408,8 +416,8 @@ class TestLlamaFileProcessorSimple(IsolatedAsyncioTestCase):
         result = await processor.generate_content("System", "User")
 
         # Assert
-        assert result.model == 'llama.cpp'  # Should always be 'llama.cpp', not 'custom-model-name'
-        assert processor.model == 'custom-model-name'  # But processor.model should still be custom
+        assert result.model == 'custom-model-name'  # Uses the actual model name passed to generate_content
+        assert processor.default_model == 'custom-model-name'  # But processor.model should still be custom
 
     @patch('trustgraph.model.text_completion.llamafile.llm.OpenAI')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')

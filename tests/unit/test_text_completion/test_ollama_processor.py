@@ -40,7 +40,7 @@ class TestOllamaProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'llama2'
+        assert processor.default_model == 'llama2'
         assert hasattr(processor, 'llm')
         mock_client_class.assert_called_once_with(host='http://localhost:11434')
 
@@ -81,7 +81,7 @@ class TestOllamaProcessorSimple(IsolatedAsyncioTestCase):
         assert result.in_token == 15
         assert result.out_token == 8
         assert result.model == 'llama2'
-        mock_client.generate.assert_called_once_with('llama2', "System prompt\n\nUser prompt")
+        mock_client.generate.assert_called_once_with('llama2', "System prompt\n\nUser prompt", options={'temperature': 0.0})
 
     @patch('trustgraph.model.text_completion.ollama.llm.Client')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
@@ -134,7 +134,7 @@ class TestOllamaProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'mistral'
+        assert processor.default_model == 'mistral'
         mock_client_class.assert_called_once_with(host='http://192.168.1.100:11434')
 
     @patch('trustgraph.model.text_completion.ollama.llm.Client')
@@ -160,7 +160,7 @@ class TestOllamaProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'gemma2:9b'  # default_model
+        assert processor.default_model == 'gemma2:9b'  # default_model
         # Should use default_ollama (http://localhost:11434 or from OLLAMA_HOST env)
         mock_client_class.assert_called_once()
 
@@ -203,7 +203,7 @@ class TestOllamaProcessorSimple(IsolatedAsyncioTestCase):
         assert result.model == 'llama2'
         
         # The prompt should be "" + "\n\n" + "" = "\n\n"
-        mock_client.generate.assert_called_once_with('llama2', "\n\n")
+        mock_client.generate.assert_called_once_with('llama2', "\n\n", options={'temperature': 0.0})
 
     @patch('trustgraph.model.text_completion.ollama.llm.Client')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
@@ -310,7 +310,7 @@ class TestOllamaProcessorSimple(IsolatedAsyncioTestCase):
         assert result.out_token == 15
         
         # Verify the combined prompt
-        mock_client.generate.assert_called_once_with('llama2', "You are a helpful assistant\n\nWhat is AI?")
+        mock_client.generate.assert_called_once_with('llama2', "You are a helpful assistant\n\nWhat is AI?", options={'temperature': 0.0})
 
 
 if __name__ == '__main__':
