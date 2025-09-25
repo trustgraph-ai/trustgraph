@@ -47,7 +47,7 @@ class TestVertexAIProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'gemini-2.0-flash-001'  # It's stored as 'model', not 'model_name'
+        assert processor.default_model == 'gemini-2.0-flash-001'  # It's stored as 'model', not 'model_name'
         assert hasattr(processor, 'generation_config')
         assert hasattr(processor, 'safety_settings')
         assert hasattr(processor, 'llm')
@@ -223,7 +223,7 @@ class TestVertexAIProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
         
         # Assert
-        assert processor.model == 'gemini-2.0-flash-001'
+        assert processor.default_model == 'gemini-2.0-flash-001'
         mock_auth_default.assert_called_once()
         mock_vertexai.init.assert_called_once_with(
             location='us-central1', 
@@ -296,7 +296,7 @@ class TestVertexAIProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'gemini-1.5-pro'
+        assert processor.default_model == 'gemini-1.5-pro'
         
         # Verify that generation_config object exists (can't easily check internal values)
         assert hasattr(processor, 'generation_config')
@@ -440,7 +440,7 @@ class TestVertexAIProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
         
         # Assert
-        assert processor.model == 'claude-3-sonnet@20240229'
+        assert processor.default_model == 'claude-3-sonnet@20240229'
         assert processor.is_anthropic == True
         
         # Verify service account was called with private key

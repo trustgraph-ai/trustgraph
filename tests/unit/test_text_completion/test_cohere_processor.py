@@ -41,7 +41,7 @@ class TestCohereProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'c4ai-aya-23-8b'
+        assert processor.default_model == 'c4ai-aya-23-8b'
         assert processor.temperature == 0.0
         assert hasattr(processor, 'cohere')
         mock_cohere_class.assert_called_once_with(api_key='test-api-key')
@@ -201,7 +201,7 @@ class TestCohereProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'command-light'
+        assert processor.default_model == 'command-light'
         assert processor.temperature == 0.7
         mock_cohere_class.assert_called_once_with(api_key='custom-api-key')
 
@@ -229,7 +229,7 @@ class TestCohereProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'c4ai-aya-23-8b'  # default_model
+        assert processor.default_model == 'c4ai-aya-23-8b'  # default_model
         assert processor.temperature == 0.0  # default_temperature
         mock_cohere_class.assert_called_once_with(api_key='test-api-key')
 
@@ -395,7 +395,7 @@ class TestCohereProcessorSimple(IsolatedAsyncioTestCase):
         
         # Verify processor has the client
         assert processor.cohere == mock_cohere_client
-        assert processor.model == 'command-r'
+        assert processor.default_model == 'command-r'
 
     @patch('trustgraph.model.text_completion.cohere.llm.cohere.Client')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')

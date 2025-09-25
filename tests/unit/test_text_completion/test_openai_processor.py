@@ -43,7 +43,7 @@ class TestOpenAIProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'gpt-3.5-turbo'
+        assert processor.default_model == 'gpt-3.5-turbo'
         assert processor.temperature == 0.0
         assert processor.max_output == 4096
         assert hasattr(processor, 'openai')
@@ -222,7 +222,7 @@ class TestOpenAIProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'gpt-4'
+        assert processor.default_model == 'gpt-4'
         assert processor.temperature == 0.7
         assert processor.max_output == 2048
         mock_openai_class.assert_called_once_with(base_url='https://custom-openai-url.com/v1', api_key='custom-api-key')
@@ -251,7 +251,7 @@ class TestOpenAIProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'gpt-3.5-turbo'  # default_model
+        assert processor.default_model == 'gpt-3.5-turbo'  # default_model
         assert processor.temperature == 0.0  # default_temperature
         assert processor.max_output == 4096  # default_max_output
         mock_openai_class.assert_called_once_with(base_url='https://api.openai.com/v1', api_key='test-api-key')

@@ -42,7 +42,7 @@ class TestVLLMProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'TheBloke/Mistral-7B-v0.1-AWQ'
+        assert processor.default_model == 'TheBloke/Mistral-7B-v0.1-AWQ'
         assert processor.base_url == 'http://vllm-service:8899/v1'
         assert processor.temperature == 0.0
         assert processor.max_output == 2048
@@ -199,7 +199,7 @@ class TestVLLMProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'custom-model'
+        assert processor.default_model == 'custom-model'
         assert processor.base_url == 'http://custom-vllm:8080/v1'
         assert processor.temperature == 0.7
         assert processor.max_output == 1024
@@ -228,7 +228,7 @@ class TestVLLMProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'TheBloke/Mistral-7B-v0.1-AWQ'  # default_model
+        assert processor.default_model == 'TheBloke/Mistral-7B-v0.1-AWQ'  # default_model
         assert processor.base_url == 'http://vllm-service:8899/v1'  # default_base_url
         assert processor.temperature == 0.0  # default_temperature
         assert processor.max_output == 2048  # default_max_output

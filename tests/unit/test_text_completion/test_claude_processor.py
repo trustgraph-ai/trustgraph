@@ -42,7 +42,7 @@ class TestClaudeProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'claude-3-5-sonnet-20240620'
+        assert processor.default_model == 'claude-3-5-sonnet-20240620'
         assert processor.temperature == 0.0
         assert processor.max_output == 8192
         assert hasattr(processor, 'claude')
@@ -217,7 +217,7 @@ class TestClaudeProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'claude-3-haiku-20240307'
+        assert processor.default_model == 'claude-3-haiku-20240307'
         assert processor.temperature == 0.7
         assert processor.max_output == 4096
         mock_anthropic_class.assert_called_once_with(api_key='custom-api-key')
@@ -246,7 +246,7 @@ class TestClaudeProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'claude-3-5-sonnet-20240620'  # default_model
+        assert processor.default_model == 'claude-3-5-sonnet-20240620'  # default_model
         assert processor.temperature == 0.0  # default_temperature
         assert processor.max_output == 8192  # default_max_output
         mock_anthropic_class.assert_called_once_with(api_key='test-api-key')
@@ -433,7 +433,7 @@ class TestClaudeProcessorSimple(IsolatedAsyncioTestCase):
         
         # Verify processor has the client
         assert processor.claude == mock_claude_client
-        assert processor.model == 'claude-3-opus-20240229'
+        assert processor.default_model == 'claude-3-opus-20240229'
 
 
 if __name__ == '__main__':

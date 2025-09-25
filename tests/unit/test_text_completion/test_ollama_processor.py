@@ -40,7 +40,7 @@ class TestOllamaProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'llama2'
+        assert processor.default_model == 'llama2'
         assert hasattr(processor, 'llm')
         mock_client_class.assert_called_once_with(host='http://localhost:11434')
 
@@ -134,7 +134,7 @@ class TestOllamaProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'mistral'
+        assert processor.default_model == 'mistral'
         mock_client_class.assert_called_once_with(host='http://192.168.1.100:11434')
 
     @patch('trustgraph.model.text_completion.ollama.llm.Client')
@@ -160,7 +160,7 @@ class TestOllamaProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'gemma2:9b'  # default_model
+        assert processor.default_model == 'gemma2:9b'  # default_model
         # Should use default_ollama (http://localhost:11434 or from OLLAMA_HOST env)
         mock_client_class.assert_called_once()
 

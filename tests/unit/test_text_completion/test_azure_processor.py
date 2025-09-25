@@ -43,7 +43,7 @@ class TestAzureProcessorSimple(IsolatedAsyncioTestCase):
         assert processor.token == 'test-token'
         assert processor.temperature == 0.0
         assert processor.max_output == 4192
-        assert processor.model == 'AzureAI'
+        assert processor.default_model == 'AzureAI'
 
     @patch('trustgraph.model.text_completion.azure.llm.requests')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
@@ -261,7 +261,7 @@ class TestAzureProcessorSimple(IsolatedAsyncioTestCase):
         assert processor.token == 'custom-token'
         assert processor.temperature == 0.7
         assert processor.max_output == 2048
-        assert processor.model == 'AzureAI'
+        assert processor.default_model == 'AzureAI'
 
     @patch('trustgraph.model.text_completion.azure.llm.requests')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
@@ -289,7 +289,7 @@ class TestAzureProcessorSimple(IsolatedAsyncioTestCase):
         assert processor.token == 'test-token'
         assert processor.temperature == 0.0  # default_temperature
         assert processor.max_output == 4192  # default_max_output
-        assert processor.model == 'AzureAI'  # default_model
+        assert processor.default_model == 'AzureAI'  # default_model
 
     @patch('trustgraph.model.text_completion.azure.llm.requests')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
