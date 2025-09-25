@@ -74,7 +74,7 @@ class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
         # Create different spec types
         param_spec = ParameterSpec(name="model")
         consumer_spec = ConsumerSpec(name="input", schema=MagicMock(), handler=MagicMock())
-        producer_spec = ProducerSpec(name="output")
+        producer_spec = ProducerSpec(name="output", schema=MagicMock())
 
         # Act
         processor.register_specification(param_spec)

@@ -458,5 +458,132 @@ class TestLlamaFileProcessorSimple(IsolatedAsyncioTestCase):
         # No specific rate limit error handling tested since SLM presumably has no rate limits
 
 
+    @patch('trustgraph.model.text_completion.llamafile.llm.OpenAI')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_with_model_override(self, mock_llm_init, mock_async_init, mock_openai_class):
+        """Test generate_content with model parameter override"""
+        # Arrange
+        mock_openai_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = "Response from overridden model"
+        mock_response.usage.prompt_tokens = 15
+        mock_response.usage.completion_tokens = 10
+
+        mock_openai_client.chat.completions.create.return_value = mock_response
+        mock_openai_class.return_value = mock_openai_client
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'model': 'LLaMA_CPP',
+            'llamafile': 'http://localhost:8080/v1',
+            'temperature': 0.0,
+            'max_output': 4096,
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Override model
+        result = await processor.generate_content("System", "Prompt", model="custom-llamafile-model")
+
+        # Assert
+        assert result.model == "custom-llamafile-model"  # Should use overridden model
+        assert result.text == "Response from overridden model"
+
+        # Verify the API call was made with overridden model
+        call_args = mock_openai_client.chat.completions.create.call_args
+        assert call_args[1]['model'] == "custom-llamafile-model"
+
+    @patch('trustgraph.model.text_completion.llamafile.llm.OpenAI')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_with_temperature_override(self, mock_llm_init, mock_async_init, mock_openai_class):
+        """Test generate_content with temperature parameter override"""
+        # Arrange
+        mock_openai_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = "Response with temperature override"
+        mock_response.usage.prompt_tokens = 18
+        mock_response.usage.completion_tokens = 12
+
+        mock_openai_client.chat.completions.create.return_value = mock_response
+        mock_openai_class.return_value = mock_openai_client
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'model': 'LLaMA_CPP',
+            'llamafile': 'http://localhost:8080/v1',
+            'temperature': 0.0,  # Default temperature
+            'max_output': 4096,
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Override temperature
+        result = await processor.generate_content("System", "Prompt", temperature=0.7)
+
+        # Assert
+        assert result.text == "Response with temperature override"
+
+        # Verify the API call was made with overridden temperature
+        call_args = mock_openai_client.chat.completions.create.call_args
+        assert call_args[1]['temperature'] == 0.7
+
+    @patch('trustgraph.model.text_completion.llamafile.llm.OpenAI')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_with_both_parameters_override(self, mock_llm_init, mock_async_init, mock_openai_class):
+        """Test generate_content with both model and temperature overrides"""
+        # Arrange
+        mock_openai_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = "Response with both parameters override"
+        mock_response.usage.prompt_tokens = 20
+        mock_response.usage.completion_tokens = 15
+
+        mock_openai_client.chat.completions.create.return_value = mock_response
+        mock_openai_class.return_value = mock_openai_client
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'model': 'LLaMA_CPP',
+            'llamafile': 'http://localhost:8080/v1',
+            'temperature': 0.0,
+            'max_output': 4096,
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Override both parameters
+        result = await processor.generate_content("System", "Prompt", model="override-model", temperature=0.8)
+
+        # Assert
+        assert result.model == "override-model"
+        assert result.text == "Response with both parameters override"
+
+        # Verify the API call was made with overridden parameters
+        call_args = mock_openai_client.chat.completions.create.call_args
+        assert call_args[1]['model'] == "override-model"
+        assert call_args[1]['temperature'] == 0.8
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

@@ -459,5 +459,150 @@ class TestAzureProcessorSimple(IsolatedAsyncioTestCase):
         )
 
 
+    @patch('trustgraph.model.text_completion.azure.llm.requests')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_with_model_override(self, mock_llm_init, mock_async_init, mock_requests):
+        """Test generate_content with model parameter override"""
+        # Arrange
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            'choices': [{
+                'message': {
+                    'content': 'Response with model override'
+                }
+            }],
+            'usage': {
+                'prompt_tokens': 15,
+                'completion_tokens': 10
+            }
+        }
+        mock_requests.post.return_value = mock_response
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'endpoint': 'https://test.inference.ai.azure.com/v1/chat/completions',
+            'token': 'test-token',
+            'temperature': 0.0,
+            'max_output': 4192,
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Override model
+        result = await processor.generate_content("System", "Prompt", model="custom-azure-model")
+
+        # Assert
+        assert result.model == "custom-azure-model"  # Should use overridden model
+        assert result.text == "Response with model override"
+
+    @patch('trustgraph.model.text_completion.azure.llm.requests')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_with_temperature_override(self, mock_llm_init, mock_async_init, mock_requests):
+        """Test generate_content with temperature parameter override"""
+        # Arrange
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            'choices': [{
+                'message': {
+                    'content': 'Response with temperature override'
+                }
+            }],
+            'usage': {
+                'prompt_tokens': 15,
+                'completion_tokens': 10
+            }
+        }
+        mock_requests.post.return_value = mock_response
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'endpoint': 'https://test.inference.ai.azure.com/v1/chat/completions',
+            'token': 'test-token',
+            'temperature': 0.0,  # Default temperature
+            'max_output': 4192,
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Override temperature
+        result = await processor.generate_content("System", "Prompt", temperature=0.8)
+
+        # Assert
+        assert result.text == "Response with temperature override"
+
+        # Verify the request was made with the overridden temperature
+        mock_requests.post.assert_called_once()
+        call_args = mock_requests.post.call_args
+
+        import json
+        request_body = json.loads(call_args[1]['data'])
+        assert request_body['temperature'] == 0.8
+
+    @patch('trustgraph.model.text_completion.azure.llm.requests')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_with_both_parameters_override(self, mock_llm_init, mock_async_init, mock_requests):
+        """Test generate_content with both model and temperature overrides"""
+        # Arrange
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            'choices': [{
+                'message': {
+                    'content': 'Response with both parameters override'
+                }
+            }],
+            'usage': {
+                'prompt_tokens': 18,
+                'completion_tokens': 12
+            }
+        }
+        mock_requests.post.return_value = mock_response
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'endpoint': 'https://test.inference.ai.azure.com/v1/chat/completions',
+            'token': 'test-token',
+            'temperature': 0.0,
+            'max_output': 4192,
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Override both parameters
+        result = await processor.generate_content("System", "Prompt", model="override-model", temperature=0.9)
+
+        # Assert
+        assert result.model == "override-model"
+        assert result.text == "Response with both parameters override"
+
+        # Verify the request was made with overridden temperature
+        mock_requests.post.assert_called_once()
+        call_args = mock_requests.post.call_args
+
+        import json
+        request_body = json.loads(call_args[1]['data'])
+        assert request_body['temperature'] == 0.9
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
