@@ -18,7 +18,9 @@ class TestLlmServiceParameters(IsolatedAsyncioTestCase):
     def test_parameter_specs_registration(self, mock_async_init):
         """Test that LLM service registers model and temperature parameter specs"""
         # Arrange
-        mock_async_init.return_value = None
+        def mock_init(self, **kwargs):
+            self.config_handlers = []  # Initialize required attribute
+        mock_async_init.side_effect = mock_init
 
         config = {
             'id': 'test-llm-service',
@@ -40,7 +42,9 @@ class TestLlmServiceParameters(IsolatedAsyncioTestCase):
     def test_model_parameter_spec_properties(self, mock_async_init):
         """Test that model parameter spec has correct properties"""
         # Arrange
-        mock_async_init.return_value = None
+        def mock_init(self, **kwargs):
+            self.config_handlers = []  # Initialize required attribute
+        mock_async_init.side_effect = mock_init
 
         config = {
             'id': 'test-llm-service',
@@ -64,7 +68,9 @@ class TestLlmServiceParameters(IsolatedAsyncioTestCase):
     def test_temperature_parameter_spec_properties(self, mock_async_init):
         """Test that temperature parameter spec has correct properties"""
         # Arrange
-        mock_async_init.return_value = None
+        def mock_init(self, **kwargs):
+            self.config_handlers = []  # Initialize required attribute
+        mock_async_init.side_effect = mock_init
 
         config = {
             'id': 'test-llm-service',
@@ -88,7 +94,9 @@ class TestLlmServiceParameters(IsolatedAsyncioTestCase):
     async def test_on_request_extracts_parameters_from_flow(self, mock_async_init):
         """Test that on_request method extracts model and temperature from flow"""
         # Arrange
-        mock_async_init.return_value = None
+        def mock_init(self, **kwargs):
+            self.config_handlers = []  # Initialize required attribute
+        mock_async_init.side_effect = mock_init
 
         config = {
             'id': 'test-llm-service',
@@ -147,7 +155,9 @@ class TestLlmServiceParameters(IsolatedAsyncioTestCase):
     async def test_on_request_handles_missing_parameters_gracefully(self, mock_async_init):
         """Test that on_request handles missing parameters gracefully"""
         # Arrange
-        mock_async_init.return_value = None
+        def mock_init(self, **kwargs):
+            self.config_handlers = []  # Initialize required attribute
+        mock_async_init.side_effect = mock_init
 
         config = {
             'id': 'test-llm-service',
@@ -198,7 +208,9 @@ class TestLlmServiceParameters(IsolatedAsyncioTestCase):
     async def test_on_request_error_handling_preserves_behavior(self, mock_async_init):
         """Test that parameter extraction doesn't break existing error handling"""
         # Arrange
-        mock_async_init.return_value = None
+        def mock_init(self, **kwargs):
+            self.config_handlers = []  # Initialize required attribute
+        mock_async_init.side_effect = mock_init
 
         config = {
             'id': 'test-llm-service',
