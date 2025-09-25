@@ -48,9 +48,9 @@ class TestVertexAIProcessorSimple(IsolatedAsyncioTestCase):
 
         # Assert
         assert processor.default_model == 'gemini-2.0-flash-001'  # It's stored as 'model', not 'model_name'
-        assert hasattr(processor, 'generation_config')
+        assert hasattr(processor, 'generation_configs')  # Now a cache dictionary
         assert hasattr(processor, 'safety_settings')
-        assert hasattr(processor, 'llm')
+        assert hasattr(processor, 'model_clients')  # LLM clients are now cached
         mock_service_account.Credentials.from_service_account_file.assert_called_once_with('private.json')
         mock_vertexai.init.assert_called_once()
 
@@ -102,7 +102,8 @@ class TestVertexAIProcessorSimple(IsolatedAsyncioTestCase):
         mock_model.generate_content.assert_called_once()
         # Verify the call was made with the expected parameters
         call_args = mock_model.generate_content.call_args
-        assert call_args[1]['generation_config'] == processor.generation_config
+        # Generation config is now created dynamically per model
+        assert 'generation_config' in call_args[1]
         assert call_args[1]['safety_settings'] == processor.safety_settings
 
     @patch('trustgraph.model.text_completion.vertexai.llm.service_account')
@@ -299,8 +300,8 @@ class TestVertexAIProcessorSimple(IsolatedAsyncioTestCase):
         assert processor.default_model == 'gemini-1.5-pro'
         
         # Verify that generation_config object exists (can't easily check internal values)
-        assert hasattr(processor, 'generation_config')
-        assert processor.generation_config is not None
+        assert hasattr(processor, 'generation_configs')  # Now a cache dictionary
+        assert processor.generation_configs == {}  # Empty cache initially
         
         # Verify that safety settings are configured
         assert len(processor.safety_settings) == 4
@@ -353,8 +354,8 @@ class TestVertexAIProcessorSimple(IsolatedAsyncioTestCase):
             project='test-project-123'
         )
         
-        # Verify GenerativeModel was created with the right model name
-        mock_generative_model.assert_called_once_with('gemini-2.0-flash-001')
+        # GenerativeModel is now created lazily on first use, not at initialization
+        mock_generative_model.assert_not_called()
 
     @patch('trustgraph.model.text_completion.vertexai.llm.service_account')
     @patch('trustgraph.model.text_completion.vertexai.llm.vertexai')
@@ -441,7 +442,7 @@ class TestVertexAIProcessorSimple(IsolatedAsyncioTestCase):
         
         # Assert
         assert processor.default_model == 'claude-3-sonnet@20240229'
-        assert processor.is_anthropic == True
+        # is_anthropic logic is now determined dynamically per request
         
         # Verify service account was called with private key
         mock_service_account.Credentials.from_service_account_file.assert_called_once_with('anthropic-key.json')
