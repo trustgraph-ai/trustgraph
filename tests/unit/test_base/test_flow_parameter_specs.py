@@ -18,8 +18,9 @@ class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
     def test_parameter_spec_registration(self, mock_async_init):
         """Test that parameter specs can be registered with flow processors"""
         # Arrange
-        def mock_init(self, **kwargs):
-            self.config_handlers = []  # Initialize required attribute
+        def mock_init(*args, **kwargs):
+            # args[0] is 'self', initialize the required attribute
+            args[0].config_handlers = []
         mock_async_init.side_effect = mock_init
 
         config = {
@@ -52,8 +53,9 @@ class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
     def test_mixed_specification_types(self, mock_async_init):
         """Test registration of mixed specification types (parameters, consumers, producers)"""
         # Arrange
-        def mock_init(self, **kwargs):
-            self.config_handlers = []  # Initialize required attribute
+        def mock_init(*args, **kwargs):
+            # args[0] is 'self', initialize the required attribute
+            args[0].config_handlers = []
         mock_async_init.side_effect = mock_init
 
         config = {
@@ -89,8 +91,9 @@ class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
     def test_parameter_spec_metadata(self, mock_async_init):
         """Test parameter specification metadata handling"""
         # Arrange
-        def mock_init(self, **kwargs):
-            self.config_handlers = []  # Initialize required attribute
+        def mock_init(*args, **kwargs):
+            # args[0] is 'self', initialize the required attribute
+            args[0].config_handlers = []
         mock_async_init.side_effect = mock_init
 
         config = {
@@ -124,8 +127,9 @@ class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
     def test_duplicate_parameter_spec_handling(self, mock_async_init):
         """Test handling of duplicate parameter spec registration"""
         # Arrange
-        def mock_init(self, **kwargs):
-            self.config_handlers = []  # Initialize required attribute
+        def mock_init(*args, **kwargs):
+            # args[0] is 'self', initialize the required attribute
+            args[0].config_handlers = []
         mock_async_init.side_effect = mock_init
 
         config = {
@@ -155,8 +159,9 @@ class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
     async def test_parameter_specs_available_to_flows(self, mock_async_init, mock_flow_class):
         """Test that parameter specs are available when flows are created"""
         # Arrange
-        def mock_init(self, **kwargs):
-            self.config_handlers = []  # Initialize required attribute
+        def mock_init(*args, **kwargs):
+            # args[0] is 'self', initialize the required attribute
+            args[0].config_handlers = []
         mock_async_init.side_effect = mock_init
 
         config = {
@@ -197,8 +202,9 @@ class TestParameterSpecValidation(IsolatedAsyncioTestCase):
     def test_parameter_spec_name_validation(self, mock_async_init):
         """Test parameter spec name validation"""
         # Arrange
-        def mock_init(self, **kwargs):
-            self.config_handlers = []  # Initialize required attribute
+        def mock_init(*args, **kwargs):
+            # args[0] is 'self', initialize the required attribute
+            args[0].config_handlers = []
         mock_async_init.side_effect = mock_init
 
         config = {

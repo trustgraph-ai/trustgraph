@@ -19,7 +19,7 @@ class TestLlmServiceParameters(IsolatedAsyncioTestCase):
         """Test that LLM service registers model and temperature parameter specs"""
         # Arrange
         def mock_init(self, **kwargs):
-            self.config_handlers = []  # Initialize required attribute
+            self.config_handlers = []
         mock_async_init.side_effect = mock_init
 
         config = {
@@ -43,7 +43,7 @@ class TestLlmServiceParameters(IsolatedAsyncioTestCase):
         """Test that model parameter spec has correct properties"""
         # Arrange
         def mock_init(self, **kwargs):
-            self.config_handlers = []  # Initialize required attribute
+            self.config_handlers = []
         mock_async_init.side_effect = mock_init
 
         config = {
@@ -69,7 +69,7 @@ class TestLlmServiceParameters(IsolatedAsyncioTestCase):
         """Test that temperature parameter spec has correct properties"""
         # Arrange
         def mock_init(self, **kwargs):
-            self.config_handlers = []  # Initialize required attribute
+            self.config_handlers = []
         mock_async_init.side_effect = mock_init
 
         config = {
@@ -95,7 +95,7 @@ class TestLlmServiceParameters(IsolatedAsyncioTestCase):
         """Test that on_request method extracts model and temperature from flow"""
         # Arrange
         def mock_init(self, **kwargs):
-            self.config_handlers = []  # Initialize required attribute
+            self.config_handlers = []
         mock_async_init.side_effect = mock_init
 
         config = {
@@ -156,7 +156,7 @@ class TestLlmServiceParameters(IsolatedAsyncioTestCase):
         """Test that on_request handles missing parameters gracefully"""
         # Arrange
         def mock_init(self, **kwargs):
-            self.config_handlers = []  # Initialize required attribute
+            self.config_handlers = []
         mock_async_init.side_effect = mock_init
 
         config = {
@@ -209,7 +209,7 @@ class TestLlmServiceParameters(IsolatedAsyncioTestCase):
         """Test that parameter extraction doesn't break existing error handling"""
         # Arrange
         def mock_init(self, **kwargs):
-            self.config_handlers = []  # Initialize required attribute
+            self.config_handlers = []
         mock_async_init.side_effect = mock_init
 
         config = {
