@@ -80,8 +80,10 @@ The configurable parameters system requires the following technical components:
    Module: trustgraph-flow/trustgraph/flow/launcher.py
 
 5. **UI Parameter Forms**
-   - Dynamic form generation from parameter schemas
-   - Input validation and error display
+   - Dynamic form generation from flow parameter metadata
+   - Ordered parameter display using `order` field
+   - Descriptive parameter labels using `description` field
+   - Input validation against parameter type definitions
    - Parameter presets and templates
 
    Module: trustgraph-ui/components/flow-parameters/
@@ -129,16 +131,32 @@ Parameter definitions are stored centrally in the schema and config system with 
 
 #### Flow Class with Parameter References
 
-Flow classes reference parameter definitions by name:
+Flow classes define parameter metadata with type references, descriptions, and ordering:
 
 ```json
 {
   "flow_class": "document-analysis",
   "parameters": {
-    "model": "llm-model",
-    "size": "model-size",
-    "temp": "temperature",
-    "chunk": "chunk-size"
+    "model": {
+      "type": "llm-model",
+      "description": "LLM model to use for document analysis",
+      "order": 1
+    },
+    "size": {
+      "type": "model-size",
+      "description": "Model size variant to use",
+      "order": 2
+    },
+    "temp": {
+      "type": "temperature",
+      "description": "Generation temperature for creativity control",
+      "order": 3
+    },
+    "chunk": {
+      "type": "chunk-size",
+      "description": "Document chunk size for processing",
+      "order": 4
+    }
   },
   "class": {
     "text-completion:{class}": {
@@ -163,15 +181,18 @@ Flow classes reference parameter definitions by name:
 }
 ```
 
-The `parameters` section maps flow-specific parameter names (keys) to centrally-defined parameter definitions (values).
-```
+The `parameters` section maps flow-specific parameter names (keys) to parameter metadata objects containing:
+- `type`: Reference to centrally-defined parameter definition (e.g., "llm-model")
+- `description`: Human-readable description for UI display
+- `order`: Display order for parameter forms (lower numbers appear first)
 
 This approach allows:
-- Reusable parameter definitions across multiple flow classes
-- Centralized parameter management and updates
-- Reduced duplication in flow class definitions
+- Reusable parameter type definitions across multiple flow classes
+- Centralized parameter type management and validation
+- Flow-specific parameter descriptions and ordering
+- Enhanced UI experience with descriptive parameter forms
 - Consistent parameter validation across flows
-- Easy addition of new standard parameters
+- Easy addition of new standard parameter types
 
 #### Flow Launch Request
 
@@ -191,20 +212,23 @@ The flow launch API accepts parameters using the flow's parameter names:
 ```
 
 The system will:
-1. Map flow parameter names to their definitions (e.g., `model` → `llm-model`)
-2. Validate values against the parameter definitions
-3. Substitute values into processor parameters during flow instantiation
+1. Extract parameter metadata from flow class definition
+2. Map flow parameter names to their type definitions (e.g., `model` → `llm-model` type)
+3. Validate user-provided values against the parameter type definitions
+4. Substitute validated values into processor parameters during flow instantiation
 
 ### Implementation Details
 
 #### Parameter Resolution Process
 
-1. **Flow Class Loading**: Load flow class and extract parameter references
-2. **Definition Lookup**: Retrieve parameter definitions from schema/config store
-3. **Validation**: Validate user-provided parameters against definitions
-4. **Default Application**: Apply default values for missing parameters
-5. **Template Substitution**: Replace parameter placeholders in processor parameters
-6. **Processor Instantiation**: Create processors with substituted parameters
+1. **Flow Class Loading**: Load flow class and extract parameter metadata
+2. **Metadata Extraction**: Extract `type`, `description`, and `order` for each parameter
+3. **Type Definition Lookup**: Retrieve parameter type definitions from schema/config store using `type` field
+4. **UI Form Generation**: Use `description` and `order` fields to create ordered parameter forms
+5. **Validation**: Validate user-provided parameters against type definitions
+6. **Default Application**: Apply default values for missing parameters from type definitions
+7. **Template Substitution**: Replace parameter placeholders in processor parameters with validated values
+8. **Processor Instantiation**: Create processors with substituted parameters
 
 #### Pulsar Integration
 
