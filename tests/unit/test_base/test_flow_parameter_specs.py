@@ -11,14 +11,6 @@ from trustgraph.base.flow_processor import FlowProcessor
 from trustgraph.base import ParameterSpec, ConsumerSpec, ProducerSpec
 
 
-def mock_async_processor_init(self, **params):
-    """Mock AsyncProcessor.__init__ that properly initializes required attributes"""
-    self.config_handlers = []
-    self.id = params.get('id', 'test-service')
-
-
-# Apply the mock globally for this test module
-patch('trustgraph.base.async_processor.AsyncProcessor.__init__', mock_async_processor_init).start()
 
 
 class TestFlowParameterSpecs(IsolatedAsyncioTestCase):
