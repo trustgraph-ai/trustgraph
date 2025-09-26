@@ -72,23 +72,26 @@ def show_flow_classes(url):
     for class_name in class_names:
         cls = flow_api.get_class(class_name)
 
-        print(f"Flow Class: {class_name}")
-        print(f"Description: {cls.get('description', 'No description')}")
+        table = []
+        table.append(("name", class_name))
+        table.append(("description", cls.get("description", "")))
 
         tags = cls.get("tags", [])
         if tags:
-            print(f"Tags: {', '.join(tags)}")
+            table.append(("tags", ", ".join(tags)))
 
         # Show parameters if they exist
         parameters = cls.get("parameters", {})
         if parameters:
-            print("Parameters:")
             param_str = format_parameters(parameters, config_api)
-            print(param_str)
-        else:
-            print("Parameters: None")
+            table.append(("parameters", param_str))
 
-        print()  # Blank line between flow classes
+        print(tabulate.tabulate(
+            table,
+            tablefmt="pretty",
+            stralign="left",
+        ))
+        print()
 
 def main():
 
