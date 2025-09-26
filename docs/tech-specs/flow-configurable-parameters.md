@@ -100,7 +100,24 @@ Parameter definitions are stored centrally in the schema and config system with 
     "type": "string",
     "description": "LLM model to use",
     "default": "gpt-4",
-    "enum": ["gpt-4", "gpt-3.5-turbo", "claude-3", "gemma3:8b"],
+    "enum": [
+      {
+        "id": "gpt-4",
+        "description": "OpenAI GPT-4 (Most Capable)"
+      },
+      {
+        "id": "gpt-3.5-turbo",
+        "description": "OpenAI GPT-3.5 Turbo (Fast & Efficient)"
+      },
+      {
+        "id": "claude-3",
+        "description": "Anthropic Claude 3 (Thoughtful & Safe)"
+      },
+      {
+        "id": "gemma3:8b",
+        "description": "Google Gemma 3 8B (Open Source)"
+      }
+    ],
     "required": false
   },
   "model-size": {
