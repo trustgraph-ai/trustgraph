@@ -150,12 +150,14 @@ Flow classes define parameter metadata with type references, descriptions, and o
     "temp": {
       "type": "temperature",
       "description": "Generation temperature for creativity control",
-      "order": 3
+      "order": 3,
+      "advanced": true
     },
     "chunk": {
       "type": "chunk-size",
       "description": "Document chunk size for processing",
-      "order": 4
+      "order": 4,
+      "advanced": true
     }
   },
   "class": {
@@ -185,6 +187,7 @@ The `parameters` section maps flow-specific parameter names (keys) to parameter 
 - `type`: Reference to centrally-defined parameter definition (e.g., "llm-model")
 - `description`: Human-readable description for UI display
 - `order`: Display order for parameter forms (lower numbers appear first)
+- `advanced` (optional): Boolean flag indicating if this is an advanced parameter (default: false). When set to true, the UI may hide this parameter by default or place it in an "Advanced" section
 
 This approach allows:
 - Reusable parameter type definitions across multiple flow classes
