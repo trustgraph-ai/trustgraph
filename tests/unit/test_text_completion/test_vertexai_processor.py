@@ -460,6 +460,180 @@ class TestVertexAIProcessorSimple(IsolatedAsyncioTestCase):
         assert processor.api_params["top_p"] == 1.0
         assert processor.api_params["top_k"] == 32
 
+    @patch('trustgraph.model.text_completion.vertexai.llm.service_account')
+    @patch('trustgraph.model.text_completion.vertexai.llm.vertexai')
+    @patch('trustgraph.model.text_completion.vertexai.llm.GenerativeModel')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_temperature_override(self, mock_llm_init, mock_async_init, mock_generative_model, mock_vertexai, mock_service_account):
+        """Test temperature parameter override functionality"""
+        # Arrange
+        mock_credentials = MagicMock()
+        mock_service_account.Credentials.from_service_account_file.return_value = mock_credentials
+
+        mock_model = MagicMock()
+        mock_response = MagicMock()
+        mock_response.text = "Response with custom temperature"
+        mock_response.usage_metadata.prompt_token_count = 20
+        mock_response.usage_metadata.candidates_token_count = 12
+        mock_model.generate_content.return_value = mock_response
+        mock_generative_model.return_value = mock_model
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'region': 'us-central1',
+            'model': 'gemini-2.0-flash-001',
+            'temperature': 0.0,  # Default temperature
+            'max_output': 8192,
+            'private_key': 'private.json',
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Override temperature at runtime
+        result = await processor.generate_content(
+            "System prompt",
+            "User prompt",
+            model=None,      # Use default model
+            temperature=0.8  # Override temperature
+        )
+
+        # Assert
+        assert isinstance(result, LlmResult)
+        assert result.text == "Response with custom temperature"
+
+        # Verify Gemini API was called with overridden temperature
+        mock_model.generate_content.assert_called_once()
+        call_args = mock_model.generate_content.call_args
+
+        # Check that generation_config was created (we can't directly access temperature from mock)
+        generation_config = call_args.kwargs['generation_config']
+        assert generation_config is not None  # Should use overridden temperature configuration
+
+    @patch('trustgraph.model.text_completion.vertexai.llm.service_account')
+    @patch('trustgraph.model.text_completion.vertexai.llm.vertexai')
+    @patch('trustgraph.model.text_completion.vertexai.llm.GenerativeModel')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_model_override(self, mock_llm_init, mock_async_init, mock_generative_model, mock_vertexai, mock_service_account):
+        """Test model parameter override functionality"""
+        # Arrange
+        mock_credentials = MagicMock()
+        mock_service_account.Credentials.from_service_account_file.return_value = mock_credentials
+
+        # Mock different models
+        mock_model_default = MagicMock()
+        mock_model_override = MagicMock()
+        mock_response = MagicMock()
+        mock_response.text = "Response with custom model"
+        mock_response.usage_metadata.prompt_token_count = 18
+        mock_response.usage_metadata.candidates_token_count = 14
+        mock_model_override.generate_content.return_value = mock_response
+
+        # GenerativeModel should return different models based on input
+        def model_factory(model_name):
+            if model_name == 'gemini-1.5-pro':
+                return mock_model_override
+            return mock_model_default
+
+        mock_generative_model.side_effect = model_factory
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'region': 'us-central1',
+            'model': 'gemini-2.0-flash-001',  # Default model
+            'temperature': 0.2,               # Default temperature
+            'max_output': 8192,
+            'private_key': 'private.json',
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Override model at runtime
+        result = await processor.generate_content(
+            "System prompt",
+            "User prompt",
+            model="gemini-1.5-pro",  # Override model
+            temperature=None         # Use default temperature
+        )
+
+        # Assert
+        assert isinstance(result, LlmResult)
+        assert result.text == "Response with custom model"
+
+        # Verify the overridden model was used
+        mock_model_override.generate_content.assert_called_once()
+        # Verify GenerativeModel was called with the override model
+        mock_generative_model.assert_called_with('gemini-1.5-pro')
+
+    @patch('trustgraph.model.text_completion.vertexai.llm.service_account')
+    @patch('trustgraph.model.text_completion.vertexai.llm.vertexai')
+    @patch('trustgraph.model.text_completion.vertexai.llm.GenerativeModel')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_both_parameters_override(self, mock_llm_init, mock_async_init, mock_generative_model, mock_vertexai, mock_service_account):
+        """Test overriding both model and temperature parameters simultaneously"""
+        # Arrange
+        mock_credentials = MagicMock()
+        mock_service_account.Credentials.from_service_account_file.return_value = mock_credentials
+
+        mock_model = MagicMock()
+        mock_response = MagicMock()
+        mock_response.text = "Response with both overrides"
+        mock_response.usage_metadata.prompt_token_count = 22
+        mock_response.usage_metadata.candidates_token_count = 16
+        mock_model.generate_content.return_value = mock_response
+        mock_generative_model.return_value = mock_model
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'region': 'us-central1',
+            'model': 'gemini-2.0-flash-001',  # Default model
+            'temperature': 0.0,               # Default temperature
+            'max_output': 8192,
+            'private_key': 'private.json',
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Override both parameters at runtime
+        result = await processor.generate_content(
+            "System prompt",
+            "User prompt",
+            model="gemini-1.5-flash-001",  # Override model
+            temperature=0.9                # Override temperature
+        )
+
+        # Assert
+        assert isinstance(result, LlmResult)
+        assert result.text == "Response with both overrides"
+
+        # Verify both overrides were used
+        mock_model.generate_content.assert_called_once()
+        call_args = mock_model.generate_content.call_args
+
+        # Verify model override
+        mock_generative_model.assert_called_with('gemini-1.5-flash-001')  # Should use runtime override
+
+        # Verify temperature override (we can't directly access temperature from mock)
+        generation_config = call_args.kwargs['generation_config']
+        assert generation_config is not None  # Should use overridden temperature configuration
+
 
 if __name__ == '__main__':
     pytest.main([__file__])

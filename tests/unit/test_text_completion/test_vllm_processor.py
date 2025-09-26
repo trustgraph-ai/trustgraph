@@ -485,5 +485,148 @@ class TestVLLMProcessorSimple(IsolatedAsyncioTestCase):
         assert call_args[1]['json']['prompt'] == expected_prompt
 
 
+    @patch('trustgraph.model.text_completion.vllm.llm.aiohttp.ClientSession')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_with_model_override(self, mock_llm_init, mock_async_init, mock_session_class):
+        """Test generate_content with model parameter override"""
+        # Arrange
+        mock_session = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status = 200
+        mock_response.json = AsyncMock(return_value={
+            'choices': [{
+                'text': 'Response from overridden model'
+            }],
+            'usage': {
+                'prompt_tokens': 12,
+                'completion_tokens': 8
+            }
+        })
+
+        mock_session.post.return_value.__aenter__.return_value = mock_response
+        mock_session.post.return_value.__aexit__.return_value = None
+        mock_session_class.return_value = mock_session
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'model': 'TheBloke/Mistral-7B-v0.1-AWQ',
+            'url': 'http://vllm-service:8899/v1',
+            'temperature': 0.0,
+            'max_output': 2048,
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Override model
+        result = await processor.generate_content("System", "Prompt", model="custom-vllm-model")
+
+        # Assert
+        assert result.model == "custom-vllm-model"  # Should use overridden model
+        assert result.text == "Response from overridden model"
+
+    @patch('trustgraph.model.text_completion.vllm.llm.aiohttp.ClientSession')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_with_temperature_override(self, mock_llm_init, mock_async_init, mock_session_class):
+        """Test generate_content with temperature parameter override"""
+        # Arrange
+        mock_session = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status = 200
+        mock_response.json = AsyncMock(return_value={
+            'choices': [{
+                'text': 'Response with temperature override'
+            }],
+            'usage': {
+                'prompt_tokens': 15,
+                'completion_tokens': 10
+            }
+        })
+
+        mock_session.post.return_value.__aenter__.return_value = mock_response
+        mock_session.post.return_value.__aexit__.return_value = None
+        mock_session_class.return_value = mock_session
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'model': 'TheBloke/Mistral-7B-v0.1-AWQ',
+            'url': 'http://vllm-service:8899/v1',
+            'temperature': 0.0,  # Default temperature
+            'max_output': 2048,
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Override temperature
+        result = await processor.generate_content("System", "Prompt", temperature=0.7)
+
+        # Assert
+        assert result.text == "Response with temperature override"
+
+        # Verify the request was made with overridden temperature
+        call_args = mock_session.post.call_args
+        assert call_args[1]['json']['temperature'] == 0.7
+
+    @patch('trustgraph.model.text_completion.vllm.llm.aiohttp.ClientSession')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_with_both_parameters_override(self, mock_llm_init, mock_async_init, mock_session_class):
+        """Test generate_content with both model and temperature overrides"""
+        # Arrange
+        mock_session = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status = 200
+        mock_response.json = AsyncMock(return_value={
+            'choices': [{
+                'text': 'Response with both parameters override'
+            }],
+            'usage': {
+                'prompt_tokens': 18,
+                'completion_tokens': 12
+            }
+        })
+
+        mock_session.post.return_value.__aenter__.return_value = mock_response
+        mock_session.post.return_value.__aexit__.return_value = None
+        mock_session_class.return_value = mock_session
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'model': 'TheBloke/Mistral-7B-v0.1-AWQ',
+            'url': 'http://vllm-service:8899/v1',
+            'temperature': 0.0,
+            'max_output': 2048,
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Override both parameters
+        result = await processor.generate_content("System", "Prompt", model="override-model", temperature=0.8)
+
+        # Assert
+        assert result.model == "override-model"
+        assert result.text == "Response with both parameters override"
+
+        # Verify the request was made with overridden temperature
+        call_args = mock_session.post.call_args
+        assert call_args[1]['json']['temperature'] == 0.8
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
