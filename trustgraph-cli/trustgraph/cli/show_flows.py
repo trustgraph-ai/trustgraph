@@ -45,6 +45,58 @@ def describe_interfaces(intdefs, flow):
 
     return "\n".join(lst)
 
+def format_parameters(flow_params, class_params_metadata):
+    """
+    Format flow parameters with their human-readable descriptions
+
+    Args:
+        flow_params: The actual parameter values used in the flow
+        class_params_metadata: The parameter metadata from the flow class definition
+
+    Returns:
+        Formatted string of parameters with descriptions
+    """
+    if not flow_params:
+        return "None"
+
+    param_list = []
+
+    # Sort parameters by order if available
+    sorted_params = sorted(
+        class_params_metadata.items(),
+        key=lambda x: x[1].get("order", 999)
+    )
+
+    for param_name, param_meta in sorted_params:
+        if param_name in flow_params:
+            value = flow_params[param_name]
+            description = param_meta.get("description", param_name)
+            param_type = param_meta.get("type", "")
+            advanced = param_meta.get("advanced", False)
+            controlled_by = param_meta.get("controlled-by", None)
+
+            # Format the parameter line
+            line = f"• {description}: {value}"
+
+            # Add metadata indicators
+            indicators = []
+            if advanced:
+                indicators.append("advanced")
+            if controlled_by:
+                indicators.append(f"controlled by {controlled_by}")
+
+            if indicators:
+                line += f" ({', '.join(indicators)})"
+
+            param_list.append(line)
+
+    # Add any parameters that aren't in the class metadata (shouldn't happen normally)
+    for param_name, value in flow_params.items():
+        if param_name not in class_params_metadata:
+            param_list.append(f"• {param_name}: {value} (undefined)")
+
+    return "\n".join(param_list) if param_list else "None"
+
 def show_flows(url):
 
     api = Api(url)
@@ -75,10 +127,23 @@ def show_flows(url):
         table.append(("class", flow.get("class-name", "")))
         table.append(("desc", flow.get("description", "")))
 
-        # Display parameters if they exist
+        # Display parameters with human-readable descriptions
         parameters = flow.get("parameters", {})
         if parameters:
-            param_str = json.dumps(parameters, indent=2)
+            # Try to get the flow class definition for parameter metadata
+            class_name = flow.get("class-name", "")
+            if class_name:
+                try:
+                    flow_class = flow_api.get_class(class_name)
+                    class_params_metadata = flow_class.get("parameters", {})
+                    param_str = format_parameters(parameters, class_params_metadata)
+                except Exception as e:
+                    # Fallback to JSON if we can't get the class definition
+                    param_str = json.dumps(parameters, indent=2)
+            else:
+                # No class name, fallback to JSON
+                param_str = json.dumps(parameters, indent=2)
+
             table.append(("parameters", param_str))
 
         table.append(("queue", describe_interfaces(interface_defs, flow)))
