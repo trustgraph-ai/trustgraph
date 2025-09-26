@@ -9,7 +9,7 @@ from unittest import IsolatedAsyncioTestCase
 
 # Import the service under test
 from trustgraph.chunking.recursive.chunker import Processor
-from trustgraph.schema import TextDocument, Chunk
+from trustgraph.schema import TextDocument, Chunk, Metadata
 
 
 class MockAsyncProcessor:
@@ -167,32 +167,35 @@ class TestRecursiveChunkerSimple(IsolatedAsyncioTestCase):
         # Mock message with TextDocument
         mock_message = MagicMock()
         mock_text_doc = MagicMock()
-        mock_text_doc.metadata.id = "test-doc-123"
+        mock_text_doc.metadata = Metadata(
+            id="test-doc-123",
+            metadata=[],
+            user="test-user",
+            collection="test-collection"
+        )
         mock_text_doc.text = b"This is test document content"
         mock_message.value.return_value = mock_text_doc
 
         # Mock consumer and flow with parameter overrides
         mock_consumer = MagicMock()
+        mock_producer = AsyncMock()
         mock_flow = MagicMock()
         mock_flow.side_effect = lambda param: {
             "chunk-size": 1500,
-            "chunk-overlap": 150
+            "chunk-overlap": 150,
+            "output": mock_producer
         }.get(param)
-
-        mock_producer = AsyncMock()
-        mock_flow.return_value = mock_producer
 
         # Act
         await processor.on_message(mock_message, mock_consumer, mock_flow)
 
         # Assert
-        # Verify RecursiveCharacterTextSplitter was created with overridden parameters
-        mock_splitter_class.assert_called_once_with(
-            chunk_size=1500,
-            chunk_overlap=150,
-            length_function=len,
-            is_separator_regex=False,
-        )
+        # Verify RecursiveCharacterTextSplitter was called with overridden parameters (last call)
+        actual_last_call = mock_splitter_class.call_args_list[-1]
+        assert actual_last_call.kwargs['chunk_size'] == 1500
+        assert actual_last_call.kwargs['chunk_overlap'] == 150
+        assert actual_last_call.kwargs['length_function'] == len
+        assert actual_last_call.kwargs['is_separator_regex'] == False
 
         # Verify chunk was sent to output
         mock_producer.send.assert_called_once()

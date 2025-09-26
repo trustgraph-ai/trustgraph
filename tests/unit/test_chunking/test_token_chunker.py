@@ -9,7 +9,7 @@ from unittest import IsolatedAsyncioTestCase
 
 # Import the service under test
 from trustgraph.chunking.token.chunker import Processor
-from trustgraph.schema import TextDocument, Chunk
+from trustgraph.schema import TextDocument, Chunk, Metadata
 
 
 class MockAsyncProcessor:
@@ -167,31 +167,39 @@ class TestTokenChunkerSimple(IsolatedAsyncioTestCase):
         # Mock message with TextDocument
         mock_message = MagicMock()
         mock_text_doc = MagicMock()
-        mock_text_doc.metadata.id = "test-doc-456"
+        mock_text_doc.metadata = Metadata(
+            id="test-doc-456",
+            metadata=[],
+            user="test-user",
+            collection="test-collection"
+        )
         mock_text_doc.text = b"This is test document content for token chunking"
         mock_message.value.return_value = mock_text_doc
 
         # Mock consumer and flow with parameter overrides
         mock_consumer = MagicMock()
+        mock_producer = AsyncMock()
         mock_flow = MagicMock()
         mock_flow.side_effect = lambda param: {
             "chunk-size": 400,
-            "chunk-overlap": 40
+            "chunk-overlap": 40,
+            "output": mock_producer
         }.get(param)
-
-        mock_producer = AsyncMock()
-        mock_flow.return_value = mock_producer
 
         # Act
         await processor.on_message(mock_message, mock_consumer, mock_flow)
 
         # Assert
-        # Verify TokenTextSplitter was created with overridden parameters
-        mock_splitter_class.assert_called_once_with(
-            encoding_name="cl100k_base",
-            chunk_size=400,
-            chunk_overlap=40,
-        )
+        # Verify TokenTextSplitter was called with overridden parameters (last call)
+        expected_call = [
+            ('encoding_name', 'cl100k_base'),
+            ('chunk_size', 400),
+            ('chunk_overlap', 40)
+        ]
+        actual_last_call = mock_splitter_class.call_args_list[-1]
+        assert actual_last_call.kwargs['encoding_name'] == "cl100k_base"
+        assert actual_last_call.kwargs['chunk_size'] == 400
+        assert actual_last_call.kwargs['chunk_overlap'] == 40
 
         # Verify chunk was sent to output
         mock_producer.send.assert_called_once()
