@@ -32,7 +32,7 @@ class LlmService(FlowProcessor):
 
     def __init__(self, **params):
 
-        id = params.get("id")
+        id = params.get("id", default_ident)
         concurrency = params.get("concurrency", 1)
 
         super(LlmService, self).__init__(**params | {
@@ -111,11 +111,12 @@ class LlmService(FlowProcessor):
                     request.system, request.prompt, model, temperature
                 )
 
-            await __class__.text_completion_model_metric.labels(
-                processor = self.id, flow = flow.name
+            __class__.text_completion_model_metric.labels(
+                processor = self.id,
+                flow = flow.name
             ).info({
-                "model": model,
-                "temperature": temperature,
+                "model": str(model) if model is not None else "",
+                "temperature": str(temperature) if temperature is not None else "",
             })
 
             await flow("response").send(
