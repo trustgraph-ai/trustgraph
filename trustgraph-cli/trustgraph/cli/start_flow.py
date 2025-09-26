@@ -1,5 +1,10 @@
 """
-Starts a processing flow using a defined flow class
+Starts a processing flow using a defined flow class.
+
+Parameters can be provided in three ways:
+1. As key=value pairs: --param model=gpt-4 --param temp=0.7
+2. As JSON string: -p '{"model": "gpt-4", "temp": 0.7}'
+3. As JSON file: --parameters-file params.json
 """
 
 import argparse
@@ -62,6 +67,12 @@ def main():
         help='Path to JSON file containing flow parameters',
     )
 
+    parser.add_argument(
+        '--param',
+        action='append',
+        help='Flow parameter as key=value pair (can be used multiple times, e.g., --param model=gpt-4 --param temp=0.7)',
+    )
+
     args = parser.parse_args()
 
     try:
@@ -73,6 +84,34 @@ def main():
                 parameters = json.load(f)
         elif args.parameters:
             parameters = json.loads(args.parameters)
+        elif args.param:
+            # Parse key=value pairs
+            parameters = {}
+            for param in args.param:
+                if '=' not in param:
+                    raise ValueError(f"Invalid parameter format: {param}. Expected key=value")
+
+                key, value = param.split('=', 1)
+                key = key.strip()
+                value = value.strip()
+
+                # Try to parse value as JSON first (for numbers, booleans, etc.)
+                try:
+                    # Handle common cases where we want to preserve the string
+                    if value.lower() in ['true', 'false']:
+                        parameters[key] = value.lower() == 'true'
+                    elif value.replace('.', '').replace('-', '').isdigit():
+                        # Check if it's a number
+                        if '.' in value:
+                            parameters[key] = float(value)
+                        else:
+                            parameters[key] = int(value)
+                    else:
+                        # Keep as string
+                        parameters[key] = value
+                except ValueError:
+                    # If JSON parsing fails, treat as string
+                    parameters[key] = value
 
         start_flow(
             url = args.api_url,
