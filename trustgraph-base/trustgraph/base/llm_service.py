@@ -112,7 +112,7 @@ class LlmService(FlowProcessor):
                 )
 
             await __class__.text_completion_model_metric.labels(
-                id = flow.id, flow = flow.name
+                processor = self.id, flow = flow.name
             ).info({
                 "model": model,
                 "temperature": temperature,
