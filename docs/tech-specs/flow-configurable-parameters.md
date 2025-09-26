@@ -100,7 +100,24 @@ Parameter definitions are stored centrally in the schema and config system with 
     "type": "string",
     "description": "LLM model to use",
     "default": "gpt-4",
-    "enum": ["gpt-4", "gpt-3.5-turbo", "claude-3", "gemma3:8b"],
+    "enum": [
+      {
+        "id": "gpt-4",
+        "description": "OpenAI GPT-4 (Most Capable)"
+      },
+      {
+        "id": "gpt-3.5-turbo",
+        "description": "OpenAI GPT-3.5 Turbo (Fast & Efficient)"
+      },
+      {
+        "id": "claude-3",
+        "description": "Anthropic Claude 3 (Thoughtful & Safe)"
+      },
+      {
+        "id": "gemma3:8b",
+        "description": "Google Gemma 3 8B (Open Source)"
+      }
+    ],
     "required": false
   },
   "model-size": {
@@ -137,25 +154,36 @@ Flow classes define parameter metadata with type references, descriptions, and o
 {
   "flow_class": "document-analysis",
   "parameters": {
-    "model": {
+    "llm-model": {
       "type": "llm-model",
-      "description": "LLM model to use for document analysis",
+      "description": "Primary LLM model for text completion",
       "order": 1
     },
-    "size": {
-      "type": "model-size",
-      "description": "Model size variant to use",
-      "order": 2
+    "llm-rag-model": {
+      "type": "llm-model",
+      "description": "LLM model for RAG operations",
+      "order": 2,
+      "advanced": true,
+      "controlled-by": "llm-model"
     },
-    "temp": {
+    "llm-temperature": {
       "type": "temperature",
       "description": "Generation temperature for creativity control",
-      "order": 3
+      "order": 3,
+      "advanced": true
     },
-    "chunk": {
+    "chunk-size": {
       "type": "chunk-size",
       "description": "Document chunk size for processing",
-      "order": 4
+      "order": 4,
+      "advanced": true
+    },
+    "chunk-overlap": {
+      "type": "integer",
+      "description": "Overlap between document chunks",
+      "order": 5,
+      "advanced": true,
+      "controlled-by": "chunk-size"
     }
   },
   "class": {
@@ -163,8 +191,16 @@ Flow classes define parameter metadata with type references, descriptions, and o
       "request": "non-persistent://tg/request/text-completion:{class}",
       "response": "non-persistent://tg/response/text-completion:{class}",
       "parameters": {
-        "model": "{model}",
-        "temperature": "{temp}"
+        "model": "{llm-model}",
+        "temperature": "{llm-temperature}"
+      }
+    },
+    "rag-completion:{class}": {
+      "request": "non-persistent://tg/request/rag-completion:{class}",
+      "response": "non-persistent://tg/response/rag-completion:{class}",
+      "parameters": {
+        "model": "{llm-rag-model}",
+        "temperature": "{llm-temperature}"
       }
     }
   },
@@ -173,8 +209,8 @@ Flow classes define parameter metadata with type references, descriptions, and o
       "input": "persistent://tg/flow/chunk:{id}",
       "output": "persistent://tg/flow/chunk-load:{id}",
       "parameters": {
-        "chunk_size": "{chunk}",
-        "chunk_overlap": 100
+        "chunk_size": "{chunk-size}",
+        "chunk_overlap": "{chunk-overlap}"
       }
     }
   }
@@ -185,6 +221,8 @@ The `parameters` section maps flow-specific parameter names (keys) to parameter 
 - `type`: Reference to centrally-defined parameter definition (e.g., "llm-model")
 - `description`: Human-readable description for UI display
 - `order`: Display order for parameter forms (lower numbers appear first)
+- `advanced` (optional): Boolean flag indicating if this is an advanced parameter (default: false). When set to true, the UI may hide this parameter by default or place it in an "Advanced" section
+- `controlled-by` (optional): Name of another parameter that controls this parameter's value when in simple mode. When specified, this parameter inherits its value from the controlling parameter unless explicitly overridden
 
 This approach allows:
 - Reusable parameter type definitions across multiple flow classes
@@ -193,6 +231,8 @@ This approach allows:
 - Enhanced UI experience with descriptive parameter forms
 - Consistent parameter validation across flows
 - Easy addition of new standard parameter types
+- Simplified UI with basic/advanced mode separation
+- Parameter value inheritance for related settings
 
 #### Flow Launch Request
 
@@ -203,32 +243,62 @@ The flow launch API accepts parameters using the flow's parameter names:
   "flow_class": "document-analysis",
   "flow_id": "customer-A-flow",
   "parameters": {
-    "model": "claude-3",
-    "size": "12b",
-    "temp": 0.5,
-    "chunk": 1024
+    "llm-model": "claude-3",
+    "llm-temperature": 0.5,
+    "chunk-size": 1024
   }
 }
 ```
 
+Note: In this example, `llm-rag-model` is not explicitly provided but will inherit the value "claude-3" from `llm-model` due to its `controlled-by` relationship. Similarly, `chunk-overlap` could inherit a calculated value based on `chunk-size`.
+
 The system will:
 1. Extract parameter metadata from flow class definition
-2. Map flow parameter names to their type definitions (e.g., `model` → `llm-model` type)
-3. Validate user-provided values against the parameter type definitions
-4. Substitute validated values into processor parameters during flow instantiation
+2. Map flow parameter names to their type definitions (e.g., `llm-model` → `llm-model` type)
+3. Resolve controlled-by relationships (e.g., `llm-rag-model` inherits from `llm-model`)
+4. Validate user-provided and inherited values against the parameter type definitions
+5. Substitute resolved values into processor parameters during flow instantiation
 
 ### Implementation Details
 
 #### Parameter Resolution Process
 
 1. **Flow Class Loading**: Load flow class and extract parameter metadata
-2. **Metadata Extraction**: Extract `type`, `description`, and `order` for each parameter
+2. **Metadata Extraction**: Extract `type`, `description`, `order`, `advanced`, and `controlled-by` for each parameter
 3. **Type Definition Lookup**: Retrieve parameter type definitions from schema/config store using `type` field
-4. **UI Form Generation**: Use `description` and `order` fields to create ordered parameter forms
-5. **Validation**: Validate user-provided parameters against type definitions
-6. **Default Application**: Apply default values for missing parameters from type definitions
-7. **Template Substitution**: Replace parameter placeholders in processor parameters with validated values
-8. **Processor Instantiation**: Create processors with substituted parameters
+4. **UI Form Generation**:
+   - Use `description` and `order` fields to create ordered parameter forms
+   - Parameters with `advanced: true` are hidden in basic mode or grouped in an "Advanced" section
+   - Parameters with `controlled-by` may be hidden in simple mode if they inherit from their controller
+5. **Parameter Inheritance Resolution**:
+   - For parameters with `controlled-by` field, check if a value was explicitly provided
+   - If no explicit value provided, inherit the value from the controlling parameter
+   - If the controlling parameter also has no value, use the default from the type definition
+6. **Validation**: Validate user-provided and inherited parameters against type definitions
+7. **Default Application**: Apply default values for missing parameters from type definitions
+8. **Template Substitution**: Replace parameter placeholders in processor parameters with resolved values
+9. **Processor Instantiation**: Create processors with substituted parameters
+
+#### Parameter Inheritance with controlled-by
+
+The `controlled-by` field enables parameter value inheritance, particularly useful for simplifying user interfaces while maintaining flexibility:
+
+**Example Scenario**:
+- `llm-model` parameter controls the primary LLM model
+- `llm-rag-model` parameter has `"controlled-by": "llm-model"`
+- In simple mode, setting `llm-model` to "gpt-4" automatically sets `llm-rag-model` to "gpt-4" as well
+- In advanced mode, users can override `llm-rag-model` with a different value
+
+**Resolution Rules**:
+1. If a parameter has an explicitly provided value, use that value
+2. If no explicit value and `controlled-by` is set, use the controlling parameter's value
+3. If the controlling parameter has no value, fall back to the default from the type definition
+4. Circular dependencies in `controlled-by` relationships result in a validation error
+
+**UI Behavior**:
+- In basic/simple mode: Parameters with `controlled-by` may be hidden or shown as read-only with inherited value
+- In advanced mode: All parameters are shown and can be individually configured
+- When a controlling parameter changes, dependent parameters update automatically unless explicitly overridden
 
 #### Pulsar Integration
 
