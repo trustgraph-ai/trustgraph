@@ -176,15 +176,9 @@ class Processor(TriplesStoreService):
 
                 self.table = request.user
 
-            # Delete all triples for this collection from the unified table
-            # In the unified table schema, collection is the partition key
-            delete_cql = """
-                DELETE FROM triples
-                WHERE collection = ?
-            """
-
+            # Delete all triples for this collection using the built-in method
             try:
-                self.tg.session.execute(delete_cql, (request.collection,))
+                self.tg.delete_collection(request.collection)
                 logger.info(f"Deleted all triples for collection {request.collection} from keyspace {request.user}")
             except Exception as e:
                 logger.error(f"Failed to delete collection data: {e}")
