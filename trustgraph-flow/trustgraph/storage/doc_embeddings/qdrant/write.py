@@ -141,7 +141,7 @@ class Processor(DocumentEmbeddingsStoreService):
             help=f'Qdrant API key (default: None)'
         )
 
-    async def on_storage_management(self, message):
+    async def on_storage_management(self, message, consumer, flow):
         """Handle storage management requests"""
         logger.info(f"Storage management request: {message.operation} for {message.user}/{message.collection}")
 

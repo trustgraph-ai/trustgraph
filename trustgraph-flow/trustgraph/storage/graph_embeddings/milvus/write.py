@@ -89,7 +89,7 @@ class Processor(GraphEmbeddingsStoreService):
             help=f'Milvus store URI (default: {default_store_uri})'
         )
 
-    async def on_storage_management(self, message):
+    async def on_storage_management(self, message, consumer, flow):
         """Handle storage management requests"""
         logger.info(f"Storage management request: {message.operation} for {message.user}/{message.collection}")
 
