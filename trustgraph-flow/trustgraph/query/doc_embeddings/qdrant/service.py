@@ -42,7 +42,8 @@ class Processor(DocumentEmbeddingsQueryService):
 
     def ensure_collection_exists(self, collection, dim):
         """Ensure collection exists, create if it doesn't"""
-        if collection != self.last_collection:
+        # Always check if collection exists, even if cached
+        if collection != self.last_collection or not self.qdrant.collection_exists(collection):
             if not self.qdrant.collection_exists(collection):
                 try:
                     self.qdrant.create_collection(

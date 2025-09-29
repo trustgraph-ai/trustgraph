@@ -94,7 +94,8 @@ class Processor(DocumentEmbeddingsStoreService):
                     message.metadata.collection
                 )
 
-                if collection != self.last_collection:
+                # Always check if collection exists, even if cached
+                if collection != self.last_collection or not self.qdrant.collection_exists(collection):
 
                     if not self.qdrant.collection_exists(collection):
 
@@ -176,6 +177,10 @@ class Processor(DocumentEmbeddingsStoreService):
             if self.qdrant.collection_exists(collection_name):
                 self.qdrant.delete_collection(collection_name)
                 logger.info(f"Deleted Qdrant collection: {collection_name}")
+
+                # Clear cache if we just deleted the cached collection
+                if self.last_collection == collection_name:
+                    self.last_collection = None
             else:
                 logger.info(f"Collection {collection_name} does not exist, nothing to delete")
 

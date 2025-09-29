@@ -77,7 +77,8 @@ class Processor(GraphEmbeddingsStoreService):
             "t_" + user + "_" + collection
         )
 
-        if cname != self.last_collection:
+        # Always check if collection exists, even if cached
+        if cname != self.last_collection or not self.qdrant.collection_exists(cname):
 
             if not self.qdrant.collection_exists(cname):
 
@@ -183,6 +184,10 @@ class Processor(GraphEmbeddingsStoreService):
             if self.qdrant.collection_exists(collection_name):
                 self.qdrant.delete_collection(collection_name)
                 logger.info(f"Deleted Qdrant collection: {collection_name}")
+
+                # Clear cache if we just deleted the cached collection
+                if self.last_collection == collection_name:
+                    self.last_collection = None
             else:
                 logger.info(f"Collection {collection_name} does not exist, nothing to delete")
 
