@@ -36,8 +36,6 @@ class Processor(DocumentEmbeddingsStoreService):
             }
         )
 
-        self.last_collection = None
-
         self.qdrant = QdrantClient(url=store_uri, api_key=api_key)
 
         # Set up storage management if base class attributes are available
@@ -94,23 +92,17 @@ class Processor(DocumentEmbeddingsStoreService):
                     message.metadata.collection
                 )
 
-                # Always check if collection exists, even if cached
-                if collection != self.last_collection or not self.qdrant.collection_exists(collection):
-
-                    if not self.qdrant.collection_exists(collection):
-
-                        try:
-                            self.qdrant.create_collection(
-                                collection_name=collection,
-                                vectors_config=VectorParams(
-                                    size=dim, distance=Distance.COSINE
-                                ),
-                            )
-                        except Exception as e:
-                            logger.error("Qdrant collection creation failed")
-                            raise e
-
-                    self.last_collection = collection
+                if not self.qdrant.collection_exists(collection):
+                    try:
+                        self.qdrant.create_collection(
+                            collection_name=collection,
+                            vectors_config=VectorParams(
+                                size=dim, distance=Distance.COSINE
+                            ),
+                        )
+                    except Exception as e:
+                        logger.error("Qdrant collection creation failed")
+                        raise e
 
                 self.qdrant.upsert(
                     collection_name=collection,
@@ -177,10 +169,6 @@ class Processor(DocumentEmbeddingsStoreService):
             if self.qdrant.collection_exists(collection_name):
                 self.qdrant.delete_collection(collection_name)
                 logger.info(f"Deleted Qdrant collection: {collection_name}")
-
-                # Clear cache if we just deleted the cached collection
-                if self.last_collection == collection_name:
-                    self.last_collection = None
             else:
                 logger.info(f"Collection {collection_name} does not exist, nothing to delete")
 
