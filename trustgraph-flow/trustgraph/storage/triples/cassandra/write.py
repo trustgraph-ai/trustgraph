@@ -117,6 +117,12 @@ class Processor(TriplesStoreService):
                 t.o.value
             )
 
+    async def start(self):
+        """Start the processor and its storage management consumer"""
+        await super().start()
+        await self.storage_request_consumer.start()
+        await self.storage_response_producer.start()
+
     async def on_storage_management(self, message):
         """Handle storage management requests"""
         logger.info(f"Storage management request: {message.operation} for {message.user}/{message.collection}")

@@ -340,6 +340,12 @@ class Processor(FlowProcessor):
             logger.warning(f"Failed to convert value {value} to type {field_type}: {e}")
             return str(value)
 
+    async def start(self):
+        """Start the processor and its storage management consumer"""
+        await super().start()
+        await self.storage_request_consumer.start()
+        await self.storage_response_producer.start()
+
     async def on_object(self, msg, consumer, flow):
         """Process incoming ExtractedObject and store in Cassandra"""
         
@@ -459,7 +465,7 @@ class Processor(FlowProcessor):
                     message=str(e)
                 )
             )
-            await self.send("storage-response", response)
+            await self.storage_response_producer.send(response)
 
     async def delete_collection(self, user: str, collection: str):
         """Delete all data for a specific collection"""

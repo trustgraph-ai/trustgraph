@@ -115,6 +115,12 @@ class Processor(GraphEmbeddingsStoreService):
                 "Gave up waiting for index creation"
             )
 
+    async def start(self):
+        """Start the processor and its storage management consumer"""
+        await super().start()
+        await self.storage_request_consumer.start()
+        await self.storage_response_producer.start()
+
     async def store_graph_embeddings(self, message):
 
         for entity in message.entities:

@@ -96,6 +96,14 @@ class Processor(GraphEmbeddingsStoreService):
 
         return cname
 
+    async def start(self):
+        """Start the processor and its storage management consumer"""
+        await super().start()
+        if hasattr(self, 'storage_request_consumer'):
+            await self.storage_request_consumer.start()
+        if hasattr(self, 'storage_response_producer'):
+            await self.storage_response_producer.start()
+
     async def store_graph_embeddings(self, message):
 
         for entity in message.entities:
