@@ -10,6 +10,95 @@ class FlowConfig:
     def __init__(self, config):
 
         self.config = config
+        # Cache for parameter type definitions to avoid repeated lookups
+        self.param_type_cache = {}
+
+    async def resolve_parameters(self, flow_class, user_params):
+        """
+        Resolve parameters by merging user-provided values with defaults.
+
+        Args:
+            flow_class: The flow class definition dict
+            user_params: User-provided parameters dict (may be None or empty)
+
+        Returns:
+            Complete parameter dict with user values and defaults merged (all values as strings)
+        """
+        # If the flow class has no parameters section, return user params as-is (stringified)
+        if "parameters" not in flow_class:
+            if not user_params:
+                return {}
+            # Ensure all values are strings
+            return {k: str(v) for k, v in user_params.items()}
+
+        resolved = {}
+        flow_params = flow_class["parameters"]
+        user_params = user_params if user_params else {}
+
+        # First pass: resolve parameters with explicit values or defaults
+        for param_name, param_meta in flow_params.items():
+            # Check if user provided a value
+            if param_name in user_params:
+                # Store as string
+                resolved[param_name] = str(user_params[param_name])
+            else:
+                # Look up the parameter type definition
+                param_type = param_meta.get("type")
+                if param_type:
+                    # Check cache first
+                    if param_type not in self.param_type_cache:
+                        try:
+                            # Fetch parameter type definition from config store
+                            type_def = await self.config.get("parameter-types").get(param_type)
+                            if type_def:
+                                self.param_type_cache[param_type] = json.loads(type_def)
+                            else:
+                                logger.warning(f"Parameter type '{param_type}' not found in config")
+                                self.param_type_cache[param_type] = {}
+                        except Exception as e:
+                            logger.error(f"Error fetching parameter type '{param_type}': {e}")
+                            self.param_type_cache[param_type] = {}
+
+                    # Apply default from type definition (as string)
+                    type_def = self.param_type_cache[param_type]
+                    if "default" in type_def:
+                        default_value = type_def["default"]
+                        # Convert to string based on type
+                        if isinstance(default_value, bool):
+                            resolved[param_name] = "true" if default_value else "false"
+                        else:
+                            resolved[param_name] = str(default_value)
+                    elif type_def.get("required", False):
+                        # Required parameter with no default and no user value
+                        raise RuntimeError(f"Required parameter '{param_name}' not provided and has no default")
+
+        # Second pass: handle controlled-by relationships
+        for param_name, param_meta in flow_params.items():
+            if param_name not in resolved and "controlled-by" in param_meta:
+                controller = param_meta["controlled-by"]
+                if controller in resolved:
+                    # Inherit value from controlling parameter (already a string)
+                    resolved[param_name] = resolved[controller]
+                else:
+                    # Controller has no value, try to get default from type definition
+                    param_type = param_meta.get("type")
+                    if param_type and param_type in self.param_type_cache:
+                        type_def = self.param_type_cache[param_type]
+                        if "default" in type_def:
+                            default_value = type_def["default"]
+                            # Convert to string based on type
+                            if isinstance(default_value, bool):
+                                resolved[param_name] = "true" if default_value else "false"
+                            else:
+                                resolved[param_name] = str(default_value)
+
+        # Include any extra parameters from user that weren't in flow class definition
+        # This allows for forward compatibility (ensure they're strings)
+        for key, value in user_params.items():
+            if key not in resolved:
+                resolved[key] = str(value)
+
+        return resolved
 
     async def handle_list_classes(self, msg):
 
@@ -99,8 +188,13 @@ class FlowConfig:
             await self.config.get("flow-classes").get(msg.class_name)
         )
 
-        # Get parameters from message (default to empty dict if not provided)
-        parameters = msg.parameters if msg.parameters else {}
+        # Resolve parameters by merging user-provided values with defaults
+        user_params = msg.parameters if msg.parameters else {}
+        parameters = await self.resolve_parameters(cls, user_params)
+
+        # Log the resolved parameters for debugging
+        logger.debug(f"User provided parameters: {user_params}")
+        logger.debug(f"Resolved parameters (with defaults): {parameters}")
 
         # Apply parameter substitution to template replacement function
         def repl_template_with_params(tmp):
