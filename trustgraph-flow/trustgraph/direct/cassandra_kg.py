@@ -112,7 +112,7 @@ class KnowledgeGraph:
                 s text,
                 p text,
                 o text,
-                PRIMARY KEY ((collection, s), p, o)
+                PRIMARY KEY (collection, s, p, o)
             );
         """);
 
@@ -123,7 +123,7 @@ class KnowledgeGraph:
                 p text,
                 o text,
                 s text,
-                PRIMARY KEY ((collection, p), o, s)
+                PRIMARY KEY (collection, p, o, s)
             );
         """);
 
@@ -134,7 +134,7 @@ class KnowledgeGraph:
                 o text,
                 s text,
                 p text,
-                PRIMARY KEY ((collection, o), s, p)
+                PRIMARY KEY (collection, o, s, p)
             );
         """);
 
