@@ -125,16 +125,17 @@ class Processor(TriplesStoreService):
 
     async def on_storage_management(self, message, consumer, flow):
         """Handle storage management requests"""
-        logger.info(f"Storage management request: {message.operation} for {message.user}/{message.collection}")
+        request = message.value()
+        logger.info(f"Storage management request: {request.operation} for {request.user}/{request.collection}")
 
         try:
-            if message.operation == "delete-collection":
-                await self.handle_delete_collection(message)
+            if request.operation == "delete-collection":
+                await self.handle_delete_collection(request)
             else:
                 response = StorageManagementResponse(
                     error=Error(
                         type="invalid_operation",
-                        message=f"Unknown operation: {message.operation}"
+                        message=f"Unknown operation: {request.operation}"
                     )
                 )
                 await self.storage_response_producer.send(response)
@@ -149,31 +150,31 @@ class Processor(TriplesStoreService):
             )
             await self.storage_response_producer.send(response)
 
-    async def handle_delete_collection(self, message):
+    async def handle_delete_collection(self, request):
         """Delete all data for a specific collection from the unified triples table"""
         try:
             # Create or reuse connection for this user's keyspace
-            if self.table is None or self.table != message.user:
+            if self.table is None or self.table != request.user:
                 self.tg = None
 
                 try:
                     if self.cassandra_username and self.cassandra_password:
                         self.tg = KnowledgeGraph(
                             hosts=self.cassandra_host,
-                            keyspace=message.user,
+                            keyspace=request.user,
                             username=self.cassandra_username,
                             password=self.cassandra_password
                         )
                     else:
                         self.tg = KnowledgeGraph(
                             hosts=self.cassandra_host,
-                            keyspace=message.user,
+                            keyspace=request.user,
                         )
                 except Exception as e:
-                    logger.error(f"Failed to connect to Cassandra for user {message.user}: {e}")
+                    logger.error(f"Failed to connect to Cassandra for user {request.user}: {e}")
                     raise
 
-                self.table = message.user
+                self.table = request.user
 
             # Delete all triples for this collection from the unified table
             # In the unified table schema, collection is the partition key
@@ -183,8 +184,8 @@ class Processor(TriplesStoreService):
             """
 
             try:
-                self.tg.session.execute(delete_cql, (message.collection,))
-                logger.info(f"Deleted all triples for collection {message.collection} from keyspace {message.user}")
+                self.tg.session.execute(delete_cql, (request.collection,))
+                logger.info(f"Deleted all triples for collection {request.collection} from keyspace {request.user}")
             except Exception as e:
                 logger.error(f"Failed to delete collection data: {e}")
                 raise
@@ -194,7 +195,7 @@ class Processor(TriplesStoreService):
                 error=None  # No error means success
             )
             await self.storage_response_producer.send(response)
-            logger.info(f"Successfully deleted collection {message.user}/{message.collection}")
+            logger.info(f"Successfully deleted collection {request.user}/{request.collection}")
 
         except Exception as e:
             logger.error(f"Failed to delete collection: {e}")

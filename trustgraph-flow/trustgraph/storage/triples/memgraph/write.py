@@ -325,16 +325,17 @@ class Processor(TriplesStoreService):
 
     async def on_storage_management(self, message, consumer, flow):
         """Handle storage management requests"""
-        logger.info(f"Storage management request: {message.operation} for {message.user}/{message.collection}")
+        request = message.value()
+        logger.info(f"Storage management request: {request.operation} for {request.user}/{request.collection}")
 
         try:
-            if message.operation == "delete-collection":
-                await self.handle_delete_collection(message)
+            if request.operation == "delete-collection":
+                await self.handle_delete_collection(request)
             else:
                 response = StorageManagementResponse(
                     error=Error(
                         type="invalid_operation",
-                        message=f"Unknown operation: {message.operation}"
+                        message=f"Unknown operation: {request.operation}"
                     )
                 )
                 await self.storage_response_producer.send(response)
@@ -349,7 +350,7 @@ class Processor(TriplesStoreService):
             )
             await self.storage_response_producer.send(response)
 
-    async def handle_delete_collection(self, message):
+    async def handle_delete_collection(self, request):
         """Delete all data for a specific collection"""
         try:
             with self.io.session(database=self.db) as session:
@@ -357,7 +358,7 @@ class Processor(TriplesStoreService):
                 node_result = session.run(
                     "MATCH (n:Node {user: $user, collection: $collection}) "
                     "DETACH DELETE n",
-                    user=message.user, collection=message.collection
+                    user=request.user, collection=request.collection
                 )
                 nodes_deleted = node_result.consume().counters.nodes_deleted
 
@@ -365,20 +366,20 @@ class Processor(TriplesStoreService):
                 literal_result = session.run(
                     "MATCH (n:Literal {user: $user, collection: $collection}) "
                     "DETACH DELETE n",
-                    user=message.user, collection=message.collection
+                    user=request.user, collection=request.collection
                 )
                 literals_deleted = literal_result.consume().counters.nodes_deleted
 
                 # Note: Relationships are automatically deleted with DETACH DELETE
 
-                logger.info(f"Deleted {nodes_deleted} nodes and {literals_deleted} literals for {message.user}/{message.collection}")
+                logger.info(f"Deleted {nodes_deleted} nodes and {literals_deleted} literals for {request.user}/{request.collection}")
 
             # Send success response
             response = StorageManagementResponse(
                 error=None  # No error means success
             )
             await self.storage_response_producer.send(response)
-            logger.info(f"Successfully deleted collection {message.user}/{message.collection}")
+            logger.info(f"Successfully deleted collection {request.user}/{request.collection}")
 
         except Exception as e:
             logger.error(f"Failed to delete collection: {e}")

@@ -95,16 +95,17 @@ class Processor(DocumentEmbeddingsStoreService):
 
     async def on_storage_management(self, message, consumer, flow):
         """Handle storage management requests"""
-        logger.info(f"Storage management request: {message.operation} for {message.user}/{message.collection}")
+        request = message.value()
+        logger.info(f"Storage management request: {request.operation} for {request.user}/{request.collection}")
 
         try:
-            if message.operation == "delete-collection":
-                await self.handle_delete_collection(message)
+            if request.operation == "delete-collection":
+                await self.handle_delete_collection(request)
             else:
                 response = StorageManagementResponse(
                     error=Error(
                         type="invalid_operation",
-                        message=f"Unknown operation: {message.operation}"
+                        message=f"Unknown operation: {request.operation}"
                     )
                 )
                 await self.storage_response_producer.send(response)
@@ -119,17 +120,17 @@ class Processor(DocumentEmbeddingsStoreService):
             )
             await self.storage_response_producer.send(response)
 
-    async def handle_delete_collection(self, message):
+    async def handle_delete_collection(self, request):
         """Delete the collection for document embeddings"""
         try:
-            self.vecstore.delete_collection(message.user, message.collection)
+            self.vecstore.delete_collection(request.user, request.collection)
 
             # Send success response
             response = StorageManagementResponse(
                 error=None  # No error means success
             )
             await self.storage_response_producer.send(response)
-            logger.info(f"Successfully deleted collection {message.user}/{message.collection}")
+            logger.info(f"Successfully deleted collection {request.user}/{request.collection}")
 
         except Exception as e:
             logger.error(f"Failed to delete collection: {e}")
