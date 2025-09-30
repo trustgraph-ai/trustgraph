@@ -120,8 +120,6 @@ class DocVectors:
 
         dim = len(embeds)
 
-        print("INSERT VEC", dim, flush=True)
-
         if (dim, user, collection) not in self.collections:
             self.init_collection(dim, user, collection)
     
