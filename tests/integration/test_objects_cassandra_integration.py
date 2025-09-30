@@ -22,7 +22,18 @@ class TestObjectsCassandraIntegration:
     def mock_cassandra_session(self):
         """Mock Cassandra session for integration tests"""
         session = MagicMock()
-        session.execute = MagicMock()
+
+        # Mock the execute method to return a valid result for keyspace checks
+        def execute_mock(query, *args, **kwargs):
+            result = MagicMock()
+            # For keyspace existence checks, return a row (keyspace exists)
+            if "system_schema.keyspaces" in str(query):
+                result.one.return_value = MagicMock()  # Non-None means exists
+            else:
+                result.one.return_value = None
+            return result
+
+        session.execute = MagicMock(side_effect=execute_mock)
         return session
 
     @pytest.fixture

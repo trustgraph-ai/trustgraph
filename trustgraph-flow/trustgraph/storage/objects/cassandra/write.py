@@ -295,6 +295,8 @@ class Processor(FlowProcessor):
         
         try:
             self.session.execute(create_table_cql)
+            if keyspace not in self.known_tables:
+                self.known_tables[keyspace] = set()
             self.known_tables[keyspace].add(table_key)
             logger.info(f"Ensured table exists: {safe_keyspace}.{safe_table}")
             
@@ -362,7 +364,8 @@ class Processor(FlowProcessor):
             WHERE keyspace_name = %s
             """
             result = self.session.execute(check_keyspace_cql, (safe_keyspace,))
-            if not result.one():
+            # Check if result is None (mock case) or has no rows
+            if result is None or not result.one():
                 error_msg = (
                     f"Collection {obj.metadata.collection} does not exist. "
                     f"Create it first with tg-set-collection."
@@ -371,6 +374,8 @@ class Processor(FlowProcessor):
                 raise ValueError(error_msg)
             # Cache it if it exists
             self.known_keyspaces.add(safe_keyspace)
+            if safe_keyspace not in self.known_tables:
+                self.known_tables[safe_keyspace] = set()
 
         # Get schema definition
         schema = self.schemas.get(obj.schema_name)
