@@ -29,6 +29,7 @@ class KnowledgeGraph:
         self.po_table = "triples_p"
         self.object_table = "triples_o"
         self.collection_table = "triples_collection"  # For SPO queries and deletion
+        self.collection_metadata_table = "collection_metadata"  # For tracking which collections exist
 
         if username and password:
             ssl_context = SSLContext(PROTOCOL_TLSv1_2)
@@ -116,7 +117,17 @@ class KnowledgeGraph:
             );
         """);
 
-        logger.info("Optimized multi-table schema initialized (4 tables)")
+        # Table 5: Collection metadata tracking
+        # Tracks which collections exist without polluting triple data
+        self.session.execute(f"""
+            CREATE TABLE IF NOT EXISTS {self.collection_metadata_table} (
+                collection text,
+                created_at timestamp,
+                PRIMARY KEY (collection)
+            );
+        """);
+
+        logger.info("Optimized multi-table schema initialized (5 tables)")
 
     def prepare_statements(self):
         """Prepare statements for optimal performance"""
@@ -248,10 +259,10 @@ class KnowledgeGraph:
         )
 
     def collection_exists(self, collection):
-        """Check if collection exists by querying triples_collection table"""
+        """Check if collection exists by querying collection_metadata table"""
         try:
             result = self.session.execute(
-                f"SELECT collection FROM {self.collection_table} WHERE collection = %s LIMIT 1",
+                f"SELECT collection FROM {self.collection_metadata_table} WHERE collection = %s LIMIT 1",
                 (collection,)
             )
             return bool(list(result))
@@ -260,15 +271,14 @@ class KnowledgeGraph:
             return False
 
     def create_collection(self, collection):
-        """Create collection by inserting marker row in triples_collection table"""
+        """Create collection by inserting metadata row"""
         try:
-            # Insert a system marker triple to establish collection exists
-            # This won't interfere with data as it uses a reserved system namespace
+            import datetime
             self.session.execute(
-                f"INSERT INTO {self.collection_table} (collection, s, p, o) VALUES (%s, %s, %s, %s)",
-                (collection, "__system__", "__collection_created__", "__marker__")
+                f"INSERT INTO {self.collection_metadata_table} (collection, created_at) VALUES (%s, %s)",
+                (collection, datetime.datetime.now())
             )
-            logger.info(f"Created collection marker for {collection}")
+            logger.info(f"Created collection metadata for {collection}")
         except Exception as e:
             logger.error(f"Error creating collection: {e}")
             raise e
@@ -323,6 +333,12 @@ class KnowledgeGraph:
         # Execute remaining deletions
         if count % 100 != 0:
             self.session.execute(batch)
+
+        # Step 3: Delete collection metadata
+        self.session.execute(
+            f"DELETE FROM {self.collection_metadata_table} WHERE collection = %s",
+            (collection,)
+        )
 
         logger.info(f"Deleted {count} triples from collection {collection}")
 

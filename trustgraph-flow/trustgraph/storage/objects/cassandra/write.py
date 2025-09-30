@@ -434,7 +434,16 @@ class Processor(FlowProcessor):
         logger.info(f"Received storage management request: {msg.operation} for {msg.user}/{msg.collection}")
 
         try:
-            if msg.operation == "delete-collection":
+            if msg.operation == "create-collection":
+                await self.create_collection(msg.user, msg.collection)
+
+                # Send success response
+                response = StorageManagementResponse(
+                    error=None  # No error means success
+                )
+                await self.storage_response_producer.send(response)
+                logger.info(f"Successfully created collection {msg.user}/{msg.collection}")
+            elif msg.operation == "delete-collection":
                 await self.delete_collection(msg.user, msg.collection)
 
                 # Send success response
@@ -466,6 +475,24 @@ class Processor(FlowProcessor):
                 )
             )
             await self.storage_response_producer.send(response)
+
+    async def create_collection(self, user: str, collection: str):
+        """Create/verify collection exists in Cassandra object store"""
+        # Connect if not already connected
+        self.connect_cassandra()
+
+        # Sanitize names for safety
+        safe_keyspace = self.sanitize_name(user)
+
+        # Ensure keyspace exists
+        if safe_keyspace not in self.known_keyspaces:
+            self.ensure_keyspace(safe_keyspace)
+            self.known_keyspaces.add(safe_keyspace)
+
+        # For Cassandra objects, collection is just a property in rows
+        # No need to create separate tables per collection
+        # Just mark that we've seen this collection
+        logger.info(f"Collection {collection} ready for user {user} (using keyspace {safe_keyspace})")
 
     async def delete_collection(self, user: str, collection: str):
         """Delete all data for a specific collection"""

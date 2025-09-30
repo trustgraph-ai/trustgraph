@@ -147,7 +147,9 @@ class Processor(GraphEmbeddingsStoreService):
         logger.info(f"Storage management request: {request.operation} for {request.user}/{request.collection}")
 
         try:
-            if request.operation == "delete-collection":
+            if request.operation == "create-collection":
+                await self.handle_create_collection(request)
+            elif request.operation == "delete-collection":
                 await self.handle_delete_collection(request)
             else:
                 response = StorageManagementResponse(
@@ -163,6 +165,39 @@ class Processor(GraphEmbeddingsStoreService):
             response = StorageManagementResponse(
                 error=Error(
                     type="processing_error",
+                    message=str(e)
+                )
+            )
+            await self.storage_response_producer.send(response)
+
+    async def handle_create_collection(self, request):
+        """Create a Qdrant collection for graph embeddings"""
+        try:
+            collection_name = f"t_{request.user}_{request.collection}"
+
+            if self.qdrant.collection_exists(collection_name):
+                logger.info(f"Qdrant collection {collection_name} already exists")
+            else:
+                # Create collection with default dimension (will be recreated with correct dim on first write if needed)
+                # Using a placeholder dimension - actual dimension determined by first embedding
+                self.qdrant.create_collection(
+                    collection_name=collection_name,
+                    vectors_config=VectorParams(
+                        size=384,  # Default dimension, common for many models
+                        distance=Distance.COSINE
+                    )
+                )
+                logger.info(f"Created Qdrant collection: {collection_name}")
+
+            # Send success response
+            response = StorageManagementResponse(error=None)
+            await self.storage_response_producer.send(response)
+
+        except Exception as e:
+            logger.error(f"Failed to create collection: {e}", exc_info=True)
+            response = StorageManagementResponse(
+                error=Error(
+                    type="creation_error",
                     message=str(e)
                 )
             )

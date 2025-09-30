@@ -39,20 +39,9 @@ class Processor(GraphEmbeddingsQueryService):
 
         self.qdrant = QdrantClient(url=store_uri, api_key=api_key)
 
-    def ensure_collection_exists(self, collection, dim):
-        """Ensure collection exists, create if it doesn't"""
-        if not self.qdrant.collection_exists(collection):
-            try:
-                self.qdrant.create_collection(
-                    collection_name=collection,
-                    vectors_config=VectorParams(
-                        size=dim, distance=Distance.COSINE
-                    ),
-                )
-                logger.info(f"Created collection: {collection}")
-            except Exception as e:
-                logger.error(f"Qdrant collection creation failed: {e}")
-                raise e
+    def collection_exists(self, collection):
+        """Check if collection exists (no implicit creation)"""
+        return self.qdrant.collection_exists(collection)
 
     def create_value(self, ent):
         if ent.startswith("http://") or ent.startswith("https://"):
@@ -67,14 +56,16 @@ class Processor(GraphEmbeddingsQueryService):
             entity_set = set()
             entities = []
 
+            collection = (
+                "t_" + msg.user + "_" + msg.collection
+            )
+
+            # Check if collection exists - return empty if not
+            if not self.collection_exists(collection):
+                logger.info(f"Collection {collection} does not exist, returning empty results")
+                return []
+
             for vec in msg.vectors:
-
-                dim = len(vec)
-                collection = (
-                    "t_" + msg.user + "_" + msg.collection
-                )
-
-                self.ensure_collection_exists(collection, dim)
 
                 # Heuristic hack, get (2*limit), so that we have more chance
                 # of getting (limit) entities
