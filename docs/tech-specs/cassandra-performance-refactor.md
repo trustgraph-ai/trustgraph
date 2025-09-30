@@ -158,17 +158,17 @@ The current primary key `PRIMARY KEY (collection, s, p, o)` provides minimal clu
 - Uneven load distribution across cluster nodes
 - Scalability bottlenecks as collections grow
 
-## Proposed Solution: Multi-Table Denormalization Strategy
+## Proposed Solution: 4-Table Denormalization Strategy
 
 ### Overview
 
-Replace the single `triples` table with three purpose-built tables, each optimized for specific query patterns. This eliminates the need for secondary indexes and ALLOW FILTERING while providing optimal performance for all query types.
+Replace the single `triples` table with four purpose-built tables, each optimized for specific query patterns. This eliminates the need for secondary indexes and ALLOW FILTERING while providing optimal performance for all query types. The fourth table enables efficient collection deletion despite compound partition keys.
 
 ### New Schema Design
 
-**Table 1: Subject-Centric Queries**
+**Table 1: Subject-Centric Queries (triples_s)**
 ```sql
-CREATE TABLE triples_by_subject (
+CREATE TABLE triples_s (
     collection text,
     s text,
     p text,
@@ -176,13 +176,13 @@ CREATE TABLE triples_by_subject (
     PRIMARY KEY ((collection, s), p, o)
 );
 ```
-- **Optimizes:** get_s, get_sp, get_spo, get_os
+- **Optimizes:** get_s, get_sp, get_os
 - **Partition Key:** (collection, s) - Better distribution than collection alone
 - **Clustering:** (p, o) - Enables efficient predicate/object lookups for a subject
 
-**Table 2: Predicate-Object Queries**
+**Table 2: Predicate-Object Queries (triples_p)**
 ```sql
-CREATE TABLE triples_by_po (
+CREATE TABLE triples_p (
     collection text,
     p text,
     o text,
@@ -194,9 +194,9 @@ CREATE TABLE triples_by_po (
 - **Partition Key:** (collection, p) - Direct access by predicate
 - **Clustering:** (o, s) - Efficient object-subject traversal
 
-**Table 3: Object-Centric Queries**
+**Table 3: Object-Centric Queries (triples_o)**
 ```sql
-CREATE TABLE triples_by_object (
+CREATE TABLE triples_o (
     collection text,
     o text,
     s text,
@@ -204,30 +204,72 @@ CREATE TABLE triples_by_object (
     PRIMARY KEY ((collection, o), s, p)
 );
 ```
-- **Optimizes:** get_o, get_os
+- **Optimizes:** get_o
 - **Partition Key:** (collection, o) - Direct access by object
 - **Clustering:** (s, p) - Efficient subject-predicate traversal
+
+**Table 4: Collection Management & SPO Queries (triples_collection)**
+```sql
+CREATE TABLE triples_collection (
+    collection text,
+    s text,
+    p text,
+    o text,
+    PRIMARY KEY (collection, s, p, o)
+);
+```
+- **Optimizes:** get_spo, delete_collection
+- **Partition Key:** collection only - Enables efficient collection-level operations
+- **Clustering:** (s, p, o) - Standard triple ordering
+- **Purpose:** Dual use for exact SPO lookups and as deletion index
 
 ### Query Mapping
 
 | Original Query | Target Table | Performance Improvement |
 |----------------|-------------|------------------------|
-| get_all(collection) | triples_by_subject | Token-based pagination |
-| get_s(collection, s) | triples_by_subject | Direct partition access |
-| get_p(collection, p) | triples_by_po | Direct partition access |
-| get_o(collection, o) | triples_by_object | Direct partition access |
-| get_sp(collection, s, p) | triples_by_subject | Partition + clustering |
-| get_po(collection, p, o) | triples_by_po | **No more ALLOW FILTERING!** |
-| get_os(collection, o, s) | triples_by_subject | Partition + clustering |
-| get_spo(collection, s, p, o) | triples_by_subject | Exact key lookup |
+| get_all(collection) | triples_s | ALLOW FILTERING (acceptable for scan) |
+| get_s(collection, s) | triples_s | Direct partition access |
+| get_p(collection, p) | triples_p | Direct partition access |
+| get_o(collection, o) | triples_o | Direct partition access |
+| get_sp(collection, s, p) | triples_s | Partition + clustering |
+| get_po(collection, p, o) | triples_p | **No more ALLOW FILTERING!** |
+| get_os(collection, o, s) | triples_o | Partition + clustering |
+| get_spo(collection, s, p, o) | triples_collection | Exact key lookup |
+| delete_collection(collection) | triples_collection | Read index, batch delete all |
+
+### Collection Deletion Strategy
+
+With compound partition keys, we cannot simply execute `DELETE FROM table WHERE collection = ?`. Instead:
+
+1. **Read Phase:** Query `triples_collection` to enumerate all triples:
+   ```sql
+   SELECT s, p, o FROM triples_collection WHERE collection = ?
+   ```
+   This is efficient since `collection` is the partition key for this table.
+
+2. **Delete Phase:** For each triple (s, p, o), delete from all 4 tables using full partition keys:
+   ```sql
+   DELETE FROM triples_s WHERE collection = ? AND s = ? AND p = ? AND o = ?
+   DELETE FROM triples_p WHERE collection = ? AND p = ? AND o = ? AND s = ?
+   DELETE FROM triples_o WHERE collection = ? AND o = ? AND s = ? AND p = ?
+   DELETE FROM triples_collection WHERE collection = ? AND s = ? AND p = ? AND o = ?
+   ```
+   Batched in groups of 100 for efficiency.
+
+**Trade-off Analysis:**
+- ✅ Maintains optimal query performance with distributed partitions
+- ✅ No hot partitions for large collections
+- ❌ More complex deletion logic (read-then-delete)
+- ❌ Deletion time proportional to collection size
 
 ### Benefits
 
-1. **Eliminates ALLOW FILTERING** - Every query has an optimal access path
+1. **Eliminates ALLOW FILTERING** - Every query has an optimal access path (except get_all scan)
 2. **No Secondary Indexes** - Each table IS the index for its query pattern
 3. **Better Data Distribution** - Composite partition keys spread load effectively
 4. **Predictable Performance** - Query time proportional to result size, not total data
 5. **Leverages Cassandra Strengths** - Designed for Cassandra's architecture
+6. **Enables Collection Deletion** - triples_collection serves as deletion index
 
 ## Implementation Plan
 
@@ -295,10 +337,11 @@ def delete_collection(self, collection) -> None  # Delete from all three tables
 ### Implementation Strategy
 
 #### Phase 1: Schema and Core Methods
-1. **Rewrite `init()` method** - Create three tables instead of one
-2. **Rewrite `insert()` method** - Batch writes to all three tables
+1. **Rewrite `init()` method** - Create four tables instead of one
+2. **Rewrite `insert()` method** - Batch writes to all four tables
 3. **Implement prepared statements** - For optimal performance
 4. **Add table routing logic** - Direct queries to optimal tables
+5. **Implement collection deletion** - Read from triples_collection, batch delete from all tables
 
 #### Phase 2: Query Method Optimization
 1. **Rewrite each get_* method** to use optimal table
@@ -318,18 +361,11 @@ def delete_collection(self, collection) -> None  # Delete from all three tables
 def insert(self, collection, s, p, o):
     batch = BatchStatement()
 
-    # Insert into all three tables
-    batch.add(SimpleStatement(
-        "INSERT INTO triples_by_subject (collection, s, p, o) VALUES (?, ?, ?, ?)"
-    ), (collection, s, p, o))
-
-    batch.add(SimpleStatement(
-        "INSERT INTO triples_by_po (collection, p, o, s) VALUES (?, ?, ?, ?)"
-    ), (collection, p, o, s))
-
-    batch.add(SimpleStatement(
-        "INSERT INTO triples_by_object (collection, o, s, p) VALUES (?, ?, ?, ?)"
-    ), (collection, o, s, p))
+    # Insert into all four tables
+    batch.add(self.insert_subject_stmt, (collection, s, p, o))
+    batch.add(self.insert_po_stmt, (collection, p, o, s))
+    batch.add(self.insert_object_stmt, (collection, o, s, p))
+    batch.add(self.insert_collection_stmt, (collection, s, p, o))
 
     self.session.execute(batch)
 ```
@@ -337,11 +373,65 @@ def insert(self, collection, s, p, o):
 #### Query Routing Logic
 ```python
 def get_po(self, collection, p, o, limit=10):
-    # Route to triples_by_po table - NO ALLOW FILTERING!
+    # Route to triples_p table - NO ALLOW FILTERING!
     return self.session.execute(
-        "SELECT s FROM triples_by_po WHERE collection = ? AND p = ? AND o = ? LIMIT ?",
+        self.get_po_stmt,
         (collection, p, o, limit)
     )
+
+def get_spo(self, collection, s, p, o, limit=10):
+    # Route to triples_collection table for exact SPO lookup
+    return self.session.execute(
+        self.get_spo_stmt,
+        (collection, s, p, o, limit)
+    )
+```
+
+#### Collection Deletion Logic
+```python
+def delete_collection(self, collection):
+    # Step 1: Read all triples from collection table
+    rows = self.session.execute(
+        f"SELECT s, p, o FROM {self.collection_table} WHERE collection = %s",
+        (collection,)
+    )
+
+    # Step 2: Batch delete from all 4 tables
+    batch = BatchStatement()
+    count = 0
+
+    for row in rows:
+        s, p, o = row.s, row.p, row.o
+
+        # Delete using full partition keys for each table
+        batch.add(SimpleStatement(
+            f"DELETE FROM {self.subject_table} WHERE collection = ? AND s = ? AND p = ? AND o = ?"
+        ), (collection, s, p, o))
+
+        batch.add(SimpleStatement(
+            f"DELETE FROM {self.po_table} WHERE collection = ? AND p = ? AND o = ? AND s = ?"
+        ), (collection, p, o, s))
+
+        batch.add(SimpleStatement(
+            f"DELETE FROM {self.object_table} WHERE collection = ? AND o = ? AND s = ? AND p = ?"
+        ), (collection, o, s, p))
+
+        batch.add(SimpleStatement(
+            f"DELETE FROM {self.collection_table} WHERE collection = ? AND s = ? AND p = ? AND o = ?"
+        ), (collection, s, p, o))
+
+        count += 1
+
+        # Execute every 100 triples to avoid oversized batches
+        if count % 100 == 0:
+            self.session.execute(batch)
+            batch = BatchStatement()
+
+    # Execute remaining deletions
+    if count % 100 != 0:
+        self.session.execute(batch)
+
+    logger.info(f"Deleted {count} triples from collection {collection}")
 ```
 
 #### Prepared Statement Optimization
@@ -349,12 +439,18 @@ def get_po(self, collection, p, o, limit=10):
 def prepare_statements(self):
     # Cache prepared statements for better performance
     self.insert_subject_stmt = self.session.prepare(
-        "INSERT INTO triples_by_subject (collection, s, p, o) VALUES (?, ?, ?, ?)"
+        f"INSERT INTO {self.subject_table} (collection, s, p, o) VALUES (?, ?, ?, ?)"
     )
     self.insert_po_stmt = self.session.prepare(
-        "INSERT INTO triples_by_po (collection, p, o, s) VALUES (?, ?, ?, ?)"
+        f"INSERT INTO {self.po_table} (collection, p, o, s) VALUES (?, ?, ?, ?)"
     )
-    # ... etc for all tables and queries
+    self.insert_object_stmt = self.session.prepare(
+        f"INSERT INTO {self.object_table} (collection, o, s, p) VALUES (?, ?, ?, ?)"
+    )
+    self.insert_collection_stmt = self.session.prepare(
+        f"INSERT INTO {self.collection_table} (collection, s, p, o) VALUES (?, ?, ?, ?)"
+    )
+    # ... query statements
 ```
 
 ## Migration Strategy
@@ -511,9 +607,10 @@ def rollback_to_legacy():
 ## Risks and Considerations
 
 ### Performance Risks
-- **Write latency increase** - 3x write operations per insert
-- **Storage overhead** - 3x storage requirement
+- **Write latency increase** - 4x write operations per insert (33% more than 3-table approach)
+- **Storage overhead** - 4x storage requirement (33% more than 3-table approach)
 - **Batch write failures** - Need proper error handling
+- **Deletion complexity** - Collection deletion requires read-then-delete loop
 
 ### Operational Risks
 - **Migration complexity** - Data migration for large datasets

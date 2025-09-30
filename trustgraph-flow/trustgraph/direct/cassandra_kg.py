@@ -24,10 +24,11 @@ class KnowledgeGraph:
         self.keyspace = keyspace
         self.username = username
 
-        # Optimized multi-table schema
+        # Optimized multi-table schema with collection deletion support
         self.subject_table = "triples_s"
         self.po_table = "triples_p"
         self.object_table = "triples_o"
+        self.collection_table = "triples_collection"  # For SPO queries and deletion
 
         if username and password:
             ssl_context = SSLContext(PROTOCOL_TLSv1_2)
@@ -67,9 +68,46 @@ class KnowledgeGraph:
 
     def init_optimized_schema(self):
         """Initialize optimized multi-table schema for performance"""
-        # Table 1: Subject-centric queries (get_s, get_sp, get_spo, get_os)
+        # Table 1: Subject-centric queries (get_s, get_sp, get_os)
+        # Compound partition key for optimal data distribution
         self.session.execute(f"""
             CREATE TABLE IF NOT EXISTS {self.subject_table} (
+                collection text,
+                s text,
+                p text,
+                o text,
+                PRIMARY KEY ((collection, s), p, o)
+            );
+        """);
+
+        # Table 2: Predicate-Object queries (get_p, get_po) - eliminates ALLOW FILTERING!
+        # Compound partition key for optimal data distribution
+        self.session.execute(f"""
+            CREATE TABLE IF NOT EXISTS {self.po_table} (
+                collection text,
+                p text,
+                o text,
+                s text,
+                PRIMARY KEY ((collection, p), o, s)
+            );
+        """);
+
+        # Table 3: Object-centric queries (get_o)
+        # Compound partition key for optimal data distribution
+        self.session.execute(f"""
+            CREATE TABLE IF NOT EXISTS {self.object_table} (
+                collection text,
+                o text,
+                s text,
+                p text,
+                PRIMARY KEY ((collection, o), s, p)
+            );
+        """);
+
+        # Table 4: Collection management and SPO queries (get_spo)
+        # Simple partition key enables efficient collection deletion
+        self.session.execute(f"""
+            CREATE TABLE IF NOT EXISTS {self.collection_table} (
                 collection text,
                 s text,
                 p text,
@@ -78,29 +116,7 @@ class KnowledgeGraph:
             );
         """);
 
-        # Table 2: Predicate-Object queries (get_p, get_po) - eliminates ALLOW FILTERING!
-        self.session.execute(f"""
-            CREATE TABLE IF NOT EXISTS {self.po_table} (
-                collection text,
-                p text,
-                o text,
-                s text,
-                PRIMARY KEY (collection, p, o, s)
-            );
-        """);
-
-        # Table 3: Object-centric queries (get_o)
-        self.session.execute(f"""
-            CREATE TABLE IF NOT EXISTS {self.object_table} (
-                collection text,
-                o text,
-                s text,
-                p text,
-                PRIMARY KEY (collection, o, s, p)
-            );
-        """);
-
-        logger.info("Optimized multi-table schema initialized")
+        logger.info("Optimized multi-table schema initialized (4 tables)")
 
     def prepare_statements(self):
         """Prepare statements for optimal performance"""
@@ -115,6 +131,10 @@ class KnowledgeGraph:
 
         self.insert_object_stmt = self.session.prepare(
             f"INSERT INTO {self.object_table} (collection, o, s, p) VALUES (?, ?, ?, ?)"
+        )
+
+        self.insert_collection_stmt = self.session.prepare(
+            f"INSERT INTO {self.collection_table} (collection, s, p, o) VALUES (?, ?, ?, ?)"
         )
 
         # Query statements for optimized access
@@ -148,13 +168,13 @@ class KnowledgeGraph:
         )
 
         self.get_spo_stmt = self.session.prepare(
-            f"SELECT s as x FROM {self.subject_table} WHERE collection = ? AND s = ? AND p = ? AND o = ? LIMIT ?"
+            f"SELECT s as x FROM {self.collection_table} WHERE collection = ? AND s = ? AND p = ? AND o = ? LIMIT ?"
         )
 
-        logger.info("Prepared statements initialized for optimal performance")
+        logger.info("Prepared statements initialized for optimal performance (4 tables)")
 
     def insert(self, collection, s, p, o):
-        # Batch write to all three tables for consistency
+        # Batch write to all four tables for consistency
         batch = BatchStatement()
 
         # Insert into subject table
@@ -165,6 +185,9 @@ class KnowledgeGraph:
 
         # Insert into object table (column order: collection, o, s, p)
         batch.add(self.insert_object_stmt, (collection, o, s, p))
+
+        # Insert into collection table for SPO queries and deletion tracking
+        batch.add(self.insert_collection_stmt, (collection, s, p, o))
 
         self.session.execute(batch)
 
@@ -218,27 +241,64 @@ class KnowledgeGraph:
         )
 
     def get_spo(self, collection, s, p, o, limit=10):
-        # Optimized: Use subject_table for exact key lookup
+        # Optimized: Use collection_table for exact key lookup
         return self.session.execute(
             self.get_spo_stmt,
             (collection, s, p, o, limit)
         )
 
     def delete_collection(self, collection):
-        """Delete all triples for a specific collection"""
-        # Delete from all three tables
-        self.session.execute(
-            f"delete from {self.subject_table} where collection = %s",
+        """Delete all triples for a specific collection
+
+        Uses collection_table to enumerate all triples, then deletes from all 4 tables
+        using full partition keys for optimal performance with compound keys.
+        """
+        # Step 1: Read all triples from collection_table (single partition read)
+        rows = self.session.execute(
+            f"SELECT s, p, o FROM {self.collection_table} WHERE collection = %s",
             (collection,)
         )
-        self.session.execute(
-            f"delete from {self.po_table} where collection = %s",
-            (collection,)
-        )
-        self.session.execute(
-            f"delete from {self.object_table} where collection = %s",
-            (collection,)
-        )
+
+        # Step 2: Delete each triple from all 4 tables using full partition keys
+        # Batch deletions for efficiency
+        batch = BatchStatement()
+        count = 0
+
+        for row in rows:
+            s, p, o = row.s, row.p, row.o
+
+            # Delete from subject table (partition key: collection, s)
+            batch.add(SimpleStatement(
+                f"DELETE FROM {self.subject_table} WHERE collection = ? AND s = ? AND p = ? AND o = ?"
+            ), (collection, s, p, o))
+
+            # Delete from predicate-object table (partition key: collection, p)
+            batch.add(SimpleStatement(
+                f"DELETE FROM {self.po_table} WHERE collection = ? AND p = ? AND o = ? AND s = ?"
+            ), (collection, p, o, s))
+
+            # Delete from object table (partition key: collection, o)
+            batch.add(SimpleStatement(
+                f"DELETE FROM {self.object_table} WHERE collection = ? AND o = ? AND s = ? AND p = ?"
+            ), (collection, o, s, p))
+
+            # Delete from collection table (partition key: collection only)
+            batch.add(SimpleStatement(
+                f"DELETE FROM {self.collection_table} WHERE collection = ? AND s = ? AND p = ? AND o = ?"
+            ), (collection, s, p, o))
+
+            count += 1
+
+            # Execute batch every 100 triples to avoid oversized batches
+            if count % 100 == 0:
+                self.session.execute(batch)
+                batch = BatchStatement()
+
+        # Execute remaining deletions
+        if count % 100 != 0:
+            self.session.execute(batch)
+
+        logger.info(f"Deleted {count} triples from collection {collection}")
 
     def close(self):
         """Close the Cassandra session and cluster connections properly"""
