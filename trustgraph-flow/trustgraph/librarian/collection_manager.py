@@ -60,7 +60,7 @@ class CollectionManager:
 
     async def ensure_collection_exists(self, user: str, collection: str):
         """
-        Ensure a collection exists, creating it if necessary (lazy creation)
+        Ensure a collection exists, creating it if necessary with broadcast to storage
 
         Args:
             user: User ID
@@ -74,7 +74,7 @@ class CollectionManager:
                 return
 
             # Create new collection with default metadata
-            logger.info(f"Creating new collection {user}/{collection}")
+            logger.info(f"Auto-creating collection {user}/{collection} from document submission")
             await self.table_store.create_collection(
                 user=user,
                 collection=collection,
@@ -83,10 +83,64 @@ class CollectionManager:
                 tags=set()
             )
 
+            # Broadcast collection creation to all storage backends
+            creation_key = (user, collection)
+            logger.info(f"Broadcasting create-collection for {creation_key}")
+
+            self.pending_deletions[creation_key] = {
+                "responses_pending": 3,  # vector, object, triples
+                "responses_received": [],
+                "all_successful": True,
+                "error_messages": [],
+                "deletion_complete": asyncio.Event()
+            }
+
+            storage_request = StorageManagementRequest(
+                operation="create-collection",
+                user=user,
+                collection=collection
+            )
+
+            # Send creation requests to all storage types
+            if self.vector_storage_producer:
+                await self.vector_storage_producer.send(storage_request)
+            if self.object_storage_producer:
+                await self.object_storage_producer.send(storage_request)
+            if self.triples_storage_producer:
+                await self.triples_storage_producer.send(storage_request)
+
+            # Wait for all storage creations to complete (with timeout)
+            creation_info = self.pending_deletions[creation_key]
+            try:
+                await asyncio.wait_for(
+                    creation_info["deletion_complete"].wait(),
+                    timeout=30.0  # 30 second timeout
+                )
+            except asyncio.TimeoutError:
+                logger.error(f"Timeout waiting for storage creation responses for {creation_key}")
+                creation_info["all_successful"] = False
+                creation_info["error_messages"].append("Timeout waiting for storage creation")
+
+            # Check if all creations succeeded
+            if not creation_info["all_successful"]:
+                error_msg = f"Storage creation failed: {'; '.join(creation_info['error_messages'])}"
+                logger.error(error_msg)
+
+                # Clean up metadata on failure
+                await self.table_store.delete_collection(user, collection)
+
+                # Clean up tracking
+                del self.pending_deletions[creation_key]
+
+                raise RuntimeError(error_msg)
+
+            # Clean up tracking
+            del self.pending_deletions[creation_key]
+            logger.info(f"Collection {creation_key} auto-created successfully in all storage backends")
+
         except Exception as e:
             logger.error(f"Error ensuring collection exists: {e}")
-            # Don't fail the operation if collection creation fails
-            # This maintains backward compatibility
+            raise e
 
     async def list_collections(self, request: CollectionManagementRequest) -> CollectionManagementResponse:
         """
@@ -153,6 +207,67 @@ class CollectionManager:
                     description=description,
                     tags=tags
                 )
+
+                # Broadcast collection creation to all storage backends
+                creation_key = (request.user, request.collection)
+                logger.info(f"Broadcasting create-collection for {creation_key}")
+
+                self.pending_deletions[creation_key] = {
+                    "responses_pending": 3,  # vector, object, triples
+                    "responses_received": [],
+                    "all_successful": True,
+                    "error_messages": [],
+                    "deletion_complete": asyncio.Event()
+                }
+
+                storage_request = StorageManagementRequest(
+                    operation="create-collection",
+                    user=request.user,
+                    collection=request.collection
+                )
+
+                # Send creation requests to all storage types
+                if self.vector_storage_producer:
+                    await self.vector_storage_producer.send(storage_request)
+                if self.object_storage_producer:
+                    await self.object_storage_producer.send(storage_request)
+                if self.triples_storage_producer:
+                    await self.triples_storage_producer.send(storage_request)
+
+                # Wait for all storage creations to complete (with timeout)
+                creation_info = self.pending_deletions[creation_key]
+                try:
+                    await asyncio.wait_for(
+                        creation_info["deletion_complete"].wait(),
+                        timeout=30.0  # 30 second timeout
+                    )
+                except asyncio.TimeoutError:
+                    logger.error(f"Timeout waiting for storage creation responses for {creation_key}")
+                    creation_info["all_successful"] = False
+                    creation_info["error_messages"].append("Timeout waiting for storage creation")
+
+                # Check if all creations succeeded
+                if not creation_info["all_successful"]:
+                    error_msg = f"Storage creation failed: {'; '.join(creation_info['error_messages'])}"
+                    logger.error(error_msg)
+
+                    # Clean up metadata on failure
+                    await self.table_store.delete_collection(request.user, request.collection)
+
+                    # Clean up tracking
+                    del self.pending_deletions[creation_key]
+
+                    return CollectionManagementResponse(
+                        error=Error(
+                            type="storage_creation_error",
+                            message=error_msg
+                        ),
+                        timestamp=datetime.now().isoformat()
+                    )
+
+                # Clean up tracking
+                del self.pending_deletions[creation_key]
+                logger.info(f"Collection {creation_key} created successfully in all storage backends")
 
                 # Get the newly created collection for response
                 created_collection = await self.table_store.get_collection(request.user, request.collection)

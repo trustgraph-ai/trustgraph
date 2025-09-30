@@ -36,8 +36,6 @@ class Processor(DocumentEmbeddingsStoreService):
             }
         )
 
-        self.last_collection = None
-
         self.qdrant = QdrantClient(url=store_uri, api_key=api_key)
 
         # Set up storage management if base class attributes are available
@@ -71,7 +69,29 @@ class Processor(DocumentEmbeddingsStoreService):
                 metrics=storage_response_metrics,
             )
 
+    async def start(self):
+        """Start the processor and its storage management consumer"""
+        await super().start()
+        if hasattr(self, 'storage_request_consumer'):
+            await self.storage_request_consumer.start()
+        if hasattr(self, 'storage_response_producer'):
+            await self.storage_response_producer.start()
+
     async def store_document_embeddings(self, message):
+
+        # Validate collection exists before accepting writes
+        collection = (
+            "d_" + message.metadata.user + "_" +
+            message.metadata.collection
+        )
+
+        if not self.qdrant.collection_exists(collection):
+            error_msg = (
+                f"Collection {message.metadata.collection} does not exist. "
+                f"Create it first with tg-set-collection."
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
 
         for emb in message.chunks:
 
@@ -79,29 +99,6 @@ class Processor(DocumentEmbeddingsStoreService):
             if chunk == "": return
 
             for vec in emb.vectors:
-
-                dim = len(vec)
-                collection = (
-                    "d_" + message.metadata.user + "_" +
-                    message.metadata.collection
-                )
-
-                if collection != self.last_collection:
-
-                    if not self.qdrant.collection_exists(collection):
-
-                        try:
-                            self.qdrant.create_collection(
-                                collection_name=collection,
-                                vectors_config=VectorParams(
-                                    size=dim, distance=Distance.COSINE
-                                ),
-                            )
-                        except Exception as e:
-                            logger.error("Qdrant collection creation failed")
-                            raise e
-
-                    self.last_collection = collection
 
                 self.qdrant.upsert(
                     collection_name=collection,
@@ -133,18 +130,21 @@ class Processor(DocumentEmbeddingsStoreService):
             help=f'Qdrant API key (default: None)'
         )
 
-    async def on_storage_management(self, message):
+    async def on_storage_management(self, message, consumer, flow):
         """Handle storage management requests"""
-        logger.info(f"Storage management request: {message.operation} for {message.user}/{message.collection}")
+        request = message.value()
+        logger.info(f"Storage management request: {request.operation} for {request.user}/{request.collection}")
 
         try:
-            if message.operation == "delete-collection":
-                await self.handle_delete_collection(message)
+            if request.operation == "create-collection":
+                await self.handle_create_collection(request)
+            elif request.operation == "delete-collection":
+                await self.handle_delete_collection(request)
             else:
                 response = StorageManagementResponse(
                     error=Error(
                         type="invalid_operation",
-                        message=f"Unknown operation: {message.operation}"
+                        message=f"Unknown operation: {request.operation}"
                     )
                 )
                 await self.storage_response_producer.send(response)
@@ -159,10 +159,43 @@ class Processor(DocumentEmbeddingsStoreService):
             )
             await self.storage_response_producer.send(response)
 
-    async def handle_delete_collection(self, message):
+    async def handle_create_collection(self, request):
+        """Create a Qdrant collection for document embeddings"""
+        try:
+            collection_name = f"d_{request.user}_{request.collection}"
+
+            if self.qdrant.collection_exists(collection_name):
+                logger.info(f"Qdrant collection {collection_name} already exists")
+            else:
+                # Create collection with default dimension (will be recreated with correct dim on first write if needed)
+                # Using a placeholder dimension - actual dimension determined by first embedding
+                self.qdrant.create_collection(
+                    collection_name=collection_name,
+                    vectors_config=VectorParams(
+                        size=384,  # Default dimension, common for many models
+                        distance=Distance.COSINE
+                    )
+                )
+                logger.info(f"Created Qdrant collection: {collection_name}")
+
+            # Send success response
+            response = StorageManagementResponse(error=None)
+            await self.storage_response_producer.send(response)
+
+        except Exception as e:
+            logger.error(f"Failed to create collection: {e}", exc_info=True)
+            response = StorageManagementResponse(
+                error=Error(
+                    type="creation_error",
+                    message=str(e)
+                )
+            )
+            await self.storage_response_producer.send(response)
+
+    async def handle_delete_collection(self, request):
         """Delete the collection for document embeddings"""
         try:
-            collection_name = f"d_{message.user}_{message.collection}"
+            collection_name = f"d_{request.user}_{request.collection}"
 
             if self.qdrant.collection_exists(collection_name):
                 self.qdrant.delete_collection(collection_name)
@@ -175,7 +208,7 @@ class Processor(DocumentEmbeddingsStoreService):
                 error=None  # No error means success
             )
             await self.storage_response_producer.send(response)
-            logger.info(f"Successfully deleted collection {message.user}/{message.collection}")
+            logger.info(f"Successfully deleted collection {request.user}/{request.collection}")
 
         except Exception as e:
             logger.error(f"Failed to delete collection: {e}")

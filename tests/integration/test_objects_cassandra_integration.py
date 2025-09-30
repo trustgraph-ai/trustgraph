@@ -22,7 +22,36 @@ class TestObjectsCassandraIntegration:
     def mock_cassandra_session(self):
         """Mock Cassandra session for integration tests"""
         session = MagicMock()
-        session.execute = MagicMock()
+
+        # Track if keyspaces have been created
+        created_keyspaces = set()
+
+        # Mock the execute method to return a valid result for keyspace checks
+        def execute_mock(query, *args, **kwargs):
+            result = MagicMock()
+            query_str = str(query)
+
+            # Track keyspace creation
+            if "CREATE KEYSPACE" in query_str:
+                # Extract keyspace name from query
+                import re
+                match = re.search(r'CREATE KEYSPACE IF NOT EXISTS (\w+)', query_str)
+                if match:
+                    created_keyspaces.add(match.group(1))
+
+            # For keyspace existence checks
+            if "system_schema.keyspaces" in query_str:
+                # Check if this keyspace was created
+                if args and args[0] in created_keyspaces:
+                    result.one.return_value = MagicMock()  # Exists
+                else:
+                    result.one.return_value = None  # Doesn't exist
+            else:
+                result.one.return_value = None
+
+            return result
+
+        session.execute = MagicMock(side_effect=execute_mock)
         return session
 
     @pytest.fixture
@@ -57,7 +86,8 @@ class TestObjectsCassandraIntegration:
         processor.convert_value = Processor.convert_value.__get__(processor, Processor)
         processor.on_schema_config = Processor.on_schema_config.__get__(processor, Processor)
         processor.on_object = Processor.on_object.__get__(processor, Processor)
-        
+        processor.create_collection = Processor.create_collection.__get__(processor, Processor)
+
         return processor, mock_cassandra_cluster, mock_cassandra_session
 
     @pytest.mark.asyncio
@@ -85,7 +115,10 @@ class TestObjectsCassandraIntegration:
             
             await processor.on_schema_config(config, version=1)
             assert "customer_records" in processor.schemas
-            
+
+            # Step 1.5: Create the collection first (simulate tg-set-collection)
+            await processor.create_collection("test_user", "import_2024")
+
             # Step 2: Process an ExtractedObject
             test_obj = ExtractedObject(
                 metadata=Metadata(
@@ -104,10 +137,10 @@ class TestObjectsCassandraIntegration:
                 confidence=0.95,
                 source_span="Customer: John Doe..."
             )
-            
+
             msg = MagicMock()
             msg.value.return_value = test_obj
-            
+
             await processor.on_object(msg, None, None)
             
             # Verify Cassandra interactions
@@ -178,7 +211,11 @@ class TestObjectsCassandraIntegration:
             
             await processor.on_schema_config(config, version=1)
             assert len(processor.schemas) == 2
-            
+
+            # Create collections first
+            await processor.create_collection("shop", "catalog")
+            await processor.create_collection("shop", "sales")
+
             # Process objects for different schemas
             product_obj = ExtractedObject(
                 metadata=Metadata(id="p1", user="shop", collection="catalog", metadata=[]),
@@ -187,7 +224,7 @@ class TestObjectsCassandraIntegration:
                 confidence=0.9,
                 source_span="Product..."
             )
-            
+
             order_obj = ExtractedObject(
                 metadata=Metadata(id="o1", user="shop", collection="sales", metadata=[]),
                 schema_name="orders",
@@ -195,7 +232,7 @@ class TestObjectsCassandraIntegration:
                 confidence=0.85,
                 source_span="Order..."
             )
-            
+
             # Process both objects
             for obj in [product_obj, order_obj]:
                 msg = MagicMock()
@@ -225,6 +262,9 @@ class TestObjectsCassandraIntegration:
                 ]
             )
             
+            # Create collection first
+            await processor.create_collection("test", "test")
+
             # Create object missing required field
             test_obj = ExtractedObject(
                 metadata=Metadata(id="t1", user="test", collection="test", metadata=[]),
@@ -233,10 +273,10 @@ class TestObjectsCassandraIntegration:
                 confidence=0.8,
                 source_span="Test"
             )
-            
+
             msg = MagicMock()
             msg.value.return_value = test_obj
-            
+
             # Should still process (Cassandra doesn't enforce NOT NULL)
             await processor.on_object(msg, None, None)
             
@@ -261,6 +301,9 @@ class TestObjectsCassandraIntegration:
                 ]
             )
             
+            # Create collection first
+            await processor.create_collection("logger", "app_events")
+
             # Process object
             test_obj = ExtractedObject(
                 metadata=Metadata(id="e1", user="logger", collection="app_events", metadata=[]),
@@ -269,10 +312,10 @@ class TestObjectsCassandraIntegration:
                 confidence=1.0,
                 source_span="Event"
             )
-            
+
             msg = MagicMock()
             msg.value.return_value = test_obj
-            
+
             await processor.on_object(msg, None, None)
             
             # Verify synthetic_id was added
@@ -325,8 +368,10 @@ class TestObjectsCassandraIntegration:
             )
             
             # Make insert fail
+            mock_result = MagicMock()
+            mock_result.one.return_value = MagicMock()  # Keyspace exists
             mock_session.execute.side_effect = [
-                None,  # keyspace creation succeeds
+                mock_result,  # keyspace existence check succeeds
                 None,  # table creation succeeds
                 Exception("Connection timeout")  # insert fails
             ]
@@ -359,7 +404,11 @@ class TestObjectsCassandraIntegration:
             
             # Process objects from different collections
             collections = ["import_jan", "import_feb", "import_mar"]
-            
+
+            # Create all collections first
+            for coll in collections:
+                await processor.create_collection("analytics", coll)
+
             for coll in collections:
                 obj = ExtractedObject(
                     metadata=Metadata(id=f"{coll}-1", user="analytics", collection=coll, metadata=[]),
@@ -368,7 +417,7 @@ class TestObjectsCassandraIntegration:
                     confidence=0.9,
                     source_span="Data"
                 )
-                
+
                 msg = MagicMock()
                 msg.value.return_value = obj
                 await processor.on_object(msg, None, None)
@@ -436,9 +485,12 @@ class TestObjectsCassandraIntegration:
                 source_span="Multiple customers extracted from document"
             )
             
+            # Create collection first
+            await processor.create_collection("test_user", "batch_import")
+
             msg = MagicMock()
             msg.value.return_value = batch_obj
-            
+
             await processor.on_object(msg, None, None)
             
             # Verify table creation
@@ -479,6 +531,9 @@ class TestObjectsCassandraIntegration:
                 fields=[Field(name="id", type="string", size=50, primary=True)]
             )
             
+            # Create collection first
+            await processor.create_collection("test", "empty")
+
             # Process empty batch object
             empty_obj = ExtractedObject(
                 metadata=Metadata(id="empty-1", user="test", collection="empty", metadata=[]),
@@ -487,10 +542,10 @@ class TestObjectsCassandraIntegration:
                 confidence=1.0,
                 source_span="No objects found"
             )
-            
+
             msg = MagicMock()
             msg.value.return_value = empty_obj
-            
+
             await processor.on_object(msg, None, None)
             
             # Should still create table
@@ -517,6 +572,9 @@ class TestObjectsCassandraIntegration:
                 ]
             )
             
+            # Create collection first
+            await processor.create_collection("test", "mixed")
+
             # Single object (backward compatibility)
             single_obj = ExtractedObject(
                 metadata=Metadata(id="single", user="test", collection="mixed", metadata=[]),
@@ -525,7 +583,7 @@ class TestObjectsCassandraIntegration:
                 confidence=0.9,
                 source_span="Single object"
             )
-            
+
             # Batch object
             batch_obj = ExtractedObject(
                 metadata=Metadata(id="batch", user="test", collection="mixed", metadata=[]),
@@ -537,7 +595,7 @@ class TestObjectsCassandraIntegration:
                 confidence=0.85,
                 source_span="Batch objects"
             )
-            
+
             # Process both
             for obj in [single_obj, batch_obj]:
                 msg = MagicMock()

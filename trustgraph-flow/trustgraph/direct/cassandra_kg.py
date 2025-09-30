@@ -24,16 +24,12 @@ class KnowledgeGraph:
         self.keyspace = keyspace
         self.username = username
 
-        # Multi-table schema design for optimal performance
-        self.use_legacy = os.getenv('CASSANDRA_USE_LEGACY', 'false').lower() == 'true'
-
-        if self.use_legacy:
-            self.table = "triples"  # Legacy single table
-        else:
-            # New optimized tables
-            self.subject_table = "triples_s"
-            self.po_table = "triples_p"
-            self.object_table = "triples_o"
+        # Optimized multi-table schema with collection deletion support
+        self.subject_table = "triples_s"
+        self.po_table = "triples_p"
+        self.object_table = "triples_o"
+        self.collection_table = "triples_collection"  # For SPO queries and deletion
+        self.collection_metadata_table = "collection_metadata"  # For tracking which collections exist
 
         if username and password:
             ssl_context = SSLContext(PROTOCOL_TLSv1_2)
@@ -47,9 +43,7 @@ class KnowledgeGraph:
         _active_clusters.append(self.cluster)
 
         self.init()
-
-        if not self.use_legacy:
-            self.prepare_statements()
+        self.prepare_statements()
 
     def clear(self):
 
@@ -70,42 +64,13 @@ class KnowledgeGraph:
         """);
 
         self.session.set_keyspace(self.keyspace)
+        self.init_optimized_schema()
 
-        if self.use_legacy:
-            self.init_legacy_schema()
-        else:
-            self.init_optimized_schema()
-
-    def init_legacy_schema(self):
-        """Initialize legacy single-table schema for backward compatibility"""
-        self.session.execute(f"""
-            create table if not exists {self.table} (
-                collection text,
-                s text,
-                p text,
-                o text,
-                PRIMARY KEY (collection, s, p, o)
-            );
-        """);
-
-        self.session.execute(f"""
-            create index if not exists {self.table}_s
-                ON {self.table} (s);
-        """);
-
-        self.session.execute(f"""
-            create index if not exists {self.table}_p
-                ON {self.table} (p);
-        """);
-
-        self.session.execute(f"""
-            create index if not exists {self.table}_o
-                ON {self.table} (o);
-        """);
 
     def init_optimized_schema(self):
         """Initialize optimized multi-table schema for performance"""
-        # Table 1: Subject-centric queries (get_s, get_sp, get_spo, get_os)
+        # Table 1: Subject-centric queries (get_s, get_sp, get_os)
+        # Compound partition key for optimal data distribution
         self.session.execute(f"""
             CREATE TABLE IF NOT EXISTS {self.subject_table} (
                 collection text,
@@ -117,6 +82,7 @@ class KnowledgeGraph:
         """);
 
         # Table 2: Predicate-Object queries (get_p, get_po) - eliminates ALLOW FILTERING!
+        # Compound partition key for optimal data distribution
         self.session.execute(f"""
             CREATE TABLE IF NOT EXISTS {self.po_table} (
                 collection text,
@@ -128,6 +94,7 @@ class KnowledgeGraph:
         """);
 
         # Table 3: Object-centric queries (get_o)
+        # Compound partition key for optimal data distribution
         self.session.execute(f"""
             CREATE TABLE IF NOT EXISTS {self.object_table} (
                 collection text,
@@ -138,7 +105,29 @@ class KnowledgeGraph:
             );
         """);
 
-        logger.info("Optimized multi-table schema initialized")
+        # Table 4: Collection management and SPO queries (get_spo)
+        # Simple partition key enables efficient collection deletion
+        self.session.execute(f"""
+            CREATE TABLE IF NOT EXISTS {self.collection_table} (
+                collection text,
+                s text,
+                p text,
+                o text,
+                PRIMARY KEY (collection, s, p, o)
+            );
+        """);
+
+        # Table 5: Collection metadata tracking
+        # Tracks which collections exist without polluting triple data
+        self.session.execute(f"""
+            CREATE TABLE IF NOT EXISTS {self.collection_metadata_table} (
+                collection text,
+                created_at timestamp,
+                PRIMARY KEY (collection)
+            );
+        """);
+
+        logger.info("Optimized multi-table schema initialized (5 tables)")
 
     def prepare_statements(self):
         """Prepare statements for optimal performance"""
@@ -153,6 +142,10 @@ class KnowledgeGraph:
 
         self.insert_object_stmt = self.session.prepare(
             f"INSERT INTO {self.object_table} (collection, o, s, p) VALUES (?, ?, ?, ?)"
+        )
+
+        self.insert_collection_stmt = self.session.prepare(
+            f"INSERT INTO {self.collection_table} (collection, s, p, o) VALUES (?, ?, ?, ?)"
         )
 
         # Query statements for optimized access
@@ -186,158 +179,168 @@ class KnowledgeGraph:
         )
 
         self.get_spo_stmt = self.session.prepare(
-            f"SELECT s as x FROM {self.subject_table} WHERE collection = ? AND s = ? AND p = ? AND o = ? LIMIT ?"
+            f"SELECT s as x FROM {self.collection_table} WHERE collection = ? AND s = ? AND p = ? AND o = ? LIMIT ?"
         )
 
-        logger.info("Prepared statements initialized for optimal performance")
+        logger.info("Prepared statements initialized for optimal performance (4 tables)")
 
     def insert(self, collection, s, p, o):
+        # Batch write to all four tables for consistency
+        batch = BatchStatement()
 
-        if self.use_legacy:
-            self.session.execute(
-                f"insert into {self.table} (collection, s, p, o) values (%s, %s, %s, %s)",
-                (collection, s, p, o)
-            )
-        else:
-            # Batch write to all three tables for consistency
-            batch = BatchStatement()
+        # Insert into subject table
+        batch.add(self.insert_subject_stmt, (collection, s, p, o))
 
-            # Insert into subject table
-            batch.add(self.insert_subject_stmt, (collection, s, p, o))
+        # Insert into predicate-object table (column order: collection, p, o, s)
+        batch.add(self.insert_po_stmt, (collection, p, o, s))
 
-            # Insert into predicate-object table (column order: collection, p, o, s)
-            batch.add(self.insert_po_stmt, (collection, p, o, s))
+        # Insert into object table (column order: collection, o, s, p)
+        batch.add(self.insert_object_stmt, (collection, o, s, p))
 
-            # Insert into object table (column order: collection, o, s, p)
-            batch.add(self.insert_object_stmt, (collection, o, s, p))
+        # Insert into collection table for SPO queries and deletion tracking
+        batch.add(self.insert_collection_stmt, (collection, s, p, o))
 
-            self.session.execute(batch)
+        self.session.execute(batch)
 
     def get_all(self, collection, limit=50):
-        if self.use_legacy:
-            return self.session.execute(
-                f"select s, p, o from {self.table} where collection = %s limit {limit}",
-                (collection,)
-            )
-        else:
-            # Use subject table for get_all queries
-            return self.session.execute(
-                self.get_all_stmt,
-                (collection, limit)
-            )
+        # Use subject table for get_all queries
+        return self.session.execute(
+            self.get_all_stmt,
+            (collection, limit)
+        )
 
     def get_s(self, collection, s, limit=10):
-        if self.use_legacy:
-            return self.session.execute(
-                f"select p, o from {self.table} where collection = %s and s = %s limit {limit}",
-                (collection, s)
-            )
-        else:
-            # Optimized: Direct partition access with (collection, s)
-            return self.session.execute(
-                self.get_s_stmt,
-                (collection, s, limit)
-            )
+        # Optimized: Direct partition access with (collection, s)
+        return self.session.execute(
+            self.get_s_stmt,
+            (collection, s, limit)
+        )
 
     def get_p(self, collection, p, limit=10):
-        if self.use_legacy:
-            return self.session.execute(
-                f"select s, o from {self.table} where collection = %s and p = %s limit {limit}",
-                (collection, p)
-            )
-        else:
-            # Optimized: Use po_table for direct partition access
-            return self.session.execute(
-                self.get_p_stmt,
-                (collection, p, limit)
-            )
+        # Optimized: Use po_table for direct partition access
+        return self.session.execute(
+            self.get_p_stmt,
+            (collection, p, limit)
+        )
 
     def get_o(self, collection, o, limit=10):
-        if self.use_legacy:
-            return self.session.execute(
-                f"select s, p from {self.table} where collection = %s and o = %s limit {limit}",
-                (collection, o)
-            )
-        else:
-            # Optimized: Use object_table for direct partition access
-            return self.session.execute(
-                self.get_o_stmt,
-                (collection, o, limit)
-            )
+        # Optimized: Use object_table for direct partition access
+        return self.session.execute(
+            self.get_o_stmt,
+            (collection, o, limit)
+        )
 
     def get_sp(self, collection, s, p, limit=10):
-        if self.use_legacy:
-            return self.session.execute(
-                f"select o from {self.table} where collection = %s and s = %s and p = %s limit {limit}",
-                (collection, s, p)
-            )
-        else:
-            # Optimized: Use subject_table with clustering key access
-            return self.session.execute(
-                self.get_sp_stmt,
-                (collection, s, p, limit)
-            )
+        # Optimized: Use subject_table with clustering key access
+        return self.session.execute(
+            self.get_sp_stmt,
+            (collection, s, p, limit)
+        )
 
     def get_po(self, collection, p, o, limit=10):
-        if self.use_legacy:
-            return self.session.execute(
-                f"select s from {self.table} where collection = %s and p = %s and o = %s limit {limit} allow filtering",
-                (collection, p, o)
-            )
-        else:
-            # CRITICAL OPTIMIZATION: Use po_table - NO MORE ALLOW FILTERING!
-            return self.session.execute(
-                self.get_po_stmt,
-                (collection, p, o, limit)
-            )
+        # CRITICAL OPTIMIZATION: Use po_table - NO MORE ALLOW FILTERING!
+        return self.session.execute(
+            self.get_po_stmt,
+            (collection, p, o, limit)
+        )
 
     def get_os(self, collection, o, s, limit=10):
-        if self.use_legacy:
-            return self.session.execute(
-                f"select p from {self.table} where collection = %s and o = %s and s = %s limit {limit} allow filtering",
-                (collection, o, s)
-            )
-        else:
-            # Optimized: Use subject_table with clustering access (no more ALLOW FILTERING)
-            return self.session.execute(
-                self.get_os_stmt,
-                (collection, s, o, limit)
-            )
+        # Optimized: Use subject_table with clustering access (no more ALLOW FILTERING)
+        return self.session.execute(
+            self.get_os_stmt,
+            (collection, s, o, limit)
+        )
 
     def get_spo(self, collection, s, p, o, limit=10):
-        if self.use_legacy:
-            return self.session.execute(
-                f"""select s as x from {self.table} where collection = %s and s = %s and p = %s and o = %s limit {limit}""",
-                (collection, s, p, o)
+        # Optimized: Use collection_table for exact key lookup
+        return self.session.execute(
+            self.get_spo_stmt,
+            (collection, s, p, o, limit)
+        )
+
+    def collection_exists(self, collection):
+        """Check if collection exists by querying collection_metadata table"""
+        try:
+            result = self.session.execute(
+                f"SELECT collection FROM {self.collection_metadata_table} WHERE collection = %s LIMIT 1",
+                (collection,)
             )
-        else:
-            # Optimized: Use subject_table for exact key lookup
-            return self.session.execute(
-                self.get_spo_stmt,
-                (collection, s, p, o, limit)
+            return bool(list(result))
+        except Exception as e:
+            logger.error(f"Error checking collection existence: {e}")
+            return False
+
+    def create_collection(self, collection):
+        """Create collection by inserting metadata row"""
+        try:
+            import datetime
+            self.session.execute(
+                f"INSERT INTO {self.collection_metadata_table} (collection, created_at) VALUES (%s, %s)",
+                (collection, datetime.datetime.now())
             )
+            logger.info(f"Created collection metadata for {collection}")
+        except Exception as e:
+            logger.error(f"Error creating collection: {e}")
+            raise e
 
     def delete_collection(self, collection):
-        """Delete all triples for a specific collection"""
-        if self.use_legacy:
-            self.session.execute(
-                f"delete from {self.table} where collection = %s",
-                (collection,)
-            )
-        else:
-            # Delete from all three tables
-            self.session.execute(
-                f"delete from {self.subject_table} where collection = %s",
-                (collection,)
-            )
-            self.session.execute(
-                f"delete from {self.po_table} where collection = %s",
-                (collection,)
-            )
-            self.session.execute(
-                f"delete from {self.object_table} where collection = %s",
-                (collection,)
-            )
+        """Delete all triples for a specific collection
+
+        Uses collection_table to enumerate all triples, then deletes from all 4 tables
+        using full partition keys for optimal performance with compound keys.
+        """
+        # Step 1: Read all triples from collection_table (single partition read)
+        rows = self.session.execute(
+            f"SELECT s, p, o FROM {self.collection_table} WHERE collection = %s",
+            (collection,)
+        )
+
+        # Step 2: Delete each triple from all 4 tables using full partition keys
+        # Batch deletions for efficiency
+        batch = BatchStatement()
+        count = 0
+
+        for row in rows:
+            s, p, o = row.s, row.p, row.o
+
+            # Delete from subject table (partition key: collection, s)
+            batch.add(SimpleStatement(
+                f"DELETE FROM {self.subject_table} WHERE collection = ? AND s = ? AND p = ? AND o = ?"
+            ), (collection, s, p, o))
+
+            # Delete from predicate-object table (partition key: collection, p)
+            batch.add(SimpleStatement(
+                f"DELETE FROM {self.po_table} WHERE collection = ? AND p = ? AND o = ? AND s = ?"
+            ), (collection, p, o, s))
+
+            # Delete from object table (partition key: collection, o)
+            batch.add(SimpleStatement(
+                f"DELETE FROM {self.object_table} WHERE collection = ? AND o = ? AND s = ? AND p = ?"
+            ), (collection, o, s, p))
+
+            # Delete from collection table (partition key: collection only)
+            batch.add(SimpleStatement(
+                f"DELETE FROM {self.collection_table} WHERE collection = ? AND s = ? AND p = ? AND o = ?"
+            ), (collection, s, p, o))
+
+            count += 1
+
+            # Execute batch every 100 triples to avoid oversized batches
+            if count % 100 == 0:
+                self.session.execute(batch)
+                batch = BatchStatement()
+
+        # Execute remaining deletions
+        if count % 100 != 0:
+            self.session.execute(batch)
+
+        # Step 3: Delete collection metadata
+        self.session.execute(
+            f"DELETE FROM {self.collection_metadata_table} WHERE collection = %s",
+            (collection,)
+        )
+
+        logger.info(f"Deleted {count} triples from collection {collection}")
 
     def close(self):
         """Close the Cassandra session and cluster connections properly"""

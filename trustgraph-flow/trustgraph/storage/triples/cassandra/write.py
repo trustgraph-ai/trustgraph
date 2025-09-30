@@ -109,6 +109,15 @@ class Processor(TriplesStoreService):
 
             self.table = user
 
+        # Validate collection exists before accepting writes
+        if not self.tg.collection_exists(message.metadata.collection):
+            error_msg = (
+                f"Collection {message.metadata.collection} does not exist. "
+                f"Create it first with tg-set-collection."
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+
         for t in message.triples:
             self.tg.insert(
                 message.metadata.collection,
@@ -117,18 +126,27 @@ class Processor(TriplesStoreService):
                 t.o.value
             )
 
-    async def on_storage_management(self, message):
+    async def start(self):
+        """Start the processor and its storage management consumer"""
+        await super().start()
+        await self.storage_request_consumer.start()
+        await self.storage_response_producer.start()
+
+    async def on_storage_management(self, message, consumer, flow):
         """Handle storage management requests"""
-        logger.info(f"Storage management request: {message.operation} for {message.user}/{message.collection}")
+        request = message.value()
+        logger.info(f"Storage management request: {request.operation} for {request.user}/{request.collection}")
 
         try:
-            if message.operation == "delete-collection":
-                await self.handle_delete_collection(message)
+            if request.operation == "create-collection":
+                await self.handle_create_collection(request)
+            elif request.operation == "delete-collection":
+                await self.handle_delete_collection(request)
             else:
                 response = StorageManagementResponse(
                     error=Error(
                         type="invalid_operation",
-                        message=f"Unknown operation: {message.operation}"
+                        message=f"Unknown operation: {request.operation}"
                     )
                 )
                 await self.storage_response_producer.send(response)
@@ -143,42 +161,85 @@ class Processor(TriplesStoreService):
             )
             await self.storage_response_producer.send(response)
 
-    async def handle_delete_collection(self, message):
-        """Delete all data for a specific collection from the unified triples table"""
+    async def handle_create_collection(self, request):
+        """Create a collection in Cassandra triple store"""
         try:
             # Create or reuse connection for this user's keyspace
-            if self.table is None or self.table != message.user:
+            if self.table is None or self.table != request.user:
                 self.tg = None
 
                 try:
                     if self.cassandra_username and self.cassandra_password:
                         self.tg = KnowledgeGraph(
                             hosts=self.cassandra_host,
-                            keyspace=message.user,
+                            keyspace=request.user,
                             username=self.cassandra_username,
                             password=self.cassandra_password
                         )
                     else:
                         self.tg = KnowledgeGraph(
                             hosts=self.cassandra_host,
-                            keyspace=message.user,
+                            keyspace=request.user,
                         )
                 except Exception as e:
-                    logger.error(f"Failed to connect to Cassandra for user {message.user}: {e}")
+                    logger.error(f"Failed to connect to Cassandra for user {request.user}: {e}")
                     raise
 
-                self.table = message.user
+                self.table = request.user
 
-            # Delete all triples for this collection from the unified table
-            # In the unified table schema, collection is the partition key
-            delete_cql = """
-                DELETE FROM triples
-                WHERE collection = ?
-            """
+            # Create collection using the built-in method
+            logger.info(f"Creating collection {request.collection} for user {request.user}")
 
+            if self.tg.collection_exists(request.collection):
+                logger.info(f"Collection {request.collection} already exists")
+            else:
+                self.tg.create_collection(request.collection)
+                logger.info(f"Created collection {request.collection}")
+
+            # Send success response
+            response = StorageManagementResponse(error=None)
+            await self.storage_response_producer.send(response)
+
+        except Exception as e:
+            logger.error(f"Failed to create collection: {e}", exc_info=True)
+            response = StorageManagementResponse(
+                error=Error(
+                    type="creation_error",
+                    message=str(e)
+                )
+            )
+            await self.storage_response_producer.send(response)
+
+    async def handle_delete_collection(self, request):
+        """Delete all data for a specific collection from the unified triples table"""
+        try:
+            # Create or reuse connection for this user's keyspace
+            if self.table is None or self.table != request.user:
+                self.tg = None
+
+                try:
+                    if self.cassandra_username and self.cassandra_password:
+                        self.tg = KnowledgeGraph(
+                            hosts=self.cassandra_host,
+                            keyspace=request.user,
+                            username=self.cassandra_username,
+                            password=self.cassandra_password
+                        )
+                    else:
+                        self.tg = KnowledgeGraph(
+                            hosts=self.cassandra_host,
+                            keyspace=request.user,
+                        )
+                except Exception as e:
+                    logger.error(f"Failed to connect to Cassandra for user {request.user}: {e}")
+                    raise
+
+                self.table = request.user
+
+            # Delete all triples for this collection using the built-in method
             try:
-                self.tg.session.execute(delete_cql, (message.collection,))
-                logger.info(f"Deleted all triples for collection {message.collection} from keyspace {message.user}")
+                self.tg.delete_collection(request.collection)
+                logger.info(f"Deleted all triples for collection {request.collection} from keyspace {request.user}")
             except Exception as e:
                 logger.error(f"Failed to delete collection data: {e}")
                 raise
@@ -188,7 +249,7 @@ class Processor(TriplesStoreService):
                 error=None  # No error means success
             )
             await self.storage_response_producer.send(response)
-            logger.info(f"Successfully deleted collection {message.user}/{message.collection}")
+            logger.info(f"Successfully deleted collection {request.user}/{request.collection}")
 
         except Exception as e:
             logger.error(f"Failed to delete collection: {e}")

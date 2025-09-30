@@ -295,6 +295,8 @@ class Processor(FlowProcessor):
         
         try:
             self.session.execute(create_table_cql)
+            if keyspace not in self.known_tables:
+                self.known_tables[keyspace] = set()
             self.known_tables[keyspace].add(table_key)
             logger.info(f"Ensured table exists: {safe_keyspace}.{safe_table}")
             
@@ -340,18 +342,47 @@ class Processor(FlowProcessor):
             logger.warning(f"Failed to convert value {value} to type {field_type}: {e}")
             return str(value)
 
+    async def start(self):
+        """Start the processor and its storage management consumer"""
+        await super().start()
+        await self.storage_request_consumer.start()
+        await self.storage_response_producer.start()
+
     async def on_object(self, msg, consumer, flow):
         """Process incoming ExtractedObject and store in Cassandra"""
-        
+
         obj = msg.value()
         logger.info(f"Storing {len(obj.values)} objects for schema {obj.schema_name} from {obj.metadata.id}")
-        
+
+        # Validate collection/keyspace exists before accepting writes
+        safe_keyspace = self.sanitize_name(obj.metadata.user)
+        if safe_keyspace not in self.known_keyspaces:
+            # Check if keyspace actually exists in Cassandra
+            self.connect_cassandra()
+            check_keyspace_cql = """
+            SELECT keyspace_name FROM system_schema.keyspaces
+            WHERE keyspace_name = %s
+            """
+            result = self.session.execute(check_keyspace_cql, (safe_keyspace,))
+            # Check if result is None (mock case) or has no rows
+            if result is None or not result.one():
+                error_msg = (
+                    f"Collection {obj.metadata.collection} does not exist. "
+                    f"Create it first with tg-set-collection."
+                )
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+            # Cache it if it exists
+            self.known_keyspaces.add(safe_keyspace)
+            if safe_keyspace not in self.known_tables:
+                self.known_tables[safe_keyspace] = set()
+
         # Get schema definition
         schema = self.schemas.get(obj.schema_name)
         if not schema:
             logger.warning(f"No schema found for {obj.schema_name} - skipping")
             return
-        
+
         # Ensure table exists
         keyspace = obj.metadata.user
         table_name = obj.schema_name
@@ -428,7 +459,16 @@ class Processor(FlowProcessor):
         logger.info(f"Received storage management request: {msg.operation} for {msg.user}/{msg.collection}")
 
         try:
-            if msg.operation == "delete-collection":
+            if msg.operation == "create-collection":
+                await self.create_collection(msg.user, msg.collection)
+
+                # Send success response
+                response = StorageManagementResponse(
+                    error=None  # No error means success
+                )
+                await self.storage_response_producer.send(response)
+                logger.info(f"Successfully created collection {msg.user}/{msg.collection}")
+            elif msg.operation == "delete-collection":
                 await self.delete_collection(msg.user, msg.collection)
 
                 # Send success response
@@ -459,7 +499,25 @@ class Processor(FlowProcessor):
                     message=str(e)
                 )
             )
-            await self.send("storage-response", response)
+            await self.storage_response_producer.send(response)
+
+    async def create_collection(self, user: str, collection: str):
+        """Create/verify collection exists in Cassandra object store"""
+        # Connect if not already connected
+        self.connect_cassandra()
+
+        # Sanitize names for safety
+        safe_keyspace = self.sanitize_name(user)
+
+        # Ensure keyspace exists
+        if safe_keyspace not in self.known_keyspaces:
+            self.ensure_keyspace(safe_keyspace)
+            self.known_keyspaces.add(safe_keyspace)
+
+        # For Cassandra objects, collection is just a property in rows
+        # No need to create separate tables per collection
+        # Just mark that we've seen this collection
+        logger.info(f"Collection {collection} ready for user {user} (using keyspace {safe_keyspace})")
 
     async def delete_collection(self, user: str, collection: str):
         """Delete all data for a specific collection"""

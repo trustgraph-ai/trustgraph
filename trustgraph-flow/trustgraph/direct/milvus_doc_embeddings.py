@@ -49,6 +49,22 @@ class DocVectors:
         self.next_reload = time.time() + self.reload_time
         logger.debug(f"Reload at {self.next_reload}")
 
+    def collection_exists(self, user, collection):
+        """Check if collection exists (dimension-independent check)"""
+        collection_name = make_safe_collection_name(user, collection, self.prefix)
+        return self.client.has_collection(collection_name)
+
+    def create_collection(self, user, collection, dimension=384):
+        """Create collection with default dimension"""
+        collection_name = make_safe_collection_name(user, collection, self.prefix)
+
+        if self.client.has_collection(collection_name):
+            logger.info(f"Collection {collection_name} already exists")
+            return
+
+        self.init_collection(dimension, user, collection)
+        logger.info(f"Created Milvus collection {collection_name} with dimension {dimension}")
+
     def init_collection(self, dimension, user, collection):
 
         collection_name = make_safe_collection_name(user, collection, self.prefix)
