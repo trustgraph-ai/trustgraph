@@ -5,6 +5,9 @@ Parameters can be provided in three ways:
 1. As key=value pairs: --param model=gpt-4 --param temp=0.7
 2. As JSON string: -p '{"model": "gpt-4", "temp": 0.7}'
 3. As JSON file: --parameters-file params.json
+
+Note: All parameter values are stored as strings internally, regardless of their
+input format. Numbers and booleans will be converted to string representation.
 """
 
 import argparse
@@ -81,9 +84,13 @@ def main():
 
         if args.parameters_file:
             with open(args.parameters_file, 'r') as f:
-                parameters = json.load(f)
+                params_data = json.load(f)
+                # Convert all values to strings
+                parameters = {k: str(v) for k, v in params_data.items()}
         elif args.parameters:
-            parameters = json.loads(args.parameters)
+            params_data = json.loads(args.parameters)
+            # Convert all values to strings
+            parameters = {k: str(v) for k, v in params_data.items()}
         elif args.param:
             # Parse key=value pairs
             parameters = {}
@@ -95,23 +102,9 @@ def main():
                 key = key.strip()
                 value = value.strip()
 
-                # Try to parse value as JSON first (for numbers, booleans, etc.)
-                try:
-                    # Handle common cases where we want to preserve the string
-                    if value.lower() in ['true', 'false']:
-                        parameters[key] = value.lower() == 'true'
-                    elif value.replace('.', '').replace('-', '').isdigit():
-                        # Check if it's a number
-                        if '.' in value:
-                            parameters[key] = float(value)
-                        else:
-                            parameters[key] = int(value)
-                    else:
-                        # Keep as string
-                        parameters[key] = value
-                except ValueError:
-                    # If JSON parsing fails, treat as string
-                    parameters[key] = value
+                # All parameter values must be strings for Pulsar
+                # Just store everything as a string
+                parameters[key] = value
 
         start_flow(
             url = args.api_url,

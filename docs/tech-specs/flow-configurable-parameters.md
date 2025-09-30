@@ -263,21 +263,34 @@ The system will:
 
 #### Parameter Resolution Process
 
-1. **Flow Class Loading**: Load flow class and extract parameter metadata
-2. **Metadata Extraction**: Extract `type`, `description`, `order`, `advanced`, and `controlled-by` for each parameter
-3. **Type Definition Lookup**: Retrieve parameter type definitions from schema/config store using `type` field
-4. **UI Form Generation**:
-   - Use `description` and `order` fields to create ordered parameter forms
-   - Parameters with `advanced: true` are hidden in basic mode or grouped in an "Advanced" section
-   - Parameters with `controlled-by` may be hidden in simple mode if they inherit from their controller
-5. **Parameter Inheritance Resolution**:
+When a flow is started, the system performs the following parameter resolution steps:
+
+1. **Flow Class Loading**: Load flow class definition and extract parameter metadata
+2. **Metadata Extraction**: Extract `type`, `description`, `order`, `advanced`, and `controlled-by` for each parameter defined in the flow class's `parameters` section
+3. **Type Definition Lookup**: For each parameter in the flow class:
+   - Retrieve the parameter type definition from schema/config store using the `type` field
+   - The type definitions are stored with type "parameter-types" in the config system
+   - Each type definition contains the parameter's schema, default value, and validation rules
+4. **Default Value Resolution**:
+   - For each parameter defined in the flow class:
+     - Check if the user provided a value for this parameter
+     - If no user value provided, use the `default` value from the parameter type definition
+     - Build a complete parameter map containing both user-provided and default values
+5. **Parameter Inheritance Resolution** (controlled-by relationships):
    - For parameters with `controlled-by` field, check if a value was explicitly provided
    - If no explicit value provided, inherit the value from the controlling parameter
    - If the controlling parameter also has no value, use the default from the type definition
-6. **Validation**: Validate user-provided and inherited parameters against type definitions
-7. **Default Application**: Apply default values for missing parameters from type definitions
+   - Validate that no circular dependencies exist in `controlled-by` relationships
+6. **Validation**: Validate the complete parameter set (user-provided, defaults, and inherited) against type definitions
+7. **Storage**: Store the complete resolved parameter set with the flow instance for auditability
 8. **Template Substitution**: Replace parameter placeholders in processor parameters with resolved values
 9. **Processor Instantiation**: Create processors with substituted parameters
+
+**Important Implementation Notes:**
+- The flow service MUST merge user-provided parameters with defaults from parameter type definitions
+- The complete parameter set (including applied defaults) MUST be stored with the flow for traceability
+- Parameter resolution happens at flow start time, not at processor instantiation time
+- Missing required parameters without defaults MUST cause flow start to fail with a clear error message
 
 #### Parameter Inheritance with controlled-by
 
@@ -337,6 +350,43 @@ The `controlled-by` field enables parameter value inheritance, particularly usef
    }
    ```
 
+#### Flow Service Implementation
+
+The flow configuration service (`trustgraph-flow/trustgraph/config/service/flow.py`) requires the following enhancements:
+
+1. **Parameter Resolution Function**
+   ```python
+   async def resolve_parameters(self, flow_class, user_params):
+       """
+       Resolve parameters by merging user-provided values with defaults.
+
+       Args:
+           flow_class: The flow class definition dict
+           user_params: User-provided parameters dict
+
+       Returns:
+           Complete parameter dict with user values and defaults merged
+       """
+   ```
+
+   This function should:
+   - Extract parameter metadata from the flow class's `parameters` section
+   - For each parameter, fetch its type definition from config store
+   - Apply defaults for any parameters not provided by the user
+   - Handle `controlled-by` inheritance relationships
+   - Return the complete parameter set
+
+2. **Modified `handle_start_flow` Method**
+   - Call `resolve_parameters` after loading the flow class
+   - Use the complete resolved parameter set for template substitution
+   - Store the complete parameter set (not just user-provided) with the flow
+   - Validate that all required parameters have values
+
+3. **Parameter Type Fetching**
+   - Parameter type definitions are stored in config with type "parameter-types"
+   - Each type definition contains schema, default value, and validation rules
+   - Cache frequently-used parameter types to reduce config lookups
+
 #### Config System Integration
 
 3. **Flow Object Storage**
@@ -377,6 +427,10 @@ The `controlled-by` field enables parameter value inheritance, particularly usef
 - Substitution occurs alongside `{id}` and `{class}` replacement
 - Invalid parameter references result in launch-time errors
 - Type validation happens based on the centrally-stored parameter definition
+- **IMPORTANT**: All parameter values are stored and transmitted as strings
+  - Numbers are converted to strings (e.g., `0.7` becomes `"0.7"`)
+  - Booleans are converted to lowercase strings (e.g., `true` becomes `"true"`)
+  - This is required by the Pulsar schema which defines `parameters = Map(String())`
 
 Example resolution:
 ```
@@ -384,6 +438,11 @@ Flow parameter mapping: "model": "llm-model"
 Processor parameter: "model": "{model}"
 User provides: "model": "gemma3:8b"
 Final parameter: "model": "gemma3:8b"
+
+Example with type conversion:
+Parameter type default: 0.7 (number)
+Stored in flow: "0.7" (string)
+Substituted in processor: "0.7" (string)
 ```
 
 ## Testing Strategy
