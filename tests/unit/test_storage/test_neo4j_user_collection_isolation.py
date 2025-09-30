@@ -75,8 +75,10 @@ class TestNeo4jUserCollectionIsolation:
         mock_summary.counters.nodes_created = 1
         mock_summary.result_available_after = 10
         mock_driver.execute_query.return_value.summary = mock_summary
-        
-        await processor.store_triples(message)
+
+        # Mock collection_exists to bypass validation in unit tests
+        with patch.object(processor, 'collection_exists', return_value=True):
+            await processor.store_triples(message)
         
         # Verify nodes and relationships were created with user/collection properties
         expected_calls = [
@@ -141,8 +143,10 @@ class TestNeo4jUserCollectionIsolation:
         mock_summary.counters.nodes_created = 1
         mock_summary.result_available_after = 10
         mock_driver.execute_query.return_value.summary = mock_summary
-        
-        await processor.store_triples(message)
+
+        # Mock collection_exists to bypass validation in unit tests
+        with patch.object(processor, 'collection_exists', return_value=True):
+            await processor.store_triples(message)
         
         # Verify defaults were used
         mock_driver.execute_query.assert_any_call(
@@ -273,10 +277,12 @@ class TestNeo4jUserCollectionIsolation:
         mock_summary.counters.nodes_created = 1
         mock_summary.result_available_after = 10
         mock_driver.execute_query.return_value.summary = mock_summary
-        
-        # Store data for both users
-        await processor.store_triples(message_user1)
-        await processor.store_triples(message_user2)
+
+        # Mock collection_exists to bypass validation in unit tests
+        with patch.object(processor, 'collection_exists', return_value=True):
+            # Store data for both users
+            await processor.store_triples(message_user1)
+            await processor.store_triples(message_user2)
         
         # Verify user1 data was stored with user1/coll1
         mock_driver.execute_query.assert_any_call(
@@ -446,9 +452,11 @@ class TestNeo4jUserCollectionRegression:
         mock_summary.counters.nodes_created = 1
         mock_summary.result_available_after = 10
         mock_driver.execute_query.return_value.summary = mock_summary
-        
-        await processor.store_triples(message_user1)
-        await processor.store_triples(message_user2)
+
+        # Mock collection_exists to bypass validation in unit tests
+        with patch.object(processor, 'collection_exists', return_value=True):
+            await processor.store_triples(message_user1)
+            await processor.store_triples(message_user2)
         
         # Verify two separate nodes were created with same URI but different user/collection
         user1_node_call = call(

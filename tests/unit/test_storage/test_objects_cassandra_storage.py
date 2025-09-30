@@ -293,18 +293,19 @@ class TestObjectsCassandraStorageLogic:
         """Test that secondary indexes are created for indexed fields"""
         processor = MagicMock()
         processor.schemas = {}
-        processor.known_keyspaces = set()
-        processor.known_tables = {}
+        processor.known_keyspaces = {"test_user"}  # Pre-populate to skip validation query
+        processor.known_tables = {"test_user": set()}  # Pre-populate
         processor.session = MagicMock()
         processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
         processor.sanitize_table = Processor.sanitize_table.__get__(processor, Processor)
         processor.get_cassandra_type = Processor.get_cassandra_type.__get__(processor, Processor)
         def mock_ensure_keyspace(keyspace):
             processor.known_keyspaces.add(keyspace)
-            processor.known_tables[keyspace] = set()
+            if keyspace not in processor.known_tables:
+                processor.known_tables[keyspace] = set()
         processor.ensure_keyspace = mock_ensure_keyspace
         processor.ensure_table = Processor.ensure_table.__get__(processor, Processor)
-        
+
         # Create schema with indexed field
         schema = RowSchema(
             name="products",
@@ -315,10 +316,10 @@ class TestObjectsCassandraStorageLogic:
                 Field(name="price", type="float", size=8, indexed=True)
             ]
         )
-        
+
         # Call ensure_table
         processor.ensure_table("test_user", "products", schema)
-        
+
         # Should have 3 calls: create table + 2 indexes
         assert processor.session.execute.call_count == 3
         
