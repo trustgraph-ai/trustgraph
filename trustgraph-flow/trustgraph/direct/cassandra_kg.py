@@ -247,6 +247,32 @@ class KnowledgeGraph:
             (collection, s, p, o, limit)
         )
 
+    def collection_exists(self, collection):
+        """Check if collection exists by querying triples_collection table"""
+        try:
+            result = self.session.execute(
+                f"SELECT collection FROM {self.collection_table} WHERE collection = %s LIMIT 1",
+                (collection,)
+            )
+            return bool(list(result))
+        except Exception as e:
+            logger.error(f"Error checking collection existence: {e}")
+            return False
+
+    def create_collection(self, collection):
+        """Create collection by inserting marker row in triples_collection table"""
+        try:
+            # Insert a system marker triple to establish collection exists
+            # This won't interfere with data as it uses a reserved system namespace
+            self.session.execute(
+                f"INSERT INTO {self.collection_table} (collection, s, p, o) VALUES (%s, %s, %s, %s)",
+                (collection, "__system__", "__collection_created__", "__marker__")
+            )
+            logger.info(f"Created collection marker for {collection}")
+        except Exception as e:
+            logger.error(f"Error creating collection: {e}")
+            raise e
+
     def delete_collection(self, collection):
         """Delete all triples for a specific collection
 

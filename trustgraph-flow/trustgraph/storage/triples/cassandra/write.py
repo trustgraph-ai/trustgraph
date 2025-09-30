@@ -129,7 +129,9 @@ class Processor(TriplesStoreService):
         logger.info(f"Storage management request: {request.operation} for {request.user}/{request.collection}")
 
         try:
-            if request.operation == "delete-collection":
+            if request.operation == "create-collection":
+                await self.handle_create_collection(request)
+            elif request.operation == "delete-collection":
                 await self.handle_delete_collection(request)
             else:
                 response = StorageManagementResponse(
@@ -145,6 +147,55 @@ class Processor(TriplesStoreService):
             response = StorageManagementResponse(
                 error=Error(
                     type="processing_error",
+                    message=str(e)
+                )
+            )
+            await self.storage_response_producer.send(response)
+
+    async def handle_create_collection(self, request):
+        """Create a collection in Cassandra triple store"""
+        try:
+            # Create or reuse connection for this user's keyspace
+            if self.table is None or self.table != request.user:
+                self.tg = None
+
+                try:
+                    if self.cassandra_username and self.cassandra_password:
+                        self.tg = KnowledgeGraph(
+                            hosts=self.cassandra_host,
+                            keyspace=request.user,
+                            username=self.cassandra_username,
+                            password=self.cassandra_password
+                        )
+                    else:
+                        self.tg = KnowledgeGraph(
+                            hosts=self.cassandra_host,
+                            keyspace=request.user,
+                        )
+                except Exception as e:
+                    logger.error(f"Failed to connect to Cassandra for user {request.user}: {e}")
+                    raise
+
+                self.table = request.user
+
+            # Create collection using the built-in method
+            logger.info(f"Creating collection {request.collection} for user {request.user}")
+
+            if self.tg.collection_exists(request.collection):
+                logger.info(f"Collection {request.collection} already exists")
+            else:
+                self.tg.create_collection(request.collection)
+                logger.info(f"Created collection {request.collection}")
+
+            # Send success response
+            response = StorageManagementResponse(error=None)
+            await self.storage_response_producer.send(response)
+
+        except Exception as e:
+            logger.error(f"Failed to create collection: {e}", exc_info=True)
+            response = StorageManagementResponse(
+                error=Error(
+                    type="creation_error",
                     message=str(e)
                 )
             )
