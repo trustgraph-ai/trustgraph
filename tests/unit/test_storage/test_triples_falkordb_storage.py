@@ -197,7 +197,7 @@ class TestFalkorDBStorageProcessor:
         # Mock collection_exists to bypass validation in unit tests
 
         
-        with patch.object(processor, \'collection_exists\', return_value=True):
+        with patch.object(processor, 'collection_exists', return_value=True):
 
         
             await processor.store_triples(message)
@@ -234,7 +234,7 @@ class TestFalkorDBStorageProcessor:
         # Mock collection_exists to bypass validation in unit tests
 
         
-        with patch.object(processor, \'collection_exists\', return_value=True):
+        with patch.object(processor, 'collection_exists', return_value=True):
 
         
             await processor.store_triples(mock_message)
@@ -288,7 +288,7 @@ class TestFalkorDBStorageProcessor:
         # Mock collection_exists to bypass validation in unit tests
 
         
-        with patch.object(processor, \'collection_exists\', return_value=True):
+        with patch.object(processor, 'collection_exists', return_value=True):
 
         
             await processor.store_triples(message)
@@ -320,7 +320,7 @@ class TestFalkorDBStorageProcessor:
         # Mock collection_exists to bypass validation in unit tests
 
         
-        with patch.object(processor, \'collection_exists\', return_value=True):
+        with patch.object(processor, 'collection_exists', return_value=True):
 
         
             await processor.store_triples(message)
@@ -356,7 +356,7 @@ class TestFalkorDBStorageProcessor:
         # Mock collection_exists to bypass validation in unit tests
 
         
-        with patch.object(processor, \'collection_exists\', return_value=True):
+        with patch.object(processor, 'collection_exists', return_value=True):
 
         
             await processor.store_triples(message)
