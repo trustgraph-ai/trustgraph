@@ -69,23 +69,19 @@ class Processor(GraphEmbeddingsStoreService):
                 metrics=storage_response_metrics,
             )
 
-    def get_collection(self, dim, user, collection):
-
+    def get_collection(self, user, collection):
+        """Get collection name and validate it exists"""
         cname = (
             "t_" + user + "_" + collection
         )
 
         if not self.qdrant.collection_exists(cname):
-            try:
-                self.qdrant.create_collection(
-                    collection_name=cname,
-                    vectors_config=VectorParams(
-                        size=dim, distance=Distance.COSINE
-                    ),
-                )
-            except Exception as e:
-                logger.error("Qdrant collection creation failed")
-                raise e
+            error_msg = (
+                f"Collection {collection} does not exist. "
+                f"Create it first with tg-set-collection."
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
 
         return cname
 
@@ -105,10 +101,8 @@ class Processor(GraphEmbeddingsStoreService):
 
             for vec in entity.vectors:
 
-                dim = len(vec)
-
                 collection = self.get_collection(
-                    dim, message.metadata.user, message.metadata.collection
+                    message.metadata.user, message.metadata.collection
                 )
 
                 self.qdrant.upsert(

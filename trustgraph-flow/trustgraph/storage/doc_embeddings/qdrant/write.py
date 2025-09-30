@@ -79,30 +79,26 @@ class Processor(DocumentEmbeddingsStoreService):
 
     async def store_document_embeddings(self, message):
 
+        # Validate collection exists before accepting writes
+        collection = (
+            "d_" + message.metadata.user + "_" +
+            message.metadata.collection
+        )
+
+        if not self.qdrant.collection_exists(collection):
+            error_msg = (
+                f"Collection {message.metadata.collection} does not exist. "
+                f"Create it first with tg-set-collection."
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+
         for emb in message.chunks:
 
             chunk = emb.chunk.decode("utf-8")
             if chunk == "": return
 
             for vec in emb.vectors:
-
-                dim = len(vec)
-                collection = (
-                    "d_" + message.metadata.user + "_" +
-                    message.metadata.collection
-                )
-
-                if not self.qdrant.collection_exists(collection):
-                    try:
-                        self.qdrant.create_collection(
-                            collection_name=collection,
-                            vectors_config=VectorParams(
-                                size=dim, distance=Distance.COSINE
-                            ),
-                        )
-                    except Exception as e:
-                        logger.error("Qdrant collection creation failed")
-                        raise e
 
                 self.qdrant.upsert(
                     collection_name=collection,
