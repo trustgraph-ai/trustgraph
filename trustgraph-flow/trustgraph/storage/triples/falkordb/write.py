@@ -152,10 +152,42 @@ class Processor(TriplesStoreService):
             time=res.run_time_ms
         ))
 
+    def collection_exists(self, user, collection):
+        """Check if collection metadata node exists"""
+        result = self.io.query(
+            "MATCH (c:CollectionMetadata {user: $user, collection: $collection}) "
+            "RETURN c LIMIT 1",
+            params={"user": user, "collection": collection}
+        )
+        return result.result_set is not None and len(result.result_set) > 0
+
+    def create_collection(self, user, collection):
+        """Create collection metadata node"""
+        import datetime
+        self.io.query(
+            "MERGE (c:CollectionMetadata {user: $user, collection: $collection}) "
+            "SET c.created_at = $created_at",
+            params={
+                "user": user,
+                "collection": collection,
+                "created_at": datetime.datetime.now().isoformat()
+            }
+        )
+        logger.info(f"Created collection metadata node for {user}/{collection}")
+
     async def store_triples(self, message):
         # Extract user and collection from metadata
         user = message.metadata.user if message.metadata.user else "default"
         collection = message.metadata.collection if message.metadata.collection else "default"
+
+        # Validate collection exists before accepting writes
+        if not self.collection_exists(user, collection):
+            error_msg = (
+                f"Collection {collection} does not exist. "
+                f"Create it first with tg-set-collection."
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
 
         for t in message.triples:
 
@@ -197,7 +229,9 @@ class Processor(TriplesStoreService):
         logger.info(f"Storage management request: {request.operation} for {request.user}/{request.collection}")
 
         try:
-            if request.operation == "delete-collection":
+            if request.operation == "create-collection":
+                await self.handle_create_collection(request)
+            elif request.operation == "delete-collection":
                 await self.handle_delete_collection(request)
             else:
                 response = StorageManagementResponse(
@@ -218,6 +252,29 @@ class Processor(TriplesStoreService):
             )
             await self.storage_response_producer.send(response)
 
+    async def handle_create_collection(self, request):
+        """Create collection metadata in FalkorDB"""
+        try:
+            if self.collection_exists(request.user, request.collection):
+                logger.info(f"Collection {request.user}/{request.collection} already exists")
+            else:
+                self.create_collection(request.user, request.collection)
+                logger.info(f"Created collection {request.user}/{request.collection}")
+
+            # Send success response
+            response = StorageManagementResponse(error=None)
+            await self.storage_response_producer.send(response)
+
+        except Exception as e:
+            logger.error(f"Failed to create collection: {e}", exc_info=True)
+            response = StorageManagementResponse(
+                error=Error(
+                    type="creation_error",
+                    message=str(e)
+                )
+            )
+            await self.storage_response_producer.send(response)
+
     async def handle_delete_collection(self, request):
         """Delete the collection for FalkorDB triples"""
         try:
@@ -232,7 +289,13 @@ class Processor(TriplesStoreService):
                 params={"user": request.user, "collection": request.collection}
             )
 
-            logger.info(f"Deleted {node_result.nodes_deleted} nodes and {literal_result.nodes_deleted} literals for collection {request.user}/{request.collection}")
+            # Delete collection metadata node
+            metadata_result = self.io.query(
+                "MATCH (c:CollectionMetadata {user: $user, collection: $collection}) DELETE c",
+                params={"user": request.user, "collection": request.collection}
+            )
+
+            logger.info(f"Deleted {node_result.nodes_deleted} nodes, {literal_result.nodes_deleted} literals, and {metadata_result.nodes_deleted} metadata nodes for collection {request.user}/{request.collection}")
 
             # Send success response
             response = StorageManagementResponse(

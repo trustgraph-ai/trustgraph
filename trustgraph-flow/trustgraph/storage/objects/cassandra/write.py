@@ -348,16 +348,36 @@ class Processor(FlowProcessor):
 
     async def on_object(self, msg, consumer, flow):
         """Process incoming ExtractedObject and store in Cassandra"""
-        
+
         obj = msg.value()
         logger.info(f"Storing {len(obj.values)} objects for schema {obj.schema_name} from {obj.metadata.id}")
-        
+
+        # Validate collection/keyspace exists before accepting writes
+        safe_keyspace = self.sanitize_name(obj.metadata.user)
+        if safe_keyspace not in self.known_keyspaces:
+            # Check if keyspace actually exists in Cassandra
+            self.connect_cassandra()
+            check_keyspace_cql = """
+            SELECT keyspace_name FROM system_schema.keyspaces
+            WHERE keyspace_name = %s
+            """
+            result = self.session.execute(check_keyspace_cql, (safe_keyspace,))
+            if not result.one():
+                error_msg = (
+                    f"Collection {obj.metadata.collection} does not exist. "
+                    f"Create it first with tg-set-collection."
+                )
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+            # Cache it if it exists
+            self.known_keyspaces.add(safe_keyspace)
+
         # Get schema definition
         schema = self.schemas.get(obj.schema_name)
         if not schema:
             logger.warning(f"No schema found for {obj.schema_name} - skipping")
             return
-        
+
         # Ensure table exists
         keyspace = obj.metadata.user
         table_name = obj.schema_name

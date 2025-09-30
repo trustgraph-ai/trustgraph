@@ -123,34 +123,25 @@ class Processor(GraphEmbeddingsStoreService):
 
     async def store_graph_embeddings(self, message):
 
+        index_name = (
+            "t-" + message.metadata.user + "-" + message.metadata.collection
+        )
+
+        # Validate collection exists before accepting writes
+        if not self.pinecone.has_index(index_name):
+            error_msg = (
+                f"Collection {message.metadata.collection} does not exist. "
+                f"Create it first with tg-set-collection."
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+
         for entity in message.entities:
 
             if entity.entity.value == "" or entity.entity.value is None:
                 continue
 
             for vec in entity.vectors:
-
-                dim = len(vec)
-
-                index_name = (
-                    "t-" + message.metadata.user + "-" + message.metadata.collection
-                )
-
-                if index_name != self.last_index_name:
-
-                    if not self.pinecone.has_index(index_name):
-
-                        try:
-
-                            self.create_index(index_name, dim)
-
-                        except Exception as e:
-                            logger.error("Pinecone index creation failed")
-                            raise e
-
-                        logger.info(f"Index {index_name} created")
-
-                    self.last_index_name = index_name
 
                 index = self.pinecone.Index(index_name)
 
@@ -203,7 +194,9 @@ class Processor(GraphEmbeddingsStoreService):
         logger.info(f"Storage management request: {request.operation} for {request.user}/{request.collection}")
 
         try:
-            if request.operation == "delete-collection":
+            if request.operation == "create-collection":
+                await self.handle_create_collection(request)
+            elif request.operation == "delete-collection":
                 await self.handle_delete_collection(request)
             else:
                 response = StorageManagementResponse(
@@ -219,6 +212,32 @@ class Processor(GraphEmbeddingsStoreService):
             response = StorageManagementResponse(
                 error=Error(
                     type="processing_error",
+                    message=str(e)
+                )
+            )
+            await self.storage_response_producer.send(response)
+
+    async def handle_create_collection(self, request):
+        """Create a Pinecone index for graph embeddings"""
+        try:
+            index_name = f"t-{request.user}-{request.collection}"
+
+            if self.pinecone.has_index(index_name):
+                logger.info(f"Pinecone index {index_name} already exists")
+            else:
+                # Create with default dimension - will need to be recreated if dimension doesn't match
+                self.create_index(index_name, dim=384)
+                logger.info(f"Created Pinecone index: {index_name}")
+
+            # Send success response
+            response = StorageManagementResponse(error=None)
+            await self.storage_response_producer.send(response)
+
+        except Exception as e:
+            logger.error(f"Failed to create collection: {e}", exc_info=True)
+            response = StorageManagementResponse(
+                error=Error(
+                    type="creation_error",
                     message=str(e)
                 )
             )

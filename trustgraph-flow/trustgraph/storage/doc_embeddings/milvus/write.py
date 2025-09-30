@@ -68,17 +68,26 @@ class Processor(DocumentEmbeddingsStoreService):
 
     async def store_document_embeddings(self, message):
 
+        # Validate collection exists before accepting writes
+        if not self.vecstore.collection_exists(message.metadata.user, message.metadata.collection):
+            error_msg = (
+                f"Collection {message.metadata.collection} does not exist. "
+                f"Create it first with tg-set-collection."
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+
         for emb in message.chunks:
 
             if emb.chunk is None or emb.chunk == b"": continue
-            
+
             chunk = emb.chunk.decode("utf-8")
             if chunk == "": continue
 
             for vec in emb.vectors:
                 self.vecstore.insert(
-                    vec, chunk, 
-                    message.metadata.user, 
+                    vec, chunk,
+                    message.metadata.user,
                     message.metadata.collection
                 )
 
@@ -99,7 +108,9 @@ class Processor(DocumentEmbeddingsStoreService):
         logger.info(f"Storage management request: {request.operation} for {request.user}/{request.collection}")
 
         try:
-            if request.operation == "delete-collection":
+            if request.operation == "create-collection":
+                await self.handle_create_collection(request)
+            elif request.operation == "delete-collection":
                 await self.handle_delete_collection(request)
             else:
                 response = StorageManagementResponse(
@@ -115,6 +126,29 @@ class Processor(DocumentEmbeddingsStoreService):
             response = StorageManagementResponse(
                 error=Error(
                     type="processing_error",
+                    message=str(e)
+                )
+            )
+            await self.storage_response_producer.send(response)
+
+    async def handle_create_collection(self, request):
+        """Create a Milvus collection for document embeddings"""
+        try:
+            if self.vecstore.collection_exists(request.user, request.collection):
+                logger.info(f"Collection {request.user}/{request.collection} already exists")
+            else:
+                self.vecstore.create_collection(request.user, request.collection)
+                logger.info(f"Created collection {request.user}/{request.collection}")
+
+            # Send success response
+            response = StorageManagementResponse(error=None)
+            await self.storage_response_producer.send(response)
+
+        except Exception as e:
+            logger.error(f"Failed to create collection: {e}", exc_info=True)
+            response = StorageManagementResponse(
+                error=Error(
+                    type="creation_error",
                     message=str(e)
                 )
             )
