@@ -456,35 +456,36 @@ class Processor(FlowProcessor):
 
     async def on_storage_management(self, msg, consumer, flow):
         """Handle storage management requests for collection operations"""
-        logger.info(f"Received storage management request: {msg.operation} for {msg.user}/{msg.collection}")
+        request = msg.value()
+        logger.info(f"Received storage management request: {request.operation} for {request.user}/{request.collection}")
 
         try:
-            if msg.operation == "create-collection":
-                await self.create_collection(msg.user, msg.collection)
+            if request.operation == "create-collection":
+                await self.create_collection(request.user, request.collection)
 
                 # Send success response
                 response = StorageManagementResponse(
                     error=None  # No error means success
                 )
                 await self.storage_response_producer.send(response)
-                logger.info(f"Successfully created collection {msg.user}/{msg.collection}")
-            elif msg.operation == "delete-collection":
-                await self.delete_collection(msg.user, msg.collection)
+                logger.info(f"Successfully created collection {request.user}/{request.collection}")
+            elif request.operation == "delete-collection":
+                await self.delete_collection(request.user, request.collection)
 
                 # Send success response
                 response = StorageManagementResponse(
                     error=None  # No error means success
                 )
                 await self.storage_response_producer.send(response)
-                logger.info(f"Successfully deleted collection {msg.user}/{msg.collection}")
+                logger.info(f"Successfully deleted collection {request.user}/{request.collection}")
             else:
-                logger.warning(f"Unknown storage management operation: {msg.operation}")
+                logger.warning(f"Unknown storage management operation: {request.operation}")
                 # Send error response
                 from .... schema import Error
                 response = StorageManagementResponse(
                     error=Error(
                         type="unknown_operation",
-                        message=f"Unknown operation: {msg.operation}"
+                        message=f"Unknown operation: {request.operation}"
                     )
                 )
                 await self.storage_response_producer.send(response)

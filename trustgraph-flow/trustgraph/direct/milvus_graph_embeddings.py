@@ -144,14 +144,6 @@ class EntityVectors:
 
         coll = self.collections[(dim, user, collection)]
 
-        search_params = {
-            "metric_type": "COSINE",
-            "params": {
-                "radius": 0.1,
-                "range_filter": 0.8
-            }
-        }
-
         logger.debug("Loading...")
         self.client.load_collection(
             collection_name=coll,
@@ -161,10 +153,11 @@ class EntityVectors:
 
         res = self.client.search(
             collection_name=coll,
+            anns_field="vector",
             data=[embeds],
             limit=limit,
             output_fields=fields,
-            search_params=search_params,
+            search_params={ "metric_type": "COSINE" },
         )[0]
 
 
