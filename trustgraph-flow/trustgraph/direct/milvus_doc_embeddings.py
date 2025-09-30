@@ -120,6 +120,8 @@ class DocVectors:
 
         dim = len(embeds)
 
+        print("INSERT VEC", dim, flush=True)
+
         if (dim, user, collection) not in self.collections:
             self.init_collection(dim, user, collection)
     
@@ -144,14 +146,6 @@ class DocVectors:
 
         coll = self.collections[(dim, user, collection)]
 
-        search_params = {
-            "metric_type": "COSINE",
-            "params": {
-                "radius": 0.1,
-                "range_filter": 0.8
-            }
-        }
-
         logger.debug("Loading...")
         self.client.load_collection(
             collection_name=coll,
@@ -161,10 +155,11 @@ class DocVectors:
 
         res = self.client.search(
             collection_name=coll,
+            anns_field="vector",
             data=[embeds],
             limit=limit,
             output_fields=fields,
-            search_params=search_params,
+            search_params={ "metric_type": "COSINE" },
         )[0]
 
 
