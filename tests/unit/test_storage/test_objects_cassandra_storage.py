@@ -349,9 +349,10 @@ class TestObjectsCassandraStorageBatchLogic:
                 ]
             )
         }
+        processor.known_keyspaces = {"test_user"}  # Pre-populate to skip validation query
         processor.ensure_table = MagicMock()
         processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
-        processor.sanitize_table = Processor.sanitize_table.__get__(processor, Processor) 
+        processor.sanitize_table = Processor.sanitize_table.__get__(processor, Processor)
         processor.convert_value = Processor.convert_value.__get__(processor, Processor)
         processor.session = MagicMock()
         processor.on_object = Processor.on_object.__get__(processor, Processor)
