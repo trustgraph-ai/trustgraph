@@ -194,7 +194,13 @@ class TestFalkorDBStorageProcessor:
         mock_result.run_time_ms = 10
         processor.io.query.return_value = mock_result
         
-        await processor.store_triples(message)
+        # Mock collection_exists to bypass validation in unit tests
+
+        
+        with patch.object(processor, \'collection_exists\', return_value=True):
+
+        
+            await processor.store_triples(message)
         
         # Verify queries were called in the correct order
         expected_calls = [
@@ -225,7 +231,13 @@ class TestFalkorDBStorageProcessor:
         mock_result.run_time_ms = 10
         processor.io.query.return_value = mock_result
         
-        await processor.store_triples(mock_message)
+        # Mock collection_exists to bypass validation in unit tests
+
+        
+        with patch.object(processor, \'collection_exists\', return_value=True):
+
+        
+            await processor.store_triples(mock_message)
         
         # Verify queries were called in the correct order
         expected_calls = [
@@ -273,7 +285,13 @@ class TestFalkorDBStorageProcessor:
         mock_result.run_time_ms = 10
         processor.io.query.return_value = mock_result
         
-        await processor.store_triples(message)
+        # Mock collection_exists to bypass validation in unit tests
+
+        
+        with patch.object(processor, \'collection_exists\', return_value=True):
+
+        
+            await processor.store_triples(message)
         
         # Verify total number of queries (3 per triple)
         assert processor.io.query.call_count == 6
@@ -299,7 +317,13 @@ class TestFalkorDBStorageProcessor:
         message.metadata.collection = 'test_collection'
         message.triples = []
         
-        await processor.store_triples(message)
+        # Mock collection_exists to bypass validation in unit tests
+
+        
+        with patch.object(processor, \'collection_exists\', return_value=True):
+
+        
+            await processor.store_triples(message)
         
         # Verify no queries were made
         processor.io.query.assert_not_called()
@@ -329,7 +353,13 @@ class TestFalkorDBStorageProcessor:
         mock_result.run_time_ms = 10
         processor.io.query.return_value = mock_result
         
-        await processor.store_triples(message)
+        # Mock collection_exists to bypass validation in unit tests
+
+        
+        with patch.object(processor, \'collection_exists\', return_value=True):
+
+        
+            await processor.store_triples(message)
         
         # Verify total number of queries (3 per triple)
         assert processor.io.query.call_count == 6

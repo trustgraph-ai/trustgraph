@@ -251,6 +251,8 @@ class TestObjectsCassandraStorageLogic:
         processor.convert_value = Processor.convert_value.__get__(processor, Processor)
         processor.session = MagicMock()
         processor.on_object = Processor.on_object.__get__(processor, Processor)
+        processor.known_keyspaces = {"test_user"}  # Pre-populate to skip validation query
+        processor.known_tables = {"test_user": set()}  # Pre-populate
         
         # Create test object
         test_obj = ExtractedObject(
@@ -415,6 +417,8 @@ class TestObjectsCassandraStorageBatchLogic:
         processor.convert_value = Processor.convert_value.__get__(processor, Processor)
         processor.session = MagicMock()
         processor.on_object = Processor.on_object.__get__(processor, Processor)
+        processor.known_keyspaces = {"test_user"}  # Pre-populate to skip validation query
+        processor.known_tables = {"test_user": set()}  # Pre-populate
         
         # Create empty batch object
         empty_batch_obj = ExtractedObject(
@@ -461,6 +465,8 @@ class TestObjectsCassandraStorageBatchLogic:
         processor.convert_value = Processor.convert_value.__get__(processor, Processor)
         processor.session = MagicMock()
         processor.on_object = Processor.on_object.__get__(processor, Processor)
+        processor.known_keyspaces = {"test_user"}  # Pre-populate to skip validation query
+        processor.known_tables = {"test_user": set()}  # Pre-populate
         
         # Create single-item batch object (backward compatibility case)
         single_batch_obj = ExtractedObject(
