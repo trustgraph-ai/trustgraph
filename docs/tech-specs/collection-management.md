@@ -102,19 +102,31 @@ This approach allows:
 
 #### Collection Lifecycle
 
-Collections follow an explicit creation pattern requiring user action before data can be stored:
+Collections are explicitly created in the librarian before data operations can proceed:
 
-1. **Explicit Creation**: Collections must be created via `tg-set-collection` command before any data operations:
+1. **Collection Creation** (Two Paths):
+
+   **Path A: User-Initiated Creation** via `tg-set-collection`:
    - User provides collection ID, name, description, and tags
    - Librarian creates metadata record in `collections` table
    - Librarian broadcasts "create-collection" to all storage backends
    - All storage processors create collection and confirm success
-   - Only after all confirmations does collection become available
+   - Collection is now ready for data operations
+
+   **Path B: Automatic Creation on Document Submission**:
+   - User submits document specifying a collection ID
+   - Librarian checks if collection exists in metadata table
+   - If not exists: Librarian creates metadata with defaults (name=collection_id, empty description/tags)
+   - Librarian broadcasts "create-collection" to all storage backends
+   - All storage processors create collection and confirm success
+   - Document processing proceeds with collection now established
+
+   Both paths ensure collection exists in librarian metadata AND all storage backends before data operations.
 
 2. **Storage Validation**: Write operations validate collection exists:
    - Storage processors check collection state before accepting writes
    - Writes to non-existent collections return error
-   - Error message directs user to create collection first
+   - This prevents direct writes bypassing the librarian's collection creation logic
 
 3. **Query Behavior**: Query operations handle non-existent collections gracefully:
    - Queries to non-existent collections return empty results
@@ -132,8 +144,10 @@ Collections follow an explicit creation pattern requiring user action before dat
    - Deletes librarian metadata record only after storage cleanup complete
    - Ensures no orphaned data remains in storage
 
+**Key Principle**: The librarian is the single point of control for collection creation. Whether initiated by user command or document submission, the librarian ensures proper metadata tracking and storage backend synchronization before allowing data operations.
+
 Operations required:
-- **Create Collection**: User operation via `tg-set-collection` to create new collection
+- **Create Collection**: User operation via `tg-set-collection` OR automatic on document submission
 - **Update Collection Metadata**: User operation to modify name, description, and tags
 - **Delete Collection**: User operation to remove collection and its data across all stores
 - **List Collections**: User operation to view collections with filtering by tags
@@ -357,6 +371,12 @@ Comprehensive testing will cover:
    - Update `update_collection()` to send "create-collection" to storage backends
    - Wait for confirmations from all storage processors
    - Handle creation failures appropriately
+
+2. **Document Submission Handler** (`trustgraph-flow/trustgraph/librarian/service.py` or similar)
+   - Check if collection exists when document submitted
+   - If not exists: Create collection with defaults before processing document
+   - Trigger same "create-collection" broadcast as `tg-set-collection`
+   - Ensure collection established before document flows to storage processors
 
 ### ❌ Pending Components
 
