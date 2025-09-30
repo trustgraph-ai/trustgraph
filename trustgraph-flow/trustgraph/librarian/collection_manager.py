@@ -88,7 +88,7 @@ class CollectionManager:
             logger.info(f"Broadcasting create-collection for {creation_key}")
 
             self.pending_deletions[creation_key] = {
-                "responses_pending": 3,  # vector, object, triples
+                "responses_pending": 4,  # doc-embeddings, graph-embeddings, object, triples
                 "responses_received": [],
                 "all_successful": True,
                 "error_messages": [],
@@ -213,7 +213,7 @@ class CollectionManager:
                 logger.info(f"Broadcasting create-collection for {creation_key}")
 
                 self.pending_deletions[creation_key] = {
-                    "responses_pending": 3,  # vector, object, triples
+                    "responses_pending": 4,  # doc-embeddings, graph-embeddings, object, triples
                     "responses_received": [],
                     "all_successful": True,
                     "error_messages": [],
@@ -328,7 +328,7 @@ class CollectionManager:
 
             # Track this deletion request
             self.pending_deletions[deletion_key] = {
-                "responses_pending": 3,  # vector, object, triples
+                "responses_pending": 4,  # doc-embeddings, graph-embeddings, object, triples
                 "responses_received": [],
                 "all_successful": True,
                 "error_messages": [],
@@ -418,9 +418,9 @@ class CollectionManager:
                 if response.error and response.error.message:
                     info["all_successful"] = False
                     info["error_messages"].append(response.error.message)
-                    logger.warning(f"Storage deletion failed for {deletion_key}: {response.error.message}")
+                    logger.warning(f"Storage operation failed for {deletion_key}: {response.error.message}")
                 else:
-                    logger.debug(f"Storage deletion succeeded for {deletion_key}")
+                    logger.debug(f"Storage operation succeeded for {deletion_key}")
 
                 # If all responses received, signal completion
                 if info["responses_pending"] == 0:
