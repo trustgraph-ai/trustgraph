@@ -1,6 +1,6 @@
 <div align="center">
 
-## The Agentic AI Platform for Enterprise Data Engineers
+## The Agentic AI Platform for Enterprise Availability, Scalability, and Security
 
 <img src="product-platform-diagram.svg" width=100% />
 
@@ -13,12 +13,13 @@
 
 </div>
 
-**TrustGraph** is built by data engineers *for* data engineers to solve *real* enterprise data problems. Take full control of your data and context with **TrustGraph**. Connect to the latest LLMs or deploy models privately on your hardware. Connect data silos with context automation that builds modular and reusable graph components linked to vector embeddings. Deploy the platform locally, in all major Clouds, and even on bare metal.
+**TrustGraph** is an agentic AI platform built to meet the enterprise demands for availability, scalability, and security. TrustGraph meets these demands by combining the enterprise-grade data streaming platform [Apache Pulsar](https://github.com/apache/pulsar/) with knowledge graphs, structured data storage, VectorDBs, and MCP interoperability all in a single containerized platform.
 
 <details>
 <summary>Table of Contents</summary>
 <br>
 
+- [**Key Features**](#key-features)<br>
 - [**Why TrustGraph?**](#why-trustgraph)<br>
 - [**Agentic MCP Demo**](#agentic-mcp-demo)<br>
 - [**Getting Started**](#getting-started)<br>
@@ -33,6 +34,8 @@
 - [**Support & Community**](#support--community)<br>
 
 </details>
+
+## Key Features
 
 ## Why TrustGraph?
 
