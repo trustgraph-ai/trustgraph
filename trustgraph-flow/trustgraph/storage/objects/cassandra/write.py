@@ -295,6 +295,8 @@ class Processor(FlowProcessor):
         
         try:
             self.session.execute(create_table_cql)
+            if keyspace not in self.known_tables:
+                self.known_tables[keyspace] = set()
             self.known_tables[keyspace].add(table_key)
             logger.info(f"Ensured table exists: {safe_keyspace}.{safe_table}")
             
@@ -340,18 +342,47 @@ class Processor(FlowProcessor):
             logger.warning(f"Failed to convert value {value} to type {field_type}: {e}")
             return str(value)
 
+    async def start(self):
+        """Start the processor and its storage management consumer"""
+        await super().start()
+        await self.storage_request_consumer.start()
+        await self.storage_response_producer.start()
+
     async def on_object(self, msg, consumer, flow):
         """Process incoming ExtractedObject and store in Cassandra"""
-        
+
         obj = msg.value()
         logger.info(f"Storing {len(obj.values)} objects for schema {obj.schema_name} from {obj.metadata.id}")
-        
+
+        # Validate collection/keyspace exists before accepting writes
+        safe_keyspace = self.sanitize_name(obj.metadata.user)
+        if safe_keyspace not in self.known_keyspaces:
+            # Check if keyspace actually exists in Cassandra
+            self.connect_cassandra()
+            check_keyspace_cql = """
+            SELECT keyspace_name FROM system_schema.keyspaces
+            WHERE keyspace_name = %s
+            """
+            result = self.session.execute(check_keyspace_cql, (safe_keyspace,))
+            # Check if result is None (mock case) or has no rows
+            if result is None or not result.one():
+                error_msg = (
+                    f"Collection {obj.metadata.collection} does not exist. "
+                    f"Create it first with tg-set-collection."
+                )
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+            # Cache it if it exists
+            self.known_keyspaces.add(safe_keyspace)
+            if safe_keyspace not in self.known_tables:
+                self.known_tables[safe_keyspace] = set()
+
         # Get schema definition
         schema = self.schemas.get(obj.schema_name)
         if not schema:
             logger.warning(f"No schema found for {obj.schema_name} - skipping")
             return
-        
+
         # Ensure table exists
         keyspace = obj.metadata.user
         table_name = obj.schema_name
@@ -425,26 +456,36 @@ class Processor(FlowProcessor):
 
     async def on_storage_management(self, msg, consumer, flow):
         """Handle storage management requests for collection operations"""
-        logger.info(f"Received storage management request: {msg.operation} for {msg.user}/{msg.collection}")
+        request = msg.value()
+        logger.info(f"Received storage management request: {request.operation} for {request.user}/{request.collection}")
 
         try:
-            if msg.operation == "delete-collection":
-                await self.delete_collection(msg.user, msg.collection)
+            if request.operation == "create-collection":
+                await self.create_collection(request.user, request.collection)
 
                 # Send success response
                 response = StorageManagementResponse(
                     error=None  # No error means success
                 )
                 await self.storage_response_producer.send(response)
-                logger.info(f"Successfully deleted collection {msg.user}/{msg.collection}")
+                logger.info(f"Successfully created collection {request.user}/{request.collection}")
+            elif request.operation == "delete-collection":
+                await self.delete_collection(request.user, request.collection)
+
+                # Send success response
+                response = StorageManagementResponse(
+                    error=None  # No error means success
+                )
+                await self.storage_response_producer.send(response)
+                logger.info(f"Successfully deleted collection {request.user}/{request.collection}")
             else:
-                logger.warning(f"Unknown storage management operation: {msg.operation}")
+                logger.warning(f"Unknown storage management operation: {request.operation}")
                 # Send error response
                 from .... schema import Error
                 response = StorageManagementResponse(
                     error=Error(
                         type="unknown_operation",
-                        message=f"Unknown operation: {msg.operation}"
+                        message=f"Unknown operation: {request.operation}"
                     )
                 )
                 await self.storage_response_producer.send(response)
@@ -459,10 +500,28 @@ class Processor(FlowProcessor):
                     message=str(e)
                 )
             )
-            await self.send("storage-response", response)
+            await self.storage_response_producer.send(response)
+
+    async def create_collection(self, user: str, collection: str):
+        """Create/verify collection exists in Cassandra object store"""
+        # Connect if not already connected
+        self.connect_cassandra()
+
+        # Sanitize names for safety
+        safe_keyspace = self.sanitize_name(user)
+
+        # Ensure keyspace exists
+        if safe_keyspace not in self.known_keyspaces:
+            self.ensure_keyspace(safe_keyspace)
+            self.known_keyspaces.add(safe_keyspace)
+
+        # For Cassandra objects, collection is just a property in rows
+        # No need to create separate tables per collection
+        # Just mark that we've seen this collection
+        logger.info(f"Collection {collection} ready for user {user} (using keyspace {safe_keyspace})")
 
     async def delete_collection(self, user: str, collection: str):
-        """Delete all data for a specific collection"""
+        """Delete all data for a specific collection using schema information"""
         # Connect if not already connected
         self.connect_cassandra()
 
@@ -482,40 +541,78 @@ class Processor(FlowProcessor):
                 return
             self.known_keyspaces.add(safe_keyspace)
 
-        # Get all tables in the keyspace that might contain collection data
-        get_tables_cql = """
-        SELECT table_name FROM system_schema.tables
-        WHERE keyspace_name = %s
-        """
-
-        tables = self.session.execute(get_tables_cql, (safe_keyspace,))
+        # Iterate over schemas we manage to delete from relevant tables
         tables_deleted = 0
 
-        for row in tables:
-            table_name = row.table_name
+        for schema_name, schema in self.schemas.items():
+            safe_table = self.sanitize_table(schema_name)
 
-            # Check if the table has a collection column
-            check_column_cql = """
-            SELECT column_name FROM system_schema.columns
-            WHERE keyspace_name = %s AND table_name = %s AND column_name = 'collection'
-            """
+            # Check if table exists
+            table_key = f"{user}.{schema_name}"
+            if table_key not in self.known_tables.get(user, set()):
+                logger.debug(f"Table {safe_keyspace}.{safe_table} not in known tables, skipping")
+                continue
 
-            result = self.session.execute(check_column_cql, (safe_keyspace, table_name))
-            if result.one():
-                # Table has collection column, delete data for this collection
-                try:
-                    delete_cql = f"""
-                    DELETE FROM {safe_keyspace}.{table_name}
+            try:
+                # Get primary key fields from schema
+                primary_key_fields = [field for field in schema.fields if field.primary]
+
+                if primary_key_fields:
+                    # Schema has primary keys: need to query for partition keys first
+                    # Build SELECT query for primary key fields
+                    pk_field_names = [self.sanitize_name(field.name) for field in primary_key_fields]
+                    select_cql = f"""
+                    SELECT {', '.join(pk_field_names)}
+                    FROM {safe_keyspace}.{safe_table}
                     WHERE collection = %s
+                    ALLOW FILTERING
                     """
-                    self.session.execute(delete_cql, (collection,))
-                    tables_deleted += 1
-                    logger.info(f"Deleted collection {collection} from table {safe_keyspace}.{table_name}")
-                except Exception as e:
-                    logger.error(f"Failed to delete from table {safe_keyspace}.{table_name}: {e}")
-                    raise
 
-        logger.info(f"Deleted collection {collection} from {tables_deleted} tables in keyspace {safe_keyspace}")
+                    rows = self.session.execute(select_cql, (collection,))
+
+                    # Delete each row using full partition key
+                    for row in rows:
+                        where_clauses = ["collection = %s"]
+                        values = [collection]
+
+                        for field_name in pk_field_names:
+                            where_clauses.append(f"{field_name} = %s")
+                            values.append(getattr(row, field_name))
+
+                        delete_cql = f"""
+                        DELETE FROM {safe_keyspace}.{safe_table}
+                        WHERE {' AND '.join(where_clauses)}
+                        """
+
+                        self.session.execute(delete_cql, tuple(values))
+                else:
+                    # No primary keys, uses synthetic_id
+                    # Need to query for synthetic_ids first
+                    select_cql = f"""
+                    SELECT synthetic_id
+                    FROM {safe_keyspace}.{safe_table}
+                    WHERE collection = %s
+                    ALLOW FILTERING
+                    """
+
+                    rows = self.session.execute(select_cql, (collection,))
+
+                    # Delete each row using collection and synthetic_id
+                    for row in rows:
+                        delete_cql = f"""
+                        DELETE FROM {safe_keyspace}.{safe_table}
+                        WHERE collection = %s AND synthetic_id = %s
+                        """
+                        self.session.execute(delete_cql, (collection, row.synthetic_id))
+
+                tables_deleted += 1
+                logger.info(f"Deleted collection {collection} from table {safe_keyspace}.{safe_table}")
+
+            except Exception as e:
+                logger.error(f"Failed to delete from table {safe_keyspace}.{safe_table}: {e}")
+                raise
+
+        logger.info(f"Deleted collection {collection} from {tables_deleted} schema-based tables in keyspace {safe_keyspace}")
 
     def close(self):
         """Clean up Cassandra connections"""

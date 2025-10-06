@@ -53,9 +53,12 @@ class Processor(LlmService):
         )
 
         self.client = genai.Client(api_key=api_key)
-        self.model = model
+        self.default_model = model
         self.temperature = temperature
         self.max_output = max_output
+
+        # Cache for generation configs per model
+        self.generation_configs = {}
 
         block_level = HarmBlockThreshold.BLOCK_ONLY_HIGH
 
@@ -83,22 +86,45 @@ class Processor(LlmService):
 
         logger.info("GoogleAIStudio LLM service initialized")
 
-    async def generate_content(self, system, prompt):
+    def _get_or_create_config(self, model_name, temperature=None):
+        """Get or create generation config with dynamic temperature"""
+        # Use provided temperature or fall back to default
+        effective_temperature = temperature if temperature is not None else self.temperature
 
-        generation_config = types.GenerateContentConfig(
-            temperature = self.temperature,
-            top_p = 1,
-            top_k = 40,
-            max_output_tokens = self.max_output,
-            response_mime_type = "text/plain",
-            system_instruction = system,
-            safety_settings = self.safety_settings,
-        )
+        # Create cache key that includes temperature to avoid conflicts
+        cache_key = f"{model_name}:{effective_temperature}"
+
+        if cache_key not in self.generation_configs:
+            logger.info(f"Creating generation config for '{model_name}' with temperature {effective_temperature}")
+            self.generation_configs[cache_key] = types.GenerateContentConfig(
+                temperature = effective_temperature,
+                top_p = 1,
+                top_k = 40,
+                max_output_tokens = self.max_output,
+                response_mime_type = "text/plain",
+                safety_settings = self.safety_settings,
+            )
+
+        return self.generation_configs[cache_key]
+
+    async def generate_content(self, system, prompt, model=None, temperature=None):
+
+        # Use provided model or fall back to default
+        model_name = model or self.default_model
+        # Use provided temperature or fall back to default
+        effective_temperature = temperature if temperature is not None else self.temperature
+
+        logger.debug(f"Using model: {model_name}")
+        logger.debug(f"Using temperature: {effective_temperature}")
+
+        generation_config = self._get_or_create_config(model_name, effective_temperature)
+        # Set system instruction per request (can't be cached)
+        generation_config.system_instruction = system
 
         try:
 
             response = self.client.models.generate_content(
-                model=self.model,
+                model=model_name,
                 config=generation_config,
                 contents=prompt,
             )
@@ -114,7 +140,7 @@ class Processor(LlmService):
                 text = resp,
                 in_token = inputtokens,
                 out_token = outputtokens,
-                model = self.model
+                model = model_name
             )
 
             return resp

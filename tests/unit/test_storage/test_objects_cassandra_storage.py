@@ -251,6 +251,8 @@ class TestObjectsCassandraStorageLogic:
         processor.convert_value = Processor.convert_value.__get__(processor, Processor)
         processor.session = MagicMock()
         processor.on_object = Processor.on_object.__get__(processor, Processor)
+        processor.known_keyspaces = {"test_user"}  # Pre-populate to skip validation query
+        processor.known_tables = {"test_user": set()}  # Pre-populate
         
         # Create test object
         test_obj = ExtractedObject(
@@ -291,18 +293,19 @@ class TestObjectsCassandraStorageLogic:
         """Test that secondary indexes are created for indexed fields"""
         processor = MagicMock()
         processor.schemas = {}
-        processor.known_keyspaces = set()
-        processor.known_tables = {}
+        processor.known_keyspaces = {"test_user"}  # Pre-populate to skip validation query
+        processor.known_tables = {"test_user": set()}  # Pre-populate
         processor.session = MagicMock()
         processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
         processor.sanitize_table = Processor.sanitize_table.__get__(processor, Processor)
         processor.get_cassandra_type = Processor.get_cassandra_type.__get__(processor, Processor)
         def mock_ensure_keyspace(keyspace):
             processor.known_keyspaces.add(keyspace)
-            processor.known_tables[keyspace] = set()
+            if keyspace not in processor.known_tables:
+                processor.known_tables[keyspace] = set()
         processor.ensure_keyspace = mock_ensure_keyspace
         processor.ensure_table = Processor.ensure_table.__get__(processor, Processor)
-        
+
         # Create schema with indexed field
         schema = RowSchema(
             name="products",
@@ -313,10 +316,10 @@ class TestObjectsCassandraStorageLogic:
                 Field(name="price", type="float", size=8, indexed=True)
             ]
         )
-        
+
         # Call ensure_table
         processor.ensure_table("test_user", "products", schema)
-        
+
         # Should have 3 calls: create table + 2 indexes
         assert processor.session.execute.call_count == 3
         
@@ -346,9 +349,10 @@ class TestObjectsCassandraStorageBatchLogic:
                 ]
             )
         }
+        processor.known_keyspaces = {"test_user"}  # Pre-populate to skip validation query
         processor.ensure_table = MagicMock()
         processor.sanitize_name = Processor.sanitize_name.__get__(processor, Processor)
-        processor.sanitize_table = Processor.sanitize_table.__get__(processor, Processor) 
+        processor.sanitize_table = Processor.sanitize_table.__get__(processor, Processor)
         processor.convert_value = Processor.convert_value.__get__(processor, Processor)
         processor.session = MagicMock()
         processor.on_object = Processor.on_object.__get__(processor, Processor)
@@ -415,6 +419,8 @@ class TestObjectsCassandraStorageBatchLogic:
         processor.convert_value = Processor.convert_value.__get__(processor, Processor)
         processor.session = MagicMock()
         processor.on_object = Processor.on_object.__get__(processor, Processor)
+        processor.known_keyspaces = {"test_user"}  # Pre-populate to skip validation query
+        processor.known_tables = {"test_user": set()}  # Pre-populate
         
         # Create empty batch object
         empty_batch_obj = ExtractedObject(
@@ -461,6 +467,8 @@ class TestObjectsCassandraStorageBatchLogic:
         processor.convert_value = Processor.convert_value.__get__(processor, Processor)
         processor.session = MagicMock()
         processor.on_object = Processor.on_object.__get__(processor, Processor)
+        processor.known_keyspaces = {"test_user"}  # Pre-populate to skip validation query
+        processor.known_tables = {"test_user": set()}  # Pre-populate
         
         # Create single-item batch object (backward compatibility case)
         single_batch_obj = ExtractedObject(

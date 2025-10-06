@@ -268,7 +268,9 @@ class TestNeo4jStorageProcessor:
         mock_message.metadata.user = "test_user"
         mock_message.metadata.collection = "test_collection"
         
-        await processor.store_triples(mock_message)
+        # Mock collection_exists to bypass validation in unit tests
+        with patch.object(processor, 'collection_exists', return_value=True):
+            await processor.store_triples(mock_message)
         
         # Verify create_node was called for subject and object
         # Verify relate_node was called
@@ -336,7 +338,9 @@ class TestNeo4jStorageProcessor:
         mock_message.metadata.user = "test_user"
         mock_message.metadata.collection = "test_collection"
         
-        await processor.store_triples(mock_message)
+        # Mock collection_exists to bypass validation in unit tests
+        with patch.object(processor, 'collection_exists', return_value=True):
+            await processor.store_triples(mock_message)
         
         # Verify create_node was called for subject
         # Verify create_literal was called for object
@@ -411,7 +415,9 @@ class TestNeo4jStorageProcessor:
         mock_message.metadata.user = "test_user"
         mock_message.metadata.collection = "test_collection"
         
-        await processor.store_triples(mock_message)
+        # Mock collection_exists to bypass validation in unit tests
+        with patch.object(processor, 'collection_exists', return_value=True):
+            await processor.store_triples(mock_message)
         
         # Should have processed both triples
         # Triple1: 2 nodes + 1 relationship = 3 calls
@@ -437,7 +443,9 @@ class TestNeo4jStorageProcessor:
         mock_message.metadata.user = "test_user"
         mock_message.metadata.collection = "test_collection"
         
-        await processor.store_triples(mock_message)
+        # Mock collection_exists to bypass validation in unit tests
+        with patch.object(processor, 'collection_exists', return_value=True):
+            await processor.store_triples(mock_message)
         
         # Should not have made any execute_query calls beyond index creation
         # Only index creation calls should have been made during initialization
@@ -552,7 +560,9 @@ class TestNeo4jStorageProcessor:
         mock_message.metadata.user = "test_user"
         mock_message.metadata.collection = "test_collection"
         
-        await processor.store_triples(mock_message)
+        # Mock collection_exists to bypass validation in unit tests
+        with patch.object(processor, 'collection_exists', return_value=True):
+            await processor.store_triples(mock_message)
         
         # Verify the triple was processed with special characters preserved
         mock_driver.execute_query.assert_any_call(

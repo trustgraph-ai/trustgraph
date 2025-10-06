@@ -308,7 +308,13 @@ class TestMemgraphStorageProcessor:
         # Reset the mock to clear initialization calls
         processor.io.execute_query.reset_mock()
         
-        await processor.store_triples(mock_message)
+        # Mock collection_exists to bypass validation in unit tests
+
+        
+        with patch.object(processor, 'collection_exists', return_value=True):
+
+        
+            await processor.store_triples(mock_message)
         
         # Verify execute_query was called for create_node, create_literal, and relate_literal
         # (since mock_message has a literal object)
@@ -352,7 +358,13 @@ class TestMemgraphStorageProcessor:
         )
         message.triples = [triple1, triple2]
         
-        await processor.store_triples(message)
+        # Mock collection_exists to bypass validation in unit tests
+
+        
+        with patch.object(processor, 'collection_exists', return_value=True):
+
+        
+            await processor.store_triples(message)
         
         # Verify execute_query was called:
         # Triple1: create_node(s) + create_literal(o) + relate_literal = 3 calls
@@ -381,7 +393,13 @@ class TestMemgraphStorageProcessor:
         message.metadata.collection = 'test_collection'
         message.triples = []
         
-        await processor.store_triples(message)
+        # Mock collection_exists to bypass validation in unit tests
+
+        
+        with patch.object(processor, 'collection_exists', return_value=True):
+
+        
+            await processor.store_triples(message)
         
         # Verify no session calls were made (no triples to process)
         processor.io.session.assert_not_called()

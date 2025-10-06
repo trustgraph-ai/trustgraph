@@ -12,7 +12,7 @@ class Flow:
         # Consumers and publishers.  Is this a bit untidy?
         self.consumer = {}
 
-        self.setting = {}
+        self.parameter = {}
 
         for spec in processor.specifications:
             spec.add(self, processor, defn)
@@ -28,5 +28,5 @@ class Flow:
     def __call__(self, key):
         if key in self.producer: return self.producer[key]
         if key in self.consumer: return self.consumer[key]
-        if key in self.setting: return self.setting[key].value
+        if key in self.parameter: return self.parameter[key].value
         return None

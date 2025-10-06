@@ -5,11 +5,11 @@ LLM text completion base class
 
 import time
 import logging
-from prometheus_client import Histogram
+from prometheus_client import Histogram, Info
 
 from .. schema import TextCompletionRequest, TextCompletionResponse, Error
 from .. exceptions import TooManyRequests
-from .. base import FlowProcessor, ConsumerSpec, ProducerSpec
+from .. base import FlowProcessor, ConsumerSpec, ProducerSpec, ParameterSpec
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ class LlmService(FlowProcessor):
 
     def __init__(self, **params):
 
-        id = params.get("id")
+        id = params.get("id", default_ident)
         concurrency = params.get("concurrency", 1)
 
         super(LlmService, self).__init__(**params | {
@@ -56,6 +56,18 @@ class LlmService(FlowProcessor):
             )
         )
 
+        self.register_specification(
+            ParameterSpec(
+                name = "model",
+            )
+        )
+
+        self.register_specification(
+            ParameterSpec(
+                name = "temperature",
+            )
+        )
+
         if not hasattr(__class__, "text_completion_metric"):
             __class__.text_completion_metric = Histogram(
                 'text_completion_duration',
@@ -68,6 +80,13 @@ class LlmService(FlowProcessor):
                     30.0, 35.0, 40.0, 45.0, 50.0, 60.0, 80.0, 100.0,
                     120.0
                 ]
+            )
+
+        if not hasattr(__class__, "text_completion_model_metric"):
+            __class__.text_completion_model_metric = Info(
+                'text_completion_model',
+                'Text completion model',
+                ["processor", "flow"]
             )
 
     async def on_request(self, msg, consumer, flow):
@@ -85,9 +104,20 @@ class LlmService(FlowProcessor):
                     flow=f"{flow.name}-{consumer.name}",
             ).time():
 
+                model = flow("model")
+                temperature = flow("temperature")
+
                 response = await self.generate_content(
-                    request.system, request.prompt
+                    request.system, request.prompt, model, temperature
                 )
+
+            __class__.text_completion_model_metric.labels(
+                processor = self.id,
+                flow = flow.name
+            ).info({
+                "model": str(model) if model is not None else "",
+                "temperature": str(temperature) if temperature is not None else "",
+            })
 
             await flow("response").send(
                 TextCompletionResponse(

@@ -43,8 +43,6 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         # Verify processor attributes
         assert hasattr(processor, 'qdrant')
         assert processor.qdrant == mock_qdrant_instance
-        assert hasattr(processor, 'last_collection')
-        assert processor.last_collection is None
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
     @patch('trustgraph.base.DocumentEmbeddingsStoreService.__init__')
@@ -245,8 +243,9 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         # Arrange
         mock_base_init.return_value = None
         mock_qdrant_instance = MagicMock()
+        mock_qdrant_instance.collection_exists.return_value = True  # Collection exists
         mock_qdrant_client.return_value = mock_qdrant_instance
-        
+
         config = {
             'store_uri': 'http://localhost:6333',
             'api_key': 'test-api-key',
@@ -255,36 +254,37 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        
+
         # Create mock message with empty chunk
         mock_message = MagicMock()
         mock_message.metadata.user = 'empty_user'
         mock_message.metadata.collection = 'empty_collection'
-        
+
         mock_chunk_empty = MagicMock()
         mock_chunk_empty.chunk.decode.return_value = ""  # Empty string
         mock_chunk_empty.vectors = [[0.1, 0.2]]
-        
+
         mock_message.chunks = [mock_chunk_empty]
-        
+
         # Act
         await processor.store_document_embeddings(mock_message)
 
         # Assert
         # Should not call upsert for empty chunks
         mock_qdrant_instance.upsert.assert_not_called()
-        mock_qdrant_instance.collection_exists.assert_not_called()
+        # But collection_exists should be called for validation
+        mock_qdrant_instance.collection_exists.assert_called_once()
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
     @patch('trustgraph.base.DocumentEmbeddingsStoreService.__init__')
     async def test_collection_creation_when_not_exists(self, mock_base_init, mock_qdrant_client):
-        """Test collection creation when it doesn't exist"""
+        """Test that writing to non-existent collection raises ValueError"""
         # Arrange
         mock_base_init.return_value = None
         mock_qdrant_instance = MagicMock()
         mock_qdrant_instance.collection_exists.return_value = False  # Collection doesn't exist
         mock_qdrant_client.return_value = mock_qdrant_instance
-        
+
         config = {
             'store_uri': 'http://localhost:6333',
             'api_key': 'test-api-key',
@@ -293,46 +293,32 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        
+
         # Create mock message
         mock_message = MagicMock()
         mock_message.metadata.user = 'new_user'
         mock_message.metadata.collection = 'new_collection'
-        
+
         mock_chunk = MagicMock()
         mock_chunk.chunk.decode.return_value = 'test chunk'
         mock_chunk.vectors = [[0.1, 0.2, 0.3, 0.4, 0.5]]  # 5 dimensions
-        
-        mock_message.chunks = [mock_chunk]
-        
-        # Act
-        await processor.store_document_embeddings(mock_message)
 
-        # Assert
-        expected_collection = 'd_new_user_new_collection'
-        
-        # Verify collection existence check and creation
-        mock_qdrant_instance.collection_exists.assert_called_once_with(expected_collection)
-        mock_qdrant_instance.create_collection.assert_called_once()
-        
-        # Verify create_collection was called with correct parameters
-        create_call_args = mock_qdrant_instance.create_collection.call_args
-        assert create_call_args[1]['collection_name'] == expected_collection
-        
-        # Verify upsert was still called after collection creation
-        mock_qdrant_instance.upsert.assert_called_once()
+        mock_message.chunks = [mock_chunk]
+
+        # Act & Assert
+        with pytest.raises(ValueError, match="Collection .* does not exist"):
+            await processor.store_document_embeddings(mock_message)
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
     @patch('trustgraph.base.DocumentEmbeddingsStoreService.__init__')
     async def test_collection_creation_exception(self, mock_base_init, mock_qdrant_client):
-        """Test collection creation handles exceptions"""
+        """Test that validation error occurs before connection errors"""
         # Arrange
         mock_base_init.return_value = None
         mock_qdrant_instance = MagicMock()
-        mock_qdrant_instance.collection_exists.return_value = False
-        mock_qdrant_instance.create_collection.side_effect = Exception("Qdrant connection failed")
+        mock_qdrant_instance.collection_exists.return_value = False  # Collection doesn't exist
         mock_qdrant_client.return_value = mock_qdrant_instance
-        
+
         config = {
             'store_uri': 'http://localhost:6333',
             'api_key': 'test-api-key',
@@ -341,32 +327,35 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        
+
         # Create mock message
         mock_message = MagicMock()
         mock_message.metadata.user = 'error_user'
         mock_message.metadata.collection = 'error_collection'
-        
+
         mock_chunk = MagicMock()
         mock_chunk.chunk.decode.return_value = 'test chunk'
         mock_chunk.vectors = [[0.1, 0.2]]
-        
+
         mock_message.chunks = [mock_chunk]
-        
+
         # Act & Assert
-        with pytest.raises(Exception, match="Qdrant connection failed"):
+        with pytest.raises(ValueError, match="Collection .* does not exist"):
             await processor.store_document_embeddings(mock_message)
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
     @patch('trustgraph.base.DocumentEmbeddingsStoreService.__init__')
-    async def test_collection_caching_behavior(self, mock_base_init, mock_qdrant_client):
-        """Test collection caching with last_collection"""
+    @patch('trustgraph.storage.doc_embeddings.qdrant.write.uuid')
+    async def test_collection_validation_on_write(self, mock_uuid, mock_base_init, mock_qdrant_client):
+        """Test collection validation checks collection exists before writing"""
         # Arrange
         mock_base_init.return_value = None
         mock_qdrant_instance = MagicMock()
         mock_qdrant_instance.collection_exists.return_value = True
         mock_qdrant_client.return_value = mock_qdrant_instance
-        
+        mock_uuid.uuid4.return_value = MagicMock()
+        mock_uuid.uuid4.return_value.__str__ = MagicMock(return_value='test-uuid')
+
         config = {
             'store_uri': 'http://localhost:6333',
             'api_key': 'test-api-key',
@@ -375,46 +364,45 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        
+
         # Create first mock message
         mock_message1 = MagicMock()
         mock_message1.metadata.user = 'cache_user'
         mock_message1.metadata.collection = 'cache_collection'
-        
+
         mock_chunk1 = MagicMock()
         mock_chunk1.chunk.decode.return_value = 'first chunk'
         mock_chunk1.vectors = [[0.1, 0.2, 0.3]]
-        
+
         mock_message1.chunks = [mock_chunk1]
-        
+
         # First call
         await processor.store_document_embeddings(mock_message1)
-        
+
         # Reset mock to track second call
         mock_qdrant_instance.reset_mock()
-        
+        mock_qdrant_instance.collection_exists.return_value = True
+
         # Create second mock message with same dimensions
         mock_message2 = MagicMock()
         mock_message2.metadata.user = 'cache_user'
         mock_message2.metadata.collection = 'cache_collection'
-        
+
         mock_chunk2 = MagicMock()
         mock_chunk2.chunk.decode.return_value = 'second chunk'
         mock_chunk2.vectors = [[0.4, 0.5, 0.6]]  # Same dimension (3)
-        
+
         mock_message2.chunks = [mock_chunk2]
-        
+
         # Act - Second call with same collection
         await processor.store_document_embeddings(mock_message2)
 
         # Assert
         expected_collection = 'd_cache_user_cache_collection'
-        assert processor.last_collection == expected_collection
-        
-        # Verify second call skipped existence check (cached)
-        mock_qdrant_instance.collection_exists.assert_not_called()
-        mock_qdrant_instance.create_collection.assert_not_called()
-        
+
+        # Verify collection existence is checked on each write
+        mock_qdrant_instance.collection_exists.assert_called_once_with(expected_collection)
+
         # But upsert should still be called
         mock_qdrant_instance.upsert.assert_called_once()
 

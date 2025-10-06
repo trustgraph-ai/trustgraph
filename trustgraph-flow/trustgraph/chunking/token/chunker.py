@@ -9,14 +9,14 @@ from langchain_text_splitters import TokenTextSplitter
 from prometheus_client import Histogram
 
 from ... schema import TextDocument, Chunk
-from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
+from ... base import ChunkingService, ConsumerSpec, ProducerSpec
 
 # Module logger
 logger = logging.getLogger(__name__)
 
 default_ident = "chunker"
 
-class Processor(FlowProcessor):
+class Processor(ChunkingService):
 
     def __init__(self, **params):
 
@@ -27,6 +27,10 @@ class Processor(FlowProcessor):
         super(Processor, self).__init__(
             **params | { "id": id }
         )
+
+        # Store default values for parameter override
+        self.default_chunk_size = chunk_size
+        self.default_chunk_overlap = chunk_overlap
 
         if not hasattr(__class__, "chunk_metric"):
             __class__.chunk_metric = Histogram(
@@ -64,7 +68,21 @@ class Processor(FlowProcessor):
         v = msg.value()
         logger.info(f"Chunking document {v.metadata.id}...")
 
-        texts = self.text_splitter.create_documents(
+        # Extract chunk parameters from flow (allows runtime override)
+        chunk_size, chunk_overlap = await self.chunk_document(
+            msg, consumer, flow,
+            self.default_chunk_size,
+            self.default_chunk_overlap
+        )
+
+        # Create text splitter with effective parameters
+        text_splitter = TokenTextSplitter(
+            encoding_name="cl100k_base",
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+        )
+
+        texts = text_splitter.create_documents(
             [v.text.decode("utf-8")]
         )
 
@@ -88,7 +106,7 @@ class Processor(FlowProcessor):
     @staticmethod
     def add_args(parser):
 
-        FlowProcessor.add_args(parser)
+        ChunkingService.add_args(parser)
 
         parser.add_argument(
             '-z', '--chunk-size',

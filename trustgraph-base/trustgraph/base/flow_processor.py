@@ -35,7 +35,7 @@ class FlowProcessor(AsyncProcessor):
 
         # These can be overriden by a derived class:
 
-        # Array of specifications: ConsumerSpec, ProducerSpec, SettingSpec
+        # Array of specifications: ConsumerSpec, ProducerSpec, ParameterSpec
         self.specifications = []
 
         logger.info("Service initialised.")

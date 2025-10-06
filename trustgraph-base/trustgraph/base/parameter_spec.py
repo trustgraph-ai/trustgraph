@@ -1,7 +1,7 @@
 
 from . spec import Spec
 
-class Setting:
+class Parameter:
     def __init__(self, value):
         self.value = value
     async def start():
@@ -9,11 +9,13 @@ class Setting:
     async def stop():
         pass
         
-class SettingSpec(Spec):
+class ParameterSpec(Spec):
     def __init__(self, name):
         self.name = name
 
     def add(self, flow, processor, definition):
 
-        flow.config[self.name] = Setting(definition[self.name])
+        value = definition.get(self.name, None)
+
+        flow.parameter[self.name] = Parameter(value)
 
