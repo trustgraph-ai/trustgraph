@@ -182,6 +182,23 @@ class KnowledgeGraph:
             f"SELECT s as x FROM {self.collection_table} WHERE collection = ? AND s = ? AND p = ? AND o = ? LIMIT ?"
         )
 
+        # Delete statements for collection deletion
+        self.delete_subject_stmt = self.session.prepare(
+            f"DELETE FROM {self.subject_table} WHERE collection = ? AND s = ? AND p = ? AND o = ?"
+        )
+
+        self.delete_po_stmt = self.session.prepare(
+            f"DELETE FROM {self.po_table} WHERE collection = ? AND p = ? AND o = ? AND s = ?"
+        )
+
+        self.delete_object_stmt = self.session.prepare(
+            f"DELETE FROM {self.object_table} WHERE collection = ? AND o = ? AND s = ? AND p = ?"
+        )
+
+        self.delete_collection_stmt = self.session.prepare(
+            f"DELETE FROM {self.collection_table} WHERE collection = ? AND s = ? AND p = ? AND o = ?"
+        )
+
         logger.info("Prepared statements initialized for optimal performance (4 tables)")
 
     def insert(self, collection, s, p, o):
@@ -304,24 +321,16 @@ class KnowledgeGraph:
             s, p, o = row.s, row.p, row.o
 
             # Delete from subject table (partition key: collection, s)
-            batch.add(SimpleStatement(
-                f"DELETE FROM {self.subject_table} WHERE collection = ? AND s = ? AND p = ? AND o = ?"
-            ), (collection, s, p, o))
+            batch.add(self.delete_subject_stmt, (collection, s, p, o))
 
             # Delete from predicate-object table (partition key: collection, p)
-            batch.add(SimpleStatement(
-                f"DELETE FROM {self.po_table} WHERE collection = ? AND p = ? AND o = ? AND s = ?"
-            ), (collection, p, o, s))
+            batch.add(self.delete_po_stmt, (collection, p, o, s))
 
             # Delete from object table (partition key: collection, o)
-            batch.add(SimpleStatement(
-                f"DELETE FROM {self.object_table} WHERE collection = ? AND o = ? AND s = ? AND p = ?"
-            ), (collection, o, s, p))
+            batch.add(self.delete_object_stmt, (collection, o, s, p))
 
             # Delete from collection table (partition key: collection only)
-            batch.add(SimpleStatement(
-                f"DELETE FROM {self.collection_table} WHERE collection = ? AND s = ? AND p = ? AND o = ?"
-            ), (collection, s, p, o))
+            batch.add(self.delete_collection_stmt, (collection, s, p, o))
 
             count += 1
 
