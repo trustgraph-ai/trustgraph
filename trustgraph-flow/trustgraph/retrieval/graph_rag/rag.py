@@ -45,6 +45,10 @@ class Processor(FlowProcessor):
         self.default_max_subgraph_size = max_subgraph_size
         self.default_max_path_length = max_path_length
 
+        # CRITICAL SECURITY: NEVER share data between users or collections
+        # Each user/collection combination MUST have isolated data access
+        # Caching must NEVER allow information leakage across these boundaries
+
         self.register_specification(
             ConsumerSpec(
                 name = "request",
@@ -93,11 +97,14 @@ class Processor(FlowProcessor):
 
         try:
 
-            self.rag = GraphRag(
-                embeddings_client = flow("embeddings-request"),
-                graph_embeddings_client = flow("graph-embeddings-request"),
-                triples_client = flow("triples-request"),
-                prompt_client = flow("prompt-request"),
+            # CRITICAL SECURITY: Create new GraphRag instance per request
+            # This ensures proper isolation between users and collections
+            # Flow clients are request-scoped and must not be shared
+            rag = GraphRag(
+                embeddings_client=flow("embeddings-request"),
+                graph_embeddings_client=flow("graph-embeddings-request"),
+                triples_client=flow("triples-request"),
+                prompt_client=flow("prompt-request"),
                 verbose=True,
             )
 
@@ -128,7 +135,7 @@ class Processor(FlowProcessor):
             else:
                 max_path_length = self.default_max_path_length
 
-            response = await self.rag.query(
+            response = await rag.query(
                 query = v.query, user = v.user, collection = v.collection,
                 entity_limit = entity_limit, triple_limit = triple_limit,
                 max_subgraph_size = max_subgraph_size,

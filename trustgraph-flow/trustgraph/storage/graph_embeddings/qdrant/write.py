@@ -36,8 +36,6 @@ class Processor(GraphEmbeddingsStoreService):
             }
         )
 
-        self.last_collection = None
-
         self.qdrant = QdrantClient(url=store_uri, api_key=api_key)
 
         # Set up storage management if base class attributes are available
@@ -71,30 +69,29 @@ class Processor(GraphEmbeddingsStoreService):
                 metrics=storage_response_metrics,
             )
 
-    def get_collection(self, dim, user, collection):
-
+    def get_collection(self, user, collection):
+        """Get collection name and validate it exists"""
         cname = (
             "t_" + user + "_" + collection
         )
 
-        if cname != self.last_collection:
-
-            if not self.qdrant.collection_exists(cname):
-
-                try:
-                    self.qdrant.create_collection(
-                        collection_name=cname,
-                        vectors_config=VectorParams(
-                            size=dim, distance=Distance.COSINE
-                        ),
-                    )
-                except Exception as e:
-                    logger.error("Qdrant collection creation failed")
-                    raise e
-
-            self.last_collection = cname
+        if not self.qdrant.collection_exists(cname):
+            error_msg = (
+                f"Collection {collection} does not exist. "
+                f"Create it first with tg-set-collection."
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
 
         return cname
+
+    async def start(self):
+        """Start the processor and its storage management consumer"""
+        await super().start()
+        if hasattr(self, 'storage_request_consumer'):
+            await self.storage_request_consumer.start()
+        if hasattr(self, 'storage_response_producer'):
+            await self.storage_response_producer.start()
 
     async def store_graph_embeddings(self, message):
 
@@ -104,10 +101,8 @@ class Processor(GraphEmbeddingsStoreService):
 
             for vec in entity.vectors:
 
-                dim = len(vec)
-
                 collection = self.get_collection(
-                    dim, message.metadata.user, message.metadata.collection
+                    message.metadata.user, message.metadata.collection
                 )
 
                 self.qdrant.upsert(
@@ -140,18 +135,21 @@ class Processor(GraphEmbeddingsStoreService):
             help=f'Qdrant API key'
         )
 
-    async def on_storage_management(self, message):
+    async def on_storage_management(self, message, consumer, flow):
         """Handle storage management requests"""
-        logger.info(f"Storage management request: {message.operation} for {message.user}/{message.collection}")
+        request = message.value()
+        logger.info(f"Storage management request: {request.operation} for {request.user}/{request.collection}")
 
         try:
-            if message.operation == "delete-collection":
-                await self.handle_delete_collection(message)
+            if request.operation == "create-collection":
+                await self.handle_create_collection(request)
+            elif request.operation == "delete-collection":
+                await self.handle_delete_collection(request)
             else:
                 response = StorageManagementResponse(
                     error=Error(
                         type="invalid_operation",
-                        message=f"Unknown operation: {message.operation}"
+                        message=f"Unknown operation: {request.operation}"
                     )
                 )
                 await self.storage_response_producer.send(response)
@@ -166,10 +164,43 @@ class Processor(GraphEmbeddingsStoreService):
             )
             await self.storage_response_producer.send(response)
 
-    async def handle_delete_collection(self, message):
+    async def handle_create_collection(self, request):
+        """Create a Qdrant collection for graph embeddings"""
+        try:
+            collection_name = f"t_{request.user}_{request.collection}"
+
+            if self.qdrant.collection_exists(collection_name):
+                logger.info(f"Qdrant collection {collection_name} already exists")
+            else:
+                # Create collection with default dimension (will be recreated with correct dim on first write if needed)
+                # Using a placeholder dimension - actual dimension determined by first embedding
+                self.qdrant.create_collection(
+                    collection_name=collection_name,
+                    vectors_config=VectorParams(
+                        size=384,  # Default dimension, common for many models
+                        distance=Distance.COSINE
+                    )
+                )
+                logger.info(f"Created Qdrant collection: {collection_name}")
+
+            # Send success response
+            response = StorageManagementResponse(error=None)
+            await self.storage_response_producer.send(response)
+
+        except Exception as e:
+            logger.error(f"Failed to create collection: {e}", exc_info=True)
+            response = StorageManagementResponse(
+                error=Error(
+                    type="creation_error",
+                    message=str(e)
+                )
+            )
+            await self.storage_response_producer.send(response)
+
+    async def handle_delete_collection(self, request):
         """Delete the collection for graph embeddings"""
         try:
-            collection_name = f"t_{message.user}_{message.collection}"
+            collection_name = f"t_{request.user}_{request.collection}"
 
             if self.qdrant.collection_exists(collection_name):
                 self.qdrant.delete_collection(collection_name)
@@ -182,7 +213,7 @@ class Processor(GraphEmbeddingsStoreService):
                 error=None  # No error means success
             )
             await self.storage_response_producer.send(response)
-            logger.info(f"Successfully deleted collection {message.user}/{message.collection}")
+            logger.info(f"Successfully deleted collection {request.user}/{request.collection}")
 
         except Exception as e:
             logger.error(f"Failed to delete collection: {e}")

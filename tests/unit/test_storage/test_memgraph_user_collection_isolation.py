@@ -47,7 +47,7 @@ class TestMemgraphUserCollectionIsolation:
         mock_graph_db.driver.return_value = mock_driver
         mock_session = MagicMock()
         mock_driver.session.return_value.__enter__.return_value = mock_session
-        
+
         # Mock execute_query response
         mock_result = MagicMock()
         mock_summary = MagicMock()
@@ -55,28 +55,30 @@ class TestMemgraphUserCollectionIsolation:
         mock_summary.result_available_after = 10
         mock_result.summary = mock_summary
         mock_driver.execute_query.return_value = mock_result
-        
+
         processor = Processor(taskgroup=MagicMock())
-        
+
         # Create mock triple with URI object
         triple = MagicMock()
         triple.s.value = "http://example.com/subject"
         triple.p.value = "http://example.com/predicate"
         triple.o.value = "http://example.com/object"
         triple.o.is_uri = True
-        
+
         # Create mock message with metadata
         mock_message = MagicMock()
         mock_message.triples = [triple]
         mock_message.metadata.user = "test_user"
         mock_message.metadata.collection = "test_collection"
-        
-        await processor.store_triples(mock_message)
-        
+
+        # Mock collection_exists to bypass validation in unit tests
+        with patch.object(processor, 'collection_exists', return_value=True):
+            await processor.store_triples(mock_message)
+
         # Verify user/collection parameters were passed to all operations
         # Should have: create_node (subject), create_node (object), relate_node = 3 calls
         assert mock_driver.execute_query.call_count == 3
-        
+
         # Check that user and collection were included in all calls
         for call in mock_driver.execute_query.call_args_list:
             call_kwargs = call.kwargs if hasattr(call, 'kwargs') else call[1]
@@ -93,7 +95,7 @@ class TestMemgraphUserCollectionIsolation:
         mock_graph_db.driver.return_value = mock_driver
         mock_session = MagicMock()
         mock_driver.session.return_value.__enter__.return_value = mock_session
-        
+
         # Mock execute_query response
         mock_result = MagicMock()
         mock_summary = MagicMock()
@@ -101,24 +103,26 @@ class TestMemgraphUserCollectionIsolation:
         mock_summary.result_available_after = 10
         mock_result.summary = mock_summary
         mock_driver.execute_query.return_value = mock_result
-        
+
         processor = Processor(taskgroup=MagicMock())
-        
+
         # Create mock triple
         triple = MagicMock()
         triple.s.value = "http://example.com/subject"
         triple.p.value = "http://example.com/predicate"
         triple.o.value = "literal_value"
         triple.o.is_uri = False
-        
+
         # Create mock message without user/collection metadata
         mock_message = MagicMock()
         mock_message.triples = [triple]
         mock_message.metadata.user = None
         mock_message.metadata.collection = None
-        
-        await processor.store_triples(mock_message)
-        
+
+        # Mock collection_exists to bypass validation in unit tests
+        with patch.object(processor, 'collection_exists', return_value=True):
+            await processor.store_triples(mock_message)
+
         # Verify defaults were used
         for call in mock_driver.execute_query.call_args_list:
             call_kwargs = call.kwargs if hasattr(call, 'kwargs') else call[1]
@@ -295,7 +299,7 @@ class TestMemgraphUserCollectionRegression:
         mock_graph_db.driver.return_value = mock_driver
         mock_session = MagicMock()
         mock_driver.session.return_value.__enter__.return_value = mock_session
-        
+
         # Mock execute_query response
         mock_result = MagicMock()
         mock_summary = MagicMock()
@@ -303,23 +307,25 @@ class TestMemgraphUserCollectionRegression:
         mock_summary.result_available_after = 10
         mock_result.summary = mock_summary
         mock_driver.execute_query.return_value = mock_result
-        
+
         processor = Processor(taskgroup=MagicMock())
-        
+
         # Store data for user1
         triple = MagicMock()
         triple.s.value = "http://example.com/subject"
         triple.p.value = "http://example.com/predicate"
         triple.o.value = "user1_data"
         triple.o.is_uri = False
-        
+
         message_user1 = MagicMock()
         message_user1.triples = [triple]
         message_user1.metadata.user = "user1"
         message_user1.metadata.collection = "collection1"
-        
-        await processor.store_triples(message_user1)
-        
+
+        # Mock collection_exists to bypass validation in unit tests
+        with patch.object(processor, 'collection_exists', return_value=True):
+            await processor.store_triples(message_user1)
+
         # Verify that all storage operations included user1/collection1 parameters
         for call in mock_driver.execute_query.call_args_list:
             call_kwargs = call.kwargs if hasattr(call, 'kwargs') else call[1]

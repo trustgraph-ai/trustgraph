@@ -60,13 +60,13 @@ class TestTextCompletionIntegration:
         """Create text completion processor with test configuration"""
         # Create a minimal processor instance for testing generate_content
         processor = MagicMock()
-        processor.model = processor_config["model"]
+        processor.default_model = processor_config["model"]
         processor.temperature = processor_config["temperature"]
         processor.max_output = processor_config["max_output"]
-        
+
         # Add the actual generate_content method from Processor class
         processor.generate_content = Processor.generate_content.__get__(processor, Processor)
-        
+
         return processor
 
     @pytest.mark.asyncio
@@ -112,11 +112,11 @@ class TestTextCompletionIntegration:
         for config in test_configs:
             # Arrange - Create minimal processor mock
             processor = MagicMock()
-            processor.model = config['model']
+            processor.default_model = config['model']
             processor.temperature = config['temperature']
             processor.max_output = config['max_output']
             processor.openai = mock_openai_client
-            
+
             # Add the actual generate_content method
             processor.generate_content = Processor.generate_content.__get__(processor, Processor)
 
@@ -242,7 +242,7 @@ class TestTextCompletionIntegration:
         processors = []
         for i in range(5):
             processor = MagicMock()
-            processor.model = processor_config["model"]
+            processor.default_model = processor_config["model"]
             processor.temperature = processor_config["temperature"]
             processor.max_output = processor_config["max_output"]
             processor.openai = mock_openai_client
@@ -348,7 +348,7 @@ class TestTextCompletionIntegration:
         """Test that model parameters are correctly passed to OpenAI API"""
         # Arrange
         processor = MagicMock()
-        processor.model = "gpt-4"
+        processor.default_model = "gpt-4"
         processor.temperature = 0.8
         processor.max_output = 2048
         processor.openai = mock_openai_client

@@ -57,21 +57,26 @@ class Processor(DocumentEmbeddingsQueryService):
                     raise e
             self.last_collection = collection
 
+    def collection_exists(self, collection):
+        """Check if collection exists (no implicit creation)"""
+        return self.qdrant.collection_exists(collection)
+
     async def query_document_embeddings(self, msg):
 
         try:
 
             chunks = []
 
+            collection = (
+                "d_" + msg.user + "_" + msg.collection
+            )
+
+            # Check if collection exists - return empty if not
+            if not self.collection_exists(collection):
+                logger.info(f"Collection {collection} does not exist, returning empty results")
+                return []
+
             for vec in msg.vectors:
-
-                dim = len(vec)
-                collection = (
-                    "d_" + msg.user + "_" + msg.collection
-                )
-
-                self.ensure_collection_exists(collection, dim)
-
                 search_result = self.qdrant.query_points(
                     collection_name=collection,
                     query=vec,

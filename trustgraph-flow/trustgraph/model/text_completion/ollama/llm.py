@@ -17,6 +17,7 @@ from .... base import LlmService, LlmResult
 default_ident = "text-completion"
 
 default_model = 'gemma2:9b'
+default_temperature = 0.0
 default_ollama = os.getenv("OLLAMA_HOST", 'http://localhost:11434')
 
 class Processor(LlmService):
@@ -24,25 +25,36 @@ class Processor(LlmService):
     def __init__(self, **params):
 
         model = params.get("model", default_model)
+        temperature = params.get("temperature", default_temperature)
         ollama = params.get("ollama", default_ollama)
 
         super(Processor, self).__init__(
             **params | {
                 "model": model,
+                "temperature": temperature,
                 "ollama": ollama,
             }
         )
 
-        self.model = model
+        self.default_model = model
+        self.temperature = temperature
         self.llm = Client(host=ollama)
 
-    async def generate_content(self, system, prompt):
+    async def generate_content(self, system, prompt, model=None, temperature=None):
+
+        # Use provided model or fall back to default
+        model_name = model or self.default_model
+        # Use provided temperature or fall back to default
+        effective_temperature = temperature if temperature is not None else self.temperature
+
+        logger.debug(f"Using model: {model_name}")
+        logger.debug(f"Using temperature: {effective_temperature}")
 
         prompt = system + "\n\n" + prompt
 
         try:
 
-            response = self.llm.generate(self.model, prompt)
+            response = self.llm.generate(model_name, prompt, options={'temperature': effective_temperature})
 
             response_text = response['response']
             logger.debug("Sending response...")
@@ -55,7 +67,7 @@ class Processor(LlmService):
                 text = response_text,
                 in_token = inputtokens,
                 out_token = outputtokens,
-                model = self.model
+                model = model_name
             )
 
             return resp
@@ -82,6 +94,13 @@ class Processor(LlmService):
             '-r', '--ollama',
             default=default_ollama,
             help=f'ollama (default: {default_ollama})'
+        )
+
+        parser.add_argument(
+            '-t', '--temperature',
+            type=float,
+            default=default_temperature,
+            help=f'LLM temperature parameter (default: {default_temperature})'
         )
 
 def run():

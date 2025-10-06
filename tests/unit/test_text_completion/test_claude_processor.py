@@ -42,7 +42,7 @@ class TestClaudeProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'claude-3-5-sonnet-20240620'
+        assert processor.default_model == 'claude-3-5-sonnet-20240620'
         assert processor.temperature == 0.0
         assert processor.max_output == 8192
         assert hasattr(processor, 'claude')
@@ -217,7 +217,7 @@ class TestClaudeProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'claude-3-haiku-20240307'
+        assert processor.default_model == 'claude-3-haiku-20240307'
         assert processor.temperature == 0.7
         assert processor.max_output == 4096
         mock_anthropic_class.assert_called_once_with(api_key='custom-api-key')
@@ -246,7 +246,7 @@ class TestClaudeProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'claude-3-5-sonnet-20240620'  # default_model
+        assert processor.default_model == 'claude-3-5-sonnet-20240620'  # default_model
         assert processor.temperature == 0.0  # default_temperature
         assert processor.max_output == 8192  # default_max_output
         mock_anthropic_class.assert_called_once_with(api_key='test-api-key')
@@ -433,7 +433,157 @@ class TestClaudeProcessorSimple(IsolatedAsyncioTestCase):
         
         # Verify processor has the client
         assert processor.claude == mock_claude_client
-        assert processor.model == 'claude-3-opus-20240229'
+        assert processor.default_model == 'claude-3-opus-20240229'
+
+    @patch('trustgraph.model.text_completion.claude.llm.anthropic.Anthropic')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_temperature_override(self, mock_llm_init, mock_async_init, mock_anthropic_class):
+        """Test temperature parameter override functionality"""
+        # Arrange
+        mock_claude_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = [MagicMock()]
+        mock_response.content[0].text = "Response with custom temperature"
+        mock_response.usage.input_tokens = 20
+        mock_response.usage.output_tokens = 12
+
+        mock_claude_client.messages.create.return_value = mock_response
+        mock_anthropic_class.return_value = mock_claude_client
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'model': 'claude-3-5-sonnet-20240620',
+            'api_key': 'test-api-key',
+            'temperature': 0.0,  # Default temperature
+            'max_output': 8192,
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Override temperature at runtime
+        result = await processor.generate_content(
+            "System prompt",
+            "User prompt",
+            model=None,      # Use default model
+            temperature=0.9  # Override temperature
+        )
+
+        # Assert
+        assert isinstance(result, LlmResult)
+        assert result.text == "Response with custom temperature"
+
+        # Verify Claude API was called with overridden temperature
+        mock_claude_client.messages.create.assert_called_once()
+        call_kwargs = mock_claude_client.messages.create.call_args.kwargs
+
+        assert call_kwargs['temperature'] == 0.9                        # Should use runtime override
+        assert call_kwargs['model'] == 'claude-3-5-sonnet-20240620'     # Should use processor default
+
+    @patch('trustgraph.model.text_completion.claude.llm.anthropic.Anthropic')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_model_override(self, mock_llm_init, mock_async_init, mock_anthropic_class):
+        """Test model parameter override functionality"""
+        # Arrange
+        mock_claude_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = [MagicMock()]
+        mock_response.content[0].text = "Response with custom model"
+        mock_response.usage.input_tokens = 18
+        mock_response.usage.output_tokens = 14
+
+        mock_claude_client.messages.create.return_value = mock_response
+        mock_anthropic_class.return_value = mock_claude_client
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'model': 'claude-3-5-sonnet-20240620',  # Default model
+            'api_key': 'test-api-key',
+            'temperature': 0.2,                     # Default temperature
+            'max_output': 8192,
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Override model at runtime
+        result = await processor.generate_content(
+            "System prompt",
+            "User prompt",
+            model="claude-3-haiku-20240307",  # Override model
+            temperature=None                   # Use default temperature
+        )
+
+        # Assert
+        assert isinstance(result, LlmResult)
+        assert result.text == "Response with custom model"
+
+        # Verify Claude API was called with overridden model
+        mock_claude_client.messages.create.assert_called_once()
+        call_kwargs = mock_claude_client.messages.create.call_args.kwargs
+
+        assert call_kwargs['model'] == 'claude-3-haiku-20240307'  # Should use runtime override
+        assert call_kwargs['temperature'] == 0.2                 # Should use processor default
+
+    @patch('trustgraph.model.text_completion.claude.llm.anthropic.Anthropic')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_both_parameters_override(self, mock_llm_init, mock_async_init, mock_anthropic_class):
+        """Test overriding both model and temperature parameters simultaneously"""
+        # Arrange
+        mock_claude_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = [MagicMock()]
+        mock_response.content[0].text = "Response with both overrides"
+        mock_response.usage.input_tokens = 22
+        mock_response.usage.output_tokens = 16
+
+        mock_claude_client.messages.create.return_value = mock_response
+        mock_anthropic_class.return_value = mock_claude_client
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'model': 'claude-3-5-sonnet-20240620',  # Default model
+            'api_key': 'test-api-key',
+            'temperature': 0.0,                     # Default temperature
+            'max_output': 8192,
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Override both parameters at runtime
+        result = await processor.generate_content(
+            "System prompt",
+            "User prompt",
+            model="claude-3-opus-20240229",  # Override model
+            temperature=0.8                  # Override temperature
+        )
+
+        # Assert
+        assert isinstance(result, LlmResult)
+        assert result.text == "Response with both overrides"
+
+        # Verify Claude API was called with both overrides
+        mock_claude_client.messages.create.assert_called_once()
+        call_kwargs = mock_claude_client.messages.create.call_args.kwargs
+
+        assert call_kwargs['model'] == 'claude-3-opus-20240229'  # Should use runtime override
+        assert call_kwargs['temperature'] == 0.8                # Should use runtime override
 
 
 if __name__ == '__main__':

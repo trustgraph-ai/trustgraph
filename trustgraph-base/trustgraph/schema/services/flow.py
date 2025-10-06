@@ -35,6 +35,9 @@ class FlowRequest(Record):
     # get_flow, start_flow, stop_flow
     flow_id = String()
 
+    # start_flow - optional parameters for flow customization
+    parameters = Map(String())
+
 class FlowResponse(Record):
 
     # list_classes
@@ -51,6 +54,9 @@ class FlowResponse(Record):
 
     # get_flow
     description = String()
+
+    # get_flow - parameters used when flow was started
+    parameters = Map(String())
 
     # Everything
     error = Error()

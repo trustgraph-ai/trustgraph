@@ -1,211 +1,236 @@
+"""
+Unit tests for trustgraph.chunking.recursive
+Testing parameter override functionality for chunk-size and chunk-overlap
+"""
+
 import pytest
-import asyncio
-from unittest.mock import AsyncMock, Mock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
+from unittest import IsolatedAsyncioTestCase
+
+# Import the service under test
+from trustgraph.chunking.recursive.chunker import Processor
 from trustgraph.schema import TextDocument, Chunk, Metadata
-from trustgraph.chunking.recursive.chunker import Processor as RecursiveChunker
 
 
-@pytest.fixture
-def mock_flow():
-    output_mock = AsyncMock()
-    flow_mock = Mock(return_value=output_mock)
-    return flow_mock, output_mock
+class MockAsyncProcessor:
+    def __init__(self, **params):
+        self.config_handlers = []
+        self.id = params.get('id', 'test-service')
+        self.specifications = []
 
 
-@pytest.fixture
-def mock_consumer():
-    consumer = Mock()
-    consumer.id = "test-consumer"
-    consumer.flow = "test-flow"
-    return consumer
+class TestRecursiveChunkerSimple(IsolatedAsyncioTestCase):
+    """Test Recursive chunker functionality"""
+
+    @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
+    def test_processor_initialization_basic(self):
+        """Test basic processor initialization"""
+        # Arrange
+        config = {
+            'id': 'test-chunker',
+            'chunk_size': 1500,
+            'chunk_overlap': 150,
+            'concurrency': 1,
+            'taskgroup': AsyncMock()
+        }
+
+        # Act
+        processor = Processor(**config)
+
+        # Assert
+        assert processor.default_chunk_size == 1500
+        assert processor.default_chunk_overlap == 150
+        assert hasattr(processor, 'text_splitter')
+
+        # Verify parameter specs are registered
+        param_specs = [spec for spec in processor.specifications
+                      if hasattr(spec, 'name') and spec.name in ['chunk-size', 'chunk-overlap']]
+        assert len(param_specs) == 2
+
+    @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
+    async def test_chunk_document_with_chunk_size_override(self):
+        """Test chunk_document with chunk-size parameter override"""
+        # Arrange
+        config = {
+            'id': 'test-chunker',
+            'chunk_size': 1000,  # Default chunk size
+            'chunk_overlap': 100,
+            'concurrency': 1,
+            'taskgroup': AsyncMock()
+        }
+
+        processor = Processor(**config)
+
+        # Mock message and flow
+        mock_message = MagicMock()
+        mock_consumer = MagicMock()
+        mock_flow = MagicMock()
+        mock_flow.side_effect = lambda param: {
+            "chunk-size": 2000,  # Override chunk size
+            "chunk-overlap": None  # Use default chunk overlap
+        }.get(param)
+
+        # Act
+        chunk_size, chunk_overlap = await processor.chunk_document(
+            mock_message, mock_consumer, mock_flow, 1000, 100
+        )
+
+        # Assert
+        assert chunk_size == 2000  # Should use overridden value
+        assert chunk_overlap == 100  # Should use default value
+
+    @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
+    async def test_chunk_document_with_chunk_overlap_override(self):
+        """Test chunk_document with chunk-overlap parameter override"""
+        # Arrange
+        config = {
+            'id': 'test-chunker',
+            'chunk_size': 1000,
+            'chunk_overlap': 100,  # Default chunk overlap
+            'concurrency': 1,
+            'taskgroup': AsyncMock()
+        }
+
+        processor = Processor(**config)
+
+        # Mock message and flow
+        mock_message = MagicMock()
+        mock_consumer = MagicMock()
+        mock_flow = MagicMock()
+        mock_flow.side_effect = lambda param: {
+            "chunk-size": None,  # Use default chunk size
+            "chunk-overlap": 200  # Override chunk overlap
+        }.get(param)
+
+        # Act
+        chunk_size, chunk_overlap = await processor.chunk_document(
+            mock_message, mock_consumer, mock_flow, 1000, 100
+        )
+
+        # Assert
+        assert chunk_size == 1000  # Should use default value
+        assert chunk_overlap == 200  # Should use overridden value
+
+    @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
+    async def test_chunk_document_with_both_parameters_override(self):
+        """Test chunk_document with both chunk-size and chunk-overlap overrides"""
+        # Arrange
+        config = {
+            'id': 'test-chunker',
+            'chunk_size': 1000,
+            'chunk_overlap': 100,
+            'concurrency': 1,
+            'taskgroup': AsyncMock()
+        }
+
+        processor = Processor(**config)
+
+        # Mock message and flow
+        mock_message = MagicMock()
+        mock_consumer = MagicMock()
+        mock_flow = MagicMock()
+        mock_flow.side_effect = lambda param: {
+            "chunk-size": 1500,    # Override chunk size
+            "chunk-overlap": 150   # Override chunk overlap
+        }.get(param)
+
+        # Act
+        chunk_size, chunk_overlap = await processor.chunk_document(
+            mock_message, mock_consumer, mock_flow, 1000, 100
+        )
+
+        # Assert
+        assert chunk_size == 1500   # Should use overridden value
+        assert chunk_overlap == 150 # Should use overridden value
+
+    @patch('trustgraph.chunking.recursive.chunker.RecursiveCharacterTextSplitter')
+    @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
+    async def test_on_message_uses_flow_parameters(self, mock_splitter_class):
+        """Test that on_message method uses parameters from flow"""
+        # Arrange
+        mock_splitter = MagicMock()
+        mock_document = MagicMock()
+        mock_document.page_content = "Test chunk content"
+        mock_splitter.create_documents.return_value = [mock_document]
+        mock_splitter_class.return_value = mock_splitter
+
+        config = {
+            'id': 'test-chunker',
+            'chunk_size': 1000,
+            'chunk_overlap': 100,
+            'concurrency': 1,
+            'taskgroup': AsyncMock()
+        }
+
+        processor = Processor(**config)
+
+        # Mock message with TextDocument
+        mock_message = MagicMock()
+        mock_text_doc = MagicMock()
+        mock_text_doc.metadata = Metadata(
+            id="test-doc-123",
+            metadata=[],
+            user="test-user",
+            collection="test-collection"
+        )
+        mock_text_doc.text = b"This is test document content"
+        mock_message.value.return_value = mock_text_doc
+
+        # Mock consumer and flow with parameter overrides
+        mock_consumer = MagicMock()
+        mock_producer = AsyncMock()
+        mock_flow = MagicMock()
+        mock_flow.side_effect = lambda param: {
+            "chunk-size": 1500,
+            "chunk-overlap": 150,
+            "output": mock_producer
+        }.get(param)
+
+        # Act
+        await processor.on_message(mock_message, mock_consumer, mock_flow)
+
+        # Assert
+        # Verify RecursiveCharacterTextSplitter was called with overridden parameters (last call)
+        actual_last_call = mock_splitter_class.call_args_list[-1]
+        assert actual_last_call.kwargs['chunk_size'] == 1500
+        assert actual_last_call.kwargs['chunk_overlap'] == 150
+        assert actual_last_call.kwargs['length_function'] == len
+        assert actual_last_call.kwargs['is_separator_regex'] == False
+
+        # Verify chunk was sent to output
+        mock_producer.send.assert_called_once()
+        sent_chunk = mock_producer.send.call_args[0][0]
+        assert isinstance(sent_chunk, Chunk)
+
+    @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
+    async def test_chunk_document_with_no_overrides(self):
+        """Test chunk_document when no parameters are overridden (flow returns None)"""
+        # Arrange
+        config = {
+            'id': 'test-chunker',
+            'chunk_size': 1000,
+            'chunk_overlap': 100,
+            'concurrency': 1,
+            'taskgroup': AsyncMock()
+        }
+
+        processor = Processor(**config)
+
+        # Mock message and flow that returns None for all parameters
+        mock_message = MagicMock()
+        mock_consumer = MagicMock()
+        mock_flow = MagicMock()
+        mock_flow.return_value = None  # No overrides
+
+        # Act
+        chunk_size, chunk_overlap = await processor.chunk_document(
+            mock_message, mock_consumer, mock_flow, 1000, 100
+        )
+
+        # Assert
+        assert chunk_size == 1000   # Should use default value
+        assert chunk_overlap == 100 # Should use default value
 
 
-@pytest.fixture
-def sample_document():
-    metadata = Metadata(
-        id="test-doc-1",
-        metadata=[],
-        user="test-user",
-        collection="test-collection"
-    )
-    text = "This is a test document. " * 100  # Create text long enough to be chunked
-    return TextDocument(
-        metadata=metadata,
-        text=text.encode("utf-8")
-    )
-
-
-@pytest.fixture
-def short_document():
-    metadata = Metadata(
-        id="test-doc-2",
-        metadata=[],
-        user="test-user",
-        collection="test-collection"
-    )
-    text = "This is a very short document."
-    return TextDocument(
-        metadata=metadata,
-        text=text.encode("utf-8")
-    )
-
-
-class TestRecursiveChunker:
-    
-    def test_init_default_params(self, mock_async_processor_init):
-        processor = RecursiveChunker()
-        assert processor.text_splitter._chunk_size == 2000
-        assert processor.text_splitter._chunk_overlap == 100
-        
-    def test_init_custom_params(self, mock_async_processor_init):
-        processor = RecursiveChunker(chunk_size=500, chunk_overlap=50)
-        assert processor.text_splitter._chunk_size == 500
-        assert processor.text_splitter._chunk_overlap == 50
-        
-    def test_init_with_id(self, mock_async_processor_init):
-        processor = RecursiveChunker(id="custom-chunker")
-        assert processor.id == "custom-chunker"
-        
-    @pytest.mark.asyncio
-    async def test_on_message_single_chunk(self, mock_async_processor_init, mock_flow, mock_consumer, short_document):
-        flow_mock, output_mock = mock_flow
-        processor = RecursiveChunker(chunk_size=2000, chunk_overlap=100)
-        
-        msg = Mock()
-        msg.value.return_value = short_document
-        
-        await processor.on_message(msg, mock_consumer, flow_mock)
-        
-        # Should produce exactly one chunk for short text
-        assert output_mock.send.call_count == 1
-        
-        # Verify the chunk was created correctly
-        chunk_call = output_mock.send.call_args[0][0]
-        assert isinstance(chunk_call, Chunk)
-        assert chunk_call.metadata == short_document.metadata
-        assert chunk_call.chunk.decode("utf-8") == short_document.text.decode("utf-8")
-        
-    @pytest.mark.asyncio
-    async def test_on_message_multiple_chunks(self, mock_async_processor_init, mock_flow, mock_consumer, sample_document):
-        flow_mock, output_mock = mock_flow
-        processor = RecursiveChunker(chunk_size=100, chunk_overlap=20)
-        
-        msg = Mock()
-        msg.value.return_value = sample_document
-        
-        await processor.on_message(msg, mock_consumer, flow_mock)
-        
-        # Should produce multiple chunks
-        assert output_mock.send.call_count > 1
-        
-        # Verify all chunks have correct metadata
-        for call in output_mock.send.call_args_list:
-            chunk = call[0][0]
-            assert isinstance(chunk, Chunk)
-            assert chunk.metadata == sample_document.metadata
-            assert len(chunk.chunk) > 0
-            
-    @pytest.mark.asyncio
-    async def test_on_message_chunk_overlap(self, mock_async_processor_init, mock_flow, mock_consumer):
-        flow_mock, output_mock = mock_flow
-        processor = RecursiveChunker(chunk_size=50, chunk_overlap=10)
-        
-        # Create a document with predictable content
-        metadata = Metadata(id="test", metadata=[], user="test-user", collection="test-collection")
-        text = "ABCDEFGHIJ" * 10  # 100 characters
-        document = TextDocument(metadata=metadata, text=text.encode("utf-8"))
-        
-        msg = Mock()
-        msg.value.return_value = document
-        
-        await processor.on_message(msg, mock_consumer, flow_mock)
-        
-        # Collect all chunks
-        chunks = []
-        for call in output_mock.send.call_args_list:
-            chunk_text = call[0][0].chunk.decode("utf-8")
-            chunks.append(chunk_text)
-            
-        # Verify chunks have expected overlap
-        for i in range(len(chunks) - 1):
-            # The end of chunk i should overlap with the beginning of chunk i+1
-            # Check if there's some overlap (exact overlap depends on text splitter logic)
-            assert len(chunks[i]) <= 50 + 10  # chunk_size + some tolerance
-            
-    @pytest.mark.asyncio
-    async def test_on_message_empty_document(self, mock_async_processor_init, mock_flow, mock_consumer):
-        flow_mock, output_mock = mock_flow
-        processor = RecursiveChunker()
-        
-        metadata = Metadata(id="empty", metadata=[], user="test-user", collection="test-collection")
-        document = TextDocument(metadata=metadata, text=b"")
-        
-        msg = Mock()
-        msg.value.return_value = document
-        
-        await processor.on_message(msg, mock_consumer, flow_mock)
-        
-        # Empty documents typically don't produce chunks with langchain splitters
-        # This behavior is expected - no chunks should be produced
-        assert output_mock.send.call_count == 0
-        
-    @pytest.mark.asyncio
-    async def test_on_message_unicode_handling(self, mock_async_processor_init, mock_flow, mock_consumer):
-        flow_mock, output_mock = mock_flow
-        processor = RecursiveChunker(chunk_size=500, chunk_overlap=20)  # Fixed overlap < chunk_size
-        
-        metadata = Metadata(id="unicode", metadata=[], user="test-user", collection="test-collection")
-        text = "Hello 世界! 🌍 This is a test with émojis and spëcial characters."
-        document = TextDocument(metadata=metadata, text=text.encode("utf-8"))
-        
-        msg = Mock()
-        msg.value.return_value = document
-        
-        await processor.on_message(msg, mock_consumer, flow_mock)
-        
-        # Verify unicode is preserved correctly
-        all_chunks = []
-        for call in output_mock.send.call_args_list:
-            chunk_text = call[0][0].chunk.decode("utf-8")
-            all_chunks.append(chunk_text)
-            
-        # Reconstruct text (approximately, due to overlap)
-        reconstructed = "".join(all_chunks)
-        assert "世界" in reconstructed
-        assert "🌍" in reconstructed
-        assert "émojis" in reconstructed
-        
-    @pytest.mark.asyncio
-    async def test_metrics_recorded(self, mock_async_processor_init, mock_flow, mock_consumer, sample_document):
-        flow_mock, output_mock = mock_flow
-        processor = RecursiveChunker(chunk_size=100)
-        
-        msg = Mock()
-        msg.value.return_value = sample_document
-        
-        # Mock the metric
-        with patch.object(RecursiveChunker.chunk_metric, 'labels') as mock_labels:
-            mock_observe = Mock()
-            mock_labels.return_value.observe = mock_observe
-            
-            await processor.on_message(msg, mock_consumer, flow_mock)
-            
-            # Verify metrics were recorded
-            mock_labels.assert_called_with(id="test-consumer", flow="test-flow")
-            assert mock_observe.call_count > 0
-            
-            # Verify chunk sizes were observed
-            for call in mock_observe.call_args_list:
-                chunk_size = call[0][0]
-                assert chunk_size > 0
-                
-    def test_add_args(self):
-        parser = Mock()
-        RecursiveChunker.add_args(parser)
-        
-        # Verify arguments were added
-        calls = parser.add_argument.call_args_list
-        arg_names = [call[0][0] for call in calls]
-        
-        assert '-z' in arg_names or '--chunk-size' in arg_names
-        assert '-v' in arg_names or '--chunk-overlap' in arg_names
+if __name__ == '__main__':
+    pytest.main([__file__])

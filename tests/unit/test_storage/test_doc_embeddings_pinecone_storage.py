@@ -178,37 +178,24 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         assert calls[2][1]['vectors'][0]['metadata']['doc'] == "This is the second document chunk"
 
     @pytest.mark.asyncio
-    async def test_store_document_embeddings_index_creation(self, processor):
-        """Test automatic index creation when index doesn't exist"""
+    async def test_store_document_embeddings_index_validation(self, processor):
+        """Test that writing to non-existent index raises ValueError"""
         message = MagicMock()
         message.metadata = MagicMock()
         message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
-        
+
         chunk = ChunkEmbeddings(
             chunk=b"Test document content",
             vectors=[[0.1, 0.2, 0.3]]
         )
         message.chunks = [chunk]
-        
-        # Mock index doesn't exist initially
+
+        # Mock index doesn't exist
         processor.pinecone.has_index.return_value = False
-        mock_index = MagicMock()
-        processor.pinecone.Index.return_value = mock_index
-        
-        # Mock index creation
-        processor.pinecone.describe_index.return_value.status = {"ready": True}
-        
-        with patch('uuid.uuid4', return_value='test-id'):
+
+        with pytest.raises(ValueError, match="Collection .* does not exist"):
             await processor.store_document_embeddings(message)
-        
-        # Verify index creation was called
-        expected_index_name = "d-test_user-test_collection"
-        processor.pinecone.create_index.assert_called_once()
-        create_call = processor.pinecone.create_index.call_args
-        assert create_call[1]['name'] == expected_index_name
-        assert create_call[1]['dimension'] == 3
-        assert create_call[1]['metric'] == "cosine"
 
     @pytest.mark.asyncio
     async def test_store_document_embeddings_empty_chunk(self, processor):
@@ -357,47 +344,44 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         mock_index.upsert.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_store_document_embeddings_index_creation_failure(self, processor):
-        """Test handling of index creation failure"""
+    async def test_store_document_embeddings_validation_before_creation(self, processor):
+        """Test that validation error occurs before creation attempts"""
         message = MagicMock()
         message.metadata = MagicMock()
         message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
-        
+
         chunk = ChunkEmbeddings(
             chunk=b"Test document content",
             vectors=[[0.1, 0.2, 0.3]]
         )
         message.chunks = [chunk]
-        
-        # Mock index doesn't exist and creation fails
+
+        # Mock index doesn't exist
         processor.pinecone.has_index.return_value = False
-        processor.pinecone.create_index.side_effect = Exception("Index creation failed")
-        
-        with pytest.raises(Exception, match="Index creation failed"):
+
+        with pytest.raises(ValueError, match="Collection .* does not exist"):
             await processor.store_document_embeddings(message)
 
     @pytest.mark.asyncio
-    async def test_store_document_embeddings_index_creation_timeout(self, processor):
-        """Test handling of index creation timeout"""
+    async def test_store_document_embeddings_validates_before_timeout(self, processor):
+        """Test that validation error occurs before timeout checks"""
         message = MagicMock()
         message.metadata = MagicMock()
         message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
-        
+
         chunk = ChunkEmbeddings(
             chunk=b"Test document content",
             vectors=[[0.1, 0.2, 0.3]]
         )
         message.chunks = [chunk]
-        
-        # Mock index doesn't exist and never becomes ready
+
+        # Mock index doesn't exist
         processor.pinecone.has_index.return_value = False
-        processor.pinecone.describe_index.return_value.status = {"ready": False}
-        
-        with patch('time.sleep'):  # Speed up the test
-            with pytest.raises(RuntimeError, match="Gave up waiting for index creation"):
-                await processor.store_document_embeddings(message)
+
+        with pytest.raises(ValueError, match="Collection .* does not exist"):
+            await processor.store_document_embeddings(message)
 
     @pytest.mark.asyncio
     async def test_store_document_embeddings_unicode_content(self, processor):

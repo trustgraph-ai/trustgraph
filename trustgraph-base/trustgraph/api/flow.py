@@ -87,7 +87,7 @@ class Flow:
 
         return json.loads(self.request(request = input)["flow"])
 
-    def start(self, class_name, id, description):
+    def start(self, class_name, id, description, parameters=None):
 
         # The input consists of system and prompt strings
         input = {
@@ -96,6 +96,9 @@ class Flow:
             "class-name": class_name,
             "description": description,
         }
+
+        if parameters:
+            input["parameters"] = parameters
 
         self.request(request = input)
 

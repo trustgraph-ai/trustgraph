@@ -57,6 +57,10 @@ class Processor(GraphEmbeddingsQueryService):
                     raise e
             self.last_collection = collection
 
+    def collection_exists(self, collection):
+        """Check if collection exists (no implicit creation)"""
+        return self.qdrant.collection_exists(collection)
+
     def create_value(self, ent):
         if ent.startswith("http://") or ent.startswith("https://"):
             return Value(value=ent, is_uri=True)
@@ -70,12 +74,16 @@ class Processor(GraphEmbeddingsQueryService):
             entity_set = set()
             entities = []
 
-            for vec in msg.vectors:
+            collection = (
+                "t_" + msg.user + "_" + msg.collection
+            )
 
-                dim = len(vec)
-                collection = (
-                    "t_" + msg.user + "_" + msg.collection
-                )
+            # Check if collection exists - return empty if not
+            if not self.collection_exists(collection):
+                logger.info(f"Collection {collection} does not exist, returning empty results")
+                return []
+
+            for vec in msg.vectors:
 
                 self.ensure_collection_exists(collection, dim)
 

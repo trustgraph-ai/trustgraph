@@ -12,6 +12,7 @@ requires-python = ">=3.8"
 dependencies = [
     "pulsar-client",
     "prometheus-client",
+    "requests",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",

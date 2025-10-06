@@ -29,23 +29,25 @@ class TestEndToEndConfigurationFlow:
             'CASSANDRA_USERNAME': 'integration-user',
             'CASSANDRA_PASSWORD': 'integration-pass'
         }
-        
+
         mock_cluster_instance = MagicMock()
         mock_session = MagicMock()
         mock_cluster_instance.connect.return_value = mock_session
         mock_cluster.return_value = mock_cluster_instance
-        
+
         with patch.dict(os.environ, env_vars, clear=True):
             processor = TriplesWriter(taskgroup=MagicMock())
-            
+
             # Create a mock message to trigger TrustGraph creation
             mock_message = MagicMock()
             mock_message.metadata.user = 'test_user'
             mock_message.metadata.collection = 'test_collection'
             mock_message.triples = []
-            
-            # This should create TrustGraph with environment config
-            await processor.store_triples(mock_message)
+
+            # Mock collection_exists to return True
+            with patch('trustgraph.direct.cassandra_kg.KnowledgeGraph.collection_exists', return_value=True):
+                # This should create TrustGraph with environment config
+                await processor.store_triples(mock_message)
             
             # Verify Cluster was created with correct hosts
             mock_cluster.assert_called_once()
@@ -145,8 +147,10 @@ class TestConfigurationPriorityEndToEnd:
             mock_message.metadata.user = 'test_user'
             mock_message.metadata.collection = 'test_collection'
             mock_message.triples = []
-            
-            await processor.store_triples(mock_message)
+
+            # Mock collection_exists to return True
+            with patch('trustgraph.direct.cassandra_kg.KnowledgeGraph.collection_exists', return_value=True):
+                await processor.store_triples(mock_message)
             
             # Should use CLI parameters, not environment
             mock_cluster.assert_called_once()
@@ -243,8 +247,10 @@ class TestNoBackwardCompatibilityEndToEnd:
         mock_message.metadata.user = 'legacy_user'
         mock_message.metadata.collection = 'legacy_collection'
         mock_message.triples = []
-        
-        await processor.store_triples(mock_message)
+
+        # Mock collection_exists to return True
+        with patch('trustgraph.direct.cassandra_kg.KnowledgeGraph.collection_exists', return_value=True):
+            await processor.store_triples(mock_message)
         
         # Should use defaults since old parameters are not recognized
         mock_cluster.assert_called_once()
@@ -299,8 +305,10 @@ class TestNoBackwardCompatibilityEndToEnd:
         mock_message.metadata.user = 'precedence_user'
         mock_message.metadata.collection = 'precedence_collection'
         mock_message.triples = []
-        
-        await processor.store_triples(mock_message)
+
+        # Mock collection_exists to return True
+        with patch('trustgraph.direct.cassandra_kg.KnowledgeGraph.collection_exists', return_value=True):
+            await processor.store_triples(mock_message)
         
         # Should use new parameters, not old ones
         mock_cluster.assert_called_once()
@@ -349,8 +357,10 @@ class TestMultipleHostsHandling:
         mock_message.metadata.user = 'single_user'
         mock_message.metadata.collection = 'single_collection'
         mock_message.triples = []
-        
-        await processor.store_triples(mock_message)
+
+        # Mock collection_exists to return True
+        with patch('trustgraph.direct.cassandra_kg.KnowledgeGraph.collection_exists', return_value=True):
+            await processor.store_triples(mock_message)
         
         # Single host should be converted to list
         mock_cluster.assert_called_once()

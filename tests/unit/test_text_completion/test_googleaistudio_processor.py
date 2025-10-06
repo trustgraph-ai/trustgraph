@@ -42,7 +42,7 @@ class TestGoogleAIStudioProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'gemini-2.0-flash-001'
+        assert processor.default_model == 'gemini-2.0-flash-001'
         assert processor.temperature == 0.0
         assert processor.max_output == 8192
         assert hasattr(processor, 'client')
@@ -205,7 +205,7 @@ class TestGoogleAIStudioProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'gemini-1.5-pro'
+        assert processor.default_model == 'gemini-1.5-pro'
         assert processor.temperature == 0.7
         assert processor.max_output == 4096
         mock_genai_class.assert_called_once_with(api_key='custom-api-key')
@@ -234,7 +234,7 @@ class TestGoogleAIStudioProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'gemini-2.0-flash-001'  # default_model
+        assert processor.default_model == 'gemini-2.0-flash-001'  # default_model
         assert processor.temperature == 0.0  # default_temperature
         assert processor.max_output == 8192  # default_max_output
         mock_genai_class.assert_called_once_with(api_key='test-api-key')
@@ -431,7 +431,7 @@ class TestGoogleAIStudioProcessorSimple(IsolatedAsyncioTestCase):
         
         # Verify processor has the client
         assert processor.client == mock_genai_client
-        assert processor.model == 'gemini-1.5-flash'
+        assert processor.default_model == 'gemini-1.5-flash'
 
     @patch('trustgraph.model.text_completion.googleaistudio.llm.genai.Client')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
@@ -476,6 +476,156 @@ class TestGoogleAIStudioProcessorSimple(IsolatedAsyncioTestCase):
         config_arg = call_args[1]['config']
         # The system instruction should be in the config object
         assert call_args[1]['contents'] == "Explain quantum computing"
+
+    @patch('trustgraph.model.text_completion.googleaistudio.llm.genai.Client')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_temperature_override(self, mock_llm_init, mock_async_init, mock_genai_class):
+        """Test temperature parameter override functionality"""
+        # Arrange
+        mock_genai_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.text = 'Response with custom temperature'
+        mock_response.usage_metadata.prompt_token_count = 20
+        mock_response.usage_metadata.candidates_token_count = 12
+
+        mock_genai_client.models.generate_content.return_value = mock_response
+        mock_genai_class.return_value = mock_genai_client
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'model': 'gemini-2.0-flash-001',
+            'api_key': 'test-api-key',
+            'temperature': 0.0,  # Default temperature
+            'max_output': 8192,
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Override temperature at runtime
+        result = await processor.generate_content(
+            "System prompt",
+            "User prompt",
+            model=None,      # Use default model
+            temperature=0.8  # Override temperature
+        )
+
+        # Assert
+        assert isinstance(result, LlmResult)
+        assert result.text == "Response with custom temperature"
+
+        # Verify the generation config was created with overridden temperature
+        cache_key = f"gemini-2.0-flash-001:0.8"
+        assert cache_key in processor.generation_configs
+        config_obj = processor.generation_configs[cache_key]
+        assert config_obj.temperature == 0.8
+
+    @patch('trustgraph.model.text_completion.googleaistudio.llm.genai.Client')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_model_override(self, mock_llm_init, mock_async_init, mock_genai_class):
+        """Test model parameter override functionality"""
+        # Arrange
+        mock_genai_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.text = 'Response with custom model'
+        mock_response.usage_metadata.prompt_token_count = 18
+        mock_response.usage_metadata.candidates_token_count = 14
+
+        mock_genai_client.models.generate_content.return_value = mock_response
+        mock_genai_class.return_value = mock_genai_client
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'model': 'gemini-2.0-flash-001',    # Default model
+            'api_key': 'test-api-key',
+            'temperature': 0.1,   # Default temperature
+            'max_output': 8192,
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Override model at runtime
+        result = await processor.generate_content(
+            "System prompt",
+            "User prompt",
+            model="gemini-1.5-pro",    # Override model
+            temperature=None    # Use default temperature
+        )
+
+        # Assert
+        assert isinstance(result, LlmResult)
+        assert result.text == "Response with custom model"
+
+        # Verify Google AI Studio API was called with overridden model
+        call_args = mock_genai_client.models.generate_content.call_args
+        assert call_args[1]['model'] == 'gemini-1.5-pro'  # Should use runtime override
+
+        # Verify the generation config was created for the correct model
+        cache_key = f"gemini-1.5-pro:0.1"
+        assert cache_key in processor.generation_configs
+
+    @patch('trustgraph.model.text_completion.googleaistudio.llm.genai.Client')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_both_parameters_override(self, mock_llm_init, mock_async_init, mock_genai_class):
+        """Test overriding both model and temperature parameters simultaneously"""
+        # Arrange
+        mock_genai_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.text = 'Response with both overrides'
+        mock_response.usage_metadata.prompt_token_count = 22
+        mock_response.usage_metadata.candidates_token_count = 16
+
+        mock_genai_client.models.generate_content.return_value = mock_response
+        mock_genai_class.return_value = mock_genai_client
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'model': 'gemini-2.0-flash-001',    # Default model
+            'api_key': 'test-api-key',
+            'temperature': 0.0,   # Default temperature
+            'max_output': 8192,
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Override both parameters at runtime
+        result = await processor.generate_content(
+            "System prompt",
+            "User prompt",
+            model="gemini-1.5-flash",  # Override model
+            temperature=0.9     # Override temperature
+        )
+
+        # Assert
+        assert isinstance(result, LlmResult)
+        assert result.text == "Response with both overrides"
+
+        # Verify Google AI Studio API was called with both overrides
+        call_args = mock_genai_client.models.generate_content.call_args
+        assert call_args[1]['model'] == 'gemini-1.5-flash'  # Should use runtime override
+
+        # Verify the generation config was created with both overrides
+        cache_key = f"gemini-1.5-flash:0.9"
+        assert cache_key in processor.generation_configs
+        config_obj = processor.generation_configs[cache_key]
+        assert config_obj.temperature == 0.9
 
 
 if __name__ == '__main__':

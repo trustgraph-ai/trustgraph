@@ -41,21 +41,29 @@ class Processor(LlmService):
             }
         )
 
-        self.model = model
+        self.default_model = model
         self.claude = anthropic.Anthropic(api_key=api_key)
         self.temperature = temperature
         self.max_output = max_output
 
         logger.info("Claude LLM service initialized")
 
-    async def generate_content(self, system, prompt):
+    async def generate_content(self, system, prompt, model=None, temperature=None):
+
+        # Use provided model or fall back to default
+        model_name = model or self.default_model
+        # Use provided temperature or fall back to default
+        effective_temperature = temperature if temperature is not None else self.temperature
+
+        logger.debug(f"Using model: {model_name}")
+        logger.debug(f"Using temperature: {effective_temperature}")
 
         try:
 
             response = message = self.claude.messages.create(
-                model=self.model,
+                model=model_name,
                 max_tokens=self.max_output,
-                temperature=self.temperature,
+                temperature=effective_temperature,
                 system = system,
                 messages=[
                     {
@@ -81,7 +89,7 @@ class Processor(LlmService):
                 text = resp,
                 in_token = inputtokens,
                 out_token = outputtokens,
-                model = self.model
+                model = model_name
             )
 
             return resp

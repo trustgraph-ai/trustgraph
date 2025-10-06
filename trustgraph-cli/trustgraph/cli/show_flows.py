@@ -45,6 +45,89 @@ def describe_interfaces(intdefs, flow):
 
     return "\n".join(lst)
 
+def get_enum_description(param_value, param_type_def):
+    """
+    Get the human-readable description for an enum value
+
+    Args:
+        param_value: The actual parameter value (e.g., "gpt-4")
+        param_type_def: The parameter type definition containing enum objects
+
+    Returns:
+        Human-readable description or the original value if not found
+    """
+    enum_list = param_type_def.get("enum", [])
+
+    # Handle both old format (strings) and new format (objects with id/description)
+    for enum_item in enum_list:
+        if isinstance(enum_item, dict):
+            if enum_item.get("id") == param_value:
+                return enum_item.get("description", param_value)
+        elif enum_item == param_value:
+            return param_value
+
+    # If not found in enum, return original value
+    return param_value
+
+def format_parameters(flow_params, class_params_metadata, config_api):
+    """
+    Format flow parameters with their human-readable descriptions
+
+    Args:
+        flow_params: The actual parameter values used in the flow
+        class_params_metadata: The parameter metadata from the flow class definition
+        config_api: API client to retrieve parameter type definitions
+
+    Returns:
+        Formatted string of parameters with descriptions
+    """
+    if not flow_params:
+        return "None"
+
+    param_list = []
+
+    # Sort parameters by order if available
+    sorted_params = sorted(
+        class_params_metadata.items(),
+        key=lambda x: x[1].get("order", 999)
+    )
+
+    for param_name, param_meta in sorted_params:
+        if param_name in flow_params:
+            value = flow_params[param_name]
+            description = param_meta.get("description", param_name)
+            param_type = param_meta.get("type", "")
+            controlled_by = param_meta.get("controlled-by", None)
+
+            # Try to get enum description if this parameter has a type definition
+            display_value = value
+            if param_type and config_api:
+                try:
+                    from trustgraph.api import ConfigKey
+                    key = ConfigKey("parameter-types", param_type)
+                    type_def_value = config_api.get([key])[0].value
+                    param_type_def = json.loads(type_def_value)
+                    display_value = get_enum_description(value, param_type_def)
+                except:
+                    # If we can't get the type definition, just use the original value
+                    display_value = value
+
+            # Format the parameter line
+            line = f"• {description}: {display_value}"
+
+            # Add controlled-by indicator if present
+            if controlled_by:
+                line += f" (controlled by {controlled_by})"
+
+            param_list.append(line)
+
+    # Add any parameters that aren't in the class metadata (shouldn't happen normally)
+    for param_name, value in flow_params.items():
+        if param_name not in class_params_metadata:
+            param_list.append(f"• {param_name}: {value} (undefined)")
+
+    return "\n".join(param_list) if param_list else "None"
+
 def show_flows(url):
 
     api = Api(url)
@@ -74,6 +157,26 @@ def show_flows(url):
         table.append(("id", id))
         table.append(("class", flow.get("class-name", "")))
         table.append(("desc", flow.get("description", "")))
+
+        # Display parameters with human-readable descriptions
+        parameters = flow.get("parameters", {})
+        if parameters:
+            # Try to get the flow class definition for parameter metadata
+            class_name = flow.get("class-name", "")
+            if class_name:
+                try:
+                    flow_class = flow_api.get_class(class_name)
+                    class_params_metadata = flow_class.get("parameters", {})
+                    param_str = format_parameters(parameters, class_params_metadata, config_api)
+                except Exception as e:
+                    # Fallback to JSON if we can't get the class definition
+                    param_str = json.dumps(parameters, indent=2)
+            else:
+                # No class name, fallback to JSON
+                param_str = json.dumps(parameters, indent=2)
+
+            table.append(("parameters", param_str))
+
         table.append(("queue", describe_interfaces(interface_defs, flow)))
 
         print(tabulate.tabulate(

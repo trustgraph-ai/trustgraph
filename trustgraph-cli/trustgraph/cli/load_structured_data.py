@@ -599,8 +599,7 @@ def _send_to_trustgraph(objects, api_url, flow, batch_size=1000):
                         imported_count += 1
                         
                         if imported_count % 100 == 0:
-                            logger.info(f"Imported {imported_count}/{len(objects)} records...")
-                            print(f"✅ Imported {imported_count}/{len(objects)} records...")
+                            logger.debug(f"Imported {imported_count}/{len(objects)} records...")
                             
                     except Exception as e:
                         logger.error(f"Failed to send record {imported_count + 1}: {e}")

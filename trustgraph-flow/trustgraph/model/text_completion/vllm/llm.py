@@ -45,24 +45,32 @@ class Processor(LlmService):
         self.base_url = base_url
         self.temperature = temperature
         self.max_output = max_output
-        self.model = model
+        self.default_model = model
 
         self.session = aiohttp.ClientSession()
 
         logger.info(f"Using vLLM service at {base_url}")
         logger.info("vLLM LLM service initialized")
 
-    async def generate_content(self, system, prompt):
+    async def generate_content(self, system, prompt, model=None, temperature=None):
+
+        # Use provided model or fall back to default
+        model_name = model or self.default_model
+        # Use provided temperature or fall back to default
+        effective_temperature = temperature if temperature is not None else self.temperature
+
+        logger.debug(f"Using model: {model_name}")
+        logger.debug(f"Using temperature: {effective_temperature}")
 
         headers = {
             "Content-Type": "application/json",
         }
 
         request = {
-            "model": self.model,
+            "model": model_name,
             "prompt": system + "\n\n" + prompt,
             "max_tokens": self.max_output,
-            "temperature": self.temperature,
+            "temperature": effective_temperature,
         }            
 
         try:
@@ -91,7 +99,7 @@ class Processor(LlmService):
                 text = ans,
                 in_token = inputtokens,
                 out_token = outputtokens,
-                model = self.model,
+                model = model_name,
             )
 
             return resp

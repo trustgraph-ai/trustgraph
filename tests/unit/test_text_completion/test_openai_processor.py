@@ -43,7 +43,7 @@ class TestOpenAIProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'gpt-3.5-turbo'
+        assert processor.default_model == 'gpt-3.5-turbo'
         assert processor.temperature == 0.0
         assert processor.max_output == 4096
         assert hasattr(processor, 'openai')
@@ -222,7 +222,7 @@ class TestOpenAIProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'gpt-4'
+        assert processor.default_model == 'gpt-4'
         assert processor.temperature == 0.7
         assert processor.max_output == 2048
         mock_openai_class.assert_called_once_with(base_url='https://custom-openai-url.com/v1', api_key='custom-api-key')
@@ -251,7 +251,7 @@ class TestOpenAIProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.model == 'gpt-3.5-turbo'  # default_model
+        assert processor.default_model == 'gpt-3.5-turbo'  # default_model
         assert processor.temperature == 0.0  # default_temperature
         assert processor.max_output == 4096  # default_max_output
         mock_openai_class.assert_called_once_with(base_url='https://api.openai.com/v1', api_key='test-api-key')
@@ -389,6 +389,211 @@ class TestOpenAIProcessorSimple(IsolatedAsyncioTestCase):
         assert call_args[1]['frequency_penalty'] == 0
         assert call_args[1]['presence_penalty'] == 0
         assert call_args[1]['response_format'] == {"type": "text"}
+
+
+    @patch('trustgraph.model.text_completion.openai.llm.OpenAI')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_temperature_override(self, mock_llm_init, mock_async_init, mock_openai_class):
+        """Test temperature parameter override functionality"""
+        # Arrange
+        mock_openai_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = "Response with custom temperature"
+        mock_response.usage.prompt_tokens = 15
+        mock_response.usage.completion_tokens = 10
+
+        mock_openai_client.chat.completions.create.return_value = mock_response
+        mock_openai_class.return_value = mock_openai_client
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'model': 'gpt-3.5-turbo',
+            'api_key': 'test-api-key',
+            'url': 'https://api.openai.com/v1',
+            'temperature': 0.0,  # Default temperature
+            'max_output': 4096,
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Override temperature at runtime
+        result = await processor.generate_content(
+            "System prompt",
+            "User prompt",
+            model=None,      # Use default model
+            temperature=0.9  # Override temperature
+        )
+
+        # Assert
+        assert isinstance(result, LlmResult)
+        assert result.text == "Response with custom temperature"
+
+        # Verify the OpenAI API was called with overridden temperature
+        mock_openai_client.chat.completions.create.assert_called_once()
+        call_kwargs = mock_openai_client.chat.completions.create.call_args.kwargs
+
+        assert call_kwargs['temperature'] == 0.9      # Should use runtime override
+        assert call_kwargs['model'] == 'gpt-3.5-turbo'  # Should use processor default
+
+    @patch('trustgraph.model.text_completion.openai.llm.OpenAI')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_model_override(self, mock_llm_init, mock_async_init, mock_openai_class):
+        """Test model parameter override functionality"""
+        # Arrange
+        mock_openai_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = "Response with custom model"
+        mock_response.usage.prompt_tokens = 15
+        mock_response.usage.completion_tokens = 10
+
+        mock_openai_client.chat.completions.create.return_value = mock_response
+        mock_openai_class.return_value = mock_openai_client
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'model': 'gpt-3.5-turbo',  # Default model
+            'api_key': 'test-api-key',
+            'url': 'https://api.openai.com/v1',
+            'temperature': 0.2,
+            'max_output': 4096,
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Override model at runtime
+        result = await processor.generate_content(
+            "System prompt",
+            "User prompt",
+            model="gpt-4",      # Override model
+            temperature=None    # Use default temperature
+        )
+
+        # Assert
+        assert isinstance(result, LlmResult)
+        assert result.text == "Response with custom model"
+
+        # Verify the OpenAI API was called with overridden model
+        mock_openai_client.chat.completions.create.assert_called_once()
+        call_kwargs = mock_openai_client.chat.completions.create.call_args.kwargs
+
+        assert call_kwargs['model'] == 'gpt-4'        # Should use runtime override
+        assert call_kwargs['temperature'] == 0.2      # Should use processor default
+
+    @patch('trustgraph.model.text_completion.openai.llm.OpenAI')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_both_parameters_override(self, mock_llm_init, mock_async_init, mock_openai_class):
+        """Test overriding both model and temperature parameters simultaneously"""
+        # Arrange
+        mock_openai_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = "Response with both overrides"
+        mock_response.usage.prompt_tokens = 15
+        mock_response.usage.completion_tokens = 10
+
+        mock_openai_client.chat.completions.create.return_value = mock_response
+        mock_openai_class.return_value = mock_openai_client
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'model': 'gpt-3.5-turbo',  # Default model
+            'api_key': 'test-api-key',
+            'url': 'https://api.openai.com/v1',
+            'temperature': 0.0,        # Default temperature
+            'max_output': 4096,
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Override both parameters at runtime
+        result = await processor.generate_content(
+            "System prompt",
+            "User prompt",
+            model="gpt-4",      # Override model
+            temperature=0.7     # Override temperature
+        )
+
+        # Assert
+        assert isinstance(result, LlmResult)
+        assert result.text == "Response with both overrides"
+
+        # Verify the OpenAI API was called with both overrides
+        mock_openai_client.chat.completions.create.assert_called_once()
+        call_kwargs = mock_openai_client.chat.completions.create.call_args.kwargs
+
+        assert call_kwargs['model'] == 'gpt-4'        # Should use runtime override
+        assert call_kwargs['temperature'] == 0.7      # Should use runtime override
+
+    @patch('trustgraph.model.text_completion.openai.llm.OpenAI')
+    @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
+    @patch('trustgraph.base.llm_service.LlmService.__init__')
+    async def test_generate_content_no_override_uses_defaults(self, mock_llm_init, mock_async_init, mock_openai_class):
+        """Test that when no parameters are overridden, processor defaults are used"""
+        # Arrange
+        mock_openai_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = "Response with defaults"
+        mock_response.usage.prompt_tokens = 15
+        mock_response.usage.completion_tokens = 10
+
+        mock_openai_client.chat.completions.create.return_value = mock_response
+        mock_openai_class.return_value = mock_openai_client
+
+        mock_async_init.return_value = None
+        mock_llm_init.return_value = None
+
+        config = {
+            'model': 'gpt-4',      # Default model
+            'api_key': 'test-api-key',
+            'url': 'https://api.openai.com/v1',
+            'temperature': 0.5,    # Default temperature
+            'max_output': 4096,
+            'concurrency': 1,
+            'taskgroup': AsyncMock(),
+            'id': 'test-processor'
+        }
+
+        processor = Processor(**config)
+
+        # Act - Don't override any parameters (pass None)
+        result = await processor.generate_content(
+            "System prompt",
+            "User prompt",
+            model=None,       # Use default model
+            temperature=None  # Use default temperature
+        )
+
+        # Assert
+        assert isinstance(result, LlmResult)
+        assert result.text == "Response with defaults"
+
+        # Verify the OpenAI API was called with processor defaults
+        mock_openai_client.chat.completions.create.assert_called_once()
+        call_kwargs = mock_openai_client.chat.completions.create.call_args.kwargs
+
+        assert call_kwargs['model'] == 'gpt-4'        # Should use processor default
+        assert call_kwargs['temperature'] == 0.5      # Should use processor default
 
 
 if __name__ == '__main__':

@@ -49,8 +49,6 @@ class RequestResponse(Subscriber):
 
         id = str(uuid.uuid4())
 
-        logger.debug(f"Sending request {id}...")
-
         q = await self.subscribe(id)
 
         try:
@@ -74,8 +72,6 @@ class RequestResponse(Subscriber):
                     q.get(),
                     timeout=timeout
                 )
-
-                logger.debug("Received response")
 
                 if recipient is None:
 
