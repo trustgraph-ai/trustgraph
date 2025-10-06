@@ -44,7 +44,7 @@ To meet the demands of enterprises, a platform needs to enable multi-tenancy, us
 - **Collections -> User/agent access controls and data management**. *Collections enable grouping data with custom labels that can be used for limiting data access to both users and agents. Collections can be added, deleted, and listed.*
 - **Tool Groups -> Multi-agent**. *Create groups for agent tools for multi-agent flows within a single deployment.*
 - **Knowledge Cores -> Data management and data privacy**. *Knowledge cores are modular and reusable components of knowledge graphs and vector embeddings that can serve as "long-term memory".*
-- **Fully Containered Platform with Private Model Serving -> Total data privacy**. *The entire TrustGraph platform can be deployed in any environment while managing the deployment of private LLMs for total data sovereignty.*
+- **Fully Containerized Platform with Private Model Serving -> Total data privacy**. *The entire TrustGraph platform can be deployed in any environment while managing the deployment of private LLMs for total data sovereignty.*
 - **No-LLM Knowledge Graph Retrieval -> Deterministic Natural Language Graph Retrieval**. *TrustGraph does *not* use LLMs for knowledge graph retrieval. Natural language queries use semantic similarity search as the basis for building graph queries without LLMs enabling true graph enhanced agentic flows.*
 
 ## Why TrustGraph?
