@@ -76,6 +76,12 @@ class Processor(ChunkingService):
             self.default_chunk_overlap
         )
 
+        # Convert to int if they're strings (flow parameters are always strings)
+        if isinstance(chunk_size, str):
+            chunk_size = int(chunk_size)
+        if isinstance(chunk_overlap, str):
+            chunk_overlap = int(chunk_overlap)
+
         # Create text splitter with effective parameters
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
