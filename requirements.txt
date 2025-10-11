@@ -11,7 +11,7 @@ langchain-text-splitters
 langchain-community
 huggingface-hub
 requests
-cassandra-driver
+scylla-driver
 pulsar-client
 pypdf
 anthropic

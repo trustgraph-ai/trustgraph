@@ -8,8 +8,8 @@ FROM docker.io/fedora:42 AS base
 
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 
-RUN dnf install -y python3.12 && \
-  alternatives --install /usr/bin/python python /usr/bin/python3.12 1 && \
+RUN dnf install -y python3.13 && \
+  alternatives --install /usr/bin/python python /usr/bin/python3.13 1 && \
   python -m ensurepip --upgrade && \
   pip3 install --no-cache-dir build wheel aiohttp rdflib && \
   pip3 install --no-cache-dir pulsar-client==3.7.0 && \
@@ -22,7 +22,7 @@ RUN pip3 install --no-cache-dir \
     langchain-text-splitters==0.3.8 \
     langchain-community==0.3.24 \
     pymilvus \
-    pulsar-client==3.7.0 cassandra-driver pyyaml \
+    pulsar-client==3.7.0 scylla-driver pyyaml \
     neo4j tiktoken falkordb && \
     pip3 cache purge
 

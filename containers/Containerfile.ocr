@@ -8,9 +8,9 @@ FROM docker.io/fedora:42 AS base
 
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 
-RUN dnf install -y python3.12 && \
+RUN dnf install -y python3.13 && \
   dnf install -y tesseract poppler-utils && \
-  alternatives --install /usr/bin/python python /usr/bin/python3.12 1 && \
+  alternatives --install /usr/bin/python python /usr/bin/python3.13 1 && \
   python -m ensurepip --upgrade && \
   pip3 install --no-cache-dir build wheel aiohttp && \
   pip3 install --no-cache-dir pulsar-client==3.7.0 && \

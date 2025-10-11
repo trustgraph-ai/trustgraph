@@ -13,7 +13,7 @@ dependencies = [
     "trustgraph-base>=1.5,<1.6",
     "aiohttp",
     "anthropic",
-    "cassandra-driver",
+    "scylla-driver",
     "cohere",
     "cryptography",
     "falkordb",
