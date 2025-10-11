@@ -61,6 +61,10 @@ class Processor(DocumentEmbeddingsQueryService):
         """Check if collection exists (no implicit creation)"""
         return self.qdrant.collection_exists(collection)
 
+    def collection_exists(self, collection):
+        """Check if collection exists (no implicit creation)"""
+        return self.qdrant.collection_exists(collection)
+
     async def query_document_embeddings(self, msg):
 
         try:

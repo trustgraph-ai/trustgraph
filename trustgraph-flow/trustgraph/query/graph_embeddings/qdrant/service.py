@@ -61,6 +61,10 @@ class Processor(GraphEmbeddingsQueryService):
         """Check if collection exists (no implicit creation)"""
         return self.qdrant.collection_exists(collection)
 
+    def collection_exists(self, collection):
+        """Check if collection exists (no implicit creation)"""
+        return self.qdrant.collection_exists(collection)
+
     def create_value(self, ent):
         if ent.startswith("http://") or ent.startswith("https://"):
             return Value(value=ent, is_uri=True)
@@ -84,8 +88,6 @@ class Processor(GraphEmbeddingsQueryService):
                 return []
 
             for vec in msg.vectors:
-
-                self.ensure_collection_exists(collection, dim)
 
                 # Heuristic hack, get (2*limit), so that we have more chance
                 # of getting (limit) entities
