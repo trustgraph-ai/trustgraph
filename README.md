@@ -1,6 +1,6 @@
 <div align="center">
 
-## The Agentic AI Platform for Enterprise Availability, Scalability, and Security
+## The Infrastructure for Trustworthy AI
 
 <img src="product-platform-diagram.svg" width=100% />
 
@@ -14,7 +14,15 @@
 
 </div>
 
-**TrustGraph** is an agentic AI platform built to meet the enterprise demands for availability, scalability, and security. TrustGraph meets these demands by combining the enterprise-grade data streaming platform [Apache Pulsar](https://github.com/apache/pulsar/) with knowledge graphs, structured data storage, VectorDBs, and MCP interoperability all in a single containerized platform.
+> “Your bottleneck isn’t moving data — it’s understanding it.”
+
+TrustGraph is the open-source foundation for agentic AI you can trust.
+
+It fuses knowledge graphs, data streaming, and vector intelligence into a unified architecture — delivering context precision, provenance, and verifiable reasoning across any domain.
+
+Unlike closed systems that trap your data and obscure your logic, TrustGraph is built for transparency, portability, and proof.
+
+Every answer is traceable. Every insight, explainable. Every deployment, yours.
 
 <details>
 <summary>Table of Contents</summary>
