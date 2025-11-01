@@ -74,12 +74,11 @@ TrustGraph is not just another AI framework but a comprehensive context stack th
 
 ## Getting Started
 
-- [**Quickstart Guide**](https://docs.trustgraph.ai/getting-started/)
+- <a href="https://docs.trustgraph.ai/getting-started/" target="_blank">**Quickstart Guide**</a>
 - [**Configuration Builder**](#configuration-builder)
 - [**Workbench**](#workbench)
-- [**Developer APIs and CLI**](https://docs.trustgraph.ai/reference/)
-- [**Example Notebooks**](https://github.com/trustgraph-ai/example-notebooks)
-- [**Deployment Guide**](https://docs.trustgraph.ai/deployment/)
+- <a href="https://docs.trustgraph.ai/reference/" target="_blank">**Developer APIs and CLI**</a>
+- <a href="https://docs.trustgraph.ai/deployment/" target="_blank">**Deployment Guide**</a>
 
 ### Watch TrustGraph 101
 
