@@ -27,7 +27,6 @@ TrustGraph is a production-ready platform for building post-training agentic sys
 - [**Configuration Builder**](#configuration-builder)<br>
 - [**Context Engineering**](#context-engineering)<br>
 - [**Knowledge Cores**](#knowledge-cores)<br>
-- [**Platform Architecture**](#platform-architecture)<br>
 - [**Integrations**](#integrations)<br>
 - [**Observability & Telemetry**](#observability--telemetry)<br>
 - [**Contributing**](#contributing)<br>
@@ -126,20 +125,6 @@ A Knowledge Core has two components:
 
 When a Knowledge Core is loaded into TrustGraph, the corresponding graph edges and vector embeddings are queued and loaded into the chosen graph and vector stores.
 
-## Platform Architecture
-
-The platform orchestrates a comprehensive suite of services to transform external data into intelligent, actionable outputs for AI agents and users. It interacts with external data sources and external services (like LLM APIs) via an **API Gateway**.
-
-Within the **TrustGraph** Platform, the services are grouped as follows:
-
-- **Data Orchestration:** This crucial set of services manages the entire lifecycle of ingesting and preparing data to become AI-ready knowledge. It includes **Data Ingest** capabilities for various data types, a *Data Librarian* for managing and cataloging this information, *Data Transformation* services to clean, structure, and refine raw data, and ultimately produces consumable *Knowledge Cores* – the structured, enriched knowledge artifacts for AI.
-- **Data Storage:** The platform relies on a flexible storage layer designed to handle the diverse needs of AI applications. This includes dedicated storage for *Knowledge Graphs* (to represent interconnected relationships), *VectorDBs* (for efficient semantic similarity search on embeddings), and *Tabular Datastores* (for structured data).
-- **Context Orchestration:** This is the core reasoning engine of the platform. It leverages the structured knowledge from the Storage layer to perform *Deep Knowledge Retrieval* (advanced search and context discovery beyond simple keyword matching) and facilitate *Agentic Thinking*, enabling AI agents to process information and form complex responses or action plans.
-- **Agent Orchestration:** This group of services is dedicated to managing and empowering the AI agents themselves. The *Agent Manager* handles the lifecycle, configuration, and operation of agents, while *Agent Tools* provide a framework or library of capabilities that agents can utilize to perform actions or interact with other systems.
-- **Private Model Serving:** This layer is responsible for the deployment, management, and operationalization of the various AI models TrustGraph uses or provides to agents. This includes *LLM Deployment*, *Embeddings Deployment*, and *OCR Deployment*. Crucially, it features *Cross Hardware Support*, indicating the platform's ability to run these models across diverse computing environments.
-- **Prompt Management:** Effective interaction with AI, especially LLMs and agents, requires precise instruction. This service centralizes the management of all prompt types: *LLM System Prompts* (to define an LLM's persona or core instructions), *Data Transformation Prompts* (to guide AI in structuring data), **RAG Context** generation (providing relevant intelligence to LLMs), and *Agent Definitions* (the core instructions and goals for AI agents).
-- **Platform Services:** These foundational services provide the essential operational backbone for the entire TrustGraph platform, ensuring it runs securely, reliably, and efficiently. This includes *Access Controls* (for security and permissions), *Secrets Management* (for handling sensitive credentials), *Logging* (for audit and diagnostics), *Observability* (for monitoring platform health and performance), *Realtime Cost Observability* (for tracking resource consumption expenses), and *Hardware Resource Management* (for optimizing the use of underlying compute).
-
 ## Integrations
 TrustGraph provides maximum flexibility so your agents are always powered by the latest and greatest components.
 
@@ -183,8 +168,8 @@ TrustGraph provides maximum flexibility so your agents are always powered by the
 <br>
 
 - Apache Cassandra (default)<br>
-- Memgraph<br>
 - Neo4j<br>
+- Memgraph<br>
 - FalkorDB<br>
 
 </details>
@@ -210,7 +195,6 @@ TrustGraph provides maximum flexibility so your agents are always powered by the
 - AWS<br>
 - Azure<br>
 - Google Cloud<br>
-- Intel Tiber Cloud<br>
 - OVHcloud<br>
 - Scaleway<br>
 
