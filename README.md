@@ -1,8 +1,8 @@
+# The Agentic Context Stack
+
 <div align="center">
 
-## The Infrastructure for Trustworthy AI
-
-<img src="product-platform-diagram.svg" width=100% />
+<img src="TG-hero-diagram.svg" width=100% />
 
 ---
 
