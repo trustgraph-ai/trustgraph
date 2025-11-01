@@ -38,14 +38,32 @@ TrustGraph is a production-ready platform for building post-training agentic sys
 
 ## Key Features
 
-To meet the demands of enterprises, a platform needs to enable multi-tenancy, user and agentic access controls, data management, and total data privacy. TrustGraph enables these capabilities with:
+TrustGraph is not just another AI framework but a comprehensive context stack that bridges the gap between raw data and intelligent, adaptable agent deployments in production environments.
 
-- **Flows and Flow Classes -> Multi-tenancy**. *Flow classes are sets of processing components that can be combined into logically separate flows for both users and agents.*
-- **Collections -> User/agent access controls and data management**. *Collections enable grouping data with custom labels that can be used for limiting data access to both users and agents. Collections can be added, deleted, and listed.*
-- **Tool Groups -> Multi-agent**. *Create groups for agent tools for multi-agent flows within a single deployment.*
-- **Knowledge Cores -> Data management and data privacy**. *Knowledge cores are modular and reusable components of knowledge graphs and vector embeddings that can serve as "long-term memory".*
-- **Fully Containerized Platform with Private Model Serving -> Total data privacy**. *The entire TrustGraph platform can be deployed in any environment while managing the deployment of private LLMs for total data sovereignty.*
-- **No-LLM Knowledge Graph Retrieval -> Deterministic Natural Language Graph Retrieval**. *TrustGraph does *not* use LLMs for knowledge graph retrieval. Natural language queries use semantic similarity search as the basis for building graph queries without LLMs enabling true graph enhanced agentic flows.*
+- **Complete Agentic Context Stack**
+   - Combines all necessary layers: data streaming control plane, knowledge graphs, vector databases, LLM integrations, and data pipelines in a unified platform.
+   - Enables deployment of intelligent agents grounded in domain-specific knowledge.
+- **Post-Training Infrastructure**
+   - Supports transforming raw and streaming data into knowledge representations for fine-tuning and in-context agent reasoning.
+   - Enables continuous learning and optimization of AI agents beyond base model training.
+- **Containerized Single Deployment**
+   - Simplifies operations with a turnkey containerized solution.
+   - Eliminates the complexity of managing multiple, disparate components and dependencies.
+- **Multi-Cloud and Local Run Support**
+   - Runs anywhere—locally, on-premises, or in any cloud environment (AWS, Azure, GCP, OVHcloud, Scaleway).
+   - Supports data sovereignty and flexible deployment architectures.
+- **Flexible Data and Model Integrations**
+   - Supports multiple vector databases (Qdrant, Milvus, Pinecone) and knowledge graph stores (Neo4j, Memgraph, FalkorDB).
+   - Native integration with LLM providers Anthropic, Google, Mistral, OpenAI, and local models with vLLM, Ollama, LM Studio.
+- **Real-Time Data Streaming and Observability**
+   - Built-in streaming data integration with Apache Pulsar.
+   - Observability tooling including Prometheus and Grafana dashboards for tracking latency, costs, and system health.
+- **Modular and Extensible Architecture**
+   - Swap or extend parts (e.g., vector stores, LLMs, graph databases) without platform redesign.
+   - Built for engineers who need flexibility and control over AI infrastructure components.
+- **Domain Knowledge as a First-Class Citizen**
+   - Converts data into rich knowledge graphs to ground AI agents in reliable, structured information.
+   - Enables semantic retrieval for more accurate and context-aware AI responses.
 
 ## Why TrustGraph?
 
