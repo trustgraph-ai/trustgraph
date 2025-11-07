@@ -11,7 +11,7 @@
 
 # AI-Ready Data Infrastructure
 
-TrustGraph provides an integrated data-to-AI platform that automatically transforms raw data into AI-ready datasets through automated structuring, knowledge graph construction, and vector embeddings—all deployable privately, on-prem, or in your cloud. You can deploy and manage your own LLMs within the same platform, ensuring your data never leaves your infrastructure while enabling agents that generate real, actionable insights.
+TrustGraph provides an event-driven data-to-AI platform that automatically transforms raw data into AI-ready datasets through automated structuring, knowledge graph construction, and vector embeddings—all deployable privately, on-prem, or in your cloud. You can deploy and manage your own LLMs within the same platform, ensuring your data never leaves your infrastructure while enabling agents that generate real, actionable insights.
 
 <details>
 <summary>Table of Contents</summary>
