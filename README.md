@@ -49,7 +49,7 @@ TrustGraph is not just another AI framework but a complete, production-ready pla
 
 *TrustGraph combines multiple retrieval methods optimized for each data type and use case*.
 
-- **Event Driven**
+- **Event-Driven**
 
 *Built with Apache Pulsar for high-throughput and reliable messaging*.
 
