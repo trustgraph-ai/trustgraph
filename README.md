@@ -38,17 +38,49 @@ TrustGraph provides an event-driven data-to-AI platform that transforms raw data
 
 TrustGraph is not just another AI framework but a complete, production-ready platform that bridges the gap between raw data and intelligent, adaptable agent deployments.
 
-- **AI-Ready Data Transformation**: Convert unstructured and structured (bring your own schema) data into AI-optimized formats.
-- **Automated Knowledge Graph Construction**: Transform unstructured data into interconnected knowledge graphs that capture relationships, context, and meaning.
-- **Semantic Retrieval**: TrustGraph combines multiple retrieval methods optimized for each data type and use case.
-- **Event Driven**: Built with Apache Pulsar for high-throughput and reliable messaging
-- **Datastore Orchestration**: Deploy stores like Apache Cassandra, Neo4j, Qdrant, Milvus, Memgraph, or FalkorDB for structured and unstructured data storage.
-- **Data Sovereignty**: Deploy the entire stack—data pipelines, knowledge graphs, vector stores, and LLMs—on-premises, in your VPC, or across hybrid environments.
-- **Private LLM Inferencing**: In addition to support for all major LLM APIs, deploy and manage open models connected to all of the agentic data infrastructure.
-- **Agentic GraphRAG**: Deploy intelligent agents with context awareness. Bring your own ontology for easy integration into interconnected systems.
-- **Production Ready**: Containerized deployment with Docker/Kubernetes support. Built for enterprise scale with monitoring, observability, and management.
-- **MCP Integration**: Native support for MCP enables standardized agent communication with third-party tools and services while maintaining data sovereignty.
-- **Full Stack Visibility**: 3D visualization of knowledge graphs. Grafana dashboard for observability.
+- **AI-Ready Data Transformation**
+
+*Convert unstructured and structured (bring your own schema) data into AI-optimized formats*.
+
+- **Automated Knowledge Graph Construction**
+
+*Transform unstructured data into interconnected knowledge graphs that capture relationships, context, and meaning*.
+
+- **Semantic Retrieval**
+
+*TrustGraph combines multiple retrieval methods optimized for each data type and use case*.
+
+- **Event Driven**
+
+*Built with Apache Pulsar for high-throughput and reliable messaging*.
+
+- **Datastore Orchestration**
+
+*Deploy stores like Apache Cassandra, Neo4j, Qdrant, Milvus, Memgraph, or FalkorDB for structured and unstructured data storage*.
+
+- **Data Sovereignty**
+
+*Deploy the entire stack—data pipelines, knowledge graphs, vector stores, and LLMs—on-premises, in your VPC, or across hybrid environments*.
+
+- **Private LLM Inferencing**
+
+*In addition to support for all major LLM APIs, deploy and manage open models connected to all of the agentic data infrastructure*.
+
+- **Agentic GraphRAG**
+
+*Deploy intelligent agents with context awareness. Bring your own ontology for easy integration into interconnected systems*.
+
+- **Production Ready**
+
+*Containerized deployment with Docker/Kubernetes support. Built for enterprise scale with monitoring, observability, and management*.
+
+- **MCP Integration**
+
+*Native support for MCP enables standardized agent communication with third-party tools and services while maintaining data sovereignty*.
+
+- **Full Stack Visibility**
+
+*3D visualization of knowledge graphs. Grafana dashboard for observability*.
 
 ## Why TrustGraph?
 
