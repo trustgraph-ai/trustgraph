@@ -37,25 +37,25 @@ TrustGraph provides an event-driven data-to-AI platform that transforms data int
 
 TrustGraph is not just another AI framework but a complete, production-ready platform that bridges the gap between raw data and intelligent, adaptable agent deployments.
 
-- **AI-Ready Data Transformation**
+- **Data Ingestion**
 
-*Convert unstructured and structured (bring your own schema) data into AI-optimized formats*.
+*PDF parsing, OCR, configurable chunking, custom metadata, and bring your own schemas for large scale data ingestion*.
 
-- **Automated Knowledge Graph Construction**
+- **Data Transformation**
 
-*Transform unstructured data into interconnected knowledge graphs that capture relationships, context, and meaning*.
+*Transform unstructured data into flat knowledge graphs or bring your own ontology for rich graphs*.
 
-- **Semantic Retrieval**
+- **Context Retrieval**
 
-*TrustGraph combines multiple retrieval methods optimized for each data type and use case*.
+*Deterministic knowledge graph queries, no LLMs in retrieval path*.
 
 - **Event-Driven**
 
-*Built with Apache Pulsar for high-throughput and reliable messaging*.
+*All services communicate through Apache Pulsar topics rather than direct RPC.*
 
-- **Datastore Orchestration**
+- **Multi-Backend Storage**
 
-*Deploy stores like Apache Cassandra, Neo4j, Qdrant, Milvus, Memgraph, or FalkorDB for structured and unstructured data storage*.
+*Data storage with Apache Cassandra, Neo4j, Qdrant, Milvus, Memgraph, FalkorDB, and Pinecone*.
 
 - **Data Sovereignty**
 
@@ -63,23 +63,23 @@ TrustGraph is not just another AI framework but a complete, production-ready pla
 
 - **Private LLM Inferencing**
 
-*In addition to support for all major LLM APIs, deploy and manage open models connected to all of the agentic data infrastructure*.
+*Support for all major LLM APIs or deploy and manage open models directly integrated with the platform*.
 
-- **Agentic GraphRAG**
+- **Three-Dimensional Multi-Tenancy**
 
-*Deploy intelligent agents with context awareness. Bring your own ontology for easy integration into interconnected systems*.
+*3 layers of isolation with flows for processing logic, collections for data access, and tool groups for multi-agent.*
 
-- **Production Ready**
+- **Container-First**
 
-*Containerized deployment with Docker/Kubernetes support. Built for enterprise scale with monitoring, observability, and management*.
+*Containerized deployments with Docker or Kubernetes. Built for enterprise scale with monitoring, observability, and management*.
 
 - **MCP Integration**
 
 *Native support for MCP enables standardized agent communication with third-party tools and services while maintaining data sovereignty*.
 
-- **Full Stack Visibility**
+- **Observable by Design**
 
-*3D visualization of knowledge graphs. Grafana dashboard for observability*.
+*3D visualization of knowledge graphs. Prometheus metrics and Grafana dashboards track latency, throughput, costs, and errors*.
 
 ## Why TrustGraph?
 
