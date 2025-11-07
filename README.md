@@ -24,7 +24,6 @@ TrustGraph provides an event-driven data-to-AI platform that transforms raw data
 - [**Agentic MCP Demo**](#agentic-mcp-demo)<br>
 - [**Getting Started**](#getting-started)<br>
 - [**Configuration Builder**](#configuration-builder)<br>
-- [**Context Engineering**](#context-engineering)<br>
 - [**Knowledge Cores**](#knowledge-cores)<br>
 - [**Integrations**](#integrations)<br>
 - [**Observability & Telemetry**](#observability--telemetry)<br>
@@ -123,27 +122,17 @@ The **Workbench** is a UI that provides tools for interacting with all major fea
 - **Agent Tools**: Define tools used by the Agent Flow including MCP tools
 - **MCP Tools**: Connect to MCP servers
 
-## Context Engineering
-
-TrustGraph features a complete context engineering solution combinging the power of Knowledge Graphs and VectorDBs. Connect your data to automatically construct Knowledge Graphs with mapped Vector Embeddings to deliver richer and more accurate context to LLMs for trustworthy agents.
-
-- **Automated Knowledge Graph Construction:** Data Transformation Agents processes source data to automatically **extract key entities, topics, and the relationships** connecting them. Vector emebeddings are then mapped to these semantic relationships for context retrieval.
-- **Deterministic Graph Retrieval:** Semantic relationsips are retrieved from the knowledge graph *without* the use of LLMs. When an agent needs to perform deep research, it first performs a **cosine similarity search** on the vector embeddings to identify potentially relevant concepts and relationships within the knowledge graph. This initial vector search **pinpoints relevant entry points** within the structured Knowledge Graph which gets built into graph queries *without* LLMs that retrieve the relevant subgraphs.
-- **Context Generation via Subgraph Traversal:** Based on the ranked results from the similarity search, agents are provided with only the relevant subgraphs for **deep context**. Users can configure the **number of 'hops'** (relationship traversals) to extend the depth of knowledge availabe to the agents. This structured **subgraph**, containing entities and their relationships, forms a highly relevant and context-aware input prompt for the LLM that is endlessly configurable with options for the number of entities, relationships, and overall subgraph size.
-
 ## Knowledge Cores
 
-One of the biggest challenges currently facing RAG architectures is the ability to quickly reuse and integrate knowledge sets like long-term memory for LLMs. **TrustGraph** solves this problem by storing the results of the data ingestion process in reusable Knowledge Cores. Being able to store and reuse the Knowledge Cores means the data transformation process has to be run only once. These reusable Knowledge Cores can be loaded back into **TrustGraph** and used for GraphRAG. Some sample knowledge cores are available for download [here](https://github.com/trustgraph-ai/catalog/tree/master/v3).
+A challenge facing RAG architectures is the ability to quickly reuse and remove datasets from pipelines. **TrustGraph** stores the results of the data ingestion process in reusable Knowledge Cores. Knowledge cores can be loaded and removed during runtime. Some sample knowledge cores are [here](https://github.com/trustgraph-ai/catalog/tree/master/v3).
 
 A Knowledge Core has two components:
 
-- Set of Graph Edges
-- Set of mapped Vector Embeddings
-
-When a Knowledge Core is loaded into TrustGraph, the corresponding graph edges and vector embeddings are queued and loaded into the chosen graph and vector stores.
+- Knowledge graph triples
+- Vector embeddings mapped to the knowledge graph
 
 ## Integrations
-TrustGraph provides maximum flexibility so your agents are always powered by the latest and greatest components.
+TrustGraph provides maximum flexibility to avoid vendor lock-in.
 
 <details>
 <summary>LLM APIs</summary>
