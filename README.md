@@ -7,6 +7,8 @@
 
 [**Docs**](https://docs.trustgraph.ai) | [**YouTube**](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) | [**Configuration Builder**](https://config-ui.demo.trustgraph.ai/) | [**Discord**](https://discord.gg/sQMwkRz5GX) | [**Blog**](https://blog.trustgraph.ai/subscribe)
 
+<img src="TG-fullname-logo.svg" width=100% />
+
 </div>
 
 # AI-Ready Data Infrastructure
