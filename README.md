@@ -1,10 +1,5 @@
-# The Production Agentic Context Stack
 
 <div align="center">
-
-<img src="TG-hero-diagram.svg" width=100% />
-
----
 
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) ![E2E Tests](https://github.com/trustgraph-ai/trustgraph/actions/workflows/release.yaml/badge.svg)
 [![Discord](https://img.shields.io/discord/1251652173201149994
@@ -14,7 +9,9 @@
 
 </div>
 
-TrustGraph is a production-ready platform for building post-training agentic systems. Combine your domain data with LLMs through unified infrastructure: real-time data pipelines, knowledge graph construction, vector retrieval, and agent orchestration. Deploy locally or in any cloud. Complete data sovereignty. Built by engineers, for engineers.
+# AI-Ready Data Infrastructure
+
+TrustGraph provides an integrated data-to-AI platform that automatically transforms raw data into AI-ready datasets through automated structuring, knowledge graph construction, and vector embeddings—all deployable privately, on-prem, or in your cloud. You can deploy and manage your own LLMs within the same platform, ensuring your data never leaves your infrastructure while enabling agents that generate real, actionable insights.
 
 <details>
 <summary>Table of Contents</summary>
