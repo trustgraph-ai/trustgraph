@@ -8,6 +8,10 @@ embeddings service using LangChain's HuggingFaceEmbeddings.
 import pytest
 from unittest.mock import Mock, patch, AsyncMock
 from unittest import IsolatedAsyncioTestCase
+
+# Skip all tests in this module if trustgraph.embeddings.hf is not installed
+pytest.importorskip("trustgraph.embeddings.hf")
+
 from trustgraph.embeddings.hf.hf import Processor
 
 
