@@ -119,8 +119,8 @@ class TestPineconeDocEmbeddingsQueryProcessor:
         
         chunks = await processor.query_document_embeddings(message)
         
-        # Verify index was accessed correctly
-        expected_index_name = "d-test_user-test_collection"
+        # Verify index was accessed correctly (with dimension suffix)
+        expected_index_name = "d-test_user-test_collection-3"  # 3 dimensions
         processor.pinecone.Index.assert_called_once_with(expected_index_name)
         
         # Verify query parameters
@@ -264,10 +264,12 @@ class TestPineconeDocEmbeddingsQueryProcessor:
 
         chunks = await processor.query_document_embeddings(message)
 
-        # Verify same index used for both vectors
-        expected_index_name = "d-test_user-test_collection"
+        # Verify different indexes used for different dimensions
         assert processor.pinecone.Index.call_count == 2
-        processor.pinecone.Index.assert_called_with(expected_index_name)
+        index_calls = processor.pinecone.Index.call_args_list
+        index_names = [call[0][0] for call in index_calls]
+        assert "d-test_user-test_collection-2" in index_names  # 2D vector
+        assert "d-test_user-test_collection-4" in index_names  # 4D vector
 
         # Verify both queries were made
         assert mock_index.query.call_count == 2
