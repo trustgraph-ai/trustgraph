@@ -134,8 +134,8 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         with patch('uuid.uuid4', side_effect=['id1', 'id2']):
             await processor.store_graph_embeddings(message)
         
-        # Verify index name and operations
-        expected_index_name = "t-test_user-test_collection"
+        # Verify index name and operations (with dimension suffix)
+        expected_index_name = "t-test_user-test_collection-3"  # 3 dimensions
         processor.pinecone.Index.assert_called_with(expected_index_name)
         
         # Verify upsert was called for each vector
@@ -179,7 +179,7 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
 
     @pytest.mark.asyncio
     async def test_store_graph_embeddings_index_validation(self, processor):
-        """Test that writing to non-existent index raises ValueError"""
+        """Test that writing to non-existent index creates it lazily"""
         message = MagicMock()
         message.metadata = MagicMock()
         message.metadata.user = 'test_user'
@@ -193,9 +193,21 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
 
         # Mock index doesn't exist
         processor.pinecone.has_index.return_value = False
+        mock_index = MagicMock()
+        processor.pinecone.Index.return_value = mock_index
 
-        with pytest.raises(ValueError, match="Collection .* does not exist"):
+        with patch('uuid.uuid4', return_value='test-id'):
             await processor.store_graph_embeddings(message)
+
+        # Verify index was created with correct dimension
+        expected_index_name = "t-test_user-test_collection-3"  # 3 dimensions
+        processor.pinecone.create_index.assert_called_once()
+        create_call = processor.pinecone.create_index.call_args
+        assert create_call[1]['name'] == expected_index_name
+        assert create_call[1]['dimension'] == 3
+
+        # Verify upsert was still called
+        mock_index.upsert.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_store_graph_embeddings_empty_entity_value(self, processor):
@@ -267,11 +279,16 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         with patch('uuid.uuid4', side_effect=['id1', 'id2', 'id3']):
             await processor.store_graph_embeddings(message)
 
-        # Verify same index was used for all dimensions
-        expected_index_name = 't-test_user-test_collection'
-        processor.pinecone.Index.assert_called_with(expected_index_name)
+        # Verify different indexes were used for different dimensions
+        index_calls = processor.pinecone.Index.call_args_list
+        assert len(index_calls) == 3
+        # Extract index names from calls
+        index_names = [call[0][0] for call in index_calls]
+        assert 't-test_user-test_collection-2' in index_names  # 2D vector
+        assert 't-test_user-test_collection-4' in index_names  # 4D vector
+        assert 't-test_user-test_collection-3' in index_names  # 3D vector
 
-        # Verify all vectors were upserted to the same index
+        # Verify all vectors were upserted (to their respective indexes)
         assert mock_index.upsert.call_count == 3
 
     @pytest.mark.asyncio
@@ -316,7 +333,7 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
 
     @pytest.mark.asyncio
     async def test_store_graph_embeddings_validation_before_creation(self, processor):
-        """Test that validation error occurs before any creation attempts"""
+        """Test that lazy creation happens when index doesn't exist"""
         message = MagicMock()
         message.metadata = MagicMock()
         message.metadata.user = 'test_user'
@@ -330,13 +347,18 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
 
         # Mock index doesn't exist
         processor.pinecone.has_index.return_value = False
+        mock_index = MagicMock()
+        processor.pinecone.Index.return_value = mock_index
 
-        with pytest.raises(ValueError, match="Collection .* does not exist"):
+        with patch('uuid.uuid4', return_value='test-id'):
             await processor.store_graph_embeddings(message)
+
+        # Verify index was created
+        processor.pinecone.create_index.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_store_graph_embeddings_validates_before_timeout(self, processor):
-        """Test that validation error occurs before timeout checks"""
+        """Test that lazy creation works correctly"""
         message = MagicMock()
         message.metadata = MagicMock()
         message.metadata.user = 'test_user'
@@ -350,9 +372,15 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
 
         # Mock index doesn't exist
         processor.pinecone.has_index.return_value = False
+        mock_index = MagicMock()
+        processor.pinecone.Index.return_value = mock_index
 
-        with pytest.raises(ValueError, match="Collection .* does not exist"):
+        with patch('uuid.uuid4', return_value='test-id'):
             await processor.store_graph_embeddings(message)
+
+        # Verify index was created and used
+        processor.pinecone.create_index.assert_called_once()
+        mock_index.upsert.assert_called_once()
 
     def test_add_args_method(self):
         """Test that add_args properly configures argument parser"""
