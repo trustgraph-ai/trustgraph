@@ -64,7 +64,7 @@ class EmbeddingsService(FlowProcessor):
             logger.debug(f"Handling embeddings request {id}...")
 
             # Pass model from request if specified (non-empty), otherwise use default
-            model = request.model if request.model and request.model.strip() else None
+            model = flow("model")
             vectors = await self.on_embeddings(request.text, model=model)
 
             await flow("response").send(
