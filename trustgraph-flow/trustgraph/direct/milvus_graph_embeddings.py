@@ -50,24 +50,26 @@ class EntityVectors:
         logger.debug(f"Reload at {self.next_reload}")
 
     def collection_exists(self, user, collection):
-        """Check if collection exists (dimension-independent check)"""
-        collection_name = make_safe_collection_name(user, collection, self.prefix)
-        return self.client.has_collection(collection_name)
+        """
+        Check if any collection exists for this user/collection combination.
+        Since collections are dimension-specific, this checks if ANY dimension variant exists.
+        """
+        base_name = make_safe_collection_name(user, collection, self.prefix)
+        prefix = f"{base_name}_"
+        all_collections = self.client.list_collections()
+        return any(coll.startswith(prefix) for coll in all_collections)
 
     def create_collection(self, user, collection, dimension=384):
-        """Create collection with default dimension"""
-        collection_name = make_safe_collection_name(user, collection, self.prefix)
-
-        if self.client.has_collection(collection_name):
-            logger.info(f"Collection {collection_name} already exists")
-            return
-
-        self.init_collection(dimension, user, collection)
-        logger.info(f"Created Milvus collection {collection_name} with dimension {dimension}")
+        """
+        No-op for explicit collection creation.
+        Collections are created lazily on first insert with actual dimension.
+        """
+        logger.info(f"Collection creation requested for {user}/{collection} - will be created lazily on first insert")
 
     def init_collection(self, dimension, user, collection):
 
-        collection_name = make_safe_collection_name(user, collection, self.prefix)
+        base_name = make_safe_collection_name(user, collection, self.prefix)
+        collection_name = f"{base_name}_{dimension}"
 
         pkey_field = FieldSchema(
             name="id",
@@ -115,6 +117,7 @@ class EntityVectors:
         )
 
         self.collections[(dimension, user, collection)] = collection_name
+        logger.info(f"Created Milvus collection {collection_name} with dimension {dimension}")
 
     def insert(self, embeds, entity, user, collection):
 
@@ -139,8 +142,15 @@ class EntityVectors:
 
         dim = len(embeds)
 
+        # Check if collection exists - return empty if not
         if (dim, user, collection) not in self.collections:
-            self.init_collection(dim, user, collection)
+            base_name = make_safe_collection_name(user, collection, self.prefix)
+            collection_name = f"{base_name}_{dim}"
+            if not self.client.has_collection(collection_name):
+                logger.info(f"Collection {collection_name} does not exist, returning empty results")
+                return []
+            # Collection exists but not in cache, add it
+            self.collections[(dim, user, collection)] = collection_name
 
         coll = self.collections[(dim, user, collection)]
 
@@ -172,19 +182,27 @@ class EntityVectors:
         return res
 
     def delete_collection(self, user, collection):
-        """Delete a collection for the given user and collection"""
-        collection_name = make_safe_collection_name(user, collection, self.prefix)
+        """
+        Delete all dimension variants of the collection for the given user/collection.
+        Since collections are created with dimension suffixes, we need to find and delete all.
+        """
+        base_name = make_safe_collection_name(user, collection, self.prefix)
+        prefix = f"{base_name}_"
 
-        # Check if collection exists
-        if self.client.has_collection(collection_name):
-            # Drop the collection
-            self.client.drop_collection(collection_name)
-            logger.info(f"Deleted Milvus collection: {collection_name}")
+        # Get all collections and filter for matches
+        all_collections = self.client.list_collections()
+        matching_collections = [coll for coll in all_collections if coll.startswith(prefix)]
 
-            # Remove from our local cache
-            keys_to_remove = [key for key in self.collections.keys() if key[1] == user and key[2] == collection]
-            for key in keys_to_remove:
-                del self.collections[key]
+        if not matching_collections:
+            logger.info(f"No collections found matching prefix {prefix}")
         else:
-            logger.info(f"Collection {collection_name} does not exist, nothing to delete")
+            for collection_name in matching_collections:
+                self.client.drop_collection(collection_name)
+                logger.info(f"Deleted Milvus collection: {collection_name}")
+            logger.info(f"Deleted {len(matching_collections)} collection(s) for {user}/{collection}")
+
+        # Remove from our local cache
+        keys_to_remove = [key for key in self.collections.keys() if key[1] == user and key[2] == collection]
+        for key in keys_to_remove:
+            del self.collections[key]
 

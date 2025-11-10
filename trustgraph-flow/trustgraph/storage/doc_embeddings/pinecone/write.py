@@ -123,19 +123,6 @@ class Processor(DocumentEmbeddingsStoreService):
 
     async def store_document_embeddings(self, message):
 
-        index_name = (
-            "d-" + message.metadata.user + "-" + message.metadata.collection
-        )
-
-        # Validate collection exists before accepting writes
-        if not self.pinecone.has_index(index_name):
-            error_msg = (
-                f"Collection {message.metadata.collection} does not exist. "
-                f"Create it first with tg-set-collection."
-            )
-            logger.error(error_msg)
-            raise ValueError(error_msg)
-
         for emb in message.chunks:
 
             if emb.chunk is None or emb.chunk == b"": continue
@@ -144,6 +131,17 @@ class Processor(DocumentEmbeddingsStoreService):
             if chunk == "": continue
 
             for vec in emb.vectors:
+
+                # Create index name with dimension suffix for lazy creation
+                dim = len(vec)
+                index_name = (
+                    f"d-{message.metadata.user}-{message.metadata.collection}-{dim}"
+                )
+
+                # Lazily create index if it doesn't exist
+                if not self.pinecone.has_index(index_name):
+                    logger.info(f"Lazily creating Pinecone index {index_name} with dimension {dim}")
+                    self.create_index(index_name, dim)
 
                 index = self.pinecone.Index(index_name)
 
@@ -220,23 +218,19 @@ class Processor(DocumentEmbeddingsStoreService):
             await self.storage_response_producer.send(response)
 
     async def handle_create_collection(self, request):
-        """Create a Pinecone index for document embeddings"""
+        """
+        No-op for collection creation - indexes are created lazily on first write
+        with the correct dimension determined from the actual embeddings.
+        """
         try:
-            index_name = f"d-{request.user}-{request.collection}"
-
-            if self.pinecone.has_index(index_name):
-                logger.info(f"Pinecone index {index_name} already exists")
-            else:
-                # Create with default dimension - will need to be recreated if dimension doesn't match
-                self.create_index(index_name, dim=384)
-                logger.info(f"Created Pinecone index: {index_name}")
+            logger.info(f"Collection create request for {request.user}/{request.collection} - will be created lazily on first write")
 
             # Send success response
             response = StorageManagementResponse(error=None)
             await self.storage_response_producer.send(response)
 
         except Exception as e:
-            logger.error(f"Failed to create collection: {e}", exc_info=True)
+            logger.error(f"Failed to handle create collection request: {e}", exc_info=True)
             response = StorageManagementResponse(
                 error=Error(
                     type="creation_error",
@@ -246,22 +240,34 @@ class Processor(DocumentEmbeddingsStoreService):
             await self.storage_response_producer.send(response)
 
     async def handle_delete_collection(self, request):
-        """Delete the collection for document embeddings"""
+        """
+        Delete all dimension variants of the index for document embeddings.
+        Since indexes are created with dimension suffixes (e.g., d-user-coll-384),
+        we need to find and delete all matching indexes.
+        """
         try:
-            index_name = f"d-{request.user}-{request.collection}"
+            prefix = f"d-{request.user}-{request.collection}-"
 
-            if self.pinecone.has_index(index_name):
-                self.pinecone.delete_index(index_name)
-                logger.info(f"Deleted Pinecone index: {index_name}")
+            # Get all indexes and filter for matches
+            all_indexes = self.pinecone.list_indexes()
+            matching_indexes = [
+                idx.name for idx in all_indexes
+                if idx.name.startswith(prefix)
+            ]
+
+            if not matching_indexes:
+                logger.info(f"No indexes found matching prefix {prefix}")
             else:
-                logger.info(f"Index {index_name} does not exist, nothing to delete")
+                for index_name in matching_indexes:
+                    self.pinecone.delete_index(index_name)
+                    logger.info(f"Deleted Pinecone index: {index_name}")
+                logger.info(f"Deleted {len(matching_indexes)} index(es) for {request.user}/{request.collection}")
 
             # Send success response
             response = StorageManagementResponse(
                 error=None  # No error means success
             )
             await self.storage_response_producer.send(response)
-            logger.info(f"Successfully deleted collection {request.user}/{request.collection}")
 
         except Exception as e:
             logger.error(f"Failed to delete collection: {e}")

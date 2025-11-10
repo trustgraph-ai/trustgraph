@@ -38,28 +38,6 @@ class Processor(DocumentEmbeddingsQueryService):
         )
 
         self.qdrant = QdrantClient(url=store_uri, api_key=api_key)
-        self.last_collection = None
-
-    def ensure_collection_exists(self, collection, dim):
-        """Ensure collection exists, create if it doesn't"""
-        if collection != self.last_collection:
-            if not self.qdrant.collection_exists(collection):
-                try:
-                    self.qdrant.create_collection(
-                        collection_name=collection,
-                        vectors_config=VectorParams(
-                            size=dim, distance=Distance.COSINE
-                        ),
-                    )
-                    logger.info(f"Created collection: {collection}")
-                except Exception as e:
-                    logger.error(f"Qdrant collection creation failed: {e}")
-                    raise e
-            self.last_collection = collection
-
-    def collection_exists(self, collection):
-        """Check if collection exists (no implicit creation)"""
-        return self.qdrant.collection_exists(collection)
 
     def collection_exists(self, collection):
         """Check if collection exists (no implicit creation)"""
@@ -71,16 +49,17 @@ class Processor(DocumentEmbeddingsQueryService):
 
             chunks = []
 
-            collection = (
-                "d_" + msg.user + "_" + msg.collection
-            )
-
-            # Check if collection exists - return empty if not
-            if not self.collection_exists(collection):
-                logger.info(f"Collection {collection} does not exist, returning empty results")
-                return []
-
             for vec in msg.vectors:
+
+                # Use dimension suffix in collection name
+                dim = len(vec)
+                collection = f"d_{msg.user}_{msg.collection}_{dim}"
+
+                # Check if collection exists - return empty if not
+                if not self.collection_exists(collection):
+                    logger.info(f"Collection {collection} does not exist, returning empty results")
+                    continue
+
                 search_result = self.qdrant.query_points(
                     collection_name=collection,
                     query=vec,

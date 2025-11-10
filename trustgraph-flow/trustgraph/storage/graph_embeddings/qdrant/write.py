@@ -69,22 +69,6 @@ class Processor(GraphEmbeddingsStoreService):
                 metrics=storage_response_metrics,
             )
 
-    def get_collection(self, user, collection):
-        """Get collection name and validate it exists"""
-        cname = (
-            "t_" + user + "_" + collection
-        )
-
-        if not self.qdrant.collection_exists(cname):
-            error_msg = (
-                f"Collection {collection} does not exist. "
-                f"Create it first with tg-set-collection."
-            )
-            logger.error(error_msg)
-            raise ValueError(error_msg)
-
-        return cname
-
     async def start(self):
         """Start the processor and its storage management consumer"""
         await super().start()
@@ -101,9 +85,22 @@ class Processor(GraphEmbeddingsStoreService):
 
             for vec in entity.vectors:
 
-                collection = self.get_collection(
-                    message.metadata.user, message.metadata.collection
+                # Create collection name with dimension suffix for lazy creation
+                dim = len(vec)
+                collection = (
+                    f"t_{message.metadata.user}_{message.metadata.collection}_{dim}"
                 )
+
+                # Lazily create collection if it doesn't exist
+                if not self.qdrant.collection_exists(collection):
+                    logger.info(f"Lazily creating Qdrant collection {collection} with dimension {dim}")
+                    self.qdrant.create_collection(
+                        collection_name=collection,
+                        vectors_config=VectorParams(
+                            size=dim,
+                            distance=Distance.COSINE
+                        )
+                    )
 
                 self.qdrant.upsert(
                     collection_name=collection,
@@ -165,30 +162,19 @@ class Processor(GraphEmbeddingsStoreService):
             await self.storage_response_producer.send(response)
 
     async def handle_create_collection(self, request):
-        """Create a Qdrant collection for graph embeddings"""
+        """
+        No-op for collection creation - collections are created lazily on first write
+        with the correct dimension determined from the actual embeddings.
+        """
         try:
-            collection_name = f"t_{request.user}_{request.collection}"
-
-            if self.qdrant.collection_exists(collection_name):
-                logger.info(f"Qdrant collection {collection_name} already exists")
-            else:
-                # Create collection with default dimension (will be recreated with correct dim on first write if needed)
-                # Using a placeholder dimension - actual dimension determined by first embedding
-                self.qdrant.create_collection(
-                    collection_name=collection_name,
-                    vectors_config=VectorParams(
-                        size=384,  # Default dimension, common for many models
-                        distance=Distance.COSINE
-                    )
-                )
-                logger.info(f"Created Qdrant collection: {collection_name}")
+            logger.info(f"Collection create request for {request.user}/{request.collection} - will be created lazily on first write")
 
             # Send success response
             response = StorageManagementResponse(error=None)
             await self.storage_response_producer.send(response)
 
         except Exception as e:
-            logger.error(f"Failed to create collection: {e}", exc_info=True)
+            logger.error(f"Failed to handle create collection request: {e}", exc_info=True)
             response = StorageManagementResponse(
                 error=Error(
                     type="creation_error",
@@ -198,22 +184,34 @@ class Processor(GraphEmbeddingsStoreService):
             await self.storage_response_producer.send(response)
 
     async def handle_delete_collection(self, request):
-        """Delete the collection for graph embeddings"""
+        """
+        Delete all dimension variants of the collection for graph embeddings.
+        Since collections are created with dimension suffixes (e.g., t_user_coll_384),
+        we need to find and delete all matching collections.
+        """
         try:
-            collection_name = f"t_{request.user}_{request.collection}"
+            prefix = f"t_{request.user}_{request.collection}_"
 
-            if self.qdrant.collection_exists(collection_name):
-                self.qdrant.delete_collection(collection_name)
-                logger.info(f"Deleted Qdrant collection: {collection_name}")
+            # Get all collections and filter for matches
+            all_collections = self.qdrant.get_collections().collections
+            matching_collections = [
+                coll.name for coll in all_collections
+                if coll.name.startswith(prefix)
+            ]
+
+            if not matching_collections:
+                logger.info(f"No collections found matching prefix {prefix}")
             else:
-                logger.info(f"Collection {collection_name} does not exist, nothing to delete")
+                for collection_name in matching_collections:
+                    self.qdrant.delete_collection(collection_name)
+                    logger.info(f"Deleted Qdrant collection: {collection_name}")
+                logger.info(f"Deleted {len(matching_collections)} collection(s) for {request.user}/{request.collection}")
 
             # Send success response
             response = StorageManagementResponse(
                 error=None  # No error means success
             )
             await self.storage_response_producer.send(response)
-            logger.info(f"Successfully deleted collection {request.user}/{request.collection}")
 
         except Exception as e:
             logger.error(f"Failed to delete collection: {e}")
