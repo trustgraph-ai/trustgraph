@@ -134,8 +134,8 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         with patch('uuid.uuid4', side_effect=['id1', 'id2']):
             await processor.store_document_embeddings(message)
         
-        # Verify index name and operations
-        expected_index_name = "d-test_user-test_collection"
+        # Verify index name and operations (with dimension suffix)
+        expected_index_name = "d-test_user-test_collection-3"  # 3 dimensions
         processor.pinecone.Index.assert_called_with(expected_index_name)
         
         # Verify upsert was called for each vector

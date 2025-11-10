@@ -234,9 +234,9 @@ class TestQdrantGraphEmbeddingsQuery(IsolatedAsyncioTestCase):
         # Assert
         # Verify query was called twice
         assert mock_qdrant_instance.query_points.call_count == 2
-        
-        # Verify both collections were queried
-        expected_collection = 't_multi_user_multi_collection'
+
+        # Verify both collections were queried (both 2-dimensional vectors)
+        expected_collection = 't_multi_user_multi_collection_2'  # 2 dimensions
         calls = mock_qdrant_instance.query_points.call_args_list
         assert calls[0][1]['collection_name'] == expected_collection
         assert calls[1][1]['collection_name'] == expected_collection
@@ -372,13 +372,13 @@ class TestQdrantGraphEmbeddingsQuery(IsolatedAsyncioTestCase):
         # Verify query was called twice with different collections
         assert mock_qdrant_instance.query_points.call_count == 2
         calls = mock_qdrant_instance.query_points.call_args_list
-        
+
         # First call should use 2D collection
-        assert calls[0][1]['collection_name'] == 't_dim_user_dim_collection'
+        assert calls[0][1]['collection_name'] == 't_dim_user_dim_collection_2'  # 2 dimensions
         assert calls[0][1]['query'] == [0.1, 0.2]
-        
+
         # Second call should use 3D collection
-        assert calls[1][1]['collection_name'] == 't_dim_user_dim_collection'
+        assert calls[1][1]['collection_name'] == 't_dim_user_dim_collection_3'  # 3 dimensions
         assert calls[1][1]['query'] == [0.3, 0.4, 0.5]
         
         # Verify results
