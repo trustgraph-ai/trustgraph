@@ -9,7 +9,7 @@ from prometheus_client import Histogram
 
 from .. schema import EmbeddingsRequest, EmbeddingsResponse, Error
 from .. exceptions import TooManyRequests
-from .. base import FlowProcessor, ConsumerSpec, ProducerSpec
+from .. base import FlowProcessor, ConsumerSpec, ProducerSpec, ParameterSpec
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -45,6 +45,12 @@ class EmbeddingsService(FlowProcessor):
             )
         )
 
+        self.register_specification(
+            ParameterSpec(
+                name = "model",
+            )
+        )
+
     async def on_request(self, msg, consumer, flow):
 
         try:
@@ -57,7 +63,9 @@ class EmbeddingsService(FlowProcessor):
 
             logger.debug(f"Handling embeddings request {id}...")
 
-            vectors = await self.on_embeddings(request.text)
+            # Pass model from request if specified (non-empty), otherwise use default
+            model = request.model if request.model and request.model.strip() else None
+            vectors = await self.on_embeddings(request.text, model=model)
 
             await flow("response").send(
                 EmbeddingsResponse(

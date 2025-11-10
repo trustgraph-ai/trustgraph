@@ -25,6 +25,7 @@ class TextCompletionResponse(Record):
 
 class EmbeddingsRequest(Record):
     text = String()
+    model = String(required=False, default="")  # Optional model name to use for this request
 
 class EmbeddingsResponse(Record):
     error = Error()

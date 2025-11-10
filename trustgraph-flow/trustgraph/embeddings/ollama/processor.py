@@ -28,12 +28,14 @@ class Processor(EmbeddingsService):
         )
 
         self.client = Client(host=ollama)
-        self.model = model
+        self.default_model = model
 
-    async def on_embeddings(self, text):
+    async def on_embeddings(self, text, model=None):
+
+        use_model = model or self.default_model
 
         embeds = self.client.embed(
-            model = self.model,
+            model = use_model,
             input = text
         )
 
