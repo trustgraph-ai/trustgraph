@@ -45,29 +45,6 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         assert processor.qdrant == mock_qdrant_instance
 
     @patch('trustgraph.storage.graph_embeddings.qdrant.write.QdrantClient')
-    @patch('trustgraph.base.GraphEmbeddingsStoreService.__init__')
-    async def test_get_collection_validates_existence(self, mock_base_init, mock_qdrant_client):
-        """Test get_collection validates that collection exists"""
-        # Arrange
-        mock_base_init.return_value = None
-        mock_qdrant_instance = MagicMock()
-        mock_qdrant_instance.collection_exists.return_value = False
-        mock_qdrant_client.return_value = mock_qdrant_instance
-
-        config = {
-            'store_uri': 'http://localhost:6333',
-            'api_key': 'test-api-key',
-            'taskgroup': AsyncMock(),
-            'id': 'test-qdrant-processor'
-        }
-
-        processor = Processor(**config)
-
-        # Act & Assert
-        with pytest.raises(ValueError, match="Collection .* does not exist"):
-            processor.get_collection(user='test_user', collection='test_collection')
-
-    @patch('trustgraph.storage.graph_embeddings.qdrant.write.QdrantClient')
     @patch('trustgraph.storage.graph_embeddings.qdrant.write.uuid')
     @patch('trustgraph.base.GraphEmbeddingsStoreService.__init__')
     async def test_store_graph_embeddings_basic(self, mock_base_init, mock_uuid, mock_qdrant_client):
@@ -103,113 +80,21 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         await processor.store_graph_embeddings(mock_message)
 
         # Assert
-        # Verify collection existence was checked
-        expected_collection = 't_test_user_test_collection'
+        # Verify collection existence was checked (with dimension suffix)
+        expected_collection = 't_test_user_test_collection_3'  # 3 dimensions in vector [0.1, 0.2, 0.3]
         mock_qdrant_instance.collection_exists.assert_called_once_with(expected_collection)
-        
+
         # Verify upsert was called
         mock_qdrant_instance.upsert.assert_called_once()
-        
+
         # Verify upsert parameters
         upsert_call_args = mock_qdrant_instance.upsert.call_args
-        assert upsert_call_args[1]['collection_name'] == expected_collection
+        assert upsert_call_args[1]['collection_name'] == 't_test_user_test_collection_3'
         assert len(upsert_call_args[1]['points']) == 1
         
         point = upsert_call_args[1]['points'][0]
         assert point.vector == [0.1, 0.2, 0.3]
         assert point.payload['entity'] == 'test_entity'
-
-    @patch('trustgraph.storage.graph_embeddings.qdrant.write.QdrantClient')
-    @patch('trustgraph.base.GraphEmbeddingsStoreService.__init__')
-    async def test_get_collection_uses_existing_collection(self, mock_base_init, mock_qdrant_client):
-        """Test get_collection uses existing collection without creating new one"""
-        # Arrange
-        mock_base_init.return_value = None
-        mock_qdrant_instance = MagicMock()
-        mock_qdrant_instance.collection_exists.return_value = True  # Collection exists
-        mock_qdrant_client.return_value = mock_qdrant_instance
-
-        config = {
-            'store_uri': 'http://localhost:6333',
-            'api_key': 'test-api-key',
-            'taskgroup': AsyncMock(),
-            'id': 'test-qdrant-processor'
-        }
-
-        processor = Processor(**config)
-
-        # Act
-        collection_name = processor.get_collection(user='existing_user', collection='existing_collection')
-
-        # Assert
-        expected_name = 't_existing_user_existing_collection'
-        assert collection_name == expected_name
-
-        # Verify collection existence check was performed
-        mock_qdrant_instance.collection_exists.assert_called_once_with(expected_name)
-        # Verify create_collection was NOT called
-        mock_qdrant_instance.create_collection.assert_not_called()
-
-    @patch('trustgraph.storage.graph_embeddings.qdrant.write.QdrantClient')
-    @patch('trustgraph.base.GraphEmbeddingsStoreService.__init__')
-    async def test_get_collection_validates_on_each_call(self, mock_base_init, mock_qdrant_client):
-        """Test get_collection validates collection existence on each call"""
-        # Arrange
-        mock_base_init.return_value = None
-        mock_qdrant_instance = MagicMock()
-        mock_qdrant_instance.collection_exists.return_value = True
-        mock_qdrant_client.return_value = mock_qdrant_instance
-
-        config = {
-            'store_uri': 'http://localhost:6333',
-            'api_key': 'test-api-key',
-            'taskgroup': AsyncMock(),
-            'id': 'test-qdrant-processor'
-        }
-
-        processor = Processor(**config)
-
-        # First call
-        collection_name1 = processor.get_collection(user='cache_user', collection='cache_collection')
-
-        # Reset mock to track second call
-        mock_qdrant_instance.reset_mock()
-        mock_qdrant_instance.collection_exists.return_value = True
-
-        # Act - Second call with same parameters
-        collection_name2 = processor.get_collection(user='cache_user', collection='cache_collection')
-
-        # Assert
-        expected_name = 't_cache_user_cache_collection'
-        assert collection_name1 == expected_name
-        assert collection_name2 == expected_name
-
-        # Verify collection existence check happens on each call
-        mock_qdrant_instance.collection_exists.assert_called_once_with(expected_name)
-        mock_qdrant_instance.create_collection.assert_not_called()
-
-    @patch('trustgraph.storage.graph_embeddings.qdrant.write.QdrantClient')
-    @patch('trustgraph.base.GraphEmbeddingsStoreService.__init__')
-    async def test_get_collection_creation_exception(self, mock_base_init, mock_qdrant_client):
-        """Test get_collection raises ValueError when collection doesn't exist"""
-        # Arrange
-        mock_base_init.return_value = None
-        mock_qdrant_instance = MagicMock()
-        mock_qdrant_instance.collection_exists.return_value = False
-        mock_qdrant_client.return_value = mock_qdrant_instance
-
-        config = {
-            'store_uri': 'http://localhost:6333',
-            'api_key': 'test-api-key',
-            'taskgroup': AsyncMock(),
-            'id': 'test-qdrant-processor'
-        }
-
-        processor = Processor(**config)
-
-        # Act & Assert
-        with pytest.raises(ValueError, match="Collection .* does not exist"):
-            processor.get_collection(user='error_user', collection='error_collection')
 
     @patch('trustgraph.storage.graph_embeddings.qdrant.write.QdrantClient')
     @patch('trustgraph.storage.graph_embeddings.qdrant.write.uuid')

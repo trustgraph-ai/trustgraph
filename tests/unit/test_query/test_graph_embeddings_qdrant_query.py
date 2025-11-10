@@ -175,8 +175,8 @@ class TestQdrantGraphEmbeddingsQuery(IsolatedAsyncioTestCase):
         result = await processor.query_graph_embeddings(mock_message)
 
         # Assert
-        # Verify query was called with correct parameters
-        expected_collection = 't_test_user_test_collection'
+        # Verify query was called with correct parameters (with dimension suffix)
+        expected_collection = 't_test_user_test_collection_3'  # 3 dimensions
         mock_qdrant_instance.query_points.assert_called_once_with(
             collection_name=expected_collection,
             query=[0.1, 0.2, 0.3],

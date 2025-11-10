@@ -103,8 +103,8 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         result = await processor.query_document_embeddings(mock_message)
 
         # Assert
-        # Verify query was called with correct parameters
-        expected_collection = 'd_test_user_test_collection'
+        # Verify query was called with correct parameters (with dimension suffix)
+        expected_collection = 'd_test_user_test_collection_3'  # 3 dimensions
         mock_qdrant_instance.query_points.assert_called_once_with(
             collection_name=expected_collection,
             query=[0.1, 0.2, 0.3],
@@ -164,9 +164,9 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         # Assert
         # Verify query was called twice
         assert mock_qdrant_instance.query_points.call_count == 2
-        
-        # Verify both collections were queried
-        expected_collection = 'd_multi_user_multi_collection'
+
+        # Verify both collections were queried (both 2-dimensional vectors)
+        expected_collection = 'd_multi_user_multi_collection_2'  # 2 dimensions
         calls = mock_qdrant_instance.query_points.call_args_list
         assert calls[0][1]['collection_name'] == expected_collection
         assert calls[1][1]['collection_name'] == expected_collection
@@ -301,13 +301,13 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         # Verify query was called twice with different collections
         assert mock_qdrant_instance.query_points.call_count == 2
         calls = mock_qdrant_instance.query_points.call_args_list
-        
+
         # First call should use 2D collection
-        assert calls[0][1]['collection_name'] == 'd_dim_user_dim_collection'
+        assert calls[0][1]['collection_name'] == 'd_dim_user_dim_collection_2'  # 2 dimensions
         assert calls[0][1]['query'] == [0.1, 0.2]
-        
+
         # Second call should use 3D collection
-        assert calls[1][1]['collection_name'] == 'd_dim_user_dim_collection'
+        assert calls[1][1]['collection_name'] == 'd_dim_user_dim_collection_3'  # 3 dimensions
         assert calls[1][1]['query'] == [0.3, 0.4, 0.5]
         
         # Verify results
