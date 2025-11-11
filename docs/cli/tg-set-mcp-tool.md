@@ -3,12 +3,12 @@
 ## Synopsis
 
 ```
-tg-set-mcp-tool [OPTIONS] --name NAME --tool-url URL
+tg-set-mcp-tool [OPTIONS] --id ID --tool-url URL [--auth-token TOKEN]
 ```
 
 ## Description
 
-The `tg-set-mcp-tool` command configures and registers MCP (Model Control Protocol) tools in the TrustGraph system. It allows defining MCP tool configurations with name and URL. Tools are stored in the 'mcp' configuration group for discovery and execution.
+The `tg-set-mcp-tool` command configures and registers MCP (Model Control Protocol) tools in the TrustGraph system. It allows defining MCP tool configurations with id, URL, and optional authentication token. Tools are stored in the 'mcp' configuration group for discovery and execution.
 
 This command is useful for:
 - Registering MCP tool endpoints for agent use
@@ -25,15 +25,26 @@ The command stores MCP tool configurations in the 'mcp' configuration group, sep
   - Default: `http://localhost:8088/` (or `TRUSTGRAPH_URL` environment variable)
   - Should point to a running TrustGraph API instance
 
-- `--name NAME`
-  - **Required.** MCP tool name identifier
+- `-i, --id ID`
+  - **Required.** MCP tool identifier
   - Used to reference the MCP tool in configurations
   - Must be unique within the MCP tool registry
+
+- `-r, --remote-name NAME`
+  - **Optional.** Remote MCP tool name used by the MCP server
+  - If not specified, defaults to the value of `--id`
+  - Use when the MCP server expects a different tool name
 
 - `--tool-url URL`
   - **Required.** MCP tool URL endpoint
   - Should point to the MCP server endpoint providing the tool functionality
   - Must be a valid URL accessible by the TrustGraph system
+
+- `--auth-token TOKEN`
+  - **Optional.** Bearer token for authentication
+  - Used to authenticate with secured MCP endpoints
+  - Token is sent as `Authorization: Bearer {TOKEN}` header
+  - Stored in plaintext in configuration (see Security Considerations)
 
 - `-h, --help`
   - Show help message and exit
@@ -44,22 +55,40 @@ The command stores MCP tool configurations in the 'mcp' configuration group, sep
 
 Register a weather service MCP tool:
 ```bash
-tg-set-mcp-tool --name weather --tool-url "http://localhost:3000/weather"
+tg-set-mcp-tool --id weather --tool-url "http://localhost:3000/weather"
 ```
 
 ### Calculator MCP Tool
 
 Register a calculator MCP tool:
 ```bash
-tg-set-mcp-tool --name calculator --tool-url "http://mcp-tools.example.com/calc"
+tg-set-mcp-tool --id calculator --tool-url "http://mcp-tools.example.com/calc"
 ```
 
 ### Remote MCP Service
 
 Register a remote MCP service:
 ```bash
-tg-set-mcp-tool --name document-processor \
+tg-set-mcp-tool --id document-processor \
                 --tool-url "https://api.example.com/mcp/documents"
+```
+
+### Secured MCP Tool with Authentication
+
+Register an MCP tool that requires bearer token authentication:
+```bash
+tg-set-mcp-tool --id secure-tool \
+                --tool-url "https://api.example.com/mcp" \
+                --auth-token "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+### MCP Tool with Remote Name
+
+Register an MCP tool where the server uses a different name:
+```bash
+tg-set-mcp-tool --id my-weather \
+                --remote-name weather_v2 \
+                --tool-url "http://weather-server:3000/api"
 ```
 
 ### Custom API URL
@@ -67,28 +96,52 @@ tg-set-mcp-tool --name document-processor \
 Register MCP tool with custom TrustGraph API:
 ```bash
 tg-set-mcp-tool -u http://trustgraph.example.com:8088/ \
-                --name custom-mcp --tool-url "http://custom.mcp.com/api"
+                --id custom-mcp --tool-url "http://custom.mcp.com/api"
 ```
 
 ### Local Development Setup
 
 Register MCP tools for local development:
 ```bash
-tg-set-mcp-tool --name dev-tool --tool-url "http://localhost:8080/mcp"
+tg-set-mcp-tool --id dev-tool --tool-url "http://localhost:8080/mcp"
+```
+
+### Production Setup with Authentication
+
+Register authenticated MCP tools for production:
+```bash
+# Using environment variable for token
+export MCP_AUTH_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+tg-set-mcp-tool --id prod-tool \
+                --tool-url "https://prod-mcp.example.com/api" \
+                --auth-token "$MCP_AUTH_TOKEN"
 ```
 
 ## MCP Tool Configuration
 
-MCP tools are configured with minimal metadata:
+MCP tools are configured with the following metadata:
 
-- **name**: Unique identifier for the tool
+- **id**: Unique identifier for the tool (configuration key)
+- **remote-name**: Name used by the MCP server (optional, defaults to id)
 - **url**: Endpoint URL for the MCP server
+- **auth-token**: Bearer token for authentication (optional)
 
 The configuration is stored as JSON in the 'mcp' configuration group:
+
+**Basic configuration:**
 ```json
 {
-  "name": "weather",
+  "remote-name": "weather",
   "url": "http://localhost:3000/weather"
+}
+```
+
+**Configuration with authentication:**
+```json
+{
+  "remote-name": "secure-tool",
+  "url": "https://api.example.com/mcp",
+  "auth-token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 }
 ```
 
@@ -99,7 +152,15 @@ The configuration is stored as JSON in the 'mcp' configuration group:
 Update an existing MCP tool configuration:
 ```bash
 # Update MCP tool URL
-tg-set-mcp-tool --name weather --tool-url "http://new-weather-server:3000/api"
+tg-set-mcp-tool --id weather --tool-url "http://new-weather-server:3000/api"
+
+# Add authentication to existing tool
+tg-set-mcp-tool --id weather \
+                --tool-url "http://weather-server:3000/api" \
+                --auth-token "new-token-here"
+
+# Remove authentication (by setting tool without auth-token)
+tg-set-mcp-tool --id weather --tool-url "http://weather-server:3000/api"
 ```
 
 ### Batch MCP Tool Registration
@@ -108,22 +169,33 @@ Register multiple MCP tools in a script:
 ```bash
 #!/bin/bash
 # Register a suite of MCP tools
-tg-set-mcp-tool --name search --tool-url "http://search-mcp:3000/api"
-tg-set-mcp-tool --name translate --tool-url "http://translate-mcp:3000/api"
-tg-set-mcp-tool --name summarize --tool-url "http://summarize-mcp:3000/api"
+tg-set-mcp-tool --id search --tool-url "http://search-mcp:3000/api"
+tg-set-mcp-tool --id translate --tool-url "http://translate-mcp:3000/api"
+tg-set-mcp-tool --id summarize --tool-url "http://summarize-mcp:3000/api"
+
+# Register secured tools with authentication
+tg-set-mcp-tool --id secure-search \
+                --tool-url "https://secure-search:3000/api" \
+                --auth-token "$SEARCH_TOKEN"
+tg-set-mcp-tool --id secure-translate \
+                --tool-url "https://secure-translate:3000/api" \
+                --auth-token "$TRANSLATE_TOKEN"
 ```
 
 ### Environment-Specific Configuration
 
 Configure MCP tools for different environments:
 ```bash
-# Development environment
+# Development environment (no auth)
 export TRUSTGRAPH_URL="http://dev.trustgraph.com:8088/"
-tg-set-mcp-tool --name dev-mcp --tool-url "http://dev.mcp.com/api"
+tg-set-mcp-tool --id dev-mcp --tool-url "http://dev.mcp.com/api"
 
-# Production environment
+# Production environment (with auth)
 export TRUSTGRAPH_URL="http://prod.trustgraph.com:8088/"
-tg-set-mcp-tool --name prod-mcp --tool-url "http://prod.mcp.com/api"
+export PROD_MCP_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+tg-set-mcp-tool --id prod-mcp \
+                --tool-url "https://prod.mcp.com/api" \
+                --auth-token "$PROD_MCP_TOKEN"
 ```
 
 ### MCP Tool Validation
@@ -131,10 +203,10 @@ tg-set-mcp-tool --name prod-mcp --tool-url "http://prod.mcp.com/api"
 Verify MCP tool registration:
 ```bash
 # Register MCP tool and verify
-tg-set-mcp-tool --name test-mcp --tool-url "http://test.mcp.com/api"
+tg-set-mcp-tool --id test-mcp --tool-url "http://test.mcp.com/api"
 
-# Check if MCP tool was registered
-tg-show-mcp-tools | grep test-mcp
+# Check if MCP tool was registered and view auth status
+tg-show-mcp-tools
 ```
 
 ## Error Handling
@@ -149,15 +221,15 @@ The command handles various error conditions:
 Common error scenarios:
 ```bash
 # Missing required field
-tg-set-mcp-tool --name tool1
+tg-set-mcp-tool --id tool1
 # Output: Exception: Must specify --tool-url for MCP tool
 
-# Missing name
+# Missing id
 tg-set-mcp-tool --tool-url "http://example.com/mcp"
-# Output: Exception: Must specify --name for MCP tool
+# Output: Exception: Must specify --id for MCP tool
 
 # Invalid API URL
-tg-set-mcp-tool -u "invalid-url" --name tool1 --tool-url "http://mcp.com"
+tg-set-mcp-tool -u "invalid-url" --id tool1 --tool-url "http://mcp.com"
 # Output: Exception: [API connection error]
 ```
 
@@ -168,9 +240,9 @@ tg-set-mcp-tool -u "invalid-url" --name tool1 --tool-url "http://mcp.com"
 View registered MCP tools:
 ```bash
 # Register MCP tool
-tg-set-mcp-tool --name new-mcp --tool-url "http://new.mcp.com/api"
+tg-set-mcp-tool --id new-mcp --tool-url "http://new.mcp.com/api"
 
-# View all MCP tools
+# View all MCP tools (shows auth status)
 tg-show-mcp-tools
 ```
 
@@ -178,11 +250,13 @@ tg-show-mcp-tools
 
 Use MCP tools in agent workflows:
 ```bash
-# Register MCP tool
-tg-set-mcp-tool --name weather --tool-url "http://weather.mcp.com/api"
+# Register MCP tool with authentication
+tg-set-mcp-tool --id weather \
+                --tool-url "https://weather.mcp.com/api" \
+                --auth-token "$WEATHER_TOKEN"
 
-# Invoke MCP tool directly
-tg-invoke-mcp-tool --name weather --input "location=London"
+# Invoke MCP tool directly (auth handled automatically)
+tg-invoke-mcp-tool --name weather --parameters '{"location": "London"}'
 ```
 
 ### With Configuration Management
@@ -190,21 +264,24 @@ tg-invoke-mcp-tool --name weather --input "location=London"
 MCP tools integrate with configuration management:
 ```bash
 # Register MCP tool
-tg-set-mcp-tool --name config-mcp --tool-url "http://config.mcp.com/api"
+tg-set-mcp-tool --id config-mcp --tool-url "http://config.mcp.com/api"
 
-# View configuration including MCP tools
-tg-show-config
+# View all MCP tool configurations
+tg-show-mcp-tools
 ```
 
 ## Best Practices
 
-1. **Clear Naming**: Use descriptive, unique MCP tool names
+1. **Clear Naming**: Use descriptive, unique MCP tool identifiers
 2. **Reliable URLs**: Ensure MCP endpoints are stable and accessible
-3. **Health Checks**: Verify MCP endpoints are operational before registration
-4. **Documentation**: Document MCP tool capabilities and usage
-5. **Error Handling**: Implement proper error handling for MCP endpoints
-6. **Security**: Use secure URLs (HTTPS) when possible
-7. **Monitoring**: Monitor MCP tool availability and performance
+3. **Use HTTPS**: Always use HTTPS URLs when authentication is required
+4. **Secure Tokens**: Store auth tokens in environment variables, not in scripts
+5. **Token Rotation**: Regularly rotate authentication tokens
+6. **Health Checks**: Verify MCP endpoints are operational before registration
+7. **Documentation**: Document MCP tool capabilities and usage
+8. **Error Handling**: Implement proper error handling for MCP endpoints
+9. **Monitoring**: Monitor MCP tool availability and performance
+10. **Access Control**: Restrict access to configuration system containing tokens
 
 ## Troubleshooting
 
@@ -248,10 +325,45 @@ The Model Control Protocol (MCP) is a standardized interface for AI model tools:
 When registering MCP tools:
 
 1. **URL Validation**: Ensure URLs are legitimate and secure
-2. **Network Security**: Use HTTPS when possible
-3. **Access Control**: Implement proper authentication for MCP endpoints
-4. **Input Validation**: Validate all inputs to MCP tools
-5. **Error Handling**: Don't expose sensitive information in error messages
+2. **Network Security**: Always use HTTPS for authenticated endpoints
+3. **Token Storage**: Auth tokens are stored in plaintext in the configuration system
+   - Ensure proper access control on the configuration storage
+   - Use short-lived tokens when possible
+   - Implement token rotation policies
+4. **Token Transmission**: Use HTTPS to prevent token interception
+5. **Access Control**: Implement proper authentication for MCP endpoints
+6. **Token Exposure**:
+   - Use environment variables to pass tokens to the command
+   - Don't hardcode tokens in scripts or commit them to version control
+   - The `tg-show-mcp-tools` command masks token values for security
+7. **Input Validation**: Validate all inputs to MCP tools
+8. **Error Handling**: Don't expose sensitive information in error messages
+9. **Least Privilege**: Grant tokens minimum required permissions
+10. **Audit Logging**: Monitor configuration changes for security events
+
+### Authentication Best Practices
+
+When using the `--auth-token` parameter:
+
+- **Store tokens securely**: Use environment variables or secrets management systems
+- **Use HTTPS**: Always use HTTPS URLs when providing authentication tokens
+- **Rotate regularly**: Implement a token rotation schedule
+- **Monitor usage**: Track which services are accessing authenticated endpoints
+- **Revoke on compromise**: Have a process to quickly revoke and rotate compromised tokens
+
+Example secure workflow:
+```bash
+# Store token in environment variable (not in script)
+export MCP_TOKEN=$(cat /secure/path/to/token)
+
+# Use HTTPS for authenticated endpoints
+tg-set-mcp-tool --id secure-service \
+                --tool-url "https://secure.example.com/mcp" \
+                --auth-token "$MCP_TOKEN"
+
+# Clear token from environment after use
+unset MCP_TOKEN
+```
 
 ## Related Commands
 
