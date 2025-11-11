@@ -56,10 +56,16 @@ class Service(ToolService):
             else:
                 remote_name = name
 
+            # Build headers with optional bearer token
+            headers = {}
+            if "auth-token" in self.mcp_services[name]:
+                token = self.mcp_services[name]["auth-token"]
+                headers["Authorization"] = f"Bearer {token}"
+
             logger.info(f"Invoking {remote_name} at {url}")
 
-            # Connect to a streamable HTTP server
-            async with streamablehttp_client(url) as (
+            # Connect to a streamable HTTP server with headers
+            async with streamablehttp_client(url, headers=headers) as (
                     read_stream,
                     write_stream,
                     _,

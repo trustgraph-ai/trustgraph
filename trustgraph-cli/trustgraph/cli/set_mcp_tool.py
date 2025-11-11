@@ -7,6 +7,7 @@ specification. This script stores MCP tool configurations with:
 - id: Unique identifier for the tool
 - remote-name: Name used by the MCP server (defaults to id)
 - url: MCP server endpoint URL
+- auth-token: Optional bearer token for authentication
 
 Configurations are stored in the 'mcp' configuration group and can be
 referenced by agent tools using the 'mcp-tool' type.
@@ -25,17 +26,24 @@ def set_mcp_tool(
         id : str,
         remote_name : str,
         tool_url : str,
+        auth_token : str = None,
 ):
 
     api = Api(url).config()
 
+    # Build the MCP tool configuration
+    config = {
+        "remote-name": remote_name,
+        "url": tool_url,
+    }
+
+    if auth_token:
+        config["auth-token"] = auth_token
+
     # Store the MCP tool configuration in the 'mcp' group
     values = api.put([
         ConfigValue(
-            type="mcp", key=id, value=json.dumps({
-                "remote-name": remote_name,
-                "url": tool_url,
-            })
+            type="mcp", key=id, value=json.dumps(config)
         )
     ])
 
@@ -45,12 +53,15 @@ def main():
         prog='tg-set-mcp-tool',
         description=__doc__,
         epilog=textwrap.dedent('''
-            MCP tools are configured with just a name and URL. The URL should point
+            MCP tools are configured with a name and URL. The URL should point
             to the MCP server endpoint that provides the tool functionality.
-            
+            Optionally, an auth-token can be provided for secured endpoints.
+
             Examples:
               %(prog)s --id weather --tool-url "http://localhost:3000/weather"
               %(prog)s --id calculator --tool-url "http://mcp-tools.example.com/calc"
+              %(prog)s --id secure-tool --tool-url "https://api.example.com/mcp" \\
+                --auth-token "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
         ''').strip(),
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -79,6 +90,12 @@ def main():
         help='MCP tool URL endpoint',
     )
 
+    parser.add_argument(
+        '--auth-token',
+        required=False,
+        help='Bearer token for authentication (optional)',
+    )
+
     args = parser.parse_args()
 
     try:
@@ -98,7 +115,8 @@ def main():
             url=args.api_url,
             id=args.id,
             remote_name=remote_name,
-            tool_url=args.tool_url
+            tool_url=args.tool_url,
+            auth_token=args.auth_token
         )
 
     except Exception as e:

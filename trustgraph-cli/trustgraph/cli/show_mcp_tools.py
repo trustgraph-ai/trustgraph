@@ -27,6 +27,12 @@ def show_config(url):
         table.append(("remote-name", data["remote-name"]))
         table.append(("url", data["url"]))
 
+        # Display auth status (masked for security)
+        if "auth-token" in data and data["auth-token"]:
+            table.append(("auth", "Yes (configured)"))
+        else:
+            table.append(("auth", "No"))
+
         print()
 
         print(tabulate.tabulate(
