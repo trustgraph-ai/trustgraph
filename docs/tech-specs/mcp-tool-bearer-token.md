@@ -1,5 +1,16 @@
 # MCP Tool Bearer Token Authentication Specification
 
+> **⚠️ IMPORTANT: SINGLE-TENANT ONLY**
+>
+> This specification describes a **basic, service-level authentication mechanism** for MCP tools. It is **NOT** a complete authentication solution and is **NOT suitable** for:
+> - Multi-user environments
+> - Multi-tenant deployments
+> - Federated authentication
+> - User context propagation
+> - Per-user authorization
+>
+> This feature provides **one static token per MCP tool**, shared across all users and sessions. If you need per-user or per-tenant authentication, this is not the right solution.
+
 ## Overview
 **Feature Name**: MCP Tool Bearer Token Authentication Support
 **Author**: Claude Code Assistant
@@ -9,6 +20,15 @@
 ### Executive Summary
 
 Enable MCP tool configurations to specify optional bearer tokens for authenticating with protected MCP servers. This allows TrustGraph to securely invoke MCP tools hosted on servers that require authentication, without modifying the agent or tool invocation interfaces.
+
+**IMPORTANT**: This is a basic authentication mechanism designed for single-tenant, service-to-service authentication scenarios. It is **NOT** suitable for:
+- Multi-user environments where different users need different credentials
+- Multi-tenant deployments requiring per-tenant isolation
+- Federated authentication scenarios
+- User-level authentication or authorization
+- Dynamic credential management or token refresh
+
+This feature provides a static, system-wide bearer token per MCP tool configuration, shared across all users and invocations of that tool.
 
 ### Problem Statement
 
@@ -31,6 +51,10 @@ Currently, MCP tools can only connect to publicly accessible MCP servers. Many p
 - Encryption of stored tokens (configuration system security is out of scope)
 - Alternative authentication methods (Basic auth, API keys, etc.)
 - Token validation or expiration checking
+- **Per-user authentication**: This feature does NOT support user-specific credentials
+- **Multi-tenant isolation**: This feature does NOT provide per-tenant token management
+- **Federated authentication**: This feature does NOT integrate with identity providers (SSO, OAuth, SAML, etc.)
+- **Context-aware authentication**: Tokens are not passed based on user context or session
 
 ## Background and Context
 
@@ -47,9 +71,43 @@ The MCP tool service connects to servers using `streamablehttp_client(url)` with
 
 ### Limitations
 
+**Current System Limitations:**
 1. **No authentication support**: Cannot connect to secured MCP servers
 2. **Security exposure**: MCP servers must be publicly accessible or use network-level security only
 3. **Production deployment issues**: Cannot follow security best practices for API endpoints
+
+**Limitations of This Solution:**
+1. **Single-tenant only**: One static token per MCP tool, shared across all users
+2. **No per-user credentials**: Cannot authenticate as different users or pass user context
+3. **No multi-tenant support**: Cannot isolate credentials by tenant or organization
+4. **Static tokens only**: No support for token refresh, rotation, or expiration handling
+5. **Service-level authentication**: Authenticates the TrustGraph service, not individual users
+6. **Shared security context**: All invocations of an MCP tool use the same credential
+
+### Use Case Applicability
+
+**✅ Appropriate Use Cases:**
+- Single-tenant TrustGraph deployments
+- Service-to-service authentication (TrustGraph → MCP Server)
+- Development and testing environments
+- Internal MCP tools accessed by the TrustGraph system
+- Scenarios where all users share the same MCP tool access level
+- Static, long-lived service credentials
+
+**❌ Inappropriate Use Cases:**
+- Multi-user systems requiring per-user authentication
+- Multi-tenant SaaS deployments with tenant isolation requirements
+- Federated authentication scenarios (SSO, OAuth, SAML)
+- Systems requiring user context propagation to MCP servers
+- Environments needing dynamic token refresh or short-lived tokens
+- Applications where different users need different permission levels
+- Compliance requirements for user-level audit trails
+
+**Example Appropriate Scenario:**
+A single-organization TrustGraph deployment where all employees use the same internal MCP tool (e.g., company database lookup). The MCP server requires authentication to prevent external access, but all internal users have the same access level.
+
+**Example Inappropriate Scenario:**
+A multi-tenant TrustGraph SaaS platform where Tenant A and Tenant B each need to access their own isolated MCP servers with separate credentials. This feature does NOT support per-tenant token management.
 
 ### Related Components
 - **trustgraph-flow/trustgraph/agent/mcp_tool/service.py**: MCP tool invocation service
@@ -340,6 +398,29 @@ No migration required - this is purely additive functionality:
 
 ## Security Considerations
 
+### ⚠️ Critical Limitation: Single-Tenant Authentication Only
+
+**This authentication mechanism is NOT suitable for multi-user or multi-tenant environments.**
+
+- **Shared credentials**: All users and invocations share the same token per MCP tool
+- **No user context**: The MCP server cannot distinguish between different TrustGraph users
+- **No tenant isolation**: All tenants share the same credential for each MCP tool
+- **Audit trail limitation**: MCP server logs show all requests from the same credential
+- **Permission scope**: Cannot enforce different permission levels for different users
+
+**Do NOT use this feature if:**
+- Your TrustGraph deployment serves multiple organizations (multi-tenant)
+- You need to track which user accessed which MCP tool
+- Different users require different permission levels
+- You need to comply with user-level audit requirements
+- Your MCP server enforces per-user rate limits or quotas
+
+**Alternative solutions for multi-user/multi-tenant scenarios:**
+- Implement user context propagation through custom headers
+- Deploy separate TrustGraph instances per tenant
+- Use network-level isolation (VPCs, service meshes)
+- Implement a proxy layer that handles per-user authentication
+
 ### Token Storage
 **Risk**: Auth tokens stored in plaintext in configuration system
 
@@ -371,6 +452,18 @@ No migration required - this is purely additive functionality:
 - Document importance of securing configuration system access
 - Recommend principle of least privilege for configuration access
 - Consider audit logging for configuration changes (future enhancement)
+
+### Multi-User Environments
+**Risk**: In multi-user deployments, all users share the same MCP credentials
+
+**Understanding the Risk**:
+- User A and User B both use the same token when accessing an MCP tool
+- MCP server cannot distinguish between different TrustGraph users
+- No way to enforce per-user permissions or rate limits
+- Audit logs on MCP server show all requests from same credential
+- If one user's session is compromised, attacker has same MCP access as all users
+
+**This is NOT a bug - it's a fundamental limitation of this design.**
 
 ## Performance Impact
 - **Minimal overhead**: Header building adds negligible processing time
