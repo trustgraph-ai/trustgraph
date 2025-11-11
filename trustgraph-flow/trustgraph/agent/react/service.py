@@ -317,7 +317,7 @@ class Processor(AgentService):
                     AgentStep(
                         thought=h.thought,
                         action=h.name,
-                        arguments=h.arguments,
+                        arguments={k: str(v) for k, v in h.arguments.items()},
                         observation=h.observation
                     )
                     for h in history
