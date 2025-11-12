@@ -26,9 +26,16 @@ except LookupError:
             pass
 
 try:
-    nltk.data.find('taggers/averaged_perceptron_tagger')
+    nltk.data.find('taggers/averaged_perceptron_tagger_eng')
 except LookupError:
-    nltk.download('averaged_perceptron_tagger', quiet=True)
+    try:
+        nltk.download('averaged_perceptron_tagger_eng', quiet=True)
+    except:
+        # Fallback to older name
+        try:
+            nltk.download('averaged_perceptron_tagger', quiet=True)
+        except:
+            pass
 
 try:
     nltk.data.find('corpora/stopwords')

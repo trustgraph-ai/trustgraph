@@ -3,6 +3,7 @@ Ontology embedder component for OntoRAG system.
 Generates and stores embeddings for ontology elements.
 """
 
+import asyncio
 import logging
 import numpy as np
 from typing import Dict, List, Any, Optional
@@ -152,8 +153,12 @@ class OntologyEmbedder:
             # Get embeddings for batch
             texts = [elem['text'] for elem in batch]
             try:
-                # Call embedding service (async)
-                embeddings = await self.embedding_service.embed_batch(texts)
+                # Call embedding service for each text (EmbeddingsClient.embed() is single-text)
+                embedding_tasks = [self.embedding_service.embed(text) for text in texts]
+                embeddings_list = await asyncio.gather(*embedding_tasks)
+
+                # Convert to numpy array
+                embeddings = np.array(embeddings_list)
 
                 # Store in vector store
                 ids = [elem['id'] for elem in batch]
@@ -226,8 +231,10 @@ class OntologyEmbedder:
             return None
 
         try:
-            embeddings = await self.embedding_service.embed_batch(texts)
-            return embeddings
+            # EmbeddingsClient.embed() is single-text, so call in parallel
+            embedding_tasks = [self.embedding_service.embed(text) for text in texts]
+            embeddings_list = await asyncio.gather(*embedding_tasks)
+            return np.array(embeddings_list)
         except Exception as e:
             logger.error(f"Failed to embed texts: {e}")
             return None
