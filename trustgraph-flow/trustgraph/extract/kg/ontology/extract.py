@@ -322,14 +322,20 @@ class Processor(FlowProcessor):
             for t in v.metadata.metadata:
                 triples.append(t)
 
-            # Build entity contexts from triples
-            entity_contexts = self.build_entity_contexts(triples)
+            # Generate ontology definition triples
+            ontology_triples = self.build_ontology_triples(ontology_subset)
 
-            # Emit triples
+            # Combine extracted triples with ontology triples
+            all_triples = triples + ontology_triples
+
+            # Build entity contexts from all triples (including ontology elements)
+            entity_contexts = self.build_entity_contexts(all_triples)
+
+            # Emit all triples (extracted + ontology definitions)
             await self.emit_triples(
                 flow("triples"),
                 v.metadata,
-                triples
+                all_triples
             )
 
             # Emit entity contexts
@@ -339,7 +345,8 @@ class Processor(FlowProcessor):
                 entity_contexts
             )
 
-            logger.info(f"Extracted {len(triples)} ontology-conformant triples and {len(entity_contexts)} entity contexts")
+            logger.info(f"Extracted {len(triples)} content triples + {len(ontology_triples)} ontology triples "
+                       f"= {len(all_triples)} total triples and {len(entity_contexts)} entity contexts")
 
         except Exception as e:
             logger.error(f"OntoRAG extraction exception: {e}", exc_info=True)
@@ -541,6 +548,219 @@ class Processor(FlowProcessor):
             entities=entities,
         )
         await pub.send(ec)
+
+    def build_ontology_triples(self, ontology_subset: OntologySubset) -> List[Triple]:
+        """Build triples describing the ontology elements themselves.
+
+        Generates triples for classes and properties so they exist in the knowledge graph.
+
+        Args:
+            ontology_subset: The ontology subset used for extraction
+
+        Returns:
+            List of Triple objects describing ontology elements
+        """
+        ontology_triples = []
+
+        # Generate triples for classes
+        for class_id, class_def in ontology_subset.classes.items():
+            # Get URI for class
+            if isinstance(class_def, dict) and 'uri' in class_def and class_def['uri']:
+                class_uri = class_def['uri']
+            else:
+                # Fallback to constructed URI
+                class_uri = f"https://trustgraph.ai/ontology/{ontology_subset.ontology_id}#{class_id}"
+
+            # rdf:type owl:Class
+            ontology_triples.append(Triple(
+                s=Value(value=class_uri, is_uri=True),
+                p=Value(value="http://www.w3.org/1999/02/22-rdf-syntax-ns#type", is_uri=True),
+                o=Value(value="http://www.w3.org/2002/07/owl#Class", is_uri=True)
+            ))
+
+            # rdfs:label (stored as 'labels' in OntologyClass.__dict__)
+            if isinstance(class_def, dict) and 'labels' in class_def:
+                labels = class_def['labels']
+                if isinstance(labels, list) and labels:
+                    label_val = labels[0].get('value', class_id) if isinstance(labels[0], dict) else str(labels[0])
+                    ontology_triples.append(Triple(
+                        s=Value(value=class_uri, is_uri=True),
+                        p=Value(value=RDF_LABEL, is_uri=True),
+                        o=Value(value=label_val, is_uri=False)
+                    ))
+
+            # rdfs:comment (stored as 'comment' in OntologyClass.__dict__)
+            if isinstance(class_def, dict) and 'comment' in class_def and class_def['comment']:
+                comment = class_def['comment']
+                ontology_triples.append(Triple(
+                    s=Value(value=class_uri, is_uri=True),
+                    p=Value(value="http://www.w3.org/2000/01/rdf-schema#comment", is_uri=True),
+                    o=Value(value=comment, is_uri=False)
+                ))
+
+            # rdfs:subClassOf (stored as 'subclass_of' in OntologyClass.__dict__)
+            if isinstance(class_def, dict) and 'subclass_of' in class_def and class_def['subclass_of']:
+                parent = class_def['subclass_of']
+                # Get parent URI
+                if parent in ontology_subset.classes:
+                    parent_class_def = ontology_subset.classes[parent]
+                    if isinstance(parent_class_def, dict) and 'uri' in parent_class_def and parent_class_def['uri']:
+                        parent_uri = parent_class_def['uri']
+                    else:
+                        parent_uri = f"https://trustgraph.ai/ontology/{ontology_subset.ontology_id}#{parent}"
+                else:
+                    parent_uri = f"https://trustgraph.ai/ontology/{ontology_subset.ontology_id}#{parent}"
+
+                ontology_triples.append(Triple(
+                    s=Value(value=class_uri, is_uri=True),
+                    p=Value(value="http://www.w3.org/2000/01/rdf-schema#subClassOf", is_uri=True),
+                    o=Value(value=parent_uri, is_uri=True)
+                ))
+
+        # Generate triples for object properties
+        for prop_id, prop_def in ontology_subset.object_properties.items():
+            # Get URI for property
+            if isinstance(prop_def, dict) and 'uri' in prop_def and prop_def['uri']:
+                prop_uri = prop_def['uri']
+            else:
+                prop_uri = f"https://trustgraph.ai/ontology/{ontology_subset.ontology_id}#{prop_id}"
+
+            # rdf:type owl:ObjectProperty
+            ontology_triples.append(Triple(
+                s=Value(value=prop_uri, is_uri=True),
+                p=Value(value="http://www.w3.org/1999/02/22-rdf-syntax-ns#type", is_uri=True),
+                o=Value(value="http://www.w3.org/2002/07/owl#ObjectProperty", is_uri=True)
+            ))
+
+            # rdfs:label (stored as 'labels' in OntologyProperty.__dict__)
+            if isinstance(prop_def, dict) and 'labels' in prop_def:
+                labels = prop_def['labels']
+                if isinstance(labels, list) and labels:
+                    label_val = labels[0].get('value', prop_id) if isinstance(labels[0], dict) else str(labels[0])
+                    ontology_triples.append(Triple(
+                        s=Value(value=prop_uri, is_uri=True),
+                        p=Value(value=RDF_LABEL, is_uri=True),
+                        o=Value(value=label_val, is_uri=False)
+                    ))
+
+            # rdfs:comment (stored as 'comment' in OntologyProperty.__dict__)
+            if isinstance(prop_def, dict) and 'comment' in prop_def and prop_def['comment']:
+                comment = prop_def['comment']
+                ontology_triples.append(Triple(
+                    s=Value(value=prop_uri, is_uri=True),
+                    p=Value(value="http://www.w3.org/2000/01/rdf-schema#comment", is_uri=True),
+                    o=Value(value=comment, is_uri=False)
+                ))
+
+            # rdfs:domain (stored as 'domain' in OntologyProperty.__dict__)
+            if isinstance(prop_def, dict) and 'domain' in prop_def and prop_def['domain']:
+                domain = prop_def['domain']
+                # Get domain class URI
+                if domain in ontology_subset.classes:
+                    domain_class_def = ontology_subset.classes[domain]
+                    if isinstance(domain_class_def, dict) and 'uri' in domain_class_def and domain_class_def['uri']:
+                        domain_uri = domain_class_def['uri']
+                    else:
+                        domain_uri = f"https://trustgraph.ai/ontology/{ontology_subset.ontology_id}#{domain}"
+                else:
+                    domain_uri = f"https://trustgraph.ai/ontology/{ontology_subset.ontology_id}#{domain}"
+
+                ontology_triples.append(Triple(
+                    s=Value(value=prop_uri, is_uri=True),
+                    p=Value(value="http://www.w3.org/2000/01/rdf-schema#domain", is_uri=True),
+                    o=Value(value=domain_uri, is_uri=True)
+                ))
+
+            # rdfs:range (stored as 'range' in OntologyProperty.__dict__)
+            if isinstance(prop_def, dict) and 'range' in prop_def and prop_def['range']:
+                range_val = prop_def['range']
+                # Get range class URI
+                if range_val in ontology_subset.classes:
+                    range_class_def = ontology_subset.classes[range_val]
+                    if isinstance(range_class_def, dict) and 'uri' in range_class_def and range_class_def['uri']:
+                        range_uri = range_class_def['uri']
+                    else:
+                        range_uri = f"https://trustgraph.ai/ontology/{ontology_subset.ontology_id}#{range_val}"
+                else:
+                    range_uri = f"https://trustgraph.ai/ontology/{ontology_subset.ontology_id}#{range_val}"
+
+                ontology_triples.append(Triple(
+                    s=Value(value=prop_uri, is_uri=True),
+                    p=Value(value="http://www.w3.org/2000/01/rdf-schema#range", is_uri=True),
+                    o=Value(value=range_uri, is_uri=True)
+                ))
+
+        # Generate triples for datatype properties
+        for prop_id, prop_def in ontology_subset.datatype_properties.items():
+            # Get URI for property
+            if isinstance(prop_def, dict) and 'uri' in prop_def and prop_def['uri']:
+                prop_uri = prop_def['uri']
+            else:
+                prop_uri = f"https://trustgraph.ai/ontology/{ontology_subset.ontology_id}#{prop_id}"
+
+            # rdf:type owl:DatatypeProperty
+            ontology_triples.append(Triple(
+                s=Value(value=prop_uri, is_uri=True),
+                p=Value(value="http://www.w3.org/1999/02/22-rdf-syntax-ns#type", is_uri=True),
+                o=Value(value="http://www.w3.org/2002/07/owl#DatatypeProperty", is_uri=True)
+            ))
+
+            # rdfs:label (stored as 'labels' in OntologyProperty.__dict__)
+            if isinstance(prop_def, dict) and 'labels' in prop_def:
+                labels = prop_def['labels']
+                if isinstance(labels, list) and labels:
+                    label_val = labels[0].get('value', prop_id) if isinstance(labels[0], dict) else str(labels[0])
+                    ontology_triples.append(Triple(
+                        s=Value(value=prop_uri, is_uri=True),
+                        p=Value(value=RDF_LABEL, is_uri=True),
+                        o=Value(value=label_val, is_uri=False)
+                    ))
+
+            # rdfs:comment (stored as 'comment' in OntologyProperty.__dict__)
+            if isinstance(prop_def, dict) and 'comment' in prop_def and prop_def['comment']:
+                comment = prop_def['comment']
+                ontology_triples.append(Triple(
+                    s=Value(value=prop_uri, is_uri=True),
+                    p=Value(value="http://www.w3.org/2000/01/rdf-schema#comment", is_uri=True),
+                    o=Value(value=comment, is_uri=False)
+                ))
+
+            # rdfs:domain (stored as 'domain' in OntologyProperty.__dict__)
+            if isinstance(prop_def, dict) and 'domain' in prop_def and prop_def['domain']:
+                domain = prop_def['domain']
+                # Get domain class URI
+                if domain in ontology_subset.classes:
+                    domain_class_def = ontology_subset.classes[domain]
+                    if isinstance(domain_class_def, dict) and 'uri' in domain_class_def and domain_class_def['uri']:
+                        domain_uri = domain_class_def['uri']
+                    else:
+                        domain_uri = f"https://trustgraph.ai/ontology/{ontology_subset.ontology_id}#{domain}"
+                else:
+                    domain_uri = f"https://trustgraph.ai/ontology/{ontology_subset.ontology_id}#{domain}"
+
+                ontology_triples.append(Triple(
+                    s=Value(value=prop_uri, is_uri=True),
+                    p=Value(value="http://www.w3.org/2000/01/rdf-schema#domain", is_uri=True),
+                    o=Value(value=domain_uri, is_uri=True)
+                ))
+
+            # rdfs:range (datatype)
+            if isinstance(prop_def, dict) and 'rdfs:range' in prop_def and prop_def['rdfs:range']:
+                range_val = prop_def['rdfs:range']
+                # Range for datatype properties is usually xsd:string, xsd:int, etc.
+                if range_val.startswith('xsd:'):
+                    range_uri = f"http://www.w3.org/2001/XMLSchema#{range_val[4:]}"
+                else:
+                    range_uri = range_val
+
+                ontology_triples.append(Triple(
+                    s=Value(value=prop_uri, is_uri=True),
+                    p=Value(value="http://www.w3.org/2000/01/rdf-schema#range", is_uri=True),
+                    o=Value(value=range_uri, is_uri=True)
+                ))
+
+        logger.info(f"Generated {len(ontology_triples)} triples describing ontology elements")
+        return ontology_triples
 
     def build_entity_contexts(self, triples: List[Triple]) -> List[EntityContext]:
         """Build entity contexts from extracted triples.
