@@ -83,7 +83,7 @@ class Processor(FlowProcessor):
 
         # Configuration
         self.top_k = params.get("top_k", 10)
-        self.similarity_threshold = params.get("similarity_threshold", 0.7)
+        self.similarity_threshold = params.get("similarity_threshold", 0.3)
 
         # Track loaded ontology version
         self.current_ontology_version = None
@@ -272,13 +272,15 @@ class Processor(FlowProcessor):
                         f"{len(ontology_subset.object_properties)} object properties, "
                         f"{len(ontology_subset.datatype_properties)} datatype properties")
 
-            # Build extraction prompt
-            prompt = self.build_extraction_prompt(chunk, ontology_subset)
+            # Build extraction prompt variables
+            prompt_variables = self.build_extraction_variables(chunk, ontology_subset)
 
             # Call prompt service for extraction
             try:
-                triples_response = await flow("prompt-request").extract_ontology_triples(
-                    prompt=prompt
+                # Use prompt() method with extract-with-ontologies prompt ID
+                triples_response = await flow("prompt-request").prompt(
+                    id="extract-with-ontologies",
+                    variables=prompt_variables
                 )
                 logger.debug(f"Extraction response: {triples_response}")
 
@@ -477,8 +479,8 @@ TRIPLES (JSON array):"""
         parser.add_argument(
             '--similarity-threshold',
             type=float,
-            default=0.7,
-            help='Similarity threshold for ontology matching (default: 0.7)'
+            default=0.3,
+            help='Similarity threshold for ontology matching (default: 0.3, range: 0.0-1.0)'
         )
         FlowProcessor.add_args(parser)
 

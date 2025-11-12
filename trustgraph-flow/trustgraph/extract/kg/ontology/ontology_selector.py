@@ -84,21 +84,19 @@ class OntologySelector:
         # Check if vector store has any elements
         vector_store = self.embedder.get_vector_store()
         store_size = vector_store.size()
-        logger.debug(f"Vector store size: {store_size} elements")
+        logger.info(f"Vector store size: {store_size} elements")
 
         if store_size == 0:
             logger.warning("Vector store is empty - no ontology elements embedded")
             return relevant_elements
 
-        # Process each segment
-        for segment in segments:
+        # Process each segment (log first few for debugging)
+        for i, segment in enumerate(segments):
             # Get embedding for segment
             embedding = await self.embedder.embed_text(segment.text)
             if embedding is None:
                 logger.warning(f"Failed to embed segment: {segment.text[:50]}...")
                 continue
-
-            logger.debug(f"Searching for segment: {segment.text[:100]}... (embedding shape: {embedding.shape})")
 
             # Search vector store with no threshold to see all scores
             all_results = vector_store.search(
@@ -107,15 +105,16 @@ class OntologySelector:
                 threshold=0.0  # Get all results to see scores
             )
 
-            # Log top scores for debugging
-            if all_results:
+            # Log top scores for first 3 segments to debug
+            if i < 3 and all_results:
                 top_scores = [r.score for r in all_results[:3]]
-                logger.debug(f"Top 3 scores for segment: {top_scores}, threshold={self.similarity_threshold}")
+                top_elements = [r.metadata['element'] for r in all_results[:3]]
+                logger.info(f"Segment {i}: '{segment.text[:60]}...'")
+                logger.info(f"  Top 3 scores: {top_scores} (threshold={self.similarity_threshold})")
+                logger.info(f"  Top 3 elements: {top_elements}")
 
             # Filter by threshold
             results = [r for r in all_results if r.score >= self.similarity_threshold]
-
-            logger.debug(f"Found {len(results)} results above threshold (out of {len(all_results)} total)")
 
             # Process results
             for result in results:
