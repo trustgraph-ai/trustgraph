@@ -81,6 +81,15 @@ class OntologySelector:
         relevant_elements = set()
         element_scores = defaultdict(float)
 
+        # Check if vector store has any elements
+        vector_store = self.embedder.get_vector_store()
+        store_size = vector_store.size()
+        logger.debug(f"Vector store size: {store_size} elements")
+
+        if store_size == 0:
+            logger.warning("Vector store is empty - no ontology elements embedded")
+            return relevant_elements
+
         # Process each segment
         for segment in segments:
             # Get embedding for segment
@@ -89,12 +98,24 @@ class OntologySelector:
                 logger.warning(f"Failed to embed segment: {segment.text[:50]}...")
                 continue
 
-            # Search vector store
-            results = self.embedder.get_vector_store().search(
+            logger.debug(f"Searching for segment: {segment.text[:100]}... (embedding shape: {embedding.shape})")
+
+            # Search vector store with no threshold to see all scores
+            all_results = vector_store.search(
                 embedding=embedding,
                 top_k=self.top_k,
-                threshold=self.similarity_threshold
+                threshold=0.0  # Get all results to see scores
             )
+
+            # Log top scores for debugging
+            if all_results:
+                top_scores = [r.score for r in all_results[:3]]
+                logger.debug(f"Top 3 scores for segment: {top_scores}, threshold={self.similarity_threshold}")
+
+            # Filter by threshold
+            results = [r for r in all_results if r.score >= self.similarity_threshold]
+
+            logger.debug(f"Found {len(results)} results above threshold (out of {len(all_results)} total)")
 
             # Process results
             for result in results:
@@ -109,7 +130,7 @@ class OntologySelector:
                 # Track scores for ranking
                 element_scores[element_key] = max(element_scores[element_key], result.score)
 
-        logger.debug(f"Found {len(relevant_elements)} relevant elements from {len(segments)} segments")
+        logger.info(f"Found {len(relevant_elements)} relevant elements from {len(segments)} segments")
         return relevant_elements
 
     def _build_ontology_subsets(self, relevant_elements: Set[Tuple[str, str, str, Dict]]) -> List[OntologySubset]:
