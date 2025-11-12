@@ -14,9 +14,16 @@ logger = logging.getLogger(__name__)
 
 # Ensure required NLTK data is downloaded
 try:
-    nltk.data.find('tokenizers/punkt')
+    nltk.data.find('tokenizers/punkt_tab')
 except LookupError:
-    nltk.download('punkt', quiet=True)
+    try:
+        nltk.download('punkt_tab', quiet=True)
+    except:
+        # Fallback to older punkt if punkt_tab not available
+        try:
+            nltk.download('punkt', quiet=True)
+        except:
+            pass
 
 try:
     nltk.data.find('taggers/averaged_perceptron_tagger')
@@ -44,8 +51,14 @@ class SentenceSplitter:
 
     def __init__(self):
         """Initialize sentence splitter."""
-        self.sent_detector = nltk.data.load('tokenizers/punkt/english.pickle')
-        logger.info("Using NLTK sentence tokenizer")
+        try:
+            # Try newer punkt_tab first
+            self.sent_detector = nltk.data.load('tokenizers/punkt_tab/english/')
+            logger.info("Using NLTK sentence tokenizer (punkt_tab)")
+        except:
+            # Fallback to older punkt
+            self.sent_detector = nltk.data.load('tokenizers/punkt/english.pickle')
+            logger.info("Using NLTK sentence tokenizer (punkt)")
 
     def split(self, text: str) -> List[str]:
         """Split text into sentences.

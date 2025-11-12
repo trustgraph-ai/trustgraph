@@ -88,6 +88,7 @@ class Processor(FlowProcessor):
         # Track loaded ontology version
         self.current_ontology_version = None
         self.loaded_ontology_ids = set()
+        self.pending_config = None  # Store config until components initialized
 
     async def initialize_components(self, flow):
         """Initialize OntoRAG components."""
@@ -124,8 +125,12 @@ class Processor(FlowProcessor):
             self.initialized = True
             logger.info("OntoRAG components initialized successfully")
 
-            # NOTE: Ontologies will be loaded via on_ontology_config() handler
-            # when ConfigPush messages arrive (including initial config on startup)
+            # Process pending config if available
+            if self.pending_config:
+                logger.info("Processing pending config from startup")
+                config, version = self.pending_config
+                self.pending_config = None
+                await self.on_ontology_config(config, version)
 
         except Exception as e:
             logger.error(f"Failed to initialize OntoRAG components: {e}", exc_info=True)
@@ -154,6 +159,12 @@ class Processor(FlowProcessor):
             # Extract ontology configurations
             if "ontology" not in config:
                 logger.warning("No 'ontology' section in config")
+                return
+
+            # Check if components are initialized
+            if not self.ontology_loader:
+                logger.debug("Components not yet initialized, storing config for later processing")
+                self.pending_config = (config, version)
                 return
 
             ontology_configs = config["ontology"]
