@@ -486,22 +486,25 @@ class Processor(FlowProcessor):
         # Check if it's an ontology class
         if value in ontology_subset.classes:
             class_def = ontology_subset.classes[value]
-            if hasattr(class_def, 'uri') and class_def.uri:
-                return class_def.uri
+            # class_def is a dict (from cls.__dict__ in ontology_selector)
+            if isinstance(class_def, dict) and 'uri' in class_def and class_def['uri']:
+                return class_def['uri']
             # Fallback: construct URI
             return f"https://trustgraph.ai/ontology/{ontology_id}#{value}"
 
         # Check if it's an ontology property
         if value in ontology_subset.object_properties:
             prop_def = ontology_subset.object_properties[value]
-            if hasattr(prop_def, 'uri') and prop_def.uri:
-                return prop_def.uri
+            # prop_def is a dict (from prop.__dict__ in ontology_selector)
+            if isinstance(prop_def, dict) and 'uri' in prop_def and prop_def['uri']:
+                return prop_def['uri']
             return f"https://trustgraph.ai/ontology/{ontology_id}#{value}"
 
         if value in ontology_subset.datatype_properties:
             prop_def = ontology_subset.datatype_properties[value]
-            if hasattr(prop_def, 'uri') and prop_def.uri:
-                return prop_def.uri
+            # prop_def is a dict (from prop.__dict__ in ontology_selector)
+            if isinstance(prop_def, dict) and 'uri' in prop_def and prop_def['uri']:
+                return prop_def['uri']
             return f"https://trustgraph.ai/ontology/{ontology_id}#{value}"
 
         # Otherwise, treat as entity instance - construct unique URI
