@@ -9,7 +9,7 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 
 from .ontology_loader import Ontology, OntologyClass, OntologyProperty
-from .vector_store import VectorStore, InMemoryVectorStore
+from .vector_store import InMemoryVectorStore
 
 logger = logging.getLogger(__name__)
 
@@ -27,15 +27,15 @@ class OntologyElementMetadata:
 class OntologyEmbedder:
     """Generates embeddings for ontology elements and stores them in vector store."""
 
-    def __init__(self, embedding_service=None, vector_store: Optional[VectorStore] = None):
+    def __init__(self, embedding_service=None, vector_store: Optional[InMemoryVectorStore] = None):
         """Initialize the ontology embedder.
 
         Args:
             embedding_service: Service for generating embeddings
-            vector_store: Vector store instance (defaults to InMemoryVectorStore)
+            vector_store: Vector store instance (InMemoryVectorStore)
         """
         self.embedding_service = embedding_service
-        self.vector_store = vector_store or InMemoryVectorStore.create()
+        self.vector_store = vector_store or InMemoryVectorStore()
         self.embedded_ontologies = set()
 
     def _create_text_representation(self, element_id: str, element: Any,
@@ -232,6 +232,25 @@ class OntologyEmbedder:
             logger.error(f"Failed to embed texts: {e}")
             return None
 
+    def remove_ontology(self, ontology_id: str):
+        """Remove all embeddings for a specific ontology.
+
+        Note: FAISS doesn't support efficient deletion, so this currently
+        requires rebuilding the entire index without the removed ontology.
+
+        Args:
+            ontology_id: ID of ontology to remove
+        """
+        if ontology_id not in self.embedded_ontologies:
+            logger.debug(f"Ontology '{ontology_id}' not embedded, nothing to remove")
+            return
+
+        # FAISS doesn't support selective deletion, so we'd need to rebuild the index
+        # For now, just remove from tracking set
+        # TODO: Implement index rebuilding if selective removal is needed
+        self.embedded_ontologies.discard(ontology_id)
+        logger.info(f"Removed ontology '{ontology_id}' from embedded set (note: vectors still in store)")
+
     def clear_embeddings(self, ontology_id: Optional[str] = None):
         """Clear embeddings from vector store.
 
@@ -240,15 +259,13 @@ class OntologyEmbedder:
                         Otherwise, clear all embeddings
         """
         if ontology_id:
-            # Would need to implement selective clearing in vector store
-            # For now, log warning
-            logger.warning(f"Selective clearing not implemented, would clear {ontology_id}")
+            self.remove_ontology(ontology_id)
         else:
             self.vector_store.clear()
             self.embedded_ontologies.clear()
             logger.info("Cleared all embeddings from vector store")
 
-    def get_vector_store(self) -> VectorStore:
+    def get_vector_store(self) -> InMemoryVectorStore:
         """Get the vector store instance.
 
         Returns:

@@ -12,8 +12,7 @@ from .... schema import Chunk, Triple, Triples, Metadata, Value
 from .... schema import PromptRequest, PromptResponse
 from .... rdf import TRUSTGRAPH_ENTITIES, RDF_TYPE, RDF_LABEL
 from .... base import FlowProcessor, ConsumerSpec, ProducerSpec
-from .... base import PromptClientSpec
-from .... tables.config import ConfigTableStore
+from .... base import PromptClientSpec, EmbeddingsClientSpec
 
 from .ontology_loader import OntologyLoader
 from .ontology_embedder import OntologyEmbedder
@@ -59,11 +58,21 @@ class Processor(FlowProcessor):
         )
 
         self.register_specification(
+            EmbeddingsClientSpec(
+                request_name="embeddings-request",
+                response_name="embeddings-response"
+            )
+        )
+
+        self.register_specification(
             ProducerSpec(
                 name="triples",
                 schema=Triples
             )
         )
+
+        # Register config handler for ontology updates
+        self.register_config_handler(self.on_ontology_config)
 
         # Initialize components
         self.ontology_loader = None
@@ -75,13 +84,10 @@ class Processor(FlowProcessor):
         # Configuration
         self.top_k = params.get("top_k", 10)
         self.similarity_threshold = params.get("similarity_threshold", 0.7)
-        self.refresh_interval = params.get("ontology_refresh_interval", 300)
 
-        # Cassandra configuration for config store
-        self.cassandra_host = params.get("cassandra_host", "localhost")
-        self.cassandra_username = params.get("cassandra_username", "cassandra")
-        self.cassandra_password = params.get("cassandra_password", "cassandra")
-        self.cassandra_keyspace = params.get("cassandra_keyspace", "trustgraph")
+        # Track loaded ontology version
+        self.current_ontology_version = None
+        self.loaded_ontology_ids = set()
 
     async def initialize_components(self, flow):
         """Initialize OntoRAG components."""
@@ -89,37 +95,23 @@ class Processor(FlowProcessor):
             return
 
         try:
-            # Create configuration store
-            config_store = ConfigTableStore(
-                self.cassandra_host,
-                self.cassandra_username,
-                self.cassandra_password,
-                self.cassandra_keyspace
-            )
+            # Initialize ontology loader (no ConfigTableStore needed)
+            self.ontology_loader = OntologyLoader()
+            logger.info("Ontology loader initialized")
 
-            # Initialize ontology loader
-            self.ontology_loader = OntologyLoader(config_store)
-            ontologies = await self.ontology_loader.load_ontologies()
-            logger.info(f"Loaded {len(ontologies)} ontologies")
-
-            # Initialize vector store
-            vector_store = InMemoryVectorStore.create(
+            # Initialize vector store (FAISS only, no fallback)
+            vector_store = InMemoryVectorStore(
                 dimension=1536,  # text-embedding-3-small
-                prefer_faiss=True,
                 index_type='flat'
             )
 
-            # Initialize ontology embedder with embedding service wrapper
-            embedding_service = EmbeddingServiceWrapper(flow)
+            # Use embeddings client directly (no wrapper needed)
+            embeddings_client = flow("embeddings-request")
+
             self.ontology_embedder = OntologyEmbedder(
-                embedding_service=embedding_service,
+                embedding_service=embeddings_client,
                 vector_store=vector_store
             )
-
-            # Embed all ontologies
-            if ontologies:
-                await self.ontology_embedder.embed_ontologies(ontologies)
-                logger.info(f"Embedded {self.ontology_embedder.get_embedded_count()} ontology elements")
 
             # Initialize ontology selector
             self.ontology_selector = OntologySelector(
@@ -132,28 +124,90 @@ class Processor(FlowProcessor):
             self.initialized = True
             logger.info("OntoRAG components initialized successfully")
 
-            # Schedule periodic refresh
-            asyncio.create_task(self.refresh_ontologies_periodically())
+            # NOTE: Ontologies will be loaded via on_ontology_config() handler
+            # when ConfigPush messages arrive (including initial config on startup)
 
         except Exception as e:
             logger.error(f"Failed to initialize OntoRAG components: {e}", exc_info=True)
             raise
 
-    async def refresh_ontologies_periodically(self):
-        """Periodically refresh ontologies from configuration."""
-        while True:
-            await asyncio.sleep(self.refresh_interval)
-            try:
-                logger.info("Refreshing ontologies...")
-                ontologies = await self.ontology_loader.refresh_ontologies()
-                if ontologies:
-                    # Re-embed new ontologies
-                    for ont_id in ontologies:
-                        if not self.ontology_embedder.is_ontology_embedded(ont_id):
-                            await self.ontology_embedder.embed_ontology(ontologies[ont_id])
-                logger.info("Ontology refresh complete")
-            except Exception as e:
-                logger.error(f"Error refreshing ontologies: {e}", exc_info=True)
+    async def on_ontology_config(self, config, version):
+        """
+        Handle ontology configuration updates from ConfigPush queue.
+
+        Called automatically when:
+        - Processor starts (gets full config history via start_of_messages=True)
+        - Config service pushes updates (immediate event-driven notification)
+
+        Args:
+            config: Full configuration map - config[type][key] = value
+            version: Config version number (monotonically increasing)
+        """
+        try:
+            logger.info(f"Received ontology config update, version={version}")
+
+            # Skip if we've already processed this version
+            if version == self.current_ontology_version:
+                logger.debug(f"Already at version {version}, skipping")
+                return
+
+            # Extract ontology configurations
+            if "ontology" not in config:
+                logger.warning("No 'ontology' section in config")
+                return
+
+            ontology_configs = config["ontology"]
+
+            # Parse ontology definitions
+            ontologies = {}
+            for ont_id, ont_json in ontology_configs.items():
+                try:
+                    ontologies[ont_id] = json.loads(ont_json)
+                except json.JSONDecodeError as e:
+                    logger.error(f"Failed to parse ontology '{ont_id}': {e}")
+                    continue
+
+            logger.info(f"Loaded {len(ontologies)} ontology definitions")
+
+            # Determine what changed (for incremental updates)
+            new_ids = set(ontologies.keys())
+            added_ids = new_ids - self.loaded_ontology_ids
+            removed_ids = self.loaded_ontology_ids - new_ids
+            updated_ids = new_ids & self.loaded_ontology_ids  # May have changed content
+
+            if added_ids:
+                logger.info(f"New ontologies: {added_ids}")
+            if removed_ids:
+                logger.info(f"Removed ontologies: {removed_ids}")
+            if updated_ids:
+                logger.info(f"Updated ontologies: {updated_ids}")
+
+            # Update ontology loader's internal state
+            self.ontology_loader.update_ontologies(ontologies)
+
+            # Re-embed changed ontologies
+            if self.ontology_embedder:
+                # Remove embeddings for deleted ontologies
+                for ont_id in removed_ids:
+                    self.ontology_embedder.remove_ontology(ont_id)
+
+                # Embed new and updated ontologies
+                for ont_id in added_ids | updated_ids:
+                    if ont_id in self.ontology_loader.get_all_ontologies():
+                        await self.ontology_embedder.embed_ontology(
+                            self.ontology_loader.get_ontology(ont_id)
+                        )
+
+                logger.info(f"Re-embedded ontologies, total elements: {self.ontology_embedder.get_embedded_count()}")
+
+            # Update tracking
+            self.current_ontology_version = version
+            self.loaded_ontology_ids = new_ids
+
+            logger.info(f"Ontology config update complete, version={version}")
+
+        except Exception as e:
+            logger.error(f"Failed to process ontology config: {e}", exc_info=True)
 
     async def on_message(self, msg, consumer, flow):
         """Process incoming chunk message."""
@@ -403,69 +457,7 @@ TRIPLES (JSON array):"""
             default=0.7,
             help='Similarity threshold for ontology matching (default: 0.7)'
         )
-        parser.add_argument(
-            '--ontology-refresh-interval',
-            type=int,
-            default=300,
-            help='Ontology refresh interval in seconds (default: 300)'
-        )
-        parser.add_argument(
-            '--cassandra-host',
-            type=str,
-            default='localhost',
-            help='Cassandra host (default: localhost)'
-        )
-        parser.add_argument(
-            '--cassandra-username',
-            type=str,
-            default='cassandra',
-            help='Cassandra username (default: cassandra)'
-        )
-        parser.add_argument(
-            '--cassandra-password',
-            type=str,
-            default='cassandra',
-            help='Cassandra password (default: cassandra)'
-        )
-        parser.add_argument(
-            '--cassandra-keyspace',
-            type=str,
-            default='trustgraph',
-            help='Cassandra keyspace (default: trustgraph)'
-        )
         FlowProcessor.add_args(parser)
-
-
-class EmbeddingServiceWrapper:
-    """Wrapper to adapt flow prompt service to embedding service interface."""
-
-    def __init__(self, flow):
-        self.flow = flow
-
-    async def embed(self, text: str):
-        """Generate embedding for single text."""
-        try:
-            response = await self.flow("prompt-request").get_embedding(text=text)
-            return response
-        except Exception as e:
-            logger.error(f"Embedding service error: {e}")
-            return None
-
-    async def embed_batch(self, texts: List[str]):
-        """Generate embeddings for multiple texts."""
-        try:
-            # Process in parallel for better performance
-            tasks = [self.embed(text) for text in texts]
-            embeddings = await asyncio.gather(*tasks)
-            # Filter out None values and convert to array
-            import numpy as np
-            valid_embeddings = [e for e in embeddings if e is not None]
-            if valid_embeddings:
-                return np.array(valid_embeddings)
-            return None
-        except Exception as e:
-            logger.error(f"Batch embedding service error: {e}")
-            return None
 
 
 def run():

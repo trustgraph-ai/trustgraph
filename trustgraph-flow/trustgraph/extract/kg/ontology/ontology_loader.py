@@ -158,84 +158,61 @@ class Ontology:
 
 
 class OntologyLoader:
-    """Loads and manages ontologies from configuration service."""
+    """Manages ontologies received via event-driven config updates.
 
-    def __init__(self, config_store=None):
-        """Initialize the ontology loader.
+    No direct database access - receives ontologies via config handler.
+    """
+
+    def __init__(self):
+        """Initialize empty ontology store."""
+        self.ontologies: Dict[str, Ontology] = {}
+
+    def update_ontologies(self, ontology_configs: Dict[str, Any]):
+        """Update ontology definitions from config.
 
         Args:
-            config_store: Configuration store instance (injected dependency)
+            ontology_configs: Dict mapping ontology_id -> ontology_definition (parsed dicts)
         """
-        self.config_store = config_store
-        self.ontologies: Dict[str, Ontology] = {}
-        self.refresh_interval = 300  # Default 5 minutes
+        self.ontologies.clear()
 
-    async def load_ontologies(self) -> Dict[str, Ontology]:
-        """Load all ontologies from configuration service.
+        for ont_id, ont_data in ontology_configs.items():
+            try:
+                # Parse classes
+                classes = {}
+                for class_id, class_data in ont_data.get('classes', {}).items():
+                    classes[class_id] = OntologyClass.from_dict(class_id, class_data)
 
-        Returns:
-            Dictionary of ontology ID to Ontology objects
-        """
-        if not self.config_store:
-            logger.warning("No configuration store available, returning empty ontologies")
-            return {}
+                # Parse object properties
+                object_props = {}
+                for prop_id, prop_data in ont_data.get('objectProperties', {}).items():
+                    object_props[prop_id] = OntologyProperty.from_dict(prop_id, prop_data)
 
-        try:
-            # Get all ontology configurations
-            ontology_configs = await self.config_store.get("ontology").values()
+                # Parse datatype properties
+                datatype_props = {}
+                for prop_id, prop_data in ont_data.get('datatypeProperties', {}).items():
+                    datatype_props[prop_id] = OntologyProperty.from_dict(prop_id, prop_data)
 
-            for ont_id, ont_data in ontology_configs.items():
-                try:
-                    # Parse JSON if string
-                    if isinstance(ont_data, str):
-                        ont_data = json.loads(ont_data)
+                # Create ontology
+                ontology = Ontology(
+                    id=ont_id,
+                    metadata=ont_data.get('metadata', {}),
+                    classes=classes,
+                    object_properties=object_props,
+                    datatype_properties=datatype_props
+                )
 
-                    # Parse classes
-                    classes = {}
-                    for class_id, class_data in ont_data.get('classes', {}).items():
-                        classes[class_id] = OntologyClass.from_dict(class_id, class_data)
+                # Validate structure
+                issues = ontology.validate_structure()
+                if issues:
+                    logger.warning(f"Ontology {ont_id} has validation issues: {issues}")
 
-                    # Parse object properties
-                    object_props = {}
-                    for prop_id, prop_data in ont_data.get('objectProperties', {}).items():
-                        object_props[prop_id] = OntologyProperty.from_dict(prop_id, prop_data)
+                self.ontologies[ont_id] = ontology
+                logger.info(f"Loaded ontology {ont_id} with {len(classes)} classes, "
+                           f"{len(object_props)} object properties, "
+                           f"{len(datatype_props)} datatype properties")
 
-                    # Parse datatype properties
-                    datatype_props = {}
-                    for prop_id, prop_data in ont_data.get('datatypeProperties', {}).items():
-                        datatype_props[prop_id] = OntologyProperty.from_dict(prop_id, prop_data)
-
-                    # Create ontology
-                    ontology = Ontology(
-                        id=ont_id,
-                        metadata=ont_data.get('metadata', {}),
-                        classes=classes,
-                        object_properties=object_props,
-                        datatype_properties=datatype_props
-                    )
-
-                    # Validate structure
-                    issues = ontology.validate_structure()
-                    if issues:
-                        logger.warning(f"Ontology {ont_id} has validation issues: {issues}")
-
-                    self.ontologies[ont_id] = ontology
-                    logger.info(f"Loaded ontology {ont_id} with {len(classes)} classes, "
-                               f"{len(object_props)} object properties, "
-                               f"{len(datatype_props)} datatype properties")
-
-                except Exception as e:
-                    logger.error(f"Failed to load ontology {ont_id}: {e}", exc_info=True)
-
-        except Exception as e:
-            logger.error(f"Failed to load ontologies from config: {e}", exc_info=True)
-
-        return self.ontologies
-
-    async def refresh_ontologies(self):
-        """Refresh ontologies from configuration service."""
-        logger.info("Refreshing ontologies...")
-        return await self.load_ontologies()
+            except Exception as e:
+                logger.error(f"Failed to load ontology {ont_id}: {e}", exc_info=True)
 
     def get_ontology(self, ont_id: str) -> Optional[Ontology]:
         """Get a specific ontology by ID.
@@ -255,6 +232,14 @@ class OntologyLoader:
             Dictionary of ontology ID to Ontology objects
         """
         return self.ontologies
+
+    def list_ontology_ids(self) -> List[str]:
+        """Get list of loaded ontology IDs.
+
+        Returns:
+            List of ontology IDs
+        """
+        return list(self.ontologies.keys())
 
     def clear(self):
         """Clear all loaded ontologies."""
