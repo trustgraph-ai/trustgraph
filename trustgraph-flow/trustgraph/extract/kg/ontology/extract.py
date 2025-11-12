@@ -93,7 +93,8 @@ class Processor(FlowProcessor):
         """Initialize per-flow OntoRAG components.
 
         Each flow gets its own vector store and embedder to support
-        different embedding models across flows.
+        different embedding models across flows. The vector store dimension
+        is auto-detected from the embeddings service.
 
         Args:
             flow: Flow object for this processing context
@@ -110,14 +111,21 @@ class Processor(FlowProcessor):
         try:
             logger.info(f"Initializing components for flow {flow_id}")
 
-            # Initialize vector store (FAISS only, no fallback)
-            vector_store = InMemoryVectorStore(
-                dimension=1536,  # text-embedding-3-small
-                index_type='flat'
-            )
-
             # Use embeddings client directly (no wrapper needed)
             embeddings_client = flow("embeddings-request")
+
+            # Detect embedding dimension by embedding a test string
+            logger.info("Detecting embedding dimension from embeddings service...")
+            test_embedding_response = await embeddings_client.embed("test")
+            test_embedding = test_embedding_response[0]  # Extract from [[vector]]
+            dimension = len(test_embedding)
+            logger.info(f"Detected embedding dimension: {dimension}")
+
+            # Initialize vector store with detected dimension
+            vector_store = InMemoryVectorStore(
+                dimension=dimension,
+                index_type='flat'
+            )
 
             ontology_embedder = OntologyEmbedder(
                 embedding_service=embeddings_client,
@@ -143,10 +151,11 @@ class Processor(FlowProcessor):
             self.flow_components[flow_id] = {
                 'embedder': ontology_embedder,
                 'vector_store': vector_store,
-                'selector': ontology_selector
+                'selector': ontology_selector,
+                'dimension': dimension
             }
 
-            logger.info(f"Flow {flow_id} components initialized successfully")
+            logger.info(f"Flow {flow_id} components initialized successfully (dimension={dimension})")
             return flow_id
 
         except Exception as e:

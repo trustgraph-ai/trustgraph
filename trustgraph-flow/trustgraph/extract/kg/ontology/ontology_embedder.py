@@ -164,6 +164,9 @@ class OntologyEmbedder:
                 # Convert to numpy array
                 embeddings = np.array(embeddings_list)
 
+                # Log embedding shape for debugging
+                logger.debug(f"Embeddings shape: {embeddings.shape}, expected: ({len(batch)}, {self.vector_store.dimension})")
+
                 # Store in vector store
                 ids = [elem['id'] for elem in batch]
                 metadata_list = [elem['metadata'] for elem in batch]
@@ -174,7 +177,7 @@ class OntologyEmbedder:
                 logger.debug(f"Embedded batch of {len(batch)} elements from ontology {ontology.id}")
 
             except Exception as e:
-                logger.error(f"Failed to embed batch for ontology {ontology.id}: {e}")
+                logger.error(f"Failed to embed batch for ontology {ontology.id}: {e}", exc_info=True)
 
         self.embedded_ontologies.add(ontology.id)
         logger.info(f"Embedded {embedded_count} elements from ontology {ontology.id}")
