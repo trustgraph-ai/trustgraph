@@ -153,9 +153,13 @@ class OntologyEmbedder:
             # Get embeddings for batch
             texts = [elem['text'] for elem in batch]
             try:
-                # Call embedding service for each text (EmbeddingsClient.embed() is single-text)
+                # Call embedding service for each text
+                # Note: embed() returns 2D array [[vector]], so extract first element
                 embedding_tasks = [self.embedding_service.embed(text) for text in texts]
-                embeddings_list = await asyncio.gather(*embedding_tasks)
+                embeddings_responses = await asyncio.gather(*embedding_tasks)
+
+                # Extract vectors from responses (each is [[vector]])
+                embeddings_list = [resp[0] for resp in embeddings_responses]
 
                 # Convert to numpy array
                 embeddings = np.array(embeddings_list)
@@ -211,8 +215,9 @@ class OntologyEmbedder:
             return None
 
         try:
-            embedding = await self.embedding_service.embed(text)
-            return embedding
+            # embed() returns 2D array [[vector]], extract first element
+            embedding_response = await self.embedding_service.embed(text)
+            return np.array(embedding_response[0])
         except Exception as e:
             logger.error(f"Failed to embed text: {e}")
             return None
@@ -231,9 +236,11 @@ class OntologyEmbedder:
             return None
 
         try:
-            # EmbeddingsClient.embed() is single-text, so call in parallel
+            # Call embed() for each text (returns [[vector]] per call)
             embedding_tasks = [self.embedding_service.embed(text) for text in texts]
-            embeddings_list = await asyncio.gather(*embedding_tasks)
+            embeddings_responses = await asyncio.gather(*embedding_tasks)
+            # Extract first vector from each response
+            embeddings_list = [resp[0] for resp in embeddings_responses]
             return np.array(embeddings_list)
         except Exception as e:
             logger.error(f"Failed to embed texts: {e}")
