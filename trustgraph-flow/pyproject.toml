@@ -16,6 +16,7 @@ dependencies = [
     "scylla-driver",
     "cohere",
     "cryptography",
+    "faiss-cpu",
     "falkordb",
     "fastembed",
     "google-genai",
@@ -82,6 +83,7 @@ kg-extract-definitions = "trustgraph.extract.kg.definitions:run"
 kg-extract-objects = "trustgraph.extract.kg.objects:run"
 kg-extract-relationships = "trustgraph.extract.kg.relationships:run"
 kg-extract-topics = "trustgraph.extract.kg.topics:run"
+kg-extract-ontology = "trustgraph.extract.kg.ontology:run"
 kg-manager = "trustgraph.cores:run"
 kg-store = "trustgraph.storage.knowledge:run"
 librarian = "trustgraph.librarian:run"
