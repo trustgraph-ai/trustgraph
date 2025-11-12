@@ -253,6 +253,43 @@ class OntologySelector:
                     if inverse_prop:
                         subset.object_properties[inverse_id] = inverse_prop.__dict__
 
+        # NEW: Auto-include properties related to selected classes
+        # For each selected class, find all properties that reference it in domain or range
+        properties_added = 0
+        datatype_properties_added = 0
+
+        for class_id in list(subset.classes.keys()):
+            # Check all object properties in the ontology
+            for prop_id, prop_def in ontology.object_properties.items():
+                if prop_id not in subset.object_properties:
+                    # Check if this class is in the property's domain or range
+                    prop_domain = getattr(prop_def, 'domain', None)
+                    prop_range = getattr(prop_def, 'range', None)
+
+                    if prop_domain == class_id or prop_range == class_id:
+                        subset.object_properties[prop_id] = prop_def.__dict__
+                        properties_added += 1
+
+                        # Also add the other class (domain or range) if not already present
+                        if prop_domain and prop_domain != class_id and prop_domain not in subset.classes:
+                            other_class = ontology.get_class(prop_domain)
+                            if other_class:
+                                classes_to_add.add(prop_domain)
+                        if prop_range and prop_range != class_id and prop_range not in subset.classes:
+                            other_class = ontology.get_class(prop_range)
+                            if other_class:
+                                classes_to_add.add(prop_range)
+
+            # Check all datatype properties in the ontology
+            for prop_id, prop_def in ontology.datatype_properties.items():
+                if prop_id not in subset.datatype_properties:
+                    # Check if this class is in the property's domain
+                    prop_domain = getattr(prop_def, 'domain', None)
+
+                    if prop_domain == class_id:
+                        subset.datatype_properties[prop_id] = prop_def.__dict__
+                        datatype_properties_added += 1
+
         # Add collected classes
         for class_id in classes_to_add:
             cls = ontology.get_class(class_id)
@@ -260,7 +297,9 @@ class OntologySelector:
                 subset.classes[class_id] = cls.__dict__
 
         logger.debug(f"Resolved dependencies for subset {subset.ontology_id}: "
-                    f"added {len(classes_to_add)} classes")
+                    f"added {len(classes_to_add)} classes, "
+                    f"{properties_added} object properties, "
+                    f"{datatype_properties_added} datatype properties")
 
     def merge_subsets(self, subsets: List[OntologySubset]) -> OntologySubset:
         """Merge multiple ontology subsets into one.
