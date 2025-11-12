@@ -317,73 +317,22 @@ class Processor(FlowProcessor):
                 []
             )
 
-    def build_extraction_prompt(self, chunk: str, ontology_subset: OntologySubset) -> str:
-        """Build prompt for ontology-based extraction."""
-        # Format classes
-        classes_str = self.format_classes(ontology_subset.classes)
+    def build_extraction_variables(self, chunk: str, ontology_subset: OntologySubset) -> Dict[str, Any]:
+        """Build variables for ontology-based extraction prompt template.
 
-        # Format properties
-        obj_props_str = self.format_properties(
-            ontology_subset.object_properties,
-            "object"
-        )
-        dt_props_str = self.format_properties(
-            ontology_subset.datatype_properties,
-            "datatype"
-        )
+        Args:
+            chunk: Text chunk to extract from
+            ontology_subset: Relevant ontology elements
 
-        prompt = f"""Extract knowledge triples from the following text using ONLY the provided ontology elements.
-
-ONTOLOGY CLASSES:
-{classes_str}
-
-OBJECT PROPERTIES (connect entities):
-{obj_props_str}
-
-DATATYPE PROPERTIES (entity attributes):
-{dt_props_str}
-
-RULES:
-1. Only use classes defined above for entity types
-2. Only use properties defined above for relationships and attributes
-3. Respect domain and range constraints
-4. Output format: JSON array of {{"subject": "", "predicate": "", "object": ""}}
-5. For class instances, use rdf:type as predicate
-6. Include rdfs:label for new entities
-
-TEXT:
-{chunk}
-
-TRIPLES (JSON array):"""
-
-        return prompt
-
-    def format_classes(self, classes: Dict[str, Any]) -> str:
-        """Format classes for prompt."""
-        if not classes:
-            return "None"
-
-        lines = []
-        for class_id, definition in classes.items():
-            comment = definition.get('comment', '')
-            parent = definition.get('subclass_of', 'Thing')
-            lines.append(f"- {class_id} (subclass of {parent}): {comment}")
-
-        return '\n'.join(lines)
-
-    def format_properties(self, properties: Dict[str, Any], prop_type: str) -> str:
-        """Format properties for prompt."""
-        if not properties:
-            return "None"
-
-        lines = []
-        for prop_id, definition in properties.items():
-            comment = definition.get('comment', '')
-            domain = definition.get('domain', 'Any')
-            range_val = definition.get('range', 'Any')
-            lines.append(f"- {prop_id} ({domain} -> {range_val}): {comment}")
-
-        return '\n'.join(lines)
+        Returns:
+            Dict with template variables: text, classes, object_properties, datatype_properties
+        """
+        return {
+            "text": chunk,
+            "classes": ontology_subset.classes,
+            "object_properties": ontology_subset.object_properties,
+            "datatype_properties": ontology_subset.datatype_properties
+        }
 
     def parse_and_validate_triples(self, triples_response: List[Any],
                                   ontology_subset: OntologySubset) -> List[Triple]:
