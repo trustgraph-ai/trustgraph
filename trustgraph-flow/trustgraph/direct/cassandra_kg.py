@@ -334,13 +334,14 @@ class KnowledgeGraph:
 
             count += 1
 
-            # Execute batch every 100 triples to avoid oversized batches
-            if count % 100 == 0:
+            # Execute batch every 25 triples to avoid oversized batches
+            # (Each triple adds ~4 statements, so 25 triples = ~100 statements)
+            if count % 25 == 0:
                 self.session.execute(batch)
                 batch = BatchStatement()
 
         # Execute remaining deletions
-        if count % 100 != 0:
+        if count % 25 != 0:
             self.session.execute(batch)
 
         # Step 3: Delete collection metadata
