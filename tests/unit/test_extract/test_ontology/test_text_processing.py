@@ -6,23 +6,13 @@ including NLTK tokenization and TextSegment creation.
 """
 
 import pytest
-from trustgraph.extract.kg.ontology.extract import Processor
-from trustgraph.schema.text_segment import TextSegment
-
-
-class MockParams:
-    """Mock parameters for Processor."""
-    def get(self, key, default=None):
-        return default
+from trustgraph.extract.kg.ontology.text_processor import TextProcessor, TextSegment
 
 
 @pytest.fixture
-def processor():
-    """Create a Processor instance for testing."""
-    params = MockParams()
-    processor = Processor()
-    processor.subscribe(None, None, params)
-    return processor
+def text_processor():
+    """Create a TextProcessor instance for testing."""
+    return TextProcessor()
 
 
 class TestTextSegmentation:
