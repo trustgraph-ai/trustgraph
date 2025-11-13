@@ -63,6 +63,39 @@ Tests that text is properly split into sentences for ontology matching, includin
 - `test_unicode_text` - Handles unicode characters
 - `test_quoted_text` - Handles quoted text correctly
 
+### 5. `test_prompt_and_extraction.py` - LLM Prompt Construction and Triple Extraction
+
+Tests that the system correctly constructs prompts with ontology constraints and extracts/validates triples from LLM responses.
+
+**Key Tests:**
+- `test_build_extraction_variables_includes_text` - Prompt includes input text
+- `test_build_extraction_variables_includes_classes` - Prompt includes ontology classes
+- `test_build_extraction_variables_includes_properties` - Prompt includes properties
+- `test_validates_rdf_type_triple_with_valid_class` - Validates rdf:type against ontology
+- `test_rejects_rdf_type_triple_with_invalid_class` - Rejects invalid classes
+- `test_validates_object_property_triple` - Validates object properties
+- `test_rejects_unknown_property` - Rejects properties not in ontology
+- `test_parse_simple_triple_dict` - Parses triple from dict format
+- `test_filters_invalid_triples` - Filters out invalid triples
+- `test_expands_uris_in_parsed_triples` - Expands URIs using ontology
+- `test_creates_proper_triple_objects` - Creates Triple objects with Value subjects/predicates/objects
+
+### 6. `test_embedding_and_similarity.py` - Ontology Embedding and Similarity Matching
+
+Tests that ontology elements are properly embedded and matched against input text using vector similarity.
+
+**Key Tests:**
+- `test_create_text_from_class_with_id` - Text representation includes class ID
+- `test_create_text_from_class_with_labels` - Includes labels in text
+- `test_create_text_from_class_with_comment` - Includes comments in text
+- `test_create_text_from_property_with_domain_range` - Includes domain/range in property text
+- `test_normalizes_id_with_underscores` - Normalizes IDs (underscores to spaces)
+- `test_includes_subclass_info_for_classes` - Includes subclass relationships
+- `test_vector_store_api_structure` - Vector store has expected API
+- `test_selector_handles_text_segments` - Selector processes text segments
+- `test_merge_subsets_combines_elements` - Merging combines ontology elements
+- `test_ontology_element_metadata_structure` - Metadata structure is correct
+
 ## Running the Tests
 
 ### Run all ontology extractor tests:
@@ -77,6 +110,8 @@ pytest tests/unit/test_extract/test_ontology/test_ontology_selector.py -v
 pytest tests/unit/test_extract/test_ontology/test_uri_expansion.py -v
 pytest tests/unit/test_extract/test_ontology/test_ontology_triples.py -v
 pytest tests/unit/test_extract/test_ontology/test_text_processing.py -v
+pytest tests/unit/test_extract/test_ontology/test_prompt_and_extraction.py -v
+pytest tests/unit/test_extract/test_ontology/test_embedding_and_similarity.py -v
 ```
 
 ### Run specific test:
@@ -94,10 +129,14 @@ pytest tests/unit/test_extract/test_ontology/ --cov=trustgraph.extract.kg.ontolo
 - `sample_ontology` - Complete Food Ontology with Recipe, Ingredient, Food, Method classes
 - `ontology_loader_with_sample` - Mock OntologyLoader with the sample ontology
 - `ontology_embedder` - Mock embedder for testing
+- `mock_embedding_service` - Mock service for generating deterministic embeddings
+- `vector_store` - InMemoryVectorStore for testing
 - `extractor` - Processor instance for URI expansion tests
 - `ontology_subset_with_uris` - OntologySubset with proper URIs defined
 - `sample_ontology_subset` - OntologySubset for testing triple generation
-- `processor` - Processor instance for text segmentation tests
+- `text_processor` - TextProcessor instance for text segmentation tests
+- `sample_ontology_class` - Sample OntologyClass for testing
+- `sample_ontology_property` - Sample OntologyProperty for testing
 
 ## Implementation Notes
 
