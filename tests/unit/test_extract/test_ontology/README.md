@@ -30,6 +30,39 @@ Tests that URIs are properly expanded using ontology definitions instead of cons
 - `test_already_full_uri_unchanged` - Full URIs pass through
 - `test_dict_access_not_object_attribute` - **Critical test** verifying dict access works (not object attributes)
 
+### 3. `test_ontology_triples.py` - Ontology Triple Generation
+
+Tests that ontology elements (classes and properties) are properly converted to RDF triples with labels, comments, domains, and ranges.
+
+**Key Tests:**
+- `test_generates_class_type_triples` - Classes get `rdf:type owl:Class` triples
+- `test_generates_class_labels` - Classes get `rdfs:label` triples
+- `test_generates_class_comments` - Classes get `rdfs:comment` triples
+- `test_generates_object_property_type_triples` - Object properties get proper type triples
+- `test_generates_object_property_labels` - Object properties get labels
+- `test_generates_object_property_domain` - Object properties get `rdfs:domain` triples
+- `test_generates_object_property_range` - Object properties get `rdfs:range` triples
+- `test_generates_datatype_property_type_triples` - Datatype properties get proper type triples
+- `test_generates_datatype_property_range` - Datatype properties get XSD type ranges
+- `test_uses_dict_field_names_not_rdf_names` - **Critical test** verifying dict field names work
+- `test_total_triple_count_is_reasonable` - Validates expected number of triples
+
+### 4. `test_text_processing.py` - Text Processing and Segmentation
+
+Tests that text is properly split into sentences for ontology matching, including NLTK tokenization and TextSegment creation.
+
+**Key Tests:**
+- `test_segment_single_sentence` - Single sentence produces one segment
+- `test_segment_multiple_sentences` - Multiple sentences split correctly
+- `test_segment_positions` - Segment start/end positions are correct
+- `test_segment_complex_punctuation` - Handles abbreviations (Dr., U.S.A., Mr.)
+- `test_segment_question_and_exclamation` - Different sentence terminators
+- `test_segment_preserves_original_text` - Segments can reconstruct original
+- `test_text_segment_non_overlapping` - Segments don't overlap
+- `test_nltk_punkt_availability` - NLTK tokenizer is available
+- `test_unicode_text` - Handles unicode characters
+- `test_quoted_text` - Handles quoted text correctly
+
 ## Running the Tests
 
 ### Run all ontology extractor tests:
@@ -42,6 +75,8 @@ pytest tests/unit/test_extract/test_ontology/ -v
 ```bash
 pytest tests/unit/test_extract/test_ontology/test_ontology_selector.py -v
 pytest tests/unit/test_extract/test_ontology/test_uri_expansion.py -v
+pytest tests/unit/test_extract/test_ontology/test_ontology_triples.py -v
+pytest tests/unit/test_extract/test_ontology/test_text_processing.py -v
 ```
 
 ### Run specific test:
@@ -59,8 +94,10 @@ pytest tests/unit/test_extract/test_ontology/ --cov=trustgraph.extract.kg.ontolo
 - `sample_ontology` - Complete Food Ontology with Recipe, Ingredient, Food, Method classes
 - `ontology_loader_with_sample` - Mock OntologyLoader with the sample ontology
 - `ontology_embedder` - Mock embedder for testing
-- `extractor` - KgExtractOntology instance for URI expansion tests
+- `extractor` - Processor instance for URI expansion tests
 - `ontology_subset_with_uris` - OntologySubset with proper URIs defined
+- `sample_ontology_subset` - OntologySubset for testing triple generation
+- `processor` - Processor instance for text segmentation tests
 
 ## Implementation Notes
 
@@ -68,3 +105,5 @@ These tests verify the fixes made to address:
 1. **Disconnected graph problem** - Auto-include properties feature ensures all relevant relationships are available
 2. **Wrong URIs problem** - URI expansion using ontology definitions instead of constructed fallbacks
 3. **Dict vs object attribute problem** - URI expansion works with dicts (from `cls.__dict__`) not object attributes
+4. **Ontology visibility in KG** - Ontology elements themselves appear in the knowledge graph with proper metadata
+5. **Text segmentation** - Proper sentence splitting for ontology matching using NLTK
