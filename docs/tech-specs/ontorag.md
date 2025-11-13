@@ -40,34 +40,34 @@ The OntoRAG system consists of the following components:
 └────────┬────────┘
          │ Ontologies
          ▼
-┌─────────────────┐     ┌──────────────┐
+┌─────────────────┐      ┌──────────────┐
 │ kg-extract-     │────▶│  Embedding   │
-│   ontology      │     │   Service    │
-└────────┬────────┘     └──────────────┘
+│   ontology      │      │   Service    │
+└────────┬────────┘      └──────────────┘
          │                      │
          ▼                      ▼
-┌─────────────────┐     ┌──────────────┐
+┌─────────────────┐      ┌──────────────┐
 │   In-Memory     │◀────│   Ontology   │
-│  Vector Store   │     │   Embedder   │
-└────────┬────────┘     └──────────────┘
+│  Vector Store   │      │   Embedder   │
+└────────┬────────┘      └──────────────┘
          │
          ▼
-┌─────────────────┐     ┌──────────────┐
+┌─────────────────┐      ┌──────────────┐
 │    Sentence     │────▶│   Chunker    │
-│    Splitter     │     │   Service    │
-└────────┬────────┘     └──────────────┘
+│    Splitter     │      │   Service    │
+└────────┬────────┘      └──────────────┘
          │
          ▼
-┌─────────────────┐     ┌──────────────┐
+┌─────────────────┐      ┌──────────────┐
 │    Ontology     │────▶│   Vector     │
-│    Selector     │     │   Search     │
-└────────┬────────┘     └──────────────┘
+│    Selector     │      │   Search     │
+└────────┬────────┘      └──────────────┘
          │
          ▼
-┌─────────────────┐     ┌──────────────┐
+┌─────────────────┐      ┌──────────────┐
 │    Prompt       │────▶│   Prompt     │
-│   Constructor   │     │   Service    │
-└────────┬────────┘     └──────────────┘
+│   Constructor   │      │   Service    │
+└────────┬────────┘      └──────────────┘
          │
          ▼
 ┌─────────────────┐
@@ -79,555 +79,179 @@ The OntoRAG system consists of the following components:
 
 #### 1. Ontology Loader
 
-**Purpose**: Retrieves and parses ontology configurations from the configuration service at service startup.
+**Purpose**: Retrieves and parses ontology configurations from the configuration service using event-driven updates.
 
-**Algorithm Description**:
-The Ontology Loader connects to the configuration service and requests all configuration items of type "ontology". For each ontology configuration found, it parses the JSON structure containing metadata, classes, object properties, and datatype properties. These parsed ontologies are stored in memory as structured objects that can be efficiently accessed during the extraction process. The loader runs once during service initialisation and can optionally refresh ontologies at configured intervals to pick up updates.
+**Implementation**:
+The Ontology Loader uses TrustGraph's ConfigPush queue to receive event-driven ontology configuration updates. When a configuration element of type "ontology" is added or modified, the loader receives the update via the config-update queue and parses the JSON structure containing metadata, classes, object properties, and datatype properties. These parsed ontologies are stored in memory as structured objects that can be efficiently accessed during the extraction process.
 
 **Key Operations**:
-- Query configuration service for all ontology-type configurations
-- Parse JSON ontology structures into internal object models
+- Subscribe to config-update queue for ontology-type configurations
+- Parse JSON ontology structures into OntologyClass and OntologyProperty objects
 - Validate ontology structure and consistency
 - Cache parsed ontologies in memory for fast access
+- Handle per-flow processing with flow-specific vector stores
 
-Loads ontologies from the configuration service during initialisation:
-
-```python
-class OntologyLoader:
-    def __init__(self, config_service):
-        self.config_service = config_service
-        self.ontologies = {}
-
-    async def load_ontologies(self):
-        # Fetch all ontology configurations
-        configs = await self.config_service.get_configs(type="ontology")
-
-        for config_id, ontology_data in configs:
-            self.ontologies[config_id] = Ontology(
-                metadata=ontology_data['metadata'],
-                classes=ontology_data['classes'],
-                object_properties=ontology_data['objectProperties'],
-                datatype_properties=ontology_data['datatypeProperties']
-            )
-
-        return self.ontologies
-```
+**Implementation Location**: `trustgraph-flow/trustgraph/extract/kg/ontology/ontology_loader.py`
 
 #### 2. Ontology Embedder
 
 **Purpose**: Creates vector embeddings for all ontology elements to enable semantic similarity matching.
 
-**Algorithm Description**:
-The Ontology Embedder processes each element in the loaded ontologies (classes, object properties, and datatype properties) and generates vector embeddings using an embedding service. For each element, it combines the element's identifier with its description (from rdfs:comment) to create a text representation. This text is then converted to a high-dimensional vector embedding that captures its semantic meaning. These embeddings are stored in an in-memory vector store along with metadata about the element type, source ontology, and full definition. This preprocessing step happens once at startup, creating a searchable index of all ontology concepts.
+**Implementation**:
+The Ontology Embedder processes each element in the loaded ontologies (classes, object properties, and datatype properties) and generates vector embeddings using the EmbeddingsClientSpec service. For each element, it combines the element's identifier, labels, and description (comment) to create a text representation. This text is then converted to a high-dimensional vector embedding that captures its semantic meaning. These embeddings are stored in a per-flow in-memory FAISS vector store along with metadata about the element type, source ontology, and full definition. The embedder automatically detects the embedding dimension from the first embedding response.
 
 **Key Operations**:
-- Concatenate element IDs with their descriptions for rich semantic representation
-- Generate embeddings via external embedding service (e.g., text-embedding-3-small)
-- Store embeddings with comprehensive metadata in vector store
+- Create text representations from element IDs, labels, and comments
+- Generate embeddings via EmbeddingsClientSpec (using asyncio.gather for batch processing)
+- Store embeddings with comprehensive metadata in FAISS vector store
 - Index by ontology, element type, and element ID for efficient retrieval
+- Auto-detect embedding dimensions for vector store initialization
+- Handle per-flow embedding models with independent vector stores
 
-Generates embeddings for ontology elements and stores them in an in-memory vector store:
+**Implementation Location**: `trustgraph-flow/trustgraph/extract/kg/ontology/ontology_embedder.py`
 
-```python
-class OntologyEmbedder:
-    def __init__(self, embedding_service, vector_store):
-        self.embedding_service = embedding_service
-        self.vector_store = vector_store
-
-    async def embed_ontologies(self, ontologies):
-        for onto_id, ontology in ontologies.items():
-            # Embed classes
-            for class_id, class_def in ontology.classes.items():
-                text = f"{class_id} {class_def.get('rdfs:comment', '')}"
-                embedding = await self.embedding_service.embed(text)
-
-                self.vector_store.add(
-                    id=f"{onto_id}:class:{class_id}",
-                    embedding=embedding,
-                    metadata={
-                        'type': 'class',
-                        'ontology': onto_id,
-                        'element': class_id,
-                        'definition': class_def
-                    }
-                )
-
-            # Embed properties (object and datatype)
-            for prop_type in ['objectProperties', 'datatypeProperties']:
-                for prop_id, prop_def in getattr(ontology, prop_type).items():
-                    text = f"{prop_id} {prop_def.get('rdfs:comment', '')}"
-                    embedding = await self.embedding_service.embed(text)
-
-                    self.vector_store.add(
-                        id=f"{onto_id}:{prop_type}:{prop_id}",
-                        embedding=embedding,
-                        metadata={
-                            'type': prop_type,
-                            'ontology': onto_id,
-                            'element': prop_id,
-                            'definition': prop_def
-                        }
-                    )
-```
-
-#### 3. Sentence Splitter
+#### 3. Text Processor (Sentence Splitter)
 
 **Purpose**: Decomposes text chunks into fine-grained segments for precise ontology matching.
 
-**Algorithm Description**:
-The Sentence Splitter takes incoming text chunks and breaks them down into smaller, more manageable units. First, it uses natural language processing techniques (via NLTK or spaCy) to identify sentence boundaries, handling edge cases like abbreviations and decimal points. Then, for each sentence, it extracts meaningful phrases including noun phrases (e.g., "the red car"), verb phrases (e.g., "quickly ran"), and named entities. This multi-level segmentation ensures that both complete thoughts (sentences) and specific concepts (phrases) can be matched against ontology elements. Each segment is tagged with its type and position information to maintain context.
+**Implementation**:
+The Text Processor uses NLTK for sentence tokenization and POS tagging to break down incoming text chunks into sentences. It handles NLTK version compatibility by attempting to download `punkt_tab` and `averaged_perceptron_tagger_eng` with fallbacks to older versions if needed. Each text chunk is split into individual sentences that can be independently matched against ontology elements.
 
 **Key Operations**:
-- Split text into sentences using NLP sentence detection
-- Extract noun phrases and verb phrases from each sentence
-- Identify named entities and key terms
-- Maintain hierarchical relationship between sentences and their phrases
-- Preserve positional information for context reconstruction
+- Split text into sentences using NLTK sentence tokenization
+- Handle NLTK version compatibility (punkt_tab vs punkt)
+- Create TextSegment objects with text and position information
+- Support both complete sentences and individual chunks
 
-Breaks incoming chunks into smaller sentences and phrases for granular matching:
-
-```python
-class SentenceSplitter:
-    def __init__(self):
-        # Use NLTK or spaCy for sophisticated splitting
-        self.sentence_detector = SentenceDetector()
-        self.phrase_extractor = PhraseExtractor()
-
-    def split_chunk(self, chunk_text):
-        sentences = self.sentence_detector.split(chunk_text)
-
-        segments = []
-        for sentence in sentences:
-            # Add full sentence
-            segments.append({
-                'text': sentence,
-                'type': 'sentence',
-                'position': len(segments)
-            })
-
-            # Extract noun phrases and verb phrases
-            phrases = self.phrase_extractor.extract(sentence)
-            for phrase in phrases:
-                segments.append({
-                    'text': phrase,
-                    'type': 'phrase',
-                    'parent_sentence': sentence,
-                    'position': len(segments)
-                })
-
-        return segments
-```
+**Implementation Location**: `trustgraph-flow/trustgraph/extract/kg/ontology/text_processor.py`
 
 #### 4. Ontology Selector
 
 **Purpose**: Identifies the most relevant subset of ontology elements for the current text chunk.
 
-**Algorithm Description**:
-The Ontology Selector performs semantic matching between text segments and ontology elements using vector similarity search. For each sentence and phrase from the text chunk, it generates an embedding and searches the vector store for the most similar ontology elements. The search uses cosine similarity with a configurable threshold (e.g., 0.7) to find semantically related concepts. After collecting all relevant elements, it performs dependency resolution to ensure completeness - if a class is selected, its parent classes are included; if a property is selected, its domain and range classes are added. This creates a minimal but complete ontology subset that contains all necessary elements for valid triple extraction while avoiding irrelevant concepts that could confuse the extraction process.
+**Implementation**:
+The Ontology Selector performs semantic matching between text segments and ontology elements using FAISS vector similarity search. For each sentence from the text chunk, it generates an embedding and searches the vector store for the most similar ontology elements using cosine similarity with a configurable threshold (default 0.3). After collecting all relevant elements, it performs comprehensive dependency resolution: if a class is selected, its parent classes are included; if a property is selected, its domain and range classes are added. Additionally, for each selected class, it automatically includes **all properties that reference that class** in their domain or range. This ensures the extraction has access to all relevant relationship properties.
 
 **Key Operations**:
-- Generate embeddings for each text segment (sentences and phrases)
-- Perform k-nearest neighbor search in the vector store
+- Generate embeddings for each text segment (sentences)
+- Perform k-nearest neighbor search in FAISS vector store (top_k=10, threshold=0.3)
 - Apply similarity threshold to filter weak matches
 - Resolve dependencies (parent classes, domains, ranges)
+- **Auto-include all properties related to selected classes** (domain/range matching)
 - Construct coherent ontology subset with all required relationships
 - Deduplicate elements appearing multiple times
 
-Uses vector similarity to find relevant ontology elements for each text segment:
+**Implementation Location**: `trustgraph-flow/trustgraph/extract/kg/ontology/ontology_selector.py`
 
-```python
-class OntologySelector:
-    def __init__(self, embedding_service, vector_store):
-        self.embedding_service = embedding_service
-        self.vector_store = vector_store
-
-    async def select_ontology_subset(self, segments, top_k=10):
-        relevant_elements = set()
-
-        for segment in segments:
-            # Get embedding for segment
-            embedding = await self.embedding_service.embed(segment['text'])
-
-            # Search for similar ontology elements
-            results = self.vector_store.search(
-                embedding=embedding,
-                top_k=top_k,
-                threshold=0.7  # Similarity threshold
-            )
-
-            for result in results:
-                relevant_elements.add((
-                    result['metadata']['ontology'],
-                    result['metadata']['type'],
-                    result['metadata']['element'],
-                    result['metadata']['definition']
-                ))
-
-        # Build ontology subset
-        return self._build_subset(relevant_elements)
-
-    def _build_subset(self, elements):
-        # Include selected elements and their dependencies
-        # (parent classes, domain/range references, etc.)
-        subset = {
-            'classes': {},
-            'objectProperties': {},
-            'datatypeProperties': {}
-        }
-
-        for onto_id, elem_type, elem_id, definition in elements:
-            if elem_type == 'class':
-                subset['classes'][elem_id] = definition
-                # Include parent classes
-                if 'rdfs:subClassOf' in definition:
-                    parent = definition['rdfs:subClassOf']
-                    # Recursively add parent from full ontology
-            elif elem_type == 'objectProperties':
-                subset['objectProperties'][elem_id] = definition
-                # Include domain and range classes
-            elif elem_type == 'datatypeProperties':
-                subset['datatypeProperties'][elem_id] = definition
-
-        return subset
-```
-
-#### 5. Prompt Constructor
+#### 5. Prompt Construction
 
 **Purpose**: Creates structured prompts that guide the LLM to extract only ontology-conformant triples.
 
-**Algorithm Description**:
-The Prompt Constructor assembles a carefully formatted prompt that constrains the LLM's extraction to the selected ontology subset. It takes the relevant classes and properties identified by the Ontology Selector and formats them into clear instructions. Classes are presented with their hierarchical relationships and descriptions. Properties are shown with their domain and range constraints, making explicit what types of entities they can connect. The prompt includes strict rules about using only the provided ontology elements and respecting all constraints. The original text chunk is then appended, and the LLM is instructed to extract triples in the format (subject, predicate, object). This structured approach ensures the LLM understands both what to look for and what constraints to respect.
+**Implementation**:
+The extraction service uses a Jinja2 template loaded from `ontology-prompt.md` which formats the ontology subset and text for LLM extraction. The template dynamically iterates over classes, object properties, and datatype properties using Jinja2 syntax, presenting each with their descriptions, domains, ranges, and hierarchical relationships. The prompt includes strict rules about using only the provided ontology elements and requests JSON output format for consistent parsing.
 
 **Key Operations**:
-- Format classes with parent relationships and descriptions
-- Format properties with domain/range constraints
-- Include explicit extraction rules and constraints
-- Specify output format for consistent parsing
-- Balance prompt size with completeness of ontology information
+- Use Jinja2 template with loops over ontology elements
+- Format classes with parent relationships (subclass_of) and comments
+- Format properties with domain/range constraints and comments
+- Include explicit extraction rules and output format requirements
+- Call prompt service with template ID "extract-with-ontologies"
 
-Builds prompts for the extraction service with ontology constraints:
-
-```python
-class PromptConstructor:
-    def __init__(self):
-        self.template = """
-Extract knowledge triples from the following text using ONLY the provided ontology elements.
-
-ONTOLOGY CLASSES:
-{classes}
-
-OBJECT PROPERTIES (connect entities):
-{object_properties}
-
-DATATYPE PROPERTIES (entity attributes):
-{datatype_properties}
-
-RULES:
-1. Only use classes defined above for entity types
-2. Only use properties defined above for relationships and attributes
-3. Respect domain and range constraints
-4. Output format: (subject, predicate, object)
-
-TEXT:
-{text}
-
-TRIPLES:
-"""
-
-    def build_prompt(self, chunk_text, ontology_subset):
-        classes_str = self._format_classes(ontology_subset['classes'])
-        obj_props_str = self._format_properties(
-            ontology_subset['objectProperties'],
-            'object'
-        )
-        dt_props_str = self._format_properties(
-            ontology_subset['datatypeProperties'],
-            'datatype'
-        )
-
-        return self.template.format(
-            classes=classes_str,
-            object_properties=obj_props_str,
-            datatype_properties=dt_props_str,
-            text=chunk_text
-        )
-
-    def _format_classes(self, classes):
-        lines = []
-        for class_id, definition in classes.items():
-            comment = definition.get('rdfs:comment', '')
-            parent = definition.get('rdfs:subClassOf', 'Thing')
-            lines.append(f"- {class_id} (subclass of {parent}): {comment}")
-        return '\n'.join(lines)
-
-    def _format_properties(self, properties, prop_type):
-        lines = []
-        for prop_id, definition in properties.items():
-            comment = definition.get('rdfs:comment', '')
-            domain = definition.get('rdfs:domain', 'Any')
-            range_val = definition.get('rdfs:range', 'Any')
-            lines.append(f"- {prop_id} ({domain} -> {range_val}): {comment}")
-        return '\n'.join(lines)
-```
+**Template Location**: `ontology-prompt.md`
+**Implementation Location**: `trustgraph-flow/trustgraph/extract/kg/ontology/extract.py` (build_extraction_variables method)
 
 #### 6. Main Extractor Service
 
 **Purpose**: Coordinates all components to perform end-to-end ontology-based triple extraction.
 
-**Algorithm Description**:
-The Main Extractor Service is the orchestration layer that manages the complete extraction workflow. During initialisation, it loads all ontologies and pre-computes their embeddings, creating the searchable vector index. When a text chunk arrives for processing, it coordinates the pipeline: first splitting the text into segments, then finding relevant ontology elements through vector search, constructing a constrained prompt, calling the LLM service, and finally parsing and validating the response. The service ensures that each extracted triple conforms to the ontology by validating that subjects and objects are valid class instances, predicates are valid properties, and all domain/range constraints are satisfied. Only validated triples that fully conform to the ontology are returned.
+**Implementation**:
+The Main Extractor Service (KgExtractOntology) is the orchestration layer that manages the complete extraction workflow. It uses TrustGraph's FlowProcessor pattern with per-flow component initialization. When an ontology configuration update arrives, it initializes or updates the flow-specific components (ontology loader, embedder, text processor, selector). When a text chunk arrives for processing, it coordinates the pipeline: splitting the text into segments, finding relevant ontology elements through vector search, constructing a constrained prompt, calling the prompt service, parsing and validating the response, generating ontology definition triples, and emitting both content triples and entity contexts.
 
 **Extraction Pipeline**:
-1. Receive text chunk for processing
-2. Split into sentences and phrases for granular analysis
-3. Search vector store to find relevant ontology concepts
-4. Build ontology subset including dependencies
-5. Construct prompt with ontology constraints and text
-6. Call LLM service for triple extraction
-7. Parse response into structured triples
-8. Validate each triple against ontology rules
-9. Return only valid, ontology-conformant triples
+1. Receive text chunk via chunks-input queue
+2. Initialize flow components if needed (on first chunk or config update)
+3. Split text into sentences using NLTK
+4. Search FAISS vector store to find relevant ontology concepts
+5. Build ontology subset with automatic property inclusion
+6. Construct Jinja2-templated prompt variables
+7. Call prompt service with extract-with-ontologies template
+8. Parse JSON response into structured triples
+9. Validate triples and expand URIs to full ontology URIs
+10. Generate ontology definition triples (classes and properties with labels/comments/domains/ranges)
+11. Build entity contexts from all triples
+12. Emit to triples and entity-contexts queues
 
-Orchestrates the complete extraction pipeline:
+**Key Features**:
+- Per-flow vector stores supporting different embedding models
+- Event-driven ontology updates via config-update queue
+- Automatic URI expansion using ontology URIs
+- Ontology elements added to knowledge graph with full metadata
+- Entity contexts include both content and ontology elements
 
-```python
-class KgExtractOntology:
-    def __init__(self, config):
-        self.loader = OntologyLoader(config['config_service'])
-        self.embedder = OntologyEmbedder(
-            config['embedding_service'],
-            InMemoryVectorStore()
-        )
-        self.splitter = SentenceSplitter()
-        self.selector = OntologySelector(
-            config['embedding_service'],
-            self.embedder.vector_store
-        )
-        self.prompt_builder = PromptConstructor()
-        self.prompt_service = config['prompt_service']
-
-    async def initialize(self):
-        # Load and embed ontologies at startup
-        ontologies = await self.loader.load_ontologies()
-        await self.embedder.embed_ontologies(ontologies)
-
-    async def extract(self, chunk):
-        # Split chunk into segments
-        segments = self.splitter.split_chunk(chunk['text'])
-
-        # Select relevant ontology subset
-        ontology_subset = await self.selector.select_ontology_subset(segments)
-
-        # Build extraction prompt
-        prompt = self.prompt_builder.build_prompt(
-            chunk['text'],
-            ontology_subset
-        )
-
-        # Call prompt service
-        response = await self.prompt_service.generate(prompt)
-
-        # Parse and validate triples
-        triples = self.parse_triples(response)
-        validated_triples = self.validate_triples(triples, ontology_subset)
-
-        return validated_triples
-
-    def parse_triples(self, response):
-        # Parse LLM response into structured triples
-        triples = []
-        for line in response.split('\n'):
-            if line.strip().startswith('(') and line.strip().endswith(')'):
-                # Parse (subject, predicate, object)
-                parts = line.strip()[1:-1].split(',')
-                if len(parts) == 3:
-                    triples.append({
-                        'subject': parts[0].strip(),
-                        'predicate': parts[1].strip(),
-                        'object': parts[2].strip()
-                    })
-        return triples
-
-    def validate_triples(self, triples, ontology_subset):
-        # Validate against ontology constraints
-        validated = []
-        for triple in triples:
-            if self._is_valid(triple, ontology_subset):
-                validated.append(triple)
-        return validated
-```
+**Implementation Location**: `trustgraph-flow/trustgraph/extract/kg/ontology/extract.py`
 
 ### Configuration
 
-The service loads configuration on startup:
+The service uses TrustGraph's standard configuration approach with command-line arguments:
 
-```yaml
-kg-extract-ontology:
-  embedding_model: "text-embedding-3-small"
-  vector_store:
-    type: "in-memory"
-    similarity_threshold: 0.7
-    top_k: 10
-  sentence_splitter:
-    model: "nltk"
-    max_sentence_length: 512
-  prompt_service:
-    endpoint: "http://prompt-service:8080"
-    model: "gpt-4"
-    temperature: 0.1
-  ontology_refresh_interval: 300  # seconds
+```bash
+kg-extract-ontology \
+  --id kg-extract-ontology \
+  --pulsar-host localhost:6650 \
+  --input-queue chunks \
+  --config-input-queue config-update \
+  --output-queue triples \
+  --entity-contexts-output-queue entity-contexts
 ```
+
+**Key Configuration Parameters**:
+- `similarity_threshold`: 0.3 (default, configurable in code)
+- `top_k`: 10 (number of ontology elements to retrieve per segment)
+- `vector_store`: Per-flow FAISS IndexFlatIP with auto-detected dimensions
+- `text_processor`: NLTK with punkt_tab sentence tokenization
+- `prompt_template`: "extract-with-ontologies" (Jinja2 template)
+
+**Ontology Configuration**:
+Ontologies are loaded dynamically via the config-update queue with type="ontology".
 
 ### Data Flow
 
-1. **Initialisation Phase**:
-   - Load ontologies from configuration service
-   - Generate embeddings for all ontology elements
-   - Store embeddings in in-memory vector store
+1. **Initialisation Phase** (per flow):
+   - Receive ontology configuration via config-update queue
+   - Parse ontology JSON into OntologyClass and OntologyProperty objects
+   - Generate embeddings for all ontology elements using EmbeddingsClientSpec
+   - Store embeddings in per-flow FAISS vector store
+   - Auto-detect embedding dimensions from first response
 
 2. **Extraction Phase** (per chunk):
-   - Split chunk into sentences and phrases
-   - Compute embeddings for each segment
-   - Search vector store for relevant ontology elements
-   - Build ontology subset with selected elements
-   - Construct prompt with chunk text and ontology subset
-   - Call prompt service for extraction
-   - Parse and validate returned triples
-   - Output conformant triples
+   - Receive chunk from chunks-input queue
+   - Split chunk into sentences using NLTK
+   - Compute embeddings for each sentence
+   - Search FAISS vector store for relevant ontology elements
+   - Build ontology subset with automatic property inclusion
+   - Construct Jinja2 template variables with text and ontology
+   - Call prompt service with extract-with-ontologies template
+   - Parse JSON response and validate triples
+   - Expand URIs using ontology URIs
+   - Generate ontology definition triples
+   - Build entity contexts from all triples
+   - Emit to triples and entity-contexts queues
 
 ### In-Memory Vector Store
 
 **Purpose**: Provides fast, memory-based similarity search for ontology element matching.
 
-**Recommended Implementation: FAISS**
+**Implementation: FAISS**
 
-The system should use **FAISS (Facebook AI Similarity Search)** as the primary vector store implementation for the following reasons:
+The system uses **FAISS (Facebook AI Similarity Search)** with IndexFlatIP for exact cosine similarity search. Key features:
 
-1. **Performance**: Optimised for similarity search with microsecond latency, critical for real-time query processing
-2. **Memory Efficiency**: Multiple index types (Flat, IVF, HNSW) allow memory/speed tradeoffs based on ontology size
-3. **Scalability**: Efficiently handles hundreds to tens of thousands of ontology elements
-4. **Production Ready**: Battle-tested in production environments with excellent stability
-5. **Python Integration**: Native Python bindings with numpy compatibility for seamless integration
+- **IndexFlatIP**: Exact cosine similarity search using inner product
+- **Auto-detection**: Dimension determined from first embedding response
+- **Per-flow stores**: Each flow has independent vector store for different embedding models
+- **Normalization**: All vectors normalized before indexing
+- **Batch operations**: Efficient batch add for initial ontology loading
 
-**FAISS Implementation**:
-
-```python
-import faiss
-import numpy as np
-
-class FAISSVectorStore:
-    def __init__(self, dimension=1536, index_type='flat'):
-        """
-        Initialize FAISS vector store.
-
-        Args:
-            dimension: Embedding dimension (1536 for text-embedding-3-small)
-            index_type: 'flat' for exact search, 'ivf' for larger datasets
-        """
-        self.dimension = dimension
-        self.metadata = []
-        self.ids = []
-
-        if index_type == 'flat':
-            # Exact search - best for ontologies with <10k elements
-            self.index = faiss.IndexFlatIP(dimension)
-        else:
-            # Approximate search - for larger ontologies
-            quantizer = faiss.IndexFlatIP(dimension)
-            self.index = faiss.IndexIVFFlat(quantizer, dimension, 100)
-            self.index.train(np.random.randn(1000, dimension).astype('float32'))
-
-    def add(self, id, embedding, metadata):
-        """Add single embedding with metadata."""
-        # Normalize for cosine similarity
-        embedding = embedding / np.linalg.norm(embedding)
-        self.index.add(np.array([embedding], dtype=np.float32))
-        self.metadata.append(metadata)
-        self.ids.append(id)
-
-    def add_batch(self, ids, embeddings, metadata_list):
-        """Batch add for initial ontology loading."""
-        # Normalize all embeddings
-        norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
-        normalized = embeddings / norms
-        self.index.add(normalized.astype(np.float32))
-        self.metadata.extend(metadata_list)
-        self.ids.extend(ids)
-
-    def search(self, embedding, top_k=10, threshold=0.0):
-        """Search for similar vectors."""
-        # Normalize query
-        embedding = embedding / np.linalg.norm(embedding)
-
-        # Search
-        scores, indices = self.index.search(
-            np.array([embedding], dtype=np.float32),
-            min(top_k, self.index.ntotal)
-        )
-
-        # Filter by threshold and format results
-        results = []
-        for score, idx in zip(scores[0], indices[0]):
-            if idx >= 0 and score >= threshold:  # FAISS returns -1 for empty slots
-                results.append({
-                    'id': self.ids[idx],
-                    'score': float(score),
-                    'metadata': self.metadata[idx]
-                })
-
-        return results
-
-    def clear(self):
-        """Reset the store."""
-        self.index.reset()
-        self.metadata = []
-        self.ids = []
-
-    def size(self):
-        """Return number of stored vectors."""
-        return self.index.ntotal
-```
-
-**Fallback Implementation (NumPy)**:
-
-For development or small-scale deployments, a simple NumPy implementation can be used:
-
-```python
-class SimpleVectorStore:
-    """Fallback implementation using NumPy - suitable for <1000 elements."""
-    def __init__(self):
-        self.embeddings = []
-        self.metadata = []
-        self.ids = []
-
-    def add(self, id, embedding, metadata):
-        self.embeddings.append(embedding / np.linalg.norm(embedding))
-        self.metadata.append(metadata)
-        self.ids.append(id)
-
-    def search(self, embedding, top_k=10, threshold=0.0):
-        if not self.embeddings:
-            return []
-
-        # Normalize and compute similarities
-        embedding = embedding / np.linalg.norm(embedding)
-        similarities = np.dot(self.embeddings, embedding)
-
-        # Get top-k indices
-        top_indices = np.argsort(similarities)[::-1][:top_k]
-
-        # Build results
-        results = []
-        for idx in top_indices:
-            if similarities[idx] >= threshold:
-                results.append({
-                    'id': self.ids[idx],
-                    'score': float(similarities[idx]),
-                    'metadata': self.metadata[idx]
-                })
-
-        return results
-```
+**Implementation Location**: `trustgraph-flow/trustgraph/extract/kg/ontology/vector_store.py`
 
 ### Ontology Subset Selection Algorithm
 
@@ -787,16 +411,16 @@ The ontology-sensitive query service provides multiple query paths to support di
                     └────────┬────────┘
                              │
                              ▼
-                    ┌─────────────────┐     ┌──────────────┐
+                    ┌─────────────────┐      ┌──────────────┐
                     │   Question      │────▶│   Sentence   │
-                    │   Analyser      │     │   Splitter   │
-                    └────────┬────────┘     └──────────────┘
+                    │   Analyser      │      │   Splitter   │
+                    └────────┬────────┘      └──────────────┘
                              │
                              ▼
-                    ┌─────────────────┐     ┌──────────────┐
+                    ┌─────────────────┐      ┌──────────────┐
                     │   Ontology      │────▶│   Vector     │
-                    │   Matcher       │     │    Store     │
-                    └────────┬────────┘     └──────────────┘
+                    │   Matcher       │      │    Store     │
+                    └────────┬────────┘      └──────────────┘
                              │
                              ▼
                     ┌─────────────────┐
@@ -832,10 +456,10 @@ The ontology-sensitive query service provides multiple query paths to support di
              └────────────┬───────────────┘
                           │
                           ▼
-                 ┌─────────────────┐     ┌──────────────┐
+                 ┌─────────────────┐      ┌──────────────┐
                  │   Answer        │────▶│   Prompt     │
-                 │  Generator      │     │   Service    │
-                 └────────┬────────┘     └──────────────┘
+                 │  Generator      │      │   Service    │
+                 └────────┬────────┘      └──────────────┘
                           │
                           ▼
                  ┌─────────────────┐
