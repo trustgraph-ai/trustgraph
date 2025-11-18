@@ -11,9 +11,9 @@
 
 </div>
 
-# AI-Ready Intelligent Context
+# Intelligent Context for LLMs
 
-TrustGraph provides an event-driven data-to-AI platform that transforms data into AI-ready intelligent context through automated structuring, knowledge graph construction, and vector embeddings mapping — all deployable privately, on-prem, or in cloud. Deploy and manage open LLMs within the same platform, ensuring complete data sovereignty while enabling agents that generate real, actionable insights.
+TrustGraph provides an event-driven data infrastructure that transforms data into LLM-ready intelligent context through automated knowledge graph construction, vector embeddings mapping, and structuring data using custom ontologies and schemas — all deployable privately, on-prem, or in cloud. Deploy and manage open LLMs with the platform, ensuring complete data sovereignty while enabling intelligent agents that generate real, actionable insights.
 
 <details>
 <summary>Table of Contents</summary>
