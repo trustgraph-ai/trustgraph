@@ -87,12 +87,6 @@ class Processor(LlmService):
                 ],
                 temperature=effective_temperature,
                 max_tokens=self.max_output,
-                top_p=1,
-                frequency_penalty=0,
-                presence_penalty=0,
-                response_format={
-                    "type": "text"
-                }
             )
             
             inputtokens = resp.usage.prompt_tokens
