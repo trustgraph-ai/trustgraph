@@ -46,7 +46,7 @@ Build accurate, trustworthy AI agents powered by your own private data. TrustGra
 
 ## Why TrustGraph?
 
-Ingests structured and unstructured data (PDFs, databases, OCR, custom schemas, and ontologies) into a single system. Define tools that can search your private knowledge bases and retrieve deep relationships to eliminate hallucinations from agent responses. Connect agents with the Model Context Protocol (MCP) to leverage external tools, services, and custom workflow. Deploy all of the services, datastores, and agents locally, on-premises, or in cloud. Visualize deep data relationships with 3D GraphViz and a full observability and telemetry stack. Deploy LLMs on your hardware for full control of your data. Flows and Flow Classes enable unique agent workflows. Manage user and agent access to data with collections and knowledge cores.
+Ingests structured and unstructured data (PDFs, databases, OCR, custom schemas, and ontologies) into a single system. Define tools that can search your private knowledge bases and retrieve deep relationships to eliminate hallucinations from agent responses. Connect agents with the Model Context Protocol (MCP) to leverage external tools, services, and custom workflows. Deploy all of the services, datastores, and agents locally, on premises, or in cloud. Visualize deep data relationships with 3D GraphViz and a full observability and telemetry stack. Deploy LLMs on your hardware for full control of your data. Flows and Flow Classes enable unique agent workflows. Manage user and agent access to data with collections and knowledge cores.
 
 [![Why TrustGraph?](https://img.youtube.com/vi/Norboj8YP2M/maxresdefault.jpg)](https://www.youtube.com/watch?v=Norboj8YP2M)
 
@@ -77,7 +77,7 @@ The [**Configuration Builder**](https://config-ui.demo.trustgraph.ai/) assembles
 
 ## Workbench
 
-The **Workbench** is a UI that provides tools for interacting with all major features of the platform. The **Workbench** is enabled by default in the **Configuration Builder** and is available at port `8888` on deployment. The **Workbench** has the following capabilities:
+The **Workbench** is a UI that provides tools for interacting with all major features of TrustGraph. The **Workbench** is enabled by default in the **Configuration Builder** and is available at port `8888` on deployment. The **Workbench** has the following capabilities:
 
 - **Agentic, GraphRAG and LLM Chat**: Chat interface for agentic flows, GraphRAG queries, or directly interfacing with a LLM
 - **Semantic Discovery**: Analyze semantic relationships with vector search, knowledge graph relationships, and 3D graph visualization
@@ -89,7 +89,7 @@ The **Workbench** is a UI that provides tools for interacting with all major fea
 
 ## Knowledge Cores
 
-A challenge facing RAG architectures is the ability to quickly reuse and remove datasets from pipelines. **TrustGraph** stores the results of the data ingestion process in reusable Knowledge Cores. Knowledge cores can be loaded and removed during runtime. Some sample knowledge cores are [here](https://github.com/trustgraph-ai/catalog/tree/master/v3).
+A challenge facing GraphRAG architectures is the ability to quickly reuse and remove datasets from agent workflows. TrustGraph stores the results of the data ingest process in reusable Knowledge Cores. Knowledge cores can be loaded and removed during runtime. Some sample knowledge cores are [here](https://github.com/trustgraph-ai/catalog/tree/master/v3).
 
 A Knowledge Core has two components:
 
@@ -97,7 +97,7 @@ A Knowledge Core has two components:
 - Vector embeddings mapped to the knowledge graph
 
 ## Integrations
-TrustGraph provides maximum flexibility to avoid vendor lock-in.
+TrustGraph provides component flexibility to optimize agent workflows.
 
 <details>
 <summary>LLM APIs</summary>
