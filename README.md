@@ -46,7 +46,7 @@ Build accurate, trustworthy AI agents powered by your own private data. TrustGra
 
 ## Why TrustGraph?
 
-Ingests structured and unstructured data (PDFs, databases, OCR, custom schemas, and ontologies) into a single system. Define tools that can search your private knowledge bases and retrieve deep relationships to eliminate hallucinations from agent responses. Connect agents with the Model Context Protocol (MCP) to leverage external tools, services, and custom workflows. Deploy all of the services, datastores, and agents locally, on premises, or in cloud. Visualize deep data relationships with 3D GraphViz and a full observability and telemetry stack. Deploy LLMs on your hardware for full control of your data. Flows and Flow Classes enable unique agent workflows. Manage user and agent access to data with collections and knowledge cores.
+Ingest structured and unstructured data (PDFs, databases, OCR, custom schemas, and ontologies) into a private knowledge bases to create deep data relationships that eliminate hallucinations from agent responses. Connect agents with the Model Context Protocol (MCP) to leverage external tools, services, and custom workflows. Deploy all of the services, datastores, and agents locally, on premises, or in cloud. Visualize deep data relationships with 3D GraphViz and a full observability and telemetry stack. Deploy LLMs on your hardware for full control of your data. Flows and Flow Classes enable unique agent workflows with collections and knowledge cores that manage user and agent data access.
 
 [![Why TrustGraph?](https://img.youtube.com/vi/Norboj8YP2M/maxresdefault.jpg)](https://www.youtube.com/watch?v=Norboj8YP2M)
 
@@ -79,12 +79,18 @@ The [**Configuration Builder**](https://config-ui.demo.trustgraph.ai/) assembles
 
 The **Workbench** is a UI that provides tools for interacting with all major features of TrustGraph. The **Workbench** is enabled by default in the **Configuration Builder** and is available at port `8888` on deployment. The **Workbench** has the following capabilities:
 
+- **Vector Search**: Search the installed knowledge bases
 - **Agentic, GraphRAG and LLM Chat**: Chat interface for agentic flows, GraphRAG queries, or directly interfacing with a LLM
-- **Semantic Discovery**: Analyze semantic relationships with vector search, knowledge graph relationships, and 3D graph visualization
-- **Data Management**: Load data into the **Librarian** for processing, create and upload **Knowledge Packages**
-- **Flow Management**: Create and delete processing flow patterns
-- **Prompt Management**: Edit all LLM prompts used in the platform during runtime
-- **Agent Tools**: Define tools used by the Agent Flow including MCP tools
+- **Relationships**: Analyze deep relationships in the installed knowledge bases
+- **Graph Visualizer**: 3D GraphViz of the installed knowledge bases
+- **Library**: Staging area for installing knowledge bases
+- **Flow Classes**: Workflow preset configurations
+- **Flows**: Create custom workflows and adjust LLM parameters during runtime
+- **Knowledge Cores**: Manage resuable knowledge bases
+- **Prompts**: Manage and adjust prompts during runtime
+- **Schemas**: Define custom schemas for structured data knowledge bases
+- **Ontologies**: Definie custom ontologies for unstructured data knowledge bases
+- **Agent Tools**: Define tools with collections, knowledge cores, MCP connections, and tool groups
 - **MCP Tools**: Connect to MCP servers
 
 ## Knowledge Cores
