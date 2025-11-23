@@ -11,9 +11,9 @@
 
 </div>
 
-# Intelligent Context for LLMs
+# Eliminate AI Hallucinations with Private Knowledge Bases
 
-TrustGraph provides an event-driven data infrastructure that transforms data into LLM-ready intelligent context through automated knowledge graph construction, vector embeddings mapping, and structuring data using custom ontologies and schemas — all deployable privately, on-prem, or in cloud. Deploy and manage open LLMs with the platform, ensuring complete data sovereignty while enabling intelligent agents that generate real, actionable insights.
+Build accurate, trustworthy AI agents powered by your own private data. TrustGraph connects your documents, databases, tools, and agents into a unified knowledge graph with precise retrieval, full observability, and deploy-anywhere control.
 
 <details>
 <summary>Table of Contents</summary>
@@ -35,53 +35,18 @@ TrustGraph provides an event-driven data infrastructure that transforms data int
 
 ## Key Features
 
-TrustGraph is not just another AI framework but a complete, production-ready platform that bridges the gap between raw data and intelligent, adaptable agent deployments.
-
-- **Data Ingestion**
-
-*PDF parsing, OCR, configurable chunking, custom metadata, and bring your own schemas for large scale data ingestion*.
-
-- **Data Transformation**
-
-*Transform unstructured data into flat knowledge graphs or bring your own ontology for rich graphs*.
-
-- **Context Retrieval**
-
-*Deterministic knowledge graph queries, no LLMs in retrieval path*.
-
-- **Event-Driven**
-
-*All services communicate through Apache Pulsar topics rather than direct RPC.*
-
-- **Multi-Backend Storage**
-
-*Data storage with Apache Cassandra, Neo4j, Qdrant, Milvus, Memgraph, FalkorDB, and Pinecone*.
-
-- **Data Sovereignty**
-
-*Deploy the entire stack—data pipelines, knowledge graphs, vector stores, and LLMs—on-premises, in your VPC, or across hybrid environments*.
-
-- **Private LLM Inferencing**
-
-*Support for all major LLM APIs or deploy and manage open models directly integrated with the platform*.
-
-- **Three-Dimensional Multi-Tenancy**
-
-*3 layers of isolation with flows for processing logic, collections for data access, and tool groups for multi-agent.*
-
-- **Container-First**
-
-*Containerized deployments with Docker or Kubernetes. Built for enterprise scale with monitoring, observability, and management*.
-
-- **MCP Integration**
-
-*Native support for MCP enables standardized agent communication with third-party tools and services while maintaining data sovereignty*.
-
-- **Observable by Design**
-
-*3D visualization of knowledge graphs. Prometheus metrics and Grafana dashboards track latency, throughput, costs, and errors*.
+- **Unify your Data for Smarter AI**
+- **Ship Intelligent Agents Powered with Your Data**
+- **Connect Your Agents with MCP**
+- **Run Anywhere**
+- **Observe Your Data**
+- **Serve Models for Private LLM Inference**
+- **Create Many Workflows**
+- **Control Data Access**
 
 ## Why TrustGraph?
+
+Ingests structured and unstructured data (PDFs, databases, OCR, custom schemas, and ontologies) into a single system. Define tools that can search your private knowledge bases and retrieve deep relationships to eliminate hallucinations from agent responses. Connect agents with the Model Context Protocol (MCP) to leverage external tools, services, and custom workflow. Deploy all of the services, datastores, and agents locally, on-premises, or in cloud. Visualize deep data relationships with 3D GraphViz and a full observability and telemetry stack. Deploy LLMs on your hardware for full control of your data. Flows and Flow Classes enable unique agent workflows. Manage user and agent access to data with collections and knowledge cores.
 
 [![Why TrustGraph?](https://img.youtube.com/vi/Norboj8YP2M/maxresdefault.jpg)](https://www.youtube.com/watch?v=Norboj8YP2M)
 
