@@ -77,10 +77,10 @@ The [**Configuration Builder**](https://config-ui.demo.trustgraph.ai/) assembles
 
 ## Workbench
 
-The **Workbench** provides tools for all major features of TrustGraph. The **Workbench** is deployed on port `8888` by default.
+The **Workbench** provides tools for all major features of TrustGraph. The **Workbench** is on port `8888` by default.
 
 - **Vector Search**: Search the installed knowledge bases
-- **Agentic, GraphRAG and LLM Chat**: Chat interface for agentic flows, GraphRAG queries, or directly interfacing with a LLM
+- **Agentic, GraphRAG and LLM Chat**: Chat interface for agents, GraphRAG queries, or direct to LLMs
 - **Relationships**: Analyze deep relationships in the installed knowledge bases
 - **Graph Visualizer**: 3D GraphViz of the installed knowledge bases
 - **Library**: Staging area for installing knowledge bases
@@ -89,13 +89,13 @@ The **Workbench** provides tools for all major features of TrustGraph. The **Wor
 - **Knowledge Cores**: Manage resuable knowledge bases
 - **Prompts**: Manage and adjust prompts during runtime
 - **Schemas**: Define custom schemas for structured data knowledge bases
-- **Ontologies**: Definie custom ontologies for unstructured data knowledge bases
+- **Ontologies**: Define custom ontologies for unstructured data knowledge bases
 - **Agent Tools**: Define tools with collections, knowledge cores, MCP connections, and tool groups
 - **MCP Tools**: Connect to MCP servers
 
 ## Knowledge Cores
 
-A challenge facing GraphRAG architectures is the ability to quickly reuse and remove datasets from agent workflows. TrustGraph stores the results of the data ingest process in reusable Knowledge Cores. Knowledge cores can be loaded and removed during runtime. Some sample knowledge cores are [here](https://github.com/trustgraph-ai/catalog/tree/master/v3).
+A challenge facing GraphRAG architectures is the ability to reuse and remove datasets from agent workflows. TrustGraph can store the data ingest process as reusable Knowledge Cores. Knowledge cores can be loaded and removed during runtime. Some sample knowledge cores are [here](https://github.com/trustgraph-ai/catalog/tree/master/v3).
 
 A Knowledge Core has two components:
 
