@@ -77,7 +77,7 @@ The [**Configuration Builder**](https://config-ui.demo.trustgraph.ai/) assembles
 
 ## Workbench
 
-The **Workbench** is a UI that provides tools for interacting with all major features of TrustGraph. The **Workbench** is enabled by default in the **Configuration Builder** and is available at port `8888` on deployment. The **Workbench** has the following capabilities:
+The **Workbench** provides tools for all major features of TrustGraph. The **Workbench** is deployed on port `8888` by default.
 
 - **Vector Search**: Search the installed knowledge bases
 - **Agentic, GraphRAG and LLM Chat**: Chat interface for agentic flows, GraphRAG queries, or directly interfacing with a LLM
