@@ -132,20 +132,20 @@ class Processor(DocumentEmbeddingsStoreService):
             await self.storage_response_producer.send(response)
 
     async def handle_create_collection(self, request):
-        """Create a Milvus collection for document embeddings"""
+        """
+        No-op for collection creation - collections are created lazily on first write
+        with the correct dimension determined from the actual embeddings.
+        """
         try:
-            if self.vecstore.collection_exists(request.user, request.collection):
-                logger.info(f"Collection {request.user}/{request.collection} already exists")
-            else:
-                self.vecstore.create_collection(request.user, request.collection)
-                logger.info(f"Created collection {request.user}/{request.collection}")
+            logger.info(f"Collection create request for {request.user}/{request.collection} - will be created lazily on first write")
+            self.vecstore.create_collection(request.user, request.collection)
 
             # Send success response
             response = StorageManagementResponse(error=None)
             await self.storage_response_producer.send(response)
 
         except Exception as e:
-            logger.error(f"Failed to create collection: {e}", exc_info=True)
+            logger.error(f"Failed to handle create collection request: {e}", exc_info=True)
             response = StorageManagementResponse(
                 error=Error(
                     type="creation_error",

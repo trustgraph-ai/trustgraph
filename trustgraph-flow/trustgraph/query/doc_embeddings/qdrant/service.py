@@ -71,16 +71,17 @@ class Processor(DocumentEmbeddingsQueryService):
 
             chunks = []
 
-            collection = (
-                "d_" + msg.user + "_" + msg.collection
-            )
-
-            # Check if collection exists - return empty if not
-            if not self.collection_exists(collection):
-                logger.info(f"Collection {collection} does not exist, returning empty results")
-                return []
-
             for vec in msg.vectors:
+
+                # Use dimension suffix in collection name
+                dim = len(vec)
+                collection = f"d_{msg.user}_{msg.collection}_{dim}"
+
+                # Check if collection exists - return empty if not
+                if not self.collection_exists(collection):
+                    logger.info(f"Collection {collection} does not exist, returning empty results")
+                    continue
+
                 search_result = self.qdrant.query_points(
                     collection_name=collection,
                     query=vec,

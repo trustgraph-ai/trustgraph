@@ -30,14 +30,16 @@ class TestMilvusUserCollectionIntegration:
         
         for user, collection, vector in test_cases:
             doc_vectors.insert(vector, "test document", user, collection)
-            
+
             expected_collection_name = make_safe_collection_name(
                 user, collection, "doc"
             )
-            
-            # Verify collection was created with correct name
+            # Add dimension suffix to expected name
+            expected_collection_name_with_dim = f"{expected_collection_name}_{len(vector)}"
+
+            # Verify collection was created with correct name (including dimension)
             assert (len(vector), user, collection) in doc_vectors.collections
-            assert doc_vectors.collections[(len(vector), user, collection)] == expected_collection_name
+            assert doc_vectors.collections[(len(vector), user, collection)] == expected_collection_name_with_dim
 
     @patch('trustgraph.direct.milvus_graph_embeddings.MilvusClient')
     def test_entity_vectors_collection_creation_with_user_collection(self, mock_milvus_client):
@@ -56,14 +58,16 @@ class TestMilvusUserCollectionIntegration:
         
         for user, collection, vector in test_cases:
             entity_vectors.insert(vector, "test entity", user, collection)
-            
+
             expected_collection_name = make_safe_collection_name(
                 user, collection, "entity"
             )
-            
-            # Verify collection was created with correct name
+            # Add dimension suffix to expected name
+            expected_collection_name_with_dim = f"{expected_collection_name}_{len(vector)}"
+
+            # Verify collection was created with correct name (including dimension)
             assert (len(vector), user, collection) in entity_vectors.collections
-            assert entity_vectors.collections[(len(vector), user, collection)] == expected_collection_name
+            assert entity_vectors.collections[(len(vector), user, collection)] == expected_collection_name_with_dim
 
     @patch('trustgraph.direct.milvus_doc_embeddings.MilvusClient')
     def test_doc_vectors_search_uses_correct_collection(self, mock_milvus_client):
@@ -88,11 +92,12 @@ class TestMilvusUserCollectionIntegration:
         # Now search
         result = doc_vectors.search(vector, user, collection, limit=5)
         
-        # Verify search was called with correct collection name
+        # Verify search was called with correct collection name (including dimension)
         expected_collection_name = make_safe_collection_name(user, collection, "doc")
+        expected_collection_name_with_dim = f"{expected_collection_name}_{len(vector)}"
         mock_client.search.assert_called_once()
         search_call = mock_client.search.call_args
-        assert search_call[1]["collection_name"] == expected_collection_name
+        assert search_call[1]["collection_name"] == expected_collection_name_with_dim
 
     @patch('trustgraph.direct.milvus_graph_embeddings.MilvusClient')  
     def test_entity_vectors_search_uses_correct_collection(self, mock_milvus_client):
@@ -117,11 +122,12 @@ class TestMilvusUserCollectionIntegration:
         # Now search
         result = entity_vectors.search(vector, user, collection, limit=5)
         
-        # Verify search was called with correct collection name
+        # Verify search was called with correct collection name (including dimension)
         expected_collection_name = make_safe_collection_name(user, collection, "entity")
+        expected_collection_name_with_dim = f"{expected_collection_name}_{len(vector)}"
         mock_client.search.assert_called_once()
         search_call = mock_client.search.call_args
-        assert search_call[1]["collection_name"] == expected_collection_name
+        assert search_call[1]["collection_name"] == expected_collection_name_with_dim
 
     @patch('trustgraph.direct.milvus_doc_embeddings.MilvusClient')
     def test_doc_vectors_collection_isolation(self, mock_milvus_client):
@@ -141,10 +147,11 @@ class TestMilvusUserCollectionIntegration:
         assert len(doc_vectors.collections) == 3
         
         collection_names = set(doc_vectors.collections.values())
+        # All vectors are 3-dimensional, so all names should have _3 suffix
         expected_names = {
-            "doc_user1_collection1",
-            "doc_user2_collection2",
-            "doc_user1_collection2"
+            "doc_user1_collection1_3",
+            "doc_user2_collection2_3",
+            "doc_user1_collection2_3"
         }
         assert collection_names == expected_names
 
@@ -166,10 +173,11 @@ class TestMilvusUserCollectionIntegration:
         assert len(entity_vectors.collections) == 3
         
         collection_names = set(entity_vectors.collections.values())
+        # All vectors are 3-dimensional, so all names should have _3 suffix
         expected_names = {
-            "entity_user1_collection1",
-            "entity_user2_collection2",
-            "entity_user1_collection2"
+            "entity_user1_collection1_3",
+            "entity_user2_collection2_3",
+            "entity_user1_collection2_3"
         }
         assert collection_names == expected_names
 
@@ -191,16 +199,16 @@ class TestMilvusUserCollectionIntegration:
         
         # Verify three separate collections were created for different dimensions
         assert len(doc_vectors.collections) == 3
-        
+
         collection_names = set(doc_vectors.collections.values())
+        # Different dimensions now create different collections with dimension suffixes
         expected_names = {
-            "doc_test_user_test_collection",  # Same name for all dimensions
-            "doc_test_user_test_collection",  # now stored per dimension in key
-            "doc_test_user_test_collection"   # but collection name is the same
+            "doc_test_user_test_collection_2",  # 2D vector
+            "doc_test_user_test_collection_3",  # 3D vector
+            "doc_test_user_test_collection_4"   # 4D vector
         }
-        # Note: Now all dimensions use the same collection name, they are differentiated by the key
-        assert len(collection_names) == 1  # Only one unique collection name
-        assert "doc_test_user_test_collection" in collection_names
+        # Each dimension gets its own collection
+        assert len(collection_names) == 3  # Three unique collection names
         assert collection_names == expected_names
 
     @patch('trustgraph.direct.milvus_doc_embeddings.MilvusClient')
@@ -222,8 +230,9 @@ class TestMilvusUserCollectionIntegration:
         
         # Verify only one collection was created
         assert len(doc_vectors.collections) == 1
-        
-        expected_collection_name = "doc_test_user_test_collection"
+
+        # Collection name now includes dimension suffix
+        expected_collection_name = "doc_test_user_test_collection_3"
         assert doc_vectors.collections[(3, user, collection)] == expected_collection_name
 
     @patch('trustgraph.direct.milvus_doc_embeddings.MilvusClient')
@@ -235,19 +244,20 @@ class TestMilvusUserCollectionIntegration:
         doc_vectors = DocVectors(uri="http://test:19530", prefix="doc")
         
         # Test various special character combinations
+        # All expected names now include dimension suffix _3
         test_cases = [
-            ("user@domain.com", "test-collection.v1", "doc_user_domain_com_test_collection_v1"),
-            ("user_123", "collection_456", "doc_user_123_collection_456"),
-            ("user with spaces", "collection with spaces", "doc_user_with_spaces_collection_with_spaces"),
-            ("user@@@test", "collection---test", "doc_user_test_collection_test"),
+            ("user@domain.com", "test-collection.v1", "doc_user_domain_com_test_collection_v1_3"),
+            ("user_123", "collection_456", "doc_user_123_collection_456_3"),
+            ("user with spaces", "collection with spaces", "doc_user_with_spaces_collection_with_spaces_3"),
+            ("user@@@test", "collection---test", "doc_user_test_collection_test_3"),
         ]
-        
+
         vector = [0.1, 0.2, 0.3]
-        
+
         for user, collection, expected_name in test_cases:
             doc_vectors_instance = DocVectors(uri="http://test:19530", prefix="doc")
             doc_vectors_instance.insert(vector, "test doc", user, collection)
-            
+
             assert doc_vectors_instance.collections[(3, user, collection)] == expected_name
 
     def test_collection_name_backward_compatibility(self):

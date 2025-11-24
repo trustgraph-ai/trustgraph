@@ -78,16 +78,16 @@ class Processor(GraphEmbeddingsQueryService):
             entity_set = set()
             entities = []
 
-            collection = (
-                "t_" + msg.user + "_" + msg.collection
-            )
-
-            # Check if collection exists - return empty if not
-            if not self.collection_exists(collection):
-                logger.info(f"Collection {collection} does not exist, returning empty results")
-                return []
-
             for vec in msg.vectors:
+
+                # Use dimension suffix in collection name
+                dim = len(vec)
+                collection = f"t_{msg.user}_{msg.collection}_{dim}"
+
+                # Check if collection exists - return empty if not
+                if not self.collection_exists(collection):
+                    logger.info(f"Collection {collection} does not exist, skipping this vector")
+                    continue
 
                 # Heuristic hack, get (2*limit), so that we have more chance
                 # of getting (limit) entities

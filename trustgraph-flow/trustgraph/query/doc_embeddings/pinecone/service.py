@@ -47,39 +47,6 @@ class Processor(DocumentEmbeddingsQueryService):
             }
         )
 
-        self.last_index_name = None
-
-    def ensure_index_exists(self, index_name, dim):
-        """Ensure index exists, create if it doesn't"""
-        if index_name != self.last_index_name:
-            if not self.pinecone.has_index(index_name):
-                try:
-                    self.pinecone.create_index(
-                        name=index_name,
-                        dimension=dim,
-                        metric="cosine",
-                        spec=ServerlessSpec(
-                            cloud="aws",
-                            region="us-east-1",
-                        )
-                    )
-                    logger.info(f"Created index: {index_name}")
-                    
-                    # Wait for index to be ready
-                    import time
-                    for i in range(0, 1000):
-                        if self.pinecone.describe_index(index_name).status["ready"]:
-                            break
-                        time.sleep(1)
-                        
-                    if not self.pinecone.describe_index(index_name).status["ready"]:
-                        raise RuntimeError("Gave up waiting for index creation")
-                        
-                except Exception as e:
-                    logger.error(f"Pinecone index creation failed: {e}")
-                    raise e
-            self.last_index_name = index_name
-
     async def query_document_embeddings(self, msg):
 
         try:
@@ -94,11 +61,13 @@ class Processor(DocumentEmbeddingsQueryService):
 
                 dim = len(vec)
 
-                index_name = (
-                    "d-" + msg.user + "-" + msg.collection
-                )
+                # Use dimension suffix in index name
+                index_name = f"d-{msg.user}-{msg.collection}-{dim}"
 
-                self.ensure_index_exists(index_name, dim)
+                # Check if index exists - skip if not
+                if not self.pinecone.has_index(index_name):
+                    logger.info(f"Index {index_name} does not exist, skipping this vector")
+                    continue
 
                 index = self.pinecone.Index(index_name)
 

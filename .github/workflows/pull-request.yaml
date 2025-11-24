@@ -15,14 +15,14 @@ jobs:
     runs-on: ubuntu-latest
 
     container:
-      image: python:3.12
+      image: python:3.13
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
       - name: Setup packages
-        run: make update-package-versions VERSION=1.4.999
+        run: make update-package-versions VERSION=1.5.999
 
       - name: Setup environment
         run: python3 -m venv env

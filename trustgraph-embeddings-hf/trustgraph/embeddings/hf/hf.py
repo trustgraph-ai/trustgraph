@@ -26,10 +26,31 @@ class Processor(EmbeddingsService):
             **params | { "model": model }
         )
 
-        logger.info(f"Loading HuggingFace embeddings model: {model}")
-        self.embeddings = HuggingFaceEmbeddings(model_name=model)
+        self.default_model = model
 
-    async def on_embeddings(self, text):
+        # Cache for currently loaded model
+        self.cached_model_name = None
+        self.embeddings = None
+
+        # Load the default model
+        self._load_model(model)
+
+    def _load_model(self, model_name):
+        """Load a model, caching it for reuse"""
+        if self.cached_model_name != model_name:
+            logger.info(f"Loading HuggingFace embeddings model: {model_name}")
+            self.embeddings = HuggingFaceEmbeddings(model_name=model_name)
+            self.cached_model_name = model_name
+            logger.info(f"HuggingFace model {model_name} loaded successfully")
+        else:
+            logger.debug(f"Using cached model: {model_name}")
+
+    async def on_embeddings(self, text, model=None):
+
+        use_model = model or self.default_model
+
+        # Reload model if it has changed
+        self._load_model(use_model)
 
         embeds = self.embeddings.embed_documents([text])
         logger.debug("Embeddings generation complete")
