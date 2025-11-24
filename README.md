@@ -1,10 +1,7 @@
+
 <div align="center">
 
-## The Agentic AI Platform for Enterprise Availability, Scalability, and Security
-
-<img src="product-platform-diagram.svg" width=100% />
-
----
+<img src="TG-fullname-logo.svg" width=100% />
 
 [![PyPI version](https://img.shields.io/pypi/v/trustgraph.svg)](https://pypi.org/project/trustgraph/) ![E2E Tests](https://github.com/trustgraph-ai/trustgraph/actions/workflows/release.yaml/badge.svg)
 [![Discord](https://img.shields.io/discord/1251652173201149994
@@ -14,7 +11,9 @@
 
 </div>
 
-**TrustGraph** is an agentic AI platform built to meet the enterprise demands for availability, scalability, and security. TrustGraph meets these demands by combining the enterprise-grade data streaming platform [Apache Pulsar](https://github.com/apache/pulsar/) with knowledge graphs, structured data storage, VectorDBs, and MCP interoperability all in a single containerized platform.
+# Eliminate AI Hallucinations with Private Knowledge Bases
+
+Build accurate, trustworthy AI agents powered by your own private data. TrustGraph connects your documents, databases, tools, and agents into a unified knowledge graph with precise retrieval, full observability, and deploy-anywhere control.
 
 <details>
 <summary>Table of Contents</summary>
@@ -25,9 +24,7 @@
 - [**Agentic MCP Demo**](#agentic-mcp-demo)<br>
 - [**Getting Started**](#getting-started)<br>
 - [**Configuration Builder**](#configuration-builder)<br>
-- [**Context Engineering**](#context-engineering)<br>
 - [**Knowledge Cores**](#knowledge-cores)<br>
-- [**Platform Architecture**](#platform-architecture)<br>
 - [**Integrations**](#integrations)<br>
 - [**Observability & Telemetry**](#observability--telemetry)<br>
 - [**Contributing**](#contributing)<br>
@@ -38,16 +35,18 @@
 
 ## Key Features
 
-To meet the demands of enterprises, a platform needs to enable multi-tenancy, user and agentic access controls, data management, and total data privacy. TrustGraph enables these capabilities with:
-
-- **Flows and Flow Classes -> Multi-tenancy**. *Flow classes are sets of processing components that can be combined into logically separate flows for both users and agents.*
-- **Collections -> User/agent access controls and data management**. *Collections enable grouping data with custom labels that can be used for limiting data access to both users and agents. Collections can be added, deleted, and listed.*
-- **Tool Groups -> Multi-agent**. *Create groups for agent tools for multi-agent flows within a single deployment.*
-- **Knowledge Cores -> Data management and data privacy**. *Knowledge cores are modular and reusable components of knowledge graphs and vector embeddings that can serve as "long-term memory".*
-- **Fully Containerized Platform with Private Model Serving -> Total data privacy**. *The entire TrustGraph platform can be deployed in any environment while managing the deployment of private LLMs for total data sovereignty.*
-- **No-LLM Knowledge Graph Retrieval -> Deterministic Natural Language Graph Retrieval**. *TrustGraph does *not* use LLMs for knowledge graph retrieval. Natural language queries use semantic similarity search as the basis for building graph queries without LLMs enabling true graph enhanced agentic flows.*
+- **Unify your Data for Smarter AI**
+- **Ship Intelligent Agents Powered with Your Data**
+- **Connect Your Agents with MCP**
+- **Run Anywhere**
+- **Observe Your Data**
+- **Serve Models for Private LLM Inference**
+- **Create Many Workflows**
+- **Control Data Access**
 
 ## Why TrustGraph?
+
+Ingest structured and unstructured data (PDFs, databases, OCR, custom schemas, and ontologies) into a private knowledge bases to create deep data relationships that eliminate hallucinations from agent responses. Connect agents with the Model Context Protocol (MCP) to leverage external tools, services, and custom workflows. Deploy all of the services, datastores, and agents locally, on premises, or in cloud. Visualize deep data relationships with 3D GraphViz and a full observability and telemetry stack. Deploy LLMs on your hardware for full control of your data. Flows and Flow Classes enable unique agent workflows with collections and knowledge cores that manage user and agent data access.
 
 [![Why TrustGraph?](https://img.youtube.com/vi/Norboj8YP2M/maxresdefault.jpg)](https://www.youtube.com/watch?v=Norboj8YP2M)
 
@@ -61,7 +60,6 @@ To meet the demands of enterprises, a platform needs to enable multi-tenancy, us
 - [**Configuration Builder**](#configuration-builder)
 - [**Workbench**](#workbench)
 - [**Developer APIs and CLI**](https://docs.trustgraph.ai/reference/)
-- [**Example Notebooks**](https://github.com/trustgraph-ai/example-notebooks)
 - [**Deployment Guide**](https://docs.trustgraph.ai/deployment/)
 
 ### Watch TrustGraph 101
@@ -79,51 +77,33 @@ The [**Configuration Builder**](https://config-ui.demo.trustgraph.ai/) assembles
 
 ## Workbench
 
-The **Workbench** is a UI that provides tools for interacting with all major features of the platform. The **Workbench** is enabled by default in the **Configuration Builder** and is available at port `8888` on deployment. The **Workbench** has the following capabilities:
+The **Workbench** provides tools for all major features of TrustGraph. The **Workbench** is on port `8888` by default.
 
-- **Agentic, GraphRAG and LLM Chat**: Chat interface for agentic flows, GraphRAG queries, or directly interfacing with a LLM
-- **Semantic Discovery**: Analyze semantic relationships with vector search, knowledge graph relationships, and 3D graph visualization
-- **Data Management**: Load data into the **Librarian** for processing, create and upload **Knowledge Packages**
-- **Flow Management**: Create and delete processing flow patterns
-- **Prompt Management**: Edit all LLM prompts used in the platform during runtime
-- **Agent Tools**: Define tools used by the Agent Flow including MCP tools
+- **Vector Search**: Search the installed knowledge bases
+- **Agentic, GraphRAG and LLM Chat**: Chat interface for agents, GraphRAG queries, or direct to LLMs
+- **Relationships**: Analyze deep relationships in the installed knowledge bases
+- **Graph Visualizer**: 3D GraphViz of the installed knowledge bases
+- **Library**: Staging area for installing knowledge bases
+- **Flow Classes**: Workflow preset configurations
+- **Flows**: Create custom workflows and adjust LLM parameters during runtime
+- **Knowledge Cores**: Manage resuable knowledge bases
+- **Prompts**: Manage and adjust prompts during runtime
+- **Schemas**: Define custom schemas for structured data knowledge bases
+- **Ontologies**: Define custom ontologies for unstructured data knowledge bases
+- **Agent Tools**: Define tools with collections, knowledge cores, MCP connections, and tool groups
 - **MCP Tools**: Connect to MCP servers
-
-## Context Engineering
-
-TrustGraph features a complete context engineering solution combinging the power of Knowledge Graphs and VectorDBs. Connect your data to automatically construct Knowledge Graphs with mapped Vector Embeddings to deliver richer and more accurate context to LLMs for trustworthy agents.
-
-- **Automated Knowledge Graph Construction:** Data Transformation Agents processes source data to automatically **extract key entities, topics, and the relationships** connecting them. Vector emebeddings are then mapped to these semantic relationships for context retrieval.
-- **Deterministic Graph Retrieval:** Semantic relationsips are retrieved from the knowledge graph *without* the use of LLMs. When an agent needs to perform deep research, it first performs a **cosine similarity search** on the vector embeddings to identify potentially relevant concepts and relationships within the knowledge graph. This initial vector search **pinpoints relevant entry points** within the structured Knowledge Graph which gets built into graph queries *without* LLMs that retrieve the relevant subgraphs.
-- **Context Generation via Subgraph Traversal:** Based on the ranked results from the similarity search, agents are provided with only the relevant subgraphs for **deep context**. Users can configure the **number of 'hops'** (relationship traversals) to extend the depth of knowledge availabe to the agents. This structured **subgraph**, containing entities and their relationships, forms a highly relevant and context-aware input prompt for the LLM that is endlessly configurable with options for the number of entities, relationships, and overall subgraph size.
 
 ## Knowledge Cores
 
-One of the biggest challenges currently facing RAG architectures is the ability to quickly reuse and integrate knowledge sets like long-term memory for LLMs. **TrustGraph** solves this problem by storing the results of the data ingestion process in reusable Knowledge Cores. Being able to store and reuse the Knowledge Cores means the data transformation process has to be run only once. These reusable Knowledge Cores can be loaded back into **TrustGraph** and used for GraphRAG. Some sample knowledge cores are available for download [here](https://github.com/trustgraph-ai/catalog/tree/master/v3).
+A challenge facing GraphRAG architectures is the ability to reuse and remove datasets from agent workflows. TrustGraph can store the data ingest process as reusable Knowledge Cores. Knowledge cores can be loaded and removed during runtime. Some sample knowledge cores are [here](https://github.com/trustgraph-ai/catalog/tree/master/v3).
 
 A Knowledge Core has two components:
 
-- Set of Graph Edges
-- Set of mapped Vector Embeddings
-
-When a Knowledge Core is loaded into TrustGraph, the corresponding graph edges and vector embeddings are queued and loaded into the chosen graph and vector stores.
-
-## Platform Architecture
-
-The platform orchestrates a comprehensive suite of services to transform external data into intelligent, actionable outputs for AI agents and users. It interacts with external data sources and external services (like LLM APIs) via an **API Gateway**.
-
-Within the **TrustGraph** Platform, the services are grouped as follows:
-
-- **Data Orchestration:** This crucial set of services manages the entire lifecycle of ingesting and preparing data to become AI-ready knowledge. It includes **Data Ingest** capabilities for various data types, a *Data Librarian* for managing and cataloging this information, *Data Transformation* services to clean, structure, and refine raw data, and ultimately produces consumable *Knowledge Cores* – the structured, enriched knowledge artifacts for AI.
-- **Data Storage:** The platform relies on a flexible storage layer designed to handle the diverse needs of AI applications. This includes dedicated storage for *Knowledge Graphs* (to represent interconnected relationships), *VectorDBs* (for efficient semantic similarity search on embeddings), and *Tabular Datastores* (for structured data).
-- **Context Orchestration:** This is the core reasoning engine of the platform. It leverages the structured knowledge from the Storage layer to perform *Deep Knowledge Retrieval* (advanced search and context discovery beyond simple keyword matching) and facilitate *Agentic Thinking*, enabling AI agents to process information and form complex responses or action plans.
-- **Agent Orchestration:** This group of services is dedicated to managing and empowering the AI agents themselves. The *Agent Manager* handles the lifecycle, configuration, and operation of agents, while *Agent Tools* provide a framework or library of capabilities that agents can utilize to perform actions or interact with other systems.
-- **Private Model Serving:** This layer is responsible for the deployment, management, and operationalization of the various AI models TrustGraph uses or provides to agents. This includes *LLM Deployment*, *Embeddings Deployment*, and *OCR Deployment*. Crucially, it features *Cross Hardware Support*, indicating the platform's ability to run these models across diverse computing environments.
-- **Prompt Management:** Effective interaction with AI, especially LLMs and agents, requires precise instruction. This service centralizes the management of all prompt types: *LLM System Prompts* (to define an LLM's persona or core instructions), *Data Transformation Prompts* (to guide AI in structuring data), **RAG Context** generation (providing relevant intelligence to LLMs), and *Agent Definitions* (the core instructions and goals for AI agents).
-- **Platform Services:** These foundational services provide the essential operational backbone for the entire TrustGraph platform, ensuring it runs securely, reliably, and efficiently. This includes *Access Controls* (for security and permissions), *Secrets Management* (for handling sensitive credentials), *Logging* (for audit and diagnostics), *Observability* (for monitoring platform health and performance), *Realtime Cost Observability* (for tracking resource consumption expenses), and *Hardware Resource Management* (for optimizing the use of underlying compute).
+- Knowledge graph triples
+- Vector embeddings mapped to the knowledge graph
 
 ## Integrations
-TrustGraph provides maximum flexibility so your agents are always powered by the latest and greatest components.
+TrustGraph provides component flexibility to optimize agent workflows.
 
 <details>
 <summary>LLM APIs</summary>
@@ -165,8 +145,8 @@ TrustGraph provides maximum flexibility so your agents are always powered by the
 <br>
 
 - Apache Cassandra (default)<br>
-- Memgraph<br>
 - Neo4j<br>
+- Memgraph<br>
 - FalkorDB<br>
 
 </details>
@@ -192,7 +172,6 @@ TrustGraph provides maximum flexibility so your agents are always powered by the
 - AWS<br>
 - Azure<br>
 - Google Cloud<br>
-- Intel Tiber Cloud<br>
 - OVHcloud<br>
 - Scaleway<br>
 
