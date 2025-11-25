@@ -191,6 +191,9 @@ class Processor(AgentService):
 
         try:
 
+            # Check if streaming is enabled
+            streaming = getattr(request, 'streaming', False)
+
             if request.history:
                 history = [
                     Action(
@@ -215,12 +218,27 @@ class Processor(AgentService):
 
                 logger.debug(f"Think: {x}")
 
-                r = AgentResponse(
-                    answer=None,
-                    error=None,
-                    thought=x,
-                    observation=None,
-                )
+                if streaming:
+                    # Streaming format
+                    r = AgentResponse(
+                        chunk_type="thought",
+                        content=x,
+                        end_of_message=True,
+                        end_of_dialog=False,
+                        # Legacy fields for backward compatibility
+                        answer=None,
+                        error=None,
+                        thought=x,
+                        observation=None,
+                    )
+                else:
+                    # Legacy format
+                    r = AgentResponse(
+                        answer=None,
+                        error=None,
+                        thought=x,
+                        observation=None,
+                    )
 
                 await respond(r)
 
@@ -228,12 +246,27 @@ class Processor(AgentService):
 
                 logger.debug(f"Observe: {x}")
 
-                r = AgentResponse(
-                    answer=None,
-                    error=None,
-                    thought=None,
-                    observation=x,
-                )
+                if streaming:
+                    # Streaming format
+                    r = AgentResponse(
+                        chunk_type="observation",
+                        content=x,
+                        end_of_message=True,
+                        end_of_dialog=False,
+                        # Legacy fields for backward compatibility
+                        answer=None,
+                        error=None,
+                        thought=None,
+                        observation=x,
+                    )
+                else:
+                    # Legacy format
+                    r = AgentResponse(
+                        answer=None,
+                        error=None,
+                        thought=None,
+                        observation=x,
+                    )
 
                 await respond(r)
 
@@ -287,11 +320,25 @@ class Processor(AgentService):
                 else:
                     f = json.dumps(act.final)
 
-                r = AgentResponse(
-                    answer=act.final,
-                    error=None,
-                    thought=None,
-                )
+                if streaming:
+                    # Streaming format - mark as final dialog
+                    r = AgentResponse(
+                        chunk_type="answer",
+                        content=f,
+                        end_of_message=True,
+                        end_of_dialog=True,
+                        # Legacy fields for backward compatibility
+                        answer=act.final,
+                        error=None,
+                        thought=None,
+                    )
+                else:
+                    # Legacy format
+                    r = AgentResponse(
+                        answer=act.final,
+                        error=None,
+                        thought=None,
+                    )
 
                 await respond(r)
 
@@ -336,13 +383,31 @@ class Processor(AgentService):
 
             logger.debug("Send error response...")
 
-            r = AgentResponse(
-                error=Error(
-                    type = "agent-error",
-                    message = str(e),
-                ),
-                response=None,
+            error_obj = Error(
+                type = "agent-error",
+                message = str(e),
             )
+
+            # Check if streaming was enabled (may not be set if error occurred early)
+            streaming = getattr(request, 'streaming', False) if 'request' in locals() else False
+
+            if streaming:
+                # Streaming format
+                r = AgentResponse(
+                    chunk_type="error",
+                    content=str(e),
+                    end_of_message=True,
+                    end_of_dialog=True,
+                    # Legacy fields for backward compatibility
+                    error=error_obj,
+                    response=None,
+                )
+            else:
+                # Legacy format
+                r = AgentResponse(
+                    error=error_obj,
+                    response=None,
+                )
 
             await respond(r)
 
