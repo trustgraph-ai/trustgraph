@@ -8,24 +8,61 @@ class PromptClient(RequestResponse):
 
     async def prompt(self, id, variables, timeout=600, streaming=False):
 
-        resp = await self.request(
-            PromptRequest(
-                id = id,
-                terms = {
-                    k: json.dumps(v)
-                    for k, v in variables.items()
-                },
-                streaming = streaming
-            ),
-            timeout=timeout
-        )
+        if not streaming:
+            # Non-streaming path
+            resp = await self.request(
+                PromptRequest(
+                    id = id,
+                    terms = {
+                        k: json.dumps(v)
+                        for k, v in variables.items()
+                    },
+                    streaming = False
+                ),
+                timeout=timeout
+            )
 
-        if resp.error:
-            raise RuntimeError(resp.error.message)
+            if resp.error:
+                raise RuntimeError(resp.error.message)
 
-        if resp.text: return resp.text
+            if resp.text: return resp.text
 
-        return json.loads(resp.object)
+            return json.loads(resp.object)
+
+        else:
+            # Streaming path - collect all chunks
+            full_text = ""
+            full_object = None
+
+            async def collect_chunks(resp):
+                nonlocal full_text, full_object
+
+                if resp.error:
+                    raise RuntimeError(resp.error.message)
+
+                if resp.text:
+                    full_text += resp.text
+                elif resp.object:
+                    full_object = resp.object
+
+                return getattr(resp, 'end_of_stream', False)
+
+            await self.request(
+                PromptRequest(
+                    id = id,
+                    terms = {
+                        k: json.dumps(v)
+                        for k, v in variables.items()
+                    },
+                    streaming = True
+                ),
+                recipient=collect_chunks,
+                timeout=timeout
+            )
+
+            if full_text: return full_text
+
+            return json.loads(full_object)
 
     async def extract_definitions(self, text, timeout=600):
         return await self.prompt(
