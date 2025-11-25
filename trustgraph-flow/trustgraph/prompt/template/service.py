@@ -131,18 +131,21 @@ class Processor(FlowProcessor):
                         if resp.error:
                             raise RuntimeError(resp.error.message)
 
-                        if resp.response:
+                        is_final = getattr(resp, 'end_of_stream', False)
+
+                        # Always send a message if there's content OR if it's the final message
+                        if resp.response or is_final:
                             # Forward each chunk immediately
                             r = PromptResponse(
-                                text=resp.response,
+                                text=resp.response if resp.response else "",
                                 object=None,
                                 error=None,
-                                end_of_stream=getattr(resp, 'end_of_stream', False),
+                                end_of_stream=is_final,
                             )
                             await flow("response").send(r, properties={"id": id})
 
                         # Return True when end_of_stream
-                        return getattr(resp, 'end_of_stream', False)
+                        return is_final
 
                     await client.request(
                         TextCompletionRequest(
