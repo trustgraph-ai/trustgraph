@@ -9,7 +9,7 @@ import os
 import logging
 
 from .... exceptions import TooManyRequests
-from .... base import LlmService, LlmResult
+from .... base import LlmService, LlmResult, LlmChunk
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -116,6 +116,75 @@ class Processor(LlmService):
             # Apart from rate limits, treat all exceptions as unrecoverable
 
             logger.error(f"OpenAI LLM exception ({type(e).__name__}): {e}", exc_info=True)
+            raise e
+
+    def supports_streaming(self):
+        """OpenAI supports streaming"""
+        return True
+
+    async def generate_content_stream(self, system, prompt, model=None, temperature=None):
+        """
+        Stream content generation from OpenAI.
+        Yields LlmChunk objects with is_final=True on the last chunk.
+        """
+        # Use provided model or fall back to default
+        model_name = model or self.default_model
+        # Use provided temperature or fall back to default
+        effective_temperature = temperature if temperature is not None else self.temperature
+
+        logger.debug(f"Using model (streaming): {model_name}")
+        logger.debug(f"Using temperature: {effective_temperature}")
+
+        prompt = system + "\n\n" + prompt
+
+        try:
+            response = self.openai.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": prompt
+                            }
+                        ]
+                    }
+                ],
+                temperature=effective_temperature,
+                max_tokens=self.max_output,
+                stream=True  # Enable streaming
+            )
+
+            # Stream chunks
+            for chunk in response:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    yield LlmChunk(
+                        text=chunk.choices[0].delta.content,
+                        in_token=None,
+                        out_token=None,
+                        model=model_name,
+                        is_final=False
+                    )
+
+            # Note: OpenAI doesn't provide token counts in streaming mode
+            # Send final chunk without token counts
+            yield LlmChunk(
+                text="",
+                in_token=None,
+                out_token=None,
+                model=model_name,
+                is_final=True
+            )
+
+            logger.debug("Streaming complete")
+
+        except RateLimitError:
+            logger.warning("Hit rate limit during streaming")
+            raise TooManyRequests()
+
+        except Exception as e:
+            logger.error(f"OpenAI streaming exception ({type(e).__name__}): {e}", exc_info=True)
             raise e
 
     @staticmethod

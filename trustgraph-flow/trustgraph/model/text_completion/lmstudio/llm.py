@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from .... exceptions import TooManyRequests
-from .... base import LlmService, LlmResult
+from .... base import LlmService, LlmResult, LlmChunk
 
 default_ident = "text-completion"
 
