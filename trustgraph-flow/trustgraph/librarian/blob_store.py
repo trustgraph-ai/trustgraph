@@ -19,7 +19,7 @@ class BlobStore:
 
 
         self.minio = Minio(
-            minio_host,
+            endpoint = minio_host,
             access_key = minio_access_key,
             secret_key = minio_secret_key,
             secure = False,
