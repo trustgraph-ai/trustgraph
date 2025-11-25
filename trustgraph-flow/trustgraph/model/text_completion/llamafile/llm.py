@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from .... exceptions import TooManyRequests
-from .... base import LlmService, LlmResult
+from .... base import LlmService, LlmResult, LlmChunk
 
 default_ident = "text-completion"
 
@@ -100,6 +100,57 @@ class Processor(LlmService):
         except Exception as e:
 
             logger.error(f"Llamafile LLM exception ({type(e).__name__}): {e}", exc_info=True)
+            raise e
+
+    def supports_streaming(self):
+        """LlamaFile supports streaming"""
+        return True
+
+    async def generate_content_stream(self, system, prompt, model=None, temperature=None):
+        """Stream content generation from LlamaFile"""
+        model_name = model or self.default_model
+        effective_temperature = temperature if temperature is not None else self.temperature
+
+        logger.debug(f"Using model (streaming): {model_name}")
+        logger.debug(f"Using temperature: {effective_temperature}")
+
+        prompt = system + "\n\n" + prompt
+
+        try:
+            response = self.openai.chat.completions.create(
+                model=model_name,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=effective_temperature,
+                max_tokens=self.max_output,
+                top_p=1,
+                frequency_penalty=0,
+                presence_penalty=0,
+                response_format={"type": "text"},
+                stream=True
+            )
+
+            for chunk in response:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    yield LlmChunk(
+                        text=chunk.choices[0].delta.content,
+                        in_token=None,
+                        out_token=None,
+                        model=model_name,
+                        is_final=False
+                    )
+
+            yield LlmChunk(
+                text="",
+                in_token=None,
+                out_token=None,
+                model=model_name,
+                is_final=True
+            )
+
+            logger.debug("Streaming complete")
+
+        except Exception as e:
+            logger.error(f"LlamaFile streaming exception ({type(e).__name__}): {e}", exc_info=True)
             raise e
 
     @staticmethod

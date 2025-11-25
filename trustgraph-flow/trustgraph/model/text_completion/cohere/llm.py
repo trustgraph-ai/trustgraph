@@ -13,7 +13,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from .... exceptions import TooManyRequests
-from .... base import LlmService, LlmResult
+from .... base import LlmService, LlmResult, LlmChunk
 
 default_ident = "text-completion"
 
@@ -96,6 +96,68 @@ class Processor(LlmService):
             # Apart from rate limits, treat all exceptions as unrecoverable
 
             logger.error(f"Cohere LLM exception ({type(e).__name__}): {e}", exc_info=True)
+            raise e
+
+    def supports_streaming(self):
+        """Cohere supports streaming"""
+        return True
+
+    async def generate_content_stream(self, system, prompt, model=None, temperature=None):
+        """Stream content generation from Cohere"""
+        model_name = model or self.default_model
+        effective_temperature = temperature if temperature is not None else self.temperature
+
+        logger.debug(f"Using model (streaming): {model_name}")
+        logger.debug(f"Using temperature: {effective_temperature}")
+
+        try:
+            stream = self.cohere.chat_stream(
+                model=model_name,
+                message=prompt,
+                preamble=system,
+                temperature=effective_temperature,
+                chat_history=[],
+                prompt_truncation='auto',
+                connectors=[]
+            )
+
+            total_input_tokens = 0
+            total_output_tokens = 0
+
+            for event in stream:
+                if event.event_type == "text-generation":
+                    if hasattr(event, 'text') and event.text:
+                        yield LlmChunk(
+                            text=event.text,
+                            in_token=None,
+                            out_token=None,
+                            model=model_name,
+                            is_final=False
+                        )
+                elif event.event_type == "stream-end":
+                    # Extract token counts from final event
+                    if hasattr(event, 'response') and hasattr(event.response, 'meta'):
+                        if hasattr(event.response.meta, 'billed_units'):
+                            total_input_tokens = int(event.response.meta.billed_units.input_tokens)
+                            total_output_tokens = int(event.response.meta.billed_units.output_tokens)
+
+            # Send final chunk with token counts
+            yield LlmChunk(
+                text="",
+                in_token=total_input_tokens,
+                out_token=total_output_tokens,
+                model=model_name,
+                is_final=True
+            )
+
+            logger.debug("Streaming complete")
+
+        except cohere.TooManyRequestsError:
+            logger.warning("Rate limit exceeded during streaming")
+            raise TooManyRequests()
+
+        except Exception as e:
+            logger.error(f"Cohere streaming exception ({type(e).__name__}): {e}", exc_info=True)
             raise e
 
     @staticmethod
