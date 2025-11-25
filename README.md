@@ -46,7 +46,11 @@ Build accurate, trustworthy AI agents powered by your own private data. TrustGra
 
 ## Why TrustGraph?
 
-Ingest structured and unstructured data (PDFs, databases, OCR, custom schemas, and ontologies) into a private knowledge bases to create deep data relationships that eliminate hallucinations from agent responses. Connect agents with the Model Context Protocol (MCP) to leverage external tools, services, and custom workflows. Deploy all of the services, datastores, and agents locally, on premises, or in cloud. Visualize deep data relationships with 3D GraphViz and a full observability and telemetry stack. Deploy LLMs on your hardware for full control of your data. Flows and Flow Classes enable unique agent workflows with collections and knowledge cores that manage user and agent data access.
+Ingest structured and unstructured data (PDFs, databases, OCR, custom schemas, and ontologies) into a private knowledge bases to create deep data relationships that eliminate hallucinations from agent responses. Connect agents with the Model Context Protocol (MCP) to leverage external tools, services, and custom workflows.
+
+Deploy all of the services, datastores, and agents locally, on premises, or in cloud. Visualize deep data relationships with 3D GraphViz and a full observability and telemetry stack. Deploy LLMs on your hardware for full control of your data.
+
+Flows and Flow Classes enable unique agent workflows with collections and knowledge cores that manage user and agent data access.
 
 [![Why TrustGraph?](https://img.youtube.com/vi/Norboj8YP2M/maxresdefault.jpg)](https://www.youtube.com/watch?v=Norboj8YP2M)
 
