@@ -101,6 +101,9 @@ class Processor(FlowProcessor):
 
         kind = v.id
 
+        # Check if streaming is requested
+        streaming = getattr(v, 'streaming', False)
+
         try:
 
             logger.debug(f"Prompt terms: {v.terms}")
@@ -109,16 +112,65 @@ class Processor(FlowProcessor):
                 k: json.loads(v)
                 for k, v in v.terms.items()
             }
-            
-            logger.debug(f"Handling prompt kind {kind}...")
 
+            logger.debug(f"Handling prompt kind {kind}... (streaming={streaming})")
+
+            # If streaming, we need to handle it differently
+            if streaming:
+                # For streaming, we need to intercept LLM responses
+                # and forward them as they arrive
+
+                async def llm_streaming(system, prompt):
+                    logger.debug(f"System prompt: {system}")
+                    logger.debug(f"User prompt: {prompt}")
+
+                    # Use the text completion client with recipient handler
+                    client = flow("text-completion-request")
+
+                    async def forward_chunks(resp):
+                        if resp.error:
+                            raise RuntimeError(resp.error.message)
+
+                        if resp.response:
+                            # Forward each chunk immediately
+                            r = PromptResponse(
+                                text=resp.response,
+                                object=None,
+                                error=None,
+                                end_of_stream=getattr(resp, 'end_of_stream', False),
+                            )
+                            await flow("response").send(r, properties={"id": id})
+
+                        # Return True when end_of_stream
+                        return getattr(resp, 'end_of_stream', False)
+
+                    await client.request(
+                        TextCompletionRequest(
+                            system=system, prompt=prompt, streaming=True
+                        ),
+                        recipient=forward_chunks,
+                        timeout=600
+                    )
+
+                    # Return empty string since we already sent all chunks
+                    return ""
+
+                try:
+                    await self.manager.invoke(kind, input, llm_streaming)
+                except Exception as e:
+                    logger.error(f"Prompt streaming exception: {e}", exc_info=True)
+                    raise e
+
+                return
+
+            # Non-streaming path (original behavior)
             async def llm(system, prompt):
 
                 logger.debug(f"System prompt: {system}")
                 logger.debug(f"User prompt: {prompt}")
 
                 resp = await flow("text-completion-request").text_completion(
-                    system = system, prompt = prompt,
+                    system = system, prompt = prompt, streaming = False,
                 )
 
                 try:
@@ -143,6 +195,7 @@ class Processor(FlowProcessor):
                     text=resp,
                     object=None,
                     error=None,
+                    end_of_stream=True,
                 )
 
                 await flow("response").send(r, properties={"id": id})
@@ -158,6 +211,7 @@ class Processor(FlowProcessor):
                     text=None,
                     object=json.dumps(resp),
                     error=None,
+                    end_of_stream=True,
                 )
 
                 await flow("response").send(r, properties={"id": id})
@@ -175,26 +229,12 @@ class Processor(FlowProcessor):
                     type = "llm-error",
                     message = str(e),
                 ),
-                response=None,
+                text=None,
+                object=None,
+                end_of_stream=True,
             )
 
             await flow("response").send(r, properties={"id": id})
-
-        except Exception as e:
-
-            logger.error(f"Prompt service exception: {e}", exc_info=True)
-
-            logger.debug("Sending error response...")
-
-            r = PromptResponse(
-                error=Error(
-                    type = "llm-error",
-                    message = str(e),
-                ),
-                response=None,
-            )
-
-            await self.send(r, properties={"id": id})
 
     @staticmethod
     def add_args(parser):
