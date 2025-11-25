@@ -6,7 +6,7 @@ from .. schema import PromptRequest, PromptResponse
 
 class PromptClient(RequestResponse):
 
-    async def prompt(self, id, variables, timeout=600):
+    async def prompt(self, id, variables, timeout=600, streaming=False):
 
         resp = await self.request(
             PromptRequest(
@@ -14,7 +14,8 @@ class PromptClient(RequestResponse):
                 terms = {
                     k: json.dumps(v)
                     for k, v in variables.items()
-                }
+                },
+                streaming = streaming
             ),
             timeout=timeout
         )
@@ -70,11 +71,12 @@ class PromptClient(RequestResponse):
             timeout = timeout,
         )
 
-    async def agent_react(self, variables, timeout=600):
+    async def agent_react(self, variables, timeout=600, streaming=False):
         return await self.prompt(
             id = "agent-react",
             variables = variables,
             timeout = timeout,
+            streaming = streaming,
         )
 
     async def question(self, question, timeout=600):

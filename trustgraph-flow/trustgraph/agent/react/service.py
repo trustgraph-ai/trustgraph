@@ -307,6 +307,7 @@ class Processor(AgentService):
                 think = think,
                 observe = observe,
                 context = UserAwareContext(flow, request.user),
+                streaming = streaming,
             )
 
             logger.debug(f"Action: {act}")

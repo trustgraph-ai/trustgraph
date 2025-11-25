@@ -169,7 +169,7 @@ class AgentManager:
         
         raise ValueError(f"Could not parse response: {text}")
 
-    async def reason(self, question, history, context):
+    async def reason(self, question, history, context, streaming=False):
 
         logger.debug(f"calling reason: {question}")
 
@@ -220,7 +220,7 @@ class AgentManager:
         logger.info(f"prompt: {variables}")
 
         # Get text response from prompt service
-        response_text = await context("prompt-request").agent_react(variables)
+        response_text = await context("prompt-request").agent_react(variables, streaming=streaming)
 
         logger.debug(f"Response text:\n{response_text}")
 
@@ -237,7 +237,7 @@ class AgentManager:
             logger.error(f"Response was: {response_text}")
             raise RuntimeError(f"Failed to parse agent response: {e}")
 
-    async def react(self, question, history, think, observe, context):
+    async def react(self, question, history, think, observe, context, streaming=False):
 
         logger.info(f"question: {question}")
 
@@ -245,6 +245,7 @@ class AgentManager:
             question = question,
             history = history,
             context = context,
+            streaming = streaming,
         )
         logger.info(f"act: {act}")
 
