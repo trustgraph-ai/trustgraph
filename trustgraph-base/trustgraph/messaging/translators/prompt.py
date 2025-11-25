@@ -16,10 +16,11 @@ class PromptRequestTranslator(MessageTranslator):
                 k: json.dumps(v)
                 for k, v in data["variables"].items()
             }
-        
+
         return PromptRequest(
             id=data.get("id"),
-            terms=terms
+            terms=terms,
+            streaming=data.get("streaming", False)
         )
     
     def from_pulsar(self, obj: PromptRequest) -> Dict[str, Any]:
@@ -51,4 +52,6 @@ class PromptResponseTranslator(MessageTranslator):
     
     def from_response_with_completion(self, obj: PromptResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
-        return self.from_pulsar(obj), True
+        # Check end_of_stream field to determine if this is the final message
+        is_final = getattr(obj, 'end_of_stream', True)
+        return self.from_pulsar(obj), is_final
