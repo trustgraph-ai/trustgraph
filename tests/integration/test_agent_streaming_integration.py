@@ -36,15 +36,15 @@ Args: {
 }"""
 
             if streaming and chunk_callback:
-                # Simulate streaming response with token-level chunks
-                # Real LLMs stream token by token, not line by line
+                # Send line-by-line chunks to test streaming while avoiding parser state issues
+                # The StreamingReActParser expects delimiters to be complete, so we send
+                # each line as a complete chunk
                 chunks = [
-                    "Thought", ": ", "I", " need", " to", " search", " for",
-                    " information", " about", " machine", " learning", ".\n",
-                    "Action", ": ", "knowledge", "_query", "\n",
-                    "Args", ": ", "{", "\n",
-                    '    "', "question", '": "', "What", " is", " machine",
-                    " learning", '?"', "\n", "}"
+                    "Thought: I need to search for information about machine learning.\n",
+                    "Action: knowledge_query\n",
+                    "Args: {\n",
+                    '    "question": "What is machine learning?"\n',
+                    "}"
                 ]
 
                 for chunk in chunks:
