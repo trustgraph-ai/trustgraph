@@ -28,33 +28,34 @@ class TestAgentStreaming:
         client = AsyncMock()
 
         async def agent_react_streaming(variables, timeout=600, streaming=False, chunk_callback=None):
-            if streaming and chunk_callback:
-                # Simulate streaming response with chunks
-                chunks = [
-                    "Thought: I need to",
-                    " search for",
-                    " information about",
-                    " machine learning.",
-                    "\n",
-                    "Action: knowledge_query\n",
-                    "Args: {\n",
-                    '    "question": "What is machine learning?"\n',
-                    "}"
-                ]
-
-                full_text = ""
-                for chunk in chunks:
-                    full_text += chunk
-                    await chunk_callback(chunk)
-
-                return full_text
-            else:
-                # Non-streaming response
-                return """Thought: I need to search for information about machine learning.
+            # Both modes return the same text for equivalence
+            full_text = """Thought: I need to search for information about machine learning.
 Action: knowledge_query
 Args: {
     "question": "What is machine learning?"
 }"""
+
+            if streaming and chunk_callback:
+                # Simulate streaming response with complete lines as chunks
+                # This mimics how real LLMs stream - complete tokens/words
+                chunks = [
+                    "Thought: I need to search",
+                    " for information about",
+                    " machine learning.\n",
+                    "Action: knowledge_query\n",
+                    "Args: {\n",
+                    '    "question": ',
+                    '"What is machine learning?"',
+                    '\n}'
+                ]
+
+                for chunk in chunks:
+                    await chunk_callback(chunk)
+
+                return full_text
+            else:
+                # Non-streaming response - same text
+                return full_text
 
         client.agent_react.side_effect = agent_react_streaming
         return client
@@ -240,11 +241,19 @@ Args: {
         assert result is not None
 
     @pytest.mark.asyncio
-    async def test_agent_streaming_with_conversation_history(self, agent_manager, mock_flow_context,
-                                                              sample_agent_responses):
+    async def test_agent_streaming_with_conversation_history(self, agent_manager, mock_flow_context):
         """Test streaming with existing conversation history"""
         # Arrange
-        history = sample_agent_responses[:1]  # Use first response as history
+        # History should be a list of Action objects
+        from trustgraph.agent.react.types import Action
+        history = [
+            Action(
+                thought="I need to search for information about machine learning",
+                name="knowledge_query",
+                arguments={"question": "What is machine learning?"},
+                observation="Machine learning is a subset of AI that enables computers to learn from data."
+            )
+        ]
         think = AsyncMock()
 
         # Act
