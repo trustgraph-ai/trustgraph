@@ -145,8 +145,8 @@ class StreamingReActParser:
 
         if idx >= 0:
             # Found thought delimiter
-            # Discard any content before it
-            self.line_buffer = self.line_buffer[idx + len(self.THOUGHT_DELIMITER):]
+            # Discard any content before it and strip leading whitespace after delimiter
+            self.line_buffer = self.line_buffer[idx + len(self.THOUGHT_DELIMITER):].lstrip()
             self.state = ParserState.THOUGHT
         elif len(self.line_buffer) >= self.MAX_DELIMITER_BUFFER:
             # Buffer getting too large, probably junk before thought
@@ -180,7 +180,7 @@ class StreamingReActParser:
                 if self.on_thought_chunk:
                     self.on_thought_chunk(thought_chunk)
 
-            self.line_buffer = self.line_buffer[next_delimiter_idx + delimiter_len:]
+            self.line_buffer = self.line_buffer[next_delimiter_idx + delimiter_len:].lstrip()
             self.state = next_state
         else:
             # No delimiter found yet
@@ -203,7 +203,7 @@ class StreamingReActParser:
         if args_idx >= 0 and (newline_idx < 0 or args_idx < newline_idx):
             # Args delimiter found first
             self.action_buffer = self.line_buffer[:args_idx].strip().strip('"')
-            self.line_buffer = self.line_buffer[args_idx + len(self.ARGS_DELIMITER):]
+            self.line_buffer = self.line_buffer[args_idx + len(self.ARGS_DELIMITER):].lstrip()
             self.state = ParserState.ARGS
         elif newline_idx >= 0:
             # Newline found, action name complete
@@ -213,7 +213,7 @@ class StreamingReActParser:
             # Actually, check if next line has Args:
             if self.line_buffer.lstrip().startswith(self.ARGS_DELIMITER):
                 args_start = self.line_buffer.find(self.ARGS_DELIMITER)
-                self.line_buffer = self.line_buffer[args_start + len(self.ARGS_DELIMITER):]
+                self.line_buffer = self.line_buffer[args_start + len(self.ARGS_DELIMITER):].lstrip()
                 self.state = ParserState.ARGS
         else:
             # Not enough content yet, keep buffering
