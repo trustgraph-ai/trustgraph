@@ -4,13 +4,18 @@ Multi-queue Pulsar message dumper for debugging TrustGraph message flows.
 This utility monitors multiple Pulsar queues simultaneously and logs all messages
 to a file with timestamps and pretty-printed formatting. Useful for debugging
 message flows, diagnosing stuck services, and understanding system behavior.
+
+Uses TrustGraph's Subscriber abstraction for future-proof pub/sub compatibility.
 """
 
 import pulsar
 import sys
 import json
+import asyncio
 from datetime import datetime
 import argparse
+
+from trustgraph.base.subscriber import Subscriber
 
 def format_message(queue_name, msg):
     """Format a message with timestamp and queue name."""
@@ -50,6 +55,169 @@ def format_message(queue_name, msg):
     # Format the output
     header = f"\n{'='*80}\n[{timestamp}] Queue: {queue_name}\n{'='*80}\n"
     return header + body + "\n"
+
+
+async def monitor_queue(subscriber, queue_name, central_queue, monitor_id):
+    """
+    Monitor a single queue via Subscriber and forward messages to central queue.
+
+    Args:
+        subscriber: Subscriber instance for this queue
+        queue_name: Name of the queue (for logging)
+        central_queue: asyncio.Queue to forward messages to
+        monitor_id: Unique ID for this monitor's subscription
+    """
+    try:
+        # Subscribe to all messages from this Subscriber
+        msg_queue = await subscriber.subscribe_all(monitor_id)
+
+        while True:
+            # Read from Subscriber's internal queue
+            msg = await msg_queue.get()
+            timestamp = datetime.now()
+            formatted = format_message(queue_name, msg)
+
+            # Forward to central queue for writing
+            await central_queue.put((timestamp, queue_name, formatted))
+
+    except asyncio.CancelledError:
+        # Task cancelled during shutdown
+        await subscriber.unsubscribe_all(monitor_id)
+        raise
+    except Exception as e:
+        error_msg = f"\n{'='*80}\n[{datetime.now().isoformat()}] ERROR in monitor for {queue_name}\n{'='*80}\n{e}\n"
+        await central_queue.put((datetime.now(), queue_name, error_msg))
+
+
+async def log_writer(central_queue, file_handle, console_output=True):
+    """
+    Write messages from central queue to file.
+
+    Args:
+        central_queue: asyncio.Queue containing (timestamp, queue_name, formatted_msg) tuples
+        file_handle: Open file handle to write to
+        console_output: Whether to print abbreviated messages to console
+    """
+    try:
+        while True:
+            timestamp, queue_name, formatted_msg = await central_queue.get()
+
+            # Write to file
+            file_handle.write(formatted_msg)
+            file_handle.flush()
+
+            # Print abbreviated message to console
+            if console_output:
+                time_str = timestamp.strftime('%H:%M:%S')
+                print(f"[{time_str}] {queue_name}: Message received")
+
+    except asyncio.CancelledError:
+        # Flush remaining messages before shutdown
+        while not central_queue.empty():
+            try:
+                timestamp, queue_name, formatted_msg = central_queue.get_nowait()
+                file_handle.write(formatted_msg)
+                file_handle.flush()
+            except asyncio.QueueEmpty:
+                break
+        raise
+
+
+async def async_main(queues, output_file, pulsar_host, listener_name, subscriber_name, append_mode):
+    """
+    Main async function to monitor multiple queues concurrently.
+
+    Args:
+        queues: List of queue names to monitor
+        output_file: Path to output file
+        pulsar_host: Pulsar connection URL
+        listener_name: Pulsar listener name
+        subscriber_name: Base name for subscribers
+        append_mode: Whether to append to existing file
+    """
+    print(f"TrustGraph Queue Dumper")
+    print(f"Monitoring {len(queues)} queue(s):")
+    for q in queues:
+        print(f"  - {q}")
+    print(f"Output file: {output_file}")
+    print(f"Mode: {'append' if append_mode else 'overwrite'}")
+    print(f"Press Ctrl+C to stop\n")
+
+    # Connect to Pulsar
+    try:
+        client = pulsar.Client(pulsar_host, listener_name=listener_name)
+    except Exception as e:
+        print(f"Error connecting to Pulsar at {pulsar_host}: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Create Subscribers and central queue
+    central_queue = asyncio.Queue()
+    subscribers = []
+
+    for queue_name in queues:
+        try:
+            sub = Subscriber(
+                client=client,
+                topic=queue_name,
+                subscription=subscriber_name,
+                consumer_name=f"{subscriber_name}-{queue_name}",
+                schema=None,  # Generic - no schema validation
+            )
+            await sub.start()
+            subscribers.append((queue_name, sub))
+            print(f"✓ Subscribed to: {queue_name}")
+        except Exception as e:
+            print(f"✗ Error subscribing to {queue_name}: {e}", file=sys.stderr)
+
+    if not subscribers:
+        print("\nNo subscribers created. Exiting.", file=sys.stderr)
+        client.close()
+        sys.exit(1)
+
+    print(f"\nListening for messages...\n")
+
+    # Open output file
+    mode = 'a' if append_mode else 'w'
+    try:
+        with open(output_file, mode) as f:
+            f.write(f"\n{'#'*80}\n")
+            f.write(f"# Session started: {datetime.now().isoformat()}\n")
+            f.write(f"# Monitoring queues: {', '.join(queues)}\n")
+            f.write(f"{'#'*80}\n")
+            f.flush()
+
+            # Start monitoring tasks
+            try:
+                async with asyncio.TaskGroup() as tg:
+                    # Create one monitor task per subscriber
+                    for queue_name, sub in subscribers:
+                        tg.create_task(monitor_queue(sub, queue_name, central_queue, "logger"))
+
+                    # Create single writer task
+                    tg.create_task(log_writer(central_queue, f))
+
+            except KeyboardInterrupt:
+                print("\n\nStopping...")
+            except* Exception as eg:
+                # TaskGroup exception group
+                for exc in eg.exceptions:
+                    print(f"Task error: {exc}", file=sys.stderr)
+            finally:
+                # Write session end marker
+                f.write(f"\n{'#'*80}\n")
+                f.write(f"# Session ended: {datetime.now().isoformat()}\n")
+                f.write(f"{'#'*80}\n")
+
+    except IOError as e:
+        print(f"Error writing to {output_file}: {e}", file=sys.stderr)
+        sys.exit(1)
+    finally:
+        # Cleanup subscribers
+        for _, sub in subscribers:
+            await sub.stop()
+        client.close()
+
+    print(f"\nMessages logged to: {output_file}")
 
 def main():
     parser = argparse.ArgumentParser(
@@ -124,93 +292,22 @@ Common queue patterns:
     if not queues:
         parser.error("No queues specified")
 
-    print(f"TrustGraph Queue Dumper")
-    print(f"Monitoring {len(queues)} queue(s):")
-    for q in queues:
-        print(f"  - {q}")
-    print(f"Output file: {args.output}")
-    print(f"Mode: {'append' if args.append else 'overwrite'}")
-    print(f"Press Ctrl+C to stop\n")
-
-    # Connect to Pulsar
+    # Run async main
     try:
-        client = pulsar.Client(args.pulsar_host, listener_name=args.listener_name)
+        asyncio.run(async_main(
+            queues=queues,
+            output_file=args.output,
+            pulsar_host=args.pulsar_host,
+            listener_name=args.listener_name,
+            subscriber_name=args.subscriber,
+            append_mode=args.append
+        ))
+    except KeyboardInterrupt:
+        # Already handled in async_main
+        pass
     except Exception as e:
-        print(f"Error connecting to Pulsar at {args.pulsar_host}: {e}", file=sys.stderr)
+        print(f"Fatal error: {e}", file=sys.stderr)
         sys.exit(1)
-
-    # Subscribe to all queues
-    consumers = []
-    for queue in queues:
-        try:
-            consumer = client.subscribe(
-                queue,
-                args.subscriber,
-                consumer_type=pulsar.ConsumerType.Shared
-            )
-            consumers.append((queue, consumer))
-            print(f"✓ Subscribed to: {queue}")
-        except Exception as e:
-            print(f"✗ Error subscribing to {queue}: {e}", file=sys.stderr)
-
-    if not consumers:
-        print("\nNo consumers created. Exiting.", file=sys.stderr)
-        client.close()
-        sys.exit(1)
-
-    print(f"\nListening for messages...\n")
-
-    # Open output file (overwrite by default, append if --append specified)
-    mode = 'a' if args.append else 'w'
-    try:
-        with open(args.output, mode) as f:
-            f.write(f"\n{'#'*80}\n")
-            f.write(f"# Session started: {datetime.now().isoformat()}\n")
-            f.write(f"# Monitoring queues: {', '.join(queues)}\n")
-            f.write(f"{'#'*80}\n")
-            f.flush()
-
-            try:
-                # Process messages from all consumers
-                while True:
-                    for queue_name, consumer in consumers:
-                        try:
-                            # Non-blocking receive with timeout
-                            msg = consumer.receive(timeout_millis=100)
-                            consumer.acknowledge(msg)
-
-                            # Format and write
-                            output = format_message(queue_name, msg)
-                            f.write(output)
-                            f.flush()
-
-                            # Also print to console (truncated)
-                            print(f"[{datetime.now().strftime('%H:%M:%S')}] {queue_name}: Message received")
-
-                        except Exception as e:
-                            # Timeout is normal, just continue silently
-                            if "TimeOut" not in str(e) and "Timeout" not in str(e):
-                                error_msg = f"Error receiving from {queue_name}: {e}\n"
-                                f.write(error_msg)
-                                f.flush()
-                                print(error_msg, file=sys.stderr)
-
-            except KeyboardInterrupt:
-                print("\n\nStopping...")
-                f.write(f"\n{'#'*80}\n")
-                f.write(f"# Session ended: {datetime.now().isoformat()}\n")
-                f.write(f"{'#'*80}\n")
-
-    except IOError as e:
-        print(f"Error writing to {args.output}: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    # Cleanup
-    for _, consumer in consumers:
-        consumer.close()
-    client.close()
-
-    print(f"\nMessages logged to: {args.output}")
 
 if __name__ == '__main__':
     main()
