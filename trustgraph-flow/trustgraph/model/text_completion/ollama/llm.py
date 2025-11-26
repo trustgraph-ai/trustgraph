@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from .... exceptions import TooManyRequests
-from .... base import LlmService, LlmResult
+from .... base import LlmService, LlmResult, LlmChunk
 
 default_ident = "text-completion"
 
@@ -77,6 +77,62 @@ class Processor(LlmService):
         except Exception as e:
 
             logger.error(f"Ollama LLM exception ({type(e).__name__}): {e}", exc_info=True)
+            raise e
+
+    def supports_streaming(self):
+        """Ollama supports streaming"""
+        return True
+
+    async def generate_content_stream(self, system, prompt, model=None, temperature=None):
+        """Stream content generation from Ollama"""
+        model_name = model or self.default_model
+        effective_temperature = temperature if temperature is not None else self.temperature
+
+        logger.debug(f"Using model (streaming): {model_name}")
+        logger.debug(f"Using temperature: {effective_temperature}")
+
+        prompt = system + "\n\n" + prompt
+
+        try:
+            stream = self.llm.generate(
+                model_name,
+                prompt,
+                options={'temperature': effective_temperature},
+                stream=True
+            )
+
+            total_input_tokens = 0
+            total_output_tokens = 0
+
+            for chunk in stream:
+                if 'response' in chunk and chunk['response']:
+                    yield LlmChunk(
+                        text=chunk['response'],
+                        in_token=None,
+                        out_token=None,
+                        model=model_name,
+                        is_final=False
+                    )
+
+                # Accumulate token counts if available
+                if 'prompt_eval_count' in chunk:
+                    total_input_tokens = int(chunk['prompt_eval_count'])
+                if 'eval_count' in chunk:
+                    total_output_tokens = int(chunk['eval_count'])
+
+            # Send final chunk with token counts
+            yield LlmChunk(
+                text="",
+                in_token=total_input_tokens,
+                out_token=total_output_tokens,
+                model=model_name,
+                is_final=True
+            )
+
+            logger.debug("Streaming complete")
+
+        except Exception as e:
+            logger.error(f"Ollama streaming exception ({type(e).__name__}): {e}", exc_info=True)
             raise e
 
     @staticmethod

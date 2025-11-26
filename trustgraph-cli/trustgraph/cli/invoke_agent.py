@@ -29,7 +29,7 @@ def output(text, prefix="> ", width=78):
 
 async def question(
         url, question, flow_id, user, collection,
-        plan=None, state=None, group=None, verbose=False
+        plan=None, state=None, group=None, verbose=False, streaming=True
 ):
 
     if not url.endswith("/"):
@@ -62,16 +62,17 @@ async def question(
             "request": {
                 "question": question,
                 "user": user,
-                "history": []
+                "history": [],
+                "streaming": streaming
             }
         }
-        
+
         # Only add optional fields if they have values
         if state is not None:
             req["request"]["state"] = state
         if group is not None:
             req["request"]["group"] = group
-            
+
         req = json.dumps(req)
 
         await ws.send(req)
@@ -89,14 +90,34 @@ async def question(
                 print("Ignore message")
                 continue
 
-            if "thought" in obj["response"]:
-                think(obj["response"]["thought"])
+            response = obj["response"]
 
-            if "observation" in obj["response"]:
-                observe(obj["response"]["observation"])
+            # Handle streaming format (new format with chunk_type)
+            if "chunk_type" in response:
+                chunk_type = response["chunk_type"]
+                content = response.get("content", "")
 
-            if "answer" in obj["response"]:
-                print(obj["response"]["answer"])
+                if chunk_type == "thought":
+                    think(content)
+                elif chunk_type == "observation":
+                    observe(content)
+                elif chunk_type == "answer":
+                    print(content)
+                elif chunk_type == "error":
+                    raise RuntimeError(content)
+            else:
+                # Handle legacy format (backward compatibility)
+                if "thought" in response:
+                    think(response["thought"])
+
+                if "observation" in response:
+                    observe(response["observation"])
+
+                if "answer" in response:
+                    print(response["answer"])
+
+                if "error" in response:
+                    raise RuntimeError(response["error"])
 
             if obj["complete"]: break
 
@@ -161,6 +182,12 @@ def main():
         help=f'Output thinking/observations'
     )
 
+    parser.add_argument(
+        '--no-streaming',
+        action="store_true",
+        help=f'Disable streaming (use legacy mode)'
+    )
+
     args = parser.parse_args()
 
     try:
@@ -176,6 +203,7 @@ def main():
                 state = args.state,
                 group = args.group,
                 verbose = args.verbose,
+                streaming = not args.no_streaming,
             )
         )
 

@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from .... exceptions import TooManyRequests
-from .... base import LlmService, LlmResult
+from .... base import LlmService, LlmResult, LlmChunk
 
 default_ident = "text-completion"
 
@@ -119,6 +119,100 @@ class Processor(LlmService):
             # Apart from rate limits, treat all exceptions as unrecoverable
 
             logger.error(f"TGI LLM exception ({type(e).__name__}): {e}", exc_info=True)
+            raise e
+
+    def supports_streaming(self):
+        """TGI supports streaming"""
+        return True
+
+    async def generate_content_stream(self, system, prompt, model=None, temperature=None):
+        """Stream content generation from TGI"""
+        model_name = model or self.default_model
+        effective_temperature = temperature if temperature is not None else self.temperature
+
+        logger.debug(f"Using model (streaming): {model_name}")
+        logger.debug(f"Using temperature: {effective_temperature}")
+
+        headers = {
+            "Content-Type": "application/json",
+        }
+
+        request = {
+            "model": model_name,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": system,
+                },
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+            "max_tokens": self.max_output,
+            "temperature": effective_temperature,
+            "stream": True,
+        }
+
+        try:
+            url = f"{self.base_url}/chat/completions"
+
+            async with self.session.post(
+                    url,
+                    headers=headers,
+                    json=request,
+            ) as response:
+
+                if response.status != 200:
+                    raise RuntimeError("Bad status: " + str(response.status))
+
+                # Parse SSE stream
+                async for line in response.content:
+                    line = line.decode('utf-8').strip()
+
+                    if not line:
+                        continue
+
+                    if line.startswith('data: '):
+                        data = line[6:]  # Remove 'data: ' prefix
+
+                        if data == '[DONE]':
+                            break
+
+                        try:
+                            import json
+                            chunk_data = json.loads(data)
+
+                            # Extract text from chunk
+                            if 'choices' in chunk_data and len(chunk_data['choices']) > 0:
+                                choice = chunk_data['choices'][0]
+                                if 'delta' in choice and 'content' in choice['delta']:
+                                    content = choice['delta']['content']
+                                    if content:
+                                        yield LlmChunk(
+                                            text=content,
+                                            in_token=None,
+                                            out_token=None,
+                                            model=model_name,
+                                            is_final=False
+                                        )
+                        except json.JSONDecodeError:
+                            logger.warning(f"Failed to parse chunk: {data}")
+                            continue
+
+                # Send final chunk
+                yield LlmChunk(
+                    text="",
+                    in_token=None,
+                    out_token=None,
+                    model=model_name,
+                    is_final=True
+                )
+
+                logger.debug("Streaming complete")
+
+        except Exception as e:
+            logger.error(f"TGI streaming exception ({type(e).__name__}): {e}", exc_info=True)
             raise e
 
     @staticmethod

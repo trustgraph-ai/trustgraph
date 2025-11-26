@@ -5,11 +5,12 @@ from .base import MessageTranslator
 
 class TextCompletionRequestTranslator(MessageTranslator):
     """Translator for TextCompletionRequest schema objects"""
-    
+
     def to_pulsar(self, data: Dict[str, Any]) -> TextCompletionRequest:
         return TextCompletionRequest(
             system=data["system"],
-            prompt=data["prompt"]
+            prompt=data["prompt"],
+            streaming=data.get("streaming", False)
         )
     
     def from_pulsar(self, obj: TextCompletionRequest) -> Dict[str, Any]:
@@ -39,4 +40,6 @@ class TextCompletionResponseTranslator(MessageTranslator):
     
     def from_response_with_completion(self, obj: TextCompletionResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
-        return self.from_pulsar(obj), True
+        # Check end_of_stream field to determine if this is the final message
+        is_final = getattr(obj, 'end_of_stream', True)
+        return self.from_pulsar(obj), is_final

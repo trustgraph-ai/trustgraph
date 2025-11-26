@@ -1,5 +1,5 @@
 
-from pulsar.schema import Record, String, Array, Double, Integer
+from pulsar.schema import Record, String, Array, Double, Integer, Boolean
 
 from ..core.topic import topic
 from ..core.primitives import Error
@@ -11,6 +11,7 @@ from ..core.primitives import Error
 class TextCompletionRequest(Record):
     system = String()
     prompt = String()
+    streaming = Boolean()  # Default false for backward compatibility
 
 class TextCompletionResponse(Record):
     error = Error()
@@ -18,6 +19,7 @@ class TextCompletionResponse(Record):
     in_token = Integer()
     out_token = Integer()
     model = String()
+    end_of_stream = Boolean()  # Indicates final message in stream
 
 ############################################################################
 

@@ -23,7 +23,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from .... exceptions import TooManyRequests
-from .... base import LlmService, LlmResult
+from .... base import LlmService, LlmResult, LlmChunk
 
 default_ident = "text-completion"
 
@@ -157,6 +157,67 @@ class Processor(LlmService):
             # Apart from rate limits, treat all exceptions as unrecoverable
 
             logger.error(f"GoogleAIStudio LLM exception ({type(e).__name__}): {e}", exc_info=True)
+            raise e
+
+    def supports_streaming(self):
+        """Google AI Studio supports streaming"""
+        return True
+
+    async def generate_content_stream(self, system, prompt, model=None, temperature=None):
+        """Stream content generation from Google AI Studio"""
+        model_name = model or self.default_model
+        effective_temperature = temperature if temperature is not None else self.temperature
+
+        logger.debug(f"Using model (streaming): {model_name}")
+        logger.debug(f"Using temperature: {effective_temperature}")
+
+        generation_config = self._get_or_create_config(model_name, effective_temperature)
+        generation_config.system_instruction = system
+
+        try:
+            response = self.client.models.generate_content_stream(
+                model=model_name,
+                config=generation_config,
+                contents=prompt,
+            )
+
+            total_input_tokens = 0
+            total_output_tokens = 0
+
+            for chunk in response:
+                if hasattr(chunk, 'text') and chunk.text:
+                    yield LlmChunk(
+                        text=chunk.text,
+                        in_token=None,
+                        out_token=None,
+                        model=model_name,
+                        is_final=False
+                    )
+
+                # Accumulate token counts if available
+                if hasattr(chunk, 'usage_metadata'):
+                    if hasattr(chunk.usage_metadata, 'prompt_token_count'):
+                        total_input_tokens = int(chunk.usage_metadata.prompt_token_count)
+                    if hasattr(chunk.usage_metadata, 'candidates_token_count'):
+                        total_output_tokens = int(chunk.usage_metadata.candidates_token_count)
+
+            # Send final chunk with token counts
+            yield LlmChunk(
+                text="",
+                in_token=total_input_tokens,
+                out_token=total_output_tokens,
+                model=model_name,
+                is_final=True
+            )
+
+            logger.debug("Streaming complete")
+
+        except ResourceExhausted:
+            logger.warning("Rate limit exceeded during streaming")
+            raise TooManyRequests()
+
+        except Exception as e:
+            logger.error(f"GoogleAIStudio streaming exception ({type(e).__name__}): {e}", exc_info=True)
             raise e
 
     @staticmethod

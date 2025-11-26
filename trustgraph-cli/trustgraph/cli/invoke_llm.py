@@ -6,17 +6,63 @@ and user prompt.  Both arguments are required.
 import argparse
 import os
 import json
-from trustgraph.api import Api
+import uuid
+import asyncio
+from websockets.asyncio.client import connect
 
-default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_url = os.getenv("TRUSTGRAPH_URL", 'ws://localhost:8088/')
 
-def query(url, flow_id, system, prompt):
+async def query(url, flow_id, system, prompt, streaming=True):
 
-    api = Api(url).flow().id(flow_id)
+    if not url.endswith("/"):
+        url += "/"
 
-    resp = api.text_completion(system=system, prompt=prompt)
+    url = url + "api/v1/socket"
 
-    print(resp)
+    mid = str(uuid.uuid4())
+
+    async with connect(url) as ws:
+
+        req = {
+            "id": mid,
+            "service": "text-completion",
+            "flow": flow_id,
+            "request": {
+                "system": system,
+                "prompt": prompt,
+                "streaming": streaming
+            }
+        }
+
+        await ws.send(json.dumps(req))
+
+        while True:
+
+            msg = await ws.recv()
+
+            obj = json.loads(msg)
+
+            if "error" in obj:
+                raise RuntimeError(obj["error"])
+
+            if obj["id"] != mid:
+                continue
+
+            if "response" in obj["response"]:
+                if streaming:
+                    # Stream output to stdout without newline
+                    print(obj["response"]["response"], end="", flush=True)
+                else:
+                    # Non-streaming: print complete response
+                    print(obj["response"]["response"])
+
+            if obj["complete"]:
+                if streaming:
+                    # Add final newline after streaming
+                    print()
+                break
+
+        await ws.close()
 
 def main():
 
@@ -49,16 +95,23 @@ def main():
         help=f'Flow ID (default: default)'
     )
 
+    parser.add_argument(
+        '--no-streaming',
+        action='store_true',
+        help='Disable streaming (default: streaming enabled)'
+    )
+
     args = parser.parse_args()
 
     try:
 
-        query(
+        asyncio.run(query(
             url=args.url,
-            flow_id = args.flow_id,
+            flow_id=args.flow_id,
             system=args.system[0],
             prompt=args.prompt[0],
-        )
+            streaming=not args.no_streaming
+        ))
 
     except Exception as e:
 

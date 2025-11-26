@@ -1,4 +1,4 @@
-from pulsar.schema import Record, String, Map
+from pulsar.schema import Record, String, Map, Boolean
 
 from ..core.primitives import Error
 from ..core.topic import topic
@@ -24,6 +24,9 @@ class PromptRequest(Record):
     # JSON encoded values
     terms = Map(String())
 
+    # Streaming support (default false for backward compatibility)
+    streaming = Boolean()
+
 class PromptResponse(Record):
 
     # Error case
@@ -34,5 +37,8 @@ class PromptResponse(Record):
 
     # JSON encoded
     object = String()
+
+    # Indicates final message in stream
+    end_of_stream = Boolean()
 
 ############################################################################
