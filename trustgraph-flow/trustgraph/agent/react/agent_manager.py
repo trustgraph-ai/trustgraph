@@ -2,6 +2,7 @@
 import logging
 import json
 import re
+import asyncio
 
 from . types import Action, Final
 
@@ -169,7 +170,7 @@ class AgentManager:
         
         raise ValueError(f"Could not parse response: {text}")
 
-    async def reason(self, question, history, context, streaming=False):
+    async def reason(self, question, history, context, streaming=False, think=None, observe=None, answer=None):
 
         logger.debug(f"calling reason: {question}")
 
@@ -219,25 +220,59 @@ class AgentManager:
 
         logger.info(f"prompt: {variables}")
 
-        # Get text response from prompt service
-        response_text = await context("prompt-request").agent_react(variables, streaming=streaming)
+        # Streaming path - use StreamingReActParser
+        if streaming and think:
+            from .streaming_parser import StreamingReActParser
 
-        logger.debug(f"Response text:\n{response_text}")
+            # Create parser with streaming callbacks
+            # Thought chunks go to think(), answer chunks go to answer()
+            parser = StreamingReActParser(
+                on_thought_chunk=lambda chunk: asyncio.create_task(think(chunk)),
+                on_answer_chunk=lambda chunk: asyncio.create_task(answer(chunk) if answer else think(chunk)),
+            )
 
-        logger.info(f"response: {response_text}")
+            # Create async chunk callback that feeds parser
+            async def on_chunk(text):
+                parser.feed(text)
 
-        # Parse the text response
-        try:
-            result = self.parse_react_response(response_text)
+            # Get streaming response
+            response_text = await context("prompt-request").agent_react(
+                variables,
+                streaming=True,
+                chunk_callback=on_chunk
+            )
+
+            # Finalize parser
+            parser.finalize()
+
+            # Get result
+            result = parser.get_result()
+            if result is None:
+                raise RuntimeError("Parser failed to produce a result")
+
             logger.info(f"Parsed result: {result}")
             return result
-        except ValueError as e:
-            logger.error(f"Failed to parse response: {e}")
-            # Try to provide a helpful error message
-            logger.error(f"Response was: {response_text}")
-            raise RuntimeError(f"Failed to parse agent response: {e}")
 
-    async def react(self, question, history, think, observe, context, streaming=False):
+        else:
+            # Non-streaming path - get complete text and parse
+            response_text = await context("prompt-request").agent_react(variables, streaming=False)
+
+            logger.debug(f"Response text:\n{response_text}")
+
+            logger.info(f"response: {response_text}")
+
+            # Parse the text response
+            try:
+                result = self.parse_react_response(response_text)
+                logger.info(f"Parsed result: {result}")
+                return result
+            except ValueError as e:
+                logger.error(f"Failed to parse response: {e}")
+                # Try to provide a helpful error message
+                logger.error(f"Response was: {response_text}")
+                raise RuntimeError(f"Failed to parse agent response: {e}")
+
+    async def react(self, question, history, think, observe, context, streaming=False, answer=None):
 
         logger.info(f"question: {question}")
 
@@ -246,17 +281,26 @@ class AgentManager:
             history = history,
             context = context,
             streaming = streaming,
+            think = think,
+            observe = observe,
+            answer = answer,
         )
         logger.info(f"act: {act}")
 
         if isinstance(act, Final):
 
-            await think(act.thought)
+            # In non-streaming mode, send complete thought
+            # In streaming mode, thoughts were already sent as chunks
+            if not streaming:
+                await think(act.thought)
             return act
 
         else:
 
-            await think(act.thought)
+            # In non-streaming mode, send complete thought
+            # In streaming mode, thoughts were already sent as chunks
+            if not streaming:
+                await think(act.thought)
 
             logger.debug(f"ACTION: {act.name}")
 

@@ -1,12 +1,13 @@
 
 import json
+import asyncio
 
 from . request_response_spec import RequestResponse, RequestResponseSpec
 from .. schema import PromptRequest, PromptResponse
 
 class PromptClient(RequestResponse):
 
-    async def prompt(self, id, variables, timeout=600, streaming=False):
+    async def prompt(self, id, variables, timeout=600, streaming=False, chunk_callback=None):
 
         if not streaming:
             # Non-streaming path
@@ -42,6 +43,12 @@ class PromptClient(RequestResponse):
 
                 if resp.text:
                     full_text += resp.text
+                    # Call chunk callback if provided
+                    if chunk_callback:
+                        if asyncio.iscoroutinefunction(chunk_callback):
+                            await chunk_callback(resp.text)
+                        else:
+                            chunk_callback(resp.text)
                 elif resp.object:
                     full_object = resp.object
 
@@ -108,12 +115,13 @@ class PromptClient(RequestResponse):
             timeout = timeout,
         )
 
-    async def agent_react(self, variables, timeout=600, streaming=False):
+    async def agent_react(self, variables, timeout=600, streaming=False, chunk_callback=None):
         return await self.prompt(
             id = "agent-react",
             variables = variables,
             timeout = timeout,
             streaming = streaming,
+            chunk_callback = chunk_callback,
         )
 
     async def question(self, question, timeout=600):

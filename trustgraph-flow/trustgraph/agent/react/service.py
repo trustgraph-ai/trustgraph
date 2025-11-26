@@ -270,6 +270,34 @@ class Processor(AgentService):
 
                 await respond(r)
 
+            async def answer(x):
+
+                logger.debug(f"Answer: {x}")
+
+                if streaming:
+                    # Streaming format
+                    r = AgentResponse(
+                        chunk_type="answer",
+                        content=x,
+                        end_of_message=False,  # More chunks may follow
+                        end_of_dialog=False,
+                        # Legacy fields for backward compatibility
+                        answer=None,
+                        error=None,
+                        thought=None,
+                        observation=None,
+                    )
+                else:
+                    # Legacy format - shouldn't be called in non-streaming mode
+                    r = AgentResponse(
+                        answer=x,
+                        error=None,
+                        thought=None,
+                        observation=None,
+                    )
+
+                await respond(r)
+
             # Apply tool filtering based on request groups and state
             filtered_tools = filter_tools_by_group_and_state(
                 tools=self.agent.tools,
@@ -306,6 +334,7 @@ class Processor(AgentService):
                 history = history,
                 think = think,
                 observe = observe,
+                answer = answer,
                 context = UserAwareContext(flow, request.user),
                 streaming = streaming,
             )
@@ -322,10 +351,11 @@ class Processor(AgentService):
                     f = json.dumps(act.final)
 
                 if streaming:
-                    # Streaming format - mark as final dialog
+                    # Streaming format - send end-of-dialog marker
+                    # Answer chunks were already sent via think() callback during parsing
                     r = AgentResponse(
                         chunk_type="answer",
-                        content=f,
+                        content="",  # Empty content, just marking end of dialog
                         end_of_message=True,
                         end_of_dialog=True,
                         # Legacy fields for backward compatibility
@@ -334,7 +364,7 @@ class Processor(AgentService):
                         thought=None,
                     )
                 else:
-                    # Legacy format
+                    # Legacy format - send complete answer
                     r = AgentResponse(
                         answer=act.final,
                         error=None,
@@ -369,7 +399,9 @@ class Processor(AgentService):
                         observation=h.observation
                     )
                     for h in history
-                ]
+                ],
+                user=request.user,
+                streaming=streaming,
             )
 
             await next(r)
