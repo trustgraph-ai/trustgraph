@@ -112,7 +112,7 @@ class PromptClient(RequestResponse):
             timeout = timeout,
         )
 
-    async def kg_prompt(self, query, kg, timeout=600):
+    async def kg_prompt(self, query, kg, timeout=600, streaming=False, chunk_callback=None):
         return await self.prompt(
             id = "kg-prompt",
             variables = {
@@ -123,9 +123,11 @@ class PromptClient(RequestResponse):
                 ]
             },
             timeout = timeout,
+            streaming = streaming,
+            chunk_callback = chunk_callback,
         )
 
-    async def document_prompt(self, query, documents, timeout=600):
+    async def document_prompt(self, query, documents, timeout=600, streaming=False, chunk_callback=None):
         return await self.prompt(
             id = "document-prompt",
             variables = {
@@ -133,6 +135,8 @@ class PromptClient(RequestResponse):
                 "documents": documents,
             },
             timeout = timeout,
+            streaming = streaming,
+            chunk_callback = chunk_callback,
         )
 
     async def agent_react(self, variables, timeout=600, streaming=False, chunk_callback=None):

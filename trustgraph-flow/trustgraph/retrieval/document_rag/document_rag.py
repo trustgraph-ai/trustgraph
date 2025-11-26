@@ -68,7 +68,7 @@ class DocumentRag:
 
     async def query(
             self, query, user="trustgraph", collection="default",
-            doc_limit=20,
+            doc_limit=20, streaming=False, chunk_callback=None,
     ):
 
         if self.verbose:
@@ -86,10 +86,18 @@ class DocumentRag:
             logger.debug(f"Documents: {docs}")
             logger.debug(f"Query: {query}")
 
-        resp = await self.prompt_client.document_prompt(
-            query = query,
-            documents = docs
-        )
+        if streaming and chunk_callback:
+            resp = await self.prompt_client.document_prompt(
+                query=query,
+                documents=docs,
+                streaming=True,
+                chunk_callback=chunk_callback
+            )
+        else:
+            resp = await self.prompt_client.document_prompt(
+                query=query,
+                documents=docs
+            )
 
         if self.verbose:
             logger.debug("Query processing complete")

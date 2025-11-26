@@ -15,10 +15,13 @@ class GraphRagQuery(Record):
     triple_limit = Integer()
     max_subgraph_size = Integer()
     max_path_length = Integer()
+    streaming = Boolean()
 
 class GraphRagResponse(Record):
     error = Error()
     response = String()
+    chunk = String()
+    end_of_stream = Boolean()
 
 ############################################################################
 
@@ -29,8 +32,11 @@ class DocumentRagQuery(Record):
     user = String()
     collection = String()
     doc_limit = Integer()
+    streaming = Boolean()
 
 class DocumentRagResponse(Record):
     error = Error()
     response = String()
+    chunk = String()
+    end_of_stream = Boolean()
 

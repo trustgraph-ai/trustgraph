@@ -92,20 +92,56 @@ class Processor(FlowProcessor):
             else:
                 doc_limit = self.doc_limit
 
-            response = await self.rag.query(
-                v.query, 
-                user=v.user, 
-                collection=v.collection, 
-                doc_limit=doc_limit
-            )
+            # Check if streaming is requested
+            if v.streaming:
+                # Define async callback for streaming chunks
+                async def send_chunk(chunk):
+                    await flow("response").send(
+                        DocumentRagResponse(
+                            chunk=chunk,
+                            end_of_stream=False,
+                            response=None,
+                            error=None
+                        ),
+                        properties={"id": id}
+                    )
 
-            await flow("response").send(
-                DocumentRagResponse(
-                    response = response,
-                    error = None
-                ),
-                properties = {"id": id}
-            )
+                # Query with streaming enabled
+                full_response = await self.rag.query(
+                    v.query,
+                    user=v.user,
+                    collection=v.collection,
+                    doc_limit=doc_limit,
+                    streaming=True,
+                    chunk_callback=send_chunk,
+                )
+
+                # Send final message with complete response
+                await flow("response").send(
+                    DocumentRagResponse(
+                        chunk=None,
+                        end_of_stream=True,
+                        response=full_response,
+                        error=None
+                    ),
+                    properties={"id": id}
+                )
+            else:
+                # Non-streaming path (existing behavior)
+                response = await self.rag.query(
+                    v.query,
+                    user=v.user,
+                    collection=v.collection,
+                    doc_limit=doc_limit
+                )
+
+                await flow("response").send(
+                    DocumentRagResponse(
+                        response = response,
+                        error = None
+                    ),
+                    properties = {"id": id}
+                )
 
             logger.info("Request processing complete")
 
@@ -115,14 +151,21 @@ class Processor(FlowProcessor):
 
             logger.debug("Sending error response...")
 
-            await flow("response").send(
-                DocumentRagResponse(
-                    response = None,
-                    error = Error(
-                        type = "document-rag-error",
-                        message = str(e),
-                    ),
+            # Send error response with end_of_stream flag if streaming was requested
+            error_response = DocumentRagResponse(
+                response = None,
+                error = Error(
+                    type = "document-rag-error",
+                    message = str(e),
                 ),
+            )
+
+            # If streaming was requested, indicate stream end
+            if v.streaming:
+                error_response.end_of_stream = True
+
+            await flow("response").send(
+                error_response,
                 properties = {"id": id}
             )
 

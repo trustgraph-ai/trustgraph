@@ -202,12 +202,16 @@ class StreamingReActParser:
         # Find which comes first
         if args_idx >= 0 and (newline_idx < 0 or args_idx < newline_idx):
             # Args delimiter found first
-            self.action_buffer = self.line_buffer[:args_idx].strip().strip('"')
+            # Only set action_buffer if not already set (to avoid overwriting with empty string)
+            if not self.action_buffer:
+                self.action_buffer = self.line_buffer[:args_idx].strip().strip('"')
             self.line_buffer = self.line_buffer[args_idx + len(self.ARGS_DELIMITER):].lstrip()
             self.state = ParserState.ARGS
         elif newline_idx >= 0:
             # Newline found, action name complete
-            self.action_buffer = self.line_buffer[:newline_idx].strip().strip('"')
+            # Only set action_buffer if not already set
+            if not self.action_buffer:
+                self.action_buffer = self.line_buffer[:newline_idx].strip().strip('"')
             self.line_buffer = self.line_buffer[newline_idx + 1:]
             # Stay in ACTION state or move to ARGS if we find delimiter
             # Actually, check if next line has Args:

@@ -382,6 +382,206 @@ def sample_kg_triples():
     ]
 
 
+# Streaming test fixtures
+
+@pytest.fixture
+def mock_streaming_llm_response():
+    """Mock streaming LLM response with realistic chunks"""
+    async def _generate_chunks():
+        """Generate realistic streaming chunks"""
+        chunks = [
+            "Machine",
+            " learning",
+            " is",
+            " a",
+            " subset",
+            " of",
+            " artificial",
+            " intelligence",
+            " that",
+            " focuses",
+            " on",
+            " algorithms",
+            " that",
+            " learn",
+            " from",
+            " data",
+            "."
+        ]
+        for chunk in chunks:
+            yield chunk
+    return _generate_chunks
+
+
+@pytest.fixture
+def sample_streaming_agent_response():
+    """Sample streaming agent response chunks"""
+    return [
+        {
+            "chunk_type": "thought",
+            "content": "I need to search",
+            "end_of_message": False,
+            "end_of_dialog": False
+        },
+        {
+            "chunk_type": "thought",
+            "content": " for information",
+            "end_of_message": False,
+            "end_of_dialog": False
+        },
+        {
+            "chunk_type": "thought",
+            "content": " about machine learning.",
+            "end_of_message": True,
+            "end_of_dialog": False
+        },
+        {
+            "chunk_type": "action",
+            "content": "knowledge_query",
+            "end_of_message": True,
+            "end_of_dialog": False
+        },
+        {
+            "chunk_type": "observation",
+            "content": "Machine learning is",
+            "end_of_message": False,
+            "end_of_dialog": False
+        },
+        {
+            "chunk_type": "observation",
+            "content": " a subset of AI.",
+            "end_of_message": True,
+            "end_of_dialog": False
+        },
+        {
+            "chunk_type": "final-answer",
+            "content": "Machine learning",
+            "end_of_message": False,
+            "end_of_dialog": False
+        },
+        {
+            "chunk_type": "final-answer",
+            "content": " is a subset",
+            "end_of_message": False,
+            "end_of_dialog": False
+        },
+        {
+            "chunk_type": "final-answer",
+            "content": " of artificial intelligence.",
+            "end_of_message": True,
+            "end_of_dialog": True
+        }
+    ]
+
+
+@pytest.fixture
+def streaming_chunk_collector():
+    """Helper to collect streaming chunks for assertions"""
+    class ChunkCollector:
+        def __init__(self):
+            self.chunks = []
+            self.complete = False
+
+        async def collect(self, chunk):
+            """Async callback to collect chunks"""
+            self.chunks.append(chunk)
+
+        def get_full_text(self):
+            """Concatenate all chunk content"""
+            return "".join(self.chunks)
+
+        def get_chunk_types(self):
+            """Get list of chunk types if chunks are dicts"""
+            if self.chunks and isinstance(self.chunks[0], dict):
+                return [c.get("chunk_type") for c in self.chunks]
+            return []
+
+    return ChunkCollector
+
+
+@pytest.fixture
+def mock_streaming_prompt_response():
+    """Mock streaming prompt service response"""
+    async def _generate_prompt_chunks():
+        """Generate streaming chunks for prompt responses"""
+        chunks = [
+            "Based on the",
+            " provided context,",
+            " here is",
+            " the answer:",
+            " Machine learning",
+            " enables computers",
+            " to learn",
+            " from data."
+        ]
+        for chunk in chunks:
+            yield chunk
+    return _generate_prompt_chunks
+
+
+@pytest.fixture
+def sample_rag_streaming_chunks():
+    """Sample RAG streaming response chunks"""
+    return [
+        {
+            "chunk": "Based on",
+            "end_of_stream": False
+        },
+        {
+            "chunk": " the knowledge",
+            "end_of_stream": False
+        },
+        {
+            "chunk": " graph,",
+            "end_of_stream": False
+        },
+        {
+            "chunk": " machine learning",
+            "end_of_stream": False
+        },
+        {
+            "chunk": " is a subset",
+            "end_of_stream": False
+        },
+        {
+            "chunk": " of AI.",
+            "end_of_stream": False
+        },
+        {
+            "chunk": None,
+            "end_of_stream": True,
+            "response": "Based on the knowledge graph, machine learning is a subset of AI."
+        }
+    ]
+
+
+@pytest.fixture
+def streaming_error_scenarios():
+    """Common error scenarios for streaming tests"""
+    return {
+        "connection_drop": {
+            "exception": ConnectionError,
+            "message": "Connection lost during streaming",
+            "chunks_before_error": 5
+        },
+        "timeout": {
+            "exception": TimeoutError,
+            "message": "Streaming timeout exceeded",
+            "chunks_before_error": 10
+        },
+        "rate_limit": {
+            "exception": Exception,
+            "message": "Rate limit exceeded",
+            "chunks_before_error": 3
+        },
+        "invalid_chunk": {
+            "exception": ValueError,
+            "message": "Invalid chunk format",
+            "chunks_before_error": 7
+        }
+    }
+
+
 # Test markers for integration tests
 pytestmark = pytest.mark.integration
 
