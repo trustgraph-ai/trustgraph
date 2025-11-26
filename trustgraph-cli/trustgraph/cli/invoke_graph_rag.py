@@ -164,16 +164,16 @@ def main():
     )
 
     parser.add_argument(
-        '--streaming',
+        '--no-streaming',
         action='store_true',
-        help='Enable streaming mode (token-by-token output)'
+        help='Disable streaming (use non-streaming mode)'
     )
 
     args = parser.parse_args()
 
     try:
 
-        if args.streaming:
+        if not args.no_streaming:
             asyncio.run(
                 question_streaming(
                     url=args.url,

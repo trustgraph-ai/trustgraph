@@ -203,7 +203,7 @@ async def handle(self, message, session, websocket):
 2. Update GraphRag.query() and DocumentRag.query() methods
 3. Update Processors to handle streaming
 4. Update Gateway dispatch handlers
-5. Add CLI flags to `tg-invoke-graph-rag` and `tg-invoke-document-rag`
+5. Add `--no-streaming` flags to `tg-invoke-graph-rag` and `tg-invoke-document-rag` (streaming enabled by default, following agent CLI pattern)
 
 **Callback pattern**:
 Follow the same async callback pattern established in Agent streaming:
@@ -255,9 +255,10 @@ No new security considerations beyond existing RAG services:
 - Test CLI streaming output
 
 **Manual testing**:
-- `tg-invoke-graph-rag --streaming -q "What is machine learning?"`
-- `tg-invoke-document-rag --streaming -q "Summarize the documents about AI"`
-- Verify incremental output appears
+- `tg-invoke-graph-rag -q "What is machine learning?"` (streaming by default)
+- `tg-invoke-document-rag -q "Summarize the documents about AI"` (streaming by default)
+- `tg-invoke-graph-rag --no-streaming -q "..."` (test non-streaming mode)
+- Verify incremental output appears in streaming mode
 
 ## Migration Plan
 
