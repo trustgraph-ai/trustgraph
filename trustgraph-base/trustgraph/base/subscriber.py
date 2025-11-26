@@ -93,10 +93,14 @@ class Subscriber:
                     if self.draining and drain_end_time is None:
                         drain_end_time = time.time() + self.drain_timeout
                         logger.info(f"Subscriber entering drain mode, timeout={self.drain_timeout}s")
-                        
+
                         # Stop accepting new messages from Pulsar during drain
                         if self.consumer:
-                            self.consumer.pause_message_listener()
+                            try:
+                                self.consumer.pause_message_listener()
+                            except _pulsar.InvalidConfiguration:
+                                # Not all consumers have message listeners (e.g., blocking receive mode)
+                                pass
                     
                     # Check drain timeout
                     if self.draining and drain_end_time and time.time() > drain_end_time:
@@ -151,12 +155,21 @@ class Subscriber:
             finally:
                 # Negative acknowledge any pending messages
                 for msg in self.pending_acks.values():
-                    self.consumer.negative_acknowledge(msg)
+                    try:
+                        self.consumer.negative_acknowledge(msg)
+                    except _pulsar.AlreadyClosed:
+                        pass  # Consumer already closed
                 self.pending_acks.clear()
 
                 if self.consumer:
-                    self.consumer.unsubscribe()
-                    self.consumer.close()
+                    try:
+                        self.consumer.unsubscribe()
+                    except _pulsar.AlreadyClosed:
+                        pass  # Already closed
+                    try:
+                        self.consumer.close()
+                    except _pulsar.AlreadyClosed:
+                        pass  # Already closed
                     self.consumer = None
                 
          

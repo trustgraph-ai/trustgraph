@@ -64,7 +64,7 @@ def format_message(queue_name, msg):
     return header + body + "\n"
 
 
-async def monitor_queue(subscriber, queue_name, central_queue, monitor_id):
+async def monitor_queue(subscriber, queue_name, central_queue, monitor_id, shutdown_event):
     """
     Monitor a single queue via Subscriber and forward messages to central queue.
 
@@ -73,53 +73,71 @@ async def monitor_queue(subscriber, queue_name, central_queue, monitor_id):
         queue_name: Name of the queue (for logging)
         central_queue: asyncio.Queue to forward messages to
         monitor_id: Unique ID for this monitor's subscription
+        shutdown_event: asyncio.Event to signal shutdown
     """
+    msg_queue = None
     try:
         # Subscribe to all messages from this Subscriber
         msg_queue = await subscriber.subscribe_all(monitor_id)
 
-        while True:
-            # Read from Subscriber's internal queue
-            msg = await msg_queue.get()
-            timestamp = datetime.now()
-            formatted = format_message(queue_name, msg)
+        while not shutdown_event.is_set():
+            try:
+                # Read from Subscriber's internal queue with timeout
+                msg = await asyncio.wait_for(msg_queue.get(), timeout=0.5)
+                timestamp = datetime.now()
+                formatted = format_message(queue_name, msg)
 
-            # Forward to central queue for writing
-            await central_queue.put((timestamp, queue_name, formatted))
+                # Forward to central queue for writing
+                await central_queue.put((timestamp, queue_name, formatted))
+            except asyncio.TimeoutError:
+                # No message, check shutdown flag again
+                continue
 
-    except asyncio.CancelledError:
-        # Task cancelled during shutdown
-        await subscriber.unsubscribe_all(monitor_id)
-        raise
     except Exception as e:
-        error_msg = f"\n{'='*80}\n[{datetime.now().isoformat()}] ERROR in monitor for {queue_name}\n{'='*80}\n{e}\n"
-        await central_queue.put((datetime.now(), queue_name, error_msg))
+        if not shutdown_event.is_set():
+            error_msg = f"\n{'='*80}\n[{datetime.now().isoformat()}] ERROR in monitor for {queue_name}\n{'='*80}\n{e}\n"
+            await central_queue.put((datetime.now(), queue_name, error_msg))
+    finally:
+        # Clean unsubscribe
+        if msg_queue is not None:
+            try:
+                await subscriber.unsubscribe_all(monitor_id)
+            except Exception:
+                pass
 
 
-async def log_writer(central_queue, file_handle, console_output=True):
+async def log_writer(central_queue, file_handle, shutdown_event, console_output=True):
     """
     Write messages from central queue to file.
 
     Args:
         central_queue: asyncio.Queue containing (timestamp, queue_name, formatted_msg) tuples
         file_handle: Open file handle to write to
+        shutdown_event: asyncio.Event to signal shutdown
         console_output: Whether to print abbreviated messages to console
     """
     try:
-        while True:
-            timestamp, queue_name, formatted_msg = await central_queue.get()
+        while not shutdown_event.is_set():
+            try:
+                # Wait for messages with timeout to check shutdown flag
+                timestamp, queue_name, formatted_msg = await asyncio.wait_for(
+                    central_queue.get(), timeout=0.5
+                )
 
-            # Write to file
-            file_handle.write(formatted_msg)
-            file_handle.flush()
+                # Write to file
+                file_handle.write(formatted_msg)
+                file_handle.flush()
 
-            # Print abbreviated message to console
-            if console_output:
-                time_str = timestamp.strftime('%H:%M:%S')
-                print(f"[{time_str}] {queue_name}: Message received")
+                # Print abbreviated message to console
+                if console_output:
+                    time_str = timestamp.strftime('%H:%M:%S')
+                    print(f"[{time_str}] {queue_name}: Message received")
+            except asyncio.TimeoutError:
+                # No message, check shutdown flag again
+                continue
 
-    except asyncio.CancelledError:
-        # Flush remaining messages before shutdown
+    finally:
+        # Flush remaining messages after shutdown
         while not central_queue.empty():
             try:
                 timestamp, queue_name, formatted_msg = central_queue.get_nowait()
@@ -127,7 +145,6 @@ async def log_writer(central_queue, file_handle, console_output=True):
                 file_handle.flush()
             except asyncio.QueueEmpty:
                 break
-        raise
 
 
 async def async_main(queues, output_file, pulsar_host, listener_name, subscriber_name, append_mode):
@@ -193,26 +210,40 @@ async def async_main(queues, output_file, pulsar_host, listener_name, subscriber
             f.write(f"{'#'*80}\n")
             f.flush()
 
+            # Create shutdown event for clean coordination
+            shutdown_event = asyncio.Event()
+
             # Start monitoring tasks
+            tasks = []
             try:
-                try:
-                    async with asyncio.TaskGroup() as tg:
-                        # Create one monitor task per subscriber
-                        for queue_name, sub in subscribers:
-                            tg.create_task(monitor_queue(sub, queue_name, central_queue, "logger"))
+                # Create one monitor task per subscriber
+                for queue_name, sub in subscribers:
+                    task = asyncio.create_task(
+                        monitor_queue(sub, queue_name, central_queue, "logger", shutdown_event)
+                    )
+                    tasks.append(task)
 
-                        # Create single writer task
-                        tg.create_task(log_writer(central_queue, f))
+                # Create single writer task
+                writer_task = asyncio.create_task(
+                    log_writer(central_queue, f, shutdown_event)
+                )
+                tasks.append(writer_task)
 
-                except* Exception as eg:
-                    # TaskGroup exception group
-                    for exc in eg.exceptions:
-                        if not isinstance(exc, asyncio.CancelledError):
-                            print(f"Task error: {exc}", file=sys.stderr)
+                # Wait for all tasks (they check shutdown_event)
+                await asyncio.gather(*tasks)
 
             except KeyboardInterrupt:
                 print("\n\nStopping...")
             finally:
+                # Signal shutdown to all tasks
+                shutdown_event.set()
+
+                # Wait for tasks to finish cleanly (with timeout)
+                try:
+                    await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), timeout=2.0)
+                except asyncio.TimeoutError:
+                    print("Warning: Shutdown timeout", file=sys.stderr)
+
                 # Write session end marker
                 f.write(f"\n{'#'*80}\n")
                 f.write(f"# Session ended: {datetime.now().isoformat()}\n")
@@ -222,7 +253,7 @@ async def async_main(queues, output_file, pulsar_host, listener_name, subscriber
         print(f"Error writing to {output_file}: {e}", file=sys.stderr)
         sys.exit(1)
     finally:
-        # Cleanup subscribers
+        # Clean shutdown of Subscribers
         for _, sub in subscribers:
             await sub.stop()
         client.close()
