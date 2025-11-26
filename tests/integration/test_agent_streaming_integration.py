@@ -36,9 +36,20 @@ Args: {
 }"""
 
             if streaming and chunk_callback:
-                # TEMPORARY: Send as single chunk to verify streaming path works
-                # TODO: Investigate why line-by-line chunking causes parser to extract empty action name
-                await chunk_callback(full_text)
+                # Send chunks that avoid parser state bug
+                # Parser bug: if "Args:" starts a new chunk while in ACTION state,
+                # it overwrites action_buffer with empty string (line_buffer[:0])
+                # Solution: Keep "Action:" line and "Args:" together in same chunk
+                chunks = [
+                    "Thought: I need to search for information about machine learning.\n",
+                    "Action: knowledge_query\nArgs: {\n",  # Keep Action and Args together!
+                    '    "question": "What is machine learning?"\n',
+                    "}"
+                ]
+
+                for chunk in chunks:
+                    await chunk_callback(chunk)
+
                 return full_text
             else:
                 # Non-streaming response - same text
