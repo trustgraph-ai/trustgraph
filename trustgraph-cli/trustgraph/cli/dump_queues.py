@@ -24,7 +24,13 @@ def format_message(queue_name, msg):
 
     # Try to parse as JSON and pretty-print
     try:
-        value = msg.value()
+        # Handle both Message objects and raw bytes
+        if hasattr(msg, 'value'):
+            # Message object with .value() method
+            value = msg.value()
+        else:
+            # Raw bytes from schema-less subscription
+            value = msg
 
         # If it's bytes, decode it
         if isinstance(value, bytes):
@@ -51,7 +57,7 @@ def format_message(queue_name, msg):
                 body = str(value)
 
     except Exception as e:
-        body = f"<Error formatting message: {e}>\n{msg.value()}"
+        body = f"<Error formatting message: {e}>\n{str(msg)}"
 
     # Format the output
     header = f"\n{'='*80}\n[{timestamp}] Queue: {queue_name}\n{'='*80}\n"
