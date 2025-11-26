@@ -230,11 +230,14 @@ class TestPromptStreaming:
 
         text_completion_client.request = failing_request
 
+        # Mock response producer to capture error response
+        response_producer = AsyncMock()
+
         def context_router(service_name):
             if service_name == "text-completion-request":
                 return text_completion_client
             elif service_name == "response":
-                return AsyncMock()
+                return response_producer
             else:
                 return AsyncMock()
 
@@ -252,11 +255,22 @@ class TestPromptStreaming:
 
         consumer = MagicMock()
 
-        # Act & Assert
-        with pytest.raises(RuntimeError) as exc_info:
-            await prompt_processor_streaming.on_request(message, consumer, context)
+        # Act - The service catches errors and sends error responses, doesn't raise
+        await prompt_processor_streaming.on_request(message, consumer, context)
 
-        assert "Text completion error" in str(exc_info.value)
+        # Assert - Verify error response was sent
+        assert response_producer.send.call_count > 0
+
+        # Check that at least one response contains an error
+        error_sent = False
+        for call in response_producer.send.call_args_list:
+            response = call.args[0]
+            if hasattr(response, 'error') and response.error:
+                error_sent = True
+                assert "Text completion error" in response.error.message
+                break
+
+        assert error_sent, "Expected error response to be sent"
 
     @pytest.mark.asyncio
     async def test_prompt_streaming_preserves_message_id(self, prompt_processor_streaming,
