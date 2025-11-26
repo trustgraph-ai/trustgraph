@@ -36,17 +36,15 @@ Args: {
 }"""
 
             if streaming and chunk_callback:
-                # Simulate streaming response with complete lines as chunks
-                # This mimics how real LLMs stream - complete tokens/words
+                # Simulate streaming response with token-level chunks
+                # Real LLMs stream token by token, not line by line
                 chunks = [
-                    "Thought: I need to search",
-                    " for information about",
-                    " machine learning.\n",
-                    "Action: knowledge_query\n",
-                    "Args: {\n",
-                    '    "question": ',
-                    '"What is machine learning?"',
-                    '\n}'
+                    "Thought", ": ", "I", " need", " to", " search", " for",
+                    " information", " about", " machine", " learning", ".\n",
+                    "Action", ": ", "knowledge", "_query", "\n",
+                    "Args", ": ", "{", "\n",
+                    '    "', "question", '": "', "What", " is", " machine",
+                    " learning", '?"', "\n", "}"
                 ]
 
                 for chunk in chunks:
