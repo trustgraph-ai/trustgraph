@@ -14,6 +14,75 @@ default_url = os.getenv("TRUSTGRAPH_URL", 'ws://localhost:8088/')
 default_user = 'trustgraph'
 default_collection = 'default'
 
+class Outputter:
+    def __init__(self, width=75, prefix="> "):
+        self.width = width
+        self.prefix = prefix
+        self.column = 0
+        self.word_buffer = ""
+        self.just_wrapped = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # Flush remaining word buffer
+        if self.word_buffer:
+            print(self.word_buffer, end="", flush=True)
+            self.column += len(self.word_buffer)
+            self.word_buffer = ""
+
+        # Add final newline if not at line start
+        if self.column > 0:
+            print(flush=True)
+            self.column = 0
+
+    def output(self, text):
+        for char in text:
+            # Handle whitespace (space/tab)
+            if char in (' ', '\t'):
+                # Flush word buffer if present
+                if self.word_buffer:
+                    # Check if word + space would exceed width
+                    if self.column + len(self.word_buffer) + 1 > self.width:
+                        # Wrap: newline + prefix
+                        print(flush=True)
+                        print(self.prefix, end="", flush=True)
+                        self.column = len(self.prefix)
+                        self.just_wrapped = True
+
+                    # Output word buffer
+                    print(self.word_buffer, end="", flush=True)
+                    self.column += len(self.word_buffer)
+                    self.word_buffer = ""
+
+                # Output the space
+                print(char, end="", flush=True)
+                self.column += 1
+                self.just_wrapped = False
+
+            # Handle newline
+            elif char == '\n':
+                if self.just_wrapped:
+                    # Skip this newline (already wrapped)
+                    self.just_wrapped = False
+                else:
+                    # Flush word buffer if any
+                    if self.word_buffer:
+                        print(self.word_buffer, end="", flush=True)
+                        self.word_buffer = ""
+
+                    # Output newline + prefix
+                    print(flush=True)
+                    print(self.prefix, end="", flush=True)
+                    self.column = len(self.prefix)
+                    self.just_wrapped = False
+
+            # Regular character - add to word buffer
+            else:
+                self.word_buffer += char
+                self.just_wrapped = False
+
 def wrap(text, width=75):
     if text is None: text = "n/a"
     out = textwrap.wrap(
@@ -41,30 +110,9 @@ async def question(
         output(wrap(question), "\U00002753 ")
         print()
 
-    # Track last chunk type and line buffer for incremental wrapping
+    # Track last chunk type and accumulated text for current message
     last_chunk_type = None
-    line_buffer = ""  # Buffer for current message being accumulated
-
-    def flush_complete_lines(text, prefix, keep_last=True):
-        """Wrap text and output complete lines, optionally keeping last partial line in buffer."""
-        if not text:
-            return ""
-
-        lines = textwrap.wrap(text, width=75)
-        if not lines:
-            return text  # Nothing to wrap, keep in buffer
-
-        if keep_last and len(lines) > 0:
-            # Output all but last line (last might be incomplete)
-            for line in lines[:-1]:
-                print(f"{prefix} {line}")
-            # Return last line to keep in buffer
-            return lines[-1] if len(lines) > 0 else ""
-        else:
-            # Output all lines
-            for line in lines:
-                print(f"{prefix} {line}")
-            return ""
+    current_message = ""
 
     def think(x):
         if verbose:
@@ -124,31 +172,22 @@ async def question(
 
                 # Check if we're switching to a new message type
                 if last_chunk_type != chunk_type:
-                    # Flush any remaining buffer from previous message type
-                    if line_buffer:
-                        if last_chunk_type == "thought" and verbose:
-                            flush_complete_lines(line_buffer, "\U0001f914", keep_last=False)
-                        elif last_chunk_type == "observation" and verbose:
-                            flush_complete_lines(line_buffer, "\U0001f4a1", keep_last=False)
+                    # When switching message types, flush accumulated message
+                    if current_message:
+                        if last_chunk_type == "thought":
+                            think(current_message)
+                        elif last_chunk_type == "observation":
+                            observe(current_message)
                         elif last_chunk_type == "answer":
-                            print(line_buffer)
-                        line_buffer = ""
-                        print()  # Blank line between message types
+                            print(current_message)
+                            if not current_message.endswith('\n'):
+                                print()
+                        current_message = ""
 
                     last_chunk_type = chunk_type
 
-                # Add chunk to buffer
-                line_buffer += content
-
-                # Flush complete lines while keeping last partial line
-                if chunk_type == "thought" and verbose:
-                    line_buffer = flush_complete_lines(line_buffer, "\U0001f914", keep_last=True)
-                elif chunk_type == "observation" and verbose:
-                    line_buffer = flush_complete_lines(line_buffer, "\U0001f4a1", keep_last=True)
-                elif chunk_type == "answer":
-                    # For answers, just print as-is without wrapping
-                    print(content, end="")
-                    line_buffer = ""
+                # Accumulate content for current message type
+                current_message += content
             else:
                 # Handle legacy format (backward compatibility)
                 if "thought" in response:
@@ -164,15 +203,16 @@ async def question(
                     raise RuntimeError(response["error"])
 
             if obj["complete"]:
-                # Flush any remaining buffer
-                if line_buffer:
-                    if last_chunk_type == "thought" and verbose:
-                        flush_complete_lines(line_buffer, "\U0001f914", keep_last=False)
-                    elif last_chunk_type == "observation" and verbose:
-                        flush_complete_lines(line_buffer, "\U0001f4a1", keep_last=False)
+                # Flush any remaining message
+                if current_message:
+                    if last_chunk_type == "thought":
+                        think(current_message)
+                    elif last_chunk_type == "observation":
+                        observe(current_message)
                     elif last_chunk_type == "answer":
-                        print(line_buffer)
-                    print()  # Final newline
+                        print(current_message)
+                        if not current_message.endswith('\n'):
+                            print()
                 break
 
         await ws.close()
