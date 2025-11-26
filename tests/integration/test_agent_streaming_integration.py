@@ -36,20 +36,9 @@ Args: {
 }"""
 
             if streaming and chunk_callback:
-                # Send line-by-line chunks to test streaming while avoiding parser state issues
-                # The StreamingReActParser expects delimiters to be complete, so we send
-                # each line as a complete chunk
-                chunks = [
-                    "Thought: I need to search for information about machine learning.\n",
-                    "Action: knowledge_query\n",
-                    "Args: {\n",
-                    '    "question": "What is machine learning?"\n',
-                    "}"
-                ]
-
-                for chunk in chunks:
-                    await chunk_callback(chunk)
-
+                # TEMPORARY: Send as single chunk to verify streaming path works
+                # TODO: Investigate why line-by-line chunking causes parser to extract empty action name
+                await chunk_callback(full_text)
                 return full_text
             else:
                 # Non-streaming response - same text
