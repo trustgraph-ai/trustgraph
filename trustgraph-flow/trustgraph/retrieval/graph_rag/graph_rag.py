@@ -316,7 +316,7 @@ class GraphRag:
     async def query(
             self, query, user = "trustgraph", collection = "default",
             entity_limit = 50, triple_limit = 30, max_subgraph_size = 1000,
-            max_path_length = 2,
+            max_path_length = 2, streaming = False, chunk_callback = None,
     ):
 
         if self.verbose:
@@ -337,7 +337,14 @@ class GraphRag:
             logger.debug(f"Knowledge graph: {kg}")
             logger.debug(f"Query: {query}")
 
-        resp = await self.prompt_client.kg_prompt(query, kg)
+        if streaming and chunk_callback:
+            resp = await self.prompt_client.kg_prompt(
+                query, kg,
+                streaming=True,
+                chunk_callback=chunk_callback
+            )
+        else:
+            resp = await self.prompt_client.kg_prompt(query, kg)
 
         if self.verbose:
             logger.debug("Query processing complete")
