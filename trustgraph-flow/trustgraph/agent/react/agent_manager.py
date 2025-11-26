@@ -237,7 +237,7 @@ class AgentManager:
 
             # Get streaming response
             response_text = await context("prompt-request").agent_react(
-                variables,
+                variables=variables,
                 streaming=True,
                 chunk_callback=on_chunk
             )
@@ -255,7 +255,10 @@ class AgentManager:
 
         else:
             # Non-streaming path - get complete text and parse
-            response_text = await context("prompt-request").agent_react(variables, streaming=False)
+            response_text = await context("prompt-request").agent_react(
+                variables=variables,
+                streaming=False
+            )
 
             logger.debug(f"Response text:\n{response_text}")
 
