@@ -43,12 +43,18 @@ class Subscriber:
 
     async def start(self):
 
-        self.consumer = self.client.subscribe(
-            topic = self.topic,
-            subscription_name = self.subscription,
-            consumer_name = self.consumer_name,
-            schema = JsonSchema(self.schema),
-        )
+        # Build subscribe arguments
+        subscribe_args = {
+            'topic': self.topic,
+            'subscription_name': self.subscription,
+            'consumer_name': self.consumer_name,
+        }
+
+        # Only add schema if provided (omit if None)
+        if self.schema is not None:
+            subscribe_args['schema'] = JsonSchema(self.schema)
+
+        self.consumer = self.client.subscribe(**subscribe_args)
 
         self.task = asyncio.create_task(self.run())
 
@@ -87,10 +93,14 @@ class Subscriber:
                     if self.draining and drain_end_time is None:
                         drain_end_time = time.time() + self.drain_timeout
                         logger.info(f"Subscriber entering drain mode, timeout={self.drain_timeout}s")
-                        
+
                         # Stop accepting new messages from Pulsar during drain
                         if self.consumer:
-                            self.consumer.pause_message_listener()
+                            try:
+                                self.consumer.pause_message_listener()
+                            except _pulsar.InvalidConfiguration:
+                                # Not all consumers have message listeners (e.g., blocking receive mode)
+                                pass
                     
                     # Check drain timeout
                     if self.draining and drain_end_time and time.time() > drain_end_time:
@@ -145,12 +155,21 @@ class Subscriber:
             finally:
                 # Negative acknowledge any pending messages
                 for msg in self.pending_acks.values():
-                    self.consumer.negative_acknowledge(msg)
+                    try:
+                        self.consumer.negative_acknowledge(msg)
+                    except _pulsar.AlreadyClosed:
+                        pass  # Consumer already closed
                 self.pending_acks.clear()
 
                 if self.consumer:
-                    self.consumer.unsubscribe()
-                    self.consumer.close()
+                    try:
+                        self.consumer.unsubscribe()
+                    except _pulsar.AlreadyClosed:
+                        pass  # Already closed
+                    try:
+                        self.consumer.close()
+                    except _pulsar.AlreadyClosed:
+                        pass  # Already closed
                     self.consumer = None
                 
          

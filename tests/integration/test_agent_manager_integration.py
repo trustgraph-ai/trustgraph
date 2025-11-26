@@ -135,10 +135,10 @@ Args: {
         # Verify prompt client was called correctly
         prompt_client = mock_flow_context("prompt-request")
         prompt_client.agent_react.assert_called_once()
-        
+
         # Verify the prompt variables passed to agent_react
         call_args = prompt_client.agent_react.call_args
-        variables = call_args[0][0]
+        variables = call_args.kwargs['variables']
         assert variables["question"] == question
         assert len(variables["tools"]) == 3  # knowledge_query, text_completion, web_search
         assert variables["context"] == "You are a helpful AI assistant with access to knowledge and tools."
@@ -237,7 +237,7 @@ Final Answer: Machine learning is a branch of artificial intelligence."""
         # Verify history was included in prompt variables
         prompt_client = mock_flow_context("prompt-request")
         call_args = prompt_client.agent_react.call_args
-        variables = call_args[0][0]
+        variables = call_args.kwargs['variables']
         assert len(variables["history"]) == 1
         assert variables["history"][0]["thought"] == "I need to search for information about machine learning"
         assert variables["history"][0]["action"] == "knowledge_query"
@@ -337,7 +337,7 @@ Args: {
         # Verify tool information was passed to prompt
         prompt_client = mock_flow_context("prompt-request")
         call_args = prompt_client.agent_react.call_args
-        variables = call_args[0][0]
+        variables = call_args.kwargs['variables']
         
         # Should have all 3 tools available
         tool_names = [tool["name"] for tool in variables["tools"]]
@@ -408,7 +408,7 @@ Args: {args_json}"""
         # Assert
         prompt_client = mock_flow_context("prompt-request")
         call_args = prompt_client.agent_react.call_args
-        variables = call_args[0][0]
+        variables = call_args.kwargs['variables']
         
         assert variables["context"] == "You are an expert in machine learning research."
         assert variables["question"] == question
@@ -427,7 +427,7 @@ Args: {args_json}"""
         # Assert
         prompt_client = mock_flow_context("prompt-request")
         call_args = prompt_client.agent_react.call_args
-        variables = call_args[0][0]
+        variables = call_args.kwargs['variables']
         
         assert len(variables["tools"]) == 0
         assert variables["tool_names"] == ""
@@ -682,7 +682,7 @@ Final Answer: {
         # Verify history was processed correctly
         prompt_client = mock_flow_context("prompt-request")
         call_args = prompt_client.agent_react.call_args
-        variables = call_args[0][0]
+        variables = call_args.kwargs['variables']
         assert len(variables["history"]) == 50
 
     @pytest.mark.asyncio
@@ -709,7 +709,7 @@ Final Answer: {
         # Verify JSON was properly serialized in prompt
         prompt_client = mock_flow_context("prompt-request")
         call_args = prompt_client.agent_react.call_args
-        variables = call_args[0][0]
+        variables = call_args.kwargs['variables']
         
         # Should not raise JSON serialization errors
         json_str = json.dumps(variables, indent=4)
