@@ -188,20 +188,23 @@ async def async_main(queues, output_file, pulsar_host, listener_name, subscriber
 
             # Start monitoring tasks
             try:
-                async with asyncio.TaskGroup() as tg:
-                    # Create one monitor task per subscriber
-                    for queue_name, sub in subscribers:
-                        tg.create_task(monitor_queue(sub, queue_name, central_queue, "logger"))
+                try:
+                    async with asyncio.TaskGroup() as tg:
+                        # Create one monitor task per subscriber
+                        for queue_name, sub in subscribers:
+                            tg.create_task(monitor_queue(sub, queue_name, central_queue, "logger"))
 
-                    # Create single writer task
-                    tg.create_task(log_writer(central_queue, f))
+                        # Create single writer task
+                        tg.create_task(log_writer(central_queue, f))
+
+                except* Exception as eg:
+                    # TaskGroup exception group
+                    for exc in eg.exceptions:
+                        if not isinstance(exc, asyncio.CancelledError):
+                            print(f"Task error: {exc}", file=sys.stderr)
 
             except KeyboardInterrupt:
                 print("\n\nStopping...")
-            except* Exception as eg:
-                # TaskGroup exception group
-                for exc in eg.exceptions:
-                    print(f"Task error: {exc}", file=sys.stderr)
             finally:
                 # Write session end marker
                 f.write(f"\n{'#'*80}\n")
