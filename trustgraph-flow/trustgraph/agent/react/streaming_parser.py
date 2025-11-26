@@ -118,7 +118,11 @@ class StreamingReActParser:
         self.line_buffer = re.sub(r'\n```$', '', self.line_buffer)
 
         # Process based on current state
+        # Track previous state to detect if we're making progress
         while self.line_buffer and self.state != ParserState.COMPLETE:
+            prev_buffer_len = len(self.line_buffer)
+            prev_state = self.state
+
             if self.state == ParserState.INITIAL:
                 self._process_initial()
             elif self.state == ParserState.THOUGHT:
@@ -129,6 +133,11 @@ class StreamingReActParser:
                 self._process_args()
             elif self.state == ParserState.FINAL_ANSWER:
                 self._process_final_answer()
+
+            # If no progress was made (buffer unchanged AND state unchanged), break
+            # to avoid infinite loop. We'll process more when the next chunk arrives.
+            if len(self.line_buffer) == prev_buffer_len and self.state == prev_state:
+                break
 
     def _process_initial(self) -> None:
         """Process INITIAL state - looking for 'Thought:' delimiter"""
