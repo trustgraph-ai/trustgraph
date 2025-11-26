@@ -9,6 +9,7 @@ Uses TrustGraph's Subscriber abstraction for future-proof pub/sub compatibility.
 """
 
 import pulsar
+from pulsar.schema import BytesSchema
 import sys
 import json
 import asyncio
@@ -161,7 +162,7 @@ async def async_main(queues, output_file, pulsar_host, listener_name, subscriber
                 topic=queue_name,
                 subscription=subscriber_name,
                 consumer_name=f"{subscriber_name}-{queue_name}",
-                schema=None,  # Generic - no schema validation
+                schema=None,  # No schema - accept any message type
             )
             await sub.start()
             subscribers.append((queue_name, sub))

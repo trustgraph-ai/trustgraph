@@ -43,12 +43,18 @@ class Subscriber:
 
     async def start(self):
 
-        self.consumer = self.client.subscribe(
-            topic = self.topic,
-            subscription_name = self.subscription,
-            consumer_name = self.consumer_name,
-            schema = JsonSchema(self.schema),
-        )
+        # Build subscribe arguments
+        subscribe_args = {
+            'topic': self.topic,
+            'subscription_name': self.subscription,
+            'consumer_name': self.consumer_name,
+        }
+
+        # Only add schema if provided (omit if None)
+        if self.schema is not None:
+            subscribe_args['schema'] = JsonSchema(self.schema)
+
+        self.consumer = self.client.subscribe(**subscribe_args)
 
         self.task = asyncio.create_task(self.run())
 
