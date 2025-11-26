@@ -41,6 +41,11 @@ async def question(
         output(wrap(question), "\U00002753 ")
         print()
 
+    # Track last chunk type and accumulated text for current message
+    last_chunk_type = None
+    current_message = ""
+    need_newline_at_start = False
+
     def think(x):
         if verbose:
             output(wrap(x), "\U0001f914 ")
@@ -97,14 +102,24 @@ async def question(
                 chunk_type = response["chunk_type"]
                 content = response.get("content", "")
 
-                if chunk_type == "thought":
-                    think(content)
-                elif chunk_type == "observation":
-                    observe(content)
-                elif chunk_type == "answer":
-                    print(content)
-                elif chunk_type == "error":
-                    raise RuntimeError(content)
+                # Check if we're switching to a new message type
+                if last_chunk_type != chunk_type:
+                    # When switching message types, flush accumulated message
+                    if current_message:
+                        if last_chunk_type == "thought":
+                            think(current_message)
+                        elif last_chunk_type == "observation":
+                            observe(current_message)
+                        elif last_chunk_type == "answer":
+                            print(current_message)
+                            if not current_message.endswith('\n'):
+                                print()
+                        current_message = ""
+
+                    last_chunk_type = chunk_type
+
+                # Accumulate content for current message type
+                current_message += content
             else:
                 # Handle legacy format (backward compatibility)
                 if "thought" in response:
@@ -119,7 +134,18 @@ async def question(
                 if "error" in response:
                     raise RuntimeError(response["error"])
 
-            if obj["complete"]: break
+            if obj["complete"]:
+                # Flush any remaining message
+                if current_message:
+                    if last_chunk_type == "thought":
+                        think(current_message)
+                    elif last_chunk_type == "observation":
+                        observe(current_message)
+                    elif last_chunk_type == "answer":
+                        print(current_message)
+                        if not current_message.endswith('\n'):
+                            print()
+                break
 
         await ws.close()
 
