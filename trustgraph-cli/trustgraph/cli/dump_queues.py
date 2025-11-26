@@ -285,6 +285,14 @@ Common queue patterns:
   - Prompt responses: non-persistent://tg/response/prompt:default
   - LLM requests:     non-persistent://tg/request/text-completion:default
   - LLM responses:    non-persistent://tg/response/text-completion:default
+
+IMPORTANT:
+  This tool subscribes to queues without a schema (schema-less mode). To avoid
+  schema conflicts, ensure that TrustGraph services and flows are already started
+  before running this tool. If this tool subscribes first, the real services may
+  encounter schema mismatch errors when they try to connect.
+
+  Best practice: Start services → Set up flows → Run tg-dump-queues
         """,
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
