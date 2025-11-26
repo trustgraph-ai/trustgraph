@@ -23,6 +23,9 @@ class Outputter:
         self.just_wrapped = False
 
     def __enter__(self):
+        # Print prefix at start of first line
+        print(self.prefix, end="", flush=True)
+        self.column = len(self.prefix)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -110,9 +113,9 @@ async def question(
         output(wrap(question), "\U00002753 ")
         print()
 
-    # Track last chunk type and accumulated text for current message
+    # Track last chunk type and current outputter for streaming
     last_chunk_type = None
-    current_message = ""
+    current_outputter = None
 
     def think(x):
         if verbose:
@@ -172,22 +175,28 @@ async def question(
 
                 # Check if we're switching to a new message type
                 if last_chunk_type != chunk_type:
-                    # When switching message types, flush accumulated message
-                    if current_message:
-                        if last_chunk_type == "thought":
-                            think(current_message)
-                        elif last_chunk_type == "observation":
-                            observe(current_message)
-                        elif last_chunk_type == "answer":
-                            print(current_message)
-                            if not current_message.endswith('\n'):
-                                print()
-                        current_message = ""
+                    # Close previous outputter if exists
+                    if current_outputter:
+                        current_outputter.__exit__(None, None, None)
+                        current_outputter = None
+                        print()  # Blank line between message types
+
+                    # Create new outputter for new message type
+                    if chunk_type == "thought" and verbose:
+                        current_outputter = Outputter(width=78, prefix="\U0001f914  ")
+                        current_outputter.__enter__()
+                    elif chunk_type == "observation" and verbose:
+                        current_outputter = Outputter(width=78, prefix="\U0001f4a1  ")
+                        current_outputter.__enter__()
+                    # For answer, don't use Outputter - just print as-is
 
                     last_chunk_type = chunk_type
 
-                # Accumulate content for current message type
-                current_message += content
+                # Output the chunk
+                if current_outputter:
+                    current_outputter.output(content)
+                elif chunk_type == "answer":
+                    print(content, end="", flush=True)
             else:
                 # Handle legacy format (backward compatibility)
                 if "thought" in response:
@@ -203,16 +212,13 @@ async def question(
                     raise RuntimeError(response["error"])
 
             if obj["complete"]:
-                # Flush any remaining message
-                if current_message:
-                    if last_chunk_type == "thought":
-                        think(current_message)
-                    elif last_chunk_type == "observation":
-                        observe(current_message)
-                    elif last_chunk_type == "answer":
-                        print(current_message)
-                        if not current_message.endswith('\n'):
-                            print()
+                # Close any remaining outputter
+                if current_outputter:
+                    current_outputter.__exit__(None, None, None)
+                    current_outputter = None
+                # Add final newline if we were outputting answer
+                elif last_chunk_type == "answer":
+                    print()
                 break
 
         await ws.close()
