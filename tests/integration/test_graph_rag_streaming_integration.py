@@ -55,16 +55,17 @@ class TestGraphRagStreaming:
         client = AsyncMock()
 
         async def kg_prompt_side_effect(query, kg, timeout=600, streaming=False, chunk_callback=None):
+            # Both modes return the same text
+            full_text = "Machine learning is a subset of artificial intelligence that focuses on algorithms that learn from data."
+
             if streaming and chunk_callback:
                 # Simulate streaming chunks
-                full_text = ""
                 async for chunk in mock_streaming_llm_response():
-                    full_text += chunk
                     await chunk_callback(chunk)
                 return full_text
             else:
-                # Non-streaming response
-                return "Machine learning is a subset of artificial intelligence."
+                # Non-streaming response - same text
+                return full_text
 
         client.kg_prompt.side_effect = kg_prompt_side_effect
         return client

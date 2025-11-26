@@ -99,12 +99,11 @@ Args: {
         }
 
     @pytest.fixture
-    def agent_manager(self, mock_flow_context, sample_tools):
+    def agent_manager(self, sample_tools):
         """Create AgentManager instance with streaming support"""
         return AgentManager(
-            prompt_client=mock_flow_context("prompt-request"),
             tools=sample_tools,
-            verbose=True
+            additional_context="You are a helpful AI assistant."
         )
 
     @pytest.mark.asyncio
