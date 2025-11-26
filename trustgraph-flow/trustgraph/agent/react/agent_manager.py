@@ -273,7 +273,7 @@ class AgentManager:
             logger.info("DEBUG: About to call agent_react with streaming=True")
             # Get streaming response
             response_text = await client.agent_react(
-                variables=variables,
+                variables,  # Positional for backward compat with tests
                 streaming=True,
                 chunk_callback=on_chunk
             )
@@ -302,7 +302,7 @@ class AgentManager:
 
             logger.info("DEBUG: About to call agent_react with streaming=False")
             response_text = await client.agent_react(
-                variables=variables,
+                variables,  # Positional for backward compat with tests
                 streaming=False
             )
             logger.info(f"DEBUG: agent_react returned, got response")
