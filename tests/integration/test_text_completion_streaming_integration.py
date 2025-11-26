@@ -29,30 +29,31 @@ class TestTextCompletionStreaming:
 
         def create_streaming_completion(**kwargs):
             """Generator that yields streaming chunks"""
-            if kwargs.get('stream', False):
-                # Simulate OpenAI streaming response
-                chunks_text = [
-                    "Machine", " learning", " is", " a", " subset",
-                    " of", " AI", " that", " enables", " computers",
-                    " to", " learn", " from", " data", "."
-                ]
-
-                for text in chunks_text:
-                    delta = ChoiceDelta(content=text, role=None)
-                    choice = StreamChoice(index=0, delta=delta, finish_reason=None)
-                    chunk = ChatCompletionChunk(
-                        id="chatcmpl-streaming",
-                        choices=[choice],
-                        created=1234567890,
-                        model="gpt-3.5-turbo",
-                        object="chat.completion.chunk"
-                    )
-                    yield chunk
-            else:
-                # Non-streaming response (shouldn't happen in these tests)
+            # Check if streaming is enabled
+            if not kwargs.get('stream', False):
                 raise ValueError("Expected streaming mode")
 
-        client.chat.completions.create.return_value = create_streaming_completion()
+            # Simulate OpenAI streaming response
+            chunks_text = [
+                "Machine", " learning", " is", " a", " subset",
+                " of", " AI", " that", " enables", " computers",
+                " to", " learn", " from", " data", "."
+            ]
+
+            for text in chunks_text:
+                delta = ChoiceDelta(content=text, role=None)
+                choice = StreamChoice(index=0, delta=delta, finish_reason=None)
+                chunk = ChatCompletionChunk(
+                    id="chatcmpl-streaming",
+                    choices=[choice],
+                    created=1234567890,
+                    model="gpt-3.5-turbo",
+                    object="chat.completion.chunk"
+                )
+                yield chunk
+
+        # Return a new generator each time create is called
+        client.chat.completions.create.side_effect = lambda **kwargs: create_streaming_completion(**kwargs)
         return client
 
     @pytest.fixture
@@ -284,7 +285,7 @@ class TestTextCompletionStreaming:
                 )
                 yield chunk
 
-        mock_streaming_openai_client.chat.completions.create.return_value = create_streaming_with_empties()
+        mock_streaming_openai_client.chat.completions.create.side_effect = lambda **kwargs: create_streaming_with_empties(**kwargs)
 
         processor = MagicMock()
         processor.default_model = "gpt-3.5-turbo"

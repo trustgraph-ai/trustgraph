@@ -36,13 +36,13 @@ Args: {
 }"""
 
             if streaming and chunk_callback:
-                # Send chunks that avoid parser state bug
-                # Parser bug: if "Args:" starts a new chunk while in ACTION state,
-                # it overwrites action_buffer with empty string (line_buffer[:0])
-                # Solution: Keep "Action:" line and "Args:" together in same chunk
+                # Send realistic line-by-line chunks
+                # This tests that the parser properly handles "Args:" starting a new chunk
+                # (which previously caused a bug where action_buffer was overwritten)
                 chunks = [
                     "Thought: I need to search for information about machine learning.\n",
-                    "Action: knowledge_query\nArgs: {\n",  # Keep Action and Args together!
+                    "Action: knowledge_query\n",
+                    "Args: {\n",  # This used to trigger bug - Args: at start of chunk
                     '    "question": "What is machine learning?"\n',
                     "}"
                 ]

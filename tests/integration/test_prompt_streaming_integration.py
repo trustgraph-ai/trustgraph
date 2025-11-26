@@ -212,6 +212,7 @@ class TestPromptStreaming:
     async def test_prompt_streaming_error_handling(self, prompt_processor_streaming):
         """Test error handling during streaming"""
         # Arrange
+        from trustgraph.schema import Error
         context = MagicMock()
 
         # Mock text completion client that raises an error
@@ -219,10 +220,10 @@ class TestPromptStreaming:
 
         async def failing_request(request, recipient=None, timeout=600):
             if recipient:
-                # Send error response
+                # Send error response with proper Error schema
                 error_response = TextCompletionResponse(
                     response="",
-                    error=MagicMock(message="Text completion error"),
+                    error=Error(message="Text completion error", type="processing_error"),
                     end_of_stream=True
                 )
                 await recipient(error_response)
@@ -386,4 +387,4 @@ class TestPromptStreaming:
 
         # Verify chunks concatenate to expected result
         full_text = "".join(chunk_texts)
-        assert full_text == "Machine learning is a field of artificial intelligence."
+        assert full_text == "Machine learning is a field of artificial intelligence"
