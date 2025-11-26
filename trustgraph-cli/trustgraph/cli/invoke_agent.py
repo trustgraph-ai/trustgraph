@@ -41,10 +41,30 @@ async def question(
         output(wrap(question), "\U00002753 ")
         print()
 
-    # Track last chunk type and accumulated text for current message
+    # Track last chunk type and line buffer for incremental wrapping
     last_chunk_type = None
-    current_message = ""
-    need_newline_at_start = False
+    line_buffer = ""  # Buffer for current message being accumulated
+
+    def flush_complete_lines(text, prefix, keep_last=True):
+        """Wrap text and output complete lines, optionally keeping last partial line in buffer."""
+        if not text:
+            return ""
+
+        lines = textwrap.wrap(text, width=75)
+        if not lines:
+            return text  # Nothing to wrap, keep in buffer
+
+        if keep_last and len(lines) > 0:
+            # Output all but last line (last might be incomplete)
+            for line in lines[:-1]:
+                print(f"{prefix} {line}")
+            # Return last line to keep in buffer
+            return lines[-1] if len(lines) > 0 else ""
+        else:
+            # Output all lines
+            for line in lines:
+                print(f"{prefix} {line}")
+            return ""
 
     def think(x):
         if verbose:
@@ -104,22 +124,31 @@ async def question(
 
                 # Check if we're switching to a new message type
                 if last_chunk_type != chunk_type:
-                    # When switching message types, flush accumulated message
-                    if current_message:
-                        if last_chunk_type == "thought":
-                            think(current_message)
-                        elif last_chunk_type == "observation":
-                            observe(current_message)
+                    # Flush any remaining buffer from previous message type
+                    if line_buffer:
+                        if last_chunk_type == "thought" and verbose:
+                            flush_complete_lines(line_buffer, "\U0001f914", keep_last=False)
+                        elif last_chunk_type == "observation" and verbose:
+                            flush_complete_lines(line_buffer, "\U0001f4a1", keep_last=False)
                         elif last_chunk_type == "answer":
-                            print(current_message)
-                            if not current_message.endswith('\n'):
-                                print()
-                        current_message = ""
+                            print(line_buffer)
+                        line_buffer = ""
+                        print()  # Blank line between message types
 
                     last_chunk_type = chunk_type
 
-                # Accumulate content for current message type
-                current_message += content
+                # Add chunk to buffer
+                line_buffer += content
+
+                # Flush complete lines while keeping last partial line
+                if chunk_type == "thought" and verbose:
+                    line_buffer = flush_complete_lines(line_buffer, "\U0001f914", keep_last=True)
+                elif chunk_type == "observation" and verbose:
+                    line_buffer = flush_complete_lines(line_buffer, "\U0001f4a1", keep_last=True)
+                elif chunk_type == "answer":
+                    # For answers, just print as-is without wrapping
+                    print(content, end="")
+                    line_buffer = ""
             else:
                 # Handle legacy format (backward compatibility)
                 if "thought" in response:
@@ -135,16 +164,15 @@ async def question(
                     raise RuntimeError(response["error"])
 
             if obj["complete"]:
-                # Flush any remaining message
-                if current_message:
-                    if last_chunk_type == "thought":
-                        think(current_message)
-                    elif last_chunk_type == "observation":
-                        observe(current_message)
+                # Flush any remaining buffer
+                if line_buffer:
+                    if last_chunk_type == "thought" and verbose:
+                        flush_complete_lines(line_buffer, "\U0001f914", keep_last=False)
+                    elif last_chunk_type == "observation" and verbose:
+                        flush_complete_lines(line_buffer, "\U0001f4a1", keep_last=False)
                     elif last_chunk_type == "answer":
-                        print(current_message)
-                        if not current_message.endswith('\n'):
-                            print()
+                        print(line_buffer)
+                    print()  # Final newline
                 break
 
         await ws.close()
