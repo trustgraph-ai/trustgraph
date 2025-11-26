@@ -112,15 +112,15 @@ Args: {
         # Arrange
         thought_chunks = []
 
-        async def think_callback(chunk):
+        async def think(chunk):
             thought_chunks.append(chunk)
 
         # Act
         await agent_manager.react(
             question="What is machine learning?",
             history=[],
-            think_callback=think_callback,
-            observe_callback=AsyncMock(),
+            think=think,
+            observe=AsyncMock(),
             context=mock_flow_context,
             streaming=True
         )
@@ -139,15 +139,15 @@ Args: {
         # Arrange
         observation_chunks = []
 
-        async def observe_callback(chunk):
+        async def observe(chunk):
             observation_chunks.append(chunk)
 
         # Act
         await agent_manager.react(
             question="What is machine learning?",
             history=[],
-            think_callback=AsyncMock(),
-            observe_callback=observe_callback,
+            think=AsyncMock(),
+            observe=observe,
             context=mock_flow_context,
             streaming=True
         )
@@ -156,7 +156,7 @@ Args: {
         # Note: Observations come from tool execution, which may or may not be streamed
         # depending on the tool implementation
         # For now, verify callback was set up
-        assert observe_callback is not None
+        assert observe is not None
 
     @pytest.mark.asyncio
     async def test_agent_streaming_vs_non_streaming(self, agent_manager, mock_flow_context):
@@ -169,8 +169,8 @@ Args: {
         non_streaming_result = await agent_manager.react(
             question=question,
             history=history,
-            think_callback=None,
-            observe_callback=None,
+            think=AsyncMock(),
+            observe=AsyncMock(),
             context=mock_flow_context,
             streaming=False
         )
@@ -179,17 +179,17 @@ Args: {
         thought_chunks = []
         observation_chunks = []
 
-        async def think_cb(chunk):
+        async def think(chunk):
             thought_chunks.append(chunk)
 
-        async def observe_cb(chunk):
+        async def observe(chunk):
             observation_chunks.append(chunk)
 
         streaming_result = await agent_manager.react(
             question=question,
             history=history,
-            think_callback=think_cb,
-            observe_callback=observe_cb,
+            think=think,
+            observe=observe,
             context=mock_flow_context,
             streaming=True
         )
@@ -202,24 +202,24 @@ Args: {
     async def test_agent_streaming_callback_invocation(self, agent_manager, mock_flow_context):
         """Test that callbacks are invoked with correct parameters"""
         # Arrange
-        think_callback = AsyncMock()
-        observe_callback = AsyncMock()
+        think = AsyncMock()
+        observe = AsyncMock()
 
         # Act
         await agent_manager.react(
             question="What is machine learning?",
             history=[],
-            think_callback=think_callback,
-            observe_callback=observe_callback,
+            think=think,
+            observe=observe,
             context=mock_flow_context,
             streaming=True
         )
 
         # Assert - Think callback should be invoked
-        assert think_callback.call_count > 0
+        assert think.call_count > 0
 
         # Verify all callback invocations had string arguments
-        for call in think_callback.call_args_list:
+        for call in think.call_args_list:
             assert len(call.args) > 0
             assert isinstance(call.args[0], str)
 
@@ -230,10 +230,10 @@ Args: {
         result = await agent_manager.react(
             question="What is machine learning?",
             history=[],
-            think_callback=None,
-            observe_callback=None,
+            think=AsyncMock(),
+            observe=AsyncMock(),
             context=mock_flow_context,
-            streaming=True  # Streaming enabled but no callbacks
+            streaming=True  # Streaming enabled with mock callbacks
         )
 
         # Assert - Should complete without error
@@ -245,21 +245,21 @@ Args: {
         """Test streaming with existing conversation history"""
         # Arrange
         history = sample_agent_responses[:1]  # Use first response as history
-        think_callback = AsyncMock()
+        think = AsyncMock()
 
         # Act
         result = await agent_manager.react(
             question="Tell me more about neural networks",
             history=history,
-            think_callback=think_callback,
-            observe_callback=AsyncMock(),
+            think=think,
+            observe=AsyncMock(),
             context=mock_flow_context,
             streaming=True
         )
 
         # Assert
         assert result is not None
-        assert think_callback.call_count > 0
+        assert think.call_count > 0
 
     @pytest.mark.asyncio
     async def test_agent_streaming_error_propagation(self, agent_manager, mock_flow_context):
@@ -268,16 +268,16 @@ Args: {
         mock_prompt_client = mock_flow_context("prompt-request")
         mock_prompt_client.agent_react.side_effect = Exception("Prompt service error")
 
-        think_callback = AsyncMock()
-        observe_callback = AsyncMock()
+        think = AsyncMock()
+        observe = AsyncMock()
 
         # Act & Assert
         with pytest.raises(Exception) as exc_info:
             await agent_manager.react(
                 question="test question",
                 history=[],
-                think_callback=think_callback,
-                observe_callback=observe_callback,
+                think=think,
+                observe=observe,
                 context=mock_flow_context,
                 streaming=True
             )
@@ -312,36 +312,36 @@ Final Answer: AI is the simulation of human intelligence in machines."""
 
         mock_prompt_client_streaming.agent_react.side_effect = multi_step_agent_react
 
-        think_callback = AsyncMock()
-        observe_callback = AsyncMock()
+        think = AsyncMock()
+        observe = AsyncMock()
 
         # Act
         result = await agent_manager.react(
             question="What is artificial intelligence?",
             history=[],
-            think_callback=think_callback,
-            observe_callback=observe_callback,
+            think=think,
+            observe=observe,
             context=mock_flow_context,
             streaming=True
         )
 
         # Assert
         assert result is not None
-        assert think_callback.call_count > 0
+        assert think.call_count > 0
 
     @pytest.mark.asyncio
     async def test_agent_streaming_preserves_tool_config(self, agent_manager, mock_flow_context):
         """Test that streaming preserves tool configuration and context"""
         # Arrange
-        think_callback = AsyncMock()
-        observe_callback = AsyncMock()
+        think = AsyncMock()
+        observe = AsyncMock()
 
         # Act
         await agent_manager.react(
             question="What is machine learning?",
             history=[],
-            think_callback=think_callback,
-            observe_callback=observe_callback,
+            think=think,
+            observe=observe,
             context=mock_flow_context,
             streaming=True
         )
