@@ -111,7 +111,7 @@ Args: {
         # Arrange
         thought_chunks = []
 
-        async def think(chunk):
+        async def think(chunk, is_final=False):
             thought_chunks.append(chunk)
 
         # Act
@@ -138,7 +138,7 @@ Args: {
         # Arrange
         observation_chunks = []
 
-        async def observe(chunk):
+        async def observe(chunk, is_final=False):
             observation_chunks.append(chunk)
 
         # Act
@@ -178,10 +178,10 @@ Args: {
         thought_chunks = []
         observation_chunks = []
 
-        async def think(chunk):
+        async def think(chunk, is_final=False):
             thought_chunks.append(chunk)
 
-        async def observe(chunk):
+        async def observe(chunk, is_final=False):
             observation_chunks.append(chunk)
 
         streaming_result = await agent_manager.react(
@@ -358,3 +358,38 @@ Final Answer: AI is the simulation of human intelligence in machines."""
         call_args = mock_prompt_client.agent_react.call_args
         assert call_args.kwargs['streaming'] is True
         assert call_args.kwargs['chunk_callback'] is not None
+
+    @pytest.mark.asyncio
+    async def test_agent_streaming_end_of_message_flags(self, agent_manager, mock_flow_context):
+        """Test that end_of_message flags are correctly set for thought chunks"""
+        # Arrange
+        thought_calls = []
+
+        async def think(chunk, is_final=False):
+            thought_calls.append({
+                'chunk': chunk,
+                'is_final': is_final
+            })
+
+        # Act
+        await agent_manager.react(
+            question="What is machine learning?",
+            history=[],
+            think=think,
+            observe=AsyncMock(),
+            context=mock_flow_context,
+            streaming=True
+        )
+
+        # Assert
+        assert len(thought_calls) > 0, "Expected thought chunks to be sent"
+
+        # All chunks except the last should have is_final=False
+        for i, call in enumerate(thought_calls[:-1]):
+            assert call['is_final'] is False, \
+                f"Thought chunk {i} should have is_final=False, got {call['is_final']}"
+
+        # Last chunk should have is_final=True
+        last_call = thought_calls[-1]
+        assert last_call['is_final'] is True, \
+            f"Last thought chunk should have is_final=True, got {last_call['is_final']}"

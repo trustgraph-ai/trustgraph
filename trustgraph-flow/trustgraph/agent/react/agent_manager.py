@@ -256,7 +256,11 @@ class AgentManager:
                 # Send any new thought chunks
                 for i in range(prev_thought_count, len(thought_chunks)):
                     logger.info(f"DEBUG: Sending thought chunk {i}")
-                    await think(thought_chunks[i])
+                    # Mark last chunk as final if parser has moved out of THOUGHT state
+                    is_last = (i == len(thought_chunks) - 1)
+                    is_thought_complete = parser.state.value != "thought"
+                    is_final = is_last and is_thought_complete
+                    await think(thought_chunks[i], is_final=is_final)
 
                 # Send any new answer chunks
                 for i in range(prev_answer_count, len(answer_chunks)):
