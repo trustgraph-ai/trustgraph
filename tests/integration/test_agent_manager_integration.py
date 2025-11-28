@@ -182,8 +182,8 @@ Final Answer: Machine learning is a field of AI that enables computers to learn 
         assert action.observation == "Machine learning is a subset of AI that enables computers to learn from data."
 
         # Verify callbacks were called
-        think_callback.assert_called_once_with("I need to search for information about machine learning")
-        observe_callback.assert_called_once_with("Machine learning is a subset of AI that enables computers to learn from data.")
+        think_callback.assert_called_once_with("I need to search for information about machine learning", is_final=True)
+        observe_callback.assert_called_once_with("Machine learning is a subset of AI that enables computers to learn from data.", is_final=True)
 
         # Verify tool was executed
         graph_rag_client = mock_flow_context("graph-rag-request")
@@ -211,7 +211,7 @@ Final Answer: Machine learning is a branch of artificial intelligence."""
         assert action.final == "Machine learning is a branch of artificial intelligence."
 
         # Verify only think callback was called (no observation for final answer)
-        think_callback.assert_called_once_with("I can provide a direct answer")
+        think_callback.assert_called_once_with("I can provide a direct answer", is_final=True)
         observe_callback.assert_not_called()
 
     @pytest.mark.asyncio
@@ -457,7 +457,7 @@ Args: {args_json}"""
             # Assert
             assert isinstance(action, Action)
             assert action.observation == expected_response.strip()
-            observe_callback.assert_called_with(expected_response.strip())
+            observe_callback.assert_called_with(expected_response.strip(), is_final=True)
             
             # Reset mocks
             mock_flow_context("graph-rag-request").reset_mock()
