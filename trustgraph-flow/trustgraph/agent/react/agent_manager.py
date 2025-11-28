@@ -380,7 +380,7 @@ class AgentManager:
 
             logger.info(f"resp: {resp}")
 
-            await observe(resp)
+            await observe(resp, is_final=True)
 
             act.observation = resp
 
