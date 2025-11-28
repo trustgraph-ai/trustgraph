@@ -346,7 +346,7 @@ class AgentManager:
             # In non-streaming mode, send complete thought
             # In streaming mode, thoughts were already sent as chunks
             if not streaming:
-                await think(act.thought)
+                await think(act.thought, is_final=True)
             return act
 
         else:
@@ -354,7 +354,7 @@ class AgentManager:
             # In non-streaming mode, send complete thought
             # In streaming mode, thoughts were already sent as chunks
             if not streaming:
-                await think(act.thought)
+                await think(act.thought, is_final=True)
 
             logger.debug(f"ACTION: {act.name}")
 
