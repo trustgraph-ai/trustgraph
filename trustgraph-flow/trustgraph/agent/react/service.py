@@ -352,14 +352,14 @@ class Processor(AgentService):
 
                 if streaming:
                     # Streaming format - send end-of-dialog marker
-                    # Answer chunks were already sent via think() callback during parsing
+                    # Answer chunks were already sent via answer() callback during parsing
                     r = AgentResponse(
                         chunk_type="answer",
                         content="",  # Empty content, just marking end of dialog
                         end_of_message=True,
                         end_of_dialog=True,
-                        # Legacy fields for backward compatibility
-                        answer=act.final,
+                        # Legacy fields set to None - answer already sent via streaming chunks
+                        answer=None,
                         error=None,
                         thought=None,
                     )
