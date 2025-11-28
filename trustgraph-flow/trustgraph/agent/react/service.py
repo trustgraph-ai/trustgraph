@@ -214,16 +214,16 @@ class Processor(AgentService):
 
             logger.debug(f"History: {history}")
 
-            async def think(x):
+            async def think(x, is_final=False):
 
-                logger.debug(f"Think: {x}")
+                logger.debug(f"Think: {x} (is_final={is_final})")
 
                 if streaming:
                     # Streaming format
                     r = AgentResponse(
                         chunk_type="thought",
                         content=x,
-                        end_of_message=True,
+                        end_of_message=is_final,
                         end_of_dialog=False,
                         # Legacy fields for backward compatibility
                         answer=None,
@@ -242,16 +242,16 @@ class Processor(AgentService):
 
                 await respond(r)
 
-            async def observe(x):
+            async def observe(x, is_final=False):
 
-                logger.debug(f"Observe: {x}")
+                logger.debug(f"Observe: {x} (is_final={is_final})")
 
                 if streaming:
                     # Streaming format
                     r = AgentResponse(
                         chunk_type="observation",
                         content=x,
-                        end_of_message=True,
+                        end_of_message=is_final,
                         end_of_dialog=False,
                         # Legacy fields for backward compatibility
                         answer=None,
@@ -352,14 +352,14 @@ class Processor(AgentService):
 
                 if streaming:
                     # Streaming format - send end-of-dialog marker
-                    # Answer chunks were already sent via think() callback during parsing
+                    # Answer chunks were already sent via answer() callback during parsing
                     r = AgentResponse(
                         chunk_type="answer",
                         content="",  # Empty content, just marking end of dialog
                         end_of_message=True,
                         end_of_dialog=True,
-                        # Legacy fields for backward compatibility
-                        answer=act.final,
+                        # Legacy fields set to None - answer already sent via streaming chunks
+                        answer=None,
                         error=None,
                         thought=None,
                     )
