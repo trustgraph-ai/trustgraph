@@ -20,6 +20,8 @@ from .ontology_embedder import OntologyEmbedder
 from .vector_store import InMemoryVectorStore
 from .text_processor import TextProcessor
 from .ontology_selector import OntologySelector, OntologySubset
+from .simplified_parser import parse_extraction_response
+from .triple_converter import TripleConverter
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +104,7 @@ class Processor(FlowProcessor):
         # Configuration
         self.top_k = params.get("top_k", 10)
         self.similarity_threshold = params.get("similarity_threshold", 0.3)
+        self.use_simplified_format = params.get("use_simplified_format", False)
 
         # Track loaded ontology version
         self.current_ontology_version = None
@@ -298,25 +301,33 @@ class Processor(FlowProcessor):
             # Build extraction prompt variables
             prompt_variables = self.build_extraction_variables(chunk, ontology_subset)
 
-            # Call prompt service for extraction
-            try:
-                # Use prompt() method with extract-with-ontologies prompt ID
-                triples_response = await flow("prompt-request").prompt(
-                    id="extract-with-ontologies",
-                    variables=prompt_variables
+            # Choose extraction format based on configuration
+            if self.use_simplified_format:
+                # NEW: Simplified format extraction
+                triples = await self.extract_with_simplified_format(
+                    flow, chunk, ontology_subset, prompt_variables
                 )
-                logger.debug(f"Extraction response: {triples_response}")
+            else:
+                # OLD: Original triple-based format extraction
+                # Call prompt service for extraction
+                try:
+                    # Use prompt() method with extract-with-ontologies prompt ID
+                    triples_response = await flow("prompt-request").prompt(
+                        id="extract-with-ontologies",
+                        variables=prompt_variables
+                    )
+                    logger.debug(f"Extraction response: {triples_response}")
 
-                if not isinstance(triples_response, list):
-                    logger.error("Expected list of triples from prompt service")
+                    if not isinstance(triples_response, list):
+                        logger.error("Expected list of triples from prompt service")
+                        triples_response = []
+
+                except Exception as e:
+                    logger.error(f"Prompt service error: {e}", exc_info=True)
                     triples_response = []
 
-            except Exception as e:
-                logger.error(f"Prompt service error: {e}", exc_info=True)
-                triples_response = []
-
-            # Parse and validate triples
-            triples = self.parse_and_validate_triples(triples_response, ontology_subset)
+                # Parse and validate triples
+                triples = self.parse_and_validate_triples(triples_response, ontology_subset)
 
             # Add metadata triples
             for t in v.metadata.metadata:
@@ -361,6 +372,55 @@ class Processor(FlowProcessor):
                 v.metadata,
                 []
             )
+
+    async def extract_with_simplified_format(
+        self,
+        flow,
+        chunk: str,
+        ontology_subset: OntologySubset,
+        prompt_variables: Dict[str, Any]
+    ) -> List[Triple]:
+        """Extract triples using simplified entity-relationship-attribute format.
+
+        Args:
+            flow: Flow object for accessing services
+            chunk: Text chunk to extract from
+            ontology_subset: Selected ontology subset
+            prompt_variables: Variables for prompt template
+
+        Returns:
+            List of Triple objects
+        """
+        try:
+            # Call prompt service with new simplified format prompt
+            extraction_response = await flow("prompt-request").prompt(
+                id="extract-with-ontologies-v2",
+                variables=prompt_variables
+            )
+            logger.debug(f"Simplified extraction response: {extraction_response}")
+
+            # Parse response into structured format
+            extraction_result = parse_extraction_response(extraction_response)
+
+            if not extraction_result:
+                logger.warning("Failed to parse extraction response")
+                return []
+
+            logger.info(f"Parsed {len(extraction_result.entities)} entities, "
+                       f"{len(extraction_result.relationships)} relationships, "
+                       f"{len(extraction_result.attributes)} attributes")
+
+            # Convert to RDF triples
+            converter = TripleConverter(ontology_subset, ontology_subset.ontology_id)
+            triples = converter.convert_all(extraction_result)
+
+            logger.info(f"Generated {len(triples)} RDF triples from simplified extraction")
+
+            return triples
+
+        except Exception as e:
+            logger.error(f"Simplified extraction error: {e}", exc_info=True)
+            return []
 
     def build_extraction_variables(self, chunk: str, ontology_subset: OntologySubset) -> Dict[str, Any]:
         """Build variables for ontology-based extraction prompt template.
@@ -839,6 +899,12 @@ class Processor(FlowProcessor):
             type=float,
             default=0.3,
             help='Similarity threshold for ontology matching (default: 0.3, range: 0.0-1.0)'
+        )
+        parser.add_argument(
+            '--use-simplified-format',
+            action='store_true',
+            default=False,
+            help='Use simplified entity-relationship-attribute extraction format (default: False)'
         )
         FlowProcessor.add_args(parser)
 
