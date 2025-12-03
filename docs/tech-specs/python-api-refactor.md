@@ -68,125 +68,276 @@ The November 2024 streaming enhancement to the Gateway API provided 60x latency 
 
 ### Architecture
 
-The refactored Python API will support two transport layers:
+The refactored Python API uses a **modular interface approach** with separate objects for different communication patterns:
 
-1. **REST Transport** (existing, enhanced)
+1. **REST Interface** (existing, unchanged)
+   - `api.flow()`, `api.library()`, `api.knowledge()`, `api.collection()`, `api.config()`
    - Synchronous request/response
    - Simple connection model
-   - No streaming support
    - Default for backward compatibility
 
-2. **WebSocket Transport** (new)
+2. **WebSocket Interface** (new)
+   - `api.socket()`
    - Persistent connection
    - Multiplexed requests
    - Streaming support
-   - Bulk operations
-   - Opt-in via constructor parameter
+   - Same method signatures as REST where functionality overlaps
+
+3. **Bulk Operations Interface** (new)
+   - `api.bulk()`
+   - WebSocket-based for efficiency
+   - Iterator-based import/export
+   - Handles large datasets
 
 ```python
-# REST transport (default, backward compatible)
+# REST interface (existing, unchanged)
 api = Api(url="http://localhost:8088/")
+flow = api.flow().id("default")
+response = flow.agent(question="...", user="...")
 
-# WebSocket transport (new, opt-in)
-api = Api(url="ws://localhost:8088/", transport="websocket")
+# WebSocket interface (new)
+socket = api.socket()
+socket_flow = socket.flow("default")
+response = socket_flow.agent(question="...", user="...")
+for chunk in socket_flow.agent(question="...", user="...", streaming=True):
+    print(chunk)
+
+# Bulk operations interface (new)
+bulk = api.bulk()
+bulk.import_triples(flow="default", triples=triple_generator())
 ```
+
+**Key Design Principles**:
+- **Same URL for all interfaces**: `Api(url="http://localhost:8088/")` works for all
+- **Identical signatures**: Where functionality overlaps, method signatures are identical
+- **Progressive enhancement**: Choose interface based on needs (REST for simple, WebSocket for streaming, Bulk for large datasets)
+- **Explicit intent**: `api.socket()` clearly signals WebSocket usage
+- **Backward compatible**: Existing code unchanged
 
 ### Components
 
-#### 1. Transport Layer Abstraction
+#### 1. Core API Class (Modified)
 
-Module: `trustgraph-base/trustgraph/api/transport/`
+Module: `trustgraph-base/trustgraph/api/api.py`
 
-```
-transport/
-├── __init__.py
-├── base.py           # Abstract transport interface
-├── rest.py           # REST transport (existing behavior)
-└── websocket.py      # WebSocket transport (new)
-```
-
-**Base Transport Interface**:
+**Enhanced API Class**:
 
 ```python
-from abc import ABC, abstractmethod
-from typing import Iterator, Any, Dict
+class Api:
+    def __init__(self, url: str, timeout: int = 60, token: Optional[str] = None):
+        self.url = url
+        self.timeout = timeout
+        self.token = token
+        self._socket_client = None
+        self._bulk_client = None
 
-class Transport(ABC):
-    @abstractmethod
-    def request(self, endpoint: str, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Synchronous request/response"""
+    # Existing methods (unchanged)
+    def flow(self) -> Flow:
+        """REST-based flow interface"""
         pass
 
-    @abstractmethod
-    def streaming_request(
-        self,
-        endpoint: str,
-        data: Dict[str, Any]
-    ) -> Iterator[Dict[str, Any]]:
-        """Streaming request/response (yields chunks)"""
+    def library(self) -> Library:
+        """REST-based library interface"""
         pass
 
-    @abstractmethod
-    def bulk_import(
-        self,
-        endpoint: str,
-        items: Iterator[Dict[str, Any]]
-    ) -> None:
-        """Bulk import from iterator"""
+    def knowledge(self) -> Knowledge:
+        """REST-based knowledge interface"""
         pass
 
-    @abstractmethod
-    def bulk_export(
-        self,
-        endpoint: str
-    ) -> Iterator[Dict[str, Any]]:
-        """Bulk export as iterator"""
+    def collection(self) -> Collection:
+        """REST-based collection interface"""
         pass
 
-    @abstractmethod
+    def config(self) -> Config:
+        """REST-based config interface"""
+        pass
+
+    # New methods
+    def socket(self) -> SocketClient:
+        """WebSocket-based interface for streaming operations"""
+        if self._socket_client is None:
+            self._socket_client = SocketClient(self.url, self.timeout, self.token)
+        return self._socket_client
+
+    def bulk(self) -> BulkClient:
+        """Bulk operations interface for import/export"""
+        if self._bulk_client is None:
+            self._bulk_client = BulkClient(self.url, self.timeout, self.token)
+        return self._bulk_client
+
+    def metrics(self) -> Metrics:
+        """Metrics interface"""
+        return Metrics(self.url, self.timeout, self.token)
+
     def close(self) -> None:
-        """Close connection and cleanup"""
+        """Close all connections"""
+        if self._socket_client:
+            self._socket_client.close()
+        if self._bulk_client:
+            self._bulk_client.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close()
+```
+
+#### 2. WebSocket Client
+
+Module: `trustgraph-base/trustgraph/api/socket_client.py` (new)
+
+**SocketClient Class**:
+
+```python
+class SocketClient:
+    def __init__(self, url: str, timeout: int, token: Optional[str]):
+        self.url = self._convert_to_ws_url(url)
+        self.timeout = timeout
+        self.token = token
+        self._connection = None
+        self._request_counter = 0
+
+    def flow(self, flow_id: str) -> SocketFlowInstance:
+        """Get flow instance for WebSocket operations"""
+        return SocketFlowInstance(self, flow_id)
+
+    def _connect(self) -> WebSocket:
+        """Establish WebSocket connection"""
+        # Lazy connection establishment
+        pass
+
+    def _send_request(
+        self,
+        service: str,
+        flow: Optional[str],
+        request: Dict[str, Any],
+        streaming: bool = False
+    ) -> Union[Dict[str, Any], Iterator[Dict[str, Any]]]:
+        """Send request and handle response/streaming"""
+        pass
+
+    def close(self) -> None:
+        """Close WebSocket connection"""
+        pass
+
+class SocketFlowInstance:
+    """WebSocket flow instance with same interface as REST FlowInstance"""
+    def __init__(self, client: SocketClient, flow_id: str):
+        self.client = client
+        self.flow_id = flow_id
+
+    # Same method signatures as FlowInstance
+    def agent(
+        self,
+        question: str,
+        user: str,
+        state: Optional[Dict[str, Any]] = None,
+        group: Optional[str] = None,
+        history: Optional[List[Dict[str, Any]]] = None,
+        streaming: bool = False,  # Additional parameter for WebSocket
+        **kwargs
+    ) -> Union[Dict[str, Any], Iterator[Dict[str, Any]]]:
+        """Agent with optional streaming"""
+        pass
+
+    def text_completion(
+        self,
+        system: str,
+        prompt: str,
+        streaming: bool = False,
+        **kwargs
+    ) -> Union[str, Iterator[str]]:
+        """Text completion with optional streaming"""
+        pass
+
+    # ... similar for graph_rag, document_rag, prompt, etc.
+```
+
+**Key Features**:
+- Lazy connection (only connects when first request sent)
+- Request multiplexing (up to 15 concurrent)
+- Automatic reconnection on disconnect
+- Streaming response parsing
+- Thread-safe operation
+
+#### 3. Bulk Operations Client
+
+Module: `trustgraph-base/trustgraph/api/bulk_client.py` (new)
+
+**BulkClient Class**:
+
+```python
+class BulkClient:
+    def __init__(self, url: str, timeout: int, token: Optional[str]):
+        self.url = self._convert_to_ws_url(url)
+        self.timeout = timeout
+        self.token = token
+
+    def import_triples(
+        self,
+        flow: str,
+        triples: Iterator[Triple],
+        **kwargs
+    ) -> None:
+        """Bulk import triples via WebSocket"""
+        pass
+
+    def export_triples(
+        self,
+        flow: str,
+        **kwargs
+    ) -> Iterator[Triple]:
+        """Bulk export triples via WebSocket"""
+        pass
+
+    def import_graph_embeddings(
+        self,
+        flow: str,
+        embeddings: Iterator[Dict[str, Any]],
+        **kwargs
+    ) -> None:
+        """Bulk import graph embeddings via WebSocket"""
+        pass
+
+    def export_graph_embeddings(
+        self,
+        flow: str,
+        **kwargs
+    ) -> Iterator[Dict[str, Any]]:
+        """Bulk export graph embeddings via WebSocket"""
+        pass
+
+    # ... similar for document embeddings, entity contexts, objects
+
+    def close(self) -> None:
+        """Close connections"""
         pass
 ```
 
-#### 2. REST Transport Implementation
-
-Module: `trustgraph-base/trustgraph/api/transport/rest.py`
-
-- Uses existing `requests` library
-- `streaming_request()` raises `NotImplementedError` with helpful message
-- `bulk_import()` / `bulk_export()` implemented via REST endpoints where available
-- Maintains current behavior for backward compatibility
-
-#### 3. WebSocket Transport Implementation
-
-Module: `trustgraph-base/trustgraph/api/transport/websocket.py`
-
-- Uses `websockets` library (async, but wrapped in sync interface using `asyncio.run()`)
-- Maintains persistent connection
-- Implements request multiplexing (up to 15 concurrent)
-- Supports streaming responses
-- Handles WebSocket reconnection
-- Parses streaming chunk types (thoughts, observations, final-answer, RAG chunks)
-
 **Key Features**:
-- Automatic request ID generation
-- Response correlation by ID
-- Graceful error handling
-- Automatic reconnection on disconnect
-- Thread-safe for multi-threaded applications
+- Iterator-based for constant memory usage
+- Dedicated WebSocket connections per operation
+- Progress tracking (optional callback)
+- Error handling with partial success reporting
 
-#### 4. Enhanced Flow API
+#### 4. REST Flow API (Unchanged)
 
-Module: `trustgraph-base/trustgraph/api/flow.py` (modified)
+Module: `trustgraph-base/trustgraph/api/flow.py`
 
-**New Methods**:
+The REST Flow API remains **completely unchanged** for backward compatibility. All existing methods continue to work:
+
+- `Flow.list()`, `Flow.start()`, `Flow.stop()`, etc.
+- `FlowInstance.agent()`, `FlowInstance.text_completion()`, `FlowInstance.graph_rag()`, etc.
+- All existing signatures and return types preserved
+
+**New**: Add `graph_embeddings_query()` to REST FlowInstance for feature parity:
 
 ```python
 class FlowInstance:
-    # Existing methods remain unchanged
+    # All existing methods unchanged...
 
-    # New: Graph embeddings query
+    # New: Graph embeddings query (REST)
     def graph_embeddings_query(
         self,
         text: str,
@@ -196,192 +347,7 @@ class FlowInstance:
         **kwargs
     ) -> List[Dict[str, Any]]:
         """Query graph embeddings for semantic search"""
-        pass
-
-    # New: Bulk triple import
-    def import_triples(
-        self,
-        triples: Iterator[Triple],
-        **kwargs
-    ) -> None:
-        """Bulk import triples (requires WebSocket transport)"""
-        pass
-
-    # New: Bulk triple export
-    def export_triples(
-        self,
-        **kwargs
-    ) -> Iterator[Triple]:
-        """Bulk export triples (requires WebSocket transport)"""
-        pass
-
-    # New: Bulk graph embeddings import
-    def import_graph_embeddings(
-        self,
-        embeddings: Iterator[Dict[str, Any]],
-        **kwargs
-    ) -> None:
-        """Bulk import graph embeddings (requires WebSocket transport)"""
-        pass
-
-    # New: Bulk graph embeddings export
-    def export_graph_embeddings(
-        self,
-        **kwargs
-    ) -> Iterator[Dict[str, Any]]:
-        """Bulk export graph embeddings (requires WebSocket transport)"""
-        pass
-
-    # New: Bulk document embeddings import
-    def import_document_embeddings(
-        self,
-        embeddings: Iterator[Dict[str, Any]],
-        **kwargs
-    ) -> None:
-        """Bulk import document embeddings (requires WebSocket transport)"""
-        pass
-
-    # New: Bulk document embeddings export
-    def export_document_embeddings(
-        self,
-        **kwargs
-    ) -> Iterator[Dict[str, Any]]:
-        """Bulk export document embeddings (requires WebSocket transport)"""
-        pass
-
-    # New: Bulk entity contexts import
-    def import_entity_contexts(
-        self,
-        contexts: Iterator[Dict[str, Any]],
-        **kwargs
-    ) -> None:
-        """Bulk import entity contexts (requires WebSocket transport)"""
-        pass
-
-    # New: Bulk entity contexts export
-    def export_entity_contexts(
-        self,
-        **kwargs
-    ) -> Iterator[Dict[str, Any]]:
-        """Bulk export entity contexts (requires WebSocket transport)"""
-        pass
-
-    # New: Bulk objects import
-    def import_objects(
-        self,
-        objects: Iterator[Dict[str, Any]],
-        **kwargs
-    ) -> None:
-        """Bulk import objects (requires WebSocket transport)"""
-        pass
-```
-
-**Modified Methods** (add streaming parameter):
-
-```python
-class FlowInstance:
-    def agent(
-        self,
-        question: str,
-        user: str,
-        state: Optional[Dict[str, Any]] = None,
-        group: Optional[str] = None,
-        history: Optional[List[Dict[str, Any]]] = None,
-        streaming: bool = False,  # NEW
-        **kwargs
-    ) -> Union[Dict[str, Any], Iterator[Dict[str, Any]]]:
-        """
-        Execute agent with optional streaming.
-
-        Returns:
-            - If streaming=False: Dict with final response
-            - If streaming=True: Iterator yielding chunks
-
-        Raises:
-            NotImplementedError: If streaming=True with REST transport
-        """
-        pass
-
-    def text_completion(
-        self,
-        system: str,
-        prompt: str,
-        streaming: bool = False,  # NEW
-        **kwargs
-    ) -> Union[str, Iterator[str]]:
-        """
-        Text completion with optional streaming.
-
-        Returns:
-            - If streaming=False: Complete response string
-            - If streaming=True: Iterator yielding token chunks
-
-        Raises:
-            NotImplementedError: If streaming=True with REST transport
-        """
-        pass
-
-    def graph_rag(
-        self,
-        question: str,
-        user: str,
-        collection: str,
-        max_subgraph_size: int = 1000,
-        max_subgraph_count: int = 5,
-        max_entity_distance: int = 3,
-        streaming: bool = False,  # NEW
-        **kwargs
-    ) -> Union[str, Iterator[str]]:
-        """
-        Graph RAG with optional streaming.
-
-        Returns:
-            - If streaming=False: Complete response string
-            - If streaming=True: Iterator yielding chunks
-
-        Raises:
-            NotImplementedError: If streaming=True with REST transport
-        """
-        pass
-
-    def document_rag(
-        self,
-        question: str,
-        user: str,
-        collection: str,
-        doc_limit: int = 10,
-        streaming: bool = False,  # NEW
-        **kwargs
-    ) -> Union[str, Iterator[str]]:
-        """
-        Document RAG with optional streaming.
-
-        Returns:
-            - If streaming=False: Complete response string
-            - If streaming=True: Iterator yielding chunks
-
-        Raises:
-            NotImplementedError: If streaming=True with REST transport
-        """
-        pass
-
-    def prompt(
-        self,
-        id: str,
-        variables: Dict[str, str],
-        streaming: bool = False,  # NEW
-        **kwargs
-    ) -> Union[str, Iterator[str]]:
-        """
-        Execute prompt with optional streaming.
-
-        Returns:
-            - If streaming=False: Complete response string
-            - If streaming=True: Iterator yielding chunks
-
-        Raises:
-            NotImplementedError: If streaming=True with REST transport
-        """
+        # Calls POST /api/v1/flow/{flow}/service/graph-embeddings
         pass
 ```
 
@@ -435,8 +401,10 @@ Module: `trustgraph-base/trustgraph/api/metrics.py` (new)
 
 ```python
 class Metrics:
-    def __init__(self, transport: Transport):
-        self.transport = transport
+    def __init__(self, url: str, timeout: int, token: Optional[str]):
+        self.url = url
+        self.timeout = timeout
+        self.token = token
 
     def get(self) -> str:
         """Get Prometheus metrics as text"""
@@ -446,70 +414,82 @@ class Metrics:
 
 ### Implementation Approach
 
-#### Phase 1: Transport Abstraction (Week 1)
+#### Phase 1: Core API Enhancement (Week 1)
 
-1. Create transport layer abstraction
-2. Refactor existing REST code into `RestTransport` class
-3. Update `Api` class to use transport abstraction
-4. Add unit tests for transport layer
-5. Verify backward compatibility
+1. Add `socket()`, `bulk()`, and `metrics()` methods to `Api` class
+2. Implement lazy initialization for WebSocket and bulk clients
+3. Add context manager support (`__enter__`, `__exit__`)
+4. Add `close()` method for cleanup
+5. Add unit tests for API class enhancements
+6. Verify backward compatibility
 
-**Backward Compatibility**: Zero breaking changes. All existing code works unchanged.
+**Backward Compatibility**: Zero breaking changes. New methods only.
 
-#### Phase 2: WebSocket Transport (Week 2-3)
+#### Phase 2: WebSocket Client (Week 2-3)
 
-1. Implement `WebSocketTransport` class
-2. Add WebSocket connection management
-3. Implement request multiplexing
-4. Add streaming response parsing
-5. Add unit and integration tests
-6. Document WebSocket usage patterns
+1. Implement `SocketClient` class with connection management
+2. Implement `SocketFlowInstance` with same method signatures as `FlowInstance`
+3. Add request multiplexing support (up to 15 concurrent)
+4. Add streaming response parsing for different chunk types
+5. Add automatic reconnection logic
+6. Add unit and integration tests
+7. Document WebSocket usage patterns
 
-**Backward Compatibility**: Opt-in via constructor parameter. Default remains REST.
+**Backward Compatibility**: New interface only. Zero impact on existing code.
 
-#### Phase 3: Streaming API Enhancement (Week 3-4)
+#### Phase 3: Streaming Support (Week 3-4)
 
-1. Add `streaming` parameter to LLM methods (agent, text_completion, graph_rag, document_rag, prompt)
-2. Implement streaming response handling
-3. Add streaming chunk types and parsers
-4. Add unit and integration tests
-5. Add streaming examples to documentation
+1. Add streaming chunk type classes (`AgentThought`, `AgentObservation`, `AgentAnswer`, `RAGChunk`)
+2. Implement streaming response parsing in `SocketClient`
+3. Add streaming parameter to all LLM methods in `SocketFlowInstance`
+4. Handle error cases during streaming
+5. Add unit and integration tests for streaming
+6. Add streaming examples to documentation
 
-**Backward Compatibility**: `streaming=False` by default. Existing calls work unchanged.
+**Backward Compatibility**: New interface only. Existing REST API unchanged.
 
 #### Phase 4: Bulk Operations (Week 4-5)
 
-1. Add bulk import/export methods to `FlowInstance`
-2. Implement iterator-based bulk operations
-3. Add progress tracking (optional callback)
-4. Add unit and integration tests
-5. Add bulk operation examples
+1. Implement `BulkClient` class
+2. Add bulk import/export methods for triples, embeddings, contexts, objects
+3. Implement iterator-based processing for constant memory
+4. Add progress tracking (optional callback)
+5. Add error handling with partial success reporting
+6. Add unit and integration tests
+7. Add bulk operation examples
 
-**Backward Compatibility**: New methods only. Zero impact on existing code.
+**Backward Compatibility**: New interface only. Zero impact on existing code.
 
-#### Phase 5: Feature Parity (Week 5)
+#### Phase 5: Feature Parity & Polish (Week 5)
 
-1. Add `graph_embeddings_query()` method
-2. Add `Metrics` API
-3. Comprehensive integration tests
-4. Update documentation
-5. Migration guide for users
+1. Add `graph_embeddings_query()` to REST `FlowInstance`
+2. Implement `Metrics` class
+3. Add comprehensive integration tests
+4. Performance benchmarking
+5. Update all documentation
+6. Create migration guide
 
 **Backward Compatibility**: New methods only. Zero impact on existing code.
 
 ### Data Models
 
-#### Transport Selection
+#### Interface Selection
 
 ```python
-# Automatic transport selection based on URL scheme
-api = Api(url="http://localhost:8088/")   # Uses RestTransport
-api = Api(url="https://localhost:8088/")  # Uses RestTransport
-api = Api(url="ws://localhost:8088/")     # Uses WebSocketTransport
-api = Api(url="wss://localhost:8088/")    # Uses WebSocketTransport (secure)
+# Single API instance, same URL for all interfaces
+api = Api(url="http://localhost:8088/")
 
-# Explicit transport override
-api = Api(url="http://localhost:8088/", transport="websocket")  # Force WebSocket
+# REST interface (existing)
+rest_flow = api.flow().id("default")
+
+# WebSocket interface (new)
+socket_flow = api.socket().flow("default")
+
+# Bulk operations interface (new)
+bulk = api.bulk()
+
+# Metrics interface (new)
+metrics = api.metrics()
 ```
 
 #### Streaming Response Types
@@ -517,14 +497,20 @@ api = Api(url="http://localhost:8088/", transport="websocket")  # Force WebSocke
 **Agent Streaming**:
 
 ```python
-flow = api.flow().id("default")
+api = Api(url="http://localhost:8088/")
 
-# Non-streaming (existing)
-response = flow.agent(question="What is ML?", user="user123")
+# REST interface - non-streaming (existing)
+rest_flow = api.flow().id("default")
+response = rest_flow.agent(question="What is ML?", user="user123")
 print(response["response"])
 
-# Streaming (new)
-for chunk in flow.agent(question="What is ML?", user="user123", streaming=True):
+# WebSocket interface - non-streaming (same signature)
+socket_flow = api.socket().flow("default")
+response = socket_flow.agent(question="What is ML?", user="user123")
+print(response["response"])
+
+# WebSocket interface - streaming (new)
+for chunk in socket_flow.agent(question="What is ML?", user="user123", streaming=True):
     if isinstance(chunk, AgentThought):
         print(f"Thinking: {chunk.content}")
     elif isinstance(chunk, AgentObservation):
@@ -538,12 +524,16 @@ for chunk in flow.agent(question="What is ML?", user="user123", streaming=True):
 **RAG Streaming**:
 
 ```python
-# Non-streaming (existing)
-response = flow.graph_rag(question="What is Python?", user="user123", collection="default")
+api = Api(url="http://localhost:8088/")
+
+# REST interface - non-streaming (existing)
+rest_flow = api.flow().id("default")
+response = rest_flow.graph_rag(question="What is Python?", user="user123", collection="default")
 print(response)
 
-# Streaming (new)
-for chunk in flow.graph_rag(
+# WebSocket interface - streaming (new)
+socket_flow = api.socket().flow("default")
+for chunk in socket_flow.graph_rag(
     question="What is Python?",
     user="user123",
     collection="default",
@@ -557,17 +547,19 @@ for chunk in flow.graph_rag(
 **Bulk Operations**:
 
 ```python
+api = Api(url="http://localhost:8088/")
+
 # Bulk import triples
 def triple_generator():
     yield Triple(s="http://ex.com/alice", p="http://ex.com/type", o="Person")
     yield Triple(s="http://ex.com/alice", p="http://ex.com/name", o="Alice")
     yield Triple(s="http://ex.com/bob", p="http://ex.com/type", o="Person")
 
-flow = api.flow().id("default")
-flow.import_triples(triple_generator())
+bulk = api.bulk()
+bulk.import_triples(flow="default", triples=triple_generator())
 
 # Bulk export triples
-for triple in flow.export_triples():
+for triple in bulk.export_triples(flow="default"):
     print(f"{triple.s} -> {triple.p} -> {triple.o}")
 ```
 
@@ -575,79 +567,95 @@ for triple in flow.export_triples():
 
 #### New APIs
 
-1. **Transport Layer**:
-   - `Transport` (abstract base class)
-   - `RestTransport` (REST implementation)
-   - `WebSocketTransport` (WebSocket implementation)
+1. **Core API Class**:
+   - `Api.socket()` - Get WebSocket client for streaming operations
+   - `Api.bulk()` - Get bulk operations client for import/export
+   - `Api.metrics()` - Get metrics client
+   - `Api.close()` - Close all connections
+   - Context manager support (`__enter__`, `__exit__`)
 
-2. **Flow-Scoped Services**:
-   - `FlowInstance.graph_embeddings_query()` - Semantic graph search
-   - `FlowInstance.import_triples()` - Bulk triple import
-   - `FlowInstance.export_triples()` - Bulk triple export
-   - `FlowInstance.import_graph_embeddings()` - Bulk graph embeddings import
-   - `FlowInstance.export_graph_embeddings()` - Bulk graph embeddings export
-   - `FlowInstance.import_document_embeddings()` - Bulk document embeddings import
-   - `FlowInstance.export_document_embeddings()` - Bulk document embeddings export
-   - `FlowInstance.import_entity_contexts()` - Bulk entity contexts import
-   - `FlowInstance.export_entity_contexts()` - Bulk entity contexts export
-   - `FlowInstance.import_objects()` - Bulk objects import
+2. **WebSocket Client**:
+   - `SocketClient.flow(flow_id)` - Get WebSocket flow instance
+   - `SocketFlowInstance.agent(..., streaming: bool = False)` - Agent with optional streaming
+   - `SocketFlowInstance.text_completion(..., streaming: bool = False)` - Text completion with optional streaming
+   - `SocketFlowInstance.graph_rag(..., streaming: bool = False)` - Graph RAG with optional streaming
+   - `SocketFlowInstance.document_rag(..., streaming: bool = False)` - Document RAG with optional streaming
+   - `SocketFlowInstance.prompt(..., streaming: bool = False)` - Prompt with optional streaming
+   - `SocketFlowInstance.graph_embeddings_query()` - Graph embeddings query
+   - All other FlowInstance methods with identical signatures
 
-3. **Metrics**:
-   - `Api.metrics()` - Access metrics API
-   - `Metrics.get()` - Get Prometheus metrics
+3. **Bulk Operations Client**:
+   - `BulkClient.import_triples(flow, triples)` - Bulk triple import
+   - `BulkClient.export_triples(flow)` - Bulk triple export
+   - `BulkClient.import_graph_embeddings(flow, embeddings)` - Bulk graph embeddings import
+   - `BulkClient.export_graph_embeddings(flow)` - Bulk graph embeddings export
+   - `BulkClient.import_document_embeddings(flow, embeddings)` - Bulk document embeddings import
+   - `BulkClient.export_document_embeddings(flow)` - Bulk document embeddings export
+   - `BulkClient.import_entity_contexts(flow, contexts)` - Bulk entity contexts import
+   - `BulkClient.export_entity_contexts(flow)` - Bulk entity contexts export
+   - `BulkClient.import_objects(flow, objects)` - Bulk objects import
+
+4. **Metrics Client**:
+   - `Metrics.get()` - Get Prometheus metrics as text
+
+5. **REST Flow API Enhancement**:
+   - `FlowInstance.graph_embeddings_query()` - Graph embeddings query (feature parity)
 
 #### Modified APIs
 
-1. **Constructor**:
+1. **Constructor** (minor enhancement):
    ```python
-   Api(url: str, timeout: int = 60, transport: Optional[str] = None, token: Optional[str] = None)
+   Api(url: str, timeout: int = 60, token: Optional[str] = None)
    ```
-   - Added `transport` parameter (optional, auto-detected from URL scheme)
-   - Added `token` parameter (optional, for WebSocket query param auth)
+   - Added `token` parameter (optional, for authentication)
+   - No other changes - fully backward compatible
 
-2. **LLM Services** (add `streaming` parameter):
-   - `FlowInstance.agent(..., streaming: bool = False)`
-   - `FlowInstance.text_completion(..., streaming: bool = False)`
-   - `FlowInstance.graph_rag(..., streaming: bool = False)`
-   - `FlowInstance.document_rag(..., streaming: bool = False)`
-   - `FlowInstance.prompt(..., streaming: bool = False)`
+2. **No Breaking Changes**:
+   - All existing REST API methods unchanged
+   - All existing signatures preserved
+   - All existing return types preserved
 
 ### Implementation Details
 
 #### Error Handling
 
-**Transport Not Supported**:
+**WebSocket Connection Errors**:
 ```python
 try:
-    api = Api(url="http://localhost:8088/", transport="rest")
-    flow = api.flow().id("default")
-
-    # This raises NotImplementedError
-    for chunk in flow.agent(question="...", streaming=True):
-        print(chunk)
-except NotImplementedError as e:
-    print(f"Error: {e}")
-    print("Hint: Use WebSocket transport for streaming: Api(url='ws://localhost:8088/')")
-```
-
-**Connection Errors**:
-```python
-try:
-    api = Api(url="ws://localhost:8088/")
-    flow = api.flow().id("default")
-    response = flow.agent(question="...", user="user123")
+    api = Api(url="http://localhost:8088/")
+    socket = api.socket()
+    socket_flow = socket.flow("default")
+    response = socket_flow.agent(question="...", user="user123")
 except ConnectionError as e:
     print(f"WebSocket connection failed: {e}")
     print("Hint: Ensure Gateway is running and WebSocket endpoint is accessible")
 ```
 
+**Graceful Fallback**:
+```python
+api = Api(url="http://localhost:8088/")
+
+try:
+    # Try WebSocket streaming first
+    socket_flow = api.socket().flow("default")
+    for chunk in socket_flow.agent(question="...", user="...", streaming=True):
+        print(chunk.content)
+except ConnectionError:
+    # Fall back to REST non-streaming
+    print("WebSocket unavailable, falling back to REST")
+    rest_flow = api.flow().id("default")
+    response = rest_flow.agent(question="...", user="...")
+    print(response["response"])
+```
+
 **Partial Streaming Errors**:
 ```python
-flow = api.flow().id("default")
+api = Api(url="http://localhost:8088/")
+socket_flow = api.socket().flow("default")
 
 accumulated = []
 try:
-    for chunk in flow.graph_rag(question="...", streaming=True):
+    for chunk in socket_flow.graph_rag(question="...", streaming=True):
         accumulated.append(chunk.content)
         if chunk.error:
             print(f"Error occurred: {chunk.error}")
@@ -663,18 +671,18 @@ except Exception as e:
 **Context Manager Support**:
 ```python
 # Automatic cleanup
-with Api(url="ws://localhost:8088/") as api:
-    flow = api.flow().id("default")
-    response = flow.agent(question="...", user="user123")
-# WebSocket connection automatically closed
+with Api(url="http://localhost:8088/") as api:
+    socket_flow = api.socket().flow("default")
+    response = socket_flow.agent(question="...", user="user123")
+# All connections automatically closed
 
 # Manual cleanup
-api = Api(url="ws://localhost:8088/")
+api = Api(url="http://localhost:8088/")
 try:
-    flow = api.flow().id("default")
-    response = flow.agent(question="...", user="user123")
+    socket_flow = api.socket().flow("default")
+    response = socket_flow.agent(question="...", user="user123")
 finally:
-    api.close()  # Explicitly close WebSocket connection
+    api.close()  # Explicitly close all connections (WebSocket, bulk, etc.)
 ```
 
 #### Threading and Concurrency
@@ -868,41 +876,49 @@ response = flow.agent(question="What is ML?", user="user123")
 
 ### Phase 2: Opt-in Streaming (Simple)
 
-**Add `streaming=True` parameter** to enable streaming:
+**Use `api.socket()` interface** to enable streaming:
 
 ```python
-# Before: Non-streaming
-response = flow.agent(question="What is ML?", user="user123")
+# Before: Non-streaming REST
+api = Api(url="http://localhost:8088/")
+rest_flow = api.flow().id("default")
+response = rest_flow.agent(question="What is ML?", user="user123")
 print(response["response"])
 
-# After: Streaming
-api = Api(url="ws://localhost:8088/")  # Use WebSocket transport
-flow = api.flow().id("default")
+# After: Streaming WebSocket (same parameters!)
+api = Api(url="http://localhost:8088/")  # Same URL
+socket_flow = api.socket().flow("default")
 
-for chunk in flow.agent(question="What is ML?", user="user123", streaming=True):
+for chunk in socket_flow.agent(question="What is ML?", user="user123", streaming=True):
     if isinstance(chunk, AgentAnswer):
         print(chunk.content, end="", flush=True)
 ```
 
+**Key Points**:
+- Same URL for both REST and WebSocket
+- Same method signatures (easy migration)
+- Just add `.socket()` and `streaming=True`
+
 ### Phase 3: Bulk Operations (New Capability)
 
-**Use new bulk methods** for large datasets:
+**Use `api.bulk()` interface** for large datasets:
 
 ```python
-# Before: Inefficient per-item loading
+# Before: Inefficient per-item operations
 api = Api(url="http://localhost:8088/")
 flow = api.flow().id("default")
 
 for triple in my_large_triple_list:
-    # This is slow (100 triples/second)
-    flow.triples_query(...)  # Not ideal for bulk insert
+    # Slow per-item operations
+    # (no direct bulk insert in REST API)
+    pass
 
 # After: Efficient bulk loading
-api = Api(url="ws://localhost:8088/")
-flow = api.flow().id("default")
+api = Api(url="http://localhost:8088/")  # Same URL
+bulk = api.bulk()
 
 # This is fast (10,000 triples/second)
-flow.import_triples(iter(my_large_triple_list))
+bulk.import_triples(flow="default", triples=iter(my_large_triple_list))
 ```
 
 ### Documentation Updates
