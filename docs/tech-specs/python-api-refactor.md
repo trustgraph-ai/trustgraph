@@ -979,14 +979,14 @@ bulk.import_triples(flow="default", triples=iter(my_large_triple_list))
 ### API Design Questions
 
 1. **Async Support**: Should we provide an async variant (`AsyncApi`) in the initial release, or defer to Phase 2?
-   - **Recommendation**: Defer to Phase 2. Focus on sync API first for simplicity.
+   - **Recommendation**: Defer to Phase 2. Focus on sync API first for simplicity and backward compatibility.
 
 2. **Progress Tracking**: Should bulk operations support progress callbacks?
    ```python
    def progress_callback(processed: int, total: Optional[int]):
        print(f"Processed {processed} items")
 
-   flow.import_triples(triples, on_progress=progress_callback)
+   bulk.import_triples(flow="default", triples=triples, on_progress=progress_callback)
    ```
    - **Recommendation**: Add in Phase 2. Not critical for initial release.
 
@@ -996,16 +996,22 @@ bulk.import_triples(flow="default", triples=iter(my_large_triple_list))
 4. **Chunk Buffering**: Should we buffer chunks or yield immediately?
    - **Recommendation**: Yield immediately for lowest latency.
 
+5. **Global Services via WebSocket**: Should `api.socket()` support global services (library, knowledge, collection, config) or only flow-scoped services?
+   - **Recommendation**: Start with flow-scoped only (where streaming matters). Add global services if needed in Phase 2.
+
 ### Implementation Questions
 
 1. **WebSocket Library**: Should we use `websockets`, `websocket-client`, or `aiohttp`?
-   - **Recommendation**: `websockets` (async, mature, well-maintained). Wrap in sync interface.
+   - **Recommendation**: `websockets` (async, mature, well-maintained). Wrap in sync interface using `asyncio.run()`.
 
 2. **Connection Pooling**: Should we support multiple concurrent `Api` instances sharing a connection pool?
-   - **Recommendation**: Defer to Phase 2. Each `Api` instance has its own connection initially.
+   - **Recommendation**: Defer to Phase 2. Each `Api` instance has its own connections initially.
 
-3. **Automatic Fallback**: Should we automatically fallback from WebSocket to REST on connection failure?
-   - **Recommendation**: No automatic fallback. Explicit user choice. Fail fast with clear error message.
+3. **Connection Reuse**: Should `SocketClient` and `BulkClient` share the same WebSocket connection, or use separate connections?
+   - **Recommendation**: Separate connections. Simpler implementation, clearer separation of concerns.
+
+4. **Lazy vs Eager Connection**: Should WebSocket connection be established in `api.socket()` or on first request?
+   - **Recommendation**: Lazy (on first request). Avoids connection overhead if user only uses REST methods.
 
 ### Testing Questions
 
