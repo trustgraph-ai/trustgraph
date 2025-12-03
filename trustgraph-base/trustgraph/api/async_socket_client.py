@@ -189,12 +189,16 @@ class AsyncSocketFlowInstance:
         request.update(kwargs)
 
         if streaming:
-            async for chunk in self.client._send_request_streaming("text-completion", self.flow_id, request):
-                if hasattr(chunk, 'content'):
-                    yield chunk.content
+            return self._text_completion_streaming(request)
         else:
             result = await self.client._send_request("text-completion", self.flow_id, request)
             return result.get("response", "")
+
+    async def _text_completion_streaming(self, request):
+        """Helper for streaming text completion"""
+        async for chunk in self.client._send_request_streaming("text-completion", self.flow_id, request):
+            if hasattr(chunk, 'content'):
+                yield chunk.content
 
     async def graph_rag(self, question: str, user: str, collection: str,
                         max_subgraph_size: int = 1000, max_subgraph_count: int = 5,
@@ -212,12 +216,16 @@ class AsyncSocketFlowInstance:
         request.update(kwargs)
 
         if streaming:
-            async for chunk in self.client._send_request_streaming("graph-rag", self.flow_id, request):
-                if hasattr(chunk, 'content'):
-                    yield chunk.content
+            return self._graph_rag_streaming(request)
         else:
             result = await self.client._send_request("graph-rag", self.flow_id, request)
             return result.get("response", "")
+
+    async def _graph_rag_streaming(self, request):
+        """Helper for streaming graph RAG"""
+        async for chunk in self.client._send_request_streaming("graph-rag", self.flow_id, request):
+            if hasattr(chunk, 'content'):
+                yield chunk.content
 
     async def document_rag(self, question: str, user: str, collection: str,
                            doc_limit: int = 10, streaming: bool = False, **kwargs):
@@ -232,12 +240,16 @@ class AsyncSocketFlowInstance:
         request.update(kwargs)
 
         if streaming:
-            async for chunk in self.client._send_request_streaming("document-rag", self.flow_id, request):
-                if hasattr(chunk, 'content'):
-                    yield chunk.content
+            return self._document_rag_streaming(request)
         else:
             result = await self.client._send_request("document-rag", self.flow_id, request)
             return result.get("response", "")
+
+    async def _document_rag_streaming(self, request):
+        """Helper for streaming document RAG"""
+        async for chunk in self.client._send_request_streaming("document-rag", self.flow_id, request):
+            if hasattr(chunk, 'content'):
+                yield chunk.content
 
     async def prompt(self, id: str, variables: Dict[str, str], streaming: bool = False, **kwargs):
         """Execute prompt with optional streaming"""
@@ -249,12 +261,16 @@ class AsyncSocketFlowInstance:
         request.update(kwargs)
 
         if streaming:
-            async for chunk in self.client._send_request_streaming("prompt", self.flow_id, request):
-                if hasattr(chunk, 'content'):
-                    yield chunk.content
+            return self._prompt_streaming(request)
         else:
             result = await self.client._send_request("prompt", self.flow_id, request)
             return result.get("response", "")
+
+    async def _prompt_streaming(self, request):
+        """Helper for streaming prompt"""
+        async for chunk in self.client._send_request_streaming("prompt", self.flow_id, request):
+            if hasattr(chunk, 'content'):
+                yield chunk.content
 
     async def graph_embeddings_query(self, text: str, user: str, collection: str, limit: int = 10, **kwargs):
         """Query graph embeddings for semantic search"""

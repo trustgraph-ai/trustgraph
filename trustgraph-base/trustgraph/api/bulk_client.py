@@ -68,9 +68,7 @@ class BulkClient:
             if loop.is_running():
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
-        except Runtime
-
-Error:
+        except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
 
