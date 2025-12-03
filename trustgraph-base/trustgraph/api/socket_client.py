@@ -56,11 +56,11 @@ class SocketClient:
             return self._streaming_generator(service, flow, request, loop)
         else:
             # For non-streaming, just run the async code and return result
-            return loop.run_until_complete(self._send_request_async(service, flow, request, False))
+            return loop.run_until_complete(self._send_request_async(service, flow, request))
 
     def _streaming_generator(self, service: str, flow: Optional[str], request: Dict[str, Any], loop):
         """Generator that yields streaming chunks"""
-        async_gen = self._send_request_async(service, flow, request, True)
+        async_gen = self._send_request_async_streaming(service, flow, request)
 
         try:
             while True:
@@ -76,8 +76,8 @@ class SocketClient:
             except:
                 pass
 
-    async def _send_request_async(self, service: str, flow: Optional[str], request: Dict[str, Any], streaming: bool):
-        """Async implementation of WebSocket request"""
+    async def _send_request_async(self, service: str, flow: Optional[str], request: Dict[str, Any]):
+        """Async implementation of WebSocket request (non-streaming)"""
         # Generate unique request ID
         with self._lock:
             self._request_counter += 1
@@ -101,42 +101,66 @@ class SocketClient:
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
             await websocket.send(json.dumps(message))
 
-            if streaming:
-                # Yield chunks as they arrive
-                async for raw_message in websocket:
-                    response = json.loads(raw_message)
+            # Wait for single response
+            raw_message = await websocket.recv()
+            response = json.loads(raw_message)
 
-                    if response.get("id") != request_id:
-                        continue  # Ignore messages for other requests
+            if response.get("id") != request_id:
+                raise ProtocolException(f"Response ID mismatch")
 
-                    if "error" in response:
-                        raise ApplicationException(response["error"])
+            if "error" in response:
+                raise ApplicationException(response["error"])
 
-                    if "response" in response:
-                        resp = response["response"]
+            if "response" not in response:
+                raise ProtocolException(f"Missing response in message")
 
-                        # Parse different chunk types
-                        chunk = self._parse_chunk(resp)
-                        yield chunk
+            return response["response"]
 
-                        # Check if this is the final chunk
-                        if resp.get("end_of_stream") or resp.get("end_of_dialog") or response.get("complete"):
-                            break
-            else:
-                # Wait for single response
-                raw_message = await websocket.recv()
+    async def _send_request_async_streaming(self, service: str, flow: Optional[str], request: Dict[str, Any]):
+        """Async implementation of WebSocket request (streaming)"""
+        # Generate unique request ID
+        with self._lock:
+            self._request_counter += 1
+            request_id = f"req-{self._request_counter}"
+
+        # Build WebSocket URL with optional token
+        ws_url = f"{self.url}/api/v1/socket"
+        if self.token:
+            ws_url = f"{ws_url}?token={self.token}"
+
+        # Build request message
+        message = {
+            "id": request_id,
+            "service": service,
+            "request": request
+        }
+        if flow:
+            message["flow"] = flow
+
+        # Connect and send request
+        async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
+            await websocket.send(json.dumps(message))
+
+            # Yield chunks as they arrive
+            async for raw_message in websocket:
                 response = json.loads(raw_message)
 
                 if response.get("id") != request_id:
-                    raise ProtocolException(f"Response ID mismatch")
+                    continue  # Ignore messages for other requests
 
                 if "error" in response:
                     raise ApplicationException(response["error"])
 
-                if "response" not in response:
-                    raise ProtocolException(f"Missing response in message")
+                if "response" in response:
+                    resp = response["response"]
 
-                return response["response"]
+                    # Parse different chunk types
+                    chunk = self._parse_chunk(resp)
+                    yield chunk
+
+                    # Check if this is the final chunk
+                    if resp.get("end_of_stream") or resp.get("end_of_dialog") or response.get("complete"):
+                        break
 
     def _parse_chunk(self, resp: Dict[str, Any]):
         """Parse response chunk into appropriate type"""

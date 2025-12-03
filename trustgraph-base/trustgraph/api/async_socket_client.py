@@ -32,8 +32,8 @@ class AsyncSocketClient:
         """Get async flow instance for WebSocket operations"""
         return AsyncSocketFlowInstance(self, flow_id)
 
-    async def _send_request(self, service: str, flow: Optional[str], request: Dict[str, Any], streaming: bool = False):
-        """Async WebSocket request implementation"""
+    async def _send_request(self, service: str, flow: Optional[str], request: Dict[str, Any]):
+        """Async WebSocket request implementation (non-streaming)"""
         # Generate unique request ID
         self._request_counter += 1
         request_id = f"req-{self._request_counter}"
@@ -56,42 +56,65 @@ class AsyncSocketClient:
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
             await websocket.send(json.dumps(message))
 
-            if streaming:
-                # Yield chunks as they arrive
-                async for raw_message in websocket:
-                    response = json.loads(raw_message)
+            # Wait for single response
+            raw_message = await websocket.recv()
+            response = json.loads(raw_message)
 
-                    if response.get("id") != request_id:
-                        continue  # Ignore messages for other requests
+            if response.get("id") != request_id:
+                raise ProtocolException(f"Response ID mismatch")
 
-                    if "error" in response:
-                        raise ApplicationException(response["error"])
+            if "error" in response:
+                raise ApplicationException(response["error"])
 
-                    if "response" in response:
-                        resp = response["response"]
+            if "response" not in response:
+                raise ProtocolException(f"Missing response in message")
 
-                        # Parse different chunk types
-                        chunk = self._parse_chunk(resp)
-                        yield chunk
+            return response["response"]
 
-                        # Check if this is the final chunk
-                        if resp.get("end_of_stream") or resp.get("end_of_dialog") or response.get("complete"):
-                            break
-            else:
-                # Wait for single response
-                raw_message = await websocket.recv()
+    async def _send_request_streaming(self, service: str, flow: Optional[str], request: Dict[str, Any]):
+        """Async WebSocket request implementation (streaming)"""
+        # Generate unique request ID
+        self._request_counter += 1
+        request_id = f"req-{self._request_counter}"
+
+        # Build WebSocket URL with optional token
+        ws_url = f"{self.url}/api/v1/socket"
+        if self.token:
+            ws_url = f"{ws_url}?token={self.token}"
+
+        # Build request message
+        message = {
+            "id": request_id,
+            "service": service,
+            "request": request
+        }
+        if flow:
+            message["flow"] = flow
+
+        # Connect and send request
+        async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
+            await websocket.send(json.dumps(message))
+
+            # Yield chunks as they arrive
+            async for raw_message in websocket:
                 response = json.loads(raw_message)
 
                 if response.get("id") != request_id:
-                    raise ProtocolException(f"Response ID mismatch")
+                    continue  # Ignore messages for other requests
 
                 if "error" in response:
                     raise ApplicationException(response["error"])
 
-                if "response" not in response:
-                    raise ProtocolException(f"Missing response in message")
+                if "response" in response:
+                    resp = response["response"]
 
-                return response["response"]
+                    # Parse different chunk types
+                    chunk = self._parse_chunk(resp)
+                    yield chunk
+
+                    # Check if this is the final chunk
+                    if resp.get("end_of_stream") or resp.get("end_of_dialog") or response.get("complete"):
+                        break
 
     def _parse_chunk(self, resp: Dict[str, Any]):
         """Parse response chunk into appropriate type"""
@@ -152,9 +175,9 @@ class AsyncSocketFlowInstance:
         request.update(kwargs)
 
         if streaming:
-            return self.client._send_request("agent", self.flow_id, request, True)
+            return self.client._send_request_streaming("agent", self.flow_id, request)
         else:
-            return await self.client._send_request("agent", self.flow_id, request, False)
+            return await self.client._send_request("agent", self.flow_id, request)
 
     async def text_completion(self, system: str, prompt: str, streaming: bool = False, **kwargs):
         """Text completion with optional streaming"""
@@ -166,11 +189,11 @@ class AsyncSocketFlowInstance:
         request.update(kwargs)
 
         if streaming:
-            async for chunk in self.client._send_request("text-completion", self.flow_id, request, True):
+            async for chunk in self.client._send_request_streaming("text-completion", self.flow_id, request):
                 if hasattr(chunk, 'content'):
                     yield chunk.content
         else:
-            result = await self.client._send_request("text-completion", self.flow_id, request, False)
+            result = await self.client._send_request("text-completion", self.flow_id, request)
             return result.get("response", "")
 
     async def graph_rag(self, question: str, user: str, collection: str,
@@ -189,11 +212,11 @@ class AsyncSocketFlowInstance:
         request.update(kwargs)
 
         if streaming:
-            async for chunk in self.client._send_request("graph-rag", self.flow_id, request, True):
+            async for chunk in self.client._send_request_streaming("graph-rag", self.flow_id, request):
                 if hasattr(chunk, 'content'):
                     yield chunk.content
         else:
-            result = await self.client._send_request("graph-rag", self.flow_id, request, False)
+            result = await self.client._send_request("graph-rag", self.flow_id, request)
             return result.get("response", "")
 
     async def document_rag(self, question: str, user: str, collection: str,
@@ -209,11 +232,11 @@ class AsyncSocketFlowInstance:
         request.update(kwargs)
 
         if streaming:
-            async for chunk in self.client._send_request("document-rag", self.flow_id, request, True):
+            async for chunk in self.client._send_request_streaming("document-rag", self.flow_id, request):
                 if hasattr(chunk, 'content'):
                     yield chunk.content
         else:
-            result = await self.client._send_request("document-rag", self.flow_id, request, False)
+            result = await self.client._send_request("document-rag", self.flow_id, request)
             return result.get("response", "")
 
     async def prompt(self, id: str, variables: Dict[str, str], streaming: bool = False, **kwargs):
@@ -226,11 +249,11 @@ class AsyncSocketFlowInstance:
         request.update(kwargs)
 
         if streaming:
-            async for chunk in self.client._send_request("prompt", self.flow_id, request, True):
+            async for chunk in self.client._send_request_streaming("prompt", self.flow_id, request):
                 if hasattr(chunk, 'content'):
                     yield chunk.content
         else:
-            result = await self.client._send_request("prompt", self.flow_id, request, False)
+            result = await self.client._send_request("prompt", self.flow_id, request)
             return result.get("response", "")
 
     async def graph_embeddings_query(self, text: str, user: str, collection: str, limit: int = 10, **kwargs):
@@ -243,14 +266,14 @@ class AsyncSocketFlowInstance:
         }
         request.update(kwargs)
 
-        return await self.client._send_request("graph-embeddings", self.flow_id, request, False)
+        return await self.client._send_request("graph-embeddings", self.flow_id, request)
 
     async def embeddings(self, text: str, **kwargs):
         """Generate text embeddings"""
         request = {"text": text}
         request.update(kwargs)
 
-        return await self.client._send_request("embeddings", self.flow_id, request, False)
+        return await self.client._send_request("embeddings", self.flow_id, request)
 
     async def triples_query(self, s=None, p=None, o=None, user=None, collection=None, limit=100, **kwargs):
         """Triple pattern query"""
@@ -267,7 +290,7 @@ class AsyncSocketFlowInstance:
             request["collection"] = collection
         request.update(kwargs)
 
-        return await self.client._send_request("triples", self.flow_id, request, False)
+        return await self.client._send_request("triples", self.flow_id, request)
 
     async def objects_query(self, query: str, user: str, collection: str, variables: Optional[Dict] = None,
                             operation_name: Optional[str] = None, **kwargs):
@@ -283,7 +306,7 @@ class AsyncSocketFlowInstance:
             request["operationName"] = operation_name
         request.update(kwargs)
 
-        return await self.client._send_request("objects", self.flow_id, request, False)
+        return await self.client._send_request("objects", self.flow_id, request)
 
     async def mcp_tool(self, name: str, parameters: Dict[str, Any], **kwargs):
         """Execute MCP tool"""
@@ -293,4 +316,4 @@ class AsyncSocketFlowInstance:
         }
         request.update(kwargs)
 
-        return await self.client._send_request("mcp-tool", self.flow_id, request, False)
+        return await self.client._send_request("mcp-tool", self.flow_id, request)
