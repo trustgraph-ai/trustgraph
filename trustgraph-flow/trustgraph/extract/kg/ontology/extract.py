@@ -368,9 +368,9 @@ class Processor(FlowProcessor):
             List of Triple objects
         """
         try:
-            # Call prompt service with new simplified format prompt
+            # Call prompt service with simplified format prompt
             extraction_response = await flow("prompt-request").prompt(
-                id="extract-with-ontologies-v2",
+                id="extract-with-ontologies",
                 variables=prompt_variables
             )
             logger.debug(f"Simplified extraction response: {extraction_response}")
