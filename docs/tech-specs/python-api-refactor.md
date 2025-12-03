@@ -160,7 +160,7 @@ class Api:
     def __init__(self, url: str, timeout: int = 60, token: Optional[str] = None):
         self.url = url
         self.timeout = timeout
-        self.token = token
+        self.token = token  # Optional bearer token for REST, query param for WebSocket
         self._socket_client = None
         self._bulk_client = None
         self._async_flow = None
@@ -1045,6 +1045,8 @@ asyncio.run(main())
    Api(url: str, timeout: int = 60, token: Optional[str] = None)
    ```
    - Added `token` parameter (optional, for authentication)
+   - If `None` (default): No authentication used
+   - If specified: Used as bearer token for REST (`Authorization: Bearer <token>`), query param for WebSocket (`?token=<token>`)
    - No other changes - fully backward compatible
 
 2. **No Breaking Changes**:
@@ -1151,22 +1153,46 @@ asyncio.run(main())
 
 ### Authentication
 
+**Token Parameter**:
+```python
+# No authentication (default)
+api = Api(url="http://localhost:8088/")
+
+# With authentication
+api = Api(url="http://localhost:8088/", token="mytoken")
+```
+
 **REST Transport**:
-- Bearer token via `Authorization` header (existing)
-- Token passed in `Api()` constructor
+- Bearer token via `Authorization` header
+- Applied automatically to all REST requests
+- Format: `Authorization: Bearer <token>`
 
 **WebSocket Transport**:
-- Token via query parameter: `?token=<token>`
-- Token passed in `Api()` constructor
-- Secure WebSocket (WSS) support for encrypted transport
+- Token via query parameter appended to WebSocket URL
+- Applied automatically during connection establishment
+- Format: `ws://localhost:8088/api/v1/socket?token=<token>`
+
+**Implementation**:
+```python
+class SocketClient:
+    def _connect(self) -> WebSocket:
+        # Construct WebSocket URL with optional token
+        ws_url = f"{self.url}/api/v1/socket"
+        if self.token:
+            ws_url = f"{ws_url}?token={self.token}"
+        # Connect to WebSocket
+        return websocket.connect(ws_url)
+```
 
 **Example**:
 ```python
 # REST with auth
 api = Api(url="http://localhost:8088/", token="mytoken")
+flow = api.flow().id("default")
+# All REST calls include: Authorization: Bearer mytoken
 
 # WebSocket with auth
-api = Api(url="ws://localhost:8088/", token="mytoken")
+socket = api.socket()
 # Connects to: ws://localhost:8088/api/v1/socket?token=mytoken
 ```
 
