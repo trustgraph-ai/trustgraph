@@ -254,36 +254,50 @@ But these are never surfaced to the LLM. The LLM doesn't know:
 - Longer prompt
 - More complex template
 
-## Recommended Approach
+## Implemented Approach
 
-**Option B** (Full Prefixed IDs Consistently) is recommended because:
+**Simplified Entity-Relationship-Attribute Format** - completely replaces the old triple-based format.
+
+The new approach was chosen because:
 
 1. **No Information Loss**: Original URIs preserved correctly
 2. **Simpler Logic**: No transformation needed, direct dict lookups work
 3. **Namespace Safety**: Handles multiple ontologies without collisions
 4. **Semantic Correctness**: Maintains RDF/OWL semantics
 
-## Implementation Plan
+## Implementation Complete
 
-### Phase 1: Fix Prompt Examples
-- [ ] Update `ontology-prompt.md` example to use prefixed IDs
-- [ ] Add namespace prefix explanation section
-- [ ] Add guidance for entity instance naming
+### What Was Built:
 
-### Phase 2: Enhance Prompt Template
-- [ ] Optionally add labels alongside IDs (Option C enhancement)
-- [ ] Document namespace prefixes from ontology metadata
-- [ ] Clarify entity instance URI format
+1. **New Prompt Template** (`prompts/ontology-extract-v2.txt`)
+   - ✅ Clear sections: Entity Types, Relationships, Attributes
+   - ✅ Example using full type identifiers (`fo/Recipe`, `fo/has_ingredient`)
+   - ✅ Instructions to use exact identifiers from schema
+   - ✅ New JSON format with entities/relationships/attributes arrays
 
-### Phase 3: Add Validation Tests
-- [ ] Test that LLM outputs match input format
-- [ ] Verify URI expansion preserves original URIs
-- [ ] Test with multiple ontologies (collision scenarios)
+2. **Entity Normalization** (`entity_normalizer.py`)
+   - ✅ `normalize_entity_name()` - Converts names to URI-safe format
+   - ✅ `normalize_type_identifier()` - Handles slashes in types (`fo/Recipe` → `fo-recipe`)
+   - ✅ `build_entity_uri()` - Creates unique URIs using (name, type) tuple
+   - ✅ `EntityRegistry` - Tracks entities for deduplication
 
-### Phase 4: Improve Error Handling
-- [ ] Better logging when URI lookup fails
-- [ ] Warn when falling back to constructed URIs
-- [ ] Validate LLM output format before parsing
+3. **JSON Parser** (`simplified_parser.py`)
+   - ✅ Parses new format: `{entities: [...], relationships: [...], attributes: [...]}`
+   - ✅ Supports kebab-case and snake_case field names
+   - ✅ Returns structured dataclasses
+   - ✅ Graceful error handling with logging
+
+4. **Triple Converter** (`triple_converter.py`)
+   - ✅ `convert_entity()` - Generates type + label triples automatically
+   - ✅ `convert_relationship()` - Connects entity URIs via properties
+   - ✅ `convert_attribute()` - Adds literal values
+   - ✅ Looks up full URIs from ontology definitions
+
+5. **Updated Main Processor** (`extract.py`)
+   - ✅ Removed old triple-based extraction code
+   - ✅ Added `extract_with_simplified_format()` method
+   - ✅ Now exclusively uses new simplified format
+   - ✅ Calls prompt with `extract-with-ontologies-v2` ID
 
 ## Test Cases
 

@@ -104,7 +104,6 @@ class Processor(FlowProcessor):
         # Configuration
         self.top_k = params.get("top_k", 10)
         self.similarity_threshold = params.get("similarity_threshold", 0.3)
-        self.use_simplified_format = params.get("use_simplified_format", False)
 
         # Track loaded ontology version
         self.current_ontology_version = None
@@ -301,33 +300,10 @@ class Processor(FlowProcessor):
             # Build extraction prompt variables
             prompt_variables = self.build_extraction_variables(chunk, ontology_subset)
 
-            # Choose extraction format based on configuration
-            if self.use_simplified_format:
-                # NEW: Simplified format extraction
-                triples = await self.extract_with_simplified_format(
-                    flow, chunk, ontology_subset, prompt_variables
-                )
-            else:
-                # OLD: Original triple-based format extraction
-                # Call prompt service for extraction
-                try:
-                    # Use prompt() method with extract-with-ontologies prompt ID
-                    triples_response = await flow("prompt-request").prompt(
-                        id="extract-with-ontologies",
-                        variables=prompt_variables
-                    )
-                    logger.debug(f"Extraction response: {triples_response}")
-
-                    if not isinstance(triples_response, list):
-                        logger.error("Expected list of triples from prompt service")
-                        triples_response = []
-
-                except Exception as e:
-                    logger.error(f"Prompt service error: {e}", exc_info=True)
-                    triples_response = []
-
-                # Parse and validate triples
-                triples = self.parse_and_validate_triples(triples_response, ontology_subset)
+            # Extract using simplified entity-relationship-attribute format
+            triples = await self.extract_with_simplified_format(
+                flow, chunk, ontology_subset, prompt_variables
+            )
 
             # Add metadata triples
             for t in v.metadata.metadata:
@@ -899,12 +875,6 @@ class Processor(FlowProcessor):
             type=float,
             default=0.3,
             help='Similarity threshold for ontology matching (default: 0.3, range: 0.0-1.0)'
-        )
-        parser.add_argument(
-            '--use-simplified-format',
-            action='store_true',
-            default=False,
-            help='Use simplified entity-relationship-attribute extraction format (default: False)'
         )
         FlowProcessor.add_args(parser)
 
