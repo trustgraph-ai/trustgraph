@@ -20,10 +20,10 @@ def check_error(response):
 class AsyncFlow:
     """Asynchronous REST-based flow interface"""
 
-    def __init__(self, url: str, timeout: int, token: Optional[str]):
-        self.url = url
-        self.timeout = timeout
-        self.token = token
+    def __init__(self, url: str, timeout: int, token: Optional[str]) -> None:
+        self.url: str = url
+        self.timeout: int = timeout
+        self.token: Optional[str] = token
 
     async def request(self, path: str, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """Make async HTTP request to Gateway API"""
@@ -113,7 +113,7 @@ class AsyncFlow:
         """Get async flow instance"""
         return AsyncFlowInstance(self, flow_id)
 
-    async def aclose(self):
+    async def aclose(self) -> None:
         """Close connection (cleanup handled by aiohttp session)"""
         pass
 
@@ -130,7 +130,7 @@ class AsyncFlowInstance:
         return await self.flow.request(f"flow/{self.flow_id}/service/{service}", request_data)
 
     async def agent(self, question: str, user: str, state: Optional[Dict] = None,
-                    group: Optional[str] = None, history: Optional[List] = None, **kwargs) -> Dict[str, Any]:
+                    group: Optional[str] = None, history: Optional[List] = None, **kwargs: Any) -> Dict[str, Any]:
         """Execute agent (non-streaming, use async_socket for streaming)"""
         request_data = {
             "question": question,
@@ -147,7 +147,7 @@ class AsyncFlowInstance:
 
         return await self.request("agent", request_data)
 
-    async def text_completion(self, system: str, prompt: str, **kwargs) -> str:
+    async def text_completion(self, system: str, prompt: str, **kwargs: Any) -> str:
         """Text completion (non-streaming, use async_socket for streaming)"""
         request_data = {
             "system": system,
@@ -161,7 +161,7 @@ class AsyncFlowInstance:
 
     async def graph_rag(self, question: str, user: str, collection: str,
                         max_subgraph_size: int = 1000, max_subgraph_count: int = 5,
-                        max_entity_distance: int = 3, **kwargs) -> str:
+                        max_entity_distance: int = 3, **kwargs: Any) -> str:
         """Graph RAG (non-streaming, use async_socket for streaming)"""
         request_data = {
             "question": question,
@@ -178,7 +178,7 @@ class AsyncFlowInstance:
         return result.get("response", "")
 
     async def document_rag(self, question: str, user: str, collection: str,
-                           doc_limit: int = 10, **kwargs) -> str:
+                           doc_limit: int = 10, **kwargs: Any) -> str:
         """Document RAG (non-streaming, use async_socket for streaming)"""
         request_data = {
             "question": question,
@@ -192,7 +192,7 @@ class AsyncFlowInstance:
         result = await self.request("document-rag", request_data)
         return result.get("response", "")
 
-    async def graph_embeddings_query(self, text: str, user: str, collection: str, limit: int = 10, **kwargs):
+    async def graph_embeddings_query(self, text: str, user: str, collection: str, limit: int = 10, **kwargs: Any):
         """Query graph embeddings for semantic search"""
         request_data = {
             "text": text,
@@ -204,14 +204,14 @@ class AsyncFlowInstance:
 
         return await self.request("graph-embeddings", request_data)
 
-    async def embeddings(self, text: str, **kwargs):
+    async def embeddings(self, text: str, **kwargs: Any):
         """Generate text embeddings"""
         request_data = {"text": text}
         request_data.update(kwargs)
 
         return await self.request("embeddings", request_data)
 
-    async def triples_query(self, s=None, p=None, o=None, user=None, collection=None, limit=100, **kwargs):
+    async def triples_query(self, s=None, p=None, o=None, user=None, collection=None, limit=100, **kwargs: Any):
         """Triple pattern query"""
         request_data = {"limit": limit}
         if s is not None:
@@ -229,7 +229,7 @@ class AsyncFlowInstance:
         return await self.request("triples", request_data)
 
     async def objects_query(self, query: str, user: str, collection: str, variables: Optional[Dict] = None,
-                            operation_name: Optional[str] = None, **kwargs):
+                            operation_name: Optional[str] = None, **kwargs: Any):
         """GraphQL query"""
         request_data = {
             "query": query,
