@@ -1,21 +1,21 @@
 
 import requests
-from typing import Optional
+from typing import Optional, Dict
 
 
 class Metrics:
     """Synchronous metrics client"""
 
-    def __init__(self, url: str, timeout: int, token: Optional[str]):
-        self.url = url
-        self.timeout = timeout
-        self.token = token
+    def __init__(self, url: str, timeout: int, token: Optional[str]) -> None:
+        self.url: str = url
+        self.timeout: int = timeout
+        self.token: Optional[str] = token
 
     def get(self) -> str:
         """Get Prometheus metrics as text"""
-        url = f"{self.url}/api/metrics"
+        url: str = f"{self.url}/api/metrics"
 
-        headers = {}
+        headers: Dict[str, str] = {}
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
 

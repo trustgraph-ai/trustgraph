@@ -2,24 +2,24 @@
 import json
 import asyncio
 import websockets
-from typing import Optional, Dict, Any, Iterator, Union
+from typing import Optional, Dict, Any, Iterator, Union, List
 from threading import Lock
 
-from . types import AgentThought, AgentObservation, AgentAnswer, RAGChunk
+from . types import AgentThought, AgentObservation, AgentAnswer, RAGChunk, StreamingChunk
 from . exceptions import ProtocolException, ApplicationException
 
 
 class SocketClient:
     """Synchronous WebSocket client (wraps async websockets library)"""
 
-    def __init__(self, url: str, timeout: int, token: Optional[str]):
-        self.url = self._convert_to_ws_url(url)
-        self.timeout = timeout
-        self.token = token
-        self._connection = None
-        self._request_counter = 0
-        self._lock = Lock()
-        self._loop = None
+    def __init__(self, url: str, timeout: int, token: Optional[str]) -> None:
+        self.url: str = self._convert_to_ws_url(url)
+        self.timeout: int = timeout
+        self.token: Optional[str] = token
+        self._connection: Optional[Any] = None
+        self._request_counter: int = 0
+        self._lock: Lock = Lock()
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
 
     def _convert_to_ws_url(self, url: str) -> str:
         """Convert HTTP URL to WebSocket URL"""
@@ -33,11 +33,17 @@ class SocketClient:
             # Assume ws://
             return f"ws://{url}"
 
-    def flow(self, flow_id: str):
+    def flow(self, flow_id: str) -> "SocketFlowInstance":
         """Get flow instance for WebSocket operations"""
         return SocketFlowInstance(self, flow_id)
 
-    def _send_request_sync(self, service: str, flow: Optional[str], request: Dict[str, Any], streaming: bool = False):
+    def _send_request_sync(
+        self,
+        service: str,
+        flow: Optional[str],
+        request: Dict[str, Any],
+        streaming: bool = False
+    ) -> Union[Dict[str, Any], Iterator[StreamingChunk]]:
         """Synchronous wrapper around async WebSocket communication"""
         # Create event loop if needed
         try:
@@ -58,7 +64,13 @@ class SocketClient:
             # For non-streaming, just run the async code and return result
             return loop.run_until_complete(self._send_request_async(service, flow, request))
 
-    def _streaming_generator(self, service: str, flow: Optional[str], request: Dict[str, Any], loop):
+    def _streaming_generator(
+        self,
+        service: str,
+        flow: Optional[str],
+        request: Dict[str, Any],
+        loop: asyncio.AbstractEventLoop
+    ) -> Iterator[StreamingChunk]:
         """Generator that yields streaming chunks"""
         async_gen = self._send_request_async_streaming(service, flow, request)
 
@@ -76,7 +88,12 @@ class SocketClient:
             except:
                 pass
 
-    async def _send_request_async(self, service: str, flow: Optional[str], request: Dict[str, Any]):
+    async def _send_request_async(
+        self,
+        service: str,
+        flow: Optional[str],
+        request: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Async implementation of WebSocket request (non-streaming)"""
         # Generate unique request ID
         with self._lock:
@@ -116,7 +133,12 @@ class SocketClient:
 
             return response["response"]
 
-    async def _send_request_async_streaming(self, service: str, flow: Optional[str], request: Dict[str, Any]):
+    async def _send_request_async_streaming(
+        self,
+        service: str,
+        flow: Optional[str],
+        request: Dict[str, Any]
+    ) -> Iterator[StreamingChunk]:
         """Async implementation of WebSocket request (streaming)"""
         # Generate unique request ID
         with self._lock:
@@ -162,7 +184,7 @@ class SocketClient:
                     if resp.get("end_of_stream") or resp.get("end_of_dialog") or response.get("complete"):
                         break
 
-    def _parse_chunk(self, resp: Dict[str, Any]):
+    def _parse_chunk(self, resp: Dict[str, Any]) -> StreamingChunk:
         """Parse response chunk into appropriate type"""
         chunk_type = resp.get("chunk_type")
 
@@ -190,7 +212,7 @@ class SocketClient:
                 error=resp.get("error")
             )
 
-    def close(self):
+    def close(self) -> None:
         """Close WebSocket connection"""
         # Cleanup handled by context manager in async code
         pass
@@ -199,13 +221,20 @@ class SocketClient:
 class SocketFlowInstance:
     """Synchronous WebSocket flow instance with same interface as REST FlowInstance"""
 
-    def __init__(self, client: SocketClient, flow_id: str):
-        self.client = client
-        self.flow_id = flow_id
+    def __init__(self, client: SocketClient, flow_id: str) -> None:
+        self.client: SocketClient = client
+        self.flow_id: str = flow_id
 
-    def agent(self, question: str, user: str, state: Optional[Dict[str, Any]] = None,
-              group: Optional[str] = None, history: Optional[list] = None,
-              streaming: bool = False, **kwargs) -> Union[Dict[str, Any], Iterator]:
+    def agent(
+        self,
+        question: str,
+        user: str,
+        state: Optional[Dict[str, Any]] = None,
+        group: Optional[str] = None,
+        history: Optional[List[Dict[str, Any]]] = None,
+        streaming: bool = False,
+        **kwargs: Any
+    ) -> Union[Dict[str, Any], Iterator[StreamingChunk]]:
         """Agent with optional streaming"""
         request = {
             "question": question,
@@ -241,9 +270,17 @@ class SocketFlowInstance:
         else:
             return result.get("response", "")
 
-    def graph_rag(self, question: str, user: str, collection: str,
-                  max_subgraph_size: int = 1000, max_subgraph_count: int = 5,
-                  max_entity_distance: int = 3, streaming: bool = False, **kwargs) -> Union[str, Iterator[str]]:
+    def graph_rag(
+        self,
+        question: str,
+        user: str,
+        collection: str,
+        max_subgraph_size: int = 1000,
+        max_subgraph_count: int = 5,
+        max_entity_distance: int = 3,
+        streaming: bool = False,
+        **kwargs: Any
+    ) -> Union[str, Iterator[str]]:
         """Graph RAG with optional streaming"""
         request = {
             "question": question,
@@ -265,8 +302,15 @@ class SocketFlowInstance:
         else:
             return result.get("response", "")
 
-    def document_rag(self, question: str, user: str, collection: str,
-                     doc_limit: int = 10, streaming: bool = False, **kwargs) -> Union[str, Iterator[str]]:
+    def document_rag(
+        self,
+        question: str,
+        user: str,
+        collection: str,
+        doc_limit: int = 10,
+        streaming: bool = False,
+        **kwargs: Any
+    ) -> Union[str, Iterator[str]]:
         """Document RAG with optional streaming"""
         request = {
             "question": question,
@@ -286,7 +330,13 @@ class SocketFlowInstance:
         else:
             return result.get("response", "")
 
-    def prompt(self, id: str, variables: Dict[str, str], streaming: bool = False, **kwargs) -> Union[str, Iterator[str]]:
+    def prompt(
+        self,
+        id: str,
+        variables: Dict[str, str],
+        streaming: bool = False,
+        **kwargs: Any
+    ) -> Union[str, Iterator[str]]:
         """Execute prompt with optional streaming"""
         request = {
             "id": id,
@@ -304,7 +354,14 @@ class SocketFlowInstance:
         else:
             return result.get("response", "")
 
-    def graph_embeddings_query(self, text: str, user: str, collection: str, limit: int = 10, **kwargs):
+    def graph_embeddings_query(
+        self,
+        text: str,
+        user: str,
+        collection: str,
+        limit: int = 10,
+        **kwargs: Any
+    ) -> Dict[str, Any]:
         """Query graph embeddings for semantic search"""
         request = {
             "text": text,
@@ -316,14 +373,23 @@ class SocketFlowInstance:
 
         return self.client._send_request_sync("graph-embeddings", self.flow_id, request, False)
 
-    def embeddings(self, text: str, **kwargs):
+    def embeddings(self, text: str, **kwargs: Any) -> Dict[str, Any]:
         """Generate text embeddings"""
         request = {"text": text}
         request.update(kwargs)
 
         return self.client._send_request_sync("embeddings", self.flow_id, request, False)
 
-    def triples_query(self, s=None, p=None, o=None, user=None, collection=None, limit=100, **kwargs):
+    def triples_query(
+        self,
+        s: Optional[str] = None,
+        p: Optional[str] = None,
+        o: Optional[str] = None,
+        user: Optional[str] = None,
+        collection: Optional[str] = None,
+        limit: int = 100,
+        **kwargs: Any
+    ) -> Dict[str, Any]:
         """Triple pattern query"""
         request = {"limit": limit}
         if s is not None:
@@ -340,8 +406,15 @@ class SocketFlowInstance:
 
         return self.client._send_request_sync("triples", self.flow_id, request, False)
 
-    def objects_query(self, query: str, user: str, collection: str, variables: Optional[Dict] = None,
-                     operation_name: Optional[str] = None, **kwargs):
+    def objects_query(
+        self,
+        query: str,
+        user: str,
+        collection: str,
+        variables: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+        **kwargs: Any
+    ) -> Dict[str, Any]:
         """GraphQL query"""
         request = {
             "query": query,
@@ -356,7 +429,12 @@ class SocketFlowInstance:
 
         return self.client._send_request_sync("objects", self.flow_id, request, False)
 
-    def mcp_tool(self, name: str, parameters: Dict[str, Any], **kwargs):
+    def mcp_tool(
+        self,
+        name: str,
+        parameters: Dict[str, Any],
+        **kwargs: Any
+    ) -> Dict[str, Any]:
         """Execute MCP tool"""
         request = {
             "name": name,
