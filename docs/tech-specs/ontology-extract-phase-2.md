@@ -473,17 +473,17 @@ Cornish pasty is a traditional British pastry filled with beef and potatoes.
   "relationships": [
     {
       "subject": "Cornish pasty",
-      "subject_type": "Recipe",
+      "subject-type": "Recipe",
       "relation": "has_ingredient",
       "object": "beef",
-      "object_type": "Food"
+      "object-type": "Food"
     },
     {
       "subject": "Cornish pasty",
-      "subject_type": "Recipe",
+      "subject-type": "Recipe",
       "relation": "has_ingredient",
       "object": "potatoes",
-      "object_type": "Food"
+      "object-type": "Food"
     }
   ]
 }
@@ -526,7 +526,7 @@ triples = [
 
 **Key Points:**
 - LLM returns natural language entity names: `"Cornish pasty"`, `"beef"`, `"potatoes"`
-- LLM includes types to disambiguate: `subject_type`, `object_type`
+- LLM includes types to disambiguate: `subject-type`, `object-type`
 - LLM uses relation name from schema: `"has_ingredient"`
 - Code derives consistent IDs using (name, type): `("Cornish pasty", "Recipe")` → `recipe-cornish-pasty`
 - Code looks up relation URI from ontology: `fo/has_ingredient` → full URI
@@ -555,10 +555,10 @@ LLM returns both as separate entities:
   "relationships": [
     {
       "subject": "Cornish pasty",
-      "subject_type": "Recipe",
+      "subject-type": "Recipe",
       "relation": "produces",
       "object": "Cornish pasty",
-      "object_type": "Food"
+      "object-type": "Food"
     }
   ]
 }
@@ -615,13 +615,13 @@ This Cornish pasty recipe serves 4-6 people and takes 45 minutes to prepare.
   "attributes": [
     {
       "entity": "Cornish pasty recipe",
-      "entity_type": "Recipe",
+      "entity-type": "Recipe",
       "attribute": "serves",
       "value": "4-6 people"
     },
     {
       "entity": "Cornish pasty recipe",
-      "entity_type": "Recipe",
+      "entity-type": "Recipe",
       "attribute": "preparation_time",
       "value": "45 minutes"
     }
@@ -669,6 +669,7 @@ triples = [
 
 **Key Points:**
 - LLM extracts literal values: `"4-6 people"`, `"45 minutes"`
+- LLM includes entity type for disambiguation: `entity-type`
 - LLM uses attribute name from schema: `"serves"`, `"preparation_time"`
 - Code looks up attribute URI from ontology datatype properties
 - **Object is literal** (`is_uri=False`), not a URI reference
@@ -706,23 +707,23 @@ This recipe serves 4 people.
   "relationships": [
     {
       "subject": "Cornish pasty",
-      "subject_type": "Recipe",
+      "subject-type": "Recipe",
       "relation": "has_ingredient",
       "object": "beef",
-      "object_type": "Food"
+      "object-type": "Food"
     },
     {
       "subject": "Cornish pasty",
-      "subject_type": "Recipe",
+      "subject-type": "Recipe",
       "relation": "has_ingredient",
       "object": "potatoes",
-      "object_type": "Food"
+      "object-type": "Food"
     }
   ],
   "attributes": [
     {
       "entity": "Cornish pasty",
-      "entity_type": "Recipe",
+      "entity-type": "Recipe",
       "attribute": "serves",
       "value": "4 people"
     }
