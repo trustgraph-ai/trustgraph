@@ -10,7 +10,7 @@ description = "TrustGraph provides a means to run a pipeline of flexible AI proc
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
-    "trustgraph-base>=1.6,<1.7",
+    "trustgraph-base>=1.7,<1.8",
     "pulsar-client",
     "prometheus-client",
     "boto3",
