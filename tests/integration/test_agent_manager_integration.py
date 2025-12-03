@@ -135,10 +135,10 @@ Args: {
         # Verify prompt client was called correctly
         prompt_client = mock_flow_context("prompt-request")
         prompt_client.agent_react.assert_called_once()
-        
+
         # Verify the prompt variables passed to agent_react
         call_args = prompt_client.agent_react.call_args
-        variables = call_args[0][0]
+        variables = call_args.kwargs['variables']
         assert variables["question"] == question
         assert len(variables["tools"]) == 3  # knowledge_query, text_completion, web_search
         assert variables["context"] == "You are a helpful AI assistant with access to knowledge and tools."
@@ -182,8 +182,8 @@ Final Answer: Machine learning is a field of AI that enables computers to learn 
         assert action.observation == "Machine learning is a subset of AI that enables computers to learn from data."
 
         # Verify callbacks were called
-        think_callback.assert_called_once_with("I need to search for information about machine learning")
-        observe_callback.assert_called_once_with("Machine learning is a subset of AI that enables computers to learn from data.")
+        think_callback.assert_called_once_with("I need to search for information about machine learning", is_final=True)
+        observe_callback.assert_called_once_with("Machine learning is a subset of AI that enables computers to learn from data.", is_final=True)
 
         # Verify tool was executed
         graph_rag_client = mock_flow_context("graph-rag-request")
@@ -211,7 +211,7 @@ Final Answer: Machine learning is a branch of artificial intelligence."""
         assert action.final == "Machine learning is a branch of artificial intelligence."
 
         # Verify only think callback was called (no observation for final answer)
-        think_callback.assert_called_once_with("I can provide a direct answer")
+        think_callback.assert_called_once_with("I can provide a direct answer", is_final=True)
         observe_callback.assert_not_called()
 
     @pytest.mark.asyncio
@@ -237,7 +237,7 @@ Final Answer: Machine learning is a branch of artificial intelligence."""
         # Verify history was included in prompt variables
         prompt_client = mock_flow_context("prompt-request")
         call_args = prompt_client.agent_react.call_args
-        variables = call_args[0][0]
+        variables = call_args.kwargs['variables']
         assert len(variables["history"]) == 1
         assert variables["history"][0]["thought"] == "I need to search for information about machine learning"
         assert variables["history"][0]["action"] == "knowledge_query"
@@ -337,7 +337,7 @@ Args: {
         # Verify tool information was passed to prompt
         prompt_client = mock_flow_context("prompt-request")
         call_args = prompt_client.agent_react.call_args
-        variables = call_args[0][0]
+        variables = call_args.kwargs['variables']
         
         # Should have all 3 tools available
         tool_names = [tool["name"] for tool in variables["tools"]]
@@ -408,7 +408,7 @@ Args: {args_json}"""
         # Assert
         prompt_client = mock_flow_context("prompt-request")
         call_args = prompt_client.agent_react.call_args
-        variables = call_args[0][0]
+        variables = call_args.kwargs['variables']
         
         assert variables["context"] == "You are an expert in machine learning research."
         assert variables["question"] == question
@@ -427,7 +427,7 @@ Args: {args_json}"""
         # Assert
         prompt_client = mock_flow_context("prompt-request")
         call_args = prompt_client.agent_react.call_args
-        variables = call_args[0][0]
+        variables = call_args.kwargs['variables']
         
         assert len(variables["tools"]) == 0
         assert variables["tool_names"] == ""
@@ -457,7 +457,7 @@ Args: {args_json}"""
             # Assert
             assert isinstance(action, Action)
             assert action.observation == expected_response.strip()
-            observe_callback.assert_called_with(expected_response.strip())
+            observe_callback.assert_called_with(expected_response.strip(), is_final=True)
             
             # Reset mocks
             mock_flow_context("graph-rag-request").reset_mock()
@@ -682,7 +682,7 @@ Final Answer: {
         # Verify history was processed correctly
         prompt_client = mock_flow_context("prompt-request")
         call_args = prompt_client.agent_react.call_args
-        variables = call_args[0][0]
+        variables = call_args.kwargs['variables']
         assert len(variables["history"]) == 50
 
     @pytest.mark.asyncio
@@ -709,7 +709,7 @@ Final Answer: {
         # Verify JSON was properly serialized in prompt
         prompt_client = mock_flow_context("prompt-request")
         call_args = prompt_client.agent_react.call_args
-        variables = call_args[0][0]
+        variables = call_args.kwargs['variables']
         
         # Should not raise JSON serialization errors
         json_str = json.dumps(variables, indent=4)

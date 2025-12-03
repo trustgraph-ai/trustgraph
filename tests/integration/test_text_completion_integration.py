@@ -282,10 +282,11 @@ class TestTextCompletionIntegration:
         # Assert
         # Verify OpenAI API call parameters
         call_args = mock_openai_client.chat.completions.create.call_args
-        assert call_args.kwargs['response_format'] == {"type": "text"}
-        assert call_args.kwargs['top_p'] == 1
-        assert call_args.kwargs['frequency_penalty'] == 0
-        assert call_args.kwargs['presence_penalty'] == 0
+        # Note: response_format, top_p, frequency_penalty, and presence_penalty
+        # were removed in #561 as unnecessary parameters
+        assert 'model' in call_args.kwargs
+        assert 'temperature' in call_args.kwargs
+        assert 'max_tokens' in call_args.kwargs
 
         # Verify result structure
         assert hasattr(result, 'text')
@@ -362,9 +363,8 @@ class TestTextCompletionIntegration:
         assert call_args.kwargs['model'] == "gpt-4"
         assert call_args.kwargs['temperature'] == 0.8
         assert call_args.kwargs['max_tokens'] == 2048
-        assert call_args.kwargs['top_p'] == 1
-        assert call_args.kwargs['frequency_penalty'] == 0
-        assert call_args.kwargs['presence_penalty'] == 0
+        # Note: top_p, frequency_penalty, and presence_penalty
+        # were removed in #561 as unnecessary parameters
 
     @pytest.mark.asyncio
     @pytest.mark.slow

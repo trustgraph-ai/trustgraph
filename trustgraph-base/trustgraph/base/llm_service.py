@@ -28,6 +28,19 @@ class LlmResult:
         self.model = model
     __slots__ = ["text", "in_token", "out_token", "model"]
 
+class LlmChunk:
+    """Represents a streaming chunk from an LLM"""
+    def __init__(
+            self, text = None, in_token = None, out_token = None,
+            model = None, is_final = False,
+    ):
+        self.text = text
+        self.in_token = in_token
+        self.out_token = out_token
+        self.model = model
+        self.is_final = is_final
+    __slots__ = ["text", "in_token", "out_token", "model", "is_final"]
+
 class LlmService(FlowProcessor):
 
     def __init__(self, **params):
@@ -99,16 +112,57 @@ class LlmService(FlowProcessor):
 
             id = msg.properties()["id"]
 
-            with __class__.text_completion_metric.labels(
-                    id=self.id,
-                    flow=f"{flow.name}-{consumer.name}",
-            ).time():
+            model = flow("model")
+            temperature = flow("temperature")
 
-                model = flow("model")
-                temperature = flow("temperature")
+            # Check if streaming is requested and supported
+            streaming = getattr(request, 'streaming', False)
 
-                response = await self.generate_content(
-                    request.system, request.prompt, model, temperature
+            if streaming and self.supports_streaming():
+
+                # Streaming mode
+                with __class__.text_completion_metric.labels(
+                        id=self.id,
+                        flow=f"{flow.name}-{consumer.name}",
+                ).time():
+
+                    async for chunk in self.generate_content_stream(
+                        request.system, request.prompt, model, temperature
+                    ):
+                        await flow("response").send(
+                            TextCompletionResponse(
+                                error=None,
+                                response=chunk.text,
+                                in_token=chunk.in_token,
+                                out_token=chunk.out_token,
+                                model=chunk.model,
+                                end_of_stream=chunk.is_final
+                            ),
+                            properties={"id": id}
+                        )
+
+            else:
+
+                # Non-streaming mode (original behavior)
+                with __class__.text_completion_metric.labels(
+                        id=self.id,
+                        flow=f"{flow.name}-{consumer.name}",
+                ).time():
+
+                    response = await self.generate_content(
+                        request.system, request.prompt, model, temperature
+                    )
+
+                await flow("response").send(
+                    TextCompletionResponse(
+                        error=None,
+                        response=response.text,
+                        in_token=response.in_token,
+                        out_token=response.out_token,
+                        model=response.model,
+                        end_of_stream=True
+                    ),
+                    properties={"id": id}
                 )
 
             __class__.text_completion_model_metric.labels(
@@ -118,17 +172,6 @@ class LlmService(FlowProcessor):
                 "model": str(model) if model is not None else "",
                 "temperature": str(temperature) if temperature is not None else "",
             })
-
-            await flow("response").send(
-                TextCompletionResponse(
-                    error=None,
-                    response=response.text,
-                    in_token=response.in_token,
-                    out_token=response.out_token,
-                    model=response.model
-                ),
-                properties={"id": id}
-            )
 
         except TooManyRequests as e:
             raise e
@@ -151,9 +194,25 @@ class LlmService(FlowProcessor):
                     in_token=None,
                     out_token=None,
                     model=None,
+                    end_of_stream=True
                 ),
                 properties={"id": id}
             )
+
+    def supports_streaming(self):
+        """
+        Override in subclass to indicate streaming support.
+        Returns False by default.
+        """
+        return False
+
+    async def generate_content_stream(self, system, prompt, model=None, temperature=None):
+        """
+        Override in subclass to implement streaming.
+        Should yield LlmChunk objects.
+        The final chunk should have is_final=True.
+        """
+        raise NotImplementedError("Streaming not implemented for this provider")
 
     @staticmethod
     def add_args(parser):

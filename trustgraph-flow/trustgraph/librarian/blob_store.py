@@ -19,7 +19,7 @@ class BlobStore:
 
 
         self.minio = Minio(
-            minio_host,
+            endpoint = minio_host,
             access_key = minio_access_key,
             secret_key = minio_secret_key,
             secure = False,
@@ -34,9 +34,9 @@ class BlobStore:
     def ensure_bucket(self):
 
         # Make the bucket if it doesn't exist.
-        found = self.minio.bucket_exists(self.bucket_name)
+        found = self.minio.bucket_exists(bucket_name=self.bucket_name)
         if not found:
-            self.minio.make_bucket(self.bucket_name)
+            self.minio.make_bucket(bucket_name=self.bucket_name)
             logger.info(f"Created bucket {self.bucket_name}")
         else:
             logger.debug(f"Bucket {self.bucket_name} already exists")

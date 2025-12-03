@@ -11,7 +11,7 @@ import os
 import logging
 
 from .... exceptions import TooManyRequests
-from .... base import LlmService, LlmResult
+from .... base import LlmService, LlmResult, LlmChunk
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -55,7 +55,7 @@ class Processor(LlmService):
         self.max_output = max_output
         self.default_model = model
 
-    def build_prompt(self, system, content, temperature=None):
+    def build_prompt(self, system, content, temperature=None, stream=False):
         # Use provided temperature or fall back to default
         effective_temperature = temperature if temperature is not None else self.temperature
 
@@ -72,6 +72,9 @@ class Processor(LlmService):
             "temperature": effective_temperature,
             "top_p": 1
         }
+
+        if stream:
+            data["stream"] = True
 
         body = json.dumps(data)
 
@@ -156,6 +159,84 @@ class Processor(LlmService):
             raise e
 
         logger.debug("Azure LLM processing complete")
+
+    def supports_streaming(self):
+        """Azure serverless endpoints support streaming"""
+        return True
+
+    async def generate_content_stream(self, system, prompt, model=None, temperature=None):
+        """Stream content generation from Azure serverless endpoint"""
+        model_name = model or self.default_model
+        effective_temperature = temperature if temperature is not None else self.temperature
+
+        logger.debug(f"Using model (streaming): {model_name}")
+        logger.debug(f"Using temperature: {effective_temperature}")
+
+        try:
+            body = self.build_prompt(system, prompt, effective_temperature, stream=True)
+
+            url = self.endpoint
+            api_key = self.token
+
+            headers = {
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {api_key}'
+            }
+
+            response = requests.post(url, data=body, headers=headers, stream=True)
+
+            if response.status_code == 429:
+                raise TooManyRequests()
+
+            if response.status_code != 200:
+                raise RuntimeError("LLM failure")
+
+            # Parse SSE stream
+            for line in response.iter_lines():
+                if line:
+                    line = line.decode('utf-8').strip()
+                    if line.startswith('data: '):
+                        data = line[6:]  # Remove 'data: ' prefix
+
+                        if data == '[DONE]':
+                            break
+
+                        try:
+                            chunk_data = json.loads(data)
+
+                            if 'choices' in chunk_data and len(chunk_data['choices']) > 0:
+                                delta = chunk_data['choices'][0].get('delta', {})
+                                content = delta.get('content')
+                                if content:
+                                    yield LlmChunk(
+                                        text=content,
+                                        in_token=None,
+                                        out_token=None,
+                                        model=model_name,
+                                        is_final=False
+                                    )
+                        except json.JSONDecodeError:
+                            logger.warning(f"Failed to parse chunk: {data}")
+                            continue
+
+            # Send final chunk
+            yield LlmChunk(
+                text="",
+                in_token=None,
+                out_token=None,
+                model=model_name,
+                is_final=True
+            )
+
+            logger.debug("Streaming complete")
+
+        except TooManyRequests:
+            logger.warning("Rate limit exceeded during streaming")
+            raise TooManyRequests()
+
+        except Exception as e:
+            logger.error(f"Azure streaming exception ({type(e).__name__}): {e}", exc_info=True)
+            raise e
 
     @staticmethod
     def add_args(parser):

@@ -10,7 +10,7 @@ description = "TrustGraph provides a means to run a pipeline of flexible AI proc
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
-    "trustgraph-base>=1.5,<1.6",
+    "trustgraph-base>=1.6,<1.7",
     "requests",
     "pulsar-client",
     "aiohttp",
@@ -34,6 +34,7 @@ tg-delete-mcp-tool = "trustgraph.cli.delete_mcp_tool:main"
 tg-delete-kg-core = "trustgraph.cli.delete_kg_core:main"
 tg-delete-tool = "trustgraph.cli.delete_tool:main"
 tg-dump-msgpack = "trustgraph.cli.dump_msgpack:main"
+tg-dump-queues = "trustgraph.cli.dump_queues:main"
 tg-get-flow-class = "trustgraph.cli.get_flow_class:main"
 tg-get-kg-core = "trustgraph.cli.get_kg_core:main"
 tg-graph-to-turtle = "trustgraph.cli.graph_to_turtle:main"
