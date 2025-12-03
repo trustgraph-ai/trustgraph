@@ -7,7 +7,7 @@
 [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/trustgraph-ai/trustgraph)
 
-[**Docs**](https://docs.trustgraph.ai) | [**YouTube**](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) | [**Configuration Builder**](https://config-ui.demo.trustgraph.ai/) | [**Discord**](https://discord.gg/sQMwkRz5GX) | [**Blog**](https://blog.trustgraph.ai/subscribe)
+[**Website**](https://trustgraph.ai) | [**Docs**](https://docs.trustgraph.ai) | [**YouTube**](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) | [**Configuration Builder**](https://config-ui.demo.trustgraph.ai/) | [**Discord**](https://discord.gg/sQMwkRz5GX) | [**Blog**](https://blog.trustgraph.ai/subscribe)
 
 </div>
 
@@ -46,7 +46,11 @@ Build accurate, trustworthy AI agents powered by your own private data. TrustGra
 
 ## Why TrustGraph?
 
-Ingest structured and unstructured data (PDFs, databases, OCR, custom schemas, and ontologies) into a private knowledge bases to create deep data relationships that eliminate hallucinations from agent responses. Connect agents with the Model Context Protocol (MCP) to leverage external tools, services, and custom workflows. Deploy all of the services, datastores, and agents locally, on premises, or in cloud. Visualize deep data relationships with 3D GraphViz and a full observability and telemetry stack. Deploy LLMs on your hardware for full control of your data. Flows and Flow Classes enable unique agent workflows with collections and knowledge cores that manage user and agent data access.
+Ingest structured and unstructured data (PDFs, databases, OCR, custom schemas, and ontologies) into a private knowledge bases to create deep data relationships that eliminate hallucinations from agent responses. Connect agents with the Model Context Protocol (MCP) to leverage external tools, services, and custom workflows.
+
+Deploy all of the services, datastores, and agents locally, on premises, or in cloud. Visualize deep data relationships with 3D GraphViz and a full observability and telemetry stack. Deploy LLMs on your hardware for full control of your data.
+
+Flows and Flow Classes enable unique agent workflows with collections and knowledge cores that manage user and agent data access.
 
 [![Why TrustGraph?](https://img.youtube.com/vi/Norboj8YP2M/maxresdefault.jpg)](https://www.youtube.com/watch?v=Norboj8YP2M)
 
