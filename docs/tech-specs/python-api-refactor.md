@@ -17,10 +17,12 @@ The refactor addresses four primary use cases:
 - **Streaming Support**: All streaming-capable services (agent, RAG, text completion, prompt) support streaming in Python API
 - **WebSocket Transport**: Add optional WebSocket transport layer for persistent connections and multiplexing
 - **Bulk Operations**: Add efficient bulk import/export for triples, graph embeddings, and document embeddings
+- **Full Async Support**: Complete async/await implementation for all interfaces (REST, WebSocket, bulk operations, metrics)
 - **Backward Compatibility**: Existing code continues to work without modification
 - **Type Safety**: Maintain type-safe interfaces with dataclasses and type hints
-- **Progressive Enhancement**: Streaming is opt-in via iterator pattern
+- **Progressive Enhancement**: Streaming and async are opt-in via explicit interface selection
 - **Performance**: Achieve 60x latency improvement for streaming operations
+- **Modern Python**: Support for both sync and async paradigms for maximum flexibility
 
 ## Background
 
@@ -68,50 +70,81 @@ The November 2024 streaming enhancement to the Gateway API provided 60x latency 
 
 ### Architecture
 
-The refactored Python API uses a **modular interface approach** with separate objects for different communication patterns:
+The refactored Python API uses a **modular interface approach** with separate objects for different communication patterns. All interfaces are available in both **synchronous and asynchronous** variants:
 
-1. **REST Interface** (existing, unchanged)
-   - `api.flow()`, `api.library()`, `api.knowledge()`, `api.collection()`, `api.config()`
-   - Synchronous request/response
+1. **REST Interface** (existing, enhanced)
+   - **Sync**: `api.flow()`, `api.library()`, `api.knowledge()`, `api.collection()`, `api.config()`
+   - **Async**: `api.async_flow()`
+   - Synchronous/asynchronous request/response
    - Simple connection model
    - Default for backward compatibility
 
 2. **WebSocket Interface** (new)
-   - `api.socket()`
+   - **Sync**: `api.socket()`
+   - **Async**: `api.async_socket()`
    - Persistent connection
    - Multiplexed requests
    - Streaming support
    - Same method signatures as REST where functionality overlaps
 
 3. **Bulk Operations Interface** (new)
-   - `api.bulk()`
+   - **Sync**: `api.bulk()`
+   - **Async**: `api.async_bulk()`
    - WebSocket-based for efficiency
-   - Iterator-based import/export
+   - Iterator/AsyncIterator-based import/export
    - Handles large datasets
 
+4. **Metrics Interface** (new)
+   - **Sync**: `api.metrics()`
+   - **Async**: `api.async_metrics()`
+   - Prometheus metrics access
+
 ```python
-# REST interface (existing, unchanged)
+import asyncio
+
+# Synchronous interfaces
 api = Api(url="http://localhost:8088/")
+
+# REST (existing, unchanged)
 flow = api.flow().id("default")
 response = flow.agent(question="...", user="...")
 
-# WebSocket interface (new)
-socket = api.socket()
-socket_flow = socket.flow("default")
+# WebSocket (new)
+socket_flow = api.socket().flow("default")
 response = socket_flow.agent(question="...", user="...")
 for chunk in socket_flow.agent(question="...", user="...", streaming=True):
     print(chunk)
 
-# Bulk operations interface (new)
+# Bulk operations (new)
 bulk = api.bulk()
 bulk.import_triples(flow="default", triples=triple_generator())
+
+# Asynchronous interfaces
+async def main():
+    api = Api(url="http://localhost:8088/")
+
+    # Async REST (new)
+    flow = api.async_flow().id("default")
+    response = await flow.agent(question="...", user="...")
+
+    # Async WebSocket (new)
+    socket_flow = api.async_socket().flow("default")
+    async for chunk in socket_flow.agent(question="...", streaming=True):
+        print(chunk)
+
+    # Async bulk operations (new)
+    bulk = api.async_bulk()
+    await bulk.import_triples(flow="default", triples=async_triple_generator())
+
+asyncio.run(main())
 ```
 
 **Key Design Principles**:
 - **Same URL for all interfaces**: `Api(url="http://localhost:8088/")` works for all
-- **Identical signatures**: Where functionality overlaps, method signatures are identical
-- **Progressive enhancement**: Choose interface based on needs (REST for simple, WebSocket for streaming, Bulk for large datasets)
-- **Explicit intent**: `api.socket()` clearly signals WebSocket usage
+- **Sync/Async symmetry**: Every interface has both sync and async variants with identical method signatures
+- **Identical signatures**: Where functionality overlaps, method signatures are identical between REST and WebSocket, sync and async
+- **Progressive enhancement**: Choose interface based on needs (REST for simple, WebSocket for streaming, Bulk for large datasets, async for modern frameworks)
+- **Explicit intent**: `api.socket()` signals WebSocket, `api.async_socket()` signals async WebSocket
 - **Backward compatible**: Existing code unchanged
 
 ### Components
@@ -130,60 +163,102 @@ class Api:
         self.token = token
         self._socket_client = None
         self._bulk_client = None
+        self._async_flow = None
+        self._async_socket_client = None
+        self._async_bulk_client = None
 
-    # Existing methods (unchanged)
+    # Existing synchronous methods (unchanged)
     def flow(self) -> Flow:
-        """REST-based flow interface"""
+        """Synchronous REST-based flow interface"""
         pass
 
     def library(self) -> Library:
-        """REST-based library interface"""
+        """Synchronous REST-based library interface"""
         pass
 
     def knowledge(self) -> Knowledge:
-        """REST-based knowledge interface"""
+        """Synchronous REST-based knowledge interface"""
         pass
 
     def collection(self) -> Collection:
-        """REST-based collection interface"""
+        """Synchronous REST-based collection interface"""
         pass
 
     def config(self) -> Config:
-        """REST-based config interface"""
+        """Synchronous REST-based config interface"""
         pass
 
-    # New methods
+    # New synchronous methods
     def socket(self) -> SocketClient:
-        """WebSocket-based interface for streaming operations"""
+        """Synchronous WebSocket-based interface for streaming operations"""
         if self._socket_client is None:
             self._socket_client = SocketClient(self.url, self.timeout, self.token)
         return self._socket_client
 
     def bulk(self) -> BulkClient:
-        """Bulk operations interface for import/export"""
+        """Synchronous bulk operations interface for import/export"""
         if self._bulk_client is None:
             self._bulk_client = BulkClient(self.url, self.timeout, self.token)
         return self._bulk_client
 
     def metrics(self) -> Metrics:
-        """Metrics interface"""
+        """Synchronous metrics interface"""
         return Metrics(self.url, self.timeout, self.token)
 
+    # New asynchronous methods
+    def async_flow(self) -> AsyncFlow:
+        """Asynchronous REST-based flow interface"""
+        if self._async_flow is None:
+            self._async_flow = AsyncFlow(self.url, self.timeout, self.token)
+        return self._async_flow
+
+    def async_socket(self) -> AsyncSocketClient:
+        """Asynchronous WebSocket-based interface for streaming operations"""
+        if self._async_socket_client is None:
+            self._async_socket_client = AsyncSocketClient(self.url, self.timeout, self.token)
+        return self._async_socket_client
+
+    def async_bulk(self) -> AsyncBulkClient:
+        """Asynchronous bulk operations interface for import/export"""
+        if self._async_bulk_client is None:
+            self._async_bulk_client = AsyncBulkClient(self.url, self.timeout, self.token)
+        return self._async_bulk_client
+
+    def async_metrics(self) -> AsyncMetrics:
+        """Asynchronous metrics interface"""
+        return AsyncMetrics(self.url, self.timeout, self.token)
+
+    # Resource management
     def close(self) -> None:
-        """Close all connections"""
+        """Close all synchronous connections"""
         if self._socket_client:
             self._socket_client.close()
         if self._bulk_client:
             self._bulk_client.close()
+
+    async def aclose(self) -> None:
+        """Close all asynchronous connections"""
+        if self._async_socket_client:
+            await self._async_socket_client.aclose()
+        if self._async_bulk_client:
+            await self._async_bulk_client.aclose()
+        if self._async_flow:
+            await self._async_flow.aclose()
 
     def __enter__(self):
         return self
 
     def __exit__(self, *args):
         self.close()
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        await self.aclose()
 ```
 
-#### 2. WebSocket Client
+#### 2. Synchronous WebSocket Client
 
 Module: `trustgraph-base/trustgraph/api/socket_client.py` (new)
 
@@ -191,6 +266,7 @@ Module: `trustgraph-base/trustgraph/api/socket_client.py` (new)
 
 ```python
 class SocketClient:
+    """Synchronous WebSocket client"""
     def __init__(self, url: str, timeout: int, token: Optional[str]):
         self.url = self._convert_to_ws_url(url)
         self.timeout = timeout
@@ -203,8 +279,8 @@ class SocketClient:
         return SocketFlowInstance(self, flow_id)
 
     def _connect(self) -> WebSocket:
-        """Establish WebSocket connection"""
-        # Lazy connection establishment
+        """Establish WebSocket connection (lazy)"""
+        # Uses asyncio.run() internally to wrap async websockets library
         pass
 
     def _send_request(
@@ -215,6 +291,7 @@ class SocketClient:
         streaming: bool = False
     ) -> Union[Dict[str, Any], Iterator[Dict[str, Any]]]:
         """Send request and handle response/streaming"""
+        # Synchronous wrapper around async WebSocket calls
         pass
 
     def close(self) -> None:
@@ -222,7 +299,7 @@ class SocketClient:
         pass
 
 class SocketFlowInstance:
-    """WebSocket flow instance with same interface as REST FlowInstance"""
+    """Synchronous WebSocket flow instance with same interface as REST FlowInstance"""
     def __init__(self, client: SocketClient, flow_id: str):
         self.client = client
         self.flow_id = flow_id
@@ -235,7 +312,7 @@ class SocketFlowInstance:
         state: Optional[Dict[str, Any]] = None,
         group: Optional[str] = None,
         history: Optional[List[Dict[str, Any]]] = None,
-        streaming: bool = False,  # Additional parameter for WebSocket
+        streaming: bool = False,
         **kwargs
     ) -> Union[Dict[str, Any], Iterator[Dict[str, Any]]]:
         """Agent with optional streaming"""
@@ -260,8 +337,88 @@ class SocketFlowInstance:
 - Automatic reconnection on disconnect
 - Streaming response parsing
 - Thread-safe operation
+- Synchronous wrapper around async websockets library
 
-#### 3. Bulk Operations Client
+#### 3. Asynchronous WebSocket Client
+
+Module: `trustgraph-base/trustgraph/api/async_socket_client.py` (new)
+
+**AsyncSocketClient Class**:
+
+```python
+class AsyncSocketClient:
+    """Asynchronous WebSocket client"""
+    def __init__(self, url: str, timeout: int, token: Optional[str]):
+        self.url = self._convert_to_ws_url(url)
+        self.timeout = timeout
+        self.token = token
+        self._connection = None
+        self._request_counter = 0
+
+    def flow(self, flow_id: str) -> AsyncSocketFlowInstance:
+        """Get async flow instance for WebSocket operations"""
+        return AsyncSocketFlowInstance(self, flow_id)
+
+    async def _connect(self) -> WebSocket:
+        """Establish WebSocket connection (lazy)"""
+        # Native async websockets library
+        pass
+
+    async def _send_request(
+        self,
+        service: str,
+        flow: Optional[str],
+        request: Dict[str, Any],
+        streaming: bool = False
+    ) -> Union[Dict[str, Any], AsyncIterator[Dict[str, Any]]]:
+        """Send request and handle response/streaming"""
+        pass
+
+    async def aclose(self) -> None:
+        """Close WebSocket connection"""
+        pass
+
+class AsyncSocketFlowInstance:
+    """Asynchronous WebSocket flow instance"""
+    def __init__(self, client: AsyncSocketClient, flow_id: str):
+        self.client = client
+        self.flow_id = flow_id
+
+    # Same method signatures as FlowInstance (but async)
+    async def agent(
+        self,
+        question: str,
+        user: str,
+        state: Optional[Dict[str, Any]] = None,
+        group: Optional[str] = None,
+        history: Optional[List[Dict[str, Any]]] = None,
+        streaming: bool = False,
+        **kwargs
+    ) -> Union[Dict[str, Any], AsyncIterator[Dict[str, Any]]]:
+        """Agent with optional streaming"""
+        pass
+
+    async def text_completion(
+        self,
+        system: str,
+        prompt: str,
+        streaming: bool = False,
+        **kwargs
+    ) -> Union[str, AsyncIterator[str]]:
+        """Text completion with optional streaming"""
+        pass
+
+    # ... similar for graph_rag, document_rag, prompt, etc.
+```
+
+**Key Features**:
+- Native async/await support
+- Efficient for async applications (FastAPI, aiohttp)
+- No thread blocking
+- Same interface as sync version
+- AsyncIterator for streaming
+
+#### 4. Synchronous Bulk Operations Client
 
 Module: `trustgraph-base/trustgraph/api/bulk_client.py` (new)
 
@@ -269,6 +426,7 @@ Module: `trustgraph-base/trustgraph/api/bulk_client.py` (new)
 
 ```python
 class BulkClient:
+    """Synchronous bulk operations client"""
     def __init__(self, url: str, timeout: int, token: Optional[str]):
         self.url = self._convert_to_ws_url(url)
         self.timeout = timeout
@@ -321,7 +479,68 @@ class BulkClient:
 - Progress tracking (optional callback)
 - Error handling with partial success reporting
 
-#### 4. REST Flow API (Unchanged)
+#### 5. Asynchronous Bulk Operations Client
+
+Module: `trustgraph-base/trustgraph/api/async_bulk_client.py` (new)
+
+**AsyncBulkClient Class**:
+
+```python
+class AsyncBulkClient:
+    """Asynchronous bulk operations client"""
+    def __init__(self, url: str, timeout: int, token: Optional[str]):
+        self.url = self._convert_to_ws_url(url)
+        self.timeout = timeout
+        self.token = token
+
+    async def import_triples(
+        self,
+        flow: str,
+        triples: AsyncIterator[Triple],
+        **kwargs
+    ) -> None:
+        """Bulk import triples via WebSocket"""
+        pass
+
+    async def export_triples(
+        self,
+        flow: str,
+        **kwargs
+    ) -> AsyncIterator[Triple]:
+        """Bulk export triples via WebSocket"""
+        pass
+
+    async def import_graph_embeddings(
+        self,
+        flow: str,
+        embeddings: AsyncIterator[Dict[str, Any]],
+        **kwargs
+    ) -> None:
+        """Bulk import graph embeddings via WebSocket"""
+        pass
+
+    async def export_graph_embeddings(
+        self,
+        flow: str,
+        **kwargs
+    ) -> AsyncIterator[Dict[str, Any]]:
+        """Bulk export graph embeddings via WebSocket"""
+        pass
+
+    # ... similar for document embeddings, entity contexts, objects
+
+    async def aclose(self) -> None:
+        """Close connections"""
+        pass
+```
+
+**Key Features**:
+- AsyncIterator-based for constant memory usage
+- Efficient for async applications
+- Native async/await support
+- Same interface as sync version
+
+#### 6. REST Flow API (Synchronous - Unchanged)
 
 Module: `trustgraph-base/trustgraph/api/flow.py`
 
@@ -351,7 +570,122 @@ class FlowInstance:
         pass
 ```
 
-#### 5. Enhanced Types
+#### 7. Asynchronous REST Flow API
+
+Module: `trustgraph-base/trustgraph/api/async_flow.py` (new)
+
+**AsyncFlow and AsyncFlowInstance Classes**:
+
+```python
+class AsyncFlow:
+    """Asynchronous REST-based flow interface"""
+    def __init__(self, url: str, timeout: int, token: Optional[str]):
+        self.url = url
+        self.timeout = timeout
+        self.token = token
+
+    async def list(self) -> List[Dict[str, Any]]:
+        """List all flows"""
+        pass
+
+    async def get(self, id: str) -> Dict[str, Any]:
+        """Get flow definition"""
+        pass
+
+    async def start(self, class_name: str, id: str, description: str, parameters: Dict) -> None:
+        """Start a flow"""
+        pass
+
+    async def stop(self, id: str) -> None:
+        """Stop a flow"""
+        pass
+
+    def id(self, flow_id: str) -> AsyncFlowInstance:
+        """Get async flow instance"""
+        return AsyncFlowInstance(self.url, self.timeout, self.token, flow_id)
+
+    async def aclose(self) -> None:
+        """Close connection"""
+        pass
+
+class AsyncFlowInstance:
+    """Asynchronous REST flow instance"""
+
+    async def agent(
+        self,
+        question: str,
+        user: str,
+        state: Optional[Dict[str, Any]] = None,
+        group: Optional[str] = None,
+        history: Optional[List[Dict[str, Any]]] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Async agent execution"""
+        pass
+
+    async def text_completion(
+        self,
+        system: str,
+        prompt: str,
+        **kwargs
+    ) -> str:
+        """Async text completion"""
+        pass
+
+    async def graph_rag(
+        self,
+        question: str,
+        user: str,
+        collection: str,
+        **kwargs
+    ) -> str:
+        """Async graph RAG"""
+        pass
+
+    # ... all other FlowInstance methods as async versions
+```
+
+**Key Features**:
+- Native async HTTP using `aiohttp` or `httpx`
+- Same method signatures as sync REST API
+- No streaming (use `async_socket()` for streaming)
+- Efficient for async applications
+
+#### 8. Metrics API
+
+Module: `trustgraph-base/trustgraph/api/metrics.py` (new)
+
+**Synchronous Metrics**:
+
+```python
+class Metrics:
+    def __init__(self, url: str, timeout: int, token: Optional[str]):
+        self.url = url
+        self.timeout = timeout
+        self.token = token
+
+    def get(self) -> str:
+        """Get Prometheus metrics as text"""
+        # Call GET /api/metrics
+        pass
+```
+
+**Asynchronous Metrics**:
+
+```python
+class AsyncMetrics:
+    def __init__(self, url: str, timeout: int, token: Optional[str]):
+        self.url = url
+        self.timeout = timeout
+        self.token = token
+
+    async def get(self) -> str:
+        """Get Prometheus metrics as text"""
+        # Call GET /api/metrics
+        pass
+```
+
+#### 9. Enhanced Types
 
 Module: `trustgraph-base/trustgraph/api/types.py` (modified)
 
@@ -479,17 +813,17 @@ class Metrics:
 # Single API instance, same URL for all interfaces
 api = Api(url="http://localhost:8088/")
 
-# REST interface (existing)
-rest_flow = api.flow().id("default")
+# Synchronous interfaces
+rest_flow = api.flow().id("default")           # Sync REST
+socket_flow = api.socket().flow("default")     # Sync WebSocket
+bulk = api.bulk()                               # Sync bulk operations
+metrics = api.metrics()                         # Sync metrics
 
-# WebSocket interface (new)
-socket_flow = api.socket().flow("default")
-
-# Bulk operations interface (new)
-bulk = api.bulk()
-
-# Metrics interface (new)
-metrics = api.metrics()
+# Asynchronous interfaces
+async_rest_flow = api.async_flow().id("default")      # Async REST
+async_socket_flow = api.async_socket().flow("default") # Async WebSocket
+async_bulk = api.async_bulk()                          # Async bulk operations
+async_metrics = api.async_metrics()                    # Async metrics
 ```
 
 #### Streaming Response Types
@@ -544,7 +878,7 @@ for chunk in socket_flow.graph_rag(
         break
 ```
 
-**Bulk Operations**:
+**Bulk Operations (Synchronous)**:
 
 ```python
 api = Api(url="http://localhost:8088/")
@@ -563,18 +897,87 @@ for triple in bulk.export_triples(flow="default"):
     print(f"{triple.s} -> {triple.p} -> {triple.o}")
 ```
 
+**Bulk Operations (Asynchronous)**:
+
+```python
+import asyncio
+
+async def main():
+    api = Api(url="http://localhost:8088/")
+
+    # Async bulk import triples
+    async def async_triple_generator():
+        yield Triple(s="http://ex.com/alice", p="http://ex.com/type", o="Person")
+        yield Triple(s="http://ex.com/alice", p="http://ex.com/name", o="Alice")
+        yield Triple(s="http://ex.com/bob", p="http://ex.com/type", o="Person")
+
+    bulk = api.async_bulk()
+    await bulk.import_triples(flow="default", triples=async_triple_generator())
+
+    # Async bulk export triples
+    async for triple in bulk.export_triples(flow="default"):
+        print(f"{triple.s} -> {triple.p} -> {triple.o}")
+
+asyncio.run(main())
+```
+
+**Async REST Example**:
+
+```python
+import asyncio
+
+async def main():
+    api = Api(url="http://localhost:8088/")
+
+    # Async REST flow operations
+    flow = api.async_flow().id("default")
+    response = await flow.agent(question="What is ML?", user="user123")
+    print(response["response"])
+
+asyncio.run(main())
+```
+
+**Async WebSocket Streaming Example**:
+
+```python
+import asyncio
+
+async def main():
+    api = Api(url="http://localhost:8088/")
+
+    # Async WebSocket streaming
+    socket = api.async_socket()
+    flow = socket.flow("default")
+
+    async for chunk in flow.agent(question="What is ML?", user="user123", streaming=True):
+        if isinstance(chunk, AgentAnswer):
+            print(chunk.content, end="", flush=True)
+            if chunk.end_of_dialog:
+                break
+
+asyncio.run(main())
+```
+
 ### APIs
 
 #### New APIs
 
 1. **Core API Class**:
-   - `Api.socket()` - Get WebSocket client for streaming operations
-   - `Api.bulk()` - Get bulk operations client for import/export
-   - `Api.metrics()` - Get metrics client
-   - `Api.close()` - Close all connections
-   - Context manager support (`__enter__`, `__exit__`)
+   - **Synchronous**:
+     - `Api.socket()` - Get synchronous WebSocket client
+     - `Api.bulk()` - Get synchronous bulk operations client
+     - `Api.metrics()` - Get synchronous metrics client
+     - `Api.close()` - Close all synchronous connections
+     - Context manager support (`__enter__`, `__exit__`)
+   - **Asynchronous**:
+     - `Api.async_flow()` - Get asynchronous REST flow client
+     - `Api.async_socket()` - Get asynchronous WebSocket client
+     - `Api.async_bulk()` - Get asynchronous bulk operations client
+     - `Api.async_metrics()` - Get asynchronous metrics client
+     - `Api.aclose()` - Close all asynchronous connections
+     - Async context manager support (`__aenter__`, `__aexit__`)
 
-2. **WebSocket Client**:
+2. **Synchronous WebSocket Client**:
    - `SocketClient.flow(flow_id)` - Get WebSocket flow instance
    - `SocketFlowInstance.agent(..., streaming: bool = False)` - Agent with optional streaming
    - `SocketFlowInstance.text_completion(..., streaming: bool = False)` - Text completion with optional streaming
@@ -584,7 +987,17 @@ for triple in bulk.export_triples(flow="default"):
    - `SocketFlowInstance.graph_embeddings_query()` - Graph embeddings query
    - All other FlowInstance methods with identical signatures
 
-3. **Bulk Operations Client**:
+3. **Asynchronous WebSocket Client**:
+   - `AsyncSocketClient.flow(flow_id)` - Get async WebSocket flow instance
+   - `AsyncSocketFlowInstance.agent(..., streaming: bool = False)` - Async agent with optional streaming
+   - `AsyncSocketFlowInstance.text_completion(..., streaming: bool = False)` - Async text completion with optional streaming
+   - `AsyncSocketFlowInstance.graph_rag(..., streaming: bool = False)` - Async graph RAG with optional streaming
+   - `AsyncSocketFlowInstance.document_rag(..., streaming: bool = False)` - Async document RAG with optional streaming
+   - `AsyncSocketFlowInstance.prompt(..., streaming: bool = False)` - Async prompt with optional streaming
+   - `AsyncSocketFlowInstance.graph_embeddings_query()` - Async graph embeddings query
+   - All other FlowInstance methods as async versions
+
+4. **Synchronous Bulk Operations Client**:
    - `BulkClient.import_triples(flow, triples)` - Bulk triple import
    - `BulkClient.export_triples(flow)` - Bulk triple export
    - `BulkClient.import_graph_embeddings(flow, embeddings)` - Bulk graph embeddings import
@@ -595,11 +1008,35 @@ for triple in bulk.export_triples(flow="default"):
    - `BulkClient.export_entity_contexts(flow)` - Bulk entity contexts export
    - `BulkClient.import_objects(flow, objects)` - Bulk objects import
 
-4. **Metrics Client**:
-   - `Metrics.get()` - Get Prometheus metrics as text
+5. **Asynchronous Bulk Operations Client**:
+   - `AsyncBulkClient.import_triples(flow, triples)` - Async bulk triple import
+   - `AsyncBulkClient.export_triples(flow)` - Async bulk triple export
+   - `AsyncBulkClient.import_graph_embeddings(flow, embeddings)` - Async bulk graph embeddings import
+   - `AsyncBulkClient.export_graph_embeddings(flow)` - Async bulk graph embeddings export
+   - `AsyncBulkClient.import_document_embeddings(flow, embeddings)` - Async bulk document embeddings import
+   - `AsyncBulkClient.export_document_embeddings(flow)` - Async bulk document embeddings export
+   - `AsyncBulkClient.import_entity_contexts(flow, contexts)` - Async bulk entity contexts import
+   - `AsyncBulkClient.export_entity_contexts(flow)` - Async bulk entity contexts export
+   - `AsyncBulkClient.import_objects(flow, objects)` - Async bulk objects import
 
-5. **REST Flow API Enhancement**:
-   - `FlowInstance.graph_embeddings_query()` - Graph embeddings query (feature parity)
+6. **Asynchronous REST Flow Client**:
+   - `AsyncFlow.list()` - Async list all flows
+   - `AsyncFlow.get(id)` - Async get flow definition
+   - `AsyncFlow.start(...)` - Async start flow
+   - `AsyncFlow.stop(id)` - Async stop flow
+   - `AsyncFlow.id(flow_id)` - Get async flow instance
+   - `AsyncFlowInstance.agent(...)` - Async agent execution
+   - `AsyncFlowInstance.text_completion(...)` - Async text completion
+   - `AsyncFlowInstance.graph_rag(...)` - Async graph RAG
+   - All other FlowInstance methods as async versions
+
+7. **Metrics Clients**:
+   - `Metrics.get()` - Synchronous Prometheus metrics
+   - `AsyncMetrics.get()` - Asynchronous Prometheus metrics
+
+8. **REST Flow API Enhancement**:
+   - `FlowInstance.graph_embeddings_query()` - Graph embeddings query (sync feature parity)
+   - `AsyncFlowInstance.graph_embeddings_query()` - Graph embeddings query (async feature parity)
 
 #### Modified APIs
 
@@ -978,8 +1415,10 @@ bulk.import_triples(flow="default", triples=iter(my_large_triple_list))
 
 ### API Design Questions
 
-1. **Async Support**: Should we provide an async variant (`AsyncApi`) in the initial release, or defer to Phase 2?
-   - **Recommendation**: Defer to Phase 2. Focus on sync API first for simplicity and backward compatibility.
+1. **Async Support**: ✅ **RESOLVED** - Full async support included in initial release
+   - All interfaces have async variants: `async_flow()`, `async_socket()`, `async_bulk()`, `async_metrics()`
+   - Provides complete symmetry between sync and async APIs
+   - Essential for modern async frameworks (FastAPI, aiohttp)
 
 2. **Progress Tracking**: Should bulk operations support progress callbacks?
    ```python
