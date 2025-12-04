@@ -26,6 +26,7 @@ import textwrap
 import dataclasses
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
 @dataclasses.dataclass
 class Argument:
@@ -67,9 +68,10 @@ def set_tool(
         group : List[str],
         state : str,
         applicable_states : List[str],
+        token : str = None,
 ):
 
-    api = Api(url).config()
+    api = Api(url, token=token).config()
 
     values = api.get([
         ConfigKey(type="agent", key="tool-index")
@@ -154,6 +156,12 @@ def main():
         '-u', '--api-url',
         default=default_url,
         help=f'API URL (default: {default_url})',
+    )
+
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
     )
 
     parser.add_argument(
@@ -257,6 +265,7 @@ def main():
             group=args.group,
             state=args.state,
             applicable_states=args.applicable_states,
+            token=args.token,
         )
 
     except Exception as e:
