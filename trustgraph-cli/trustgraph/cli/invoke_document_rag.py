@@ -33,7 +33,7 @@ def question(url, flow_id, question, user, collection, doc_limit, streaming=True
 
             # Stream output
             for chunk in response:
-                print(chunk.content, end="", flush=True)
+                print(chunk, end="", flush=True)
             print()  # Final newline
 
         finally:
