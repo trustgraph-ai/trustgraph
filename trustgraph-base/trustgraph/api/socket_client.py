@@ -202,11 +202,17 @@ class SocketClient:
                 content=resp.get("content", ""),
                 end_of_message=resp.get("end_of_message", False)
             )
-        elif chunk_type == "final-answer":
+        elif chunk_type == "answer" or chunk_type == "final-answer":
             return AgentAnswer(
                 content=resp.get("content", ""),
                 end_of_message=resp.get("end_of_message", False),
                 end_of_dialog=resp.get("end_of_dialog", False)
+            )
+        elif chunk_type == "action":
+            # Agent action chunks - treat as thoughts for display purposes
+            return AgentThought(
+                content=resp.get("content", ""),
+                end_of_message=resp.get("end_of_message", False)
             )
         else:
             # RAG-style chunk (or generic chunk)
