@@ -5,64 +5,39 @@ and user prompt.  Both arguments are required.
 
 import argparse
 import os
-import json
-import uuid
-import asyncio
-from websockets.asyncio.client import connect
+from trustgraph.api import Api
 
-default_url = os.getenv("TRUSTGRAPH_URL", 'ws://localhost:8088/')
+default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
-async def query(url, flow_id, system, prompt, streaming=True):
+def query(url, flow_id, system, prompt, streaming=True, token=None):
 
-    if not url.endswith("/"):
-        url += "/"
+    # Create API client
+    api = Api(url=url, token=token)
+    socket = api.socket()
+    flow = socket.flow(flow_id)
 
-    url = url + "api/v1/socket"
+    try:
+        # Call text completion
+        response = flow.text_completion(
+            system=system,
+            prompt=prompt,
+            streaming=streaming
+        )
 
-    mid = str(uuid.uuid4())
+        if streaming:
+            # Stream output to stdout without newline
+            for chunk in response:
+                print(chunk.content, end="", flush=True)
+            # Add final newline after streaming
+            print()
+        else:
+            # Non-streaming: print complete response
+            print(response)
 
-    async with connect(url) as ws:
-
-        req = {
-            "id": mid,
-            "service": "text-completion",
-            "flow": flow_id,
-            "request": {
-                "system": system,
-                "prompt": prompt,
-                "streaming": streaming
-            }
-        }
-
-        await ws.send(json.dumps(req))
-
-        while True:
-
-            msg = await ws.recv()
-
-            obj = json.loads(msg)
-
-            if "error" in obj:
-                raise RuntimeError(obj["error"])
-
-            if obj["id"] != mid:
-                continue
-
-            if "response" in obj["response"]:
-                if streaming:
-                    # Stream output to stdout without newline
-                    print(obj["response"]["response"], end="", flush=True)
-                else:
-                    # Non-streaming: print complete response
-                    print(obj["response"]["response"])
-
-            if obj["complete"]:
-                if streaming:
-                    # Add final newline after streaming
-                    print()
-                break
-
-        await ws.close()
+    finally:
+        # Clean up socket connection
+        socket.close()
 
 def main():
 
@@ -75,6 +50,12 @@ def main():
         '-u', '--url',
         default=default_url,
         help=f'API URL (default: {default_url})',
+    )
+
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
     )
 
     parser.add_argument(
@@ -105,13 +86,14 @@ def main():
 
     try:
 
-        asyncio.run(query(
+        query(
             url=args.url,
             flow_id=args.flow_id,
             system=args.system[0],
             prompt=args.prompt[0],
-            streaming=not args.no_streaming
-        ))
+            streaming=not args.no_streaming,
+            token=args.token,
+        )
 
     except Exception as e:
 

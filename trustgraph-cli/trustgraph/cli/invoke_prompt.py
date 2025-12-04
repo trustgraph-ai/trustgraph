@@ -10,76 +10,61 @@ using key=value arguments on the command line, and these replace
 import argparse
 import os
 import json
-import uuid
-import asyncio
-from websockets.asyncio.client import connect
+from trustgraph.api import Api
 
-default_url = os.getenv("TRUSTGRAPH_URL", 'ws://localhost:8088/')
+default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
-async def query(url, flow_id, template_id, variables, streaming=True):
+def query(url, flow_id, template_id, variables, streaming=True, token=None):
 
-    if not url.endswith("/"):
-        url += "/"
+    # Create API client
+    api = Api(url=url, token=token)
+    socket = api.socket()
+    flow = socket.flow(flow_id)
 
-    url = url + "api/v1/socket"
+    try:
+        # Call prompt
+        response = flow.prompt(
+            id=template_id,
+            variables=variables,
+            streaming=streaming
+        )
 
-    mid = str(uuid.uuid4())
+        if streaming:
+            full_response = {"text": "", "object": ""}
 
-    async with connect(url) as ws:
+            # Stream output
+            for chunk in response:
+                content = chunk.content
+                if content:
+                    print(content, end="", flush=True)
+                    full_response["text"] += content
 
-        req = {
-            "id": mid,
-            "service": "prompt",
-            "flow": flow_id,
-            "request": {
-                "id": template_id,
-                "variables": variables,
-                "streaming": streaming
-            }
-        }
+                # Check if this is an object response (JSON)
+                if hasattr(chunk, 'object') and chunk.object:
+                    full_response["object"] = chunk.object
 
-        await ws.send(json.dumps(req))
+            # Handle final output
+            if full_response["text"]:
+                # Add final newline after streaming text
+                print()
+            elif full_response["object"]:
+                # Print JSON object (pretty-printed)
+                print(json.dumps(json.loads(full_response["object"]), indent=4))
 
-        full_response = {"text": "", "object": ""}
-
-        while True:
-
-            msg = await ws.recv()
-
-            obj = json.loads(msg)
-
-            if "error" in obj:
-                raise RuntimeError(obj["error"])
-
-            if obj["id"] != mid:
-                continue
-
-            response = obj["response"]
-
-            # Handle text responses (streaming)
-            if "text" in response and response["text"]:
-                if streaming:
-                    # Stream output to stdout without newline
-                    print(response["text"], end="", flush=True)
-                    full_response["text"] += response["text"]
-                else:
-                    # Non-streaming: print complete response
+        else:
+            # Non-streaming: handle response
+            if isinstance(response, str):
+                print(response)
+            elif isinstance(response, dict):
+                if "text" in response:
                     print(response["text"])
+                elif "object" in response:
+                    print(json.dumps(json.loads(response["object"]), indent=4))
 
-            # Handle object responses (JSON, never streamed)
-            if "object" in response and response["object"]:
-                full_response["object"] = response["object"]
-
-            if obj["complete"]:
-                if streaming and full_response["text"]:
-                    # Add final newline after streaming text
-                    print()
-                elif full_response["object"]:
-                    # Print JSON object (pretty-printed)
-                    print(json.dumps(json.loads(full_response["object"]), indent=4))
-                break
-
-        await ws.close()
+    finally:
+        # Clean up socket connection
+        socket.close()
 
 def main():
 
@@ -92,6 +77,12 @@ def main():
         '-u', '--url',
         default=default_url,
         help=f'API URL (default: {default_url})',
+    )
+
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
     )
 
     parser.add_argument(
@@ -135,13 +126,14 @@ specified multiple times''',
 
     try:
 
-        asyncio.run(query(
+        query(
             url=args.url,
             flow_id=args.flow_id,
             template_id=args.id[0],
             variables=variables,
-            streaming=not args.no_streaming
-        ))
+            streaming=not args.no_streaming,
+            token=args.token,
+        )
 
     except Exception as e:
 

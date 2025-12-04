@@ -4,89 +4,50 @@ Uses the DocumentRAG service to answer a question
 
 import argparse
 import os
-import asyncio
-import json
-import uuid
-from websockets.asyncio.client import connect
 from trustgraph.api import Api
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 default_user = 'trustgraph'
 default_collection = 'default'
 default_doc_limit = 10
 
-async def question_streaming(url, flow_id, question, user, collection, doc_limit):
-    """Streaming version using websockets"""
+def question(url, flow_id, question, user, collection, doc_limit, streaming=True, token=None):
 
-    # Convert http:// to ws://
-    if url.startswith('http://'):
-        url = 'ws://' + url[7:]
-    elif url.startswith('https://'):
-        url = 'wss://' + url[8:]
+    # Create API client
+    api = Api(url=url, token=token)
 
-    if not url.endswith("/"):
-        url += "/"
+    if streaming:
+        # Use socket client for streaming
+        socket = api.socket()
+        flow = socket.flow(flow_id)
 
-    url = url + "api/v1/socket"
+        try:
+            response = flow.document_rag(
+                question=question,
+                user=user,
+                collection=collection,
+                doc_limit=doc_limit,
+                streaming=True
+            )
 
-    mid = str(uuid.uuid4())
+            # Stream output
+            for chunk in response:
+                print(chunk.content, end="", flush=True)
+            print()  # Final newline
 
-    async with connect(url) as ws:
-        req = {
-            "id": mid,
-            "service": "document-rag",
-            "flow": flow_id,
-            "request": {
-                "query": question,
-                "user": user,
-                "collection": collection,
-                "doc-limit": doc_limit,
-                "streaming": True
-            }
-        }
-
-        req = json.dumps(req)
-        await ws.send(req)
-
-        while True:
-            msg = await ws.recv()
-            obj = json.loads(msg)
-
-            if "error" in obj:
-                raise RuntimeError(obj["error"])
-
-            if obj["id"] != mid:
-                print("Ignore message")
-                continue
-
-            response = obj["response"]
-
-            # Handle streaming format (chunk)
-            if "chunk" in response:
-                chunk = response["chunk"]
-                print(chunk, end="", flush=True)
-            elif "response" in response:
-                # Final response with complete text
-                # Already printed via chunks, just add newline
-                pass
-
-            if obj["complete"]:
-                print()  # Final newline
-                break
-
-        await ws.close()
-
-def question_non_streaming(url, flow_id, question, user, collection, doc_limit):
-    """Non-streaming version using HTTP API"""
-
-    api = Api(url).flow().id(flow_id)
-
-    resp = api.document_rag(
-        question=question, user=user, collection=collection,
-        doc_limit=doc_limit,
-    )
-
-    print(resp)
+        finally:
+            socket.close()
+    else:
+        # Use REST API for non-streaming
+        flow = api.flow().id(flow_id)
+        resp = flow.document_rag(
+            question=question,
+            user=user,
+            collection=collection,
+            doc_limit=doc_limit,
+        )
+        print(resp)
 
 def main():
 
@@ -99,6 +60,12 @@ def main():
         '-u', '--url',
         default=default_url,
         help=f'API URL (default: {default_url})',
+    )
+
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
     )
 
     parser.add_argument(
@@ -127,6 +94,7 @@ def main():
 
     parser.add_argument(
         '-d', '--doc-limit',
+        type=int,
         default=default_doc_limit,
         help=f'Document limit (default: {default_doc_limit})'
     )
@@ -141,26 +109,16 @@ def main():
 
     try:
 
-        if not args.no_streaming:
-            asyncio.run(
-                question_streaming(
-                    url=args.url,
-                    flow_id=args.flow_id,
-                    question=args.question,
-                    user=args.user,
-                    collection=args.collection,
-                    doc_limit=args.doc_limit,
-                )
-            )
-        else:
-            question_non_streaming(
-                url=args.url,
-                flow_id=args.flow_id,
-                question=args.question,
-                user=args.user,
-                collection=args.collection,
-                doc_limit=args.doc_limit,
-            )
+        question(
+            url=args.url,
+            flow_id=args.flow_id,
+            question=args.question,
+            user=args.user,
+            collection=args.collection,
+            doc_limit=args.doc_limit,
+            streaming=not args.no_streaming,
+            token=args.token,
+        )
 
     except Exception as e:
 
