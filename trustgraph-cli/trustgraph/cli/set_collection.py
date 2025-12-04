@@ -9,10 +9,11 @@ from trustgraph.api import Api
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_user = "trustgraph"
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
-def set_collection(url, user, collection, name, description, tags):
+def set_collection(url, user, collection, name, description, tags, token=None):
 
-    api = Api(url).collection()
+    api = Api(url, token=token).collection()
 
     result = api.update_collection(
         user=user,
@@ -82,6 +83,12 @@ def main():
         help='Collection tags (can be specified multiple times)'
     )
 
+    parser.add_argument(
+        '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
     args = parser.parse_args()
 
     try:
@@ -92,7 +99,8 @@ def main():
             collection = args.collection,
             name = args.name,
             description = args.description,
-            tags = args.tags
+            tags = args.tags,
+            token = args.token
         )
 
     except Exception as e:

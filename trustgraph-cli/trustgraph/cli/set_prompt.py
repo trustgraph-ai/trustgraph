@@ -10,10 +10,11 @@ import tabulate
 import textwrap
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
-def set_system(url, system):
+def set_system(url, system, token=None):
 
-    api = Api(url).config()
+    api = Api(url, token=token).config()
 
     api.put([
         ConfigValue(type="prompt", key="system", value=json.dumps(system))
@@ -21,9 +22,9 @@ def set_system(url, system):
 
     print("System prompt set.")
 
-def set_prompt(url, id, prompt, response, schema):
+def set_prompt(url, id, prompt, response, schema, token=None):
 
-    api = Api(url).config()
+    api = Api(url, token=token).config()
 
     values = api.get([
         ConfigKey(type="prompt", key="template-index")
@@ -72,6 +73,12 @@ def main():
     )
 
     parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
+    parser.add_argument(
         '--id',
         help=f'Prompt ID',
     )
@@ -103,9 +110,9 @@ def main():
         if args.system:
             if args.id or args.prompt or args.schema or args.response:
                 raise RuntimeError("Can't use --system with other args")
-                
+
             set_system(
-                url=args.api_url, system=args.system
+                url=args.api_url, system=args.system, token=args.token
             )
 
         else:
@@ -130,7 +137,7 @@ def main():
 
             set_prompt(
                 url=args.api_url, id=args.id, prompt=args.prompt,
-                response=args.response, schema=schobj
+                response=args.response, schema=schobj, token=args.token
             )
 
     except Exception as e:

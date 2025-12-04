@@ -14,6 +14,7 @@ import msgpack
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'ws://localhost:8088/')
 default_user = 'trustgraph'
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
 def write_triple(f, data):
     msg = (
@@ -51,12 +52,15 @@ def write_ge(f, data):
     )
     f.write(msgpack.packb(msg, use_bin_type=True))
 
-async def fetch(url, user, id, output):
+async def fetch(url, user, id, output, token=None):
 
     if not url.endswith("/"):
         url += "/"
 
     url = url + "api/v1/socket"
+
+    if token:
+        url = f"{url}?token={token}"
 
     mid = str(uuid.uuid4())
 
@@ -138,6 +142,12 @@ def main():
         help=f'Output file'
     )
 
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
     args = parser.parse_args()
 
     try:
@@ -148,6 +158,7 @@ def main():
                 user = args.user,
                 id = args.id,
                 output = args.output,
+                token = args.token,
             )
         )
 
