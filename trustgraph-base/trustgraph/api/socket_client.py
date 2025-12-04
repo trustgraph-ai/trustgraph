@@ -210,8 +210,8 @@ class SocketClient:
             )
         else:
             # RAG-style chunk (or generic chunk)
-            # Text-completion uses "response" field, RAG uses "chunk" field
-            content = resp.get("response", resp.get("chunk", ""))
+            # Text-completion uses "response" field, RAG uses "chunk" field, Prompt uses "text" field
+            content = resp.get("response", resp.get("chunk", resp.get("text", "")))
             return RAGChunk(
                 content=content,
                 end_of_stream=resp.get("end_of_stream", False),
