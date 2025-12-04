@@ -108,7 +108,8 @@ class TestListConfigItems:
             mock_list.assert_called_once_with(
                 url='http://custom.com',
                 config_type='prompt',
-                format_type='json'
+                format_type='json',
+                token=None
             )
 
     def test_list_main_uses_defaults(self):
@@ -126,7 +127,8 @@ class TestListConfigItems:
             mock_list.assert_called_once_with(
                 url='http://localhost:8088/',
                 config_type='prompt',
-                format_type='text'
+                format_type='text',
+                token=None
             )
 
 
@@ -193,7 +195,8 @@ class TestGetConfigItem:
                 url='http://custom.com',
                 config_type='prompt',
                 key='template-1',
-                format_type='json'
+                format_type='json',
+                token=None
             )
 
 
@@ -249,7 +252,8 @@ class TestPutConfigItem:
                 url='http://custom.com',
                 config_type='prompt',
                 key='new-template',
-                value='Custom prompt: {input}'
+                value='Custom prompt: {input}',
+                token=None
             )
 
     def test_put_main_with_stdin_arg(self):
@@ -273,7 +277,8 @@ class TestPutConfigItem:
                 url='http://localhost:8088/',
                 config_type='prompt',
                 key='stdin-template',
-                value=stdin_content
+                value=stdin_content,
+                token=None
             )
 
     def test_put_main_mutually_exclusive_args(self):
@@ -328,7 +333,8 @@ class TestDeleteConfigItem:
             mock_delete.assert_called_once_with(
                 url='http://custom.com',
                 config_type='prompt',
-                key='old-template'
+                key='old-template',
+                token=None
             )
 
 
