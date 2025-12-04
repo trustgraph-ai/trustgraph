@@ -161,6 +161,11 @@ def question(
                 # Output the chunk
                 if current_outputter:
                     current_outputter.output(content)
+                    # Flush word buffer after each chunk to avoid delay
+                    if current_outputter.word_buffer:
+                        print(current_outputter.word_buffer, end="", flush=True)
+                        current_outputter.column += len(current_outputter.word_buffer)
+                        current_outputter.word_buffer = ""
                 elif chunk_type == "final-answer":
                     print(content, end="", flush=True)
 
