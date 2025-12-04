@@ -79,5 +79,6 @@ class AgentAnswer(StreamingChunk):
 @dataclasses.dataclass
 class RAGChunk(StreamingChunk):
     """RAG streaming chunk"""
+    chunk_type: str = "rag"
     end_of_stream: bool = False
     error: Optional[Dict[str, str]] = None

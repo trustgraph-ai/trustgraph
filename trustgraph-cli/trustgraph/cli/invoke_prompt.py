@@ -31,36 +31,16 @@ def query(url, flow_id, template_id, variables, streaming=True, token=None):
         )
 
         if streaming:
-            full_response = {"text": "", "object": ""}
-
-            # Stream output
+            # Stream output (prompt yields strings directly)
             for chunk in response:
-                content = chunk.content
-                if content:
-                    print(content, end="", flush=True)
-                    full_response["text"] += content
-
-                # Check if this is an object response (JSON)
-                if hasattr(chunk, 'object') and chunk.object:
-                    full_response["object"] = chunk.object
-
-            # Handle final output
-            if full_response["text"]:
-                # Add final newline after streaming text
-                print()
-            elif full_response["object"]:
-                # Print JSON object (pretty-printed)
-                print(json.dumps(json.loads(full_response["object"]), indent=4))
+                if chunk:
+                    print(chunk, end="", flush=True)
+            # Add final newline after streaming
+            print()
 
         else:
-            # Non-streaming: handle response
-            if isinstance(response, str):
-                print(response)
-            elif isinstance(response, dict):
-                if "text" in response:
-                    print(response["text"])
-                elif "object" in response:
-                    print(json.dumps(json.loads(response["object"]), indent=4))
+            # Non-streaming: print complete response
+            print(response)
 
     finally:
         # Clean up socket connection

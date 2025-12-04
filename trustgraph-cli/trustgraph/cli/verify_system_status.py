@@ -171,14 +171,12 @@ def check_api_gateway(url: str, timeout: int, token: Optional[str] = None) -> Tu
 
 
 def check_processors(url: str, min_processors: int, timeout: int, token: Optional[str] = None) -> Tuple[bool, str]:
-    """Check if processors are running via show-processor-state."""
+    """Check if processors are running via metrics endpoint."""
     try:
-        api = Api(url, token=token)
-
-        # Use the metrics endpoint similar to show_processor_state
-        # This is a simplified check - we'll use requests to check the metrics
-        metrics_url = url.replace('http://', '').replace('https://', '').split('/')[0]
-        metrics_url = f"http://{metrics_url}:8088/api/metrics/query?query=processor_info"
+        # Construct metrics URL from API URL
+        if not url.endswith('/'):
+            url += '/'
+        metrics_url = f"{url}api/metrics/query?query=processor_info"
 
         resp = requests.get(metrics_url, timeout=timeout)
         if resp.status_code == 200:
@@ -199,7 +197,7 @@ def check_processors(url: str, min_processors: int, timeout: int, token: Optiona
 def check_flow_classes(url: str, timeout: int, token: Optional[str] = None) -> Tuple[bool, str]:
     """Check if flow classes are loaded."""
     try:
-        api = Api(url, token=token)
+        api = Api(url, token=token, timeout=timeout)
         flow_api = api.flow()
 
         classes = flow_api.list_classes()
@@ -216,7 +214,7 @@ def check_flow_classes(url: str, timeout: int, token: Optional[str] = None) -> T
 def check_flows(url: str, timeout: int, token: Optional[str] = None) -> Tuple[bool, str]:
     """Check if flow manager is responding."""
     try:
-        api = Api(url, token=token)
+        api = Api(url, token=token, timeout=timeout)
         flow_api = api.flow()
 
         flows = flow_api.list()
@@ -231,12 +229,22 @@ def check_flows(url: str, timeout: int, token: Optional[str] = None) -> Tuple[bo
 def check_prompts(url: str, timeout: int, token: Optional[str] = None) -> Tuple[bool, str]:
     """Check if prompts are loaded."""
     try:
-        api = Api(url, token=token)
+        api = Api(url, token=token, timeout=timeout)
+        config = api.config()
 
-        prompts = api.prompts().list()
+        # Import ConfigKey here to avoid top-level import issues
+        from trustgraph.api.types import ConfigKey
+        import json
 
-        if prompts and len(prompts) > 0:
-            return True, f"Found {len(prompts)} prompt(s)"
+        # Get the template-index which lists all prompts
+        values = config.get([
+            ConfigKey(type="prompt", key="template-index")
+        ])
+
+        ix = json.loads(values[0].value)
+
+        if ix and len(ix) > 0:
+            return True, f"Found {len(ix)} prompt(s)"
         else:
             return False, "No prompts found"
 
@@ -247,7 +255,7 @@ def check_prompts(url: str, timeout: int, token: Optional[str] = None) -> Tuple[
 def check_library(url: str, timeout: int, token: Optional[str] = None) -> Tuple[bool, str]:
     """Check if library service is responding."""
     try:
-        api = Api(url, token=token)
+        api = Api(url, token=token, timeout=timeout)
         library_api = api.library()
 
         # Try to get documents (with default user)
@@ -365,10 +373,10 @@ def main():
     print("=" * 60)
     print("TrustGraph System Status Verification")
     print("=" * 60)
-    print(f"Global timeout: {args.global_timeout}s")
-    print(f"Check timeout: {args.check_timeout}s")
-    print(f"Retry delay: {args.retry_delay}s")
-    print("=" * 60)
+#    print(f"Global timeout: {args.global_timeout}s")
+#    print(f"Check timeout: {args.check_timeout}s")
+#    print(f"Retry delay: {args.retry_delay}s")
+#    print("=" * 60)
     print()
 
     # Phase 1: Infrastructure

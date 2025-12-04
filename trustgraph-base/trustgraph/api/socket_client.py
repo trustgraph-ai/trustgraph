@@ -6,7 +6,7 @@ from typing import Optional, Dict, Any, Iterator, Union, List
 from threading import Lock
 
 from . types import AgentThought, AgentObservation, AgentAnswer, RAGChunk, StreamingChunk
-from . exceptions import ProtocolException, ApplicationException
+from . exceptions import ProtocolException, raise_from_error_dict
 
 
 class SocketClient:
@@ -126,7 +126,7 @@ class SocketClient:
                 raise ProtocolException(f"Response ID mismatch")
 
             if "error" in response:
-                raise ApplicationException(response["error"])
+                raise_from_error_dict(response["error"])
 
             if "response" not in response:
                 raise ProtocolException(f"Missing response in message")
@@ -171,10 +171,14 @@ class SocketClient:
                     continue  # Ignore messages for other requests
 
                 if "error" in response:
-                    raise ApplicationException(response["error"])
+                    raise_from_error_dict(response["error"])
 
                 if "response" in response:
                     resp = response["response"]
+
+                    # Check for errors in response chunks
+                    if "error" in resp:
+                        raise_from_error_dict(resp["error"])
 
                     # Parse different chunk types
                     chunk = self._parse_chunk(resp)
@@ -198,18 +202,26 @@ class SocketClient:
                 content=resp.get("content", ""),
                 end_of_message=resp.get("end_of_message", False)
             )
-        elif chunk_type == "final-answer":
+        elif chunk_type == "answer" or chunk_type == "final-answer":
             return AgentAnswer(
                 content=resp.get("content", ""),
                 end_of_message=resp.get("end_of_message", False),
                 end_of_dialog=resp.get("end_of_dialog", False)
             )
+        elif chunk_type == "action":
+            # Agent action chunks - treat as thoughts for display purposes
+            return AgentThought(
+                content=resp.get("content", ""),
+                end_of_message=resp.get("end_of_message", False)
+            )
         else:
             # RAG-style chunk (or generic chunk)
+            # Text-completion uses "response" field, RAG uses "chunk" field, Prompt uses "text" field
+            content = resp.get("response", resp.get("chunk", resp.get("text", "")))
             return RAGChunk(
-                content=resp.get("chunk", ""),
+                content=content,
                 end_of_stream=resp.get("end_of_stream", False),
-                error=resp.get("error")
+                error=None  # Errors are always thrown, never stored
             )
 
     def close(self) -> None:
