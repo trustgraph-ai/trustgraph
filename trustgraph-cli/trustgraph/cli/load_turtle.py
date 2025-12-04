@@ -1,18 +1,18 @@
 """
-Loads triples into the knowledge graph.
+Loads triples into the knowledge graph from Turtle files.
 """
 
-import asyncio
 import argparse
 import os
 import time
 import rdflib
-import json
-from websockets.asyncio.client import connect
+from typing import Iterator
 
+from trustgraph.api import Api, Triple
 from trustgraph.log_level import LogLevel
 
-default_url = os.getenv("TRUSTGRAPH_URL", 'ws://localhost:8088/')
+default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 default_user = 'trustgraph'
 default_collection = 'default'
 
@@ -25,67 +25,67 @@ class Loader:
             user,
             collection,
             document_id,
-            url = default_url,
+            url=default_url,
+            token=None,
     ):
-
-        if not url.endswith("/"):
-            url += "/"
-
-        url = url + f"api/v1/flow/{flow}/import/triples"
-
-        self.url = url
-
         self.files = files
+        self.flow = flow
         self.user = user
         self.collection = collection
         self.document_id = document_id
+        self.url = url
+        self.token = token
 
-    async def run(self):
-
-        try:
-
-            async with connect(self.url) as ws:
-                for file in self.files:
-                    await self.load_file(file, ws)
-
-        except Exception as e:
-            print(e, flush=True)
-
-    async def load_file(self, file, ws):
+    def load_triples_from_file(self, file) -> Iterator[Triple]:
+        """Generator that yields Triple objects from a Turtle file"""
 
         g = rdflib.Graph()
         g.parse(file, format="turtle")
 
-        def Value(value, is_uri):
-            return { "v": value, "e": is_uri }
-
-        triples = []
-
         for e in g:
-            s = Value(value=str(e[0]), is_uri=True)
-            p = Value(value=str(e[1]), is_uri=True)
-            if type(e[2]) == rdflib.term.URIRef:
-                o = Value(value=str(e[2]), is_uri=True)
+            # Extract subject, predicate, object
+            s_value = str(e[0])
+            p_value = str(e[1])
+
+            # Check if object is a URI or literal
+            if isinstance(e[2], rdflib.term.URIRef):
+                o_value = str(e[2])
             else:
-                o = Value(value=str(e[2]), is_uri=False)
+                o_value = str(e[2])
 
-            req = {
-                "metadata": {
-                    "id": self.document_id,
-                    "metadata": [],
-                    "user": self.user,
-                    "collection": self.collection
-                },
-                "triples": [
-                    {
-                        "s": s,
-                        "p": p,
-                        "o": o,
+            # Create Triple object
+            yield Triple(s=s_value, p=p_value, o=o_value)
+
+    def run(self):
+        """Load triples using Python API"""
+
+        try:
+            # Create API client
+            api = Api(url=self.url, token=self.token)
+            bulk = api.bulk()
+
+            # Load triples from all files
+            print("Loading triples...")
+            for file in self.files:
+                print(f"  Processing {file}...")
+                triples = self.load_triples_from_file(file)
+
+                bulk.import_triples(
+                    flow=self.flow,
+                    triples=triples,
+                    metadata={
+                        "id": self.document_id,
+                        "metadata": [],
+                        "user": self.user,
+                        "collection": self.collection
                     }
-                ]
-            }
+                )
 
-            await ws.send(json.dumps(req))
+            print("Triples loaded.")
+
+        except Exception as e:
+            print(f"Error: {e}", flush=True)
+            raise
 
 def main():
 
@@ -98,6 +98,12 @@ def main():
         '-u', '--api-url',
         default=default_url,
         help=f'API URL (default: {default_url})',
+    )
+
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
     )
 
     parser.add_argument(
@@ -134,16 +140,17 @@ def main():
     while True:
 
         try:
-            p = Loader(
-                document_id = args.document_id,
-                url = args.api_url,
-                flow = args.flow_id,
-                files = args.files,
-                user = args.user,
-                collection = args.collection,
+            loader = Loader(
+                document_id=args.document_id,
+                url=args.api_url,
+                token=args.token,
+                flow=args.flow_id,
+                files=args.files,
+                user=args.user,
+                collection=args.collection,
             )
 
-            asyncio.run(p.run())
+            loader.run()
 
             print("File loaded.")
             break

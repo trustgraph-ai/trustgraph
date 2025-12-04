@@ -9,11 +9,12 @@ from trustgraph.api import Api, ConfigKey
 import json
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 default_user = "trustgraph"
 
-def show_docs(url, user):
+def show_docs(url, user, token=None):
 
-    api = Api(url).library()
+    api = Api(url, token=token).library()
 
     docs = api.get_documents(user=user)
 
@@ -53,6 +54,12 @@ def main():
     )
 
     parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
+    parser.add_argument(
         '-U', '--user',
         default=default_user,
         help=f'User ID (default: {default_user})'
@@ -63,7 +70,9 @@ def main():
     try:
 
         show_docs(
-            url = args.api_url, user = args.user
+            url = args.api_url,
+            user = args.user,
+            token = args.token,
         )
 
     except Exception as e:

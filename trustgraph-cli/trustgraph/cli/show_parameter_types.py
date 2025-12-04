@@ -13,6 +13,7 @@ from trustgraph.api import Api, ConfigKey
 import json
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
 def format_enum_values(enum_list):
     """
@@ -75,11 +76,11 @@ def format_constraints(param_type_def):
 
     return ", ".join(constraints) if constraints else "None"
 
-def show_parameter_types(url):
+def show_parameter_types(url, token=None):
     """
     Show all parameter type definitions
     """
-    api = Api(url)
+    api = Api(url, token=token)
     config_api = api.config()
 
     # Get list of all parameter types
@@ -146,6 +147,12 @@ def main():
     )
 
     parser.add_argument(
+        '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
+    parser.add_argument(
         '-t', '--type',
         help='Show only the specified parameter type',
     )
@@ -155,19 +162,19 @@ def main():
     try:
         if args.type:
             # Show specific parameter type
-            show_specific_parameter_type(args.api_url, args.type)
+            show_specific_parameter_type(args.api_url, args.type, args.token)
         else:
             # Show all parameter types
-            show_parameter_types(args.api_url)
+            show_parameter_types(args.api_url, args.token)
 
     except Exception as e:
         print("Exception:", e, flush=True)
 
-def show_specific_parameter_type(url, param_type_name):
+def show_specific_parameter_type(url, param_type_name, token=None):
     """
     Show a specific parameter type definition
     """
-    api = Api(url)
+    api = Api(url, token=token)
     config_api = api.config()
 
     try:

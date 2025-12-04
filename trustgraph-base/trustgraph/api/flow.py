@@ -211,6 +211,21 @@ class FlowInstance:
             input
         )["vectors"]
 
+    def graph_embeddings_query(self, text, user, collection, limit=10):
+
+        # Query graph embeddings for semantic search
+        input = {
+            "text": text,
+            "user": user,
+            "collection": collection,
+            "limit": limit
+        }
+
+        return self.request(
+            "service/graph-embeddings",
+            input
+        )
+
     def prompt(self, id, variables):
 
         input = {

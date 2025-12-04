@@ -13,6 +13,7 @@ from trustgraph.api.types import hash, Uri, Literal, Triple
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_user = 'trustgraph'
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
 
 from requests.adapters import HTTPAdapter
@@ -655,10 +656,10 @@ documents = [
 class Loader:
 
     def __init__(
-            self, url, user
+            self, url, user, token=None
     ):
 
-        self.api = Api(url).library()
+        self.api = Api(url, token=token).library()
         self.user = user
 
     def load(self, documents):
@@ -719,6 +720,12 @@ def main():
         help=f'User ID (default: {default_user})'
     )
 
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
     args = parser.parse_args()
 
     try:
@@ -726,6 +733,7 @@ def main():
         p = Loader(
             url=args.url,
             user=args.user,
+            token=args.token,
         )
 
         p.load(documents)

@@ -13,6 +13,7 @@ import msgpack
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'ws://localhost:8088/')
 default_user = 'trustgraph'
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
 def read_message(unpacked, id, user):
     
@@ -47,12 +48,15 @@ def read_message(unpacked, id, user):
     else:
         raise RuntimeError("Unpacked unexpected messsage type", unpacked[0])
 
-async def put(url, user, id, input):
+async def put(url, user, id, input, token=None):
 
     if not url.endswith("/"):
         url += "/"
 
     url = url + "api/v1/socket"
+
+    if token:
+        url = f"{url}?token={token}"
 
     async with connect(url) as ws:
 
@@ -160,6 +164,12 @@ def main():
         help=f'Input file'
     )
 
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
     args = parser.parse_args()
 
     try:
@@ -170,6 +180,7 @@ def main():
                 user = args.user,
                 id = args.id,
                 input = args.input,
+                token = args.token,
             )
         )
 

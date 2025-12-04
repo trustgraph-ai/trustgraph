@@ -10,11 +10,12 @@ from trustgraph.api import Api
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_user = 'trustgraph'
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
 
-def remove_doc(url, user, id):
+def remove_doc(url, user, id, token=None):
 
-    api = Api(url).library()
+    api = Api(url, token=token).library()
 
     api.remove_document(user=user, id=id)
 
@@ -43,11 +44,17 @@ def main():
         help=f'Document ID'
     )
 
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
     args = parser.parse_args()
 
     try:
 
-        remove_doc(args.url, args.user, args.identifier)
+        remove_doc(args.url, args.user, args.identifier, token=args.token)
 
     except Exception as e:
 

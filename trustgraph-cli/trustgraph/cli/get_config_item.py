@@ -9,10 +9,11 @@ from trustgraph.api import Api
 from trustgraph.api.types import ConfigKey
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
-def get_config_item(url, config_type, key, format_type):
+def get_config_item(url, config_type, key, format_type, token=None):
 
-    api = Api(url).config()
+    api = Api(url, token=token).config()
 
     config_key = ConfigKey(type=config_type, key=key)
     values = api.get([config_key])
@@ -59,6 +60,12 @@ def main():
         help=f'API URL (default: {default_url})',
     )
 
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
     args = parser.parse_args()
 
     try:
@@ -68,6 +75,7 @@ def main():
             config_type=args.type,
             key=args.key,
             format_type=args.format,
+            token=args.token,
         )
 
     except Exception as e:
