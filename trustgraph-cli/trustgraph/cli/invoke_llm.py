@@ -28,7 +28,7 @@ def query(url, flow_id, system, prompt, streaming=True, token=None):
         if streaming:
             # Stream output to stdout without newline
             for chunk in response:
-                print(chunk.content, end="", flush=True)
+                print(chunk, end="", flush=True)
             # Add final newline after streaming
             print()
         else:
