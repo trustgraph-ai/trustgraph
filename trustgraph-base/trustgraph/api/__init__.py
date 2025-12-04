@@ -34,7 +34,26 @@ from .types import (
 )
 
 # Exceptions
-from .exceptions import ProtocolException, ApplicationException
+from .exceptions import (
+    ProtocolException,
+    TrustGraphException,
+    AgentError,
+    ConfigError,
+    DocumentRagError,
+    FlowError,
+    GatewayError,
+    GraphRagError,
+    LLMError,
+    LoadError,
+    LookupError,
+    NLPQueryError,
+    ObjectsQueryError,
+    RequestError,
+    StructuredQueryError,
+    UnexpectedError,
+    # Legacy alias
+    ApplicationException,
+)
 
 __all__ = [
     # Core API
@@ -75,6 +94,21 @@ __all__ = [
 
     # Exceptions
     "ProtocolException",
-    "ApplicationException",
+    "TrustGraphException",
+    "AgentError",
+    "ConfigError",
+    "DocumentRagError",
+    "FlowError",
+    "GatewayError",
+    "GraphRagError",
+    "LLMError",
+    "LoadError",
+    "LookupError",
+    "NLPQueryError",
+    "ObjectsQueryError",
+    "RequestError",
+    "StructuredQueryError",
+    "UnexpectedError",
+    "ApplicationException",  # Legacy alias
 ]
 
