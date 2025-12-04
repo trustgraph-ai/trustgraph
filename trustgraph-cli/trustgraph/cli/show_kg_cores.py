@@ -9,10 +9,11 @@ from trustgraph.api import Api, ConfigKey
 import json
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
-def show_cores(url, user):
+def show_cores(url, user, token=None):
 
-    api = Api(url).knowledge()
+    api = Api(url, token=token).knowledge()
 
     ids = api.list_kg_cores()
 
@@ -36,6 +37,12 @@ def main():
     )
 
     parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
+    parser.add_argument(
         '-U', '--user',
         default="trustgraph",
         help='API URL (default: trustgraph)',
@@ -46,7 +53,9 @@ def main():
     try:
 
         show_cores(
-            url=args.api_url, user=args.user
+            url=args.api_url,
+            user=args.user,
+            token=args.token,
         )
 
     except Exception as e:

@@ -10,10 +10,11 @@ import tabulate
 import textwrap
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
-def show_config(url):
+def show_config(url, token=None):
 
-    api = Api(url).config()
+    api = Api(url, token=token).config()
 
     values = api.get_values(type="mcp")
 
@@ -57,12 +58,19 @@ def main():
         help=f'API URL (default: {default_url})',
     )
 
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
     args = parser.parse_args()
 
     try:
 
         show_config(
             url=args.api_url,
+            token=args.token,
         )
 
     except Exception as e:
