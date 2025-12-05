@@ -26,7 +26,8 @@ class Processor(FlowProcessor):
         hosts, username, password, keyspace = resolve_cassandra_config(
             host=params.get("cassandra_host"),
             username=params.get("cassandra_username"),
-            password=params.get("cassandra_password")
+            password=params.get("cassandra_password"),
+            default_keyspace='knowledge'
         )
 
         super(Processor, self).__init__(
