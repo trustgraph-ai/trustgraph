@@ -83,15 +83,6 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
 
             self.table = user
 
-        # Validate collection exists before accepting writes
-        if not self.collection_exists(user, message.metadata.collection):
-            error_msg = (
-                f"Collection {message.metadata.collection} does not exist. "
-                f"Create it first via collection management API."
-            )
-            logger.error(error_msg)
-            raise ValueError(error_msg)
-
         for t in message.triples:
             self.tg.insert(
                 message.metadata.collection,
