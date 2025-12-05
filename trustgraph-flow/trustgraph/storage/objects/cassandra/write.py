@@ -14,6 +14,7 @@ from cassandra import ConsistencyLevel
 from .... schema import ExtractedObject
 from .... schema import RowSchema, Field
 from .... schema import StorageManagementRequest, StorageManagementResponse
+from .... schema import object_storage_management_topic, storage_management_response_topic
 from .... base import FlowProcessor, ConsumerSpec, ProducerSpec
 from .... base.cassandra_config import add_cassandra_args, resolve_cassandra_config
 
