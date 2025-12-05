@@ -33,4 +33,5 @@ from . tool_service import ToolService
 from . tool_client import ToolClientSpec
 from . agent_client import AgentClientSpec
 from . structured_query_client import StructuredQueryClientSpec
+from . collection_config_handler import CollectionConfigHandler
 
