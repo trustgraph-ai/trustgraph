@@ -145,7 +145,7 @@ class TestResolveCassandraConfig:
     def test_default_configuration(self):
         """Test resolution with no parameters or environment variables."""
         with patch.dict(os.environ, {}, clear=True):
-            hosts, username, password = resolve_cassandra_config()
+            hosts, username, password, keyspace = resolve_cassandra_config()
             
             assert hosts == ['cassandra']
             assert username is None
@@ -160,7 +160,7 @@ class TestResolveCassandraConfig:
         }
         
         with patch.dict(os.environ, env_vars, clear=True):
-            hosts, username, password = resolve_cassandra_config()
+            hosts, username, password, keyspace = resolve_cassandra_config()
             
             assert hosts == ['env1', 'env2', 'env3']
             assert username == 'env-user'
@@ -175,7 +175,7 @@ class TestResolveCassandraConfig:
         }
         
         with patch.dict(os.environ, env_vars, clear=True):
-            hosts, username, password = resolve_cassandra_config(
+            hosts, username, password, keyspace = resolve_cassandra_config(
                 host='explicit-host',
                 username='explicit-user',
                 password='explicit-pass'
@@ -212,7 +212,7 @@ class TestResolveCassandraConfig:
             cassandra_password = 'args-pass'
         
         args = MockArgs()
-        hosts, username, password = resolve_cassandra_config(args)
+        hosts, username, password, keyspace = resolve_cassandra_config(args)
         
         assert hosts == ['args-host1', 'args-host2']
         assert username == 'args-user'
@@ -233,7 +233,7 @@ class TestResolveCassandraConfig:
         
         with patch.dict(os.environ, env_vars, clear=True):
             args = PartialArgs()
-            hosts, username, password = resolve_cassandra_config(args)
+            hosts, username, password, keyspace = resolve_cassandra_config(args)
             
             assert hosts == ['args-host']  # From args
             assert username == 'env-user'  # From env
@@ -334,7 +334,7 @@ class TestConfigurationPriority:
         
         with patch.dict(os.environ, env_vars, clear=True):
             # CLI args should override everything
-            hosts, username, password = resolve_cassandra_config(
+            hosts, username, password, keyspace = resolve_cassandra_config(
                 host='cli-host',
                 username='cli-user',
                 password='cli-pass'
@@ -354,7 +354,7 @@ class TestConfigurationPriority:
         
         with patch.dict(os.environ, env_vars, clear=True):
             # Only provide host via CLI
-            hosts, username, password = resolve_cassandra_config(
+            hosts, username, password, keyspace = resolve_cassandra_config(
                 host='cli-host'
                 # username and password not provided
             )
@@ -366,7 +366,7 @@ class TestConfigurationPriority:
     def test_no_config_defaults(self):
         """Test that defaults are used when no configuration is provided."""
         with patch.dict(os.environ, {}, clear=True):
-            hosts, username, password = resolve_cassandra_config()
+            hosts, username, password, keyspace = resolve_cassandra_config()
             
             assert hosts == ['cassandra']  # Default
             assert username is None       # Default
@@ -388,7 +388,7 @@ class TestEdgeCases:
     
     def test_none_values_preserved(self):
         """Test that None values are preserved correctly."""
-        hosts, username, password = resolve_cassandra_config(
+        hosts, username, password, keyspace = resolve_cassandra_config(
             host=None,
             username=None,
             password=None
@@ -401,7 +401,7 @@ class TestEdgeCases:
     
     def test_mixed_none_and_values(self):
         """Test mixing None and actual values."""
-        hosts, username, password = resolve_cassandra_config(
+        hosts, username, password, keyspace = resolve_cassandra_config(
             host='mixed-host',
             username=None,
             password='mixed-pass'
