@@ -11,11 +11,9 @@ import uuid
 import os
 import logging
 
-from .... base import DocumentEmbeddingsStoreService
+from .... base import DocumentEmbeddingsStoreService, CollectionConfigHandler
 from .... base import AsyncProcessor, Consumer, Producer
 from .... base import ConsumerMetrics, ProducerMetrics
-from .... schema import StorageManagementRequest, StorageManagementResponse, Error
-from .... schema import vector_storage_management_topic, storage_management_response_topic
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -25,7 +23,7 @@ default_api_key = os.getenv("PINECONE_API_KEY", "not-specified")
 default_cloud = "aws"
 default_region = "us-east-1"
 
-class Processor(DocumentEmbeddingsStoreService):
+class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
 
     def __init__(self, **params):
 
@@ -36,6 +34,9 @@ class Processor(DocumentEmbeddingsStoreService):
 
         if self.api_key is None or self.api_key == "not-specified":
             raise RuntimeError("Pinecone API key must be specified")
+
+        # Initialize collection config handler
+        CollectionConfigHandler.__init__(self)
 
         if self.url:
 
@@ -59,33 +60,8 @@ class Processor(DocumentEmbeddingsStoreService):
 
         self.last_index_name = None
 
-        # Set up metrics for storage management
-        storage_request_metrics = ConsumerMetrics(
-            processor=self.id, flow=None, name="storage-request"
-        )
-        storage_response_metrics = ProducerMetrics(
-            processor=self.id, flow=None, name="storage-response"
-        )
-
-        # Set up consumer for storage management requests
-        self.storage_request_consumer = Consumer(
-            taskgroup=self.taskgroup,
-            client=self.pulsar_client,
-            flow=None,
-            topic=vector_storage_management_topic,
-            subscriber=f"{self.id}-storage",
-            schema=StorageManagementRequest,
-            handler=self.on_storage_management,
-            metrics=storage_request_metrics,
-        )
-
-        # Set up producer for storage management responses
-        self.storage_response_producer = Producer(
-            client=self.pulsar_client,
-            topic=storage_management_response_topic,
-            schema=StorageManagementResponse,
-            metrics=storage_response_metrics,
-        )
+        # Register for config push notifications
+        self.register_config_handler(self.on_collection_config)
 
     def create_index(self, index_name, dim):
 
