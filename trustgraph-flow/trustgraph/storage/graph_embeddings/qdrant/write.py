@@ -42,14 +42,6 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
         # Register for config push notifications
         self.register_config_handler(self.on_collection_config)
 
-    async def start(self):
-        """Start the processor and its storage management consumer"""
-        await super().start()
-        if hasattr(self, 'storage_request_consumer'):
-            await self.storage_request_consumer.start()
-        if hasattr(self, 'storage_response_producer'):
-            await self.storage_response_producer.start()
-
     async def store_graph_embeddings(self, message):
 
         for entity in message.entities:
@@ -105,65 +97,22 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
             help=f'Qdrant API key'
         )
 
-    async def on_storage_management(self, message, consumer, flow):
-        """Handle storage management requests"""
-        request = message.value()
-        logger.info(f"Storage management request: {request.operation} for {request.user}/{request.collection}")
-
-        try:
-            if request.operation == "create-collection":
-                await self.handle_create_collection(request)
-            elif request.operation == "delete-collection":
-                await self.handle_delete_collection(request)
-            else:
-                response = StorageManagementResponse(
-                    error=Error(
-                        type="invalid_operation",
-                        message=f"Unknown operation: {request.operation}"
-                    )
-                )
-                await self.storage_response_producer.send(response)
-
-        except Exception as e:
-            logger.error(f"Error processing storage management request: {e}", exc_info=True)
-            response = StorageManagementResponse(
-                error=Error(
-                    type="processing_error",
-                    message=str(e)
-                )
-            )
-            await self.storage_response_producer.send(response)
-
-    async def handle_create_collection(self, request):
+    async def create_collection(self, user: str, collection: str, metadata: dict):
         """
-        No-op for collection creation - collections are created lazily on first write
+        Create collection via config push - collections are created lazily on first write
         with the correct dimension determined from the actual embeddings.
         """
         try:
-            logger.info(f"Collection create request for {request.user}/{request.collection} - will be created lazily on first write")
-
-            # Send success response
-            response = StorageManagementResponse(error=None)
-            await self.storage_response_producer.send(response)
+            logger.info(f"Collection create request for {user}/{collection} - will be created lazily on first write")
 
         except Exception as e:
-            logger.error(f"Failed to handle create collection request: {e}", exc_info=True)
-            response = StorageManagementResponse(
-                error=Error(
-                    type="creation_error",
-                    message=str(e)
-                )
-            )
-            await self.storage_response_producer.send(response)
+            logger.error(f"Failed to create collection {user}/{collection}: {e}", exc_info=True)
+            raise
 
-    async def handle_delete_collection(self, request):
-        """
-        Delete all dimension variants of the collection for graph embeddings.
-        Since collections are created with dimension suffixes (e.g., t_user_coll_384),
-        we need to find and delete all matching collections.
-        """
+    async def delete_collection(self, user: str, collection: str):
+        """Delete the collection for graph embeddings via config push"""
         try:
-            prefix = f"t_{request.user}_{request.collection}_"
+            prefix = f"t_{user}_{collection}_"
 
             # Get all collections and filter for matches
             all_collections = self.qdrant.get_collections().collections
@@ -178,16 +127,10 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
                 for collection_name in matching_collections:
                     self.qdrant.delete_collection(collection_name)
                     logger.info(f"Deleted Qdrant collection: {collection_name}")
-                logger.info(f"Deleted {len(matching_collections)} collection(s) for {request.user}/{request.collection}")
-
-            # Send success response
-            response = StorageManagementResponse(
-                error=None  # No error means success
-            )
-            await self.storage_response_producer.send(response)
+                logger.info(f"Deleted {len(matching_collections)} collection(s) for {user}/{collection}")
 
         except Exception as e:
-            logger.error(f"Failed to delete collection: {e}")
+            logger.error(f"Failed to delete collection {user}/{collection}: {e}", exc_info=True)
             raise
 
 def run():
