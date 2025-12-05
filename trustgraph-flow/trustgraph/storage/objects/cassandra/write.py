@@ -14,7 +14,6 @@ from cassandra import ConsistencyLevel
 from .... schema import ExtractedObject
 from .... schema import RowSchema, Field
 from .... schema import StorageManagementRequest, StorageManagementResponse
-from .... schema import object_storage_management_topic, storage_management_response_topic
 from .... base import FlowProcessor, ConsumerSpec, ProducerSpec
 from .... base.cassandra_config import add_cassandra_args, resolve_cassandra_config
 
@@ -55,6 +54,20 @@ class Processor(FlowProcessor):
                 "config_type": self.config_key,
             }
         )
+
+
+        
+        # Initialize collection config handler
+
+        
+        CollectionConfigHandler.__init__(self)
+
+
+        
+        # Register for config push notifications
+
+        
+        self.register_config_handler(self.on_collection_config)
         
         self.register_specification(
             ConsumerSpec(
@@ -341,13 +354,6 @@ class Processor(FlowProcessor):
         except Exception as e:
             logger.warning(f"Failed to convert value {value} to type {field_type}: {e}")
             return str(value)
-
-    async def start(self):
-        """Start the processor and its storage management consumer"""
-        await super().start()
-        await self.storage_request_consumer.start()
-        await self.storage_response_producer.start()
-
     async def on_object(self, msg, consumer, flow):
         """Process incoming ExtractedObject and store in Cassandra"""
 
@@ -368,7 +374,7 @@ class Processor(FlowProcessor):
             if result is None or not result.one():
                 error_msg = (
                     f"Collection {obj.metadata.collection} does not exist. "
-                    f"Create it first with tg-set-collection."
+                    f"Create it first via collection management API."
                 )
                 logger.error(error_msg)
                 raise ValueError(error_msg)
