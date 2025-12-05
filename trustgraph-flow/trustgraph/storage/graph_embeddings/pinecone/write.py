@@ -35,9 +35,6 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
         if self.api_key is None or self.api_key == "not-specified":
             raise RuntimeError("Pinecone API key must be specified")
 
-        # Initialize collection config handler
-        CollectionConfigHandler.__init__(self)
-
         if self.url:
 
             self.pinecone = PineconeGRPC(

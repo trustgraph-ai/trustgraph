@@ -40,12 +40,7 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
             password=cassandra_password
         )
 
-        # Initialize collection config handler
-        CollectionConfigHandler.__init__(self)
-
-        # Initialize service base class
-        TriplesStoreService.__init__(
-            self,
+        super(Processor, self).__init__(
             **params | {
                 "cassandra_host": ','.join(hosts),
                 "cassandra_username": username

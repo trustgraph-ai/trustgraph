@@ -35,12 +35,7 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
         password = params.get("password", default_password)
         database = params.get("database", default_database)
 
-        # Initialize collection config handler
-        CollectionConfigHandler.__init__(self)
-
-        # Initialize service base class
-        TriplesStoreService.__init__(
-            self,
+        super(Processor, self).__init__(
             **params | {
                 "graph_host": graph_host,
                 "username": username,

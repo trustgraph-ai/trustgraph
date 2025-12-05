@@ -22,12 +22,7 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
 
         store_uri = params.get("store_uri", default_store_uri)
 
-        # Initialize collection config handler
-        CollectionConfigHandler.__init__(self)
-
-        # Initialize service base class
-        GraphEmbeddingsStoreService.__init__(
-            self,
+        super(Processor, self).__init__(
             **params | {
                 "store_uri": store_uri,
             }
