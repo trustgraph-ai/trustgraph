@@ -272,27 +272,137 @@ API Request → Gateway → Librarian Service
 - `pending_deletions` tracking (Lines 57, 90-96, and usage throughout)
 
 **Add:**
-- Config service client for API calls
+- Config service client for API calls (request/response pattern)
+
+**Config Client Setup:**
+```python
+# In __init__, add config request/response producers/consumers
+from trustgraph.schema.services.config import ConfigRequest, ConfigResponse
+
+# Producer for config requests
+self.config_request_producer = Producer(
+    client=pulsar_client,
+    topic=config_request_queue,
+    schema=ConfigRequest,
+)
+
+# Consumer for config responses (with correlation ID)
+self.config_response_consumer = Consumer(
+    taskgroup=taskgroup,
+    client=pulsar_client,
+    flow=None,
+    topic=config_response_queue,
+    subscriber=f"{id}-config",
+    schema=ConfigResponse,
+    handler=self.on_config_response,
+)
+
+# Tracking for pending config requests
+self.pending_config_requests = {}  # request_id -> asyncio.Event
+```
 
 **Modify `list_collections` (Lines 145-180):**
-- Replace Cassandra query with config service `getvalues` call
-- Request: `ConfigRequest(operation='getvalues', type='collections', user=<user>)`
-- Parse returned JSON-serialized CollectionMetadata values
-- Apply tag filtering in-memory (as before)
+```python
+async def list_collections(self, user, tag_filter=None, limit=None):
+    """List collections from config service"""
+    # Send getvalues request to config service
+    request = ConfigRequest(
+        id=str(uuid.uuid4()),
+        operation='getvalues',
+        type='collections',
+    )
+
+    # Send request and wait for response
+    response = await self.send_config_request(request)
+
+    # Parse collections from response
+    collections = []
+    for key, value_json in response.values.items():
+        if ":" in key:
+            coll_user, collection = key.split(":", 1)
+            if coll_user == user:
+                metadata = json.loads(value_json)
+                collections.append(CollectionMetadata(**metadata))
+
+    # Apply tag filtering in-memory (as before)
+    if tag_filter:
+        collections = [c for c in collections if any(tag in c.tags for tag in tag_filter)]
+
+    # Apply limit
+    if limit:
+        collections = collections[:limit]
+
+    return collections
+
+async def send_config_request(self, request):
+    """Send config request and wait for response"""
+    event = asyncio.Event()
+    self.pending_config_requests[request.id] = event
+
+    await self.config_request_producer.send(request)
+    await event.wait()
+
+    return self.pending_config_requests.pop(request.id + "_response")
+
+async def on_config_response(self, message, consumer, flow):
+    """Handle config response"""
+    response = message.value()
+    if response.id in self.pending_config_requests:
+        self.pending_config_requests[response.id + "_response"] = response
+        self.pending_config_requests[response.id].set()
+```
 
 **Modify `update_collection` (Lines 182-312):**
-- Replace Cassandra write with config service `put` call
-- Request: `ConfigRequest(operation='put', type='collections', key='user:collection', value=<JSON metadata>)`
-- Remove all storage broadcast logic (Lines 211-270)
-- Remove response waiting logic (Lines 272-310)
-- Simplified: config service call triggers automatic config push
+```python
+async def update_collection(self, user, collection, name, description, tags):
+    """Update collection via config service"""
+    # Create metadata
+    metadata = CollectionMetadata(
+        user=user,
+        collection=collection,
+        name=name,
+        description=description,
+        tags=tags,
+    )
+
+    # Send put request to config service
+    request = ConfigRequest(
+        id=str(uuid.uuid4()),
+        operation='put',
+        type='collections',
+        key=f'{user}:{collection}',
+        value=json.dumps(metadata.to_dict()),
+    )
+
+    response = await self.send_config_request(request)
+
+    if response.error:
+        raise RuntimeError(f"Config update failed: {response.error.message}")
+
+    # Config service will trigger config push automatically
+    # Storage services will receive update and create collections
+```
 
 **Modify `delete_collection` (Lines 314-398):**
-- Replace Cassandra delete with config service `delete` call
-- Request: `ConfigRequest(operation='delete', type='collections', key='user:collection')`
-- Remove all storage broadcast logic (Lines 325-390)
-- Remove pending_deletions tracking (Lines 343-360)
-- Simplified: config service call triggers automatic config push
+```python
+async def delete_collection(self, user, collection):
+    """Delete collection via config service"""
+    # Send delete request to config service
+    request = ConfigRequest(
+        id=str(uuid.uuid4()),
+        operation='delete',
+        type='collections',
+        key=f'{user}:{collection}',
+    )
+
+    response = await self.send_config_request(request)
+
+    if response.error:
+        raise RuntimeError(f"Config delete failed: {response.error.message}")
+
+    # Config service will trigger config push automatically
+    # Storage services will receive update and delete collections
+```
 
 **Collection Metadata Format:**
 - Stored in config table as: `class='collections', key='user:collection'`
@@ -339,21 +449,136 @@ API Request → Gateway → Librarian Service
 - Simplifies librarian service significantly
 
 #### Change 10: Storage Services - Config-Based Collection Management
-**Status:** Implementation deferred for follow-up discussion
-
-**Pattern Overview:**
-Each storage service will:
-1. Subscribe to config push queue (like librarian already does)
-2. Register config handler to receive updates
-3. Parse collections from `config['collections']`
-4. Create/delete collections based on config changes
-5. Remove storage management request/response consumers/producers
 
 **Affected Services (11 total):**
 - Document embeddings: milvus, pinecone, qdrant
 - Graph embeddings: milvus, pinecone, qdrant
 - Object storage: cassandra
 - Triples storage: cassandra, falkordb, memgraph, neo4j
+
+**Files:**
+- `trustgraph-flow/trustgraph/storage/doc_embeddings/milvus/write.py`
+- `trustgraph-flow/trustgraph/storage/doc_embeddings/pinecone/write.py`
+- `trustgraph-flow/trustgraph/storage/doc_embeddings/qdrant/write.py`
+- `trustgraph-flow/trustgraph/storage/graph_embeddings/milvus/write.py`
+- `trustgraph-flow/trustgraph/storage/graph_embeddings/pinecone/write.py`
+- `trustgraph-flow/trustgraph/storage/graph_embeddings/qdrant/write.py`
+- `trustgraph-flow/trustgraph/storage/objects/cassandra/write.py`
+- `trustgraph-flow/trustgraph/storage/triples/cassandra/write.py`
+- `trustgraph-flow/trustgraph/storage/triples/falkordb/write.py`
+- `trustgraph-flow/trustgraph/storage/triples/memgraph/write.py`
+- `trustgraph-flow/trustgraph/storage/triples/neo4j/write.py`
+
+**Implementation Pattern (all services):**
+
+1. **Register config handler in `__init__`:**
+```python
+# Add after AsyncProcessor initialization
+self.register_config_handler(self.on_collection_config)
+self.known_collections = set()  # Track (user, collection) tuples
+```
+
+2. **Implement config handler:**
+```python
+async def on_collection_config(self, config, version):
+    """Handle collection configuration updates"""
+    logger.info(f"Collection config version: {version}")
+
+    if "collections" not in config:
+        return
+
+    # Parse collections from config
+    # Key format: "user:collection" in config["collections"]
+    config_collections = set()
+    for key in config["collections"].keys():
+        if ":" in key:
+            user, collection = key.split(":", 1)
+            config_collections.add((user, collection))
+
+    # Determine changes
+    to_create = config_collections - self.known_collections
+    to_delete = self.known_collections - config_collections
+
+    # Create new collections (idempotent)
+    for user, collection in to_create:
+        try:
+            await self.create_collection_internal(user, collection)
+            self.known_collections.add((user, collection))
+            logger.info(f"Created collection: {user}/{collection}")
+        except Exception as e:
+            logger.error(f"Failed to create {user}/{collection}: {e}")
+
+    # Delete removed collections (idempotent)
+    for user, collection in to_delete:
+        try:
+            await self.delete_collection_internal(user, collection)
+            self.known_collections.discard((user, collection))
+            logger.info(f"Deleted collection: {user}/{collection}")
+        except Exception as e:
+            logger.error(f"Failed to delete {user}/{collection}: {e}")
+```
+
+3. **Initialize known collections on startup:**
+```python
+async def start(self):
+    """Start the processor"""
+    await super().start()
+    await self.sync_known_collections()
+
+async def sync_known_collections(self):
+    """Query backend to populate known_collections set"""
+    # Backend-specific implementation:
+    # - Milvus/Pinecone/Qdrant: List collections/indexes matching naming pattern
+    # - Cassandra: Query keyspaces or collection metadata
+    # - Neo4j/Memgraph/FalkorDB: Query CollectionMetadata nodes
+    pass
+```
+
+4. **Refactor existing handler methods:**
+```python
+# Rename and remove response sending:
+# handle_create_collection → create_collection_internal
+# handle_delete_collection → delete_collection_internal
+
+async def create_collection_internal(self, user, collection):
+    """Create collection (idempotent)"""
+    # Same logic as current handle_create_collection
+    # But remove response producer calls
+    # Handle "already exists" gracefully
+    pass
+
+async def delete_collection_internal(self, user, collection):
+    """Delete collection (idempotent)"""
+    # Same logic as current handle_delete_collection
+    # But remove response producer calls
+    # Handle "not found" gracefully
+    pass
+```
+
+5. **Remove storage management infrastructure:**
+   - Remove `self.storage_request_consumer` setup and start
+   - Remove `self.storage_response_producer` setup
+   - Remove `on_storage_management` dispatcher method
+   - Remove metrics for storage management
+   - Remove imports: `StorageManagementRequest`, `StorageManagementResponse`
+
+**Backend-Specific Considerations:**
+
+- **Vector stores (Milvus, Pinecone, Qdrant):** Track logical `(user, collection)` in `known_collections`, but may create multiple backend collections per dimension. Continue lazy creation pattern. Delete operations must remove all dimension variants.
+
+- **Cassandra Objects:** Collections are row properties, not structures. Track keyspace-level information.
+
+- **Graph stores (Neo4j, Memgraph, FalkorDB):** Query `CollectionMetadata` nodes on startup. Create/delete metadata nodes on sync.
+
+- **Cassandra Triples:** Use `KnowledgeGraph` API for collection operations.
+
+**Key Design Points:**
+
+- **Eventual consistency:** No request/response mechanism, config push is broadcast
+- **Idempotency:** All create/delete operations must be safe to retry
+- **Error handling:** Log errors but don't block config updates
+- **Self-healing:** Failed operations will retry on next config push
+- **Collection key format:** `"user:collection"` in `config["collections"]`
 
 #### Change 11: Update Collection Schema - Remove Timestamps
 **File:** `trustgraph-base/trustgraph/schema/services/collection.py`
