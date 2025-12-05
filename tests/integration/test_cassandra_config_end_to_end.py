@@ -373,13 +373,13 @@ class TestMultipleHostsHandling:
         from trustgraph.base.cassandra_config import resolve_cassandra_config
         
         # Test various whitespace scenarios
-        hosts1, _, _ = resolve_cassandra_config(host='host1, host2 ,  host3')
+        hosts1, _, _, _ = resolve_cassandra_config(host='host1, host2 ,  host3')
         assert hosts1 == ['host1', 'host2', 'host3']
         
-        hosts2, _, _ = resolve_cassandra_config(host='host1,host2,host3,')
+        hosts2, _, _, _ = resolve_cassandra_config(host='host1,host2,host3,')
         assert hosts2 == ['host1', 'host2', 'host3']
         
-        hosts3, _, _ = resolve_cassandra_config(host='  host1  ,  host2  ')
+        hosts3, _, _, _ = resolve_cassandra_config(host='  host1  ,  host2  ')
         assert hosts3 == ['host1', 'host2']
 
 
