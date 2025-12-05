@@ -188,19 +188,19 @@ class TestResolveCassandraConfig:
     def test_host_list_parsing(self):
         """Test different host list formats."""
         # Single host
-        hosts, _, _ = resolve_cassandra_config(host='single-host')
+        hosts, _, _, _ = resolve_cassandra_config(host='single-host')
         assert hosts == ['single-host']
         
         # Multiple hosts with spaces
-        hosts, _, _ = resolve_cassandra_config(host='host1, host2 ,host3')
+        hosts, _, _, _ = resolve_cassandra_config(host='host1, host2 ,host3')
         assert hosts == ['host1', 'host2', 'host3']
         
         # Empty elements filtered out
-        hosts, _, _ = resolve_cassandra_config(host='host1,,host2,')
+        hosts, _, _, _ = resolve_cassandra_config(host='host1,,host2,')
         assert hosts == ['host1', 'host2']
         
         # Already a list
-        hosts, _, _ = resolve_cassandra_config(host=['list-host1', 'list-host2'])
+        hosts, _, _, _ = resolve_cassandra_config(host=['list-host1', 'list-host2'])
         assert hosts == ['list-host1', 'list-host2']
     
     def test_args_object_resolution(self):
@@ -378,12 +378,12 @@ class TestEdgeCases:
     
     def test_empty_host_string(self):
         """Test handling of empty host string falls back to default."""
-        hosts, _, _ = resolve_cassandra_config(host='')
+        hosts, _, _, _ = resolve_cassandra_config(host='')
         assert hosts == ['cassandra']  # Falls back to default
     
     def test_whitespace_only_host(self):
         """Test handling of whitespace-only host string."""
-        hosts, _, _ = resolve_cassandra_config(host='   ')
+        hosts, _, _, _ = resolve_cassandra_config(host='   ')
         assert hosts == []  # Empty after stripping whitespace
     
     def test_none_values_preserved(self):
