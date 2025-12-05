@@ -9,11 +9,9 @@ from qdrant_client.models import Distance, VectorParams
 import uuid
 import logging
 
-from .... base import GraphEmbeddingsStoreService
+from .... base import GraphEmbeddingsStoreService, CollectionConfigHandler
 from .... base import AsyncProcessor, Consumer, Producer
 from .... base import ConsumerMetrics, ProducerMetrics
-from .... schema import StorageManagementRequest, StorageManagementResponse, Error
-from .... schema import vector_storage_management_topic, storage_management_response_topic
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -22,12 +20,15 @@ default_ident = "ge-write"
 
 default_store_uri = 'http://localhost:6333'
 
-class Processor(GraphEmbeddingsStoreService):
+class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
 
     def __init__(self, **params):
 
         store_uri = params.get("store_uri", default_store_uri)
         api_key = params.get("api_key", None)
+
+        # Initialize collection config handler
+        CollectionConfigHandler.__init__(self)
 
         super(Processor, self).__init__(
             **params | {
@@ -38,36 +39,8 @@ class Processor(GraphEmbeddingsStoreService):
 
         self.qdrant = QdrantClient(url=store_uri, api_key=api_key)
 
-        # Set up storage management if base class attributes are available
-        # (they may not be in unit tests)
-        if hasattr(self, 'id') and hasattr(self, 'taskgroup') and hasattr(self, 'pulsar_client'):
-            # Set up metrics for storage management
-            storage_request_metrics = ConsumerMetrics(
-                processor=self.id, flow=None, name="storage-request"
-            )
-            storage_response_metrics = ProducerMetrics(
-                processor=self.id, flow=None, name="storage-response"
-            )
-
-            # Set up consumer for storage management requests
-            self.storage_request_consumer = Consumer(
-                taskgroup=self.taskgroup,
-                client=self.pulsar_client,
-                flow=None,
-                topic=vector_storage_management_topic,
-                subscriber=f"{self.id}-storage",
-                schema=StorageManagementRequest,
-                handler=self.on_storage_management,
-                metrics=storage_request_metrics,
-            )
-
-            # Set up producer for storage management responses
-            self.storage_response_producer = Producer(
-                client=self.pulsar_client,
-                topic=storage_management_response_topic,
-                schema=StorageManagementResponse,
-                metrics=storage_response_metrics,
-            )
+        # Register for config push notifications
+        self.register_config_handler(self.on_collection_config)
 
     async def start(self):
         """Start the processor and its storage management consumer"""
