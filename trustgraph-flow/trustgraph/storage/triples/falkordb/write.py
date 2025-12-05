@@ -12,11 +12,9 @@ import logging
 
 from falkordb import FalkorDB
 
-from .... base import TriplesStoreService
+from .... base import TriplesStoreService, CollectionConfigHandler
 from .... base import AsyncProcessor, Consumer, Producer
 from .... base import ConsumerMetrics, ProducerMetrics
-from .... schema import StorageManagementRequest, StorageManagementResponse, Error
-from .... schema import triples_storage_management_topic, storage_management_response_topic
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -26,14 +24,19 @@ default_ident = "triples-write"
 default_graph_url = 'falkor://falkordb:6379'
 default_database = 'falkordb'
 
-class Processor(TriplesStoreService):
+class Processor(CollectionConfigHandler, TriplesStoreService):
 
     def __init__(self, **params):
-        
+
         graph_url = params.get("graph_url", default_graph_url)
         database = params.get("database", default_database)
 
-        super(Processor, self).__init__(
+        # Initialize collection config handler
+        CollectionConfigHandler.__init__(self)
+
+        # Initialize service base class
+        TriplesStoreService.__init__(
+            self,
             **params | {
                 "graph_url": graph_url,
                 "database": database,
@@ -44,33 +47,8 @@ class Processor(TriplesStoreService):
 
         self.io = FalkorDB.from_url(graph_url).select_graph(database)
 
-        # Set up metrics for storage management
-        storage_request_metrics = ConsumerMetrics(
-            processor=self.id, flow=None, name="storage-request"
-        )
-        storage_response_metrics = ProducerMetrics(
-            processor=self.id, flow=None, name="storage-response"
-        )
-
-        # Set up consumer for storage management requests
-        self.storage_request_consumer = Consumer(
-            taskgroup=self.taskgroup,
-            client=self.pulsar_client,
-            flow=None,
-            topic=triples_storage_management_topic,
-            subscriber=f"{self.id}-storage",
-            schema=StorageManagementRequest,
-            handler=self.on_storage_management,
-            metrics=storage_request_metrics,
-        )
-
-        # Set up producer for storage management responses
-        self.storage_response_producer = Producer(
-            client=self.pulsar_client,
-            topic=storage_management_response_topic,
-            schema=StorageManagementResponse,
-            metrics=storage_response_metrics,
-        )
+        # Register for config push notifications
+        self.register_config_handler(self.on_collection_config)
 
     def create_node(self, uri, user, collection):
 
@@ -184,7 +162,7 @@ class Processor(TriplesStoreService):
         if not self.collection_exists(user, collection):
             error_msg = (
                 f"Collection {collection} does not exist. "
-                f"Create it first with tg-set-collection."
+                f"Create it first via collection management API."
             )
             logger.error(error_msg)
             raise ValueError(error_msg)
@@ -217,95 +195,58 @@ class Processor(TriplesStoreService):
             help=f'FalkorDB database (default: {default_database})'
         )
 
-    async def start(self):
-        """Start the processor and its storage management consumer"""
-        await super().start()
-        await self.storage_request_consumer.start()
-        await self.storage_response_producer.start()
-
-    async def on_storage_management(self, message, consumer, flow):
-        """Handle storage management requests"""
-        request = message.value()
-        logger.info(f"Storage management request: {request.operation} for {request.user}/{request.collection}")
-
+    async def create_collection(self, user: str, collection: str, metadata: dict):
+        """Create collection metadata in FalkorDB via config push"""
         try:
-            if request.operation == "create-collection":
-                await self.handle_create_collection(request)
-            elif request.operation == "delete-collection":
-                await self.handle_delete_collection(request)
+            # Check if collection exists
+            result = self.io.query(
+                "MATCH (c:CollectionMetadata {user: $user, collection: $collection}) RETURN c LIMIT 1",
+                params={"user": user, "collection": collection}
+            )
+            if result.result_set:
+                logger.info(f"Collection {user}/{collection} already exists")
             else:
-                response = StorageManagementResponse(
-                    error=Error(
-                        type="invalid_operation",
-                        message=f"Unknown operation: {request.operation}"
-                    )
+                # Create collection metadata node
+                import datetime
+                self.io.query(
+                    "MERGE (c:CollectionMetadata {user: $user, collection: $collection}) "
+                    "SET c.created_at = $created_at",
+                    params={
+                        "user": user,
+                        "collection": collection,
+                        "created_at": datetime.datetime.now().isoformat()
+                    }
                 )
-                await self.storage_response_producer.send(response)
+                logger.info(f"Created collection {user}/{collection}")
 
         except Exception as e:
-            logger.error(f"Error processing storage management request: {e}", exc_info=True)
-            response = StorageManagementResponse(
-                error=Error(
-                    type="processing_error",
-                    message=str(e)
-                )
-            )
-            await self.storage_response_producer.send(response)
+            logger.error(f"Failed to create collection {user}/{collection}: {e}", exc_info=True)
+            raise
 
-    async def handle_create_collection(self, request):
-        """Create collection metadata in FalkorDB"""
-        try:
-            if self.collection_exists(request.user, request.collection):
-                logger.info(f"Collection {request.user}/{request.collection} already exists")
-            else:
-                self.create_collection(request.user, request.collection)
-                logger.info(f"Created collection {request.user}/{request.collection}")
-
-            # Send success response
-            response = StorageManagementResponse(error=None)
-            await self.storage_response_producer.send(response)
-
-        except Exception as e:
-            logger.error(f"Failed to create collection: {e}", exc_info=True)
-            response = StorageManagementResponse(
-                error=Error(
-                    type="creation_error",
-                    message=str(e)
-                )
-            )
-            await self.storage_response_producer.send(response)
-
-    async def handle_delete_collection(self, request):
-        """Delete the collection for FalkorDB triples"""
+    async def delete_collection(self, user: str, collection: str):
+        """Delete the collection for FalkorDB triples via config push"""
         try:
             # Delete all nodes and literals for this user/collection
             node_result = self.io.query(
                 "MATCH (n:Node {user: $user, collection: $collection}) DETACH DELETE n",
-                params={"user": request.user, "collection": request.collection}
+                params={"user": user, "collection": collection}
             )
 
             literal_result = self.io.query(
                 "MATCH (n:Literal {user: $user, collection: $collection}) DETACH DELETE n",
-                params={"user": request.user, "collection": request.collection}
+                params={"user": user, "collection": collection}
             )
 
             # Delete collection metadata node
             metadata_result = self.io.query(
                 "MATCH (c:CollectionMetadata {user: $user, collection: $collection}) DELETE c",
-                params={"user": request.user, "collection": request.collection}
+                params={"user": user, "collection": collection}
             )
 
-            logger.info(f"Deleted {node_result.nodes_deleted} nodes, {literal_result.nodes_deleted} literals, and {metadata_result.nodes_deleted} metadata nodes for collection {request.user}/{request.collection}")
-
-            # Send success response
-            response = StorageManagementResponse(
-                error=None  # No error means success
-            )
-            await self.storage_response_producer.send(response)
-            logger.info(f"Successfully deleted collection {request.user}/{request.collection}")
+            logger.info(f"Deleted {node_result.nodes_deleted} nodes, {literal_result.nodes_deleted} literals, and {metadata_result.nodes_deleted} metadata nodes for collection {user}/{collection}")
 
         except Exception as e:
-            logger.error(f"Failed to delete collection: {e}")
+            logger.error(f"Failed to delete collection {user}/{collection}: {e}", exc_info=True)
             raise
 
 def run():
