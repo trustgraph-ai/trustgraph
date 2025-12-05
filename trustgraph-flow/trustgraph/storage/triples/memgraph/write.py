@@ -29,13 +29,18 @@ default_database = 'memgraph'
 class Processor(CollectionConfigHandler, TriplesStoreService):
 
     def __init__(self, **params):
-        
+
         graph_host = params.get("graph_host", default_graph_host)
         username = params.get("username", default_username)
         password = params.get("password", default_password)
         database = params.get("database", default_database)
 
-        super(Processor, self).__init__(
+        # Initialize collection config handler
+        CollectionConfigHandler.__init__(self)
+
+        # Initialize service base class
+        TriplesStoreService.__init__(
+            self,
             **params | {
                 "graph_host": graph_host,
                 "username": username,
@@ -44,26 +49,16 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
             }
         )
 
-
-
-        # Initialize collection config handler
-
-
-        CollectionConfigHandler.__init__(self)
-
-
-
-        # Register for config push notifications
-
-
-        self.register_config_handler(self.on_collection_config)
-
         self.db = database
 
         self.io = GraphDatabase.driver(graph_host, auth=(username, password))
 
         with self.io.session(database=self.db) as session:
             self.create_indexes(session)
+
+        # Register for config push notifications
+        self.register_config_handler(self.on_collection_config)
+
     def create_indexes(self, session):
 
         # Race condition, index creation failure is ignored.  Right thing
@@ -330,6 +325,32 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
             default=default_database,
             help=f'Memgraph database (default: {default_database})'
         )
+
+    async def start(self):
+        """Start the processor and its storage management consumer"""
+        await super().start()
+        await self.storage_request_consumer.start()
+        await self.storage_response_producer.start()
+
+    async def on_storage_management(self, message, consumer, flow):
+        """Handle storage management requests"""
+        request = message.value()
+        logger.info(f"Storage management request: {request.operation} for {request.user}/{request.collection}")
+
+        try:
+            if request.operation == "create-collection":
+                await self.handle_create_collection(request)
+            elif request.operation == "delete-collection":
+                await self.handle_delete_collection(request)
+            else:
+                response = StorageManagementResponse(
+                    error=Error(
+                        type="invalid_operation",
+                        message=f"Unknown operation: {request.operation}"
+                    )
+                )
+                await self.storage_response_producer.send(response)
+
         except Exception as e:
             logger.error(f"Error processing storage management request: {e}", exc_info=True)
             response = StorageManagementResponse(
@@ -340,14 +361,19 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
             )
             await self.storage_response_producer.send(response)
 
-    async def create_collection(self, user: str, collection: str, metadata: dict):
-        """Create a collection via config push"""
+    async def handle_create_collection(self, request):
+        """Create collection metadata in Memgraph"""
         try:
-            if self.collection_exists(user, collection):
-                logger.info(f"Collection {user}/{collection} already exists")
+            if self.collection_exists(request.user, request.collection):
+                logger.info(f"Collection {request.user}/{request.collection} already exists")
             else:
-                self.create_collection(user, collection)
-                logger.info(f"Created collection {user}/{collection}")
+                self.create_collection(request.user, request.collection)
+                logger.info(f"Created collection {request.user}/{request.collection}")
+
+            # Send success response
+            response = StorageManagementResponse(error=None)
+            await self.storage_response_producer.send(response)
+
         except Exception as e:
             logger.error(f"Failed to create collection: {e}", exc_info=True)
             response = StorageManagementResponse(
@@ -358,15 +384,15 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
             )
             await self.storage_response_producer.send(response)
 
-    async def delete_collection(self, user: str, collection: str):
-        """Delete a collection via config push"""
+    async def handle_delete_collection(self, request):
+        """Delete all data for a specific collection"""
         try:
             with self.io.session(database=self.db) as session:
                 # Delete all nodes for this user and collection
                 node_result = session.run(
                     "MATCH (n:Node {user: $user, collection: $collection}) "
                     "DETACH DELETE n",
-                    user=user, collection=collection
+                    user=request.user, collection=request.collection
                 )
                 nodes_deleted = node_result.consume().counters.nodes_deleted
 
@@ -374,7 +400,7 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
                 literal_result = session.run(
                     "MATCH (n:Literal {user: $user, collection: $collection}) "
                     "DETACH DELETE n",
-                    user=user, collection=collection
+                    user=request.user, collection=request.collection
                 )
                 literals_deleted = literal_result.consume().counters.nodes_deleted
 
@@ -382,17 +408,24 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
                 metadata_result = session.run(
                     "MATCH (c:CollectionMetadata {user: $user, collection: $collection}) "
                     "DELETE c",
-                    user=user, collection=collection
+                    user=request.user, collection=request.collection
                 )
                 metadata_deleted = metadata_result.consume().counters.nodes_deleted
 
                 # Note: Relationships are automatically deleted with DETACH DELETE
 
-                logger.info(f"Deleted {nodes_deleted} nodes, {literals_deleted} literals, and {metadata_deleted} metadata nodes for {user}/{collection}")            logger.info(f"Successfully deleted collection {user}/{collection}")
+                logger.info(f"Deleted {nodes_deleted} nodes, {literals_deleted} literals, and {metadata_deleted} metadata nodes for {request.user}/{request.collection}")
+
+            # Send success response
+            response = StorageManagementResponse(
+                error=None  # No error means success
+            )
+            await self.storage_response_producer.send(response)
+            logger.info(f"Successfully deleted collection {request.user}/{request.collection}")
 
         except Exception as e:
-        logger.error(f"Failed to delete collection {user}/{collection}: {e}", exc_info=True)
-        raise
+            logger.error(f"Failed to delete collection: {e}")
+            raise
 
 def run():
 

@@ -28,7 +28,7 @@ default_database = 'neo4j'
 class Processor(CollectionConfigHandler, TriplesStoreService):
 
     def __init__(self, **params):
-        
+
         id = params.get("id", default_ident)
 
         graph_host = params.get("graph_host", default_graph_host)
@@ -36,7 +36,12 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
         password = params.get("password", default_password)
         database = params.get("database", default_database)
 
-        super(Processor, self).__init__(
+        # Initialize collection config handler
+        CollectionConfigHandler.__init__(self)
+
+        # Initialize service base class
+        TriplesStoreService.__init__(
+            self,
             **params | {
                 "graph_host": graph_host,
                 "username": username,
@@ -44,26 +49,16 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
             }
         )
 
-
-
-        # Initialize collection config handler
-
-
-        CollectionConfigHandler.__init__(self)
-
-
-
-        # Register for config push notifications
-
-
-        self.register_config_handler(self.on_collection_config)
-
         self.db = database
 
         self.io = GraphDatabase.driver(graph_host, auth=(username, password))
 
         with self.io.session(database=self.db) as session:
             self.create_indexes(session)
+
+        # Register for config push notifications
+        self.register_config_handler(self.on_collection_config)
+
     def create_indexes(self, session):
 
         # Race condition, index creation failure is ignored.  Right thing
@@ -259,17 +254,8 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
             default=default_database,
             help=f'Neo4j database (default: {default_database})'
         )
-        except Exception as e:
-            logger.error(f"Error processing storage management request: {e}", exc_info=True)
-            response = StorageManagementResponse(
-                error=Error(
-                    type="processing_error",
-                    message=str(e)
-                )
-            )
-            await self.storage_response_producer.send(response)
 
-    def collection_exists(self, user, collection):
+    def _collection_exists_in_db(self, user, collection):
         """Check if collection metadata node exists"""
         with self.io.session(database=self.db) as session:
             result = session.run(
@@ -279,7 +265,7 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
             )
             return bool(list(result))
 
-    def create_collection(self, user, collection):
+    def _create_collection_in_db(self, user, collection):
         """Create collection metadata node"""
         import datetime
         with self.io.session(database=self.db) as session:
@@ -292,25 +278,20 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
             logger.info(f"Created collection metadata node for {user}/{collection}")
 
     async def create_collection(self, user: str, collection: str, metadata: dict):
-        """Create a collection via config push"""
+        """Create collection metadata in Neo4j via config push"""
         try:
-            if self.collection_exists(user, collection):
+            if self._collection_exists_in_db(user, collection):
                 logger.info(f"Collection {user}/{collection} already exists")
             else:
-                self.create_collection(user, collection)
+                self._create_collection_in_db(user, collection)
                 logger.info(f"Created collection {user}/{collection}")
+
         except Exception as e:
-            logger.error(f"Failed to create collection: {e}", exc_info=True)
-            response = StorageManagementResponse(
-                error=Error(
-                    type="creation_error",
-                    message=str(e)
-                )
-            )
-            await self.storage_response_producer.send(response)
+            logger.error(f"Failed to create collection {user}/{collection}: {e}", exc_info=True)
+            raise
 
     async def delete_collection(self, user: str, collection: str):
-        """Delete a collection via config push"""
+        """Delete all data for a specific collection via config push"""
         try:
             with self.io.session(database=self.db) as session:
                 # Delete all nodes for this user and collection
@@ -339,11 +320,11 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
                 )
                 metadata_deleted = metadata_result.consume().counters.nodes_deleted
 
-                logger.info(f"Deleted {nodes_deleted} nodes, {literals_deleted} literals, and {metadata_deleted} metadata nodes for {user}/{collection}")            logger.info(f"Successfully deleted collection {user}/{collection}")
+                logger.info(f"Deleted {nodes_deleted} nodes, {literals_deleted} literals, and {metadata_deleted} metadata nodes for {user}/{collection}")
 
         except Exception as e:
-        logger.error(f"Failed to delete collection {user}/{collection}: {e}", exc_info=True)
-        raise
+            logger.error(f"Failed to delete collection {user}/{collection}: {e}", exc_info=True)
+            raise
 
 def run():
 
