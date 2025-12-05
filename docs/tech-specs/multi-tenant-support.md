@@ -487,6 +487,30 @@ All services inheriting from AsyncProcessor or FlowProcessor:
 - All storage services (11 total) - will subscribe to config push for collection updates
 - Storage management schema (potentially removable if unused elsewhere)
 
+## Future Considerations
+
+### Per-User Keyspace Model
+
+Some services use **per-user keyspaces** dynamically, where each user gets their own Cassandra keyspace:
+
+**Services with per-user keyspaces:**
+1. **Triples Query Service** (`trustgraph-flow/trustgraph/query/triples/cassandra/service.py:65`)
+   - Uses `keyspace=query.user`
+2. **Objects Query Service** (`trustgraph-flow/trustgraph/query/objects/cassandra/service.py:479`)
+   - Uses `keyspace=self.sanitize_name(user)`
+3. **KnowledgeGraph Direct Access** (`trustgraph-flow/trustgraph/direct/cassandra_kg.py:18`)
+   - Default parameter `keyspace="trustgraph"`
+
+**Status:** These are **not modified** in this specification.
+
+**Future Review Required:**
+- Evaluate whether per-user keyspace model creates tenant isolation issues
+- Consider if multi-tenant deployments need keyspace prefix patterns (e.g., `tenant_a_user1`)
+- Review for potential user ID collision across tenants
+- Assess if single shared keyspace per tenant with user-based row isolation is preferable
+
+**Note:** This does not block the current multi-tenant implementation but should be reviewed before production multi-tenant deployments.
+
 ## Implementation Phases
 
 ### Phase 1: Parameter Fixes (Changes 1-6)
