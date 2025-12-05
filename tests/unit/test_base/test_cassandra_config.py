@@ -251,7 +251,7 @@ class TestGetCassandraConfigFromParams:
             'cassandra_password': 'new-pass'
         }
         
-        hosts, username, password = get_cassandra_config_from_params(params)
+        hosts, username, password, keyspace = get_cassandra_config_from_params(params)
         
         assert hosts == ['new-host1', 'new-host2']
         assert username == 'new-user'
@@ -265,7 +265,7 @@ class TestGetCassandraConfigFromParams:
             'graph_password': 'old-pass'
         }
         
-        hosts, username, password = get_cassandra_config_from_params(params)
+        hosts, username, password, keyspace = get_cassandra_config_from_params(params)
         
         # Should use defaults since graph_* params are not recognized
         assert hosts == ['cassandra']  # Default
@@ -280,7 +280,7 @@ class TestGetCassandraConfigFromParams:
             'cassandra_password': 'compat-pass'
         }
         
-        hosts, username, password = get_cassandra_config_from_params(params)
+        hosts, username, password, keyspace = get_cassandra_config_from_params(params)
         
         assert hosts == ['compat-host']
         assert username is None  # cassandra_user is not recognized
@@ -298,7 +298,7 @@ class TestGetCassandraConfigFromParams:
             'graph_password': 'old-pass'
         }
         
-        hosts, username, password = get_cassandra_config_from_params(params)
+        hosts, username, password, keyspace = get_cassandra_config_from_params(params)
         
         assert hosts == ['new-host']  # Only cassandra_* params work
         assert username == 'new-user'  # Only cassandra_* params work
@@ -314,7 +314,7 @@ class TestGetCassandraConfigFromParams:
         
         with patch.dict(os.environ, env_vars, clear=True):
             params = {}
-            hosts, username, password = get_cassandra_config_from_params(params)
+            hosts, username, password, keyspace = get_cassandra_config_from_params(params)
             
             assert hosts == ['fallback-host1', 'fallback-host2']
             assert username == 'fallback-user'

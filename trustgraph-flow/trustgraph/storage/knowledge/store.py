@@ -23,7 +23,7 @@ class Processor(FlowProcessor):
         id = params.get("id")
 
         # Use helper to resolve configuration
-        hosts, username, password = resolve_cassandra_config(
+        hosts, username, password, keyspace = resolve_cassandra_config(
             host=params.get("cassandra_host"),
             username=params.get("cassandra_username"),
             password=params.get("cassandra_password")
