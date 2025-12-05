@@ -111,21 +111,6 @@ class LibraryTableStore:
             );
         """);
 
-        logger.debug("collections table...")
-
-        self.cassandra.execute("""
-            CREATE TABLE IF NOT EXISTS collections (
-                user text,
-                collection text,
-                name text,
-                description text,
-                tags set<text>,
-                created_at timestamp,
-                updated_at timestamp,
-                PRIMARY KEY (user, collection)
-            );
-        """);
-
         logger.info("Cassandra schema OK.")
 
     def prepare_statements(self):
@@ -207,36 +192,6 @@ class LibraryTableStore:
             INSERT INTO collections
             (user, collection, name, description, tags, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        """)
-
-        self.update_collection_stmt = self.cassandra.prepare("""
-            UPDATE collections
-            SET name = ?, description = ?, tags = ?, updated_at = ?
-            WHERE user = ? AND collection = ?
-        """)
-
-        self.get_collection_stmt = self.cassandra.prepare("""
-            SELECT collection, name, description, tags, created_at, updated_at
-            FROM collections
-            WHERE user = ? AND collection = ?
-        """)
-
-        self.list_collections_stmt = self.cassandra.prepare("""
-            SELECT collection, name, description, tags, created_at, updated_at
-            FROM collections
-            WHERE user = ?
-        """)
-
-        self.delete_collection_stmt = self.cassandra.prepare("""
-            DELETE FROM collections
-            WHERE user = ? AND collection = ?
-        """)
-
-        self.collection_exists_stmt = self.cassandra.prepare("""
-            SELECT collection
-            FROM collections
-            WHERE user = ? AND collection = ?
-            LIMIT 1
         """)
 
         self.list_processing_stmt = self.cassandra.prepare("""
