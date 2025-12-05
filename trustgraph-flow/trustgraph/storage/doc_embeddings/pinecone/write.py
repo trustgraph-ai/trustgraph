@@ -158,65 +158,22 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
             help=f'Pinecone region, (default: {default_region}'
         )
 
-    async def on_storage_management(self, message, consumer, flow):
-        """Handle storage management requests"""
-        request = message.value()
-        logger.info(f"Storage management request: {request.operation} for {request.user}/{request.collection}")
-
-        try:
-            if request.operation == "create-collection":
-                await self.handle_create_collection(request)
-            elif request.operation == "delete-collection":
-                await self.handle_delete_collection(request)
-            else:
-                response = StorageManagementResponse(
-                    error=Error(
-                        type="invalid_operation",
-                        message=f"Unknown operation: {request.operation}"
-                    )
-                )
-                await self.storage_response_producer.send(response)
-
-        except Exception as e:
-            logger.error(f"Error processing storage management request: {e}", exc_info=True)
-            response = StorageManagementResponse(
-                error=Error(
-                    type="processing_error",
-                    message=str(e)
-                )
-            )
-            await self.storage_response_producer.send(response)
-
-    async def handle_create_collection(self, request):
+    async def create_collection(self, user: str, collection: str, metadata: dict):
         """
-        No-op for collection creation - indexes are created lazily on first write
+        Create collection via config push - indexes are created lazily on first write
         with the correct dimension determined from the actual embeddings.
         """
         try:
-            logger.info(f"Collection create request for {request.user}/{request.collection} - will be created lazily on first write")
-
-            # Send success response
-            response = StorageManagementResponse(error=None)
-            await self.storage_response_producer.send(response)
+            logger.info(f"Collection create request for {user}/{collection} - will be created lazily on first write")
 
         except Exception as e:
-            logger.error(f"Failed to handle create collection request: {e}", exc_info=True)
-            response = StorageManagementResponse(
-                error=Error(
-                    type="creation_error",
-                    message=str(e)
-                )
-            )
-            await self.storage_response_producer.send(response)
+            logger.error(f"Failed to create collection {user}/{collection}: {e}", exc_info=True)
+            raise
 
-    async def handle_delete_collection(self, request):
-        """
-        Delete all dimension variants of the index for document embeddings.
-        Since indexes are created with dimension suffixes (e.g., d-user-coll-384),
-        we need to find and delete all matching indexes.
-        """
+    async def delete_collection(self, user: str, collection: str):
+        """Delete the collection for document embeddings via config push"""
         try:
-            prefix = f"d-{request.user}-{request.collection}-"
+            prefix = f"d-{user}-{collection}-"
 
             # Get all indexes and filter for matches
             all_indexes = self.pinecone.list_indexes()
@@ -231,16 +188,10 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
                 for index_name in matching_indexes:
                     self.pinecone.delete_index(index_name)
                     logger.info(f"Deleted Pinecone index: {index_name}")
-                logger.info(f"Deleted {len(matching_indexes)} index(es) for {request.user}/{request.collection}")
-
-            # Send success response
-            response = StorageManagementResponse(
-                error=None  # No error means success
-            )
-            await self.storage_response_producer.send(response)
+                logger.info(f"Deleted {len(matching_indexes)} index(es) for {user}/{collection}")
 
         except Exception as e:
-            logger.error(f"Failed to delete collection: {e}")
+            logger.error(f"Failed to delete collection {user}/{collection}: {e}", exc_info=True)
             raise
 
 def run():
