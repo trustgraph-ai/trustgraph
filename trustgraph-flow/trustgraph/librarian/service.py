@@ -18,9 +18,8 @@ from .. schema import LibrarianRequest, LibrarianResponse, Error
 from .. schema import librarian_request_queue, librarian_response_queue
 from .. schema import CollectionManagementRequest, CollectionManagementResponse
 from .. schema import collection_request_queue, collection_response_queue
-from .. schema import StorageManagementRequest, StorageManagementResponse
-from .. schema import vector_storage_management_topic, object_storage_management_topic
-from .. schema import triples_storage_management_topic, storage_management_response_topic
+from .. schema import ConfigRequest, ConfigResponse
+from .. schema import config_request_queue, config_response_queue
 
 from .. schema import Document, Metadata
 from .. schema import TextDocument, Metadata
@@ -39,6 +38,8 @@ default_librarian_request_queue = librarian_request_queue
 default_librarian_response_queue = librarian_response_queue
 default_collection_request_queue = collection_request_queue
 default_collection_response_queue = collection_response_queue
+default_config_request_queue = config_request_queue
+default_config_response_queue = config_response_queue
 
 default_minio_host = "minio:9000"
 default_minio_access_key = "minioadmin"
@@ -46,9 +47,6 @@ default_minio_secret_key = "minioadmin"
 default_cassandra_host = "cassandra"
 
 bucket_name = "library"
-
-# FIXME: How to ensure this doesn't conflict with other usage?
-keyspace = "librarian"
 
 class Processor(AsyncProcessor):
 
@@ -74,6 +72,14 @@ class Processor(AsyncProcessor):
             "collection_response_queue", default_collection_response_queue
         )
 
+        config_request_queue = params.get(
+            "config_request_queue", default_config_request_queue
+        )
+
+        config_response_queue = params.get(
+            "config_response_queue", default_config_response_queue
+        )
+
         minio_host = params.get("minio_host", default_minio_host)
         minio_access_key = params.get(
             "minio_access_key",
@@ -87,14 +93,15 @@ class Processor(AsyncProcessor):
         cassandra_host = params.get("cassandra_host")
         cassandra_username = params.get("cassandra_username")
         cassandra_password = params.get("cassandra_password")
-        
+
         # Resolve configuration with environment variable fallback
-        hosts, username, password = resolve_cassandra_config(
+        hosts, username, password, keyspace = resolve_cassandra_config(
             host=cassandra_host,
             username=cassandra_username,
-            password=cassandra_password
+            password=cassandra_password,
+            default_keyspace="librarian"
         )
-        
+
         # Store resolved configuration
         self.cassandra_host = hosts
         self.cassandra_username = username
@@ -170,34 +177,31 @@ class Processor(AsyncProcessor):
             metrics = collection_response_metrics,
         )
 
-        # Storage management producers for collection deletion
-        self.vector_storage_producer = Producer(
-            client = self.pulsar_client,
-            topic = vector_storage_management_topic,
-            schema = StorageManagementRequest,
+        # Config service client for collection management
+        config_request_metrics = ProducerMetrics(
+            processor = id, flow = None, name = "config-request"
         )
 
-        self.object_storage_producer = Producer(
+        self.config_request_producer = Producer(
             client = self.pulsar_client,
-            topic = object_storage_management_topic,
-            schema = StorageManagementRequest,
+            topic = config_request_queue,
+            schema = ConfigRequest,
+            metrics = config_request_metrics,
         )
 
-        self.triples_storage_producer = Producer(
-            client = self.pulsar_client,
-            topic = triples_storage_management_topic,
-            schema = StorageManagementRequest,
+        config_response_metrics = ConsumerMetrics(
+            processor = id, flow = None, name = "config-response"
         )
 
-        self.storage_response_consumer = Consumer(
+        self.config_response_consumer = Consumer(
             taskgroup = self.taskgroup,
             client = self.pulsar_client,
             flow = None,
-            topic = storage_management_response_topic,
-            subscriber = id,
-            schema = StorageManagementResponse,
-            handler = self.on_storage_response,
-            metrics = storage_response_metrics,
+            topic = config_response_queue,
+            subscriber = f"{id}-config",
+            schema = ConfigResponse,
+            handler = self.on_config_response,
+            metrics = config_response_metrics,
         )
 
         self.librarian = Librarian(
@@ -213,14 +217,9 @@ class Processor(AsyncProcessor):
         )
 
         self.collection_manager = CollectionManager(
-            cassandra_host = self.cassandra_host,
-            cassandra_username = self.cassandra_username,
-            cassandra_password = self.cassandra_password,
-            keyspace = keyspace,
-            vector_storage_producer = self.vector_storage_producer,
-            object_storage_producer = self.object_storage_producer,
-            triples_storage_producer = self.triples_storage_producer,
-            storage_response_consumer = self.storage_response_consumer,
+            config_request_producer = self.config_request_producer,
+            config_response_consumer = self.config_response_consumer,
+            taskgroup = self.taskgroup,
         )
 
         self.register_config_handler(self.on_librarian_config)
@@ -236,10 +235,12 @@ class Processor(AsyncProcessor):
         await self.librarian_response_producer.start()
         await self.collection_request_consumer.start()
         await self.collection_response_producer.start()
-        await self.vector_storage_producer.start()
-        await self.object_storage_producer.start()
-        await self.triples_storage_producer.start()
-        await self.storage_response_consumer.start()
+        await self.config_request_producer.start()
+        await self.config_response_consumer.start()
+
+    async def on_config_response(self, message, consumer, flow):
+        """Forward config responses to collection manager"""
+        await self.collection_manager.on_config_response(message, consumer, flow)
 
     async def on_librarian_config(self, config, version):
 
@@ -463,14 +464,6 @@ class Processor(AsyncProcessor):
             )
 
         logger.debug("Collection request processing complete")
-
-    async def on_storage_response(self, msg, consumer, flow):
-        """
-        Handle storage management response messages
-        """
-        v = msg.value()
-        logger.debug("Received storage management response")
-        await self.collection_manager.on_storage_response(v)
 
     @staticmethod
     def add_args(parser):

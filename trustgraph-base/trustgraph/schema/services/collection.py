@@ -17,8 +17,6 @@ class CollectionMetadata(Record):
     name = String()
     description = String()
     tags = Array(String())
-    created_at = String()  # ISO timestamp
-    updated_at = String()  # ISO timestamp
 
 ############################################################################
 
@@ -33,8 +31,6 @@ class CollectionManagementRequest(Record):
     name = String()
     description = String()
     tags = Array(String())
-    created_at = String()  # ISO timestamp
-    updated_at = String()  # ISO timestamp
 
     # For list
     tag_filter = Array(String())  # Optional filter by tags

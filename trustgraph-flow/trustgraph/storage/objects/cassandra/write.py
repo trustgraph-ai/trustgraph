@@ -35,7 +35,7 @@ class Processor(FlowProcessor):
         cassandra_password = params.get("cassandra_password")
         
         # Resolve configuration with environment variable fallback
-        hosts, username, password = resolve_cassandra_config(
+        hosts, username, password, keyspace = resolve_cassandra_config(
             host=cassandra_host,
             username=cassandra_username,
             password=cassandra_password
@@ -55,7 +55,7 @@ class Processor(FlowProcessor):
                 "config_type": self.config_key,
             }
         )
-        
+
         self.register_specification(
             ConsumerSpec(
                 name = "input",
@@ -341,13 +341,6 @@ class Processor(FlowProcessor):
         except Exception as e:
             logger.warning(f"Failed to convert value {value} to type {field_type}: {e}")
             return str(value)
-
-    async def start(self):
-        """Start the processor and its storage management consumer"""
-        await super().start()
-        await self.storage_request_consumer.start()
-        await self.storage_response_producer.start()
-
     async def on_object(self, msg, consumer, flow):
         """Process incoming ExtractedObject and store in Cassandra"""
 
@@ -368,7 +361,7 @@ class Processor(FlowProcessor):
             if result is None or not result.one():
                 error_msg = (
                     f"Collection {obj.metadata.collection} does not exist. "
-                    f"Create it first with tg-set-collection."
+                    f"Create it first via collection management API."
                 )
                 logger.error(error_msg)
                 raise ValueError(error_msg)
