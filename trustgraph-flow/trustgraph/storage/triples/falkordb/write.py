@@ -31,12 +31,7 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
         graph_url = params.get("graph_url", default_graph_url)
         database = params.get("database", default_database)
 
-        # Initialize collection config handler
-        CollectionConfigHandler.__init__(self)
-
-        # Initialize service base class
-        TriplesStoreService.__init__(
-            self,
+        super(Processor, self).__init__(
             **params | {
                 "graph_url": graph_url,
                 "database": database,

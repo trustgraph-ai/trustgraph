@@ -34,7 +34,7 @@ class Processor(FlowProcessor):
         cassandra_password = params.get("cassandra_password")
         
         # Resolve configuration with environment variable fallback
-        hosts, username, password = resolve_cassandra_config(
+        hosts, username, password, keyspace = resolve_cassandra_config(
             host=cassandra_host,
             username=cassandra_username,
             password=cassandra_password
@@ -55,20 +55,6 @@ class Processor(FlowProcessor):
             }
         )
 
-
-        
-        # Initialize collection config handler
-
-        
-        CollectionConfigHandler.__init__(self)
-
-
-        
-        # Register for config push notifications
-
-        
-        self.register_config_handler(self.on_collection_config)
-        
         self.register_specification(
             ConsumerSpec(
                 name = "input",

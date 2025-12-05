@@ -35,15 +35,6 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
 
     async def store_graph_embeddings(self, message):
 
-        # Validate collection exists before accepting writes
-        if not self.collection_exists(message.metadata.user, message.metadata.collection):
-            error_msg = (
-                f"Collection {message.metadata.collection} does not exist. "
-                f"Create it first via collection management API."
-            )
-            logger.error(error_msg)
-            raise ValueError(error_msg)
-
         for entity in message.entities:
 
             if entity.entity.value != "" and entity.entity.value is not None:

@@ -35,15 +35,6 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
 
     async def store_document_embeddings(self, message):
 
-        # Validate collection exists before accepting writes
-        if not self.collection_exists(message.metadata.user, message.metadata.collection):
-            error_msg = (
-                f"Collection {message.metadata.collection} does not exist. "
-                f"Create it first via collection management API."
-            )
-            logger.error(error_msg)
-            raise ValueError(error_msg)
-
         for emb in message.chunks:
 
             if emb.chunk is None or emb.chunk == b"": continue
