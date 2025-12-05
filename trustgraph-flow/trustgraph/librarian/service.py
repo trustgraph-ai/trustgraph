@@ -47,9 +47,6 @@ default_cassandra_host = "cassandra"
 
 bucket_name = "library"
 
-# FIXME: How to ensure this doesn't conflict with other usage?
-keyspace = "librarian"
-
 class Processor(AsyncProcessor):
 
     def __init__(self, **params):
@@ -87,14 +84,15 @@ class Processor(AsyncProcessor):
         cassandra_host = params.get("cassandra_host")
         cassandra_username = params.get("cassandra_username")
         cassandra_password = params.get("cassandra_password")
-        
+
         # Resolve configuration with environment variable fallback
-        hosts, username, password = resolve_cassandra_config(
+        hosts, username, password, keyspace = resolve_cassandra_config(
             host=cassandra_host,
             username=cassandra_username,
-            password=cassandra_password
+            password=cassandra_password,
+            default_keyspace="librarian"
         )
-        
+
         # Store resolved configuration
         self.cassandra_host = hosts
         self.cassandra_username = username

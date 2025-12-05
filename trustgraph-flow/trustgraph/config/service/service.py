@@ -26,9 +26,6 @@ from ... base import Consumer, Producer
 # Module logger
 logger = logging.getLogger(__name__)
 
-# FIXME: How to ensure this doesn't conflict with other usage?
-keyspace = "config"
-
 default_ident = "config-svc"
 
 default_config_request_queue = config_request_queue
@@ -64,12 +61,13 @@ class Processor(AsyncProcessor):
         cassandra_host = params.get("cassandra_host")
         cassandra_username = params.get("cassandra_username")
         cassandra_password = params.get("cassandra_password")
-        
+
         # Resolve configuration with environment variable fallback
-        hosts, username, password = resolve_cassandra_config(
+        hosts, username, password, keyspace = resolve_cassandra_config(
             host=cassandra_host,
             username=cassandra_username,
-            password=cassandra_password
+            password=cassandra_password,
+            default_keyspace="config"
         )
         
         # Store resolved configuration
@@ -273,7 +271,7 @@ class Processor(AsyncProcessor):
         )
 
         parser.add_argument(
-            '--push-queue',
+            '--config-push-queue',
             default=default_config_push_queue,
             help=f'Config push queue (default: {default_config_push_queue})'
         )
