@@ -22,9 +22,6 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
 
         store_uri = params.get("store_uri", default_store_uri)
 
-        # Initialize collection config handler
-        CollectionConfigHandler.__init__(self)
-
         super(Processor, self).__init__(
             **params | {
                 "store_uri": store_uri,

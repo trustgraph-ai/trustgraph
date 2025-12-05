@@ -19,9 +19,11 @@ class CollectionConfigHandler:
     4. Implement delete_collection(user, collection) method
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         # Track known collections: {(user, collection): metadata_dict}
         self.known_collections: Dict[tuple, dict] = {}
+        # Pass remaining kwargs up the inheritance chain
+        super().__init__(**kwargs)
 
     async def on_collection_config(self, config: dict, version: int):
         """
