@@ -159,11 +159,11 @@ class CollectionManager:
 
             # Parse collections and filter by user
             collections = []
-            for key, value_json in response.values.items():
-                if ":" in key:
-                    coll_user, coll_name = key.split(":", 1)
+            for config_value in response.values:
+                if ":" in config_value.key:
+                    coll_user, coll_name = config_value.key.split(":", 1)
                     if coll_user == request.user:
-                        metadata_dict = json.loads(value_json)
+                        metadata_dict = json.loads(config_value.value)
                         metadata = CollectionMetadata(**metadata_dict)
                         collections.append(metadata)
 
