@@ -17,6 +17,16 @@ from .. exceptions import RequestError
 # Module logger
 logger = logging.getLogger(__name__)
 
+def metadata_to_dict(metadata: CollectionMetadata) -> dict:
+    """Convert CollectionMetadata to dictionary for JSON serialization"""
+    return {
+        'user': metadata.user,
+        'collection': metadata.collection,
+        'name': metadata.name,
+        'description': metadata.description,
+        'tags': list(metadata.tags)
+    }
+
 class CollectionManager:
     """Manages collection metadata via config service"""
 
@@ -120,7 +130,7 @@ class CollectionManager:
                 values=[ConfigValue(
                     type='collection',
                     key=f'{user}:{collection}',
-                    value=json.dumps(metadata.to_dict())
+                    value=json.dumps(metadata_to_dict(metadata))
                 )]
             )
 
@@ -219,7 +229,7 @@ class CollectionManager:
                 values=[ConfigValue(
                     type='collection',
                     key=f'{request.user}:{request.collection}',
-                    value=json.dumps(metadata.to_dict())
+                    value=json.dumps(metadata_to_dict(metadata))
                 )]
             )
 
