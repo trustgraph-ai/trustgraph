@@ -98,11 +98,16 @@ class DispatcherWrapper:
 
 class DispatcherManager:
 
-    def __init__(self, pulsar_client, config_receiver, prefix="api-gateway"):
+    def __init__(self, pulsar_client, config_receiver, prefix="api-gateway",
+                 queue_overrides=None):
         self.pulsar_client = pulsar_client
         self.config_receiver = config_receiver
         self.config_receiver.add_handler(self)
         self.prefix = prefix
+
+        # Store queue overrides for global services
+        # Format: {"config": {"request": "...", "response": "..."}, ...}
+        self.queue_overrides = queue_overrides or {}
 
         self.flows = {}
         self.dispatchers = {}
@@ -148,11 +153,20 @@ class DispatcherManager:
         if key in self.dispatchers:
             return await self.dispatchers[key].process(data, responder)
 
+        # Get queue overrides if specified for this service
+        request_queue = None
+        response_queue = None
+        if kind in self.queue_overrides:
+            request_queue = self.queue_overrides[kind].get("request")
+            response_queue = self.queue_overrides[kind].get("response")
+
         dispatcher = global_dispatchers[kind](
             pulsar_client = self.pulsar_client,
             timeout = 120,
             consumer = f"{self.prefix}-{kind}-request",
             subscriber = f"{self.prefix}-{kind}-request",
+            request_queue = request_queue,
+            response_queue = response_queue,
         )
 
         await dispatcher.start()

@@ -7,14 +7,20 @@ from ... messaging import TranslatorRegistry
 from . requestor import ServiceRequestor
 
 class ConfigRequestor(ServiceRequestor):
-    def __init__(self, pulsar_client, consumer, subscriber, timeout=120):
+    def __init__(self, pulsar_client, consumer, subscriber, timeout=120,
+                 request_queue=None, response_queue=None):
+
+        if request_queue is None:
+            request_queue = config_request_queue
+        if response_queue is None:
+            response_queue = config_response_queue
 
         super(ConfigRequestor, self).__init__(
             pulsar_client=pulsar_client,
             consumer_name = consumer,
             subscription = subscriber,
-            request_queue=config_request_queue,
-            response_queue=config_response_queue,
+            request_queue=request_queue,
+            response_queue=response_queue,
             request_schema=ConfigRequest,
             response_schema=ConfigResponse,
             timeout=timeout,

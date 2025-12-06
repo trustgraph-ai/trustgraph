@@ -214,7 +214,9 @@ class TestDispatcherManager:
                 pulsar_client=mock_pulsar_client,
                 timeout=120,
                 consumer="api-gateway-config-request",
-                subscriber="api-gateway-config-request"
+                subscriber="api-gateway-config-request",
+                request_queue=None,
+                response_queue=None
             )
             mock_dispatcher.start.assert_called_once()
             mock_dispatcher.process.assert_called_once_with("data", "responder")

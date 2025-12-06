@@ -9,14 +9,20 @@ from ... messaging import TranslatorRegistry
 from . requestor import ServiceRequestor
 
 class LibrarianRequestor(ServiceRequestor):
-    def __init__(self, pulsar_client, consumer, subscriber, timeout=120):
+    def __init__(self, pulsar_client, consumer, subscriber, timeout=120,
+                 request_queue=None, response_queue=None):
+
+        if request_queue is None:
+            request_queue = librarian_request_queue
+        if response_queue is None:
+            response_queue = librarian_response_queue
 
         super(LibrarianRequestor, self).__init__(
             pulsar_client=pulsar_client,
             consumer_name = consumer,
             subscription = subscriber,
-            request_queue=librarian_request_queue,
-            response_queue=librarian_response_queue,
+            request_queue=request_queue,
+            response_queue=response_queue,
             request_schema=LibrarianRequest,
             response_schema=LibrarianResponse,
             timeout=timeout,
