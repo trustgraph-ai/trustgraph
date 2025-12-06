@@ -28,19 +28,17 @@ def list_collections(url, user, tag_filter):
             collection.collection,
             collection.name,
             collection.description,
-            ", ".join(collection.tags),
-            collection.created_at,
-            collection.updated_at
+            ", ".join(collection.tags)
         ])
 
-    headers = ["Collection", "Name", "Description", "Tags", "Created", "Updated"]
+    headers = ["Collection", "Name", "Description", "Tags"]
 
     print(tabulate.tabulate(
         table,
         headers=headers,
         tablefmt="pretty",
         stralign="left",
-        maxcolwidths=[20, 30, 50, 30, 19, 19],
+        maxcolwidths=[20, 30, 50, 30],
     ))
 
 def main():

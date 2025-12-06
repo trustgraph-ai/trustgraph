@@ -49,8 +49,6 @@ class CollectionMetadata:
     name : str
     description : str
     tags : List[str]
-    created_at : str
-    updated_at : str
 
 # Streaming chunk types
 
