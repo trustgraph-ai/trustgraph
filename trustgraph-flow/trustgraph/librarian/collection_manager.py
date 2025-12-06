@@ -11,7 +11,7 @@ from typing import Dict, Any, List, Optional
 
 from .. schema import CollectionManagementRequest, CollectionManagementResponse, Error
 from .. schema import CollectionMetadata
-from .. schema import ConfigRequest, ConfigResponse
+from .. schema import ConfigRequest, ConfigResponse, ConfigKey, ConfigValue
 from .. exceptions import RequestError
 
 # Module logger
@@ -48,18 +48,22 @@ class CollectionManager:
         Send config request and wait for response
 
         Args:
-            request: Config service request
+            request: Config service request (without id field)
 
         Returns:
             ConfigResponse from config service
         """
-        event = asyncio.Event()
-        self.pending_config_requests[request.id] = event
+        # Generate request ID - passed via message properties, not in schema
+        request_id = str(uuid.uuid4())
 
-        await self.config_request_producer.send(request)
+        event = asyncio.Event()
+        self.pending_config_requests[request_id] = event
+
+        # Send request with ID in message properties
+        await self.config_request_producer.send(request, properties={"id": request_id})
         await event.wait()
 
-        response = self.pending_config_requests.pop(request.id + "_response")
+        response = self.pending_config_requests.pop(request_id + "_response")
         return response
 
     async def on_config_response(self, message, consumer, flow):
@@ -71,10 +75,12 @@ class CollectionManager:
             consumer: Consumer instance
             flow: Flow context
         """
-        response = message.value()
-        if response.id in self.pending_config_requests:
-            self.pending_config_requests[response.id + "_response"] = response
-            self.pending_config_requests[response.id].set()
+        # Get ID from message properties
+        response_id = message.properties().get("id")
+        if response_id and response_id in self.pending_config_requests:
+            response = message.value()
+            self.pending_config_requests[response_id + "_response"] = response
+            self.pending_config_requests[response_id].set()
 
     async def ensure_collection_exists(self, user: str, collection: str):
         """
@@ -87,10 +93,8 @@ class CollectionManager:
         try:
             # Check if collection exists via config service
             request = ConfigRequest(
-                id=str(uuid.uuid4()),
                 operation='get',
-                type='collection',
-                keys=[f'{user}:{collection}']
+                keys=[ConfigKey(type='collection', key=f'{user}:{collection}')]
             )
 
             response = await self.send_config_request(request)
@@ -112,11 +116,12 @@ class CollectionManager:
             )
 
             request = ConfigRequest(
-                id=str(uuid.uuid4()),
                 operation='put',
-                type='collection',
-                key=f'{user}:{collection}',
-                value=json.dumps(metadata.to_dict())
+                values=[ConfigValue(
+                    type='collection',
+                    key=f'{user}:{collection}',
+                    value=json.dumps(metadata.to_dict())
+                )]
             )
 
             response = await self.send_config_request(request)
@@ -143,7 +148,6 @@ class CollectionManager:
         try:
             # Get all collections from config service
             config_request = ConfigRequest(
-                id=str(uuid.uuid4()),
                 operation='getvalues',
                 type='collection'
             )
@@ -211,11 +215,12 @@ class CollectionManager:
 
             # Send put request to config service
             config_request = ConfigRequest(
-                id=str(uuid.uuid4()),
                 operation='put',
-                type='collection',
-                key=f'{request.user}:{request.collection}',
-                value=json.dumps(metadata.to_dict())
+                values=[ConfigValue(
+                    type='collection',
+                    key=f'{request.user}:{request.collection}',
+                    value=json.dumps(metadata.to_dict())
+                )]
             )
 
             response = await self.send_config_request(config_request)
@@ -253,10 +258,8 @@ class CollectionManager:
 
             # Send delete request to config service
             config_request = ConfigRequest(
-                id=str(uuid.uuid4()),
                 operation='delete',
-                type='collection',
-                key=f'{request.user}:{request.collection}'
+                keys=[ConfigKey(type='collection', key=f'{request.user}:{request.collection}')]
             )
 
             response = await self.send_config_request(config_request)
