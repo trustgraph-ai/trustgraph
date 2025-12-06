@@ -41,9 +41,7 @@ class Collection:
                     collection = v["collection"],
                     name = v["name"],
                     description = v["description"],
-                    tags = v["tags"],
-                    created_at = v["created_at"],
-                    updated_at = v["updated_at"]
+                    tags = v["tags"]
                 )
                 for v in collections
             ]
@@ -76,9 +74,7 @@ class Collection:
                     collection = v["collection"],
                     name = v["name"],
                     description = v["description"],
-                    tags = v["tags"],
-                    created_at = v["created_at"],
-                    updated_at = v["updated_at"]
+                    tags = v["tags"]
                 )
             return None
         except Exception as e:
