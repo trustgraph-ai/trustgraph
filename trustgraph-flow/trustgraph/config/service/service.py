@@ -270,11 +270,7 @@ class Processor(AsyncProcessor):
             help=f'Config response queue {default_config_response_queue}',
         )
 
-        parser.add_argument(
-            '--config-push-queue',
-            default=default_config_push_queue,
-            help=f'Config push queue (default: {default_config_push_queue})'
-        )
+        # Note: --config-push-queue is already added by AsyncProcessor.add_args()
 
         parser.add_argument(
             '--flow-request-queue',
