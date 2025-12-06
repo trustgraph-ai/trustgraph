@@ -20,6 +20,14 @@ from . endpoint.manager import EndpointManager
 import pulsar
 from prometheus_client import start_http_server
 
+# Import default queue names
+from .. schema import (
+    config_request_queue, config_response_queue,
+    flow_request_queue, flow_response_queue,
+    knowledge_request_queue, knowledge_response_queue,
+    librarian_request_queue, librarian_response_queue,
+)
+
 logger = logging.getLogger("api")
 logger.setLevel(logging.INFO)
 
@@ -70,10 +78,54 @@ class Api:
 
         self.config_receiver = ConfigReceiver(self.pulsar_client)
 
+        # Build queue overrides dictionary from CLI arguments
+        queue_overrides = {}
+
+        # Config service
+        config_req = config.get("config_request_queue")
+        config_resp = config.get("config_response_queue")
+        if config_req or config_resp:
+            queue_overrides["config"] = {}
+            if config_req:
+                queue_overrides["config"]["request"] = config_req
+            if config_resp:
+                queue_overrides["config"]["response"] = config_resp
+
+        # Flow service
+        flow_req = config.get("flow_request_queue")
+        flow_resp = config.get("flow_response_queue")
+        if flow_req or flow_resp:
+            queue_overrides["flow"] = {}
+            if flow_req:
+                queue_overrides["flow"]["request"] = flow_req
+            if flow_resp:
+                queue_overrides["flow"]["response"] = flow_resp
+
+        # Knowledge service
+        knowledge_req = config.get("knowledge_request_queue")
+        knowledge_resp = config.get("knowledge_response_queue")
+        if knowledge_req or knowledge_resp:
+            queue_overrides["knowledge"] = {}
+            if knowledge_req:
+                queue_overrides["knowledge"]["request"] = knowledge_req
+            if knowledge_resp:
+                queue_overrides["knowledge"]["response"] = knowledge_resp
+
+        # Librarian service
+        librarian_req = config.get("librarian_request_queue")
+        librarian_resp = config.get("librarian_response_queue")
+        if librarian_req or librarian_resp:
+            queue_overrides["librarian"] = {}
+            if librarian_req:
+                queue_overrides["librarian"]["request"] = librarian_req
+            if librarian_resp:
+                queue_overrides["librarian"]["response"] = librarian_resp
+
         self.dispatcher_manager = DispatcherManager(
             pulsar_client = self.pulsar_client,
             config_receiver = self.config_receiver,
             prefix = "gateway",
+            queue_overrides = queue_overrides,
         )
 
         self.endpoint_manager = EndpointManager(
@@ -179,6 +231,55 @@ def run():
         type=int,
         default=8000,
         help=f'Prometheus metrics port (default: 8000)',
+    )
+
+    # Queue override arguments for multi-tenant deployments
+    parser.add_argument(
+        '--config-request-queue',
+        default=None,
+        help=f'Config service request queue (default: {config_request_queue})',
+    )
+
+    parser.add_argument(
+        '--config-response-queue',
+        default=None,
+        help=f'Config service response queue (default: {config_response_queue})',
+    )
+
+    parser.add_argument(
+        '--flow-request-queue',
+        default=None,
+        help=f'Flow service request queue (default: {flow_request_queue})',
+    )
+
+    parser.add_argument(
+        '--flow-response-queue',
+        default=None,
+        help=f'Flow service response queue (default: {flow_response_queue})',
+    )
+
+    parser.add_argument(
+        '--knowledge-request-queue',
+        default=None,
+        help=f'Knowledge service request queue (default: {knowledge_request_queue})',
+    )
+
+    parser.add_argument(
+        '--knowledge-response-queue',
+        default=None,
+        help=f'Knowledge service response queue (default: {knowledge_response_queue})',
+    )
+
+    parser.add_argument(
+        '--librarian-request-queue',
+        default=None,
+        help=f'Librarian service request queue (default: {librarian_request_queue})',
+    )
+
+    parser.add_argument(
+        '--librarian-response-queue',
+        default=None,
+        help=f'Librarian service response queue (default: {librarian_response_queue})',
     )
 
     args = parser.parse_args()
