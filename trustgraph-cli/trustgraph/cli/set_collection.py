@@ -31,7 +31,6 @@ def set_collection(url, user, collection, name, description, tags, token=None):
         table.append(("Name", result.name))
         table.append(("Description", result.description))
         table.append(("Tags", ", ".join(result.tags)))
-        table.append(("Updated", result.updated_at))
 
         print(tabulate.tabulate(
             table,
