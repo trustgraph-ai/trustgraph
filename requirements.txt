@@ -21,3 +21,4 @@ prometheus-client
 pyarrow
 boto3
 ollama
+python-logging-loki
