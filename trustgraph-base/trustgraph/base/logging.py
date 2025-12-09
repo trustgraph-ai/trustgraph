@@ -141,6 +141,12 @@ def setup_logging(args):
         force=True  # Force reconfiguration if already configured
     )
 
+    # Prevent recursive logging from Loki's HTTP client
+    if loki_enabled and queue_listener:
+        # Disable urllib3 logging to prevent infinite loop
+        logging.getLogger('urllib3').setLevel(logging.WARNING)
+        logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
+
     logger = logging.getLogger(__name__)
     logger.info(f"Logging configured with level: {log_level}")
     if loki_enabled and queue_listener:
