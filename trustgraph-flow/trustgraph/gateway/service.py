@@ -9,7 +9,7 @@ from aiohttp import web
 import logging
 import os
 
-from .. log_level import LogLevel
+from trustgraph.base.logging import setup_logging
 
 from . auth import Authenticator
 from . config.receiver import ConfigReceiver
@@ -29,7 +29,6 @@ from .. schema import (
 )
 
 logger = logging.getLogger("api")
-logger.setLevel(logging.INFO)
 
 default_pulsar_host = os.getenv("PULSAR_HOST", "pulsar://pulsar:6650")
 default_prometheus_url = os.getenv("PROMETHEUS_URL", "http://prometheus:9090")
@@ -284,6 +283,9 @@ def run():
 
     args = parser.parse_args()
     args = vars(args)
+
+    # Setup logging before creating API instance
+    setup_logging(args)
 
     if args["metrics"]:
         start_http_server(args["metrics_port"])

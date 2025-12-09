@@ -19,6 +19,7 @@ from . pubsub import PulsarClient
 from . producer import Producer
 from . consumer import Consumer
 from . metrics import ProcessorMetrics, ConsumerMetrics
+from . logging import add_logging_args, setup_logging
 
 default_config_queue = config_push_queue
 
@@ -165,18 +166,9 @@ class AsyncProcessor:
             raise e
 
     @classmethod
-    def setup_logging(cls, log_level='INFO'):
+    def setup_logging(cls, args):
         """Configure logging for the entire application"""
-        # Support environment variable override
-        env_log_level = os.environ.get('TRUSTGRAPH_LOG_LEVEL', log_level)
-        
-        # Configure logging
-        logging.basicConfig(
-            level=getattr(logging, env_log_level.upper()),
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            handlers=[logging.StreamHandler()]
-        )
-        logger.info(f"Logging configured with level: {env_log_level}")
+        setup_logging(args)
 
     # Startup fabric.  launch calls launch_async in async mode.
     @classmethod
@@ -203,7 +195,7 @@ class AsyncProcessor:
         args = vars(args)
 
         # Setup logging before anything else
-        cls.setup_logging(args.get('log_level', 'INFO').upper())
+        cls.setup_logging(args)
 
         # Debug
         logger.debug(f"Arguments: {args}")
@@ -256,6 +248,7 @@ class AsyncProcessor:
     def add_args(parser):
 
         PulsarClient.add_args(parser)
+        add_logging_args(parser)
 
         parser.add_argument(
             '--config-push-queue',

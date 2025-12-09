@@ -16,6 +16,8 @@ from mcp.server.fastmcp import FastMCP, Context
 from mcp.types import TextContent
 from websockets.asyncio.client import connect
 
+from trustgraph.base.logging import add_logging_args, setup_logging
+
 from . tg_socket import WebSocketManager
 
 @dataclass
@@ -2040,9 +2042,15 @@ def main():
     parser.add_argument('--host', default='0.0.0.0', help='Host to bind to (default: 0.0.0.0)')
     parser.add_argument('--port', type=int, default=8000, help='Port to bind to (default: 8000)')
     parser.add_argument('--websocket-url', default='ws://api-gateway:8088/api/v1/socket', help='WebSocket URL to connect to (default: ws://api-gateway:8088/api/v1/socket)')
-    
+
+    # Add logging arguments
+    add_logging_args(parser)
+
     args = parser.parse_args()
-    
+
+    # Setup logging before creating server
+    setup_logging(vars(args))
+
     # Create and run the MCP server
     server = McpServer(host=args.host, port=args.port, websocket_url=args.websocket_url)
     server.run()

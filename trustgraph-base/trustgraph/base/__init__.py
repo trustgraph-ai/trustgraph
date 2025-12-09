@@ -6,6 +6,7 @@ from . producer import Producer
 from . publisher import Publisher
 from . subscriber import Subscriber
 from . metrics import ProcessorMetrics, ConsumerMetrics, ProducerMetrics
+from . logging import add_logging_args, setup_logging
 from . flow_processor import FlowProcessor
 from . consumer_spec import ConsumerSpec
 from . parameter_spec import ParameterSpec
