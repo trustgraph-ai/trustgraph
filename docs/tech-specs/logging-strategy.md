@@ -203,6 +203,7 @@ The logging system uses Python's built-in `QueueHandler` and `QueueListener` for
 ### Automatic Labels
 
 Every log sent to Loki includes:
+- `processor`: Processor identity (e.g., `config-svc`, `text-completion`, `embeddings`)
 - `severity`: Log level (DEBUG, INFO, etc.)
 - `logger`: Module name (e.g., `trustgraph.gateway.service`, `trustgraph.agent.react.service`)
 
@@ -223,17 +224,28 @@ logger.info("User action", extra={
 ### Querying Logs in Loki
 
 ```logql
-# All logs from a specific service
-{logger="trustgraph.gateway.service"}
+# All logs from a specific processor (recommended - matches Prometheus metrics)
+{processor="config-svc"}
+{processor="text-completion"}
+{processor="embeddings"}
 
-# Error logs from all services
+# Error logs from a specific processor
+{processor="config-svc", severity="ERROR"}
+
+# Error logs from all processors
 {severity="ERROR"}
 
-# Logs from a specific processor
-{logger="trustgraph.agent.react.service"} |= "Processing"
+# Logs from a specific processor with text filter
+{processor="text-completion"} |= "Processing"
+
+# All logs from API gateway
+{processor="api-gateway"}
+
+# Logs from processors matching pattern
+{processor=~".*-completion"}
 
 # Logs with custom tags
-{logger="trustgraph.gateway.service"} | json | user_id="12345"
+{processor="api-gateway"} | json | user_id="12345"
 ```
 
 ### Graceful Degradation
@@ -278,17 +290,20 @@ Format components:
 Common monitoring queries:
 
 ```logql
-# Error rate by service
-rate({severity="ERROR"}[5m]) by (logger)
+# Error rate by processor
+rate({severity="ERROR"}[5m]) by (processor)
 
-# Top error-producing services
-topk(5, count_over_time({severity="ERROR"}[1h]) by (logger))
+# Top error-producing processors
+topk(5, count_over_time({severity="ERROR"}[1h]) by (processor))
 
-# Recent errors
-{severity="ERROR"} | line_format "{{.logger}}: {{.message}}"
+# Recent errors with processor name
+{severity="ERROR"} | line_format "{{.processor}}: {{.message}}"
 
-# Service-specific logs
-{logger=~"trustgraph.agent.*"} |= "exception"
+# All agent processors
+{processor=~".*agent.*"} |= "exception"
+
+# Specific processor error count
+count_over_time({processor="config-svc", severity="ERROR"}[1h])
 ```
 
 ## Security Considerations

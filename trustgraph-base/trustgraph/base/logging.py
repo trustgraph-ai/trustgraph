@@ -87,11 +87,12 @@ def setup_logging(args):
         loki_url = args.get('loki_url', 'http://loki:3100/loki/api/v1/push')
         loki_username = args.get('loki_username')
         loki_password = args.get('loki_password')
+        processor_id = args.get('id')  # Processor identity (e.g., "config-svc", "text-completion")
 
         try:
             from logging_loki import LokiHandler
 
-            # Create Loki handler with optional authentication
+            # Create Loki handler with optional authentication and processor label
             loki_handler_kwargs = {
                 'url': loki_url,
                 'version': "1",
@@ -99,6 +100,10 @@ def setup_logging(args):
 
             if loki_username and loki_password:
                 loki_handler_kwargs['auth'] = (loki_username, loki_password)
+
+            # Add processor label if available (for consistency with Prometheus metrics)
+            if processor_id:
+                loki_handler_kwargs['tags'] = {'processor': processor_id}
 
             loki_handler = LokiHandler(**loki_handler_kwargs)
 
