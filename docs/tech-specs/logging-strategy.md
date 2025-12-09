@@ -2,17 +2,29 @@
 
 ## Overview
 
-TrustGraph uses Python's built-in `logging` module for all logging operations. This provides a standardized, flexible approach to logging across all components of the system.
+TrustGraph uses Python's built-in `logging` module for all logging operations, with centralized configuration and optional Loki integration for log aggregation. This provides a standardized, flexible approach to logging across all components of the system.
 
 ## Default Configuration
 
 ### Logging Level
 - **Default Level**: `INFO`
-- **Debug Mode**: `DEBUG` (enabled via command-line argument)
-- **Production**: `WARNING` or `ERROR` as appropriate
+- **Configurable via**: `--log-level` command-line argument
+- **Choices**: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`
 
-### Output Destination
-All logs should be written to **standard output (stdout)** to ensure compatibility with containerized environments and log aggregation systems.
+### Output Destinations
+1. **Console (stdout)**: Always enabled - ensures compatibility with containerized environments
+2. **Loki**: Optional centralized log aggregation (enabled by default, can be disabled)
+
+## Centralized Logging Module
+
+All logging configuration is managed by `trustgraph.base.logging` module, which provides:
+- `add_logging_args(parser)` - Adds standard logging CLI arguments
+- `setup_logging(args)` - Configures logging from parsed arguments
+
+This module is used by all server-side components:
+- AsyncProcessor-based services
+- API Gateway
+- MCP Server
 
 ## Implementation Guidelines
 
@@ -26,39 +38,80 @@ import logging
 logger = logging.getLogger(__name__)
 ```
 
-### 2. Centralized Configuration
+The logger name is automatically used as a label in Loki for filtering and searching.
 
-The logging configuration should be centralized in `async_processor.py` (or a dedicated logging configuration module) since it's inherited by much of the codebase:
+### 2. Service Initialization
+
+All server-side services automatically get logging configuration through the centralized module:
 
 ```python
-import logging
+from trustgraph.base import add_logging_args, setup_logging
 import argparse
 
-def setup_logging(log_level='INFO'):
-    """Configure logging for the entire application"""
-    logging.basicConfig(
-        level=getattr(logging, log_level.upper()),
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[logging.StreamHandler()]
-    )
-
-def parse_args():
+def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '--log-level',
-        default='INFO',
-        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
-        help='Set the logging level (default: INFO)'
-    )
-    return parser.parse_args()
 
-# In main execution
-if __name__ == '__main__':
-    args = parse_args()
-    setup_logging(args.log_level)
+    # Add standard logging arguments (includes Loki configuration)
+    add_logging_args(parser)
+
+    # Add your service-specific arguments
+    parser.add_argument('--port', type=int, default=8080)
+
+    args = parser.parse_args()
+    args = vars(args)
+
+    # Setup logging early in startup
+    setup_logging(args)
+
+    # Rest of your service initialization
+    logger = logging.getLogger(__name__)
+    logger.info("Service starting...")
 ```
 
-### 3. Logging Best Practices
+### 3. Command-Line Arguments
+
+All services support these logging arguments:
+
+**Log Level:**
+```bash
+--log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
+```
+
+**Loki Configuration:**
+```bash
+--loki-enabled              # Enable Loki (default)
+--no-loki-enabled           # Disable Loki
+--loki-url URL              # Loki push URL (default: http://loki:3100/loki/api/v1/push)
+--loki-username USERNAME    # Optional authentication
+--loki-password PASSWORD    # Optional authentication
+```
+
+**Examples:**
+```bash
+# Default - INFO level, Loki enabled
+./my-service
+
+# Debug mode, console only
+./my-service --log-level DEBUG --no-loki-enabled
+
+# Custom Loki server with auth
+./my-service --loki-url http://loki.prod:3100/loki/api/v1/push \
+             --loki-username admin --loki-password secret
+```
+
+### 4. Environment Variables
+
+Loki configuration supports environment variable fallbacks:
+
+```bash
+export LOKI_URL=http://loki.prod:3100/loki/api/v1/push
+export LOKI_USERNAME=admin
+export LOKI_PASSWORD=secret
+```
+
+Command-line arguments take precedence over environment variables.
+
+### 5. Logging Best Practices
 
 #### Log Levels Usage
 - **DEBUG**: Detailed information for diagnosing problems (variable values, function entry/exit)
@@ -89,20 +142,25 @@ if logger.isEnabledFor(logging.DEBUG):
     logger.debug(f"Debug data: {debug_data}")
 ```
 
-### 4. Structured Logging
+### 6. Structured Logging with Loki
 
-For complex data, use structured logging:
+For complex data, use structured logging with extra tags for Loki:
 
 ```python
 logger.info("Request processed", extra={
-    'request_id': request_id,
-    'duration_ms': duration,
-    'status_code': status_code,
-    'user_id': user_id
+    'tags': {
+        'request_id': request_id,
+        'user_id': user_id,
+        'status': 'success'
+    }
 })
 ```
 
-### 5. Exception Logging
+These tags become searchable labels in Loki, in addition to automatic labels:
+- `severity` - Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- `logger` - Module name (from `__name__`)
+
+### 7. Exception Logging
 
 Always include stack traces for exceptions:
 
@@ -114,9 +172,13 @@ except Exception as e:
     raise
 ```
 
-### 6. Async Logging Considerations
+### 8. Async Logging Considerations
 
-For async code, ensure thread-safe logging:
+The logging system uses non-blocking queued handlers for Loki:
+- Console output is synchronous (fast)
+- Loki output is queued with 500-message buffer
+- Background thread handles Loki transmission
+- No blocking of main application code
 
 ```python
 import asyncio
@@ -124,18 +186,63 @@ import logging
 
 async def async_operation():
     logger = logging.getLogger(__name__)
+    # Logging is thread-safe and won't block async operations
     logger.info(f"Starting async operation in task: {asyncio.current_task().get_name()}")
 ```
 
-## Environment Variables
+## Loki Integration
 
-Support environment-based configuration as a fallback:
+### Architecture
+
+The logging system uses Python's built-in `QueueHandler` and `QueueListener` for non-blocking Loki integration:
+
+1. **QueueHandler**: Logs are placed in a 500-message queue (non-blocking)
+2. **Background Thread**: QueueListener sends logs to Loki asynchronously
+3. **Graceful Degradation**: If Loki is unavailable, console logging continues
+
+### Automatic Labels
+
+Every log sent to Loki includes:
+- `severity`: Log level (DEBUG, INFO, etc.)
+- `logger`: Module name (e.g., `trustgraph.gateway.service`, `trustgraph.agent.react.service`)
+
+### Custom Labels
+
+Add custom labels via the `extra` parameter:
 
 ```python
-import os
-
-log_level = os.environ.get('TRUSTGRAPH_LOG_LEVEL', 'INFO')
+logger.info("User action", extra={
+    'tags': {
+        'user_id': user_id,
+        'action': 'document_upload',
+        'collection': collection_name
+    }
+})
 ```
+
+### Querying Logs in Loki
+
+```logql
+# All logs from a specific service
+{logger="trustgraph.gateway.service"}
+
+# Error logs from all services
+{severity="ERROR"}
+
+# Logs from a specific processor
+{logger="trustgraph.agent.react.service"} |= "Processing"
+
+# Logs with custom tags
+{logger="trustgraph.gateway.service"} | json | user_id="12345"
+```
+
+### Graceful Degradation
+
+If Loki is unavailable or `python-logging-loki` is not installed:
+- Warning message printed to console
+- Console logging continues normally
+- Application continues running
+- No retry logic for Loki connection (fail fast, degrade gracefully)
 
 ## Testing
 
@@ -143,27 +250,86 @@ During tests, consider using a different logging configuration:
 
 ```python
 # In test setup
-logging.getLogger().setLevel(logging.WARNING)  # Reduce noise during tests
+import logging
+
+# Reduce noise during tests
+logging.getLogger().setLevel(logging.WARNING)
+
+# Or disable Loki for tests
+setup_logging({'log_level': 'WARNING', 'loki_enabled': False})
 ```
 
 ## Monitoring Integration
 
-Ensure log format is compatible with monitoring tools:
-- Include timestamps in ISO format
-- Use consistent field names
-- Include correlation IDs where applicable
-- Structure logs for easy parsing (JSON format for production)
+### Standard Format
+All logs use consistent format:
+```
+2025-01-09 10:30:45,123 - trustgraph.gateway.service - INFO - Request processed
+```
+
+Format components:
+- Timestamp (ISO format with milliseconds)
+- Logger name (module path)
+- Log level
+- Message
+
+### Loki Queries for Monitoring
+
+Common monitoring queries:
+
+```logql
+# Error rate by service
+rate({severity="ERROR"}[5m]) by (logger)
+
+# Top error-producing services
+topk(5, count_over_time({severity="ERROR"}[1h]) by (logger))
+
+# Recent errors
+{severity="ERROR"} | line_format "{{.logger}}: {{.message}}"
+
+# Service-specific logs
+{logger=~"trustgraph.agent.*"} |= "exception"
+```
 
 ## Security Considerations
 
-- Never log sensitive information (passwords, API keys, personal data)
-- Sanitize user input before logging
-- Use placeholders for sensitive fields: `user_id=****1234`
+- **Never log sensitive information** (passwords, API keys, personal data, tokens)
+- **Sanitize user input** before logging
+- **Use placeholders** for sensitive fields: `user_id=****1234`
+- **Loki authentication**: Use `--loki-username` and `--loki-password` for secure deployments
+- **Secure transport**: Use HTTPS for Loki URL in production: `https://loki.prod:3100/loki/api/v1/push`
+
+## Dependencies
+
+The centralized logging module requires:
+- `python-logging-loki` - For Loki integration (optional, graceful degradation if missing)
+
+Already included in `trustgraph-base/pyproject.toml` and `requirements.txt`.
 
 ## Migration Path
 
-For existing code using print statements:
-1. Replace `print()` with appropriate logger calls
-2. Choose appropriate log levels based on message importance
-3. Add context to make logs more useful
-4. Test logging output at different levels
+For existing code:
+
+1. **Services already using AsyncProcessor**: No changes needed, Loki support is automatic
+2. **Services not using AsyncProcessor** (api-gateway, mcp-server): Already updated
+3. **CLI tools**: Out of scope - continue using print() or simple logging
+
+### From print() to logging:
+```python
+# Before
+print(f"Processing document {doc_id}")
+
+# After
+logger = logging.getLogger(__name__)
+logger.info(f"Processing document {doc_id}")
+```
+
+## Configuration Summary
+
+| Argument | Default | Environment Variable | Description |
+|----------|---------|---------------------|-------------|
+| `--log-level` | `INFO` | - | Console and Loki log level |
+| `--loki-enabled` | `True` | - | Enable Loki logging |
+| `--loki-url` | `http://loki:3100/loki/api/v1/push` | `LOKI_URL` | Loki push endpoint |
+| `--loki-username` | `None` | `LOKI_USERNAME` | Loki auth username |
+| `--loki-password` | `None` | `LOKI_PASSWORD` | Loki auth password |
