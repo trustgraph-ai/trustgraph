@@ -71,10 +71,3 @@ class PulsarClient:
             '--pulsar-listener',
             help=f'Pulsar listener (default: none)',
         )
-
-        parser.add_argument(
-            '-l', '--log-level',
-            default='INFO',
-            choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
-            help=f'Log level (default: INFO)'
-        )

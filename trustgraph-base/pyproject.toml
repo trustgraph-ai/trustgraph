@@ -13,6 +13,7 @@ dependencies = [
     "pulsar-client",
     "prometheus-client",
     "requests",
+    "python-logging-loki",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
