@@ -169,6 +169,12 @@ def run():
     )
 
     parser.add_argument(
+        '--id',
+        default='api-gateway',
+        help='Service identifier for logging and metrics (default: api-gateway)',
+    )
+
+    parser.add_argument(
         '-p', '--pulsar-host',
         default=default_pulsar_host,
         help=f'Pulsar host (default: {default_pulsar_host})',

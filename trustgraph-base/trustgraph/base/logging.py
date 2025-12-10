@@ -133,10 +133,14 @@ def setup_logging(args):
             print(f"WARNING: Failed to setup Loki logging: {e}")
             print("Continuing with console-only logging")
 
+    # Get processor ID for log formatting (use 'unknown' if not available)
+    processor_id = args.get('id', 'unknown')
+
     # Configure logging with all handlers
+    # Use processor ID as the primary identifier in logs
     logging.basicConfig(
         level=getattr(logging, log_level.upper()),
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        format=f'%(asctime)s - {processor_id} - %(levelname)s - %(message)s',
         handlers=handlers,
         force=True  # Force reconfiguration if already configured
     )
