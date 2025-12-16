@@ -500,15 +500,459 @@ Each backend handles serialization/deserialization of dataclasses:
    - Clean break allows for better design
    - Migration guide will be provided for existing deployments
 
-### Open Questions (To Revisit)
+4. **Nested types and complex structures:**
+   - ✅ **Decision: Use nested dataclasses naturally**
+   - Python dataclasses handle nesting perfectly
+   - `list[T]` for arrays, `dict[K, V]` for maps
+   - Backends recursively serialize/deserialize
+   - Example:
+     ```python
+     @dataclass
+     class Value:
+         value: str
+         is_uri: bool
 
-1. **Nested types and complex structures:**
-   - How to handle deeply nested schemas?
-   - Array of records, maps of records, etc.
-   - Need to examine existing schema complexity
+     @dataclass
+     class Triple:
+         s: Value              # Nested dataclass
+         p: Value
+         o: Value
 
-2. **Default values and optional fields:**
-   - How to represent optional fields?
-   - Use `Optional[T]` or `T | None`?
-   - What about fields with default values?
+     @dataclass
+     class GraphQuery:
+         triples: list[Triple]  # Array of nested dataclasses
+         metadata: dict[str, str]
+     ```
+
+5. **Default values and optional fields:**
+   - ✅ **Decision: Mix of required, defaults, and optional fields**
+   - Required fields: No default value
+   - Fields with defaults: Always present, have sensible default
+   - Truly optional fields: `T | None = None`, omitted from serialization when `None`
+   - Example:
+     ```python
+     @dataclass
+     class TextCompletionRequest:
+         system: str              # Required, no default
+         prompt: str              # Required, no default
+         streaming: bool = False  # Optional with default value
+         metadata: dict | None = None  # Truly optional, can be absent
+     ```
+
+   **Important serialization semantics:**
+
+   When `metadata = None`:
+   ```json
+   {
+       "system": "...",
+       "prompt": "...",
+       "streaming": false
+       // metadata field NOT PRESENT
+   }
+   ```
+
+   When `metadata = {}` (explicitly empty):
+   ```json
+   {
+       "system": "...",
+       "prompt": "...",
+       "streaming": false,
+       "metadata": {}  // Field PRESENT but empty
+   }
+   ```
+
+   **Key distinction:**
+   - `None` → field absent from JSON (not serialized)
+   - Empty value (`{}`, `[]`, `""`) → field present with empty value
+   - This matters semantically: "not provided" vs "explicitly empty"
+   - Serialization backends must skip `None` fields, not encode as `null`
+
+## Approach Draft 3: Implementation Details
+
+### Generic Queue Naming Format
+
+Replace backend-specific queue names with a generic format that backends can map appropriately.
+
+**Format:** `{qos}/{tenant}/{namespace}/{queue-name}`
+
+Where:
+- `qos`: Quality of Service level
+  - `q0` = best-effort (fire and forget, no acknowledgment)
+  - `q1` = at-least-once (requires acknowledgment)
+  - `q2` = exactly-once (two-phase acknowledgment)
+- `tenant`: Logical grouping for multi-tenancy
+- `namespace`: Sub-grouping within tenant
+- `queue-name`: Actual queue/topic name
+
+**Examples:**
+```
+q1/tg/flow/text-completion-requests
+q2/tg/config/config-push
+q0/tg/metrics/stats
+```
+
+### Backend Topic Mapping
+
+Each backend maps the generic format to its native format:
+
+**Pulsar Backend:**
+```python
+def map_topic(self, generic_topic: str) -> str:
+    # Parse: q1/tg/flow/text-completion-requests
+    qos, tenant, namespace, queue = generic_topic.split('/', 3)
+
+    # Map QoS to persistence
+    persistence = 'persistent' if qos in ['q1', 'q2'] else 'non-persistent'
+
+    # Return Pulsar URI: persistent://tg/flow/text-completion-requests
+    return f"{persistence}://{tenant}/{namespace}/{queue}"
+```
+
+**MQTT Backend:**
+```python
+def map_topic(self, generic_topic: str) -> tuple[str, int]:
+    # Parse: q1/tg/flow/text-completion-requests
+    qos, tenant, namespace, queue = generic_topic.split('/', 3)
+
+    # Map QoS level
+    qos_level = {'q0': 0, 'q1': 1, 'q2': 2}[qos]
+
+    # Build MQTT topic including tenant/namespace for proper namespacing
+    mqtt_topic = f"{tenant}/{namespace}/{queue}"
+
+    return mqtt_topic, qos_level
+```
+
+### Updated Topic Helper Function
+
+```python
+# schema/core/topic.py
+def topic(queue_name, qos='q1', tenant='tg', namespace='flow'):
+    """
+    Create a generic topic identifier that can be mapped by backends.
+
+    Args:
+        queue_name: The queue/topic name
+        qos: Quality of service
+             - 'q0' = best-effort (no ack)
+             - 'q1' = at-least-once (ack required)
+             - 'q2' = exactly-once (two-phase ack)
+        tenant: Tenant identifier for multi-tenancy
+        namespace: Namespace within tenant
+
+    Returns:
+        Generic topic string: qos/tenant/namespace/queue_name
+
+    Examples:
+        topic('my-queue')  # q1/tg/flow/my-queue
+        topic('config', qos='q2', namespace='config')  # q2/tg/config/config
+    """
+    return f"{qos}/{tenant}/{namespace}/{queue_name}"
+```
+
+### Configuration and Initialization
+
+**Command-Line Arguments + Environment Variables:**
+
+```python
+# In base/async_processor.py - add_args() method
+@staticmethod
+def add_args(parser):
+    # Pub/sub backend selection
+    parser.add_argument(
+        '--pubsub-backend',
+        default=os.getenv('PUBSUB_BACKEND', 'pulsar'),
+        choices=['pulsar', 'mqtt'],
+        help='Pub/sub backend (default: pulsar, env: PUBSUB_BACKEND)'
+    )
+
+    # Pulsar-specific configuration
+    parser.add_argument(
+        '--pulsar-host',
+        default=os.getenv('PULSAR_HOST', 'pulsar://localhost:6650'),
+        help='Pulsar host (default: pulsar://localhost:6650, env: PULSAR_HOST)'
+    )
+
+    parser.add_argument(
+        '--pulsar-api-key',
+        default=os.getenv('PULSAR_API_KEY', None),
+        help='Pulsar API key (env: PULSAR_API_KEY)'
+    )
+
+    parser.add_argument(
+        '--pulsar-listener',
+        default=os.getenv('PULSAR_LISTENER', None),
+        help='Pulsar listener name (env: PULSAR_LISTENER)'
+    )
+
+    # MQTT-specific configuration
+    parser.add_argument(
+        '--mqtt-host',
+        default=os.getenv('MQTT_HOST', 'localhost'),
+        help='MQTT broker host (default: localhost, env: MQTT_HOST)'
+    )
+
+    parser.add_argument(
+        '--mqtt-port',
+        type=int,
+        default=int(os.getenv('MQTT_PORT', '1883')),
+        help='MQTT broker port (default: 1883, env: MQTT_PORT)'
+    )
+
+    parser.add_argument(
+        '--mqtt-username',
+        default=os.getenv('MQTT_USERNAME', None),
+        help='MQTT username (env: MQTT_USERNAME)'
+    )
+
+    parser.add_argument(
+        '--mqtt-password',
+        default=os.getenv('MQTT_PASSWORD', None),
+        help='MQTT password (env: MQTT_PASSWORD)'
+    )
+```
+
+**Factory Function:**
+
+```python
+# In base/pubsub.py or base/pubsub_factory.py
+def get_pubsub(**config) -> PubSubBackend:
+    """
+    Create and return a pub/sub backend based on configuration.
+
+    Args:
+        config: Configuration dict from command-line args
+                Must include 'pubsub_backend' key
+
+    Returns:
+        Backend instance (PulsarBackend, MQTTBackend, etc.)
+    """
+    backend_type = config.get('pubsub_backend', 'pulsar')
+
+    if backend_type == 'pulsar':
+        return PulsarBackend(
+            host=config.get('pulsar_host'),
+            api_key=config.get('pulsar_api_key'),
+            listener=config.get('pulsar_listener'),
+        )
+    elif backend_type == 'mqtt':
+        return MQTTBackend(
+            host=config.get('mqtt_host'),
+            port=config.get('mqtt_port'),
+            username=config.get('mqtt_username'),
+            password=config.get('mqtt_password'),
+        )
+    else:
+        raise ValueError(f"Unknown pub/sub backend: {backend_type}")
+```
+
+**Usage in AsyncProcessor:**
+
+```python
+# In async_processor.py
+class AsyncProcessor:
+    def __init__(self, **params):
+        self.id = params.get("id")
+
+        # Create backend from config (replaces PulsarClient)
+        self.pubsub = get_pubsub(**params)
+
+        # Rest of initialization...
+```
+
+### Backend Interface
+
+```python
+class PubSubBackend(Protocol):
+    """Protocol defining the interface all pub/sub backends must implement."""
+
+    def create_producer(self, topic: str, schema: type, **options) -> BackendProducer:
+        """
+        Create a producer for a topic.
+
+        Args:
+            topic: Generic topic format (qos/tenant/namespace/queue)
+            schema: Dataclass type for messages
+            options: Backend-specific options (e.g., chunking_enabled)
+
+        Returns:
+            Backend-specific producer instance
+        """
+        ...
+
+    def create_consumer(
+        self,
+        topic: str,
+        subscription: str,
+        schema: type,
+        initial_position: str = 'latest',
+        consumer_type: str = 'shared',
+        **options
+    ) -> BackendConsumer:
+        """
+        Create a consumer for a topic.
+
+        Args:
+            topic: Generic topic format (qos/tenant/namespace/queue)
+            subscription: Subscription/consumer group name
+            schema: Dataclass type for messages
+            initial_position: 'earliest' or 'latest' (MQTT may ignore)
+            consumer_type: 'shared', 'exclusive', 'failover' (MQTT may ignore)
+            options: Backend-specific options
+
+        Returns:
+            Backend-specific consumer instance
+        """
+        ...
+
+    def close(self) -> None:
+        """Close the backend connection."""
+        ...
+```
+
+```python
+class BackendProducer(Protocol):
+    """Protocol for backend-specific producer."""
+
+    def send(self, message: Any, properties: dict = {}) -> None:
+        """Send a message (dataclass instance) with optional properties."""
+        ...
+
+    def flush(self) -> None:
+        """Flush any buffered messages."""
+        ...
+
+    def close(self) -> None:
+        """Close the producer."""
+        ...
+```
+
+```python
+class BackendConsumer(Protocol):
+    """Protocol for backend-specific consumer."""
+
+    def receive(self, timeout_millis: int = 2000) -> Message:
+        """
+        Receive a message from the topic.
+
+        Raises:
+            TimeoutError: If no message received within timeout
+        """
+        ...
+
+    def acknowledge(self, message: Message) -> None:
+        """Acknowledge successful processing of a message."""
+        ...
+
+    def negative_acknowledge(self, message: Message) -> None:
+        """Negative acknowledge - triggers redelivery."""
+        ...
+
+    def unsubscribe(self) -> None:
+        """Unsubscribe from the topic."""
+        ...
+
+    def close(self) -> None:
+        """Close the consumer."""
+        ...
+```
+
+```python
+class Message(Protocol):
+    """Protocol for a received message."""
+
+    def value(self) -> Any:
+        """Get the deserialized message (dataclass instance)."""
+        ...
+
+    def properties(self) -> dict:
+        """Get message properties/metadata."""
+        ...
+```
+
+### Existing Classes Refactoring
+
+The existing `Consumer`, `Producer`, `Publisher`, `Subscriber` classes remain largely intact:
+
+**Current responsibilities (keep):**
+- Async threading model and taskgroups
+- Reconnection logic and retry handling
+- Metrics collection
+- Rate limiting
+- Concurrency management
+
+**Changes needed:**
+- Remove direct Pulsar imports (`pulsar.schema`, `pulsar.InitialPosition`, etc.)
+- Accept `BackendProducer`/`BackendConsumer` instead of Pulsar client
+- Delegate actual pub/sub operations to backend instances
+- Map generic concepts to backend calls
+
+**Example refactoring:**
+
+```python
+# OLD - consumer.py
+class Consumer:
+    def __init__(self, client, topic, subscriber, schema, ...):
+        self.client = client  # Direct Pulsar client
+        # ...
+
+    async def consumer_run(self):
+        # Uses pulsar.InitialPosition, pulsar.ConsumerType
+        self.consumer = self.client.subscribe(
+            topic=self.topic,
+            schema=JsonSchema(self.schema),
+            initial_position=pulsar.InitialPosition.Earliest,
+            consumer_type=pulsar.ConsumerType.Shared,
+        )
+
+# NEW - consumer.py
+class Consumer:
+    def __init__(self, backend_consumer, schema, ...):
+        self.backend_consumer = backend_consumer  # Backend-specific consumer
+        self.schema = schema
+        # ...
+
+    async def consumer_run(self):
+        # Backend consumer already created with right settings
+        # Just use it directly
+        while self.running:
+            msg = await asyncio.to_thread(
+                self.backend_consumer.receive,
+                timeout_millis=2000
+            )
+            await self.handle_message(msg)
+```
+
+### Backend-Specific Behaviors
+
+**Pulsar Backend:**
+- Maps `q0` → `non-persistent://`, `q1`/`q2` → `persistent://`
+- Supports all consumer types (shared, exclusive, failover)
+- Supports initial position (earliest/latest)
+- Native message acknowledgment
+- Schema registry support
+
+**MQTT Backend:**
+- Maps `q0`/`q1`/`q2` → MQTT QoS levels 0/1/2
+- Includes tenant/namespace in topic path for namespacing
+- Auto-generates client IDs from subscription names
+- Ignores initial position (no message history in basic MQTT)
+- Ignores consumer type (MQTT uses client IDs, not consumer groups)
+- Simple publish/subscribe model
+
+### Design Decisions Summary
+
+1. ✅ **Generic queue naming**: `qos/tenant/namespace/queue-name` format
+2. ✅ **QoS in queue ID**: Determined by queue definition, not configuration
+3. ✅ **Reconnection**: Handled by Consumer/Producer classes, not backends
+4. ✅ **MQTT topics**: Include tenant/namespace for proper namespacing
+5. ✅ **Message history**: MQTT ignores `initial_position` parameter (future enhancement)
+6. ✅ **Client IDs**: MQTT backend auto-generates from subscription name
+
+### Future Enhancements
+
+**MQTT message history:**
+- Could add optional persistence layer (e.g., retained messages, external store)
+- Would allow supporting `initial_position='earliest'`
+- Not required for initial implementation
 
