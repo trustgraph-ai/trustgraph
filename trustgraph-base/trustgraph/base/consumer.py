@@ -9,9 +9,6 @@
 # one handler, and a single thread of concurrency, nothing too outrageous
 # will happen if synchronous / blocking code is used
 
-from pulsar.schema import JsonSchema
-import pulsar
-import _pulsar
 import asyncio
 import time
 import logging
@@ -21,11 +18,15 @@ from .. exceptions import TooManyRequests
 # Module logger
 logger = logging.getLogger(__name__)
 
+# Timeout exception - can come from different backends
+class TimeoutError(Exception):
+    pass
+
 class Consumer:
 
     def __init__(
-            self, taskgroup, flow, client, topic, subscriber, schema,
-            handler, 
+            self, taskgroup, flow, backend, topic, subscriber, schema,
+            handler,
             metrics = None,
             start_of_messages=False,
             rate_limit_retry_time = 10, rate_limit_timeout = 7200,
@@ -35,7 +36,7 @@ class Consumer:
 
         self.taskgroup = taskgroup
         self.flow = flow
-        self.client = client
+        self.backend = backend  # Changed from 'client' to 'backend'
         self.topic = topic
         self.subscriber = subscriber
         self.schema = schema
@@ -96,18 +97,20 @@ class Consumer:
 
                 logger.info(f"Subscribing to topic: {self.topic}")
 
+                # Determine initial position
                 if self.start_of_messages:
-                    pos = pulsar.InitialPosition.Earliest
+                    initial_pos = 'earliest'
                 else:
-                    pos = pulsar.InitialPosition.Latest
+                    initial_pos = 'latest'
 
+                # Create consumer via backend
                 self.consumer = await asyncio.to_thread(
-                    self.client.subscribe,
+                    self.backend.create_consumer,
                     topic = self.topic,
-                    subscription_name = self.subscriber,
-                    schema = JsonSchema(self.schema),
-                    initial_position = pos,
-                    consumer_type = pulsar.ConsumerType.Shared,
+                    subscription = self.subscriber,
+                    schema = self.schema,
+                    initial_position = initial_pos,
+                    consumer_type = 'shared',
                 )
 
             except Exception as e:
@@ -159,9 +162,10 @@ class Consumer:
                     self.consumer.receive,
                     timeout_millis=2000
                 )
-            except _pulsar.Timeout:
-                continue
             except Exception as e:
+                # Handle timeout from any backend
+                if 'timeout' in str(type(e)).lower() or 'timeout' in str(e).lower():
+                    continue
                 raise e
 
             await self.handle_one_from_queue(msg)

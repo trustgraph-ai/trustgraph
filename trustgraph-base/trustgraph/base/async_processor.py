@@ -15,7 +15,7 @@ from prometheus_client import start_http_server, Info
 
 from .. schema import ConfigPush, config_push_queue
 from .. log_level import LogLevel
-from . pubsub import PulsarClient
+from . pubsub import PulsarClient, get_pubsub
 from . producer import Producer
 from . consumer import Consumer
 from . metrics import ProcessorMetrics, ConsumerMetrics
@@ -34,7 +34,10 @@ class AsyncProcessor:
         # Store the identity
         self.id = params.get("id")
 
-        # Register a pulsar client
+        # Create pub/sub backend via factory
+        self.pubsub_backend = get_pubsub(**params)
+
+        # Keep old PulsarClient for backward compatibility with pulsar_host property
         self.pulsar_client_object = PulsarClient(**params)
 
         # Initialise metrics, records the parameters
@@ -70,7 +73,7 @@ class AsyncProcessor:
         self.config_sub_task = Consumer(
 
             taskgroup = self.taskgroup,
-            client = self.pulsar_client,
+            backend = self.pubsub_backend,  # Changed from client to backend
             subscriber = config_subscriber_id,
             flow = None,
 
@@ -96,14 +99,19 @@ class AsyncProcessor:
     # This is called to stop all threads.  An over-ride point for extra
     # functionality
     def stop(self):
+        self.pubsub_backend.close()
         self.pulsar_client.close()
         self.running = False
 
-    # Returns the pulsar host
+    # Returns the pub/sub backend (new interface)
+    @property
+    def pubsub(self): return self.pubsub_backend
+
+    # Returns the pulsar host (backward compatibility)
     @property
     def pulsar_host(self): return self.pulsar_client_object.pulsar_host
 
-    # Returns the pulsar client
+    # Returns the pulsar client (backward compatibility)
     @property
     def pulsar_client(self): return self.pulsar_client_object.client
 
@@ -246,6 +254,14 @@ class AsyncProcessor:
     # invocations
     @staticmethod
     def add_args(parser):
+
+        # Pub/sub backend selection
+        parser.add_argument(
+            '--pubsub-backend',
+            default=os.getenv('PUBSUB_BACKEND', 'pulsar'),
+            choices=['pulsar', 'mqtt'],
+            help='Pub/sub backend (default: pulsar, env: PUBSUB_BACKEND)',
+        )
 
         PulsarClient.add_args(parser)
         add_logging_args(parser)

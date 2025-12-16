@@ -15,7 +15,7 @@ class ProducerSpec(Spec):
         )
 
         producer = Producer(
-            client = processor.pulsar_client,
+            backend = processor.pubsub,  # Changed from pulsar_client to pubsub
             topic = definition[self.name],
             schema = self.schema,
             metrics = producer_metrics,
