@@ -1,5 +1,4 @@
-
-from pulsar.schema import Record, String
+from dataclasses import dataclass
 
 from ..core.primitives import Error, Value, Triple
 from ..core.topic import topic
@@ -9,13 +8,14 @@ from ..core.metadata import Metadata
 
 # Lookups
 
-class LookupRequest(Record):
-    kind = String()
-    term = String()
+@dataclass
+class LookupRequest:
+    kind: str = ""
+    term: str = ""
 
-class LookupResponse(Record):
-    text = String()
-    error = Error()
+@dataclass
+class LookupResponse:
+    text: str = ""
+    error: Error | None = None
 
 ############################################################################
-

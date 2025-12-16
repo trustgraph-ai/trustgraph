@@ -1,5 +1,5 @@
 
-from pulsar.schema import Record, String, Array, Double, Integer, Boolean
+from dataclasses import dataclass, field
 
 from ..core.topic import topic
 from ..core.primitives import Error
@@ -8,46 +8,49 @@ from ..core.primitives import Error
 
 # LLM text completion
 
-class TextCompletionRequest(Record):
-    system = String()
-    prompt = String()
-    streaming = Boolean()  # Default false for backward compatibility
+@dataclass
+class TextCompletionRequest:
+    system: str = ""
+    prompt: str = ""
+    streaming: bool = False  # Default false for backward compatibility
 
-class TextCompletionResponse(Record):
-    error = Error()
-    response = String()
-    in_token = Integer()
-    out_token = Integer()
-    model = String()
-    end_of_stream = Boolean()  # Indicates final message in stream
+@dataclass
+class TextCompletionResponse:
+    error: Error | None = None
+    response: str = ""
+    in_token: int = 0
+    out_token: int = 0
+    model: str = ""
+    end_of_stream: bool = False  # Indicates final message in stream
 
 ############################################################################
 
 # Embeddings
 
-class EmbeddingsRequest(Record):
-    text = String()
+@dataclass
+class EmbeddingsRequest:
+    text: str = ""
 
-class EmbeddingsResponse(Record):
-    error = Error()
-    vectors = Array(Array(Double()))
+@dataclass
+class EmbeddingsResponse:
+    error: Error | None = None
+    vectors: list[list[float]] = field(default_factory=list)
 
 ############################################################################
 
 # Tool request/response
 
-class ToolRequest(Record):
-    name = String()
-
+@dataclass
+class ToolRequest:
+    name: str = ""
     # Parameters are JSON encoded
-    parameters = String()
+    parameters: str = ""
 
-class ToolResponse(Record):
-    error = Error()
-
+@dataclass
+class ToolResponse:
+    error: Error | None = None
     # Plain text aka "unstructured"
-    text = String()
-
+    text: str = ""
     # JSON-encoded object aka "structured"
-    object = String()
+    object: str = ""
 

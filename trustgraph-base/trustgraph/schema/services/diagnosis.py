@@ -1,33 +1,36 @@
-from pulsar.schema import Record, String, Map, Double, Array
+from dataclasses import dataclass, field
 from ..core.primitives import Error
 
 ############################################################################
 
 # Structured data diagnosis services
 
-class StructuredDataDiagnosisRequest(Record):
-    operation = String()  # "detect-type", "generate-descriptor", "diagnose", or "schema-selection"
-    sample = String()     # Data sample to analyze (text content)
-    type = String()       # Data type (csv, json, xml) - optional, required for generate-descriptor
-    schema_name = String() # Target schema name for descriptor generation - optional
+@dataclass
+class StructuredDataDiagnosisRequest:
+    operation: str = ""  # "detect-type", "generate-descriptor", "diagnose", or "schema-selection"
+    sample: str = ""     # Data sample to analyze (text content)
+    type: str = ""       # Data type (csv, json, xml) - optional, required for generate-descriptor
+    schema_name: str = "" # Target schema name for descriptor generation - optional
 
     # JSON encoded options (e.g., delimiter for CSV)
-    options = Map(String())
+    options: dict[str, str] = field(default_factory=dict)
 
-class StructuredDataDiagnosisResponse(Record):
-    error = Error()
+@dataclass
+class StructuredDataDiagnosisResponse:
+    error: Error | None = None
 
-    operation = String()         # The operation that was performed
-    detected_type = String()     # Detected data type (for detect-type/diagnose) - optional
-    confidence = Double()        # Confidence score for type detection - optional
+    operation: str = ""         # The operation that was performed
+    detected_type: str = ""     # Detected data type (for detect-type/diagnose) - optional
+    confidence: float = 0.0     # Confidence score for type detection - optional
 
     # JSON encoded descriptor (for generate-descriptor/diagnose) - optional
-    descriptor = String()
+    descriptor: str = ""
 
     # JSON encoded additional metadata (e.g., field count, sample records)
-    metadata = Map(String())
+    metadata: dict[str, str] = field(default_factory=dict)
 
     # Array of matching schema IDs (for schema-selection operation) - optional
-    schema_matches = Array(String())
+    schema_matches: list[str] = field(default_factory=list)
 
 ############################################################################
+

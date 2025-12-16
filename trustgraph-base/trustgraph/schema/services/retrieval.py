@@ -1,5 +1,4 @@
-
-from pulsar.schema import Record, Bytes, String, Boolean, Integer, Array, Double
+from dataclasses import dataclass
 from ..core.topic import topic
 from ..core.primitives import Error, Value
 
@@ -7,36 +6,39 @@ from ..core.primitives import Error, Value
 
 # Graph RAG text retrieval
 
-class GraphRagQuery(Record):
-    query = String()
-    user = String()
-    collection = String()
-    entity_limit = Integer()
-    triple_limit = Integer()
-    max_subgraph_size = Integer()
-    max_path_length = Integer()
-    streaming = Boolean()
+@dataclass
+class GraphRagQuery:
+    query: str = ""
+    user: str = ""
+    collection: str = ""
+    entity_limit: int = 0
+    triple_limit: int = 0
+    max_subgraph_size: int = 0
+    max_path_length: int = 0
+    streaming: bool = False
 
-class GraphRagResponse(Record):
-    error = Error()
-    response = String()
-    chunk = String()
-    end_of_stream = Boolean()
+@dataclass
+class GraphRagResponse:
+    error: Error | None = None
+    response: str = ""
+    chunk: str = ""
+    end_of_stream: bool = False
 
 ############################################################################
 
 # Document RAG text retrieval
 
-class DocumentRagQuery(Record):
-    query = String()
-    user = String()
-    collection = String()
-    doc_limit = Integer()
-    streaming = Boolean()
+@dataclass
+class DocumentRagQuery:
+    query: str = ""
+    user: str = ""
+    collection: str = ""
+    doc_limit: int = 0
+    streaming: bool = False
 
-class DocumentRagResponse(Record):
-    error = Error()
-    response = String()
-    chunk = String()
-    end_of_stream = Boolean()
-
+@dataclass
+class DocumentRagResponse:
+    error: Error | None = None
+    response: str = ""
+    chunk: str = ""
+    end_of_stream: bool = False

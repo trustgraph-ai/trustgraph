@@ -1,4 +1,4 @@
-from pulsar.schema import Record, String, Map, Double, Array
+from dataclasses import dataclass, field
 
 from ..core.metadata import Metadata
 from ..core.topic import topic
@@ -7,11 +7,13 @@ from ..core.topic import topic
 
 # Extracted object from text processing
 
-class ExtractedObject(Record):
-    metadata = Metadata()
-    schema_name = String()  # Which schema this object belongs to
-    values = Array(Map(String()))  # Array of objects, each object is field name -> value
-    confidence = Double()
-    source_span = String()  # Text span where object was found
+@dataclass
+class ExtractedObject:
+    metadata: Metadata | None = None
+    schema_name: str = ""  # Which schema this object belongs to
+    values: list[dict[str, str]] = field(default_factory=list)  # Array of objects, each object is field name -> value
+    confidence: float = 0.0
+    source_span: str = ""  # Text span where object was found
 
 ############################################################################
+
