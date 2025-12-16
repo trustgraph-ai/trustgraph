@@ -10,6 +10,7 @@ import logging
 import os
 
 from trustgraph.base.logging import setup_logging
+from trustgraph.base.pubsub import get_pubsub
 
 from . auth import Authenticator
 from . config.receiver import ConfigReceiver
@@ -50,6 +51,10 @@ class Api:
 
         self.pulsar_listener = config.get("pulsar_listener", None)
 
+        # Create backend using factory
+        self.pubsub_backend = get_pubsub(**config)
+
+        # Keep pulsar_client for backward compatibility with existing gateway code
         if self.pulsar_api_key:
             self.pulsar_client = pulsar.Client(
                 self.pulsar_host, listener_name=self.pulsar_listener,
@@ -172,6 +177,14 @@ def run():
         '--id',
         default='api-gateway',
         help='Service identifier for logging and metrics (default: api-gateway)',
+    )
+
+    # Pub/sub backend selection
+    parser.add_argument(
+        '--pubsub-backend',
+        default=os.getenv('PUBSUB_BACKEND', 'pulsar'),
+        choices=['pulsar', 'mqtt'],
+        help='Pub/sub backend (default: pulsar, env: PUBSUB_BACKEND)',
     )
 
     parser.add_argument(
