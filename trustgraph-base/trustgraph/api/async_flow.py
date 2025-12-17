@@ -177,11 +177,11 @@ class AsyncFlowInstance:
         result = await self.request("graph-rag", request_data)
         return result.get("response", "")
 
-    async def document_rag(self, question: str, user: str, collection: str,
+    async def document_rag(self, query: str, user: str, collection: str,
                            doc_limit: int = 10, **kwargs: Any) -> str:
         """Document RAG (non-streaming, use async_socket for streaming)"""
         request_data = {
-            "question": question,
+            "query": query,
             "user": user,
             "collection": collection,
             "doc-limit": doc_limit,

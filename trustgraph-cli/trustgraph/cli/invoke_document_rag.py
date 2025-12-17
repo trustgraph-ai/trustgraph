@@ -24,7 +24,7 @@ def question(url, flow_id, question, user, collection, doc_limit, streaming=True
 
         try:
             response = flow.document_rag(
-                question=question,
+                query=question,
                 user=user,
                 collection=collection,
                 doc_limit=doc_limit,
@@ -42,7 +42,7 @@ def question(url, flow_id, question, user, collection, doc_limit, streaming=True
         # Use REST API for non-streaming
         flow = api.flow().id(flow_id)
         resp = flow.document_rag(
-            question=question,
+            query=question,
             user=user,
             collection=collection,
             doc_limit=doc_limit,
