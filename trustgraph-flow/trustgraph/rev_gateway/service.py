@@ -7,10 +7,10 @@ import os
 from aiohttp import ClientSession, WSMsgType, ClientWebSocketResponse
 from typing import Optional
 from urllib.parse import urlparse, urlunparse
-import pulsar
 
 from .dispatcher import MessageDispatcher
 from ..gateway.config.receiver import ConfigReceiver
+from ..base import get_pubsub
 
 logger = logging.getLogger("rev_gateway")
 logger.setLevel(logging.INFO)
@@ -56,25 +56,20 @@ class ReverseGateway:
         self.pulsar_host = pulsar_host or os.getenv("PULSAR_HOST", "pulsar://pulsar:6650")
         self.pulsar_api_key = pulsar_api_key or os.getenv("PULSAR_API_KEY", None)
         self.pulsar_listener = pulsar_listener
-        
-        # Initialize Pulsar client
-        if self.pulsar_api_key:
-            self.pulsar_client = pulsar.Client(
-                self.pulsar_host, 
-                listener_name=self.pulsar_listener,
-                authentication=pulsar.AuthenticationToken(self.pulsar_api_key)
-            )
-        else:
-            self.pulsar_client = pulsar.Client(
-                self.pulsar_host,
-                listener_name=self.pulsar_listener
-            )
-        
+
+        # Create backend using factory
+        backend_params = {
+            'pulsar_host': self.pulsar_host,
+            'pulsar_api_key': self.pulsar_api_key,
+            'pulsar_listener': self.pulsar_listener,
+        }
+        self.backend = get_pubsub(**backend_params)
+
         # Initialize config receiver
-        self.config_receiver = ConfigReceiver(self.pulsar_client)
-        
-        # Initialize dispatcher with config_receiver and pulsar_client - must be created after config_receiver
-        self.dispatcher = MessageDispatcher(max_workers, self.config_receiver, self.pulsar_client)
+        self.config_receiver = ConfigReceiver(self.backend)
+
+        # Initialize dispatcher with config_receiver and backend - must be created after config_receiver
+        self.dispatcher = MessageDispatcher(max_workers, self.config_receiver, self.backend)
         
     async def connect(self) -> bool:
         try:
@@ -170,10 +165,10 @@ class ReverseGateway:
         self.running = False
         await self.dispatcher.shutdown()
         await self.disconnect()
-        
-        # Close Pulsar client
-        if hasattr(self, 'pulsar_client'):
-            self.pulsar_client.close()
+
+        # Close backend
+        if hasattr(self, 'backend'):
+            self.backend.close()
     
     def stop(self):
         self.running = False

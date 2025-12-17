@@ -133,12 +133,12 @@ class DispatcherManager:
 
     async def process_core_import(self, data, error, ok, request):
 
-        ci = CoreImport(self.pulsar_client)
+        ci = CoreImport(self.backend)
         return await ci.process(data, error, ok, request)
 
     async def process_core_export(self, data, error, ok, request):
 
-        ce = CoreExport(self.pulsar_client)
+        ce = CoreExport(self.backend)
         return await ce.process(data, error, ok, request)
 
     async def process_global_service(self, data, responder, params):
