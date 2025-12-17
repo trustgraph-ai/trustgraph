@@ -235,13 +235,12 @@ class Processor(AsyncProcessor):
             )
 
         except Exception as e:
-            
+
             resp = FlowResponse(
                 error=Error(
                     type = "flow-error",
                     message = str(e),
                 ),
-                text=None,
             )
 
             await self.flow_response_producer.send(

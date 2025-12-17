@@ -62,20 +62,11 @@ def dict_to_dataclass(data: dict, cls: type) -> Any:
         if key in field_types:
             field_type = field_types[key]
 
-            # Handle Optional types (type | None)
-            if hasattr(field_type, '__args__'):
-                # Get the non-None type from Union
-                actual_type = next((t for t in field_type.__args__ if t is not type(None)), field_type)
-            else:
-                actual_type = field_type
-
-            # Recursively convert nested dataclasses
-            if is_dataclass(actual_type) and isinstance(value, dict):
-                kwargs[key] = dict_to_dataclass(value, actual_type)
-            elif hasattr(actual_type, '__origin__'):
-                # Handle generic types like list[T] or dict[K, V]
-                if actual_type.__origin__ == list:
-                    item_type = actual_type.__args__[0] if actual_type.__args__ else None
+            # Check if this is a generic type (list, dict, etc.)
+            if hasattr(field_type, '__origin__'):
+                # Handle list[T]
+                if field_type.__origin__ == list:
+                    item_type = field_type.__args__[0] if field_type.__args__ else None
                     if item_type and is_dataclass(item_type) and isinstance(value, list):
                         kwargs[key] = [
                             dict_to_dataclass(item, item_type) if isinstance(item, dict) else item
@@ -83,8 +74,19 @@ def dict_to_dataclass(data: dict, cls: type) -> Any:
                         ]
                     else:
                         kwargs[key] = value
+                # Handle Optional[T] (which is Union[T, None])
+                elif hasattr(field_type, '__args__') and type(None) in field_type.__args__:
+                    # Get the non-None type from Union
+                    actual_type = next((t for t in field_type.__args__ if t is not type(None)), None)
+                    if actual_type and is_dataclass(actual_type) and isinstance(value, dict):
+                        kwargs[key] = dict_to_dataclass(value, actual_type)
+                    else:
+                        kwargs[key] = value
                 else:
                     kwargs[key] = value
+            # Handle direct dataclass fields
+            elif is_dataclass(field_type) and isinstance(value, dict):
+                kwargs[key] = dict_to_dataclass(value, field_type)
             else:
                 kwargs[key] = value
 
@@ -211,11 +213,15 @@ class PulsarBackend:
         Example: q1/tg/flow/my-queue -> persistent://tg/flow/my-queue
 
         Args:
-            generic_topic: Generic topic string
+            generic_topic: Generic topic string or already-formatted Pulsar URI
 
         Returns:
             Pulsar topic URI
         """
+        # If already a Pulsar URI, return as-is
+        if '://' in generic_topic:
+            return generic_topic
+
         parts = generic_topic.split('/', 3)
         if len(parts) != 4:
             raise ValueError(f"Invalid topic format: {generic_topic}, expected qos/tenant/namespace/queue")
