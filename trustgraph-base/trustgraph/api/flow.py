@@ -160,14 +160,14 @@ class FlowInstance:
         )["answer"]
 
     def graph_rag(
-            self, question, user="trustgraph", collection="default",
+            self, query, user="trustgraph", collection="default",
             entity_limit=50, triple_limit=30, max_subgraph_size=150,
             max_path_length=2,
     ):
 
         # The input consists of a question
         input = {
-            "query": question,
+            "query": query,
             "user": user,
             "collection": collection,
             "entity-limit": entity_limit,
@@ -182,13 +182,13 @@ class FlowInstance:
         )["response"]
 
     def document_rag(
-            self, question, user="trustgraph", collection="default",
+            self, query, user="trustgraph", collection="default",
             doc_limit=10,
     ):
 
         # The input consists of a question
         input = {
-            "query": question,
+            "query": query,
             "user": user,
             "collection": collection,
             "doc-limit": doc_limit,

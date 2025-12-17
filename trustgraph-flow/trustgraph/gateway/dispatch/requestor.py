@@ -13,7 +13,7 @@ class ServiceRequestor:
 
     def __init__(
             self,
-            pulsar_client,
+            backend,
             request_queue, request_schema,
             response_queue, response_schema,
             subscription="api-gateway", consumer_name="api-gateway",
@@ -21,12 +21,12 @@ class ServiceRequestor:
     ):
 
         self.pub = Publisher(
-            pulsar_client, request_queue,
+            backend, request_queue,
             schema=request_schema,
         )
 
         self.sub = Subscriber(
-            pulsar_client, response_queue,
+            backend, response_queue,
             subscription, consumer_name,
             response_schema
         )

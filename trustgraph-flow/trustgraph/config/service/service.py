@@ -112,7 +112,7 @@ class Processor(AsyncProcessor):
 
         self.config_request_consumer = Consumer(
             taskgroup = self.taskgroup,
-            client = self.pulsar_client,
+            backend = self.pubsub,
             flow = None,
             topic = config_request_queue,
             subscriber = id,
@@ -122,14 +122,14 @@ class Processor(AsyncProcessor):
         )
 
         self.config_response_producer = Producer(
-            client = self.pulsar_client,
+            backend = self.pubsub,
             topic = config_response_queue,
             schema = ConfigResponse,
             metrics = config_response_metrics,
         )
 
         self.config_push_producer = Producer(
-            client = self.pulsar_client,
+            backend = self.pubsub,
             topic = config_push_queue,
             schema = ConfigPush,
             metrics = config_push_metrics,
@@ -137,7 +137,7 @@ class Processor(AsyncProcessor):
 
         self.flow_request_consumer = Consumer(
             taskgroup = self.taskgroup,
-            client = self.pulsar_client,
+            backend = self.pubsub,
             flow = None,
             topic = flow_request_queue,
             subscriber = id,
@@ -147,7 +147,7 @@ class Processor(AsyncProcessor):
         )
 
         self.flow_response_producer = Producer(
-            client = self.pulsar_client,
+            backend = self.pubsub,
             topic = flow_response_queue,
             schema = FlowResponse,
             metrics = flow_response_metrics,
@@ -178,11 +178,7 @@ class Processor(AsyncProcessor):
 
         resp = ConfigPush(
             version = version,
-            value = None,
-            directory = None,
-            values = None,
             config = config,
-            error = None,
         )
 
         await self.config_push_producer.send(resp)
@@ -215,7 +211,6 @@ class Processor(AsyncProcessor):
                     type = "config-error",
                     message = str(e),
                 ),
-                text=None,
             )
 
             await self.config_response_producer.send(
@@ -240,13 +235,12 @@ class Processor(AsyncProcessor):
             )
 
         except Exception as e:
-            
+
             resp = FlowResponse(
                 error=Error(
                     type = "flow-error",
                     message = str(e),
                 ),
-                text=None,
             )
 
             await self.flow_response_producer.send(

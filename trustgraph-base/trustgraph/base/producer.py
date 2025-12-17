@@ -1,5 +1,4 @@
 
-from pulsar.schema import JsonSchema
 import asyncio
 import logging
 
@@ -8,10 +7,10 @@ logger = logging.getLogger(__name__)
 
 class Producer:
 
-    def __init__(self, client, topic, schema, metrics=None,
+    def __init__(self, backend, topic, schema, metrics=None,
                  chunking_enabled=True):
 
-        self.client = client
+        self.backend = backend  # Changed from 'client' to 'backend'
         self.topic = topic
         self.schema = schema
 
@@ -44,9 +43,9 @@ class Producer:
 
             try:
                 logger.info(f"Connecting publisher to {self.topic}...")
-                self.producer = self.client.create_producer(
+                self.producer = self.backend.create_producer(
                     topic = self.topic,
-                    schema = JsonSchema(self.schema),
+                    schema = self.schema,
                     chunking_enabled = self.chunking_enabled,
                 )
                 logger.info(f"Connected publisher to {self.topic}")

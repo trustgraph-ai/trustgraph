@@ -1,4 +1,4 @@
-from pulsar.schema import Record, String, Map, Boolean
+from dataclasses import dataclass, field
 
 from ..core.primitives import Error
 from ..core.topic import topic
@@ -18,27 +18,28 @@ from ..core.topic import topic
 # extract-rows
 #   schema, chunk -> rows
 
-class PromptRequest(Record):
-    id = String()
+@dataclass
+class PromptRequest:
+    id: str = ""
 
     # JSON encoded values
-    terms = Map(String())
+    terms: dict[str, str] = field(default_factory=dict)
 
     # Streaming support (default false for backward compatibility)
-    streaming = Boolean()
+    streaming: bool = False
 
-class PromptResponse(Record):
-
+@dataclass
+class PromptResponse:
     # Error case
-    error = Error()
+    error: Error | None = None
 
     # Just plain text
-    text = String()
+    text: str = ""
 
     # JSON encoded
-    object = String()
+    object: str = ""
 
     # Indicates final message in stream
-    end_of_stream = Boolean()
+    end_of_stream: bool = False
 
 ############################################################################

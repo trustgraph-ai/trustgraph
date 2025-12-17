@@ -84,7 +84,7 @@ class Processor(AsyncProcessor):
 
         self.knowledge_request_consumer = Consumer(
             taskgroup = self.taskgroup,
-            client = self.pulsar_client,
+            backend = self.pubsub,
             flow = None,
             topic = knowledge_request_queue,
             subscriber = id,
@@ -94,7 +94,7 @@ class Processor(AsyncProcessor):
         )
 
         self.knowledge_response_producer = Producer(
-            client = self.pulsar_client,
+            backend = self.pubsub,
             topic = knowledge_response_queue,
             schema = KnowledgeResponse,
             metrics = knowledge_response_metrics,

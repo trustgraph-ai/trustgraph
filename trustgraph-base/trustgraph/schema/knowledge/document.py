@@ -1,4 +1,4 @@
-from pulsar.schema import Record, Bytes
+from dataclasses import dataclass
 
 from ..core.metadata import Metadata
 from ..core.topic import topic
@@ -6,24 +6,27 @@ from ..core.topic import topic
 ############################################################################
 
 # PDF docs etc.
-class Document(Record):
-    metadata = Metadata()
-    data = Bytes()
+@dataclass
+class Document:
+    metadata: Metadata | None = None
+    data: bytes = b""
 
 ############################################################################
 
 # Text documents / text from PDF
 
-class TextDocument(Record):
-    metadata = Metadata()
-    text = Bytes()
+@dataclass
+class TextDocument:
+    metadata: Metadata | None = None
+    text: bytes = b""
 
 ############################################################################
 
 # Chunks of text
 
-class Chunk(Record):
-    metadata = Metadata()
-    chunk = Bytes()
+@dataclass
+class Chunk:
+    metadata: Metadata | None = None
+    chunk: bytes = b""
 
 ############################################################################

@@ -1,5 +1,5 @@
 
-from pulsar.schema import Record, Bytes, String, Boolean, Array, Map, Integer
+from dataclasses import dataclass, field
 
 from ..core.topic import topic
 from ..core.primitives import Error
@@ -13,58 +13,61 @@ from ..core.primitives import Error
 #   put(values) -> ()
 #   delete(keys) -> ()
 #   config() -> (version, config)
-class ConfigKey(Record):
-    type = String()
-    key = String()
+@dataclass
+class ConfigKey:
+    type: str = ""
+    key: str = ""
 
-class ConfigValue(Record):
-    type = String()
-    key = String()
-    value = String()
+@dataclass
+class ConfigValue:
+    type: str = ""
+    key: str = ""
+    value: str = ""
 
 # Prompt services, abstract the prompt generation
-class ConfigRequest(Record):
-
-    operation = String() # get, list, getvalues, delete, put, config
+@dataclass
+class ConfigRequest:
+    operation: str = ""  # get, list, getvalues, delete, put, config
 
     # get, delete
-    keys = Array(ConfigKey())
+    keys: list[ConfigKey] = field(default_factory=list)
 
     # list, getvalues
-    type = String()
+    type: str = ""
 
     # put
-    values = Array(ConfigValue())
+    values: list[ConfigValue] = field(default_factory=list)
 
-class ConfigResponse(Record):
-
+@dataclass
+class ConfigResponse:
     # get, list, getvalues, config
-    version = Integer()
+    version: int = 0
 
     # get, getvalues
-    values = Array(ConfigValue())
+    values: list[ConfigValue] = field(default_factory=list)
 
     # list
-    directory = Array(String())
+    directory: list[str] = field(default_factory=list)
 
     # config
-    config = Map(Map(String()))
+    config: dict[str, dict[str, str]] = field(default_factory=dict)
 
     # Everything
-    error = Error()
+    error: Error | None = None
 
-class ConfigPush(Record):
-    version = Integer()
-    config = Map(Map(String()))
+@dataclass
+class ConfigPush:
+    version: int = 0
+    config: dict[str, dict[str, str]] = field(default_factory=dict)
 
 config_request_queue = topic(
-    'config', kind='non-persistent', namespace='request'
+    'config', qos='q0', namespace='request'
 )
 config_response_queue = topic(
-    'config', kind='non-persistent', namespace='response'
+    'config', qos='q0', namespace='response'
 )
 config_push_queue = topic(
-    'config', kind='persistent', namespace='config'
+    'config', qos='q2', namespace='config'
 )
 
 ############################################################################

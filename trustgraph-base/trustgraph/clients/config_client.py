@@ -64,7 +64,6 @@ class ConfigClient(BaseClient):
     def get(self, keys, timeout=300):
 
         resp = self.call(
-            id=id,
             operation="get",
             keys=[
                 ConfigKey(
@@ -88,7 +87,6 @@ class ConfigClient(BaseClient):
     def list(self, type, timeout=300):
 
         resp = self.call(
-            id=id,
             operation="list",
             type=type,
             timeout=timeout
@@ -99,7 +97,6 @@ class ConfigClient(BaseClient):
     def getvalues(self, type, timeout=300):
 
         resp = self.call(
-            id=id,
             operation="getvalues",
             type=type,
             timeout=timeout
@@ -117,7 +114,6 @@ class ConfigClient(BaseClient):
     def delete(self, keys, timeout=300):
 
         resp = self.call(
-            id=id,
             operation="delete",
             keys=[
                 ConfigKey(
@@ -134,7 +130,6 @@ class ConfigClient(BaseClient):
     def put(self, values, timeout=300):
 
         resp = self.call(
-            id=id,
             operation="put",
             values=[
                 ConfigValue(
@@ -152,7 +147,6 @@ class ConfigClient(BaseClient):
     def config(self, timeout=300):
 
         resp = self.call(
-            id=id,
             operation="config",
             timeout=timeout
         )

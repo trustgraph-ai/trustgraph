@@ -1,4 +1,4 @@
-from pulsar.schema import Record, Bytes, String, Boolean, Integer, Array, Double, Map
+from dataclasses import dataclass, field
 
 from ..core.metadata import Metadata
 from ..core.primitives import Value, RowSchema
@@ -8,49 +8,55 @@ from ..core.topic import topic
 
 # Graph embeddings are embeddings associated with a graph entity
 
-class EntityEmbeddings(Record):
-    entity = Value()
-    vectors = Array(Array(Double()))
+@dataclass
+class EntityEmbeddings:
+    entity: Value | None = None
+    vectors: list[list[float]] = field(default_factory=list)
 
 # This is a 'batching' mechanism for the above data
-class GraphEmbeddings(Record):
-    metadata = Metadata()
-    entities = Array(EntityEmbeddings())
+@dataclass
+class GraphEmbeddings:
+    metadata: Metadata | None = None
+    entities: list[EntityEmbeddings] = field(default_factory=list)
 
 ############################################################################
 
 # Document embeddings are embeddings associated with a chunk
 
-class ChunkEmbeddings(Record):
-    chunk = Bytes()
-    vectors = Array(Array(Double()))
+@dataclass
+class ChunkEmbeddings:
+    chunk: bytes = b""
+    vectors: list[list[float]] = field(default_factory=list)
 
 # This is a 'batching' mechanism for the above data
-class DocumentEmbeddings(Record):
-    metadata = Metadata()
-    chunks = Array(ChunkEmbeddings())
+@dataclass
+class DocumentEmbeddings:
+    metadata: Metadata | None = None
+    chunks: list[ChunkEmbeddings] = field(default_factory=list)
 
 ############################################################################
 
 # Object embeddings are embeddings associated with the primary key of an
 # object
 
-class ObjectEmbeddings(Record):
-    metadata = Metadata()
-    vectors = Array(Array(Double()))
-    name = String()
-    key_name = String()
-    id = String()
+@dataclass
+class ObjectEmbeddings:
+    metadata: Metadata | None = None
+    vectors: list[list[float]] = field(default_factory=list)
+    name: str = ""
+    key_name: str = ""
+    id: str = ""
 
 ############################################################################
 
 # Structured object embeddings with enhanced capabilities
 
-class StructuredObjectEmbedding(Record):
-    metadata = Metadata()
-    vectors = Array(Array(Double()))
-    schema_name = String()
-    object_id = String()  # Primary key value
-    field_embeddings = Map(Array(Double()))  # Per-field embeddings
+@dataclass
+class StructuredObjectEmbedding:
+    metadata: Metadata | None = None
+    vectors: list[list[float]] = field(default_factory=list)
+    schema_name: str = ""
+    object_id: str = ""  # Primary key value
+    field_embeddings: dict[str, list[float]] = field(default_factory=dict)  # Per-field embeddings
 
 ############################################################################

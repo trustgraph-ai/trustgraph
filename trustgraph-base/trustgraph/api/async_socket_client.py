@@ -208,12 +208,12 @@ class AsyncSocketFlowInstance:
             if hasattr(chunk, 'content'):
                 yield chunk.content
 
-    async def graph_rag(self, question: str, user: str, collection: str,
+    async def graph_rag(self, query: str, user: str, collection: str,
                         max_subgraph_size: int = 1000, max_subgraph_count: int = 5,
                         max_entity_distance: int = 3, streaming: bool = False, **kwargs):
         """Graph RAG with optional streaming"""
         request = {
-            "question": question,
+            "query": query,
             "user": user,
             "collection": collection,
             "max-subgraph-size": max_subgraph_size,
@@ -235,11 +235,11 @@ class AsyncSocketFlowInstance:
             if hasattr(chunk, 'content'):
                 yield chunk.content
 
-    async def document_rag(self, question: str, user: str, collection: str,
+    async def document_rag(self, query: str, user: str, collection: str,
                            doc_limit: int = 10, streaming: bool = False, **kwargs):
         """Document RAG with optional streaming"""
         request = {
-            "question": question,
+            "query": query,
             "user": user,
             "collection": collection,
             "doc-limit": doc_limit,

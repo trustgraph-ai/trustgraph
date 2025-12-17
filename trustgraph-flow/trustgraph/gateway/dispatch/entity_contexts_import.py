@@ -16,14 +16,14 @@ logger = logging.getLogger(__name__)
 class EntityContextsImport:
 
     def __init__(
-            self, ws, running, pulsar_client, queue
+            self, ws, running, backend, queue
     ):
 
         self.ws = ws
         self.running = running
         
         self.publisher = Publisher(
-            pulsar_client, topic = queue, schema = EntityContexts
+            backend, topic = queue, schema = EntityContexts
         )
 
     async def start(self):

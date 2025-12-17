@@ -78,7 +78,7 @@ class Processor(FlowProcessor):
         # Create storage management consumer
         self.storage_request_consumer = Consumer(
             taskgroup=self.taskgroup,
-            client=self.pulsar_client,
+            backend=self.pubsub,
             flow=None,
             topic=object_storage_management_topic,
             subscriber=f"{id}-storage",
@@ -89,7 +89,7 @@ class Processor(FlowProcessor):
 
         # Create storage management response producer
         self.storage_response_producer = Producer(
-            client=self.pulsar_client,
+            backend=self.pubsub,
             topic=storage_management_response_topic,
             schema=StorageManagementResponse,
             metrics=storage_response_metrics,

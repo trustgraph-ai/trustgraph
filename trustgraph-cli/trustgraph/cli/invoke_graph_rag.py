@@ -30,7 +30,7 @@ def question(
 
         try:
             response = flow.graph_rag(
-                question=question,
+                query=question,
                 user=user,
                 collection=collection,
                 entity_limit=entity_limit,
@@ -51,7 +51,7 @@ def question(
         # Use REST API for non-streaming
         flow = api.flow().id(flow_id)
         resp = flow.graph_rag(
-            question=question,
+            query=question,
             user=user,
             collection=collection,
             entity_limit=entity_limit,

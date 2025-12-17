@@ -361,9 +361,6 @@ class FlowConfig:
         else:
 
             resp = FlowResponse(
-                value=None,
-                directory=None,
-                values=None,
                 error=Error(
                     type = "bad-operation",
                     message = "Bad operation"

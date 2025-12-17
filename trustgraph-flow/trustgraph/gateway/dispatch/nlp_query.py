@@ -5,12 +5,12 @@ from . requestor import ServiceRequestor
 
 class NLPQueryRequestor(ServiceRequestor):
     def __init__(
-            self, pulsar_client, request_queue, response_queue, timeout,
+            self, backend, request_queue, response_queue, timeout,
             consumer, subscriber,
     ):
 
         super(NLPQueryRequestor, self).__init__(
-            pulsar_client=pulsar_client,
+            backend=backend,
             request_queue=request_queue,
             response_queue=response_queue,
             request_schema=QuestionToStructuredQueryRequest,

@@ -1,9 +1,8 @@
-
-from pulsar.schema import Record, Bytes, String, Array, Long
+from dataclasses import dataclass, field
 from ..core.primitives import Triple, Error
 from ..core.topic import topic
 from ..core.metadata import Metadata
-from ..knowledge.document import Document, TextDocument
+# Note: Document imports will be updated after knowledge schemas are converted
 
 # add-document
 #   -> (document_id, document_metadata, content)
@@ -50,76 +49,79 @@ from ..knowledge.document import Document, TextDocument
 #   <- (processing_metadata[])
 #   <- (error)
 
-class DocumentMetadata(Record):
-    id = String()
-    time = Long()
-    kind = String()
-    title = String()
-    comments = String()
-    metadata = Array(Triple())
-    user = String()
-    tags = Array(String())
+@dataclass
+class DocumentMetadata:
+    id: str = ""
+    time: int = 0
+    kind: str = ""
+    title: str = ""
+    comments: str = ""
+    metadata: list[Triple] = field(default_factory=list)
+    user: str = ""
+    tags: list[str] = field(default_factory=list)
 
-class ProcessingMetadata(Record):
-    id = String()
-    document_id = String()
-    time = Long()
-    flow = String()
-    user = String()
-    collection = String()
-    tags = Array(String())
+@dataclass
+class ProcessingMetadata:
+    id: str = ""
+    document_id: str = ""
+    time: int = 0
+    flow: str = ""
+    user: str = ""
+    collection: str = ""
+    tags: list[str] = field(default_factory=list)
 
-class Criteria(Record):
-    key = String()
-    value = String()
-    operator = String()
+@dataclass
+class Criteria:
+    key: str = ""
+    value: str = ""
+    operator: str = ""
 
-class LibrarianRequest(Record):
-
+@dataclass
+class LibrarianRequest:
     # add-document, remove-document, update-document, get-document-metadata,
     # get-document-content, add-processing, remove-processing, list-documents,
     # list-processing
-    operation = String()
+    operation: str = ""
 
     # add-document, remove-document, update-document, get-document-metadata,
     # get-document-content
-    document_id = String()
+    document_id: str = ""
 
     # add-processing, remove-processing
-    processing_id = String()
+    processing_id: str = ""
 
     # add-document, update-document
-    document_metadata = DocumentMetadata()
+    document_metadata: DocumentMetadata | None = None
 
     # add-processing
-    processing_metadata = ProcessingMetadata()
+    processing_metadata: ProcessingMetadata | None = None
 
     # add-document
-    content = Bytes()
+    content: bytes = b""
 
     # list-documents, list-processing
-    user = String()
+    user: str = ""
 
     # list-documents?, list-processing?
-    collection = String()
+    collection: str = ""
 
-    # 
-    criteria = Array(Criteria())
+    #
+    criteria: list[Criteria] = field(default_factory=list)
 
-class LibrarianResponse(Record):
-    error = Error()
-    document_metadata = DocumentMetadata()
-    content = Bytes()
-    document_metadatas = Array(DocumentMetadata())
-    processing_metadatas = Array(ProcessingMetadata())
+@dataclass
+class LibrarianResponse:
+    error: Error | None = None
+    document_metadata: DocumentMetadata | None = None
+    content: bytes = b""
+    document_metadatas: list[DocumentMetadata] = field(default_factory=list)
+    processing_metadatas: list[ProcessingMetadata] = field(default_factory=list)
 
 # FIXME: Is this right?  Using persistence on librarian so that
 # message chunking works
 
 librarian_request_queue = topic(
-    'librarian', kind='persistent', namespace='request'
+    'librarian', qos='q1', namespace='request'
 )
 librarian_response_queue = topic(
-    'librarian', kind='persistent', namespace='response',
+    'librarian', qos='q1', namespace='response',
 )
-

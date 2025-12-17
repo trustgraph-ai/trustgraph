@@ -284,7 +284,7 @@ class SocketFlowInstance:
 
     def graph_rag(
         self,
-        question: str,
+        query: str,
         user: str,
         collection: str,
         max_subgraph_size: int = 1000,
@@ -295,7 +295,7 @@ class SocketFlowInstance:
     ) -> Union[str, Iterator[str]]:
         """Graph RAG with optional streaming"""
         request = {
-            "question": question,
+            "query": query,
             "user": user,
             "collection": collection,
             "max-subgraph-size": max_subgraph_size,
@@ -316,7 +316,7 @@ class SocketFlowInstance:
 
     def document_rag(
         self,
-        question: str,
+        query: str,
         user: str,
         collection: str,
         doc_limit: int = 10,
@@ -325,7 +325,7 @@ class SocketFlowInstance:
     ) -> Union[str, Iterator[str]]:
         """Document RAG with optional streaming"""
         request = {
-            "question": question,
+            "query": query,
             "user": user,
             "collection": collection,
             "doc-limit": doc_limit,

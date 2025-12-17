@@ -1,4 +1,4 @@
-from pulsar.schema import Record, String
+from dataclasses import dataclass
 
 from ..core.primitives import Error
 from ..core.topic import topic
@@ -7,15 +7,17 @@ from ..core.topic import topic
 
 # Storage management operations
 
-class StorageManagementRequest(Record):
+@dataclass
+class StorageManagementRequest:
     """Request for storage management operations sent to store processors"""
-    operation = String()  # e.g., "delete-collection"
-    user = String()
-    collection = String()
+    operation: str = ""  # e.g., "delete-collection"
+    user: str = ""
+    collection: str = ""
 
-class StorageManagementResponse(Record):
+@dataclass
+class StorageManagementResponse:
     """Response from storage processors for management operations"""
-    error = Error()  # Only populated if there's an error, if null success
+    error: Error | None = None  # Only populated if there's an error, if null success
 
 ############################################################################
 
@@ -23,20 +25,21 @@ class StorageManagementResponse(Record):
 
 # Topics for sending collection management requests to different storage types
 vector_storage_management_topic = topic(
-    'vector-storage-management', kind='non-persistent', namespace='request'
+    'vector-storage-management', qos='q0', namespace='request'
 )
 
 object_storage_management_topic = topic(
-    'object-storage-management', kind='non-persistent', namespace='request'
+    'object-storage-management', qos='q0', namespace='request'
 )
 
 triples_storage_management_topic = topic(
-    'triples-storage-management', kind='non-persistent', namespace='request'
+    'triples-storage-management', qos='q0', namespace='request'
 )
 
 # Topic for receiving responses from storage processors
 storage_management_response_topic = topic(
-    'storage-management', kind='non-persistent', namespace='response'
+    'storage-management', qos='q0', namespace='response'
 )
 
 ############################################################################
+

@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class RequestResponse(Subscriber):
 
     def __init__(
-            self, client, subscription, consumer_name,
+            self, backend, subscription, consumer_name,
             request_topic, request_schema,
             request_metrics,
             response_topic, response_schema,
@@ -22,7 +22,7 @@ class RequestResponse(Subscriber):
     ):
 
         super(RequestResponse, self).__init__(
-            client = client,
+            backend = backend,
             subscription = subscription,
             consumer_name = consumer_name,
             topic = response_topic,
@@ -31,7 +31,7 @@ class RequestResponse(Subscriber):
         )
 
         self.producer = Producer(
-            client = client,
+            backend = backend,
             topic = request_topic,
             schema = request_schema,
             metrics = request_metrics,
@@ -126,7 +126,7 @@ class RequestResponseSpec(Spec):
         )
 
         rr = self.impl(
-            client = processor.pulsar_client,
+            backend = processor.pubsub,
 
             # Make subscription names unique, so that all subscribers get
             # to see all response messages

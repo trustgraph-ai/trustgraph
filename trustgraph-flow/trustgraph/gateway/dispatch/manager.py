@@ -98,9 +98,9 @@ class DispatcherWrapper:
 
 class DispatcherManager:
 
-    def __init__(self, pulsar_client, config_receiver, prefix="api-gateway",
+    def __init__(self, backend, config_receiver, prefix="api-gateway",
                  queue_overrides=None):
-        self.pulsar_client = pulsar_client
+        self.backend = backend
         self.config_receiver = config_receiver
         self.config_receiver.add_handler(self)
         self.prefix = prefix
@@ -133,12 +133,12 @@ class DispatcherManager:
 
     async def process_core_import(self, data, error, ok, request):
 
-        ci = CoreImport(self.pulsar_client)
+        ci = CoreImport(self.backend)
         return await ci.process(data, error, ok, request)
 
     async def process_core_export(self, data, error, ok, request):
 
-        ce = CoreExport(self.pulsar_client)
+        ce = CoreExport(self.backend)
         return await ce.process(data, error, ok, request)
 
     async def process_global_service(self, data, responder, params):
@@ -161,7 +161,7 @@ class DispatcherManager:
             response_queue = self.queue_overrides[kind].get("response")
 
         dispatcher = global_dispatchers[kind](
-            pulsar_client = self.pulsar_client,
+            backend = self.backend,
             timeout = 120,
             consumer = f"{self.prefix}-{kind}-request",
             subscriber = f"{self.prefix}-{kind}-request",
@@ -216,7 +216,7 @@ class DispatcherManager:
 
         id = str(uuid.uuid4())
         dispatcher = import_dispatchers[kind](
-            pulsar_client = self.pulsar_client,
+            backend = self.backend,
             ws = ws,
             running = running,
             queue = qconfig,
@@ -254,7 +254,7 @@ class DispatcherManager:
 
         id = str(uuid.uuid4())
         dispatcher = export_dispatchers[kind](
-            pulsar_client = self.pulsar_client,
+            backend = self.backend,
             ws = ws,
             running = running,
             queue = qconfig,
@@ -296,7 +296,7 @@ class DispatcherManager:
 
         if kind in request_response_dispatchers:
             dispatcher = request_response_dispatchers[kind](
-                pulsar_client = self.pulsar_client,
+                backend = self.backend,
                 request_queue = qconfig["request"],
                 response_queue = qconfig["response"],
                 timeout = 120,
@@ -305,7 +305,7 @@ class DispatcherManager:
             )
         elif kind in sender_dispatchers:
             dispatcher = sender_dispatchers[kind](
-                pulsar_client = self.pulsar_client,
+                backend = self.backend,
                 queue = qconfig,
             )
         else:

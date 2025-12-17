@@ -1,5 +1,4 @@
-
-from pulsar.schema import Record, Bytes, String, Array, Long, Boolean
+from dataclasses import dataclass, field
 from ..core.primitives import Triple, Error
 from ..core.topic import topic
 from ..core.metadata import Metadata
@@ -22,40 +21,40 @@ from .embeddings import GraphEmbeddings
 #   <- ()
 #   <- (error)
 
-class KnowledgeRequest(Record):
-
+@dataclass
+class KnowledgeRequest:
     # get-kg-core, delete-kg-core, list-kg-cores, put-kg-core
     # load-kg-core, unload-kg-core
-    operation = String()
+    operation: str = ""
 
     # list-kg-cores, delete-kg-core, put-kg-core
-    user = String()
+    user: str = ""
 
     # get-kg-core, list-kg-cores, delete-kg-core, put-kg-core,
     # load-kg-core, unload-kg-core
-    id = String()
+    id: str = ""
 
     # load-kg-core
-    flow = String()
+    flow: str = ""
 
     # load-kg-core
-    collection = String()
+    collection: str = ""
 
     # put-kg-core
-    triples = Triples()
-    graph_embeddings = GraphEmbeddings()
+    triples: Triples | None = None
+    graph_embeddings: GraphEmbeddings | None = None
 
-class KnowledgeResponse(Record):
-    error = Error()
-    ids = Array(String())
-    eos = Boolean()     # Indicates end of knowledge core stream
-    triples = Triples()
-    graph_embeddings = GraphEmbeddings()
+@dataclass
+class KnowledgeResponse:
+    error: Error | None = None
+    ids: list[str] = field(default_factory=list)
+    eos: bool = False     # Indicates end of knowledge core stream
+    triples: Triples | None = None
+    graph_embeddings: GraphEmbeddings | None = None
 
 knowledge_request_queue = topic(
-    'knowledge', kind='non-persistent', namespace='request'
+    'knowledge', qos='q0', namespace='request'
 )
 knowledge_response_queue = topic(
-    'knowledge', kind='non-persistent', namespace='response',
+    'knowledge', qos='q0', namespace='response',
 )
-
