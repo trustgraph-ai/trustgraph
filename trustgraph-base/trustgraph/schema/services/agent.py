@@ -21,7 +21,7 @@ class AgentRequest:
     question: str = ""
     state: str = ""
     group: list[str] | None = None
-    history: list['AgentStep'] = field(default_factory=list)
+    history: list[AgentStep] = field(default_factory=list)
     user: str = ""              # User context for multi-tenancy
     streaming: bool = False     # NEW: Enable streaming response delivery (default false)
 
