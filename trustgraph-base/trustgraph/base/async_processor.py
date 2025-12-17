@@ -37,8 +37,8 @@ class AsyncProcessor:
         # Create pub/sub backend via factory
         self.pubsub_backend = get_pubsub(**params)
 
-        # Keep old PulsarClient for backward compatibility with pulsar_host property
-        self.pulsar_client_object = PulsarClient(**params)
+        # Store pulsar_host for backward compatibility
+        self._pulsar_host = params.get("pulsar_host", "pulsar://pulsar:6650")
 
         # Initialise metrics, records the parameters
         ProcessorMetrics(processor = self.id).info({
@@ -100,7 +100,6 @@ class AsyncProcessor:
     # functionality
     def stop(self):
         self.pubsub_backend.close()
-        self.pulsar_client.close()
         self.running = False
 
     # Returns the pub/sub backend (new interface)
@@ -109,11 +108,7 @@ class AsyncProcessor:
 
     # Returns the pulsar host (backward compatibility)
     @property
-    def pulsar_host(self): return self.pulsar_client_object.pulsar_host
-
-    # Returns the pulsar client (backward compatibility)
-    @property
-    def pulsar_client(self): return self.pulsar_client_object.client
+    def pulsar_host(self): return self._pulsar_host
 
     # Register a new event handler for configuration change
     def register_config_handler(self, handler):

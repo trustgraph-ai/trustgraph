@@ -54,17 +54,6 @@ class Api:
         # Create backend using factory
         self.pubsub_backend = get_pubsub(**config)
 
-        # Keep pulsar_client for backward compatibility with existing gateway code
-        if self.pulsar_api_key:
-            self.pulsar_client = pulsar.Client(
-                self.pulsar_host, listener_name=self.pulsar_listener,
-                authentication=pulsar.AuthenticationToken(self.pulsar_api_key)
-            )
-        else:
-            self.pulsar_client = pulsar.Client(
-                self.pulsar_host, listener_name=self.pulsar_listener,
-            )
-
         self.prometheus_url = config.get(
             "prometheus_url", default_prometheus_url,
         )
