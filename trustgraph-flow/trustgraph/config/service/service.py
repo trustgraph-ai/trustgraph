@@ -178,11 +178,7 @@ class Processor(AsyncProcessor):
 
         resp = ConfigPush(
             version = version,
-            value = None,
-            directory = None,
-            values = None,
             config = config,
-            error = None,
         )
 
         await self.config_push_producer.send(resp)
