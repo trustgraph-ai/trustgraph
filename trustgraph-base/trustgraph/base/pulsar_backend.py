@@ -70,7 +70,7 @@ def dict_to_dataclass(data: dict, cls: type) -> Any:
                 actual_type = field_type
 
             # Recursively convert nested dataclasses
-            if is_dataclass(actual_type):
+            if is_dataclass(actual_type) and isinstance(value, dict):
                 kwargs[key] = dict_to_dataclass(value, actual_type)
             elif hasattr(actual_type, '__origin__'):
                 # Handle generic types like list[T] or dict[K, V]
