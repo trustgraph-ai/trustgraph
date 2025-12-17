@@ -15,14 +15,14 @@ logger = logging.getLogger(__name__)
 class ObjectsImport:
 
     def __init__(
-            self, ws, running, pulsar_client, queue
+            self, ws, running, backend, queue
     ):
 
         self.ws = ws
         self.running = running
         
         self.publisher = Publisher(
-            pulsar_client, topic = queue, schema = ExtractedObject
+            backend, topic = queue, schema = ExtractedObject
         )
 
     async def start(self):

@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class DocumentEmbeddingsImport:
 
     def __init__(
-            self, ws, running, pulsar_client, queue
+            self, ws, running, backend, queue
     ):
 
         self.ws = ws
@@ -23,7 +23,7 @@ class DocumentEmbeddingsImport:
         self.translator = DocumentEmbeddingsTranslator()
         
         self.publisher = Publisher(
-            pulsar_client, topic = queue, schema = DocumentEmbeddings
+            backend, topic = queue, schema = DocumentEmbeddings
         )
 
     async def start(self):
