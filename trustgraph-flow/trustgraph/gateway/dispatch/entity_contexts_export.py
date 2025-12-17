@@ -15,12 +15,12 @@ logger = logging.getLogger(__name__)
 class EntityContextsExport:
 
     def __init__(
-            self, ws, running, pulsar_client, queue, consumer, subscriber
+            self, ws, running, backend, queue, consumer, subscriber
     ):
 
         self.ws = ws
         self.running = running
-        self.pulsar_client = pulsar_client
+        self.backend = backend
         self.queue = queue
         self.consumer = consumer
         self.subscriber = subscriber
@@ -48,9 +48,9 @@ class EntityContextsExport:
     async def run(self):
         """Enhanced run with better error handling"""
         self.subs = Subscriber(
-            client = self.pulsar_client, 
+            backend = self.backend,
             topic = self.queue,
-            consumer_name = self.consumer, 
+            consumer_name = self.consumer,
             subscription = self.subscriber,
             schema = EntityContexts,
             backpressure_strategy = "block"  # Configurable

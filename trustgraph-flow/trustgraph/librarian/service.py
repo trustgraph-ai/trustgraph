@@ -143,7 +143,7 @@ class Processor(AsyncProcessor):
 
         self.librarian_request_consumer = Consumer(
             taskgroup = self.taskgroup,
-            client = self.pulsar_client,
+            backend = self.pubsub,
             flow = None,
             topic = librarian_request_queue,
             subscriber = id,
@@ -153,7 +153,7 @@ class Processor(AsyncProcessor):
         )
 
         self.librarian_response_producer = Producer(
-            client = self.pulsar_client,
+            backend = self.pubsub,
             topic = librarian_response_queue,
             schema = LibrarianResponse,
             metrics = librarian_response_metrics,
@@ -161,7 +161,7 @@ class Processor(AsyncProcessor):
 
         self.collection_request_consumer = Consumer(
             taskgroup = self.taskgroup,
-            client = self.pulsar_client,
+            backend = self.pubsub,
             flow = None,
             topic = collection_request_queue,
             subscriber = id,
@@ -171,7 +171,7 @@ class Processor(AsyncProcessor):
         )
 
         self.collection_response_producer = Producer(
-            client = self.pulsar_client,
+            backend = self.pubsub,
             topic = collection_response_queue,
             schema = CollectionManagementResponse,
             metrics = collection_response_metrics,
@@ -183,7 +183,7 @@ class Processor(AsyncProcessor):
         )
 
         self.config_request_producer = Producer(
-            client = self.pulsar_client,
+            backend = self.pubsub,
             topic = config_request_queue,
             schema = ConfigRequest,
             metrics = config_request_metrics,
@@ -195,7 +195,7 @@ class Processor(AsyncProcessor):
 
         self.config_response_consumer = Consumer(
             taskgroup = self.taskgroup,
-            client = self.pulsar_client,
+            backend = self.pubsub,
             flow = None,
             topic = config_response_queue,
             subscriber = f"{id}-config",

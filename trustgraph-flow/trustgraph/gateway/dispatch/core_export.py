@@ -10,9 +10,9 @@ logger = logging.getLogger(__name__)
 
 class CoreExport:
 
-    def __init__(self, pulsar_client):
-        self.pulsar_client = pulsar_client
-        
+    def __init__(self, backend):
+        self.backend = backend
+
     async def process(self, data, error, ok, request):
 
         id = request.query["id"]
@@ -21,7 +21,7 @@ class CoreExport:
         response = await ok()
 
         kr = KnowledgeRequestor(
-            pulsar_client = self.pulsar_client,
+            backend = self.backend,
             consumer = "api-gateway-core-export-" + str(uuid.uuid4()),
             subscriber = "api-gateway-core-export-" + str(uuid.uuid4()),
         )

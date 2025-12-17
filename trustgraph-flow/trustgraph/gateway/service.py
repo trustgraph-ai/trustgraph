@@ -80,7 +80,7 @@ class Api:
         else:
             self.auth = Authenticator(allow_all=True)
 
-        self.config_receiver = ConfigReceiver(self.pulsar_client)
+        self.config_receiver = ConfigReceiver(self.pubsub_backend)
 
         # Build queue overrides dictionary from CLI arguments
         queue_overrides = {}
@@ -126,7 +126,7 @@ class Api:
                 queue_overrides["librarian"]["response"] = librarian_resp
 
         self.dispatcher_manager = DispatcherManager(
-            pulsar_client = self.pulsar_client,
+            backend = self.pubsub_backend,
             config_receiver = self.config_receiver,
             prefix = "gateway",
             queue_overrides = queue_overrides,
