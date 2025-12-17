@@ -306,7 +306,7 @@ class Processor(AsyncProcessor):
         logger.debug(f"Submitting to queue {q}...")
 
         pub = Publisher(
-            self.pulsar_client, q, schema=schema
+            self.pubsub, q, schema=schema
         )
 
         await pub.start()
