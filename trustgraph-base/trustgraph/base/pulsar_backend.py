@@ -9,6 +9,7 @@ import pulsar
 import _pulsar
 import json
 import logging
+import base64
 from dataclasses import asdict, is_dataclass
 from typing import Any
 
@@ -19,9 +20,10 @@ logger = logging.getLogger(__name__)
 
 def dataclass_to_dict(obj: Any) -> dict:
     """
-    Recursively convert a dataclass to a dictionary, handling None values.
+    Recursively convert a dataclass to a dictionary, handling None values and bytes.
 
     None values are excluded from the dictionary (not serialized).
+    Bytes values are base64 encoded for JSON serialization.
     """
     if obj is None:
         return None
@@ -30,10 +32,18 @@ def dataclass_to_dict(obj: Any) -> dict:
         result = {}
         for key, value in asdict(obj).items():
             if value is not None:
-                if is_dataclass(value):
+                if isinstance(value, bytes):
+                    # Base64 encode bytes for JSON serialization
+                    result[key] = base64.b64encode(value).decode('ascii')
+                elif is_dataclass(value):
                     result[key] = dataclass_to_dict(value)
                 elif isinstance(value, list):
-                    result[key] = [dataclass_to_dict(item) if is_dataclass(item) else item for item in value]
+                    result[key] = [
+                        base64.b64encode(item).decode('ascii') if isinstance(item, bytes)
+                        else dataclass_to_dict(item) if is_dataclass(item)
+                        else item
+                        for item in value
+                    ]
                 elif isinstance(value, dict):
                     result[key] = {k: dataclass_to_dict(v) if is_dataclass(v) else v for k, v in value.items()}
                 else:
@@ -87,6 +97,9 @@ def dict_to_dataclass(data: dict, cls: type) -> Any:
             # Handle direct dataclass fields
             elif is_dataclass(field_type) and isinstance(value, dict):
                 kwargs[key] = dict_to_dataclass(value, field_type)
+            # Handle bytes fields (base64 encoded strings)
+            elif field_type == bytes and isinstance(value, str):
+                kwargs[key] = base64.b64decode(value)
             else:
                 kwargs[key] = value
 
