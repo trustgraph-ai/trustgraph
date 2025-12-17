@@ -258,9 +258,6 @@ class Configuration:
         else:
 
             resp = ConfigResponse(
-                value=None,
-                directory=None,
-                values=None,
                 error=Error(
                     type = "bad-operation",
                     message = "Bad operation"
