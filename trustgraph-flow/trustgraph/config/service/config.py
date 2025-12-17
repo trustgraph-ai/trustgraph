@@ -95,9 +95,6 @@ class Configuration:
         return ConfigResponse(
             version = await self.get_version(),
             values = values,
-            directory = None,
-            config = None,
-            error = None,
         )
     
     async def handle_list(self, v):
@@ -117,10 +114,7 @@ class Configuration:
 
         return ConfigResponse(
             version = await self.get_version(),
-            values = None,
             directory = await self.table_store.get_keys(v.type),
-            config = None,
-            error = None,
         )
 
     async def handle_getvalues(self, v):
@@ -150,9 +144,6 @@ class Configuration:
         return ConfigResponse(
             version = await self.get_version(),
             values = list(values),
-            directory = None,
-            config = None,
-            error = None,
         )
 
     async def handle_delete(self, v):
@@ -179,12 +170,6 @@ class Configuration:
         await self.push()
 
         return ConfigResponse(
-            version = None,
-            value = None,
-            directory = None,
-            values = None,
-            config = None,
-            error = None,
         )
 
     async def handle_put(self, v):
@@ -198,11 +183,6 @@ class Configuration:
         await self.push()
 
         return ConfigResponse(
-            version = None,
-            value = None,
-            directory = None,
-            values = None,
-            error = None,
         )
 
     async def get_config(self):
