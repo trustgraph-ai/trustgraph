@@ -224,11 +224,7 @@ class Configuration:
 
         return ConfigResponse(
             version = await self.get_version(),
-            value = None,
-            directory = None,
-            values = None,
             config = config,
-            error = None,
         )
 
     async def handle(self, msg):

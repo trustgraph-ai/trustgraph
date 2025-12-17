@@ -13,7 +13,7 @@ class ServiceRequestor:
 
     def __init__(
             self,
-            pulsar_client,
+            backend,
             queue, schema,
             handler,
             subscription="api-gateway", consumer_name="api-gateway",
@@ -21,7 +21,7 @@ class ServiceRequestor:
     ):
 
         self.sub = Subscriber(
-            pulsar_client, queue,
+            backend, queue,
             subscription, consumer_name,
             schema
         )

@@ -211,7 +211,6 @@ class Processor(AsyncProcessor):
                     type = "config-error",
                     message = str(e),
                 ),
-                text=None,
             )
 
             await self.config_response_producer.send(
