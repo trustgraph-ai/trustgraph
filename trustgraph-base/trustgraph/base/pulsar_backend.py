@@ -76,8 +76,11 @@ def dict_to_dataclass(data: dict, cls: type) -> Any:
                 # Handle generic types like list[T] or dict[K, V]
                 if actual_type.__origin__ == list:
                     item_type = actual_type.__args__[0] if actual_type.__args__ else None
-                    if item_type and is_dataclass(item_type):
-                        kwargs[key] = [dict_to_dataclass(item, item_type) for item in value]
+                    if item_type and is_dataclass(item_type) and isinstance(value, list):
+                        kwargs[key] = [
+                            dict_to_dataclass(item, item_type) if isinstance(item, dict) else item
+                            for item in value
+                        ]
                     else:
                         kwargs[key] = value
                 else:
