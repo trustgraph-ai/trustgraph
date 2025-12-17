@@ -141,16 +141,16 @@ class Processor(FlowProcessor):
                 async def send_chunk(chunk):
                     await flow("response").send(
                         GraphRagResponse(
-                            chunk=chunk,
+                            response=chunk,
                             end_of_stream=False,
-                            response=None,
                             error=None
                         ),
                         properties={"id": id}
                     )
 
                 # Query with streaming enabled
-                full_response = await rag.query(
+                # The query will send chunks via callback AND return the complete text
+                final_response = await rag.query(
                     query = v.query, user = v.user, collection = v.collection,
                     entity_limit = entity_limit, triple_limit = triple_limit,
                     max_subgraph_size = max_subgraph_size,
@@ -159,12 +159,12 @@ class Processor(FlowProcessor):
                     chunk_callback = send_chunk,
                 )
 
-                # Send final message with complete response
+                # Send final message - may have last chunk of content with end_of_stream=True
+                # (prompt service may send final chunk with text, so we pass through whatever we got)
                 await flow("response").send(
                     GraphRagResponse(
-                        chunk=None,
+                        response=final_response if final_response else "",
                         end_of_stream=True,
-                        response=full_response,
                         error=None
                     ),
                     properties={"id": id}

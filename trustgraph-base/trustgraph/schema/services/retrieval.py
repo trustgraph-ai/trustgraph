@@ -21,7 +21,6 @@ class GraphRagQuery:
 class GraphRagResponse:
     error: Error | None = None
     response: str = ""
-    chunk: str = ""
     end_of_stream: bool = False
 
 ############################################################################
@@ -40,5 +39,4 @@ class DocumentRagQuery:
 class DocumentRagResponse:
     error: Error | None = None
     response: str = ""
-    chunk: str = ""
     end_of_stream: bool = False

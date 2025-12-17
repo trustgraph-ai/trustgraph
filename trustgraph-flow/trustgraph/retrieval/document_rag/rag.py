@@ -98,16 +98,16 @@ class Processor(FlowProcessor):
                 async def send_chunk(chunk):
                     await flow("response").send(
                         DocumentRagResponse(
-                            chunk=chunk,
+                            response=chunk,
                             end_of_stream=False,
-                            response=None,
                             error=None
                         ),
                         properties={"id": id}
                     )
 
                 # Query with streaming enabled
-                full_response = await self.rag.query(
+                # The query returns the last chunk (not accumulated text)
+                final_response = await self.rag.query(
                     v.query,
                     user=v.user,
                     collection=v.collection,
@@ -116,12 +116,11 @@ class Processor(FlowProcessor):
                     chunk_callback=send_chunk,
                 )
 
-                # Send final message with complete response
+                # Send final message with last chunk
                 await flow("response").send(
                     DocumentRagResponse(
-                        chunk=None,
+                        response=final_response if final_response else "",
                         end_of_stream=True,
-                        response=full_response,
                         error=None
                     ),
                     properties={"id": id}
