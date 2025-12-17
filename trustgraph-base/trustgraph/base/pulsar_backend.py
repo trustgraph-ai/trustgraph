@@ -10,6 +10,7 @@ import _pulsar
 import json
 import logging
 import base64
+import types
 from dataclasses import asdict, is_dataclass
 from typing import Any
 
@@ -72,8 +73,20 @@ def dict_to_dataclass(data: dict, cls: type) -> Any:
         if key in field_types:
             field_type = field_types[key]
 
+            # Handle modern union types (X | Y)
+            if isinstance(field_type, types.UnionType):
+                # Check if it's Optional (X | None)
+                if type(None) in field_type.__args__:
+                    # Get the non-None type
+                    actual_type = next((t for t in field_type.__args__ if t is not type(None)), None)
+                    if actual_type and is_dataclass(actual_type) and isinstance(value, dict):
+                        kwargs[key] = dict_to_dataclass(value, actual_type)
+                    else:
+                        kwargs[key] = value
+                else:
+                    kwargs[key] = value
             # Check if this is a generic type (list, dict, etc.)
-            if hasattr(field_type, '__origin__'):
+            elif hasattr(field_type, '__origin__'):
                 # Handle list[T]
                 if field_type.__origin__ == list:
                     item_type = field_type.__args__[0] if field_type.__args__ else None
@@ -84,7 +97,7 @@ def dict_to_dataclass(data: dict, cls: type) -> Any:
                         ]
                     else:
                         kwargs[key] = value
-                # Handle Optional[T] (which is Union[T, None])
+                # Handle old-style Optional[T] (which is Union[T, None])
                 elif hasattr(field_type, '__args__') and type(None) in field_type.__args__:
                     # Get the non-None type from Union
                     actual_type = next((t for t in field_type.__args__ if t is not type(None)), None)
