@@ -24,7 +24,7 @@ def dataclass_to_dict(obj: Any) -> dict:
     Recursively convert a dataclass to a dictionary, handling None values and bytes.
 
     None values are excluded from the dictionary (not serialized).
-    Bytes values are base64 encoded for JSON serialization.
+    Bytes values are decoded as UTF-8 strings for JSON serialization (matching Pulsar behavior).
     """
     if obj is None:
         return None
@@ -34,13 +34,13 @@ def dataclass_to_dict(obj: Any) -> dict:
         for key, value in asdict(obj).items():
             if value is not None:
                 if isinstance(value, bytes):
-                    # Base64 encode bytes for JSON serialization
-                    result[key] = base64.b64encode(value).decode('ascii')
+                    # Decode bytes as UTF-8 for JSON serialization (like Pulsar did)
+                    result[key] = value.decode('utf-8')
                 elif is_dataclass(value):
                     result[key] = dataclass_to_dict(value)
                 elif isinstance(value, list):
                     result[key] = [
-                        base64.b64encode(item).decode('ascii') if isinstance(item, bytes)
+                        item.decode('utf-8') if isinstance(item, bytes)
                         else dataclass_to_dict(item) if is_dataclass(item)
                         else item
                         for item in value
@@ -110,9 +110,9 @@ def dict_to_dataclass(data: dict, cls: type) -> Any:
             # Handle direct dataclass fields
             elif is_dataclass(field_type) and isinstance(value, dict):
                 kwargs[key] = dict_to_dataclass(value, field_type)
-            # Handle bytes fields (base64 encoded strings)
+            # Handle bytes fields (UTF-8 encoded strings from JSON)
             elif field_type == bytes and isinstance(value, str):
-                kwargs[key] = base64.b64decode(value)
+                kwargs[key] = value.encode('utf-8')
             else:
                 kwargs[key] = value
 

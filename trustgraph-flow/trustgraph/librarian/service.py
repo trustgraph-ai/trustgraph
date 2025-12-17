@@ -299,7 +299,6 @@ class Processor(AsyncProcessor):
                     collection = processing.collection
                 ),
                 data = base64.b64encode(content).decode("utf-8")
-
             )
             schema = Document
 
