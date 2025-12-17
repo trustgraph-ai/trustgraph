@@ -159,12 +159,12 @@ class AsyncFlowInstance:
         result = await self.request("text-completion", request_data)
         return result.get("response", "")
 
-    async def graph_rag(self, question: str, user: str, collection: str,
+    async def graph_rag(self, query: str, user: str, collection: str,
                         max_subgraph_size: int = 1000, max_subgraph_count: int = 5,
                         max_entity_distance: int = 3, **kwargs: Any) -> str:
         """Graph RAG (non-streaming, use async_socket for streaming)"""
         request_data = {
-            "question": question,
+            "query": query,
             "user": user,
             "collection": collection,
             "max-subgraph-size": max_subgraph_size,
