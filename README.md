@@ -101,7 +101,7 @@ The **Workbench** provides tools for all major features of TrustGraph. The **Wor
 
 ## TypeScript Library for UIs
 
-There are 3 libraries for quick integration of TrustGraph services.
+There are 3 libraries for quick UI integration of TrustGraph services.
 
 - [@trustgraph/client](https://www.npmjs.com/package/@trustgraph/client)
 - [@trustgraph/react-state](https://www.npmjs.com/package/@trustgraph/react-state)
