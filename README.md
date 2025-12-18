@@ -37,14 +37,19 @@ Deploy anywhere. Own your data. Control your AI stack.
 
 ## Key Features
 
-- **Unify your Data for Reliable, Accurate, and Precise AI**
-- **Ship Intelligent Agents Powered with Your Data**
-- **Connect Your Agents with MCP**
-- **Run Anywhere**
-- **Observe Your Data**
+- **Ontology-Driven Context Engineering**
+- **Unify Data Silos for Reliable, Accurate, and Precise AI**
+- **Automated Knowledge Graph Construction and Retrieval**
+- **Single Agent or Multi-Agent Systems**
+- **Interoperability with MCP**
+- **Run Anywhere from local to cloud**
+- **Observability and Telemetry**
 - **Serve Models for Private LLM Inference**
-- **Create Many Workflows**
-- **Control Data Access**
+- **Create Custom Workflows**
+- **Control Data Access for Users and Agents**
+- **Backend Orchestration for Knowledge Graphs, Datastores, and File and Object Storage**
+- **High Throughput Data Streaming**
+- **Fully Containerized**
 
 ## Why TrustGraph?
 
@@ -98,6 +103,14 @@ The **Workbench** provides tools for all major features of TrustGraph. The **Wor
 - **Ontologies**: Define custom ontologies for unstructured data knowledge bases
 - **Agent Tools**: Define tools with collections, knowledge cores, MCP connections, and tool groups
 - **MCP Tools**: Connect to MCP servers
+
+## TypeScript Library for UIs
+
+There are 3 libraries for quick integration of TrustGraph services to a frontend.
+
+- [@trustgraph/client](https://www.npmjs.com/package/@trustgraph/client)
+- [@trustgraph/react-state](https://www.npmjs.com/package/@trustgraph/react-state)
+- [@trustgraph/react-provider](https://www.npmjs.com/package/@trustgraph/react-provider)
 
 ## Knowledge Cores
 
