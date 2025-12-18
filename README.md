@@ -11,7 +11,7 @@
 
 </div>
 
-# Eliminate AI Hallucinations with Private Knowledge Bases
+# Data Preparation as the Foundation for AI Accuracy
 
 Build accurate, trustworthy AI agents powered by your own private data. TrustGraph connects your documents, databases, tools, and agents into a unified knowledge graph with precise retrieval, full observability, and deploy-anywhere control.
 
@@ -35,7 +35,7 @@ Build accurate, trustworthy AI agents powered by your own private data. TrustGra
 
 ## Key Features
 
-- **Unify your Data for Smarter AI**
+- **Unify your Data for Reliable, Accurate, and Precise AI**
 - **Ship Intelligent Agents Powered with Your Data**
 - **Connect Your Agents with MCP**
 - **Run Anywhere**
