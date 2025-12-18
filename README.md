@@ -13,7 +13,7 @@
 
 # The Semantic Infrastructure for AI Apps
 
-Build production-grade AI agents that reason, not hallucinate. TrustGraph is the open-source, full-stack platform for transforming raw data into precision-grounded intelligence through automated knowledge graph construction, custom ontology engineering, and intelligent context retrieval.
+Build intelligent AI applications that reason, not hallucinate. TrustGraph is the open-source, full-stack platform for transforming raw data into precision-grounded intelligence through automated knowledge graph construction, custom ontology engineering, and intelligent context retrieval.
 
 Deploy anywhere. Own your data. Control your AI stack.
 
