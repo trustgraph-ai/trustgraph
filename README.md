@@ -13,7 +13,9 @@
 
 # Data Preparation as the Foundation for AI Accuracy
 
-Build accurate, trustworthy AI agents powered by your own private data. TrustGraph connects your documents, databases, tools, and agents into a unified knowledge graph with precise retrieval, full observability, and deploy-anywhere control.
+Build production-grade AI agents that reason, not hallucinate. TrustGraph is the open-source, full-stack platform for transforming raw data into precision-grounded intelligence through automated knowledge graph construction, custom ontology engineering, and intelligent context retrieval.
+
+Deploy anywhere. Own your data. Control your AI stack.
 
 <details>
 <summary>Table of Contents</summary>
