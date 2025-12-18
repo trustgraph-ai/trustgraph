@@ -14,19 +14,20 @@ from trustgraph.base.async_processor import AsyncProcessor
 class TestAsyncProcessorSimple(IsolatedAsyncioTestCase):
     """Test AsyncProcessor base class functionality"""
 
-    @patch('trustgraph.base.async_processor.PulsarClient')
+    @patch('trustgraph.base.async_processor.get_pubsub')
     @patch('trustgraph.base.async_processor.Consumer')
     @patch('trustgraph.base.async_processor.ProcessorMetrics')
     @patch('trustgraph.base.async_processor.ConsumerMetrics')
-    async def test_async_processor_initialization_basic(self, mock_consumer_metrics, mock_processor_metrics, 
-                                                       mock_consumer, mock_pulsar_client):
+    async def test_async_processor_initialization_basic(self, mock_consumer_metrics, mock_processor_metrics,
+                                                       mock_consumer, mock_get_pubsub):
         """Test basic AsyncProcessor initialization"""
         # Arrange
-        mock_pulsar_client.return_value = MagicMock()
+        mock_backend = MagicMock()
+        mock_get_pubsub.return_value = mock_backend
         mock_consumer.return_value = MagicMock()
         mock_processor_metrics.return_value = MagicMock()
         mock_consumer_metrics.return_value = MagicMock()
-        
+
         config = {
             'id': 'test-async-processor',
             'taskgroup': AsyncMock()
@@ -42,14 +43,14 @@ class TestAsyncProcessorSimple(IsolatedAsyncioTestCase):
         assert processor.running == True
         assert hasattr(processor, 'config_handlers')
         assert processor.config_handlers == []
-        
-        # Verify PulsarClient was created
-        mock_pulsar_client.assert_called_once_with(**config)
-        
+
+        # Verify get_pubsub was called to create backend
+        mock_get_pubsub.assert_called_once_with(**config)
+
         # Verify metrics were initialized
         mock_processor_metrics.assert_called_once()
         mock_consumer_metrics.assert_called_once()
-        
+
         # Verify Consumer was created for config subscription
         mock_consumer.assert_called_once()
 

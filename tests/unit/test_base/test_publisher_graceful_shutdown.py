@@ -8,22 +8,22 @@ from trustgraph.base.publisher import Publisher
 
 
 @pytest.fixture
-def mock_pulsar_client():
-    """Mock Pulsar client for testing."""
-    client = MagicMock()
+def mock_pulsar_backend():
+    """Mock Pulsar backend for testing."""
+    backend = MagicMock()
     producer = AsyncMock()
     producer.send = MagicMock()
     producer.flush = MagicMock()
     producer.close = MagicMock()
-    client.create_producer.return_value = producer
-    return client
+    backend.create_producer.return_value = producer
+    return backend
 
 
 @pytest.fixture
-def publisher(mock_pulsar_client):
+def publisher(mock_pulsar_backend):
     """Create Publisher instance for testing."""
     return Publisher(
-        client=mock_pulsar_client,
+        backend=mock_pulsar_backend,
         topic="test-topic",
         schema=dict,
         max_size=10,
@@ -34,12 +34,12 @@ def publisher(mock_pulsar_client):
 @pytest.mark.asyncio
 async def test_publisher_queue_drain():
     """Verify Publisher drains queue on shutdown."""
-    mock_client = MagicMock()
+    mock_backend = MagicMock()
     mock_producer = MagicMock()
-    mock_client.create_producer.return_value = mock_producer
+    mock_backend.create_producer.return_value = mock_producer
     
     publisher = Publisher(
-        client=mock_client,
+        backend=mock_backend,
         topic="test-topic", 
         schema=dict,
         max_size=10,
@@ -85,12 +85,12 @@ async def test_publisher_queue_drain():
 @pytest.mark.asyncio
 async def test_publisher_rejects_messages_during_drain():
     """Verify Publisher rejects new messages during shutdown."""
-    mock_client = MagicMock()
+    mock_backend = MagicMock()
     mock_producer = MagicMock()
-    mock_client.create_producer.return_value = mock_producer
+    mock_backend.create_producer.return_value = mock_producer
     
     publisher = Publisher(
-        client=mock_client,
+        backend=mock_backend,
         topic="test-topic",
         schema=dict,
         max_size=10,
@@ -113,12 +113,12 @@ async def test_publisher_rejects_messages_during_drain():
 @pytest.mark.asyncio
 async def test_publisher_drain_timeout():
     """Verify Publisher respects drain timeout."""
-    mock_client = MagicMock()
+    mock_backend = MagicMock()
     mock_producer = MagicMock()
-    mock_client.create_producer.return_value = mock_producer
+    mock_backend.create_producer.return_value = mock_producer
     
     publisher = Publisher(
-        client=mock_client,
+        backend=mock_backend,
         topic="test-topic",
         schema=dict,
         max_size=10,
@@ -169,12 +169,12 @@ async def test_publisher_drain_timeout():
 @pytest.mark.asyncio
 async def test_publisher_successful_drain():
     """Verify Publisher drains successfully under normal conditions."""
-    mock_client = MagicMock()
+    mock_backend = MagicMock()
     mock_producer = MagicMock()
-    mock_client.create_producer.return_value = mock_producer
+    mock_backend.create_producer.return_value = mock_producer
     
     publisher = Publisher(
-        client=mock_client,
+        backend=mock_backend,
         topic="test-topic",
         schema=dict,
         max_size=10,
@@ -224,12 +224,12 @@ async def test_publisher_successful_drain():
 @pytest.mark.asyncio
 async def test_publisher_state_transitions():
     """Test Publisher state transitions during graceful shutdown."""
-    mock_client = MagicMock()
+    mock_backend = MagicMock()
     mock_producer = MagicMock()
-    mock_client.create_producer.return_value = mock_producer
+    mock_backend.create_producer.return_value = mock_producer
     
     publisher = Publisher(
-        client=mock_client,
+        backend=mock_backend,
         topic="test-topic",
         schema=dict,
         max_size=10,
@@ -276,9 +276,9 @@ async def test_publisher_state_transitions():
 @pytest.mark.asyncio
 async def test_publisher_exception_handling():
     """Test Publisher handles exceptions during drain gracefully."""
-    mock_client = MagicMock()
+    mock_backend = MagicMock()
     mock_producer = MagicMock()
-    mock_client.create_producer.return_value = mock_producer
+    mock_backend.create_producer.return_value = mock_producer
     
     # Mock producer.send to raise exception on second call
     call_count = 0
@@ -291,7 +291,7 @@ async def test_publisher_exception_handling():
     mock_producer.send.side_effect = failing_send
     
     publisher = Publisher(
-        client=mock_client,
+        backend=mock_backend,
         topic="test-topic",
         schema=dict,
         max_size=10,
