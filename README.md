@@ -11,7 +11,7 @@
 
 </div>
 
-# Data Preparation as the Foundation for AI Accuracy
+# The Semantic Infrastructure for AI Apps
 
 Build production-grade AI agents that reason, not hallucinate. TrustGraph is the open-source, full-stack platform for transforming raw data into precision-grounded intelligence through automated knowledge graph construction, custom ontology engineering, and intelligent context retrieval.
 
