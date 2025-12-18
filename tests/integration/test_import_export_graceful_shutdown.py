@@ -342,7 +342,7 @@ async def test_websocket_close_during_message_processing():
     import_handler = TriplesImport(
         ws=ws,
         running=running,
-        backend=mock_backend,
+        backend=mock_backend_local,
         queue="slow-processing-import"
     )
     
@@ -406,8 +406,8 @@ async def test_backpressure_during_shutdown():
     
     export_handler = TriplesExport(
         ws=ws,
-        running=running, 
-        backend=mock_backend,
+        running=running,
+        backend=mock_backend_local,
         queue="backpressure-export",
         consumer="backpressure-consumer",
         subscriber="backpressure-subscriber"
