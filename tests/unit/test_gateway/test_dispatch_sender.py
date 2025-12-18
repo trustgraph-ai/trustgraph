@@ -14,18 +14,18 @@ class TestServiceSender:
     @patch('trustgraph.gateway.dispatch.sender.Publisher')
     def test_service_sender_initialization(self, mock_publisher):
         """Test ServiceSender initialization"""
-        mock_pulsar_client = MagicMock()
+        mock_backend = MagicMock()
         mock_schema = MagicMock()
         
         sender = ServiceSender(
-            pulsar_client=mock_pulsar_client,
+            backend=mock_backend,
             queue="test-queue",
             schema=mock_schema
         )
         
         # Verify Publisher was created correctly
         mock_publisher.assert_called_once_with(
-            mock_pulsar_client, "test-queue", schema=mock_schema
+            mock_backend, "test-queue", schema=mock_schema
         )
 
     @patch('trustgraph.gateway.dispatch.sender.Publisher')
@@ -36,7 +36,7 @@ class TestServiceSender:
         mock_publisher.return_value = mock_pub_instance
         
         sender = ServiceSender(
-            pulsar_client=MagicMock(),
+            backend=MagicMock(),
             queue="test-queue",
             schema=MagicMock()
         )
@@ -55,7 +55,7 @@ class TestServiceSender:
         mock_publisher.return_value = mock_pub_instance
         
         sender = ServiceSender(
-            pulsar_client=MagicMock(),
+            backend=MagicMock(),
             queue="test-queue",
             schema=MagicMock()
         )
@@ -70,7 +70,7 @@ class TestServiceSender:
     def test_service_sender_to_request_not_implemented(self, mock_publisher):
         """Test ServiceSender to_request method raises RuntimeError"""
         sender = ServiceSender(
-            pulsar_client=MagicMock(),
+            backend=MagicMock(),
             queue="test-queue",
             schema=MagicMock()
         )
@@ -91,7 +91,7 @@ class TestServiceSender:
                 return {"processed": request}
         
         sender = ConcreteSender(
-            pulsar_client=MagicMock(),
+            backend=MagicMock(),
             queue="test-queue",
             schema=MagicMock()
         )
@@ -111,7 +111,7 @@ class TestServiceSender:
         mock_publisher.return_value = mock_pub_instance
         
         sender = ServiceSender(
-            pulsar_client=MagicMock(),
+            backend=MagicMock(),
             queue="test-queue",
             schema=MagicMock()
         )

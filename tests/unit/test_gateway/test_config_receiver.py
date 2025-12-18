@@ -22,18 +22,18 @@ class TestConfigReceiver:
 
     def test_config_receiver_initialization(self):
         """Test ConfigReceiver initialization"""
-        mock_pulsar_client = Mock()
+        mock_backend = Mock()
         
-        config_receiver = ConfigReceiver(mock_pulsar_client)
+        config_receiver = ConfigReceiver(mock_backend)
         
-        assert config_receiver.pulsar_client == mock_pulsar_client
+        assert config_receiver.backend == mock_backend
         assert config_receiver.flow_handlers == []
         assert config_receiver.flows == {}
 
     def test_add_handler(self):
         """Test adding flow handlers"""
-        mock_pulsar_client = Mock()
-        config_receiver = ConfigReceiver(mock_pulsar_client)
+        mock_backend = Mock()
+        config_receiver = ConfigReceiver(mock_backend)
         
         handler1 = Mock()
         handler2 = Mock()
@@ -48,8 +48,8 @@ class TestConfigReceiver:
     @pytest.mark.asyncio
     async def test_on_config_with_new_flows(self):
         """Test on_config method with new flows"""
-        mock_pulsar_client = Mock()
-        config_receiver = ConfigReceiver(mock_pulsar_client)
+        mock_backend = Mock()
+        config_receiver = ConfigReceiver(mock_backend)
         
         # Track calls manually instead of using AsyncMock
         start_flow_calls = []
@@ -87,8 +87,8 @@ class TestConfigReceiver:
     @pytest.mark.asyncio
     async def test_on_config_with_removed_flows(self):
         """Test on_config method with removed flows"""
-        mock_pulsar_client = Mock()
-        config_receiver = ConfigReceiver(mock_pulsar_client)
+        mock_backend = Mock()
+        config_receiver = ConfigReceiver(mock_backend)
         
         # Pre-populate with existing flows
         config_receiver.flows = {
@@ -128,8 +128,8 @@ class TestConfigReceiver:
     @pytest.mark.asyncio
     async def test_on_config_with_no_flows(self):
         """Test on_config method with no flows in config"""
-        mock_pulsar_client = Mock()
-        config_receiver = ConfigReceiver(mock_pulsar_client)
+        mock_backend = Mock()
+        config_receiver = ConfigReceiver(mock_backend)
         
         # Mock the start_flow and stop_flow methods with async functions
         async def mock_start_flow(*args):
@@ -158,8 +158,8 @@ class TestConfigReceiver:
     @pytest.mark.asyncio
     async def test_on_config_exception_handling(self):
         """Test on_config method handles exceptions gracefully"""
-        mock_pulsar_client = Mock()
-        config_receiver = ConfigReceiver(mock_pulsar_client)
+        mock_backend = Mock()
+        config_receiver = ConfigReceiver(mock_backend)
         
         # Create mock message that will cause an exception
         mock_msg = Mock()
@@ -174,8 +174,8 @@ class TestConfigReceiver:
     @pytest.mark.asyncio
     async def test_start_flow_with_handlers(self):
         """Test start_flow method with multiple handlers"""
-        mock_pulsar_client = Mock()
-        config_receiver = ConfigReceiver(mock_pulsar_client)
+        mock_backend = Mock()
+        config_receiver = ConfigReceiver(mock_backend)
         
         # Add mock handlers
         handler1 = Mock()
@@ -197,8 +197,8 @@ class TestConfigReceiver:
     @pytest.mark.asyncio
     async def test_start_flow_with_handler_exception(self):
         """Test start_flow method handles handler exceptions"""
-        mock_pulsar_client = Mock()
-        config_receiver = ConfigReceiver(mock_pulsar_client)
+        mock_backend = Mock()
+        config_receiver = ConfigReceiver(mock_backend)
         
         # Add mock handler that raises exception
         handler = Mock()
@@ -217,8 +217,8 @@ class TestConfigReceiver:
     @pytest.mark.asyncio
     async def test_stop_flow_with_handlers(self):
         """Test stop_flow method with multiple handlers"""
-        mock_pulsar_client = Mock()
-        config_receiver = ConfigReceiver(mock_pulsar_client)
+        mock_backend = Mock()
+        config_receiver = ConfigReceiver(mock_backend)
         
         # Add mock handlers
         handler1 = Mock()
@@ -240,8 +240,8 @@ class TestConfigReceiver:
     @pytest.mark.asyncio
     async def test_stop_flow_with_handler_exception(self):
         """Test stop_flow method handles handler exceptions"""
-        mock_pulsar_client = Mock()
-        config_receiver = ConfigReceiver(mock_pulsar_client)
+        mock_backend = Mock()
+        config_receiver = ConfigReceiver(mock_backend)
         
         # Add mock handler that raises exception
         handler = Mock()
@@ -260,9 +260,9 @@ class TestConfigReceiver:
     @pytest.mark.asyncio
     async def test_config_loader_creates_consumer(self):
         """Test config_loader method creates Pulsar consumer"""
-        mock_pulsar_client = Mock()
+        mock_backend = Mock()
         
-        config_receiver = ConfigReceiver(mock_pulsar_client)
+        config_receiver = ConfigReceiver(mock_backend)
         # Temporarily restore the real config_loader for this test
         config_receiver.config_loader = _real_config_loader.__get__(config_receiver)
         
@@ -292,7 +292,7 @@ class TestConfigReceiver:
             mock_consumer_class.assert_called_once()
             call_args = mock_consumer_class.call_args
             
-            assert call_args[1]['client'] == mock_pulsar_client
+            assert call_args[1]['client'] == mock_backend
             assert call_args[1]['subscriber'] == "gateway-test-uuid"
             assert call_args[1]['handler'] == config_receiver.on_config
             assert call_args[1]['start_of_messages'] is True
@@ -301,8 +301,8 @@ class TestConfigReceiver:
     @pytest.mark.asyncio
     async def test_start_creates_config_loader_task(self, mock_create_task):
         """Test start method creates config loader task"""
-        mock_pulsar_client = Mock()
-        config_receiver = ConfigReceiver(mock_pulsar_client)
+        mock_backend = Mock()
+        config_receiver = ConfigReceiver(mock_backend)
         
         # Mock create_task to avoid actually creating tasks with real coroutines
         mock_task = Mock()
@@ -320,8 +320,8 @@ class TestConfigReceiver:
     @pytest.mark.asyncio
     async def test_on_config_mixed_flow_operations(self):
         """Test on_config with mixed add/remove operations"""
-        mock_pulsar_client = Mock()
-        config_receiver = ConfigReceiver(mock_pulsar_client)
+        mock_backend = Mock()
+        config_receiver = ConfigReceiver(mock_backend)
         
         # Pre-populate with existing flows
         config_receiver.flows = {
@@ -380,8 +380,8 @@ class TestConfigReceiver:
     @pytest.mark.asyncio
     async def test_on_config_invalid_json_flow_data(self):
         """Test on_config handles invalid JSON in flow data"""
-        mock_pulsar_client = Mock()
-        config_receiver = ConfigReceiver(mock_pulsar_client)
+        mock_backend = Mock()
+        config_receiver = ConfigReceiver(mock_backend)
         
         # Mock the start_flow method with an async function
         async def mock_start_flow(*args):

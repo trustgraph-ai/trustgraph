@@ -207,7 +207,7 @@ class TestApi:
             assert api.endpoints == []
             
             # Verify component relationships
-            assert api.dispatcher_manager.pulsar_client == api.pulsar_client
+            assert api.dispatcher_manager.backend == api.backend
             assert api.dispatcher_manager.config_receiver == api.config_receiver
             assert api.endpoint_manager.dispatcher_manager == api.dispatcher_manager
             # EndpointManager doesn't store auth directly, it passes it to individual endpoints
