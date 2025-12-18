@@ -59,17 +59,17 @@ class MockWebSocket:
 
 
 @pytest.fixture
-def mock_pulsar_client():
-    """Mock Pulsar client for integration testing."""
-    client = MagicMock()
-    
+def mock_backend():
+    """Mock backend for integration testing."""
+    backend = MagicMock()
+
     # Mock producer
     producer = MagicMock()
     producer.send = MagicMock()
     producer.flush = MagicMock()
     producer.close = MagicMock()
-    client.create_producer.return_value = producer
-    
+    backend.create_producer.return_value = producer
+
     # Mock consumer
     consumer = MagicMock()
     consumer.receive = AsyncMock()
@@ -78,33 +78,31 @@ def mock_pulsar_client():
     consumer.pause_message_listener = MagicMock()
     consumer.unsubscribe = MagicMock()
     consumer.close = MagicMock()
-    client.subscribe.return_value = consumer
-    
-    return client
+    backend.create_consumer.return_value = consumer
+
+    return backend
 
 
 @pytest.mark.asyncio
-async def test_import_graceful_shutdown_integration():
+async def test_import_graceful_shutdown_integration(mock_backend):
     """Test import path handles shutdown gracefully with real message flow."""
-    mock_client = MagicMock()
-    mock_producer = MagicMock()
-    mock_client.create_producer.return_value = mock_producer
-    
+    mock_producer = mock_backend.create_producer.return_value
+
     # Track sent messages
     sent_messages = []
     def track_send(message, properties=None):
         sent_messages.append((message, properties))
-    
+
     mock_producer.send.side_effect = track_send
-    
+
     ws = MockWebSocket()
     running = Running()
-    
+
     # Create import handler
     import_handler = TriplesImport(
         ws=ws,
         running=running,
-        pulsar_client=mock_client,
+        backend=mock_backend,
         queue="test-triples-import"
     )
     
@@ -151,11 +149,9 @@ async def test_import_graceful_shutdown_integration():
 
 
 @pytest.mark.asyncio
-async def test_export_no_message_loss_integration():
+async def test_export_no_message_loss_integration(mock_backend):
     """Test export path doesn't lose acknowledged messages."""
-    mock_client = MagicMock()
-    mock_consumer = MagicMock()
-    mock_client.subscribe.return_value = mock_consumer
+    mock_consumer = mock_backend.create_consumer.return_value
     
     # Create test messages
     test_messages = []
@@ -202,7 +198,7 @@ async def test_export_no_message_loss_integration():
     export_handler = TriplesExport(
         ws=ws,
         running=running,
-        pulsar_client=mock_client,
+        backend=mock_backend,
         queue="test-triples-export",
         consumer="test-consumer",
         subscriber="test-subscriber"
@@ -245,14 +241,14 @@ async def test_export_no_message_loss_integration():
 async def test_concurrent_import_export_shutdown():
     """Test concurrent import and export shutdown scenarios."""
     # Setup mock clients
-    import_client = MagicMock()
-    export_client = MagicMock()
+    import_backend = MagicMock()
+    export_backend = MagicMock()
     
     import_producer = MagicMock()
     export_consumer = MagicMock()
     
-    import_client.create_producer.return_value = import_producer
-    export_client.subscribe.return_value = export_consumer
+    import_backend.create_producer.return_value = import_producer
+    export_backend.subscribe.return_value = export_consumer
     
     # Track operations
     import_operations = []
@@ -280,14 +276,14 @@ async def test_concurrent_import_export_shutdown():
     import_handler = TriplesImport(
         ws=import_ws,
         running=import_running,
-        pulsar_client=import_client,
+        backend=import_backend,
         queue="concurrent-import"
     )
     
     export_handler = TriplesExport(
         ws=export_ws,
         running=export_running,
-        pulsar_client=export_client,
+        backend=export_backend,
         queue="concurrent-export",
         consumer="concurrent-consumer",
         subscriber="concurrent-subscriber"
@@ -328,9 +324,9 @@ async def test_concurrent_import_export_shutdown():
 @pytest.mark.asyncio
 async def test_websocket_close_during_message_processing():
     """Test graceful handling when websocket closes during active message processing."""
-    mock_client = MagicMock()
+    mock_backend_local = MagicMock()
     mock_producer = MagicMock()
-    mock_client.create_producer.return_value = mock_producer
+    mock_backend_local.create_producer.return_value = mock_producer
     
     # Simulate slow message processing
     processed_messages = []
@@ -346,7 +342,7 @@ async def test_websocket_close_during_message_processing():
     import_handler = TriplesImport(
         ws=ws,
         running=running,
-        pulsar_client=mock_client,
+        backend=mock_backend,
         queue="slow-processing-import"
     )
     
@@ -395,9 +391,9 @@ async def test_websocket_close_during_message_processing():
 @pytest.mark.asyncio  
 async def test_backpressure_during_shutdown():
     """Test graceful shutdown under backpressure conditions."""
-    mock_client = MagicMock()
+    mock_backend_local = MagicMock()
     mock_consumer = MagicMock()
-    mock_client.subscribe.return_value = mock_consumer
+    mock_backend_local.subscribe.return_value = mock_consumer
     
     # Mock slow websocket
     class SlowWebSocket(MockWebSocket):
@@ -411,7 +407,7 @@ async def test_backpressure_during_shutdown():
     export_handler = TriplesExport(
         ws=ws,
         running=running, 
-        pulsar_client=mock_client,
+        backend=mock_backend,
         queue="backpressure-export",
         consumer="backpressure-consumer",
         subscriber="backpressure-subscriber"
