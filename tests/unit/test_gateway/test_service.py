@@ -19,23 +19,21 @@ class TestApi:
 
     def test_api_initialization_with_defaults(self):
         """Test Api initialization with default values"""
-        with patch('pulsar.Client') as mock_client:
-            mock_client.return_value = Mock()
-            
+        with patch('trustgraph.gateway.service.get_pubsub') as mock_get_pubsub:
+            mock_backend = Mock()
+            mock_get_pubsub.return_value = mock_backend
+
             api = Api()
-            
+
             assert api.port == default_port
             assert api.timeout == default_timeout
             assert api.pulsar_host == default_pulsar_host
             assert api.pulsar_api_key is None
             assert api.prometheus_url == default_prometheus_url + "/"
             assert api.auth.allow_all is True
-            
-            # Verify Pulsar client was created without API key
-            mock_client.assert_called_once_with(
-                default_pulsar_host,
-                listener_name=None
-            )
+
+            # Verify get_pubsub was called
+            mock_get_pubsub.assert_called_once()
 
     def test_api_initialization_with_custom_config(self):
         """Test Api initialization with custom configuration"""
@@ -48,14 +46,13 @@ class TestApi:
             "prometheus_url": "http://custom-prometheus:9090",
             "api_token": "secret-token"
         }
-        
-        with patch('pulsar.Client') as mock_client, \
-             patch('pulsar.AuthenticationToken') as mock_auth:
-            mock_client.return_value = Mock()
-            mock_auth.return_value = Mock()
-            
+
+        with patch('trustgraph.gateway.service.get_pubsub') as mock_get_pubsub:
+            mock_backend = Mock()
+            mock_get_pubsub.return_value = mock_backend
+
             api = Api(**config)
-            
+
             assert api.port == 9000
             assert api.timeout == 300
             assert api.pulsar_host == "pulsar://custom-host:6650"
@@ -63,35 +60,25 @@ class TestApi:
             assert api.prometheus_url == "http://custom-prometheus:9090/"
             assert api.auth.token == "secret-token"
             assert api.auth.allow_all is False
-            
-            # Verify Pulsar client was created with API key
-            mock_auth.assert_called_once_with("test-api-key")
-            mock_client.assert_called_once_with(
-                "pulsar://custom-host:6650",
-                listener_name="custom-listener",
-                authentication=mock_auth.return_value
-            )
+
+            # Verify get_pubsub was called with config
+            mock_get_pubsub.assert_called_once_with(**config)
 
     def test_api_initialization_with_pulsar_api_key(self):
         """Test Api initialization with Pulsar API key authentication"""
-        with patch('pulsar.Client') as mock_client, \
-             patch('pulsar.AuthenticationToken') as mock_auth:
-            mock_client.return_value = Mock()
-            mock_auth.return_value = Mock()
-            
+        with patch('trustgraph.gateway.service.get_pubsub') as mock_get_pubsub:
+            mock_get_pubsub.return_value = Mock()
+
             api = Api(pulsar_api_key="test-key")
-            
-            mock_auth.assert_called_once_with("test-key")
-            mock_client.assert_called_once_with(
-                default_pulsar_host,
-                listener_name=None,
-                authentication=mock_auth.return_value
-            )
+
+            # Verify api key was stored
+            assert api.pulsar_api_key == "test-key"
+            mock_get_pubsub.assert_called_once()
 
     def test_api_initialization_prometheus_url_normalization(self):
         """Test that prometheus_url gets normalized with trailing slash"""
-        with patch('pulsar.Client') as mock_client:
-            mock_client.return_value = Mock()
+        with patch('trustgraph.gateway.service.get_pubsub') as mock_get_pubsub:
+            mock_get_pubsub.return_value = Mock()
             
             # Test URL without trailing slash
             api = Api(prometheus_url="http://prometheus:9090")
@@ -103,16 +90,16 @@ class TestApi:
 
     def test_api_initialization_empty_api_token_means_no_auth(self):
         """Test that empty API token results in allow_all authentication"""
-        with patch('pulsar.Client') as mock_client:
-            mock_client.return_value = Mock()
+        with patch('trustgraph.gateway.service.get_pubsub') as mock_get_pubsub:
+            mock_get_pubsub.return_value = Mock()
             
             api = Api(api_token="")
             assert api.auth.allow_all is True
 
     def test_api_initialization_none_api_token_means_no_auth(self):
         """Test that None API token results in allow_all authentication"""
-        with patch('pulsar.Client') as mock_client:
-            mock_client.return_value = Mock()
+        with patch('trustgraph.gateway.service.get_pubsub') as mock_get_pubsub:
+            mock_get_pubsub.return_value = Mock()
             
             api = Api(api_token=None)
             assert api.auth.allow_all is True
@@ -120,8 +107,8 @@ class TestApi:
     @pytest.mark.asyncio
     async def test_app_factory_creates_application(self):
         """Test that app_factory creates aiohttp application"""
-        with patch('pulsar.Client') as mock_client:
-            mock_client.return_value = Mock()
+        with patch('trustgraph.gateway.service.get_pubsub') as mock_get_pubsub:
+            mock_get_pubsub.return_value = Mock()
             
             api = Api()
             
@@ -147,8 +134,8 @@ class TestApi:
     @pytest.mark.asyncio
     async def test_app_factory_with_custom_endpoints(self):
         """Test app_factory with custom endpoints"""
-        with patch('pulsar.Client') as mock_client:
-            mock_client.return_value = Mock()
+        with patch('trustgraph.gateway.service.get_pubsub') as mock_get_pubsub:
+            mock_get_pubsub.return_value = Mock()
             
             api = Api()
             
@@ -180,13 +167,13 @@ class TestApi:
 
     def test_run_method_calls_web_run_app(self):
         """Test that run method calls web.run_app"""
-        with patch('pulsar.Client') as mock_client, \
+        with patch('trustgraph.gateway.service.get_pubsub') as mock_get_pubsub, \
              patch('aiohttp.web.run_app') as mock_run_app:
-            mock_client.return_value = Mock()
-            
+            mock_get_pubsub.return_value = Mock()
+
             api = Api(port=8080)
             api.run()
-            
+
             # Verify run_app was called once with the correct port
             mock_run_app.assert_called_once()
             args, kwargs = mock_run_app.call_args
@@ -195,19 +182,19 @@ class TestApi:
 
     def test_api_components_initialization(self):
         """Test that all API components are properly initialized"""
-        with patch('pulsar.Client') as mock_client:
-            mock_client.return_value = Mock()
-            
+        with patch('trustgraph.gateway.service.get_pubsub') as mock_get_pubsub:
+            mock_get_pubsub.return_value = Mock()
+
             api = Api()
-            
+
             # Verify all components are initialized
             assert api.config_receiver is not None
             assert api.dispatcher_manager is not None
             assert api.endpoint_manager is not None
             assert api.endpoints == []
-            
+
             # Verify component relationships
-            assert api.dispatcher_manager.backend == api.backend
+            assert api.dispatcher_manager.backend == api.pubsub_backend
             assert api.dispatcher_manager.config_receiver == api.config_receiver
             assert api.endpoint_manager.dispatcher_manager == api.dispatcher_manager
             # EndpointManager doesn't store auth directly, it passes it to individual endpoints

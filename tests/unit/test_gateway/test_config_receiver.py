@@ -291,8 +291,8 @@ class TestConfigReceiver:
             # Verify Consumer was created with correct parameters
             mock_consumer_class.assert_called_once()
             call_args = mock_consumer_class.call_args
-            
-            assert call_args[1]['client'] == mock_backend
+
+            assert call_args[1]['backend'] == mock_backend
             assert call_args[1]['subscriber'] == "gateway-test-uuid"
             assert call_args[1]['handler'] == config_receiver.on_config
             assert call_args[1]['start_of_messages'] is True
