@@ -16,7 +16,7 @@ from trustgraph.schema import Metadata, ExtractedObject
 
 
 @pytest.fixture
-def mock_pulsar_client():
+def mock_backend():
     """Mock Pulsar client."""
     client = Mock()
     return client
@@ -96,7 +96,7 @@ class TestObjectsImportInitialization:
     """Test ObjectsImport initialization."""
 
     @patch('trustgraph.gateway.dispatch.objects_import.Publisher')
-    def test_init_creates_publisher_with_correct_params(self, mock_publisher_class, mock_pulsar_client, mock_websocket, mock_running):
+    def test_init_creates_publisher_with_correct_params(self, mock_publisher_class, mock_backend, mock_websocket, mock_running):
         """Test that ObjectsImport creates Publisher with correct parameters."""
         mock_publisher_instance = Mock()
         mock_publisher_class.return_value = mock_publisher_instance
@@ -104,13 +104,13 @@ class TestObjectsImportInitialization:
         objects_import = ObjectsImport(
             ws=mock_websocket,
             running=mock_running,
-            pulsar_client=mock_pulsar_client,
+            backend=mock_backend,
             queue="test-objects-queue"
         )
         
         # Verify Publisher was created with correct parameters
         mock_publisher_class.assert_called_once_with(
-            mock_pulsar_client,
+            mock_backend,
             topic="test-objects-queue",
             schema=ExtractedObject
         )
@@ -121,12 +121,12 @@ class TestObjectsImportInitialization:
         assert objects_import.publisher == mock_publisher_instance
 
     @patch('trustgraph.gateway.dispatch.objects_import.Publisher')
-    def test_init_stores_references_correctly(self, mock_publisher_class, mock_pulsar_client, mock_websocket, mock_running):
+    def test_init_stores_references_correctly(self, mock_publisher_class, mock_backend, mock_websocket, mock_running):
         """Test that ObjectsImport stores all required references."""
         objects_import = ObjectsImport(
             ws=mock_websocket,
             running=mock_running,
-            pulsar_client=mock_pulsar_client,
+            backend=mock_backend,
             queue="objects-queue"
         )
         
@@ -139,7 +139,7 @@ class TestObjectsImportLifecycle:
 
     @patch('trustgraph.gateway.dispatch.objects_import.Publisher')
     @pytest.mark.asyncio
-    async def test_start_calls_publisher_start(self, mock_publisher_class, mock_pulsar_client, mock_websocket, mock_running):
+    async def test_start_calls_publisher_start(self, mock_publisher_class, mock_backend, mock_websocket, mock_running):
         """Test that start() calls publisher.start()."""
         mock_publisher_instance = Mock()
         mock_publisher_instance.start = AsyncMock()
@@ -148,7 +148,7 @@ class TestObjectsImportLifecycle:
         objects_import = ObjectsImport(
             ws=mock_websocket,
             running=mock_running,
-            pulsar_client=mock_pulsar_client,
+            backend=mock_backend,
             queue="test-queue"
         )
         
@@ -158,7 +158,7 @@ class TestObjectsImportLifecycle:
 
     @patch('trustgraph.gateway.dispatch.objects_import.Publisher')
     @pytest.mark.asyncio
-    async def test_destroy_stops_and_closes_properly(self, mock_publisher_class, mock_pulsar_client, mock_websocket, mock_running):
+    async def test_destroy_stops_and_closes_properly(self, mock_publisher_class, mock_backend, mock_websocket, mock_running):
         """Test that destroy() properly stops publisher and closes websocket."""
         mock_publisher_instance = Mock()
         mock_publisher_instance.stop = AsyncMock()
@@ -167,7 +167,7 @@ class TestObjectsImportLifecycle:
         objects_import = ObjectsImport(
             ws=mock_websocket,
             running=mock_running,
-            pulsar_client=mock_pulsar_client,
+            backend=mock_backend,
             queue="test-queue"
         )
         
@@ -180,7 +180,7 @@ class TestObjectsImportLifecycle:
 
     @patch('trustgraph.gateway.dispatch.objects_import.Publisher')
     @pytest.mark.asyncio
-    async def test_destroy_handles_none_websocket(self, mock_publisher_class, mock_pulsar_client, mock_running):
+    async def test_destroy_handles_none_websocket(self, mock_publisher_class, mock_backend, mock_running):
         """Test that destroy() handles None websocket gracefully."""
         mock_publisher_instance = Mock()
         mock_publisher_instance.stop = AsyncMock()
@@ -189,7 +189,7 @@ class TestObjectsImportLifecycle:
         objects_import = ObjectsImport(
             ws=None,  # None websocket
             running=mock_running,
-            pulsar_client=mock_pulsar_client,
+            backend=mock_backend,
             queue="test-queue"
         )
         
@@ -205,7 +205,7 @@ class TestObjectsImportMessageProcessing:
 
     @patch('trustgraph.gateway.dispatch.objects_import.Publisher')
     @pytest.mark.asyncio
-    async def test_receive_processes_full_message_correctly(self, mock_publisher_class, mock_pulsar_client, mock_websocket, mock_running, sample_objects_message):
+    async def test_receive_processes_full_message_correctly(self, mock_publisher_class, mock_backend, mock_websocket, mock_running, sample_objects_message):
         """Test that receive() processes complete message correctly."""
         mock_publisher_instance = Mock()
         mock_publisher_instance.send = AsyncMock()
@@ -214,7 +214,7 @@ class TestObjectsImportMessageProcessing:
         objects_import = ObjectsImport(
             ws=mock_websocket,
             running=mock_running,
-            pulsar_client=mock_pulsar_client,
+            backend=mock_backend,
             queue="test-queue"
         )
         
@@ -248,7 +248,7 @@ class TestObjectsImportMessageProcessing:
 
     @patch('trustgraph.gateway.dispatch.objects_import.Publisher')
     @pytest.mark.asyncio
-    async def test_receive_handles_minimal_message(self, mock_publisher_class, mock_pulsar_client, mock_websocket, mock_running, minimal_objects_message):
+    async def test_receive_handles_minimal_message(self, mock_publisher_class, mock_backend, mock_websocket, mock_running, minimal_objects_message):
         """Test that receive() handles message with minimal required fields."""
         mock_publisher_instance = Mock()
         mock_publisher_instance.send = AsyncMock()
@@ -257,7 +257,7 @@ class TestObjectsImportMessageProcessing:
         objects_import = ObjectsImport(
             ws=mock_websocket,
             running=mock_running,
-            pulsar_client=mock_pulsar_client,
+            backend=mock_backend,
             queue="test-queue"
         )
         
@@ -281,7 +281,7 @@ class TestObjectsImportMessageProcessing:
 
     @patch('trustgraph.gateway.dispatch.objects_import.Publisher')
     @pytest.mark.asyncio
-    async def test_receive_uses_default_values(self, mock_publisher_class, mock_pulsar_client, mock_websocket, mock_running):
+    async def test_receive_uses_default_values(self, mock_publisher_class, mock_backend, mock_websocket, mock_running):
         """Test that receive() uses appropriate default values for optional fields."""
         mock_publisher_instance = Mock()
         mock_publisher_instance.send = AsyncMock()
@@ -290,7 +290,7 @@ class TestObjectsImportMessageProcessing:
         objects_import = ObjectsImport(
             ws=mock_websocket,
             running=mock_running,
-            pulsar_client=mock_pulsar_client,
+            backend=mock_backend,
             queue="test-queue"
         )
         
@@ -323,7 +323,7 @@ class TestObjectsImportRunMethod:
     @patch('trustgraph.gateway.dispatch.objects_import.Publisher')
     @patch('trustgraph.gateway.dispatch.objects_import.asyncio.sleep')
     @pytest.mark.asyncio
-    async def test_run_loops_while_running(self, mock_sleep, mock_publisher_class, mock_pulsar_client, mock_websocket, mock_running):
+    async def test_run_loops_while_running(self, mock_sleep, mock_publisher_class, mock_backend, mock_websocket, mock_running):
         """Test that run() loops while running.get() returns True."""
         mock_sleep.return_value = None
         mock_publisher_class.return_value = Mock()
@@ -334,7 +334,7 @@ class TestObjectsImportRunMethod:
         objects_import = ObjectsImport(
             ws=mock_websocket,
             running=mock_running,
-            pulsar_client=mock_pulsar_client,
+            backend=mock_backend,
             queue="test-queue"
         )
         
@@ -353,7 +353,7 @@ class TestObjectsImportRunMethod:
     @patch('trustgraph.gateway.dispatch.objects_import.Publisher')
     @patch('trustgraph.gateway.dispatch.objects_import.asyncio.sleep')
     @pytest.mark.asyncio
-    async def test_run_handles_none_websocket_gracefully(self, mock_sleep, mock_publisher_class, mock_pulsar_client, mock_running):
+    async def test_run_handles_none_websocket_gracefully(self, mock_sleep, mock_publisher_class, mock_backend, mock_running):
         """Test that run() handles None websocket gracefully."""
         mock_sleep.return_value = None
         mock_publisher_class.return_value = Mock()
@@ -363,7 +363,7 @@ class TestObjectsImportRunMethod:
         objects_import = ObjectsImport(
             ws=None,  # None websocket
             running=mock_running,
-            pulsar_client=mock_pulsar_client,
+            backend=mock_backend,
             queue="test-queue"
         )
         
@@ -417,7 +417,7 @@ class TestObjectsImportBatchProcessing:
 
     @patch('trustgraph.gateway.dispatch.objects_import.Publisher')
     @pytest.mark.asyncio
-    async def test_receive_processes_batch_message_correctly(self, mock_publisher_class, mock_pulsar_client, mock_websocket, mock_running, batch_objects_message):
+    async def test_receive_processes_batch_message_correctly(self, mock_publisher_class, mock_backend, mock_websocket, mock_running, batch_objects_message):
         """Test that receive() processes batch message correctly."""
         mock_publisher_instance = Mock()
         mock_publisher_instance.send = AsyncMock()
@@ -426,7 +426,7 @@ class TestObjectsImportBatchProcessing:
         objects_import = ObjectsImport(
             ws=mock_websocket,
             running=mock_running,
-            pulsar_client=mock_pulsar_client,
+            backend=mock_backend,
             queue="test-queue"
         )
         
@@ -467,7 +467,7 @@ class TestObjectsImportBatchProcessing:
 
     @patch('trustgraph.gateway.dispatch.objects_import.Publisher')
     @pytest.mark.asyncio
-    async def test_receive_handles_empty_batch(self, mock_publisher_class, mock_pulsar_client, mock_websocket, mock_running):
+    async def test_receive_handles_empty_batch(self, mock_publisher_class, mock_backend, mock_websocket, mock_running):
         """Test that receive() handles empty batch correctly."""
         mock_publisher_instance = Mock()
         mock_publisher_instance.send = AsyncMock()
@@ -476,7 +476,7 @@ class TestObjectsImportBatchProcessing:
         objects_import = ObjectsImport(
             ws=mock_websocket,
             running=mock_running,
-            pulsar_client=mock_pulsar_client,
+            backend=mock_backend,
             queue="test-queue"
         )
         
@@ -507,7 +507,7 @@ class TestObjectsImportErrorHandling:
 
     @patch('trustgraph.gateway.dispatch.objects_import.Publisher')
     @pytest.mark.asyncio
-    async def test_receive_propagates_publisher_errors(self, mock_publisher_class, mock_pulsar_client, mock_websocket, mock_running, sample_objects_message):
+    async def test_receive_propagates_publisher_errors(self, mock_publisher_class, mock_backend, mock_websocket, mock_running, sample_objects_message):
         """Test that receive() propagates publisher send errors."""
         mock_publisher_instance = Mock()
         mock_publisher_instance.send = AsyncMock(side_effect=Exception("Publisher error"))
@@ -516,7 +516,7 @@ class TestObjectsImportErrorHandling:
         objects_import = ObjectsImport(
             ws=mock_websocket,
             running=mock_running,
-            pulsar_client=mock_pulsar_client,
+            backend=mock_backend,
             queue="test-queue"
         )
         
@@ -528,14 +528,14 @@ class TestObjectsImportErrorHandling:
 
     @patch('trustgraph.gateway.dispatch.objects_import.Publisher')
     @pytest.mark.asyncio
-    async def test_receive_handles_malformed_json(self, mock_publisher_class, mock_pulsar_client, mock_websocket, mock_running):
+    async def test_receive_handles_malformed_json(self, mock_publisher_class, mock_backend, mock_websocket, mock_running):
         """Test that receive() handles malformed JSON appropriately."""
         mock_publisher_class.return_value = Mock()
         
         objects_import = ObjectsImport(
             ws=mock_websocket,
             running=mock_running,
-            pulsar_client=mock_pulsar_client,
+            backend=mock_backend,
             queue="test-queue"
         )
         
