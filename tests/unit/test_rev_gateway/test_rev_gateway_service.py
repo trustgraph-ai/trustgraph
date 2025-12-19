@@ -16,11 +16,11 @@ class TestReverseGateway:
 
     @patch('trustgraph.rev_gateway.service.ConfigReceiver')
     @patch('trustgraph.rev_gateway.service.MessageDispatcher')
-    @patch('pulsar.Client')
-    def test_reverse_gateway_initialization_defaults(self, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
+    @patch('trustgraph.rev_gateway.service.get_pubsub')
+    def test_reverse_gateway_initialization_defaults(self, mock_get_pubsub, mock_dispatcher, mock_config_receiver):
         """Test ReverseGateway initialization with default parameters"""
-        mock_client_instance = MagicMock()
-        mock_pulsar_client.return_value = mock_client_instance
+        mock_backend = MagicMock()
+        mock_get_pubsub.return_value = mock_backend
         
         gateway = ReverseGateway()
         
@@ -38,11 +38,11 @@ class TestReverseGateway:
 
     @patch('trustgraph.rev_gateway.service.ConfigReceiver')
     @patch('trustgraph.rev_gateway.service.MessageDispatcher')
-    @patch('pulsar.Client')
-    def test_reverse_gateway_initialization_custom_params(self, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
+    @patch('trustgraph.rev_gateway.service.get_pubsub')
+    def test_reverse_gateway_initialization_custom_params(self, mock_get_pubsub, mock_dispatcher, mock_config_receiver):
         """Test ReverseGateway initialization with custom parameters"""
-        mock_client_instance = MagicMock()
-        mock_pulsar_client.return_value = mock_client_instance
+        mock_backend = MagicMock()
+        mock_get_pubsub.return_value = mock_backend
         
         gateway = ReverseGateway(
             websocket_uri="wss://example.com:8080/websocket",
@@ -65,11 +65,11 @@ class TestReverseGateway:
 
     @patch('trustgraph.rev_gateway.service.ConfigReceiver')
     @patch('trustgraph.rev_gateway.service.MessageDispatcher')
-    @patch('pulsar.Client')
-    def test_reverse_gateway_initialization_with_missing_path(self, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
+    @patch('trustgraph.rev_gateway.service.get_pubsub')
+    def test_reverse_gateway_initialization_with_missing_path(self, mock_get_pubsub, mock_dispatcher, mock_config_receiver):
         """Test ReverseGateway initialization with WebSocket URI missing path"""
-        mock_client_instance = MagicMock()
-        mock_pulsar_client.return_value = mock_client_instance
+        mock_backend = MagicMock()
+        mock_get_pubsub.return_value = mock_backend
         
         gateway = ReverseGateway(websocket_uri="ws://example.com")
         
@@ -78,53 +78,49 @@ class TestReverseGateway:
 
     @patch('trustgraph.rev_gateway.service.ConfigReceiver')
     @patch('trustgraph.rev_gateway.service.MessageDispatcher')
-    @patch('pulsar.Client')
-    def test_reverse_gateway_initialization_invalid_scheme(self, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
+    @patch('trustgraph.rev_gateway.service.get_pubsub')
+    def test_reverse_gateway_initialization_invalid_scheme(self, mock_get_pubsub, mock_dispatcher, mock_config_receiver):
         """Test ReverseGateway initialization with invalid WebSocket scheme"""
         with pytest.raises(ValueError, match="WebSocket URI must use ws:// or wss:// scheme"):
             ReverseGateway(websocket_uri="http://example.com")
 
     @patch('trustgraph.rev_gateway.service.ConfigReceiver')
     @patch('trustgraph.rev_gateway.service.MessageDispatcher')
-    @patch('pulsar.Client')
-    def test_reverse_gateway_initialization_missing_hostname(self, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
+    @patch('trustgraph.rev_gateway.service.get_pubsub')
+    def test_reverse_gateway_initialization_missing_hostname(self, mock_get_pubsub, mock_dispatcher, mock_config_receiver):
         """Test ReverseGateway initialization with missing hostname"""
         with pytest.raises(ValueError, match="WebSocket URI must include hostname"):
             ReverseGateway(websocket_uri="ws://")
 
     @patch('trustgraph.rev_gateway.service.ConfigReceiver')
     @patch('trustgraph.rev_gateway.service.MessageDispatcher')
-    @patch('pulsar.Client')
-    def test_reverse_gateway_pulsar_client_with_auth(self, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
-        """Test ReverseGateway creates Pulsar client with authentication"""
-        mock_client_instance = MagicMock()
-        mock_pulsar_client.return_value = mock_client_instance
-        
-        with patch('pulsar.AuthenticationToken') as mock_auth:
-            mock_auth_instance = MagicMock()
-            mock_auth.return_value = mock_auth_instance
-            
-            gateway = ReverseGateway(
-                pulsar_api_key="test-key",
-                pulsar_listener="test-listener"
-            )
-            
-            mock_auth.assert_called_once_with("test-key")
-            mock_pulsar_client.assert_called_once_with(
-                "pulsar://pulsar:6650",
-                listener_name="test-listener",
-                authentication=mock_auth_instance
-            )
+    @patch('trustgraph.rev_gateway.service.get_pubsub')
+    def test_reverse_gateway_pulsar_client_with_auth(self, mock_get_pubsub, mock_dispatcher, mock_config_receiver):
+        """Test ReverseGateway creates backend with authentication"""
+        mock_backend = MagicMock()
+        mock_get_pubsub.return_value = mock_backend
+
+        gateway = ReverseGateway(
+            pulsar_api_key="test-key",
+            pulsar_listener="test-listener"
+        )
+
+        # Verify get_pubsub was called with the correct parameters
+        mock_get_pubsub.assert_called_once_with(
+            pulsar_host="pulsar://pulsar:6650",
+            pulsar_api_key="test-key",
+            pulsar_listener="test-listener"
+        )
 
     @patch('trustgraph.rev_gateway.service.ConfigReceiver')
     @patch('trustgraph.rev_gateway.service.MessageDispatcher')
-    @patch('pulsar.Client')
+    @patch('trustgraph.rev_gateway.service.get_pubsub')
     @patch('trustgraph.rev_gateway.service.ClientSession')
     @pytest.mark.asyncio
-    async def test_reverse_gateway_connect_success(self, mock_session_class, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
+    async def test_reverse_gateway_connect_success(self, mock_session_class, mock_get_pubsub, mock_dispatcher, mock_config_receiver):
         """Test ReverseGateway successful connection"""
-        mock_client_instance = MagicMock()
-        mock_pulsar_client.return_value = mock_client_instance
+        mock_backend = MagicMock()
+        mock_get_pubsub.return_value = mock_backend
         
         mock_session = AsyncMock()
         mock_ws = AsyncMock()
@@ -142,13 +138,13 @@ class TestReverseGateway:
 
     @patch('trustgraph.rev_gateway.service.ConfigReceiver')
     @patch('trustgraph.rev_gateway.service.MessageDispatcher')
-    @patch('pulsar.Client')
+    @patch('trustgraph.rev_gateway.service.get_pubsub')
     @patch('trustgraph.rev_gateway.service.ClientSession')
     @pytest.mark.asyncio
-    async def test_reverse_gateway_connect_failure(self, mock_session_class, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
+    async def test_reverse_gateway_connect_failure(self, mock_session_class, mock_get_pubsub, mock_dispatcher, mock_config_receiver):
         """Test ReverseGateway connection failure"""
-        mock_client_instance = MagicMock()
-        mock_pulsar_client.return_value = mock_client_instance
+        mock_backend = MagicMock()
+        mock_get_pubsub.return_value = mock_backend
         
         mock_session = AsyncMock()
         mock_session.ws_connect.side_effect = Exception("Connection failed")
@@ -162,12 +158,12 @@ class TestReverseGateway:
 
     @patch('trustgraph.rev_gateway.service.ConfigReceiver')
     @patch('trustgraph.rev_gateway.service.MessageDispatcher')
-    @patch('pulsar.Client')
+    @patch('trustgraph.rev_gateway.service.get_pubsub')
     @pytest.mark.asyncio
-    async def test_reverse_gateway_disconnect(self, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
+    async def test_reverse_gateway_disconnect(self, mock_get_pubsub, mock_dispatcher, mock_config_receiver):
         """Test ReverseGateway disconnect"""
-        mock_client_instance = MagicMock()
-        mock_pulsar_client.return_value = mock_client_instance
+        mock_backend = MagicMock()
+        mock_get_pubsub.return_value = mock_backend
         
         gateway = ReverseGateway()
         
@@ -189,12 +185,12 @@ class TestReverseGateway:
 
     @patch('trustgraph.rev_gateway.service.ConfigReceiver')
     @patch('trustgraph.rev_gateway.service.MessageDispatcher')
-    @patch('pulsar.Client')
+    @patch('trustgraph.rev_gateway.service.get_pubsub')
     @pytest.mark.asyncio
-    async def test_reverse_gateway_send_message(self, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
+    async def test_reverse_gateway_send_message(self, mock_get_pubsub, mock_dispatcher, mock_config_receiver):
         """Test ReverseGateway send message"""
-        mock_client_instance = MagicMock()
-        mock_pulsar_client.return_value = mock_client_instance
+        mock_backend = MagicMock()
+        mock_get_pubsub.return_value = mock_backend
         
         gateway = ReverseGateway()
         
@@ -211,12 +207,12 @@ class TestReverseGateway:
 
     @patch('trustgraph.rev_gateway.service.ConfigReceiver')
     @patch('trustgraph.rev_gateway.service.MessageDispatcher')
-    @patch('pulsar.Client')
+    @patch('trustgraph.rev_gateway.service.get_pubsub')
     @pytest.mark.asyncio
-    async def test_reverse_gateway_send_message_closed_connection(self, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
+    async def test_reverse_gateway_send_message_closed_connection(self, mock_get_pubsub, mock_dispatcher, mock_config_receiver):
         """Test ReverseGateway send message with closed connection"""
-        mock_client_instance = MagicMock()
-        mock_pulsar_client.return_value = mock_client_instance
+        mock_backend = MagicMock()
+        mock_get_pubsub.return_value = mock_backend
         
         gateway = ReverseGateway()
         
@@ -234,12 +230,12 @@ class TestReverseGateway:
 
     @patch('trustgraph.rev_gateway.service.ConfigReceiver')
     @patch('trustgraph.rev_gateway.service.MessageDispatcher')
-    @patch('pulsar.Client')
+    @patch('trustgraph.rev_gateway.service.get_pubsub')
     @pytest.mark.asyncio
-    async def test_reverse_gateway_handle_message(self, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
+    async def test_reverse_gateway_handle_message(self, mock_get_pubsub, mock_dispatcher, mock_config_receiver):
         """Test ReverseGateway handle message"""
-        mock_client_instance = MagicMock()
-        mock_pulsar_client.return_value = mock_client_instance
+        mock_backend = MagicMock()
+        mock_get_pubsub.return_value = mock_backend
         
         mock_dispatcher_instance = AsyncMock()
         mock_dispatcher_instance.handle_message.return_value = {"response": "success"}
@@ -263,12 +259,12 @@ class TestReverseGateway:
 
     @patch('trustgraph.rev_gateway.service.ConfigReceiver')
     @patch('trustgraph.rev_gateway.service.MessageDispatcher')
-    @patch('pulsar.Client')
+    @patch('trustgraph.rev_gateway.service.get_pubsub')
     @pytest.mark.asyncio
-    async def test_reverse_gateway_handle_message_invalid_json(self, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
+    async def test_reverse_gateway_handle_message_invalid_json(self, mock_get_pubsub, mock_dispatcher, mock_config_receiver):
         """Test ReverseGateway handle message with invalid JSON"""
-        mock_client_instance = MagicMock()
-        mock_pulsar_client.return_value = mock_client_instance
+        mock_backend = MagicMock()
+        mock_get_pubsub.return_value = mock_backend
         
         gateway = ReverseGateway()
         
@@ -285,12 +281,12 @@ class TestReverseGateway:
 
     @patch('trustgraph.rev_gateway.service.ConfigReceiver')
     @patch('trustgraph.rev_gateway.service.MessageDispatcher')
-    @patch('pulsar.Client')
+    @patch('trustgraph.rev_gateway.service.get_pubsub')
     @pytest.mark.asyncio
-    async def test_reverse_gateway_listen_text_message(self, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
+    async def test_reverse_gateway_listen_text_message(self, mock_get_pubsub, mock_dispatcher, mock_config_receiver):
         """Test ReverseGateway listen with text message"""
-        mock_client_instance = MagicMock()
-        mock_pulsar_client.return_value = mock_client_instance
+        mock_backend = MagicMock()
+        mock_get_pubsub.return_value = mock_backend
         
         gateway = ReverseGateway()
         gateway.running = True
@@ -318,12 +314,12 @@ class TestReverseGateway:
 
     @patch('trustgraph.rev_gateway.service.ConfigReceiver')
     @patch('trustgraph.rev_gateway.service.MessageDispatcher')
-    @patch('pulsar.Client')
+    @patch('trustgraph.rev_gateway.service.get_pubsub')
     @pytest.mark.asyncio
-    async def test_reverse_gateway_listen_binary_message(self, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
+    async def test_reverse_gateway_listen_binary_message(self, mock_get_pubsub, mock_dispatcher, mock_config_receiver):
         """Test ReverseGateway listen with binary message"""
-        mock_client_instance = MagicMock()
-        mock_pulsar_client.return_value = mock_client_instance
+        mock_backend = MagicMock()
+        mock_get_pubsub.return_value = mock_backend
         
         gateway = ReverseGateway()
         gateway.running = True
@@ -351,12 +347,12 @@ class TestReverseGateway:
 
     @patch('trustgraph.rev_gateway.service.ConfigReceiver')
     @patch('trustgraph.rev_gateway.service.MessageDispatcher')
-    @patch('pulsar.Client')
+    @patch('trustgraph.rev_gateway.service.get_pubsub')
     @pytest.mark.asyncio
-    async def test_reverse_gateway_listen_close_message(self, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
+    async def test_reverse_gateway_listen_close_message(self, mock_get_pubsub, mock_dispatcher, mock_config_receiver):
         """Test ReverseGateway listen with close message"""
-        mock_client_instance = MagicMock()
-        mock_pulsar_client.return_value = mock_client_instance
+        mock_backend = MagicMock()
+        mock_get_pubsub.return_value = mock_backend
         
         gateway = ReverseGateway()
         gateway.running = True
@@ -383,36 +379,36 @@ class TestReverseGateway:
 
     @patch('trustgraph.rev_gateway.service.ConfigReceiver')
     @patch('trustgraph.rev_gateway.service.MessageDispatcher')
-    @patch('pulsar.Client')
+    @patch('trustgraph.rev_gateway.service.get_pubsub')
     @pytest.mark.asyncio
-    async def test_reverse_gateway_shutdown(self, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
+    async def test_reverse_gateway_shutdown(self, mock_get_pubsub, mock_dispatcher, mock_config_receiver):
         """Test ReverseGateway shutdown"""
-        mock_client_instance = MagicMock()
-        mock_pulsar_client.return_value = mock_client_instance
-        
+        mock_backend = MagicMock()
+        mock_get_pubsub.return_value = mock_backend
+
         mock_dispatcher_instance = AsyncMock()
         mock_dispatcher.return_value = mock_dispatcher_instance
-        
+
         gateway = ReverseGateway()
         gateway.running = True
-        
+
         # Mock disconnect
         gateway.disconnect = AsyncMock()
-        
+
         await gateway.shutdown()
-        
+
         assert gateway.running is False
         mock_dispatcher_instance.shutdown.assert_called_once()
         gateway.disconnect.assert_called_once()
-        mock_client_instance.close.assert_called_once()
+        mock_backend.close.assert_called_once()
 
     @patch('trustgraph.rev_gateway.service.ConfigReceiver')
     @patch('trustgraph.rev_gateway.service.MessageDispatcher')
-    @patch('pulsar.Client')
-    def test_reverse_gateway_stop(self, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
+    @patch('trustgraph.rev_gateway.service.get_pubsub')
+    def test_reverse_gateway_stop(self, mock_get_pubsub, mock_dispatcher, mock_config_receiver):
         """Test ReverseGateway stop"""
-        mock_client_instance = MagicMock()
-        mock_pulsar_client.return_value = mock_client_instance
+        mock_backend = MagicMock()
+        mock_get_pubsub.return_value = mock_backend
         
         gateway = ReverseGateway()
         gateway.running = True
@@ -427,12 +423,12 @@ class TestReverseGatewayRun:
 
     @patch('trustgraph.rev_gateway.service.ConfigReceiver')
     @patch('trustgraph.rev_gateway.service.MessageDispatcher')
-    @patch('pulsar.Client')
+    @patch('trustgraph.rev_gateway.service.get_pubsub')
     @pytest.mark.asyncio
-    async def test_reverse_gateway_run_successful_cycle(self, mock_pulsar_client, mock_dispatcher, mock_config_receiver):
+    async def test_reverse_gateway_run_successful_cycle(self, mock_get_pubsub, mock_dispatcher, mock_config_receiver):
         """Test ReverseGateway run method with successful connect/listen cycle"""
-        mock_client_instance = MagicMock()
-        mock_pulsar_client.return_value = mock_client_instance
+        mock_backend = MagicMock()
+        mock_get_pubsub.return_value = mock_backend
         
         mock_config_receiver_instance = AsyncMock()
         mock_config_receiver.return_value = mock_config_receiver_instance
