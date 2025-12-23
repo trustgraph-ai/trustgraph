@@ -17,12 +17,12 @@ class Librarian:
     def __init__(
             self,
             cassandra_host, cassandra_username, cassandra_password,
-            s3_endpoint, s3_access_key, s3_secret_key,
+            object_store_endpoint, object_store_access_key, object_store_secret_key,
             bucket_name, keyspace, load_document,
     ):
 
         self.blob_store = BlobStore(
-            s3_endpoint, s3_access_key, s3_secret_key, bucket_name
+            object_store_endpoint, object_store_access_key, object_store_secret_key, bucket_name
         )
 
         self.table_store = LibraryTableStore(

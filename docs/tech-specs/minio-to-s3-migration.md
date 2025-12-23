@@ -53,40 +53,40 @@ The implementation works with any S3-compatible object storage system:
 
 ```bash
 librarian \
-  --s3-endpoint <hostname:port> \
-  --s3-access-key <access_key> \
-  --s3-secret-key <secret_key>
+  --object-store-endpoint <hostname:port> \
+  --object-store-access-key <access_key> \
+  --object-store-secret-key <secret_key>
 ```
 
 ### Environment Variables (Alternative)
 
 ```bash
-S3_ENDPOINT=<hostname:port>
-S3_ACCESS_KEY=<access_key>
-S3_SECRET_KEY=<secret_key>
+OBJECT_STORE_ENDPOINT=<hostname:port>
+OBJECT_STORE_ACCESS_KEY=<access_key>
+OBJECT_STORE_SECRET_KEY=<secret_key>
 ```
 
 ### Examples
 
 **MinIO (default):**
 ```bash
---s3-endpoint minio:9000 \
---s3-access-key minioadmin \
---s3-secret-key minioadmin
+--object-store-endpoint minio:9000 \
+--object-store-access-key minioadmin \
+--object-store-secret-key minioadmin
 ```
 
 **Ceph RADOS Gateway:**
 ```bash
---s3-endpoint ceph-rgw.example.com:8080 \
---s3-access-key user123 \
---s3-secret-key abcd1234secret
+--object-store-endpoint ceph-rgw.example.com:8080 \
+--object-store-access-key user123 \
+--object-store-secret-key abcd1234secret
 ```
 
 **AWS S3:**
 ```bash
---s3-endpoint s3.amazonaws.com \
---s3-access-key AKIAIOSFODNN7EXAMPLE \
---s3-secret-key wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+--object-store-endpoint s3.amazonaws.com \
+--object-store-access-key AKIAIOSFODNN7EXAMPLE \
+--object-store-secret-key wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 ```
 
 ## Authentication
