@@ -41,9 +41,9 @@ default_collection_response_queue = collection_response_queue
 default_config_request_queue = config_request_queue
 default_config_response_queue = config_response_queue
 
-default_minio_host = "minio:9000"
-default_minio_access_key = "minioadmin"
-default_minio_secret_key = "minioadmin"
+default_s3_endpoint = "minio:9000"
+default_s3_access_key = "minioadmin"
+default_s3_secret_key = "minioadmin"
 default_cassandra_host = "cassandra"
 
 bucket_name = "library"
@@ -80,14 +80,14 @@ class Processor(AsyncProcessor):
             "config_response_queue", default_config_response_queue
         )
 
-        minio_host = params.get("minio_host", default_minio_host)
-        minio_access_key = params.get(
-            "minio_access_key",
-            default_minio_access_key
+        s3_endpoint = params.get("s3_endpoint", default_s3_endpoint)
+        s3_access_key = params.get(
+            "s3_access_key",
+            default_s3_access_key
         )
-        minio_secret_key = params.get(
-            "minio_secret_key",
-            default_minio_secret_key
+        s3_secret_key = params.get(
+            "s3_secret_key",
+            default_s3_secret_key
         )
 
         cassandra_host = params.get("cassandra_host")
@@ -113,8 +113,8 @@ class Processor(AsyncProcessor):
                 "librarian_response_queue": librarian_response_queue,
                 "collection_request_queue": collection_request_queue,
                 "collection_response_queue": collection_response_queue,
-                "minio_host": minio_host,
-                "minio_access_key": minio_access_key,
+                "s3_endpoint": s3_endpoint,
+                "s3_access_key": s3_access_key,
                 "cassandra_host": self.cassandra_host,
                 "cassandra_username": self.cassandra_username,
                 "cassandra_password": self.cassandra_password,
@@ -208,9 +208,9 @@ class Processor(AsyncProcessor):
             cassandra_host = self.cassandra_host,
             cassandra_username = self.cassandra_username,
             cassandra_password = self.cassandra_password,
-            minio_host = minio_host,
-            minio_access_key = minio_access_key,
-            minio_secret_key = minio_secret_key,
+            s3_endpoint = s3_endpoint,
+            s3_access_key = s3_access_key,
+            s3_secret_key = s3_secret_key,
             bucket_name = bucket_name,
             keyspace = keyspace,
             load_document = self.load_document,
@@ -494,23 +494,23 @@ class Processor(AsyncProcessor):
         )
 
         parser.add_argument(
-            '--minio-host',
-            default=default_minio_host,
-            help=f'Minio hostname (default: {default_minio_host})',
+            '--s3-endpoint',
+            default=default_s3_endpoint,
+            help=f'S3-compatible storage endpoint (default: {default_s3_endpoint})',
         )
 
         parser.add_argument(
-            '--minio-access-key',
+            '--s3-access-key',
             default='minioadmin',
-            help='Minio access key / username '
-            f'(default: {default_minio_access_key})',
+            help='S3 access key / username '
+            f'(default: {default_s3_access_key})',
         )
 
         parser.add_argument(
-            '--minio-secret-key',
+            '--s3-secret-key',
             default='minioadmin',
-            help='Minio secret key / password '
-            f'(default: {default_minio_access_key})',
+            help='S3 secret key / password '
+            f'(default: {default_s3_secret_key})',
         )
 
         add_cassandra_args(parser)
