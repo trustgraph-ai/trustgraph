@@ -36,8 +36,8 @@ The Librarian service uses S3-compatible object storage for document blob storag
 The implementation works with any S3-compatible object storage system:
 
 ### Tested/Supported
-- **MinIO** - Lightweight self-hosted object storage (default configuration)
-- **Ceph RADOS Gateway (RGW)** - Distributed storage system with S3 API
+- **Ceph RADOS Gateway (RGW)** - Distributed storage system with S3 API (default configuration)
+- **MinIO** - Lightweight self-hosted object storage
 
 ### Should Work (S3-Compatible)
 - **AWS S3** - Amazon's cloud object storage
@@ -68,18 +68,18 @@ OBJECT_STORE_SECRET_KEY=<secret_key>
 
 ### Examples
 
-**MinIO (default):**
+**Ceph RADOS Gateway (default):**
+```bash
+--object-store-endpoint http://ceph-rgw:7480 \
+--object-store-access-key object-user \
+--object-store-secret-key object-password
+```
+
+**MinIO:**
 ```bash
 --object-store-endpoint minio:9000 \
 --object-store-access-key minioadmin \
 --object-store-secret-key minioadmin
-```
-
-**Ceph RADOS Gateway:**
-```bash
---object-store-endpoint ceph-rgw.example.com:8080 \
---object-store-access-key user123 \
---object-store-secret-key abcd1234secret
 ```
 
 **AWS S3:**

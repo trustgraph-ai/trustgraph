@@ -41,9 +41,9 @@ default_collection_response_queue = collection_response_queue
 default_config_request_queue = config_request_queue
 default_config_response_queue = config_response_queue
 
-default_object_store_endpoint = "minio:9000"
-default_object_store_access_key = "minioadmin"
-default_object_store_secret_key = "minioadmin"
+default_object_store_endpoint = "http://ceph-rgw:7480"
+default_object_store_access_key = "object-user"
+default_object_store_secret_key = "object-password"
 default_cassandra_host = "cassandra"
 
 bucket_name = "library"
@@ -501,14 +501,14 @@ class Processor(AsyncProcessor):
 
         parser.add_argument(
             '--object-store-access-key',
-            default='minioadmin',
+            default=default_object_store_access_key,
             help='Object storage access key / username '
             f'(default: {default_object_store_access_key})',
         )
 
         parser.add_argument(
             '--object-store-secret-key',
-            default='minioadmin',
+            default=default_object_store_secret_key,
             help='Object storage secret key / password '
             f'(default: {default_object_store_secret_key})',
         )
