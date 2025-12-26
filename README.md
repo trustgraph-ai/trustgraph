@@ -11,9 +11,9 @@
 
 </div>
 
-# The Semantic Operating System for AI Apps
+# The Context Operating System for AI Apps
 
-Build intelligent AI applications that reason, not hallucinate. TrustGraph is the open-source, full-stack solution for transforming raw data into precision-grounded intelligence through automated context graph construction, custom ontology engineering, and intelligent context retrieval.
+Build intelligent AI applications that reason, not hallucinate. TrustGraph is the open-source, full-stack solution for transforming raw data into precision-grounded context through automated context graph construction, custom ontology engineering, and intelligent context retrieval.
 
 Deploy anywhere. Own your data. Control your AI stack.
 
@@ -107,14 +107,14 @@ There are 3 libraries for quick UI integration of TrustGraph services.
 - [@trustgraph/react-state](https://www.npmjs.com/package/@trustgraph/react-state)
 - [@trustgraph/react-provider](https://www.npmjs.com/package/@trustgraph/react-provider)
 
-## Knowledge Cores
+## Context Cores
 
-A challenge facing GraphRAG architectures is the ability to reuse and remove datasets from agent workflows. TrustGraph can store the data ingest process as reusable Knowledge Cores. Knowledge cores can be loaded and removed during runtime. Some sample knowledge cores are [here](https://github.com/trustgraph-ai/catalog/tree/master/v3).
+A challenge facing GraphRAG architectures is the ability to reuse and remove datasets from agent workflows. TrustGraph can store the data ingest process as reusable Context Cores. Context cores can be loaded and removed during runtime. Some sample knowledge cores are [here](https://github.com/trustgraph-ai/catalog/tree/master/v3).
 
-A Knowledge Core has two components:
+A Context Core has two components:
 
-- Knowledge graph triples
-- Vector embeddings mapped to the knowledge graph
+- Context graph triples
+- Vector embeddings mapped to the context graph
 
 ## Integrations
 TrustGraph provides component flexibility to optimize agent workflows.
