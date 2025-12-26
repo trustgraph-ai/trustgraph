@@ -13,7 +13,7 @@
 
 # The Semantic Operating System for AI Apps
 
-Build intelligent AI applications that reason, not hallucinate. TrustGraph is the open-source, full-stack platform for transforming raw data into precision-grounded intelligence through automated knowledge graph construction, custom ontology engineering, and intelligent context retrieval.
+Build intelligent AI applications that reason, not hallucinate. TrustGraph is the open-source, full-stack solution for transforming raw data into precision-grounded intelligence through automated context graph construction, custom ontology engineering, and intelligent context retrieval.
 
 Deploy anywhere. Own your data. Control your AI stack.
 
@@ -39,7 +39,7 @@ Deploy anywhere. Own your data. Control your AI stack.
 
 - **Ontology-Driven Context Engineering**
 - **Unify Data Silos for Reliable, Accurate, and Precise AI**
-- **Automated Knowledge Graph Construction and Retrieval**
+- **Automated Context Graph Construction and Retrieval**
 - **3D GraphViz**
 - **Single Agent or Multi-Agent Systems**
 - **Interoperability with MCP**
@@ -48,7 +48,7 @@ Deploy anywhere. Own your data. Control your AI stack.
 - **Serve Models for Private LLM Inference**
 - **Create Custom Workflows**
 - **Control Data Access for Users and Agents**
-- **Backend Orchestration for Knowledge Graphs, Datastores, and File and Object Storage**
+- **Backend Orchestration for Context Graphs, Datastores, and File and Object Storage**
 - **High Throughput Data Streaming**
 - **Fully Containerized**
 
