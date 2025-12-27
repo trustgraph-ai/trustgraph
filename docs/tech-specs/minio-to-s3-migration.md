@@ -38,6 +38,7 @@ The implementation works with any S3-compatible object storage system:
 ### Tested/Supported
 - **Ceph RADOS Gateway (RGW)** - Distributed storage system with S3 API (default configuration)
 - **MinIO** - Lightweight self-hosted object storage
+- **Garage** - Lightweight geo-distributed S3-compatible storage
 
 ### Should Work (S3-Compatible)
 - **AWS S3** - Amazon's cloud object storage
@@ -55,8 +56,12 @@ The implementation works with any S3-compatible object storage system:
 librarian \
   --object-store-endpoint <hostname:port> \
   --object-store-access-key <access_key> \
-  --object-store-secret-key <secret_key>
+  --object-store-secret-key <secret_key> \
+  [--object-store-use-ssl] \
+  [--object-store-region <region>]
 ```
+
+**Note:** Do not include `http://` or `https://` in the endpoint. Use `--object-store-use-ssl` to enable HTTPS.
 
 ### Environment Variables (Alternative)
 
@@ -64,13 +69,15 @@ librarian \
 OBJECT_STORE_ENDPOINT=<hostname:port>
 OBJECT_STORE_ACCESS_KEY=<access_key>
 OBJECT_STORE_SECRET_KEY=<secret_key>
+OBJECT_STORE_USE_SSL=true|false  # Optional, default: false
+OBJECT_STORE_REGION=<region>     # Optional
 ```
 
 ### Examples
 
 **Ceph RADOS Gateway (default):**
 ```bash
---object-store-endpoint http://ceph-rgw:7480 \
+--object-store-endpoint ceph-rgw:7480 \
 --object-store-access-key object-user \
 --object-store-secret-key object-password
 ```
@@ -82,11 +89,20 @@ OBJECT_STORE_SECRET_KEY=<secret_key>
 --object-store-secret-key minioadmin
 ```
 
-**AWS S3:**
+**Garage (S3-compatible):**
+```bash
+--object-store-endpoint garage:3900 \
+--object-store-access-key GK000000000000000000000001 \
+--object-store-secret-key b171f00be9be4c32c734f4c05fe64c527a8ab5eb823b376cfa8c2531f70fc427
+```
+
+**AWS S3 with SSL:**
 ```bash
 --object-store-endpoint s3.amazonaws.com \
 --object-store-access-key AKIAIOSFODNN7EXAMPLE \
---object-store-secret-key wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+--object-store-secret-key wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY \
+--object-store-use-ssl \
+--object-store-region us-east-1
 ```
 
 ## Authentication
@@ -142,26 +158,31 @@ class BlobStore:
     Supports MinIO, Ceph RGW, AWS S3, and other S3-compatible backends.
     """
 
-    def __init__(self, endpoint, access_key, secret_key, bucket_name):
+    def __init__(self, endpoint, access_key, secret_key, bucket_name,
+                 use_ssl=False, region=None):
         """
         Initialize S3-compatible blob storage.
 
         Args:
-            endpoint: S3 endpoint (e.g., "minio:9000", "ceph-rgw:8080")
+            endpoint: S3 endpoint (e.g., "minio:9000", "ceph-rgw:7480")
             access_key: S3 access key
             secret_key: S3 secret key
             bucket_name: Bucket name for storage
+            use_ssl: Use HTTPS instead of HTTP (default: False)
+            region: S3 region (optional, e.g., "us-east-1")
         """
         self.client = Minio(
             endpoint=endpoint,
             access_key=access_key,
             secret_key=secret_key,
-            secure=False,  # Set True for HTTPS
+            secure=use_ssl,
+            region=region,
         )
 
         self.bucket_name = bucket_name
 
-        logger.info(f"Connected to S3-compatible storage at {endpoint}")
+        protocol = "https" if use_ssl else "http"
+        logger.info(f"Connected to S3-compatible storage at {protocol}://{endpoint}")
 
         self.ensure_bucket()
 
