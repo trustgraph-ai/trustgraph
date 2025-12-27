@@ -41,9 +41,11 @@ default_collection_response_queue = collection_response_queue
 default_config_request_queue = config_request_queue
 default_config_response_queue = config_response_queue
 
-default_minio_host = "minio:9000"
-default_minio_access_key = "minioadmin"
-default_minio_secret_key = "minioadmin"
+default_object_store_endpoint = "ceph-rgw:7480"
+default_object_store_access_key = "object-user"
+default_object_store_secret_key = "object-password"
+default_object_store_use_ssl = False
+default_object_store_region = None
 default_cassandra_host = "cassandra"
 
 bucket_name = "library"
@@ -80,14 +82,22 @@ class Processor(AsyncProcessor):
             "config_response_queue", default_config_response_queue
         )
 
-        minio_host = params.get("minio_host", default_minio_host)
-        minio_access_key = params.get(
-            "minio_access_key",
-            default_minio_access_key
+        object_store_endpoint = params.get("object_store_endpoint", default_object_store_endpoint)
+        object_store_access_key = params.get(
+            "object_store_access_key",
+            default_object_store_access_key
         )
-        minio_secret_key = params.get(
-            "minio_secret_key",
-            default_minio_secret_key
+        object_store_secret_key = params.get(
+            "object_store_secret_key",
+            default_object_store_secret_key
+        )
+        object_store_use_ssl = params.get(
+            "object_store_use_ssl",
+            default_object_store_use_ssl
+        )
+        object_store_region = params.get(
+            "object_store_region",
+            default_object_store_region
         )
 
         cassandra_host = params.get("cassandra_host")
@@ -113,8 +123,8 @@ class Processor(AsyncProcessor):
                 "librarian_response_queue": librarian_response_queue,
                 "collection_request_queue": collection_request_queue,
                 "collection_response_queue": collection_response_queue,
-                "minio_host": minio_host,
-                "minio_access_key": minio_access_key,
+                "object_store_endpoint": object_store_endpoint,
+                "object_store_access_key": object_store_access_key,
                 "cassandra_host": self.cassandra_host,
                 "cassandra_username": self.cassandra_username,
                 "cassandra_password": self.cassandra_password,
@@ -208,12 +218,14 @@ class Processor(AsyncProcessor):
             cassandra_host = self.cassandra_host,
             cassandra_username = self.cassandra_username,
             cassandra_password = self.cassandra_password,
-            minio_host = minio_host,
-            minio_access_key = minio_access_key,
-            minio_secret_key = minio_secret_key,
+            object_store_endpoint = object_store_endpoint,
+            object_store_access_key = object_store_access_key,
+            object_store_secret_key = object_store_secret_key,
             bucket_name = bucket_name,
             keyspace = keyspace,
             load_document = self.load_document,
+            object_store_use_ssl = object_store_use_ssl,
+            object_store_region = object_store_region,
         )
 
         self.collection_manager = CollectionManager(
@@ -494,23 +506,36 @@ class Processor(AsyncProcessor):
         )
 
         parser.add_argument(
-            '--minio-host',
-            default=default_minio_host,
-            help=f'Minio hostname (default: {default_minio_host})',
+            '--object-store-endpoint',
+            default=default_object_store_endpoint,
+            help=f'Object storage endpoint (default: {default_object_store_endpoint})',
         )
 
         parser.add_argument(
-            '--minio-access-key',
-            default='minioadmin',
-            help='Minio access key / username '
-            f'(default: {default_minio_access_key})',
+            '--object-store-access-key',
+            default=default_object_store_access_key,
+            help='Object storage access key / username '
+            f'(default: {default_object_store_access_key})',
         )
 
         parser.add_argument(
-            '--minio-secret-key',
-            default='minioadmin',
-            help='Minio secret key / password '
-            f'(default: {default_minio_access_key})',
+            '--object-store-secret-key',
+            default=default_object_store_secret_key,
+            help='Object storage secret key / password '
+            f'(default: {default_object_store_secret_key})',
+        )
+
+        parser.add_argument(
+            '--object-store-use-ssl',
+            action='store_true',
+            default=default_object_store_use_ssl,
+            help=f'Use SSL/TLS for object storage connection (default: {default_object_store_use_ssl})',
+        )
+
+        parser.add_argument(
+            '--object-store-region',
+            default=default_object_store_region,
+            help='Object storage region (optional)',
         )
 
         add_cassandra_args(parser)

@@ -14,29 +14,32 @@ class BlobStore:
 
     def __init__(
             self,
-            minio_host, minio_access_key, minio_secret_key, bucket_name, 
+            endpoint, access_key, secret_key, bucket_name,
+            use_ssl=False, region=None,
     ):
 
 
-        self.minio = Minio(
-            endpoint = minio_host,
-            access_key = minio_access_key,
-            secret_key = minio_secret_key,
-            secure = False,
+        self.client = Minio(
+            endpoint = endpoint,
+            access_key = access_key,
+            secret_key = secret_key,
+            secure = use_ssl,
+            region = region,
         )
 
         self.bucket_name = bucket_name
 
-        logger.info("Connected to MinIO")
+        protocol = "https" if use_ssl else "http"
+        logger.info(f"Connected to S3-compatible storage at {protocol}://{endpoint}")
 
         self.ensure_bucket()
 
     def ensure_bucket(self):
 
         # Make the bucket if it doesn't exist.
-        found = self.minio.bucket_exists(bucket_name=self.bucket_name)
+        found = self.client.bucket_exists(bucket_name=self.bucket_name)
         if not found:
-            self.minio.make_bucket(bucket_name=self.bucket_name)
+            self.client.make_bucket(bucket_name=self.bucket_name)
             logger.info(f"Created bucket {self.bucket_name}")
         else:
             logger.debug(f"Bucket {self.bucket_name} already exists")
@@ -44,7 +47,7 @@ class BlobStore:
     async def add(self, object_id, blob, kind):
 
         # FIXME: Loop retry
-        self.minio.put_object(
+        self.client.put_object(
             bucket_name = self.bucket_name,
             object_name = "doc/" + str(object_id),
             length = len(blob),
@@ -57,7 +60,7 @@ class BlobStore:
     async def remove(self, object_id):
 
         # FIXME: Loop retry
-        self.minio.remove_object(
+        self.client.remove_object(
             bucket_name = self.bucket_name,
             object_name = "doc/" + str(object_id),
         )
@@ -68,7 +71,7 @@ class BlobStore:
     async def get(self, object_id):
 
         # FIXME: Loop retry
-        resp = self.minio.get_object(
+        resp = self.client.get_object(
             bucket_name = self.bucket_name,
             object_name = "doc/" + str(object_id),
         )
