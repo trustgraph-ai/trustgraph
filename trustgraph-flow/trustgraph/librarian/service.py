@@ -41,9 +41,11 @@ default_collection_response_queue = collection_response_queue
 default_config_request_queue = config_request_queue
 default_config_response_queue = config_response_queue
 
-default_object_store_endpoint = "http://ceph-rgw:7480"
+default_object_store_endpoint = "ceph-rgw:7480"
 default_object_store_access_key = "object-user"
 default_object_store_secret_key = "object-password"
+default_object_store_use_ssl = False
+default_object_store_region = None
 default_cassandra_host = "cassandra"
 
 bucket_name = "library"
@@ -88,6 +90,14 @@ class Processor(AsyncProcessor):
         object_store_secret_key = params.get(
             "object_store_secret_key",
             default_object_store_secret_key
+        )
+        object_store_use_ssl = params.get(
+            "object_store_use_ssl",
+            default_object_store_use_ssl
+        )
+        object_store_region = params.get(
+            "object_store_region",
+            default_object_store_region
         )
 
         cassandra_host = params.get("cassandra_host")
@@ -214,6 +224,8 @@ class Processor(AsyncProcessor):
             bucket_name = bucket_name,
             keyspace = keyspace,
             load_document = self.load_document,
+            object_store_use_ssl = object_store_use_ssl,
+            object_store_region = object_store_region,
         )
 
         self.collection_manager = CollectionManager(
@@ -511,6 +523,19 @@ class Processor(AsyncProcessor):
             default=default_object_store_secret_key,
             help='Object storage secret key / password '
             f'(default: {default_object_store_secret_key})',
+        )
+
+        parser.add_argument(
+            '--object-store-use-ssl',
+            action='store_true',
+            default=default_object_store_use_ssl,
+            help=f'Use SSL/TLS for object storage connection (default: {default_object_store_use_ssl})',
+        )
+
+        parser.add_argument(
+            '--object-store-region',
+            default=default_object_store_region,
+            help='Object storage region (optional)',
         )
 
         add_cassandra_args(parser)

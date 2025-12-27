@@ -15,6 +15,7 @@ class BlobStore:
     def __init__(
             self,
             endpoint, access_key, secret_key, bucket_name,
+            use_ssl=False, region=None,
     ):
 
 
@@ -22,12 +23,14 @@ class BlobStore:
             endpoint = endpoint,
             access_key = access_key,
             secret_key = secret_key,
-            secure = False,
+            secure = use_ssl,
+            region = region,
         )
 
         self.bucket_name = bucket_name
 
-        logger.info(f"Connected to S3-compatible storage at {endpoint}")
+        protocol = "https" if use_ssl else "http"
+        logger.info(f"Connected to S3-compatible storage at {protocol}://{endpoint}")
 
         self.ensure_bucket()
 
