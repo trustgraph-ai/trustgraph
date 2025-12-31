@@ -11,7 +11,7 @@
 
 </div>
 
-# The Context Operating System for AI Apps
+# The Context Graph Factory for AI
 
 Build intelligent AI applications that reason, not hallucinate. TrustGraph is the open-source, full-stack solution for transforming raw data into precision-grounded context through automated context graph construction, custom ontology engineering, and intelligent context retrieval.
 
