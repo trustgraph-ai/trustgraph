@@ -62,19 +62,20 @@ When tenant A starts flow `tenant-a-prod` and tenant B starts flow `tenant-b-pro
 - **Impact:** Config, cores, and librarian services
 - **Blocks:** Multiple tenants cannot use separate Cassandra keyspaces
 
-### Issue #4: Collection Management Architecture
-- **Current:** Collections stored in Cassandra librarian keyspace via separate collections table
-- **Current:** Librarian uses 4 hardcoded storage management topics to coordinate collection create/delete:
+### Issue #4: Collection Management Architecture ✅ COMPLETED
+- **Previous:** Collections stored in Cassandra librarian keyspace via separate collections table
+- **Previous:** Librarian used 4 hardcoded storage management topics to coordinate collection create/delete:
   - `vector_storage_management_topic`
   - `object_storage_management_topic`
   - `triples_storage_management_topic`
   - `storage_management_response_topic`
-- **Problems:**
-  - Hardcoded topics cannot be customized for multi-tenant deployments
+- **Problems (Resolved):**
+  - Hardcoded topics could not be customized for multi-tenant deployments
   - Complex async coordination between librarian and 4+ storage services
   - Separate Cassandra table and management infrastructure
   - Non-persistent request/response queues for critical operations
-- **Solution:** Migrate collections to config service storage, use config push for distribution
+- **Solution Implemented:** Migrated collections to config service storage, use config push for distribution
+- **Status:** All storage backends migrated to `CollectionConfigHandler` pattern
 
 ## Solution
 
@@ -448,7 +449,9 @@ async def delete_collection(self, user, collection):
 - Breaking change acceptable - no data migration needed
 - Simplifies librarian service significantly
 
-#### Change 10: Storage Services - Config-Based Collection Management
+#### Change 10: Storage Services - Config-Based Collection Management ✅ COMPLETED
+
+**Status:** All 11 storage backends have been migrated to use `CollectionConfigHandler`.
 
 **Affected Services (11 total):**
 - Document embeddings: milvus, pinecone, qdrant
@@ -708,9 +711,9 @@ All services inheriting from AsyncProcessor or FlowProcessor:
 - tables/library.py (collections table removal)
 - schema/services/collection.py (timestamp removal)
 
-**Deferred Changes (Change 10):**
-- All storage services (11 total) - will subscribe to config push for collection updates
-- Storage management schema (potentially removable if unused elsewhere)
+**Completed Changes (Change 10):** ✅
+- All storage services (11 total) - migrated to config push for collection updates via `CollectionConfigHandler`
+- Storage management schema removed from `storage.py`
 
 ## Future Considerations
 
@@ -749,10 +752,11 @@ Some services use **per-user keyspaces** dynamically, where each user gets their
 - Update collection schema (remove timestamps)
 - **Outcome:** Eliminates hardcoded storage management topics, simplifies librarian
 
-### Phase 3: Storage Service Updates (Change 10) - Deferred
-- Update all storage services to use config push for collections
-- Remove storage management request/response infrastructure
-- **Outcome:** Complete config-based collection management
+### Phase 3: Storage Service Updates (Change 10) ✅ COMPLETED
+- Updated all storage services to use config push for collections via `CollectionConfigHandler`
+- Removed storage management request/response infrastructure
+- Removed legacy schema definitions
+- **Outcome:** Complete config-based collection management achieved
 
 ## References
 - GitHub Issue: https://github.com/trustgraph-ai/trustgraph/issues/582
