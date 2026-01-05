@@ -35,12 +35,8 @@ class CollectionConfigHandler:
         """
         logger.info(f"Processing collection configuration (version {version})")
 
-        # Extract collections from config
-        if "collection" not in config:
-            logger.debug("No collection configuration in config push")
-            return
-
-        collection_config = config["collection"]
+        # Extract collections from config (treat missing key as empty)
+        collection_config = config.get("collection", {})
 
         # Track which collections we've seen in this config
         current_collections: Set[tuple] = set()
