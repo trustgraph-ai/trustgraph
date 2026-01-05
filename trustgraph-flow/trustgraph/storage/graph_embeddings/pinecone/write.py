@@ -90,6 +90,15 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
 
     async def store_graph_embeddings(self, message):
 
+        # Validate collection exists in config before processing
+        if not self.collection_exists(message.metadata.user, message.metadata.collection):
+            logger.warning(
+                f"Collection {message.metadata.collection} for user {message.metadata.user} "
+                f"does not exist in config (likely deleted while data was in-flight). "
+                f"Dropping message."
+            )
+            return
+
         for entity in message.entities:
 
             if entity.entity.value == "" or entity.entity.value is None:
@@ -103,7 +112,7 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
                     f"t-{message.metadata.user}-{message.metadata.collection}-{dim}"
                 )
 
-                # Lazily create index if it doesn't exist
+                # Lazily create index if it doesn't exist (but only if authorized in config)
                 if not self.pinecone.has_index(index_name):
                     logger.info(f"Lazily creating Pinecone index {index_name} with dimension {dim}")
                     self.create_index(index_name, dim)

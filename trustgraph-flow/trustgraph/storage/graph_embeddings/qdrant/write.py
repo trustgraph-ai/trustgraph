@@ -41,6 +41,15 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
 
     async def store_graph_embeddings(self, message):
 
+        # Validate collection exists in config before processing
+        if not self.collection_exists(message.metadata.user, message.metadata.collection):
+            logger.warning(
+                f"Collection {message.metadata.collection} for user {message.metadata.user} "
+                f"does not exist in config (likely deleted while data was in-flight). "
+                f"Dropping message."
+            )
+            return
+
         for entity in message.entities:
 
             if entity.entity.value == "" or entity.entity.value is None: return
@@ -53,7 +62,7 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
                     f"t_{message.metadata.user}_{message.metadata.collection}_{dim}"
                 )
 
-                # Lazily create collection if it doesn't exist
+                # Lazily create collection if it doesn't exist (but only if authorized in config)
                 if not self.qdrant.collection_exists(collection):
                     logger.info(f"Lazily creating Qdrant collection {collection} with dimension {dim}")
                     self.qdrant.create_collection(

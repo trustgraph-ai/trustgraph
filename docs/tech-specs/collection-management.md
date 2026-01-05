@@ -233,9 +233,13 @@ When a user initiates collection deletion through the librarian service:
 
 #### Collection Management Interface
 
-All store writers implement a standardized collection management interface with a common schema:
+**⚠️ LEGACY APPROACH - REPLACED BY CONFIG-BASED PATTERN**
 
-**Message Schema (`StorageManagementRequest`):**
+The queue-based architecture described below has been replaced with a config-based approach using `CollectionConfigHandler`. All storage backends now receive collection updates via config push messages instead of dedicated management queues.
+
+~~All store writers implement a standardized collection management interface with a common schema:~~
+
+~~**Message Schema (`StorageManagementRequest`):**~~
 ```json
 {
   "operation": "create-collection" | "delete-collection",
@@ -244,24 +248,26 @@ All store writers implement a standardized collection management interface with 
 }
 ```
 
-**Queue Architecture:**
-- **Vector Store Management Queue** (`vector-storage-management`): Vector/embedding stores
-- **Object Store Management Queue** (`object-storage-management`): Object/document stores
-- **Triple Store Management Queue** (`triples-storage-management`): Graph/RDF stores
-- **Storage Response Queue** (`storage-management-response`): All responses sent here
+~~**Queue Architecture:**~~
+- ~~**Vector Store Management Queue** (`vector-storage-management`): Vector/embedding stores~~
+- ~~**Object Store Management Queue** (`object-storage-management`): Object/document stores~~
+- ~~**Triple Store Management Queue** (`triples-storage-management`): Graph/RDF stores~~
+- ~~**Storage Response Queue** (`storage-management-response`): All responses sent here~~
 
-Each store writer implements:
-- **Collection Management Handler**: Processes `StorageManagementRequest` messages
-- **Create Collection Operation**: Establishes collection in storage backend
-- **Delete Collection Operation**: Removes all data associated with collection
-- **Collection State Tracking**: Maintains knowledge of which collections exist
-- **Message Processing**: Consumes from dedicated management queue
-- **Status Reporting**: Returns success/failure via `StorageManagementResponse`
-- **Idempotent Operations**: Safe to call create/delete multiple times
+**Current Implementation:**
 
-**Supported Operations:**
-- `create-collection`: Create collection in storage backend
-- `delete-collection`: Remove all collection data from storage backend
+All storage backends now use `CollectionConfigHandler`:
+- **Config Push Integration**: Storage services register for config push notifications
+- **Automatic Synchronization**: Collections created/deleted based on config changes
+- **Declarative Model**: Collections defined in config service, backends sync to match
+- **No Request/Response**: Eliminates coordination overhead and response tracking
+- **Collection State Tracking**: Maintained via `known_collections` cache
+- **Idempotent Operations**: Safe to process same config multiple times
+
+Each storage backend implements:
+- `create_collection(user: str, collection: str, metadata: dict)` - Create collection structures
+- `delete_collection(user: str, collection: str)` - Remove all collection data
+- `collection_exists(user: str, collection: str) -> bool` - Validate before writes
 
 #### Cassandra Triple Store Refactor
 
@@ -365,62 +371,33 @@ Comprehensive testing will cover:
    - `triples_collection` table for SPO queries and deletion tracking
    - Collection deletion implemented with read-then-delete pattern
 
-### 🔄 In Progress Components
+### ✅ Migration to Config-Based Pattern - COMPLETED
 
-1. **Collection Creation Broadcast** (`trustgraph-flow/trustgraph/librarian/collection_manager.py`)
-   - Update `update_collection()` to send "create-collection" to storage backends
-   - Wait for confirmations from all storage processors
-   - Handle creation failures appropriately
+**All storage backends have been migrated from the queue-based pattern to the config-based `CollectionConfigHandler` pattern.**
 
-2. **Document Submission Handler** (`trustgraph-flow/trustgraph/librarian/service.py` or similar)
-   - Check if collection exists when document submitted
-   - If not exists: Create collection with defaults before processing document
-   - Trigger same "create-collection" broadcast as `tg-set-collection`
-   - Ensure collection established before document flows to storage processors
+Completed migrations:
+- ✅ `trustgraph-flow/trustgraph/storage/triples/cassandra/write.py`
+- ✅ `trustgraph-flow/trustgraph/storage/triples/neo4j/write.py`
+- ✅ `trustgraph-flow/trustgraph/storage/triples/memgraph/write.py`
+- ✅ `trustgraph-flow/trustgraph/storage/triples/falkordb/write.py`
+- ✅ `trustgraph-flow/trustgraph/storage/doc_embeddings/qdrant/write.py`
+- ✅ `trustgraph-flow/trustgraph/storage/graph_embeddings/qdrant/write.py`
+- ✅ `trustgraph-flow/trustgraph/storage/doc_embeddings/milvus/write.py`
+- ✅ `trustgraph-flow/trustgraph/storage/graph_embeddings/milvus/write.py`
+- ✅ `trustgraph-flow/trustgraph/storage/doc_embeddings/pinecone/write.py`
+- ✅ `trustgraph-flow/trustgraph/storage/graph_embeddings/pinecone/write.py`
+- ✅ `trustgraph-flow/trustgraph/storage/objects/cassandra/write.py`
 
-### ❌ Pending Components
+All backends now:
+- Inherit from `CollectionConfigHandler`
+- Register for config push notifications via `self.register_config_handler(self.on_collection_config)`
+- Implement `create_collection(user, collection, metadata)` and `delete_collection(user, collection)`
+- Use `collection_exists(user, collection)` to validate before writes
+- Automatically sync with config service changes
 
-1. **Collection State Tracking** - Need to implement in each storage backend:
-   - **Cassandra Triples**: Use `triples_collection` table with marker triples
-   - **Neo4j/Memgraph/FalkorDB**: Create `:CollectionMetadata` nodes
-   - **Qdrant/Milvus/Pinecone**: Use native collection APIs
-   - **Cassandra Objects**: Add collection metadata tracking
-
-2. **Storage Management Handlers** - Need "create-collection" support in 12 files:
-   - `trustgraph-flow/trustgraph/storage/triples/cassandra/write.py`
-   - `trustgraph-flow/trustgraph/storage/triples/neo4j/write.py`
-   - `trustgraph-flow/trustgraph/storage/triples/memgraph/write.py`
-   - `trustgraph-flow/trustgraph/storage/triples/falkordb/write.py`
-   - `trustgraph-flow/trustgraph/storage/doc_embeddings/qdrant/write.py`
-   - `trustgraph-flow/trustgraph/storage/graph_embeddings/qdrant/write.py`
-   - `trustgraph-flow/trustgraph/storage/doc_embeddings/milvus/write.py`
-   - `trustgraph-flow/trustgraph/storage/graph_embeddings/milvus/write.py`
-   - `trustgraph-flow/trustgraph/storage/doc_embeddings/pinecone/write.py`
-   - `trustgraph-flow/trustgraph/storage/graph_embeddings/pinecone/write.py`
-   - `trustgraph-flow/trustgraph/storage/objects/cassandra/write.py`
-   - Plus any other storage implementations
-
-3. **Write Operation Validation** - Add collection existence checks to all `store_*` methods
-
-4. **Query Operation Handling** - Update queries to return empty for non-existent collections
-
-### Next Implementation Steps
-
-**Phase 1: Core Infrastructure (2-3 days)**
-1. Add collection state tracking methods to all storage backends
-2. Implement `collection_exists()` and `create_collection()` methods
-
-**Phase 2: Storage Handlers (1 week)**
-3. Add "create-collection" handlers to all storage processors
-4. Add write validation to reject non-existent collections
-5. Update query handling for non-existent collections
-
-**Phase 3: Collection Manager (2-3 days)**
-6. Update collection_manager to broadcast creates
-7. Implement response tracking and error handling
-
-**Phase 4: Testing (3-5 days)**
-8. End-to-end testing of explicit creation workflow
-9. Test all storage backends
-10. Validate error handling and edge cases
+Legacy queue-based infrastructure removed:
+- ✅ Removed `StorageManagementRequest` and `StorageManagementResponse` schemas
+- ✅ Removed storage management queue topic definitions
+- ✅ Removed storage management consumer/producer from all backends
+- ✅ Removed `on_storage_management` handlers from all backends
 
