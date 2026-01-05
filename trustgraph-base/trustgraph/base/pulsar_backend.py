@@ -25,31 +25,31 @@ def dataclass_to_dict(obj: Any) -> dict:
 
     None values are excluded from the dictionary (not serialized).
     Bytes values are decoded as UTF-8 strings for JSON serialization (matching Pulsar behavior).
+    Handles nested dataclasses, lists, and dictionaries recursively.
     """
     if obj is None:
         return None
 
+    # Handle bytes - decode to UTF-8 for JSON serialization
+    if isinstance(obj, bytes):
+        return obj.decode('utf-8')
+
+    # Handle dataclass - convert to dict then recursively process all values
     if is_dataclass(obj):
         result = {}
         for key, value in asdict(obj).items():
-            if value is not None:
-                if isinstance(value, bytes):
-                    # Decode bytes as UTF-8 for JSON serialization (like Pulsar did)
-                    result[key] = value.decode('utf-8')
-                elif is_dataclass(value):
-                    result[key] = dataclass_to_dict(value)
-                elif isinstance(value, list):
-                    result[key] = [
-                        item.decode('utf-8') if isinstance(item, bytes)
-                        else dataclass_to_dict(item) if is_dataclass(item)
-                        else item
-                        for item in value
-                    ]
-                elif isinstance(value, dict):
-                    result[key] = {k: dataclass_to_dict(v) if is_dataclass(v) else v for k, v in value.items()}
-                else:
-                    result[key] = value
+            result[key] = dataclass_to_dict(value) if value is not None else None
         return result
+
+    # Handle list - recursively process all items
+    if isinstance(obj, list):
+        return [dataclass_to_dict(item) for item in obj]
+
+    # Handle dict - recursively process all values
+    if isinstance(obj, dict):
+        return {k: dataclass_to_dict(v) for k, v in obj.items()}
+
+    # Return primitive types as-is
     return obj
 
 
