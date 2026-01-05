@@ -117,7 +117,7 @@ class TestObjectsCassandraIntegration:
             assert "customer_records" in processor.schemas
 
             # Step 1.5: Create the collection first (simulate tg-set-collection)
-            await processor.create_collection("test_user", "import_2024")
+            await processor.create_collection("test_user", "import_2024", {})
 
             # Step 2: Process an ExtractedObject
             test_obj = ExtractedObject(
@@ -213,8 +213,8 @@ class TestObjectsCassandraIntegration:
             assert len(processor.schemas) == 2
 
             # Create collections first
-            await processor.create_collection("shop", "catalog")
-            await processor.create_collection("shop", "sales")
+            await processor.create_collection("shop", "catalog", {})
+            await processor.create_collection("shop", "sales", {})
 
             # Process objects for different schemas
             product_obj = ExtractedObject(
@@ -263,7 +263,7 @@ class TestObjectsCassandraIntegration:
             )
             
             # Create collection first
-            await processor.create_collection("test", "test")
+            await processor.create_collection("test", "test", {})
 
             # Create object missing required field
             test_obj = ExtractedObject(
@@ -302,7 +302,7 @@ class TestObjectsCassandraIntegration:
             )
             
             # Create collection first
-            await processor.create_collection("logger", "app_events")
+            await processor.create_collection("logger", "app_events", {})
 
             # Process object
             test_obj = ExtractedObject(
@@ -407,7 +407,7 @@ class TestObjectsCassandraIntegration:
 
             # Create all collections first
             for coll in collections:
-                await processor.create_collection("analytics", coll)
+                await processor.create_collection("analytics", coll, {})
 
             for coll in collections:
                 obj = ExtractedObject(
@@ -486,7 +486,7 @@ class TestObjectsCassandraIntegration:
             )
             
             # Create collection first
-            await processor.create_collection("test_user", "batch_import")
+            await processor.create_collection("test_user", "batch_import", {})
 
             msg = MagicMock()
             msg.value.return_value = batch_obj
@@ -532,7 +532,7 @@ class TestObjectsCassandraIntegration:
             )
             
             # Create collection first
-            await processor.create_collection("test", "empty")
+            await processor.create_collection("test", "empty", {})
 
             # Process empty batch object
             empty_obj = ExtractedObject(
@@ -573,7 +573,7 @@ class TestObjectsCassandraIntegration:
             )
             
             # Create collection first
-            await processor.create_collection("test", "mixed")
+            await processor.create_collection("test", "mixed", {})
 
             # Single object (backward compatibility)
             single_obj = ExtractedObject(
