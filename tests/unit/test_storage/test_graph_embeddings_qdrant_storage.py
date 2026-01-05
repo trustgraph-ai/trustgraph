@@ -57,7 +57,10 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        
+
+        # Add collection to known_collections (simulates config push)
+        processor.known_collections[('test_user', 'test_collection')] = {}
+
         # Create mock message with entities and vectors
         mock_message = MagicMock()
         mock_message.metadata.user = 'test_user'
@@ -107,7 +110,10 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        
+
+        # Add collection to known_collections (simulates config push)
+        processor.known_collections[('multi_user', 'multi_collection')] = {}
+
         # Create mock message with multiple entities
         mock_message = MagicMock()
         mock_message.metadata.user = 'multi_user'
@@ -163,7 +169,10 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        
+
+        # Add collection to known_collections (simulates config push)
+        processor.known_collections[('vector_user', 'vector_collection')] = {}
+
         # Create mock message with entity having multiple vectors
         mock_message = MagicMock()
         mock_message.metadata.user = 'vector_user'

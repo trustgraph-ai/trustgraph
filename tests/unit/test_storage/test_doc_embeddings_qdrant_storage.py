@@ -78,7 +78,10 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        
+
+        # Add collection to known_collections (simulates config push)
+        processor.known_collections[('test_user', 'test_collection')] = {}
+
         # Create mock message with chunks and vectors
         mock_message = MagicMock()
         mock_message.metadata.user = 'test_user'
@@ -129,7 +132,10 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        
+
+        # Add collection to known_collections (simulates config push)
+        processor.known_collections[('multi_user', 'multi_collection')] = {}
+
         # Create mock message with multiple chunks
         mock_message = MagicMock()
         mock_message.metadata.user = 'multi_user'
@@ -186,7 +192,10 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        
+
+        # Add collection to known_collections (simulates config push)
+        processor.known_collections[('vector_user', 'vector_collection')] = {}
+
         # Create mock message with chunk having multiple vectors
         mock_message = MagicMock()
         mock_message.metadata.user = 'vector_user'
@@ -280,6 +289,9 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         processor = Processor(**config)
 
+        # Add collection to known_collections (simulates config push)
+        processor.known_collections[('new_user', 'new_collection')] = {}
+
         # Create mock message
         mock_message = MagicMock()
         mock_message.metadata.user = 'new_user'
@@ -329,6 +341,9 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         processor = Processor(**config)
 
+        # Add collection to known_collections (simulates config push)
+        processor.known_collections[('error_user', 'error_collection')] = {}
+
         # Create mock message
         mock_message = MagicMock()
         mock_message.metadata.user = 'error_user'
@@ -363,6 +378,9 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
+
+        # Add collection to known_collections (simulates config push)
+        processor.known_collections[('cache_user', 'cache_collection')] = {}
 
         # Create first mock message
         mock_message1 = MagicMock()
@@ -424,6 +442,9 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
+
+        # Add collection to known_collections (simulates config push)
+        processor.known_collections[('dim_user', 'dim_collection')] = {}
 
         # Create mock message with different dimension vectors
         mock_message = MagicMock()
@@ -494,7 +515,10 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        
+
+        # Add collection to known_collections (simulates config push)
+        processor.known_collections[('utf8_user', 'utf8_collection')] = {}
+
         # Create mock message with UTF-8 encoded text
         mock_message = MagicMock()
         mock_message.metadata.user = 'utf8_user'
@@ -533,7 +557,10 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        
+
+        # Add collection to known_collections (simulates config push)
+        processor.known_collections[('decode_user', 'decode_collection')] = {}
+
         # Create mock message with decode error
         mock_message = MagicMock()
         mock_message.metadata.user = 'decode_user'
