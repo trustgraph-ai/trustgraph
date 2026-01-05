@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Optional
 
 from ..core.primitives import Error
 from ..core.topic import topic
@@ -19,7 +20,7 @@ class ObjectsQueryRequest:
     collection: str = ""        # Data collection identifier (required for partition key)
     query: str = ""             # GraphQL query string
     variables: dict[str, str] = field(default_factory=dict)    # GraphQL variables
-    operation_name: str = ""    # Operation to execute for multi-operation documents
+    operation_name: Optional[str] = None    # Operation to execute for multi-operation documents
 
 @dataclass
 class ObjectsQueryResponse:
