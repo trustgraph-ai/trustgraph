@@ -109,11 +109,16 @@ class CollectionManager:
 
             response = await self.send_config_request(request)
 
-            # If collection exists, we're done
-            if response.values and len(response.values) > 0:
+            # Validate response
+            if not response.values or len(response.values) == 0:
+                raise Exception(f"Invalid response from config service when checking collection {user}/{collection}")
+
+            # Check if collection exists (value not None means it exists)
+            if response.values[0].value is not None:
                 logger.debug(f"Collection {user}/{collection} already exists")
                 return
 
+            # Collection doesn't exist (value is None), proceed to create
             # Create new collection with default metadata
             logger.info(f"Auto-creating collection {user}/{collection}")
 
