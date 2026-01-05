@@ -77,10 +77,15 @@ class CollectionConfigHandler:
         for user, collection in deleted_collections:
             logger.info(f"Collection deleted: {user}/{collection}")
             try:
-                await self.delete_collection(user, collection)
+                # Remove from known_collections FIRST to immediately reject new writes
+                # This eliminates race condition with worker threads
                 del self.known_collections[(user, collection)]
+                # Physical deletion happens after - worker threads already rejecting writes
+                await self.delete_collection(user, collection)
             except Exception as e:
                 logger.error(f"Error deleting collection {user}/{collection}: {e}", exc_info=True)
+                # If physical deletion failed, should we re-add to known_collections?
+                # For now, keep it removed - collection is logically deleted per config
 
         logger.debug(f"Collection config processing complete. Known collections: {len(self.known_collections)}")
 

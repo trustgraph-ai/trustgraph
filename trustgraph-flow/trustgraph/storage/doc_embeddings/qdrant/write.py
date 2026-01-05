@@ -41,6 +41,15 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
 
     async def store_document_embeddings(self, message):
 
+        # Validate collection exists in config before processing
+        if not self.collection_exists(message.metadata.user, message.metadata.collection):
+            logger.warning(
+                f"Collection {message.metadata.collection} for user {message.metadata.user} "
+                f"does not exist in config (likely deleted while data was in-flight). "
+                f"Dropping message."
+            )
+            return
+
         for emb in message.chunks:
 
             chunk = emb.chunk.decode("utf-8")
@@ -54,7 +63,7 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
                     f"d_{message.metadata.user}_{message.metadata.collection}_{dim}"
                 )
 
-                # Lazily create collection if it doesn't exist
+                # Lazily create collection if it doesn't exist (but only if authorized in config)
                 if not self.qdrant.collection_exists(collection):
                     logger.info(f"Lazily creating Qdrant collection {collection} with dimension {dim}")
                     self.qdrant.create_collection(
