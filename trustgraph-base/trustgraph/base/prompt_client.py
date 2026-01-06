@@ -49,20 +49,21 @@ class PromptClient(RequestResponse):
                     logger.error(f"DEBUG prompt_client: Error in response: {resp.error.message}")
                     raise RuntimeError(resp.error.message)
 
+                end_stream = getattr(resp, 'end_of_stream', False)
+
                 if resp.text:
                     last_text = resp.text
-                    # Call chunk callback if provided
+                    # Call chunk callback if provided with both chunk and end_of_stream flag
                     if chunk_callback:
-                        logger.info(f"DEBUG prompt_client: Calling chunk_callback")
+                        logger.info(f"DEBUG prompt_client: Calling chunk_callback with end_of_stream={end_stream}")
                         if asyncio.iscoroutinefunction(chunk_callback):
-                            await chunk_callback(resp.text)
+                            await chunk_callback(resp.text, end_stream)
                         else:
-                            chunk_callback(resp.text)
+                            chunk_callback(resp.text, end_stream)
                 elif resp.object:
                     logger.info(f"DEBUG prompt_client: Got object response")
                     last_object = resp.object
 
-                end_stream = getattr(resp, 'end_of_stream', False)
                 logger.info(f"DEBUG prompt_client: Returning end_of_stream={end_stream}")
                 return end_stream
 

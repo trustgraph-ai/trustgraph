@@ -42,12 +42,17 @@ class PromptResponseTranslator(MessageTranslator):
     
     def from_pulsar(self, obj: PromptResponse) -> Dict[str, Any]:
         result = {}
-        
-        if obj.text:
+
+        # Include text field if present (even if empty string)
+        if obj.text is not None:
             result["text"] = obj.text
-        if obj.object:
+        # Include object field if present
+        if obj.object is not None:
             result["object"] = obj.object
-        
+
+        # Always include end_of_stream flag for streaming support
+        result["end_of_stream"] = getattr(obj, "end_of_stream", False)
+
         return result
     
     def from_response_with_completion(self, obj: PromptResponse) -> Tuple[Dict[str, Any], bool]:
