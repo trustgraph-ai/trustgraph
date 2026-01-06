@@ -5,7 +5,20 @@ This conftest.py applies to all test directories.
 """
 
 import pytest
+import asyncio
+import tracemalloc
+import warnings
 from unittest.mock import MagicMock
+
+# Enable tracemalloc immediately at import time
+tracemalloc.start()
+
+# Enable asyncio debug mode
+asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
+
+# Make warnings verbose
+warnings.simplefilter("always", ResourceWarning)
+warnings.simplefilter("always", RuntimeWarning)
 
 
 @pytest.fixture(scope="session", autouse=True)
