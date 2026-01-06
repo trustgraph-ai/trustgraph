@@ -51,7 +51,8 @@ class PromptClient(RequestResponse):
 
                 end_stream = getattr(resp, 'end_of_stream', False)
 
-                if resp.text:
+                # Always call callback if there's text OR if it's the final message
+                if resp.text is not None:
                     last_text = resp.text
                     # Call chunk callback if provided with both chunk and end_of_stream flag
                     if chunk_callback:
