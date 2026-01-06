@@ -28,14 +28,17 @@ class TextCompletionResponseTranslator(MessageTranslator):
     
     def from_pulsar(self, obj: TextCompletionResponse) -> Dict[str, Any]:
         result = {"response": obj.response}
-        
+
         if obj.in_token:
             result["in_token"] = obj.in_token
         if obj.out_token:
             result["out_token"] = obj.out_token
         if obj.model:
             result["model"] = obj.model
-            
+
+        # Always include end_of_stream flag for streaming support
+        result["end_of_stream"] = getattr(obj, "end_of_stream", False)
+
         return result
     
     def from_response_with_completion(self, obj: TextCompletionResponse) -> Tuple[Dict[str, Any], bool]:
