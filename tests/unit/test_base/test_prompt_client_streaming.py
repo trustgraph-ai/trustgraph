@@ -6,13 +6,21 @@ flag to chunk callbacks, ensuring proper streaming protocol compliance.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, call
+from unittest.mock import AsyncMock, MagicMock, call, patch
 from trustgraph.base.prompt_client import PromptClient
 from trustgraph.schema import PromptResponse
 
 
 class TestPromptClientStreamingCallback:
     """Test PromptClient streaming callback behavior"""
+
+    @pytest.fixture
+    def prompt_client(self):
+        """Create a PromptClient with mocked dependencies"""
+        # Mock all the required initialization parameters
+        with patch.object(PromptClient, '__init__', lambda self: None):
+            client = PromptClient()
+            return client
 
     @pytest.fixture
     def mock_request_response(self):
@@ -37,16 +45,15 @@ class TestPromptClientStreamingCallback:
         return mock_request
 
     @pytest.mark.asyncio
-    async def test_callback_receives_chunk_and_end_of_stream(self, mock_request_response):
+    async def test_callback_receives_chunk_and_end_of_stream(self, prompt_client, mock_request_response):
         """Test that callback receives both chunk text and end_of_stream flag"""
         # Arrange
-        client = PromptClient()
-        client.request = mock_request_response
+        prompt_client.request = mock_request_response
 
         callback = AsyncMock()
 
         # Act
-        await client.prompt(
+        await prompt_client.prompt(
             id="test-prompt",
             variables={"query": "test"},
             streaming=True,
@@ -69,11 +76,10 @@ class TestPromptClientStreamingCallback:
         assert callback.call_args_list[3] == call("", True)
 
     @pytest.mark.asyncio
-    async def test_callback_receives_empty_final_chunk(self, mock_request_response):
+    async def test_callback_receives_empty_final_chunk(self, prompt_client, mock_request_response):
         """Test that empty final chunks are passed to callback"""
         # Arrange
-        client = PromptClient()
-        client.request = mock_request_response
+        prompt_client.request = mock_request_response
 
         chunks_received = []
 
@@ -81,7 +87,7 @@ class TestPromptClientStreamingCallback:
             chunks_received.append((chunk, end_of_stream))
 
         # Act
-        await client.prompt(
+        await prompt_client.prompt(
             id="test-prompt",
             variables={"query": "test"},
             streaming=True,
@@ -93,7 +99,7 @@ class TestPromptClientStreamingCallback:
         assert final_chunk == ("", True), "Final chunk should be empty string with end_of_stream=True"
 
     @pytest.mark.asyncio
-    async def test_callback_signature_with_non_empty_final_chunk(self):
+    async def test_callback_signature_with_non_empty_final_chunk(self, prompt_client):
         """Test callback signature when LLM sends non-empty final chunk"""
         # Arrange
         async def mock_request_non_empty_final(request, recipient=None, timeout=600):
@@ -108,13 +114,12 @@ class TestPromptClientStreamingCallback:
                     if should_stop:
                         break
 
-        client = PromptClient()
-        client.request = mock_request_non_empty_final
+        prompt_client.request = mock_request_non_empty_final
 
         callback = AsyncMock()
 
         # Act
-        await client.prompt(
+        await prompt_client.prompt(
             id="test-prompt",
             variables={"query": "test"},
             streaming=True,
@@ -127,7 +132,7 @@ class TestPromptClientStreamingCallback:
         assert callback.call_args_list[1] == call(" world!", True)
 
     @pytest.mark.asyncio
-    async def test_callback_not_called_without_text(self):
+    async def test_callback_not_called_without_text(self, prompt_client):
         """Test that callback is not called for responses without text"""
         # Arrange
         async def mock_request_no_text(request, recipient=None, timeout=600):
@@ -142,13 +147,12 @@ class TestPromptClientStreamingCallback:
                     if should_stop:
                         break
 
-        client = PromptClient()
-        client.request = mock_request_no_text
+        prompt_client.request = mock_request_no_text
 
         callback = AsyncMock()
 
         # Act
-        await client.prompt(
+        await prompt_client.prompt(
             id="test-prompt",
             variables={"query": "test"},
             streaming=True,
@@ -160,7 +164,7 @@ class TestPromptClientStreamingCallback:
         assert callback.call_args_list[0] == call("Content", False)
 
     @pytest.mark.asyncio
-    async def test_synchronous_callback_also_receives_end_of_stream(self):
+    async def test_synchronous_callback_also_receives_end_of_stream(self, prompt_client):
         """Test that synchronous callbacks also receive end_of_stream parameter"""
         # Arrange
         async def mock_request(request, recipient=None, timeout=600):
@@ -174,13 +178,12 @@ class TestPromptClientStreamingCallback:
                     if should_stop:
                         break
 
-        client = PromptClient()
-        client.request = mock_request
+        prompt_client.request = mock_request
 
         callback = MagicMock()  # Synchronous mock
 
         # Act
-        await client.prompt(
+        await prompt_client.prompt(
             id="test-prompt",
             variables={"query": "test"},
             streaming=True,
@@ -193,7 +196,7 @@ class TestPromptClientStreamingCallback:
         assert callback.call_args_list[1] == call("", True)
 
     @pytest.mark.asyncio
-    async def test_kg_prompt_passes_parameters_to_callback(self):
+    async def test_kg_prompt_passes_parameters_to_callback(self, prompt_client):
         """Test that kg_prompt correctly passes streaming parameters"""
         # Arrange
         async def mock_request(request, recipient=None, timeout=600):
@@ -207,13 +210,12 @@ class TestPromptClientStreamingCallback:
                     if should_stop:
                         break
 
-        client = PromptClient()
-        client.request = mock_request
+        prompt_client.request = mock_request
 
         callback = AsyncMock()
 
         # Act
-        await client.kg_prompt(
+        await prompt_client.kg_prompt(
             query="What is machine learning?",
             kg=[("subject", "predicate", "object")],
             streaming=True,
@@ -226,7 +228,7 @@ class TestPromptClientStreamingCallback:
         assert callback.call_args_list[1] == call("", True)
 
     @pytest.mark.asyncio
-    async def test_document_prompt_passes_parameters_to_callback(self):
+    async def test_document_prompt_passes_parameters_to_callback(self, prompt_client):
         """Test that document_prompt correctly passes streaming parameters"""
         # Arrange
         async def mock_request(request, recipient=None, timeout=600):
@@ -240,13 +242,12 @@ class TestPromptClientStreamingCallback:
                     if should_stop:
                         break
 
-        client = PromptClient()
-        client.request = mock_request
+        prompt_client.request = mock_request
 
         callback = AsyncMock()
 
         # Act
-        await client.document_prompt(
+        await prompt_client.document_prompt(
             query="Summarize this",
             documents=["doc1", "doc2"],
             streaming=True,
