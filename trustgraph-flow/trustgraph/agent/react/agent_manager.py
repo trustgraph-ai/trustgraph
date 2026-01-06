@@ -241,8 +241,8 @@ class AgentManager:
             logger.info("DEBUG: StreamingReActParser created")
 
             # Create async chunk callback that feeds parser and sends collected chunks
-            async def on_chunk(text):
-                logger.info(f"DEBUG: on_chunk called with {len(text)} chars")
+            async def on_chunk(text, end_of_stream):
+                logger.info(f"DEBUG: on_chunk called with {len(text)} chars, end_of_stream={end_of_stream}")
 
                 # Track what we had before
                 prev_thought_count = len(thought_chunks)
