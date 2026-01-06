@@ -347,4 +347,5 @@ class TestStreamingProtocolEdgeCases:
         # Assert
         assert len(chunks_with_flags) == 4
         assert chunks_with_flags[-1] == ("", True)  # Final empty chunk
-        assert end_of_stream_flags.count(True) for end_of_stream_flags in [[f for c, f in chunks_with_flags]] == 1
+        end_of_stream_flags = [f for c, f in chunks_with_flags]
+        assert end_of_stream_flags.count(True) == 1
