@@ -34,8 +34,8 @@ class DocumentRagResponseTranslator(MessageTranslator):
     def from_pulsar(self, obj: DocumentRagResponse) -> Dict[str, Any]:
         result = {}
 
-        # Include response content (chunk or complete)
-        if obj.response:
+        # Include response content (even if empty string)
+        if obj.response is not None:
             result["response"] = obj.response
 
         # Include end_of_stream flag
@@ -90,8 +90,8 @@ class GraphRagResponseTranslator(MessageTranslator):
     def from_pulsar(self, obj: GraphRagResponse) -> Dict[str, Any]:
         result = {}
 
-        # Include response content (chunk or complete)
-        if obj.response:
+        # Include response content (even if empty string)
+        if obj.response is not None:
             result["response"] = obj.response
 
         # Include end_of_stream flag
