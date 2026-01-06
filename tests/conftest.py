@@ -5,7 +5,17 @@ This conftest.py applies to all test directories.
 """
 
 import pytest
+# import asyncio
+# import tracemalloc
+# import warnings
 from unittest.mock import MagicMock
+
+# Uncomment the lines below to enable asyncio debug mode and tracemalloc
+# for tracing unawaited coroutines and their creation points
+# tracemalloc.start()
+# asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
+# warnings.simplefilter("always", ResourceWarning)
+# warnings.simplefilter("always", RuntimeWarning)
 
 
 @pytest.fixture(scope="session", autouse=True)

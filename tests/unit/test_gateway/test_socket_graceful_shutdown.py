@@ -132,6 +132,8 @@ async def test_handle_normal_flow():
 
             # Create proper mock tasks that look like asyncio.Task objects
             def create_task_mock(coro):
+                # Consume the coroutine to avoid "was never awaited" warning
+                coro.close()
                 task = AsyncMock()
                 task.done = MagicMock(return_value=True)
                 task.cancelled = MagicMock(return_value=False)
@@ -187,6 +189,8 @@ async def test_handle_exception_group_cleanup():
 
             # Create proper mock tasks that look like asyncio.Task objects
             def create_task_mock(coro):
+                # Consume the coroutine to avoid "was never awaited" warning
+                coro.close()
                 task = AsyncMock()
                 task.done = MagicMock(return_value=True)
                 task.cancelled = MagicMock(return_value=False)
@@ -195,8 +199,12 @@ async def test_handle_exception_group_cleanup():
             mock_tg.create_task = MagicMock(side_effect=create_task_mock)
             mock_task_group.return_value = mock_tg
 
-            with patch('trustgraph.gateway.endpoint.socket.asyncio.wait_for') as mock_wait_for:
-                mock_wait_for.return_value = None
+            with patch('trustgraph.gateway.endpoint.socket.asyncio.wait_for', new_callable=AsyncMock) as mock_wait_for:
+                # Make wait_for consume the coroutine passed to it
+                async def wait_for_side_effect(coro, timeout=None):
+                    coro.close()  # Consume the coroutine
+                    return None
+                mock_wait_for.side_effect = wait_for_side_effect
 
                 result = await socket_endpoint.handle(request)
 
@@ -246,6 +254,8 @@ async def test_handle_dispatcher_cleanup_timeout():
 
             # Create proper mock tasks that look like asyncio.Task objects
             def create_task_mock(coro):
+                # Consume the coroutine to avoid "was never awaited" warning
+                coro.close()
                 task = AsyncMock()
                 task.done = MagicMock(return_value=True)
                 task.cancelled = MagicMock(return_value=False)
@@ -255,8 +265,12 @@ async def test_handle_dispatcher_cleanup_timeout():
             mock_task_group.return_value = mock_tg
 
             # Mock asyncio.wait_for to raise TimeoutError
-            with patch('trustgraph.gateway.endpoint.socket.asyncio.wait_for') as mock_wait_for:
-                mock_wait_for.side_effect = asyncio.TimeoutError("Cleanup timeout")
+            with patch('trustgraph.gateway.endpoint.socket.asyncio.wait_for', new_callable=AsyncMock) as mock_wait_for:
+                # Make wait_for consume the coroutine before raising
+                async def wait_for_timeout(coro, timeout=None):
+                    coro.close()  # Consume the coroutine
+                    raise asyncio.TimeoutError("Cleanup timeout")
+                mock_wait_for.side_effect = wait_for_timeout
 
                 result = await socket_endpoint.handle(request)
 
@@ -341,6 +355,8 @@ async def test_handle_websocket_already_closed():
 
             # Create proper mock tasks that look like asyncio.Task objects
             def create_task_mock(coro):
+                # Consume the coroutine to avoid "was never awaited" warning
+                coro.close()
                 task = AsyncMock()
                 task.done = MagicMock(return_value=True)
                 task.cancelled = MagicMock(return_value=False)
