@@ -59,9 +59,16 @@ class TestGraphRagStreaming:
             full_text = "Machine learning is a subset of artificial intelligence that focuses on algorithms that learn from data."
 
             if streaming and chunk_callback:
-                # Simulate streaming chunks
+                # Simulate streaming chunks with end_of_stream flags
+                chunks = []
                 async for chunk in mock_streaming_llm_response():
-                    await chunk_callback(chunk)
+                    chunks.append(chunk)
+
+                # Send all chunks with end_of_stream=False except the last
+                for i, chunk in enumerate(chunks):
+                    is_final = (i == len(chunks) - 1)
+                    await chunk_callback(chunk, is_final)
+
                 return full_text
             else:
                 # Non-streaming response - same text
@@ -101,6 +108,9 @@ class TestGraphRagStreaming:
         # Assert
         assert_streaming_chunks_valid(collector.chunks, min_chunks=1)
         assert_callback_invoked(AsyncMock(call_count=len(collector.chunks)), min_calls=1)
+
+        # Verify streaming protocol compliance
+        collector.verify_streaming_protocol()
 
         # Verify full response matches concatenated chunks
         full_from_chunks = collector.get_full_text()

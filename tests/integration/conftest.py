@@ -480,11 +480,15 @@ def streaming_chunk_collector():
     class ChunkCollector:
         def __init__(self):
             self.chunks = []
+            self.end_of_stream_flags = []
             self.complete = False
 
-        async def collect(self, chunk):
-            """Async callback to collect chunks"""
+        async def collect(self, chunk, end_of_stream=False):
+            """Async callback to collect chunks with end_of_stream flag"""
             self.chunks.append(chunk)
+            self.end_of_stream_flags.append(end_of_stream)
+            if end_of_stream:
+                self.complete = True
 
         def get_full_text(self):
             """Concatenate all chunk content"""
@@ -495,6 +499,14 @@ def streaming_chunk_collector():
             if self.chunks and isinstance(self.chunks[0], dict):
                 return [c.get("chunk_type") for c in self.chunks]
             return []
+
+        def verify_streaming_protocol(self):
+            """Verify that streaming protocol is correct"""
+            assert len(self.chunks) > 0, "Should have received at least one chunk"
+            assert len(self.chunks) == len(self.end_of_stream_flags), "Each chunk should have an end_of_stream flag"
+            assert self.end_of_stream_flags.count(True) == 1, "Exactly one chunk should have end_of_stream=True"
+            assert self.end_of_stream_flags[-1] is True, "Last chunk should have end_of_stream=True"
+            assert self.complete is True, "Should be marked complete after final chunk"
 
     return ChunkCollector
 
