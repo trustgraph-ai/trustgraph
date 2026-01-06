@@ -127,7 +127,7 @@ class TestDocumentRagStreaming:
         # Act - Streaming
         streaming_chunks = []
 
-        async def collect(chunk):
+        async def collect(chunk, end_of_stream):
             streaming_chunks.append(chunk)
 
         streaming_result = await document_rag_streaming.query(

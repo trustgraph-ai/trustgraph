@@ -138,7 +138,7 @@ class TestGraphRagStreaming:
         # Act - Streaming
         streaming_chunks = []
 
-        async def collect(chunk):
+        async def collect(chunk, end_of_stream):
             streaming_chunks.append(chunk)
 
         streaming_result = await graph_rag_streaming.query(
