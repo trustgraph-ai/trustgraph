@@ -15,11 +15,9 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
     """Test Qdrant document embeddings storage functionality"""
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
-    @patch('trustgraph.base.DocumentEmbeddingsStoreService.__init__')
-    async def test_processor_initialization_basic(self, mock_base_init, mock_qdrant_client):
+    async def test_processor_initialization_basic(self, mock_qdrant_client):
         """Test basic Qdrant processor initialization"""
         # Arrange
-        mock_base_init.return_value = None
         mock_qdrant_instance = MagicMock()
         mock_qdrant_client.return_value = mock_qdrant_instance
         
@@ -34,9 +32,6 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        # Verify base class initialization was called
-        mock_base_init.assert_called_once()
-        
         # Verify QdrantClient was created with correct parameters
         mock_qdrant_client.assert_called_once_with(url='http://localhost:6333', api_key='test-api-key')
         
@@ -45,11 +40,9 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         assert processor.qdrant == mock_qdrant_instance
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
-    @patch('trustgraph.base.DocumentEmbeddingsStoreService.__init__')
-    async def test_processor_initialization_with_defaults(self, mock_base_init, mock_qdrant_client):
+    async def test_processor_initialization_with_defaults(self, mock_qdrant_client):
         """Test processor initialization with default values"""
         # Arrange
-        mock_base_init.return_value = None
         mock_qdrant_instance = MagicMock()
         mock_qdrant_client.return_value = mock_qdrant_instance
         
@@ -68,11 +61,9 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.uuid')
-    @patch('trustgraph.base.DocumentEmbeddingsStoreService.__init__')
-    async def test_store_document_embeddings_basic(self, mock_base_init, mock_uuid, mock_qdrant_client):
+    async def test_store_document_embeddings_basic(self, mock_uuid, mock_qdrant_client):
         """Test storing document embeddings with basic message"""
         # Arrange
-        mock_base_init.return_value = None
         mock_qdrant_instance = MagicMock()
         mock_qdrant_instance.collection_exists.return_value = True  # Collection already exists
         mock_qdrant_client.return_value = mock_qdrant_instance
@@ -87,7 +78,10 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        
+
+        # Add collection to known_collections (simulates config push)
+        processor.known_collections[('test_user', 'test_collection')] = {}
+
         # Create mock message with chunks and vectors
         mock_message = MagicMock()
         mock_message.metadata.user = 'test_user'
@@ -121,11 +115,9 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.uuid')
-    @patch('trustgraph.base.DocumentEmbeddingsStoreService.__init__')
-    async def test_store_document_embeddings_multiple_chunks(self, mock_base_init, mock_uuid, mock_qdrant_client):
+    async def test_store_document_embeddings_multiple_chunks(self, mock_uuid, mock_qdrant_client):
         """Test storing document embeddings with multiple chunks"""
         # Arrange
-        mock_base_init.return_value = None
         mock_qdrant_instance = MagicMock()
         mock_qdrant_instance.collection_exists.return_value = True
         mock_qdrant_client.return_value = mock_qdrant_instance
@@ -140,7 +132,10 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        
+
+        # Add collection to known_collections (simulates config push)
+        processor.known_collections[('multi_user', 'multi_collection')] = {}
+
         # Create mock message with multiple chunks
         mock_message = MagicMock()
         mock_message.metadata.user = 'multi_user'
@@ -180,11 +175,9 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.uuid')
-    @patch('trustgraph.base.DocumentEmbeddingsStoreService.__init__')
-    async def test_store_document_embeddings_multiple_vectors_per_chunk(self, mock_base_init, mock_uuid, mock_qdrant_client):
+    async def test_store_document_embeddings_multiple_vectors_per_chunk(self, mock_uuid, mock_qdrant_client):
         """Test storing document embeddings with multiple vectors per chunk"""
         # Arrange
-        mock_base_init.return_value = None
         mock_qdrant_instance = MagicMock()
         mock_qdrant_instance.collection_exists.return_value = True
         mock_qdrant_client.return_value = mock_qdrant_instance
@@ -199,7 +192,10 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        
+
+        # Add collection to known_collections (simulates config push)
+        processor.known_collections[('vector_user', 'vector_collection')] = {}
+
         # Create mock message with chunk having multiple vectors
         mock_message = MagicMock()
         mock_message.metadata.user = 'vector_user'
@@ -237,11 +233,9 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
             assert point.payload['doc'] == 'multi-vector document chunk'
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
-    @patch('trustgraph.base.DocumentEmbeddingsStoreService.__init__')
-    async def test_store_document_embeddings_empty_chunk(self, mock_base_init, mock_qdrant_client):
+    async def test_store_document_embeddings_empty_chunk(self, mock_qdrant_client):
         """Test storing document embeddings skips empty chunks"""
         # Arrange
-        mock_base_init.return_value = None
         mock_qdrant_instance = MagicMock()
         mock_qdrant_instance.collection_exists.return_value = True  # Collection exists
         mock_qdrant_client.return_value = mock_qdrant_instance
@@ -277,11 +271,9 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.uuid')
-    @patch('trustgraph.base.DocumentEmbeddingsStoreService.__init__')
-    async def test_collection_creation_when_not_exists(self, mock_base_init, mock_uuid, mock_qdrant_client):
+    async def test_collection_creation_when_not_exists(self, mock_uuid, mock_qdrant_client):
         """Test that writing to non-existent collection creates it lazily"""
         # Arrange
-        mock_base_init.return_value = None
         mock_qdrant_instance = MagicMock()
         mock_qdrant_instance.collection_exists.return_value = False  # Collection doesn't exist
         mock_qdrant_client.return_value = mock_qdrant_instance
@@ -296,6 +288,9 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
+
+        # Add collection to known_collections (simulates config push)
+        processor.known_collections[('new_user', 'new_collection')] = {}
 
         # Create mock message
         mock_message = MagicMock()
@@ -326,11 +321,9 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.uuid')
-    @patch('trustgraph.base.DocumentEmbeddingsStoreService.__init__')
-    async def test_collection_creation_exception(self, mock_base_init, mock_uuid, mock_qdrant_client):
+    async def test_collection_creation_exception(self, mock_uuid, mock_qdrant_client):
         """Test that collection creation errors are propagated"""
         # Arrange
-        mock_base_init.return_value = None
         mock_qdrant_instance = MagicMock()
         mock_qdrant_instance.collection_exists.return_value = False  # Collection doesn't exist
         # Simulate creation failure
@@ -348,6 +341,9 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         processor = Processor(**config)
 
+        # Add collection to known_collections (simulates config push)
+        processor.known_collections[('error_user', 'error_collection')] = {}
+
         # Create mock message
         mock_message = MagicMock()
         mock_message.metadata.user = 'error_user'
@@ -364,12 +360,10 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
             await processor.store_document_embeddings(mock_message)
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
-    @patch('trustgraph.base.DocumentEmbeddingsStoreService.__init__')
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.uuid')
-    async def test_collection_validation_on_write(self, mock_uuid, mock_base_init, mock_qdrant_client):
+    async def test_collection_validation_on_write(self, mock_uuid, mock_qdrant_client):
         """Test collection validation checks collection exists before writing"""
         # Arrange
-        mock_base_init.return_value = None
         mock_qdrant_instance = MagicMock()
         mock_qdrant_instance.collection_exists.return_value = True
         mock_qdrant_client.return_value = mock_qdrant_instance
@@ -384,6 +378,9 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
+
+        # Add collection to known_collections (simulates config push)
+        processor.known_collections[('cache_user', 'cache_collection')] = {}
 
         # Create first mock message
         mock_message1 = MagicMock()
@@ -428,11 +425,9 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.uuid')
-    @patch('trustgraph.base.DocumentEmbeddingsStoreService.__init__')
-    async def test_different_dimensions_different_collections(self, mock_base_init, mock_uuid, mock_qdrant_client):
+    async def test_different_dimensions_different_collections(self, mock_uuid, mock_qdrant_client):
         """Test that different vector dimensions create different collections"""
         # Arrange
-        mock_base_init.return_value = None
         mock_qdrant_instance = MagicMock()
         mock_qdrant_instance.collection_exists.return_value = True
         mock_qdrant_client.return_value = mock_qdrant_instance
@@ -447,6 +442,9 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
+
+        # Add collection to known_collections (simulates config push)
+        processor.known_collections[('dim_user', 'dim_collection')] = {}
 
         # Create mock message with different dimension vectors
         mock_message = MagicMock()
@@ -482,11 +480,9 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         assert upsert_calls[1][1]['collection_name'] == 'd_dim_user_dim_collection_3'
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
-    @patch('trustgraph.base.DocumentEmbeddingsStoreService.__init__')
-    async def test_add_args_calls_parent(self, mock_base_init, mock_qdrant_client):
+    async def test_add_args_calls_parent(self, mock_qdrant_client):
         """Test that add_args() calls parent add_args method"""
         # Arrange
-        mock_base_init.return_value = None
         mock_qdrant_client.return_value = MagicMock()
         mock_parser = MagicMock()
         
@@ -502,11 +498,9 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.uuid')
-    @patch('trustgraph.base.DocumentEmbeddingsStoreService.__init__')
-    async def test_utf8_decoding_handling(self, mock_base_init, mock_uuid, mock_qdrant_client):
+    async def test_utf8_decoding_handling(self, mock_uuid, mock_qdrant_client):
         """Test proper UTF-8 decoding of chunk text"""
         # Arrange
-        mock_base_init.return_value = None
         mock_qdrant_instance = MagicMock()
         mock_qdrant_instance.collection_exists.return_value = True
         mock_qdrant_client.return_value = mock_qdrant_instance
@@ -521,7 +515,10 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        
+
+        # Add collection to known_collections (simulates config push)
+        processor.known_collections[('utf8_user', 'utf8_collection')] = {}
+
         # Create mock message with UTF-8 encoded text
         mock_message = MagicMock()
         mock_message.metadata.user = 'utf8_user'
@@ -546,11 +543,9 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         assert point.payload['doc'] == 'UTF-8 text with special chars: café, naïve, résumé'
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
-    @patch('trustgraph.base.DocumentEmbeddingsStoreService.__init__')
-    async def test_chunk_decode_exception_handling(self, mock_base_init, mock_qdrant_client):
+    async def test_chunk_decode_exception_handling(self, mock_qdrant_client):
         """Test handling of chunk decode exceptions"""
         # Arrange
-        mock_base_init.return_value = None
         mock_qdrant_instance = MagicMock()
         mock_qdrant_client.return_value = mock_qdrant_instance
         
@@ -562,7 +557,10 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        
+
+        # Add collection to known_collections (simulates config push)
+        processor.known_collections[('decode_user', 'decode_collection')] = {}
+
         # Create mock message with decode error
         mock_message = MagicMock()
         mock_message.metadata.user = 'decode_user'

@@ -22,6 +22,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
 
 def load_structured_data(
@@ -41,7 +42,8 @@ def load_structured_data(
     user: str = 'trustgraph',
     collection: str = 'default',
     dry_run: bool = False,
-    verbose: bool = False
+    verbose: bool = False,
+    token: str = None
 ):
     """
     Load structured data using a descriptor configuration.
@@ -133,9 +135,9 @@ def load_structured_data(
                 
                 # Get batch size from descriptor
                 batch_size = descriptor.get('output', {}).get('options', {}).get('batch_size', 1000)
-                
+
                 # Send to TrustGraph using shared function
-                imported_count = _send_to_trustgraph(output_objects, api_url, flow, batch_size)
+                imported_count = _send_to_trustgraph(output_objects, api_url, flow, batch_size, token=token)
                 
                 # Summary
                 format_info = descriptor.get('format', {})
@@ -288,10 +290,10 @@ def load_structured_data(
         
         # Get batch size from descriptor or use default
         batch_size = descriptor.get('output', {}).get('options', {}).get('batch_size', 1000)
-        
+
         # Send to TrustGraph
         print(f"🚀 Importing {len(output_records)} records to TrustGraph...")
-        imported_count = _send_to_trustgraph(output_records, api_url, flow, batch_size)
+        imported_count = _send_to_trustgraph(output_records, api_url, flow, batch_size, token=token)
         
         # Get summary info from descriptor
         format_info = descriptor.get('format', {})
@@ -571,66 +573,30 @@ def _process_data_pipeline(input_file, descriptor_file, user, collection, sample
     return output_records, descriptor
 
 
-def _send_to_trustgraph(objects, api_url, flow, batch_size=1000):
-    """Send ExtractedObject records to TrustGraph using WebSocket"""
-    import json
-    import asyncio
-    from websockets.asyncio.client import connect
-    
+def _send_to_trustgraph(objects, api_url, flow, batch_size=1000, token=None):
+    """Send ExtractedObject records to TrustGraph using Python API"""
+    from trustgraph.api import Api
+
     try:
-        # Construct objects import URL similar to load_knowledge pattern
-        if not api_url.endswith("/"):
-            api_url += "/"
-        
-        # Convert HTTP URL to WebSocket URL if needed
-        ws_url = api_url.replace("http://", "ws://").replace("https://", "wss://")
-        objects_url = ws_url + f"api/v1/flow/{flow}/import/objects"
-        
-        logger.info(f"Connecting to objects import endpoint: {objects_url}")
-        
-        async def import_objects():
-            async with connect(objects_url) as ws:
-                imported_count = 0
-                
-                for record in objects:
-                    try:
-                        # Send individual ExtractedObject records
-                        await ws.send(json.dumps(record))
-                        imported_count += 1
-                        
-                        if imported_count % 100 == 0:
-                            logger.debug(f"Imported {imported_count}/{len(objects)} records...")
-                            
-                    except Exception as e:
-                        logger.error(f"Failed to send record {imported_count + 1}: {e}")
-                        print(f"❌ Failed to send record {imported_count + 1}: {e}")
-                
-                logger.info(f"Successfully imported {imported_count} records to TrustGraph")
-                return imported_count
-        
-        # Run the async import
-        imported_count = asyncio.run(import_objects())
-        
-        # Summary
         total_records = len(objects)
-        failed_count = total_records - imported_count
-        
+        logger.info(f"Importing {total_records} records to TrustGraph...")
+
+        # Use Python API bulk import
+        api = Api(api_url, token=token)
+        bulk = api.bulk()
+
+        bulk.import_objects(flow=flow, objects=iter(objects))
+
+        logger.info(f"Successfully imported {total_records} records to TrustGraph")
+
+        # Summary
         print(f"\n📊 Import Summary:")
         print(f"- Total records: {total_records}")
-        print(f"- Successfully imported: {imported_count}")
-        print(f"- Failed: {failed_count}")
-        
-        if failed_count > 0:
-            print(f"⚠️  {failed_count} records failed to import. Check logs for details.")
-        else:
-            print("✅ All records imported successfully!")
-            
-        return imported_count
-        
-    except ImportError as e:
-        logger.error(f"Failed to import required modules: {e}")
-        print(f"Error: Required modules not available - {e}")
-        raise
+        print(f"- Successfully imported: {total_records}")
+        print("✅ All records imported successfully!")
+
+        return total_records
+
     except Exception as e:
         logger.error(f"Failed to import data to TrustGraph: {e}")
         print(f"Import failed: {e}")
@@ -1024,7 +990,13 @@ For more information on the descriptor format, see:
         '--error-file',
         help='Path to write error records (optional)'
     )
-    
+
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
     args = parser.parse_args()
     
     # Input validation
@@ -1077,7 +1049,8 @@ For more information on the descriptor format, see:
             user=args.user,
             collection=args.collection,
             dry_run=args.dry_run,
-            verbose=args.verbose
+            verbose=args.verbose,
+            token=args.token
         )
     except FileNotFoundError as e:
         print(f"Error: File not found - {e}", file=sys.stderr)

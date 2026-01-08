@@ -20,6 +20,7 @@ import textwrap
 import json
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
 def set_mcp_tool(
         url : str,
@@ -27,9 +28,10 @@ def set_mcp_tool(
         remote_name : str,
         tool_url : str,
         auth_token : str = None,
+        token : str = None,
 ):
 
-    api = Api(url).config()
+    api = Api(url, token=token).config()
 
     # Build the MCP tool configuration
     config = {
@@ -70,6 +72,12 @@ def main():
         '-u', '--api-url',
         default=default_url,
         help=f'API URL (default: {default_url})',
+    )
+
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
     )
 
     parser.add_argument(
@@ -116,7 +124,8 @@ def main():
             id=args.id,
             remote_name=remote_name,
             tool_url=args.tool_url,
-            auth_token=args.auth_token
+            auth_token=args.auth_token,
+            token=args.token,
         )
 
     except Exception as e:

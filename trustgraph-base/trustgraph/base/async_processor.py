@@ -15,10 +15,11 @@ from prometheus_client import start_http_server, Info
 
 from .. schema import ConfigPush, config_push_queue
 from .. log_level import LogLevel
-from . pubsub import PulsarClient
+from . pubsub import PulsarClient, get_pubsub
 from . producer import Producer
 from . consumer import Consumer
 from . metrics import ProcessorMetrics, ConsumerMetrics
+from . logging import add_logging_args, setup_logging
 
 default_config_queue = config_push_queue
 
@@ -33,8 +34,11 @@ class AsyncProcessor:
         # Store the identity
         self.id = params.get("id")
 
-        # Register a pulsar client
-        self.pulsar_client_object = PulsarClient(**params)
+        # Create pub/sub backend via factory
+        self.pubsub_backend = get_pubsub(**params)
+
+        # Store pulsar_host for backward compatibility
+        self._pulsar_host = params.get("pulsar_host", "pulsar://pulsar:6650")
 
         # Initialise metrics, records the parameters
         ProcessorMetrics(processor = self.id).info({
@@ -69,7 +73,7 @@ class AsyncProcessor:
         self.config_sub_task = Consumer(
 
             taskgroup = self.taskgroup,
-            client = self.pulsar_client,
+            backend = self.pubsub_backend,  # Changed from client to backend
             subscriber = config_subscriber_id,
             flow = None,
 
@@ -95,16 +99,16 @@ class AsyncProcessor:
     # This is called to stop all threads.  An over-ride point for extra
     # functionality
     def stop(self):
-        self.pulsar_client.close()
+        self.pubsub_backend.close()
         self.running = False
 
-    # Returns the pulsar host
+    # Returns the pub/sub backend (new interface)
     @property
-    def pulsar_host(self): return self.pulsar_client_object.pulsar_host
+    def pubsub(self): return self.pubsub_backend
 
-    # Returns the pulsar client
+    # Returns the pulsar host (backward compatibility)
     @property
-    def pulsar_client(self): return self.pulsar_client_object.client
+    def pulsar_host(self): return self._pulsar_host
 
     # Register a new event handler for configuration change
     def register_config_handler(self, handler):
@@ -165,18 +169,9 @@ class AsyncProcessor:
             raise e
 
     @classmethod
-    def setup_logging(cls, log_level='INFO'):
+    def setup_logging(cls, args):
         """Configure logging for the entire application"""
-        # Support environment variable override
-        env_log_level = os.environ.get('TRUSTGRAPH_LOG_LEVEL', log_level)
-        
-        # Configure logging
-        logging.basicConfig(
-            level=getattr(logging, env_log_level.upper()),
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            handlers=[logging.StreamHandler()]
-        )
-        logger.info(f"Logging configured with level: {env_log_level}")
+        setup_logging(args)
 
     # Startup fabric.  launch calls launch_async in async mode.
     @classmethod
@@ -203,7 +198,7 @@ class AsyncProcessor:
         args = vars(args)
 
         # Setup logging before anything else
-        cls.setup_logging(args.get('log_level', 'INFO').upper())
+        cls.setup_logging(args)
 
         # Debug
         logger.debug(f"Arguments: {args}")
@@ -255,12 +250,21 @@ class AsyncProcessor:
     @staticmethod
     def add_args(parser):
 
+        # Pub/sub backend selection
+        parser.add_argument(
+            '--pubsub-backend',
+            default=os.getenv('PUBSUB_BACKEND', 'pulsar'),
+            choices=['pulsar', 'mqtt'],
+            help='Pub/sub backend (default: pulsar, env: PUBSUB_BACKEND)',
+        )
+
         PulsarClient.add_args(parser)
+        add_logging_args(parser)
 
         parser.add_argument(
-            '--config-queue',
+            '--config-push-queue',
             default=default_config_queue,
-            help=f'Config push queue {default_config_queue}',
+            help=f'Config push queue (default: {default_config_queue})',
         )
 
         parser.add_argument(

@@ -9,10 +9,11 @@ import os
 
 default_metrics_url = "http://localhost:8088/api/metrics"
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
-def dump_status(metrics_url, api_url, flow_id):
+def dump_status(metrics_url, api_url, flow_id, token=None):
 
-    api = Api(api_url).flow()
+    api = Api(api_url, token=token).flow()
 
     flow = api.get(flow_id)
     class_name = flow["class-name"]
@@ -77,11 +78,17 @@ def main():
         help=f'Metrics URL (default: {default_metrics_url})',
     )
 
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
     args = parser.parse_args()
 
     try:
 
-        dump_status(args.metrics_url, args.api_url, args.flow_id)
+        dump_status(args.metrics_url, args.api_url, args.flow_id, token=args.token)
 
     except Exception as e:
 

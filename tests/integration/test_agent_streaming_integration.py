@@ -47,8 +47,9 @@ Args: {
                     "}"
                 ]
 
-                for chunk in chunks:
-                    await chunk_callback(chunk)
+                for i, chunk in enumerate(chunks):
+                    is_final = (i == len(chunks) - 1)
+                    await chunk_callback(chunk, is_final)
 
                 return full_text
             else:
@@ -312,8 +313,10 @@ Final Answer: AI is the simulation of human intelligence in machines."""
             call_count += 1
 
             if streaming and chunk_callback:
-                for chunk in response.split():
-                    await chunk_callback(chunk + " ")
+                chunks = response.split()
+                for i, chunk in enumerate(chunks):
+                    is_final = (i == len(chunks) - 1)
+                    await chunk_callback(chunk + " ", is_final)
                 return response
             return response
 

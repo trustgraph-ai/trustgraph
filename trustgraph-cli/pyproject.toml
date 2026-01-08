@@ -10,7 +10,7 @@ description = "TrustGraph provides a means to run a pipeline of flexible AI proc
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
-    "trustgraph-base>=1.7,<1.8",
+    "trustgraph-base>=1.8,<1.9",
     "requests",
     "pulsar-client",
     "aiohttp",
@@ -84,6 +84,7 @@ tg-unload-kg-core = "trustgraph.cli.unload_kg_core:main"
 tg-start-library-processing = "trustgraph.cli.start_library_processing:main"
 tg-stop-flow = "trustgraph.cli.stop_flow:main"
 tg-stop-library-processing = "trustgraph.cli.stop_library_processing:main"
+tg-verify-system-status = "trustgraph.cli.verify_system_status:main"
 tg-list-config-items = "trustgraph.cli.list_config_items:main"
 tg-get-config-item = "trustgraph.cli.get_config_item:main"
 tg-put-config-item = "trustgraph.cli.put_config_item:main"

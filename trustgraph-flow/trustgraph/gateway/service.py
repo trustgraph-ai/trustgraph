@@ -9,7 +9,8 @@ from aiohttp import web
 import logging
 import os
 
-from .. log_level import LogLevel
+from trustgraph.base.logging import setup_logging
+from trustgraph.base.pubsub import get_pubsub
 
 from . auth import Authenticator
 from . config.receiver import ConfigReceiver
@@ -20,8 +21,15 @@ from . endpoint.manager import EndpointManager
 import pulsar
 from prometheus_client import start_http_server
 
+# Import default queue names
+from .. schema import (
+    config_request_queue, config_response_queue,
+    flow_request_queue, flow_response_queue,
+    knowledge_request_queue, knowledge_response_queue,
+    librarian_request_queue, librarian_response_queue,
+)
+
 logger = logging.getLogger("api")
-logger.setLevel(logging.INFO)
 
 default_pulsar_host = os.getenv("PULSAR_HOST", "pulsar://pulsar:6650")
 default_prometheus_url = os.getenv("PROMETHEUS_URL", "http://prometheus:9090")
@@ -43,15 +51,8 @@ class Api:
 
         self.pulsar_listener = config.get("pulsar_listener", None)
 
-        if self.pulsar_api_key:
-            self.pulsar_client = pulsar.Client(
-                self.pulsar_host, listener_name=self.pulsar_listener,
-                authentication=pulsar.AuthenticationToken(self.pulsar_api_key)
-            )
-        else:
-            self.pulsar_client = pulsar.Client(
-                self.pulsar_host, listener_name=self.pulsar_listener,
-            )
+        # Create backend using factory
+        self.pubsub_backend = get_pubsub(**config)
 
         self.prometheus_url = config.get(
             "prometheus_url", default_prometheus_url,
@@ -68,12 +69,56 @@ class Api:
         else:
             self.auth = Authenticator(allow_all=True)
 
-        self.config_receiver = ConfigReceiver(self.pulsar_client)
+        self.config_receiver = ConfigReceiver(self.pubsub_backend)
+
+        # Build queue overrides dictionary from CLI arguments
+        queue_overrides = {}
+
+        # Config service
+        config_req = config.get("config_request_queue")
+        config_resp = config.get("config_response_queue")
+        if config_req or config_resp:
+            queue_overrides["config"] = {}
+            if config_req:
+                queue_overrides["config"]["request"] = config_req
+            if config_resp:
+                queue_overrides["config"]["response"] = config_resp
+
+        # Flow service
+        flow_req = config.get("flow_request_queue")
+        flow_resp = config.get("flow_response_queue")
+        if flow_req or flow_resp:
+            queue_overrides["flow"] = {}
+            if flow_req:
+                queue_overrides["flow"]["request"] = flow_req
+            if flow_resp:
+                queue_overrides["flow"]["response"] = flow_resp
+
+        # Knowledge service
+        knowledge_req = config.get("knowledge_request_queue")
+        knowledge_resp = config.get("knowledge_response_queue")
+        if knowledge_req or knowledge_resp:
+            queue_overrides["knowledge"] = {}
+            if knowledge_req:
+                queue_overrides["knowledge"]["request"] = knowledge_req
+            if knowledge_resp:
+                queue_overrides["knowledge"]["response"] = knowledge_resp
+
+        # Librarian service
+        librarian_req = config.get("librarian_request_queue")
+        librarian_resp = config.get("librarian_response_queue")
+        if librarian_req or librarian_resp:
+            queue_overrides["librarian"] = {}
+            if librarian_req:
+                queue_overrides["librarian"]["request"] = librarian_req
+            if librarian_resp:
+                queue_overrides["librarian"]["response"] = librarian_resp
 
         self.dispatcher_manager = DispatcherManager(
-            pulsar_client = self.pulsar_client,
+            backend = self.pubsub_backend,
             config_receiver = self.config_receiver,
             prefix = "gateway",
+            queue_overrides = queue_overrides,
         )
 
         self.endpoint_manager = EndpointManager(
@@ -115,6 +160,20 @@ def run():
     parser = argparse.ArgumentParser(
         prog="api-gateway",
         description=__doc__
+    )
+
+    parser.add_argument(
+        '--id',
+        default='api-gateway',
+        help='Service identifier for logging and metrics (default: api-gateway)',
+    )
+
+    # Pub/sub backend selection
+    parser.add_argument(
+        '--pubsub-backend',
+        default=os.getenv('PUBSUB_BACKEND', 'pulsar'),
+        choices=['pulsar', 'mqtt'],
+        help='Pub/sub backend (default: pulsar, env: PUBSUB_BACKEND)',
     )
 
     parser.add_argument(
@@ -181,8 +240,60 @@ def run():
         help=f'Prometheus metrics port (default: 8000)',
     )
 
+    # Queue override arguments for multi-tenant deployments
+    parser.add_argument(
+        '--config-request-queue',
+        default=None,
+        help=f'Config service request queue (default: {config_request_queue})',
+    )
+
+    parser.add_argument(
+        '--config-response-queue',
+        default=None,
+        help=f'Config service response queue (default: {config_response_queue})',
+    )
+
+    parser.add_argument(
+        '--flow-request-queue',
+        default=None,
+        help=f'Flow service request queue (default: {flow_request_queue})',
+    )
+
+    parser.add_argument(
+        '--flow-response-queue',
+        default=None,
+        help=f'Flow service response queue (default: {flow_response_queue})',
+    )
+
+    parser.add_argument(
+        '--knowledge-request-queue',
+        default=None,
+        help=f'Knowledge service request queue (default: {knowledge_request_queue})',
+    )
+
+    parser.add_argument(
+        '--knowledge-response-queue',
+        default=None,
+        help=f'Knowledge service response queue (default: {knowledge_response_queue})',
+    )
+
+    parser.add_argument(
+        '--librarian-request-queue',
+        default=None,
+        help=f'Librarian service request queue (default: {librarian_request_queue})',
+    )
+
+    parser.add_argument(
+        '--librarian-response-queue',
+        default=None,
+        help=f'Librarian service response queue (default: {librarian_response_queue})',
+    )
+
     args = parser.parse_args()
     args = vars(args)
+
+    # Setup logging before creating API instance
+    setup_logging(args)
 
     if args["metrics"]:
         start_http_server(args["metrics_port"])

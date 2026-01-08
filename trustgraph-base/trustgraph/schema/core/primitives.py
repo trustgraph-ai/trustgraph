@@ -1,34 +1,39 @@
 
-from pulsar.schema import Record, String, Boolean, Array, Integer
+from dataclasses import dataclass, field
 
-class Error(Record):
-    type = String()
-    message = String()
+@dataclass
+class Error:
+    type: str = ""
+    message: str = ""
 
-class Value(Record):
-    value = String()
-    is_uri = Boolean()
-    type = String()
+@dataclass
+class Value:
+    value: str = ""
+    is_uri: bool = False
+    type: str = ""
 
-class Triple(Record):
-    s = Value()
-    p = Value()
-    o = Value()
+@dataclass
+class Triple:
+    s: Value | None = None
+    p: Value | None = None
+    o: Value | None = None
 
-class Field(Record):
-    name = String()
+@dataclass
+class Field:
+    name: str = ""
     # int, string, long, bool, float, double, timestamp
-    type = String()
-    size = Integer()
-    primary = Boolean()
-    description = String()
+    type: str = ""
+    size: int = 0
+    primary: bool = False
+    description: str = ""
     # NEW FIELDS for structured data:
-    required = Boolean()  # Whether field is required
-    enum_values = Array(String())  # For enum type fields
-    indexed = Boolean()  # Whether field should be indexed
+    required: bool = False  # Whether field is required
+    enum_values: list[str] = field(default_factory=list)  # For enum type fields
+    indexed: bool = False  # Whether field should be indexed
 
-class RowSchema(Record):
-    name = String()
-    description = String()
-    fields = Array(Field())
+@dataclass
+class RowSchema:
+    name: str = ""
+    description: str = ""
+    fields: list[Field] = field(default_factory=list)
 

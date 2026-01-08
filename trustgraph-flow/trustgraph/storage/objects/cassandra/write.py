@@ -13,9 +13,8 @@ from cassandra import ConsistencyLevel
 
 from .... schema import ExtractedObject
 from .... schema import RowSchema, Field
-from .... schema import StorageManagementRequest, StorageManagementResponse
-from .... schema import object_storage_management_topic, storage_management_response_topic
 from .... base import FlowProcessor, ConsumerSpec, ProducerSpec
+from .... base import CollectionConfigHandler
 from .... base.cassandra_config import add_cassandra_args, resolve_cassandra_config
 
 # Module logger
@@ -23,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 default_ident = "objects-write"
 
-class Processor(FlowProcessor):
+class Processor(CollectionConfigHandler, FlowProcessor):
 
     def __init__(self, **params):
         
@@ -35,7 +34,7 @@ class Processor(FlowProcessor):
         cassandra_password = params.get("cassandra_password")
         
         # Resolve configuration with environment variable fallback
-        hosts, username, password = resolve_cassandra_config(
+        hosts, username, password, keyspace = resolve_cassandra_config(
             host=cassandra_host,
             username=cassandra_username,
             password=cassandra_password
@@ -55,7 +54,7 @@ class Processor(FlowProcessor):
                 "config_type": self.config_key,
             }
         )
-        
+
         self.register_specification(
             ConsumerSpec(
                 name = "input",
@@ -64,39 +63,9 @@ class Processor(FlowProcessor):
             )
         )
 
-        # Set up storage management consumer and producer directly
-        # (FlowProcessor doesn't support topic-based specs outside of flows)
-        from .... base import Consumer, Producer, ConsumerMetrics, ProducerMetrics
-
-        storage_request_metrics = ConsumerMetrics(
-            processor=self.id, flow=None, name="storage-request"
-        )
-        storage_response_metrics = ProducerMetrics(
-            processor=self.id, flow=None, name="storage-response"
-        )
-
-        # Create storage management consumer
-        self.storage_request_consumer = Consumer(
-            taskgroup=self.taskgroup,
-            client=self.pulsar_client,
-            flow=None,
-            topic=object_storage_management_topic,
-            subscriber=f"{id}-storage",
-            schema=StorageManagementRequest,
-            handler=self.on_storage_management,
-            metrics=storage_request_metrics,
-        )
-
-        # Create storage management response producer
-        self.storage_response_producer = Producer(
-            client=self.pulsar_client,
-            topic=storage_management_response_topic,
-            schema=StorageManagementResponse,
-            metrics=storage_response_metrics,
-        )
-
-        # Register config handler for schema updates
+        # Register config handlers
         self.register_config_handler(self.on_schema_config)
+        self.register_config_handler(self.on_collection_config)
         
         # Cache of known keyspaces/tables
         self.known_keyspaces: Set[str] = set()
@@ -341,41 +310,20 @@ class Processor(FlowProcessor):
         except Exception as e:
             logger.warning(f"Failed to convert value {value} to type {field_type}: {e}")
             return str(value)
-
-    async def start(self):
-        """Start the processor and its storage management consumer"""
-        await super().start()
-        await self.storage_request_consumer.start()
-        await self.storage_response_producer.start()
-
     async def on_object(self, msg, consumer, flow):
         """Process incoming ExtractedObject and store in Cassandra"""
 
         obj = msg.value()
         logger.info(f"Storing {len(obj.values)} objects for schema {obj.schema_name} from {obj.metadata.id}")
 
-        # Validate collection/keyspace exists before accepting writes
-        safe_keyspace = self.sanitize_name(obj.metadata.user)
-        if safe_keyspace not in self.known_keyspaces:
-            # Check if keyspace actually exists in Cassandra
-            self.connect_cassandra()
-            check_keyspace_cql = """
-            SELECT keyspace_name FROM system_schema.keyspaces
-            WHERE keyspace_name = %s
-            """
-            result = self.session.execute(check_keyspace_cql, (safe_keyspace,))
-            # Check if result is None (mock case) or has no rows
-            if result is None or not result.one():
-                error_msg = (
-                    f"Collection {obj.metadata.collection} does not exist. "
-                    f"Create it first with tg-set-collection."
-                )
-                logger.error(error_msg)
-                raise ValueError(error_msg)
-            # Cache it if it exists
-            self.known_keyspaces.add(safe_keyspace)
-            if safe_keyspace not in self.known_tables:
-                self.known_tables[safe_keyspace] = set()
+        # Validate collection exists before accepting writes
+        if not self.collection_exists(obj.metadata.user, obj.metadata.collection):
+            error_msg = (
+                f"Collection {obj.metadata.collection} does not exist. "
+                f"Create it first via collection management API."
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
 
         # Get schema definition
         schema = self.schemas.get(obj.schema_name)
@@ -454,55 +402,7 @@ class Processor(FlowProcessor):
                 logger.error(f"Failed to insert object {obj_index}: {e}", exc_info=True)
                 raise
 
-    async def on_storage_management(self, msg, consumer, flow):
-        """Handle storage management requests for collection operations"""
-        request = msg.value()
-        logger.info(f"Received storage management request: {request.operation} for {request.user}/{request.collection}")
-
-        try:
-            if request.operation == "create-collection":
-                await self.create_collection(request.user, request.collection)
-
-                # Send success response
-                response = StorageManagementResponse(
-                    error=None  # No error means success
-                )
-                await self.storage_response_producer.send(response)
-                logger.info(f"Successfully created collection {request.user}/{request.collection}")
-            elif request.operation == "delete-collection":
-                await self.delete_collection(request.user, request.collection)
-
-                # Send success response
-                response = StorageManagementResponse(
-                    error=None  # No error means success
-                )
-                await self.storage_response_producer.send(response)
-                logger.info(f"Successfully deleted collection {request.user}/{request.collection}")
-            else:
-                logger.warning(f"Unknown storage management operation: {request.operation}")
-                # Send error response
-                from .... schema import Error
-                response = StorageManagementResponse(
-                    error=Error(
-                        type="unknown_operation",
-                        message=f"Unknown operation: {request.operation}"
-                    )
-                )
-                await self.storage_response_producer.send(response)
-
-        except Exception as e:
-            logger.error(f"Error handling storage management request: {e}", exc_info=True)
-            # Send error response
-            from .... schema import Error
-            response = StorageManagementResponse(
-                error=Error(
-                    type="processing_error",
-                    message=str(e)
-                )
-            )
-            await self.storage_response_producer.send(response)
-
-    async def create_collection(self, user: str, collection: str):
+    async def create_collection(self, user: str, collection: str, metadata: dict):
         """Create/verify collection exists in Cassandra object store"""
         # Connect if not already connected
         self.connect_cassandra()

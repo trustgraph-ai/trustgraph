@@ -14,12 +14,12 @@ class ServiceSender:
 
     def __init__(
             self,
-            pulsar_client,
+            backend,
             queue, schema,
     ):
 
         self.pub = Publisher(
-            pulsar_client, queue,
+            backend, queue,
             schema=schema,
         )
 

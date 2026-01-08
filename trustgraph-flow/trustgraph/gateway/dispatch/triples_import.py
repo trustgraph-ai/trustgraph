@@ -16,14 +16,14 @@ logger = logging.getLogger(__name__)
 class TriplesImport:
 
     def __init__(
-            self, ws, running, pulsar_client, queue
+            self, ws, running, backend, queue
     ):
 
         self.ws = ws
         self.running = running
         
         self.publisher = Publisher(
-            pulsar_client, topic = queue, schema = Triples
+            backend, topic = queue, schema = Triples
         )
 
     async def start(self):

@@ -17,6 +17,7 @@ from datetime import datetime
 import argparse
 
 from trustgraph.base.subscriber import Subscriber
+from trustgraph.base.pubsub import get_pubsub
 
 def format_message(queue_name, msg):
     """Format a message with timestamp and queue name."""
@@ -167,11 +168,11 @@ async def async_main(queues, output_file, pulsar_host, listener_name, subscriber
     print(f"Mode: {'append' if append_mode else 'overwrite'}")
     print(f"Press Ctrl+C to stop\n")
 
-    # Connect to Pulsar
+    # Create backend connection
     try:
-        client = pulsar.Client(pulsar_host, listener_name=listener_name)
+        backend = get_pubsub(pulsar_host=pulsar_host, pulsar_listener=listener_name, pubsub_backend='pulsar')
     except Exception as e:
-        print(f"Error connecting to Pulsar at {pulsar_host}: {e}", file=sys.stderr)
+        print(f"Error connecting to backend at {pulsar_host}: {e}", file=sys.stderr)
         sys.exit(1)
 
     # Create Subscribers and central queue
@@ -181,7 +182,7 @@ async def async_main(queues, output_file, pulsar_host, listener_name, subscriber
     for queue_name in queues:
         try:
             sub = Subscriber(
-                client=client,
+                backend=backend,
                 topic=queue_name,
                 subscription=subscriber_name,
                 consumer_name=f"{subscriber_name}-{queue_name}",
@@ -195,7 +196,7 @@ async def async_main(queues, output_file, pulsar_host, listener_name, subscriber
 
     if not subscribers:
         print("\nNo subscribers created. Exiting.", file=sys.stderr)
-        client.close()
+        backend.close()
         sys.exit(1)
 
     print(f"\nListening for messages...\n")
@@ -256,7 +257,7 @@ async def async_main(queues, output_file, pulsar_host, listener_name, subscriber
         # Clean shutdown of Subscribers
         for _, sub in subscribers:
             await sub.stop()
-        client.close()
+        backend.close()
 
     print(f"\nMessages logged to: {output_file}")
 

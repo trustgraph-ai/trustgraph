@@ -145,7 +145,7 @@ class TestResolveCassandraConfig:
     def test_default_configuration(self):
         """Test resolution with no parameters or environment variables."""
         with patch.dict(os.environ, {}, clear=True):
-            hosts, username, password = resolve_cassandra_config()
+            hosts, username, password, keyspace = resolve_cassandra_config()
             
             assert hosts == ['cassandra']
             assert username is None
@@ -160,7 +160,7 @@ class TestResolveCassandraConfig:
         }
         
         with patch.dict(os.environ, env_vars, clear=True):
-            hosts, username, password = resolve_cassandra_config()
+            hosts, username, password, keyspace = resolve_cassandra_config()
             
             assert hosts == ['env1', 'env2', 'env3']
             assert username == 'env-user'
@@ -175,7 +175,7 @@ class TestResolveCassandraConfig:
         }
         
         with patch.dict(os.environ, env_vars, clear=True):
-            hosts, username, password = resolve_cassandra_config(
+            hosts, username, password, keyspace = resolve_cassandra_config(
                 host='explicit-host',
                 username='explicit-user',
                 password='explicit-pass'
@@ -188,19 +188,19 @@ class TestResolveCassandraConfig:
     def test_host_list_parsing(self):
         """Test different host list formats."""
         # Single host
-        hosts, _, _ = resolve_cassandra_config(host='single-host')
+        hosts, _, _, _ = resolve_cassandra_config(host='single-host')
         assert hosts == ['single-host']
         
         # Multiple hosts with spaces
-        hosts, _, _ = resolve_cassandra_config(host='host1, host2 ,host3')
+        hosts, _, _, _ = resolve_cassandra_config(host='host1, host2 ,host3')
         assert hosts == ['host1', 'host2', 'host3']
         
         # Empty elements filtered out
-        hosts, _, _ = resolve_cassandra_config(host='host1,,host2,')
+        hosts, _, _, _ = resolve_cassandra_config(host='host1,,host2,')
         assert hosts == ['host1', 'host2']
         
         # Already a list
-        hosts, _, _ = resolve_cassandra_config(host=['list-host1', 'list-host2'])
+        hosts, _, _, _ = resolve_cassandra_config(host=['list-host1', 'list-host2'])
         assert hosts == ['list-host1', 'list-host2']
     
     def test_args_object_resolution(self):
@@ -212,7 +212,7 @@ class TestResolveCassandraConfig:
             cassandra_password = 'args-pass'
         
         args = MockArgs()
-        hosts, username, password = resolve_cassandra_config(args)
+        hosts, username, password, keyspace = resolve_cassandra_config(args)
         
         assert hosts == ['args-host1', 'args-host2']
         assert username == 'args-user'
@@ -233,7 +233,7 @@ class TestResolveCassandraConfig:
         
         with patch.dict(os.environ, env_vars, clear=True):
             args = PartialArgs()
-            hosts, username, password = resolve_cassandra_config(args)
+            hosts, username, password, keyspace = resolve_cassandra_config(args)
             
             assert hosts == ['args-host']  # From args
             assert username == 'env-user'  # From env
@@ -251,7 +251,7 @@ class TestGetCassandraConfigFromParams:
             'cassandra_password': 'new-pass'
         }
         
-        hosts, username, password = get_cassandra_config_from_params(params)
+        hosts, username, password, keyspace = get_cassandra_config_from_params(params)
         
         assert hosts == ['new-host1', 'new-host2']
         assert username == 'new-user'
@@ -265,7 +265,7 @@ class TestGetCassandraConfigFromParams:
             'graph_password': 'old-pass'
         }
         
-        hosts, username, password = get_cassandra_config_from_params(params)
+        hosts, username, password, keyspace = get_cassandra_config_from_params(params)
         
         # Should use defaults since graph_* params are not recognized
         assert hosts == ['cassandra']  # Default
@@ -280,7 +280,7 @@ class TestGetCassandraConfigFromParams:
             'cassandra_password': 'compat-pass'
         }
         
-        hosts, username, password = get_cassandra_config_from_params(params)
+        hosts, username, password, keyspace = get_cassandra_config_from_params(params)
         
         assert hosts == ['compat-host']
         assert username is None  # cassandra_user is not recognized
@@ -298,7 +298,7 @@ class TestGetCassandraConfigFromParams:
             'graph_password': 'old-pass'
         }
         
-        hosts, username, password = get_cassandra_config_from_params(params)
+        hosts, username, password, keyspace = get_cassandra_config_from_params(params)
         
         assert hosts == ['new-host']  # Only cassandra_* params work
         assert username == 'new-user'  # Only cassandra_* params work
@@ -314,7 +314,7 @@ class TestGetCassandraConfigFromParams:
         
         with patch.dict(os.environ, env_vars, clear=True):
             params = {}
-            hosts, username, password = get_cassandra_config_from_params(params)
+            hosts, username, password, keyspace = get_cassandra_config_from_params(params)
             
             assert hosts == ['fallback-host1', 'fallback-host2']
             assert username == 'fallback-user'
@@ -334,7 +334,7 @@ class TestConfigurationPriority:
         
         with patch.dict(os.environ, env_vars, clear=True):
             # CLI args should override everything
-            hosts, username, password = resolve_cassandra_config(
+            hosts, username, password, keyspace = resolve_cassandra_config(
                 host='cli-host',
                 username='cli-user',
                 password='cli-pass'
@@ -354,7 +354,7 @@ class TestConfigurationPriority:
         
         with patch.dict(os.environ, env_vars, clear=True):
             # Only provide host via CLI
-            hosts, username, password = resolve_cassandra_config(
+            hosts, username, password, keyspace = resolve_cassandra_config(
                 host='cli-host'
                 # username and password not provided
             )
@@ -366,7 +366,7 @@ class TestConfigurationPriority:
     def test_no_config_defaults(self):
         """Test that defaults are used when no configuration is provided."""
         with patch.dict(os.environ, {}, clear=True):
-            hosts, username, password = resolve_cassandra_config()
+            hosts, username, password, keyspace = resolve_cassandra_config()
             
             assert hosts == ['cassandra']  # Default
             assert username is None       # Default
@@ -378,17 +378,17 @@ class TestEdgeCases:
     
     def test_empty_host_string(self):
         """Test handling of empty host string falls back to default."""
-        hosts, _, _ = resolve_cassandra_config(host='')
+        hosts, _, _, _ = resolve_cassandra_config(host='')
         assert hosts == ['cassandra']  # Falls back to default
     
     def test_whitespace_only_host(self):
         """Test handling of whitespace-only host string."""
-        hosts, _, _ = resolve_cassandra_config(host='   ')
+        hosts, _, _, _ = resolve_cassandra_config(host='   ')
         assert hosts == []  # Empty after stripping whitespace
     
     def test_none_values_preserved(self):
         """Test that None values are preserved correctly."""
-        hosts, username, password = resolve_cassandra_config(
+        hosts, username, password, keyspace = resolve_cassandra_config(
             host=None,
             username=None,
             password=None
@@ -401,7 +401,7 @@ class TestEdgeCases:
     
     def test_mixed_none_and_values(self):
         """Test mixing None and actual values."""
-        hosts, username, password = resolve_cassandra_config(
+        hosts, username, password, keyspace = resolve_cassandra_config(
             host='mixed-host',
             username=None,
             password='mixed-pass'

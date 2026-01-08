@@ -138,36 +138,26 @@ class Processor(FlowProcessor):
             # Check if streaming is requested
             if v.streaming:
                 # Define async callback for streaming chunks
-                async def send_chunk(chunk):
+                # Receives chunk text and end_of_stream flag from prompt client
+                async def send_chunk(chunk, end_of_stream):
                     await flow("response").send(
                         GraphRagResponse(
-                            chunk=chunk,
-                            end_of_stream=False,
-                            response=None,
+                            response=chunk,
+                            end_of_stream=end_of_stream,
                             error=None
                         ),
                         properties={"id": id}
                     )
 
                 # Query with streaming enabled
-                full_response = await rag.query(
+                # All chunks (including final one with end_of_stream=True) are sent via callback
+                await rag.query(
                     query = v.query, user = v.user, collection = v.collection,
                     entity_limit = entity_limit, triple_limit = triple_limit,
                     max_subgraph_size = max_subgraph_size,
                     max_path_length = max_path_length,
                     streaming = True,
                     chunk_callback = send_chunk,
-                )
-
-                # Send final message with complete response
-                await flow("response").send(
-                    GraphRagResponse(
-                        chunk=None,
-                        end_of_stream=True,
-                        response=full_response,
-                        error=None
-                    ),
-                    properties={"id": id}
                 )
             else:
                 # Non-streaming path (existing behavior)

@@ -433,13 +433,11 @@ class Processor(AgentService):
                     end_of_dialog=True,
                     # Legacy fields for backward compatibility
                     error=error_obj,
-                    response=None,
                 )
             else:
                 # Legacy format
                 r = AgentResponse(
                     error=error_obj,
-                    response=None,
                 )
 
             await respond(r)

@@ -1,9 +1,6 @@
 
-from pulsar.schema import JsonSchema
-
 import asyncio
 import time
-import pulsar
 import logging
 
 # Module logger
@@ -11,9 +8,9 @@ logger = logging.getLogger(__name__)
 
 class Publisher:
 
-    def __init__(self, client, topic, schema=None, max_size=10,
+    def __init__(self, backend, topic, schema=None, max_size=10,
                  chunking_enabled=True, drain_timeout=5.0):
-        self.client = client
+        self.backend = backend  # Changed from 'client' to 'backend'
         self.topic = topic
         self.schema = schema
         self.q = asyncio.Queue(maxsize=max_size)
@@ -47,9 +44,9 @@ class Publisher:
 
             try:
 
-                producer = self.client.create_producer(
+                producer = self.backend.create_producer(
                     topic=self.topic,
-                    schema=JsonSchema(self.schema),
+                    schema=self.schema,
                     chunking_enabled=self.chunking_enabled,
                 )
 

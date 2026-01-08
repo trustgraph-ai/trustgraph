@@ -34,9 +34,9 @@ logger.setLevel(logging.INFO)
 
 class ConfigReceiver:
 
-    def __init__(self, pulsar_client):
+    def __init__(self, backend):
 
-        self.pulsar_client = pulsar_client
+        self.backend = backend
 
         self.flow_handlers = []
 
@@ -104,8 +104,8 @@ class ConfigReceiver:
             self.config_cons = Consumer(
                 taskgroup = tg,
                 flow = None,
-                client = self.pulsar_client,
-                subscriber = f"gateway-{id}",                
+                backend = self.backend,
+                subscriber = f"gateway-{id}",
                 topic = config_push_queue,
                 schema = ConfigPush,
                 handler = self.on_config,

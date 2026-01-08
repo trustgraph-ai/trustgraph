@@ -5,12 +5,10 @@ Uses the agent service to answer a question
 import argparse
 import os
 import textwrap
-import uuid
-import asyncio
-import json
-from websockets.asyncio.client import connect
+from trustgraph.api import Api
 
-default_url = os.getenv("TRUSTGRAPH_URL", 'ws://localhost:8088/')
+default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 default_user = 'trustgraph'
 default_collection = 'default'
 
@@ -99,79 +97,47 @@ def output(text, prefix="> ", width=78):
     )
     print(out)
 
-async def question(
+def question(
         url, question, flow_id, user, collection,
-        plan=None, state=None, group=None, verbose=False, streaming=True
+        plan=None, state=None, group=None, verbose=False, streaming=True,
+        token=None
 ):
-
-    if not url.endswith("/"):
-        url += "/"
-
-    url = url + "api/v1/socket"
 
     if verbose:
         output(wrap(question), "\U00002753 ")
         print()
 
-    # Track last chunk type and current outputter for streaming
-    last_chunk_type = None
-    current_outputter = None
+    # Create API client
+    api = Api(url=url, token=token)
+    socket = api.socket()
+    flow = socket.flow(flow_id)
 
-    def think(x):
-        if verbose:
-            output(wrap(x), "\U0001f914 ")
-            print()
+    # Prepare request parameters
+    request_params = {
+        "question": question,
+        "user": user,
+        "streaming": streaming,
+    }
 
-    def observe(x):
-        if verbose:
-            output(wrap(x), "\U0001f4a1 ")
-            print()
+    # Only add optional fields if they have values
+    if state is not None:
+        request_params["state"] = state
+    if group is not None:
+        request_params["group"] = group
 
-    mid = str(uuid.uuid4())
+    try:
+        # Call agent
+        response = flow.agent(**request_params)
 
-    async with connect(url) as ws:
+        # Handle streaming response
+        if streaming:
+            # Track last chunk type and current outputter for streaming
+            last_chunk_type = None
+            current_outputter = None
 
-        req = {
-            "id": mid,
-            "service": "agent",
-            "flow": flow_id,
-            "request": {
-                "question": question,
-                "user": user,
-                "history": [],
-                "streaming": streaming
-            }
-        }
-
-        # Only add optional fields if they have values
-        if state is not None:
-            req["request"]["state"] = state
-        if group is not None:
-            req["request"]["group"] = group
-
-        req = json.dumps(req)
-
-        await ws.send(req)
-
-        while True:
-
-            msg = await ws.recv()
-
-            obj = json.loads(msg)
-
-            if "error" in obj:
-                raise RuntimeError(obj["error"])
-
-            if obj["id"] != mid:
-                print("Ignore message")
-                continue
-
-            response = obj["response"]
-
-            # Handle streaming format (new format with chunk_type)
-            if "chunk_type" in response:
-                chunk_type = response["chunk_type"]
-                content = response.get("content", "")
+            for chunk in response:
+                chunk_type = chunk.chunk_type
+                content = chunk.content
 
                 # Check if we're switching to a new message type
                 if last_chunk_type != chunk_type:
@@ -195,33 +161,32 @@ async def question(
                 # Output the chunk
                 if current_outputter:
                     current_outputter.output(content)
-                elif chunk_type == "answer":
+                    # Flush word buffer after each chunk to avoid delay
+                    if current_outputter.word_buffer:
+                        print(current_outputter.word_buffer, end="", flush=True)
+                        current_outputter.column += len(current_outputter.word_buffer)
+                        current_outputter.word_buffer = ""
+                elif chunk_type == "final-answer":
                     print(content, end="", flush=True)
-            else:
-                # Handle legacy format (backward compatibility)
-                if "thought" in response:
-                    think(response["thought"])
 
-                if "observation" in response:
-                    observe(response["observation"])
+            # Close any remaining outputter
+            if current_outputter:
+                current_outputter.__exit__(None, None, None)
+                current_outputter = None
+            # Add final newline if we were outputting answer
+            elif last_chunk_type == "final-answer":
+                print()
 
-                if "answer" in response:
-                    print(response["answer"])
+        else:
+            # Non-streaming response
+            if "answer" in response:
+                print(response["answer"])
+            if "error" in response:
+                raise RuntimeError(response["error"])
 
-                if "error" in response:
-                    raise RuntimeError(response["error"])
-
-            if obj["complete"]:
-                # Close any remaining outputter
-                if current_outputter:
-                    current_outputter.__exit__(None, None, None)
-                    current_outputter = None
-                # Add final newline if we were outputting answer
-                elif last_chunk_type == "answer":
-                    print()
-                break
-
-        await ws.close()
+    finally:
+        # Clean up socket connection
+        socket.close()
 
 def main():
 
@@ -234,6 +199,12 @@ def main():
         '-u', '--url',
         default=default_url,
         help=f'API URL (default: {default_url})',
+    )
+
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
     )
 
     parser.add_argument(
@@ -292,19 +263,18 @@ def main():
 
     try:
 
-        asyncio.run(
-            question(
-                url = args.url,
-                flow_id = args.flow_id,
-                question = args.question,
-                user = args.user,
-                collection = args.collection,
-                plan = args.plan,
-                state = args.state,
-                group = args.group,
-                verbose = args.verbose,
-                streaming = not args.no_streaming,
-            )
+        question(
+            url = args.url,
+            flow_id = args.flow_id,
+            question = args.question,
+            user = args.user,
+            collection = args.collection,
+            plan = args.plan,
+            state = args.state,
+            group = args.group,
+            verbose = args.verbose,
+            streaming = not args.no_streaming,
+            token = args.token,
         )
 
     except Exception as e:

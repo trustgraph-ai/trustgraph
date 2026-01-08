@@ -257,7 +257,6 @@ class TestAgentMessageContracts:
         # Act
         request = AgentRequest(
             question="What comes next?",
-            plan="Multi-step plan",
             state="processing",
             history=history_steps
         )
@@ -588,7 +587,6 @@ class TestSerializationContracts:
         
         request = AgentRequest(
             question="Test with array",
-            plan="Test plan",
             state="Test state",
             history=steps
         )

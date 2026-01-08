@@ -234,11 +234,11 @@ class KnowledgeManager:
                 logger.debug(f"Graph embeddings queue: {ge_q}")
 
                 t_pub = Publisher(
-                    self.flow_config.pulsar_client, t_q,
+                    self.flow_config.pubsub, t_q,
                     schema=Triples,
                 )
                 ge_pub = Publisher(
-                    self.flow_config.pulsar_client, ge_q,
+                    self.flow_config.pubsub, ge_q,
                     schema=GraphEmbeddings
                 )
 

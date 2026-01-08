@@ -1,5 +1,5 @@
 
-from pulsar.schema import Record, Bytes, String, Boolean, Array, Map, Integer
+from dataclasses import dataclass, field
 
 from ..core.topic import topic
 from ..core.primitives import Error
@@ -11,61 +11,61 @@ from ..core.primitives import Error
 #   get_class(classname) -> (class)
 #   put_class(class) -> (class)
 #   delete_class(classname) -> ()
-# 
+#
 #   list_flows() -> (flowid[])
 #   get_flow(flowid) -> (flow)
 #   start_flow(flowid, classname) -> ()
 #   stop_flow(flowid) -> ()
 
 # Prompt services, abstract the prompt generation
-class FlowRequest(Record):
-
-    operation = String() # list-classes, get-class, put-class, delete-class
+@dataclass
+class FlowRequest:
+    operation: str = ""  # list-classes, get-class, put-class, delete-class
                          # list-flows, get-flow, start-flow, stop-flow
 
     # get_class, put_class, delete_class, start_flow
-    class_name = String()
+    class_name: str = ""
 
     # put_class
-    class_definition = String()
+    class_definition: str = ""
 
     # start_flow
-    description = String()
+    description: str = ""
 
     # get_flow, start_flow, stop_flow
-    flow_id = String()
+    flow_id: str = ""
 
     # start_flow - optional parameters for flow customization
-    parameters = Map(String())
+    parameters: dict[str, str] = field(default_factory=dict)
 
-class FlowResponse(Record):
-
+@dataclass
+class FlowResponse:
     # list_classes
-    class_names = Array(String())
+    class_names: list[str] = field(default_factory=list)
 
     # list_flows
-    flow_ids = Array(String())
+    flow_ids: list[str] = field(default_factory=list)
 
     # get_class
-    class_definition = String()
+    class_definition: str = ""
 
     # get_flow
-    flow = String()
+    flow: str = ""
 
     # get_flow
-    description = String()
+    description: str = ""
 
     # get_flow - parameters used when flow was started
-    parameters = Map(String())
+    parameters: dict[str, str] = field(default_factory=dict)
 
     # Everything
-    error = Error()
+    error: Error | None = None
 
 flow_request_queue = topic(
-    'flow', kind='non-persistent', namespace='request'
+    'flow', qos='q0', namespace='request'
 )
 flow_response_queue = topic(
-    'flow', kind='non-persistent', namespace='response'
+    'flow', qos='q0', namespace='response'
 )
 
 ############################################################################

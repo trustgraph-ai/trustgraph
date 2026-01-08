@@ -17,10 +17,11 @@ from trustgraph.api import Api
 import json
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
-def start_flow(url, class_name, flow_id, description, parameters=None):
+def start_flow(url, class_name, flow_id, description, parameters=None, token=None):
 
-    api = Api(url).flow()
+    api = Api(url, token=token).flow()
 
     api.start(
         class_name = class_name,
@@ -40,6 +41,12 @@ def main():
         '-u', '--api-url',
         default=default_url,
         help=f'API URL (default: {default_url})',
+    )
+
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
     )
 
     parser.add_argument(
@@ -112,6 +119,7 @@ def main():
             flow_id = args.flow_id,
             description = args.description,
             parameters = parameters,
+            token = args.token,
         )
 
     except Exception as e:

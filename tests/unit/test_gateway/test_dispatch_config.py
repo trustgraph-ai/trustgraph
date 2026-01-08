@@ -24,10 +24,10 @@ class TestConfigRequestor:
         mock_translator_registry.get_response_translator.return_value = mock_response_translator
         
         # Mock dependencies
-        mock_pulsar_client = Mock()
+        mock_backend = Mock()
         
         requestor = ConfigRequestor(
-            pulsar_client=mock_pulsar_client,
+            backend=mock_backend,
             consumer="test-consumer",
             subscriber="test-subscriber",
             timeout=60
@@ -55,7 +55,7 @@ class TestConfigRequestor:
         with patch.object(ServiceRequestor, 'start', return_value=None), \
              patch.object(ServiceRequestor, 'process', return_value=None):
             requestor = ConfigRequestor(
-                pulsar_client=Mock(),
+                backend=Mock(),
                 consumer="test-consumer", 
                 subscriber="test-subscriber"
             )
@@ -79,7 +79,7 @@ class TestConfigRequestor:
         mock_response_translator.from_response_with_completion.return_value = "translated_response"
         
         requestor = ConfigRequestor(
-            pulsar_client=Mock(),
+            backend=Mock(),
             consumer="test-consumer",
             subscriber="test-subscriber"
         )

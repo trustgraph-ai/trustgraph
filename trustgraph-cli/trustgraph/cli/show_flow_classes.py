@@ -9,6 +9,7 @@ from trustgraph.api import Api, ConfigKey
 import json
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
 def format_parameters(params_metadata, config_api):
     """
@@ -57,9 +58,9 @@ def format_parameters(params_metadata, config_api):
 
     return "\n".join(param_list)
 
-def show_flow_classes(url):
+def show_flow_classes(url, token=None):
 
-    api = Api(url)
+    api = Api(url, token=token)
     flow_api = api.flow()
     config_api = api.config()
 
@@ -106,12 +107,19 @@ def main():
         help=f'API URL (default: {default_url})',
     )
 
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
     args = parser.parse_args()
 
     try:
 
         show_flow_classes(
             url=args.api_url,
+            token=args.token,
         )
 
     except Exception as e:

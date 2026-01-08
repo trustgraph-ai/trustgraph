@@ -26,19 +26,19 @@ class WebSocketResponder:
             self.completed = True
 
 class MessageDispatcher:
-    
-    def __init__(self, max_workers: int = 10, config_receiver=None, pulsar_client=None):
+
+    def __init__(self, max_workers: int = 10, config_receiver=None, backend=None):
         self.max_workers = max_workers
         self.semaphore = asyncio.Semaphore(max_workers)
         self.active_tasks = set()
-        self.pulsar_client = pulsar_client
-        
+        self.backend = backend
+
         # Use DispatcherManager for flow and service management
-        if pulsar_client and config_receiver:
-            self.dispatcher_manager = DispatcherManager(pulsar_client, config_receiver, prefix="rev-gateway")
+        if backend and config_receiver:
+            self.dispatcher_manager = DispatcherManager(backend, config_receiver, prefix="rev-gateway")
         else:
             self.dispatcher_manager = None
-            logger.warning("No pulsar_client or config_receiver provided - using fallback mode")
+            logger.warning("No backend or config_receiver provided - using fallback mode")
         
         # Service name mapping from websocket protocol to translator registry
         self.service_mapping = {
@@ -78,7 +78,7 @@ class MessageDispatcher:
         
         try:
             if not self.dispatcher_manager:
-                raise RuntimeError("DispatcherManager not available - pulsar_client and config_receiver required")
+                raise RuntimeError("DispatcherManager not available - backend and config_receiver required")
             
             # Use DispatcherManager for flow-based processing
             responder = WebSocketResponder()

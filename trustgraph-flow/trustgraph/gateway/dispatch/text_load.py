@@ -11,10 +11,10 @@ from . sender import ServiceSender
 logger = logging.getLogger(__name__)
 
 class TextLoad(ServiceSender):
-    def __init__(self, pulsar_client, queue):
+    def __init__(self, backend, queue):
 
         super(TextLoad, self).__init__(
-            pulsar_client = pulsar_client,
+            backend = backend,
             queue = queue,
             schema = TextDocument,
         )

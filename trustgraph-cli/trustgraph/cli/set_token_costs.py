@@ -10,10 +10,11 @@ import tabulate
 import textwrap
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
-def set_costs(api_url, model, input_costs, output_costs):
+def set_costs(api_url, model, input_costs, output_costs, token=None):
 
-    api = Api(api_url).config()
+    api = Api(api_url, token=token).config()
 
     api.put([
         ConfigValue(
@@ -93,6 +94,12 @@ def main():
         required=True,
         type=float,
         help=f'Input costs in $ per 1M tokens',
+    )
+
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
     )
 
     args = parser.parse_args()

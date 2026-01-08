@@ -3,9 +3,7 @@
 # off of a queue and make it available using an internal broker system,
 # so suitable for when multiple recipients are reading from the same queue
 
-from pulsar.schema import JsonSchema
 import asyncio
-import _pulsar
 import time
 import logging
 import uuid
@@ -13,12 +11,16 @@ import uuid
 # Module logger
 logger = logging.getLogger(__name__)
 
+# Timeout exception - can come from different backends
+class TimeoutError(Exception):
+    pass
+
 class Subscriber:
 
-    def __init__(self, client, topic, subscription, consumer_name,
+    def __init__(self, backend, topic, subscription, consumer_name,
                  schema=None, max_size=100, metrics=None,
                  backpressure_strategy="block", drain_timeout=5.0):
-        self.client = client
+        self.backend = backend  # Changed from 'client' to 'backend'
         self.topic = topic
         self.subscription = subscription
         self.consumer_name = consumer_name
@@ -43,18 +45,14 @@ class Subscriber:
 
     async def start(self):
 
-        # Build subscribe arguments
-        subscribe_args = {
-            'topic': self.topic,
-            'subscription_name': self.subscription,
-            'consumer_name': self.consumer_name,
-        }
-
-        # Only add schema if provided (omit if None)
-        if self.schema is not None:
-            subscribe_args['schema'] = JsonSchema(self.schema)
-
-        self.consumer = self.client.subscribe(**subscribe_args)
+        # Create consumer via backend
+        self.consumer = await asyncio.to_thread(
+            self.backend.create_consumer,
+            topic=self.topic,
+            subscription=self.subscription,
+            schema=self.schema,
+            consumer_type='shared',
+        )
 
         self.task = asyncio.create_task(self.run())
 
@@ -94,12 +92,13 @@ class Subscriber:
                         drain_end_time = time.time() + self.drain_timeout
                         logger.info(f"Subscriber entering drain mode, timeout={self.drain_timeout}s")
 
-                        # Stop accepting new messages from Pulsar during drain
-                        if self.consumer:
+                        # Stop accepting new messages during drain
+                        # Note: Not all backends support pausing message listeners
+                        if self.consumer and hasattr(self.consumer, 'pause_message_listener'):
                             try:
                                 self.consumer.pause_message_listener()
-                            except _pulsar.InvalidConfiguration:
-                                # Not all consumers have message listeners (e.g., blocking receive mode)
+                            except Exception:
+                                # Not all consumers support message listeners
                                 pass
                     
                     # Check drain timeout
@@ -133,9 +132,10 @@ class Subscriber:
                                 self.consumer.receive,
                                 timeout_millis=250
                             )
-                        except _pulsar.Timeout:
-                            continue
                         except Exception as e:
+                            # Handle timeout from any backend
+                            if 'timeout' in str(type(e)).lower() or 'timeout' in str(e).lower():
+                                continue
                             logger.error(f"Exception in subscriber receive: {e}", exc_info=True)
                             raise e
 
@@ -157,19 +157,20 @@ class Subscriber:
                 for msg in self.pending_acks.values():
                     try:
                         self.consumer.negative_acknowledge(msg)
-                    except _pulsar.AlreadyClosed:
-                        pass  # Consumer already closed
+                    except Exception:
+                        pass  # Consumer already closed or error
                 self.pending_acks.clear()
 
                 if self.consumer:
-                    try:
-                        self.consumer.unsubscribe()
-                    except _pulsar.AlreadyClosed:
-                        pass  # Already closed
+                    if hasattr(self.consumer, 'unsubscribe'):
+                        try:
+                            self.consumer.unsubscribe()
+                        except Exception:
+                            pass  # Already closed or error
                     try:
                         self.consumer.close()
-                    except _pulsar.AlreadyClosed:
-                        pass  # Already closed
+                    except Exception:
+                        pass  # Already closed or error
                     self.consumer = None
                 
          

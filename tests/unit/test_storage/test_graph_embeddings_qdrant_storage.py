@@ -15,11 +15,9 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
     """Test Qdrant graph embeddings storage functionality"""
 
     @patch('trustgraph.storage.graph_embeddings.qdrant.write.QdrantClient')
-    @patch('trustgraph.base.GraphEmbeddingsStoreService.__init__')
-    async def test_processor_initialization_basic(self, mock_base_init, mock_qdrant_client):
+    async def test_processor_initialization_basic(self, mock_qdrant_client):
         """Test basic Qdrant processor initialization"""
         # Arrange
-        mock_base_init.return_value = None
         mock_qdrant_instance = MagicMock()
         mock_qdrant_client.return_value = mock_qdrant_instance
         
@@ -34,9 +32,6 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        # Verify base class initialization was called
-        mock_base_init.assert_called_once()
-        
         # Verify QdrantClient was created with correct parameters
         mock_qdrant_client.assert_called_once_with(url='http://localhost:6333', api_key='test-api-key')
         
@@ -46,11 +41,9 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
 
     @patch('trustgraph.storage.graph_embeddings.qdrant.write.QdrantClient')
     @patch('trustgraph.storage.graph_embeddings.qdrant.write.uuid')
-    @patch('trustgraph.base.GraphEmbeddingsStoreService.__init__')
-    async def test_store_graph_embeddings_basic(self, mock_base_init, mock_uuid, mock_qdrant_client):
+    async def test_store_graph_embeddings_basic(self, mock_uuid, mock_qdrant_client):
         """Test storing graph embeddings with basic message"""
         # Arrange
-        mock_base_init.return_value = None
         mock_qdrant_instance = MagicMock()
         mock_qdrant_instance.collection_exists.return_value = True  # Collection already exists
         mock_qdrant_client.return_value = mock_qdrant_instance
@@ -64,7 +57,10 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        
+
+        # Add collection to known_collections (simulates config push)
+        processor.known_collections[('test_user', 'test_collection')] = {}
+
         # Create mock message with entities and vectors
         mock_message = MagicMock()
         mock_message.metadata.user = 'test_user'
@@ -98,11 +94,9 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
 
     @patch('trustgraph.storage.graph_embeddings.qdrant.write.QdrantClient')
     @patch('trustgraph.storage.graph_embeddings.qdrant.write.uuid')
-    @patch('trustgraph.base.GraphEmbeddingsStoreService.__init__')
-    async def test_store_graph_embeddings_multiple_entities(self, mock_base_init, mock_uuid, mock_qdrant_client):
+    async def test_store_graph_embeddings_multiple_entities(self, mock_uuid, mock_qdrant_client):
         """Test storing graph embeddings with multiple entities"""
         # Arrange
-        mock_base_init.return_value = None
         mock_qdrant_instance = MagicMock()
         mock_qdrant_instance.collection_exists.return_value = True
         mock_qdrant_client.return_value = mock_qdrant_instance
@@ -116,7 +110,10 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        
+
+        # Add collection to known_collections (simulates config push)
+        processor.known_collections[('multi_user', 'multi_collection')] = {}
+
         # Create mock message with multiple entities
         mock_message = MagicMock()
         mock_message.metadata.user = 'multi_user'
@@ -156,11 +153,9 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
 
     @patch('trustgraph.storage.graph_embeddings.qdrant.write.QdrantClient')
     @patch('trustgraph.storage.graph_embeddings.qdrant.write.uuid')
-    @patch('trustgraph.base.GraphEmbeddingsStoreService.__init__')
-    async def test_store_graph_embeddings_multiple_vectors_per_entity(self, mock_base_init, mock_uuid, mock_qdrant_client):
+    async def test_store_graph_embeddings_multiple_vectors_per_entity(self, mock_uuid, mock_qdrant_client):
         """Test storing graph embeddings with multiple vectors per entity"""
         # Arrange
-        mock_base_init.return_value = None
         mock_qdrant_instance = MagicMock()
         mock_qdrant_instance.collection_exists.return_value = True
         mock_qdrant_client.return_value = mock_qdrant_instance
@@ -174,7 +169,10 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
-        
+
+        # Add collection to known_collections (simulates config push)
+        processor.known_collections[('vector_user', 'vector_collection')] = {}
+
         # Create mock message with entity having multiple vectors
         mock_message = MagicMock()
         mock_message.metadata.user = 'vector_user'
@@ -212,11 +210,9 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
             assert point.payload['entity'] == 'multi_vector_entity'
 
     @patch('trustgraph.storage.graph_embeddings.qdrant.write.QdrantClient')
-    @patch('trustgraph.base.GraphEmbeddingsStoreService.__init__')
-    async def test_store_graph_embeddings_empty_entity_value(self, mock_base_init, mock_qdrant_client):
+    async def test_store_graph_embeddings_empty_entity_value(self, mock_qdrant_client):
         """Test storing graph embeddings skips empty entity values"""
         # Arrange
-        mock_base_init.return_value = None
         mock_qdrant_instance = MagicMock()
         mock_qdrant_client.return_value = mock_qdrant_instance
         
@@ -253,11 +249,9 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_qdrant_instance.collection_exists.assert_not_called()
 
     @patch('trustgraph.storage.graph_embeddings.qdrant.write.QdrantClient')
-    @patch('trustgraph.base.GraphEmbeddingsStoreService.__init__')
-    async def test_processor_initialization_with_defaults(self, mock_base_init, mock_qdrant_client):
+    async def test_processor_initialization_with_defaults(self, mock_qdrant_client):
         """Test processor initialization with default values"""
         # Arrange
-        mock_base_init.return_value = None
         mock_qdrant_instance = MagicMock()
         mock_qdrant_client.return_value = mock_qdrant_instance
         
@@ -275,11 +269,9 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_qdrant_client.assert_called_once_with(url='http://localhost:6333', api_key=None)
 
     @patch('trustgraph.storage.graph_embeddings.qdrant.write.QdrantClient')
-    @patch('trustgraph.base.GraphEmbeddingsStoreService.__init__')
-    async def test_add_args_calls_parent(self, mock_base_init, mock_qdrant_client):
+    async def test_add_args_calls_parent(self, mock_qdrant_client):
         """Test that add_args() calls parent add_args method"""
         # Arrange
-        mock_base_init.return_value = None
         mock_qdrant_client.return_value = MagicMock()
         mock_parser = MagicMock()
         

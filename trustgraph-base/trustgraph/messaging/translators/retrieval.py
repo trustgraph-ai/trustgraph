@@ -34,14 +34,12 @@ class DocumentRagResponseTranslator(MessageTranslator):
     def from_pulsar(self, obj: DocumentRagResponse) -> Dict[str, Any]:
         result = {}
 
-        # Check if this is a streaming response (has chunk)
-        if hasattr(obj, 'chunk') and obj.chunk:
-            result["chunk"] = obj.chunk
-            result["end_of_stream"] = getattr(obj, "end_of_stream", False)
-        else:
-            # Non-streaming response
-            if obj.response:
-                result["response"] = obj.response
+        # Include response content (even if empty string)
+        if obj.response is not None:
+            result["response"] = obj.response
+
+        # Include end_of_stream flag
+        result["end_of_stream"] = getattr(obj, "end_of_stream", False)
 
         # Always include error if present
         if hasattr(obj, 'error') and obj.error and obj.error.message:
@@ -51,13 +49,7 @@ class DocumentRagResponseTranslator(MessageTranslator):
 
     def from_response_with_completion(self, obj: DocumentRagResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
-        # For streaming responses, check end_of_stream
-        if hasattr(obj, 'chunk') and obj.chunk:
-            is_final = getattr(obj, 'end_of_stream', False)
-        else:
-            # For non-streaming responses, it's always final
-            is_final = True
-
+        is_final = getattr(obj, 'end_of_stream', False)
         return self.from_pulsar(obj), is_final
 
 
@@ -98,14 +90,12 @@ class GraphRagResponseTranslator(MessageTranslator):
     def from_pulsar(self, obj: GraphRagResponse) -> Dict[str, Any]:
         result = {}
 
-        # Check if this is a streaming response (has chunk)
-        if hasattr(obj, 'chunk') and obj.chunk:
-            result["chunk"] = obj.chunk
-            result["end_of_stream"] = getattr(obj, "end_of_stream", False)
-        else:
-            # Non-streaming response
-            if obj.response:
-                result["response"] = obj.response
+        # Include response content (even if empty string)
+        if obj.response is not None:
+            result["response"] = obj.response
+
+        # Include end_of_stream flag
+        result["end_of_stream"] = getattr(obj, "end_of_stream", False)
 
         # Always include error if present
         if hasattr(obj, 'error') and obj.error and obj.error.message:
@@ -115,11 +105,5 @@ class GraphRagResponseTranslator(MessageTranslator):
 
     def from_response_with_completion(self, obj: GraphRagResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
-        # For streaming responses, check end_of_stream
-        if hasattr(obj, 'chunk') and obj.chunk:
-            is_final = getattr(obj, 'end_of_stream', False)
-        else:
-            # For non-streaming responses, it's always final
-            is_final = True
-
+        is_final = getattr(obj, 'end_of_stream', False)
         return self.from_pulsar(obj), is_final

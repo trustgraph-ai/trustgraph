@@ -7,6 +7,7 @@ import time
 from pulsar.schema import JsonSchema
 
 from .. exceptions import *
+from ..base.pubsub import get_pubsub
 
 # Default timeout for a request/response.  In seconds.
 DEFAULT_TIMEOUT=300
@@ -39,30 +40,25 @@ class BaseClient:
         if subscriber == None:
             subscriber = str(uuid.uuid4())
 
-        if pulsar_api_key:
-            auth = pulsar.AuthenticationToken(pulsar_api_key)
-            self.client = pulsar.Client(
-                pulsar_host,
-                logger=pulsar.ConsoleLogger(log_level),
-                authentication=auth,
-                listener=listener,
-            )
-        else:
-            self.client = pulsar.Client(
-                pulsar_host,
-                logger=pulsar.ConsoleLogger(log_level),
-                listener_name=listener,
-            )
+        # Create backend using factory
+        self.backend = get_pubsub(
+            pulsar_host=pulsar_host,
+            pulsar_api_key=pulsar_api_key,
+            pulsar_listener=listener,
+            pubsub_backend='pulsar'
+        )
 
-        self.producer = self.client.create_producer(
+        self.producer = self.backend.create_producer(
             topic=input_queue,
-            schema=JsonSchema(input_schema),
+            schema=input_schema,
             chunking_enabled=True,
         )
 
-        self.consumer = self.client.subscribe(
-            output_queue, subscriber,
-            schema=JsonSchema(output_schema),
+        self.consumer = self.backend.create_consumer(
+            topic=output_queue,
+            subscription=subscriber,
+            schema=output_schema,
+            consumer_type='shared',
         )
 
         self.input_schema = input_schema
@@ -136,10 +132,11 @@ class BaseClient:
 
         if hasattr(self, "consumer"):
             self.consumer.close()
-            
+
         if hasattr(self, "producer"):
             self.producer.flush()
             self.producer.close()
-            
-        self.client.close()
+
+        if hasattr(self, "backend"):
+            self.backend.close()
 

@@ -57,7 +57,9 @@ class StructuredDataDiagnosisResponseTranslator(MessageTranslator):
                 result["descriptor"] = obj.descriptor
         if obj.metadata:
             result["metadata"] = obj.metadata
-        if obj.schema_matches is not None:
+        # For schema-selection, always include schema_matches (even if empty)
+        # For other operations, only include if non-empty
+        if obj.operation == "schema-selection" or obj.schema_matches:
             result["schema-matches"] = obj.schema_matches
 
         return result

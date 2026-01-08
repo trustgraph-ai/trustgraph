@@ -15,12 +15,12 @@ class TestServiceRequestor:
     @patch('trustgraph.gateway.dispatch.requestor.Subscriber')
     def test_service_requestor_initialization(self, mock_subscriber, mock_publisher):
         """Test ServiceRequestor initialization"""
-        mock_pulsar_client = MagicMock()
+        mock_backend = MagicMock()
         mock_request_schema = MagicMock()
         mock_response_schema = MagicMock()
         
         requestor = ServiceRequestor(
-            pulsar_client=mock_pulsar_client,
+            backend=mock_backend,
             request_queue="test-request-queue",
             request_schema=mock_request_schema,
             response_queue="test-response-queue",
@@ -32,12 +32,12 @@ class TestServiceRequestor:
         
         # Verify Publisher was created correctly
         mock_publisher.assert_called_once_with(
-            mock_pulsar_client, "test-request-queue", schema=mock_request_schema
+            mock_backend, "test-request-queue", schema=mock_request_schema
         )
         
         # Verify Subscriber was created correctly
         mock_subscriber.assert_called_once_with(
-            mock_pulsar_client, "test-response-queue",
+            mock_backend, "test-response-queue",
             "test-subscription", "test-consumer", mock_response_schema
         )
         
@@ -48,12 +48,12 @@ class TestServiceRequestor:
     @patch('trustgraph.gateway.dispatch.requestor.Subscriber')
     def test_service_requestor_with_defaults(self, mock_subscriber, mock_publisher):
         """Test ServiceRequestor initialization with default parameters"""
-        mock_pulsar_client = MagicMock()
+        mock_backend = MagicMock()
         mock_request_schema = MagicMock()
         mock_response_schema = MagicMock()
         
         requestor = ServiceRequestor(
-            pulsar_client=mock_pulsar_client,
+            backend=mock_backend,
             request_queue="test-queue",
             request_schema=mock_request_schema,
             response_queue="response-queue",
@@ -62,7 +62,7 @@ class TestServiceRequestor:
         
         # Verify default values
         mock_subscriber.assert_called_once_with(
-            mock_pulsar_client, "response-queue",
+            mock_backend, "response-queue",
             "api-gateway", "api-gateway", mock_response_schema
         )
         assert requestor.timeout == 600  # Default timeout
@@ -72,14 +72,14 @@ class TestServiceRequestor:
     @pytest.mark.asyncio
     async def test_service_requestor_start(self, mock_subscriber, mock_publisher):
         """Test ServiceRequestor start method"""
-        mock_pulsar_client = MagicMock()
+        mock_backend = MagicMock()
         mock_sub_instance = AsyncMock()
         mock_pub_instance = AsyncMock()
         mock_subscriber.return_value = mock_sub_instance
         mock_publisher.return_value = mock_pub_instance
         
         requestor = ServiceRequestor(
-            pulsar_client=mock_pulsar_client,
+            backend=mock_backend,
             request_queue="test-queue",
             request_schema=MagicMock(),
             response_queue="response-queue",
@@ -98,14 +98,14 @@ class TestServiceRequestor:
     @patch('trustgraph.gateway.dispatch.requestor.Subscriber')
     def test_service_requestor_attributes(self, mock_subscriber, mock_publisher):
         """Test ServiceRequestor has correct attributes"""
-        mock_pulsar_client = MagicMock()
+        mock_backend = MagicMock()
         mock_pub_instance = AsyncMock()
         mock_sub_instance = AsyncMock()
         mock_publisher.return_value = mock_pub_instance
         mock_subscriber.return_value = mock_sub_instance
         
         requestor = ServiceRequestor(
-            pulsar_client=mock_pulsar_client,
+            backend=mock_backend,
             request_queue="test-queue",
             request_schema=MagicMock(),
             response_queue="response-queue",

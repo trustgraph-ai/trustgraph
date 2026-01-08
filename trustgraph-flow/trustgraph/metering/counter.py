@@ -20,24 +20,18 @@ class Processor(FlowProcessor):
 
         id = params.get("id", default_ident)
 
-        if not hasattr(__class__, "input_token_metric"):
-            __class__.input_token_metric = Counter(
-                'input_tokens', 'Input token count'
+        if not hasattr(__class__, "token_metric"):
+            __class__.token_metric = Counter(
+                'tokens',
+                'Token count',
+                ['model', 'direction']
             )
 
-        if not hasattr(__class__, "output_token_metric"):
-            __class__.output_token_metric = Counter(
-                'output_tokens', 'Output token count'
-            )
-
-        if not hasattr(__class__, "input_cost_metric"):
-            __class__.input_cost_metric = Counter(
-                'input_cost', 'Input cost'
-            )
-
-        if not hasattr(__class__, "output_cost_metric"):
-            __class__.output_cost_metric = Counter(
-                'output_cost', 'Output cost'
+        if not hasattr(__class__, "cost_metric"):
+            __class__.cost_metric = Counter(
+                'cost',
+                'Cost in USD',
+                ['model', 'direction']
             )
 
         super(Processor, self).__init__(
@@ -87,12 +81,13 @@ class Processor(FlowProcessor):
 
         v = msg.value()
 
-        modelname = v.model
-        num_in = v.in_token
-        num_out = v.out_token
+        modelname = v.model or "unknown"
+        num_in = v.in_token or 0
+        num_out = v.out_token or 0
 
-        __class__.input_token_metric.inc(num_in)
-        __class__.output_token_metric.inc(num_out)
+        # Increment token metrics with model and direction labels
+        __class__.token_metric.labels(model=modelname, direction="input").inc(num_in)
+        __class__.token_metric.labels(model=modelname, direction="output").inc(num_out)
 
         model_input_price, model_output_price = self.get_prices(modelname)
 
@@ -103,9 +98,11 @@ class Processor(FlowProcessor):
             cost_out = num_out * model_output_price
             cost_per_call = round(cost_in + cost_out, 6)
 
-            __class__.input_cost_metric.inc(cost_in)
-            __class__.output_cost_metric.inc(cost_out)
+            # Increment cost metrics with model and direction labels
+            __class__.cost_metric.labels(model=modelname, direction="input").inc(cost_in)
+            __class__.cost_metric.labels(model=modelname, direction="output").inc(cost_out)
 
+        logger.info(f"Model: {modelname}")
         logger.info(f"Input Tokens: {num_in}")
         logger.info(f"Output Tokens: {num_out}")
         logger.info(f"Cost for call: ${cost_per_call}")

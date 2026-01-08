@@ -102,7 +102,7 @@ async def test_handle_normal_flow():
     """Test normal websocket handling flow."""
     mock_auth = MagicMock()
     mock_auth.permitted.return_value = True
-    
+
     dispatcher_created = False
     async def mock_dispatcher_factory(ws, running, match_info):
         nonlocal dispatcher_created
@@ -110,33 +110,43 @@ async def test_handle_normal_flow():
         dispatcher = AsyncMock()
         dispatcher.destroy = AsyncMock()
         return dispatcher
-    
+
     socket_endpoint = SocketEndpoint("/test", mock_auth, mock_dispatcher_factory)
-    
+
     request = MagicMock()
     request.query = {"token": "valid-token"}
     request.match_info = {}
-    
+
     with patch('aiohttp.web.WebSocketResponse') as mock_ws_class:
         mock_ws = AsyncMock()
         mock_ws.prepare = AsyncMock()
         mock_ws.close = AsyncMock()
         mock_ws.closed = False
         mock_ws_class.return_value = mock_ws
-        
+
         with patch('asyncio.TaskGroup') as mock_task_group:
             # Mock task group context manager
             mock_tg = AsyncMock()
             mock_tg.__aenter__ = AsyncMock(return_value=mock_tg)
             mock_tg.__aexit__ = AsyncMock(return_value=None)
-            mock_tg.create_task = MagicMock(return_value=AsyncMock())
+
+            # Create proper mock tasks that look like asyncio.Task objects
+            def create_task_mock(coro):
+                # Consume the coroutine to avoid "was never awaited" warning
+                coro.close()
+                task = AsyncMock()
+                task.done = MagicMock(return_value=True)
+                task.cancelled = MagicMock(return_value=False)
+                return task
+
+            mock_tg.create_task = MagicMock(side_effect=create_task_mock)
             mock_task_group.return_value = mock_tg
-            
+
             result = await socket_endpoint.handle(request)
-    
+
     # Should have created dispatcher
     assert dispatcher_created is True
-    
+
     # Should return websocket
     assert result == mock_ws
 
@@ -146,50 +156,64 @@ async def test_handle_exception_group_cleanup():
     """Test exception group triggers dispatcher cleanup."""
     mock_auth = MagicMock()
     mock_auth.permitted.return_value = True
-    
+
     mock_dispatcher = AsyncMock()
     mock_dispatcher.destroy = AsyncMock()
-    
+
     async def mock_dispatcher_factory(ws, running, match_info):
         return mock_dispatcher
-    
+
     socket_endpoint = SocketEndpoint("/test", mock_auth, mock_dispatcher_factory)
-    
+
     request = MagicMock()
     request.query = {"token": "valid-token"}
     request.match_info = {}
-    
+
     # Mock TaskGroup to raise ExceptionGroup
     class TestException(Exception):
         pass
-    
+
     exception_group = ExceptionGroup("Test exceptions", [TestException("test")])
-    
+
     with patch('aiohttp.web.WebSocketResponse') as mock_ws_class:
         mock_ws = AsyncMock()
         mock_ws.prepare = AsyncMock()
-        mock_ws.close = AsyncMock() 
+        mock_ws.close = AsyncMock()
         mock_ws.closed = False
         mock_ws_class.return_value = mock_ws
-        
+
         with patch('asyncio.TaskGroup') as mock_task_group:
             mock_tg = AsyncMock()
             mock_tg.__aenter__ = AsyncMock(return_value=mock_tg)
             mock_tg.__aexit__ = AsyncMock(side_effect=exception_group)
-            mock_tg.create_task = MagicMock(side_effect=TestException("test"))
+
+            # Create proper mock tasks that look like asyncio.Task objects
+            def create_task_mock(coro):
+                # Consume the coroutine to avoid "was never awaited" warning
+                coro.close()
+                task = AsyncMock()
+                task.done = MagicMock(return_value=True)
+                task.cancelled = MagicMock(return_value=False)
+                return task
+
+            mock_tg.create_task = MagicMock(side_effect=create_task_mock)
             mock_task_group.return_value = mock_tg
-            
-            with patch('trustgraph.gateway.endpoint.socket.asyncio.wait_for') as mock_wait_for:
-                mock_wait_for.return_value = None
-                
+
+            with patch('trustgraph.gateway.endpoint.socket.asyncio.wait_for', new_callable=AsyncMock) as mock_wait_for:
+                # Make wait_for consume the coroutine passed to it
+                async def wait_for_side_effect(coro, timeout=None):
+                    coro.close()  # Consume the coroutine
+                    return None
+                mock_wait_for.side_effect = wait_for_side_effect
+
                 result = await socket_endpoint.handle(request)
-    
+
     # Should have attempted graceful cleanup
     mock_wait_for.assert_called_once()
-    
+
     # Should have called destroy in finally block
     assert mock_dispatcher.destroy.call_count >= 1
-    
+
     # Should have closed websocket
     mock_ws.close.assert_called()
 
@@ -199,48 +223,62 @@ async def test_handle_dispatcher_cleanup_timeout():
     """Test dispatcher cleanup with timeout."""
     mock_auth = MagicMock()
     mock_auth.permitted.return_value = True
-    
+
     # Mock dispatcher that takes long to destroy
     mock_dispatcher = AsyncMock()
     mock_dispatcher.destroy = AsyncMock()
-    
+
     async def mock_dispatcher_factory(ws, running, match_info):
         return mock_dispatcher
-    
+
     socket_endpoint = SocketEndpoint("/test", mock_auth, mock_dispatcher_factory)
-    
+
     request = MagicMock()
     request.query = {"token": "valid-token"}
     request.match_info = {}
-    
+
     # Mock TaskGroup to raise exception
     exception_group = ExceptionGroup("Test", [Exception("test")])
-    
+
     with patch('aiohttp.web.WebSocketResponse') as mock_ws_class:
         mock_ws = AsyncMock()
         mock_ws.prepare = AsyncMock()
         mock_ws.close = AsyncMock()
         mock_ws.closed = False
         mock_ws_class.return_value = mock_ws
-        
+
         with patch('asyncio.TaskGroup') as mock_task_group:
             mock_tg = AsyncMock()
             mock_tg.__aenter__ = AsyncMock(return_value=mock_tg)
             mock_tg.__aexit__ = AsyncMock(side_effect=exception_group)
-            mock_tg.create_task = MagicMock(side_effect=Exception("test"))
+
+            # Create proper mock tasks that look like asyncio.Task objects
+            def create_task_mock(coro):
+                # Consume the coroutine to avoid "was never awaited" warning
+                coro.close()
+                task = AsyncMock()
+                task.done = MagicMock(return_value=True)
+                task.cancelled = MagicMock(return_value=False)
+                return task
+
+            mock_tg.create_task = MagicMock(side_effect=create_task_mock)
             mock_task_group.return_value = mock_tg
-            
+
             # Mock asyncio.wait_for to raise TimeoutError
-            with patch('trustgraph.gateway.endpoint.socket.asyncio.wait_for') as mock_wait_for:
-                mock_wait_for.side_effect = asyncio.TimeoutError("Cleanup timeout")
-                
+            with patch('trustgraph.gateway.endpoint.socket.asyncio.wait_for', new_callable=AsyncMock) as mock_wait_for:
+                # Make wait_for consume the coroutine before raising
+                async def wait_for_timeout(coro, timeout=None):
+                    coro.close()  # Consume the coroutine
+                    raise asyncio.TimeoutError("Cleanup timeout")
+                mock_wait_for.side_effect = wait_for_timeout
+
                 result = await socket_endpoint.handle(request)
-    
+
     # Should have attempted cleanup with timeout
     mock_wait_for.assert_called_once()
     # Check that timeout was passed correctly
     assert mock_wait_for.call_args[1]['timeout'] == 5.0
-    
+
     # Should still call destroy in finally block
     assert mock_dispatcher.destroy.call_count >= 1
 
@@ -290,37 +328,47 @@ async def test_handle_websocket_already_closed():
     """Test handling when websocket is already closed."""
     mock_auth = MagicMock()
     mock_auth.permitted.return_value = True
-    
+
     mock_dispatcher = AsyncMock()
     mock_dispatcher.destroy = AsyncMock()
-    
+
     async def mock_dispatcher_factory(ws, running, match_info):
         return mock_dispatcher
-    
+
     socket_endpoint = SocketEndpoint("/test", mock_auth, mock_dispatcher_factory)
-    
+
     request = MagicMock()
     request.query = {"token": "valid-token"}
     request.match_info = {}
-    
+
     with patch('aiohttp.web.WebSocketResponse') as mock_ws_class:
         mock_ws = AsyncMock()
         mock_ws.prepare = AsyncMock()
         mock_ws.close = AsyncMock()
         mock_ws.closed = True  # Already closed
         mock_ws_class.return_value = mock_ws
-        
+
         with patch('asyncio.TaskGroup') as mock_task_group:
             mock_tg = AsyncMock()
             mock_tg.__aenter__ = AsyncMock(return_value=mock_tg)
             mock_tg.__aexit__ = AsyncMock(return_value=None)
-            mock_tg.create_task = MagicMock(return_value=AsyncMock())
+
+            # Create proper mock tasks that look like asyncio.Task objects
+            def create_task_mock(coro):
+                # Consume the coroutine to avoid "was never awaited" warning
+                coro.close()
+                task = AsyncMock()
+                task.done = MagicMock(return_value=True)
+                task.cancelled = MagicMock(return_value=False)
+                return task
+
+            mock_tg.create_task = MagicMock(side_effect=create_task_mock)
             mock_task_group.return_value = mock_tg
-            
+
             result = await socket_endpoint.handle(request)
-    
+
     # Should still have called destroy
     mock_dispatcher.destroy.assert_called()
-    
+
     # Should not attempt to close already closed websocket
     mock_ws.close.assert_not_called()  # Not called in finally since ws.closed = True

@@ -6,23 +6,11 @@ import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 from trustgraph.base.subscriber import Subscriber
 
-# Mock JsonSchema globally to avoid schema issues in tests  
-# Patch at the module level where it's imported in subscriber
-@patch('trustgraph.base.subscriber.JsonSchema')
-def mock_json_schema_global(mock_schema):
-    mock_schema.return_value = MagicMock()
-    return mock_schema
-
-# Apply the global patch
-_json_schema_patch = patch('trustgraph.base.subscriber.JsonSchema')
-_mock_json_schema = _json_schema_patch.start()
-_mock_json_schema.return_value = MagicMock()
-
 
 @pytest.fixture
-def mock_pulsar_client():
-    """Mock Pulsar client for testing."""
-    client = MagicMock()
+def mock_pulsar_backend():
+    """Mock Pulsar backend for testing."""
+    backend = MagicMock()
     consumer = MagicMock()
     consumer.receive = MagicMock()
     consumer.acknowledge = MagicMock()
@@ -30,15 +18,15 @@ def mock_pulsar_client():
     consumer.pause_message_listener = MagicMock()
     consumer.unsubscribe = MagicMock()
     consumer.close = MagicMock()
-    client.subscribe.return_value = consumer
-    return client
+    backend.create_consumer.return_value = consumer
+    return backend
 
 
 @pytest.fixture
-def subscriber(mock_pulsar_client):
+def subscriber(mock_pulsar_backend):
     """Create Subscriber instance for testing."""
     return Subscriber(
-        client=mock_pulsar_client,
+        backend=mock_pulsar_backend,
         topic="test-topic",
         subscription="test-subscription",
         consumer_name="test-consumer",
@@ -60,14 +48,14 @@ def create_mock_message(message_id="test-id", data=None):
 @pytest.mark.asyncio
 async def test_subscriber_deferred_acknowledgment_success():
     """Verify Subscriber only acks on successful delivery."""
-    mock_client = MagicMock()
+    mock_backend = MagicMock()
     mock_consumer = MagicMock()
-    mock_client.subscribe.return_value = mock_consumer
-    
+    mock_backend.create_consumer.return_value = mock_consumer
+
     subscriber = Subscriber(
-        client=mock_client,
+        backend=mock_backend,
         topic="test-topic",
-        subscription="test-subscription", 
+        subscription="test-subscription",
         consumer_name="test-consumer",
         schema=dict,
         max_size=10,
@@ -102,15 +90,15 @@ async def test_subscriber_deferred_acknowledgment_success():
 @pytest.mark.asyncio
 async def test_subscriber_deferred_acknowledgment_failure():
     """Verify Subscriber negative acks on delivery failure."""
-    mock_client = MagicMock()
+    mock_backend = MagicMock()
     mock_consumer = MagicMock()
-    mock_client.subscribe.return_value = mock_consumer
-    
+    mock_backend.create_consumer.return_value = mock_consumer
+
     subscriber = Subscriber(
-        client=mock_client,
+        backend=mock_backend,
         topic="test-topic",
         subscription="test-subscription",
-        consumer_name="test-consumer", 
+        consumer_name="test-consumer",
         schema=dict,
         max_size=1,  # Very small queue
         backpressure_strategy="drop_new"
@@ -140,14 +128,14 @@ async def test_subscriber_deferred_acknowledgment_failure():
 @pytest.mark.asyncio
 async def test_subscriber_backpressure_strategies():
     """Test different backpressure strategies."""
-    mock_client = MagicMock()
+    mock_backend = MagicMock()
     mock_consumer = MagicMock()
-    mock_client.subscribe.return_value = mock_consumer
-    
+    mock_backend.create_consumer.return_value = mock_consumer
+
     # Test drop_oldest strategy
     subscriber = Subscriber(
-        client=mock_client,
-        topic="test-topic", 
+        backend=mock_backend,
+        topic="test-topic",
         subscription="test-subscription",
         consumer_name="test-consumer",
         schema=dict,
@@ -187,12 +175,12 @@ async def test_subscriber_backpressure_strategies():
 @pytest.mark.asyncio
 async def test_subscriber_graceful_shutdown():
     """Test Subscriber graceful shutdown with queue draining."""
-    mock_client = MagicMock()
+    mock_backend = MagicMock()
     mock_consumer = MagicMock()
-    mock_client.subscribe.return_value = mock_consumer
-    
+    mock_backend.create_consumer.return_value = mock_consumer
+
     subscriber = Subscriber(
-        client=mock_client,
+        backend=mock_backend,
         topic="test-topic",
         subscription="test-subscription",
         consumer_name="test-consumer",
@@ -253,14 +241,14 @@ async def test_subscriber_graceful_shutdown():
 @pytest.mark.asyncio
 async def test_subscriber_drain_timeout():
     """Test Subscriber respects drain timeout."""
-    mock_client = MagicMock()
+    mock_backend = MagicMock()
     mock_consumer = MagicMock()
-    mock_client.subscribe.return_value = mock_consumer
-    
+    mock_backend.create_consumer.return_value = mock_consumer
+
     subscriber = Subscriber(
-        client=mock_client,
+        backend=mock_backend,
         topic="test-topic",
-        subscription="test-subscription", 
+        subscription="test-subscription",
         consumer_name="test-consumer",
         schema=dict,
         max_size=10,
@@ -288,12 +276,12 @@ async def test_subscriber_drain_timeout():
 @pytest.mark.asyncio
 async def test_subscriber_pending_acks_cleanup():
     """Test Subscriber cleans up pending acknowledgments on shutdown."""
-    mock_client = MagicMock()
+    mock_backend = MagicMock()
     mock_consumer = MagicMock()
-    mock_client.subscribe.return_value = mock_consumer
-    
+    mock_backend.create_consumer.return_value = mock_consumer
+
     subscriber = Subscriber(
-        client=mock_client,
+        backend=mock_backend,
         topic="test-topic",
         subscription="test-subscription",
         consumer_name="test-consumer",
@@ -342,12 +330,12 @@ async def test_subscriber_pending_acks_cleanup():
 @pytest.mark.asyncio
 async def test_subscriber_multiple_subscribers():
     """Test Subscriber with multiple concurrent subscribers."""
-    mock_client = MagicMock()
+    mock_backend = MagicMock()
     mock_consumer = MagicMock()
-    mock_client.subscribe.return_value = mock_consumer
-    
+    mock_backend.create_consumer.return_value = mock_consumer
+
     subscriber = Subscriber(
-        client=mock_client,
+        backend=mock_backend,
         topic="test-topic",
         subscription="test-subscription",
         consumer_name="test-consumer",

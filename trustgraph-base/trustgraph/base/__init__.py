@@ -1,11 +1,12 @@
 
-from . pubsub import PulsarClient
+from . pubsub import PulsarClient, get_pubsub
 from . async_processor import AsyncProcessor
 from . consumer import Consumer
 from . producer import Producer
 from . publisher import Publisher
 from . subscriber import Subscriber
 from . metrics import ProcessorMetrics, ConsumerMetrics, ProducerMetrics
+from . logging import add_logging_args, setup_logging
 from . flow_processor import FlowProcessor
 from . consumer_spec import ConsumerSpec
 from . parameter_spec import ParameterSpec
@@ -33,4 +34,5 @@ from . tool_service import ToolService
 from . tool_client import ToolClientSpec
 from . agent_client import AgentClientSpec
 from . structured_query_client import StructuredQueryClientSpec
+from . collection_config_handler import CollectionConfigHandler
 

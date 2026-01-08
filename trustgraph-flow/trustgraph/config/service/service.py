@@ -26,9 +26,6 @@ from ... base import Consumer, Producer
 # Module logger
 logger = logging.getLogger(__name__)
 
-# FIXME: How to ensure this doesn't conflict with other usage?
-keyspace = "config"
-
 default_ident = "config-svc"
 
 default_config_request_queue = config_request_queue
@@ -64,12 +61,13 @@ class Processor(AsyncProcessor):
         cassandra_host = params.get("cassandra_host")
         cassandra_username = params.get("cassandra_username")
         cassandra_password = params.get("cassandra_password")
-        
+
         # Resolve configuration with environment variable fallback
-        hosts, username, password = resolve_cassandra_config(
+        hosts, username, password, keyspace = resolve_cassandra_config(
             host=cassandra_host,
             username=cassandra_username,
-            password=cassandra_password
+            password=cassandra_password,
+            default_keyspace="config"
         )
         
         # Store resolved configuration
@@ -114,7 +112,7 @@ class Processor(AsyncProcessor):
 
         self.config_request_consumer = Consumer(
             taskgroup = self.taskgroup,
-            client = self.pulsar_client,
+            backend = self.pubsub,
             flow = None,
             topic = config_request_queue,
             subscriber = id,
@@ -124,14 +122,14 @@ class Processor(AsyncProcessor):
         )
 
         self.config_response_producer = Producer(
-            client = self.pulsar_client,
+            backend = self.pubsub,
             topic = config_response_queue,
             schema = ConfigResponse,
             metrics = config_response_metrics,
         )
 
         self.config_push_producer = Producer(
-            client = self.pulsar_client,
+            backend = self.pubsub,
             topic = config_push_queue,
             schema = ConfigPush,
             metrics = config_push_metrics,
@@ -139,7 +137,7 @@ class Processor(AsyncProcessor):
 
         self.flow_request_consumer = Consumer(
             taskgroup = self.taskgroup,
-            client = self.pulsar_client,
+            backend = self.pubsub,
             flow = None,
             topic = flow_request_queue,
             subscriber = id,
@@ -149,7 +147,7 @@ class Processor(AsyncProcessor):
         )
 
         self.flow_response_producer = Producer(
-            client = self.pulsar_client,
+            backend = self.pubsub,
             topic = flow_response_queue,
             schema = FlowResponse,
             metrics = flow_response_metrics,
@@ -180,11 +178,7 @@ class Processor(AsyncProcessor):
 
         resp = ConfigPush(
             version = version,
-            value = None,
-            directory = None,
-            values = None,
             config = config,
-            error = None,
         )
 
         await self.config_push_producer.send(resp)
@@ -217,7 +211,6 @@ class Processor(AsyncProcessor):
                     type = "config-error",
                     message = str(e),
                 ),
-                text=None,
             )
 
             await self.config_response_producer.send(
@@ -242,13 +235,12 @@ class Processor(AsyncProcessor):
             )
 
         except Exception as e:
-            
+
             resp = FlowResponse(
                 error=Error(
                     type = "flow-error",
                     message = str(e),
                 ),
-                text=None,
             )
 
             await self.flow_response_producer.send(
@@ -272,11 +264,7 @@ class Processor(AsyncProcessor):
             help=f'Config response queue {default_config_response_queue}',
         )
 
-        parser.add_argument(
-            '--push-queue',
-            default=default_config_push_queue,
-            help=f'Config push queue (default: {default_config_push_queue})'
-        )
+        # Note: --config-push-queue is already added by AsyncProcessor.add_args()
 
         parser.add_argument(
             '--flow-request-queue',

@@ -8,10 +8,11 @@ import json
 from trustgraph.api import Api
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
-def list_config_items(url, config_type, format_type):
+def list_config_items(url, config_type, format_type, token=None):
 
-    api = Api(url).config()
+    api = Api(url, token=token).config()
 
     keys = api.list(config_type)
 
@@ -47,6 +48,12 @@ def main():
         help=f'API URL (default: {default_url})',
     )
 
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
     args = parser.parse_args()
 
     try:
@@ -55,6 +62,7 @@ def main():
             url=args.api_url,
             config_type=args.type,
             format_type=args.format,
+            token=args.token,
         )
 
     except Exception as e:

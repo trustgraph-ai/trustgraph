@@ -7,14 +7,20 @@ from ... messaging import TranslatorRegistry
 from . requestor import ServiceRequestor
 
 class FlowRequestor(ServiceRequestor):
-    def __init__(self, pulsar_client, consumer, subscriber, timeout=120):
+    def __init__(self, backend, consumer, subscriber, timeout=120,
+                 request_queue=None, response_queue=None):
+
+        if request_queue is None:
+            request_queue = flow_request_queue
+        if response_queue is None:
+            response_queue = flow_response_queue
 
         super(FlowRequestor, self).__init__(
-            pulsar_client=pulsar_client,
+            backend=backend,
             consumer_name = consumer,
             subscription = subscriber,
-            request_queue=flow_request_queue,
-            response_queue=flow_response_queue,
+            request_queue=request_queue,
+            response_queue=response_queue,
             request_schema=FlowRequest,
             response_schema=FlowResponse,
             timeout=timeout,

@@ -17,12 +17,14 @@ class Librarian:
     def __init__(
             self,
             cassandra_host, cassandra_username, cassandra_password,
-            minio_host, minio_access_key, minio_secret_key,
+            object_store_endpoint, object_store_access_key, object_store_secret_key,
             bucket_name, keyspace, load_document,
+            object_store_use_ssl=False, object_store_region=None,
     ):
 
         self.blob_store = BlobStore(
-            minio_host, minio_access_key, minio_secret_key, bucket_name
+            object_store_endpoint, object_store_access_key, object_store_secret_key, bucket_name,
+            use_ssl=object_store_use_ssl, region=object_store_region,
         )
 
         self.table_store = LibraryTableStore(

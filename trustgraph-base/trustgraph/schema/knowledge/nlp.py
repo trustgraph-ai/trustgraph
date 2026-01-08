@@ -1,4 +1,4 @@
-from pulsar.schema import Record, String, Boolean
+from dataclasses import dataclass
 
 from ..core.topic import topic
 
@@ -6,21 +6,25 @@ from ..core.topic import topic
 
 # NLP extraction data types
 
-class Definition(Record):
-    name = String()
-    definition = String()
+@dataclass
+class Definition:
+    name: str = ""
+    definition: str = ""
 
-class Topic(Record):
-    name = String()
-    definition = String()
+@dataclass
+class Topic:
+    name: str = ""
+    definition: str = ""
 
-class Relationship(Record):
-    s = String()
-    p = String()
-    o = String()
-    o_entity = Boolean()
+@dataclass
+class Relationship:
+    s: str = ""
+    p: str = ""
+    o: str = ""
+    o_entity: bool = False
 
-class Fact(Record):
-    s = String()
-    p = String()
-    o = String()
+@dataclass
+class Fact:
+    s: str = ""
+    p: str = ""
+    o: str = ""

@@ -1,4 +1,4 @@
-from pulsar.schema import Record, String, Map, Array
+from dataclasses import dataclass, field
 
 from ..core.primitives import Error
 from ..core.topic import topic
@@ -7,14 +7,17 @@ from ..core.topic import topic
 
 # Structured Query Service - executes GraphQL queries
 
-class StructuredQueryRequest(Record):
-    question = String()
-    user = String()        # Cassandra keyspace identifier
-    collection = String()  # Data collection identifier
+@dataclass
+class StructuredQueryRequest:
+    question: str = ""
+    user: str = ""        # Cassandra keyspace identifier
+    collection: str = ""  # Data collection identifier
 
-class StructuredQueryResponse(Record):
-    error = Error()
-    data = String()  # JSON-encoded GraphQL response data
-    errors = Array(String())  # GraphQL errors if any
+@dataclass
+class StructuredQueryResponse:
+    error: Error | None = None
+    data: str = ""  # JSON-encoded GraphQL response data
+    errors: list[str] = field(default_factory=list)  # GraphQL errors if any
 
 ############################################################################
+

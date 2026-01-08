@@ -19,7 +19,7 @@ class ConsumerSpec(Spec):
         consumer = Consumer(
             taskgroup = processor.taskgroup,
             flow = flow,
-            client = processor.pulsar_client,
+            backend = processor.pubsub,
             topic = definition[self.name],
             subscriber = processor.id + "--" + flow.name + "--" + self.name,
             schema = self.schema,

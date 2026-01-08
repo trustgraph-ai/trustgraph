@@ -1,4 +1,4 @@
-from pulsar.schema import Record, String, Integer, Array, Double
+from dataclasses import dataclass, field
 
 from ..core.primitives import Error, Value, Triple
 from ..core.topic import topic
@@ -7,49 +7,55 @@ from ..core.topic import topic
 
 # Graph embeddings query
 
-class GraphEmbeddingsRequest(Record):
-    vectors = Array(Array(Double()))
-    limit = Integer()
-    user = String()
-    collection = String()
+@dataclass
+class GraphEmbeddingsRequest:
+    vectors: list[list[float]] = field(default_factory=list)
+    limit: int = 0
+    user: str = ""
+    collection: str = ""
 
-class GraphEmbeddingsResponse(Record):
-    error = Error()
-    entities = Array(Value())
+@dataclass
+class GraphEmbeddingsResponse:
+    error: Error | None = None
+    entities: list[Value] = field(default_factory=list)
 
 ############################################################################
 
 # Graph triples query
 
-class TriplesQueryRequest(Record):
-    user = String()
-    collection = String()
-    s = Value()
-    p = Value()
-    o = Value()
-    limit = Integer()
+@dataclass
+class TriplesQueryRequest:
+    user: str = ""
+    collection: str = ""
+    s: Value | None = None
+    p: Value | None = None
+    o: Value | None = None
+    limit: int = 0
 
-class TriplesQueryResponse(Record):
-    error = Error()
-    triples = Array(Triple())
+@dataclass
+class TriplesQueryResponse:
+    error: Error | None = None
+    triples: list[Triple] = field(default_factory=list)
 
 ############################################################################
 
 # Doc embeddings query
 
-class DocumentEmbeddingsRequest(Record):
-    vectors = Array(Array(Double()))
-    limit = Integer()
-    user = String()
-    collection = String()
+@dataclass
+class DocumentEmbeddingsRequest:
+    vectors: list[list[float]] = field(default_factory=list)
+    limit: int = 0
+    user: str = ""
+    collection: str = ""
 
-class DocumentEmbeddingsResponse(Record):
-    error = Error()
-    chunks = Array(String())
+@dataclass
+class DocumentEmbeddingsResponse:
+    error: Error | None = None
+    chunks: list[str] = field(default_factory=list)
 
 document_embeddings_request_queue = topic(
-    "non-persistent://trustgraph/document-embeddings-request"
+    "document-embeddings-request", qos='q0', tenant='trustgraph', namespace='flow'
 )
 document_embeddings_response_queue = topic(
-    "non-persistent://trustgraph/document-embeddings-response"
+    "document-embeddings-response", qos='q0', tenant='trustgraph', namespace='flow'
 )

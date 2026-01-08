@@ -1,16 +1,14 @@
-
-from pulsar.schema import Record, String, Array
+from dataclasses import dataclass, field
 from .primitives import Triple
 
-class Metadata(Record):
-
+@dataclass
+class Metadata:
     # Source identifier
-    id = String()
+    id: str = ""
 
     # Subgraph
-    metadata = Array(Triple())
+    metadata: list[Triple] = field(default_factory=list)
 
     # Collection management
-    user = String()
-    collection = String()
-
+    user: str = ""
+    collection: str = ""

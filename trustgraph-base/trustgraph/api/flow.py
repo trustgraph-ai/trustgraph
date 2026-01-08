@@ -160,14 +160,14 @@ class FlowInstance:
         )["answer"]
 
     def graph_rag(
-            self, question, user="trustgraph", collection="default",
+            self, query, user="trustgraph", collection="default",
             entity_limit=50, triple_limit=30, max_subgraph_size=150,
             max_path_length=2,
     ):
 
         # The input consists of a question
         input = {
-            "query": question,
+            "query": query,
             "user": user,
             "collection": collection,
             "entity-limit": entity_limit,
@@ -182,13 +182,13 @@ class FlowInstance:
         )["response"]
 
     def document_rag(
-            self, question, user="trustgraph", collection="default",
+            self, query, user="trustgraph", collection="default",
             doc_limit=10,
     ):
 
         # The input consists of a question
         input = {
-            "query": question,
+            "query": query,
             "user": user,
             "collection": collection,
             "doc-limit": doc_limit,
@@ -210,6 +210,21 @@ class FlowInstance:
             "service/embeddings",
             input
         )["vectors"]
+
+    def graph_embeddings_query(self, text, user, collection, limit=10):
+
+        # Query graph embeddings for semantic search
+        input = {
+            "text": text,
+            "user": user,
+            "collection": collection,
+            "limit": limit
+        }
+
+        return self.request(
+            "service/graph-embeddings",
+            input
+        )
 
     def prompt(self, id, variables):
 

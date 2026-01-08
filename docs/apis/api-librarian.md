@@ -1,8 +1,8 @@
 # TrustGraph Librarian API
 
-This API provides document library management for TrustGraph. It handles document storage, 
-metadata management, and processing orchestration using hybrid storage (MinIO for content, 
-Cassandra for metadata) with multi-user support.
+This API provides document library management for TrustGraph. It handles document storage,
+metadata management, and processing orchestration using hybrid storage (S3-compatible object
+storage for content, Cassandra for metadata) with multi-user support.
 
 ## Request/response
 
@@ -374,13 +374,14 @@ await client.add_processing(
 
 ## Features
 
-- **Hybrid Storage**: MinIO for content, Cassandra for metadata
+- **Hybrid Storage**: S3-compatible object storage (MinIO, Ceph RGW, AWS S3, etc.) for content, Cassandra for metadata
 - **Multi-user Support**: User-based document ownership and access control
 - **Rich Metadata**: RDF-style metadata triples and tagging system
 - **Processing Integration**: Automatic triggering of document processing workflows
 - **Content Types**: Support for multiple document formats (PDF, text, etc.)
 - **Collection Management**: Optional document grouping by collection
 - **Metadata Search**: Query documents by metadata criteria
+- **Flexible Storage Backend**: Works with any S3-compatible storage (MinIO, Ceph RADOS Gateway, AWS S3, Cloudflare R2, etc.)
 
 ## Use Cases
 

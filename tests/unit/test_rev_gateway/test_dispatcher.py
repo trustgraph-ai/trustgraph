@@ -72,7 +72,7 @@ class TestMessageDispatcher:
         assert dispatcher.max_workers == 10
         assert dispatcher.semaphore._value == 10
         assert dispatcher.active_tasks == set()
-        assert dispatcher.pulsar_client is None
+        assert dispatcher.backend is None
         assert dispatcher.dispatcher_manager is None
         assert len(dispatcher.service_mapping) > 0
 
@@ -86,7 +86,7 @@ class TestMessageDispatcher:
     @patch('trustgraph.rev_gateway.dispatcher.DispatcherManager')
     def test_message_dispatcher_initialization_with_pulsar_client(self, mock_dispatcher_manager):
         """Test MessageDispatcher initialization with pulsar_client and config_receiver"""
-        mock_pulsar_client = MagicMock()
+        mock_backend = MagicMock()
         mock_config_receiver = MagicMock()
         mock_dispatcher_instance = MagicMock()
         mock_dispatcher_manager.return_value = mock_dispatcher_instance
@@ -94,14 +94,14 @@ class TestMessageDispatcher:
         dispatcher = MessageDispatcher(
             max_workers=8,
             config_receiver=mock_config_receiver,
-            pulsar_client=mock_pulsar_client
+            backend=mock_backend
         )
         
         assert dispatcher.max_workers == 8
-        assert dispatcher.pulsar_client == mock_pulsar_client
+        assert dispatcher.backend == mock_backend
         assert dispatcher.dispatcher_manager == mock_dispatcher_instance
         mock_dispatcher_manager.assert_called_once_with(
-            mock_pulsar_client, mock_config_receiver, prefix="rev-gateway"
+            mock_backend, mock_config_receiver, prefix="rev-gateway"
         )
 
     def test_message_dispatcher_service_mapping(self):

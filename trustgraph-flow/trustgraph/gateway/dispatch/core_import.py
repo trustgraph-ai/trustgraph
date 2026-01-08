@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 
 class CoreImport:
 
-    def __init__(self, pulsar_client):
-        self.pulsar_client = pulsar_client
+    def __init__(self, backend):
+        self.backend = backend
 
     async def process(self, data, error, ok, request):
 
@@ -20,7 +20,7 @@ class CoreImport:
         user = request.query["user"]
 
         kr = KnowledgeRequestor(
-            pulsar_client = self.pulsar_client,
+            backend = self.backend,
             consumer = "api-gateway-core-import-" + str(uuid.uuid4()),
             subscriber = "api-gateway-core-import-" + str(uuid.uuid4()),
         )

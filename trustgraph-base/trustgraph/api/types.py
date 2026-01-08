@@ -1,7 +1,7 @@
 
 import dataclasses
 import datetime
-from typing import List
+from typing import List, Optional, Dict, Any
 from .. knowledge import hash, Uri, Literal
 
 @dataclasses.dataclass
@@ -49,5 +49,34 @@ class CollectionMetadata:
     name : str
     description : str
     tags : List[str]
-    created_at : str
-    updated_at : str
+
+# Streaming chunk types
+
+@dataclasses.dataclass
+class StreamingChunk:
+    """Base class for streaming chunks"""
+    content: str
+    end_of_message: bool = False
+
+@dataclasses.dataclass
+class AgentThought(StreamingChunk):
+    """Agent reasoning chunk"""
+    chunk_type: str = "thought"
+
+@dataclasses.dataclass
+class AgentObservation(StreamingChunk):
+    """Agent tool observation chunk"""
+    chunk_type: str = "observation"
+
+@dataclasses.dataclass
+class AgentAnswer(StreamingChunk):
+    """Agent final answer chunk"""
+    chunk_type: str = "final-answer"
+    end_of_dialog: bool = False
+
+@dataclasses.dataclass
+class RAGChunk(StreamingChunk):
+    """RAG streaming chunk"""
+    chunk_type: str = "rag"
+    end_of_stream: bool = False
+    error: Optional[Dict[str, str]] = None

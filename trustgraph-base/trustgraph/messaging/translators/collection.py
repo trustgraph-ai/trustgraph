@@ -15,8 +15,6 @@ class CollectionManagementRequestTranslator(MessageTranslator):
             name=data.get("name"),
             description=data.get("description"),
             tags=data.get("tags"),
-            created_at=data.get("created_at"),
-            updated_at=data.get("updated_at"),
             tag_filter=data.get("tag_filter"),
             limit=data.get("limit")
         )
@@ -38,10 +36,6 @@ class CollectionManagementRequestTranslator(MessageTranslator):
             result["description"] = obj.description
         if obj.tags is not None:
             result["tags"] = list(obj.tags)
-        if obj.created_at is not None:
-            result["created_at"] = obj.created_at
-        if obj.updated_at is not None:
-            result["updated_at"] = obj.updated_at
         if obj.tag_filter is not None:
             result["tag_filter"] = list(obj.tag_filter)
         if obj.limit is not None:
@@ -73,9 +67,7 @@ class CollectionManagementResponseTranslator(MessageTranslator):
                     collection=coll_data.get("collection"),
                     name=coll_data.get("name"),
                     description=coll_data.get("description"),
-                    tags=coll_data.get("tags"),
-                    created_at=coll_data.get("created_at"),
-                    updated_at=coll_data.get("updated_at")
+                    tags=coll_data.get("tags", [])
                 ))
 
         return CollectionManagementResponse(
@@ -104,9 +96,7 @@ class CollectionManagementResponseTranslator(MessageTranslator):
                     "collection": coll.collection,
                     "name": coll.name,
                     "description": coll.description,
-                    "tags": list(coll.tags) if coll.tags else [],
-                    "created_at": coll.created_at,
-                    "updated_at": coll.updated_at
+                    "tags": list(coll.tags) if coll.tags else []
                 })
 
         print("RESULT IS", result, flush=True)

@@ -33,9 +33,6 @@ default_knowledge_response_queue = knowledge_response_queue
 
 default_cassandra_host = "cassandra"
 
-# FIXME: How to ensure this doesn't conflict with other usage?
-keyspace = "knowledge"
-
 class Processor(AsyncProcessor):
 
     def __init__(self, **params):
@@ -53,14 +50,15 @@ class Processor(AsyncProcessor):
         cassandra_host = params.get("cassandra_host")
         cassandra_username = params.get("cassandra_username")
         cassandra_password = params.get("cassandra_password")
-        
+
         # Resolve configuration with environment variable fallback
-        hosts, username, password = resolve_cassandra_config(
+        hosts, username, password, keyspace = resolve_cassandra_config(
             host=cassandra_host,
             username=cassandra_username,
-            password=cassandra_password
+            password=cassandra_password,
+            default_keyspace="knowledge"
         )
-        
+
         # Store resolved configuration
         self.cassandra_host = hosts
         self.cassandra_username = username
@@ -86,7 +84,7 @@ class Processor(AsyncProcessor):
 
         self.knowledge_request_consumer = Consumer(
             taskgroup = self.taskgroup,
-            client = self.pulsar_client,
+            backend = self.pubsub,
             flow = None,
             topic = knowledge_request_queue,
             subscriber = id,
@@ -96,7 +94,7 @@ class Processor(AsyncProcessor):
         )
 
         self.knowledge_response_producer = Producer(
-            client = self.pulsar_client,
+            backend = self.pubsub,
             topic = knowledge_response_queue,
             schema = KnowledgeResponse,
             metrics = knowledge_response_metrics,
