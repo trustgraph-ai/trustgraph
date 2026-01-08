@@ -62,11 +62,11 @@ Deploy anywhere. Own your data. Control your AI stack.
 
 ## Getting Started
 
-- [**Quickstart Guide**](https://docs.trustgraph.ai/getting-started/)
+- [**Quickstart Guide**](https://docs.trustgraph.ai/getting-started)
 - [**Configuration Builder**](#configuration-builder)
 - [**Workbench**](#workbench)
-- [**Developer APIs and CLI**](https://docs.trustgraph.ai/reference/)
-- [**Deployment Guide**](https://docs.trustgraph.ai/deployment/)
+- [**Developer APIs and CLI**](https://docs.trustgraph.ai/reference)
+- [**Deployment Guide**](https://docs.trustgraph.ai/deployment)
 
 ### Watch TrustGraph 101
 
