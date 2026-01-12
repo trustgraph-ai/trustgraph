@@ -275,12 +275,16 @@ class SocketFlowInstance:
         result = self.client._send_request_sync("text-completion", self.flow_id, request, streaming)
 
         if streaming:
-            # For text completion, yield just the content
-            for chunk in result:
-                if hasattr(chunk, 'content'):
-                    yield chunk.content
+            # For text completion, return generator that yields content
+            return self._text_completion_generator(result)
         else:
             return result.get("response", "")
+
+    def _text_completion_generator(self, result: Iterator[StreamingChunk]) -> Iterator[str]:
+        """Generator for text completion streaming"""
+        for chunk in result:
+            if hasattr(chunk, 'content'):
+                yield chunk.content
 
     def graph_rag(
         self,
@@ -308,9 +312,7 @@ class SocketFlowInstance:
         result = self.client._send_request_sync("graph-rag", self.flow_id, request, streaming)
 
         if streaming:
-            for chunk in result:
-                if hasattr(chunk, 'content'):
-                    yield chunk.content
+            return self._rag_generator(result)
         else:
             return result.get("response", "")
 
@@ -336,11 +338,15 @@ class SocketFlowInstance:
         result = self.client._send_request_sync("document-rag", self.flow_id, request, streaming)
 
         if streaming:
-            for chunk in result:
-                if hasattr(chunk, 'content'):
-                    yield chunk.content
+            return self._rag_generator(result)
         else:
             return result.get("response", "")
+
+    def _rag_generator(self, result: Iterator[StreamingChunk]) -> Iterator[str]:
+        """Generator for RAG streaming (graph-rag and document-rag)"""
+        for chunk in result:
+            if hasattr(chunk, 'content'):
+                yield chunk.content
 
     def prompt(
         self,
@@ -360,9 +366,7 @@ class SocketFlowInstance:
         result = self.client._send_request_sync("prompt", self.flow_id, request, streaming)
 
         if streaming:
-            for chunk in result:
-                if hasattr(chunk, 'content'):
-                    yield chunk.content
+            return self._rag_generator(result)
         else:
             return result.get("response", "")
 
