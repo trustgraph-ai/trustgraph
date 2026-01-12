@@ -179,10 +179,27 @@ def question(
 
         else:
             # Non-streaming response
-            if "answer" in response:
-                print(response["answer"])
-            if "error" in response:
-                raise RuntimeError(response["error"])
+            # Response may be a list of messages (thought/observation/answer) or a single dict
+            messages = response if isinstance(response, list) else [response]
+
+            for msg in messages:
+                # Display thoughts if verbose
+                if "thought" in msg and msg["thought"] and verbose:
+                    output(wrap(msg["thought"]), "\U0001f914 ")
+                    print()
+
+                # Display observations if verbose
+                if "observation" in msg and msg["observation"] and verbose:
+                    output(wrap(msg["observation"]), "\U0001f4a1 ")
+                    print()
+
+                # Display answer
+                if "answer" in msg and msg["answer"]:
+                    print(msg["answer"])
+
+                # Handle errors
+                if "error" in msg:
+                    raise RuntimeError(msg["error"])
 
     finally:
         # Clean up socket connection

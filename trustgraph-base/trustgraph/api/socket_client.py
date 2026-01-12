@@ -118,20 +118,32 @@ class SocketClient:
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
             await websocket.send(json.dumps(message))
 
-            # Wait for single response
-            raw_message = await websocket.recv()
-            response = json.loads(raw_message)
+            # Some services (like agent) send multiple messages even in non-streaming mode
+            # Collect all messages until complete=True
+            messages = []
 
-            if response.get("id") != request_id:
-                raise ProtocolException(f"Response ID mismatch")
+            while True:
+                raw_message = await websocket.recv()
+                response = json.loads(raw_message)
 
-            if "error" in response:
-                raise_from_error_dict(response["error"])
+                if response.get("id") != request_id:
+                    raise ProtocolException(f"Response ID mismatch")
 
-            if "response" not in response:
-                raise ProtocolException(f"Missing response in message")
+                if "error" in response:
+                    raise_from_error_dict(response["error"])
 
-            return response["response"]
+                if "response" not in response:
+                    raise ProtocolException(f"Missing response in message")
+
+                messages.append(response["response"])
+
+                # Check if this is the final message
+                if response.get("complete", False):
+                    break
+
+            # For single-message responses, return the dict directly
+            # For multi-message responses (like agent), return a list
+            return messages[0] if len(messages) == 1 else messages
 
     async def _send_request_async_streaming(
         self,
