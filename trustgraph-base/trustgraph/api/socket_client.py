@@ -214,6 +214,23 @@ class SocketClient:
                 content=resp.get("content", ""),
                 end_of_message=resp.get("end_of_message", False)
             )
+        # Non-streaming agent format: chunk_type is empty but has thought/observation/answer fields
+        elif resp.get("thought"):
+            return AgentThought(
+                content=resp.get("thought", ""),
+                end_of_message=resp.get("end_of_message", False)
+            )
+        elif resp.get("observation"):
+            return AgentObservation(
+                content=resp.get("observation", ""),
+                end_of_message=resp.get("end_of_message", False)
+            )
+        elif resp.get("answer"):
+            return AgentAnswer(
+                content=resp.get("answer", ""),
+                end_of_message=resp.get("end_of_message", False),
+                end_of_dialog=resp.get("end_of_dialog", False)
+            )
         else:
             # RAG-style chunk (or generic chunk)
             # Text-completion uses "response" field, RAG uses "chunk" field, Prompt uses "text" field
@@ -261,7 +278,9 @@ class SocketFlowInstance:
             request["history"] = history
         request.update(kwargs)
 
-        return self.client._send_request_sync("agent", self.flow_id, request, streaming)
+        # Agents always use multipart messaging (multiple complete messages)
+        # regardless of streaming flag, so always use the streaming code path
+        return self.client._send_request_sync("agent", self.flow_id, request, streaming=True)
 
     def text_completion(self, system: str, prompt: str, streaming: bool = False, **kwargs) -> Union[str, Iterator[str]]:
         """Text completion with optional streaming"""
