@@ -232,12 +232,14 @@ class Processor(AgentService):
                         observation=None,
                     )
                 else:
-                    # Legacy format
+                    # Non-streaming format
                     r = AgentResponse(
                         answer=None,
                         error=None,
                         thought=x,
                         observation=None,
+                        end_of_message=True,
+                        end_of_dialog=False,
                     )
 
                 await respond(r)
@@ -260,12 +262,14 @@ class Processor(AgentService):
                         observation=x,
                     )
                 else:
-                    # Legacy format
+                    # Non-streaming format
                     r = AgentResponse(
                         answer=None,
                         error=None,
                         thought=None,
                         observation=x,
+                        end_of_message=True,
+                        end_of_dialog=False,
                     )
 
                 await respond(r)
@@ -288,12 +292,14 @@ class Processor(AgentService):
                         observation=None,
                     )
                 else:
-                    # Legacy format - shouldn't be called in non-streaming mode
+                    # Non-streaming format - shouldn't normally be called
                     r = AgentResponse(
                         answer=x,
                         error=None,
                         thought=None,
                         observation=None,
+                        end_of_message=True,
+                        end_of_dialog=False,
                     )
 
                 await respond(r)
@@ -364,11 +370,13 @@ class Processor(AgentService):
                         thought=None,
                     )
                 else:
-                    # Legacy format - send complete answer
+                    # Non-streaming format - send complete answer
                     r = AgentResponse(
                         answer=act.final,
                         error=None,
                         thought=None,
+                        end_of_message=True,
+                        end_of_dialog=True,
                     )
 
                 await respond(r)

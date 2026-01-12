@@ -93,6 +93,8 @@ class AgentService(FlowProcessor):
                     thought = None,
                     observation = None,
                     answer = None,
+                    end_of_message = True,
+                    end_of_dialog = True,
                 ),
                 properties={"id": id}
             )
