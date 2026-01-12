@@ -171,6 +171,7 @@ class Processor(FlowProcessor):
                 await flow("response").send(
                     GraphRagResponse(
                         response = response,
+                        end_of_stream = True,
                         error = None
                     ),
                     properties = {"id": id}
