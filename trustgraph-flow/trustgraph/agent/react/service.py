@@ -375,6 +375,7 @@ class Processor(AgentService):
                         answer=act.final,
                         error=None,
                         thought=None,
+                        observation=None,
                         end_of_message=True,
                         end_of_dialog=True,
                     )
