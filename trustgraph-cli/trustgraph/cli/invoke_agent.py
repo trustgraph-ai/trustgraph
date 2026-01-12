@@ -178,28 +178,22 @@ def question(
                 print()
 
         else:
-            # Non-streaming response
-            # Response may be a list of messages (thought/observation/answer) or a single dict
-            messages = response if isinstance(response, list) else [response]
-
-            for msg in messages:
+            # Non-streaming response - but agents use multipart messaging
+            # so we iterate through the chunks (which are complete messages, not text chunks)
+            for chunk in response:
                 # Display thoughts if verbose
-                if "thought" in msg and msg["thought"] and verbose:
-                    output(wrap(msg["thought"]), "\U0001f914 ")
+                if chunk.chunk_type == "thought" and verbose:
+                    output(wrap(chunk.content), "\U0001f914 ")
                     print()
 
                 # Display observations if verbose
-                if "observation" in msg and msg["observation"] and verbose:
-                    output(wrap(msg["observation"]), "\U0001f4a1 ")
+                elif chunk.chunk_type == "observation" and verbose:
+                    output(wrap(chunk.content), "\U0001f4a1 ")
                     print()
 
                 # Display answer
-                if "answer" in msg and msg["answer"]:
-                    print(msg["answer"])
-
-                # Handle errors
-                if "error" in msg:
-                    raise RuntimeError(msg["error"])
+                elif chunk.chunk_type == "final-answer" or chunk.chunk_type == "answer":
+                    print(chunk.content)
 
     finally:
         # Clean up socket connection

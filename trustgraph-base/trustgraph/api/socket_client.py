@@ -118,32 +118,20 @@ class SocketClient:
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
             await websocket.send(json.dumps(message))
 
-            # Some services (like agent) send multiple messages even in non-streaming mode
-            # Collect all messages until complete=True
-            messages = []
+            # Wait for single response
+            raw_message = await websocket.recv()
+            response = json.loads(raw_message)
 
-            while True:
-                raw_message = await websocket.recv()
-                response = json.loads(raw_message)
+            if response.get("id") != request_id:
+                raise ProtocolException(f"Response ID mismatch")
 
-                if response.get("id") != request_id:
-                    raise ProtocolException(f"Response ID mismatch")
+            if "error" in response:
+                raise_from_error_dict(response["error"])
 
-                if "error" in response:
-                    raise_from_error_dict(response["error"])
+            if "response" not in response:
+                raise ProtocolException(f"Missing response in message")
 
-                if "response" not in response:
-                    raise ProtocolException(f"Missing response in message")
-
-                messages.append(response["response"])
-
-                # Check if this is the final message
-                if response.get("complete", False):
-                    break
-
-            # For single-message responses, return the dict directly
-            # For multi-message responses (like agent), return a list
-            return messages[0] if len(messages) == 1 else messages
+            return response["response"]
 
     async def _send_request_async_streaming(
         self,
@@ -226,6 +214,23 @@ class SocketClient:
                 content=resp.get("content", ""),
                 end_of_message=resp.get("end_of_message", False)
             )
+        # Non-streaming agent format: chunk_type is empty but has thought/observation/answer fields
+        elif resp.get("thought"):
+            return AgentThought(
+                content=resp.get("thought", ""),
+                end_of_message=resp.get("end_of_message", False)
+            )
+        elif resp.get("observation"):
+            return AgentObservation(
+                content=resp.get("observation", ""),
+                end_of_message=resp.get("end_of_message", False)
+            )
+        elif resp.get("answer"):
+            return AgentAnswer(
+                content=resp.get("answer", ""),
+                end_of_message=resp.get("end_of_message", False),
+                end_of_dialog=resp.get("end_of_dialog", False)
+            )
         else:
             # RAG-style chunk (or generic chunk)
             # Text-completion uses "response" field, RAG uses "chunk" field, Prompt uses "text" field
@@ -273,7 +278,9 @@ class SocketFlowInstance:
             request["history"] = history
         request.update(kwargs)
 
-        return self.client._send_request_sync("agent", self.flow_id, request, streaming)
+        # Agents always use multipart messaging (multiple complete messages)
+        # regardless of streaming flag, so always use the streaming code path
+        return self.client._send_request_sync("agent", self.flow_id, request, streaming=True)
 
     def text_completion(self, system: str, prompt: str, streaming: bool = False, **kwargs) -> Union[str, Iterator[str]]:
         """Text completion with optional streaming"""
