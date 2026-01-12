@@ -39,7 +39,7 @@ class TestAgentServiceNonStreaming:
         async def mock_react(question, history, think, observe, answer, context, streaming):
             await think("I need to solve this.", is_final=True)
             await observe("The answer is 4.", is_final=True)
-            return Final("4")
+            return Final(thought="Final answer", final="4")
 
         mock_agent_instance.react = mock_react
 
@@ -115,7 +115,7 @@ class TestAgentServiceNonStreaming:
 
         # Mock react to return Final directly
         async def mock_react(question, history, think, observe, answer, context, streaming):
-            return Final("4")
+            return Final(thought="Final answer", final="4")
 
         mock_agent_instance.react = mock_react
 
