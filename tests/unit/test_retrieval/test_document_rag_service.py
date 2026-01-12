@@ -75,3 +75,57 @@ class TestDocumentRagService:
         assert isinstance(sent_response, DocumentRagResponse)
         assert sent_response.response == "test response"
         assert sent_response.error is None
+
+    @patch('trustgraph.retrieval.document_rag.rag.DocumentRag')
+    @pytest.mark.asyncio
+    async def test_non_streaming_mode_sets_end_of_stream_true(self, mock_document_rag_class):
+        """
+        Test that non-streaming mode sets end_of_stream=True in response.
+
+        This is a regression test for the bug where non-streaming responses
+        didn't set end_of_stream, causing clients to hang waiting for more data.
+        """
+        # Setup processor
+        processor = Processor(
+            taskgroup=MagicMock(),
+            id="test-processor",
+            doc_limit=10
+        )
+
+        # Setup mock DocumentRag instance
+        mock_rag_instance = AsyncMock()
+        mock_document_rag_class.return_value = mock_rag_instance
+        mock_rag_instance.query.return_value = "A document about cats."
+
+        # Setup message with non-streaming request
+        msg = MagicMock()
+        msg.value.return_value = DocumentRagQuery(
+            query="What is a cat?",
+            user="trustgraph",
+            collection="default",
+            doc_limit=10,
+            streaming=False  # Non-streaming mode
+        )
+        msg.properties.return_value = {"id": "test-id"}
+
+        # Setup flow mock
+        consumer = MagicMock()
+        flow = MagicMock()
+
+        mock_producer = AsyncMock()
+        def flow_router(service_name):
+            if service_name == "response":
+                return mock_producer
+            return AsyncMock()
+        flow.side_effect = flow_router
+
+        # Execute
+        await processor.on_request(msg, consumer, flow)
+
+        # Verify: response was sent with end_of_stream=True
+        mock_producer.send.assert_called_once()
+        sent_response = mock_producer.send.call_args[0][0]
+        assert isinstance(sent_response, DocumentRagResponse)
+        assert sent_response.response == "A document about cats."
+        assert sent_response.end_of_stream is True, "Non-streaming response must have end_of_stream=True"
+        assert sent_response.error is None
