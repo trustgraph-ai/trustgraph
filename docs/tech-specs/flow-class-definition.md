@@ -1,15 +1,15 @@
-# Flow Class Definition Specification
+# Flow Blueprint Definition Specification
 
 ## Overview
 
-A flow class defines a complete dataflow pattern template in the TrustGraph system. When instantiated, it creates an interconnected network of processors that handle data ingestion, processing, storage, and querying as a unified system.
+A flow blueprint defines a complete dataflow pattern template in the TrustGraph system. When instantiated, it creates an interconnected network of processors that handle data ingestion, processing, storage, and querying as a unified system.
 
 ## Structure
 
-A flow class definition consists of five main sections:
+A flow blueprint definition consists of five main sections:
 
 ### 1. Class Section
-Defines shared service processors that are instantiated once per flow class. These processors handle requests from all flow instances of this class.
+Defines shared service processors that are instantiated once per flow blueprint. These processors handle requests from all flow instances of this class.
 
 ```json
 "class": {
@@ -100,7 +100,7 @@ Maps flow-specific parameter names to centrally-stored parameter definitions:
 - Reduces duplication of parameter schemas
 
 ### 5. Metadata
-Additional information about the flow class:
+Additional information about the flow blueprint:
 
 ```json
 "description": "Human-readable description",
@@ -117,7 +117,7 @@ Additional information about the flow class:
 - Example: `flow-123`, `customer-A-flow`
 
 #### {class}
-- Replaced with the flow class name
+- Replaced with the flow blueprint name
 - Creates shared resources across flows of the same class
 - Example: `standard-rag`, `enterprise-rag`
 
@@ -203,14 +203,14 @@ Parameter names in settings correspond to keys in the flow's `parameters` sectio
 
 ## Queue Patterns (Pulsar)
 
-Flow classes use Apache Pulsar for messaging. Queue names follow the Pulsar format:
+Flow blueprintes use Apache Pulsar for messaging. Queue names follow the Pulsar format:
 ```
 <persistence>://<tenant>/<namespace>/<topic>
 ```
 
 ### Components:
 - **persistence**: `persistent` or `non-persistent` (Pulsar persistence mode)
-- **tenant**: `tg` for TrustGraph-supplied flow class definitions
+- **tenant**: `tg` for TrustGraph-supplied flow blueprint definitions
 - **namespace**: Indicates the messaging pattern
   - `flow`: Fire-and-forget services
   - `request`: Request portion of request/response services
@@ -232,7 +232,7 @@ Flow classes use Apache Pulsar for messaging. Queue names follow the Pulsar form
 
 ## Dataflow Architecture
 
-The flow class creates a unified dataflow where:
+The flow blueprint creates a unified dataflow where:
 
 1. **Document Processing Pipeline**: Flows from ingestion through transformation to storage
 2. **Query Services**: Integrated processors that query the same data stores and services
@@ -245,7 +245,7 @@ All processors (both `{id}` and `{class}`) work together as a cohesive dataflow 
 
 Given:
 - Flow Instance ID: `customer-A-flow`
-- Flow Class: `standard-rag`
+- Flow Blueprint: `standard-rag`
 - Flow parameter mappings:
   - `"model": "llm-model"`
   - `"temp": "temperature"`

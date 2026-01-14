@@ -1,6 +1,6 @@
 # TrustGraph Flow API
 
-This API provides workflow management for TrustGraph components. It manages flow classes 
+This API provides workflow management for TrustGraph components. It manages flow blueprintes 
 (workflow templates) and flow instances (active running workflows) that orchestrate 
 complex data processing pipelines.
 
@@ -10,26 +10,26 @@ complex data processing pipelines.
 
 The request contains the following fields:
 - `operation`: The operation to perform (see operations below)
-- `class_name`: Flow class name (for class operations and start-flow)
-- `class_definition`: Flow class definition JSON (for put-class)
+- `blueprint_name`: Flow blueprint name (for class operations and start-flow)
+- `class_definition`: Flow blueprint definition JSON (for put-class)
 - `description`: Flow description (for start-flow)
 - `flow_id`: Flow instance ID (for flow instance operations)
 
 ### Response
 
 The response contains the following fields:
-- `class_names`: Array of flow class names (returned by list-classes)
+- `blueprint_names`: Array of flow blueprint names (returned by list-classes)
 - `flow_ids`: Array of active flow IDs (returned by list-flows)
-- `class_definition`: Flow class definition JSON (returned by get-class)
+- `class_definition`: Flow blueprint definition JSON (returned by get-class)
 - `flow`: Flow instance JSON (returned by get-flow)
 - `description`: Flow description (returned by get-flow)
 - `error`: Error information if operation fails
 
 ## Operations
 
-### Flow Class Operations
+### Flow Blueprint Operations
 
-#### LIST-CLASSES - List All Flow Classes
+#### LIST-CLASSES - List All Flow Blueprintes
 
 Request:
 ```json
@@ -41,17 +41,17 @@ Request:
 Response:
 ```json
 {
-    "class_names": ["pdf-processor", "text-analyzer", "knowledge-extractor"]
+    "blueprint_names": ["pdf-processor", "text-analyzer", "knowledge-extractor"]
 }
 ```
 
-#### GET-CLASS - Get Flow Class Definition
+#### GET-CLASS - Get Flow Blueprint Definition
 
 Request:
 ```json
 {
     "operation": "get-class",
-    "class_name": "pdf-processor"
+    "blueprint_name": "pdf-processor"
 }
 ```
 
@@ -62,13 +62,13 @@ Response:
 }
 ```
 
-#### PUT-CLASS - Create/Update Flow Class
+#### PUT-CLASS - Create/Update Flow Blueprint
 
 Request:
 ```json
 {
     "operation": "put-class",
-    "class_name": "pdf-processor",
+    "blueprint_name": "pdf-processor",
     "class_definition": "{\"interfaces\": {\"text-completion\": {\"request\": \"persistent://tg/request/text-completion\", \"response\": \"persistent://tg/response/text-completion\"}}, \"description\": \"PDF processing workflow\"}"
 }
 ```
@@ -78,13 +78,13 @@ Response:
 {}
 ```
 
-#### DELETE-CLASS - Remove Flow Class
+#### DELETE-CLASS - Remove Flow Blueprint
 
 Request:
 ```json
 {
     "operation": "delete-class",
-    "class_name": "pdf-processor"
+    "blueprint_name": "pdf-processor"
 }
 ```
 
@@ -135,7 +135,7 @@ Request:
 ```json
 {
     "operation": "start-flow",
-    "class_name": "pdf-processor",
+    "blueprint_name": "pdf-processor",
     "flow_id": "flow-123",
     "description": "Processing document batch 1"
 }
@@ -186,7 +186,7 @@ Response:
 {
     "id": "unique-request-id",
     "response": {
-        "class_names": ["pdf-processor", "text-analyzer"]
+        "blueprint_names": ["pdf-processor", "text-analyzer"]
     },
     "complete": true
 }
@@ -264,11 +264,11 @@ from trustgraph.api.flow import FlowClient
 
 client = FlowClient()
 
-# List all flow classes
-classes = await client.list_classes()
+# List all flow blueprintes
+classes = await client.list_blueprints()
 
-# Get a flow class definition
-definition = await client.get_class("pdf-processor")
+# Get a flow blueprint definition
+definition = await client.get_blueprint("pdf-processor")
 
 # Start a flow instance
 await client.start_flow("pdf-processor", "flow-123", "Processing batch 1")
@@ -286,8 +286,8 @@ result = await flow.mcp_tool("file-reader", {"path": "/path/to/file.txt"})
 
 ## Features
 
-- **Flow Classes**: Templates that define workflow structure and interfaces
-- **Flow Instances**: Active running workflows based on flow classes
+- **Flow Blueprintes**: Templates that define workflow structure and interfaces
+- **Flow Instances**: Active running workflows based on flow blueprintes
 - **Dynamic Management**: Flows can be started/stopped dynamically
 - **Template Processing**: Uses template replacement for customizing flow instances
 - **Integration**: Works with TrustGraph ecosystem for data processing pipelines

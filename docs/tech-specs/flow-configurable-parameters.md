@@ -1,8 +1,8 @@
-# Flow Class Configurable Parameters Technical Specification
+# Flow Blueprint Configurable Parameters Technical Specification
 
 ## Overview
 
-This specification describes the implementation of configurable parameters for flow classes in TrustGraph. Parameters enable users to customize processor parameters at flow launch time by providing values that replace parameter placeholders in the flow class definition.
+This specification describes the implementation of configurable parameters for flow blueprintes in TrustGraph. Parameters enable users to customize processor parameters at flow launch time by providing values that replace parameter placeholders in the flow blueprint definition.
 
 Parameters work through template variable substitution in processor parameters, similar to how `{id}` and `{class}` variables work, but with user-provided values.
 
@@ -21,25 +21,25 @@ The integration supports four primary use cases:
 - **Template Substitution**: Seamlessly replace parameter placeholders in processor parameters
 - **UI Integration**: Enable parameter input through both API and UI interfaces
 - **Type Safety**: Ensure parameter types match expected processor parameter types
-- **Documentation**: Self-documenting parameter schemas within flow class definitions
-- **Backward Compatibility**: Maintain compatibility with existing flow classes that don't use parameters
+- **Documentation**: Self-documenting parameter schemas within flow blueprint definitions
+- **Backward Compatibility**: Maintain compatibility with existing flow blueprintes that don't use parameters
 
 ## Background
 
-Flow classes in TrustGraph now support processor parameters that can contain either fixed values or parameter placeholders. This creates an opportunity for runtime customization.
+Flow blueprintes in TrustGraph now support processor parameters that can contain either fixed values or parameter placeholders. This creates an opportunity for runtime customization.
 
 Current processor parameters support:
 - Fixed values: `"model": "gemma3:12b"`
 - Parameter placeholders: `"model": "gemma3:{model-size}"`
 
 This specification defines how parameters are:
-- Declared in flow class definitions
+- Declared in flow blueprint definitions
 - Validated when flows are launched
 - Substituted in processor parameters
 - Exposed through APIs and UI
 
 By leveraging parameterized processor parameters, TrustGraph can:
-- Reduce flow class duplication by using parameters for variations
+- Reduce flow blueprint duplication by using parameters for variations
 - Enable users to tune processor behavior without modifying definitions
 - Support environment-specific configurations through parameter values
 - Maintain type safety through parameter schema validation
@@ -51,7 +51,7 @@ By leveraging parameterized processor parameters, TrustGraph can:
 The configurable parameters system requires the following technical components:
 
 1. **Parameter Schema Definition**
-   - JSON Schema-based parameter definitions within flow class metadata
+   - JSON Schema-based parameter definitions within flow blueprint metadata
    - Type definitions including string, number, boolean, enum, and object types
    - Validation rules including min/max values, patterns, and required fields
 
@@ -92,7 +92,7 @@ The configurable parameters system requires the following technical components:
 
 #### Parameter Definitions (Stored in Schema/Config)
 
-Parameter definitions are stored centrally in the schema and config system with type "parameter-types":
+Parameter definitions are stored centrally in the schema and config system with type "parameter-type":
 
 ```json
 {
@@ -146,9 +146,9 @@ Parameter definitions are stored centrally in the schema and config system with 
 }
 ```
 
-#### Flow Class with Parameter References
+#### Flow Blueprint with Parameter References
 
-Flow classes define parameter metadata with type references, descriptions, and ordering:
+Flow blueprintes define parameter metadata with type references, descriptions, and ordering:
 
 ```json
 {
@@ -225,7 +225,7 @@ The `parameters` section maps flow-specific parameter names (keys) to parameter 
 - `controlled-by` (optional): Name of another parameter that controls this parameter's value when in simple mode. When specified, this parameter inherits its value from the controlling parameter unless explicitly overridden
 
 This approach allows:
-- Reusable parameter type definitions across multiple flow classes
+- Reusable parameter type definitions across multiple flow blueprintes
 - Centralized parameter type management and validation
 - Flow-specific parameter descriptions and ordering
 - Enhanced UI experience with descriptive parameter forms
@@ -253,7 +253,7 @@ The flow launch API accepts parameters using the flow's parameter names:
 Note: In this example, `llm-rag-model` is not explicitly provided but will inherit the value "claude-3" from `llm-model` due to its `controlled-by` relationship. Similarly, `chunk-overlap` could inherit a calculated value based on `chunk-size`.
 
 The system will:
-1. Extract parameter metadata from flow class definition
+1. Extract parameter metadata from flow blueprint definition
 2. Map flow parameter names to their type definitions (e.g., `llm-model` → `llm-model` type)
 3. Resolve controlled-by relationships (e.g., `llm-rag-model` inherits from `llm-model`)
 4. Validate user-provided and inherited values against the parameter type definitions
@@ -265,14 +265,14 @@ The system will:
 
 When a flow is started, the system performs the following parameter resolution steps:
 
-1. **Flow Class Loading**: Load flow class definition and extract parameter metadata
-2. **Metadata Extraction**: Extract `type`, `description`, `order`, `advanced`, and `controlled-by` for each parameter defined in the flow class's `parameters` section
-3. **Type Definition Lookup**: For each parameter in the flow class:
+1. **Flow Blueprint Loading**: Load flow blueprint definition and extract parameter metadata
+2. **Metadata Extraction**: Extract `type`, `description`, `order`, `advanced`, and `controlled-by` for each parameter defined in the flow blueprint's `parameters` section
+3. **Type Definition Lookup**: For each parameter in the flow blueprint:
    - Retrieve the parameter type definition from schema/config store using the `type` field
-   - The type definitions are stored with type "parameter-types" in the config system
+   - The type definitions are stored with type "parameter-type" in the config system
    - Each type definition contains the parameter's schema, default value, and validation rules
 4. **Default Value Resolution**:
-   - For each parameter defined in the flow class:
+   - For each parameter defined in the flow blueprint:
      - Check if the user provided a value for this parameter
      - If no user value provided, use the `default` value from the parameter type definition
      - Build a complete parameter map containing both user-provided and default values
@@ -361,7 +361,7 @@ The flow configuration service (`trustgraph-flow/trustgraph/config/service/flow.
        Resolve parameters by merging user-provided values with defaults.
 
        Args:
-           flow_class: The flow class definition dict
+           flow_class: The flow blueprint definition dict
            user_params: User-provided parameters dict
 
        Returns:
@@ -370,20 +370,20 @@ The flow configuration service (`trustgraph-flow/trustgraph/config/service/flow.
    ```
 
    This function should:
-   - Extract parameter metadata from the flow class's `parameters` section
+   - Extract parameter metadata from the flow blueprint's `parameters` section
    - For each parameter, fetch its type definition from config store
    - Apply defaults for any parameters not provided by the user
    - Handle `controlled-by` inheritance relationships
    - Return the complete parameter set
 
 2. **Modified `handle_start_flow` Method**
-   - Call `resolve_parameters` after loading the flow class
+   - Call `resolve_parameters` after loading the flow blueprint
    - Use the complete resolved parameter set for template substitution
    - Store the complete parameter set (not just user-provided) with the flow
    - Validate that all required parameters have values
 
 3. **Parameter Type Fetching**
-   - Parameter type definitions are stored in config with type "parameter-types"
+   - Parameter type definitions are stored in config with type "parameter-type"
    - Each type definition contains schema, default value, and validation rules
    - Cache frequently-used parameter types to reduce config lookups
 
@@ -400,12 +400,12 @@ The flow configuration service (`trustgraph-flow/trustgraph/config/service/flow.
 4. **Library CLI Commands**
    - CLI commands that start flows need parameter support:
      - Accept parameter values via command-line flags or configuration files
-     - Validate parameters against flow class definitions before submission
+     - Validate parameters against flow blueprint definitions before submission
      - Support parameter file input (JSON/YAML) for complex parameter sets
 
    - CLI commands that show flows need to display parameter information:
      - Show parameter values used when the flow was started
-     - Display available parameters for a flow class
+     - Display available parameters for a flow blueprint
      - Show parameter validation schemas and defaults
 
 #### Processor Base Class Integration
@@ -456,7 +456,7 @@ Substituted in processor: "0.7" (string)
 
 ## Migration Plan
 
-1. The system should continue to support flow classes with no parameters
+1. The system should continue to support flow blueprintes with no parameters
    declared.
 2. The system should continue to support flows no parameters specified:
    This works for flows with no parameters, and flows with parameters
@@ -482,4 +482,4 @@ A: Just string substitution to remove strange injections and edge-cases.
 ## References
 
 - JSON Schema Specification: https://json-schema.org/
-- Flow Class Definition Spec: docs/tech-specs/flow-class-definition.md
+- Flow Blueprint Definition Spec: docs/tech-specs/flow-class-definition.md
