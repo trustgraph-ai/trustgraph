@@ -49,7 +49,7 @@ class FlowConfig:
                     if param_type not in self.param_type_cache:
                         try:
                             # Fetch parameter type definition from config store
-                            type_def = await self.config.get("parameter-types").get(param_type)
+                            type_def = await self.config.get("parameter-type").get(param_type)
                             if type_def:
                                 self.param_type_cache[param_type] = json.loads(type_def)
                             else:
