@@ -53,22 +53,20 @@ class ConfigReceiver:
 
             logger.info(f"Config version: {v.version}")
 
-            if "flows" in v.config:
+            flows = v.config.get("flow", {})
 
-                flows = v.config["flows"]
+            wanted = list(flows.keys())
+            current = list(self.flows.keys())
 
-                wanted = list(flows.keys())
-                current = list(self.flows.keys())
+            for k in wanted:
+                if k not in current:
+                    self.flows[k] = json.loads(flows[k])
+                    await self.start_flow(k, self.flows[k])
 
-                for k in wanted:
-                    if k not in current:
-                        self.flows[k] = json.loads(flows[k])
-                        await self.start_flow(k, self.flows[k])
-
-                for k in current:
-                    if k not in wanted:
-                        await self.stop_flow(k, self.flows[k])
-                        del self.flows[k]
+            for k in current:
+                if k not in wanted:
+                    await self.stop_flow(k, self.flows[k])
+                    del self.flows[k]
 
         except Exception as e:
             logger.error(f"Config processing exception: {e}", exc_info=True)

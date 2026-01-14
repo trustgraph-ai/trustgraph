@@ -64,7 +64,7 @@ class TestConfigReceiver:
         mock_msg.value.return_value = Mock(
             version="1.0",
             config={
-                "flows": {
+                "flow": {
                     "flow1": '{"name": "test_flow_1", "steps": []}',
                     "flow2": '{"name": "test_flow_2", "steps": []}'
                 }
@@ -109,7 +109,7 @@ class TestConfigReceiver:
         mock_msg.value.return_value = Mock(
             version="1.0",
             config={
-                "flows": {
+                "flow": {
                     "flow1": '{"name": "test_flow_1", "steps": []}'
                 }
             }
@@ -352,7 +352,7 @@ class TestConfigReceiver:
             mock_msg.value.return_value = Mock(
                 version="1.0",
                 config={
-                    "flows": {
+                    "flow": {
                         "flow2": '{"name": "test_flow_2", "steps": []}',
                         "flow3": '{"name": "test_flow_3", "steps": []}'
                     }
@@ -393,7 +393,7 @@ class TestConfigReceiver:
         mock_msg.value.return_value = Mock(
             version="1.0",
             config={
-                "flows": {
+                "flow": {
                     "flow1": '{"invalid": json}',  # Invalid JSON
                     "flow2": '{"name": "valid_flow", "steps": []}'  # Valid JSON
                 }
