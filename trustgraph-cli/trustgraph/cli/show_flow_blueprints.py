@@ -1,5 +1,5 @@
 """
-Shows all defined flow classes.
+Shows all defined flow blueprints.
 """
 
 import argparse
@@ -16,7 +16,7 @@ def format_parameters(params_metadata, config_api):
     Format parameter metadata for display
 
     Args:
-        params_metadata: Parameter definitions from flow class
+        params_metadata: Parameter definitions from flow blueprint
         config_api: API client to get parameter type information
 
     Returns:
@@ -41,7 +41,7 @@ def format_parameters(params_metadata, config_api):
         type_info = param_type
         if config_api:
             try:
-                key = ConfigKey("parameter-types", param_type)
+                key = ConfigKey("parameter-type", param_type)
                 type_def_value = config_api.get([key])[0].value
                 param_type_def = json.loads(type_def_value)
 
@@ -58,23 +58,23 @@ def format_parameters(params_metadata, config_api):
 
     return "\n".join(param_list)
 
-def show_flow_classes(url, token=None):
+def show_flow_blueprints(url, token=None):
 
     api = Api(url, token=token)
     flow_api = api.flow()
     config_api = api.config()
 
-    class_names = flow_api.list_classes()
+    blueprint_names = flow_api.list_blueprints()
 
-    if len(class_names) == 0:
-        print("No flow classes.")
+    if len(blueprint_names) == 0:
+        print("No flow blueprints.")
         return
 
-    for class_name in class_names:
-        cls = flow_api.get_class(class_name)
+    for blueprint_name in blueprint_names:
+        cls = flow_api.get_blueprint(blueprint_name)
 
         table = []
-        table.append(("name", class_name))
+        table.append(("name", blueprint_name))
         table.append(("description", cls.get("description", "")))
 
         tags = cls.get("tags", [])
@@ -97,7 +97,7 @@ def show_flow_classes(url, token=None):
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-show-flow-classes',
+        prog='tg-show-flow-blueprints',
         description=__doc__,
     )
 
@@ -117,7 +117,7 @@ def main():
 
     try:
 
-        show_flow_classes(
+        show_flow_blueprints(
             url=args.api_url,
             token=args.token,
         )

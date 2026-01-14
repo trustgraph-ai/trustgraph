@@ -16,15 +16,15 @@ def dump_status(metrics_url, api_url, flow_id, token=None):
     api = Api(api_url, token=token).flow()
 
     flow = api.get(flow_id)
-    class_name = flow["class-name"]
+    blueprint_name = flow["blueprint-name"]
 
     print()
     print(f"Flow {flow_id}")
     show_processors(metrics_url, flow_id)
 
     print()
-    print(f"Class {class_name}")
-    show_processors(metrics_url, class_name)
+    print(f"Blueprint {blueprint_name}")
+    show_processors(metrics_url, blueprint_name)
 
     print()
 

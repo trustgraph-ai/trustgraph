@@ -48,11 +48,11 @@ Most CLI commands support these common options:
 - [`tg-show-flows`](tg-show-flows.md) - List all configured flows
 - [`tg-show-flow-state`](tg-show-flow-state.md) - Show current flow states
 
-**Flow Class Management:**
-- [`tg-put-flow-class`](tg-put-flow-class.md) - Upload/update flow class definition
-- [`tg-get-flow-class`](tg-get-flow-class.md) - Retrieve flow class definition
-- [`tg-delete-flow-class`](tg-delete-flow-class.md) - Remove flow class definition
-- [`tg-show-flow-classes`](tg-show-flow-classes.md) - List available flow classes
+**Flow Blueprint Management:**
+- [`tg-put-flow-blueprint`](tg-put-flow-blueprint.md) - Upload/update flow blueprint definition
+- [`tg-get-flow-blueprint`](tg-get-flow-blueprint.md) - Retrieve flow blueprint definition
+- [`tg-delete-flow-blueprint`](tg-delete-flow-blueprint.md) - Remove flow blueprint definition
+- [`tg-show-flow-blueprints`](tg-show-flow-blueprints.md) - List available flow blueprintes
 
 ### Knowledge Graph Management
 
@@ -115,7 +115,7 @@ Most CLI commands support these common options:
 ### Basic Document Processing
 ```bash
 # Start a flow
-tg-start-flow --flow-id my-flow --class-name document-processing
+tg-start-flow --flow-id my-flow --blueprint-name document-processing
 
 # Load a document
 tg-load-text --flow-id my-flow --text "Your document content" --title "Test Document"
@@ -138,8 +138,8 @@ tg-show-graph --limit 100
 
 ### Flow Management
 ```bash
-# Show available flow classes
-tg-show-flow-classes
+# Show available flow blueprintes
+tg-show-flow-blueprints
 
 # Show running flows
 tg-show-flows

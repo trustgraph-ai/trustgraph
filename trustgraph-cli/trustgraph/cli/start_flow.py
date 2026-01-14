@@ -1,5 +1,5 @@
 """
-Starts a processing flow using a defined flow class.
+Starts a processing flow using a defined flow blueprint.
 
 Parameters can be provided in three ways:
 1. As key=value pairs: --param model=gpt-4 --param temp=0.7
@@ -19,12 +19,12 @@ import json
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
-def start_flow(url, class_name, flow_id, description, parameters=None, token=None):
+def start_flow(url, blueprint_name, flow_id, description, parameters=None, token=None):
 
     api = Api(url, token=token).flow()
 
     api.start(
-        class_name = class_name,
+        blueprint_name = blueprint_name,
         id = flow_id,
         description = description,
         parameters = parameters,
@@ -50,9 +50,9 @@ def main():
     )
 
     parser.add_argument(
-        '-n', '--class-name',
+        '-n', '--blueprint-name',
         required=True,
-        help=f'Flow class name',
+        help=f'Flow blueprint name',
     )
 
     parser.add_argument(
@@ -115,7 +115,7 @@ def main():
 
         start_flow(
             url = args.api_url,
-            class_name = args.class_name,
+            blueprint_name = args.blueprint_name,
             flow_id = args.flow_id,
             description = args.description,
             parameters = parameters,

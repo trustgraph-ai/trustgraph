@@ -18,7 +18,7 @@ def show_config(url, token=None):
 
     api = Api(url, token=token).config()
 
-    models = api.list("token-costs")
+    models = api.list("token-cost")
 
     costs = []
 
@@ -29,7 +29,7 @@ def show_config(url, token=None):
 
         try:
             values = json.loads(api.get([
-                ConfigKey(type="token-costs", key=model),
+                ConfigKey(type="token-cost", key=model),
             ])[0].value)
             costs.append((
                 model,

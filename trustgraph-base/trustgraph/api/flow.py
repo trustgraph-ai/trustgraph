@@ -28,42 +28,42 @@ class Flow:
     def id(self, id="default"):
         return FlowInstance(api=self, id=id)
 
-    def list_classes(self):
+    def list_blueprints(self):
 
         # The input consists of system and prompt strings
         input = {
-            "operation": "list-classes",
+            "operation": "list-blueprints",
         }
 
-        return self.request(request = input)["class-names"]
+        return self.request(request = input)["blueprint-names"]
 
-    def get_class(self, class_name):
+    def get_blueprint(self, blueprint_name):
 
         # The input consists of system and prompt strings
         input = {
-            "operation": "get-class",
-            "class-name": class_name,
+            "operation": "get-blueprint",
+            "blueprint-name": blueprint_name,
         }
 
-        return json.loads(self.request(request = input)["class-definition"])
+        return json.loads(self.request(request = input)["blueprint-definition"])
 
-    def put_class(self, class_name, definition):
+    def put_blueprint(self, blueprint_name, definition):
 
         # The input consists of system and prompt strings
         input = {
-            "operation": "put-class",
-            "class-name": class_name,
-            "class-definition": json.dumps(definition),
+            "operation": "put-blueprint",
+            "blueprint-name": blueprint_name,
+            "blueprint-definition": json.dumps(definition),
         }
 
         self.request(request = input)
 
-    def delete_class(self, class_name):
+    def delete_blueprint(self, blueprint_name):
 
         # The input consists of system and prompt strings
         input = {
-            "operation": "delete-class",
-            "class-name": class_name,
+            "operation": "delete-blueprint",
+            "blueprint-name": blueprint_name,
         }
 
         self.request(request = input)
@@ -87,13 +87,13 @@ class Flow:
 
         return json.loads(self.request(request = input)["flow"])
 
-    def start(self, class_name, id, description, parameters=None):
+    def start(self, blueprint_name, id, description, parameters=None):
 
         # The input consists of system and prompt strings
         input = {
             "operation": "start-flow",
             "flow-id": id,
-            "class-name": class_name,
+            "blueprint-name": blueprint_name,
             "description": description,
         }
 

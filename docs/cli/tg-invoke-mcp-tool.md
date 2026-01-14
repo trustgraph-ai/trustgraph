@@ -435,7 +435,7 @@ tg-invoke-mcp-tool -n tool-name -P '{}'
 tg-show-flows | grep "flow-id"
 
 # Verify flow supports MCP tools
-tg-get-flow-class -n "flow-class" | jq '.interfaces.mcp_tool'
+tg-get-flow-blueprint -n "flow-class" | jq '.interfaces.mcp_tool'
 ```
 
 ### Connection Issues

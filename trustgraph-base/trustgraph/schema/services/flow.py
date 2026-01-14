@@ -7,27 +7,27 @@ from ..core.primitives import Error
 ############################################################################
 
 # Flow service:
-#   list_classes() -> (classname[])
-#   get_class(classname) -> (class)
-#   put_class(class) -> (class)
-#   delete_class(classname) -> ()
+#   list_blueprints() -> (blueprintname[])
+#   get_blueprint(blueprintname) -> (blueprint)
+#   put_blueprint(blueprint) -> (blueprint)
+#   delete_blueprint(blueprintname) -> ()
 #
 #   list_flows() -> (flowid[])
 #   get_flow(flowid) -> (flow)
-#   start_flow(flowid, classname) -> ()
+#   start_flow(flowid, blueprintname) -> ()
 #   stop_flow(flowid) -> ()
 
 # Prompt services, abstract the prompt generation
 @dataclass
 class FlowRequest:
-    operation: str = ""  # list-classes, get-class, put-class, delete-class
+    operation: str = ""  # list-blueprints, get-blueprint, put-blueprint, delete-blueprint
                          # list-flows, get-flow, start-flow, stop-flow
 
-    # get_class, put_class, delete_class, start_flow
-    class_name: str = ""
+    # get_blueprint, put_blueprint, delete_blueprint, start_flow
+    blueprint_name: str = ""
 
-    # put_class
-    class_definition: str = ""
+    # put_blueprint
+    blueprint_definition: str = ""
 
     # start_flow
     description: str = ""
@@ -40,14 +40,14 @@ class FlowRequest:
 
 @dataclass
 class FlowResponse:
-    # list_classes
-    class_names: list[str] = field(default_factory=list)
+    # list_blueprints
+    blueprint_names: list[str] = field(default_factory=list)
 
     # list_flows
     flow_ids: list[str] = field(default_factory=list)
 
-    # get_class
-    class_definition: str = ""
+    # get_blueprint
+    blueprint_definition: str = ""
 
     # get_flow
     flow: str = ""

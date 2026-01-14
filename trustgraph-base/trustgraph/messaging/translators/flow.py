@@ -9,8 +9,8 @@ class FlowRequestTranslator(MessageTranslator):
     def to_pulsar(self, data: Dict[str, Any]) -> FlowRequest:
         return FlowRequest(
             operation=data.get("operation"),
-            class_name=data.get("class-name"),
-            class_definition=data.get("class-definition"),
+            blueprint_name=data.get("blueprint-name"),
+            blueprint_definition=data.get("blueprint-definition"),
             description=data.get("description"),
             flow_id=data.get("flow-id"),
             parameters=data.get("parameters")
@@ -21,10 +21,10 @@ class FlowRequestTranslator(MessageTranslator):
 
         if obj.operation is not None:
             result["operation"] = obj.operation
-        if obj.class_name is not None:
-            result["class-name"] = obj.class_name
-        if obj.class_definition is not None:
-            result["class-definition"] = obj.class_definition
+        if obj.blueprint_name is not None:
+            result["blueprint-name"] = obj.blueprint_name
+        if obj.blueprint_definition is not None:
+            result["blueprint-definition"] = obj.blueprint_definition
         if obj.description is not None:
             result["description"] = obj.description
         if obj.flow_id is not None:
@@ -44,12 +44,12 @@ class FlowResponseTranslator(MessageTranslator):
     def from_pulsar(self, obj: FlowResponse) -> Dict[str, Any]:
         result = {}
 
-        if obj.class_names is not None:
-            result["class-names"] = obj.class_names
+        if obj.blueprint_names is not None:
+            result["blueprint-names"] = obj.blueprint_names
         if obj.flow_ids is not None:
             result["flow-ids"] = obj.flow_ids
-        if obj.class_definition is not None:
-            result["class-definition"] = obj.class_definition
+        if obj.blueprint_definition is not None:
+            result["blueprint-definition"] = obj.blueprint_definition
         if obj.flow is not None:
             result["flow"] = obj.flow
         if obj.description is not None:

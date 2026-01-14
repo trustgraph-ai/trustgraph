@@ -32,7 +32,9 @@ class Service(ToolService):
 
         logger.info(f"Got config version {version}")
 
-        if "mcp" not in config: return
+        if "mcp" not in config:
+            self.mcp_services = {}
+            return
 
         self.mcp_services = {
             k: json.loads(v)

@@ -1,6 +1,6 @@
 """
-Uploads a flow class definition.  You can take the output of
-tg-get-flow-class and load it back in using this utility.
+Uploads a flow blueprint definition.  You can take the output of
+tg-get-flow-blueprint and load it back in using this utility.
 """
 
 import argparse
@@ -11,16 +11,16 @@ import json
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
-def put_flow_class(url, class_name, config, token=None):
+def put_flow_blueprint(url, blueprint_name, config, token=None):
 
     api = Api(url, token=token)
 
-    class_names = api.flow().put_class(class_name, config)
+    blueprint_names = api.flow().put_blueprint(blueprint_name, config)
 
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-put-flow-class',
+        prog='tg-put-flow-blueprint',
         description=__doc__,
     )
 
@@ -37,8 +37,8 @@ def main():
     )
 
     parser.add_argument(
-        '-n', '--class-name',
-        help=f'Flow class name',
+        '-n', '--blueprint-name',
+        help=f'Flow blueprint name',
     )
 
     parser.add_argument(
@@ -50,9 +50,9 @@ def main():
 
     try:
 
-        put_flow_class(
+        put_flow_blueprint(
             url=args.api_url,
-            class_name=args.class_name,
+            blueprint_name=args.blueprint_name,
             config=json.loads(args.config),
             token=args.token,
         )

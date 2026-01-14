@@ -434,7 +434,7 @@ Exception: Processing ID already exists
 ```bash
 Exception: Flow instance not found
 ```
-**Solution**: Verify flow exists with `tg-show-flows` or `tg-show-flow-classes`.
+**Solution**: Verify flow exists with `tg-show-flows` or `tg-show-flow-blueprints`.
 
 ### Insufficient Resources
 ```bash

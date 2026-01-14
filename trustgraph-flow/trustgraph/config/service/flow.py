@@ -13,26 +13,26 @@ class FlowConfig:
         # Cache for parameter type definitions to avoid repeated lookups
         self.param_type_cache = {}
 
-    async def resolve_parameters(self, flow_class, user_params):
+    async def resolve_parameters(self, flow_blueprint, user_params):
         """
         Resolve parameters by merging user-provided values with defaults.
 
         Args:
-            flow_class: The flow class definition dict
+            flow_blueprint: The flow blueprint definition dict
             user_params: User-provided parameters dict (may be None or empty)
 
         Returns:
             Complete parameter dict with user values and defaults merged (all values as strings)
         """
-        # If the flow class has no parameters section, return user params as-is (stringified)
-        if "parameters" not in flow_class:
+        # If the flow blueprint has no parameters section, return user params as-is (stringified)
+        if "parameters" not in flow_blueprint:
             if not user_params:
                 return {}
             # Ensure all values are strings
             return {k: str(v) for k, v in user_params.items()}
 
         resolved = {}
-        flow_params = flow_class["parameters"]
+        flow_params = flow_blueprint["parameters"]
         user_params = user_params if user_params else {}
 
         # First pass: resolve parameters with explicit values or defaults
@@ -49,7 +49,7 @@ class FlowConfig:
                     if param_type not in self.param_type_cache:
                         try:
                             # Fetch parameter type definition from config store
-                            type_def = await self.config.get("parameter-types").get(param_type)
+                            type_def = await self.config.get("parameter-type").get(param_type)
                             if type_def:
                                 self.param_type_cache[param_type] = json.loads(type_def)
                             else:
@@ -92,7 +92,7 @@ class FlowConfig:
                             else:
                                 resolved[param_name] = str(default_value)
 
-        # Include any extra parameters from user that weren't in flow class definition
+        # Include any extra parameters from user that weren't in flow blueprint definition
         # This allows for forward compatibility (ensure they're strings)
         for key, value in user_params.items():
             if key not in resolved:
@@ -100,28 +100,28 @@ class FlowConfig:
 
         return resolved
 
-    async def handle_list_classes(self, msg):
+    async def handle_list_blueprints(self, msg):
 
-        names = list(await self.config.get("flow-classes").keys())
-
-        return FlowResponse(
-            error = None,
-            class_names = names,
-        )
-    
-    async def handle_get_class(self, msg):
+        names = list(await self.config.get("flow-blueprint").keys())
 
         return FlowResponse(
             error = None,
-            class_definition = await self.config.get(
-                "flow-classes"
-            ).get(msg.class_name),
+            blueprint_names = names,
         )
     
-    async def handle_put_class(self, msg):
+    async def handle_get_blueprint(self, msg):
 
-        await self.config.get("flow-classes").put(
-            msg.class_name, msg.class_definition
+        return FlowResponse(
+            error = None,
+            blueprint_definition = await self.config.get(
+                "flow-blueprint"
+            ).get(msg.blueprint_name),
+        )
+    
+    async def handle_put_blueprint(self, msg):
+
+        await self.config.get("flow-blueprint").put(
+            msg.blueprint_name, msg.blueprint_definition
         )
 
         await self.config.inc_version()
@@ -132,11 +132,11 @@ class FlowConfig:
             error = None,
         )
     
-    async def handle_delete_class(self, msg):
+    async def handle_delete_blueprint(self, msg):
 
         logger.debug(f"Flow config message: {msg}")
 
-        await self.config.get("flow-classes").delete(msg.class_name)
+        await self.config.get("flow-blueprint").delete(msg.blueprint_name)
 
         await self.config.inc_version()
 
@@ -148,7 +148,7 @@ class FlowConfig:
     
     async def handle_list_flows(self, msg):
 
-        names = list(await self.config.get("flows").keys())
+        names = list(await self.config.get("flow").keys())
 
         return FlowResponse(
             error = None,
@@ -157,7 +157,7 @@ class FlowConfig:
     
     async def handle_get_flow(self, msg):
 
-        flow_data = await self.config.get("flows").get(msg.flow_id)
+        flow_data = await self.config.get("flow").get(msg.flow_id)
         flow = json.loads(flow_data)
 
         return FlowResponse(
@@ -169,23 +169,23 @@ class FlowConfig:
     
     async def handle_start_flow(self, msg):
 
-        if msg.class_name is None:
-            raise RuntimeError("No class name")
+        if msg.blueprint_name is None:
+            raise RuntimeError("No blueprint name")
 
         if msg.flow_id is None:
             raise RuntimeError("No flow ID")
 
-        if msg.flow_id in await self.config.get("flows").keys():
+        if msg.flow_id in await self.config.get("flow").keys():
             raise RuntimeError("Flow already exists")
 
         if msg.description is None:
             raise RuntimeError("No description")
 
-        if msg.class_name not in await self.config.get("flow-classes").keys():
-            raise RuntimeError("Class does not exist")
+        if msg.blueprint_name not in await self.config.get("flow-blueprint").keys():
+            raise RuntimeError("Blueprint does not exist")
 
         cls = json.loads(
-            await self.config.get("flow-classes").get(msg.class_name)
+            await self.config.get("flow-blueprint").get(msg.blueprint_name)
         )
 
         # Resolve parameters by merging user-provided values with defaults
@@ -200,7 +200,7 @@ class FlowConfig:
         def repl_template_with_params(tmp):
 
             result = tmp.replace(
-                "{class}", msg.class_name
+                "{blueprint}", msg.blueprint_name
             ).replace(
                 "{id}", msg.flow_id
             )
@@ -210,7 +210,7 @@ class FlowConfig:
 
             return result
 
-        for kind in ("class", "flow"):
+        for kind in ("blueprint", "flow"):
 
             for k, v in cls[kind].items():
 
@@ -223,7 +223,7 @@ class FlowConfig:
                     for k2, v2 in v.items()
                 }
 
-                flac = await self.config.get("flows-active").get(processor)
+                flac = await self.config.get("active-flow").get(processor)
                 if flac is not None:
                     target = json.loads(flac)
                 else:
@@ -237,7 +237,7 @@ class FlowConfig:
                 if variant not in target:
                     target[variant] = v
 
-                await self.config.get("flows-active").put(
+                await self.config.get("active-flow").put(
                     processor, json.dumps(target)
                 )
 
@@ -258,11 +258,11 @@ class FlowConfig:
         else:
             interfaces = {}
 
-        await self.config.get("flows").put(
+        await self.config.get("flow").put(
             msg.flow_id,
             json.dumps({
                 "description": msg.description,
-                "class-name": msg.class_name,
+                "blueprint-name": msg.blueprint_name,
                 "interfaces": interfaces,
                 "parameters": parameters,
             })
@@ -281,22 +281,22 @@ class FlowConfig:
         if msg.flow_id is None:
             raise RuntimeError("No flow ID")
 
-        if msg.flow_id not in await self.config.get("flows").keys():
+        if msg.flow_id not in await self.config.get("flow").keys():
             raise RuntimeError("Flow ID invalid")
 
-        flow = json.loads(await self.config.get("flows").get(msg.flow_id))
+        flow = json.loads(await self.config.get("flow").get(msg.flow_id))
 
-        if "class-name" not in flow:
-            raise RuntimeError("Internal error: flow has no flow class")
+        if "blueprint-name" not in flow:
+            raise RuntimeError("Internal error: flow has no flow blueprint")
 
-        class_name = flow["class-name"]
+        blueprint_name = flow["blueprint-name"]
         parameters = flow.get("parameters", {})
 
-        cls = json.loads(await self.config.get("flow-classes").get(class_name))
+        cls = json.loads(await self.config.get("flow-blueprint").get(blueprint_name))
 
         def repl_template(tmp):
             result = tmp.replace(
-                "{class}", class_name
+                "{blueprint}", blueprint_name
             ).replace(
                 "{id}", msg.flow_id
             )
@@ -313,7 +313,7 @@ class FlowConfig:
 
                 variant = repl_template(variant)
 
-                flac = await self.config.get("flows-active").get(processor)
+                flac = await self.config.get("active-flow").get(processor)
 
                 if flac is not None:
                     target = json.loads(flac)
@@ -323,12 +323,12 @@ class FlowConfig:
                 if variant in target:
                     del target[variant]
 
-                await self.config.get("flows-active").put(
+                await self.config.get("active-flow").put(
                     processor, json.dumps(target)
                 )
 
-        if msg.flow_id in await self.config.get("flows").keys():
-            await self.config.get("flows").delete(msg.flow_id)
+        if msg.flow_id in await self.config.get("flow").keys():
+            await self.config.get("flow").delete(msg.flow_id)
 
         await self.config.inc_version()
 
@@ -342,14 +342,14 @@ class FlowConfig:
 
         logger.debug(f"Handling flow message: {msg.operation}")
 
-        if msg.operation == "list-classes":
-            resp = await self.handle_list_classes(msg)
-        elif msg.operation == "get-class":
-            resp = await self.handle_get_class(msg)
-        elif msg.operation == "put-class":
-            resp = await self.handle_put_class(msg)
-        elif msg.operation == "delete-class":
-            resp = await self.handle_delete_class(msg)
+        if msg.operation == "list-blueprints":
+            resp = await self.handle_list_blueprints(msg)
+        elif msg.operation == "get-blueprint":
+            resp = await self.handle_get_blueprint(msg)
+        elif msg.operation == "put-blueprint":
+            resp = await self.handle_put_blueprint(msg)
+        elif msg.operation == "delete-blueprint":
+            resp = await self.handle_delete_blueprint(msg)
         elif msg.operation == "list-flows":
             resp = await self.handle_list_flows(msg)
         elif msg.operation == "get-flow":
