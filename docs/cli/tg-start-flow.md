@@ -1,6 +1,6 @@
 # tg-start-flow
 
-Starts a processing flow using a defined flow class.
+Starts a processing flow using a defined flow blueprint.
 
 ## Synopsis
 
@@ -10,7 +10,7 @@ tg-start-flow -n CLASS_NAME -i FLOW_ID -d DESCRIPTION [options]
 
 ## Description
 
-The `tg-start-flow` command creates and starts a new processing flow instance based on a predefined flow class. Flow classes define the processing pipeline configuration, while flow instances are running implementations of those classes with specific identifiers.
+The `tg-start-flow` command creates and starts a new processing flow instance based on a predefined flow blueprint. Flow blueprintes define the processing pipeline configuration, while flow instances are running implementations of those classes with specific identifiers.
 
 Once started, a flow provides endpoints for document processing, knowledge queries, and other TrustGraph services through its configured interfaces.
 
@@ -18,7 +18,7 @@ Once started, a flow provides endpoints for document processing, knowledge queri
 
 ### Required Arguments
 
-- `-n, --class-name CLASS_NAME`: Name of the flow class to instantiate
+- `-n, --blueprint-name CLASS_NAME`: Name of the flow blueprint to instantiate
 - `-i, --flow-id FLOW_ID`: Unique identifier for the new flow instance
 - `-d, --description DESCRIPTION`: Human-readable description of the flow
 
@@ -36,7 +36,7 @@ tg-start-flow \
   -d "Research document processing pipeline"
 ```
 
-### Start Custom Flow Class
+### Start Custom Flow Blueprint
 ```bash
 tg-start-flow \
   -n "medical-analysis" \
@@ -55,15 +55,15 @@ tg-start-flow \
 
 ## Prerequisites
 
-### Flow Class Must Exist
-Before starting a flow, the flow class must be available in the system:
+### Flow Blueprint Must Exist
+Before starting a flow, the flow blueprint must be available in the system:
 
 ```bash
-# Check available flow classes
-tg-show-flow-classes
+# Check available flow blueprintes
+tg-show-flow-blueprints
 
-# Upload a flow class if needed
-tg-put-flow-class -n "my-class" -f flow-definition.json
+# Upload a flow blueprint if needed
+tg-put-flow-blueprint -n "my-class" -f flow-definition.json
 ```
 
 ### System Requirements
@@ -73,7 +73,7 @@ tg-put-flow-class -n "my-class" -f flow-definition.json
 
 ## Flow Lifecycle
 
-1. **Flow Class Definition**: Flow classes define processing pipelines
+1. **Flow Blueprint Definition**: Flow blueprintes define processing pipelines
 2. **Flow Instance Creation**: `tg-start-flow` creates a running instance
 3. **Service Availability**: Flow provides configured service endpoints
 4. **Processing**: Documents and queries can be processed through the flow
@@ -81,11 +81,11 @@ tg-put-flow-class -n "my-class" -f flow-definition.json
 
 ## Error Handling
 
-### Flow Class Not Found
+### Flow Blueprint Not Found
 ```bash
-Exception: Flow class 'invalid-class' not found
+Exception: Flow blueprint 'invalid-class' not found
 ```
-**Solution**: Check available flow classes with `tg-show-flow-classes` and ensure the class name is correct.
+**Solution**: Check available flow blueprintes with `tg-show-flow-blueprints` and ensure the class name is correct.
 
 ### Flow ID Already Exists
 ```bash
@@ -137,8 +137,8 @@ Once started, flows provide service interfaces based on their class definition. 
 
 - [`tg-stop-flow`](tg-stop-flow.md) - Stop a running flow
 - [`tg-show-flows`](tg-show-flows.md) - List active flows and their interfaces
-- [`tg-show-flow-classes`](tg-show-flow-classes.md) - List available flow classes
-- [`tg-put-flow-class`](tg-put-flow-class.md) - Upload/update flow class definitions
+- [`tg-show-flow-blueprints`](tg-show-flow-blueprints.md) - List available flow blueprintes
+- [`tg-put-flow-blueprint`](tg-put-flow-blueprint.md) - Upload/update flow blueprint definitions
 - [`tg-show-flow-state`](tg-show-flow-state.md) - Check flow status
 
 ## API Integration

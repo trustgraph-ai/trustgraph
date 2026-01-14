@@ -135,7 +135,7 @@ Exception: Unauthorized
 
 - [`tg-start-flow`](tg-start-flow.md) - Start a new flow instance
 - [`tg-stop-flow`](tg-stop-flow.md) - Stop a running flow
-- [`tg-show-flow-classes`](tg-show-flow-classes.md) - List available flow classes
+- [`tg-show-flow-blueprints`](tg-show-flow-blueprints.md) - List available flow blueprintes
 - [`tg-show-flow-state`](tg-show-flow-state.md) - Show detailed flow status
 - [`tg-show-config`](tg-show-config.md) - Show complete system configuration
 
@@ -186,7 +186,7 @@ tg-show-flows | grep "graph-rag request"
 
 ### Flow Information
 - **id**: Unique flow instance identifier
-- **class**: Flow class name used to create the instance
+- **class**: Flow blueprint name used to create the instance
 - **desc**: Human-readable flow description
 - **queue**: Service interfaces and their Pulsar queue names
 
@@ -196,7 +196,7 @@ Queue names indicate:
 - **Tenant**: Usually `tg`
 - **Namespace**: `request`, `response`, or `flow`
 - **Service**: The specific service name
-- **Flow Identifier**: Either flow class or flow ID
+- **Flow Identifier**: Either flow blueprint or flow ID
 
 ## Best Practices
 

@@ -426,5 +426,5 @@ echo "variable=value" | grep "="
 tg-show-flows | grep "flow-id"
 
 # Verify flow has prompt service
-tg-get-flow-class -n "flow-class" | jq '.interfaces.prompt'
+tg-get-flow-blueprint -n "flow-class" | jq '.interfaces.prompt'
 ```

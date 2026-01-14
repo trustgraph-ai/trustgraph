@@ -1,6 +1,6 @@
 # tg-show-flow-state
 
-Displays the processor states for a specific flow and its associated flow class.
+Displays the processor states for a specific flow and its associated flow blueprint.
 
 ## Synopsis
 
@@ -10,7 +10,7 @@ tg-show-flow-state [options]
 
 ## Description
 
-The `tg-show-flow-state` command shows the current state of processors within a specific TrustGraph flow instance and its corresponding flow class. It queries the metrics system to determine which processing components are running and displays their status with visual indicators.
+The `tg-show-flow-state` command shows the current state of processors within a specific TrustGraph flow instance and its corresponding flow blueprint. It queries the metrics system to determine which processing components are running and displays their status with visual indicators.
 
 This command is essential for monitoring flow health and debugging processing issues.
 
@@ -51,7 +51,7 @@ tg-show-flow-state \
 
 ## Output Format
 
-The command displays processor states for both the flow instance and its flow class:
+The command displays processor states for both the flow instance and its flow blueprint:
 
 ```
 Flow production-flow
@@ -75,7 +75,7 @@ Class document-processing-v2
 
 ### Information Displayed
 - **Flow Section**: Shows the state of processors in the specific flow instance
-- **Class Section**: Shows the state of processors in the flow class template
+- **Class Section**: Shows the state of processors in the flow blueprint template
 - **Processor Names**: Individual processing components within the flow
 
 ## Use Cases
