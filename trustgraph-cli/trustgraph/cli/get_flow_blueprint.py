@@ -1,5 +1,5 @@
 """
-Outputs a flow class definition in JSON format.
+Outputs a flow blueprint definition in JSON format.
 """
 
 import argparse
@@ -10,18 +10,18 @@ import json
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 
-def get_flow_class(url, class_name):
+def get_flow_blueprint(url, blueprint_name):
 
     api = Api(url).flow()
 
-    cls = api.get_class(class_name)
+    cls = api.get_blueprint(blueprint_name)
 
     print(json.dumps(cls, indent=4))
 
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='tg-get-flow-class',
+        prog='tg-get-flow-blueprint',
         description=__doc__,
     )
 
@@ -32,18 +32,18 @@ def main():
     )
 
     parser.add_argument(
-        '-n', '--class-name',
+        '-n', '--blueprint-name',
         required=True,
-        help=f'Flow class name',
+        help=f'Flow blueprint name',
     )
 
     args = parser.parse_args()
 
     try:
 
-        get_flow_class(
+        get_flow_blueprint(
             url=args.api_url,
-            class_name=args.class_name,
+            blueprint_name=args.blueprint_name,
         )
 
     except Exception as e:
