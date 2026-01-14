@@ -258,11 +258,11 @@ class Processor(AsyncProcessor):
 
         logger.info(f"Configuration version: {version}")
 
-        if "flows" in config:
+        if "flow" in config:
 
             self.flows = {
                 k: json.loads(v)
-                for k, v in config["flows"].items()
+                for k, v in config["flow"].items()
             }
 
         logger.debug(f"Flows: {self.flows}")
