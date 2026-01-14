@@ -13,7 +13,7 @@ default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
 def get_interface(config_api, i):
 
-    key = ConfigKey("interface-descriptions", i)
+    key = ConfigKey("interface-description", i)
 
     value = config_api.get([key])[0].value
 
@@ -135,7 +135,7 @@ def show_flows(url, token=None):
     config_api = api.config()
     flow_api = api.flow()
 
-    interface_names = config_api.list("interface-descriptions")
+    interface_names = config_api.list("interface-description")
 
     interface_defs = {
         i: get_interface(config_api, i)
