@@ -102,7 +102,7 @@ class FlowConfig:
 
     async def handle_list_blueprints(self, msg):
 
-        names = list(await self.config.get("flow-blueprints").keys())
+        names = list(await self.config.get("flow-blueprint").keys())
 
         return FlowResponse(
             error = None,
@@ -114,13 +114,13 @@ class FlowConfig:
         return FlowResponse(
             error = None,
             blueprint_definition = await self.config.get(
-                "flow-blueprints"
+                "flow-blueprint"
             ).get(msg.blueprint_name),
         )
     
     async def handle_put_blueprint(self, msg):
 
-        await self.config.get("flow-blueprints").put(
+        await self.config.get("flow-blueprint").put(
             msg.blueprint_name, msg.blueprint_definition
         )
 
@@ -136,7 +136,7 @@ class FlowConfig:
 
         logger.debug(f"Flow config message: {msg}")
 
-        await self.config.get("flow-blueprints").delete(msg.blueprint_name)
+        await self.config.get("flow-blueprint").delete(msg.blueprint_name)
 
         await self.config.inc_version()
 
@@ -181,11 +181,11 @@ class FlowConfig:
         if msg.description is None:
             raise RuntimeError("No description")
 
-        if msg.blueprint_name not in await self.config.get("flow-blueprints").keys():
+        if msg.blueprint_name not in await self.config.get("flow-blueprint").keys():
             raise RuntimeError("Blueprint does not exist")
 
         cls = json.loads(
-            await self.config.get("flow-blueprints").get(msg.blueprint_name)
+            await self.config.get("flow-blueprint").get(msg.blueprint_name)
         )
 
         # Resolve parameters by merging user-provided values with defaults
@@ -292,7 +292,7 @@ class FlowConfig:
         blueprint_name = flow["blueprint-name"]
         parameters = flow.get("parameters", {})
 
-        cls = json.loads(await self.config.get("flow-blueprints").get(blueprint_name))
+        cls = json.loads(await self.config.get("flow-blueprint").get(blueprint_name))
 
         def repl_template(tmp):
             result = tmp.replace(

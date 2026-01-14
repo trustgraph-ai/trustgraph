@@ -194,21 +194,21 @@ def check_processors(url: str, min_processors: int, timeout: int, token: Optiona
         return False, f"Processor check error: {e}"
 
 
-def check_flow_classes(url: str, timeout: int, token: Optional[str] = None) -> Tuple[bool, str]:
-    """Check if flow classes are loaded."""
+def check_flow_blueprints(url: str, timeout: int, token: Optional[str] = None) -> Tuple[bool, str]:
+    """Check if flow blueprints are loaded."""
     try:
         api = Api(url, token=token, timeout=timeout)
         flow_api = api.flow()
 
-        classes = flow_api.list_classes()
+        blueprints = flow_api.list_blueprints()
 
-        if classes and len(classes) > 0:
-            return True, f"Found {len(classes)} flow class(es)"
+        if blueprints and len(blueprints) > 0:
+            return True, f"Found {len(blueprints)} flow blueprint(s)"
         else:
-            return False, "No flow classes found"
+            return False, "No flow blueprints found"
 
     except Exception as e:
-        return False, f"Flow classes check error: {e}"
+        return False, f"Flow blueprints check error: {e}"
 
 
 def check_flows(url: str, timeout: int, token: Optional[str] = None) -> Tuple[bool, str]:
@@ -416,8 +416,8 @@ def main():
     )
 
     checker.run_check(
-        "Flow Classes",
-        check_flow_classes,
+        "Flow Blueprints",
+        check_flow_blueprints,
         args.api_url,
         args.check_timeout,
         args.token
