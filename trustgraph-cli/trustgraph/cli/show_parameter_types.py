@@ -85,7 +85,7 @@ def show_parameter_types(url, token=None):
 
     # Get list of all parameter types
     try:
-        param_type_names = config_api.list("parameter-types")
+        param_type_names = config_api.list("parameter-type")
     except Exception as e:
         print(f"Error retrieving parameter types: {e}")
         return
@@ -97,7 +97,7 @@ def show_parameter_types(url, token=None):
     for param_type_name in param_type_names:
         try:
             # Get the parameter type definition
-            key = ConfigKey("parameter-types", param_type_name)
+            key = ConfigKey("parameter-type", param_type_name)
             type_def_value = config_api.get([key])[0].value
             param_type_def = json.loads(type_def_value)
 
@@ -179,7 +179,7 @@ def show_specific_parameter_type(url, param_type_name, token=None):
 
     try:
         # Get the parameter type definition
-        key = ConfigKey("parameter-types", param_type_name)
+        key = ConfigKey("parameter-type", param_type_name)
         type_def_value = config_api.get([key])[0].value
         param_type_def = json.loads(type_def_value)
 

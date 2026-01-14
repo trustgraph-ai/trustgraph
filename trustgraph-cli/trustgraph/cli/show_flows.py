@@ -105,7 +105,7 @@ def format_parameters(flow_params, blueprint_params_metadata, config_api):
             if param_type and config_api:
                 try:
                     from trustgraph.api import ConfigKey
-                    key = ConfigKey("parameter-types", param_type)
+                    key = ConfigKey("parameter-type", param_type)
                     type_def_value = config_api.get([key])[0].value
                     param_type_def = json.loads(type_def_value)
                     display_value = get_enum_description(value, param_type_def)

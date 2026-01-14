@@ -41,7 +41,7 @@ def format_parameters(params_metadata, config_api):
         type_info = param_type
         if config_api:
             try:
-                key = ConfigKey("parameter-types", param_type)
+                key = ConfigKey("parameter-type", param_type)
                 type_def_value = config_api.get([key])[0].value
                 param_type_def = json.loads(type_def_value)
 
