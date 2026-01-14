@@ -70,13 +70,13 @@ def get_enum_description(param_value, param_type_def):
     # If not found in enum, return original value
     return param_value
 
-def format_parameters(flow_params, class_params_metadata, config_api):
+def format_parameters(flow_params, blueprint_params_metadata, config_api):
     """
     Format flow parameters with their human-readable descriptions
 
     Args:
         flow_params: The actual parameter values used in the flow
-        class_params_metadata: The parameter metadata from the flow class definition
+        blueprint_params_metadata: The parameter metadata from the flow blueprint definition
         config_api: API client to retrieve parameter type definitions
 
     Returns:
@@ -89,7 +89,7 @@ def format_parameters(flow_params, class_params_metadata, config_api):
 
     # Sort parameters by order if available
     sorted_params = sorted(
-        class_params_metadata.items(),
+        blueprint_params_metadata.items(),
         key=lambda x: x[1].get("order", 999)
     )
 
@@ -122,9 +122,9 @@ def format_parameters(flow_params, class_params_metadata, config_api):
 
             param_list.append(line)
 
-    # Add any parameters that aren't in the class metadata (shouldn't happen normally)
+    # Add any parameters that aren't in the blueprint metadata (shouldn't happen normally)
     for param_name, value in flow_params.items():
-        if param_name not in class_params_metadata:
+        if param_name not in blueprint_params_metadata:
             param_list.append(f"• {param_name}: {value} (undefined)")
 
     return "\n".join(param_list) if param_list else "None"
@@ -156,24 +156,24 @@ def show_flows(url, token=None):
 
         table = []
         table.append(("id", id))
-        table.append(("class", flow.get("class-name", "")))
+        table.append(("blueprint", flow.get("blueprint-name", "")))
         table.append(("desc", flow.get("description", "")))
 
         # Display parameters with human-readable descriptions
         parameters = flow.get("parameters", {})
         if parameters:
-            # Try to get the flow class definition for parameter metadata
-            class_name = flow.get("class-name", "")
-            if class_name:
+            # Try to get the flow blueprint definition for parameter metadata
+            blueprint_name = flow.get("blueprint-name", "")
+            if blueprint_name:
                 try:
-                    flow_class = flow_api.get_class(class_name)
-                    class_params_metadata = flow_class.get("parameters", {})
-                    param_str = format_parameters(parameters, class_params_metadata, config_api)
+                    flow_blueprint = flow_api.get_blueprint(blueprint_name)
+                    blueprint_params_metadata = flow_blueprint.get("parameters", {})
+                    param_str = format_parameters(parameters, blueprint_params_metadata, config_api)
                 except Exception as e:
-                    # Fallback to JSON if we can't get the class definition
+                    # Fallback to JSON if we can't get the blueprint definition
                     param_str = json.dumps(parameters, indent=2)
             else:
-                # No class name, fallback to JSON
+                # No blueprint name, fallback to JSON
                 param_str = json.dumps(parameters, indent=2)
 
             table.append(("parameters", param_str))

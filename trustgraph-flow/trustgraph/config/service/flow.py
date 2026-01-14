@@ -148,7 +148,7 @@ class FlowConfig:
     
     async def handle_list_flows(self, msg):
 
-        names = list(await self.config.get("flows").keys())
+        names = list(await self.config.get("flow").keys())
 
         return FlowResponse(
             error = None,
@@ -157,7 +157,7 @@ class FlowConfig:
     
     async def handle_get_flow(self, msg):
 
-        flow_data = await self.config.get("flows").get(msg.flow_id)
+        flow_data = await self.config.get("flow").get(msg.flow_id)
         flow = json.loads(flow_data)
 
         return FlowResponse(
@@ -175,7 +175,7 @@ class FlowConfig:
         if msg.flow_id is None:
             raise RuntimeError("No flow ID")
 
-        if msg.flow_id in await self.config.get("flows").keys():
+        if msg.flow_id in await self.config.get("flow").keys():
             raise RuntimeError("Flow already exists")
 
         if msg.description is None:
@@ -258,7 +258,7 @@ class FlowConfig:
         else:
             interfaces = {}
 
-        await self.config.get("flows").put(
+        await self.config.get("flow").put(
             msg.flow_id,
             json.dumps({
                 "description": msg.description,
@@ -281,10 +281,10 @@ class FlowConfig:
         if msg.flow_id is None:
             raise RuntimeError("No flow ID")
 
-        if msg.flow_id not in await self.config.get("flows").keys():
+        if msg.flow_id not in await self.config.get("flow").keys():
             raise RuntimeError("Flow ID invalid")
 
-        flow = json.loads(await self.config.get("flows").get(msg.flow_id))
+        flow = json.loads(await self.config.get("flow").get(msg.flow_id))
 
         if "blueprint-name" not in flow:
             raise RuntimeError("Internal error: flow has no flow blueprint")
@@ -327,8 +327,8 @@ class FlowConfig:
                     processor, json.dumps(target)
                 )
 
-        if msg.flow_id in await self.config.get("flows").keys():
-            await self.config.get("flows").delete(msg.flow_id)
+        if msg.flow_id in await self.config.get("flow").keys():
+            await self.config.get("flow").delete(msg.flow_id)
 
         await self.config.inc_version()
 
