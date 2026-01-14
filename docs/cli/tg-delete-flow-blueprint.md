@@ -1,24 +1,24 @@
-# tg-delete-flow-class
+# tg-delete-flow-blueprint
 
-Permanently deletes a flow class definition from TrustGraph.
+Permanently deletes a flow blueprint definition from TrustGraph.
 
 ## Synopsis
 
 ```bash
-tg-delete-flow-class -n CLASS_NAME [options]
+tg-delete-flow-blueprint -n CLASS_NAME [options]
 ```
 
 ## Description
 
-The `tg-delete-flow-class` command permanently removes a flow class definition from TrustGraph. This operation cannot be undone, so use with caution.
+The `tg-delete-flow-blueprint` command permanently removes a flow blueprint definition from TrustGraph. This operation cannot be undone, so use with caution.
 
-**⚠️ Warning**: Deleting a flow class that has active flow instances may cause those instances to become unusable. Always check for active flows before deletion.
+**⚠️ Warning**: Deleting a flow blueprint that has active flow instances may cause those instances to become unusable. Always check for active flows before deletion.
 
 ## Options
 
 ### Required Arguments
 
-- `-n, --class-name CLASS_NAME`: Name of the flow class to delete
+- `-n, --blueprint-name CLASS_NAME`: Name of the flow blueprint to delete
 
 ### Optional Arguments
 
@@ -26,65 +26,65 @@ The `tg-delete-flow-class` command permanently removes a flow class definition f
 
 ## Examples
 
-### Delete a Flow Class
+### Delete a Flow Blueprint
 ```bash
-tg-delete-flow-class -n "old-test-flow"
+tg-delete-flow-blueprint -n "old-test-flow"
 ```
 
 ### Delete with Custom API URL
 ```bash
-tg-delete-flow-class -n "deprecated-flow" -u http://staging:8088/
+tg-delete-flow-blueprint -n "deprecated-flow" -u http://staging:8088/
 ```
 
 ### Safe Deletion Workflow
 ```bash
-# 1. Check if flow class exists
-tg-show-flow-classes | grep "target-flow"
+# 1. Check if flow blueprint exists
+tg-show-flow-blueprints | grep "target-flow"
 
-# 2. Backup the flow class first
-tg-get-flow-class -n "target-flow" > backup-target-flow.json
+# 2. Backup the flow blueprint first
+tg-get-flow-blueprint -n "target-flow" > backup-target-flow.json
 
 # 3. Check for active flow instances
 tg-show-flows | grep "target-flow"
 
-# 4. Delete the flow class
-tg-delete-flow-class -n "target-flow"
+# 4. Delete the flow blueprint
+tg-delete-flow-blueprint -n "target-flow"
 
 # 5. Verify deletion
-tg-show-flow-classes | grep "target-flow" || echo "Flow class deleted successfully"
+tg-show-flow-blueprints | grep "target-flow" || echo "Flow blueprint deleted successfully"
 ```
 
 ## Prerequisites
 
-### Flow Class Must Exist
-Verify the flow class exists before attempting deletion:
+### Flow Blueprint Must Exist
+Verify the flow blueprint exists before attempting deletion:
 
 ```bash
-# List all flow classes
-tg-show-flow-classes
+# List all flow blueprintes
+tg-show-flow-blueprints
 
-# Check specific flow class
-tg-show-flow-classes | grep "target-class"
+# Check specific flow blueprint
+tg-show-flow-blueprints | grep "target-class"
 ```
 
 ### Check for Active Flow Instances
-Before deleting a flow class, check if any flow instances are using it:
+Before deleting a flow blueprint, check if any flow instances are using it:
 
 ```bash
 # List all active flows
 tg-show-flows
 
-# Look for instances using the flow class
+# Look for instances using the flow blueprint
 tg-show-flows | grep "target-class"
 ```
 
 ## Error Handling
 
-### Flow Class Not Found
+### Flow Blueprint Not Found
 ```bash
-Exception: Flow class 'nonexistent-class' not found
+Exception: Flow blueprint 'nonexistent-class' not found
 ```
-**Solution**: Verify the flow class exists with `tg-show-flow-classes`.
+**Solution**: Verify the flow blueprint exists with `tg-show-flow-blueprints`.
 
 ### Connection Errors
 ```bash
@@ -94,13 +94,13 @@ Exception: Connection refused
 
 ### Permission Errors
 ```bash
-Exception: Access denied to delete flow class
+Exception: Access denied to delete flow blueprint
 ```
-**Solution**: Verify user permissions for flow class management.
+**Solution**: Verify user permissions for flow blueprint management.
 
 ### Active Flow Instances
 ```bash
-Exception: Cannot delete flow class with active instances
+Exception: Cannot delete flow blueprint with active instances
 ```
 **Solution**: Stop all flow instances using this class before deletion.
 
@@ -108,37 +108,37 @@ Exception: Cannot delete flow class with active instances
 
 ### Cleanup Development Classes
 ```bash
-# Delete test and development flow classes
+# Delete test and development flow blueprintes
 test_classes=("test-flow-v1" "dev-experiment" "prototype-flow")
 for class in "${test_classes[@]}"; do
     echo "Deleting $class..."
-    tg-delete-flow-class -n "$class"
+    tg-delete-flow-blueprint -n "$class"
 done
 ```
 
 ### Migration Cleanup
 ```bash
-# After migrating to new flow classes, remove old ones
+# After migrating to new flow blueprintes, remove old ones
 old_classes=("legacy-flow" "deprecated-processor" "old-pipeline")
 for class in "${old_classes[@]}"; do
     # Backup first
-    tg-get-flow-class -n "$class" > "backup-$class.json" 2>/dev/null
+    tg-get-flow-blueprint -n "$class" > "backup-$class.json" 2>/dev/null
     
     # Delete
-    tg-delete-flow-class -n "$class"
+    tg-delete-flow-blueprint -n "$class"
     echo "Deleted $class"
 done
 ```
 
 ### Conditional Deletion
 ```bash
-# Delete flow class only if no active instances exist
+# Delete flow blueprint only if no active instances exist
 flow_class="target-flow"
 active_instances=$(tg-show-flows | grep "$flow_class" | wc -l)
 
 if [ $active_instances -eq 0 ]; then
-    echo "No active instances found, deleting flow class..."
-    tg-delete-flow-class -n "$flow_class"
+    echo "No active instances found, deleting flow blueprint..."
+    tg-delete-flow-blueprint -n "$flow_class"
 else
     echo "Warning: $active_instances active instances found. Cannot delete."
     tg-show-flows | grep "$flow_class"
@@ -154,13 +154,13 @@ flow_class="important-flow"
 backup_dir="flow-class-backups/$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$backup_dir"
 
-echo "Backing up flow class: $flow_class"
-tg-get-flow-class -n "$flow_class" > "$backup_dir/$flow_class.json"
+echo "Backing up flow blueprint: $flow_class"
+tg-get-flow-blueprint -n "$flow_class" > "$backup_dir/$flow_class.json"
 
 if [ $? -eq 0 ]; then
     echo "Backup created: $backup_dir/$flow_class.json"
     echo "Proceeding with deletion..."
-    tg-delete-flow-class -n "$flow_class"
+    tg-delete-flow-blueprint -n "$flow_class"
 else
     echo "Backup failed. Aborting deletion."
     exit 1
@@ -174,22 +174,22 @@ fi
 flow_class="$1"
 
 if [ -z "$flow_class" ]; then
-    echo "Usage: $0 <flow-class-name>"
+    echo "Usage: $0 <flow-blueprint-name>"
     exit 1
 fi
 
-echo "Safety checks for deleting flow class: $flow_class"
+echo "Safety checks for deleting flow blueprint: $flow_class"
 
-# Check if flow class exists
-if ! tg-show-flow-classes | grep -q "$flow_class"; then
-    echo "ERROR: Flow class '$flow_class' not found"
+# Check if flow blueprint exists
+if ! tg-show-flow-blueprints | grep -q "$flow_class"; then
+    echo "ERROR: Flow blueprint '$flow_class' not found"
     exit 1
 fi
 
 # Check for active instances
 active_count=$(tg-show-flows | grep "$flow_class" | wc -l)
 if [ $active_count -gt 0 ]; then
-    echo "ERROR: Found $active_count active instances using this flow class"
+    echo "ERROR: Found $active_count active instances using this flow blueprint"
     echo "Active instances:"
     tg-show-flows | grep "$flow_class"
     exit 1
@@ -198,7 +198,7 @@ fi
 # Create backup
 backup_file="backup-$flow_class-$(date +%Y%m%d-%H%M%S).json"
 echo "Creating backup: $backup_file"
-tg-get-flow-class -n "$flow_class" > "$backup_file"
+tg-get-flow-blueprint -n "$flow_class" > "$backup_file"
 
 if [ $? -ne 0 ]; then
     echo "ERROR: Failed to create backup"
@@ -206,19 +206,19 @@ if [ $? -ne 0 ]; then
 fi
 
 # Confirm deletion
-echo "Ready to delete flow class: $flow_class"
+echo "Ready to delete flow blueprint: $flow_class"
 echo "Backup saved as: $backup_file"
-read -p "Are you sure you want to delete this flow class? (y/N): " confirm
+read -p "Are you sure you want to delete this flow blueprint? (y/N): " confirm
 
 if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
-    echo "Deleting flow class..."
-    tg-delete-flow-class -n "$flow_class"
+    echo "Deleting flow blueprint..."
+    tg-delete-flow-blueprint -n "$flow_class"
     
     # Verify deletion
-    if ! tg-show-flow-classes | grep -q "$flow_class"; then
-        echo "Flow class deleted successfully"
+    if ! tg-show-flow-blueprints | grep -q "$flow_class"; then
+        echo "Flow blueprint deleted successfully"
     else
-        echo "ERROR: Flow class still exists after deletion"
+        echo "ERROR: Flow blueprint still exists after deletion"
         exit 1
     fi
 else
@@ -229,13 +229,13 @@ fi
 
 ## Integration with Other Commands
 
-### Complete Flow Class Lifecycle
+### Complete Flow Blueprint Lifecycle
 ```bash
-# 1. List existing flow classes
-tg-show-flow-classes
+# 1. List existing flow blueprintes
+tg-show-flow-blueprints
 
-# 2. Get flow class details
-tg-get-flow-class -n "target-flow"
+# 2. Get flow blueprint details
+tg-get-flow-blueprint -n "target-flow"
 
 # 3. Check for active instances
 tg-show-flows | grep "target-flow"
@@ -244,25 +244,25 @@ tg-show-flows | grep "target-flow"
 tg-stop-flow -i "instance-id"
 
 # 5. Create backup
-tg-get-flow-class -n "target-flow" > backup.json
+tg-get-flow-blueprint -n "target-flow" > backup.json
 
-# 6. Delete flow class
-tg-delete-flow-class -n "target-flow"
+# 6. Delete flow blueprint
+tg-delete-flow-blueprint -n "target-flow"
 
 # 7. Verify deletion
-tg-show-flow-classes | grep "target-flow"
+tg-show-flow-blueprints | grep "target-flow"
 ```
 
 ### Bulk Deletion with Validation
 ```bash
-# Delete multiple flow classes safely
+# Delete multiple flow blueprintes safely
 classes_to_delete=("old-flow1" "old-flow2" "test-flow")
 
 for class in "${classes_to_delete[@]}"; do
     echo "Processing $class..."
     
     # Check if exists
-    if ! tg-show-flow-classes | grep -q "$class"; then
+    if ! tg-show-flow-blueprints | grep -q "$class"; then
         echo "  $class not found, skipping"
         continue
     fi
@@ -274,8 +274,8 @@ for class in "${classes_to_delete[@]}"; do
     fi
     
     # Backup and delete
-    tg-get-flow-class -n "$class" > "backup-$class.json"
-    tg-delete-flow-class -n "$class"
+    tg-get-flow-blueprint -n "$class" > "backup-$class.json"
+    tg-delete-flow-blueprint -n "$class"
     echo "  $class deleted"
 done
 ```
@@ -286,15 +286,15 @@ done
 
 ## Related Commands
 
-- [`tg-show-flow-classes`](tg-show-flow-classes.md) - List available flow classes
-- [`tg-get-flow-class`](tg-get-flow-class.md) - Retrieve flow class definitions
-- [`tg-put-flow-class`](tg-put-flow-class.md) - Create/update flow class definitions
+- [`tg-show-flow-blueprints`](tg-show-flow-blueprints.md) - List available flow blueprintes
+- [`tg-get-flow-blueprint`](tg-get-flow-blueprint.md) - Retrieve flow blueprint definitions
+- [`tg-put-flow-blueprint`](tg-put-flow-blueprint.md) - Create/update flow blueprint definitions
 - [`tg-show-flows`](tg-show-flows.md) - List active flow instances
 - [`tg-stop-flow`](tg-stop-flow.md) - Stop flow instances
 
 ## API Integration
 
-This command uses the [Flow API](../apis/api-flow.md) with the `delete-class` operation to remove flow class definitions.
+This command uses the [Flow API](../apis/api-flow.md) with the `delete-class` operation to remove flow blueprint definitions.
 
 ## Best Practices
 
@@ -310,10 +310,10 @@ This command uses the [Flow API](../apis/api-flow.md) with the `delete-class` op
 ### Command Succeeds but Class Still Exists
 ```bash
 # Check if deletion actually occurred
-tg-show-flow-classes | grep "deleted-class"
+tg-show-flow-blueprints | grep "deleted-class"
 
 # Verify API connectivity
-tg-show-flow-classes > /dev/null && echo "API accessible"
+tg-show-flow-blueprints > /dev/null && echo "API accessible"
 ```
 
 ### Permissions Issues

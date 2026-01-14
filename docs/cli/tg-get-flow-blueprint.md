@@ -1,24 +1,24 @@
-# tg-get-flow-class
+# tg-get-flow-blueprint
 
-Retrieves and displays a flow class definition in JSON format.
+Retrieves and displays a flow blueprint definition in JSON format.
 
 ## Synopsis
 
 ```bash
-tg-get-flow-class -n CLASS_NAME [options]
+tg-get-flow-blueprint -n CLASS_NAME [options]
 ```
 
 ## Description
 
-The `tg-get-flow-class` command retrieves a stored flow class definition from TrustGraph and displays it in formatted JSON. This is useful for examining flow class configurations, creating backups, or preparing to modify existing flow classes.
+The `tg-get-flow-blueprint` command retrieves a stored flow blueprint definition from TrustGraph and displays it in formatted JSON. This is useful for examining flow blueprint configurations, creating backups, or preparing to modify existing flow blueprintes.
 
-The output can be saved to files for version control, documentation, or as input for creating new flow classes with `tg-put-flow-class`.
+The output can be saved to files for version control, documentation, or as input for creating new flow blueprintes with `tg-put-flow-blueprint`.
 
 ## Options
 
 ### Required Arguments
 
-- `-n, --class-name CLASS_NAME`: Name of the flow class to retrieve
+- `-n, --blueprint-name CLASS_NAME`: Name of the flow blueprint to retrieve
 
 ### Optional Arguments
 
@@ -26,32 +26,32 @@ The output can be saved to files for version control, documentation, or as input
 
 ## Examples
 
-### Display Flow Class Definition
+### Display Flow Blueprint Definition
 ```bash
-tg-get-flow-class -n "document-processing"
+tg-get-flow-blueprint -n "document-processing"
 ```
 
-### Save Flow Class to File
+### Save Flow Blueprint to File
 ```bash
-tg-get-flow-class -n "production-flow" > production-flow-backup.json
+tg-get-flow-blueprint -n "production-flow" > production-flow-backup.json
 ```
 
-### Compare Flow Classes
+### Compare Flow Blueprintes
 ```bash
-# Get multiple flow classes for comparison
-tg-get-flow-class -n "dev-flow" > dev-flow.json
-tg-get-flow-class -n "prod-flow" > prod-flow.json
+# Get multiple flow blueprintes for comparison
+tg-get-flow-blueprint -n "dev-flow" > dev-flow.json
+tg-get-flow-blueprint -n "prod-flow" > prod-flow.json
 diff dev-flow.json prod-flow.json
 ```
 
 ### Using Custom API URL
 ```bash
-tg-get-flow-class -n "remote-flow" -u http://production:8088/
+tg-get-flow-blueprint -n "remote-flow" -u http://production:8088/
 ```
 
 ## Output Format
 
-The command outputs the flow class definition in formatted JSON:
+The command outputs the flow blueprint definition in formatted JSON:
 
 ```json
 {
@@ -76,7 +76,7 @@ The command outputs the flow class definition in formatted JSON:
 ### Key Components
 
 #### Description
-Human-readable description of the flow class purpose and capabilities.
+Human-readable description of the flow blueprint purpose and capabilities.
 
 #### Interfaces
 Service definitions showing:
@@ -84,28 +84,28 @@ Service definitions showing:
 - **Fire-and-Forget Services**: Services with only input queues
 
 #### Tags (Optional)
-Categorization tags for organizing flow classes.
+Categorization tags for organizing flow blueprintes.
 
 ## Prerequisites
 
-### Flow Class Must Exist
-Verify the flow class exists before retrieval:
+### Flow Blueprint Must Exist
+Verify the flow blueprint exists before retrieval:
 
 ```bash
-# Check available flow classes
-tg-show-flow-classes
+# Check available flow blueprintes
+tg-show-flow-blueprints
 
 # Look for specific class
-tg-show-flow-classes | grep "target-class"
+tg-show-flow-blueprints | grep "target-class"
 ```
 
 ## Error Handling
 
-### Flow Class Not Found
+### Flow Blueprint Not Found
 ```bash
-Exception: Flow class 'invalid-class' not found
+Exception: Flow blueprint 'invalid-class' not found
 ```
-**Solution**: Check available classes with `tg-show-flow-classes` and verify the class name.
+**Solution**: Check available classes with `tg-show-flow-blueprints` and verify the class name.
 
 ### Connection Errors
 ```bash
@@ -115,54 +115,54 @@ Exception: Connection refused
 
 ### Permission Errors
 ```bash
-Exception: Access denied to flow class
+Exception: Access denied to flow blueprint
 ```
-**Solution**: Verify user permissions for accessing flow class definitions.
+**Solution**: Verify user permissions for accessing flow blueprint definitions.
 
 ## Use Cases
 
 ### Configuration Backup
 ```bash
-# Backup all flow classes
+# Backup all flow blueprintes
 mkdir -p flow-class-backups/$(date +%Y%m%d)
-tg-show-flow-classes | awk '{print $1}' | while read class; do
+tg-show-flow-blueprints | awk '{print $1}' | while read class; do
     if [ "$class" != "flow" ]; then  # Skip header
-        tg-get-flow-class -n "$class" > "flow-class-backups/$(date +%Y%m%d)/$class.json"
+        tg-get-flow-blueprint -n "$class" > "flow-class-backups/$(date +%Y%m%d)/$class.json"
     fi
 done
 ```
 
-### Flow Class Migration
+### Flow Blueprint Migration
 ```bash
 # Export from source environment
-tg-get-flow-class -n "production-flow" -u http://source:8088/ > prod-flow.json
+tg-get-flow-blueprint -n "production-flow" -u http://source:8088/ > prod-flow.json
 
 # Import to target environment
-tg-put-flow-class -n "production-flow" -c "$(cat prod-flow.json)" -u http://target:8088/
+tg-put-flow-blueprint -n "production-flow" -c "$(cat prod-flow.json)" -u http://target:8088/
 ```
 
 ### Template Creation
 ```bash
-# Get existing flow class as template
-tg-get-flow-class -n "base-flow" > template.json
+# Get existing flow blueprint as template
+tg-get-flow-blueprint -n "base-flow" > template.json
 
 # Modify template and create new class
 sed 's/base-flow/new-flow/g' template.json > new-flow.json
-tg-put-flow-class -n "custom-flow" -c "$(cat new-flow.json)"
+tg-put-flow-blueprint -n "custom-flow" -c "$(cat new-flow.json)"
 ```
 
 ### Configuration Analysis
 ```bash
-# Analyze flow class configurations
-tg-get-flow-class -n "complex-flow" | jq '.interfaces | keys'
-tg-get-flow-class -n "complex-flow" | jq '.interfaces | length'
+# Analyze flow blueprint configurations
+tg-get-flow-blueprint -n "complex-flow" | jq '.interfaces | keys'
+tg-get-flow-blueprint -n "complex-flow" | jq '.interfaces | length'
 ```
 
 ### Version Control Integration
 ```bash
-# Store flow classes in git
+# Store flow blueprintes in git
 mkdir -p flow-classes
-tg-get-flow-class -n "main-flow" > flow-classes/main-flow.json
+tg-get-flow-blueprint -n "main-flow" > flow-classes/main-flow.json
 git add flow-classes/main-flow.json
 git commit -m "Update main-flow configuration"
 ```
@@ -172,60 +172,60 @@ git commit -m "Update main-flow configuration"
 ### Extract Specific Information
 ```bash
 # Get only interface names
-tg-get-flow-class -n "my-flow" | jq -r '.interfaces | keys[]'
+tg-get-flow-blueprint -n "my-flow" | jq -r '.interfaces | keys[]'
 
 # Get only description
-tg-get-flow-class -n "my-flow" | jq -r '.description'
+tg-get-flow-blueprint -n "my-flow" | jq -r '.description'
 
 # Get request queues
-tg-get-flow-class -n "my-flow" | jq -r '.interfaces | to_entries[] | select(.value.request) | .value.request'
+tg-get-flow-blueprint -n "my-flow" | jq -r '.interfaces | to_entries[] | select(.value.request) | .value.request'
 ```
 
 ### Validate Configuration
 ```bash
 # Validate JSON structure
-tg-get-flow-class -n "my-flow" | jq . > /dev/null && echo "Valid JSON" || echo "Invalid JSON"
+tg-get-flow-blueprint -n "my-flow" | jq . > /dev/null && echo "Valid JSON" || echo "Invalid JSON"
 
 # Check required fields
-config=$(tg-get-flow-class -n "my-flow")
+config=$(tg-get-flow-blueprint -n "my-flow")
 echo "$config" | jq -e '.description' > /dev/null || echo "Missing description"
 echo "$config" | jq -e '.interfaces' > /dev/null || echo "Missing interfaces"
 ```
 
 ## Integration with Other Commands
 
-### Flow Class Lifecycle
+### Flow Blueprint Lifecycle
 ```bash
-# 1. Examine existing flow class
-tg-get-flow-class -n "old-flow"
+# 1. Examine existing flow blueprint
+tg-get-flow-blueprint -n "old-flow"
 
 # 2. Save backup
-tg-get-flow-class -n "old-flow" > old-flow-backup.json
+tg-get-flow-blueprint -n "old-flow" > old-flow-backup.json
 
 # 3. Modify configuration
 cp old-flow-backup.json new-flow.json
 # Edit new-flow.json as needed
 
 # 4. Upload new version
-tg-put-flow-class -n "updated-flow" -c "$(cat new-flow.json)"
+tg-put-flow-blueprint -n "updated-flow" -c "$(cat new-flow.json)"
 
-# 5. Test new flow class
+# 5. Test new flow blueprint
 tg-start-flow -n "updated-flow" -i "test-instance" -d "Testing updated flow"
 ```
 
 ### Bulk Operations
 ```bash
-# Process multiple flow classes
+# Process multiple flow blueprintes
 flow_classes=("flow1" "flow2" "flow3")
 for class in "${flow_classes[@]}"; do
     echo "Processing $class..."
-    tg-get-flow-class -n "$class" > "backup-$class.json"
+    tg-get-flow-blueprint -n "$class" > "backup-$class.json"
     
     # Modify configuration
     sed 's/old-pattern/new-pattern/g' "backup-$class.json" > "updated-$class.json"
     
     # Upload updated version
-    tg-put-flow-class -n "$class" -c "$(cat updated-$class.json)"
+    tg-put-flow-blueprint -n "$class" -c "$(cat updated-$class.json)"
 done
 ```
 
@@ -235,29 +235,29 @@ done
 
 ## Related Commands
 
-- [`tg-put-flow-class`](tg-put-flow-class.md) - Upload/update flow class definitions
-- [`tg-show-flow-classes`](tg-show-flow-classes.md) - List available flow classes
-- [`tg-delete-flow-class`](tg-delete-flow-class.md) - Remove flow class definitions
+- [`tg-put-flow-blueprint`](tg-put-flow-blueprint.md) - Upload/update flow blueprint definitions
+- [`tg-show-flow-blueprints`](tg-show-flow-blueprints.md) - List available flow blueprintes
+- [`tg-delete-flow-blueprint`](tg-delete-flow-blueprint.md) - Remove flow blueprint definitions
 - [`tg-start-flow`](tg-start-flow.md) - Create flow instances from classes
 
 ## API Integration
 
-This command uses the [Flow API](../apis/api-flow.md) with the `get-class` operation to retrieve flow class definitions.
+This command uses the [Flow API](../apis/api-flow.md) with the `get-class` operation to retrieve flow blueprint definitions.
 
 ## Advanced Usage
 
 ### Configuration Diff
 ```bash
-# Compare flow class versions
-tg-get-flow-class -n "flow-v1" > v1.json
-tg-get-flow-class -n "flow-v2" > v2.json
+# Compare flow blueprint versions
+tg-get-flow-blueprint -n "flow-v1" > v1.json
+tg-get-flow-blueprint -n "flow-v2" > v2.json
 diff -u v1.json v2.json
 ```
 
 ### Extract Queue Information
 ```bash
-# Get all queue names from flow class
-tg-get-flow-class -n "my-flow" | jq -r '
+# Get all queue names from flow blueprint
+tg-get-flow-blueprint -n "my-flow" | jq -r '
   .interfaces | 
   to_entries[] | 
   if .value | type == "object" then
@@ -275,16 +275,16 @@ tg-get-flow-class -n "my-flow" | jq -r '
 flow_class="$1"
 
 if [ -z "$flow_class" ]; then
-    echo "Usage: $0 <flow-class-name>"
+    echo "Usage: $0 <flow-blueprint-name>"
     exit 1
 fi
 
-echo "Validating flow class: $flow_class"
+echo "Validating flow blueprint: $flow_class"
 
 # Get configuration
-config=$(tg-get-flow-class -n "$flow_class" 2>/dev/null)
+config=$(tg-get-flow-blueprint -n "$flow_class" 2>/dev/null)
 if [ $? -ne 0 ]; then
-    echo "ERROR: Flow class not found"
+    echo "ERROR: Flow blueprint not found"
     exit 1
 fi
 
@@ -307,32 +307,32 @@ if [ -z "$interfaces" ] || [ "$interfaces" = "null" ]; then
     exit 1
 fi
 
-echo "Flow class validation passed"
+echo "Flow blueprint validation passed"
 ```
 
 ## Best Practices
 
-1. **Regular Backups**: Save flow class definitions before modifications
+1. **Regular Backups**: Save flow blueprint definitions before modifications
 2. **Version Control**: Store configurations in version control systems
-3. **Documentation**: Include meaningful descriptions in flow classes
+3. **Documentation**: Include meaningful descriptions in flow blueprintes
 4. **Validation**: Validate JSON structure before using configurations
 5. **Template Management**: Use existing classes as templates for new ones
-6. **Change Tracking**: Document changes when updating flow classes
+6. **Change Tracking**: Document changes when updating flow blueprintes
 
 ## Troubleshooting
 
 ### Empty Output
 ```bash
 # If command returns empty output
-tg-get-flow-class -n "my-flow"
-# Check if flow class exists
-tg-show-flow-classes | grep "my-flow"
+tg-get-flow-blueprint -n "my-flow"
+# Check if flow blueprint exists
+tg-show-flow-blueprints | grep "my-flow"
 ```
 
 ### Invalid JSON Output
 ```bash
 # If output appears corrupted
-tg-get-flow-class -n "my-flow" | jq .
+tg-get-flow-blueprint -n "my-flow" | jq .
 # Should show parsing error if JSON is invalid
 ```
 
