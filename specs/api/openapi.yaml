@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: TrustGraph API Gateway
-  version: 1.8.0
+  version: 1.8
   description: |
     REST API for TrustGraph - an AI-powered knowledge graph and RAG system.
 
