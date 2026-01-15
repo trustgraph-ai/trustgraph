@@ -1,22 +1,8 @@
 loaders:
   - type: python
     search_path: ['../trustgraph-base']
-    modules:
-      - trustgraph.api.api
-      - trustgraph.api.flow
-      - trustgraph.api.types
-      - trustgraph.api.exceptions
-      - trustgraph.api.library
-      - trustgraph.api.config
-      - trustgraph.api.collection
-      - trustgraph.api.knowledge
-      - trustgraph.api.socket_client
-      - trustgraph.api.async_socket_client
-      - trustgraph.api.bulk_client
-      - trustgraph.api.async_bulk_client
-      - trustgraph.api.metrics
-      - trustgraph.api.async_metrics
-      - trustgraph.api.async_flow
+    packages:
+      - trustgraph.api
 
 processors:
   - type: filter
