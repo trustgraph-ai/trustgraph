@@ -137,7 +137,24 @@ paths:
     $ref: './paths/flow/text-load.yaml'
   /api/v1/flow/{flow}/service/document-load:
     $ref: './paths/flow/document-load.yaml'
-  # More endpoints will be added here as we build them
+
+  # Import/Export endpoints
+  /api/v1/import-core:
+    $ref: './paths/import-core.yaml'
+  /api/v1/export-core:
+    $ref: './paths/export-core.yaml'
+
+  # WebSocket endpoints
+  /api/v1/socket:
+    $ref: './paths/websocket.yaml'
+  /api/v1/flow/{flow}/socket:
+    $ref: './paths/websocket.yaml'
+
+  # Metrics endpoint
+  /api/metrics:
+    $ref: './paths/metrics.yaml'
+  /api/metrics/{path}:
+    $ref: './paths/metrics.yaml'
 
 components:
   securitySchemes:
