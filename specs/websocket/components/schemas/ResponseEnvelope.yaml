@@ -1,0 +1,35 @@
+type: object
+description: |
+  WebSocket response message envelope for successful responses.
+
+  Contains the request ID for correlation and the service-specific response payload.
+required:
+  - id
+  - response
+properties:
+  id:
+    type: string
+    description: |
+      Request identifier from the original request. Client uses this to match
+      responses to requests in multiplexed communication.
+    examples:
+      - req-123
+      - request-abc-456
+  response:
+    type: object
+    description: |
+      Service-specific response payload. Structure is identical to the response body
+      in the corresponding REST API endpoint.
+
+      For streaming services, multiple response messages may be sent with the same `id`.
+      Look for `end-of-stream` or service-specific completion flags to detect the final message.
+
+      See OpenAPI specification for detailed schemas per service.
+    examples:
+      - type: flow
+        keys:
+          - my-flow
+          - production-flow
+      - chunk-type: answer
+        content: Quantum computing uses quantum bits...
+        end-of-stream: false

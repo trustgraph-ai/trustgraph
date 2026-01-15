@@ -1,0 +1,27 @@
+type: object
+description: WebSocket request for flow service (global service)
+required:
+  - id
+  - service
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: flow
+    description: Service identifier for flow service
+  request:
+    $ref: '../../../../api/components/schemas/flow/FlowRequest.yaml'
+examples:
+  - id: req-1
+    service: flow
+    request:
+      operation: list
+  - id: req-2
+    service: flow
+    request:
+      operation: start
+      flow: my-flow
+      blueprint: default-blueprint

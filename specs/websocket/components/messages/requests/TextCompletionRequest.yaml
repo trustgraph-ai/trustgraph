@@ -1,0 +1,28 @@
+type: object
+description: WebSocket request for text-completion service (flow-hosted service)
+required:
+  - id
+  - service
+  - flow
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: text-completion
+    description: Service identifier for text-completion service
+  flow:
+    type: string
+    description: Flow ID
+  request:
+    $ref: '../../../../api/components/schemas/text-completion/TextCompletionRequest.yaml'
+examples:
+  - id: req-1
+    service: text-completion
+    flow: my-flow
+    request:
+      prompt: Once upon a time
+      streaming: true
+      max-output-tokens: 100

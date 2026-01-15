@@ -1,0 +1,28 @@
+type: object
+description: WebSocket request for graph-rag service (flow-hosted service)
+required:
+  - id
+  - service
+  - flow
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: graph-rag
+    description: Service identifier for graph-rag service
+  flow:
+    type: string
+    description: Flow ID
+  request:
+    $ref: '../../../../api/components/schemas/rag/GraphRagRequest.yaml'
+examples:
+  - id: req-1
+    service: graph-rag
+    flow: my-flow
+    request:
+      query: What entities are related to quantum computing?
+      streaming: true
+      triple-limit: 100

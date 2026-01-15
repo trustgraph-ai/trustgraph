@@ -1,0 +1,37 @@
+type: object
+description: |
+  WebSocket error message envelope.
+
+  Sent when a request fails. Contains the request ID and error details.
+required:
+  - id
+  - error
+properties:
+  id:
+    type: string
+    description: |
+      Request identifier from the original request that failed.
+    examples:
+      - req-123
+      - request-abc-456
+  error:
+    type: object
+    description: Error information
+    required:
+      - type
+      - message
+    properties:
+      type:
+        type: string
+        description: Error type/category
+        examples:
+          - gateway-error
+          - service-error
+          - timeout
+      message:
+        type: string
+        description: Human-readable error message
+        examples:
+          - Flow not found
+          - Service timeout
+          - Invalid request format

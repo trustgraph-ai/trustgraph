@@ -1,0 +1,30 @@
+type: object
+description: WebSocket request for mcp-tool service (flow-hosted service)
+required:
+  - id
+  - service
+  - flow
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: mcp-tool
+    description: Service identifier for mcp-tool service
+  flow:
+    type: string
+    description: Flow ID
+  request:
+    $ref: '../../../../api/components/schemas/mcp-tool/McpToolRequest.yaml'
+examples:
+  - id: req-1
+    service: mcp-tool
+    flow: my-flow
+    request:
+      tool: calculator
+      arguments:
+        operation: add
+        a: 5
+        b: 3

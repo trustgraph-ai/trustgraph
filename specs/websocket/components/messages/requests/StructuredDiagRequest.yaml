@@ -1,0 +1,26 @@
+type: object
+description: WebSocket request for structured-diag service (flow-hosted service)
+required:
+  - id
+  - service
+  - flow
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: structured-diag
+    description: Service identifier for structured-diag service
+  flow:
+    type: string
+    description: Flow ID
+  request:
+    $ref: '../../../../api/components/schemas/diag/StructuredDiagRequest.yaml'
+examples:
+  - id: req-1
+    service: structured-diag
+    flow: my-flow
+    request:
+      operation: status

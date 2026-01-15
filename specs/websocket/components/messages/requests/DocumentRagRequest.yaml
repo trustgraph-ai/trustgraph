@@ -1,0 +1,28 @@
+type: object
+description: WebSocket request for document-rag service (flow-hosted service)
+required:
+  - id
+  - service
+  - flow
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: document-rag
+    description: Service identifier for document-rag service
+  flow:
+    type: string
+    description: Flow ID
+  request:
+    $ref: '../../../../api/components/schemas/rag/DocumentRagRequest.yaml'
+examples:
+  - id: req-1
+    service: document-rag
+    flow: my-flow
+    request:
+      query: What are the main features?
+      streaming: true
+      doc-limit: 20

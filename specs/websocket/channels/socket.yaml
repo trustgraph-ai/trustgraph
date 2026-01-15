@@ -1,0 +1,33 @@
+address: /api/v1/socket
+description: |
+  Primary WebSocket channel for all TrustGraph services.
+
+  This single channel provides multiplexed access to:
+  - All global services (config, flow, librarian, knowledge, collection-management)
+  - All flow-hosted services (agent, RAG, embeddings, queries, loading, etc.)
+
+  ## Multiplexing
+
+  Multiple requests can be sent concurrently over this channel. Each request includes
+  a unique `id` field that is echoed back in responses for correlation.
+
+  ## Message Flow
+
+  1. Client sends request with unique `id`, `service`, optional `flow`, and `request` payload
+  2. Server processes request asynchronously
+  3. Server sends response(s) with matching `id` and either `response` or `error`
+  4. For streaming services, multiple responses may be sent with the same `id`
+
+  ## Service Routing
+
+  Messages are routed to services based on:
+  - `service`: Service identifier (required)
+  - `flow`: Flow ID (required for flow-hosted services, omitted for global services)
+
+messages:
+  request:
+    $ref: '../components/messages/ServiceRequest.yaml'
+  response:
+    $ref: '../components/messages/ServiceResponse.yaml'
+  error:
+    $ref: '../components/messages/ServiceError.yaml'

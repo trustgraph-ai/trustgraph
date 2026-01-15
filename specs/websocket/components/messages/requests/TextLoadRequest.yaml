@@ -1,0 +1,27 @@
+type: object
+description: WebSocket request for text-load service (flow-hosted service)
+required:
+  - id
+  - service
+  - flow
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: text-load
+    description: Service identifier for text-load service
+  flow:
+    type: string
+    description: Flow ID
+  request:
+    $ref: '../../../../api/components/schemas/loading/TextLoadRequest.yaml'
+examples:
+  - id: req-1
+    service: text-load
+    flow: my-flow
+    request:
+      text: This is the document content to be loaded into the knowledge graph.
+      collection: default

@@ -1,0 +1,56 @@
+type: object
+description: |
+  WebSocket request message envelope.
+
+  Wraps service-specific request payloads with routing and correlation metadata.
+required:
+  - id
+  - service
+  - request
+properties:
+  id:
+    type: string
+    description: |
+      Client-generated unique identifier for this request within the WebSocket session.
+      Used to correlate responses with requests in multiplexed async communication.
+      Can be any string, but must be unique per active request.
+    examples:
+      - req-123
+      - request-abc-456
+      - b5f8d9a2-4c3e-11ef-9c8a-0242ac120002
+  service:
+    type: string
+    description: |
+      Service identifier. Same as {kind} in REST API URLs.
+
+      Global services: config, flow, librarian, knowledge, collection-management
+      Flow-hosted services: agent, text-completion, prompt, document-rag, graph-rag,
+      embeddings, graph-embeddings, document-embeddings, triples, objects,
+      nlp-query, structured-query, structured-diag, text-load, document-load, mcp-tool
+    examples:
+      - config
+      - agent
+      - document-rag
+  flow:
+    type: string
+    description: |
+      Flow ID for flow-hosted services. Required for services accessed via
+      /api/v1/flow/{flow}/service/{kind} in REST API.
+
+      Omit this field for global services (config, flow, librarian, knowledge, collection-management).
+    examples:
+      - my-flow
+      - production-flow
+  request:
+    type: object
+    description: |
+      Service-specific request payload. Structure is identical to the request body
+      in the corresponding REST API endpoint.
+
+      See OpenAPI specification for detailed schemas per service.
+    examples:
+      - operation: list
+        type: flow
+      - question: What is quantum computing?
+        streaming: true
+        system-prompt: You are a helpful assistant

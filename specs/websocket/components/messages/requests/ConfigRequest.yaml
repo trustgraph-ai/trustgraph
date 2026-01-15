@@ -1,0 +1,29 @@
+type: object
+description: WebSocket request for config service (global service)
+required:
+  - id
+  - service
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: config
+    description: Service identifier for config service
+  request:
+    $ref: '../../../../api/components/schemas/config/ConfigRequest.yaml'
+examples:
+  - id: req-1
+    service: config
+    request:
+      operation: list
+      type: flow
+  - id: req-2
+    service: config
+    request:
+      operation: get
+      keys:
+        - type: flow
+          key: my-flow

@@ -1,0 +1,21 @@
+type: object
+description: WebSocket request for collection-management service (global service)
+required:
+  - id
+  - service
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: collection-management
+    description: Service identifier for collection-management service
+  request:
+    $ref: '../../../../api/components/schemas/collection/CollectionRequest.yaml'
+examples:
+  - id: req-1
+    service: collection-management
+    request:
+      operation: list
