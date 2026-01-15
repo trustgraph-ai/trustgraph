@@ -1,0 +1,21 @@
+type: object
+description: Processing task metadata
+properties:
+  flow:
+    type: string
+    description: Flow ID
+    example: my-flow
+  collection:
+    type: string
+    description: Collection identifier
+    example: default
+  status:
+    type: string
+    description: Processing status
+    enum: [pending, processing, completed, failed]
+    example: processing
+  timestamp:
+    type: string
+    description: ISO timestamp
+    format: date-time
+    example: "2024-01-15T10:30:00Z"

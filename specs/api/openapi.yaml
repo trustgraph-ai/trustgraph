@@ -154,30 +154,9 @@ paths:
   /api/metrics:
     $ref: './paths/metrics.yaml'
   /api/metrics/{path}:
-    $ref: './paths/metrics.yaml'
+    $ref: './paths/metrics-path.yaml'
 
 components:
   securitySchemes:
     bearerAuth:
       $ref: './security/bearerAuth.yaml'
-
-  parameters:
-    # Common parameters will be referenced here
-    # FlowId:
-    #   $ref: './components/parameters/FlowId.yaml'
-
-  responses:
-    # Common responses will be referenced here
-    # Unauthorized:
-    #   $ref: './components/responses/Unauthorized.yaml'
-    # Error:
-    #   $ref: './components/responses/Error.yaml'
-
-  schemas:
-    # Schemas will be referenced here as we build them
-    # Common:
-    #   RdfValue:
-    #     $ref: './components/schemas/common/RdfValue.yaml'
-    # Services:
-    #   ConfigRequest:
-    #     $ref: './components/schemas/config/ConfigRequest.yaml'

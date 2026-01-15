@@ -46,14 +46,6 @@ get:
   operationId: getMetrics
   security:
     - bearerAuth: []
-  parameters:
-    - name: path
-      in: path
-      required: false
-      schema:
-        type: string
-      description: Optional path to specific metrics endpoint
-      example: ""
   responses:
     '200':
       description: Prometheus metrics
