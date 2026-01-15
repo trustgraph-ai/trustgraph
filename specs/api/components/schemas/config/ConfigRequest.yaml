@@ -1,0 +1,67 @@
+type: object
+description: |
+  Configuration service request.
+
+  Supports operations: config, list, get, put, delete
+required:
+  - operation
+properties:
+  operation:
+    type: string
+    enum: [config, list, get, put, delete]
+    description: |
+      Operation to perform:
+      - `config`: Get complete configuration
+      - `list`: List all items of a specific type
+      - `get`: Get specific configuration items
+      - `put`: Set/update configuration values
+      - `delete`: Delete configuration items
+    example: config
+  type:
+    type: string
+    description: |
+      Configuration type (required for list, get, put, delete operations).
+      Common types: flow, prompt, token-cost, parameter-type, interface-description
+    example: flow
+  keys:
+    type: array
+    description: Keys to retrieve (for get operation) or delete (for delete operation)
+    items:
+      type: object
+      required:
+        - type
+        - key
+      properties:
+        type:
+          type: string
+          description: Configuration type
+          example: flow
+        key:
+          type: string
+          description: Configuration key
+          example: my-flow
+  values:
+    type: array
+    description: Values to set/update (for put operation)
+    items:
+      type: object
+      required:
+        - type
+        - key
+        - value
+      properties:
+        type:
+          type: string
+          description: Configuration type
+          example: flow
+        key:
+          type: string
+          description: Configuration key
+          example: my-flow
+        value:
+          type: object
+          description: Configuration value (structure depends on type)
+          additionalProperties: true
+          example:
+            blueprint-name: document-rag
+            description: My RAG flow

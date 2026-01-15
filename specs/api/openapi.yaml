@@ -95,12 +95,11 @@ tags:
     description: System metrics and monitoring
 
 paths:
-  # Global services will be added here as we build them
-  # /api/v1/config:
-  #   $ref: './paths/config.yaml'
-  # /api/v1/flow:
-  #   $ref: './paths/flow.yaml'
-  # etc.
+  /api/v1/config:
+    $ref: './paths/config.yaml'
+  /api/v1/flow:
+    $ref: './paths/flow.yaml'
+  # More services will be added here as we build them
 
 components:
   securitySchemes:
