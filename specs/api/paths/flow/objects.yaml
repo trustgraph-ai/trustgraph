@@ -1,0 +1,166 @@
+post:
+  tags:
+    - AI Services
+  summary: Objects query - GraphQL over knowledge graph
+  description: |
+    Query knowledge graph using GraphQL for object-oriented data access.
+
+    ## Objects Query Overview
+
+    GraphQL interface to knowledge graph:
+    - **Schema-driven**: Predefined types and relationships
+    - **Flexible queries**: Request exactly what you need
+    - **Nested data**: Traverse relationships in single query
+    - **Type-safe**: Strong typing with introspection
+
+    Abstracts RDF triples into familiar object model.
+
+    ## GraphQL Benefits
+
+    Compared to triples query:
+    - **Developer-friendly**: Objects instead of triples
+    - **Efficient**: Get related data in one query
+    - **Typed**: Schema defines available fields
+    - **Discoverable**: Introspection for tooling
+
+    ## Query Structure
+
+    Standard GraphQL query format:
+    ```graphql
+    query OperationName($var: Type!) {
+      fieldName(arg: $var) {
+        subField1
+        subField2
+        nestedObject {
+          nestedField
+        }
+      }
+    }
+    ```
+
+    ## Variables
+
+    Pass variables for parameterized queries:
+    ```json
+    {
+      "query": "query GetPerson($id: ID!) { person(id: $id) { name } }",
+      "variables": {"id": "https://example.com/person/alice"}
+    }
+    ```
+
+    ## Error Handling
+
+    GraphQL distinguishes:
+    - **Field errors**: Invalid query, missing fields (in `errors` array)
+    - **System errors**: Connection issues, timeouts (in `error` object)
+
+    Partial data may be returned with field errors.
+
+    ## Schema Definition
+
+    Schema defines available types via config service.
+    Use introspection query to discover schema.
+
+  operationId: objectsQueryService
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: flow
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Flow instance ID
+      example: my-flow
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas/query/ObjectsQueryRequest.yaml'
+        examples:
+          simpleQuery:
+            summary: Simple query
+            value:
+              query: |
+                {
+                  person(id: "https://example.com/person/alice") {
+                    name
+                    email
+                  }
+                }
+              user: alice
+              collection: research
+          queryWithVariables:
+            summary: Query with variables
+            value:
+              query: |
+                query GetPerson($id: ID!) {
+                  person(id: $id) {
+                    name
+                    email
+                    knows {
+                      name
+                    }
+                  }
+                }
+              variables:
+                id: "https://example.com/person/alice"
+              operation-name: GetPerson
+          nestedQuery:
+            summary: Nested relationship query
+            value:
+              query: |
+                {
+                  person(id: "https://example.com/person/alice") {
+                    name
+                    knows {
+                      name
+                      worksFor {
+                        name
+                        location
+                      }
+                    }
+                  }
+                }
+  responses:
+    '200':
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/query/ObjectsQueryResponse.yaml'
+          examples:
+            successfulQuery:
+              summary: Successful query
+              value:
+                data:
+                  person:
+                    name: Alice
+                    email: alice@example.com
+                    knows:
+                      - name: Bob
+                      - name: Carol
+                extensions:
+                  execution_time_ms: "42"
+            queryWithFieldErrors:
+              summary: Query with field errors
+              value:
+                data:
+                  person:
+                    name: Alice
+                    email: null
+                errors:
+                  - message: Cannot query field 'nonexistent' on type 'Person'
+                    path: ["person", "nonexistent"]
+            systemError:
+              summary: System error
+              value:
+                data: null
+                error:
+                  type: TIMEOUT_ERROR
+                  message: Query execution timeout after 30s
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../../components/responses/Error.yaml'

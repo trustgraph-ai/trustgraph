@@ -1,0 +1,143 @@
+post:
+  tags:
+    - AI Services
+  summary: Prompt service - template-based generation
+  description: |
+    Execute stored prompt templates with variable substitution.
+
+    ## Prompt Service Overview
+
+    The prompt service enables:
+    - Reusable prompt templates stored in configuration
+    - Variable substitution for dynamic prompts
+    - Consistent prompt engineering across requests
+    - Text or structured object outputs
+
+    ## Template System
+
+    Prompts are stored via config service (`/api/v1/config`) with:
+    - **id**: Unique prompt identifier
+    - **template**: Prompt text with `{variable}` placeholders
+    - **system**: Optional system prompt
+    - **output_format**: "text" or "object"
+
+    Example template:
+    ```
+    Summarize the following document in {max_length} words:
+
+    {document}
+    ```
+
+    ## Variable Substitution
+
+    Two ways to pass variables:
+
+    1. **terms** (explicit JSON strings):
+       ```json
+       {
+         "terms": {
+           "document": "\"Text here...\"",
+           "max_length": "\"200\""
+         }
+       }
+       ```
+
+    2. **variables** (auto-converted):
+       ```json
+       {
+         "variables": {
+           "document": "Text here...",
+           "max_length": 200
+         }
+       }
+       ```
+
+    ## Output Types
+
+    - **text**: Plain text response in `text` field
+    - **object**: Structured JSON in `object` field (as string)
+
+    ## Streaming
+
+    Enable `streaming: true` to receive response incrementally.
+
+    ## Use Cases
+
+    - Document summarization
+    - Entity extraction
+    - Classification tasks
+    - Data transformation
+    - Any repeatable LLM task with consistent prompting
+
+  operationId: promptService
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: flow
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Flow instance ID
+      example: my-flow
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas/prompt/PromptRequest.yaml'
+        examples:
+          withTerms:
+            summary: Using terms (JSON strings)
+            value:
+              id: summarize-document
+              terms:
+                document: '"This document discusses quantum computing, covering qubits, superposition, and entanglement. Applications include cryptography and optimization."'
+                max_length: '"50"'
+          withVariables:
+            summary: Using variables (auto-converted)
+            value:
+              id: extract-entities
+              variables:
+                text: A paper by Einstein on relativity published in 1905.
+                entity_types: ["person", "year", "topic"]
+          streaming:
+            summary: Streaming response
+            value:
+              id: generate-report
+              variables:
+                data: {revenue: 1000000, growth: 15}
+                format: executive summary
+              streaming: true
+  responses:
+    '200':
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/prompt/PromptResponse.yaml'
+          examples:
+            textResponse:
+              summary: Text output
+              value:
+                text: This document provides an overview of quantum computing fundamentals and cryptographic applications.
+                end-of-stream: false
+            objectResponse:
+              summary: Structured output
+              value:
+                object: '{"entities": [{"type": "person", "value": "Einstein"}, {"type": "year", "value": "1905"}, {"type": "topic", "value": "relativity"}]}'
+                end-of-stream: false
+            streamingChunk:
+              summary: Streaming chunk
+              value:
+                text: This document provides an overview
+                end-of-stream: false
+            streamingComplete:
+              summary: Streaming complete
+              value:
+                text: ""
+                end-of-stream: true
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../../components/responses/Error.yaml'

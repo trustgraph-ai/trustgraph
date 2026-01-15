@@ -113,7 +113,31 @@ paths:
     $ref: './paths/flow/graph-rag.yaml'
   /api/v1/flow/{flow}/service/text-completion:
     $ref: './paths/flow/text-completion.yaml'
-  # More services will be added here as we build them
+  /api/v1/flow/{flow}/service/prompt:
+    $ref: './paths/flow/prompt.yaml'
+  /api/v1/flow/{flow}/service/embeddings:
+    $ref: './paths/flow/embeddings.yaml'
+  /api/v1/flow/{flow}/service/mcp-tool:
+    $ref: './paths/flow/mcp-tool.yaml'
+  /api/v1/flow/{flow}/service/triples:
+    $ref: './paths/flow/triples.yaml'
+  /api/v1/flow/{flow}/service/objects:
+    $ref: './paths/flow/objects.yaml'
+  /api/v1/flow/{flow}/service/nlp-query:
+    $ref: './paths/flow/nlp-query.yaml'
+  /api/v1/flow/{flow}/service/structured-query:
+    $ref: './paths/flow/structured-query.yaml'
+  /api/v1/flow/{flow}/service/structured-diag:
+    $ref: './paths/flow/structured-diag.yaml'
+  /api/v1/flow/{flow}/service/graph-embeddings:
+    $ref: './paths/flow/graph-embeddings.yaml'
+  /api/v1/flow/{flow}/service/document-embeddings:
+    $ref: './paths/flow/document-embeddings.yaml'
+  /api/v1/flow/{flow}/service/text-load:
+    $ref: './paths/flow/text-load.yaml'
+  /api/v1/flow/{flow}/service/document-load:
+    $ref: './paths/flow/document-load.yaml'
+  # More endpoints will be added here as we build them
 
 components:
   securitySchemes:

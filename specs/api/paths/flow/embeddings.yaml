@@ -1,0 +1,85 @@
+post:
+  tags:
+    - AI Services
+  summary: Embeddings - text to vector conversion
+  description: |
+    Convert text to embedding vectors for semantic similarity search.
+
+    ## Embeddings Overview
+
+    Embeddings transform text into dense vector representations that:
+    - Capture semantic meaning
+    - Enable similarity comparisons via cosine distance
+    - Support semantic search and retrieval
+    - Power RAG systems
+
+    ## Use Cases
+
+    - **Document indexing**: Convert documents to vectors for storage
+    - **Query encoding**: Convert search queries for similarity matching
+    - **Semantic similarity**: Find related texts via vector distance
+    - **Clustering**: Group similar content
+    - **Classification**: Use as features for ML models
+
+    ## Vector Dimensions
+
+    Dimension count depends on embedding model:
+    - text-embedding-ada-002: 1536 dimensions
+    - text-embedding-3-small: 1536 dimensions
+    - text-embedding-3-large: 3072 dimensions
+    - Custom models: Varies
+
+    ## Single Request
+
+    Unlike batch embedding APIs, this endpoint processes one text at a time.
+    For bulk operations, use document-load or text-load services.
+
+  operationId: embeddingsService
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: flow
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Flow instance ID
+      example: my-flow
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas/embeddings/EmbeddingsRequest.yaml'
+        examples:
+          shortText:
+            summary: Short text embedding
+            value:
+              text: Machine learning
+          sentence:
+            summary: Sentence embedding
+            value:
+              text: Quantum computing uses quantum mechanics principles for computation.
+          paragraph:
+            summary: Paragraph embedding
+            value:
+              text: |
+                Neural networks are computing systems inspired by biological neural networks.
+                They consist of interconnected nodes (neurons) organized in layers.
+                Through training, they learn to recognize patterns and make predictions.
+  responses:
+    '200':
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/embeddings/EmbeddingsResponse.yaml'
+          examples:
+            embeddingVector:
+              summary: Embedding vector
+              value:
+                vectors: [0.023, -0.142, 0.089, 0.234, -0.067, 0.156, 0.201, -0.178, 0.045, 0.312]
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../../components/responses/Error.yaml'

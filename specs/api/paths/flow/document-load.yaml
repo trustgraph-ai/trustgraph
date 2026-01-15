@@ -1,0 +1,119 @@
+post:
+  tags:
+    - AI Services
+  summary: Document Load - load binary documents (PDF, etc.)
+  description: |
+    Load binary documents (PDF, Word, etc.) into processing pipeline.
+
+    ## Document Load Overview
+
+    Fire-and-forget binary document loading:
+    - **Input**: Document data (base64 encoded)
+    - **Process**: Extract text, chunk, embed, store
+    - **Output**: None (202 Accepted)
+
+    Asynchronous processing for PDF and other binary formats.
+
+    ## Processing Pipeline
+
+    Documents go through:
+    1. **Text extraction**: PDF→text, DOCX→text, etc.
+    2. **Chunking**: Split into overlapping chunks
+    3. **Embedding**: Generate vectors for each chunk
+    4. **Storage**: Store chunks + embeddings
+    5. **Indexing**: Make searchable
+
+    Pipeline runs asynchronously.
+
+    ## Supported Formats
+
+    - **PDF**: Portable Document Format
+    - **DOCX**: Microsoft Word
+    - **HTML**: Web pages
+    - Other formats via extractors
+
+    Format detected from content, not extension.
+
+    ## Binary Encoding
+
+    Documents must be base64 encoded:
+    ```python
+    with open('document.pdf', 'rb') as f:
+        doc_bytes = f.read()
+    encoded = base64.b64encode(doc_bytes).decode('utf-8')
+    ```
+
+    ## Metadata
+
+    Optional RDF triples:
+    - Document properties
+    - Source information
+    - Custom attributes
+
+    ## Use Cases
+
+    - **PDF ingestion**: Process research papers
+    - **Document libraries**: Index document collections
+    - **Content migration**: Import from other systems
+    - **Automated processing**: Batch document loading
+
+    ## No Response Data
+
+    Returns 202 Accepted immediately:
+    - Document queued
+    - Processing happens asynchronously
+    - No status tracking
+    - Query later to verify indexed
+
+  operationId: documentLoadService
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: flow
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Flow instance ID
+      example: my-flow
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas/loading/DocumentLoadRequest.yaml'
+        examples:
+          loadPdf:
+            summary: Load PDF document
+            value:
+              data: JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFI+PmVuZG9iagoyIDAgb2JqCjw8L1R5cGUvUGFnZXMvS2lkc1szIDAgUl0vQ291bnQgMT4+ZW5kb2JqCg==
+              id: doc-789
+              user: alice
+              collection: research
+          withMetadata:
+            summary: Load with metadata
+            value:
+              data: JVBERi0xLjQKJeLjz9MK...
+              id: doc-101112
+              user: bob
+              collection: papers
+              metadata:
+                - s: {v: "doc-101112", e: false}
+                  p: {v: "http://purl.org/dc/terms/title", e: true}
+                  o: {v: "Quantum Entanglement Research", e: false}
+                - s: {v: "doc-101112", e: false}
+                  p: {v: "http://purl.org/dc/terms/date", e: true}
+                  o: {v: "2024-01-15", e: false}
+  responses:
+    '202':
+      description: Document accepted for processing
+      content:
+        application/json:
+          schema:
+            type: object
+            properties: {}
+          example: {}
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../../components/responses/Error.yaml'

@@ -1,0 +1,46 @@
+type: object
+description: |
+  Structured data diagnosis request - analyze and understand structured data formats.
+
+  Operations: detect-type, generate-descriptor, diagnose, schema-selection
+required:
+  - operation
+  - sample
+properties:
+  operation:
+    type: string
+    enum:
+      - detect-type
+      - generate-descriptor
+      - diagnose
+      - schema-selection
+    description: |
+      Diagnosis operation:
+      - `detect-type`: Identify data format (CSV, JSON, XML)
+      - `generate-descriptor`: Create schema descriptor for data
+      - `diagnose`: Full analysis (detect + generate descriptor)
+      - `schema-selection`: Find matching schemas for data
+  sample:
+    type: string
+    description: Data sample to analyze (text content)
+    example: |
+      name,age,email
+      Alice,30,alice@example.com
+      Bob,25,bob@example.com
+  type:
+    type: string
+    description: Data type (required for generate-descriptor)
+    enum: [csv, json, xml]
+    example: csv
+  schema-name:
+    type: string
+    description: Target schema name for descriptor generation (optional)
+    example: person-records
+  options:
+    type: object
+    description: Format-specific options (e.g., CSV delimiter)
+    additionalProperties:
+      type: string
+    example:
+      delimiter: ","
+      has_header: "true"

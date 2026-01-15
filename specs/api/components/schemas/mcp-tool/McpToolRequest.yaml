@@ -1,0 +1,17 @@
+type: object
+description: |
+  MCP tool request - execute Model Context Protocol tool.
+required:
+  - name
+properties:
+  name:
+    type: string
+    description: Tool name to execute
+    example: search
+  parameters:
+    type: object
+    description: Tool parameters (JSON object, auto-converted to string internally)
+    additionalProperties: {}
+    example:
+      query: quantum computing
+      limit: 10

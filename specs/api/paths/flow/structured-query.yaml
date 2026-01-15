@@ -1,0 +1,134 @@
+post:
+  tags:
+    - AI Services
+  summary: Structured Query - question to results (all-in-one)
+  description: |
+    Ask natural language questions and get results directly.
+
+    ## Structured Query Overview
+
+    Combines two operations in one call:
+    1. **NLP Query**: Generate GraphQL from question
+    2. **Objects Query**: Execute generated query
+    3. **Return Results**: Direct answer data
+
+    Simplest way to query knowledge graph with natural language.
+
+    ## Comparison with Other Services
+
+    ### Structured Query (this service)
+    - **Input**: Natural language question
+    - **Output**: Query results (data)
+    - **Use when**: Want simple, direct answers
+
+    ### NLP Query + Objects Query (separate calls)
+    - **Step 1**: Convert question → GraphQL
+    - **Step 2**: Execute GraphQL → results
+    - **Use when**: Need to inspect/modify query before execution
+
+    ### Triples Query (low-level)
+    - **Input**: RDF pattern
+    - **Output**: Matching triples
+    - **Use when**: Need precise control over graph queries
+
+    ## Response Format
+
+    Returns standard GraphQL response:
+    - **data**: Query results (null if error)
+    - **errors**: Field-level errors (array of strings)
+    - **error**: System-level error (generation or execution failure)
+
+    ## Error Handling
+
+    Three types of errors:
+    1. **Query generation failed**: Couldn't understand question
+       - Error in `error` object
+       - data = null
+    2. **Query execution failed**: Generated query had errors
+       - Errors in `errors` array
+       - data may be partial
+    3. **System error**: Infrastructure issue
+       - Error in `error` object
+
+    ## Performance
+
+    Convenience vs control trade-off:
+    - **Faster development**: One call instead of two
+    - **Less control**: Can't inspect/modify generated query
+    - **Simpler code**: No need to handle intermediate steps
+
+  operationId: structuredQueryService
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: flow
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Flow instance ID
+      example: my-flow
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas/query/StructuredQueryRequest.yaml'
+        examples:
+          simpleQuestion:
+            summary: Simple relationship question
+            value:
+              question: Who does Alice know?
+              user: alice
+              collection: research
+          complexQuestion:
+            summary: Complex multi-hop question
+            value:
+              question: What companies employ engineers that Bob collaborates with?
+              user: bob
+              collection: work
+          filterQuestion:
+            summary: Question with implicit filters
+            value:
+              question: Which researchers work on quantum computing?
+  responses:
+    '200':
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/query/StructuredQueryResponse.yaml'
+          examples:
+            successfulQuery:
+              summary: Successful query with results
+              value:
+                data:
+                  person:
+                    name: Alice
+                    knows:
+                      - name: Bob
+                        email: bob@example.com
+                      - name: Carol
+                        email: carol@example.com
+                errors: []
+            partialResults:
+              summary: Partial results with errors
+              value:
+                data:
+                  person:
+                    name: Alice
+                    knows: null
+                errors:
+                  - Cannot query field 'nonexistent' on type 'Person'
+            generationFailed:
+              summary: Query generation failed
+              value:
+                data: null
+                errors: []
+                error:
+                  type: QUERY_GENERATION_ERROR
+                  message: Could not understand question structure
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../../components/responses/Error.yaml'

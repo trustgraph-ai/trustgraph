@@ -1,0 +1,32 @@
+type: object
+description: |
+  Document load request - load binary document (PDF, etc.) into processing pipeline.
+
+  Fire-and-forget operation (no response).
+required:
+  - data
+properties:
+  data:
+    type: string
+    description: Document data (base64 encoded)
+    format: byte
+    example: JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PC9UeXBlL...
+  id:
+    type: string
+    description: Document identifier
+    example: doc-456
+  user:
+    type: string
+    description: User identifier
+    default: trustgraph
+    example: alice
+  collection:
+    type: string
+    description: Collection for document
+    default: default
+    example: research
+  metadata:
+    type: array
+    description: Document metadata as RDF triples
+    items:
+      $ref: '../../common/Triple.yaml'

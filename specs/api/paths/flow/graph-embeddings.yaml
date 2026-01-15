@@ -1,0 +1,95 @@
+post:
+  tags:
+    - AI Services
+  summary: Graph Embeddings Query - find similar entities
+  description: |
+    Query graph embeddings to find similar entities by vector similarity.
+
+    ## Graph Embeddings Query Overview
+
+    Find entities semantically similar to a query vector:
+    - **Input**: Query embedding vector
+    - **Search**: Compare against stored entity embeddings
+    - **Output**: Most similar entities (RDF URIs)
+
+    Core component of graph RAG retrieval.
+
+    ## Use Cases
+
+    - **Entity discovery**: Find related entities
+    - **Concept expansion**: Discover similar concepts
+    - **Graph exploration**: Navigate by semantic similarity
+    - **RAG retrieval**: Get entities for context
+
+    ## Process
+
+    1. Obtain query embedding (via embeddings service)
+    2. Query stored entity embeddings
+    3. Calculate cosine similarity
+    4. Return top N most similar entities
+    5. Use entities to retrieve triples/subgraph
+
+    ## Similarity Scoring
+
+    Uses cosine similarity between vectors:
+    - Results ordered by similarity (most similar first)
+    - No explicit similarity scores returned
+    - Limit controls result count
+
+    ## Entity Format
+
+    Returns RDF values (entities):
+    - URI entities: `{v: "https://...", e: true}`
+    - These are references to knowledge graph entities
+    - Use with triples query to get entity details
+
+  operationId: graphEmbeddingsQueryService
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: flow
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Flow instance ID
+      example: my-flow
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas/embeddings-query/GraphEmbeddingsQueryRequest.yaml'
+        examples:
+          basicQuery:
+            summary: Find similar entities
+            value:
+              vectors: [0.023, -0.142, 0.089, 0.234, -0.067, 0.156, 0.201, -0.178]
+              limit: 10
+              user: alice
+              collection: research
+          largeQuery:
+            summary: Larger result set
+            value:
+              vectors: [0.1, -0.2, 0.3, -0.4, 0.5]
+              limit: 50
+  responses:
+    '200':
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/embeddings-query/GraphEmbeddingsQueryResponse.yaml'
+          examples:
+            similarEntities:
+              summary: Similar entities found
+              value:
+                entities:
+                  - {v: "https://example.com/person/alice", e: true}
+                  - {v: "https://example.com/person/bob", e: true}
+                  - {v: "https://example.com/concept/quantum-computing", e: true}
+                  - {v: "https://example.com/concept/machine-learning", e: true}
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../../components/responses/Error.yaml'

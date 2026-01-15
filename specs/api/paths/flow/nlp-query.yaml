@@ -1,0 +1,148 @@
+post:
+  tags:
+    - AI Services
+  summary: NLP Query - natural language to structured query
+  description: |
+    Convert natural language questions to structured GraphQL queries.
+
+    ## NLP Query Overview
+
+    Transforms user questions into executable GraphQL:
+    - **Natural input**: Ask questions in plain English
+    - **Structured output**: Get GraphQL query + variables
+    - **Schema-aware**: Uses knowledge graph schema
+    - **Confidence scoring**: Know how well question was understood
+
+    Enables non-technical users to query knowledge graph.
+
+    ## Process
+
+    1. Parse natural language question
+    2. Identify entities and relationships
+    3. Map to GraphQL schema types
+    4. Generate query with variables
+    5. Return query + confidence score
+
+    ## Using Results
+
+    Generated query can be:
+    - Executed via objects query service
+    - Inspected and modified if needed
+    - Cached for similar questions
+
+    Example workflow:
+    ```
+    1. User asks: "Who does Alice know?"
+    2. NLP Query generates GraphQL
+    3. Execute via /api/v1/flow/{flow}/service/objects
+    4. Return results to user
+    ```
+
+    ## Schema Detection
+
+    Response includes `detected-schemas` array showing:
+    - Which types were identified
+    - What entities were matched
+    - Schema coverage of question
+
+    Helps understand query scope.
+
+    ## Confidence Scores
+
+    - **0.9-1.0**: High confidence, likely correct
+    - **0.7-0.9**: Good confidence, probably correct
+    - **0.5-0.7**: Medium confidence, may need review
+    - **< 0.5**: Low confidence, likely incorrect
+
+    Low scores suggest:
+    - Ambiguous question
+    - Missing schema coverage
+    - Complex query structure
+
+  operationId: nlpQueryService
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: flow
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Flow instance ID
+      example: my-flow
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas/query/NlpQueryRequest.yaml'
+        examples:
+          simpleQuestion:
+            summary: Simple relationship question
+            value:
+              question: Who does Alice know?
+              max-results: 50
+          complexQuestion:
+            summary: Multi-hop relationship
+            value:
+              question: What companies employ people that Alice knows?
+              max-results: 100
+          filterQuestion:
+            summary: Question with filters
+            value:
+              question: Which engineers does Bob collaborate with?
+  responses:
+    '200':
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/query/NlpQueryResponse.yaml'
+          examples:
+            successfulQuery:
+              summary: Successful query generation
+              value:
+                graphql-query: |
+                  query GetConnections($person: ID!) {
+                    person(id: $person) {
+                      knows { name email }
+                    }
+                  }
+                variables:
+                  person: "https://example.com/person/alice"
+                detected-schemas: ["Person"]
+                confidence: 0.92
+            complexQuery:
+              summary: Complex multi-hop query
+              value:
+                graphql-query: |
+                  query GetCompanies($person: ID!) {
+                    person(id: $person) {
+                      knows {
+                        worksFor {
+                          name
+                          industry
+                        }
+                      }
+                    }
+                  }
+                variables:
+                  person: "https://example.com/person/alice"
+                detected-schemas: ["Person", "Organization"]
+                confidence: 0.85
+            lowConfidence:
+              summary: Low confidence result
+              value:
+                graphql-query: |
+                  query Search {
+                    search(term: "unknown entities") {
+                      results
+                    }
+                  }
+                variables: {}
+                detected-schemas: []
+                confidence: 0.43
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../../components/responses/Error.yaml'
