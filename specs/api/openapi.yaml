@@ -83,8 +83,8 @@ tags:
     description: Knowledge graph core management (global service)
   - name: Collection
     description: Collection metadata management (global service)
-  - name: AI Services
-    description: AI services hosted within flows
+  - name: Flow Services
+    description: Services hosted within flow instances
   - name: Import/Export
     description: Bulk data import and export
   - name: WebSocket
