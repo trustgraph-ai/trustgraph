@@ -1,0 +1,38 @@
+loaders:
+  - type: python
+    search_path: ['../trustgraph-base']
+    modules:
+      - trustgraph.api.api
+      - trustgraph.api.flow
+      - trustgraph.api.types
+      - trustgraph.api.exceptions
+      - trustgraph.api.socket_client
+      - trustgraph.api.async_socket_client
+      - trustgraph.api.bulk_client
+      - trustgraph.api.async_bulk_client
+      - trustgraph.api.metrics
+      - trustgraph.api.async_metrics
+      - trustgraph.api.async_flow
+
+processors:
+  - type: filter
+    expression: |
+      name not in [
+        'requests', 'json', 'base64', 'time', 'aiohttp', 'asyncio', 'websockets',
+        'dataclasses', 'datetime', 'logging',
+        'Optional', 'Dict', 'Any', 'List', 'Union', 'Iterator', 'AsyncIterator', 'Coroutine',
+        'Library', 'Flow', 'Config', 'Knowledge', 'Collection',
+        'hash', 'Uri', 'Literal', 'ProtocolException', 'ApplicationException',
+        '*'
+      ] and (
+        not name.startswith('_') or
+        name in ['__init__', '__enter__', '__exit__', '__aenter__', '__aexit__']
+      )
+    skip_empty_modules: true
+  - type: smart
+  - type: crossref
+
+renderer:
+  type: markdown
+  render_toc: true
+  toc_maxdepth: 3
