@@ -6,6 +6,10 @@ loaders:
       - trustgraph.api.flow
       - trustgraph.api.types
       - trustgraph.api.exceptions
+      - trustgraph.api.library
+      - trustgraph.api.config
+      - trustgraph.api.collection
+      - trustgraph.api.knowledge
       - trustgraph.api.socket_client
       - trustgraph.api.async_socket_client
       - trustgraph.api.bulk_client
