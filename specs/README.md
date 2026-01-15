@@ -91,10 +91,12 @@ npx @redocly/cli lint openapi.yaml
 **Using AsyncAPI (HTML)**:
 ```bash
 cd specs/websocket
-npx -p @asyncapi/cli asyncapi generate fromTemplate asyncapi.yaml @asyncapi/html-template@3.0.0 -o ../../docs/websocket --force-write
+npx -p @asyncapi/cli asyncapi generate fromTemplate asyncapi.yaml @asyncapi/html-template@3.0.0 -o /tmp/asyncapi-build -p singleFile=true --force-write
+mv /tmp/asyncapi-build/index.html ../../docs/websocket.html
+rm -rf /tmp/asyncapi-build
 ```
 
-Note: The generator must run from the `specs/websocket` directory to properly resolve relative `$ref` paths to OpenAPI schemas.
+Note: The generator must run from the `specs/websocket` directory to properly resolve relative `$ref` paths to OpenAPI schemas. The `-p singleFile=true` parameter generates a single standalone HTML file.
 
 **Validate**:
 ```bash
@@ -111,7 +113,7 @@ Use the provided build script:
 
 This generates:
 - `docs/api.html` - REST API documentation
-- `docs/websocket/index.html` - WebSocket API documentation
+- `docs/websocket.html` - WebSocket API documentation
 
 ## Viewing Documentation
 
@@ -126,9 +128,9 @@ firefox docs/api.html
 
 **WebSocket API**:
 ```bash
-xdg-open docs/websocket/index.html
+xdg-open docs/websocket.html
 # or
-firefox docs/websocket/index.html
+firefox docs/websocket.html
 ```
 
 ## Schema Reuse

@@ -24,8 +24,10 @@ echo
 # Build WebSocket API documentation
 echo "Building WebSocket API documentation (AsyncAPI)..."
 cd ../websocket
-npx --yes -p @asyncapi/cli asyncapi generate fromTemplate asyncapi.yaml @asyncapi/html-template@3.0.0 -o ../../docs/websocket --force-write
-echo "✓ WebSocket API docs generated: docs/websocket/index.html"
+npx --yes -p @asyncapi/cli asyncapi generate fromTemplate asyncapi.yaml @asyncapi/html-template@3.0.0 -o /tmp/asyncapi-build -p singleFile=true --force-write
+mv /tmp/asyncapi-build/index.html ../../docs/websocket.html
+rm -rf /tmp/asyncapi-build
+echo "✓ WebSocket API docs generated: docs/websocket.html"
 echo
 
 cd "$SCRIPT_DIR"
@@ -33,4 +35,4 @@ echo "Documentation build complete!"
 echo
 echo "View documentation:"
 echo "  REST API:      file://$(realpath ../docs/api.html)"
-echo "  WebSocket API: file://$(realpath ../docs/websocket/index.html)"
+echo "  WebSocket API: file://$(realpath ../docs/websocket.html)"
