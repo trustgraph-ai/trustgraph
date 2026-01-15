@@ -8,33 +8,41 @@
 
 ## Python API Documentation
 
-The Python API documentation is generated from docstrings using `pydoc-markdown`.
+The Python API documentation is generated from docstrings using a custom Python script that introspects the `trustgraph.api` package.
 
 ### Prerequisites
 
-Install pydoc-markdown:
+The trustgraph package must be importable. If you're working in a development environment:
+
 ```bash
-pip install pydoc-markdown
+cd trustgraph-base
+pip install -e .
 ```
 
 ### Generating Documentation
 
-From the repository root directory:
+From the docs directory:
 
 ```bash
-cd /path/to/trustgraph
-pydoc-markdown docs/pydoc-markdown.yml > docs/python-api.md
+cd docs
+python3 generate-api-docs.py > python-api.md
 ```
 
-This generates a single markdown file with complete API documentation.
+This generates a single markdown file with complete API documentation showing:
+- Installation and quick start guide
+- Import statements for each class/type
+- Full docstrings with examples
+- Table of contents organized by category
 
-### Configuration
+### Documentation Style
 
-All docstrings follow Google-style format for optimal markdown rendering:
+All docstrings follow Google-style format:
 - Brief one-line summary
 - Detailed description
 - Args section with parameter descriptions
 - Returns section
 - Raises section (when applicable)
-- Example code blocks
+- Example code blocks with proper syntax highlighting
+
+The generated documentation shows the public API exactly as users import it from `trustgraph.api`, without exposing internal module structure.
 

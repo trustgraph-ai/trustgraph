@@ -150,10 +150,19 @@ def document_function(name, func, indent=0):
         # Examples
         if parsed["examples"]:
             md.append(f"{ind}**Example:**\n")
-            md.append("```python")
-            for line in parsed["examples"]:
-                md.append(line.rstrip())
-            md.append("```\n")
+            # Check if examples already contain code fences
+            example_text = '\n'.join(parsed["examples"])
+            if '```' in example_text:
+                # Already has code fences, don't wrap
+                for line in parsed["examples"]:
+                    md.append(line.rstrip())
+                md.append("")
+            else:
+                # No code fences, wrap in python block
+                md.append("```python")
+                for line in parsed["examples"]:
+                    md.append(line.rstrip())
+                md.append("```\n")
 
     return '\n'.join(md)
 

@@ -95,6 +95,10 @@ response = flow.graph_rag(
 
 ## `Api`
 
+```python
+from trustgraph.api import Api
+```
+
 Main TrustGraph API client for synchronous and asynchronous operations.
 
 This class provides access to all TrustGraph services including flow management,
@@ -137,7 +141,6 @@ Initialize the TrustGraph API client.
 
 **Example:**
 
-```python
     ```python
     # Local development
     api = Api()
@@ -149,7 +152,6 @@ Initialize the TrustGraph API client.
         token="your-api-token"
     )
     ```
-```
 
 ### `aclose(self)`
 
@@ -160,7 +162,6 @@ It is automatically called when exiting an async context manager.
 
 **Example:**
 
-```python
     ```python
     api = Api()
     async_socket = api.async_socket()
@@ -173,7 +174,6 @@ It is automatically called when exiting an async context manager.
         # ... use async_socket
     # Automatically closed
     ```
-```
 
 ### `async_bulk(self)`
 
@@ -186,7 +186,6 @@ for efficient handling of large datasets.
 
 **Example:**
 
-```python
     ```python
     async_bulk = api.async_bulk()
 
@@ -204,7 +203,6 @@ for efficient handling of large datasets.
         triples=triple_gen()
     )
     ```
-```
 
 ### `async_flow(self)`
 
@@ -217,7 +215,6 @@ for async Python applications and frameworks (FastAPI, aiohttp, etc.).
 
 **Example:**
 
-```python
     ```python
     async_flow = api.async_flow()
 
@@ -231,7 +228,6 @@ for async Python applications and frameworks (FastAPI, aiohttp, etc.).
         prompt="Hello"
     )
     ```
-```
 
 ### `async_metrics(self)`
 
@@ -243,13 +239,11 @@ Provides async/await style access to Prometheus metrics.
 
 **Example:**
 
-```python
     ```python
     async_metrics = api.async_metrics()
     prometheus_text = await async_metrics.get()
     print(prometheus_text)
     ```
-```
 
 ### `async_socket(self)`
 
@@ -262,7 +256,6 @@ This is the preferred method for async streaming in Python.
 
 **Example:**
 
-```python
     ```python
     async_socket = api.async_socket()
     flow = async_socket.flow("default")
@@ -276,7 +269,6 @@ This is the preferred method for async streaming in Python.
         if hasattr(chunk, 'content'):
             print(chunk.content, end='', flush=True)
     ```
-```
 
 ### `bulk(self)`
 
@@ -289,7 +281,6 @@ connections, including triples, embeddings, entity contexts, and objects.
 
 **Example:**
 
-```python
     ```python
     bulk = api.bulk()
 
@@ -304,7 +295,6 @@ connections, including triples, embeddings, entity contexts, and objects.
 
     bulk.import_triples(flow="default", triples=triple_generator())
     ```
-```
 
 ### `close(self)`
 
@@ -315,7 +305,6 @@ It is automatically called when exiting a context manager.
 
 **Example:**
 
-```python
     ```python
     api = Api()
     socket = api.socket()
@@ -328,7 +317,6 @@ It is automatically called when exiting a context manager.
         # ... use socket
     # Automatically closed
     ```
-```
 
 ### `collection(self)`
 
@@ -341,7 +329,6 @@ logical groupings for isolation and access control.
 
 **Example:**
 
-```python
     ```python
     collection = api.collection()
 
@@ -356,7 +343,6 @@ logical groupings for isolation and access control.
         description="Main data collection"
     )
     ```
-```
 
 ### `config(self)`
 
@@ -366,7 +352,6 @@ Get a Config client for managing configuration settings.
 
 **Example:**
 
-```python
     ```python
     config = api.config()
 
@@ -376,7 +361,6 @@ Get a Config client for managing configuration settings.
     # Set configuration
     config.put([ConfigValue(type="llm", key="model", value="gpt-4")])
     ```
-```
 
 ### `flow(self)`
 
@@ -389,7 +373,6 @@ services like agents, RAG queries, embeddings, and document processing.
 
 **Example:**
 
-```python
     ```python
     flow_client = api.flow()
 
@@ -403,7 +386,6 @@ services like agents, RAG queries, embeddings, and document processing.
         prompt="Hello"
     )
     ```
-```
 
 ### `knowledge(self)`
 
@@ -413,7 +395,6 @@ Get a Knowledge client for managing knowledge graph cores.
 
 **Example:**
 
-```python
     ```python
     knowledge = api.knowledge()
 
@@ -423,7 +404,6 @@ Get a Knowledge client for managing knowledge graph cores.
     # Load a KG core
     knowledge.load_kg_core(id="core-123", user="trustgraph")
     ```
-```
 
 ### `library(self)`
 
@@ -436,7 +416,6 @@ processing workflow coordination.
 
 **Example:**
 
-```python
     ```python
     library = api.library()
 
@@ -453,7 +432,6 @@ processing workflow coordination.
     # List documents
     docs = library.get_documents(user="trustgraph")
     ```
-```
 
 ### `metrics(self)`
 
@@ -466,13 +444,11 @@ for monitoring and observability.
 
 **Example:**
 
-```python
     ```python
     metrics = api.metrics()
     prometheus_text = metrics.get()
     print(prometheus_text)
     ```
-```
 
 ### `request(self, path, request)`
 
@@ -495,13 +471,11 @@ API access when needed.
 
 **Example:**
 
-```python
     ```python
     response = api.request("flow", {
         "operation": "list-flows"
     })
     ```
-```
 
 ### `socket(self)`
 
@@ -515,7 +489,6 @@ synchronous wrapper around the WebSocket protocol.
 
 **Example:**
 
-```python
     ```python
     socket = api.socket()
     flow = socket.flow("default")
@@ -529,12 +502,15 @@ synchronous wrapper around the WebSocket protocol.
         if hasattr(chunk, 'content'):
             print(chunk.content, end='', flush=True)
     ```
-```
 
 
 ---
 
 ## `Flow`
+
+```python
+from trustgraph.api import Flow
+```
 
 Flow management client for blueprint and flow instance operations.
 
@@ -563,11 +539,9 @@ Delete a flow blueprint.
 
 **Example:**
 
-```python
     ```python
     api.flow().delete_blueprint("old-blueprint")
     ```
-```
 
 ### `get(self, id)`
 
@@ -581,12 +555,10 @@ Get the definition of a running flow instance.
 
 **Example:**
 
-```python
     ```python
     flow_def = api.flow().get("default")
     print(flow_def)
     ```
-```
 
 ### `get_blueprint(self, blueprint_name)`
 
@@ -600,12 +572,10 @@ Get a flow blueprint definition by name.
 
 **Example:**
 
-```python
     ```python
     blueprint = api.flow().get_blueprint("default")
     print(blueprint)  # Blueprint configuration
     ```
-```
 
 ### `id(self, id='default')`
 
@@ -619,7 +589,6 @@ Get a FlowInstance for executing operations on a specific flow.
 
 **Example:**
 
-```python
     ```python
     flow = api.flow().id("my-flow")
     response = flow.text_completion(
@@ -627,7 +596,6 @@ Get a FlowInstance for executing operations on a specific flow.
         prompt="Hello"
     )
     ```
-```
 
 ### `list(self)`
 
@@ -637,12 +605,10 @@ List all active flow instances.
 
 **Example:**
 
-```python
     ```python
     flows = api.flow().list()
     print(flows)  # ['default', 'flow-1', 'flow-2', ...]
     ```
-```
 
 ### `list_blueprints(self)`
 
@@ -652,12 +618,10 @@ List all available flow blueprints.
 
 **Example:**
 
-```python
     ```python
     blueprints = api.flow().list_blueprints()
     print(blueprints)  # ['default', 'custom-flow', ...]
     ```
-```
 
 ### `put_blueprint(self, blueprint_name, definition)`
 
@@ -670,7 +634,6 @@ Create or update a flow blueprint.
 
 **Example:**
 
-```python
     ```python
     definition = {
         "services": ["text-completion", "graph-rag"],
@@ -678,7 +641,6 @@ Create or update a flow blueprint.
     }
     api.flow().put_blueprint("my-blueprint", definition)
     ```
-```
 
 ### `request(self, path=None, request=None)`
 
@@ -708,7 +670,6 @@ Start a new flow instance from a blueprint.
 
 **Example:**
 
-```python
     ```python
     api.flow().start(
         blueprint_name="default",
@@ -717,7 +678,6 @@ Start a new flow instance from a blueprint.
         parameters={"model": "gpt-4"}
     )
     ```
-```
 
 ### `stop(self, id)`
 
@@ -729,16 +689,18 @@ Stop a running flow instance.
 
 **Example:**
 
-```python
     ```python
     api.flow().stop("my-flow")
     ```
-```
 
 
 ---
 
 ## `FlowInstance`
+
+```python
+from trustgraph.api import FlowInstance
+```
 
 Flow instance client for executing services on a specific flow.
 
@@ -785,7 +747,6 @@ state across interactions. This is a synchronous non-streaming version.
 
 **Example:**
 
-```python
     ```python
     flow = api.flow().id("default")
 
@@ -806,7 +767,6 @@ state across interactions. This is a synchronous non-streaming version.
         history=history
     )
     ```
-```
 
 ### `detect_type(self, sample)`
 
@@ -848,7 +808,6 @@ then generates a response using an LLM with those chunks as context.
 
 **Example:**
 
-```python
     ```python
     flow = api.flow().id("default")
     response = flow.document_rag(
@@ -859,7 +818,6 @@ then generates a response using an LLM with those chunks as context.
     )
     print(response)
     ```
-```
 
 ### `embeddings(self, text)`
 
@@ -876,13 +834,11 @@ search and similarity comparison.
 
 **Example:**
 
-```python
     ```python
     flow = api.flow().id("default")
     vectors = flow.embeddings("quantum computing")
     print(f"Embedding dimension: {len(vectors)}")
     ```
-```
 
 ### `generate_descriptor(self, sample, data_type, schema_name, options=None)`
 
@@ -915,7 +871,6 @@ similar to the input text, using vector embeddings.
 
 **Example:**
 
-```python
     ```python
     flow = api.flow().id("default")
     results = flow.graph_embeddings_query(
@@ -925,7 +880,6 @@ similar to the input text, using vector embeddings.
         limit=5
     )
     ```
-```
 
 ### `graph_rag(self, query, user='trustgraph', collection='default', entity_limit=50, triple_limit=30, max_subgraph_size=150, max_path_length=2)`
 
@@ -948,7 +902,6 @@ traversing entity relationships, then generates a response using an LLM.
 
 **Example:**
 
-```python
     ```python
     flow = api.flow().id("default")
     response = flow.graph_rag(
@@ -960,7 +913,6 @@ traversing entity relationships, then generates a response using an LLM.
     )
     print(response)
     ```
-```
 
 ### `load_document(self, document, id=None, metadata=None, user=None, collection=None)`
 
@@ -985,7 +937,6 @@ processing through the flow's document pipeline.
 
 **Example:**
 
-```python
     ```python
     flow = api.flow().id("default")
 
@@ -998,7 +949,6 @@ processing through the flow's document pipeline.
             collection="papers"
         )
     ```
-```
 
 ### `load_text(self, text, id=None, metadata=None, charset='utf-8', user=None, collection=None)`
 
@@ -1024,7 +974,6 @@ text pipeline.
 
 **Example:**
 
-```python
     ```python
     flow = api.flow().id("default")
 
@@ -1038,7 +987,6 @@ text pipeline.
         collection="documents"
     )
     ```
-```
 
 ### `mcp_tool(self, name, parameters={})`
 
@@ -1060,7 +1008,6 @@ allowing integration with external systems and services.
 
 **Example:**
 
-```python
     ```python
     flow = api.flow().id("default")
 
@@ -1070,7 +1017,6 @@ allowing integration with external systems and services.
         parameters={"query": "latest AI news", "limit": 5}
     )
     ```
-```
 
 ### `nlp_query(self, question, max_results=100)`
 
@@ -1106,7 +1052,6 @@ with filtering, aggregation, and relationship traversal.
 
 **Example:**
 
-```python
     ```python
     flow = api.flow().id("default")
 
@@ -1140,7 +1085,6 @@ with filtering, aggregation, and relationship traversal.
         variables={"name": "Marie Curie"}
     )
     ```
-```
 
 ### `prompt(self, id, variables)`
 
@@ -1162,7 +1106,6 @@ substitution, useful for consistent prompt engineering.
 
 **Example:**
 
-```python
     ```python
     flow = api.flow().id("default")
 
@@ -1178,7 +1121,6 @@ substitution, useful for consistent prompt engineering.
         variables={"text": "Marie Curie won Nobel Prizes"}
     )
     ```
-```
 
 ### `request(self, path, request)`
 
@@ -1228,7 +1170,6 @@ Execute text completion using the flow's LLM.
 
 **Example:**
 
-```python
     ```python
     flow = api.flow().id("default")
     response = flow.text_completion(
@@ -1237,7 +1178,6 @@ Execute text completion using the flow's LLM.
     )
     print(response)
     ```
-```
 
 ### `triples_query(self, s=None, p=None, o=None, user=None, collection=None, limit=10000)`
 
@@ -1263,7 +1203,6 @@ object patterns. Unspecified parameters act as wildcards.
 
 **Example:**
 
-```python
     ```python
     from trustgraph.knowledge import Uri, Literal
 
@@ -1282,12 +1221,15 @@ object patterns. Unspecified parameters act as wildcards.
         limit=100
     )
     ```
-```
 
 
 ---
 
 ## `AsyncFlow`
+
+```python
+from trustgraph.api import AsyncFlow
+```
 
 Asynchronous REST-based flow interface
 
@@ -1346,6 +1288,10 @@ Stop a flow
 
 ## `AsyncFlowInstance`
 
+```python
+from trustgraph.api import AsyncFlowInstance
+```
+
 Asynchronous REST flow instance
 
 ### Methods
@@ -1395,6 +1341,10 @@ Triple pattern query
 
 ## `SocketClient`
 
+```python
+from trustgraph.api import SocketClient
+```
+
 Synchronous WebSocket client (wraps async websockets library)
 
 ### Methods
@@ -1415,6 +1365,10 @@ Get flow instance for WebSocket operations
 ---
 
 ## `SocketFlowInstance`
+
+```python
+from trustgraph.api import SocketFlowInstance
+```
 
 Synchronous WebSocket flow instance with same interface as REST FlowInstance
 
@@ -1469,6 +1423,10 @@ Triple pattern query
 
 ## `AsyncSocketClient`
 
+```python
+from trustgraph.api import AsyncSocketClient
+```
+
 Asynchronous WebSocket client
 
 ### Methods
@@ -1489,6 +1447,10 @@ Get async flow instance for WebSocket operations
 ---
 
 ## `AsyncSocketFlowInstance`
+
+```python
+from trustgraph.api import AsyncSocketFlowInstance
+```
 
 Asynchronous WebSocket flow instance
 
@@ -1543,6 +1505,10 @@ Triple pattern query
 
 ## `BulkClient`
 
+```python
+from trustgraph.api import BulkClient
+```
+
 Synchronous bulk operations client
 
 ### Methods
@@ -1595,6 +1561,10 @@ Bulk import triples via WebSocket
 ---
 
 ## `AsyncBulkClient`
+
+```python
+from trustgraph.api import AsyncBulkClient
+```
 
 Asynchronous bulk operations client
 
@@ -1649,6 +1619,10 @@ Bulk import triples via WebSocket
 
 ## `Metrics`
 
+```python
+from trustgraph.api import Metrics
+```
+
 Synchronous metrics client
 
 ### Methods
@@ -1665,6 +1639,10 @@ Get Prometheus metrics as text
 ---
 
 ## `AsyncMetrics`
+
+```python
+from trustgraph.api import AsyncMetrics
+```
 
 Asynchronous metrics client
 
@@ -1687,6 +1665,10 @@ Get Prometheus metrics as text
 
 ## `Triple`
 
+```python
+from trustgraph.api import Triple
+```
+
 RDF triple representing a knowledge graph statement.
 
 **Fields:**
@@ -1706,6 +1688,10 @@ Initialize self.  See help(type(self)) for accurate signature.
 
 ## `ConfigKey`
 
+```python
+from trustgraph.api import ConfigKey
+```
+
 Configuration key identifier.
 
 **Fields:**
@@ -1723,6 +1709,10 @@ Initialize self.  See help(type(self)) for accurate signature.
 ---
 
 ## `ConfigValue`
+
+```python
+from trustgraph.api import ConfigValue
+```
 
 Configuration key-value pair.
 
@@ -1742,6 +1732,10 @@ Initialize self.  See help(type(self)) for accurate signature.
 ---
 
 ## `DocumentMetadata`
+
+```python
+from trustgraph.api import DocumentMetadata
+```
 
 Metadata for a document in the library.
 
@@ -1767,6 +1761,10 @@ Initialize self.  See help(type(self)) for accurate signature.
 
 ## `ProcessingMetadata`
 
+```python
+from trustgraph.api import ProcessingMetadata
+```
+
 Metadata for an active document processing job.
 
 **Fields:**
@@ -1789,6 +1787,10 @@ Initialize self.  See help(type(self)) for accurate signature.
 ---
 
 ## `CollectionMetadata`
+
+```python
+from trustgraph.api import CollectionMetadata
+```
 
 Metadata for a data collection.
 
@@ -1818,6 +1820,10 @@ Initialize self.  See help(type(self)) for accurate signature.
 
 ## `StreamingChunk`
 
+```python
+from trustgraph.api import StreamingChunk
+```
+
 Base class for streaming response chunks.
 
 Used for WebSocket-based streaming operations where responses are delivered
@@ -1838,6 +1844,10 @@ Initialize self.  See help(type(self)) for accurate signature.
 ---
 
 ## `AgentThought`
+
+```python
+from trustgraph.api import AgentThought
+```
 
 Agent reasoning/thought process chunk.
 
@@ -1861,6 +1871,10 @@ Initialize self.  See help(type(self)) for accurate signature.
 
 ## `AgentObservation`
 
+```python
+from trustgraph.api import AgentObservation
+```
+
 Agent tool execution observation chunk.
 
 Represents the result or observation from executing a tool or action.
@@ -1882,6 +1896,10 @@ Initialize self.  See help(type(self)) for accurate signature.
 ---
 
 ## `AgentAnswer`
+
+```python
+from trustgraph.api import AgentAnswer
+```
 
 Agent final answer chunk.
 
@@ -1910,6 +1928,10 @@ Initialize self.  See help(type(self)) for accurate signature.
 
 ## `RAGChunk`
 
+```python
+from trustgraph.api import RAGChunk
+```
+
 RAG (Retrieval-Augmented Generation) streaming chunk.
 
 Used for streaming responses from graph RAG, document RAG, text completion,
@@ -1934,12 +1956,20 @@ Initialize self.  See help(type(self)) for accurate signature.
 
 ## `ProtocolException`
 
+```python
+from trustgraph.api import ProtocolException
+```
+
 Raised when WebSocket protocol errors occur
 
 
 ---
 
 ## `TrustGraphException`
+
+```python
+from trustgraph.api import TrustGraphException
+```
 
 Base class for all TrustGraph service errors
 
@@ -1948,12 +1978,20 @@ Base class for all TrustGraph service errors
 
 ## `AgentError`
 
+```python
+from trustgraph.api import AgentError
+```
+
 Agent service error
 
 
 ---
 
 ## `ConfigError`
+
+```python
+from trustgraph.api import ConfigError
+```
 
 Configuration service error
 
@@ -1962,12 +2000,20 @@ Configuration service error
 
 ## `DocumentRagError`
 
+```python
+from trustgraph.api import DocumentRagError
+```
+
 Document RAG retrieval error
 
 
 ---
 
 ## `FlowError`
+
+```python
+from trustgraph.api import FlowError
+```
 
 Flow management error
 
@@ -1976,12 +2022,20 @@ Flow management error
 
 ## `GatewayError`
 
+```python
+from trustgraph.api import GatewayError
+```
+
 API Gateway error
 
 
 ---
 
 ## `GraphRagError`
+
+```python
+from trustgraph.api import GraphRagError
+```
 
 Graph RAG retrieval error
 
@@ -1990,12 +2044,20 @@ Graph RAG retrieval error
 
 ## `LLMError`
 
+```python
+from trustgraph.api import LLMError
+```
+
 LLM service error
 
 
 ---
 
 ## `LoadError`
+
+```python
+from trustgraph.api import LoadError
+```
 
 Data loading error
 
@@ -2004,12 +2066,20 @@ Data loading error
 
 ## `LookupError`
 
+```python
+from trustgraph.api import LookupError
+```
+
 Lookup/search error
 
 
 ---
 
 ## `NLPQueryError`
+
+```python
+from trustgraph.api import NLPQueryError
+```
 
 NLP query service error
 
@@ -2018,12 +2088,20 @@ NLP query service error
 
 ## `ObjectsQueryError`
 
+```python
+from trustgraph.api import ObjectsQueryError
+```
+
 Objects query service error
 
 
 ---
 
 ## `RequestError`
+
+```python
+from trustgraph.api import RequestError
+```
 
 Request processing error
 
@@ -2032,6 +2110,10 @@ Request processing error
 
 ## `StructuredQueryError`
 
+```python
+from trustgraph.api import StructuredQueryError
+```
+
 Structured query service error
 
 
@@ -2039,12 +2121,20 @@ Structured query service error
 
 ## `UnexpectedError`
 
+```python
+from trustgraph.api import UnexpectedError
+```
+
 Unexpected/unknown error
 
 
 ---
 
 ## `ApplicationException`
+
+```python
+from trustgraph.api import ApplicationException
+```
 
 Base class for all TrustGraph service errors
 
