@@ -9,9 +9,11 @@
 
 [**Website**](https://trustgraph.ai) | [**Docs**](https://docs.trustgraph.ai) | [**YouTube**](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) | [**Configuration Builder**](https://config-ui.demo.trustgraph.ai/) | [**Discord**](https://discord.gg/sQMwkRz5GX) | [**Blog**](https://blog.trustgraph.ai/subscribe)
 
-</div>
+<a href="https://trendshift.io/repositories/17291" target="_blank"><img src="https://trendshift.io/api/badge/repositories/17291" alt="trustgraph-ai%2Ftrustgraph | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
 # The Context Graph Factory for AI
+
+</div>
 
 Build intelligent AI applications that reason, not hallucinate. TrustGraph is the open-source, full-stack solution for transforming raw data into precision-grounded context through automated context graph construction, custom ontology engineering, and intelligent context retrieval.
 
