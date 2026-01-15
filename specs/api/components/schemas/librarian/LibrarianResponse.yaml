@@ -1,0 +1,18 @@
+type: object
+description: Librarian service response
+properties:
+  document-metadata:
+    $ref: '../common/DocumentMetadata.yaml'
+  content:
+    type: string
+    description: Document content
+  document-metadatas:
+    type: array
+    description: List of documents (returned by list-documents)
+    items:
+      $ref: '../common/DocumentMetadata.yaml'
+  processing-metadatas:
+    type: array
+    description: List of processing tasks (returned by list-processing)
+    items:
+      $ref: '../common/ProcessingMetadata.yaml'

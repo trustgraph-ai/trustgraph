@@ -1,0 +1,111 @@
+post:
+  tags:
+    - Flow Services
+  summary: Text Load - load text documents
+  description: |
+    Load text documents into processing pipeline for indexing and embedding.
+
+    ## Text Load Overview
+
+    Fire-and-forget document loading:
+    - **Input**: Text content (base64 encoded)
+    - **Process**: Chunk, embed, store
+    - **Output**: None (202 Accepted)
+
+    Asynchronous processing - document queued for background processing.
+
+    ## Processing Pipeline
+
+    Text documents go through:
+    1. **Chunking**: Split into overlapping chunks
+    2. **Embedding**: Generate vectors for each chunk
+    3. **Storage**: Store chunks + embeddings
+    4. **Indexing**: Make searchable via document-embeddings query
+
+    Pipeline runs asynchronously after request returns.
+
+    ## Text Format
+
+    Text must be base64 encoded:
+    ```
+    text_content = "This is the document..."
+    encoded = base64.b64encode(text_content.encode('utf-8'))
+    ```
+
+    Default charset is UTF-8, specify `charset` if different.
+
+    ## Metadata
+
+    Optional RDF triples describing document:
+    - Title, author, date
+    - Source URL
+    - Custom properties
+    - Used for organization and retrieval
+
+    ## Use Cases
+
+    - **Document ingestion**: Add documents to knowledge base
+    - **Bulk loading**: Process multiple documents
+    - **Content updates**: Replace existing documents
+    - **Library integration**: Load from document library
+
+    ## No Response Data
+
+    Returns 202 Accepted immediately:
+    - Document queued for processing
+    - No synchronous result
+    - No processing status
+    - Check document-embeddings query later to verify indexed
+
+  operationId: textLoadService
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: flow
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Flow instance ID
+      example: my-flow
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas/loading/TextLoadRequest.yaml'
+        examples:
+          simpleLoad:
+            summary: Load text document
+            value:
+              text: VGhpcyBpcyB0aGUgZG9jdW1lbnQgdGV4dC4uLg==
+              id: doc-123
+              user: alice
+              collection: research
+          withMetadata:
+            summary: Load with RDF metadata
+            value:
+              text: UXVhbnR1bSBjb21wdXRpbmcgdXNlcyBxdWFudHVtIG1lY2hhbmljcyBwcmluY2lwbGVzLi4u
+              id: doc-456
+              user: alice
+              collection: research
+              metadata:
+                - s: {v: "doc-456", e: false}
+                  p: {v: "http://purl.org/dc/terms/title", e: true}
+                  o: {v: "Introduction to Quantum Computing", e: false}
+                - s: {v: "doc-456", e: false}
+                  p: {v: "http://purl.org/dc/terms/creator", e: true}
+                  o: {v: "Dr. Alice Smith", e: false}
+  responses:
+    '202':
+      description: Document accepted for processing
+      content:
+        application/json:
+          schema:
+            type: object
+            properties: {}
+          example: {}
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../../components/responses/Error.yaml'

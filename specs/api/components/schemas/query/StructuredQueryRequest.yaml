@@ -1,0 +1,22 @@
+type: object
+description: |
+  Structured query request - natural language question with automatic execution.
+
+  Combines NLP query generation and execution in one call.
+required:
+  - question
+properties:
+  question:
+    type: string
+    description: Natural language question
+    example: Who does Alice know that works in engineering?
+  user:
+    type: string
+    description: User identifier
+    default: trustgraph
+    example: alice
+  collection:
+    type: string
+    description: Collection to query
+    default: default
+    example: research

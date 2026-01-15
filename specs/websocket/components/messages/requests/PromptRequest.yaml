@@ -1,0 +1,29 @@
+type: object
+description: WebSocket request for prompt service (flow-hosted service)
+required:
+  - id
+  - service
+  - flow
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: prompt
+    description: Service identifier for prompt service
+  flow:
+    type: string
+    description: Flow ID
+  request:
+    $ref: '../../../../api/components/schemas/prompt/PromptRequest.yaml'
+examples:
+  - id: req-1
+    service: prompt
+    flow: my-flow
+    request:
+      template: default-template
+      variables:
+        topic: quantum computing
+        style: technical

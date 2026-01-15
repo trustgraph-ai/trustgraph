@@ -1,0 +1,16 @@
+type: object
+description: RDF triple (subject-predicate-object)
+required:
+  - s
+  - p
+  - o
+properties:
+  s:
+    $ref: './RdfValue.yaml'
+    description: Subject
+  p:
+    $ref: './RdfValue.yaml'
+    description: Predicate
+  o:
+    $ref: './RdfValue.yaml'
+    description: Object

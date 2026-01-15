@@ -1,0 +1,31 @@
+type: object
+description: WebSocket request for knowledge service (global service)
+required:
+  - id
+  - service
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: knowledge
+    description: Service identifier for knowledge service
+  request:
+    $ref: '../../../../api/components/schemas/knowledge/KnowledgeRequest.yaml'
+examples:
+  - id: req-1
+    service: knowledge
+    request:
+      operation: store
+      triples:
+        - s:
+            v: https://example.com/entity1
+            e: true
+          p:
+            v: https://example.com/relates-to
+            e: true
+          o:
+            v: https://example.com/entity2
+            e: true

@@ -1,0 +1,82 @@
+type: object
+description: Flow service response
+properties:
+  flow-id:
+    type: string
+    description: Flow instance ID (returned by start-flow)
+    example: my-flow
+  flow-ids:
+    type: array
+    description: List of running flow IDs (returned by list-flows)
+    items:
+      type: string
+    example:
+      - default
+      - production
+      - my-flow
+  blueprint-names:
+    type: array
+    description: List of available blueprint names (returned by list-blueprints)
+    items:
+      type: string
+    example:
+      - document-rag
+      - graph-rag
+      - document-rag+graph-rag
+  blueprint-definition:
+    type: object
+    description: Blueprint definition (returned by get-blueprint)
+    additionalProperties: true
+    example:
+      description: Standard RAG pipeline
+      parameters:
+        model:
+          type: llm-model
+          order: 1
+      class:
+        text-completion:{class}:
+          request: non-persistent://tg/request/text-completion:{class}
+          response: non-persistent://tg/response/text-completion:{class}
+      flow:
+        chunker:{id}:
+          input: persistent://tg/flow/chunk:{id}
+          output: persistent://tg/flow/chunk-load:{id}
+      interfaces:
+        agent:
+          request: non-persistent://tg/request/agent:{id}
+          response: non-persistent://tg/response/agent:{id}
+  flow:
+    type: object
+    description: Flow instance details (returned by get-flow)
+    properties:
+      blueprint-name:
+        type: string
+        example: document-rag
+      description:
+        type: string
+        example: My document processing flow
+      parameters:
+        type: object
+        description: Flow parameters (all values are strings)
+        additionalProperties:
+          type: string
+        example:
+          model: gpt-4
+          temperature: "0.7"
+      interfaces:
+        type: object
+        description: Service interfaces with resolved queue names
+        additionalProperties: true
+        example:
+          agent:
+            request: non-persistent://tg/request/agent:my-flow
+            response: non-persistent://tg/response/agent:my-flow
+          text-load: persistent://tg/flow/text-document-load:my-flow
+  description:
+    type: string
+    description: Description
+  parameters:
+    type: object
+    description: Parameters
+    additionalProperties:
+      type: string

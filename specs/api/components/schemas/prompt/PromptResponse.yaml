@@ -1,0 +1,16 @@
+type: object
+description: Prompt service response
+properties:
+  text:
+    type: string
+    description: Generated text response
+    example: This document discusses quantum computing and its applications...
+  object:
+    type: string
+    description: Structured response (JSON string) if prompt produces objects
+    example: '{"summary": "Quantum computing overview", "key_points": [...]}'
+  end-of-stream:
+    type: boolean
+    description: Indicates streaming is complete (streaming mode)
+    default: false
+    example: true

@@ -1,0 +1,33 @@
+type: object
+description: |
+  Document RAG (Retrieval-Augmented Generation) query request.
+  Searches document embeddings and generates answer using retrieved context.
+required:
+  - query
+properties:
+  query:
+    type: string
+    description: User query or question
+    example: What are the key findings in the research papers?
+  user:
+    type: string
+    description: User identifier for multi-tenancy
+    default: trustgraph
+    example: alice
+  collection:
+    type: string
+    description: Collection to search within
+    default: default
+    example: research
+  doc-limit:
+    type: integer
+    description: Maximum number of documents to retrieve
+    default: 20
+    minimum: 1
+    maximum: 100
+    example: 10
+  streaming:
+    type: boolean
+    description: Enable streaming response delivery
+    default: false
+    example: true

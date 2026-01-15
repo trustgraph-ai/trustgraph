@@ -1,0 +1,108 @@
+get:
+  tags:
+    - Import/Export
+  summary: Export Core - bulk export triples and embeddings
+  description: |
+    Export knowledge cores in bulk using streaming MessagePack format.
+
+    ## Export Core Overview
+
+    Bulk data export for knowledge graph:
+    - **Format**: MessagePack streaming
+    - **Content**: Triples and graph embeddings
+    - **Source**: Global knowledge storage
+    - **Use**: Backups, data migration, archival
+
+    ## MessagePack Protocol
+
+    Response body is MessagePack stream with message tuples:
+
+    ### Triple Message
+    ```
+    ("t", {
+      "m": {              // Metadata
+        "i": "core-id",   // Knowledge core ID
+        "m": [...],       // Metadata triples array
+        "u": "user",      // User
+        "c": "collection" // Collection
+      },
+      "t": [...]          // Triples array
+    })
+    ```
+
+    ### Graph Embeddings Message
+    ```
+    ("ge", {
+      "m": {              // Metadata
+        "i": "core-id",
+        "m": [...],
+        "u": "user",
+        "c": "collection"
+      },
+      "e": [              // Entities array
+        {
+          "e": {"v": "uri", "e": true},  // Entity RdfValue
+          "v": [0.1, 0.2, ...]             // Vectors
+        }
+      ]
+    })
+    ```
+
+    ### End of Stream Message
+    ```
+    ("eos", {})
+    ```
+
+    ## Query Parameters
+
+    - **id**: Knowledge core ID to export
+    - **user**: User identifier
+
+    ## Streaming
+
+    Data streamed incrementally:
+    - Triples sent first
+    - Graph embeddings sent next
+    - EOS marker signals completion
+
+    Client should process messages as received.
+
+    ## Use Cases
+
+    - **Backups**: Export for disaster recovery
+    - **Data migration**: Move to another system
+    - **Archival**: Long-term storage
+    - **Replication**: Copy knowledge cores
+    - **Analysis**: External processing
+
+  operationId: exportCore
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: id
+      in: query
+      required: true
+      schema:
+        type: string
+      description: Knowledge core ID to export
+      example: core-123
+    - name: user
+      in: query
+      required: true
+      schema:
+        type: string
+      description: User identifier
+      example: alice
+  responses:
+    '200':
+      description: Export stream
+      content:
+        application/msgpack:
+          schema:
+            type: string
+            format: binary
+            description: MessagePack stream of knowledge data
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../components/responses/Error.yaml'

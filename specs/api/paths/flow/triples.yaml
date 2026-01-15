@@ -1,0 +1,129 @@
+post:
+  tags:
+    - Flow Services
+  summary: Triples query - pattern-based graph queries
+  description: |
+    Query knowledge graph using subject-predicate-object patterns.
+
+    ## Triples Query Overview
+
+    Query RDF triples with flexible pattern matching:
+    - Specify subject, predicate, and/or object
+    - Any combination of filters (all optional)
+    - Returns matching triples up to limit
+
+    ## Pattern Matching
+
+    Pattern syntax supports:
+    - **All triples**: Omit all filters (returns everything up to limit)
+    - **Subject match**: Specify `s` only (all triples about that subject)
+    - **Predicate match**: Specify `p` only (all uses of that property)
+    - **Object match**: Specify `o` only (all triples with that value)
+    - **Combinations**: Any combination of s/p/o
+
+    ## RDF Value Format
+
+    Each component (s/p/o) uses RdfValue format:
+    - **Entity/URI**: `{"v": "https://example.com/entity", "e": true}`
+    - **Literal**: `{"v": "Some text", "e": false}`
+
+    ## Query Examples
+
+    Find all properties of an entity:
+    ```json
+    {"s": {"v": "https://example.com/person/alice", "e": true}}
+    ```
+
+    Find all instances of a type:
+    ```json
+    {
+      "p": {"v": "http://www.w3.org/1999/02/22-rdf-syntax-ns#type", "e": true},
+      "o": {"v": "https://example.com/type/Person", "e": true}
+    }
+    ```
+
+    Find specific relationship:
+    ```json
+    {
+      "s": {"v": "https://example.com/person/alice", "e": true},
+      "p": {"v": "https://example.com/knows", "e": true}
+    }
+    ```
+
+    ## Performance
+
+    - Default limit: 10,000 triples
+    - Max limit: 100,000 triples
+    - More specific patterns = faster queries
+    - Consider limit for large result sets
+
+  operationId: triplesQueryService
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: flow
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Flow instance ID
+      example: my-flow
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas/query/TriplesQueryRequest.yaml'
+        examples:
+          allTriplesAboutEntity:
+            summary: All triples about an entity
+            value:
+              s:
+                v: https://example.com/person/alice
+                e: true
+              user: alice
+              collection: research
+              limit: 100
+          allInstancesOfType:
+            summary: Find all instances of a type
+            value:
+              p:
+                v: http://www.w3.org/1999/02/22-rdf-syntax-ns#type
+                e: true
+              o:
+                v: https://example.com/type/Person
+                e: true
+              limit: 50
+          specificRelationship:
+            summary: Find specific relationships
+            value:
+              p:
+                v: https://example.com/knows
+                e: true
+              user: alice
+              limit: 200
+  responses:
+    '200':
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/query/TriplesQueryResponse.yaml'
+          examples:
+            matchingTriples:
+              summary: Matching triples
+              value:
+                response:
+                  - s: {v: "https://example.com/person/alice", e: true}
+                    p: {v: "https://www.w3.org/1999/02/22-rdf-syntax-ns#type", e: true}
+                    o: {v: "https://example.com/type/Person", e: true}
+                  - s: {v: "https://example.com/person/alice", e: true}
+                    p: {v: "https://www.w3.org/2000/01/rdf-schema#label", e: true}
+                    o: {v: "Alice", e: false}
+                  - s: {v: "https://example.com/person/alice", e: true}
+                    p: {v: "https://example.com/knows", e: true}
+                    o: {v: "https://example.com/person/bob", e: true}
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../../components/responses/Error.yaml'

@@ -1,0 +1,30 @@
+type: object
+description: WebSocket request for structured-query service (flow-hosted service)
+required:
+  - id
+  - service
+  - flow
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: structured-query
+    description: Service identifier for structured-query service
+  flow:
+    type: string
+    description: Flow ID
+  request:
+    $ref: '../../../../api/components/schemas/query/StructuredQueryRequest.yaml'
+examples:
+  - id: req-1
+    service: structured-query
+    flow: my-flow
+    request:
+      query:
+        type: entity
+        filters:
+          - property: type
+            value: Person

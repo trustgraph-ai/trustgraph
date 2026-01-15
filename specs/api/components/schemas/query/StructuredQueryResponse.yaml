@@ -1,0 +1,34 @@
+type: object
+description: Structured query response
+properties:
+  data:
+    description: Query results (JSON object or null)
+    oneOf:
+      - type: object
+        additionalProperties: {}
+      - type: "null"
+    example:
+      person:
+        name: Alice
+        knows:
+          - name: Bob
+            worksFor: {name: Acme Corp, department: Engineering}
+          - name: Carol
+            worksFor: {name: Tech Inc, department: Engineering}
+  errors:
+    type: array
+    description: Query errors (array of error strings)
+    items:
+      type: string
+    example:
+      - Could not resolve field 'age' on type 'Person'
+  error:
+    type: object
+    description: System-level error
+    properties:
+      type:
+        type: string
+        example: QUERY_GENERATION_ERROR
+      message:
+        type: string
+        example: Failed to generate query from question

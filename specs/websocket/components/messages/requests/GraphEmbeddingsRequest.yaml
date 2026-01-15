@@ -1,0 +1,27 @@
+type: object
+description: WebSocket request for graph-embeddings service (flow-hosted service)
+required:
+  - id
+  - service
+  - flow
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: graph-embeddings
+    description: Service identifier for graph-embeddings service
+  flow:
+    type: string
+    description: Flow ID
+  request:
+    $ref: '../../../../api/components/schemas/embeddings-query/GraphEmbeddingsQueryRequest.yaml'
+examples:
+  - id: req-1
+    service: graph-embeddings
+    flow: my-flow
+    request:
+      text: quantum computing
+      limit: 10

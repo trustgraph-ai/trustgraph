@@ -1,0 +1,125 @@
+post:
+  tags:
+    - Flow Services
+  summary: Text completion - direct LLM generation
+  description: |
+    Direct text completion using LLM without retrieval augmentation.
+
+    ## Text Completion Overview
+
+    Pure LLM generation for:
+    - General knowledge questions
+    - Creative writing
+    - Code generation
+    - Analysis and reasoning
+    - Any task not requiring specific document/graph context
+
+    ## System vs Prompt
+
+    - **system**: Sets LLM behavior, role, constraints
+      - "You are a helpful assistant"
+      - "You are an expert Python developer"
+      - "Respond in JSON format"
+    - **prompt**: The actual user request/question
+
+    ## Streaming
+
+    Enable `streaming: true` to receive tokens as generated:
+    - Multiple messages with partial `response`
+    - Final message with `end-of-stream: true`
+
+    Without streaming, returns complete response in single message.
+
+    ## Token Counting
+
+    Response includes token usage:
+    - `in-token`: Input tokens (system + prompt)
+    - `out-token`: Generated tokens
+    - Useful for cost tracking and optimization
+
+    ## When to Use
+
+    Use text-completion when:
+    - No specific context needed (general knowledge)
+    - System prompt provides sufficient context
+    - Want direct control over prompting
+
+    Use document-rag/graph-rag when:
+    - Need to ground response in specific documents
+    - Want to leverage knowledge graph relationships
+    - Require citations or provenance
+
+  operationId: textCompletionService
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: flow
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Flow instance ID
+      example: my-flow
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas/text-completion/TextCompletionRequest.yaml'
+        examples:
+          basicCompletion:
+            summary: Basic text completion
+            value:
+              system: You are a helpful assistant that provides concise answers.
+              prompt: Explain the concept of recursion in programming.
+          codeGeneration:
+            summary: Code generation with streaming
+            value:
+              system: You are an expert Python developer. Provide clean, well-documented code.
+              prompt: Write a function to calculate the Fibonacci sequence using memoization.
+              streaming: true
+          jsonResponse:
+            summary: Structured output request
+            value:
+              system: You are a JSON API. Respond only with valid JSON, no other text.
+              prompt: |
+                Extract key information from this text and return as JSON with fields:
+                title, author, year, summary.
+
+                Text: "The Theory of Everything by Stephen Hawking (2006) explores..."
+  responses:
+    '200':
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/text-completion/TextCompletionResponse.yaml'
+          examples:
+            completeResponse:
+              summary: Complete non-streaming response
+              value:
+                response: |
+                  Recursion is a programming technique where a function calls itself
+                  to solve a problem by breaking it down into smaller, similar subproblems.
+                  Each recursive call works on a simpler version until reaching a base case.
+                in-token: 45
+                out-token: 128
+                model: gpt-4
+                end-of-stream: false
+            streamingChunk:
+              summary: Streaming response chunk
+              value:
+                response: "Recursion is a programming technique"
+                end-of-stream: false
+            streamingComplete:
+              summary: Streaming complete with tokens
+              value:
+                response: ""
+                in-token: 45
+                out-token: 128
+                model: gpt-4
+                end-of-stream: true
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../../components/responses/Error.yaml'

@@ -52,7 +52,7 @@ class Processor(FlowProcessor):
 
         self.prices = {}
 
-        self.config_key = "token-costs"
+        self.config_key = "token-cost"
 
     # Load token costs from the config service
     async def on_cost_config(self, config, version):

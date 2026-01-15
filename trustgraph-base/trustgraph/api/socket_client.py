@@ -1,3 +1,9 @@
+"""
+TrustGraph Synchronous WebSocket Client
+
+This module provides synchronous WebSocket-based access to TrustGraph services with
+streaming support for real-time responses from agents, RAG queries, and text completions.
+"""
 
 import json
 import asyncio
@@ -10,9 +16,26 @@ from . exceptions import ProtocolException, raise_from_error_dict
 
 
 class SocketClient:
-    """Synchronous WebSocket client (wraps async websockets library)"""
+    """
+    Synchronous WebSocket client for streaming operations.
+
+    Provides a synchronous interface to WebSocket-based TrustGraph services,
+    wrapping async websockets library with synchronous generators for ease of use.
+    Supports streaming responses from agents, RAG queries, and text completions.
+
+    Note: This is a synchronous wrapper around async WebSocket operations. For
+    true async support, use AsyncSocketClient instead.
+    """
 
     def __init__(self, url: str, timeout: int, token: Optional[str]) -> None:
+        """
+        Initialize synchronous WebSocket client.
+
+        Args:
+            url: Base URL for TrustGraph API (HTTP/HTTPS will be converted to WS/WSS)
+            timeout: WebSocket timeout in seconds
+            token: Optional bearer token for authentication
+        """
         self.url: str = self._convert_to_ws_url(url)
         self.timeout: int = timeout
         self.token: Optional[str] = token
@@ -22,7 +45,15 @@ class SocketClient:
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
     def _convert_to_ws_url(self, url: str) -> str:
-        """Convert HTTP URL to WebSocket URL"""
+        """
+        Convert HTTP URL to WebSocket URL.
+
+        Args:
+            url: HTTP/HTTPS or WS/WSS URL
+
+        Returns:
+            str: WebSocket URL (ws:// or wss://)
+        """
         if url.startswith("http://"):
             return url.replace("http://", "ws://", 1)
         elif url.startswith("https://"):
@@ -34,7 +65,25 @@ class SocketClient:
             return f"ws://{url}"
 
     def flow(self, flow_id: str) -> "SocketFlowInstance":
-        """Get flow instance for WebSocket operations"""
+        """
+        Get a flow instance for WebSocket streaming operations.
+
+        Args:
+            flow_id: Flow identifier
+
+        Returns:
+            SocketFlowInstance: Flow instance with streaming methods
+
+        Example:
+            ```python
+            socket = api.socket()
+            flow = socket.flow("default")
+
+            # Stream agent responses
+            for chunk in flow.agent(question="Hello", user="trustgraph", streaming=True):
+                print(chunk.content, end='', flush=True)
+            ```
+        """
         return SocketFlowInstance(self, flow_id)
 
     def _send_request_sync(
@@ -214,6 +263,23 @@ class SocketClient:
                 content=resp.get("content", ""),
                 end_of_message=resp.get("end_of_message", False)
             )
+        # Non-streaming agent format: chunk_type is empty but has thought/observation/answer fields
+        elif resp.get("thought"):
+            return AgentThought(
+                content=resp.get("thought", ""),
+                end_of_message=resp.get("end_of_message", False)
+            )
+        elif resp.get("observation"):
+            return AgentObservation(
+                content=resp.get("observation", ""),
+                end_of_message=resp.get("end_of_message", False)
+            )
+        elif resp.get("answer"):
+            return AgentAnswer(
+                content=resp.get("answer", ""),
+                end_of_message=resp.get("end_of_message", False),
+                end_of_dialog=resp.get("end_of_dialog", False)
+            )
         else:
             # RAG-style chunk (or generic chunk)
             # Text-completion uses "response" field, RAG uses "chunk" field, Prompt uses "text" field
@@ -225,15 +291,32 @@ class SocketClient:
             )
 
     def close(self) -> None:
-        """Close WebSocket connection"""
+        """
+        Close WebSocket connections.
+
+        Note: Cleanup is handled automatically by context managers in async code.
+        """
         # Cleanup handled by context manager in async code
         pass
 
 
 class SocketFlowInstance:
-    """Synchronous WebSocket flow instance with same interface as REST FlowInstance"""
+    """
+    Synchronous WebSocket flow instance for streaming operations.
+
+    Provides the same interface as REST FlowInstance but with WebSocket-based
+    streaming support for real-time responses. All methods support an optional
+    `streaming` parameter to enable incremental result delivery.
+    """
 
     def __init__(self, client: SocketClient, flow_id: str) -> None:
+        """
+        Initialize socket flow instance.
+
+        Args:
+            client: Parent SocketClient
+            flow_id: Flow identifier
+        """
         self.client: SocketClient = client
         self.flow_id: str = flow_id
 
@@ -247,7 +330,44 @@ class SocketFlowInstance:
         streaming: bool = False,
         **kwargs: Any
     ) -> Union[Dict[str, Any], Iterator[StreamingChunk]]:
-        """Agent with optional streaming"""
+        """
+        Execute an agent operation with streaming support.
+
+        Agents can perform multi-step reasoning with tool use. This method always
+        returns streaming chunks (thoughts, observations, answers) even when
+        streaming=False, to show the agent's reasoning process.
+
+        Args:
+            question: User question or instruction
+            user: User identifier
+            state: Optional state dictionary for stateful conversations
+            group: Optional group identifier for multi-user contexts
+            history: Optional conversation history as list of message dicts
+            streaming: Enable streaming mode (default: False)
+            **kwargs: Additional parameters passed to the agent service
+
+        Returns:
+            Iterator[StreamingChunk]: Stream of agent thoughts, observations, and answers
+
+        Example:
+            ```python
+            socket = api.socket()
+            flow = socket.flow("default")
+
+            # Stream agent reasoning
+            for chunk in flow.agent(
+                question="What is quantum computing?",
+                user="trustgraph",
+                streaming=True
+            ):
+                if isinstance(chunk, AgentThought):
+                    print(f"[Thinking] {chunk.content}")
+                elif isinstance(chunk, AgentObservation):
+                    print(f"[Observation] {chunk.content}")
+                elif isinstance(chunk, AgentAnswer):
+                    print(f"[Answer] {chunk.content}")
+            ```
+        """
         request = {
             "question": question,
             "user": user,
@@ -261,10 +381,45 @@ class SocketFlowInstance:
             request["history"] = history
         request.update(kwargs)
 
-        return self.client._send_request_sync("agent", self.flow_id, request, streaming)
+        # Agents always use multipart messaging (multiple complete messages)
+        # regardless of streaming flag, so always use the streaming code path
+        return self.client._send_request_sync("agent", self.flow_id, request, streaming=True)
 
     def text_completion(self, system: str, prompt: str, streaming: bool = False, **kwargs) -> Union[str, Iterator[str]]:
-        """Text completion with optional streaming"""
+        """
+        Execute text completion with optional streaming.
+
+        Args:
+            system: System prompt defining the assistant's behavior
+            prompt: User prompt/question
+            streaming: Enable streaming mode (default: False)
+            **kwargs: Additional parameters passed to the service
+
+        Returns:
+            Union[str, Iterator[str]]: Complete response or stream of text chunks
+
+        Example:
+            ```python
+            socket = api.socket()
+            flow = socket.flow("default")
+
+            # Non-streaming
+            response = flow.text_completion(
+                system="You are helpful",
+                prompt="Explain quantum computing",
+                streaming=False
+            )
+            print(response)
+
+            # Streaming
+            for chunk in flow.text_completion(
+                system="You are helpful",
+                prompt="Explain quantum computing",
+                streaming=True
+            ):
+                print(chunk, end='', flush=True)
+            ```
+        """
         request = {
             "system": system,
             "prompt": prompt,
@@ -275,12 +430,16 @@ class SocketFlowInstance:
         result = self.client._send_request_sync("text-completion", self.flow_id, request, streaming)
 
         if streaming:
-            # For text completion, yield just the content
-            for chunk in result:
-                if hasattr(chunk, 'content'):
-                    yield chunk.content
+            # For text completion, return generator that yields content
+            return self._text_completion_generator(result)
         else:
             return result.get("response", "")
+
+    def _text_completion_generator(self, result: Iterator[StreamingChunk]) -> Iterator[str]:
+        """Generator for text completion streaming"""
+        for chunk in result:
+            if hasattr(chunk, 'content'):
+                yield chunk.content
 
     def graph_rag(
         self,
@@ -293,7 +452,40 @@ class SocketFlowInstance:
         streaming: bool = False,
         **kwargs: Any
     ) -> Union[str, Iterator[str]]:
-        """Graph RAG with optional streaming"""
+        """
+        Execute graph-based RAG query with optional streaming.
+
+        Uses knowledge graph structure to find relevant context, then generates
+        a response using an LLM. Streaming mode delivers results incrementally.
+
+        Args:
+            query: Natural language query
+            user: User/keyspace identifier
+            collection: Collection identifier
+            max_subgraph_size: Maximum total triples in subgraph (default: 1000)
+            max_subgraph_count: Maximum number of subgraphs (default: 5)
+            max_entity_distance: Maximum traversal depth (default: 3)
+            streaming: Enable streaming mode (default: False)
+            **kwargs: Additional parameters passed to the service
+
+        Returns:
+            Union[str, Iterator[str]]: Complete response or stream of text chunks
+
+        Example:
+            ```python
+            socket = api.socket()
+            flow = socket.flow("default")
+
+            # Streaming graph RAG
+            for chunk in flow.graph_rag(
+                query="Tell me about Marie Curie",
+                user="trustgraph",
+                collection="scientists",
+                streaming=True
+            ):
+                print(chunk, end='', flush=True)
+            ```
+        """
         request = {
             "query": query,
             "user": user,
@@ -308,9 +500,7 @@ class SocketFlowInstance:
         result = self.client._send_request_sync("graph-rag", self.flow_id, request, streaming)
 
         if streaming:
-            for chunk in result:
-                if hasattr(chunk, 'content'):
-                    yield chunk.content
+            return self._rag_generator(result)
         else:
             return result.get("response", "")
 
@@ -323,7 +513,39 @@ class SocketFlowInstance:
         streaming: bool = False,
         **kwargs: Any
     ) -> Union[str, Iterator[str]]:
-        """Document RAG with optional streaming"""
+        """
+        Execute document-based RAG query with optional streaming.
+
+        Uses vector embeddings to find relevant document chunks, then generates
+        a response using an LLM. Streaming mode delivers results incrementally.
+
+        Args:
+            query: Natural language query
+            user: User/keyspace identifier
+            collection: Collection identifier
+            doc_limit: Maximum document chunks to retrieve (default: 10)
+            streaming: Enable streaming mode (default: False)
+            **kwargs: Additional parameters passed to the service
+
+        Returns:
+            Union[str, Iterator[str]]: Complete response or stream of text chunks
+
+        Example:
+            ```python
+            socket = api.socket()
+            flow = socket.flow("default")
+
+            # Streaming document RAG
+            for chunk in flow.document_rag(
+                query="Summarize the key findings",
+                user="trustgraph",
+                collection="research-papers",
+                doc_limit=5,
+                streaming=True
+            ):
+                print(chunk, end='', flush=True)
+            ```
+        """
         request = {
             "query": query,
             "user": user,
@@ -336,11 +558,15 @@ class SocketFlowInstance:
         result = self.client._send_request_sync("document-rag", self.flow_id, request, streaming)
 
         if streaming:
-            for chunk in result:
-                if hasattr(chunk, 'content'):
-                    yield chunk.content
+            return self._rag_generator(result)
         else:
             return result.get("response", "")
+
+    def _rag_generator(self, result: Iterator[StreamingChunk]) -> Iterator[str]:
+        """Generator for RAG streaming (graph-rag and document-rag)"""
+        for chunk in result:
+            if hasattr(chunk, 'content'):
+                yield chunk.content
 
     def prompt(
         self,
@@ -349,7 +575,32 @@ class SocketFlowInstance:
         streaming: bool = False,
         **kwargs: Any
     ) -> Union[str, Iterator[str]]:
-        """Execute prompt with optional streaming"""
+        """
+        Execute a prompt template with optional streaming.
+
+        Args:
+            id: Prompt template identifier
+            variables: Dictionary of variable name to value mappings
+            streaming: Enable streaming mode (default: False)
+            **kwargs: Additional parameters passed to the service
+
+        Returns:
+            Union[str, Iterator[str]]: Complete response or stream of text chunks
+
+        Example:
+            ```python
+            socket = api.socket()
+            flow = socket.flow("default")
+
+            # Streaming prompt execution
+            for chunk in flow.prompt(
+                id="summarize-template",
+                variables={"topic": "quantum computing", "length": "brief"},
+                streaming=True
+            ):
+                print(chunk, end='', flush=True)
+            ```
+        """
         request = {
             "id": id,
             "variables": variables,
@@ -360,9 +611,7 @@ class SocketFlowInstance:
         result = self.client._send_request_sync("prompt", self.flow_id, request, streaming)
 
         if streaming:
-            for chunk in result:
-                if hasattr(chunk, 'content'):
-                    yield chunk.content
+            return self._rag_generator(result)
         else:
             return result.get("response", "")
 
@@ -374,7 +623,32 @@ class SocketFlowInstance:
         limit: int = 10,
         **kwargs: Any
     ) -> Dict[str, Any]:
-        """Query graph embeddings for semantic search"""
+        """
+        Query knowledge graph entities using semantic similarity.
+
+        Args:
+            text: Query text for semantic search
+            user: User/keyspace identifier
+            collection: Collection identifier
+            limit: Maximum number of results (default: 10)
+            **kwargs: Additional parameters passed to the service
+
+        Returns:
+            dict: Query results with similar entities
+
+        Example:
+            ```python
+            socket = api.socket()
+            flow = socket.flow("default")
+
+            results = flow.graph_embeddings_query(
+                text="physicist who discovered radioactivity",
+                user="trustgraph",
+                collection="scientists",
+                limit=5
+            )
+            ```
+        """
         request = {
             "text": text,
             "user": user,
@@ -386,7 +660,25 @@ class SocketFlowInstance:
         return self.client._send_request_sync("graph-embeddings", self.flow_id, request, False)
 
     def embeddings(self, text: str, **kwargs: Any) -> Dict[str, Any]:
-        """Generate text embeddings"""
+        """
+        Generate vector embeddings for text.
+
+        Args:
+            text: Input text to embed
+            **kwargs: Additional parameters passed to the service
+
+        Returns:
+            dict: Response containing vectors
+
+        Example:
+            ```python
+            socket = api.socket()
+            flow = socket.flow("default")
+
+            result = flow.embeddings("quantum computing")
+            vectors = result.get("vectors", [])
+            ```
+        """
         request = {"text": text}
         request.update(kwargs)
 
@@ -402,7 +694,34 @@ class SocketFlowInstance:
         limit: int = 100,
         **kwargs: Any
     ) -> Dict[str, Any]:
-        """Triple pattern query"""
+        """
+        Query knowledge graph triples using pattern matching.
+
+        Args:
+            s: Subject URI (optional, use None for wildcard)
+            p: Predicate URI (optional, use None for wildcard)
+            o: Object URI or Literal (optional, use None for wildcard)
+            user: User/keyspace identifier (optional)
+            collection: Collection identifier (optional)
+            limit: Maximum results to return (default: 100)
+            **kwargs: Additional parameters passed to the service
+
+        Returns:
+            dict: Query results with matching triples
+
+        Example:
+            ```python
+            socket = api.socket()
+            flow = socket.flow("default")
+
+            # Find all triples about a specific subject
+            result = flow.triples_query(
+                s="http://example.org/person/marie-curie",
+                user="trustgraph",
+                collection="scientists"
+            )
+            ```
+        """
         request = {"limit": limit}
         if s is not None:
             request["s"] = str(s)
@@ -427,7 +746,41 @@ class SocketFlowInstance:
         operation_name: Optional[str] = None,
         **kwargs: Any
     ) -> Dict[str, Any]:
-        """GraphQL query"""
+        """
+        Execute a GraphQL query against structured objects.
+
+        Args:
+            query: GraphQL query string
+            user: User/keyspace identifier
+            collection: Collection identifier
+            variables: Optional query variables dictionary
+            operation_name: Optional operation name for multi-operation documents
+            **kwargs: Additional parameters passed to the service
+
+        Returns:
+            dict: GraphQL response with data, errors, and/or extensions
+
+        Example:
+            ```python
+            socket = api.socket()
+            flow = socket.flow("default")
+
+            query = '''
+            {
+              scientists(limit: 10) {
+                name
+                field
+                discoveries
+              }
+            }
+            '''
+            result = flow.objects_query(
+                query=query,
+                user="trustgraph",
+                collection="scientists"
+            )
+            ```
+        """
         request = {
             "query": query,
             "user": user,
@@ -447,7 +800,28 @@ class SocketFlowInstance:
         parameters: Dict[str, Any],
         **kwargs: Any
     ) -> Dict[str, Any]:
-        """Execute MCP tool"""
+        """
+        Execute a Model Context Protocol (MCP) tool.
+
+        Args:
+            name: Tool name/identifier
+            parameters: Tool parameters dictionary
+            **kwargs: Additional parameters passed to the service
+
+        Returns:
+            dict: Tool execution result
+
+        Example:
+            ```python
+            socket = api.socket()
+            flow = socket.flow("default")
+
+            result = flow.mcp_tool(
+                name="search-web",
+                parameters={"query": "latest AI news", "limit": 5}
+            )
+            ```
+        """
         request = {
             "name": name,
             "parameters": parameters

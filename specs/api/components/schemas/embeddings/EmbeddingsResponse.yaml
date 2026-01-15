@@ -1,0 +1,11 @@
+type: object
+description: Embeddings response
+required:
+  - vectors
+properties:
+  vectors:
+    type: array
+    description: Embedding vector (array of floats)
+    items:
+      type: number
+    example: [0.023, -0.142, 0.089, 0.234, -0.067, 0.156]

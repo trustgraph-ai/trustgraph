@@ -1,0 +1,165 @@
+post:
+  tags:
+    - Config
+  summary: Configuration service
+  description: |
+    Manage TrustGraph configuration including flows, prompts, token costs, parameter types, and more.
+
+    ## Operations
+
+    ### config
+    Get the complete system configuration including all flows, prompts, token costs, etc.
+
+    ### list
+    List all configuration items of a specific type (e.g., all flows, all prompts).
+
+    ### get
+    Retrieve specific configuration items by type and key.
+
+    ### put
+    Create or update configuration values.
+
+    ### delete
+    Delete configuration items.
+
+    ## Configuration Types
+
+    - `flow` - Flow instance definitions
+    - `flow-blueprint` - Flow blueprint definitions (stored separately from flow instances)
+    - `prompt` - Prompt templates
+    - `token-cost` - Model token pricing
+    - `parameter-type` - Parameter type definitions
+    - `interface-description` - Interface descriptions
+    - Custom types as needed
+
+    ## Important Distinction
+
+    The **config service** manages *stored configuration*.
+    The **flow service** (`/api/v1/flow`) manages *running flow instances*.
+
+    - Use config service to store/retrieve flow definitions
+    - Use flow service to start/stop/manage running flows
+
+  operationId: configService
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/config/ConfigRequest.yaml'
+        examples:
+          getCompleteConfig:
+            summary: Get complete configuration
+            value:
+              operation: config
+          listFlows:
+            summary: List all stored flow definitions
+            value:
+              operation: list
+              type: flow
+          listPrompts:
+            summary: List all prompts
+            value:
+              operation: list
+              type: prompt
+          getFlow:
+            summary: Get specific flow definition
+            value:
+              operation: get
+              keys:
+                - type: flow
+                  key: default
+          putFlow:
+            summary: Create/update flow definition
+            value:
+              operation: put
+              values:
+                - type: flow
+                  key: my-flow
+                  value:
+                    blueprint-name: document-rag
+                    description: My RAG flow
+                    parameters:
+                      model: gpt-4
+          putPrompt:
+            summary: Set system prompt
+            value:
+              operation: put
+              values:
+                - type: prompt
+                  key: system
+                  value: You are a helpful AI assistant specialized in data analysis
+          putTokenCost:
+            summary: Set token costs for a model
+            value:
+              operation: put
+              values:
+                - type: token-cost
+                  key: gpt-4
+                  value:
+                    prompt: 0.03
+                    completion: 0.06
+          deleteFlow:
+            summary: Delete flow definition
+            value:
+              operation: delete
+              keys:
+                - type: flow
+                  key: my-flow
+  responses:
+    '200':
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/config/ConfigResponse.yaml'
+          examples:
+            completeConfig:
+              summary: Complete configuration
+              value:
+                version: 42
+                config:
+                  flow:
+                    default:
+                      blueprint-name: document-rag+graph-rag
+                      description: Default flow
+                      interfaces:
+                        agent:
+                          request: non-persistent://tg/request/agent:default
+                          response: non-persistent://tg/response/agent:default
+                  prompt:
+                    system: You are a helpful AI assistant
+                  token-cost:
+                    gpt-4:
+                      prompt: 0.03
+                      completion: 0.06
+            listFlows:
+              summary: List of flow definition keys
+              value:
+                directory:
+                  - default
+                  - production
+                  - my-flow
+            getFlow:
+              summary: Retrieved flow definition
+              value:
+                values:
+                  - type: flow
+                    key: default
+                    value:
+                      blueprint-name: document-rag+graph-rag
+                      description: Default flow
+            putSuccess:
+              summary: Put operation success
+              value:
+                version: 43
+            deleteSuccess:
+              summary: Delete operation success
+              value:
+                version: 44
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../components/responses/Error.yaml'

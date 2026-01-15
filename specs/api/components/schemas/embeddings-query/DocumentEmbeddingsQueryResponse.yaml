@@ -1,0 +1,12 @@
+type: object
+description: Document embeddings query response
+properties:
+  chunks:
+    type: array
+    description: Similar document chunks (text strings)
+    items:
+      type: string
+    example:
+      - "Quantum computing uses quantum mechanics principles for computation..."
+      - "Neural networks are computing systems inspired by biological neurons..."
+      - "Machine learning algorithms learn patterns from data..."

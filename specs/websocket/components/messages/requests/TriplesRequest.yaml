@@ -1,0 +1,29 @@
+type: object
+description: WebSocket request for triples service (flow-hosted service)
+required:
+  - id
+  - service
+  - flow
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: triples
+    description: Service identifier for triples service
+  flow:
+    type: string
+    description: Flow ID
+  request:
+    $ref: '../../../../api/components/schemas/query/TriplesQueryRequest.yaml'
+examples:
+  - id: req-1
+    service: triples
+    flow: my-flow
+    request:
+      s:
+        v: https://example.com/entity1
+        e: true
+      limit: 100

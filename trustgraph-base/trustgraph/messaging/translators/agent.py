@@ -44,13 +44,16 @@ class AgentResponseTranslator(MessageTranslator):
             result["end_of_message"] = getattr(obj, "end_of_message", False)
             result["end_of_dialog"] = getattr(obj, "end_of_dialog", False)
         else:
-            # Legacy format
+            # Legacy format (non-streaming)
             if obj.answer:
                 result["answer"] = obj.answer
             if obj.thought:
                 result["thought"] = obj.thought
             if obj.observation:
                 result["observation"] = obj.observation
+            # Include completion flags for legacy format too
+            result["end_of_message"] = getattr(obj, "end_of_message", False)
+            result["end_of_dialog"] = getattr(obj, "end_of_dialog", False)
 
         # Always include error if present
         if hasattr(obj, 'error') and obj.error and obj.error.message:

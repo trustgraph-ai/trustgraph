@@ -1,0 +1,108 @@
+post:
+  tags:
+    - Collection
+  summary: Collection metadata management
+  description: |
+    Manage collection metadata for organizing documents and knowledge.
+
+    ## Collections
+
+    Collections are organizational units for grouping:
+    - Documents in the librarian
+    - Knowledge cores
+    - User data
+
+    Each collection has:
+    - **user**: Owner identifier
+    - **collection**: Unique collection ID
+    - **name**: Human-readable display name
+    - **description**: Purpose and contents
+    - **tags**: Labels for filtering and organization
+
+    ## Operations
+
+    ### list-collections
+    List all collections for a user. Optionally filter by tags and limit results.
+    Returns array of collection metadata.
+
+    ### update-collection
+    Create or update collection metadata. If collection doesn't exist, it's created.
+    If it exists, metadata is updated. Allows setting name, description, and tags.
+
+    ### delete-collection
+    Delete a collection by user and collection ID. This removes the metadata but
+    typically does not delete the associated data (documents, knowledge cores).
+
+  operationId: collectionManagementService
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/collection/CollectionRequest.yaml'
+        examples:
+          listCollections:
+            summary: List all collections for user
+            value:
+              operation: list-collections
+              user: alice
+          listCollectionsFiltered:
+            summary: List collections filtered by tags
+            value:
+              operation: list-collections
+              user: alice
+              tag-filter: ["research", "AI"]
+              limit: 50
+          updateCollection:
+            summary: Create/update collection
+            value:
+              operation: update-collection
+              user: alice
+              collection: research
+              name: Research Papers
+              description: Academic research papers on AI and ML
+              tags: ["research", "AI", "academic"]
+              timestamp: "2024-01-15T10:30:00Z"
+          deleteCollection:
+            summary: Delete collection
+            value:
+              operation: delete-collection
+              user: alice
+              collection: research
+  responses:
+    '200':
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/collection/CollectionResponse.yaml'
+          examples:
+            listCollections:
+              summary: List of collections
+              value:
+                timestamp: "2024-01-15T10:30:00Z"
+                collections:
+                  - user: alice
+                    collection: research
+                    name: Research Papers
+                    description: Academic research papers on AI and ML
+                    tags: ["research", "AI", "academic"]
+                  - user: alice
+                    collection: personal
+                    name: Personal Documents
+                    description: Personal notes and documents
+                    tags: ["personal"]
+            updateSuccess:
+              summary: Update successful
+              value:
+                timestamp: "2024-01-15T10:30:00Z"
+            deleteSuccess:
+              summary: Delete successful
+              value:
+                timestamp: "2024-01-15T10:30:00Z"
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../components/responses/Error.yaml'

@@ -63,13 +63,13 @@ class FlowProcessor(AsyncProcessor):
         logger.info(f"Got config version {version}")
 
         # Skip over invalid data
-        if "flows-active" not in config: return
+        if "active-flow" not in config: return
 
         # Check there's configuration information for me
-        if self.id in config["flows-active"]:
+        if self.id in config["active-flow"]:
 
             # Get my flow config
-            flow_config = json.loads(config["flows-active"][self.id])
+            flow_config = json.loads(config["active-flow"][self.id])
 
         else:
 

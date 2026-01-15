@@ -1,0 +1,76 @@
+type: object
+description: |
+  Flow service request for managing flow instances and blueprints.
+
+  Operations: start-flow, stop-flow, list-flows, get-flow,
+  list-blueprints, get-blueprint, put-blueprint, delete-blueprint
+required:
+  - operation
+properties:
+  operation:
+    type: string
+    enum:
+      - start-flow
+      - stop-flow
+      - list-flows
+      - get-flow
+      - list-blueprints
+      - get-blueprint
+      - put-blueprint
+      - delete-blueprint
+    description: |
+      Flow operation:
+      - `start-flow`: Start a new flow instance from a blueprint
+      - `stop-flow`: Stop a running flow instance
+      - `list-flows`: List all running flow instances
+      - `get-flow`: Get details of a running flow
+      - `list-blueprints`: List available flow blueprints
+      - `get-blueprint`: Get blueprint definition
+      - `put-blueprint`: Create/update blueprint definition
+      - `delete-blueprint`: Delete blueprint definition
+  flow-id:
+    type: string
+    description: Flow instance ID (required for start-flow, stop-flow, get-flow)
+    example: my-flow
+  blueprint-name:
+    type: string
+    description: Flow blueprint name (required for start-flow, get-blueprint, put-blueprint, delete-blueprint)
+    example: document-rag
+  blueprint-definition:
+    type: object
+    description: Flow blueprint definition (required for put-blueprint)
+    additionalProperties: true
+    example:
+      description: Custom RAG pipeline
+      parameters:
+        model:
+          type: llm-model
+          description: LLM model for processing
+          order: 1
+      class:
+        text-completion:{class}:
+          request: non-persistent://tg/request/text-completion:{class}
+          response: non-persistent://tg/response/text-completion:{class}
+      flow:
+        chunker:{id}:
+          input: persistent://tg/flow/chunk:{id}
+          output: persistent://tg/flow/chunk-load:{id}
+      interfaces:
+        agent:
+          request: non-persistent://tg/request/agent:{id}
+          response: non-persistent://tg/response/agent:{id}
+  description:
+    type: string
+    description: Flow description (optional for start-flow)
+    example: My document processing flow
+  parameters:
+    type: object
+    description: |
+      Flow parameters (for start-flow).
+      All values are stored as strings, regardless of input type.
+    additionalProperties:
+      type: string
+    example:
+      model: gpt-4
+      temperature: "0.7"
+      chunk-size: "1000"

@@ -180,7 +180,7 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
             'test-flow': {'config': 'test-config'}
         }
         config_data = {
-            'flows-active': {
+            'active-flow': {
                 'test-processor': '{"test-flow": {"config": "test-config"}}'
             }
         }
@@ -212,7 +212,7 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
         
         # Configuration without flows for this processor
         config_data = {
-            'flows-active': {
+            'active-flow': {
                 'other-processor': '{"other-flow": {"config": "other-config"}}'
             }
         }
@@ -241,7 +241,7 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
         processor = FlowProcessor(**config)
         processor.id = 'test-processor'
         
-        # Configuration without flows-active key
+        # Configuration without active-flow key
         config_data = {
             'other-data': 'some-value'
         }
@@ -276,16 +276,16 @@ class TestFlowProcessorSimple(IsolatedAsyncioTestCase):
         
         # First configuration - start flow1
         config_data1 = {
-            'flows-active': {
+            'active-flow': {
                 'test-processor': '{"flow1": {"config": "config1"}}'
             }
         }
-        
+
         await processor.on_configure_flows(config_data1, version=1)
-        
+
         # Second configuration - stop flow1, start flow2
         config_data2 = {
-            'flows-active': {
+            'active-flow': {
                 'test-processor': '{"flow2": {"config": "config2"}}'
             }
         }

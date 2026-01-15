@@ -1,0 +1,26 @@
+type: object
+description: Document metadata for library management
+properties:
+  url:
+    type: string
+    description: Document URL or identifier
+    example: https://example.com/document.pdf
+  title:
+    type: string
+    description: Document title
+    example: Example Document
+  author:
+    type: string
+    description: Document author
+    example: John Doe
+  date:
+    type: string
+    description: Document date
+    example: "2024-01-15"
+  metadata:
+    type: object
+    description: Additional metadata fields
+    additionalProperties: true
+    example:
+      department: Engineering
+      category: Technical

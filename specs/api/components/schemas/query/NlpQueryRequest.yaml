@@ -1,0 +1,17 @@
+type: object
+description: |
+  NLP query request - convert natural language question to structured query.
+required:
+  - question
+properties:
+  question:
+    type: string
+    description: Natural language question
+    example: Who does Alice know that works in engineering?
+  max-results:
+    type: integer
+    description: Maximum results to return when query is executed
+    default: 100
+    minimum: 1
+    maximum: 10000
+    example: 50

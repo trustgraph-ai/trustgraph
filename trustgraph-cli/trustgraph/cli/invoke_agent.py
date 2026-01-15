@@ -178,11 +178,22 @@ def question(
                 print()
 
         else:
-            # Non-streaming response
-            if "answer" in response:
-                print(response["answer"])
-            if "error" in response:
-                raise RuntimeError(response["error"])
+            # Non-streaming response - but agents use multipart messaging
+            # so we iterate through the chunks (which are complete messages, not text chunks)
+            for chunk in response:
+                # Display thoughts if verbose
+                if chunk.chunk_type == "thought" and verbose:
+                    output(wrap(chunk.content), "\U0001f914 ")
+                    print()
+
+                # Display observations if verbose
+                elif chunk.chunk_type == "observation" and verbose:
+                    output(wrap(chunk.content), "\U0001f4a1 ")
+                    print()
+
+                # Display answer
+                elif chunk.chunk_type == "final-answer" or chunk.chunk_type == "answer":
+                    print(chunk.content)
 
     finally:
         # Clean up socket connection

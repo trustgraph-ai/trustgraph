@@ -48,12 +48,12 @@ class AgentService(FlowProcessor):
 
     async def on_request(self, msg, consumer, flow):
 
+        # Get ID early so error handler can use it
+        id = msg.properties().get("id", "unknown")
+
         try:
 
             request = msg.value()
-
-            # Sender-produced ID
-            id = msg.properties()["id"]
 
             async def respond(resp):
 
@@ -93,6 +93,8 @@ class AgentService(FlowProcessor):
                     thought = None,
                     observation = None,
                     answer = None,
+                    end_of_message = True,
+                    end_of_dialog = True,
                 ),
                 properties={"id": id}
             )

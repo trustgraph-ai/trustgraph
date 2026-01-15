@@ -1,0 +1,14 @@
+type: object
+description: Structured error response with type and message
+properties:
+  type:
+    type: string
+    description: Error type identifier
+    example: gateway-error
+  message:
+    type: string
+    description: Human-readable error message
+    example: Timeout
+required:
+  - type
+  - message

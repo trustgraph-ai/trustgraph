@@ -1,0 +1,21 @@
+type: object
+description: |
+  RDF value - represents either a URI/entity or a literal value.
+
+  When `e` is true, `v` must be a full URI (e.g., http://schema.org/name).
+  When `e` is false, `v` is a literal value (string, number, etc.).
+properties:
+  v:
+    type: string
+    description: The value - full URI when e=true, literal when e=false
+    example: http://example.com/Person1
+  e:
+    type: boolean
+    description: True if entity/URI, false if literal value
+    example: true
+required:
+  - v
+  - e
+example:
+  v: http://schema.org/name
+  e: true

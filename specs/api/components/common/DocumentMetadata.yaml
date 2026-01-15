@@ -1,0 +1,23 @@
+type: object
+description: Document metadata
+properties:
+  url:
+    type: string
+    description: Document URL
+    example: https://example.com/document.pdf
+  title:
+    type: string
+    description: Document title
+    example: Example Document
+  author:
+    type: string
+    description: Document author
+    example: John Doe
+  metadata:
+    type: object
+    description: Additional metadata
+    additionalProperties:
+      type: string
+    example:
+      department: Engineering
+      category: Technical

@@ -1,0 +1,79 @@
+type: object
+description: |
+  Librarian service request for document library management.
+
+  Operations: add-document, remove-document, list-documents,
+  start-processing, stop-processing, list-processing
+required:
+  - operation
+properties:
+  operation:
+    type: string
+    enum:
+      - add-document
+      - remove-document
+      - list-documents
+      - start-processing
+      - stop-processing
+      - list-processing
+    description: |
+      Library operation:
+      - `add-document`: Add document to library
+      - `remove-document`: Remove document from library
+      - `list-documents`: List documents in library
+      - `start-processing`: Start processing library documents
+      - `stop-processing`: Stop library processing
+      - `list-processing`: List processing status
+  flow:
+    type: string
+    description: Flow ID
+    example: my-flow
+  collection:
+    type: string
+    description: Collection identifier
+    default: default
+    example: default
+  user:
+    type: string
+    description: User identifier
+    default: trustgraph
+    example: alice
+  document-id:
+    type: string
+    description: Document identifier
+    example: doc-123
+  processing-id:
+    type: string
+    description: Processing task identifier
+    example: proc-456
+  document-metadata:
+    $ref: '../common/DocumentMetadata.yaml'
+  processing-metadata:
+    $ref: '../common/ProcessingMetadata.yaml'
+  content:
+    type: string
+    description: Document content (for add-document with inline content)
+    example: This is the document content...
+  criteria:
+    type: array
+    description: Search criteria for filtering documents
+    items:
+      type: object
+      required:
+        - key
+        - value
+        - operator
+      properties:
+        key:
+          type: string
+          description: Metadata field name
+          example: author
+        value:
+          type: string
+          description: Value to match
+          example: John Doe
+        operator:
+          type: string
+          enum: [eq, ne, gt, lt, contains]
+          description: Comparison operator
+          example: eq
