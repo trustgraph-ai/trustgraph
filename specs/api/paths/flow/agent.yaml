@@ -1,0 +1,130 @@
+post:
+  tags:
+    - AI Services
+  summary: Agent service - conversational AI with reasoning
+  description: |
+    AI agent that can understand questions, reason about them, and take actions.
+
+    ## Agent Overview
+
+    The agent service provides a conversational AI that:
+    - Understands natural language questions
+    - Reasons about problems using thoughts
+    - Takes actions to gather information
+    - Provides coherent answers
+
+    ## Request Format
+
+    Send a question with optional:
+    - **state**: Continue from previous conversation
+    - **history**: Previous agent steps for context
+    - **group**: Collaborative agent identifiers
+    - **streaming**: Enable streaming responses
+
+    ## Response Modes
+
+    ### Streaming Mode (streaming: true)
+    Responses arrive as chunks with `chunk-type`:
+    - `thought`: Agent's reasoning process
+    - `action`: Action being taken
+    - `observation`: Result from action
+    - `answer`: Final response to user
+    - `error`: Error occurred
+
+    Each chunk may have multiple messages. Check flags:
+    - `end-of-message`: Current chunk type complete
+    - `end-of-dialog`: Entire conversation complete
+
+    ### Legacy Mode (streaming: false)
+    Single response with:
+    - `answer`: Complete answer
+    - `thought`: Reasoning (if any)
+    - `observation`: Observations (if any)
+
+    ## Multi-turn Conversations
+
+    Include `history` array with previous steps to maintain context.
+    Each step has: thought, action, arguments, observation.
+
+  operationId: agentService
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: flow
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Flow instance ID
+      example: my-flow
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas/agent/AgentRequest.yaml'
+        examples:
+          simpleQuestion:
+            summary: Simple question
+            value:
+              question: What is the capital of France?
+              user: alice
+          streamingQuestion:
+            summary: Question with streaming enabled
+            value:
+              question: Explain quantum computing
+              user: alice
+              streaming: true
+          conversationWithHistory:
+            summary: Multi-turn conversation
+            value:
+              question: And what about its population?
+              user: alice
+              history:
+                - thought: User is asking about the capital of France
+                  action: search
+                  arguments:
+                    query: "capital of France"
+                  observation: "Paris is the capital of France"
+                  user: alice
+  responses:
+    '200':
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/agent/AgentResponse.yaml'
+          examples:
+            streamingThought:
+              summary: Streaming thought chunk
+              value:
+                chunk-type: thought
+                content: I need to search for information about quantum computing
+                end-of-message: false
+                end-of-dialog: false
+            streamingAnswer:
+              summary: Streaming answer chunk
+              value:
+                chunk-type: answer
+                content: Quantum computing uses quantum mechanics principles...
+                end-of-message: false
+                end-of-dialog: false
+            streamingComplete:
+              summary: Streaming complete marker
+              value:
+                chunk-type: answer
+                content: ""
+                end-of-message: true
+                end-of-dialog: true
+            legacyResponse:
+              summary: Legacy non-streaming response
+              value:
+                answer: Paris is the capital of France.
+                thought: User is asking about the capital of France
+                observation: ""
+                end-of-message: false
+                end-of-dialog: false
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../../components/responses/Error.yaml'

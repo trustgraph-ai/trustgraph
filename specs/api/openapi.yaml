@@ -99,6 +99,22 @@ paths:
     $ref: './paths/config.yaml'
   /api/v1/flow:
     $ref: './paths/flow.yaml'
+  /api/v1/librarian:
+    $ref: './paths/librarian.yaml'
+  /api/v1/knowledge:
+    $ref: './paths/knowledge.yaml'
+  /api/v1/collection-management:
+    $ref: './paths/collection-management.yaml'
+
+  # Flow-hosted services (require running flow instance)
+  /api/v1/flow/{flow}/service/agent:
+    $ref: './paths/flow/agent.yaml'
+  /api/v1/flow/{flow}/service/document-rag:
+    $ref: './paths/flow/document-rag.yaml'
+  /api/v1/flow/{flow}/service/graph-rag:
+    $ref: './paths/flow/graph-rag.yaml'
+  /api/v1/flow/{flow}/service/text-completion:
+    $ref: './paths/flow/text-completion.yaml'
   # More services will be added here as we build them
 
 components:

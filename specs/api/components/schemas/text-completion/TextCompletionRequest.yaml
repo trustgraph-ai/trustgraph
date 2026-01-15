@@ -1,0 +1,20 @@
+type: object
+description: |
+  Text completion request - direct LLM completion without RAG.
+required:
+  - system
+  - prompt
+properties:
+  system:
+    type: string
+    description: System prompt that sets behavior and context for the LLM
+    example: You are a helpful assistant that provides concise answers.
+  prompt:
+    type: string
+    description: User prompt or question
+    example: Explain the concept of recursion in programming.
+  streaming:
+    type: boolean
+    description: Enable streaming response delivery
+    default: false
+    example: true

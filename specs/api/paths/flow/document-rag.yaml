@@ -1,0 +1,107 @@
+post:
+  tags:
+    - AI Services
+  summary: Document RAG - retrieve and generate from documents
+  description: |
+    Retrieval-Augmented Generation over document embeddings.
+
+    ## Document RAG Overview
+
+    Document RAG combines:
+    1. **Retrieval**: Search document embeddings using semantic similarity
+    2. **Generation**: Use LLM to synthesize answer from retrieved documents
+
+    This provides grounded answers based on your document corpus.
+
+    ## Query Process
+
+    1. Convert query to embedding
+    2. Search document embeddings for most similar chunks
+    3. Retrieve top N document chunks (configurable via doc-limit)
+    4. Pass query + retrieved context to LLM
+    5. Generate answer grounded in documents
+
+    ## Streaming
+
+    Enable `streaming: true` to receive the answer as it's generated:
+    - Multiple messages with `response` content
+    - Final message with `end-of-stream: true`
+
+    Without streaming, returns complete answer in single response.
+
+    ## Parameters
+
+    - **doc-limit**: Controls retrieval depth (1-100, default 20)
+      - Higher = more context but slower
+      - Lower = faster but may miss relevant info
+    - **collection**: Target specific document collection
+    - **user**: Multi-tenant isolation
+
+  operationId: documentRagService
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: flow
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Flow instance ID
+      example: my-flow
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas/rag/DocumentRagRequest.yaml'
+        examples:
+          basicQuery:
+            summary: Basic document query
+            value:
+              query: What are the key findings in the research papers?
+              user: alice
+              collection: research
+          streamingQuery:
+            summary: Streaming query
+            value:
+              query: Summarize the main conclusions
+              user: alice
+              collection: research
+              doc-limit: 15
+              streaming: true
+          limitedRetrieval:
+            summary: Query with limited retrieval
+            value:
+              query: What is quantum entanglement?
+              doc-limit: 5
+  responses:
+    '200':
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/rag/DocumentRagResponse.yaml'
+          examples:
+            completeResponse:
+              summary: Complete non-streaming response
+              value:
+                response: |
+                  The research papers present three key findings:
+                  1. Quantum entanglement exhibits non-local correlations
+                  2. Bell's inequality is violated in experimental tests
+                  3. Applications in quantum cryptography are promising
+                end-of-stream: false
+            streamingChunk:
+              summary: Streaming response chunk
+              value:
+                response: "The research papers present three"
+                end-of-stream: false
+            streamingComplete:
+              summary: Streaming complete marker
+              value:
+                response: ""
+                end-of-stream: true
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../../components/responses/Error.yaml'

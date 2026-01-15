@@ -1,0 +1,127 @@
+post:
+  tags:
+    - AI Services
+  summary: Graph RAG - retrieve and generate from knowledge graph
+  description: |
+    Retrieval-Augmented Generation over knowledge graph.
+
+    ## Graph RAG Overview
+
+    Graph RAG combines:
+    1. **Retrieval**: Find relevant entities and subgraph from knowledge graph
+    2. **Generation**: Use LLM to reason over graph structure and generate answer
+
+    This provides graph-aware answers that leverage relationships and structure.
+
+    ## Query Process
+
+    1. Identify relevant entities from query (using embeddings)
+    2. Retrieve connected subgraph around entities
+    3. Optionally traverse paths up to max-path-length hops
+    4. Limit subgraph size to stay within context window
+    5. Pass query + graph structure to LLM
+    6. Generate answer incorporating graph relationships
+
+    ## Streaming
+
+    Enable `streaming: true` to receive the answer as it's generated:
+    - Multiple messages with `response` content
+    - Final message with `end-of-stream: true`
+
+    Without streaming, returns complete answer in single response.
+
+    ## Parameters
+
+    Control retrieval scope with multiple knobs:
+    - **entity-limit**: How many starting entities to find (1-200, default 50)
+    - **triple-limit**: Triples per entity (1-100, default 30)
+    - **max-subgraph-size**: Total subgraph cap (10-5000, default 1000)
+    - **max-path-length**: Graph traversal depth (1-5, default 2)
+
+    Higher limits = more context but:
+    - Slower retrieval
+    - Larger context for LLM
+    - May hit context window limits
+
+    ## Use Cases
+
+    Best for queries requiring:
+    - Relationship understanding ("How are X and Y connected?")
+    - Multi-hop reasoning ("What's the path from A to B?")
+    - Structural analysis ("What are the main entities related to X?")
+
+  operationId: graphRagService
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: flow
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Flow instance ID
+      example: my-flow
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas/rag/GraphRagRequest.yaml'
+        examples:
+          basicQuery:
+            summary: Basic graph query
+            value:
+              query: What connections exist between quantum physics and computer science?
+              user: alice
+              collection: research
+          streamingQuery:
+            summary: Streaming query with custom limits
+            value:
+              query: Trace the historical development of AI from Turing to modern LLMs
+              user: alice
+              collection: research
+              entity-limit: 40
+              triple-limit: 25
+              max-subgraph-size: 800
+              max-path-length: 3
+              streaming: true
+          focusedQuery:
+            summary: Focused query with tight limits
+            value:
+              query: What is the immediate relationship between entity A and B?
+              entity-limit: 10
+              triple-limit: 15
+              max-subgraph-size: 200
+              max-path-length: 1
+  responses:
+    '200':
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/rag/GraphRagResponse.yaml'
+          examples:
+            completeResponse:
+              summary: Complete non-streaming response
+              value:
+                response: |
+                  Quantum physics and computer science intersect primarily through quantum computing.
+                  The knowledge graph shows connections through:
+                  - Quantum algorithms (Shor's algorithm, Grover's algorithm)
+                  - Quantum information theory
+                  - Computational complexity theory
+                end-of-stream: false
+            streamingChunk:
+              summary: Streaming response chunk
+              value:
+                response: "Quantum physics and computer science intersect"
+                end-of-stream: false
+            streamingComplete:
+              summary: Streaming complete marker
+              value:
+                response: ""
+                end-of-stream: true
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../../components/responses/Error.yaml'

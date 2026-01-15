@@ -1,0 +1,51 @@
+type: object
+description: Agent service response (streaming or legacy format)
+properties:
+  chunk-type:
+    type: string
+    description: Type of streaming chunk (streaming mode only)
+    enum:
+      - thought
+      - action
+      - observation
+      - answer
+      - error
+    example: answer
+  content:
+    type: string
+    description: Chunk content (streaming mode only)
+    example: Paris is the capital of France.
+  end-of-message:
+    type: boolean
+    description: Current chunk type is complete (streaming mode)
+    default: false
+    example: true
+  end-of-dialog:
+    type: boolean
+    description: Entire agent dialog is complete (streaming mode)
+    default: false
+    example: true
+  answer:
+    type: string
+    description: Final answer (legacy non-streaming format)
+    example: Paris is the capital of France.
+  thought:
+    type: string
+    description: Agent reasoning (legacy format)
+    example: I should search for information about the capital of France.
+  observation:
+    type: string
+    description: Observation from actions (legacy format)
+    example: Found information about Paris being the capital.
+  error:
+    type: object
+    description: Error details if request failed
+    properties:
+      message:
+        type: string
+        description: Error message
+        example: Failed to process agent request
+      code:
+        type: string
+        description: Error code
+        example: AGENT_ERROR

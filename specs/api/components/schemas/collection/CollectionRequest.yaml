@@ -1,0 +1,58 @@
+type: object
+description: |
+  Collection management request.
+
+  Operations: list-collections, update-collection, delete-collection
+required:
+  - operation
+properties:
+  operation:
+    type: string
+    enum:
+      - list-collections
+      - update-collection
+      - delete-collection
+    description: |
+      Collection operation:
+      - `list-collections`: List collections for user
+      - `update-collection`: Create or update collection metadata
+      - `delete-collection`: Delete collection
+  user:
+    type: string
+    description: User identifier
+    default: trustgraph
+    example: alice
+  collection:
+    type: string
+    description: Collection identifier (for update, delete)
+    example: research
+  timestamp:
+    type: string
+    description: ISO timestamp
+    format: date-time
+    example: "2024-01-15T10:30:00Z"
+  name:
+    type: string
+    description: Human-readable collection name (for update)
+    example: Research Papers
+  description:
+    type: string
+    description: Collection description (for update)
+    example: Academic research papers on AI and ML
+  tags:
+    type: array
+    description: Collection tags for organization (for update)
+    items:
+      type: string
+    example: ["research", "AI", "academic"]
+  tag-filter:
+    type: array
+    description: Filter collections by tags (for list)
+    items:
+      type: string
+    example: ["research"]
+  limit:
+    type: integer
+    description: Maximum number of results (for list)
+    default: 0
+    example: 100

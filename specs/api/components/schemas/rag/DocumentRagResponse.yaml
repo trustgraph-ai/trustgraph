@@ -1,0 +1,24 @@
+type: object
+description: Document RAG response
+properties:
+  response:
+    type: string
+    description: Generated response based on retrieved documents
+    example: The research papers found three key findings...
+  end-of-stream:
+    type: boolean
+    description: Indicates streaming is complete (streaming mode)
+    default: false
+    example: true
+  error:
+    type: object
+    description: Error details if request failed
+    properties:
+      message:
+        type: string
+        description: Error message
+        example: Failed to retrieve documents
+      type:
+        type: string
+        description: Error type
+        example: RETRIEVAL_ERROR
