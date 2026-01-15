@@ -147,8 +147,6 @@ paths:
   # WebSocket endpoints
   /api/v1/socket:
     $ref: './paths/websocket.yaml'
-  /api/v1/flow/{flow}/socket:
-    $ref: './paths/websocket.yaml'
 
   # Metrics endpoint
   /api/metrics:

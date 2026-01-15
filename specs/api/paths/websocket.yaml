@@ -3,37 +3,47 @@ get:
     - WebSocket
   summary: WebSocket - multiplexed service interface
   description: |
-    WebSocket interface for multiplexed access to all services.
+    WebSocket interface providing multiplexed access to all TrustGraph services over a single persistent connection.
 
-    ## WebSocket Overview
+    ## Overview
 
-    Single WebSocket connection for all operations:
-    - **Multiplexed**: Multiple concurrent requests
-    - **Bidirectional**: Request/response and streaming
-    - **Efficient**: Reduced overhead vs HTTP
-    - **Real-time**: Low latency communication
+    The WebSocket API provides access to the same services as the REST API but with:
+    - **Multiplexed**: Multiple concurrent requests over one connection
+    - **Asynchronous**: Non-blocking request/response with ID matching
+    - **Efficient**: Reduced overhead compared to HTTP
+    - **Real-time**: Low latency bidirectional communication
 
     ## Connection
 
-    Establish WebSocket connection:
+    Establish WebSocket connection to:
     ```
     ws://localhost:8088/api/v1/socket
     ```
 
-    Or for specific flow:
-    ```
-    ws://localhost:8088/api/v1/flow/{flow}/socket
-    ```
-
     ## Message Protocol
 
-    Messages are JSON with request ID for multiplexing:
+    All messages are JSON objects with the following structure:
 
-    ### Request Message
+    ### Request Message Format
+
+    **Global Service Request** (no flow parameter):
     ```json
     {
       "id": "req-123",
+      "service": "config",
+      "request": {
+        "operation": "list",
+        "type": "flow"
+      }
+    }
+    ```
+
+    **Flow-Hosted Service Request** (with flow parameter):
+    ```json
+    {
+      "id": "req-456",
       "service": "agent",
+      "flow": "my-flow",
       "request": {
         "question": "What is quantum computing?",
         "streaming": true
@@ -41,62 +51,112 @@ get:
     }
     ```
 
-    ### Response Message
+    **Request Fields**:
+    - `id` (string, required): Client-generated unique identifier for this request within the session. Used to match responses to requests.
+    - `service` (string, required): Service identifier (e.g., "config", "agent", "document-rag"). Same as `{kind}` in REST URLs.
+    - `flow` (string, optional): Flow ID for flow-hosted services. Omit for global services.
+    - `request` (object, required): Service-specific request payload. Same structure as REST API request body.
+
+    ### Response Message Format
+
+    **Success Response**:
     ```json
     {
       "id": "req-123",
       "response": {
         "chunk-type": "answer",
         "content": "Quantum computing uses...",
-        "end-of-dialog": false
+        "end-of-stream": false
       }
     }
     ```
 
-    ### Error Message
+    **Error Response**:
     ```json
     {
       "id": "req-123",
       "error": {
-        "type": "SERVICE_ERROR",
+        "type": "gateway-error",
         "message": "Flow not found"
       }
     }
     ```
 
-    ## Multiplexing
+    **Response Fields**:
+    - `id` (string, required): Matches the `id` from the request. Client uses this to correlate responses.
+    - `response` (object, conditional): Service-specific response payload. Same structure as REST API response. Present on success.
+    - `error` (object, conditional): Error information with `type` and `message` fields. Present on failure.
 
-    Send multiple requests concurrently:
-    - Each request has unique ID
-    - Responses include matching ID
+    ## Service Routing
+
+    The WebSocket protocol routes to services using message parameters instead of URL paths:
+
+    | REST Endpoint | WebSocket Message |
+    |--------------|-------------------|
+    | `POST /api/v1/config` | `{"service": "config"}` |
+    | `POST /api/v1/flow/{flow}/service/agent` | `{"service": "agent", "flow": "my-flow"}` |
+
+    **Global Services** (no `flow` parameter):
+    - `config` - Configuration management
+    - `flow` - Flow lifecycle and blueprints
+    - `librarian` - Document library management
+    - `knowledge` - Knowledge graph core management
+    - `collection-management` - Collection metadata
+
+    **Flow-Hosted Services** (require `flow` parameter):
+    - AI services: `agent`, `text-completion`, `prompt`, `document-rag`, `graph-rag`
+    - Embeddings: `embeddings`, `graph-embeddings`, `document-embeddings`
+    - Query: `triples`, `objects`, `nlp-query`, `structured-query`
+    - Data loading: `text-load`, `document-load`
+    - Utilities: `mcp-tool`, `structured-diag`
+
+    ## Request/Response Schemas
+
+    The `request` and `response` fields use **identical schemas** to the REST API for each service.
+    See individual service documentation for detailed request/response formats.
+
+    ## Multiplexing and Asynchronous Operation
+
+    Multiple requests can be in flight simultaneously:
+    - Client sends requests with unique `id` values
+    - Server processes requests concurrently
+    - Responses arrive asynchronously and may be out of order
+    - Client matches responses to requests using the `id` field
     - No head-of-line blocking
 
-    ## Streaming
+    **Example concurrent requests**:
+    ```json
+    {"id": "req-1", "service": "config", "request": {...}}
+    {"id": "req-2", "service": "agent", "flow": "f1", "request": {...}}
+    {"id": "req-3", "service": "document-rag", "flow": "f2", "request": {...}}
+    ```
 
-    Streaming services send multiple responses:
-    - Same request ID
-    - Progressive results
-    - Completion indicated by flag
+    Responses may arrive in any order: `req-2`, `req-1`, `req-3`
 
-    ## Services
+    ## Streaming Responses
 
-    All REST services available via WebSocket:
-    - Global services (config, flow, librarian, knowledge, collection-management)
-    - Flow services (agent, RAG, embeddings, queries, etc.)
-    - Same request/response formats as REST
+    Services that support streaming (e.g., agent, RAG) send multiple response messages with the same `id`:
+    ```json
+    {"id": "req-1", "response": {"chunk-type": "thought", "content": "...", "end-of-stream": false}}
+    {"id": "req-1", "response": {"chunk-type": "answer", "content": "...", "end-of-stream": false}}
+    {"id": "req-1", "response": {"chunk-type": "answer", "content": "...", "end-of-stream": true}}
+    ```
+
+    The `end-of-stream` flag (or service-specific completion flag) indicates the final message.
 
     ## Authentication
 
-    Include bearer token in connection:
-    - As query parameter: `?token=<token>`
+    When `GATEWAY_SECRET` is set, include bearer token:
+    - As query parameter: `ws://localhost:8088/api/v1/socket?token=<token>`
     - Or in WebSocket subprotocol header
 
-    ## Benefits
+    ## Benefits Over REST
 
-    - Lower latency than HTTP
-    - Connection reuse
-    - Server push capabilities
-    - Efficient for real-time applications
+    - **Lower latency**: No TCP/TLS handshake per request
+    - **Connection reuse**: Single persistent connection
+    - **Reduced overhead**: No HTTP headers per message
+    - **True streaming**: Bidirectional real-time communication
+    - **Efficient multiplexing**: Concurrent operations without connection pooling
 
   operationId: websocketConnection
   security:
