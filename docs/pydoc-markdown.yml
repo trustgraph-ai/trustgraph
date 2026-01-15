@@ -11,8 +11,7 @@ processors:
         'requests', 'json', 'base64', 'time', 'aiohttp', 'asyncio', 'websockets',
         'dataclasses', 'datetime', 'logging',
         'Optional', 'Dict', 'Any', 'List', 'Union', 'Iterator', 'AsyncIterator', 'Coroutine',
-        'Library', 'Flow', 'Config', 'Knowledge', 'Collection',
-        'hash', 'Uri', 'Literal', 'ProtocolException', 'ApplicationException',
+        'hash', 'Uri', 'Literal',
         '*'
       ] and (
         not name.startswith('_') or
