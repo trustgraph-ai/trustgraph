@@ -68,8 +68,6 @@ info:
 servers:
   - url: http://localhost:8088
     description: Local development server
-  - url: http://localhost:8088/api/v1
-    description: API v1 base path
 
 security:
   - bearerAuth: []
