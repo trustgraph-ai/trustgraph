@@ -1,0 +1,172 @@
+post:
+  tags:
+    - Flow Services
+  summary: Structured Diag - analyze structured data formats
+  description: |
+    Analyze and understand structured data (CSV, JSON, XML).
+
+    ## Structured Diag Overview
+
+    Helps process unknown structured data:
+    - **Detect format**: Identify CSV, JSON, or XML
+    - **Generate schema**: Create descriptor from sample
+    - **Match schemas**: Find existing schemas that fit data
+    - **Full diagnosis**: Complete analysis in one call
+
+    Essential for data ingestion pipelines.
+
+    ## Operations
+
+    ### detect-type
+    Identify data format from sample:
+    - Input: Data sample
+    - Output: Format (csv/json/xml) + confidence
+    - Use when: Format is unknown
+
+    ### generate-descriptor
+    Create schema descriptor:
+    - Input: Sample + known type
+    - Output: Field definitions, types, structure
+    - Use when: Need to understand data structure
+
+    ### diagnose (recommended)
+    Combined analysis:
+    - Input: Data sample
+    - Output: Format + descriptor + metadata
+    - Use when: Starting from scratch
+
+    ### schema-selection
+    Find matching schemas:
+    - Input: Data sample
+    - Output: List of schema IDs that match
+    - Use when: Have existing schemas, need to match data
+
+    ## Data Types
+
+    Supported formats:
+    - **CSV**: Comma-separated values (or custom delimiter)
+    - **JSON**: JSON objects or arrays
+    - **XML**: XML documents
+
+    ## Options
+
+    Format-specific options:
+    - **CSV**: delimiter, has_header, quote_char
+    - **JSON**: array_path (for nested arrays)
+    - **XML**: root_element, record_path
+
+    ## Workflow Example
+
+    1. Receive unknown data file
+    2. Call diagnose operation with sample
+    3. Get format + schema descriptor
+    4. Use descriptor to process full dataset
+    5. Load data via document-load or text-load
+
+  operationId: structuredDiagService
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: flow
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Flow instance ID
+      example: my-flow
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas/diag/StructuredDiagRequest.yaml'
+        examples:
+          detectType:
+            summary: Detect data type
+            value:
+              operation: detect-type
+              sample: |
+                name,age,email
+                Alice,30,alice@example.com
+                Bob,25,bob@example.com
+          generateDescriptor:
+            summary: Generate schema descriptor
+            value:
+              operation: generate-descriptor
+              sample: |
+                name,age,email
+                Alice,30,alice@example.com
+              type: csv
+              schema-name: person-records
+              options:
+                delimiter: ","
+                has_header: "true"
+          diagnose:
+            summary: Full diagnosis
+            value:
+              operation: diagnose
+              sample: |
+                [
+                  {"name": "Alice", "age": 30},
+                  {"name": "Bob", "age": 25}
+                ]
+          schemaSelection:
+            summary: Find matching schemas
+            value:
+              operation: schema-selection
+              sample: |
+                name,email,phone
+                Alice,alice@example.com,555-1234
+  responses:
+    '200':
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/diag/StructuredDiagResponse.yaml'
+          examples:
+            detectedType:
+              summary: Type detection result
+              value:
+                operation: detect-type
+                detected-type: csv
+                confidence: 0.95
+            generatedDescriptor:
+              summary: Generated descriptor
+              value:
+                operation: generate-descriptor
+                descriptor:
+                  schema_name: person-records
+                  type: csv
+                  fields:
+                    - {name: name, type: string}
+                    - {name: age, type: integer}
+                    - {name: email, type: string}
+                metadata:
+                  field_count: "3"
+                  has_header: "true"
+            fullDiagnosis:
+              summary: Complete diagnosis
+              value:
+                operation: diagnose
+                detected-type: json
+                confidence: 0.98
+                descriptor:
+                  type: json
+                  structure: array_of_objects
+                  fields:
+                    - {name: name, type: string}
+                    - {name: age, type: integer}
+                metadata:
+                  record_count: "2"
+            schemaMatches:
+              summary: Schema selection results
+              value:
+                operation: schema-selection
+                schema-matches:
+                  - person-schema-v1
+                  - contact-schema-v2
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../../components/responses/Error.yaml'

@@ -1,0 +1,103 @@
+post:
+  tags:
+    - Flow Services
+  summary: Document Embeddings Query - find similar text chunks
+  description: |
+    Query document embeddings to find similar text chunks by vector similarity.
+
+    ## Document Embeddings Query Overview
+
+    Find document chunks semantically similar to a query vector:
+    - **Input**: Query embedding vector
+    - **Search**: Compare against stored chunk embeddings
+    - **Output**: Most similar text chunks
+
+    Core component of document RAG retrieval.
+
+    ## Use Cases
+
+    - **Document retrieval**: Find relevant passages
+    - **Semantic search**: Search by meaning not keywords
+    - **Context gathering**: Get text for RAG
+    - **Similar content**: Discover related documents
+
+    ## Process
+
+    1. Obtain query embedding (via embeddings service)
+    2. Query stored document chunk embeddings
+    3. Calculate cosine similarity
+    4. Return top N most similar chunks
+    5. Use chunks as context for generation
+
+    ## Chunking
+
+    Documents are split into chunks during indexing:
+    - Typical size: 200-1000 tokens
+    - Overlap between chunks for continuity
+    - Each chunk has own embedding
+
+    Queries return individual chunks, not full documents.
+
+    ## Similarity Scoring
+
+    Uses cosine similarity:
+    - Results ordered by similarity
+    - No explicit scores in response
+    - Limit controls result count
+
+    ## Output Format
+
+    Returns text chunks as strings:
+    - Raw chunk text
+    - No metadata (source, position, etc.)
+    - Use for LLM context directly
+
+  operationId: documentEmbeddingsQueryService
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: flow
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Flow instance ID
+      example: my-flow
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas/embeddings-query/DocumentEmbeddingsQueryRequest.yaml'
+        examples:
+          basicQuery:
+            summary: Find similar chunks
+            value:
+              vectors: [0.023, -0.142, 0.089, 0.234, -0.067, 0.156, 0.201, -0.178]
+              limit: 10
+              user: alice
+              collection: research
+          largeQuery:
+            summary: Larger result set
+            value:
+              vectors: [0.1, -0.2, 0.3, -0.4, 0.5]
+              limit: 30
+  responses:
+    '200':
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/embeddings-query/DocumentEmbeddingsQueryResponse.yaml'
+          examples:
+            similarChunks:
+              summary: Similar document chunks
+              value:
+                chunks:
+                  - "Quantum computing uses quantum mechanics principles like superposition and entanglement for computation. Unlike classical bits, quantum bits (qubits) can exist in multiple states simultaneously."
+                  - "Neural networks are computing systems inspired by biological neural networks. They consist of interconnected nodes organized in layers that process information through weighted connections."
+                  - "Machine learning algorithms learn patterns from data without being explicitly programmed. They improve their performance through experience and exposure to training data."
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../../components/responses/Error.yaml'

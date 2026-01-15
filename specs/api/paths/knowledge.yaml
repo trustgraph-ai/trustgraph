@@ -1,0 +1,196 @@
+post:
+  tags:
+    - Knowledge
+  summary: Knowledge graph core management
+  description: |
+    Manage knowledge graph cores - persistent storage of triples and embeddings.
+
+    ## Knowledge Cores
+
+    Knowledge cores are the foundational storage units for:
+    - **Triples**: RDF triples representing knowledge graph data
+    - **Graph Embeddings**: Vector embeddings for entities
+    - **Metadata**: Descriptive information about the knowledge
+
+    Each core has an ID, user, and collection for organization.
+
+    ## Operations
+
+    ### list-kg-cores
+    List all knowledge cores for a user. Returns array of core IDs.
+
+    ### get-kg-core
+    Retrieve a knowledge core by ID. Returns triples and/or graph embeddings.
+    Response is streamed - may receive multiple messages followed by EOS marker.
+
+    ### put-kg-core
+    Store triples and/or graph embeddings. Creates new core or updates existing.
+    Can store triples only, embeddings only, or both together.
+
+    ### delete-kg-core
+    Delete a knowledge core by ID. Removes all associated data.
+
+    ### load-kg-core
+    Load a knowledge core into a running flow's collection.
+    Makes the data available for querying within that flow instance.
+
+    ### unload-kg-core
+    Unload a knowledge core from a flow's collection.
+    Removes data from flow instance but doesn't delete the core.
+
+    ## Streaming Responses
+
+    The `get-kg-core` operation streams data in chunks:
+    1. Multiple messages with `triples` or `graph-embeddings`
+    2. Final message with `eos: true` to signal completion
+
+  operationId: knowledgeService
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/knowledge/KnowledgeRequest.yaml'
+        examples:
+          listKnowledgeCores:
+            summary: List knowledge cores
+            value:
+              operation: list-kg-cores
+              user: alice
+          getKnowledgeCore:
+            summary: Get knowledge core
+            value:
+              operation: get-kg-core
+              id: core-123
+          putTriplesOnly:
+            summary: Store triples
+            value:
+              operation: put-kg-core
+              triples:
+                metadata:
+                  id: core-123
+                  user: alice
+                  collection: default
+                  metadata:
+                    - s: {v: "https://example.com/core-123", e: true}
+                      p: {v: "https://www.w3.org/1999/02/22-rdf-syntax-ns#type", e: true}
+                      o: {v: "https://trustgraph.ai/e/knowledge-core", e: true}
+                triples:
+                  - s: {v: "https://example.com/entity1", e: true}
+                    p: {v: "https://www.w3.org/2000/01/rdf-schema#label", e: true}
+                    o: {v: "Entity 1", e: false}
+                  - s: {v: "https://example.com/entity1", e: true}
+                    p: {v: "https://example.com/relatedTo", e: true}
+                    o: {v: "https://example.com/entity2", e: true}
+          putEmbeddingsOnly:
+            summary: Store embeddings
+            value:
+              operation: put-kg-core
+              graph-embeddings:
+                metadata:
+                  id: core-123
+                  user: alice
+                  collection: default
+                  metadata: []
+                entities:
+                  - entity: {v: "https://example.com/entity1", e: true}
+                    vectors: [0.1, 0.2, 0.3, 0.4, 0.5]
+                  - entity: {v: "https://example.com/entity2", e: true}
+                    vectors: [0.6, 0.7, 0.8, 0.9, 1.0]
+          putTriplesAndEmbeddings:
+            summary: Store triples and embeddings together
+            value:
+              operation: put-kg-core
+              triples:
+                metadata:
+                  id: core-456
+                  user: bob
+                  collection: research
+                  metadata: []
+                triples:
+                  - s: {v: "https://example.com/doc1", e: true}
+                    p: {v: "http://purl.org/dc/terms/title", e: true}
+                    o: {v: "Research Paper", e: false}
+              graph-embeddings:
+                metadata:
+                  id: core-456
+                  user: bob
+                  collection: research
+                  metadata: []
+                entities:
+                  - entity: {v: "https://example.com/doc1", e: true}
+                    vectors: [0.11, 0.22, 0.33]
+          deleteKnowledgeCore:
+            summary: Delete knowledge core
+            value:
+              operation: delete-kg-core
+              id: core-123
+              user: alice
+          loadKnowledgeCore:
+            summary: Load core into flow
+            value:
+              operation: load-kg-core
+              id: core-123
+              flow: my-flow
+              collection: default
+          unloadKnowledgeCore:
+            summary: Unload core from flow
+            value:
+              operation: unload-kg-core
+              id: core-123
+  responses:
+    '200':
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/knowledge/KnowledgeResponse.yaml'
+          examples:
+            listKnowledgeCores:
+              summary: List of knowledge cores
+              value:
+                ids:
+                  - core-123
+                  - core-456
+                  - core-789
+            getKnowledgeCoreTriples:
+              summary: Knowledge core triples (streaming)
+              value:
+                triples:
+                  metadata:
+                    id: core-123
+                    user: alice
+                    collection: default
+                    metadata:
+                      - s: {v: "https://example.com/core-123", e: true}
+                        p: {v: "https://www.w3.org/1999/02/22-rdf-syntax-ns#type", e: true}
+                        o: {v: "https://trustgraph.ai/e/knowledge-core", e: true}
+                  triples:
+                    - s: {v: "https://example.com/entity1", e: true}
+                      p: {v: "https://www.w3.org/2000/01/rdf-schema#label", e: true}
+                      o: {v: "Entity 1", e: false}
+            getKnowledgeCoreEmbeddings:
+              summary: Knowledge core embeddings (streaming)
+              value:
+                graph-embeddings:
+                  metadata:
+                    id: core-123
+                    user: alice
+                    collection: default
+                    metadata: []
+                  entities:
+                    - entity: {v: "https://example.com/entity1", e: true}
+                      vectors: [0.1, 0.2, 0.3, 0.4, 0.5]
+            endOfStream:
+              summary: End of stream marker
+              value:
+                eos: true
+            deleteSuccess:
+              summary: Delete successful (empty response)
+              value: {}
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../components/responses/Error.yaml'

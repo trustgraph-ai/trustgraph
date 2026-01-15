@@ -1,0 +1,15 @@
+type: object
+description: MCP tool response
+properties:
+  text:
+    type: string
+    description: Text response from tool
+    example: Found 10 results for quantum computing...
+  object:
+    type: object
+    description: Structured response from tool (JSON object)
+    additionalProperties: {}
+    example:
+      results:
+        - title: Introduction to Quantum Computing
+          url: https://example.com/qc-intro

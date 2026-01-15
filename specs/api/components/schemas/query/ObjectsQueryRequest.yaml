@@ -1,0 +1,40 @@
+type: object
+description: |
+  Objects query request - GraphQL query over knowledge graph.
+required:
+  - query
+properties:
+  query:
+    type: string
+    description: GraphQL query string
+    example: |
+      query GetPerson($id: ID!) {
+        person(id: $id) {
+          name
+          email
+          knows {
+            name
+          }
+        }
+      }
+  variables:
+    type: object
+    description: GraphQL query variables
+    additionalProperties:
+      type: string
+    example:
+      id: "https://example.com/person/alice"
+  operation-name:
+    type: string
+    description: Operation name (for multi-operation documents)
+    example: GetPerson
+  user:
+    type: string
+    description: User identifier
+    default: trustgraph
+    example: alice
+  collection:
+    type: string
+    description: Collection to query
+    default: default
+    example: research

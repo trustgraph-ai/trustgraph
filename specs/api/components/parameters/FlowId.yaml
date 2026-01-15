@@ -1,0 +1,7 @@
+name: flow
+in: path
+required: true
+schema:
+  type: string
+description: Flow instance ID
+example: my-flow

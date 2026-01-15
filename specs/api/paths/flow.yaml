@@ -1,0 +1,194 @@
+post:
+  tags:
+    - Flow
+  summary: Flow lifecycle and blueprint management
+  description: |
+    Manage flow instances and blueprints.
+
+    ## Important Distinction
+
+    The **flow service** manages *running flow instances*.
+    The **config service** (`/api/v1/config`) manages *stored configuration*.
+
+    - Use flow service to start/stop/manage running flows
+    - Use config service to store/retrieve flow definitions
+
+    ## Flow Instance Operations
+
+    ### start-flow
+    Start a new flow instance from a blueprint. The blueprint must exist (either built-in or created via put-blueprint).
+
+    Parameters are resolved from:
+    1. User-provided values (--param)
+    2. Default values from parameter type definitions
+    3. Controlled-by relationships
+
+    ### stop-flow
+    Stop a running flow instance. This terminates all processors and releases resources.
+
+    ### list-flows
+    List all currently running flow instances.
+
+    ### get-flow
+    Get details of a running flow including its configuration, parameters, and interface queue names.
+
+    ## Blueprint Operations
+
+    ### list-blueprints
+    List all available flow blueprints (built-in and custom).
+
+    ### get-blueprint
+    Retrieve a blueprint definition showing its structure, parameters, processors, and interfaces.
+
+    ### put-blueprint
+    Create or update a flow blueprint definition.
+
+    Blueprints define:
+    - **Class processors**: Shared across all instances of this blueprint
+    - **Flow processors**: Unique to each flow instance
+    - **Interfaces**: Entry points for external systems
+    - **Parameters**: Configurable values for customization
+
+    ### delete-blueprint
+    Delete a custom blueprint definition. Built-in blueprints cannot be deleted.
+
+  operationId: flowService
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/flow/FlowRequest.yaml'
+        examples:
+          startFlow:
+            summary: Start a flow instance
+            value:
+              operation: start-flow
+              flow-id: my-flow
+              blueprint-name: document-rag
+              description: My document processing flow
+              parameters:
+                model: gpt-4
+                temperature: "0.7"
+          startFlowMinimal:
+            summary: Start flow with defaults
+            value:
+              operation: start-flow
+              flow-id: my-flow
+              blueprint-name: document-rag
+          stopFlow:
+            summary: Stop a flow instance
+            value:
+              operation: stop-flow
+              flow-id: my-flow
+          listFlows:
+            summary: List running flows
+            value:
+              operation: list-flows
+          getFlow:
+            summary: Get flow details
+            value:
+              operation: get-flow
+              flow-id: my-flow
+          listBlueprints:
+            summary: List available blueprints
+            value:
+              operation: list-blueprints
+          getBlueprint:
+            summary: Get blueprint definition
+            value:
+              operation: get-blueprint
+              blueprint-name: document-rag
+          putBlueprint:
+            summary: Create/update blueprint
+            value:
+              operation: put-blueprint
+              blueprint-name: my-custom-rag
+              blueprint-definition:
+                description: Custom RAG pipeline
+                parameters:
+                  model:
+                    type: llm-model
+                    description: LLM model
+                    order: 1
+                class:
+                  text-completion:{class}:
+                    request: non-persistent://tg/request/text-completion:{class}
+                    response: non-persistent://tg/response/text-completion:{class}
+                flow:
+                  chunker:{id}:
+                    input: persistent://tg/flow/chunk:{id}
+                    output: persistent://tg/flow/chunk-load:{id}
+                interfaces:
+                  agent:
+                    request: non-persistent://tg/request/agent:{id}
+                    response: non-persistent://tg/response/agent:{id}
+          deleteBlueprint:
+            summary: Delete blueprint
+            value:
+              operation: delete-blueprint
+              blueprint-name: my-custom-rag
+  responses:
+    '200':
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/flow/FlowResponse.yaml'
+          examples:
+            startFlow:
+              summary: Flow started
+              value:
+                flow-id: my-flow
+            listFlows:
+              summary: Running flows
+              value:
+                flow-ids:
+                  - default
+                  - production
+                  - my-flow
+            getFlow:
+              summary: Flow details
+              value:
+                flow:
+                  blueprint-name: document-rag
+                  description: My document processing flow
+                  parameters:
+                    model: gpt-4
+                    temperature: "0.7"
+                  interfaces:
+                    agent:
+                      request: non-persistent://tg/request/agent:my-flow
+                      response: non-persistent://tg/response/agent:my-flow
+                    text-load: persistent://tg/flow/text-document-load:my-flow
+            listBlueprints:
+              summary: Available blueprints
+              value:
+                blueprint-names:
+                  - document-rag
+                  - graph-rag
+                  - document-rag+graph-rag
+                  - my-custom-rag
+            getBlueprint:
+              summary: Blueprint definition
+              value:
+                blueprint-definition:
+                  description: Standard RAG pipeline
+                  parameters:
+                    model:
+                      type: llm-model
+                      order: 1
+                  class:
+                    text-completion:{class}:
+                      request: non-persistent://tg/request/text-completion:{class}
+                      response: non-persistent://tg/response/text-completion:{class}
+                  interfaces:
+                    agent:
+                      request: non-persistent://tg/request/agent:{id}
+                      response: non-persistent://tg/response/agent:{id}
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../components/responses/Error.yaml'

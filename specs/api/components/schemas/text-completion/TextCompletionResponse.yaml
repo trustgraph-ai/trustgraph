@@ -1,0 +1,26 @@
+type: object
+description: Text completion response
+required:
+  - response
+properties:
+  response:
+    type: string
+    description: Generated text response
+    example: Recursion is a programming technique where a function calls itself...
+  in-token:
+    type: integer
+    description: Number of input tokens consumed
+    example: 45
+  out-token:
+    type: integer
+    description: Number of output tokens generated
+    example: 128
+  model:
+    type: string
+    description: Model used for completion
+    example: gpt-4
+  end-of-stream:
+    type: boolean
+    description: Indicates streaming is complete (streaming mode)
+    default: false
+    example: true

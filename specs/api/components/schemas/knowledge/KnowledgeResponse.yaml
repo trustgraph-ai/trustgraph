@@ -1,0 +1,91 @@
+type: object
+description: Knowledge service response
+properties:
+  ids:
+    type: array
+    description: List of knowledge core IDs (returned by list-kg-cores)
+    items:
+      type: string
+    example: ["core-123", "core-456"]
+  triples:
+    type: object
+    description: Triples data (returned by get-kg-core, streamed)
+    properties:
+      metadata:
+        type: object
+        required:
+          - id
+          - user
+          - collection
+        properties:
+          id:
+            type: string
+            description: Knowledge core ID
+            example: core-123
+          user:
+            type: string
+            description: User identifier
+            example: alice
+          collection:
+            type: string
+            description: Collection identifier
+            example: default
+          metadata:
+            type: array
+            description: Metadata triples
+            items:
+              $ref: '../../common/Triple.yaml'
+      triples:
+        type: array
+        description: Knowledge triples
+        items:
+          $ref: '../../common/Triple.yaml'
+  graph-embeddings:
+    type: object
+    description: Graph embeddings data (returned by get-kg-core, streamed)
+    properties:
+      metadata:
+        type: object
+        required:
+          - id
+          - user
+          - collection
+        properties:
+          id:
+            type: string
+            description: Knowledge core ID
+            example: core-123
+          user:
+            type: string
+            description: User identifier
+            example: alice
+          collection:
+            type: string
+            description: Collection identifier
+            example: default
+          metadata:
+            type: array
+            description: Metadata triples
+            items:
+              $ref: '../../common/Triple.yaml'
+      entities:
+        type: array
+        description: Entity embeddings
+        items:
+          type: object
+          required:
+            - entity
+            - vectors
+          properties:
+            entity:
+              $ref: '../../common/RdfValue.yaml'
+            vectors:
+              type: array
+              description: Embedding vectors
+              items:
+                type: number
+              example: [0.1, 0.2, 0.3]
+  eos:
+    type: boolean
+    description: End of stream marker (for streaming responses)
+    example: true

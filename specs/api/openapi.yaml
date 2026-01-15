@@ -1,0 +1,160 @@
+openapi: 3.1.0
+
+info:
+  title: TrustGraph API Gateway
+  version: 1.8.0
+  description: |
+    REST API for TrustGraph - an AI-powered knowledge graph and RAG system.
+
+    ## Overview
+
+    The API provides access to:
+    - **Global Services**: Configuration, flow management, knowledge storage, library management
+    - **Flow-Hosted Services**: AI services like RAG, text completion, embeddings (require running flow)
+    - **Import/Export**: Bulk data operations for triples, embeddings, entity contexts
+    - **WebSocket**: Multiplexed interface for all services
+
+    ## Service Types
+
+    ### Global Services
+    Fixed endpoints accessible via `/api/v1/{kind}`:
+    - `config` - Configuration management
+    - `flow` - Flow lifecycle and blueprints
+    - `librarian` - Document library management
+    - `knowledge` - Knowledge graph core management
+    - `collection-management` - Collection metadata
+
+    ### Flow-Hosted Services
+    Require running flow instance, accessed via `/api/v1/flow/{flow}/service/{kind}`:
+    - AI services: agent, text-completion, prompt, RAG (document/graph)
+    - Embeddings: embeddings, graph-embeddings, document-embeddings
+    - Query: triples, objects, nlp-query, structured-query
+    - Data loading: text-load, document-load
+    - Utilities: mcp-tool, structured-diag
+
+    ## Authentication
+
+    Bearer token authentication when `GATEWAY_SECRET` environment variable is set.
+    Include token in Authorization header:
+    ```
+    Authorization: Bearer <token>
+    ```
+
+    If `GATEWAY_SECRET` is not set, API runs without authentication (development mode).
+
+    ## Field Naming
+
+    All JSON fields use **kebab-case**: `flow-id`, `blueprint-name`, `doc-limit`, etc.
+
+    ## Error Responses
+
+    All endpoints may return errors in this format:
+    ```json
+    {
+      "error": {
+        "type": "gateway-error",
+        "message": "Timeout"
+      }
+    }
+    ```
+
+  contact:
+    name: TrustGraph Project
+    url: https://trustgraph.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: http://localhost:8088
+    description: Local development server
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Config
+    description: Configuration management (global service)
+  - name: Flow
+    description: Flow lifecycle and blueprint management (global service)
+  - name: Librarian
+    description: Document library management (global service)
+  - name: Knowledge
+    description: Knowledge graph core management (global service)
+  - name: Collection
+    description: Collection metadata management (global service)
+  - name: Flow Services
+    description: Services hosted within flow instances
+  - name: Import/Export
+    description: Bulk data import and export
+  - name: WebSocket
+    description: WebSocket interfaces
+  - name: Metrics
+    description: System metrics and monitoring
+
+paths:
+  /api/v1/config:
+    $ref: './paths/config.yaml'
+  /api/v1/flow:
+    $ref: './paths/flow.yaml'
+  /api/v1/librarian:
+    $ref: './paths/librarian.yaml'
+  /api/v1/knowledge:
+    $ref: './paths/knowledge.yaml'
+  /api/v1/collection-management:
+    $ref: './paths/collection-management.yaml'
+
+  # Flow-hosted services (require running flow instance)
+  /api/v1/flow/{flow}/service/agent:
+    $ref: './paths/flow/agent.yaml'
+  /api/v1/flow/{flow}/service/document-rag:
+    $ref: './paths/flow/document-rag.yaml'
+  /api/v1/flow/{flow}/service/graph-rag:
+    $ref: './paths/flow/graph-rag.yaml'
+  /api/v1/flow/{flow}/service/text-completion:
+    $ref: './paths/flow/text-completion.yaml'
+  /api/v1/flow/{flow}/service/prompt:
+    $ref: './paths/flow/prompt.yaml'
+  /api/v1/flow/{flow}/service/embeddings:
+    $ref: './paths/flow/embeddings.yaml'
+  /api/v1/flow/{flow}/service/mcp-tool:
+    $ref: './paths/flow/mcp-tool.yaml'
+  /api/v1/flow/{flow}/service/triples:
+    $ref: './paths/flow/triples.yaml'
+  /api/v1/flow/{flow}/service/objects:
+    $ref: './paths/flow/objects.yaml'
+  /api/v1/flow/{flow}/service/nlp-query:
+    $ref: './paths/flow/nlp-query.yaml'
+  /api/v1/flow/{flow}/service/structured-query:
+    $ref: './paths/flow/structured-query.yaml'
+  /api/v1/flow/{flow}/service/structured-diag:
+    $ref: './paths/flow/structured-diag.yaml'
+  /api/v1/flow/{flow}/service/graph-embeddings:
+    $ref: './paths/flow/graph-embeddings.yaml'
+  /api/v1/flow/{flow}/service/document-embeddings:
+    $ref: './paths/flow/document-embeddings.yaml'
+  /api/v1/flow/{flow}/service/text-load:
+    $ref: './paths/flow/text-load.yaml'
+  /api/v1/flow/{flow}/service/document-load:
+    $ref: './paths/flow/document-load.yaml'
+
+  # Import/Export endpoints
+  /api/v1/import-core:
+    $ref: './paths/import-core.yaml'
+  /api/v1/export-core:
+    $ref: './paths/export-core.yaml'
+
+  # WebSocket endpoints
+  /api/v1/socket:
+    $ref: './paths/websocket.yaml'
+
+  # Metrics endpoint
+  /api/metrics:
+    $ref: './paths/metrics.yaml'
+  /api/metrics/{path}:
+    $ref: './paths/metrics-path.yaml'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: './security/bearerAuth.yaml'

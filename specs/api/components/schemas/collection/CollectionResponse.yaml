@@ -1,0 +1,39 @@
+type: object
+description: Collection management response
+properties:
+  timestamp:
+    type: string
+    description: ISO timestamp
+    format: date-time
+    example: "2024-01-15T10:30:00Z"
+  collections:
+    type: array
+    description: List of collections (returned by list-collections)
+    items:
+      type: object
+      required:
+        - user
+        - collection
+      properties:
+        user:
+          type: string
+          description: User identifier
+          example: alice
+        collection:
+          type: string
+          description: Collection identifier
+          example: research
+        name:
+          type: string
+          description: Human-readable collection name
+          example: Research Papers
+        description:
+          type: string
+          description: Collection description
+          example: Academic research papers on AI and ML
+        tags:
+          type: array
+          description: Collection tags
+          items:
+            type: string
+          example: ["research", "AI", "academic"]

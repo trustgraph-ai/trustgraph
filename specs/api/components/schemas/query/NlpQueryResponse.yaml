@@ -1,0 +1,47 @@
+type: object
+description: NLP query response
+required:
+  - graphql-query
+  - variables
+properties:
+  graphql-query:
+    type: string
+    description: Generated GraphQL query
+    example: |
+      query GetConnections($person: ID!) {
+        person(id: $person) {
+          knows {
+            name
+            worksFor { department }
+          }
+        }
+      }
+  variables:
+    type: object
+    description: Query variables
+    additionalProperties:
+      type: string
+    example:
+      person: "https://example.com/person/alice"
+  detected-schemas:
+    type: array
+    description: Detected schema types used in query
+    items:
+      type: string
+    example: ["Person", "Organization"]
+  confidence:
+    type: number
+    description: Confidence score for query generation (0.0-1.0)
+    minimum: 0.0
+    maximum: 1.0
+    example: 0.87
+  error:
+    type: object
+    description: Error if query generation failed
+    properties:
+      type:
+        type: string
+        example: PARSE_ERROR
+      message:
+        type: string
+        example: Could not understand question structure

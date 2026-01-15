@@ -1,0 +1,128 @@
+type: object
+description: |
+  Knowledge graph core management request.
+
+  Operations: list-kg-cores, get-kg-core, put-kg-core, delete-kg-core,
+  load-kg-core, unload-kg-core
+required:
+  - operation
+properties:
+  operation:
+    type: string
+    enum:
+      - list-kg-cores
+      - get-kg-core
+      - put-kg-core
+      - delete-kg-core
+      - load-kg-core
+      - unload-kg-core
+    description: |
+      Knowledge core operation:
+      - `list-kg-cores`: List knowledge cores for user
+      - `get-kg-core`: Get knowledge core by ID
+      - `put-kg-core`: Store triples and/or embeddings
+      - `delete-kg-core`: Delete knowledge core by ID
+      - `load-kg-core`: Load knowledge core into flow
+      - `unload-kg-core`: Unload knowledge core from flow
+  user:
+    type: string
+    description: User identifier (for list-kg-cores, put-kg-core, delete-kg-core)
+    default: trustgraph
+    example: alice
+  id:
+    type: string
+    description: Knowledge core ID (for get, put, delete, load, unload)
+    example: core-123
+  flow:
+    type: string
+    description: Flow ID (for load-kg-core)
+    example: my-flow
+  collection:
+    type: string
+    description: Collection identifier (for load-kg-core)
+    default: default
+    example: default
+  triples:
+    type: object
+    description: Triples to store (for put-kg-core)
+    required:
+      - metadata
+      - triples
+    properties:
+      metadata:
+        type: object
+        required:
+          - id
+          - user
+          - collection
+        properties:
+          id:
+            type: string
+            description: Knowledge core ID
+            example: core-123
+          user:
+            type: string
+            description: User identifier
+            example: alice
+          collection:
+            type: string
+            description: Collection identifier
+            example: default
+          metadata:
+            type: array
+            description: Metadata triples
+            items:
+              $ref: '../../common/Triple.yaml'
+      triples:
+        type: array
+        description: Knowledge triples
+        items:
+          $ref: '../../common/Triple.yaml'
+  graph-embeddings:
+    type: object
+    description: Graph embeddings to store (for put-kg-core)
+    required:
+      - metadata
+      - entities
+    properties:
+      metadata:
+        type: object
+        required:
+          - id
+          - user
+          - collection
+        properties:
+          id:
+            type: string
+            description: Knowledge core ID
+            example: core-123
+          user:
+            type: string
+            description: User identifier
+            example: alice
+          collection:
+            type: string
+            description: Collection identifier
+            example: default
+          metadata:
+            type: array
+            description: Metadata triples
+            items:
+              $ref: '../../common/Triple.yaml'
+      entities:
+        type: array
+        description: Entity embeddings
+        items:
+          type: object
+          required:
+            - entity
+            - vectors
+          properties:
+            entity:
+              $ref: '../../common/RdfValue.yaml'
+            vectors:
+              type: array
+              description: Embedding vectors
+              items:
+                type: number
+              example: [0.1, 0.2, 0.3]

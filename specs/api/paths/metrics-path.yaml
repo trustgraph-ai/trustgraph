@@ -1,0 +1,29 @@
+get:
+  tags:
+    - Metrics
+  summary: Metrics - Prometheus metrics with path
+  description: |
+    Proxy to Prometheus metrics with optional path parameter.
+
+  operationId: getMetricsPath
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: path
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Path to specific metrics endpoint
+      example: query
+  responses:
+    '200':
+      description: Prometheus metrics
+      content:
+        text/plain:
+          schema:
+            type: string
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../components/responses/Error.yaml'

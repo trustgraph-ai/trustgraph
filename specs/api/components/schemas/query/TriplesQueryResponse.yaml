@@ -1,0 +1,10 @@
+type: object
+description: Triples query response
+required:
+  - response
+properties:
+  response:
+    type: array
+    description: Matching triples
+    items:
+      $ref: '../../common/Triple.yaml'

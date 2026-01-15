@@ -1,0 +1,14 @@
+type: object
+description: RDF value - can be entity/URI or literal
+required:
+  - v
+  - e
+properties:
+  v:
+    type: string
+    description: Value (URI or literal text)
+    example: https://example.com/entity1
+  e:
+    type: boolean
+    description: True if entity/URI, false if literal
+    example: true

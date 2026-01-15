@@ -1,0 +1,12 @@
+type: http
+scheme: bearer
+description: |
+  Bearer token authentication.
+
+  Set via `GATEWAY_SECRET` environment variable on the gateway.
+  If `GATEWAY_SECRET` is not set, authentication is disabled (development mode).
+
+  Example:
+  ```
+  Authorization: Bearer your-secret-token
+  ```

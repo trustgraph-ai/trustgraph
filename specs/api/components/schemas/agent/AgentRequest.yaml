@@ -1,0 +1,59 @@
+type: object
+description: |
+  Agent service request - conversational AI agent that can reason and take actions.
+required:
+  - question
+properties:
+  question:
+    type: string
+    description: User question or prompt for the agent
+    example: What is the capital of France?
+  state:
+    type: string
+    description: Agent state for continuation (optional, for multi-turn)
+    example: agent-state-12345
+  group:
+    type: array
+    description: Group identifiers for collaborative agents (optional)
+    items:
+      type: string
+    example: ["research-team"]
+  history:
+    type: array
+    description: Conversation history (optional, list of previous agent steps)
+    items:
+      type: object
+      properties:
+        thought:
+          type: string
+          description: Agent's reasoning
+          example: I need to search for information about Paris
+        action:
+          type: string
+          description: Action taken
+          example: search
+        arguments:
+          type: object
+          description: Action arguments
+          additionalProperties:
+            type: string
+          example:
+            query: "capital of France"
+        observation:
+          type: string
+          description: Result of the action
+          example: "Paris is the capital of France"
+        user:
+          type: string
+          description: User context for this step
+          example: alice
+  user:
+    type: string
+    description: User identifier for multi-tenancy
+    default: trustgraph
+    example: alice
+  streaming:
+    type: boolean
+    description: Enable streaming response delivery
+    default: false
+    example: true

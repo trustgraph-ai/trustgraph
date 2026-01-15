@@ -1,0 +1,54 @@
+type: object
+description: Objects query response (GraphQL format)
+properties:
+  data:
+    description: GraphQL response data (JSON object or null)
+    oneOf:
+      - type: object
+        additionalProperties: {}
+      - type: "null"
+    example:
+      person:
+        name: Alice
+        email: alice@example.com
+        knows:
+          - name: Bob
+          - name: Carol
+  errors:
+    type: array
+    description: GraphQL field-level errors
+    items:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Error message
+          example: Cannot query field 'age' on type 'Person'
+        path:
+          type: array
+          description: Path to error location
+          items:
+            type: string
+          example: ["person", "age"]
+        extensions:
+          type: object
+          description: Additional error metadata
+          additionalProperties:
+            type: string
+  extensions:
+    type: object
+    description: Query metadata (execution time, etc.)
+    additionalProperties:
+      type: string
+    example:
+      execution_time_ms: "42"
+  error:
+    type: object
+    description: System-level error (connection, timeout, etc.)
+    properties:
+      type:
+        type: string
+        example: TIMEOUT_ERROR
+      message:
+        type: string
+        example: Query execution timeout

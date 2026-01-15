@@ -1,0 +1,49 @@
+type: object
+description: Configuration service response
+properties:
+  version:
+    type: integer
+    description: Configuration version number
+    example: 42
+  config:
+    type: object
+    description: Complete configuration (returned by 'config' operation)
+    additionalProperties: true
+    example:
+      flow:
+        default:
+          blueprint-name: document-rag+graph-rag
+          description: Default flow
+      prompt:
+        system: You are a helpful AI assistant
+      token-cost:
+        gpt-4:
+          prompt: 0.03
+          completion: 0.06
+  directory:
+    type: array
+    description: List of keys (returned by 'list' operation)
+    items:
+      type: string
+    example:
+      - default
+      - production
+      - my-flow
+  values:
+    type: array
+    description: Retrieved configuration values (returned by 'get' operation)
+    items:
+      type: object
+      properties:
+        type:
+          type: string
+          example: flow
+        key:
+          type: string
+          example: default
+        value:
+          type: object
+          additionalProperties: true
+          example:
+            blueprint-name: document-rag+graph-rag
+            description: Default flow

@@ -1,0 +1,54 @@
+type: object
+description: |
+  Graph RAG (Retrieval-Augmented Generation) query request.
+  Searches knowledge graph and generates answer using retrieved subgraph.
+required:
+  - query
+properties:
+  query:
+    type: string
+    description: User query or question
+    example: What connections exist between quantum physics and computer science?
+  user:
+    type: string
+    description: User identifier for multi-tenancy
+    default: trustgraph
+    example: alice
+  collection:
+    type: string
+    description: Collection to search within
+    default: default
+    example: research
+  entity-limit:
+    type: integer
+    description: Maximum number of entities to retrieve
+    default: 50
+    minimum: 1
+    maximum: 200
+    example: 30
+  triple-limit:
+    type: integer
+    description: Maximum number of triples to retrieve per entity
+    default: 30
+    minimum: 1
+    maximum: 100
+    example: 20
+  max-subgraph-size:
+    type: integer
+    description: Maximum total subgraph size (triples)
+    default: 1000
+    minimum: 10
+    maximum: 5000
+    example: 500
+  max-path-length:
+    type: integer
+    description: Maximum path length for graph traversal
+    default: 2
+    minimum: 1
+    maximum: 5
+    example: 3
+  streaming:
+    type: boolean
+    description: Enable streaming response delivery
+    default: false
+    example: true

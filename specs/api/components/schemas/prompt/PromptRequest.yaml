@@ -1,0 +1,32 @@
+type: object
+description: |
+  Prompt service request - template-based text generation.
+
+  Execute a stored prompt template with variable substitution.
+required:
+  - id
+properties:
+  id:
+    type: string
+    description: Prompt template ID (stored in config)
+    example: summarize-document
+  terms:
+    type: object
+    description: Template variables as key-value pairs (values are JSON strings)
+    additionalProperties:
+      type: string
+    example:
+      document: '"This is the document text to summarize..."'
+      max_length: '"200"'
+  variables:
+    type: object
+    description: Alternative to terms - variables as native JSON values (auto-converted)
+    additionalProperties: {}
+    example:
+      document: This is the document text to summarize...
+      max_length: 200
+  streaming:
+    type: boolean
+    description: Enable streaming response delivery
+    default: false
+    example: true

@@ -1,0 +1,25 @@
+type: object
+description: Processing metadata for library document processing
+properties:
+  flow:
+    type: string
+    description: Flow ID
+    example: my-flow
+  collection:
+    type: string
+    description: Collection identifier
+    example: default
+  status:
+    type: string
+    description: Processing status
+    enum: [pending, processing, completed, failed]
+    example: completed
+  timestamp:
+    type: string
+    format: date-time
+    description: Processing timestamp
+    example: "2024-01-15T10:30:00Z"
+  error:
+    type: string
+    description: Error message if processing failed
+    example: Failed to extract text from PDF

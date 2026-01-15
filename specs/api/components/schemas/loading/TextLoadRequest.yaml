@@ -1,0 +1,37 @@
+type: object
+description: |
+  Text load request - load text document into processing pipeline.
+
+  Fire-and-forget operation (no response).
+required:
+  - text
+properties:
+  text:
+    type: string
+    description: Text content (base64 encoded)
+    format: byte
+    example: VGhpcyBpcyB0aGUgZG9jdW1lbnQgdGV4dC4uLg==
+  id:
+    type: string
+    description: Document identifier
+    example: doc-123
+  user:
+    type: string
+    description: User identifier
+    default: trustgraph
+    example: alice
+  collection:
+    type: string
+    description: Collection for document
+    default: default
+    example: research
+  charset:
+    type: string
+    description: Text character encoding
+    default: utf-8
+    example: utf-8
+  metadata:
+    type: array
+    description: Document metadata as RDF triples
+    items:
+      $ref: '../../common/Triple.yaml'

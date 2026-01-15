@@ -1,0 +1,49 @@
+type: object
+description: Structured data diagnosis response
+required:
+  - operation
+properties:
+  operation:
+    type: string
+    description: Operation that was performed
+    example: diagnose
+  detected-type:
+    type: string
+    description: Detected data format (for detect-type/diagnose)
+    enum: [csv, json, xml]
+    example: csv
+  confidence:
+    type: number
+    description: Detection confidence score (0.0-1.0)
+    minimum: 0.0
+    maximum: 1.0
+    example: 0.95
+  descriptor:
+    type: object
+    description: Generated schema descriptor (for generate-descriptor/diagnose)
+    additionalProperties: {}
+    example:
+      schema_name: person-records
+      type: csv
+      fields:
+        - name: name
+          type: string
+        - name: age
+          type: integer
+        - name: email
+          type: string
+  metadata:
+    type: object
+    description: Additional analysis metadata
+    additionalProperties:
+      type: string
+    example:
+      field_count: "3"
+      record_count: "2"
+      has_header: "true"
+  schema-matches:
+    type: array
+    description: Matching schema IDs (for schema-selection)
+    items:
+      type: string
+    example: ["person-schema-v1", "contact-schema-v2"]

@@ -1,0 +1,119 @@
+post:
+  tags:
+    - Flow Services
+  summary: MCP Tool - execute Model Context Protocol tools
+  description: |
+    Execute MCP (Model Context Protocol) tools for agent capabilities.
+
+    ## MCP Tool Overview
+
+    MCP tools provide agent capabilities through standardized protocol:
+    - **Search tools**: Web search, document search
+    - **Data tools**: Database queries, API calls
+    - **Action tools**: File operations, system commands
+    - **Integration tools**: Third-party service connectors
+
+    Tools extend agent capabilities beyond pure LLM generation.
+
+    ## Tool Execution
+
+    Tools are:
+    1. Registered via MCP protocol
+    2. Discovered by agent
+    3. Called with structured parameters
+    4. Return text or structured results
+
+    ## Request Format
+
+    - **name**: Tool identifier (e.g., "search", "calculator", "weather")
+    - **parameters**: Tool-specific arguments as JSON object
+
+    ## Response Format
+
+    Tools can return:
+    - **text**: Plain text result (simple tools)
+    - **object**: Structured JSON result (complex tools)
+
+    ## Tool Registration
+
+    Tools are registered via MCP server configuration:
+    - Define tool schema (name, parameters, description)
+    - Implement tool handler
+    - Register with MCP server
+    - Agent discovers and uses tool
+
+    ## Use Cases
+
+    - **Web search**: Find external information
+    - **Calculator**: Perform calculations
+    - **Database query**: Retrieve structured data
+    - **API integration**: Call external services
+    - **File operations**: Read/write files
+    - **Code execution**: Run scripts
+
+  operationId: mcpToolService
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: flow
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Flow instance ID
+      example: my-flow
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas/mcp-tool/McpToolRequest.yaml'
+        examples:
+          searchTool:
+            summary: Search tool execution
+            value:
+              name: search
+              parameters:
+                query: quantum computing
+                limit: 10
+          calculatorTool:
+            summary: Calculator tool
+            value:
+              name: calculator
+              parameters:
+                expression: (42 * 7) + 15
+          weatherTool:
+            summary: Weather tool
+            value:
+              name: weather
+              parameters:
+                location: San Francisco
+                units: celsius
+  responses:
+    '200':
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/mcp-tool/McpToolResponse.yaml'
+          examples:
+            textResponse:
+              summary: Text result
+              value:
+                text: The result is 309
+            objectResponse:
+              summary: Structured result
+              value:
+                object:
+                  results:
+                    - title: Introduction to Quantum Computing
+                      url: https://example.com/qc-intro
+                      snippet: Quantum computing uses quantum mechanics...
+                    - title: Quantum Algorithms
+                      url: https://example.com/qc-algos
+                      snippet: Key algorithms include Shor's and Grover's...
+                  total: 10
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../../components/responses/Error.yaml'

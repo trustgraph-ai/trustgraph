@@ -1,0 +1,12 @@
+type: object
+description: Graph embeddings query response
+properties:
+  entities:
+    type: array
+    description: Similar entities (RDF values)
+    items:
+      $ref: '../../common/RdfValue.yaml'
+    example:
+      - {v: "https://example.com/person/alice", e: true}
+      - {v: "https://example.com/person/bob", e: true}
+      - {v: "https://example.com/concept/quantum", e: true}

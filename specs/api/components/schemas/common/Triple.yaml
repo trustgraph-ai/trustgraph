@@ -1,0 +1,29 @@
+type: object
+description: |
+  RDF triple representing a subject-predicate-object statement in the knowledge graph.
+
+  Example: (Person1) -[has name]-> ("John Doe")
+properties:
+  s:
+    $ref: './RdfValue.yaml'
+    description: Subject - the entity the statement is about
+  p:
+    $ref: './RdfValue.yaml'
+    description: Predicate - the property or relationship
+  o:
+    $ref: './RdfValue.yaml'
+    description: Object - the value or target entity
+required:
+  - s
+  - p
+  - o
+example:
+  s:
+    v: http://example.com/Person1
+    e: true
+  p:
+    v: http://schema.org/name
+    e: true
+  o:
+    v: John Doe
+    e: false

@@ -1,0 +1,29 @@
+type: object
+description: |
+  Document embeddings query request - find similar documents by vector similarity.
+required:
+  - vectors
+properties:
+  vectors:
+    type: array
+    description: Query embedding vector
+    items:
+      type: number
+    example: [0.023, -0.142, 0.089, 0.234, -0.067, 0.156]
+  limit:
+    type: integer
+    description: Maximum number of document chunks to return
+    default: 10
+    minimum: 1
+    maximum: 1000
+    example: 20
+  user:
+    type: string
+    description: User identifier
+    default: trustgraph
+    example: alice
+  collection:
+    type: string
+    description: Collection to search
+    default: default
+    example: research

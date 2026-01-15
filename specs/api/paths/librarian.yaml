@@ -1,0 +1,153 @@
+post:
+  tags:
+    - Librarian
+  summary: Document library management
+  description: |
+    Manage document library: add, remove, list documents, and control processing.
+
+    ## Document Library
+
+    The librarian service manages a persistent library of documents that can be:
+    - Added with metadata for organization
+    - Queried and filtered by criteria
+    - Processed through flows on-demand or continuously
+    - Tracked for processing status
+
+    ## Operations
+
+    ### add-document
+    Add a document to the library with metadata (URL, title, author, etc.).
+    Documents can be added by URL or with inline content.
+
+    ### remove-document
+    Remove a document from the library by document ID or URL.
+
+    ### list-documents
+    List all documents in the library, optionally filtered by criteria.
+
+    ### start-processing
+    Start processing library documents through a flow. Documents are queued
+    for processing and handled asynchronously.
+
+    ### stop-processing
+    Stop ongoing library document processing.
+
+    ### list-processing
+    List current processing tasks and their status.
+
+  operationId: librarianService
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/librarian/LibrarianRequest.yaml'
+        examples:
+          addDocumentByUrl:
+            summary: Add document by URL
+            value:
+              operation: add-document
+              flow: my-flow
+              collection: default
+              document-metadata:
+                url: https://example.com/document.pdf
+                title: Example Document
+                author: John Doe
+                metadata:
+                  department: Engineering
+                  category: Technical
+          addDocumentInline:
+            summary: Add document with inline content
+            value:
+              operation: add-document
+              flow: my-flow
+              collection: default
+              content: "This is the document content..."
+              document-metadata:
+                title: Inline Document
+                author: Jane Smith
+          removeDocument:
+            summary: Remove document
+            value:
+              operation: remove-document
+              flow: my-flow
+              collection: default
+              document-metadata:
+                url: https://example.com/document.pdf
+          listDocuments:
+            summary: List all documents
+            value:
+              operation: list-documents
+              flow: my-flow
+              collection: default
+          listDocumentsFiltered:
+            summary: List documents with criteria
+            value:
+              operation: list-documents
+              flow: my-flow
+              collection: default
+              criteria:
+                - key: author
+                  value: John Doe
+                  operator: eq
+                - key: department
+                  value: Engineering
+                  operator: eq
+          startProcessing:
+            summary: Start processing library documents
+            value:
+              operation: start-processing
+              flow: my-flow
+              collection: default
+          stopProcessing:
+            summary: Stop processing
+            value:
+              operation: stop-processing
+              flow: my-flow
+              collection: default
+          listProcessing:
+            summary: List processing status
+            value:
+              operation: list-processing
+              flow: my-flow
+              collection: default
+  responses:
+    '200':
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/librarian/LibrarianResponse.yaml'
+          examples:
+            listDocuments:
+              summary: List of documents
+              value:
+                document-metadatas:
+                  - url: https://example.com/doc1.pdf
+                    title: Document 1
+                    author: John Doe
+                    metadata:
+                      department: Engineering
+                  - url: https://example.com/doc2.pdf
+                    title: Document 2
+                    author: Jane Smith
+                    metadata:
+                      department: Research
+            listProcessing:
+              summary: Processing status
+              value:
+                processing-metadatas:
+                  - flow: my-flow
+                    collection: default
+                    status: processing
+                    timestamp: "2024-01-15T10:30:00Z"
+                  - flow: my-flow
+                    collection: default
+                    status: completed
+                    timestamp: "2024-01-15T10:25:00Z"
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../components/responses/Error.yaml'

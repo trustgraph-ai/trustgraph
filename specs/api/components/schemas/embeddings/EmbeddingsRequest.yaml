@@ -1,0 +1,10 @@
+type: object
+description: |
+  Embeddings request - convert text to vector embedding.
+required:
+  - text
+properties:
+  text:
+    type: string
+    description: Text to convert to embedding vector
+    example: Quantum computing uses quantum mechanics principles for computation.

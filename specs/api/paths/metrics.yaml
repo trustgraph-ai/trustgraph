@@ -1,0 +1,71 @@
+get:
+  tags:
+    - Metrics
+  summary: Metrics - Prometheus metrics endpoint
+  description: |
+    Proxy to Prometheus metrics for system monitoring.
+
+    ## Metrics Overview
+
+    Exposes system metrics via Prometheus format:
+    - **Gateway metrics**: Request rates, latencies, errors
+    - **Flow metrics**: Processing throughput, queue depths
+    - **System metrics**: Resource usage, health status
+
+    ## Prometheus Format
+
+    Returns metrics in Prometheus text exposition format:
+    ```
+    # HELP metric_name Description
+    # TYPE metric_name counter
+    metric_name{label="value"} 123.45
+    ```
+
+    ## Available Metrics
+
+    Common metrics include:
+    - Request count and rates
+    - Response times (histograms)
+    - Error rates
+    - Active connections
+    - Queue depths
+    - Processing latencies
+
+    ## Integration
+
+    Standard Prometheus scraping:
+    - Configure Prometheus to scrape `/api/metrics`
+    - Set appropriate scrape interval
+    - Use bearer token if authentication enabled
+
+    ## Path Parameter
+
+    The `{path}` parameter allows querying specific Prometheus endpoints
+    or metrics if the backend Prometheus supports it.
+
+  operationId: getMetrics
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Prometheus metrics
+      content:
+        text/plain:
+          schema:
+            type: string
+            example: |
+              # HELP http_requests_total Total HTTP requests
+              # TYPE http_requests_total counter
+              http_requests_total{method="POST",endpoint="/api/v1/flow/my-flow/service/agent"} 1234
+
+              # HELP http_request_duration_seconds HTTP request latency
+              # TYPE http_request_duration_seconds histogram
+              http_request_duration_seconds_bucket{le="0.1"} 500
+              http_request_duration_seconds_bucket{le="0.5"} 950
+              http_request_duration_seconds_bucket{le="1.0"} 990
+              http_request_duration_seconds_sum 450.5
+              http_request_duration_seconds_count 1000
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../components/responses/Error.yaml'
