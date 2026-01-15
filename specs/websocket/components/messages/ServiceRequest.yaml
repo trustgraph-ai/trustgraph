@@ -7,15 +7,16 @@ description: |
   The `request` field payload varies by service and matches the REST API request body schema.
 
 payload:
+  description: Service request envelope with id, service, optional flow, and service-specific request payload
   oneOf:
-    # Global services
+    # Global services (no flow parameter)
     - $ref: './requests/ConfigRequest.yaml'
     - $ref: './requests/FlowRequest.yaml'
     - $ref: './requests/LibrarianRequest.yaml'
     - $ref: './requests/KnowledgeRequest.yaml'
     - $ref: './requests/CollectionManagementRequest.yaml'
 
-    # Flow-hosted services
+    # Flow-hosted services (require flow parameter)
     - $ref: './requests/AgentRequest.yaml'
     - $ref: './requests/DocumentRagRequest.yaml'
     - $ref: './requests/GraphRagRequest.yaml'
