@@ -1,0 +1,8 @@
+name: user
+in: query
+required: false
+schema:
+  type: string
+  default: trustgraph
+description: User identifier
+example: alice

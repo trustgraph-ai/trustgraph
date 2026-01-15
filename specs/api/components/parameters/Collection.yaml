@@ -1,0 +1,8 @@
+name: collection
+in: query
+required: false
+schema:
+  type: string
+  default: default
+description: Collection identifier
+example: default

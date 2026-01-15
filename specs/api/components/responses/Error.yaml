@@ -1,0 +1,23 @@
+description: Error response
+content:
+  application/json:
+    schema:
+      type: object
+      properties:
+        error:
+          oneOf:
+            - type: string
+              description: Simple error message
+            - $ref: '../schemas/errors/ErrorObject.yaml'
+              description: Structured error with type and message
+    examples:
+      simpleError:
+        summary: Simple error message
+        value:
+          error: Invalid flow ID
+      structuredError:
+        summary: Structured error
+        value:
+          error:
+            type: gateway-error
+            message: Timeout
