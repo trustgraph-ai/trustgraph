@@ -91,12 +91,15 @@ npx @redocly/cli lint openapi.yaml
 **Using AsyncAPI (HTML)**:
 ```bash
 cd specs/websocket
-npx -p @asyncapi/cli asyncapi generate fromTemplate asyncapi.yaml @asyncapi/html-template@3.0.0 -o /tmp/asyncapi-build -p singleFile=true --force-write
+npx -p @asyncapi/cli asyncapi generate fromTemplate asyncapi.yaml @asyncapi/html-template@3.0.0 --use-new-generator -o /tmp/asyncapi-build -p singleFile=true --force-write
 mv /tmp/asyncapi-build/index.html ../../docs/websocket.html
 rm -rf /tmp/asyncapi-build
 ```
 
-Note: The generator must run from the `specs/websocket` directory to properly resolve relative `$ref` paths to OpenAPI schemas. The `-p singleFile=true` parameter generates a single standalone HTML file.
+Notes:
+- The generator must run from the `specs/websocket` directory to properly resolve relative `$ref` paths to OpenAPI schemas
+- `--use-new-generator` flag enables generator v2 compatibility
+- `-p singleFile=true` parameter generates a single standalone HTML file
 
 **Validate**:
 ```bash

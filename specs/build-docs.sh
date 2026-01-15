@@ -24,7 +24,7 @@ echo
 # Build WebSocket API documentation
 echo "Building WebSocket API documentation (AsyncAPI)..."
 cd ../websocket
-npx --yes -p @asyncapi/cli asyncapi generate fromTemplate asyncapi.yaml @asyncapi/html-template@3.0.0 -o /tmp/asyncapi-build -p singleFile=true --force-write
+npx --yes -p @asyncapi/cli asyncapi generate fromTemplate asyncapi.yaml @asyncapi/html-template@3.0.0 --use-new-generator -o /tmp/asyncapi-build -p singleFile=true --force-write
 mv /tmp/asyncapi-build/index.html ../../docs/websocket.html
 rm -rf /tmp/asyncapi-build
 echo "✓ WebSocket API docs generated: docs/websocket.html"
