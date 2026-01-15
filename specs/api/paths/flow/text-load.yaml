@@ -1,6 +1,6 @@
 post:
   tags:
-    - AI Services
+    - Flow Services
   summary: Text Load - load text documents
   description: |
     Load text documents into processing pipeline for indexing and embedding.

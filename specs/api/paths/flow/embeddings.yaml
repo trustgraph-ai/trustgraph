@@ -1,6 +1,6 @@
 post:
   tags:
-    - AI Services
+    - Flow Services
   summary: Embeddings - text to vector conversion
   description: |
     Convert text to embedding vectors for semantic similarity search.

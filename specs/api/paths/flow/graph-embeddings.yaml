@@ -1,6 +1,6 @@
 post:
   tags:
-    - AI Services
+    - Flow Services
   summary: Graph Embeddings Query - find similar entities
   description: |
     Query graph embeddings to find similar entities by vector similarity.

@@ -1,6 +1,6 @@
 post:
   tags:
-    - AI Services
+    - Flow Services
   summary: Structured Diag - analyze structured data formats
   description: |
     Analyze and understand structured data (CSV, JSON, XML).

@@ -1,6 +1,6 @@
 post:
   tags:
-    - AI Services
+    - Flow Services
   summary: Graph RAG - retrieve and generate from knowledge graph
   description: |
     Retrieval-Augmented Generation over knowledge graph.

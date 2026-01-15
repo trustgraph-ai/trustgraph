@@ -1,6 +1,6 @@
 post:
   tags:
-    - AI Services
+    - Flow Services
   summary: Triples query - pattern-based graph queries
   description: |
     Query knowledge graph using subject-predicate-object patterns.

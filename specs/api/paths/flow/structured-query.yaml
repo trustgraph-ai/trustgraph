@@ -1,6 +1,6 @@
 post:
   tags:
-    - AI Services
+    - Flow Services
   summary: Structured Query - question to results (all-in-one)
   description: |
     Ask natural language questions and get results directly.

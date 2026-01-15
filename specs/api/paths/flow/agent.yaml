@@ -1,6 +1,6 @@
 post:
   tags:
-    - AI Services
+    - Flow Services
   summary: Agent service - conversational AI with reasoning
   description: |
     AI agent that can understand questions, reason about them, and take actions.

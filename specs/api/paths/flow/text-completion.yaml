@@ -1,6 +1,6 @@
 post:
   tags:
-    - AI Services
+    - Flow Services
   summary: Text completion - direct LLM generation
   description: |
     Direct text completion using LLM without retrieval augmentation.
