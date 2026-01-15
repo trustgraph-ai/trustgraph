@@ -150,17 +150,23 @@ def document_function(name, func, indent=0):
         # Examples
         if parsed["examples"]:
             md.append(f"{ind}**Example:**\n")
-            # Check if examples already contain code fences
+
+            # Strip common leading whitespace from examples
+            import textwrap
             example_text = '\n'.join(parsed["examples"])
-            if '```' in example_text:
+            dedented = textwrap.dedent(example_text)
+            example_lines = dedented.split('\n')
+
+            # Check if examples already contain code fences
+            if '```' in dedented:
                 # Already has code fences, don't wrap
-                for line in parsed["examples"]:
+                for line in example_lines:
                     md.append(line.rstrip())
                 md.append("")
             else:
                 # No code fences, wrap in python block
                 md.append("```python")
-                for line in parsed["examples"]:
+                for line in example_lines:
                     md.append(line.rstrip())
                 md.append("```\n")
 
