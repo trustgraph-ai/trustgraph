@@ -1,0 +1,27 @@
+name: ServiceError
+title: Service Error Message
+summary: Error response from any TrustGraph service
+description: |
+  Error message sent when a service request fails.
+
+  Contains the request ID and error details.
+
+payload:
+  $ref: '../schemas/ErrorEnvelope.yaml'
+
+examples:
+  - name: Flow not found error
+    summary: Requested flow does not exist
+    payload:
+      id: req-2
+      error:
+        type: gateway-error
+        message: Flow 'my-flow' not found
+
+  - name: Service timeout error
+    summary: Service processing timeout
+    payload:
+      id: req-3
+      error:
+        type: timeout
+        message: Request exceeded 600s timeout

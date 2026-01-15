@@ -1,0 +1,26 @@
+type: object
+description: WebSocket request for objects service (flow-hosted service)
+required:
+  - id
+  - service
+  - flow
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: objects
+    description: Service identifier for objects service
+  flow:
+    type: string
+    description: Flow ID
+  request:
+    $ref: '../../../../api/components/schemas/query/ObjectsQueryRequest.yaml'
+examples:
+  - id: req-1
+    service: objects
+    flow: my-flow
+    request:
+      query: "{ entity(id: \"https://example.com/entity1\") { properties { key value } } }"

@@ -1,0 +1,28 @@
+type: object
+description: WebSocket request for agent service (flow-hosted service)
+required:
+  - id
+  - service
+  - flow
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: agent
+    description: Service identifier for agent service
+  flow:
+    type: string
+    description: Flow ID
+  request:
+    $ref: '../../../../api/components/schemas/agent/AgentRequest.yaml'
+examples:
+  - id: req-1
+    service: agent
+    flow: my-flow
+    request:
+      question: What is quantum computing?
+      streaming: true
+      system-prompt: You are a helpful assistant

@@ -1,0 +1,22 @@
+type: object
+description: WebSocket request for librarian service (global service)
+required:
+  - id
+  - service
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: librarian
+    description: Service identifier for librarian service
+  request:
+    $ref: '../../../../api/components/schemas/librarian/LibrarianRequest.yaml'
+examples:
+  - id: req-1
+    service: librarian
+    request:
+      operation: list
+      collection: default

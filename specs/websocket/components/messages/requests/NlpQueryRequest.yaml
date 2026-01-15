@@ -1,0 +1,27 @@
+type: object
+description: WebSocket request for nlp-query service (flow-hosted service)
+required:
+  - id
+  - service
+  - flow
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: nlp-query
+    description: Service identifier for nlp-query service
+  flow:
+    type: string
+    description: Flow ID
+  request:
+    $ref: '../../../../api/components/schemas/query/NlpQueryRequest.yaml'
+examples:
+  - id: req-1
+    service: nlp-query
+    flow: my-flow
+    request:
+      query: Show me all entities related to quantum computing
+      limit: 50

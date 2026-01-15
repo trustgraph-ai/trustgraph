@@ -1,0 +1,27 @@
+type: object
+description: WebSocket request for document-embeddings service (flow-hosted service)
+required:
+  - id
+  - service
+  - flow
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: document-embeddings
+    description: Service identifier for document-embeddings service
+  flow:
+    type: string
+    description: Flow ID
+  request:
+    $ref: '../../../../api/components/schemas/embeddings-query/DocumentEmbeddingsQueryRequest.yaml'
+examples:
+  - id: req-1
+    service: document-embeddings
+    flow: my-flow
+    request:
+      text: quantum computing
+      limit: 10

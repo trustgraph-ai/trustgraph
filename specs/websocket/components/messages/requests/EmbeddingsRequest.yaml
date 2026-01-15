@@ -1,0 +1,26 @@
+type: object
+description: WebSocket request for embeddings service (flow-hosted service)
+required:
+  - id
+  - service
+  - flow
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: embeddings
+    description: Service identifier for embeddings service
+  flow:
+    type: string
+    description: Flow ID
+  request:
+    $ref: '../../../../api/components/schemas/embeddings/EmbeddingsRequest.yaml'
+examples:
+  - id: req-1
+    service: embeddings
+    flow: my-flow
+    request:
+      text: What is quantum computing?

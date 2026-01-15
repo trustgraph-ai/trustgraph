@@ -1,0 +1,54 @@
+name: ServiceRequest
+title: Service Request Message
+summary: Request message for any TrustGraph service
+description: |
+  Generic request message that can invoke any TrustGraph service.
+
+  The `request` field payload varies by service and matches the REST API request body schema.
+
+payload:
+  oneOf:
+    # Global services
+    - $ref: './requests/ConfigRequest.yaml'
+    - $ref: './requests/FlowRequest.yaml'
+    - $ref: './requests/LibrarianRequest.yaml'
+    - $ref: './requests/KnowledgeRequest.yaml'
+    - $ref: './requests/CollectionManagementRequest.yaml'
+
+    # Flow-hosted services
+    - $ref: './requests/AgentRequest.yaml'
+    - $ref: './requests/DocumentRagRequest.yaml'
+    - $ref: './requests/GraphRagRequest.yaml'
+    - $ref: './requests/TextCompletionRequest.yaml'
+    - $ref: './requests/PromptRequest.yaml'
+    - $ref: './requests/EmbeddingsRequest.yaml'
+    - $ref: './requests/McpToolRequest.yaml'
+    - $ref: './requests/TriplesRequest.yaml'
+    - $ref: './requests/ObjectsRequest.yaml'
+    - $ref: './requests/NlpQueryRequest.yaml'
+    - $ref: './requests/StructuredQueryRequest.yaml'
+    - $ref: './requests/StructuredDiagRequest.yaml'
+    - $ref: './requests/GraphEmbeddingsRequest.yaml'
+    - $ref: './requests/DocumentEmbeddingsRequest.yaml'
+    - $ref: './requests/TextLoadRequest.yaml'
+    - $ref: './requests/DocumentLoadRequest.yaml'
+
+examples:
+  - name: Config service request
+    summary: List all flow configurations
+    payload:
+      id: req-1
+      service: config
+      request:
+        operation: list
+        type: flow
+
+  - name: Agent service request
+    summary: Ask question to agent
+    payload:
+      id: req-2
+      service: agent
+      flow: my-flow
+      request:
+        question: What is quantum computing?
+        streaming: true

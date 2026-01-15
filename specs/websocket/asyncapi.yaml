@@ -1,0 +1,87 @@
+asyncapi: 3.0.0
+
+info:
+  title: TrustGraph WebSocket API
+  version: 1.8.0
+  description: |
+    WebSocket API for TrustGraph - providing multiplexed, asynchronous access to all services.
+
+    ## Overview
+
+    The WebSocket API provides access to all TrustGraph services over a single persistent connection:
+    - **Multiplexed**: Multiple concurrent requests with ID-based correlation
+    - **Asynchronous**: Non-blocking request/response pattern
+    - **Efficient**: Lower overhead than HTTP REST
+    - **Streaming**: Real-time progressive responses
+
+    ## Protocol Summary
+
+    All messages are JSON with:
+    - `id`: Client-generated unique identifier for request/response correlation
+    - `service`: Service identifier (e.g., "config", "agent", "document-rag")
+    - `flow`: Optional flow ID for flow-hosted services
+    - `request`/`response`: Service-specific payload (identical to REST API schemas)
+    - `error`: Error information on failure
+
+    ## Service Types
+
+    **Global Services** (no `flow` parameter):
+    - config, flow, librarian, knowledge, collection-management
+
+    **Flow-Hosted Services** (require `flow` parameter):
+    - agent, text-completion, prompt, document-rag, graph-rag
+    - embeddings, graph-embeddings, document-embeddings
+    - triples, objects, nlp-query, structured-query, structured-diag
+    - text-load, document-load, mcp-tool
+
+    ## Schema Reuse
+
+    Request and response payloads use identical schemas to the REST API.
+    See OpenAPI specification for detailed schema documentation.
+
+  contact:
+    name: TrustGraph Project
+    url: https://trustgraph.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  production:
+    host: localhost:8088
+    protocol: ws
+    description: Local development WebSocket server
+    security:
+      - $ref: '#/components/securitySchemes/bearerAuth'
+
+defaultContentType: application/json
+
+channels:
+  socket:
+    $ref: './channels/socket.yaml'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: httpApiKey
+      name: token
+      in: query
+      description: |
+        Bearer token authentication when GATEWAY_SECRET is configured.
+        Include as query parameter: ws://localhost:8088/api/v1/socket?token=<token>
+
+  messages:
+    ServiceRequest:
+      $ref: './components/messages/ServiceRequest.yaml'
+    ServiceResponse:
+      $ref: './components/messages/ServiceResponse.yaml'
+    ServiceError:
+      $ref: './components/messages/ServiceError.yaml'
+
+  schemas:
+    RequestEnvelope:
+      $ref: './components/schemas/RequestEnvelope.yaml'
+    ResponseEnvelope:
+      $ref: './components/schemas/ResponseEnvelope.yaml'
+    ErrorEnvelope:
+      $ref: './components/schemas/ErrorEnvelope.yaml'

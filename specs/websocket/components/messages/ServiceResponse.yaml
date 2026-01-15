@@ -1,0 +1,32 @@
+name: ServiceResponse
+title: Service Response Message
+summary: Successful response from any TrustGraph service
+description: |
+  Generic response message from any TrustGraph service.
+
+  The `response` field payload varies by service and matches the REST API response body schema.
+
+  For streaming services, multiple messages with the same `id` may be sent.
+
+payload:
+  $ref: '../schemas/ResponseEnvelope.yaml'
+
+examples:
+  - name: Config service response
+    summary: List of flow configurations
+    payload:
+      id: req-1
+      response:
+        type: flow
+        keys:
+          - my-flow
+          - production-flow
+
+  - name: Agent streaming response
+    summary: Agent answer chunk
+    payload:
+      id: req-2
+      response:
+        chunk-type: answer
+        content: Quantum computing uses quantum mechanical phenomena...
+        end-of-stream: false
