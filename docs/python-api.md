@@ -141,17 +141,17 @@ Initialize the TrustGraph API client.
 
 **Example:**
 
-    ```python
-    # Local development
-    api = Api()
+```python
+# Local development
+api = Api()
 
-    # Production with authentication
-    api = Api(
-        url="https://trustgraph.example.com/",
-        timeout=120,
-        token="your-api-token"
-    )
-    ```
+# Production with authentication
+api = Api(
+    url="https://trustgraph.example.com/",
+    timeout=120,
+    token="your-api-token"
+)
+```
 
 ### `aclose(self)`
 
@@ -162,18 +162,18 @@ It is automatically called when exiting an async context manager.
 
 **Example:**
 
-    ```python
-    api = Api()
+```python
+api = Api()
+async_socket = api.async_socket()
+# ... use async_socket
+await api.aclose()  # Clean up connections
+
+# Or use async context manager (automatic cleanup)
+async with Api() as api:
     async_socket = api.async_socket()
     # ... use async_socket
-    await api.aclose()  # Clean up connections
-
-    # Or use async context manager (automatic cleanup)
-    async with Api() as api:
-        async_socket = api.async_socket()
-        # ... use async_socket
-    # Automatically closed
-    ```
+# Automatically closed
+```
 
 ### `async_bulk(self)`
 
@@ -186,23 +186,23 @@ for efficient handling of large datasets.
 
 **Example:**
 
-    ```python
-    async_bulk = api.async_bulk()
+```python
+async_bulk = api.async_bulk()
 
-    # Export triples asynchronously
-    async for triple in async_bulk.export_triples(flow="default"):
-        print(f"{triple.s} {triple.p} {triple.o}")
+# Export triples asynchronously
+async for triple in async_bulk.export_triples(flow="default"):
+    print(f"{triple.s} {triple.p} {triple.o}")
 
-    # Import with async generator
-    async def triple_gen():
-        yield Triple(s="subj", p="pred", o="obj")
-        # ... more triples
+# Import with async generator
+async def triple_gen():
+    yield Triple(s="subj", p="pred", o="obj")
+    # ... more triples
 
-    await async_bulk.import_triples(
-        flow="default",
-        triples=triple_gen()
-    )
-    ```
+await async_bulk.import_triples(
+    flow="default",
+    triples=triple_gen()
+)
+```
 
 ### `async_flow(self)`
 
@@ -215,19 +215,19 @@ for async Python applications and frameworks (FastAPI, aiohttp, etc.).
 
 **Example:**
 
-    ```python
-    async_flow = api.async_flow()
+```python
+async_flow = api.async_flow()
 
-    # List flows
-    flow_ids = await async_flow.list()
+# List flows
+flow_ids = await async_flow.list()
 
-    # Execute operations
-    instance = async_flow.id("default")
-    result = await instance.text_completion(
-        system="You are helpful",
-        prompt="Hello"
-    )
-    ```
+# Execute operations
+instance = async_flow.id("default")
+result = await instance.text_completion(
+    system="You are helpful",
+    prompt="Hello"
+)
+```
 
 ### `async_metrics(self)`
 
@@ -239,11 +239,11 @@ Provides async/await style access to Prometheus metrics.
 
 **Example:**
 
-    ```python
-    async_metrics = api.async_metrics()
-    prometheus_text = await async_metrics.get()
-    print(prometheus_text)
-    ```
+```python
+async_metrics = api.async_metrics()
+prometheus_text = await async_metrics.get()
+print(prometheus_text)
+```
 
 ### `async_socket(self)`
 
@@ -256,19 +256,19 @@ This is the preferred method for async streaming in Python.
 
 **Example:**
 
-    ```python
-    async_socket = api.async_socket()
-    flow = async_socket.flow("default")
+```python
+async_socket = api.async_socket()
+flow = async_socket.flow("default")
 
-    # Stream agent responses
-    async for chunk in flow.agent(
-        question="Explain quantum computing",
-        user="trustgraph",
-        streaming=True
-    ):
-        if hasattr(chunk, 'content'):
-            print(chunk.content, end='', flush=True)
-    ```
+# Stream agent responses
+async for chunk in flow.agent(
+    question="Explain quantum computing",
+    user="trustgraph",
+    streaming=True
+):
+    if hasattr(chunk, 'content'):
+        print(chunk.content, end='', flush=True)
+```
 
 ### `bulk(self)`
 
@@ -281,20 +281,20 @@ connections, including triples, embeddings, entity contexts, and objects.
 
 **Example:**
 
-    ```python
-    bulk = api.bulk()
+```python
+bulk = api.bulk()
 
-    # Export triples
-    for triple in bulk.export_triples(flow="default"):
-        print(f"{triple.s} {triple.p} {triple.o}")
+# Export triples
+for triple in bulk.export_triples(flow="default"):
+    print(f"{triple.s} {triple.p} {triple.o}")
 
-    # Import triples
-    def triple_generator():
-        yield Triple(s="subj", p="pred", o="obj")
-        # ... more triples
+# Import triples
+def triple_generator():
+    yield Triple(s="subj", p="pred", o="obj")
+    # ... more triples
 
-    bulk.import_triples(flow="default", triples=triple_generator())
-    ```
+bulk.import_triples(flow="default", triples=triple_generator())
+```
 
 ### `close(self)`
 
@@ -305,18 +305,18 @@ It is automatically called when exiting a context manager.
 
 **Example:**
 
-    ```python
-    api = Api()
+```python
+api = Api()
+socket = api.socket()
+# ... use socket
+api.close()  # Clean up connections
+
+# Or use context manager (automatic cleanup)
+with Api() as api:
     socket = api.socket()
     # ... use socket
-    api.close()  # Clean up connections
-
-    # Or use context manager (automatic cleanup)
-    with Api() as api:
-        socket = api.socket()
-        # ... use socket
-    # Automatically closed
-    ```
+# Automatically closed
+```
 
 ### `collection(self)`
 
@@ -329,20 +329,20 @@ logical groupings for isolation and access control.
 
 **Example:**
 
-    ```python
-    collection = api.collection()
+```python
+collection = api.collection()
 
-    # List collections
-    colls = collection.list_collections(user="trustgraph")
+# List collections
+colls = collection.list_collections(user="trustgraph")
 
-    # Update collection metadata
-    collection.update_collection(
-        user="trustgraph",
-        collection="default",
-        name="Default Collection",
-        description="Main data collection"
-    )
-    ```
+# Update collection metadata
+collection.update_collection(
+    user="trustgraph",
+    collection="default",
+    name="Default Collection",
+    description="Main data collection"
+)
+```
 
 ### `config(self)`
 
@@ -352,15 +352,15 @@ Get a Config client for managing configuration settings.
 
 **Example:**
 
-    ```python
-    config = api.config()
+```python
+config = api.config()
 
-    # Get configuration values
-    values = config.get([ConfigKey(type="llm", key="model")])
+# Get configuration values
+values = config.get([ConfigKey(type="llm", key="model")])
 
-    # Set configuration
-    config.put([ConfigValue(type="llm", key="model", value="gpt-4")])
-    ```
+# Set configuration
+config.put([ConfigValue(type="llm", key="model", value="gpt-4")])
+```
 
 ### `flow(self)`
 
@@ -373,19 +373,19 @@ services like agents, RAG queries, embeddings, and document processing.
 
 **Example:**
 
-    ```python
-    flow_client = api.flow()
+```python
+flow_client = api.flow()
 
-    # List available blueprints
-    blueprints = flow_client.list_blueprints()
+# List available blueprints
+blueprints = flow_client.list_blueprints()
 
-    # Get a specific flow instance
-    flow_instance = flow_client.id("default")
-    response = flow_instance.text_completion(
-        system="You are helpful",
-        prompt="Hello"
-    )
-    ```
+# Get a specific flow instance
+flow_instance = flow_client.id("default")
+response = flow_instance.text_completion(
+    system="You are helpful",
+    prompt="Hello"
+)
+```
 
 ### `knowledge(self)`
 
@@ -395,15 +395,15 @@ Get a Knowledge client for managing knowledge graph cores.
 
 **Example:**
 
-    ```python
-    knowledge = api.knowledge()
+```python
+knowledge = api.knowledge()
 
-    # List available KG cores
-    cores = knowledge.list_kg_cores(user="trustgraph")
+# List available KG cores
+cores = knowledge.list_kg_cores(user="trustgraph")
 
-    # Load a KG core
-    knowledge.load_kg_core(id="core-123", user="trustgraph")
-    ```
+# Load a KG core
+knowledge.load_kg_core(id="core-123", user="trustgraph")
+```
 
 ### `library(self)`
 
@@ -416,22 +416,22 @@ processing workflow coordination.
 
 **Example:**
 
-    ```python
-    library = api.library()
+```python
+library = api.library()
 
-    # Add a document
-    library.add_document(
-        document=b"Document content",
-        id="doc-123",
-        metadata=[],
-        user="trustgraph",
-        title="My Document",
-        comments="Test document"
-    )
+# Add a document
+library.add_document(
+    document=b"Document content",
+    id="doc-123",
+    metadata=[],
+    user="trustgraph",
+    title="My Document",
+    comments="Test document"
+)
 
-    # List documents
-    docs = library.get_documents(user="trustgraph")
-    ```
+# List documents
+docs = library.get_documents(user="trustgraph")
+```
 
 ### `metrics(self)`
 
@@ -444,11 +444,11 @@ for monitoring and observability.
 
 **Example:**
 
-    ```python
-    metrics = api.metrics()
-    prometheus_text = metrics.get()
-    print(prometheus_text)
-    ```
+```python
+metrics = api.metrics()
+prometheus_text = metrics.get()
+print(prometheus_text)
+```
 
 ### `request(self, path, request)`
 
@@ -471,11 +471,11 @@ API access when needed.
 
 **Example:**
 
-    ```python
-    response = api.request("flow", {
-        "operation": "list-flows"
-    })
-    ```
+```python
+response = api.request("flow", {
+    "operation": "list-flows"
+})
+```
 
 ### `socket(self)`
 
@@ -489,19 +489,19 @@ synchronous wrapper around the WebSocket protocol.
 
 **Example:**
 
-    ```python
-    socket = api.socket()
-    flow = socket.flow("default")
+```python
+socket = api.socket()
+flow = socket.flow("default")
 
-    # Stream agent responses
-    for chunk in flow.agent(
-        question="Explain quantum computing",
-        user="trustgraph",
-        streaming=True
-    ):
-        if hasattr(chunk, 'content'):
-            print(chunk.content, end='', flush=True)
-    ```
+# Stream agent responses
+for chunk in flow.agent(
+    question="Explain quantum computing",
+    user="trustgraph",
+    streaming=True
+):
+    if hasattr(chunk, 'content'):
+        print(chunk.content, end='', flush=True)
+```
 
 
 ---
@@ -539,9 +539,9 @@ Delete a flow blueprint.
 
 **Example:**
 
-    ```python
-    api.flow().delete_blueprint("old-blueprint")
-    ```
+```python
+api.flow().delete_blueprint("old-blueprint")
+```
 
 ### `get(self, id)`
 
@@ -555,10 +555,10 @@ Get the definition of a running flow instance.
 
 **Example:**
 
-    ```python
-    flow_def = api.flow().get("default")
-    print(flow_def)
-    ```
+```python
+flow_def = api.flow().get("default")
+print(flow_def)
+```
 
 ### `get_blueprint(self, blueprint_name)`
 
@@ -572,10 +572,10 @@ Get a flow blueprint definition by name.
 
 **Example:**
 
-    ```python
-    blueprint = api.flow().get_blueprint("default")
-    print(blueprint)  # Blueprint configuration
-    ```
+```python
+blueprint = api.flow().get_blueprint("default")
+print(blueprint)  # Blueprint configuration
+```
 
 ### `id(self, id='default')`
 
@@ -589,13 +589,13 @@ Get a FlowInstance for executing operations on a specific flow.
 
 **Example:**
 
-    ```python
-    flow = api.flow().id("my-flow")
-    response = flow.text_completion(
-        system="You are helpful",
-        prompt="Hello"
-    )
-    ```
+```python
+flow = api.flow().id("my-flow")
+response = flow.text_completion(
+    system="You are helpful",
+    prompt="Hello"
+)
+```
 
 ### `list(self)`
 
@@ -605,10 +605,10 @@ List all active flow instances.
 
 **Example:**
 
-    ```python
-    flows = api.flow().list()
-    print(flows)  # ['default', 'flow-1', 'flow-2', ...]
-    ```
+```python
+flows = api.flow().list()
+print(flows)  # ['default', 'flow-1', 'flow-2', ...]
+```
 
 ### `list_blueprints(self)`
 
@@ -618,10 +618,10 @@ List all available flow blueprints.
 
 **Example:**
 
-    ```python
-    blueprints = api.flow().list_blueprints()
-    print(blueprints)  # ['default', 'custom-flow', ...]
-    ```
+```python
+blueprints = api.flow().list_blueprints()
+print(blueprints)  # ['default', 'custom-flow', ...]
+```
 
 ### `put_blueprint(self, blueprint_name, definition)`
 
@@ -634,13 +634,13 @@ Create or update a flow blueprint.
 
 **Example:**
 
-    ```python
-    definition = {
-        "services": ["text-completion", "graph-rag"],
-        "parameters": {"model": "gpt-4"}
-    }
-    api.flow().put_blueprint("my-blueprint", definition)
-    ```
+```python
+definition = {
+    "services": ["text-completion", "graph-rag"],
+    "parameters": {"model": "gpt-4"}
+}
+api.flow().put_blueprint("my-blueprint", definition)
+```
 
 ### `request(self, path=None, request=None)`
 
@@ -670,14 +670,14 @@ Start a new flow instance from a blueprint.
 
 **Example:**
 
-    ```python
-    api.flow().start(
-        blueprint_name="default",
-        id="my-flow",
-        description="My custom flow",
-        parameters={"model": "gpt-4"}
-    )
-    ```
+```python
+api.flow().start(
+    blueprint_name="default",
+    id="my-flow",
+    description="My custom flow",
+    parameters={"model": "gpt-4"}
+)
+```
 
 ### `stop(self, id)`
 
@@ -689,9 +689,9 @@ Stop a running flow instance.
 
 **Example:**
 
-    ```python
-    api.flow().stop("my-flow")
-    ```
+```python
+api.flow().stop("my-flow")
+```
 
 
 ---
@@ -747,26 +747,26 @@ state across interactions. This is a synchronous non-streaming version.
 
 **Example:**
 
-    ```python
-    flow = api.flow().id("default")
+```python
+flow = api.flow().id("default")
 
-    # Simple question
-    answer = flow.agent(
-        question="What is the capital of France?",
-        user="trustgraph"
-    )
+# Simple question
+answer = flow.agent(
+    question="What is the capital of France?",
+    user="trustgraph"
+)
 
-    # With conversation history
-    history = [
-        {"role": "user", "content": "Hello"},
-        {"role": "assistant", "content": "Hi! How can I help?"}
-    ]
-    answer = flow.agent(
-        question="Tell me about Paris",
-        user="trustgraph",
-        history=history
-    )
-    ```
+# With conversation history
+history = [
+    {"role": "user", "content": "Hello"},
+    {"role": "assistant", "content": "Hi! How can I help?"}
+]
+answer = flow.agent(
+    question="Tell me about Paris",
+    user="trustgraph",
+    history=history
+)
+```
 
 ### `detect_type(self, sample)`
 
@@ -808,16 +808,16 @@ then generates a response using an LLM with those chunks as context.
 
 **Example:**
 
-    ```python
-    flow = api.flow().id("default")
-    response = flow.document_rag(
-        query="Summarize the key findings",
-        user="trustgraph",
-        collection="research-papers",
-        doc_limit=5
-    )
-    print(response)
-    ```
+```python
+flow = api.flow().id("default")
+response = flow.document_rag(
+    query="Summarize the key findings",
+    user="trustgraph",
+    collection="research-papers",
+    doc_limit=5
+)
+print(response)
+```
 
 ### `embeddings(self, text)`
 
@@ -834,11 +834,11 @@ search and similarity comparison.
 
 **Example:**
 
-    ```python
-    flow = api.flow().id("default")
-    vectors = flow.embeddings("quantum computing")
-    print(f"Embedding dimension: {len(vectors)}")
-    ```
+```python
+flow = api.flow().id("default")
+vectors = flow.embeddings("quantum computing")
+print(f"Embedding dimension: {len(vectors)}")
+```
 
 ### `generate_descriptor(self, sample, data_type, schema_name, options=None)`
 
@@ -871,15 +871,15 @@ similar to the input text, using vector embeddings.
 
 **Example:**
 
-    ```python
-    flow = api.flow().id("default")
-    results = flow.graph_embeddings_query(
-        text="physicist who discovered radioactivity",
-        user="trustgraph",
-        collection="scientists",
-        limit=5
-    )
-    ```
+```python
+flow = api.flow().id("default")
+results = flow.graph_embeddings_query(
+    text="physicist who discovered radioactivity",
+    user="trustgraph",
+    collection="scientists",
+    limit=5
+)
+```
 
 ### `graph_rag(self, query, user='trustgraph', collection='default', entity_limit=50, triple_limit=30, max_subgraph_size=150, max_path_length=2)`
 
@@ -902,17 +902,17 @@ traversing entity relationships, then generates a response using an LLM.
 
 **Example:**
 
-    ```python
-    flow = api.flow().id("default")
-    response = flow.graph_rag(
-        query="Tell me about Marie Curie's discoveries",
-        user="trustgraph",
-        collection="scientists",
-        entity_limit=20,
-        max_path_length=3
-    )
-    print(response)
-    ```
+```python
+flow = api.flow().id("default")
+response = flow.graph_rag(
+    query="Tell me about Marie Curie's discoveries",
+    user="trustgraph",
+    collection="scientists",
+    entity_limit=20,
+    max_path_length=3
+)
+print(response)
+```
 
 ### `load_document(self, document, id=None, metadata=None, user=None, collection=None)`
 
@@ -937,18 +937,18 @@ processing through the flow's document pipeline.
 
 **Example:**
 
-    ```python
-    flow = api.flow().id("default")
+```python
+flow = api.flow().id("default")
 
-    # Load a PDF document
-    with open("research.pdf", "rb") as f:
-        result = flow.load_document(
-            document=f.read(),
-            id="research-001",
-            user="trustgraph",
-            collection="papers"
-        )
-    ```
+# Load a PDF document
+with open("research.pdf", "rb") as f:
+    result = flow.load_document(
+        document=f.read(),
+        id="research-001",
+        user="trustgraph",
+        collection="papers"
+    )
+```
 
 ### `load_text(self, text, id=None, metadata=None, charset='utf-8', user=None, collection=None)`
 
@@ -974,19 +974,19 @@ text pipeline.
 
 **Example:**
 
-    ```python
-    flow = api.flow().id("default")
+```python
+flow = api.flow().id("default")
 
-    # Load text content
-    text_content = b"This is the document content..."
-    result = flow.load_text(
-        text=text_content,
-        id="text-001",
-        charset="utf-8",
-        user="trustgraph",
-        collection="documents"
-    )
-    ```
+# Load text content
+text_content = b"This is the document content..."
+result = flow.load_text(
+    text=text_content,
+    id="text-001",
+    charset="utf-8",
+    user="trustgraph",
+    collection="documents"
+)
+```
 
 ### `mcp_tool(self, name, parameters={})`
 
@@ -1008,15 +1008,15 @@ allowing integration with external systems and services.
 
 **Example:**
 
-    ```python
-    flow = api.flow().id("default")
+```python
+flow = api.flow().id("default")
 
-    # Execute a tool
-    result = flow.mcp_tool(
-        name="search-web",
-        parameters={"query": "latest AI news", "limit": 5}
-    )
-    ```
+# Execute a tool
+result = flow.mcp_tool(
+    name="search-web",
+    parameters={"query": "latest AI news", "limit": 5}
+)
+```
 
 ### `nlp_query(self, question, max_results=100)`
 
@@ -1052,39 +1052,39 @@ with filtering, aggregation, and relationship traversal.
 
 **Example:**
 
-    ```python
-    flow = api.flow().id("default")
+```python
+flow = api.flow().id("default")
 
-    # Simple query
-    query = '''
-    {
-      scientists(limit: 10) {
-        name
-        field
-        discoveries
-      }
-    }
-    '''
-    result = flow.objects_query(
-        query=query,
-        user="trustgraph",
-        collection="scientists"
-    )
+# Simple query
+query = '''
+{
+  scientists(limit: 10) {
+    name
+    field
+    discoveries
+  }
+}
+'''
+result = flow.objects_query(
+    query=query,
+    user="trustgraph",
+    collection="scientists"
+)
 
-    # Query with variables
-    query = '''
-    query GetScientist($name: String!) {
-      scientists(name: $name) {
-        name
-        nobelPrizes
-      }
-    }
-    '''
-    result = flow.objects_query(
-        query=query,
-        variables={"name": "Marie Curie"}
-    )
-    ```
+# Query with variables
+query = '''
+query GetScientist($name: String!) {
+  scientists(name: $name) {
+    name
+    nobelPrizes
+  }
+}
+'''
+result = flow.objects_query(
+    query=query,
+    variables={"name": "Marie Curie"}
+)
+```
 
 ### `prompt(self, id, variables)`
 
@@ -1106,21 +1106,21 @@ substitution, useful for consistent prompt engineering.
 
 **Example:**
 
-    ```python
-    flow = api.flow().id("default")
+```python
+flow = api.flow().id("default")
 
-    # Text template
-    result = flow.prompt(
-        id="summarize-template",
-        variables={"topic": "quantum computing", "length": "brief"}
-    )
+# Text template
+result = flow.prompt(
+    id="summarize-template",
+    variables={"topic": "quantum computing", "length": "brief"}
+)
 
-    # Structured template
-    result = flow.prompt(
-        id="extract-entities",
-        variables={"text": "Marie Curie won Nobel Prizes"}
-    )
-    ```
+# Structured template
+result = flow.prompt(
+    id="extract-entities",
+    variables={"text": "Marie Curie won Nobel Prizes"}
+)
+```
 
 ### `request(self, path, request)`
 
@@ -1170,14 +1170,14 @@ Execute text completion using the flow's LLM.
 
 **Example:**
 
-    ```python
-    flow = api.flow().id("default")
-    response = flow.text_completion(
-        system="You are a helpful assistant",
-        prompt="What is quantum computing?"
-    )
-    print(response)
-    ```
+```python
+flow = api.flow().id("default")
+response = flow.text_completion(
+    system="You are a helpful assistant",
+    prompt="What is quantum computing?"
+)
+print(response)
+```
 
 ### `triples_query(self, s=None, p=None, o=None, user=None, collection=None, limit=10000)`
 
@@ -1203,24 +1203,24 @@ object patterns. Unspecified parameters act as wildcards.
 
 **Example:**
 
-    ```python
-    from trustgraph.knowledge import Uri, Literal
+```python
+from trustgraph.knowledge import Uri, Literal
 
-    flow = api.flow().id("default")
+flow = api.flow().id("default")
 
-    # Find all triples about a specific subject
-    triples = flow.triples_query(
-        s=Uri("http://example.org/person/marie-curie"),
-        user="trustgraph",
-        collection="scientists"
-    )
+# Find all triples about a specific subject
+triples = flow.triples_query(
+    s=Uri("http://example.org/person/marie-curie"),
+    user="trustgraph",
+    collection="scientists"
+)
 
-    # Find all instances of a specific relationship
-    triples = flow.triples_query(
-        p=Uri("http://example.org/ontology/discovered"),
-        limit=100
-    )
-    ```
+# Find all instances of a specific relationship
+triples = flow.triples_query(
+    p=Uri("http://example.org/ontology/discovered"),
+    limit=100
+)
+```
 
 
 ---
