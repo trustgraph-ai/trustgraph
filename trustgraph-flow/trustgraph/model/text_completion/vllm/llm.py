@@ -75,7 +75,7 @@ class Processor(LlmService):
 
         try:
 
-            url = f"{self.base_url}/completions"
+            url = f"{self.base_url.rstrip('/')}/completions"
 
             async with self.session.post(
                     url,
@@ -138,7 +138,7 @@ class Processor(LlmService):
         }
 
         try:
-            url = f"{self.base_url}/completions"
+            url = f"{self.base_url.rstrip('/')}/completions"
 
             async with self.session.post(
                     url,
