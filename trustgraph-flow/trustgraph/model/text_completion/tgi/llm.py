@@ -83,7 +83,7 @@ class Processor(LlmService):
 
         try:
 
-            url = f"{self.base_url}/chat/completions"
+            url = f"{self.base_url.rstrip('/')}/chat/completions"
 
             async with self.session.post(
                     url,
@@ -155,7 +155,7 @@ class Processor(LlmService):
         }
 
         try:
-            url = f"{self.base_url}/chat/completions"
+            url = f"{self.base_url.rstrip('/')}/chat/completions"
 
             async with self.session.post(
                     url,

@@ -40,7 +40,7 @@ class Processor(LlmService):
         )
 
         self.default_model = model
-        self.url = url + "v1/"
+        self.url = url.rstrip('/') + "/v1/"
         self.temperature = temperature
         self.max_output = max_output
         self.openai = OpenAI(
