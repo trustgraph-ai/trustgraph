@@ -54,13 +54,13 @@ Deploy anywhere. Own your data. Control your AI stack.
 - **High Throughput Data Streaming**
 - **Fully Containerized**
 
+## What is a Context Graph?
+
+[![What is a Context Graph?](https://img.youtube.com/vi/gZjlt5WcWB4/maxresdefault.jpg)](https://www.youtube.com/watch?v=gZjlt5WcWB4) 
+
 ## Why TrustGraph?
 
 [![Why TrustGraph?](https://img.youtube.com/vi/Norboj8YP2M/maxresdefault.jpg)](https://www.youtube.com/watch?v=Norboj8YP2M)
-
-## Agentic MCP Demo
-
-[![Agentic MCP Demo](https://img.youtube.com/vi/mUCL1b1lmbA/maxresdefault.jpg)](https://www.youtube.com/watch?v=mUCL1b1lmbA)
 
 ## Getting Started
 
@@ -111,7 +111,7 @@ There are 3 libraries for quick UI integration of TrustGraph services.
 
 ## Context Cores
 
-A challenge facing GraphRAG architectures is the ability to reuse and remove datasets from agent workflows. TrustGraph can store the data ingest process as reusable Context Cores. Context cores can be loaded and removed during runtime. Some sample knowledge cores are [here](https://github.com/trustgraph-ai/catalog/tree/master/v3).
+A challenge facing GraphRAG architectures is the ability to reuse and remove context from agent workflows. TrustGraph can build modular and reusable Context Cores. Context cores can be loaded and removed during runtime. Some sample context cores are [here](https://github.com/trustgraph-ai/catalog/tree/master/v3).
 
 A Context Core has two components:
 
@@ -148,6 +148,16 @@ TrustGraph provides component flexibility to optimize agent workflows.
 
 </details>
 <details>
+<summary>Graph Storage</summary>
+<br>
+
+- Apache Cassandra (default)<br>
+- Neo4j<br>
+- Memgraph<br>
+- FalkorDB<br>
+
+</details>
+<details>
 <summary>VectorDBs</summary>
 <br>
 
@@ -157,13 +167,11 @@ TrustGraph provides component flexibility to optimize agent workflows.
 
 </details>
 <details>
-<summary>Graph Storage</summary>
+<summary>File and Object Storage</summary>
 <br>
 
-- Apache Cassandra (default)<br>
-- Neo4j<br>
-- Memgraph<br>
-- FalkorDB<br>
+- Garage (default)<br>
+- MinIO<br>
 
 </details>
 <details>
