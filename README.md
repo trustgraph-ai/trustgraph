@@ -24,11 +24,11 @@ Deploy anywhere. Own your data. Control your AI stack.
 <br>
 
 - [**Key Features**](#key-features)<br>
+- [**What is a Context Graph?**](#what-is-a-context-graph)<br>
 - [**Why TrustGraph?**](#why-trustgraph)<br>
-- [**Agentic MCP Demo**](#agentic-mcp-demo)<br>
 - [**Getting Started**](#getting-started)<br>
 - [**Configuration Builder**](#configuration-builder)<br>
-- [**Knowledge Cores**](#knowledge-cores)<br>
+- [**Context Cores**](#context-cores)<br>
 - [**Integrations**](#integrations)<br>
 - [**Observability & Telemetry**](#observability--telemetry)<br>
 - [**Contributing**](#contributing)<br>
