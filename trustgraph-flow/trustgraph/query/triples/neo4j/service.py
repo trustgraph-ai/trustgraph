@@ -71,7 +71,8 @@ class Processor(TriplesQueryService):
                             "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
                             "[rel:Rel {uri: $rel, user: $user, collection: $collection}]->"
                             "(dest:Literal {value: $value, user: $user, collection: $collection}) "
-                            "RETURN $src as src",
+                            "RETURN $src as src "
+                            "LIMIT " + str(query.limit),
                             src=query.s.value, rel=query.p.value, value=query.o.value,
                             user=user, collection=collection,
                             database_=self.db,
@@ -84,7 +85,8 @@ class Processor(TriplesQueryService):
                             "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
                             "[rel:Rel {uri: $rel, user: $user, collection: $collection}]->"
                             "(dest:Node {uri: $uri, user: $user, collection: $collection}) "
-                            "RETURN $src as src",
+                            "RETURN $src as src "
+                            "LIMIT " + str(query.limit),
                             src=query.s.value, rel=query.p.value, uri=query.o.value,
                             user=user, collection=collection,
                             database_=self.db,
@@ -101,7 +103,8 @@ class Processor(TriplesQueryService):
                             "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
                             "[rel:Rel {uri: $rel, user: $user, collection: $collection}]->"
                             "(dest:Literal {user: $user, collection: $collection}) "
-                            "RETURN dest.value as dest",
+                            "RETURN dest.value as dest "
+                            "LIMIT " + str(query.limit),
                             src=query.s.value, rel=query.p.value,
                             user=user, collection=collection,
                             database_=self.db,
@@ -115,7 +118,8 @@ class Processor(TriplesQueryService):
                             "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
                             "[rel:Rel {uri: $rel, user: $user, collection: $collection}]->"
                             "(dest:Node {user: $user, collection: $collection}) "
-                            "RETURN dest.uri as dest",
+                            "RETURN dest.uri as dest "
+                            "LIMIT " + str(query.limit),
                             src=query.s.value, rel=query.p.value,
                             user=user, collection=collection,
                             database_=self.db,
@@ -135,7 +139,8 @@ class Processor(TriplesQueryService):
                             "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
                             "[rel:Rel {user: $user, collection: $collection}]->"
                             "(dest:Literal {value: $value, user: $user, collection: $collection}) "
-                            "RETURN rel.uri as rel",
+                            "RETURN rel.uri as rel "
+                            "LIMIT " + str(query.limit),
                             src=query.s.value, value=query.o.value,
                             user=user, collection=collection,
                             database_=self.db,
@@ -149,7 +154,8 @@ class Processor(TriplesQueryService):
                             "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
                             "[rel:Rel {user: $user, collection: $collection}]->"
                             "(dest:Node {uri: $uri, user: $user, collection: $collection}) "
-                            "RETURN rel.uri as rel",
+                            "RETURN rel.uri as rel "
+                            "LIMIT " + str(query.limit),
                             src=query.s.value, uri=query.o.value,
                             user=user, collection=collection,
                             database_=self.db,
@@ -167,7 +173,8 @@ class Processor(TriplesQueryService):
                             "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
                             "[rel:Rel {user: $user, collection: $collection}]->"
                             "(dest:Literal {user: $user, collection: $collection}) "
-                            "RETURN rel.uri as rel, dest.value as dest",
+                            "RETURN rel.uri as rel, dest.value as dest "
+                            "LIMIT " + str(query.limit),
                             src=query.s.value,
                             user=user, collection=collection,
                             database_=self.db,
@@ -181,7 +188,8 @@ class Processor(TriplesQueryService):
                             "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
                             "[rel:Rel {user: $user, collection: $collection}]->"
                             "(dest:Node {user: $user, collection: $collection}) "
-                            "RETURN rel.uri as rel, dest.uri as dest",
+                            "RETURN rel.uri as rel, dest.uri as dest "
+                            "LIMIT " + str(query.limit),
                             src=query.s.value,
                             user=user, collection=collection,
                             database_=self.db,
@@ -204,7 +212,8 @@ class Processor(TriplesQueryService):
                             "MATCH (src:Node {user: $user, collection: $collection})-"
                             "[rel:Rel {uri: $uri, user: $user, collection: $collection}]->"
                             "(dest:Literal {value: $value, user: $user, collection: $collection}) "
-                            "RETURN src.uri as src",
+                            "RETURN src.uri as src "
+                            "LIMIT " + str(query.limit),
                             uri=query.p.value, value=query.o.value,
                             user=user, collection=collection,
                             database_=self.db,
@@ -218,7 +227,8 @@ class Processor(TriplesQueryService):
                             "MATCH (src:Node {user: $user, collection: $collection})-"
                             "[rel:Rel {uri: $uri, user: $user, collection: $collection}]->"
                             "(dest:Node {uri: $dest, user: $user, collection: $collection}) "
-                            "RETURN src.uri as src",
+                            "RETURN src.uri as src "
+                            "LIMIT " + str(query.limit),
                             uri=query.p.value, dest=query.o.value,
                             user=user, collection=collection,
                             database_=self.db,
@@ -236,7 +246,8 @@ class Processor(TriplesQueryService):
                             "MATCH (src:Node {user: $user, collection: $collection})-"
                             "[rel:Rel {uri: $uri, user: $user, collection: $collection}]->"
                             "(dest:Literal {user: $user, collection: $collection}) "
-                            "RETURN src.uri as src, dest.value as dest",
+                            "RETURN src.uri as src, dest.value as dest "
+                            "LIMIT " + str(query.limit),
                             uri=query.p.value,
                             user=user, collection=collection,
                             database_=self.db,
@@ -250,7 +261,8 @@ class Processor(TriplesQueryService):
                             "MATCH (src:Node {user: $user, collection: $collection})-"
                             "[rel:Rel {uri: $uri, user: $user, collection: $collection}]->"
                             "(dest:Node {user: $user, collection: $collection}) "
-                            "RETURN src.uri as src, dest.uri as dest",
+                            "RETURN src.uri as src, dest.uri as dest "
+                            "LIMIT " + str(query.limit),
                             uri=query.p.value,
                             user=user, collection=collection,
                             database_=self.db,
@@ -270,7 +282,8 @@ class Processor(TriplesQueryService):
                             "MATCH (src:Node {user: $user, collection: $collection})-"
                             "[rel:Rel {user: $user, collection: $collection}]->"
                             "(dest:Literal {value: $value, user: $user, collection: $collection}) "
-                            "RETURN src.uri as src, rel.uri as rel",
+                            "RETURN src.uri as src, rel.uri as rel "
+                            "LIMIT " + str(query.limit),
                             value=query.o.value,
                             user=user, collection=collection,
                             database_=self.db,
@@ -284,7 +297,8 @@ class Processor(TriplesQueryService):
                             "MATCH (src:Node {user: $user, collection: $collection})-"
                             "[rel:Rel {user: $user, collection: $collection}]->"
                             "(dest:Node {uri: $uri, user: $user, collection: $collection}) "
-                            "RETURN src.uri as src, rel.uri as rel",
+                            "RETURN src.uri as src, rel.uri as rel "
+                            "LIMIT " + str(query.limit),
                             uri=query.o.value,
                             user=user, collection=collection,
                             database_=self.db,
@@ -302,7 +316,8 @@ class Processor(TriplesQueryService):
                             "MATCH (src:Node {user: $user, collection: $collection})-"
                             "[rel:Rel {user: $user, collection: $collection}]->"
                             "(dest:Literal {user: $user, collection: $collection}) "
-                            "RETURN src.uri as src, rel.uri as rel, dest.value as dest",
+                            "RETURN src.uri as src, rel.uri as rel, dest.value as dest "
+                            "LIMIT " + str(query.limit),
                             user=user, collection=collection,
                             database_=self.db,
                         )
@@ -315,7 +330,8 @@ class Processor(TriplesQueryService):
                             "MATCH (src:Node {user: $user, collection: $collection})-"
                             "[rel:Rel {user: $user, collection: $collection}]->"
                             "(dest:Node {user: $user, collection: $collection}) "
-                            "RETURN src.uri as src, rel.uri as rel, dest.uri as dest",
+                            "RETURN src.uri as src, rel.uri as rel, dest.uri as dest "
+                            "LIMIT " + str(query.limit),
                             user=user, collection=collection,
                             database_=self.db,
                         )
@@ -327,10 +343,10 @@ class Processor(TriplesQueryService):
             triples = [
                 Triple(
                     s=self.create_value(t[0]),
-                    p=self.create_value(t[1]), 
+                    p=self.create_value(t[1]),
                     o=self.create_value(t[2])
                 )
-                for t in triples
+                for t in triples[:query.limit]
             ]
 
             return triples
