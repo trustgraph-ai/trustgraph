@@ -113,6 +113,74 @@ A Term can represent:
   - A language tag
 - **Quoted Triple** - A triple used as a term (RDF 1.2)
 
+##### Chosen Approach: Single Class with Type Discriminator
+
+Serialization requirements drive the structure - a type discriminator is needed
+in the wire format regardless of the Python representation. A single class with
+a type field is the natural fit and aligns with the current `Value` pattern.
+
+Single-character type codes provide compact serialization:
+
+```python
+from dataclasses import dataclass
+
+# Term type constants
+IRI = "i"      # IRI/URI node
+BLANK = "b"    # Blank node
+LITERAL = "l"  # Literal value
+TRIPLE = "t"   # Quoted triple (RDF-star)
+
+@dataclass
+class Term:
+    type: str = ""  # One of: IRI, BLANK, LITERAL, TRIPLE
+
+    # For IRI terms (type == IRI)
+    iri: str = ""
+
+    # For blank nodes (type == BLANK)
+    id: str = ""
+
+    # For literals (type == LITERAL)
+    value: str = ""
+    datatype: str = ""   # XSD datatype URI (mutually exclusive with language)
+    language: str = ""   # Language tag (mutually exclusive with datatype)
+
+    # For quoted triples (type == TRIPLE)
+    triple: "Triple | None" = None
+```
+
+Usage examples:
+
+```python
+# IRI term
+node = Term(type=IRI, iri="http://example.org/Alice")
+
+# Literal with datatype
+age = Term(type=LITERAL, value="42", datatype="xsd:integer")
+
+# Literal with language tag
+label = Term(type=LITERAL, value="Hello", language="en")
+
+# Blank node
+anon = Term(type=BLANK, id="_:b1")
+
+# Quoted triple (statement about a statement)
+inner = Triple(
+    s=Term(type=IRI, iri="http://example.org/Alice"),
+    p=Term(type=IRI, iri="http://example.org/knows"),
+    o=Term(type=IRI, iri="http://example.org/Bob"),
+)
+reified = Term(type=TRIPLE, triple=inner)
+```
+
+##### Alternatives Considered
+
+**Option B: Union of specialized classes** (`Term = IRI | BlankNode | Literal | QuotedTriple`)
+- Rejected: Serialization would still need a type discriminator, adding complexity
+
+**Option C: Base class with subclasses**
+- Rejected: Same serialization issue, plus dataclass inheritance quirks
+
 #### Triple / Quad
 
 The `Triple` class may need restructuring to:
