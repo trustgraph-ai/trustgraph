@@ -49,8 +49,17 @@ class ExtractionResult:
 def parse_extraction_response(response: Any) -> Optional[ExtractionResult]:
     """Parse LLM extraction response into structured format.
 
+    Supports two formats:
+    1. JSONL format (list): Flat list of objects with 'type' discriminator field
+       [{"type": "entity", ...}, {"type": "relationship", ...}, {"type": "attribute", ...}]
+    2. Legacy format (dict): Nested structure with separate arrays
+       {"entities": [...], "relationships": [...], "attributes": [...]}
+
     Args:
-        response: LLM response (string JSON or already parsed dict)
+        response: LLM response - can be:
+            - string (JSON to parse)
+            - dict (legacy nested format)
+            - list (JSONL format - flat list with type discriminators)
 
     Returns:
         ExtractionResult with parsed entities/relationships/attributes,
@@ -64,17 +73,89 @@ def parse_extraction_response(response: Any) -> Optional[ExtractionResult]:
             logger.error(f"Failed to parse JSON response: {e}")
             logger.debug(f"Response was: {response[:500]}")
             return None
-    elif isinstance(response, dict):
+    elif isinstance(response, (dict, list)):
         data = response
     else:
         logger.error(f"Unexpected response type: {type(response)}")
         return None
 
-    # Validate structure
-    if not isinstance(data, dict):
-        logger.error(f"Expected dict, got {type(data)}")
-        return None
+    # Handle JSONL format (flat list with type discriminators)
+    if isinstance(data, list):
+        return parse_jsonl_format(data)
 
+    # Handle legacy format (nested dict)
+    if isinstance(data, dict):
+        return parse_legacy_format(data)
+
+    logger.error(f"Expected dict or list, got {type(data)}")
+    return None
+
+
+def parse_jsonl_format(data: List[Dict[str, Any]]) -> ExtractionResult:
+    """Parse JSONL format response (flat list with type discriminators).
+
+    Each item has a 'type' field: 'entity', 'relationship', or 'attribute'.
+
+    Args:
+        data: List of dicts with type discriminator
+
+    Returns:
+        ExtractionResult with categorized items
+    """
+    entities = []
+    relationships = []
+    attributes = []
+
+    for item in data:
+        if not isinstance(item, dict):
+            logger.warning(f"Skipping non-dict item: {type(item)}")
+            continue
+
+        item_type = item.get('type')
+
+        if item_type == 'entity':
+            try:
+                entity = parse_entity_jsonl(item)
+                if entity:
+                    entities.append(entity)
+            except Exception as e:
+                logger.warning(f"Failed to parse entity {item}: {e}")
+
+        elif item_type == 'relationship':
+            try:
+                relationship = parse_relationship(item)
+                if relationship:
+                    relationships.append(relationship)
+            except Exception as e:
+                logger.warning(f"Failed to parse relationship {item}: {e}")
+
+        elif item_type == 'attribute':
+            try:
+                attribute = parse_attribute(item)
+                if attribute:
+                    attributes.append(attribute)
+            except Exception as e:
+                logger.warning(f"Failed to parse attribute {item}: {e}")
+
+        else:
+            logger.warning(f"Unknown item type '{item_type}': {item}")
+
+    return ExtractionResult(
+        entities=entities,
+        relationships=relationships,
+        attributes=attributes
+    )
+
+
+def parse_legacy_format(data: Dict[str, Any]) -> ExtractionResult:
+    """Parse legacy format response (nested dict with arrays).
+
+    Args:
+        data: Dict with 'entities', 'relationships', 'attributes' arrays
+
+    Returns:
+        ExtractionResult with parsed items
+    """
     # Parse entities
     entities = []
     entities_data = data.get('entities', [])
@@ -125,6 +206,37 @@ def parse_extraction_response(response: Any) -> Optional[ExtractionResult]:
         relationships=relationships,
         attributes=attributes
     )
+
+
+def parse_entity_jsonl(data: Dict[str, Any]) -> Optional[Entity]:
+    """Parse entity from JSONL format dict.
+
+    JSONL format uses 'entity_type' instead of 'type' for the entity's type
+    (since 'type' is the discriminator field).
+
+    Args:
+        data: Entity dict with 'entity' and 'entity_type' fields
+
+    Returns:
+        Entity object or None if invalid
+    """
+    if not isinstance(data, dict):
+        logger.warning(f"Entity data is not a dict: {type(data)}")
+        return None
+
+    entity = data.get('entity')
+    # JSONL format uses 'entity_type' since 'type' is the discriminator
+    entity_type = data.get('entity_type')
+
+    if not entity or not entity_type:
+        logger.warning(f"Missing required fields in entity: {data}")
+        return None
+
+    if not isinstance(entity, str) or not isinstance(entity_type, str):
+        logger.warning(f"Entity fields must be strings: {data}")
+        return None
+
+    return Entity(entity=entity, type=entity_type)
 
 
 def parse_entity(data: Dict[str, Any]) -> Optional[Entity]:

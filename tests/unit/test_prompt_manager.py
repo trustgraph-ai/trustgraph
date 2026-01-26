@@ -339,7 +339,250 @@ class TestPromptManager:
         """Test PromptManager with minimal configuration"""
         pm = PromptManager()
         pm.load_config({})  # Empty config
-        
+
         assert pm.config.system_template == "Be helpful."  # Default system
         assert pm.terms == {}  # Default empty terms
         assert len(pm.prompts) == 0
+
+
+@pytest.mark.unit
+class TestPromptManagerJsonl:
+    """Unit tests for PromptManager JSONL functionality"""
+
+    @pytest.fixture
+    def jsonl_config(self):
+        """Configuration with JSONL response type prompts"""
+        return {
+            "system": json.dumps("You are an extraction assistant."),
+            "template-index": json.dumps(["extract_simple", "extract_with_schema", "extract_mixed"]),
+            "template.extract_simple": json.dumps({
+                "prompt": "Extract entities from: {{ text }}",
+                "response-type": "jsonl"
+            }),
+            "template.extract_with_schema": json.dumps({
+                "prompt": "Extract definitions from: {{ text }}",
+                "response-type": "jsonl",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "entity": {"type": "string"},
+                        "definition": {"type": "string"}
+                    },
+                    "required": ["entity", "definition"]
+                }
+            }),
+            "template.extract_mixed": json.dumps({
+                "prompt": "Extract knowledge from: {{ text }}",
+                "response-type": "jsonl",
+                "schema": {
+                    "oneOf": [
+                        {
+                            "type": "object",
+                            "properties": {
+                                "type": {"const": "definition"},
+                                "entity": {"type": "string"},
+                                "definition": {"type": "string"}
+                            },
+                            "required": ["type", "entity", "definition"]
+                        },
+                        {
+                            "type": "object",
+                            "properties": {
+                                "type": {"const": "relationship"},
+                                "subject": {"type": "string"},
+                                "predicate": {"type": "string"},
+                                "object": {"type": "string"}
+                            },
+                            "required": ["type", "subject", "predicate", "object"]
+                        }
+                    ]
+                }
+            })
+        }
+
+    @pytest.fixture
+    def prompt_manager(self, jsonl_config):
+        """Create a PromptManager with JSONL configuration"""
+        pm = PromptManager()
+        pm.load_config(jsonl_config)
+        return pm
+
+    def test_parse_jsonl_basic(self, prompt_manager):
+        """Test basic JSONL parsing"""
+        text = '{"entity": "cat", "definition": "A small furry animal"}\n{"entity": "dog", "definition": "A loyal pet"}'
+
+        result = prompt_manager.parse_jsonl(text)
+
+        assert len(result) == 2
+        assert result[0]["entity"] == "cat"
+        assert result[1]["entity"] == "dog"
+
+    def test_parse_jsonl_with_empty_lines(self, prompt_manager):
+        """Test JSONL parsing skips empty lines"""
+        text = '{"entity": "cat"}\n\n\n{"entity": "dog"}\n'
+
+        result = prompt_manager.parse_jsonl(text)
+
+        assert len(result) == 2
+
+    def test_parse_jsonl_with_markdown_fences(self, prompt_manager):
+        """Test JSONL parsing strips markdown code fences"""
+        text = '''```json
+{"entity": "cat", "definition": "A furry animal"}
+{"entity": "dog", "definition": "A loyal pet"}
+```'''
+
+        result = prompt_manager.parse_jsonl(text)
+
+        assert len(result) == 2
+        assert result[0]["entity"] == "cat"
+        assert result[1]["entity"] == "dog"
+
+    def test_parse_jsonl_with_jsonl_fence(self, prompt_manager):
+        """Test JSONL parsing strips jsonl-marked code fences"""
+        text = '''```jsonl
+{"entity": "cat"}
+{"entity": "dog"}
+```'''
+
+        result = prompt_manager.parse_jsonl(text)
+
+        assert len(result) == 2
+
+    def test_parse_jsonl_truncation_resilience(self, prompt_manager):
+        """Test JSONL parsing handles truncated final line"""
+        text = '{"entity": "cat", "definition": "Complete"}\n{"entity": "dog", "defi'
+
+        result = prompt_manager.parse_jsonl(text)
+
+        # Should get the first valid object, skip the truncated one
+        assert len(result) == 1
+        assert result[0]["entity"] == "cat"
+
+    def test_parse_jsonl_invalid_lines_skipped(self, prompt_manager):
+        """Test JSONL parsing skips invalid JSON lines"""
+        text = '''{"entity": "valid1"}
+not json at all
+{"entity": "valid2"}
+{broken json
+{"entity": "valid3"}'''
+
+        result = prompt_manager.parse_jsonl(text)
+
+        assert len(result) == 3
+        assert result[0]["entity"] == "valid1"
+        assert result[1]["entity"] == "valid2"
+        assert result[2]["entity"] == "valid3"
+
+    def test_parse_jsonl_empty_input(self, prompt_manager):
+        """Test JSONL parsing with empty input"""
+        result = prompt_manager.parse_jsonl("")
+        assert result == []
+
+        result = prompt_manager.parse_jsonl("\n\n\n")
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_invoke_jsonl_response(self, prompt_manager):
+        """Test invoking a prompt with JSONL response"""
+        mock_llm = AsyncMock()
+        mock_llm.return_value = '{"entity": "photosynthesis", "definition": "Plant process"}\n{"entity": "mitosis", "definition": "Cell division"}'
+
+        result = await prompt_manager.invoke(
+            "extract_simple",
+            {"text": "Biology text"},
+            mock_llm
+        )
+
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0]["entity"] == "photosynthesis"
+        assert result[1]["entity"] == "mitosis"
+
+    @pytest.mark.asyncio
+    async def test_invoke_jsonl_with_schema_validation(self, prompt_manager):
+        """Test JSONL response with schema validation"""
+        mock_llm = AsyncMock()
+        mock_llm.return_value = '{"entity": "cat", "definition": "A pet"}\n{"entity": "dog", "definition": "Another pet"}'
+
+        result = await prompt_manager.invoke(
+            "extract_with_schema",
+            {"text": "Animal text"},
+            mock_llm
+        )
+
+        assert len(result) == 2
+        assert all("entity" in obj and "definition" in obj for obj in result)
+
+    @pytest.mark.asyncio
+    async def test_invoke_jsonl_schema_filters_invalid(self, prompt_manager):
+        """Test JSONL schema validation filters out invalid objects"""
+        mock_llm = AsyncMock()
+        # Second object is missing required 'definition' field
+        mock_llm.return_value = '{"entity": "valid", "definition": "Has both fields"}\n{"entity": "invalid_missing_definition"}\n{"entity": "also_valid", "definition": "Complete"}'
+
+        result = await prompt_manager.invoke(
+            "extract_with_schema",
+            {"text": "Test text"},
+            mock_llm
+        )
+
+        # Only the two valid objects should be returned
+        assert len(result) == 2
+        assert result[0]["entity"] == "valid"
+        assert result[1]["entity"] == "also_valid"
+
+    @pytest.mark.asyncio
+    async def test_invoke_jsonl_mixed_types(self, prompt_manager):
+        """Test JSONL with discriminated union schema (oneOf)"""
+        mock_llm = AsyncMock()
+        mock_llm.return_value = '''{"type": "definition", "entity": "DNA", "definition": "Genetic material"}
+{"type": "relationship", "subject": "DNA", "predicate": "found_in", "object": "nucleus"}
+{"type": "definition", "entity": "RNA", "definition": "Messenger molecule"}'''
+
+        result = await prompt_manager.invoke(
+            "extract_mixed",
+            {"text": "Biology text"},
+            mock_llm
+        )
+
+        assert len(result) == 3
+
+        # Check definitions
+        definitions = [r for r in result if r.get("type") == "definition"]
+        assert len(definitions) == 2
+
+        # Check relationships
+        relationships = [r for r in result if r.get("type") == "relationship"]
+        assert len(relationships) == 1
+        assert relationships[0]["subject"] == "DNA"
+
+    @pytest.mark.asyncio
+    async def test_invoke_jsonl_empty_result(self, prompt_manager):
+        """Test JSONL response that yields no valid objects"""
+        mock_llm = AsyncMock()
+        mock_llm.return_value = "No JSON here at all"
+
+        result = await prompt_manager.invoke(
+            "extract_simple",
+            {"text": "Test"},
+            mock_llm
+        )
+
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_invoke_jsonl_without_schema(self, prompt_manager):
+        """Test JSONL response without schema validation"""
+        mock_llm = AsyncMock()
+        mock_llm.return_value = '{"any": "structure"}\n{"completely": "different"}'
+
+        result = await prompt_manager.invoke(
+            "extract_simple",
+            {"text": "Test"},
+            mock_llm
+        )
+
+        assert len(result) == 2
+        assert result[0] == {"any": "structure"}
+        assert result[1] == {"completely": "different"}
