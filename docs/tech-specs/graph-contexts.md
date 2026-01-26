@@ -4,7 +4,16 @@
 
 This specification describes changes to TrustGraph's core graph primitives to
 align with RDF 1.2 and support full RDF Dataset semantics. This is a breaking
-change for version 2.0.
+change for the 2.x release series.
+
+### Versioning
+
+- **2.0**: Early adopter release. Core features available, may not be fully
+  production-ready.
+- **2.1 / 2.2**: Production release. Stability and completeness validated.
+
+Flexibility on maturity is intentional - early adopters can access new
+capabilities before all features are production-hardened.
 
 ## Goals
 
@@ -284,11 +293,71 @@ O: < 0.5                                # numeric comparison
 
 ### Architecture
 
-TODO: Detail the component changes required.
+Significant changes required across multiple components:
+
+#### This Repository (trustgraph)
+
+- **Schema primitives** (`trustgraph-base/trustgraph/schema/core/primitives.py`)
+  - Value → Term rename
+  - New Term structure with type discriminator
+  - Triple gains `g` field for graph context
+
+- **Message translators** (`trustgraph-base/trustgraph/messaging/translators/`)
+  - Update for new Term/Triple structures
+  - Serialization/deserialization for new fields
+
+- **Gateway components**
+  - Handle new Term and quad structures
+
+- **Knowledge cores**
+  - Core changes to support quads and reification
+
+- **Knowledge manager**
+  - Schema changes propagate here
+
+- **Storage layers**
+  - Cassandra: Schema redesign (see Implementation Details)
+  - Other backends: Deferred to later phases
+
+- **Command-line utilities**
+  - Update for new data structures
+
+- **REST API documentation**
+  - OpenAPI spec updates
+
+#### External Repositories
+
+- **Python API** (this repo)
+  - Client library updates for new structures
+
+- **TypeScript APIs** (separate repo)
+  - Client library updates
+
+- **Workbench** (separate repo)
+  - Significant state management changes
 
 ### APIs
 
-TODO: Document API changes.
+#### REST API
+
+- Documented in OpenAPI spec
+- Will need updates for new Term/Triple structures
+- New endpoints may be needed for graph context operations
+
+#### Python API (this repo)
+
+- Client library changes to match new primitives
+- Breaking changes to Term (was Value) and Triple
+
+#### TypeScript API (separate repo)
+
+- Parallel changes to Python API
+- Separate release coordination
+
+#### Workbench (separate repo)
+
+- Significant state management changes
+- UI updates for graph context features
 
 ### Implementation Details
 
@@ -300,6 +369,7 @@ will proceed in phases:
 1. **Phase 1: Cassandra**
    - Start with the home-grown Cassandra store
    - Full control over the storage layer enables rapid iteration
+   - Schema will be redesigned from scratch for quads + reification
    - Validate the data model and query patterns against real use cases
 
 2. **Phase 2+: Other Backends**
@@ -328,7 +398,9 @@ TODO: Consider access control implications of named graphs.
 
 ## Testing Strategy
 
-TODO: Define testing approach.
+Use existing test strategy. As this is a breaking change, extensive focus on
+the end-to-end test suite to validate the new structures work correctly across
+all components.
 
 ## Migration Plan
 
