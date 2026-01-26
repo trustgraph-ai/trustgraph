@@ -504,9 +504,10 @@ all components.
   skolemization strategy (generate IRIs on load, or preserve blank node IDs).
 - **Query syntax**: What is the concrete syntax for specifying quoted triples
   in queries? Need to define the query API.
-- **Predicate vocabulary**: What predicates will be used for temporal,
-  provenance, and veracity metadata? (e.g., `discoveredOn`, `supportedBy`,
-  `assertedTrueBy` - are these standard or custom?)
+- ~~**Predicate vocabulary**~~: Resolved. Any valid RDF predicates permitted,
+  including custom user-defined. Minimal assumptions about RDF validity.
+  Very few locked-in values (e.g., `rdfs:label` used in some places).
+  Strategy: avoid locking anything in unless absolutely necessary.
 - ~~**Vector store impact**~~: Resolved. Vector stores always point to IRIs
   only - never edges, literals, or blank nodes. Quoted triples and
   reification don't affect the vector store.
