@@ -10,12 +10,27 @@ import json
 import base64
 
 from .. knowledge import hash, Uri, Literal
+from .. schema import IRI, LITERAL
 from . types import Triple
 from . exceptions import ProtocolException
 
+
 def to_value(x):
-    if x["e"]: return Uri(x["v"])
-    return Literal(x["v"])
+    """Convert wire format to Uri or Literal."""
+    if x.get("t") == IRI:
+        return Uri(x.get("i", ""))
+    elif x.get("t") == LITERAL:
+        return Literal(x.get("v", ""))
+    # Fallback for any other type
+    return Literal(x.get("v", x.get("i", "")))
+
+
+def from_value(v):
+    """Convert Uri or Literal to wire format."""
+    if isinstance(v, Uri):
+        return {"t": IRI, "i": str(v)}
+    else:
+        return {"t": LITERAL, "v": str(v)}
 
 class Flow:
     """
@@ -751,17 +766,17 @@ class FlowInstance:
         if s:
             if not isinstance(s, Uri):
                 raise RuntimeError("s must be Uri")
-            input["s"] = { "v": str(s), "e": isinstance(s, Uri), }
-            
+            input["s"] = from_value(s)
+
         if p:
             if not isinstance(p, Uri):
                 raise RuntimeError("p must be Uri")
-            input["p"] = { "v": str(p), "e": isinstance(p, Uri), }
+            input["p"] = from_value(p)
 
         if o:
             if not isinstance(o, Uri) and not isinstance(o, Literal):
                 raise RuntimeError("o must be Uri or Literal")
-            input["o"] = { "v": str(o), "e": isinstance(o, Uri), }
+            input["o"] = from_value(o)
 
         object = self.request(
             "service/triples",
@@ -834,9 +849,9 @@ class FlowInstance:
         if metadata:
             metadata.emit(
                 lambda t: triples.append({
-                    "s": { "v": t["s"], "e": isinstance(t["s"], Uri) },
-                    "p": { "v": t["p"], "e": isinstance(t["p"], Uri) },
-                    "o": { "v": t["o"], "e": isinstance(t["o"], Uri) }
+                    "s": from_value(t["s"]),
+                    "p": from_value(t["p"]),
+                    "o": from_value(t["o"]),
                 })
             )
 
@@ -913,9 +928,9 @@ class FlowInstance:
         if metadata:
             metadata.emit(
                 lambda t: triples.append({
-                    "s": { "v": t["s"], "e": isinstance(t["s"], Uri) },
-                    "p": { "v": t["p"], "e": isinstance(t["p"], Uri) },
-                    "o": { "v": t["o"], "e": isinstance(t["o"], Uri) }
+                    "s": from_value(t["s"]),
+                    "p": from_value(t["p"]),
+                    "o": from_value(t["o"]),
                 })
             )
 

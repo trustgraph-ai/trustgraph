@@ -1,46 +1,37 @@
 
 import base64
 
-from ... schema import Value, Triple, DocumentMetadata, ProcessingMetadata
+from ... schema import Term, Triple, DocumentMetadata, ProcessingMetadata
+from ... messaging.translators.primitives import TermTranslator, TripleTranslator
 
-# DEPRECATED: These functions have been moved to trustgraph.... messaging.translators
-# Use the new messaging translation system instead for consistency and reusability.
-# Examples:
-#   from trustgraph.... messaging.translators.primitives import ValueTranslator
-#   value_translator = ValueTranslator()
-#   pulsar_value = value_translator.to_pulsar({"v": "example", "e": True})
+# Singleton translator instances
+_term_translator = TermTranslator()
+_triple_translator = TripleTranslator()
+
 
 def to_value(x):
-    return Value(value=x["v"], is_uri=x["e"])
+    """Convert dict to Term. Delegates to TermTranslator."""
+    return _term_translator.to_pulsar(x)
+
 
 def to_subgraph(x):
-    return [
-        Triple(
-            s=to_value(t["s"]),
-            p=to_value(t["p"]),
-            o=to_value(t["o"])
-        )
-        for t in x
-    ]
+    """Convert list of dicts to list of Triples. Delegates to TripleTranslator."""
+    return [_triple_translator.to_pulsar(t) for t in x]
+
 
 def serialize_value(v):
-    return {
-        "v": v.value,
-        "e": v.is_uri,
-    }
+    """Convert Term to dict. Delegates to TermTranslator."""
+    return _term_translator.from_pulsar(v)
+
 
 def serialize_triple(t):
-    return {
-        "s": serialize_value(t.s),
-        "p": serialize_value(t.p),
-        "o": serialize_value(t.o)
-    }
+    """Convert Triple to dict. Delegates to TripleTranslator."""
+    return _triple_translator.from_pulsar(t)
+
 
 def serialize_subgraph(sg):
-    return [
-        serialize_triple(t)
-        for t in sg
-    ]
+    """Convert list of Triples to list of dicts."""
+    return [serialize_triple(t) for t in sg]
 
 def serialize_triples(message):
     return {
