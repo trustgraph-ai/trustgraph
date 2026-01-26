@@ -1,22 +1,59 @@
+from __future__ import annotations
 
 from dataclasses import dataclass, field
+
+# Term type constants
+IRI = "i"      # IRI/URI node
+BLANK = "b"    # Blank node
+LITERAL = "l"  # Literal value
+TRIPLE = "t"   # Quoted triple (RDF-star)
+
 
 @dataclass
 class Error:
     type: str = ""
     message: str = ""
 
+
 @dataclass
-class Value:
+class Term:
+    """
+    RDF Term - can represent an IRI, blank node, literal, or quoted triple.
+
+    The 'type' field determines which other fields are relevant:
+    - IRI: use 'iri' field
+    - BLANK: use 'id' field
+    - LITERAL: use 'value', 'datatype', 'language' fields
+    - TRIPLE: use 'triple' field
+    """
+    type: str = ""  # One of: IRI, BLANK, LITERAL, TRIPLE
+
+    # For IRI terms (type == IRI)
+    iri: str = ""
+
+    # For blank nodes (type == BLANK)
+    id: str = ""
+
+    # For literals (type == LITERAL)
     value: str = ""
-    is_uri: bool = False
-    type: str = ""
+    datatype: str = ""   # XSD datatype URI (mutually exclusive with language)
+    language: str = ""   # Language tag (mutually exclusive with datatype)
+
+    # For quoted triples (type == TRIPLE)
+    triple: Triple | None = None
+
 
 @dataclass
 class Triple:
-    s: Value | None = None
-    p: Value | None = None
-    o: Value | None = None
+    """
+    RDF Triple / Quad.
+
+    The optional 'g' field specifies the named graph (None = default graph).
+    """
+    s: Term | None = None    # Subject
+    p: Term | None = None    # Predicate
+    o: Term | None = None    # Object
+    g: str | None = None     # Graph name (IRI), None = default graph
 
 @dataclass
 class Field:
