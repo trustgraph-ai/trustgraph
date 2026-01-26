@@ -183,9 +183,28 @@ reified = Term(type=TRIPLE, triple=inner)
 
 #### Triple / Quad
 
-The `Triple` class may need restructuring to:
-- Allow nested triples (for RDF-star quoted triples)
-- Support an optional graph context (for named graphs / quads)
+The `Triple` class gains an optional graph field to become a quad:
+
+```python
+@dataclass
+class Triple:
+    s: Term | None = None    # Subject
+    p: Term | None = None    # Predicate
+    o: Term | None = None    # Object
+    g: str | None = None     # Graph name (IRI), None = default graph
+```
+
+Design decisions:
+- **Field name**: `g` for consistency with `s`, `p`, `o`
+- **Optional**: `None` means the default graph (unnamed)
+- **Type**: Plain string (IRI) rather than Term
+  - Graph names are always IRIs
+  - Blank nodes as graph names ruled out (too confusing)
+  - No need for the full Term machinery
+
+Note: The class name stays `Triple` even though it's technically a quad now.
+This avoids churn and "triple" is still the common terminology for the s/p/o
+portion. The graph context is metadata about where the triple lives.
 
 ### Candidate Query Patterns
 
