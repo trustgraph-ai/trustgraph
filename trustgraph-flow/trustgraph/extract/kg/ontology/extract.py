@@ -8,7 +8,7 @@ import logging
 import asyncio
 from typing import List, Dict, Any, Optional
 
-from .... schema import Chunk, Triple, Triples, Metadata, Value
+from .... schema import Chunk, Triple, Triples, Metadata, Term, IRI, LITERAL
 from .... schema import EntityContext, EntityContexts
 from .... schema import PromptRequest, PromptResponse
 from .... rdf import TRUSTGRAPH_ENTITIES, RDF_TYPE, RDF_LABEL, DEFINITION
@@ -37,6 +37,14 @@ URI_PREFIXES = {
     "schema:": "https://schema.org/",
     "xsd:": "http://www.w3.org/2001/XMLSchema#",
 }
+
+
+def make_term(v, is_uri):
+    """Helper to create Term from value and is_uri flag."""
+    if is_uri:
+        return Term(type=IRI, iri=v)
+    else:
+        return Term(type=LITERAL, value=v)
 
 
 class Processor(FlowProcessor):
@@ -446,9 +454,9 @@ class Processor(FlowProcessor):
                             is_object_uri = False
 
                         # Create Triple object with expanded URIs
-                        s_value = Value(value=subject_uri, is_uri=True)
-                        p_value = Value(value=predicate_uri, is_uri=True)
-                        o_value = Value(value=object_uri, is_uri=is_object_uri)
+                        s_value = make_term(subject_uri, is_uri=True)
+                        p_value = make_term(predicate_uri, is_uri=True)
+                        o_value = make_term(object_uri, is_uri=is_object_uri)
 
                         validated_triples.append(Triple(
                             s=s_value,
@@ -609,9 +617,9 @@ class Processor(FlowProcessor):
 
             # rdf:type owl:Class
             ontology_triples.append(Triple(
-                s=Value(value=class_uri, is_uri=True),
-                p=Value(value="http://www.w3.org/1999/02/22-rdf-syntax-ns#type", is_uri=True),
-                o=Value(value="http://www.w3.org/2002/07/owl#Class", is_uri=True)
+                s=make_term(class_uri, is_uri=True),
+                p=make_term("http://www.w3.org/1999/02/22-rdf-syntax-ns#type", is_uri=True),
+                o=make_term("http://www.w3.org/2002/07/owl#Class", is_uri=True)
             ))
 
             # rdfs:label (stored as 'labels' in OntologyClass.__dict__)
@@ -620,18 +628,18 @@ class Processor(FlowProcessor):
                 if isinstance(labels, list) and labels:
                     label_val = labels[0].get('value', class_id) if isinstance(labels[0], dict) else str(labels[0])
                     ontology_triples.append(Triple(
-                        s=Value(value=class_uri, is_uri=True),
-                        p=Value(value=RDF_LABEL, is_uri=True),
-                        o=Value(value=label_val, is_uri=False)
+                        s=make_term(class_uri, is_uri=True),
+                        p=make_term(RDF_LABEL, is_uri=True),
+                        o=make_term(label_val, is_uri=False)
                     ))
 
             # rdfs:comment (stored as 'comment' in OntologyClass.__dict__)
             if isinstance(class_def, dict) and 'comment' in class_def and class_def['comment']:
                 comment = class_def['comment']
                 ontology_triples.append(Triple(
-                    s=Value(value=class_uri, is_uri=True),
-                    p=Value(value="http://www.w3.org/2000/01/rdf-schema#comment", is_uri=True),
-                    o=Value(value=comment, is_uri=False)
+                    s=make_term(class_uri, is_uri=True),
+                    p=make_term("http://www.w3.org/2000/01/rdf-schema#comment", is_uri=True),
+                    o=make_term(comment, is_uri=False)
                 ))
 
             # rdfs:subClassOf (stored as 'subclass_of' in OntologyClass.__dict__)
@@ -648,9 +656,9 @@ class Processor(FlowProcessor):
                     parent_uri = f"https://trustgraph.ai/ontology/{ontology_subset.ontology_id}#{parent}"
 
                 ontology_triples.append(Triple(
-                    s=Value(value=class_uri, is_uri=True),
-                    p=Value(value="http://www.w3.org/2000/01/rdf-schema#subClassOf", is_uri=True),
-                    o=Value(value=parent_uri, is_uri=True)
+                    s=make_term(class_uri, is_uri=True),
+                    p=make_term("http://www.w3.org/2000/01/rdf-schema#subClassOf", is_uri=True),
+                    o=make_term(parent_uri, is_uri=True)
                 ))
 
         # Generate triples for object properties
@@ -663,9 +671,9 @@ class Processor(FlowProcessor):
 
             # rdf:type owl:ObjectProperty
             ontology_triples.append(Triple(
-                s=Value(value=prop_uri, is_uri=True),
-                p=Value(value="http://www.w3.org/1999/02/22-rdf-syntax-ns#type", is_uri=True),
-                o=Value(value="http://www.w3.org/2002/07/owl#ObjectProperty", is_uri=True)
+                s=make_term(prop_uri, is_uri=True),
+                p=make_term("http://www.w3.org/1999/02/22-rdf-syntax-ns#type", is_uri=True),
+                o=make_term("http://www.w3.org/2002/07/owl#ObjectProperty", is_uri=True)
             ))
 
             # rdfs:label (stored as 'labels' in OntologyProperty.__dict__)
@@ -674,18 +682,18 @@ class Processor(FlowProcessor):
                 if isinstance(labels, list) and labels:
                     label_val = labels[0].get('value', prop_id) if isinstance(labels[0], dict) else str(labels[0])
                     ontology_triples.append(Triple(
-                        s=Value(value=prop_uri, is_uri=True),
-                        p=Value(value=RDF_LABEL, is_uri=True),
-                        o=Value(value=label_val, is_uri=False)
+                        s=make_term(prop_uri, is_uri=True),
+                        p=make_term(RDF_LABEL, is_uri=True),
+                        o=make_term(label_val, is_uri=False)
                     ))
 
             # rdfs:comment (stored as 'comment' in OntologyProperty.__dict__)
             if isinstance(prop_def, dict) and 'comment' in prop_def and prop_def['comment']:
                 comment = prop_def['comment']
                 ontology_triples.append(Triple(
-                    s=Value(value=prop_uri, is_uri=True),
-                    p=Value(value="http://www.w3.org/2000/01/rdf-schema#comment", is_uri=True),
-                    o=Value(value=comment, is_uri=False)
+                    s=make_term(prop_uri, is_uri=True),
+                    p=make_term("http://www.w3.org/2000/01/rdf-schema#comment", is_uri=True),
+                    o=make_term(comment, is_uri=False)
                 ))
 
             # rdfs:domain (stored as 'domain' in OntologyProperty.__dict__)
@@ -702,9 +710,9 @@ class Processor(FlowProcessor):
                     domain_uri = f"https://trustgraph.ai/ontology/{ontology_subset.ontology_id}#{domain}"
 
                 ontology_triples.append(Triple(
-                    s=Value(value=prop_uri, is_uri=True),
-                    p=Value(value="http://www.w3.org/2000/01/rdf-schema#domain", is_uri=True),
-                    o=Value(value=domain_uri, is_uri=True)
+                    s=make_term(prop_uri, is_uri=True),
+                    p=make_term("http://www.w3.org/2000/01/rdf-schema#domain", is_uri=True),
+                    o=make_term(domain_uri, is_uri=True)
                 ))
 
             # rdfs:range (stored as 'range' in OntologyProperty.__dict__)
@@ -721,9 +729,9 @@ class Processor(FlowProcessor):
                     range_uri = f"https://trustgraph.ai/ontology/{ontology_subset.ontology_id}#{range_val}"
 
                 ontology_triples.append(Triple(
-                    s=Value(value=prop_uri, is_uri=True),
-                    p=Value(value="http://www.w3.org/2000/01/rdf-schema#range", is_uri=True),
-                    o=Value(value=range_uri, is_uri=True)
+                    s=make_term(prop_uri, is_uri=True),
+                    p=make_term("http://www.w3.org/2000/01/rdf-schema#range", is_uri=True),
+                    o=make_term(range_uri, is_uri=True)
                 ))
 
         # Generate triples for datatype properties
@@ -736,9 +744,9 @@ class Processor(FlowProcessor):
 
             # rdf:type owl:DatatypeProperty
             ontology_triples.append(Triple(
-                s=Value(value=prop_uri, is_uri=True),
-                p=Value(value="http://www.w3.org/1999/02/22-rdf-syntax-ns#type", is_uri=True),
-                o=Value(value="http://www.w3.org/2002/07/owl#DatatypeProperty", is_uri=True)
+                s=make_term(prop_uri, is_uri=True),
+                p=make_term("http://www.w3.org/1999/02/22-rdf-syntax-ns#type", is_uri=True),
+                o=make_term("http://www.w3.org/2002/07/owl#DatatypeProperty", is_uri=True)
             ))
 
             # rdfs:label (stored as 'labels' in OntologyProperty.__dict__)
@@ -747,18 +755,18 @@ class Processor(FlowProcessor):
                 if isinstance(labels, list) and labels:
                     label_val = labels[0].get('value', prop_id) if isinstance(labels[0], dict) else str(labels[0])
                     ontology_triples.append(Triple(
-                        s=Value(value=prop_uri, is_uri=True),
-                        p=Value(value=RDF_LABEL, is_uri=True),
-                        o=Value(value=label_val, is_uri=False)
+                        s=make_term(prop_uri, is_uri=True),
+                        p=make_term(RDF_LABEL, is_uri=True),
+                        o=make_term(label_val, is_uri=False)
                     ))
 
             # rdfs:comment (stored as 'comment' in OntologyProperty.__dict__)
             if isinstance(prop_def, dict) and 'comment' in prop_def and prop_def['comment']:
                 comment = prop_def['comment']
                 ontology_triples.append(Triple(
-                    s=Value(value=prop_uri, is_uri=True),
-                    p=Value(value="http://www.w3.org/2000/01/rdf-schema#comment", is_uri=True),
-                    o=Value(value=comment, is_uri=False)
+                    s=make_term(prop_uri, is_uri=True),
+                    p=make_term("http://www.w3.org/2000/01/rdf-schema#comment", is_uri=True),
+                    o=make_term(comment, is_uri=False)
                 ))
 
             # rdfs:domain (stored as 'domain' in OntologyProperty.__dict__)
@@ -775,9 +783,9 @@ class Processor(FlowProcessor):
                     domain_uri = f"https://trustgraph.ai/ontology/{ontology_subset.ontology_id}#{domain}"
 
                 ontology_triples.append(Triple(
-                    s=Value(value=prop_uri, is_uri=True),
-                    p=Value(value="http://www.w3.org/2000/01/rdf-schema#domain", is_uri=True),
-                    o=Value(value=domain_uri, is_uri=True)
+                    s=make_term(prop_uri, is_uri=True),
+                    p=make_term("http://www.w3.org/2000/01/rdf-schema#domain", is_uri=True),
+                    o=make_term(domain_uri, is_uri=True)
                 ))
 
             # rdfs:range (datatype)
@@ -790,9 +798,9 @@ class Processor(FlowProcessor):
                     range_uri = range_val
 
                 ontology_triples.append(Triple(
-                    s=Value(value=prop_uri, is_uri=True),
-                    p=Value(value="http://www.w3.org/2000/01/rdf-schema#range", is_uri=True),
-                    o=Value(value=range_uri, is_uri=True)
+                    s=make_term(prop_uri, is_uri=True),
+                    p=make_term("http://www.w3.org/2000/01/rdf-schema#range", is_uri=True),
+                    o=make_term(range_uri, is_uri=True)
                 ))
 
         logger.info(f"Generated {len(ontology_triples)} triples describing ontology elements")
@@ -814,9 +822,9 @@ class Processor(FlowProcessor):
         entity_data = {}  # subject_uri -> {labels: [], definitions: []}
 
         for triple in triples:
-            subject_uri = triple.s.value
-            predicate_uri = triple.p.value
-            object_val = triple.o.value
+            subject_uri = triple.s.iri if triple.s.type == IRI else triple.s.value
+            predicate_uri = triple.p.iri if triple.p.type == IRI else triple.p.value
+            object_val = triple.o.value if triple.o.type == LITERAL else triple.o.iri
 
             # Initialize entity data if not exists
             if subject_uri not in entity_data:
@@ -824,12 +832,12 @@ class Processor(FlowProcessor):
 
             # Collect labels (rdfs:label)
             if predicate_uri == RDF_LABEL:
-                if not triple.o.is_uri:  # Labels are literals
+                if triple.o.type == LITERAL:  # Labels are literals
                     entity_data[subject_uri]['labels'].append(object_val)
 
             # Collect definitions (skos:definition, schema:description)
             elif predicate_uri == DEFINITION or predicate_uri == "https://schema.org/description":
-                if not triple.o.is_uri:
+                if triple.o.type == LITERAL:
                     entity_data[subject_uri]['definitions'].append(object_val)
 
         # Build EntityContext objects
@@ -848,7 +856,7 @@ class Processor(FlowProcessor):
             if context_parts:
                 context_text = ". ".join(context_parts)
                 entity_contexts.append(EntityContext(
-                    entity=Value(value=subject_uri, is_uri=True),
+                    entity=make_term(subject_uri, is_uri=True),
                     context=context_text
                 ))
 

@@ -1,8 +1,24 @@
 
 from .. schema import KnowledgeResponse, Triple, Triples, EntityEmbeddings
-from .. schema import Metadata, Value, GraphEmbeddings
+from .. schema import Metadata, Term, IRI, LITERAL, GraphEmbeddings
 
 from cassandra.cluster import Cluster
+
+
+def term_to_tuple(term):
+    """Convert Term to (value, is_uri) tuple for database storage."""
+    if term.type == IRI:
+        return (term.iri, True)
+    else:  # LITERAL
+        return (term.value, False)
+
+
+def tuple_to_term(value, is_uri):
+    """Convert (value, is_uri) tuple from database to Term."""
+    if is_uri:
+        return Term(type=IRI, iri=value)
+    else:
+        return Term(type=LITERAL, value=value)
 from cassandra.auth import PlainTextAuthProvider
 from ssl import SSLContext, PROTOCOL_TLSv1_2
 
@@ -205,8 +221,7 @@ class KnowledgeTableStore:
         if m.metadata.metadata:
             metadata = [
                 (
-                    v.s.value, v.s.is_uri, v.p.value, v.p.is_uri,
-                    v.o.value, v.o.is_uri
+                    *term_to_tuple(v.s), *term_to_tuple(v.p), *term_to_tuple(v.o)
                 )
                 for v in m.metadata.metadata
             ]
@@ -215,8 +230,7 @@ class KnowledgeTableStore:
 
         triples = [
             (
-                v.s.value, v.s.is_uri, v.p.value, v.p.is_uri,
-                v.o.value, v.o.is_uri
+                *term_to_tuple(v.s), *term_to_tuple(v.p), *term_to_tuple(v.o)
             )
             for v in m.triples
         ]
@@ -248,8 +262,7 @@ class KnowledgeTableStore:
         if m.metadata.metadata:
             metadata = [
                 (
-                    v.s.value, v.s.is_uri, v.p.value, v.p.is_uri,
-                    v.o.value, v.o.is_uri
+                    *term_to_tuple(v.s), *term_to_tuple(v.p), *term_to_tuple(v.o)
                 )
                 for v in m.metadata.metadata
             ]
@@ -258,7 +271,7 @@ class KnowledgeTableStore:
 
         entities = [
             (
-                (v.entity.value, v.entity.is_uri),
+                term_to_tuple(v.entity),
                 v.vectors
             )
             for v in m.entities
@@ -291,8 +304,7 @@ class KnowledgeTableStore:
         if m.metadata.metadata:
             metadata = [
                 (
-                    v.s.value, v.s.is_uri, v.p.value, v.p.is_uri,
-                    v.o.value, v.o.is_uri
+                    *term_to_tuple(v.s), *term_to_tuple(v.p), *term_to_tuple(v.o)
                 )
                 for v in m.metadata.metadata
             ]
@@ -414,9 +426,9 @@ class KnowledgeTableStore:
             if row[2]:
                 metadata = [
                     Triple(
-                        s = Value(value = elt[0], is_uri = elt[1]),
-                        p = Value(value = elt[2], is_uri = elt[3]),
-                        o = Value(value = elt[4], is_uri = elt[5]),
+                        s = tuple_to_term(elt[0], elt[1]),
+                        p = tuple_to_term(elt[2], elt[3]),
+                        o = tuple_to_term(elt[4], elt[5]),
                     )
                     for elt in row[2]
                 ]
@@ -425,9 +437,9 @@ class KnowledgeTableStore:
 
             triples = [
                 Triple(
-                    s = Value(value = elt[0], is_uri = elt[1]),
-                    p = Value(value = elt[2], is_uri = elt[3]),
-                    o = Value(value = elt[4], is_uri = elt[5]),
+                    s = tuple_to_term(elt[0], elt[1]),
+                    p = tuple_to_term(elt[2], elt[3]),
+                    o = tuple_to_term(elt[4], elt[5]),
                 )
                 for elt in row[3]
             ]
@@ -470,9 +482,9 @@ class KnowledgeTableStore:
             if row[2]:
                 metadata = [
                     Triple(
-                        s = Value(value = elt[0], is_uri = elt[1]),
-                        p = Value(value = elt[2], is_uri = elt[3]),
-                        o = Value(value = elt[4], is_uri = elt[5]),
+                        s = tuple_to_term(elt[0], elt[1]),
+                        p = tuple_to_term(elt[2], elt[3]),
+                        o = tuple_to_term(elt[4], elt[5]),
                     )
                     for elt in row[2]
                 ]
@@ -481,7 +493,7 @@ class KnowledgeTableStore:
 
             entities = [
                 EntityEmbeddings(
-                    entity = Value(value = ent[0][0], is_uri = ent[0][1]),
+                    entity = tuple_to_term(ent[0][0], ent[0][1]),
                     vectors = ent[1]
                 )
                 for ent in row[3]
