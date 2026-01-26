@@ -465,6 +465,17 @@ reification support.
 - Named graph indexing strategies needed for efficient graph-scoped queries
 - Cassandra schema design will need to accommodate quad storage efficiently
 
+### Vector Store Boundary
+
+Vector stores always reference IRIs only:
+- Never edges (quoted triples)
+- Never literal values
+- Never blank nodes
+
+This keeps the vector store simple - it handles semantic similarity of named
+entities. The graph structure handles relationships, reification, and metadata.
+Quoted triples and named graphs don't complicate vector operations.
+
 ## Testing Strategy
 
 Use existing test strategy. As this is a breaking change, extensive focus on
@@ -486,10 +497,12 @@ all components.
 - **Predicate vocabulary**: What predicates will be used for temporal,
   provenance, and veracity metadata? (e.g., `discoveredOn`, `supportedBy`,
   `assertedTrueBy` - are these standard or custom?)
-- **Vector store impact**: How do quoted triples interact with embeddings
-  and vector similarity search?
-- **Named graph semantics**: When querying, should queries default to the
-  default graph, all graphs, or require explicit graph specification?
+- ~~**Vector store impact**~~: Resolved. Vector stores always point to IRIs
+  only - never edges, literals, or blank nodes. Quoted triples and
+  reification don't affect the vector store.
+- ~~**Named graph semantics**~~: Resolved. Queries default to the default
+  graph (matches SPARQL behavior, backward compatible). Explicit graph
+  parameter required to query named graphs or all graphs.
 
 ## References
 
