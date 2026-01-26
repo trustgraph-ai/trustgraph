@@ -189,49 +189,24 @@ For ontology-based extraction with entities, relationships, and attributes:
 
 ### Implementation Details
 
-#### Prompt Class Changes
+#### Prompt Class
 
-Extend the `Prompt` class to support the new schema key:
+The existing `Prompt` class requires no changes. The `schema` field is reused
+for JSONL, with its interpretation determined by `response_type`:
 
 ```python
 class Prompt:
-    def __init__(
-        self,
-        template,
-        response_type="text",
-        terms=None,
-        schema=None,
-        object_schema=None
-    ):
+    def __init__(self, template, response_type="text", terms=None, schema=None):
         self.template = template
         self.response_type = response_type
         self.terms = terms
-        self.schema = schema              # For "json" response type
-        self.object_schema = object_schema  # For "jsonl" response type
+        self.schema = schema  # Interpretation depends on response_type
 ```
 
-#### PromptManager.load_config Changes
+#### PromptManager.load_config
 
-Update configuration loading to handle the new `object-schema` key:
-
-```python
-for k in ix:
-    pc = config[f"template.{k}"]
-    data = json.loads(pc)
-
-    prompt = data.get("prompt")
-    rtype = data.get("response-type", "text")
-    schema = data.get("schema", None)
-    object_schema = data.get("object-schema", None)
-
-    prompts[k] = Prompt(
-        template=prompt,
-        response_type=rtype,
-        schema=schema,
-        object_schema=object_schema,
-        terms={}
-    )
-```
+No changes required - existing configuration loading already handles the
+`schema` key.
 
 #### JSONL Parsing
 
@@ -312,12 +287,12 @@ async def invoke(self, id, input, llm):
             logger.warning("JSONL parse returned no valid objects")
             return []
 
-        # Validate each object against object-schema if provided
-        if self.prompts[id].object_schema:
+        # Validate each object against schema if provided
+        if self.prompts[id].schema:
             validated = []
             for i, obj in enumerate(objects):
                 try:
-                    validate(instance=obj, schema=self.prompts[id].object_schema)
+                    validate(instance=obj, schema=self.prompts[id].schema)
                     validated.append(obj)
                 except Exception as e:
                     logger.warning(f"Object {i} failed schema validation: {e}")
@@ -371,7 +346,7 @@ Complete prompt configuration example:
 {
   "prompt": "Extract all entities and their definitions from the following text. Output one JSON object per line.\n\nText:\n{{text}}\n\nOutput format per line:\n{\"entity\": \"<name>\", \"definition\": \"<definition>\"}",
   "response-type": "jsonl",
-  "object-schema": {
+  "schema": {
     "type": "object",
     "properties": {
       "entity": {
@@ -432,11 +407,9 @@ Complete prompt configuration example:
 
 ### Phase 1: Implementation
 
-1. Extend `Prompt` class with `object_schema` field
-2. Update `PromptManager.load_config()` to parse `object-schema`
-3. Implement `parse_jsonl()` method
-4. Extend `invoke()` to handle `response-type: "jsonl"`
-5. Add unit tests
+1. Implement `parse_jsonl()` method in `PromptManager`
+2. Extend `invoke()` to handle `response-type: "jsonl"`
+3. Add unit tests
 
 ### Phase 2: Prompt Migration
 
