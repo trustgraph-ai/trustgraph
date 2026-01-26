@@ -62,13 +62,14 @@ goals:
    - Each graph identified by an IRI
    - Moves from triples (s, p, o) to quads (s, p, o, g)
    - Includes a default graph plus zero or more named graphs
-   - Alternative/complementary pattern to triple reification: group related
-     facts in a named graph and annotate the graph as a whole
    - The graph IRI can be a subject in statements, e.g.:
      ```
      <graph-source-A> <discoveredOn> "2024-01-15"
      <graph-source-A> <hasVeracity> "high"
      ```
+   - Note: Named graphs are a separate feature from reification. They have
+     uses beyond statement annotation (partitioning, access control, dataset
+     organization) and should be treated as a distinct capability.
 
 3. **Blank Nodes**
    - Anonymous nodes without a global URI
@@ -112,6 +113,82 @@ The `Triple` class may need restructuring to:
 - Allow nested triples (for RDF-star quoted triples)
 - Support an optional graph context (for named graphs / quads)
 
+### Candidate Query Patterns
+
+The current query engine accepts combinations of S, P, O terms. With quoted
+triples, a triple itself becomes a valid term in those positions. Below are
+candidate query patterns that support the original goals.
+
+#### Temporal Queries
+
+**Find all facts discovered after a given date:**
+```
+S: ?                                    # any quoted triple
+P: <discoveredOn>
+O: > "2024-01-15"^^xsd:date             # date comparison
+```
+
+**Find when a specific fact was believed true:**
+```
+S: << <Alice> <knows> <Bob> >>          # quoted triple as subject
+P: <believedTrueFrom>
+O: ?                                    # returns the date
+```
+
+**Find facts that became false:**
+```
+S: ?                                    # any quoted triple
+P: <discoveredFalseOn>
+O: ?                                    # has any value (exists)
+```
+
+#### Provenance Queries
+
+**Find all facts supported by a specific source:**
+```
+S: ?                                    # any quoted triple
+P: <supportedBy>
+O: <source:document-123>
+```
+
+**Find which sources support a specific fact:**
+```
+S: << <DrugA> <treats> <DiseaseB> >>    # quoted triple as subject
+P: <supportedBy>
+O: ?                                    # returns source IRIs
+```
+
+#### Veracity Queries
+
+**Find assertions a person marked as true:**
+```
+S: ?                                    # any quoted triple
+P: <assertedTrueBy>
+O: <person:Alice>
+```
+
+**Find conflicting assertions (same fact, different veracity):**
+```
+# First query: facts asserted true
+S: ?
+P: <assertedTrueBy>
+O: ?
+
+# Second query: facts asserted false
+S: ?
+P: <assertedFalseBy>
+O: ?
+
+# Application logic: find intersection of subjects
+```
+
+**Find facts with trust score below threshold:**
+```
+S: ?                                    # any quoted triple
+P: <trustScore>
+O: < 0.5                                # numeric comparison
+```
+
 ### Architecture
 
 TODO: Detail the component changes required.
@@ -122,19 +199,64 @@ TODO: Document API changes.
 
 ### Implementation Details
 
-TODO: Implementation approach.
+#### Phased Storage Implementation
 
-**Note:** The `Value` class is currently used in ~78 files, so renaming to
-`Term` would be a significant but feasible refactor for a 2.0 release.
+Multiple graph store backends exist (Cassandra, Neo4j, etc.). Implementation
+will proceed in phases:
+
+1. **Phase 1: Cassandra**
+   - Start with the home-grown Cassandra store
+   - Full control over the storage layer enables rapid iteration
+   - Validate the data model and query patterns against real use cases
+
+2. **Phase 2+: Other Backends**
+   - Neo4j and other stores implemented in subsequent stages
+   - Lessons learned from Cassandra inform these implementations
+
+This approach de-risks the design by validating on a fully-controlled backend
+before committing to implementations across all stores.
+
+#### Value → Term Rename
+
+The `Value` class is currently used in ~78 files. Renaming to `Term` would
+better reflect RDF terminology and is feasible in a 2.0 breaking release.
 
 ## Security Considerations
 
+TODO: Consider access control implications of named graphs.
+
 ## Performance Considerations
+
+- Quoted triples add nesting depth - may impact query performance
+- Named graph indexing strategies needed for efficient graph-scoped queries
+- Cassandra schema design will need to accommodate quad storage efficiently
 
 ## Testing Strategy
 
+TODO: Define testing approach.
+
 ## Migration Plan
+
+- 2.0 is a breaking release; no backward compatibility required
+- Existing data may need migration to new schema (TBD based on final design)
+- Consider migration tooling for converting existing triples
 
 ## Open Questions
 
+- **Blank nodes**: Are they required for reification patterns? Need to
+  investigate RDF-star examples to confirm.
+- **Query syntax**: What is the concrete syntax for specifying quoted triples
+  in queries? Need to define the query API.
+- **Predicate vocabulary**: What predicates will be used for temporal,
+  provenance, and veracity metadata? (e.g., `discoveredOn`, `supportedBy`,
+  `assertedTrueBy` - are these standard or custom?)
+- **Vector store impact**: How do quoted triples interact with embeddings
+  and vector similarity search?
+- **Named graph semantics**: When querying, should queries default to the
+  default graph, all graphs, or require explicit graph specification?
+
 ## References
+
+- [RDF 1.2 Concepts](https://www.w3.org/TR/rdf12-concepts/)
+- [RDF-star and SPARQL-star](https://w3c.github.io/rdf-star/)
+- [RDF Dataset](https://www.w3.org/TR/rdf11-concepts/#section-dataset)
