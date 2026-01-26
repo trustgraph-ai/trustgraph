@@ -80,11 +80,12 @@ goals:
      uses beyond statement annotation (partitioning, access control, dataset
      organization) and should be treated as a distinct capability.
 
-3. **Blank Nodes**
+3. **Blank Nodes** (Limited Support)
    - Anonymous nodes without a global URI
-   - Local scope identifiers
-   - Adds complexity around identity and serialization
-   - May be needed for certain reification patterns (needs investigation)
+   - Supported for compatibility when loading external RDF data
+   - **Limited status**: No guarantees about stable identity after loading
+   - Find them via wildcard queries (match by connections, not by ID)
+   - Not a first-class feature - don't rely on precise blank node handling
 
 #### Opportunistic Fixes (2.0 Breaking Change)
 
@@ -410,8 +411,8 @@ all components.
 
 ## Open Questions
 
-- **Blank nodes**: Are they required for reification patterns? Need to
-  investigate RDF-star examples to confirm.
+- **Blank nodes**: Limited support confirmed. May need to decide on
+  skolemization strategy (generate IRIs on load, or preserve blank node IDs).
 - **Query syntax**: What is the concrete syntax for specifying quoted triples
   in queries? Need to define the query API.
 - **Predicate vocabulary**: What predicates will be used for temporal,
