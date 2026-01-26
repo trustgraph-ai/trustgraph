@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from ..core.primitives import Value, Triple
+from ..core.primitives import Term, Triple
 from ..core.metadata import Metadata
 from ..core.topic import topic
 
@@ -10,7 +10,7 @@ from ..core.topic import topic
 
 @dataclass
 class EntityContext:
-    entity: Value | None = None
+    entity: Term | None = None
     context: str = ""
 
 # This is a 'batching' mechanism for the above data

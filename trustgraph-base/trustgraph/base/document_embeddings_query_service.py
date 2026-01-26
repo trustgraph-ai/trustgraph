@@ -7,7 +7,7 @@ embeddings.
 import logging
 
 from .. schema import DocumentEmbeddingsRequest, DocumentEmbeddingsResponse
-from .. schema import Error, Value
+from .. schema import Error, Term
 
 from . flow_processor import FlowProcessor
 from . consumer_spec import ConsumerSpec

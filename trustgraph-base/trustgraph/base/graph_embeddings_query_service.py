@@ -7,7 +7,7 @@ embeddings.
 import logging
 
 from .. schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
-from .. schema import Error, Value
+from .. schema import Error, Term
 
 from . flow_processor import FlowProcessor
 from . consumer_spec import ConsumerSpec
