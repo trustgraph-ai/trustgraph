@@ -126,16 +126,42 @@ class Processor(FlowProcessor):
 
         await pub.send(ecs)
 
-    def parse_json(self, text):
-        json_match = re.search(r'```(?:json)?(.*?)```', text, re.DOTALL)
-    
-        if json_match:
-            json_str = json_match.group(1).strip()
-        else:
-            # If no delimiters, assume the entire output is JSON
-            json_str = text.strip()
+    def parse_jsonl(self, text):
+        """
+        Parse JSONL response, returning list of valid objects.
 
-        return json.loads(json_str)
+        Invalid lines (malformed JSON, empty lines) are skipped with warnings.
+        This provides truncation resilience - partial output yields partial results.
+        """
+        results = []
+
+        # Strip markdown code fences if present
+        text = text.strip()
+        if text.startswith('```'):
+            # Remove opening fence (possibly with language hint)
+            text = re.sub(r'^```(?:json|jsonl)?\s*\n?', '', text)
+        if text.endswith('```'):
+            text = text[:-3]
+
+        for line_num, line in enumerate(text.strip().split('\n'), 1):
+            line = line.strip()
+
+            # Skip empty lines
+            if not line:
+                continue
+
+            # Skip any remaining fence markers
+            if line.startswith('```'):
+                continue
+
+            try:
+                obj = json.loads(line)
+                results.append(obj)
+            except json.JSONDecodeError as e:
+                # Log warning but continue - this provides truncation resilience
+                logger.warning(f"JSONL parse error on line {line_num}: {e}")
+
+        return results
 
     async def on_message(self, msg, consumer, flow):
 
@@ -178,11 +204,12 @@ class Processor(FlowProcessor):
                 question = prompt
             )
             
-            # Parse JSON response
-            try:
-                extraction_data = self.parse_json(agent_response)
-            except json.JSONDecodeError as e:
-                raise ValueError(f"Invalid JSON response from agent: {e}")
+            # Parse JSONL response
+            extraction_data = self.parse_jsonl(agent_response)
+
+            if not extraction_data:
+                logger.warning("JSONL parse returned no valid objects")
+                return
             
             # Process extraction data
             triples, entity_contexts = self.process_extraction_data(
@@ -209,12 +236,21 @@ class Processor(FlowProcessor):
             raise
 
     def process_extraction_data(self, data, metadata):
-        """Process combined extraction data to generate triples and entity contexts"""
+        """Process JSONL extraction data to generate triples and entity contexts.
+
+        Data is a flat list of objects with 'type' discriminator field:
+        - {"type": "definition", "entity": "...", "definition": "..."}
+        - {"type": "relationship", "subject": "...", "predicate": "...", "object": "...", "object-entity": bool}
+        """
         triples = []
         entity_contexts = []
 
+        # Categorize items by type
+        definitions = [item for item in data if item.get("type") == "definition"]
+        relationships = [item for item in data if item.get("type") == "relationship"]
+
         # Process definitions
-        for defn in data.get("definitions", []):
+        for defn in definitions:
 
             entity_uri = self.to_uri(defn["entity"])
             
@@ -247,7 +283,7 @@ class Processor(FlowProcessor):
             ))
         
         # Process relationships
-        for rel in data.get("relationships", []):
+        for rel in relationships:
 
             subject_uri = self.to_uri(rel["subject"])
             predicate_uri = self.to_uri(rel["predicate"])
