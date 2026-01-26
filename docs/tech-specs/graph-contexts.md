@@ -46,32 +46,51 @@ The `type` field exists but is not used to represent XSD datatypes.
 
 ### RDF Features to Support
 
-This specification adds support for the following RDF features:
+#### Core Features (Related to Reification Goals)
+
+These features are directly related to the temporal, provenance, and veracity
+goals:
 
 1. **RDF 1.2 Quoted Triples (RDF-star)**
    - Edges that point at other edges
    - A Triple can appear as the subject or object of another Triple
    - Enables statements about statements (reification)
+   - Core mechanism for annotating individual facts
 
-2. **Blank Nodes**
-   - Anonymous nodes without a global URI
-   - Local scope identifiers
-   - Adds complexity around identity and serialization
-
-3. **RDF Dataset / Named Graphs**
+2. **RDF Dataset / Named Graphs**
    - Support for multiple named graphs within a dataset
    - Each graph identified by an IRI
    - Moves from triples (s, p, o) to quads (s, p, o, g)
    - Includes a default graph plus zero or more named graphs
+   - Alternative/complementary pattern to triple reification: group related
+     facts in a named graph and annotate the graph as a whole
+   - The graph IRI can be a subject in statements, e.g.:
+     ```
+     <graph-source-A> <discoveredOn> "2024-01-15"
+     <graph-source-A> <hasVeracity> "high"
+     ```
+
+3. **Blank Nodes**
+   - Anonymous nodes without a global URI
+   - Local scope identifiers
+   - Adds complexity around identity and serialization
+   - May be needed for certain reification patterns (needs investigation)
+
+#### Opportunistic Fixes (2.0 Breaking Change)
+
+These features are not directly related to the reification goals but are
+valuable improvements to include while making breaking changes:
 
 4. **Literal Datatypes**
    - Properly use the `type` field for XSD datatypes
    - Examples: xsd:string, xsd:integer, xsd:dateTime, etc.
+   - Fixes current limitation: cannot represent dates or integers properly
 
 5. **Language Tags**
    - Support for language attributes on string literals (@en, @fr, etc.)
    - Note: A literal has either a language tag OR a datatype, not both
      (except for rdf:langString)
+   - Important for AI/multilingual use cases
 
 ### Data Models
 
