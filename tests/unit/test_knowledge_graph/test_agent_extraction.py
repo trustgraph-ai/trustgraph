@@ -33,7 +33,7 @@ class TestAgentKgExtractor:
         
         # Set up the methods we want to test
         extractor.to_uri = real_extractor.to_uri
-        extractor.parse_json = real_extractor.parse_json
+        extractor.parse_jsonl = real_extractor.parse_jsonl
         extractor.process_extraction_data = real_extractor.process_extraction_data
         extractor.emit_triples = real_extractor.emit_triples
         extractor.emit_entity_contexts = real_extractor.emit_entity_contexts
@@ -62,39 +62,40 @@ class TestAgentKgExtractor:
 
     @pytest.fixture
     def sample_extraction_data(self):
-        """Sample extraction data in expected format"""
-        return {
-            "definitions": [
-                {
-                    "entity": "Machine Learning",
-                    "definition": "A subset of artificial intelligence that enables computers to learn from data without explicit programming."
-                },
-                {
-                    "entity": "Neural Networks",
-                    "definition": "Computing systems inspired by biological neural networks that process information."
-                }
-            ],
-            "relationships": [
-                {
-                    "subject": "Machine Learning",
-                    "predicate": "is_subset_of",
-                    "object": "Artificial Intelligence",
-                    "object-entity": True
-                },
-                {
-                    "subject": "Neural Networks",
-                    "predicate": "used_in",
-                    "object": "Machine Learning",
-                    "object-entity": True
-                },
-                {
-                    "subject": "Deep Learning",
-                    "predicate": "accuracy",
-                    "object": "95%",
-                    "object-entity": False
-                }
-            ]
-        }
+        """Sample extraction data in JSONL format (list with type discriminators)"""
+        return [
+            {
+                "type": "definition",
+                "entity": "Machine Learning",
+                "definition": "A subset of artificial intelligence that enables computers to learn from data without explicit programming."
+            },
+            {
+                "type": "definition",
+                "entity": "Neural Networks",
+                "definition": "Computing systems inspired by biological neural networks that process information."
+            },
+            {
+                "type": "relationship",
+                "subject": "Machine Learning",
+                "predicate": "is_subset_of",
+                "object": "Artificial Intelligence",
+                "object-entity": True
+            },
+            {
+                "type": "relationship",
+                "subject": "Neural Networks",
+                "predicate": "used_in",
+                "object": "Machine Learning",
+                "object-entity": True
+            },
+            {
+                "type": "relationship",
+                "subject": "Deep Learning",
+                "predicate": "accuracy",
+                "object": "95%",
+                "object-entity": False
+            }
+        ]
 
     def test_to_uri_conversion(self, agent_extractor):
         """Test URI conversion for entities"""
@@ -113,61 +114,67 @@ class TestAgentKgExtractor:
         expected = f"{TRUSTGRAPH_ENTITIES}"
         assert uri == expected
 
-    def test_parse_json_with_code_blocks(self, agent_extractor):
-        """Test JSON parsing from code blocks"""
-        # Test JSON in code blocks
+    def test_parse_jsonl_with_code_blocks(self, agent_extractor):
+        """Test JSONL parsing from code blocks"""
+        # Test JSONL in code blocks
         response = '''```json
-        {
-            "definitions": [{"entity": "AI", "definition": "Artificial Intelligence"}],
-            "relationships": []
-        }
-        ```'''
-        
-        result = agent_extractor.parse_json(response)
-        
-        assert result["definitions"][0]["entity"] == "AI"
-        assert result["definitions"][0]["definition"] == "Artificial Intelligence"
-        assert result["relationships"] == []
+{"type": "definition", "entity": "AI", "definition": "Artificial Intelligence"}
+{"type": "relationship", "subject": "AI", "predicate": "is", "object": "technology", "object-entity": False}
+```'''
 
-    def test_parse_json_without_code_blocks(self, agent_extractor):
-        """Test JSON parsing without code blocks"""
-        response = '''{"definitions": [{"entity": "ML", "definition": "Machine Learning"}], "relationships": []}'''
-        
-        result = agent_extractor.parse_json(response)
-        
-        assert result["definitions"][0]["entity"] == "ML"
-        assert result["definitions"][0]["definition"] == "Machine Learning"
+        result = agent_extractor.parse_jsonl(response)
 
-    def test_parse_json_invalid_format(self, agent_extractor):
-        """Test JSON parsing with invalid format"""
-        invalid_response = "This is not JSON at all"
-        
-        with pytest.raises(json.JSONDecodeError):
-            agent_extractor.parse_json(invalid_response)
+        assert len(result) == 2
+        assert result[0]["entity"] == "AI"
+        assert result[0]["definition"] == "Artificial Intelligence"
+        assert result[1]["type"] == "relationship"
 
-    def test_parse_json_malformed_code_blocks(self, agent_extractor):
-        """Test JSON parsing with malformed code blocks"""
-        # Missing closing backticks
-        response = '''```json
-        {"definitions": [], "relationships": []}
-        '''
-        
-        # Should still parse the JSON content
-        with pytest.raises(json.JSONDecodeError):
-            agent_extractor.parse_json(response)
+    def test_parse_jsonl_without_code_blocks(self, agent_extractor):
+        """Test JSONL parsing without code blocks"""
+        response = '''{"type": "definition", "entity": "ML", "definition": "Machine Learning"}
+{"type": "definition", "entity": "AI", "definition": "Artificial Intelligence"}'''
+
+        result = agent_extractor.parse_jsonl(response)
+
+        assert len(result) == 2
+        assert result[0]["entity"] == "ML"
+        assert result[1]["entity"] == "AI"
+
+    def test_parse_jsonl_invalid_lines_skipped(self, agent_extractor):
+        """Test JSONL parsing skips invalid lines gracefully"""
+        response = '''{"type": "definition", "entity": "Valid", "definition": "Valid def"}
+This is not JSON at all
+{"type": "definition", "entity": "Also Valid", "definition": "Another def"}'''
+
+        result = agent_extractor.parse_jsonl(response)
+
+        # Should get 2 valid objects, skipping the invalid line
+        assert len(result) == 2
+        assert result[0]["entity"] == "Valid"
+        assert result[1]["entity"] == "Also Valid"
+
+    def test_parse_jsonl_truncation_resilience(self, agent_extractor):
+        """Test JSONL parsing handles truncated responses"""
+        # Simulates output cut off mid-line
+        response = '''{"type": "definition", "entity": "Complete", "definition": "Full def"}
+{"type": "definition", "entity": "Trunca'''
+
+        result = agent_extractor.parse_jsonl(response)
+
+        # Should get 1 valid object, the truncated line is skipped
+        assert len(result) == 1
+        assert result[0]["entity"] == "Complete"
 
     def test_process_extraction_data_definitions(self, agent_extractor, sample_metadata):
         """Test processing of definition data"""
-        data = {
-            "definitions": [
-                {
-                    "entity": "Machine Learning",
-                    "definition": "A subset of AI that enables learning from data."
-                }
-            ],
-            "relationships": []
-        }
-        
+        data = [
+            {
+                "type": "definition",
+                "entity": "Machine Learning",
+                "definition": "A subset of AI that enables learning from data."
+            }
+        ]
+
         triples, entity_contexts = agent_extractor.process_extraction_data(data, sample_metadata)
         
         # Check entity label triple
@@ -196,18 +203,16 @@ class TestAgentKgExtractor:
 
     def test_process_extraction_data_relationships(self, agent_extractor, sample_metadata):
         """Test processing of relationship data"""
-        data = {
-            "definitions": [],
-            "relationships": [
-                {
-                    "subject": "Machine Learning",
-                    "predicate": "is_subset_of",
-                    "object": "Artificial Intelligence",
-                    "object-entity": True
-                }
-            ]
-        }
-        
+        data = [
+            {
+                "type": "relationship",
+                "subject": "Machine Learning",
+                "predicate": "is_subset_of",
+                "object": "Artificial Intelligence",
+                "object-entity": True
+            }
+        ]
+
         triples, entity_contexts = agent_extractor.process_extraction_data(data, sample_metadata)
         
         # Check that subject, predicate, and object labels are created
@@ -239,20 +244,18 @@ class TestAgentKgExtractor:
 
     def test_process_extraction_data_literal_object(self, agent_extractor, sample_metadata):
         """Test processing of relationships with literal objects"""
-        data = {
-            "definitions": [],
-            "relationships": [
-                {
-                    "subject": "Deep Learning",
-                    "predicate": "accuracy",
-                    "object": "95%",
-                    "object-entity": False
-                }
-            ]
-        }
-        
+        data = [
+            {
+                "type": "relationship",
+                "subject": "Deep Learning",
+                "predicate": "accuracy",
+                "object": "95%",
+                "object-entity": False
+            }
+        ]
+
         triples, entity_contexts = agent_extractor.process_extraction_data(data, sample_metadata)
-        
+
         # Check that object labels are not created for literal objects
         object_labels = [t for t in triples if t.p.value == RDF_LABEL and t.o.value == "95%"]
         # Based on the code logic, it should not create object labels for non-entity objects
@@ -275,63 +278,50 @@ class TestAgentKgExtractor:
     def test_process_extraction_data_no_metadata_id(self, agent_extractor):
         """Test processing when metadata has no ID"""
         metadata = Metadata(id=None, metadata=[])
-        data = {
-            "definitions": [
-                {"entity": "Test Entity", "definition": "Test definition"}
-            ],
-            "relationships": []
-        }
-        
+        data = [
+            {"type": "definition", "entity": "Test Entity", "definition": "Test definition"}
+        ]
+
         triples, entity_contexts = agent_extractor.process_extraction_data(data, metadata)
-        
+
         # Should not create subject-of relationships when no metadata ID
         subject_of_triples = [t for t in triples if t.p.value == SUBJECT_OF]
         assert len(subject_of_triples) == 0
-        
+
         # Should still create entity contexts
         assert len(entity_contexts) == 1
 
     def test_process_extraction_data_empty_data(self, agent_extractor, sample_metadata):
         """Test processing of empty extraction data"""
-        data = {"definitions": [], "relationships": []}
-        
-        triples, entity_contexts = agent_extractor.process_extraction_data(data, sample_metadata)
-        
-        # Should only have metadata triples
-        assert len(entity_contexts) == 0
-        # Triples should only contain metadata triples if any
+        data = []
 
-    def test_process_extraction_data_missing_keys(self, agent_extractor, sample_metadata):
-        """Test processing data with missing keys"""
-        # Test missing definitions key
-        data = {"relationships": []}
         triples, entity_contexts = agent_extractor.process_extraction_data(data, sample_metadata)
+
+        # Should have no entity contexts
         assert len(entity_contexts) == 0
-        
-        # Test missing relationships key
-        data = {"definitions": []}
+        # Triples should be empty
+        assert len(triples) == 0
+
+    def test_process_extraction_data_unknown_types_ignored(self, agent_extractor, sample_metadata):
+        """Test processing data with unknown type values"""
+        data = [
+            {"type": "definition", "entity": "Valid", "definition": "Valid def"},
+            {"type": "unknown_type", "foo": "bar"},  # Unknown type - should be ignored
+            {"type": "relationship", "subject": "A", "predicate": "rel", "object": "B", "object-entity": True}
+        ]
+
         triples, entity_contexts = agent_extractor.process_extraction_data(data, sample_metadata)
-        assert len(entity_contexts) == 0
-        
-        # Test completely missing keys
-        data = {}
-        triples, entity_contexts = agent_extractor.process_extraction_data(data, sample_metadata)
-        assert len(entity_contexts) == 0
+
+        # Should process valid items and ignore unknown types
+        assert len(entity_contexts) == 1  # Only the definition creates entity context
 
     def test_process_extraction_data_malformed_entries(self, agent_extractor, sample_metadata):
         """Test processing data with malformed entries"""
-        # Test definition missing required fields
-        data = {
-            "definitions": [
-                {"entity": "Test"},  # Missing definition
-                {"definition": "Test def"}  # Missing entity
-            ],
-            "relationships": [
-                {"subject": "A", "predicate": "rel"},  # Missing object
-                {"subject": "B", "object": "C"}  # Missing predicate
-            ]
-        }
-        
+        # Test items missing required fields - should raise KeyError
+        data = [
+            {"type": "definition", "entity": "Test"},  # Missing definition
+        ]
+
         # Should handle gracefully or raise appropriate errors
         with pytest.raises(KeyError):
             agent_extractor.process_extraction_data(data, sample_metadata)
