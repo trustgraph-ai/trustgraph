@@ -228,9 +228,14 @@ Following SPARQL conventions for backward compatibility:
 
 - **`g` omitted / None**: Query the default graph only
 - **`g` = specific IRI**: Query that named graph only
-- **`g` = wildcard / `*`**: Query across all graphs
+- **`g` = wildcard / `*`**: Query across all graphs (equivalent to SPARQL
+  `GRAPH ?g { ... }`)
 
 This keeps simple queries simple and makes named graph queries opt-in.
+
+Cross-graph queries (g=wildcard) are fully supported. The Cassandra schema
+includes dedicated tables (SPOG, POSG, OSPG) where g is a clustering column
+rather than a partition key, enabling efficient queries across all graphs.
 
 #### Temporal Queries
 
@@ -388,12 +393,78 @@ will proceed in phases:
 Cassandra requires multiple tables to support different query access patterns
 (each table efficiently queries by its partition key + clustering columns).
 
-**Challenge: Quads**
+##### Query Patterns
 
-For triples, typical indexes are SPO, POS, OSP (partition by first, cluster by
-rest). For quads, the graph dimension adds: SPOG, POSG, OSPG, GSPO, etc.
+With quads (g, s, p, o), each position can be specified or wildcard, giving
+16 possible query patterns:
 
-**Challenge: Quoted Triples**
+| # | g | s | p | o | Description |
+|---|---|---|---|---|-------------|
+| 1 | ? | ? | ? | ? | All quads |
+| 2 | ? | ? | ? | o | By object |
+| 3 | ? | ? | p | ? | By predicate |
+| 4 | ? | ? | p | o | By predicate + object |
+| 5 | ? | s | ? | ? | By subject |
+| 6 | ? | s | ? | o | By subject + object |
+| 7 | ? | s | p | ? | By subject + predicate |
+| 8 | ? | s | p | o | Full triple (which graphs?) |
+| 9 | g | ? | ? | ? | By graph |
+| 10 | g | ? | ? | o | By graph + object |
+| 11 | g | ? | p | ? | By graph + predicate |
+| 12 | g | ? | p | o | By graph + predicate + object |
+| 13 | g | s | ? | ? | By graph + subject |
+| 14 | g | s | ? | o | By graph + subject + object |
+| 15 | g | s | p | ? | By graph + subject + predicate |
+| 16 | g | s | p | o | Exact quad |
+
+##### Table Design
+
+Cassandra constraint: You can only efficiently query by partition key, then
+filter on clustering columns left-to-right. For g-wildcard queries, g must be
+a clustering column. For g-specified queries, g in the partition key is more
+efficient.
+
+**Two table families needed:**
+
+**Family A: g-wildcard queries** (g in clustering columns)
+
+| Table | Partition | Clustering | Supports patterns |
+|-------|-----------|------------|-------------------|
+| SPOG | (user, collection, s) | p, o, g | 5, 7, 8 |
+| POSG | (user, collection, p) | o, s, g | 3, 4 |
+| OSPG | (user, collection, o) | s, p, g | 2, 6 |
+
+**Family B: g-specified queries** (g in partition key)
+
+| Table | Partition | Clustering | Supports patterns |
+|-------|-----------|------------|-------------------|
+| GSPO | (user, collection, g, s) | p, o | 9, 13, 15, 16 |
+| GPOS | (user, collection, g, p) | o, s | 11, 12 |
+| GOSP | (user, collection, g, o) | s, p | 10, 14 |
+
+**Collection table** (for iteration and bulk deletion)
+
+| Table | Partition | Clustering | Purpose |
+|-------|-----------|------------|---------|
+| COLL | (user, collection) | g, s, p, o | Enumerate all quads in collection |
+
+##### Write and Delete Paths
+
+**Write path**: Insert into all 7 tables.
+
+**Delete collection path**:
+1. Iterate COLL table for `(user, collection)`
+2. For each quad, delete from all 6 query tables
+3. Delete from COLL table (or range delete)
+
+**Delete single quad path**: Delete from all 7 tables directly.
+
+##### Storage Cost
+
+Each quad is stored 7 times. This is the cost of flexible querying combined
+with efficient collection deletion.
+
+##### Quoted Triples in Storage
 
 Subject or object can be a triple itself. Options:
 
@@ -425,29 +496,9 @@ Metadata table:
 - Pro: Clean separation, can index triple IDs
 - Con: Requires computing/managing triple identity, two-phase lookups
 
-**Option C: Hybrid**
-- Store quads normally with serialized quoted triple strings for simple cases
-- Maintain a separate triple ID lookup for advanced queries
-- Pro: Flexibility
-- Con: Complexity
-
-**Recommendation**: TBD after prototyping. Option A is simplest for initial
-implementation; Option B may be needed for advanced query patterns.
-
-#### Indexing Strategy
-
-Indexes must support the defined query patterns:
-
-| Query Type | Access Pattern | Index Needed |
-|------------|----------------|--------------|
-| Facts by date | P=discoveredOn, O>date | POG (predicate, object, graph) |
-| Facts by source | P=supportedBy, O=source | POG |
-| Facts by asserter | P=assertedBy, O=person | POG |
-| Metadata for a fact | S=quotedTriple | SPO/SPOG |
-| All facts in graph | G=graphIRI | GSPO |
-
-For temporal range queries (dates), Cassandra clustering column ordering
-enables efficient scans when date is a clustering column.
+**Recommendation**: Start with Option A (serialized strings) for simplicity.
+Option B may be needed if advanced query patterns over quoted triple
+components are required.
 
 2. **Phase 2+: Other Backends**
    - Neo4j and other stores implemented in subsequent stages
