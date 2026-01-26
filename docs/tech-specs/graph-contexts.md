@@ -222,6 +222,16 @@ The current query engine accepts combinations of S, P, O terms. With quoted
 triples, a triple itself becomes a valid term in those positions. Below are
 candidate query patterns that support the original goals.
 
+#### Graph Parameter Semantics
+
+Following SPARQL conventions for backward compatibility:
+
+- **`g` omitted / None**: Query the default graph only
+- **`g` = specific IRI**: Query that named graph only
+- **`g` = wildcard / `*`**: Query across all graphs
+
+This keeps simple queries simple and makes named graph queries opt-in.
+
 #### Temporal Queries
 
 **Find all facts discovered after a given date:**
