@@ -2,15 +2,21 @@
 import logging
 
 from . request_response_spec import RequestResponse, RequestResponseSpec
-from .. schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse
+from .. schema import GraphEmbeddingsRequest, GraphEmbeddingsResponse, IRI, LITERAL
 from .. knowledge import Uri, Literal
 
 # Module logger
 logger = logging.getLogger(__name__)
 
+
 def to_value(x):
-    if x.is_uri: return Uri(x.value)
-    return Literal(x.value)
+    """Convert schema Term to Uri or Literal."""
+    if x.type == IRI:
+        return Uri(x.iri)
+    elif x.type == LITERAL:
+        return Literal(x.value)
+    # Fallback
+    return Literal(x.value or x.iri)
 
 class GraphEmbeddingsClient(RequestResponse):
     async def query(self, vectors, limit=20, user="trustgraph",
