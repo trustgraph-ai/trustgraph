@@ -95,10 +95,16 @@ valuable improvements to include while making breaking changes:
 
 ### Data Models
 
-#### Term (currently named Value)
+#### Term (rename from Value)
 
-The `Value` class should potentially be renamed to `Term` or `Node` to better
-reflect RDF terminology. A Term can represent:
+The `Value` class will be renamed to `Term` to better reflect RDF terminology.
+This rename serves two purposes:
+1. Aligns naming with RDF concepts (a "Term" can be an IRI, literal, blank
+   node, or quoted triple - not just a "value")
+2. Forces code review at the breaking change interface - any code still
+   referencing `Value` is visibly broken and needs updating
+
+A Term can represent:
 
 - **IRI/URI** - A named node/resource
 - **Blank Node** - An anonymous node with local scope
@@ -218,8 +224,10 @@ before committing to implementations across all stores.
 
 #### Value → Term Rename
 
-The `Value` class is currently used in ~78 files. Renaming to `Term` would
-better reflect RDF terminology and is feasible in a 2.0 breaking release.
+The `Value` class will be renamed to `Term`. This affects ~78 files across
+the codebase. The rename acts as a forcing function: any code still using
+`Value` is immediately identifiable as needing review/update for 2.0
+compatibility.
 
 ## Security Considerations
 
