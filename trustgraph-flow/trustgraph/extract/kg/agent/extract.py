@@ -290,10 +290,11 @@ class Processor(FlowProcessor):
 
             subject_value = Value(value=subject_uri, is_uri=True)
             predicate_value = Value(value=predicate_uri, is_uri=True)
-            if data.get("object-entity", False):
-                object_value = Value(value=predicate_uri, is_uri=True)
+            if rel.get("object-entity", True):
+                object_uri = self.to_uri(rel["object"])
+                object_value = Value(value=object_uri, is_uri=True)
             else:
-                object_value = Value(value=predicate_uri, is_uri=False)
+                object_value = Value(value=rel["object"], is_uri=False)
             
             # Add subject and predicate labels
             triples.append(Triple(

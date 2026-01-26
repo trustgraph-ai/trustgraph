@@ -116,10 +116,10 @@ class TestAgentKgExtractor:
 
     def test_parse_jsonl_with_code_blocks(self, agent_extractor):
         """Test JSONL parsing from code blocks"""
-        # Test JSONL in code blocks
+        # Test JSONL in code blocks - note: JSON uses lowercase true/false
         response = '''```json
 {"type": "definition", "entity": "AI", "definition": "Artificial Intelligence"}
-{"type": "relationship", "subject": "AI", "predicate": "is", "object": "technology", "object-entity": False}
+{"type": "relationship", "subject": "AI", "predicate": "is", "object": "technology", "object-entity": false}
 ```'''
 
         result = agent_extractor.parse_jsonl(response)
@@ -228,15 +228,12 @@ This is not JSON at all
         assert predicate_label is not None
         assert predicate_label.o.value == "is_subset_of"
         
-        # Check main relationship triple 
-        # NOTE: Current implementation has bugs:
-        # 1. Uses data.get("object-entity") instead of rel.get("object-entity")
-        # 2. Sets object_value to predicate_uri instead of actual object URI
-        # This test documents the current buggy behavior
+        # Check main relationship triple
+        object_uri = f"{TRUSTGRAPH_ENTITIES}Artificial%20Intelligence"
         rel_triple = next((t for t in triples if t.s.value == subject_uri and t.p.value == predicate_uri), None)
         assert rel_triple is not None
-        # Due to bug, object value is set to predicate_uri
-        assert rel_triple.o.value == predicate_uri
+        assert rel_triple.o.value == object_uri
+        assert rel_triple.o.is_uri == True
         
         # Check subject-of relationships
         subject_of_triples = [t for t in triples if t.p.value == SUBJECT_OF and t.o.value == "doc123"]
