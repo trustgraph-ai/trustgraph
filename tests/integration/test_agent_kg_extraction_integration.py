@@ -30,38 +30,16 @@ class TestAgentKgExtractionIntegration:
         # Mock agent client
         agent_client = AsyncMock()
         
-        # Mock successful agent response
+        # Mock successful agent response in JSONL format
         def mock_agent_response(recipient, question):
-            # Simulate agent processing and return structured response
+            # Simulate agent processing and return structured JSONL response
             mock_response = MagicMock()
             mock_response.error = None
             mock_response.answer = '''```json
-{
-    "definitions": [
-        {
-            "entity": "Machine Learning",
-            "definition": "A subset of artificial intelligence that enables computers to learn from data without explicit programming."
-        },
-        {
-            "entity": "Neural Networks", 
-            "definition": "Computing systems inspired by biological neural networks that process information."
-        }
-    ],
-    "relationships": [
-        {
-            "subject": "Machine Learning",
-            "predicate": "is_subset_of", 
-            "object": "Artificial Intelligence",
-            "object-entity": true
-        },
-        {
-            "subject": "Neural Networks",
-            "predicate": "used_in",
-            "object": "Machine Learning", 
-            "object-entity": true
-        }
-    ]
-}
+{"type": "definition", "entity": "Machine Learning", "definition": "A subset of artificial intelligence that enables computers to learn from data without explicit programming."}
+{"type": "definition", "entity": "Neural Networks", "definition": "Computing systems inspired by biological neural networks that process information."}
+{"type": "relationship", "subject": "Machine Learning", "predicate": "is_subset_of", "object": "Artificial Intelligence", "object-entity": true}
+{"type": "relationship", "subject": "Neural Networks", "predicate": "used_in", "object": "Machine Learning", "object-entity": true}
 ```'''
             return mock_response.answer
         
@@ -120,7 +98,7 @@ class TestAgentKgExtractionIntegration:
         
         # Copy the methods we want to test
         extractor.to_uri = real_extractor.to_uri
-        extractor.parse_json = real_extractor.parse_json
+        extractor.parse_jsonl = real_extractor.parse_jsonl
         extractor.process_extraction_data = real_extractor.process_extraction_data
         extractor.emit_triples = real_extractor.emit_triples
         extractor.emit_entity_contexts = real_extractor.emit_entity_contexts
@@ -156,7 +134,7 @@ class TestAgentKgExtractionIntegration:
             agent_response = agent_client.invoke(recipient=lambda x: True, question=prompt)
             
             # Parse and process
-            extraction_data = extractor.parse_json(agent_response)
+            extraction_data = extractor.parse_jsonl(agent_response)
             triples, entity_contexts = extractor.process_extraction_data(extraction_data, v.metadata)
             
             # Add metadata triples
@@ -248,22 +226,28 @@ class TestAgentKgExtractionIntegration:
 
     @pytest.mark.asyncio
     async def test_invalid_json_response_handling(self, configured_agent_extractor, sample_chunk, mock_flow_context):
-        """Test handling of invalid JSON responses from agent"""
+        """Test handling of invalid JSON responses from agent - JSONL is lenient and skips invalid lines"""
         # Arrange - mock invalid JSON response
         agent_client = mock_flow_context("agent-request")
-        
+
         def mock_invalid_json_response(recipient, question):
             return "This is not valid JSON at all"
-        
+
         agent_client.invoke = mock_invalid_json_response
-        
+
         mock_message = MagicMock()
         mock_message.value.return_value = sample_chunk
         mock_consumer = MagicMock()
 
-        # Act & Assert
-        with pytest.raises((ValueError, json.JSONDecodeError)):
-            await configured_agent_extractor.on_message(mock_message, mock_consumer, mock_flow_context)
+        # Act - JSONL parsing is lenient, invalid lines are skipped
+        await configured_agent_extractor.on_message(mock_message, mock_consumer, mock_flow_context)
+
+        # Assert - should emit triples (with just metadata) but no entity contexts
+        triples_publisher = mock_flow_context("triples")
+        triples_publisher.send.assert_called_once()
+
+        entity_contexts_publisher = mock_flow_context("entity-contexts")
+        entity_contexts_publisher.send.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_empty_extraction_results(self, configured_agent_extractor, sample_chunk, mock_flow_context):
@@ -272,7 +256,8 @@ class TestAgentKgExtractionIntegration:
         agent_client = mock_flow_context("agent-request")
         
         def mock_empty_response(recipient, question):
-            return '{"definitions": [], "relationships": []}'
+            # Return empty JSONL (just empty/whitespace)
+            return ''
         
         agent_client.invoke = mock_empty_response
         
@@ -303,7 +288,8 @@ class TestAgentKgExtractionIntegration:
         agent_client = mock_flow_context("agent-request")
         
         def mock_malformed_response(recipient, question):
-            return '''{"definitions": [{"entity": "Missing Definition"}], "relationships": [{"subject": "Missing Object"}]}'''
+            # JSONL with definition missing required field
+            return '{"type": "definition", "entity": "Missing Definition"}'
         
         agent_client.invoke = mock_malformed_response
         
@@ -330,7 +316,7 @@ class TestAgentKgExtractionIntegration:
         def capture_prompt(recipient, question):
             # Verify the prompt contains the test text
             assert test_text in question
-            return '{"definitions": [], "relationships": []}'
+            return ''  # Empty JSONL response
         
         agent_client.invoke = capture_prompt
         
@@ -361,7 +347,7 @@ class TestAgentKgExtractionIntegration:
         responses = []
         
         def mock_response(recipient, question):
-            response = f'{{"definitions": [{{"entity": "Entity {len(responses)}", "definition": "Definition {len(responses)}"}}], "relationships": []}}'
+            response = f'{{"type": "definition", "entity": "Entity {len(responses)}", "definition": "Definition {len(responses)}"}}'
             responses.append(response)
             return response
         
@@ -398,7 +384,7 @@ class TestAgentKgExtractionIntegration:
             # Verify unicode text was properly decoded and included
             assert "学习机器" in question
             assert "人工知能" in question
-            return '''{"definitions": [{"entity": "機械学習", "definition": "人工知能の一分野"}], "relationships": []}'''
+            return '{"type": "definition", "entity": "機械学習", "definition": "人工知能の一分野"}'
         
         agent_client.invoke = mock_unicode_response
         
@@ -433,7 +419,7 @@ class TestAgentKgExtractionIntegration:
         def mock_large_text_response(recipient, question):
             # Verify large text was included
             assert len(question) > 10000
-            return '''{"definitions": [{"entity": "Machine Learning", "definition": "Important AI technique"}], "relationships": []}'''
+            return '{"type": "definition", "entity": "Machine Learning", "definition": "Important AI technique"}'
         
         agent_client.invoke = mock_large_text_response
         
