@@ -318,14 +318,31 @@ The following prompts should be migrated to JSONL format:
 
 ### API Changes
 
-#### Return Value
+#### Client Perspective
 
-For `response-type: "jsonl"`, the `invoke()` method returns a `list[dict]`
-containing all successfully parsed and validated objects, rather than a single
-object or the raw text.
+JSONL parsing is transparent to prompt service API callers. The parsing occurs
+server-side in the prompt service, and the response is returned via the standard
+`PromptResponse.object` field as a serialized JSON array.
 
-Callers expecting JSON array output should require minimal changes since both
-return a list.
+When clients call the prompt service (via `PromptClient.prompt()` or similar):
+
+- **`response-type: "json"`** with array schema → client receives Python `list`
+- **`response-type: "jsonl"`** → client receives Python `list`
+
+From the client's perspective, both return identical data structures. The
+difference is entirely in how the LLM output is parsed server-side:
+
+- JSON array format: Single `json.loads()` call; fails completely if truncated
+- JSONL format: Line-by-line parsing; yields partial results if truncated
+
+This means existing client code expecting a list from extraction prompts
+requires no changes when migrating prompts from JSON to JSONL format.
+
+#### Server Return Value
+
+For `response-type: "jsonl"`, the `PromptManager.invoke()` method returns a
+`list[dict]` containing all successfully parsed and validated objects. This
+list is then serialized to JSON for the `PromptResponse.object` field.
 
 #### Error Handling
 
