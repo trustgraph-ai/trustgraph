@@ -1,37 +1,133 @@
 from typing import Dict, Any, List
-from ...schema import Value, Triple, RowSchema, Field
+from ...schema import Term, Triple, RowSchema, Field, IRI, BLANK, LITERAL, TRIPLE
 from .base import Translator
 
 
-class ValueTranslator(Translator):
-    """Translator for Value schema objects"""
-    
-    def to_pulsar(self, data: Dict[str, Any]) -> Value:
-        return Value(value=data["v"], is_uri=data["e"])
-    
-    def from_pulsar(self, obj: Value) -> Dict[str, Any]:
-        return {"v": obj.value, "e": obj.is_uri}
+class TermTranslator(Translator):
+    """
+    Translator for Term schema objects.
+
+    Wire format (compact keys):
+    - "t": type (i/b/l/t)
+    - "i": iri (for IRI type)
+    - "d": id (for BLANK type)
+    - "v": value (for LITERAL type)
+    - "dt": datatype (for LITERAL type)
+    - "ln": language (for LITERAL type)
+    - "tr": triple (for TRIPLE type, nested)
+    """
+
+    def to_pulsar(self, data: Dict[str, Any]) -> Term:
+        term_type = data.get("t", "")
+
+        if term_type == IRI:
+            return Term(type=IRI, iri=data.get("i", ""))
+
+        elif term_type == BLANK:
+            return Term(type=BLANK, id=data.get("d", ""))
+
+        elif term_type == LITERAL:
+            return Term(
+                type=LITERAL,
+                value=data.get("v", ""),
+                datatype=data.get("dt", ""),
+                language=data.get("ln", ""),
+            )
+
+        elif term_type == TRIPLE:
+            # Nested triple - use TripleTranslator
+            triple_data = data.get("tr")
+            if triple_data:
+                triple = _triple_translator_to_pulsar(triple_data)
+            else:
+                triple = None
+            return Term(type=TRIPLE, triple=triple)
+
+        else:
+            # Unknown or empty type
+            return Term(type=term_type)
+
+    def from_pulsar(self, obj: Term) -> Dict[str, Any]:
+        result: Dict[str, Any] = {"t": obj.type}
+
+        if obj.type == IRI:
+            result["i"] = obj.iri
+
+        elif obj.type == BLANK:
+            result["d"] = obj.id
+
+        elif obj.type == LITERAL:
+            result["v"] = obj.value
+            if obj.datatype:
+                result["dt"] = obj.datatype
+            if obj.language:
+                result["ln"] = obj.language
+
+        elif obj.type == TRIPLE:
+            if obj.triple:
+                result["tr"] = _triple_translator_from_pulsar(obj.triple)
+
+        return result
+
+
+# Module-level helper functions to avoid circular instantiation
+def _triple_translator_to_pulsar(data: Dict[str, Any]) -> Triple:
+    term_translator = TermTranslator()
+    return Triple(
+        s=term_translator.to_pulsar(data["s"]) if data.get("s") else None,
+        p=term_translator.to_pulsar(data["p"]) if data.get("p") else None,
+        o=term_translator.to_pulsar(data["o"]) if data.get("o") else None,
+        g=data.get("g"),
+    )
+
+
+def _triple_translator_from_pulsar(obj: Triple) -> Dict[str, Any]:
+    term_translator = TermTranslator()
+    result: Dict[str, Any] = {}
+
+    if obj.s:
+        result["s"] = term_translator.from_pulsar(obj.s)
+    if obj.p:
+        result["p"] = term_translator.from_pulsar(obj.p)
+    if obj.o:
+        result["o"] = term_translator.from_pulsar(obj.o)
+    if obj.g:
+        result["g"] = obj.g
+
+    return result
 
 
 class TripleTranslator(Translator):
-    """Translator for Triple schema objects"""
-    
+    """Translator for Triple schema objects (quads with optional graph)"""
+
     def __init__(self):
-        self.value_translator = ValueTranslator()
-    
+        self.term_translator = TermTranslator()
+
     def to_pulsar(self, data: Dict[str, Any]) -> Triple:
         return Triple(
-            s=self.value_translator.to_pulsar(data["s"]),
-            p=self.value_translator.to_pulsar(data["p"]),
-            o=self.value_translator.to_pulsar(data["o"])
+            s=self.term_translator.to_pulsar(data["s"]) if data.get("s") else None,
+            p=self.term_translator.to_pulsar(data["p"]) if data.get("p") else None,
+            o=self.term_translator.to_pulsar(data["o"]) if data.get("o") else None,
+            g=data.get("g"),
         )
-    
+
     def from_pulsar(self, obj: Triple) -> Dict[str, Any]:
-        return {
-            "s": self.value_translator.from_pulsar(obj.s),
-            "p": self.value_translator.from_pulsar(obj.p),
-            "o": self.value_translator.from_pulsar(obj.o)
-        }
+        result: Dict[str, Any] = {}
+
+        if obj.s:
+            result["s"] = self.term_translator.from_pulsar(obj.s)
+        if obj.p:
+            result["p"] = self.term_translator.from_pulsar(obj.p)
+        if obj.o:
+            result["o"] = self.term_translator.from_pulsar(obj.o)
+        if obj.g:
+            result["g"] = obj.g
+
+        return result
+
+
+# Backward compatibility alias
+ValueTranslator = TermTranslator
 
 
 class SubgraphTranslator(Translator):
