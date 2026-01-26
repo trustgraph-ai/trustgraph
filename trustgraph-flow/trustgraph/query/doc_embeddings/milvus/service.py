@@ -8,7 +8,7 @@ import logging
 
 from .... direct.milvus_doc_embeddings import DocVectors
 from .... schema import DocumentEmbeddingsResponse
-from .... schema import Error, Value
+from .... schema import Error
 from .... base import DocumentEmbeddingsQueryService
 
 # Module logger
