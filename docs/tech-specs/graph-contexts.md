@@ -373,6 +373,72 @@ will proceed in phases:
    - Schema will be redesigned from scratch for quads + reification
    - Validate the data model and query patterns against real use cases
 
+#### Cassandra Schema Design
+
+Cassandra requires multiple tables to support different query access patterns
+(each table efficiently queries by its partition key + clustering columns).
+
+**Challenge: Quads**
+
+For triples, typical indexes are SPO, POS, OSP (partition by first, cluster by
+rest). For quads, the graph dimension adds: SPOG, POSG, OSPG, GSPO, etc.
+
+**Challenge: Quoted Triples**
+
+Subject or object can be a triple itself. Options:
+
+**Option A: Serialize quoted triples to canonical string**
+```
+S: "<<http://ex/Alice|http://ex/knows|http://ex/Bob>>"
+P: http://ex/discoveredOn
+O: "2024-01-15"
+G: null
+```
+- Store quoted triple as serialized string in S or O columns
+- Query by exact match on serialized form
+- Pro: Simple, fits existing index patterns
+- Con: Can't query "find triples where quoted subject's predicate is X"
+
+**Option B: Triple IDs / Hashes**
+```
+Triple table:
+  id: hash(s,p,o,g)
+  s, p, o, g: ...
+
+Metadata table:
+  subject_triple_id: <hash>
+  p: http://ex/discoveredOn
+  o: "2024-01-15"
+```
+- Assign each triple an ID (hash of components)
+- Reification metadata references triples by ID
+- Pro: Clean separation, can index triple IDs
+- Con: Requires computing/managing triple identity, two-phase lookups
+
+**Option C: Hybrid**
+- Store quads normally with serialized quoted triple strings for simple cases
+- Maintain a separate triple ID lookup for advanced queries
+- Pro: Flexibility
+- Con: Complexity
+
+**Recommendation**: TBD after prototyping. Option A is simplest for initial
+implementation; Option B may be needed for advanced query patterns.
+
+#### Indexing Strategy
+
+Indexes must support the defined query patterns:
+
+| Query Type | Access Pattern | Index Needed |
+|------------|----------------|--------------|
+| Facts by date | P=discoveredOn, O>date | POG (predicate, object, graph) |
+| Facts by source | P=supportedBy, O=source | POG |
+| Facts by asserter | P=assertedBy, O=person | POG |
+| Metadata for a fact | S=quotedTriple | SPO/SPOG |
+| All facts in graph | G=graphIRI | GSPO |
+
+For temporal range queries (dates), Cassandra clustering column ordering
+enables efficient scans when date is a clustering column.
+
 2. **Phase 2+: Other Backends**
    - Neo4j and other stores implemented in subsequent stages
    - Lessons learned from Cassandra inform these implementations
@@ -389,7 +455,9 @@ compatibility.
 
 ## Security Considerations
 
-TODO: Consider access control implications of named graphs.
+Named graphs are not a security feature. Users and collections remain the
+security boundaries. Named graphs are purely for data organization and
+reification support.
 
 ## Performance Considerations
 
