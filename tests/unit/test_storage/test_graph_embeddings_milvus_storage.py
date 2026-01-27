@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from trustgraph.storage.graph_embeddings.milvus.write import Processor
-from trustgraph.schema import Value, EntityEmbeddings
+from trustgraph.schema import Term, EntityEmbeddings, IRI, LITERAL
 
 
 class TestMilvusGraphEmbeddingsStorageProcessor:
@@ -22,11 +22,11 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         
         # Create test entities with embeddings
         entity1 = EntityEmbeddings(
-            entity=Value(value='http://example.com/entity1', is_uri=True),
+            entity=Term(type=IRI, iri='http://example.com/entity1'),
             vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
         )
         entity2 = EntityEmbeddings(
-            entity=Value(value='literal entity', is_uri=False),
+            entity=Term(type=LITERAL, value='literal entity'),
             vectors=[[0.7, 0.8, 0.9]]
         )
         message.entities = [entity1, entity2]
@@ -84,7 +84,7 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         message.metadata.collection = 'test_collection'
         
         entity = EntityEmbeddings(
-            entity=Value(value='http://example.com/entity', is_uri=True),
+            entity=Term(type=IRI, iri='http://example.com/entity'),
             vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
         )
         message.entities = [entity]
