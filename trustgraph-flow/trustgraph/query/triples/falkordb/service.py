@@ -10,11 +10,23 @@ import logging
 from falkordb import FalkorDB
 
 from .... schema import TriplesQueryRequest, TriplesQueryResponse, Error
-from .... schema import Value, Triple
+from .... schema import Term, Triple, IRI, LITERAL
 from .... base import TriplesQueryService
 
 # Module logger
 logger = logging.getLogger(__name__)
+
+
+def get_term_value(term):
+    """Extract the string value from a Term"""
+    if term is None:
+        return None
+    if term.type == IRI:
+        return term.iri
+    elif term.type == LITERAL:
+        return term.value
+    else:
+        return term.id or term.value
 
 default_ident = "triples-query"
 
@@ -42,9 +54,9 @@ class Processor(TriplesQueryService):
     def create_value(self, ent):
 
         if ent.startswith("http://") or ent.startswith("https://"):
-            return Value(value=ent, is_uri=True)
+            return Term(type=IRI, iri=ent)
         else:
-            return Value(value=ent, is_uri=False)
+            return Term(type=LITERAL, value=ent)
 
     async def query_triples(self, query):
 
@@ -63,28 +75,28 @@ class Processor(TriplesQueryService):
                             "RETURN $src as src "
                             "LIMIT " + str(query.limit),
                             params={
-                                "src": query.s.value,
-                                "rel": query.p.value,
-                                "value": query.o.value,
+                                "src": get_term_value(query.s),
+                                "rel": get_term_value(query.p),
+                                "value": get_term_value(query.o),
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((query.s.value, query.p.value, query.o.value))
+                            triples.append((get_term_value(query.s), get_term_value(query.p), get_term_value(query.o)))
 
                         records = self.io.query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Node {uri: $uri}) "
                             "RETURN $src as src "
                             "LIMIT " + str(query.limit),
                             params={
-                                "src": query.s.value,
-                                "rel": query.p.value,
-                                "uri": query.o.value,
+                                "src": get_term_value(query.s),
+                                "rel": get_term_value(query.p),
+                                "uri": get_term_value(query.o),
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((query.s.value, query.p.value, query.o.value))
+                            triples.append((get_term_value(query.s), get_term_value(query.p), get_term_value(query.o)))
 
                     else:
 
@@ -95,26 +107,26 @@ class Processor(TriplesQueryService):
                             "RETURN dest.value as dest "
                             "LIMIT " + str(query.limit),
                             params={
-                                "src": query.s.value,
-                                "rel": query.p.value,
+                                "src": get_term_value(query.s),
+                                "rel": get_term_value(query.p),
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((query.s.value, query.p.value, rec[0]))
+                            triples.append((get_term_value(query.s), get_term_value(query.p), rec[0]))
 
                         records = self.io.query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel {uri: $rel}]->(dest:Node) "
                             "RETURN dest.uri as dest "
                             "LIMIT " + str(query.limit),
                             params={
-                                "src": query.s.value,
-                                "rel": query.p.value,
+                                "src": get_term_value(query.s),
+                                "rel": get_term_value(query.p),
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((query.s.value, query.p.value, rec[0]))
+                            triples.append((get_term_value(query.s), get_term_value(query.p), rec[0]))
 
                 else:
 
@@ -127,26 +139,26 @@ class Processor(TriplesQueryService):
                             "RETURN rel.uri as rel "
                             "LIMIT " + str(query.limit),
                             params={
-                                "src": query.s.value,
-                                "value": query.o.value,
+                                "src": get_term_value(query.s),
+                                "value": get_term_value(query.o),
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((query.s.value, rec[0], query.o.value))
+                            triples.append((get_term_value(query.s), rec[0], get_term_value(query.o)))
 
                         records = self.io.query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Node {uri: $uri}) "
                             "RETURN rel.uri as rel "
                             "LIMIT " + str(query.limit),
                             params={
-                                "src": query.s.value,
-                                "uri": query.o.value,
+                                "src": get_term_value(query.s),
+                                "uri": get_term_value(query.o),
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((query.s.value, rec[0], query.o.value))
+                            triples.append((get_term_value(query.s), rec[0], get_term_value(query.o)))
 
                     else:
 
@@ -157,24 +169,24 @@ class Processor(TriplesQueryService):
                             "RETURN rel.uri as rel, dest.value as dest "
                             "LIMIT " + str(query.limit),
                             params={
-                                "src": query.s.value,
+                                "src": get_term_value(query.s),
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((query.s.value, rec[0], rec[1]))
+                            triples.append((get_term_value(query.s), rec[0], rec[1]))
 
                         records = self.io.query(
                             "MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Node) "
                             "RETURN rel.uri as rel, dest.uri as dest "
                             "LIMIT " + str(query.limit),
                             params={
-                                "src": query.s.value,
+                                "src": get_term_value(query.s),
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((query.s.value, rec[0], rec[1]))
+                            triples.append((get_term_value(query.s), rec[0], rec[1]))
 
 
             else:
@@ -190,26 +202,26 @@ class Processor(TriplesQueryService):
                             "RETURN src.uri as src "
                             "LIMIT " + str(query.limit),
                             params={
-                                "uri": query.p.value,
-                                "value": query.o.value,
+                                "uri": get_term_value(query.p),
+                                "value": get_term_value(query.o),
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((rec[0], query.p.value, query.o.value))
+                            triples.append((rec[0], get_term_value(query.p), get_term_value(query.o)))
 
                         records = self.io.query(
                             "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Node {uri: $dest}) "
                             "RETURN src.uri as src "
                             "LIMIT " + str(query.limit),
                             params={
-                                "uri": query.p.value,
-                                "dest": query.o.value,
+                                "uri": get_term_value(query.p),
+                                "dest": get_term_value(query.o),
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((rec[0], query.p.value, query.o.value))
+                            triples.append((rec[0], get_term_value(query.p), get_term_value(query.o)))
 
                     else:
 
@@ -220,24 +232,24 @@ class Processor(TriplesQueryService):
                             "RETURN src.uri as src, dest.value as dest "
                             "LIMIT " + str(query.limit),
                             params={
-                                "uri": query.p.value,
+                                "uri": get_term_value(query.p),
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((rec[0], query.p.value, rec[1]))
+                            triples.append((rec[0], get_term_value(query.p), rec[1]))
 
                         records = self.io.query(
                             "MATCH (src:Node)-[rel:Rel {uri: $uri}]->(dest:Node) "
                             "RETURN src.uri as src, dest.uri as dest "
                             "LIMIT " + str(query.limit),
                             params={
-                                "uri": query.p.value,
+                                "uri": get_term_value(query.p),
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((rec[0], query.p.value, rec[1]))
+                            triples.append((rec[0], get_term_value(query.p), rec[1]))
 
                 else:
 
@@ -250,24 +262,24 @@ class Processor(TriplesQueryService):
                             "RETURN src.uri as src, rel.uri as rel "
                             "LIMIT " + str(query.limit),
                             params={
-                                "value": query.o.value,
+                                "value": get_term_value(query.o),
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((rec[0], rec[1], query.o.value))
+                            triples.append((rec[0], rec[1], get_term_value(query.o)))
 
                         records = self.io.query(
                             "MATCH (src:Node)-[rel:Rel]->(dest:Node {uri: $uri}) "
                             "RETURN src.uri as src, rel.uri as rel "
                             "LIMIT " + str(query.limit),
                             params={
-                                "uri": query.o.value,
+                                "uri": get_term_value(query.o),
                             },
                         ).result_set
 
                         for rec in records:
-                            triples.append((rec[0], rec[1], query.o.value))
+                            triples.append((rec[0], rec[1], get_term_value(query.o)))
 
                     else:
 

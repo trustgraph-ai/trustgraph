@@ -25,50 +25,50 @@ class TestMemgraphQueryProcessor:
     def test_create_value_with_http_uri(self, processor):
         """Test create_value with HTTP URI"""
         result = processor.create_value("http://example.com/resource")
-        
-        assert isinstance(result, Value)
-        assert result.value == "http://example.com/resource"
-        assert result.is_uri is True
+
+        assert isinstance(result, Term)
+        assert result.iri == "http://example.com/resource"
+        assert result.type == IRI
 
     def test_create_value_with_https_uri(self, processor):
         """Test create_value with HTTPS URI"""
         result = processor.create_value("https://example.com/resource")
-        
-        assert isinstance(result, Value)
-        assert result.value == "https://example.com/resource"
-        assert result.is_uri is True
+
+        assert isinstance(result, Term)
+        assert result.iri == "https://example.com/resource"
+        assert result.type == IRI
 
     def test_create_value_with_literal(self, processor):
         """Test create_value with literal value"""
         result = processor.create_value("just a literal string")
-        
-        assert isinstance(result, Value)
+
+        assert isinstance(result, Term)
         assert result.value == "just a literal string"
-        assert result.is_uri is False
+        assert result.type == LITERAL
 
     def test_create_value_with_empty_string(self, processor):
         """Test create_value with empty string"""
         result = processor.create_value("")
-        
-        assert isinstance(result, Value)
+
+        assert isinstance(result, Term)
         assert result.value == ""
-        assert result.is_uri is False
+        assert result.type == LITERAL
 
     def test_create_value_with_partial_uri(self, processor):
         """Test create_value with string that looks like URI but isn't complete"""
         result = processor.create_value("http")
-        
-        assert isinstance(result, Value)
+
+        assert isinstance(result, Term)
         assert result.value == "http"
-        assert result.is_uri is False
+        assert result.type == LITERAL
 
     def test_create_value_with_ftp_uri(self, processor):
         """Test create_value with FTP URI (should not be detected as URI)"""
         result = processor.create_value("ftp://example.com/file")
-        
-        assert isinstance(result, Value)
+
+        assert isinstance(result, Term)
         assert result.value == "ftp://example.com/file"
-        assert result.is_uri is False
+        assert result.type == LITERAL
 
     @patch('trustgraph.query.triples.memgraph.service.GraphDatabase')
     def test_processor_initialization_with_defaults(self, mock_graph_db):
@@ -124,9 +124,9 @@ class TestMemgraphQueryProcessor:
         query = TriplesQueryRequest(
             user='test_user',
             collection='test_collection',
-            s=Value(value="http://example.com/subject", is_uri=True),
-            p=Value(value="http://example.com/predicate", is_uri=True),
-            o=Value(value="literal object", is_uri=False),
+            s=Term(type=IRI, iri="http://example.com/subject"),
+            p=Term(type=IRI, iri="http://example.com/predicate"),
+            o=Term(type=LITERAL, value="literal object"),
             limit=100
         )
         
@@ -166,8 +166,8 @@ class TestMemgraphQueryProcessor:
         query = TriplesQueryRequest(
             user='test_user',
             collection='test_collection',
-            s=Value(value="http://example.com/subject", is_uri=True),
-            p=Value(value="http://example.com/predicate", is_uri=True),
+            s=Term(type=IRI, iri="http://example.com/subject"),
+            p=Term(type=IRI, iri="http://example.com/predicate"),
             o=None,
             limit=100
         )
@@ -212,9 +212,9 @@ class TestMemgraphQueryProcessor:
         query = TriplesQueryRequest(
             user='test_user',
             collection='test_collection',
-            s=Value(value="http://example.com/subject", is_uri=True),
+            s=Term(type=IRI, iri="http://example.com/subject"),
             p=None,
-            o=Value(value="literal object", is_uri=False),
+            o=Term(type=LITERAL, value="literal object"),
             limit=100
         )
         
@@ -258,7 +258,7 @@ class TestMemgraphQueryProcessor:
         query = TriplesQueryRequest(
             user='test_user',
             collection='test_collection',
-            s=Value(value="http://example.com/subject", is_uri=True),
+            s=Term(type=IRI, iri="http://example.com/subject"),
             p=None,
             o=None,
             limit=100
@@ -305,8 +305,8 @@ class TestMemgraphQueryProcessor:
             user='test_user',
             collection='test_collection',
             s=None,
-            p=Value(value="http://example.com/predicate", is_uri=True),
-            o=Value(value="literal object", is_uri=False),
+            p=Term(type=IRI, iri="http://example.com/predicate"),
+            o=Term(type=LITERAL, value="literal object"),
             limit=100
         )
         
@@ -351,7 +351,7 @@ class TestMemgraphQueryProcessor:
             user='test_user',
             collection='test_collection',
             s=None,
-            p=Value(value="http://example.com/predicate", is_uri=True),
+            p=Term(type=IRI, iri="http://example.com/predicate"),
             o=None,
             limit=100
         )
@@ -398,7 +398,7 @@ class TestMemgraphQueryProcessor:
             collection='test_collection',
             s=None,
             p=None,
-            o=Value(value="literal object", is_uri=False),
+            o=Term(type=LITERAL, value="literal object"),
             limit=100
         )
         
@@ -480,7 +480,7 @@ class TestMemgraphQueryProcessor:
         query = TriplesQueryRequest(
             user='test_user',
             collection='test_collection',
-            s=Value(value="http://example.com/subject", is_uri=True),
+            s=Term(type=IRI, iri="http://example.com/subject"),
             p=None,
             o=None,
             limit=100
