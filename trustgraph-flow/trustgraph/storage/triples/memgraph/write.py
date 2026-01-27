@@ -15,6 +15,7 @@ from neo4j import GraphDatabase
 from .... base import TriplesStoreService, CollectionConfigHandler
 from .... base import AsyncProcessor, Consumer, Producer
 from .... base import ConsumerMetrics, ProducerMetrics
+from .... schema import IRI, LITERAL
 
 # Module logger
 logger = logging.getLogger(__name__)

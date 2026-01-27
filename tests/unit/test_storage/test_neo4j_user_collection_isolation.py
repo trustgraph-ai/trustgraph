@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch, call
 
 from trustgraph.storage.triples.neo4j.write import Processor as StorageProcessor
 from trustgraph.query.triples.neo4j.service import Processor as QueryProcessor
-from trustgraph.schema import Triples, Triple, Value, Metadata
+from trustgraph.schema import Triples, Triple, Term, Metadata, IRI, LITERAL
 from trustgraph.schema import TriplesQueryRequest
 
 
@@ -60,9 +60,9 @@ class TestNeo4jUserCollectionIsolation:
         )
         
         triple = Triple(
-            s=Value(value="http://example.com/subject", is_uri=True),
-            p=Value(value="http://example.com/predicate", is_uri=True),
-            o=Value(value="literal_value", is_uri=False)
+            s=Term(type=IRI, iri="http://example.com/subject"),
+            p=Term(type=IRI, iri="http://example.com/predicate"),
+            o=Term(type=LITERAL, value="literal_value")
         )
         
         message = Triples(
@@ -128,9 +128,9 @@ class TestNeo4jUserCollectionIsolation:
         metadata = Metadata(id="test-id")
         
         triple = Triple(
-            s=Value(value="http://example.com/subject", is_uri=True),
-            p=Value(value="http://example.com/predicate", is_uri=True),
-            o=Value(value="http://example.com/object", is_uri=True)
+            s=Term(type=IRI, iri="http://example.com/subject"),
+            p=Term(type=IRI, iri="http://example.com/predicate"),
+            o=Term(type=IRI, iri="http://example.com/object")
         )
         
         message = Triples(
@@ -170,8 +170,8 @@ class TestNeo4jUserCollectionIsolation:
         query = TriplesQueryRequest(
             user="test_user",
             collection="test_collection",
-            s=Value(value="http://example.com/subject", is_uri=True),
-            p=Value(value="http://example.com/predicate", is_uri=True),
+            s=Term(type=IRI, iri="http://example.com/subject"),
+            p=Term(type=IRI, iri="http://example.com/predicate"),
             o=None
         )
         
@@ -254,9 +254,9 @@ class TestNeo4jUserCollectionIsolation:
             metadata=Metadata(user="user1", collection="coll1"),
             triples=[
                 Triple(
-                    s=Value(value="http://example.com/user1/subject", is_uri=True),
-                    p=Value(value="http://example.com/predicate", is_uri=True),
-                    o=Value(value="user1_data", is_uri=False)
+                    s=Term(type=IRI, iri="http://example.com/user1/subject"),
+                    p=Term(type=IRI, iri="http://example.com/predicate"),
+                    o=Term(type=LITERAL, value="user1_data")
                 )
             ]
         )
@@ -265,9 +265,9 @@ class TestNeo4jUserCollectionIsolation:
             metadata=Metadata(user="user2", collection="coll2"),
             triples=[
                 Triple(
-                    s=Value(value="http://example.com/user2/subject", is_uri=True),
-                    p=Value(value="http://example.com/predicate", is_uri=True),
-                    o=Value(value="user2_data", is_uri=False)
+                    s=Term(type=IRI, iri="http://example.com/user2/subject"),
+                    p=Term(type=IRI, iri="http://example.com/predicate"),
+                    o=Term(type=LITERAL, value="user2_data")
                 )
             ]
         )
@@ -429,9 +429,9 @@ class TestNeo4jUserCollectionRegression:
             metadata=Metadata(user="user1", collection="coll1"),
             triples=[
                 Triple(
-                    s=Value(value=shared_uri, is_uri=True),
-                    p=Value(value="http://example.com/p", is_uri=True),
-                    o=Value(value="user1_value", is_uri=False)
+                    s=Term(type=IRI, iri=shared_uri),
+                    p=Term(type=IRI, iri="http://example.com/p"),
+                    o=Term(type=LITERAL, value="user1_value")
                 )
             ]
         )
@@ -440,9 +440,9 @@ class TestNeo4jUserCollectionRegression:
             metadata=Metadata(user="user2", collection="coll2"),
             triples=[
                 Triple(
-                    s=Value(value=shared_uri, is_uri=True),
-                    p=Value(value="http://example.com/p", is_uri=True),
-                    o=Value(value="user2_value", is_uri=False)
+                    s=Term(type=IRI, iri=shared_uri),
+                    p=Term(type=IRI, iri="http://example.com/p"),
+                    o=Term(type=LITERAL, value="user2_value")
                 )
             ]
         )

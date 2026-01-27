@@ -15,11 +15,26 @@ from falkordb import FalkorDB
 from .... base import TriplesStoreService, CollectionConfigHandler
 from .... base import AsyncProcessor, Consumer, Producer
 from .... base import ConsumerMetrics, ProducerMetrics
+from .... schema import IRI, LITERAL
 
 # Module logger
 logger = logging.getLogger(__name__)
 
 default_ident = "triples-write"
+
+
+def get_term_value(term):
+    """Extract the string value from a Term"""
+    if term is None:
+        return None
+    if term.type == IRI:
+        return term.iri
+    elif term.type == LITERAL:
+        return term.value
+    else:
+        # For blank nodes or other types, use id or value
+        return term.id or term.value
+
 
 default_graph_url = 'falkor://falkordb:6379'
 default_database = 'falkordb'
@@ -164,14 +179,18 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
 
         for t in message.triples:
 
-            self.create_node(t.s.value, user, collection)
+            s_val = get_term_value(t.s)
+            p_val = get_term_value(t.p)
+            o_val = get_term_value(t.o)
 
-            if t.o.is_uri:
-                self.create_node(t.o.value, user, collection)
-                self.relate_node(t.s.value, t.p.value, t.o.value, user, collection)
+            self.create_node(s_val, user, collection)
+
+            if t.o.type == IRI:
+                self.create_node(o_val, user, collection)
+                self.relate_node(s_val, p_val, o_val, user, collection)
             else:
-                self.create_literal(t.o.value, user, collection)
-                self.relate_literal(t.s.value, t.p.value, t.o.value, user, collection)
+                self.create_literal(o_val, user, collection)
+                self.relate_literal(s_val, p_val, o_val, user, collection)
 
     @staticmethod
     def add_args(parser):
