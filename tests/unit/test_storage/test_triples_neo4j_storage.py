@@ -6,6 +6,7 @@ import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
 
 from trustgraph.storage.triples.neo4j.write import Processor
+from trustgraph.schema import IRI, LITERAL
 
 
 class TestNeo4jStorageProcessor:
@@ -257,10 +258,12 @@ class TestNeo4jStorageProcessor:
         
         # Create mock triple with URI object
         triple = MagicMock()
-        triple.s.value = "http://example.com/subject"
-        triple.p.value = "http://example.com/predicate"
-        triple.o.value = "http://example.com/object"
-        triple.o.is_uri = True
+        triple.s.type = IRI
+        triple.s.iri = "http://example.com/subject"
+        triple.p.type = IRI
+        triple.p.iri = "http://example.com/predicate"
+        triple.o.type = IRI
+        triple.o.iri = "http://example.com/object"
         
         # Create mock message with metadata
         mock_message = MagicMock()
@@ -327,10 +330,12 @@ class TestNeo4jStorageProcessor:
         
         # Create mock triple with literal object
         triple = MagicMock()
-        triple.s.value = "http://example.com/subject"
-        triple.p.value = "http://example.com/predicate"
+        triple.s.type = IRI
+        triple.s.iri = "http://example.com/subject"
+        triple.p.type = IRI
+        triple.p.iri = "http://example.com/predicate"
+        triple.o.type = LITERAL
         triple.o.value = "literal value"
-        triple.o.is_uri = False
         
         # Create mock message with metadata
         mock_message = MagicMock()
@@ -398,16 +403,20 @@ class TestNeo4jStorageProcessor:
         
         # Create mock triples
         triple1 = MagicMock()
-        triple1.s.value = "http://example.com/subject1"
-        triple1.p.value = "http://example.com/predicate1"
-        triple1.o.value = "http://example.com/object1"
-        triple1.o.is_uri = True
-        
+        triple1.s.type = IRI
+        triple1.s.iri = "http://example.com/subject1"
+        triple1.p.type = IRI
+        triple1.p.iri = "http://example.com/predicate1"
+        triple1.o.type = IRI
+        triple1.o.iri = "http://example.com/object1"
+
         triple2 = MagicMock()
-        triple2.s.value = "http://example.com/subject2"
-        triple2.p.value = "http://example.com/predicate2"
+        triple2.s.type = IRI
+        triple2.s.iri = "http://example.com/subject2"
+        triple2.p.type = IRI
+        triple2.p.iri = "http://example.com/predicate2"
+        triple2.o.type = LITERAL
         triple2.o.value = "literal value"
-        triple2.o.is_uri = False
         
         # Create mock message with metadata
         mock_message = MagicMock()
@@ -550,10 +559,12 @@ class TestNeo4jStorageProcessor:
         
         # Create triple with special characters
         triple = MagicMock()
-        triple.s.value = "http://example.com/subject with spaces"
-        triple.p.value = "http://example.com/predicate:with/symbols"
+        triple.s.type = IRI
+        triple.s.iri = "http://example.com/subject with spaces"
+        triple.p.type = IRI
+        triple.p.iri = "http://example.com/predicate:with/symbols"
+        triple.o.type = LITERAL
         triple.o.value = 'literal with "quotes" and unicode: ñáéíóú'
-        triple.o.is_uri = False
         
         mock_message = MagicMock()
         mock_message.triples = [triple]
