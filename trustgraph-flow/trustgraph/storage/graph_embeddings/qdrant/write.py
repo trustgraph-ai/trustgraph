@@ -12,9 +12,24 @@ import logging
 from .... base import GraphEmbeddingsStoreService, CollectionConfigHandler
 from .... base import AsyncProcessor, Consumer, Producer
 from .... base import ConsumerMetrics, ProducerMetrics
+from .... schema import IRI, LITERAL
 
 # Module logger
 logger = logging.getLogger(__name__)
+
+
+def get_term_value(term):
+    """Extract the string value from a Term"""
+    if term is None:
+        return None
+    if term.type == IRI:
+        return term.iri
+    elif term.type == LITERAL:
+        return term.value
+    else:
+        # For blank nodes or other types, use id or value
+        return term.id or term.value
+
 
 default_ident = "ge-write"
 
@@ -51,8 +66,10 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
             return
 
         for entity in message.entities:
+            entity_value = get_term_value(entity.entity)
 
-            if entity.entity.value == "" or entity.entity.value is None: return
+            if entity_value == "" or entity_value is None:
+                continue
 
             for vec in entity.vectors:
 
@@ -80,7 +97,7 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
                             id=str(uuid.uuid4()),
                             vector=vec,
                             payload={
-                                "entity": entity.entity.value,
+                                "entity": entity_value,
                             }
                         )
                     ]
