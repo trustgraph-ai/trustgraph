@@ -137,8 +137,8 @@ class TestMemgraphQueryProcessor:
         
         # Verify result contains the queried triple (appears twice - once from each query)
         assert len(result) == 2
-        assert result[0].s.value == "http://example.com/subject"
-        assert result[0].p.value == "http://example.com/predicate"
+        assert result[0].s.iri == "http://example.com/subject"
+        assert result[0].p.iri == "http://example.com/predicate"
         assert result[0].o.value == "literal object"
 
     @patch('trustgraph.query.triples.memgraph.service.GraphDatabase')
@@ -179,13 +179,13 @@ class TestMemgraphQueryProcessor:
         
         # Verify results contain different objects
         assert len(result) == 2
-        assert result[0].s.value == "http://example.com/subject"
-        assert result[0].p.value == "http://example.com/predicate"
+        assert result[0].s.iri == "http://example.com/subject"
+        assert result[0].p.iri == "http://example.com/predicate"
         assert result[0].o.value == "literal result"
         
-        assert result[1].s.value == "http://example.com/subject"
-        assert result[1].p.value == "http://example.com/predicate"
-        assert result[1].o.value == "http://example.com/uri_result"
+        assert result[1].s.iri == "http://example.com/subject"
+        assert result[1].p.iri == "http://example.com/predicate"
+        assert result[1].o.iri == "http://example.com/uri_result"
 
     @patch('trustgraph.query.triples.memgraph.service.GraphDatabase')
     @pytest.mark.asyncio
@@ -225,12 +225,12 @@ class TestMemgraphQueryProcessor:
         
         # Verify results contain different predicates
         assert len(result) == 2
-        assert result[0].s.value == "http://example.com/subject"
-        assert result[0].p.value == "http://example.com/pred1"
+        assert result[0].s.iri == "http://example.com/subject"
+        assert result[0].p.iri == "http://example.com/pred1"
         assert result[0].o.value == "literal object"
         
-        assert result[1].s.value == "http://example.com/subject"
-        assert result[1].p.value == "http://example.com/pred2"
+        assert result[1].s.iri == "http://example.com/subject"
+        assert result[1].p.iri == "http://example.com/pred2"
         assert result[1].o.value == "literal object"
 
     @patch('trustgraph.query.triples.memgraph.service.GraphDatabase')
@@ -271,13 +271,13 @@ class TestMemgraphQueryProcessor:
         
         # Verify results contain different predicate-object pairs
         assert len(result) == 2
-        assert result[0].s.value == "http://example.com/subject"
-        assert result[0].p.value == "http://example.com/pred1"
+        assert result[0].s.iri == "http://example.com/subject"
+        assert result[0].p.iri == "http://example.com/pred1"
         assert result[0].o.value == "literal1"
         
-        assert result[1].s.value == "http://example.com/subject"
-        assert result[1].p.value == "http://example.com/pred2"
-        assert result[1].o.value == "http://example.com/uri2"
+        assert result[1].s.iri == "http://example.com/subject"
+        assert result[1].p.iri == "http://example.com/pred2"
+        assert result[1].o.iri == "http://example.com/uri2"
 
     @patch('trustgraph.query.triples.memgraph.service.GraphDatabase')
     @pytest.mark.asyncio
@@ -317,12 +317,12 @@ class TestMemgraphQueryProcessor:
         
         # Verify results contain different subjects
         assert len(result) == 2
-        assert result[0].s.value == "http://example.com/subj1"
-        assert result[0].p.value == "http://example.com/predicate"
+        assert result[0].s.iri == "http://example.com/subj1"
+        assert result[0].p.iri == "http://example.com/predicate"
         assert result[0].o.value == "literal object"
         
-        assert result[1].s.value == "http://example.com/subj2"
-        assert result[1].p.value == "http://example.com/predicate"
+        assert result[1].s.iri == "http://example.com/subj2"
+        assert result[1].p.iri == "http://example.com/predicate"
         assert result[1].o.value == "literal object"
 
     @patch('trustgraph.query.triples.memgraph.service.GraphDatabase')
@@ -363,13 +363,13 @@ class TestMemgraphQueryProcessor:
         
         # Verify results contain different subject-object pairs
         assert len(result) == 2
-        assert result[0].s.value == "http://example.com/subj1"
-        assert result[0].p.value == "http://example.com/predicate"
+        assert result[0].s.iri == "http://example.com/subj1"
+        assert result[0].p.iri == "http://example.com/predicate"
         assert result[0].o.value == "literal1"
         
-        assert result[1].s.value == "http://example.com/subj2"
-        assert result[1].p.value == "http://example.com/predicate"
-        assert result[1].o.value == "http://example.com/uri2"
+        assert result[1].s.iri == "http://example.com/subj2"
+        assert result[1].p.iri == "http://example.com/predicate"
+        assert result[1].o.iri == "http://example.com/uri2"
 
     @patch('trustgraph.query.triples.memgraph.service.GraphDatabase')
     @pytest.mark.asyncio
@@ -409,12 +409,12 @@ class TestMemgraphQueryProcessor:
         
         # Verify results contain different subject-predicate pairs
         assert len(result) == 2
-        assert result[0].s.value == "http://example.com/subj1"
-        assert result[0].p.value == "http://example.com/pred1"
+        assert result[0].s.iri == "http://example.com/subj1"
+        assert result[0].p.iri == "http://example.com/pred1"
         assert result[0].o.value == "literal object"
         
-        assert result[1].s.value == "http://example.com/subj2"
-        assert result[1].p.value == "http://example.com/pred2"
+        assert result[1].s.iri == "http://example.com/subj2"
+        assert result[1].p.iri == "http://example.com/pred2"
         assert result[1].o.value == "literal object"
 
     @patch('trustgraph.query.triples.memgraph.service.GraphDatabase')
@@ -455,13 +455,13 @@ class TestMemgraphQueryProcessor:
         
         # Verify results contain different triples
         assert len(result) == 2
-        assert result[0].s.value == "http://example.com/s1"
-        assert result[0].p.value == "http://example.com/p1"
+        assert result[0].s.iri == "http://example.com/s1"
+        assert result[0].p.iri == "http://example.com/p1"
         assert result[0].o.value == "literal1"
         
-        assert result[1].s.value == "http://example.com/s2"
-        assert result[1].p.value == "http://example.com/p2"
-        assert result[1].o.value == "http://example.com/o2"
+        assert result[1].s.iri == "http://example.com/s2"
+        assert result[1].p.iri == "http://example.com/p2"
+        assert result[1].o.iri == "http://example.com/o2"
 
     @patch('trustgraph.query.triples.memgraph.service.GraphDatabase')
     @pytest.mark.asyncio
