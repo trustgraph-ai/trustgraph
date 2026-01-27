@@ -9,6 +9,7 @@ from unittest import IsolatedAsyncioTestCase
 
 # Import the service under test
 from trustgraph.query.graph_embeddings.qdrant.service import Processor
+from trustgraph.schema import IRI, LITERAL
 
 
 class TestQdrantGraphEmbeddingsQuery(IsolatedAsyncioTestCase):
@@ -135,8 +136,8 @@ class TestQdrantGraphEmbeddingsQuery(IsolatedAsyncioTestCase):
         # Assert
         assert hasattr(value, 'value')
         assert value.value == 'regular entity name'
-        assert hasattr(value, 'is_uri')
-        assert value.is_uri == False
+        assert hasattr(value, 'type')
+        assert value.type == LITERAL
 
     @patch('trustgraph.query.graph_embeddings.qdrant.service.QdrantClient')
     @patch('trustgraph.base.GraphEmbeddingsQueryService.__init__')
@@ -428,14 +429,14 @@ class TestQdrantGraphEmbeddingsQuery(IsolatedAsyncioTestCase):
         assert len(result) == 3
         
         # Check URI entities
-        uri_entities = [entity for entity in result if hasattr(entity, 'is_uri') and entity.is_uri]
+        uri_entities = [entity for entity in result if entity.type == IRI]
         assert len(uri_entities) == 2
-        uri_values = [entity.value for entity in uri_entities]
+        uri_values = [entity.iri for entity in uri_entities]
         assert 'http://example.com/entity1' in uri_values
         assert 'https://secure.example.com/entity2' in uri_values
-        
+
         # Check regular entities
-        regular_entities = [entity for entity in result if hasattr(entity, 'is_uri') and not entity.is_uri]
+        regular_entities = [entity for entity in result if entity.type == LITERAL]
         assert len(regular_entities) == 1
         assert regular_entities[0].value == 'regular entity'
 

@@ -78,7 +78,10 @@ class TestCassandraQueryProcessor:
         # Setup mock TrustGraph
         mock_tg_instance = MagicMock()
         mock_trustgraph.return_value = mock_tg_instance
-        mock_tg_instance.get_spo.return_value = None  # SPO query returns None if found
+        # SPO query returns a list of results (with mock graph attribute)
+        mock_result = MagicMock()
+        mock_result.g = None
+        mock_tg_instance.get_spo.return_value = [mock_result]
         
         processor = Processor(
             taskgroup=MagicMock(),
@@ -106,13 +109,13 @@ class TestCassandraQueryProcessor:
         
         # Verify get_spo was called with correct parameters
         mock_tg_instance.get_spo.assert_called_once_with(
-            'test_collection', 'test_subject', 'test_predicate', 'test_object', limit=100
+            'test_collection', 'test_subject', 'test_predicate', 'test_object', g=None, limit=100
         )
         
         # Verify result contains the queried triple
         assert len(result) == 1
-        assert result[0].s.iri == 'test_subject'
-        assert result[0].p.iri == 'test_predicate'
+        assert result[0].s.value == 'test_subject'
+        assert result[0].p.value == 'test_predicate'
         assert result[0].o.value == 'test_object'
 
     def test_processor_initialization_with_defaults(self):
@@ -169,10 +172,10 @@ class TestCassandraQueryProcessor:
         
         result = await processor.query_triples(query)
         
-        mock_tg_instance.get_sp.assert_called_once_with('test_collection', 'test_subject', 'test_predicate', limit=50)
+        mock_tg_instance.get_sp.assert_called_once_with('test_collection', 'test_subject', 'test_predicate', g=None, limit=50)
         assert len(result) == 1
-        assert result[0].s.iri == 'test_subject'
-        assert result[0].p.iri == 'test_predicate'
+        assert result[0].s.value == 'test_subject'
+        assert result[0].p.value == 'test_predicate'
         assert result[0].o.value == 'result_object'
 
     @pytest.mark.asyncio
@@ -202,10 +205,10 @@ class TestCassandraQueryProcessor:
         
         result = await processor.query_triples(query)
         
-        mock_tg_instance.get_s.assert_called_once_with('test_collection', 'test_subject', limit=25)
+        mock_tg_instance.get_s.assert_called_once_with('test_collection', 'test_subject', g=None, limit=25)
         assert len(result) == 1
-        assert result[0].s.iri == 'test_subject'
-        assert result[0].p.iri == 'result_predicate'
+        assert result[0].s.value == 'test_subject'
+        assert result[0].p.value == 'result_predicate'
         assert result[0].o.value == 'result_object'
 
     @pytest.mark.asyncio
@@ -235,10 +238,10 @@ class TestCassandraQueryProcessor:
         
         result = await processor.query_triples(query)
         
-        mock_tg_instance.get_p.assert_called_once_with('test_collection', 'test_predicate', limit=10)
+        mock_tg_instance.get_p.assert_called_once_with('test_collection', 'test_predicate', g=None, limit=10)
         assert len(result) == 1
-        assert result[0].s.iri == 'result_subject'
-        assert result[0].p.iri == 'test_predicate'
+        assert result[0].s.value == 'result_subject'
+        assert result[0].p.value == 'test_predicate'
         assert result[0].o.value == 'result_object'
 
     @pytest.mark.asyncio
@@ -268,10 +271,10 @@ class TestCassandraQueryProcessor:
         
         result = await processor.query_triples(query)
         
-        mock_tg_instance.get_o.assert_called_once_with('test_collection', 'test_object', limit=75)
+        mock_tg_instance.get_o.assert_called_once_with('test_collection', 'test_object', g=None, limit=75)
         assert len(result) == 1
-        assert result[0].s.iri == 'result_subject'
-        assert result[0].p.iri == 'result_predicate'
+        assert result[0].s.value == 'result_subject'
+        assert result[0].p.value == 'result_predicate'
         assert result[0].o.value == 'test_object'
 
     @pytest.mark.asyncio
@@ -304,8 +307,8 @@ class TestCassandraQueryProcessor:
         
         mock_tg_instance.get_all.assert_called_once_with('test_collection', limit=1000)
         assert len(result) == 1
-        assert result[0].s.iri == 'all_subject'
-        assert result[0].p.iri == 'all_predicate'
+        assert result[0].s.value == 'all_subject'
+        assert result[0].p.value == 'all_predicate'
         assert result[0].o.value == 'all_object'
 
     def test_add_args_method(self):
@@ -372,7 +375,7 @@ class TestCassandraQueryProcessor:
         
         run()
         
-        mock_launch.assert_called_once_with(default_ident, '\nTriples query service.  Input is a (s, p, o) triple, some values may be\nnull.  Output is a list of triples.\n')
+        mock_launch.assert_called_once_with(default_ident, '\nTriples query service.  Input is a (s, p, o, g) quad pattern, some values may be\nnull.  Output is a list of quads.\n')
 
     @pytest.mark.asyncio
     @patch('trustgraph.query.triples.cassandra.service.KnowledgeGraph')
@@ -382,8 +385,11 @@ class TestCassandraQueryProcessor:
         
         mock_tg_instance = MagicMock()
         mock_trustgraph.return_value = mock_tg_instance
-        mock_tg_instance.get_spo.return_value = None
-        
+        # SPO query returns a list of results
+        mock_result = MagicMock()
+        mock_result.g = None
+        mock_tg_instance.get_spo.return_value = [mock_result]
+
         processor = Processor(
             taskgroup=MagicMock(),
             cassandra_username='authuser',
@@ -417,10 +423,13 @@ class TestCassandraQueryProcessor:
         
         mock_tg_instance = MagicMock()
         mock_trustgraph.return_value = mock_tg_instance
-        mock_tg_instance.get_spo.return_value = None
-        
+        # SPO query returns a list of results
+        mock_result = MagicMock()
+        mock_result.g = None
+        mock_tg_instance.get_spo.return_value = [mock_result]
+
         processor = Processor(taskgroup=MagicMock())
-        
+
         query = TriplesQueryRequest(
             user='test_user',
             collection='test_collection',
@@ -429,11 +438,11 @@ class TestCassandraQueryProcessor:
             o=Term(type=LITERAL, value='test_object'),
             limit=100
         )
-        
+
         # First query should create TrustGraph
         await processor.query_triples(query)
         assert mock_trustgraph.call_count == 1
-        
+
         # Second query with same table should reuse TrustGraph
         await processor.query_triples(query)
         assert mock_trustgraph.call_count == 1  # Should not increase
@@ -569,12 +578,12 @@ class TestCassandraQueryPerformanceOptimizations:
 
         # Verify get_po was called (should use optimized po_table)
         mock_tg_instance.get_po.assert_called_once_with(
-            'test_collection', 'test_predicate', 'test_object', limit=50
+            'test_collection', 'test_predicate', 'test_object', g=None, limit=50
         )
 
         assert len(result) == 1
-        assert result[0].s.iri == 'result_subject'
-        assert result[0].p.iri == 'test_predicate'
+        assert result[0].s.value == 'result_subject'
+        assert result[0].p.value == 'test_predicate'
         assert result[0].o.value == 'test_object'
 
     @pytest.mark.asyncio
@@ -606,12 +615,12 @@ class TestCassandraQueryPerformanceOptimizations:
 
         # Verify get_os was called (should use optimized subject_table with clustering)
         mock_tg_instance.get_os.assert_called_once_with(
-            'test_collection', 'test_object', 'test_subject', limit=25
+            'test_collection', 'test_object', 'test_subject', g=None, limit=25
         )
 
         assert len(result) == 1
-        assert result[0].s.iri == 'test_subject'
-        assert result[0].p.iri == 'result_predicate'
+        assert result[0].s.value == 'test_subject'
+        assert result[0].p.value == 'result_predicate'
         assert result[0].o.value == 'test_object'
 
     @pytest.mark.asyncio
@@ -723,14 +732,15 @@ class TestCassandraQueryPerformanceOptimizations:
             'massive_collection',
             'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
             'http://example.com/Person',
+            g=None,
             limit=1000
         )
 
         # Verify all results were returned
         assert len(result) == 5
         for i, triple in enumerate(result):
-            assert triple.s.iri == f'subject_{i}'
+            assert triple.s.value == f'subject_{i}'  # Mock returns literal values
             assert triple.p.iri == 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
             assert triple.p.type == IRI
-            assert triple.o.value == 'http://example.com/Person'
+            assert triple.o.iri == 'http://example.com/Person'  # URIs use .iri
             assert triple.o.type == IRI
