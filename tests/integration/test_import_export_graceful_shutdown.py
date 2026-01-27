@@ -51,10 +51,10 @@ class MockWebSocket:
             "metadata": {
                 "id": "test-id",
                 "metadata": {},
-                "user": "test-user", 
+                "user": "test-user",
                 "collection": "test-collection"
             },
-            "triples": [{"s": {"v": "subject", "e": False}, "p": {"v": "predicate", "e": False}, "o": {"v": "object", "e": False}}]
+            "triples": [{"s": {"t": "l", "v": "subject"}, "p": {"t": "l", "v": "predicate"}, "o": {"t": "l", "v": "object"}}]
         }
 
 
@@ -118,7 +118,7 @@ async def test_import_graceful_shutdown_integration(mock_backend):
                 "user": "test-user",
                 "collection": "test-collection"
             },
-            "triples": [{"s": {"v": f"subject-{i}", "e": False}, "p": {"v": "predicate", "e": False}, "o": {"v": f"object-{i}", "e": False}}]
+            "triples": [{"s": {"t": "l", "v": f"subject-{i}"}, "p": {"t": "l", "v": "predicate"}, "o": {"t": "l", "v": f"object-{i}"}}]
         }
         messages.append(msg_data)
         
@@ -163,7 +163,7 @@ async def test_export_no_message_loss_integration(mock_backend):
                 "user": "test-user",
                 "collection": "test-collection"
             },
-            "triples": [{"s": {"v": f"export-subject-{i}", "e": False}, "p": {"v": "predicate", "e": False}, "o": {"v": f"export-object-{i}", "e": False}}]
+            "triples": [{"s": {"t": "l", "v": f"export-subject-{i}"}, "p": {"t": "l", "v": "predicate"}, "o": {"t": "l", "v": f"export-object-{i}"}}]
         }
         # Create Triples object instead of raw dict
         from trustgraph.schema import Triples, Metadata
@@ -302,7 +302,7 @@ async def test_concurrent_import_export_shutdown():
                 "user": "test-user",
                 "collection": "test-collection"
             },
-            "triples": [{"s": {"v": f"concurrent-subject-{i}", "e": False}, "p": {"v": "predicate", "e": False}, "o": {"v": "object", "e": False}}]
+            "triples": [{"s": {"t": "l", "v": f"concurrent-subject-{i}"}, "p": {"t": "l", "v": "predicate"}, "o": {"t": "l", "v": "object"}}]
         }
         await import_handler.receive(msg)
     
@@ -359,7 +359,7 @@ async def test_websocket_close_during_message_processing():
                 "user": "test-user",
                 "collection": "test-collection"
             },
-            "triples": [{"s": {"v": f"slow-subject-{i}", "e": False}, "p": {"v": "predicate", "e": False}, "o": {"v": "object", "e": False}}]
+            "triples": [{"s": {"t": "l", "v": f"slow-subject-{i}"}, "p": {"t": "l", "v": "predicate"}, "o": {"t": "l", "v": "object"}}]
         }
         task = asyncio.create_task(import_handler.receive(msg))
         message_tasks.append(task)
@@ -423,7 +423,7 @@ async def test_backpressure_during_shutdown():
                     # Simulate receiving and processing a message
                     msg_data = {
                         "metadata": {"id": f"msg-{i}"}, 
-                        "triples": [{"s": {"v": "subject", "e": False}, "p": {"v": "predicate", "e": False}, "o": {"v": "object", "e": False}}]
+                        "triples": [{"s": {"t": "l", "v": "subject"}, "p": {"t": "l", "v": "predicate"}, "o": {"t": "l", "v": "object"}}]
                     }
                     await ws.send_json(msg_data)
                     # Check if we should stop
