@@ -14,9 +14,23 @@ import logging
 from .... base import GraphEmbeddingsStoreService, CollectionConfigHandler
 from .... base import AsyncProcessor, Consumer, Producer
 from .... base import ConsumerMetrics, ProducerMetrics
+from .... schema import IRI, LITERAL
 
 # Module logger
 logger = logging.getLogger(__name__)
+
+
+def get_term_value(term):
+    """Extract the string value from a Term"""
+    if term is None:
+        return None
+    if term.type == IRI:
+        return term.iri
+    elif term.type == LITERAL:
+        return term.value
+    else:
+        # For blank nodes or other types, use id or value
+        return term.id or term.value
 
 default_ident = "ge-write"
 default_api_key = os.getenv("PINECONE_API_KEY", "not-specified")
@@ -100,8 +114,9 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
             return
 
         for entity in message.entities:
+            entity_value = get_term_value(entity.entity)
 
-            if entity.entity.value == "" or entity.entity.value is None:
+            if entity_value == "" or entity_value is None:
                 continue
 
             for vec in entity.vectors:
@@ -126,7 +141,7 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
                     {
                         "id": vector_id,
                         "values": vec,
-                        "metadata": { "entity": entity.entity.value },
+                        "metadata": { "entity": entity_value },
                     }
                 ]
 
