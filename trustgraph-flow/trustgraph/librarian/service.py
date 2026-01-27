@@ -378,6 +378,17 @@ class Processor(AsyncProcessor):
 
         logger.info(f"Handling librarian input {id}...")
 
+        # Debug: log types of nested objects
+        if hasattr(v, 'document_metadata') and v.document_metadata:
+            dm = v.document_metadata
+            logger.debug(f"document_metadata type: {type(dm)}")
+            if hasattr(dm, 'metadata'):
+                logger.debug(f"metadata type: {type(dm.metadata)}")
+                if dm.metadata:
+                    logger.debug(f"first triple type: {type(dm.metadata[0])}")
+                    if hasattr(dm.metadata[0], 's'):
+                        logger.debug(f"triple.s type: {type(dm.metadata[0].s)}")
+
         try:
 
             resp = await self.process_request(v)
@@ -402,6 +413,7 @@ class Processor(AsyncProcessor):
 
             return
         except Exception as e:
+            logger.error(f"Unexpected error processing request: {e}", exc_info=True)
             resp = LibrarianResponse(
                 error = Error(
                     type = "unexpected-error",

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 
 # Term type constants
@@ -40,7 +38,7 @@ class Term:
     language: str = ""   # Language tag (mutually exclusive with datatype)
 
     # For quoted triples (type == TRIPLE)
-    triple: Triple | None = None
+    triple: "Triple | None" = None
 
 
 @dataclass
