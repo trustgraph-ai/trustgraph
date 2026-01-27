@@ -729,8 +729,8 @@ class TestCassandraQueryPerformanceOptimizations:
         # Verify all results were returned
         assert len(result) == 5
         for i, triple in enumerate(result):
-            assert triple.s.value == f'subject_{i}'
-            assert triple.p.value == 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
-            assert triple.p.is_uri is True
+            assert triple.s.iri == f'subject_{i}'
+            assert triple.p.iri == 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
+            assert triple.p.type == IRI
             assert triple.o.value == 'http://example.com/Person'
-            assert triple.o.is_uri is True
+            assert triple.o.type == IRI
