@@ -22,6 +22,20 @@ logger = logging.getLogger(__name__)
 
 default_ident = "triples-write"
 
+
+def get_term_value(term):
+    """Extract the string value from a Term"""
+    if term is None:
+        return None
+    if term.type == IRI:
+        return term.iri
+    elif term.type == LITERAL:
+        return term.value
+    else:
+        # For blank nodes or other types, use id or value
+        return term.id or term.value
+
+
 default_graph_host = 'bolt://memgraph:7687'
 default_username = 'memgraph'
 default_password = 'password'
@@ -205,40 +219,44 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
 
     def create_triple(self, tx, t, user, collection):
 
+        s_val = get_term_value(t.s)
+        p_val = get_term_value(t.p)
+        o_val = get_term_value(t.o)
+
         # Create new s node with given uri, if not exists
         result = tx.run(
             "MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",
-            uri=t.s.value, user=user, collection=collection
+            uri=s_val, user=user, collection=collection
         )
 
-        if t.o.is_uri:
+        if t.o.type == IRI:
 
             # Create new o node with given uri, if not exists
             result = tx.run(
                 "MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",
-                uri=t.o.value, user=user, collection=collection
+                uri=o_val, user=user, collection=collection
             )
 
             result = tx.run(
                 "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
                 "MATCH (dest:Node {uri: $dest, user: $user, collection: $collection}) "
                 "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
-                src=t.s.value, dest=t.o.value, uri=t.p.value, user=user, collection=collection,
+                src=s_val, dest=o_val, uri=p_val, user=user, collection=collection,
             )
 
         else:
-        
+
             # Create new o literal with given uri, if not exists
             result = tx.run(
                 "MERGE (n:Literal {value: $value, user: $user, collection: $collection})",
-                value=t.o.value, user=user, collection=collection
+                value=o_val, user=user, collection=collection
             )
 
             result = tx.run(
                 "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) "
                 "MATCH (dest:Literal {value: $dest, user: $user, collection: $collection}) "
                 "MERGE (src)-[:Rel {uri: $uri, user: $user, collection: $collection}]->(dest)",
-                src=t.s.value, dest=t.o.value, uri=t.p.value, user=user, collection=collection,
+                src=s_val, dest=o_val, uri=p_val, user=user, collection=collection,
             )
         
     async def store_triples(self, message):
@@ -258,14 +276,18 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
 
         for t in message.triples:
 
-            self.create_node(t.s.value, user, collection)
+            s_val = get_term_value(t.s)
+            p_val = get_term_value(t.p)
+            o_val = get_term_value(t.o)
 
-            if t.o.is_uri:
-                self.create_node(t.o.value, user, collection)
-                self.relate_node(t.s.value, t.p.value, t.o.value, user, collection)
+            self.create_node(s_val, user, collection)
+
+            if t.o.type == IRI:
+                self.create_node(o_val, user, collection)
+                self.relate_node(s_val, p_val, o_val, user, collection)
             else:
-                self.create_literal(t.o.value, user, collection)
-                self.relate_literal(t.s.value, t.p.value, t.o.value, user, collection)
+                self.create_literal(o_val, user, collection)
+                self.relate_literal(s_val, p_val, o_val, user, collection)
 
             # Alternative implementation using transactions
             # with self.io.session(database=self.db) as session:
