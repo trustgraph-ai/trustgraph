@@ -30,6 +30,7 @@ class TriplesQueryRequest:
     s: Term | None = None
     p: Term | None = None
     o: Term | None = None
+    g: str | None = None  # Graph IRI. None=default graph, "*"=all graphs
     limit: int = 0
 
 @dataclass

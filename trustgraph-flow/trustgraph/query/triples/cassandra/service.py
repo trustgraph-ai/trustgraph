@@ -1,14 +1,14 @@
 
 """
-Triples query service.  Input is a (s, p, o) triple, some values may be
-null.  Output is a list of triples.
+Triples query service.  Input is a (s, p, o, g) quad pattern, some values may be
+null.  Output is a list of quads.
 """
 
 import logging
 
-from .... direct.cassandra_kg import KnowledgeGraph
+from .... direct.cassandra_kg import KnowledgeGraph, GRAPH_WILDCARD, DEFAULT_GRAPH
 from .... schema import TriplesQueryRequest, TriplesQueryResponse, Error
-from .... schema import Value, Triple
+from .... schema import Term, Triple, IRI, LITERAL
 from .... base import TriplesQueryService
 from .... base.cassandra_config import add_cassandra_args, resolve_cassandra_config
 
@@ -16,6 +16,27 @@ from .... base.cassandra_config import add_cassandra_args, resolve_cassandra_con
 logger = logging.getLogger(__name__)
 
 default_ident = "triples-query"
+
+
+def get_term_value(term):
+    """Extract the string value from a Term"""
+    if term is None:
+        return None
+    if term.type == IRI:
+        return term.iri
+    elif term.type == LITERAL:
+        return term.value
+    else:
+        # For blank nodes or other types, use id or value
+        return term.id or term.value
+
+
+def create_term(value):
+    """Create a Term from a string value"""
+    if value.startswith("http://") or value.startswith("https://"):
+        return Term(type=IRI, iri=value)
+    else:
+        return Term(type=LITERAL, value=value)
 
 
 class Processor(TriplesQueryService):
@@ -46,12 +67,6 @@ class Processor(TriplesQueryService):
         self.cassandra_password = password
         self.table = None
 
-    def create_value(self, ent):
-        if ent.startswith("http://") or ent.startswith("https://"):
-            return Value(value=ent, is_uri=True)
-        else:
-            return Value(value=ent, is_uri=False)
-
     async def query_triples(self, query):
 
         try:
@@ -72,77 +87,103 @@ class Processor(TriplesQueryService):
                     )
                 self.table = user
 
-            triples = []
+            # Extract values from query
+            s_val = get_term_value(query.s)
+            p_val = get_term_value(query.p)
+            o_val = get_term_value(query.o)
+            g_val = query.g  # Already a string or None
 
-            if query.s is not None:
-                if query.p is not None:
-                    if query.o is not None:
+            quads = []
+
+            # Route to appropriate query method based on which fields are specified
+            if s_val is not None:
+                if p_val is not None:
+                    if o_val is not None:
+                        # SPO specified - find matching graphs
                         resp = self.tg.get_spo(
-                            query.collection, query.s.value, query.p.value, query.o.value,
+                            query.collection, s_val, p_val, o_val, g=g_val,
                             limit=query.limit
                         )
-                        triples.append((query.s.value, query.p.value, query.o.value))
+                        for t in resp:
+                            g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
+                            quads.append((s_val, p_val, o_val, g))
                     else:
+                        # SP specified
                         resp = self.tg.get_sp(
-                            query.collection, query.s.value, query.p.value,
+                            query.collection, s_val, p_val, g=g_val,
                             limit=query.limit
                         )
                         for t in resp:
-                            triples.append((query.s.value, query.p.value, t.o))
+                            g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
+                            quads.append((s_val, p_val, t.o, g))
                 else:
-                    if query.o is not None:
+                    if o_val is not None:
+                        # SO specified
                         resp = self.tg.get_os(
-                            query.collection, query.o.value, query.s.value,
+                            query.collection, o_val, s_val, g=g_val,
                             limit=query.limit
                         )
                         for t in resp:
-                            triples.append((query.s.value, t.p, query.o.value))
+                            g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
+                            quads.append((s_val, t.p, o_val, g))
                     else:
+                        # S only
                         resp = self.tg.get_s(
-                            query.collection, query.s.value,
+                            query.collection, s_val, g=g_val,
                             limit=query.limit
                         )
                         for t in resp:
-                            triples.append((query.s.value, t.p, t.o))
+                            g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
+                            quads.append((s_val, t.p, t.o, g))
             else:
-                if query.p is not None:
-                    if query.o is not None:
+                if p_val is not None:
+                    if o_val is not None:
+                        # PO specified
                         resp = self.tg.get_po(
-                            query.collection, query.p.value, query.o.value,
+                            query.collection, p_val, o_val, g=g_val,
                             limit=query.limit
                         )
                         for t in resp:
-                            triples.append((t.s, query.p.value, query.o.value))
+                            g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
+                            quads.append((t.s, p_val, o_val, g))
                     else:
+                        # P only
                         resp = self.tg.get_p(
-                            query.collection, query.p.value,
+                            query.collection, p_val, g=g_val,
                             limit=query.limit
                         )
                         for t in resp:
-                            triples.append((t.s, query.p.value, t.o))
+                            g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
+                            quads.append((t.s, p_val, t.o, g))
                 else:
-                    if query.o is not None:
+                    if o_val is not None:
+                        # O only
                         resp = self.tg.get_o(
-                            query.collection, query.o.value,
+                            query.collection, o_val, g=g_val,
                             limit=query.limit
                         )
                         for t in resp:
-                            triples.append((t.s, t.p, query.o.value))
+                            g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
+                            quads.append((t.s, t.p, o_val, g))
                     else:
+                        # Nothing specified - get all
                         resp = self.tg.get_all(
                             query.collection,
                             limit=query.limit
                         )
                         for t in resp:
-                            triples.append((t.s, t.p, t.o))
+                            g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
+                            quads.append((t.s, t.p, t.o, g))
 
+            # Convert to Triple objects (with g field)
             triples = [
                 Triple(
-                    s=self.create_value(t[0]),
-                    p=self.create_value(t[1]), 
-                    o=self.create_value(t[2])
+                    s=create_term(q[0]),
+                    p=create_term(q[1]),
+                    o=create_term(q[2]),
+                    g=q[3] if q[3] != DEFAULT_GRAPH else None
                 )
-                for t in triples
+                for q in quads
             ]
 
             return triples
@@ -162,4 +203,3 @@ class Processor(TriplesQueryService):
 def run():
 
     Processor.launch(default_ident, __doc__)
-

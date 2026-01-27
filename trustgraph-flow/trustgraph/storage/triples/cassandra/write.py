@@ -10,16 +10,30 @@ import argparse
 import time
 import logging
 
-from .... direct.cassandra_kg import KnowledgeGraph
+from .... direct.cassandra_kg import KnowledgeGraph, DEFAULT_GRAPH
 from .... base import TriplesStoreService, CollectionConfigHandler
 from .... base import AsyncProcessor, Consumer, Producer
 from .... base import ConsumerMetrics, ProducerMetrics
 from .... base.cassandra_config import add_cassandra_args, resolve_cassandra_config
+from .... schema import IRI, LITERAL
 
 # Module logger
 logger = logging.getLogger(__name__)
 
 default_ident = "triples-write"
+
+
+def get_term_value(term):
+    """Extract the string value from a Term"""
+    if term is None:
+        return None
+    if term.type == IRI:
+        return term.iri
+    elif term.type == LITERAL:
+        return term.value
+    else:
+        # For blank nodes or other types, use id or value
+        return term.id or term.value
 
 
 class Processor(CollectionConfigHandler, TriplesStoreService):
@@ -84,11 +98,19 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
             self.table = user
 
         for t in message.triples:
+            # Extract values from Term objects
+            s_val = get_term_value(t.s)
+            p_val = get_term_value(t.p)
+            o_val = get_term_value(t.o)
+            # t.g is None for default graph, or a graph IRI
+            g_val = t.g if t.g is not None else DEFAULT_GRAPH
+
             self.tg.insert(
                 message.metadata.collection,
-                t.s.value,
-                t.p.value,
-                t.o.value
+                s_val,
+                p_val,
+                o_val,
+                g=g_val
             )
 
     async def create_collection(self, user: str, collection: str, metadata: dict):
