@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from trustgraph.query.triples.memgraph.service import Processor
-from trustgraph.schema import Value, TriplesQueryRequest
+from trustgraph.schema import Term, TriplesQueryRequest, IRI, LITERAL
 
 
 class TestMemgraphQueryProcessor:

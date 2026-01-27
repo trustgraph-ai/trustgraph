@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from trustgraph.query.triples.neo4j.service import Processor
-from trustgraph.schema import TriplesQueryRequest, Value
+from trustgraph.schema import TriplesQueryRequest, Term, IRI, LITERAL
 
 
 class TestNeo4jQueryUserCollectionIsolation:
