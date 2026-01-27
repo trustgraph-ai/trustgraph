@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import MagicMock
 
 from trustgraph.gateway.dispatch.serialize import to_value, to_subgraph, serialize_value
-from trustgraph.schema import Value, Triple
+from trustgraph.schema import Term, Triple, IRI, LITERAL
 
 
 class TestDispatchSerialize:
@@ -15,12 +15,12 @@ class TestDispatchSerialize:
     def test_to_value_with_uri(self):
         """Test to_value function with URI"""
         input_data = {"v": "http://example.com/resource", "e": True}
-        
+
         result = to_value(input_data)
-        
-        assert isinstance(result, Value)
-        assert result.value == "http://example.com/resource"
-        assert result.is_uri is True
+
+        assert isinstance(result, Term)
+        assert result.iri == "http://example.com/resource"
+        assert result.type == IRI
 
     def test_to_value_with_literal(self):
         """Test to_value function with literal value"""
@@ -28,9 +28,9 @@ class TestDispatchSerialize:
         
         result = to_value(input_data)
         
-        assert isinstance(result, Value)
+        assert isinstance(result, Term)
         assert result.value == "literal string"
-        assert result.is_uri is False
+        assert result.type == LITERAL
 
     def test_to_subgraph_with_multiple_triples(self):
         """Test to_subgraph function with multiple triples"""
@@ -53,16 +53,16 @@ class TestDispatchSerialize:
         assert all(isinstance(triple, Triple) for triple in result)
         
         # Check first triple
-        assert result[0].s.value == "subject1"
-        assert result[0].s.is_uri is True
-        assert result[0].p.value == "predicate1"
-        assert result[0].p.is_uri is True
+        assert result[0].s.iri == "subject1"
+        assert result[0].s.type == IRI
+        assert result[0].p.iri == "predicate1"
+        assert result[0].p.type == IRI
         assert result[0].o.value == "object1"
-        assert result[0].o.is_uri is False
-        
+        assert result[0].o.type == LITERAL
+
         # Check second triple
         assert result[1].s.value == "subject2"
-        assert result[1].s.is_uri is False
+        assert result[1].s.type == LITERAL
 
     def test_to_subgraph_with_empty_list(self):
         """Test to_subgraph function with empty input"""
@@ -74,16 +74,16 @@ class TestDispatchSerialize:
 
     def test_serialize_value_with_uri(self):
         """Test serialize_value function with URI value"""
-        value = Value(value="http://example.com/test", is_uri=True)
-        
-        result = serialize_value(value)
-        
+        term = Term(type=IRI, iri="http://example.com/test")
+
+        result = serialize_value(term)
+
         assert result == {"v": "http://example.com/test", "e": True}
 
     def test_serialize_value_with_literal(self):
         """Test serialize_value function with literal value"""
-        value = Value(value="test literal", is_uri=False)
-        
-        result = serialize_value(value)
-        
+        term = Term(type=LITERAL, value="test literal")
+
+        result = serialize_value(term)
+
         assert result == {"v": "test literal", "e": False}
