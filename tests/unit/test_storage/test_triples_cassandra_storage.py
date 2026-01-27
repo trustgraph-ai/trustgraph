@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
 
 from trustgraph.storage.triples.cassandra.write import Processor
-from trustgraph.schema import Value, Triple
+from trustgraph.schema import Triple
 
 
 class TestCassandraStorageProcessor:
