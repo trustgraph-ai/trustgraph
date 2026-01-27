@@ -85,10 +85,10 @@ class TestQdrantGraphEmbeddingsQuery(IsolatedAsyncioTestCase):
         value = processor.create_value('http://example.com/entity')
 
         # Assert
-        assert hasattr(value, 'value')
-        assert value.value == 'http://example.com/entity'
-        assert hasattr(value, 'is_uri')
-        assert value.is_uri == True
+        assert hasattr(value, 'iri')
+        assert value.iri == 'http://example.com/entity'
+        assert hasattr(value, 'type')
+        assert value.type == IRI
 
     @patch('trustgraph.query.graph_embeddings.qdrant.service.QdrantClient')
     @patch('trustgraph.base.GraphEmbeddingsQueryService.__init__')
@@ -109,10 +109,10 @@ class TestQdrantGraphEmbeddingsQuery(IsolatedAsyncioTestCase):
         value = processor.create_value('https://secure.example.com/entity')
 
         # Assert
-        assert hasattr(value, 'value')
-        assert value.value == 'https://secure.example.com/entity'
-        assert hasattr(value, 'is_uri')
-        assert value.is_uri == True
+        assert hasattr(value, 'iri')
+        assert value.iri == 'https://secure.example.com/entity'
+        assert hasattr(value, 'type')
+        assert value.type == IRI
 
     @patch('trustgraph.query.graph_embeddings.qdrant.service.QdrantClient')
     @patch('trustgraph.base.GraphEmbeddingsQueryService.__init__')
