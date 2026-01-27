@@ -12,7 +12,7 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from trustgraph.extract.kg.agent.extract import Processor as AgentKgExtractor
-from trustgraph.schema import Chunk, Triple, Triples, Metadata, Value, Error
+from trustgraph.schema import Chunk, Triple, Triples, Metadata, Term, Error, IRI, LITERAL
 from trustgraph.schema import EntityContext, EntityContexts, AgentRequest, AgentResponse
 from trustgraph.rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL, SUBJECT_OF
 from trustgraph.template.prompt_manager import PromptManager
@@ -78,9 +78,9 @@ class TestAgentKgExtractionIntegration:
                 id="doc123",
                 metadata=[
                     Triple(
-                        s=Value(value="doc123", is_uri=True),
-                        p=Value(value="http://example.org/type", is_uri=True),
-                        o=Value(value="document", is_uri=False)
+                        s=Term(type=IRI, iri="doc123"),
+                        p=Term(type=IRI, iri="http://example.org/type"),
+                        o=Term(type=LITERAL, value="document")
                     )
                 ]
             )
@@ -178,15 +178,15 @@ class TestAgentKgExtractionIntegration:
         assert len(sent_triples.triples) > 0
         
         # Check that we have definition triples
-        definition_triples = [t for t in sent_triples.triples if t.p.value == DEFINITION]
+        definition_triples = [t for t in sent_triples.triples if t.p.iri == DEFINITION]
         assert len(definition_triples) >= 2  # Should have definitions for ML and Neural Networks
-        
+
         # Check that we have label triples
-        label_triples = [t for t in sent_triples.triples if t.p.value == RDF_LABEL]
+        label_triples = [t for t in sent_triples.triples if t.p.iri == RDF_LABEL]
         assert len(label_triples) >= 2  # Should have labels for entities
-        
+
         # Check subject-of relationships
-        subject_of_triples = [t for t in sent_triples.triples if t.p.value == SUBJECT_OF]
+        subject_of_triples = [t for t in sent_triples.triples if t.p.iri == SUBJECT_OF]
         assert len(subject_of_triples) >= 2  # Entities should be linked to document
 
         # Verify entity contexts were emitted
@@ -198,7 +198,7 @@ class TestAgentKgExtractionIntegration:
         assert len(sent_contexts.entities) >= 2  # Should have contexts for both entities
         
         # Verify entity URIs are properly formed
-        entity_uris = [ec.entity.value for ec in sent_contexts.entities]
+        entity_uris = [ec.entity.iri for ec in sent_contexts.entities]
         assert f"{TRUSTGRAPH_ENTITIES}Machine%20Learning" in entity_uris
         assert f"{TRUSTGRAPH_ENTITIES}Neural%20Networks" in entity_uris
 
@@ -401,7 +401,7 @@ class TestAgentKgExtractionIntegration:
         
         sent_triples = triples_publisher.send.call_args[0][0]
         # Check that unicode entity was properly processed
-        entity_labels = [t for t in sent_triples.triples if t.p.value == RDF_LABEL and t.o.value == "機械学習"]
+        entity_labels = [t for t in sent_triples.triples if t.p.iri == RDF_LABEL and t.o.value == "機械学習"]
         assert len(entity_labels) > 0
 
     @pytest.mark.asyncio

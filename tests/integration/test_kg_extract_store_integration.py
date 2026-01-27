@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from trustgraph.extract.kg.definitions.extract import Processor as DefinitionsProcessor
 from trustgraph.extract.kg.relationships.extract import Processor as RelationshipsProcessor
 from trustgraph.storage.knowledge.store import Processor as KnowledgeStoreProcessor
-from trustgraph.schema import Chunk, Triple, Triples, Metadata, Value, Error
+from trustgraph.schema import Chunk, Triple, Triples, Metadata, Term, Error, IRI, LITERAL
 from trustgraph.schema import EntityContext, EntityContexts, GraphEmbeddings
 from trustgraph.rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL, SUBJECT_OF
 
@@ -253,24 +253,24 @@ class TestKnowledgeGraphPipelineIntegration:
             
             if s and o:
                 s_uri = definitions_processor.to_uri(s)
-                s_value = Value(value=str(s_uri), is_uri=True)
-                o_value = Value(value=str(o), is_uri=False)
-                
+                s_term = Term(type=IRI, iri=str(s_uri))
+                o_term = Term(type=LITERAL, value=str(o))
+
                 # Generate triples as the processor would
                 triples.append(Triple(
-                    s=s_value,
-                    p=Value(value=RDF_LABEL, is_uri=True),
-                    o=Value(value=s, is_uri=False)
+                    s=s_term,
+                    p=Term(type=IRI, iri=RDF_LABEL),
+                    o=Term(type=LITERAL, value=s)
                 ))
-                
+
                 triples.append(Triple(
-                    s=s_value,
-                    p=Value(value=DEFINITION, is_uri=True),
-                    o=o_value
+                    s=s_term,
+                    p=Term(type=IRI, iri=DEFINITION),
+                    o=o_term
                 ))
-                
+
                 entities.append(EntityContext(
-                    entity=s_value,
+                    entity=s_term,
                     context=defn["definition"]
                 ))
 
@@ -279,16 +279,16 @@ class TestKnowledgeGraphPipelineIntegration:
         assert len(entities) == 3  # 1 entity context per entity
         
         # Verify triple structure
-        label_triples = [t for t in triples if t.p.value == RDF_LABEL]
-        definition_triples = [t for t in triples if t.p.value == DEFINITION]
-        
+        label_triples = [t for t in triples if t.p.iri == RDF_LABEL]
+        definition_triples = [t for t in triples if t.p.iri == DEFINITION]
+
         assert len(label_triples) == 3
         assert len(definition_triples) == 3
-        
+
         # Verify entity contexts
         for entity in entities:
-            assert entity.entity.is_uri is True
-            assert entity.entity.value.startswith(TRUSTGRAPH_ENTITIES)
+            assert entity.entity.type == IRI
+            assert entity.entity.iri.startswith(TRUSTGRAPH_ENTITIES)
             assert len(entity.context) > 0
 
     @pytest.mark.asyncio
@@ -309,52 +309,52 @@ class TestKnowledgeGraphPipelineIntegration:
             s = rel["subject"]
             p = rel["predicate"]
             o = rel["object"]
-            
+
             if s and p and o:
                 s_uri = relationships_processor.to_uri(s)
-                s_value = Value(value=str(s_uri), is_uri=True)
-                
+                s_term = Term(type=IRI, iri=str(s_uri))
+
                 p_uri = relationships_processor.to_uri(p)
-                p_value = Value(value=str(p_uri), is_uri=True)
-                
+                p_term = Term(type=IRI, iri=str(p_uri))
+
                 if rel["object-entity"]:
                     o_uri = relationships_processor.to_uri(o)
-                    o_value = Value(value=str(o_uri), is_uri=True)
+                    o_term = Term(type=IRI, iri=str(o_uri))
                 else:
-                    o_value = Value(value=str(o), is_uri=False)
-                
+                    o_term = Term(type=LITERAL, value=str(o))
+
                 # Main relationship triple
-                triples.append(Triple(s=s_value, p=p_value, o=o_value))
-                
+                triples.append(Triple(s=s_term, p=p_term, o=o_term))
+
                 # Label triples
                 triples.append(Triple(
-                    s=s_value,
-                    p=Value(value=RDF_LABEL, is_uri=True),
-                    o=Value(value=str(s), is_uri=False)
+                    s=s_term,
+                    p=Term(type=IRI, iri=RDF_LABEL),
+                    o=Term(type=LITERAL, value=str(s))
                 ))
-                
+
                 triples.append(Triple(
-                    s=p_value,
-                    p=Value(value=RDF_LABEL, is_uri=True),
-                    o=Value(value=str(p), is_uri=False)
+                    s=p_term,
+                    p=Term(type=IRI, iri=RDF_LABEL),
+                    o=Term(type=LITERAL, value=str(p))
                 ))
-                
+
                 if rel["object-entity"]:
                     triples.append(Triple(
-                        s=o_value,
-                        p=Value(value=RDF_LABEL, is_uri=True),
-                        o=Value(value=str(o), is_uri=False)
+                        s=o_term,
+                        p=Term(type=IRI, iri=RDF_LABEL),
+                        o=Term(type=LITERAL, value=str(o))
                     ))
 
         # Assert
         assert len(triples) > 0
         
         # Verify relationship triples exist
-        relationship_triples = [t for t in triples if t.p.value.endswith("is_subset_of") or t.p.value.endswith("is_used_in")]
+        relationship_triples = [t for t in triples if t.p.iri.endswith("is_subset_of") or t.p.iri.endswith("is_used_in")]
         assert len(relationship_triples) >= 2
-        
+
         # Verify label triples
-        label_triples = [t for t in triples if t.p.value == RDF_LABEL]
+        label_triples = [t for t in triples if t.p.iri == RDF_LABEL]
         assert len(label_triples) > 0
 
     @pytest.mark.asyncio
@@ -374,9 +374,9 @@ class TestKnowledgeGraphPipelineIntegration:
             ),
             triples=[
                 Triple(
-                    s=Value(value="http://trustgraph.ai/e/machine-learning", is_uri=True),
-                    p=Value(value=DEFINITION, is_uri=True),
-                    o=Value(value="A subset of AI", is_uri=False)
+                    s=Term(type=IRI, iri="http://trustgraph.ai/e/machine-learning"),
+                    p=Term(type=IRI, iri=DEFINITION),
+                    o=Term(type=LITERAL, value="A subset of AI")
                 )
             ]
         )
@@ -602,9 +602,9 @@ class TestKnowledgeGraphPipelineIntegration:
             collection="test_collection",
             metadata=[
                 Triple(
-                    s=Value(value="doc:test", is_uri=True),
-                    p=Value(value="dc:title", is_uri=True),
-                    o=Value(value="Test Document", is_uri=False)
+                    s=Term(type=IRI, iri="doc:test"),
+                    p=Term(type=IRI, iri="dc:title"),
+                    o=Term(type=LITERAL, value="Test Document")
                 )
             ]
         )

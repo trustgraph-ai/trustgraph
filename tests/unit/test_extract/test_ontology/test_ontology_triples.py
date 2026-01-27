@@ -9,7 +9,7 @@ the knowledge graph.
 import pytest
 from trustgraph.extract.kg.ontology.extract import Processor
 from trustgraph.extract.kg.ontology.ontology_selector import OntologySubset
-from trustgraph.schema.core.primitives import Triple, Value
+from trustgraph.schema.core.primitives import Triple, Term, IRI, LITERAL
 
 
 @pytest.fixture
@@ -92,12 +92,12 @@ class TestOntologyTripleGeneration:
         # Find type triples for Recipe class
         recipe_type_triples = [
             t for t in triples
-            if t.s.value == "http://purl.org/ontology/fo/Recipe"
-            and t.p.value == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+            if t.s.iri == "http://purl.org/ontology/fo/Recipe"
+            and t.p.iri == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
         ]
 
         assert len(recipe_type_triples) == 1, "Should generate exactly one type triple per class"
-        assert recipe_type_triples[0].o.value == "http://www.w3.org/2002/07/owl#Class", \
+        assert recipe_type_triples[0].o.iri == "http://www.w3.org/2002/07/owl#Class", \
             "Class type should be owl:Class"
 
     def test_generates_class_labels(self, extractor, sample_ontology_subset):
@@ -107,14 +107,14 @@ class TestOntologyTripleGeneration:
         # Find label triples for Recipe class
         recipe_label_triples = [
             t for t in triples
-            if t.s.value == "http://purl.org/ontology/fo/Recipe"
-            and t.p.value == "http://www.w3.org/2000/01/rdf-schema#label"
+            if t.s.iri == "http://purl.org/ontology/fo/Recipe"
+            and t.p.iri == "http://www.w3.org/2000/01/rdf-schema#label"
         ]
 
         assert len(recipe_label_triples) == 1, "Should generate label triple for class"
         assert recipe_label_triples[0].o.value == "Recipe", \
             "Label should match class label from ontology"
-        assert not recipe_label_triples[0].o.is_uri, \
+        assert recipe_label_triples[0].o.type == LITERAL, \
             "Label should be a literal, not URI"
 
     def test_generates_class_comments(self, extractor, sample_ontology_subset):
@@ -124,8 +124,8 @@ class TestOntologyTripleGeneration:
         # Find comment triples for Recipe class
         recipe_comment_triples = [
             t for t in triples
-            if t.s.value == "http://purl.org/ontology/fo/Recipe"
-            and t.p.value == "http://www.w3.org/2000/01/rdf-schema#comment"
+            if t.s.iri == "http://purl.org/ontology/fo/Recipe"
+            and t.p.iri == "http://www.w3.org/2000/01/rdf-schema#comment"
         ]
 
         assert len(recipe_comment_triples) == 1, "Should generate comment triple for class"
@@ -139,13 +139,13 @@ class TestOntologyTripleGeneration:
         # Find type triples for ingredients property
         ingredients_type_triples = [
             t for t in triples
-            if t.s.value == "http://purl.org/ontology/fo/ingredients"
-            and t.p.value == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+            if t.s.iri == "http://purl.org/ontology/fo/ingredients"
+            and t.p.iri == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
         ]
 
         assert len(ingredients_type_triples) == 1, \
             "Should generate exactly one type triple per object property"
-        assert ingredients_type_triples[0].o.value == "http://www.w3.org/2002/07/owl#ObjectProperty", \
+        assert ingredients_type_triples[0].o.iri == "http://www.w3.org/2002/07/owl#ObjectProperty", \
             "Object property type should be owl:ObjectProperty"
 
     def test_generates_object_property_labels(self, extractor, sample_ontology_subset):
@@ -155,8 +155,8 @@ class TestOntologyTripleGeneration:
         # Find label triples for ingredients property
         ingredients_label_triples = [
             t for t in triples
-            if t.s.value == "http://purl.org/ontology/fo/ingredients"
-            and t.p.value == "http://www.w3.org/2000/01/rdf-schema#label"
+            if t.s.iri == "http://purl.org/ontology/fo/ingredients"
+            and t.p.iri == "http://www.w3.org/2000/01/rdf-schema#label"
         ]
 
         assert len(ingredients_label_triples) == 1, \
@@ -171,15 +171,15 @@ class TestOntologyTripleGeneration:
         # Find domain triples for ingredients property
         ingredients_domain_triples = [
             t for t in triples
-            if t.s.value == "http://purl.org/ontology/fo/ingredients"
-            and t.p.value == "http://www.w3.org/2000/01/rdf-schema#domain"
+            if t.s.iri == "http://purl.org/ontology/fo/ingredients"
+            and t.p.iri == "http://www.w3.org/2000/01/rdf-schema#domain"
         ]
 
         assert len(ingredients_domain_triples) == 1, \
             "Should generate domain triple for object property"
-        assert ingredients_domain_triples[0].o.value == "http://purl.org/ontology/fo/Recipe", \
+        assert ingredients_domain_triples[0].o.iri == "http://purl.org/ontology/fo/Recipe", \
             "Domain should be Recipe class URI"
-        assert ingredients_domain_triples[0].o.is_uri, \
+        assert ingredients_domain_triples[0].o.type == IRI, \
             "Domain should be a URI reference"
 
     def test_generates_object_property_range(self, extractor, sample_ontology_subset):
@@ -189,13 +189,13 @@ class TestOntologyTripleGeneration:
         # Find range triples for produces property
         produces_range_triples = [
             t for t in triples
-            if t.s.value == "http://purl.org/ontology/fo/produces"
-            and t.p.value == "http://www.w3.org/2000/01/rdf-schema#range"
+            if t.s.iri == "http://purl.org/ontology/fo/produces"
+            and t.p.iri == "http://www.w3.org/2000/01/rdf-schema#range"
         ]
 
         assert len(produces_range_triples) == 1, \
             "Should generate range triple for object property"
-        assert produces_range_triples[0].o.value == "http://purl.org/ontology/fo/Food", \
+        assert produces_range_triples[0].o.iri == "http://purl.org/ontology/fo/Food", \
             "Range should be Food class URI"
 
     def test_generates_datatype_property_type_triples(self, extractor, sample_ontology_subset):
@@ -205,13 +205,13 @@ class TestOntologyTripleGeneration:
         # Find type triples for serves property
         serves_type_triples = [
             t for t in triples
-            if t.s.value == "http://purl.org/ontology/fo/serves"
-            and t.p.value == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+            if t.s.iri == "http://purl.org/ontology/fo/serves"
+            and t.p.iri == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
         ]
 
         assert len(serves_type_triples) == 1, \
             "Should generate exactly one type triple per datatype property"
-        assert serves_type_triples[0].o.value == "http://www.w3.org/2002/07/owl#DatatypeProperty", \
+        assert serves_type_triples[0].o.iri == "http://www.w3.org/2002/07/owl#DatatypeProperty", \
             "Datatype property type should be owl:DatatypeProperty"
 
     def test_generates_datatype_property_range(self, extractor, sample_ontology_subset):
@@ -221,8 +221,8 @@ class TestOntologyTripleGeneration:
         # Find range triples for serves property
         serves_range_triples = [
             t for t in triples
-            if t.s.value == "http://purl.org/ontology/fo/serves"
-            and t.p.value == "http://www.w3.org/2000/01/rdf-schema#range"
+            if t.s.iri == "http://purl.org/ontology/fo/serves"
+            and t.p.iri == "http://www.w3.org/2000/01/rdf-schema#range"
         ]
 
         assert len(serves_range_triples) == 1, \
@@ -236,8 +236,8 @@ class TestOntologyTripleGeneration:
 
         # Count unique class subjects
         class_subjects = set(
-            t.s.value for t in triples
-            if t.p.value == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+            t.s.iri for t in triples
+            if t.p.iri == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
             and t.o.value == "http://www.w3.org/2002/07/owl#Class"
         )
 
@@ -250,8 +250,8 @@ class TestOntologyTripleGeneration:
 
         # Count unique property subjects (object + datatype properties)
         property_subjects = set(
-            t.s.value for t in triples
-            if t.p.value == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+            t.s.iri for t in triples
+            if t.p.iri == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
             and ("ObjectProperty" in t.o.value or "DatatypeProperty" in t.o.value)
         )
 
@@ -276,7 +276,7 @@ class TestOntologyTripleGeneration:
         # Should still generate proper RDF triples despite dict field names
         label_triples = [
             t for t in triples
-            if t.p.value == "http://www.w3.org/2000/01/rdf-schema#label"
+            if t.p.iri == "http://www.w3.org/2000/01/rdf-schema#label"
         ]
         assert len(label_triples) > 0, \
             "Should generate rdfs:label triples from dict 'labels' field"
