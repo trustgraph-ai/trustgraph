@@ -227,7 +227,7 @@ class TestOntologyTripleGeneration:
 
         assert len(serves_range_triples) == 1, \
             "Should generate range triple for datatype property"
-        assert serves_range_triples[0].o.value == "http://www.w3.org/2001/XMLSchema#string", \
+        assert serves_range_triples[0].o.iri == "http://www.w3.org/2001/XMLSchema#string", \
             "Range should be XSD type URI (xsd:string expanded)"
 
     def test_generates_triples_for_all_classes(self, extractor, sample_ontology_subset):
@@ -238,7 +238,7 @@ class TestOntologyTripleGeneration:
         class_subjects = set(
             t.s.iri for t in triples
             if t.p.iri == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
-            and t.o.value == "http://www.w3.org/2002/07/owl#Class"
+            and t.o.iri == "http://www.w3.org/2002/07/owl#Class"
         )
 
         assert len(class_subjects) == 3, \
@@ -252,7 +252,7 @@ class TestOntologyTripleGeneration:
         property_subjects = set(
             t.s.iri for t in triples
             if t.p.iri == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
-            and ("ObjectProperty" in t.o.value or "DatatypeProperty" in t.o.value)
+            and ("ObjectProperty" in t.o.iri or "DatatypeProperty" in t.o.iri)
         )
 
         assert len(property_subjects) == 3, \

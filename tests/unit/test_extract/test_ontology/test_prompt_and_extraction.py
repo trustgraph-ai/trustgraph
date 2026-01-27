@@ -8,7 +8,7 @@ and extracts/validates triples from LLM responses.
 import pytest
 from trustgraph.extract.kg.ontology.extract import Processor
 from trustgraph.extract.kg.ontology.ontology_selector import OntologySubset
-from trustgraph.schema.core.primitives import Triple, Value
+from trustgraph.schema.core.primitives import Triple, Term, IRI, LITERAL
 
 
 @pytest.fixture
@@ -248,9 +248,9 @@ class TestTripleParsing:
         validated = extractor.parse_and_validate_triples(triples_response, sample_ontology_subset)
 
         assert len(validated) == 1, "Should parse one valid triple"
-        assert validated[0].s.value == "https://trustgraph.ai/food/cornish-pasty"
-        assert validated[0].p.value == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
-        assert validated[0].o.value == "http://purl.org/ontology/fo/Recipe"
+        assert validated[0].s.iri == "https://trustgraph.ai/food/cornish-pasty"
+        assert validated[0].p.iri == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+        assert validated[0].o.iri == "http://purl.org/ontology/fo/Recipe"
 
     def test_parse_multiple_triples(self, extractor, sample_ontology_subset):
         """Test parsing multiple triples."""
@@ -307,11 +307,11 @@ class TestTripleParsing:
 
         assert len(validated) == 1
         # Subject should be expanded to entity URI
-        assert validated[0].s.value.startswith("https://trustgraph.ai/food/")
+        assert validated[0].s.iri.startswith("https://trustgraph.ai/food/")
         # Predicate should be expanded to ontology URI
-        assert validated[0].p.value == "http://purl.org/ontology/fo/produces"
+        assert validated[0].p.iri == "http://purl.org/ontology/fo/produces"
         # Object should be expanded to class URI
-        assert validated[0].o.value == "http://purl.org/ontology/fo/Food"
+        assert validated[0].o.iri == "http://purl.org/ontology/fo/Food"
 
     def test_creates_proper_triple_objects(self, extractor, sample_ontology_subset):
         """Test that Triple objects are properly created."""
@@ -324,12 +324,12 @@ class TestTripleParsing:
         assert len(validated) == 1
         triple = validated[0]
         assert isinstance(triple, Triple), "Should create Triple objects"
-        assert isinstance(triple.s, Value), "Subject should be Value object"
-        assert isinstance(triple.p, Value), "Predicate should be Value object"
-        assert isinstance(triple.o, Value), "Object should be Value object"
-        assert triple.s.is_uri, "Subject should be marked as URI"
-        assert triple.p.is_uri, "Predicate should be marked as URI"
-        assert not triple.o.is_uri, "Object literal should not be marked as URI"
+        assert isinstance(triple.s, Term), "Subject should be Term object"
+        assert isinstance(triple.p, Term), "Predicate should be Term object"
+        assert isinstance(triple.o, Term), "Object should be Term object"
+        assert triple.s.type == IRI, "Subject should be IRI type"
+        assert triple.p.type == IRI, "Predicate should be IRI type"
+        assert triple.o.type == LITERAL, "Object literal should be LITERAL type"
 
 
 class TestURIExpansionInExtraction:
@@ -343,8 +343,8 @@ class TestURIExpansionInExtraction:
 
         validated = extractor.parse_and_validate_triples(triples_response, sample_ontology_subset)
 
-        assert validated[0].o.value == "http://purl.org/ontology/fo/Recipe"
-        assert validated[0].o.is_uri, "Class reference should be URI"
+        assert validated[0].o.iri == "http://purl.org/ontology/fo/Recipe"
+        assert validated[0].o.type == IRI, "Class reference should be URI"
 
     def test_expands_property_names(self, extractor, sample_ontology_subset):
         """Test that property names are expanded to full URIs."""
@@ -354,7 +354,7 @@ class TestURIExpansionInExtraction:
 
         validated = extractor.parse_and_validate_triples(triples_response, sample_ontology_subset)
 
-        assert validated[0].p.value == "http://purl.org/ontology/fo/produces"
+        assert validated[0].p.iri == "http://purl.org/ontology/fo/produces"
 
     def test_expands_entity_instances(self, extractor, sample_ontology_subset):
         """Test that entity instances get constructed URIs."""
@@ -364,8 +364,8 @@ class TestURIExpansionInExtraction:
 
         validated = extractor.parse_and_validate_triples(triples_response, sample_ontology_subset)
 
-        assert validated[0].s.value.startswith("https://trustgraph.ai/food/")
-        assert "my-special-recipe" in validated[0].s.value
+        assert validated[0].s.iri.startswith("https://trustgraph.ai/food/")
+        assert "my-special-recipe" in validated[0].s.iri
 
 
 class TestEdgeCases:
