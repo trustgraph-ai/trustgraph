@@ -14,7 +14,7 @@ class TestDispatchSerialize:
 
     def test_to_value_with_uri(self):
         """Test to_value function with URI"""
-        input_data = {"v": "http://example.com/resource", "e": True}
+        input_data = {"t": "i", "i": "http://example.com/resource"}
 
         result = to_value(input_data)
 
@@ -24,10 +24,10 @@ class TestDispatchSerialize:
 
     def test_to_value_with_literal(self):
         """Test to_value function with literal value"""
-        input_data = {"v": "literal string", "e": False}
-        
+        input_data = {"t": "l", "v": "literal string"}
+
         result = to_value(input_data)
-        
+
         assert isinstance(result, Term)
         assert result.value == "literal string"
         assert result.type == LITERAL
@@ -36,22 +36,22 @@ class TestDispatchSerialize:
         """Test to_subgraph function with multiple triples"""
         input_data = [
             {
-                "s": {"v": "subject1", "e": True},
-                "p": {"v": "predicate1", "e": True},
-                "o": {"v": "object1", "e": False}
+                "s": {"t": "i", "i": "subject1"},
+                "p": {"t": "i", "i": "predicate1"},
+                "o": {"t": "l", "v": "object1"}
             },
             {
-                "s": {"v": "subject2", "e": False},
-                "p": {"v": "predicate2", "e": True},
-                "o": {"v": "object2", "e": True}
+                "s": {"t": "l", "v": "subject2"},
+                "p": {"t": "i", "i": "predicate2"},
+                "o": {"t": "i", "i": "object2"}
             }
         ]
-        
+
         result = to_subgraph(input_data)
-        
+
         assert len(result) == 2
         assert all(isinstance(triple, Triple) for triple in result)
-        
+
         # Check first triple
         assert result[0].s.iri == "subject1"
         assert result[0].s.type == IRI
@@ -78,7 +78,7 @@ class TestDispatchSerialize:
 
         result = serialize_value(term)
 
-        assert result == {"v": "http://example.com/test", "e": True}
+        assert result == {"t": "i", "i": "http://example.com/test"}
 
     def test_serialize_value_with_literal(self):
         """Test serialize_value function with literal value"""
@@ -86,4 +86,4 @@ class TestDispatchSerialize:
 
         result = serialize_value(term)
 
-        assert result == {"v": "test literal", "e": False}
+        assert result == {"t": "l", "v": "test literal"}
