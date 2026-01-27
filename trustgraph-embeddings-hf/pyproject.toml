@@ -10,8 +10,8 @@ description = "HuggingFace embeddings support for TrustGraph."
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
-    "trustgraph-base>=1.9,<1.10",
-    "trustgraph-flow>=1.9,<1.10",
+    "trustgraph-base>=2.0,<2.1",
+    "trustgraph-flow>=2.0,<2.1",
     "torch",
     "urllib3",
     "transformers",
