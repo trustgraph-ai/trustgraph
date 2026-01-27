@@ -15,14 +15,14 @@ from trustgraph.schema import (
     TextCompletionRequest, TextCompletionResponse,
     DocumentRagQuery, DocumentRagResponse,
     AgentRequest, AgentResponse, AgentStep,
-    Chunk, Triple, Triples, Value, Error,
+    Chunk, Triple, Triples, Term, Error,
     EntityContext, EntityContexts,
     GraphEmbeddings, EntityEmbeddings,
     Metadata, Field, RowSchema,
     StructuredDataSubmission, ExtractedObject,
     QuestionToStructuredQueryRequest, QuestionToStructuredQueryResponse,
     StructuredQueryRequest, StructuredQueryResponse,
-    StructuredObjectEmbedding
+    StructuredObjectEmbedding, IRI, LITERAL
 )
 from .conftest import validate_schema_contract, serialize_deserialize_test
 
@@ -271,52 +271,51 @@ class TestAgentMessageContracts:
 class TestGraphMessageContracts:
     """Contract tests for Graph/Knowledge message schemas"""
 
-    def test_value_schema_contract(self, sample_message_data):
-        """Test Value schema contract"""
+    def test_term_schema_contract(self, sample_message_data):
+        """Test Term schema contract"""
         # Arrange
-        value_data = sample_message_data["Value"]
+        term_data = sample_message_data["Term"]
 
         # Act & Assert
-        assert validate_schema_contract(Value, value_data)
-        
-        # Test URI value
-        uri_value = Value(**value_data)
-        assert uri_value.value == "http://example.com/entity"
-        assert uri_value.is_uri is True
+        assert validate_schema_contract(Term, term_data)
 
-        # Test literal value
-        literal_value = Value(
-            value="Literal text value",
-            is_uri=False,
-            type=""
+        # Test URI term
+        uri_term = Term(**term_data)
+        assert uri_term.iri == "http://example.com/entity"
+        assert uri_term.type == IRI
+
+        # Test literal term
+        literal_term = Term(
+            type=LITERAL,
+            value="Literal text value"
         )
-        assert literal_value.value == "Literal text value"
-        assert literal_value.is_uri is False
+        assert literal_term.value == "Literal text value"
+        assert literal_term.type == LITERAL
 
     def test_triple_schema_contract(self, sample_message_data):
         """Test Triple schema contract"""
         # Arrange
         triple_data = sample_message_data["Triple"]
 
-        # Act & Assert - Triple uses Value objects, not dict validation
+        # Act & Assert - Triple uses Term objects, not dict validation
         triple = Triple(
             s=triple_data["s"],
-            p=triple_data["p"], 
+            p=triple_data["p"],
             o=triple_data["o"]
         )
-        assert triple.s.value == "http://example.com/subject"
-        assert triple.p.value == "http://example.com/predicate"
+        assert triple.s.iri == "http://example.com/subject"
+        assert triple.p.iri == "http://example.com/predicate"
         assert triple.o.value == "Object value"
-        assert triple.s.is_uri is True
-        assert triple.p.is_uri is True
-        assert triple.o.is_uri is False
+        assert triple.s.type == IRI
+        assert triple.p.type == IRI
+        assert triple.o.type == LITERAL
 
     def test_triples_schema_contract(self, sample_message_data):
         """Test Triples (batch) schema contract"""
         # Arrange
         metadata = Metadata(**sample_message_data["Metadata"])
         triple = Triple(**sample_message_data["Triple"])
-        
+
         triples_data = {
             "metadata": metadata,
             "triples": [triple]
@@ -324,11 +323,11 @@ class TestGraphMessageContracts:
 
         # Act & Assert
         assert validate_schema_contract(Triples, triples_data)
-        
+
         triples = Triples(**triples_data)
         assert triples.metadata.id == "test-doc-123"
         assert len(triples.triples) == 1
-        assert triples.triples[0].s.value == "http://example.com/subject"
+        assert triples.triples[0].s.iri == "http://example.com/subject"
 
     def test_chunk_schema_contract(self, sample_message_data):
         """Test Chunk schema contract"""
@@ -349,29 +348,29 @@ class TestGraphMessageContracts:
     def test_entity_context_schema_contract(self):
         """Test EntityContext schema contract"""
         # Arrange
-        entity_value = Value(value="http://example.com/entity", is_uri=True, type="")
+        entity_term = Term(type=IRI, iri="http://example.com/entity")
         entity_context_data = {
-            "entity": entity_value,
+            "entity": entity_term,
             "context": "Context information about the entity"
         }
 
         # Act & Assert
         assert validate_schema_contract(EntityContext, entity_context_data)
-        
+
         entity_context = EntityContext(**entity_context_data)
-        assert entity_context.entity.value == "http://example.com/entity"
+        assert entity_context.entity.iri == "http://example.com/entity"
         assert entity_context.context == "Context information about the entity"
 
     def test_entity_contexts_batch_schema_contract(self, sample_message_data):
         """Test EntityContexts (batch) schema contract"""
         # Arrange
         metadata = Metadata(**sample_message_data["Metadata"])
-        entity_value = Value(value="http://example.com/entity", is_uri=True, type="")
+        entity_term = Term(type=IRI, iri="http://example.com/entity")
         entity_context = EntityContext(
-            entity=entity_value,
+            entity=entity_term,
             context="Entity context"
         )
-        
+
         entity_contexts_data = {
             "metadata": metadata,
             "entities": [entity_context]
@@ -379,7 +378,7 @@ class TestGraphMessageContracts:
 
         # Act & Assert
         assert validate_schema_contract(EntityContexts, entity_contexts_data)
-        
+
         entity_contexts = EntityContexts(**entity_contexts_data)
         assert entity_contexts.metadata.id == "test-doc-123"
         assert len(entity_contexts.entities) == 1
@@ -417,10 +416,10 @@ class TestMetadataMessageContracts:
 
         # Act & Assert
         assert validate_schema_contract(Metadata, metadata_data)
-        
+
         metadata = Metadata(**metadata_data)
         assert len(metadata.metadata) == 1
-        assert metadata.metadata[0].s.value == "http://example.com/subject"
+        assert metadata.metadata[0].s.iri == "http://example.com/subject"
 
     def test_error_schema_contract(self):
         """Test Error schema contract"""
@@ -532,7 +531,7 @@ class TestSerializationContracts:
         # Test each schema in the registry
         for schema_name, schema_class in schema_registry.items():
             if schema_name in sample_message_data:
-                # Skip Triple schema as it requires special handling with Value objects
+                # Skip Triple schema as it requires special handling with Term objects
                 if schema_name == "Triple":
                     continue
                     
@@ -541,36 +540,36 @@ class TestSerializationContracts:
                 assert serialize_deserialize_test(schema_class, data), f"Serialization failed for {schema_name}"
     
     def test_triple_serialization_contract(self, sample_message_data):
-        """Test Triple schema serialization contract with Value objects"""
+        """Test Triple schema serialization contract with Term objects"""
         # Arrange
         triple_data = sample_message_data["Triple"]
-        
+
         # Act
         triple = Triple(
             s=triple_data["s"],
-            p=triple_data["p"], 
+            p=triple_data["p"],
             o=triple_data["o"]
         )
-        
-        # Assert - Test that Value objects are properly constructed and accessible
-        assert triple.s.value == "http://example.com/subject"
-        assert triple.p.value == "http://example.com/predicate"
+
+        # Assert - Test that Term objects are properly constructed and accessible
+        assert triple.s.iri == "http://example.com/subject"
+        assert triple.p.iri == "http://example.com/predicate"
         assert triple.o.value == "Object value"
-        assert isinstance(triple.s, Value)
-        assert isinstance(triple.p, Value)
-        assert isinstance(triple.o, Value)
+        assert isinstance(triple.s, Term)
+        assert isinstance(triple.p, Term)
+        assert isinstance(triple.o, Term)
 
     def test_nested_schema_serialization_contract(self, sample_message_data):
         """Test serialization of nested schemas"""
         # Test Triples (contains Metadata and Triple objects)
         metadata = Metadata(**sample_message_data["Metadata"])
         triple = Triple(**sample_message_data["Triple"])
-        
+
         triples = Triples(metadata=metadata, triples=[triple])
-        
+
         # Verify nested objects maintain their contracts
         assert triples.metadata.id == "test-doc-123"
-        assert triples.triples[0].s.value == "http://example.com/subject"
+        assert triples.triples[0].s.iri == "http://example.com/subject"
 
     def test_array_field_serialization_contract(self):
         """Test serialization of array fields"""
