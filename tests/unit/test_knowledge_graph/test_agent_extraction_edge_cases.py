@@ -11,7 +11,7 @@ import urllib.parse
 from unittest.mock import AsyncMock, MagicMock
 
 from trustgraph.extract.kg.agent.extract import Processor as AgentKgExtractor
-from trustgraph.schema import Chunk, Triple, Triples, Metadata, Value
+from trustgraph.schema import Chunk, Triple, Triples, Metadata, Term, IRI, LITERAL
 from trustgraph.schema import EntityContext, EntityContexts
 from trustgraph.rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL, SUBJECT_OF
 
@@ -188,7 +188,7 @@ class TestAgentKgExtractionEdgeCases:
         triples, contexts = agent_extractor.process_extraction_data(data, metadata)
 
         # Should not create subject-of triples when ID is empty string
-        subject_of_triples = [t for t in triples if t.p.value == SUBJECT_OF]
+        subject_of_triples = [t for t in triples if t.p.iri == SUBJECT_OF]
         assert len(subject_of_triples) == 0
 
     def test_process_extraction_data_special_entity_names(self, agent_extractor):
@@ -221,7 +221,7 @@ class TestAgentKgExtractionEdgeCases:
         # Verify URIs were properly encoded
         for i, entity in enumerate(special_entities):
             expected_uri = f"{TRUSTGRAPH_ENTITIES}{urllib.parse.quote(entity)}"
-            assert contexts[i].entity.value == expected_uri
+            assert contexts[i].entity.iri == expected_uri
 
     def test_process_extraction_data_very_long_definitions(self, agent_extractor):
         """Test processing with very long entity definitions"""
@@ -241,7 +241,7 @@ class TestAgentKgExtractionEdgeCases:
         assert contexts[0].context == long_definition
 
         # Find definition triple
-        def_triple = next((t for t in triples if t.p.value == DEFINITION), None)
+        def_triple = next((t for t in triples if t.p.iri == DEFINITION), None)
         assert def_triple is not None
         assert def_triple.o.value == long_definition
 
@@ -262,7 +262,7 @@ class TestAgentKgExtractionEdgeCases:
         assert len(contexts) == 4
 
         # Check that both definitions for "Machine Learning" are present
-        ml_contexts = [ec for ec in contexts if "Machine%20Learning" in ec.entity.value]
+        ml_contexts = [ec for ec in contexts if "Machine%20Learning" in ec.entity.iri]
         assert len(ml_contexts) == 2
         assert ml_contexts[0].context == "First definition"
         assert ml_contexts[1].context == "Second definition"
@@ -286,7 +286,7 @@ class TestAgentKgExtractionEdgeCases:
         assert len(contexts) == 3
 
         # Empty entity should create empty URI after encoding
-        empty_entity_context = next((ec for ec in contexts if ec.entity.value == TRUSTGRAPH_ENTITIES), None)
+        empty_entity_context = next((ec for ec in contexts if ec.entity.iri == TRUSTGRAPH_ENTITIES), None)
         assert empty_entity_context is not None
 
     def test_process_extraction_data_nested_json_in_strings(self, agent_extractor):
@@ -338,7 +338,7 @@ class TestAgentKgExtractionEdgeCases:
 
         # Should process all relationships
         # Note: The current implementation has some logic issues that these tests document
-        assert len([t for t in triples if t.p.value != RDF_LABEL and t.p.value != SUBJECT_OF]) >= 7
+        assert len([t for t in triples if t.p.iri != RDF_LABEL and t.p.iri != SUBJECT_OF]) >= 7
 
     @pytest.mark.asyncio
     async def test_emit_empty_collections(self, agent_extractor):

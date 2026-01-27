@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from trustgraph.query.triples.falkordb.service import Processor
-from trustgraph.schema import Value, TriplesQueryRequest
+from trustgraph.schema import Term, TriplesQueryRequest, IRI, LITERAL
 
 
 class TestFalkorDBQueryProcessor:
@@ -25,50 +25,50 @@ class TestFalkorDBQueryProcessor:
     def test_create_value_with_http_uri(self, processor):
         """Test create_value with HTTP URI"""
         result = processor.create_value("http://example.com/resource")
-        
-        assert isinstance(result, Value)
-        assert result.value == "http://example.com/resource"
-        assert result.is_uri is True
+
+        assert isinstance(result, Term)
+        assert result.iri == "http://example.com/resource"
+        assert result.type == IRI
 
     def test_create_value_with_https_uri(self, processor):
         """Test create_value with HTTPS URI"""
         result = processor.create_value("https://example.com/resource")
-        
-        assert isinstance(result, Value)
-        assert result.value == "https://example.com/resource"
-        assert result.is_uri is True
+
+        assert isinstance(result, Term)
+        assert result.iri == "https://example.com/resource"
+        assert result.type == IRI
 
     def test_create_value_with_literal(self, processor):
         """Test create_value with literal value"""
         result = processor.create_value("just a literal string")
-        
-        assert isinstance(result, Value)
+
+        assert isinstance(result, Term)
         assert result.value == "just a literal string"
-        assert result.is_uri is False
+        assert result.type == LITERAL
 
     def test_create_value_with_empty_string(self, processor):
         """Test create_value with empty string"""
         result = processor.create_value("")
-        
-        assert isinstance(result, Value)
+
+        assert isinstance(result, Term)
         assert result.value == ""
-        assert result.is_uri is False
+        assert result.type == LITERAL
 
     def test_create_value_with_partial_uri(self, processor):
         """Test create_value with string that looks like URI but isn't complete"""
         result = processor.create_value("http")
-        
-        assert isinstance(result, Value)
+
+        assert isinstance(result, Term)
         assert result.value == "http"
-        assert result.is_uri is False
+        assert result.type == LITERAL
 
     def test_create_value_with_ftp_uri(self, processor):
         """Test create_value with FTP URI (should not be detected as URI)"""
         result = processor.create_value("ftp://example.com/file")
-        
-        assert isinstance(result, Value)
+
+        assert isinstance(result, Term)
         assert result.value == "ftp://example.com/file"
-        assert result.is_uri is False
+        assert result.type == LITERAL
 
     @patch('trustgraph.query.triples.falkordb.service.FalkorDB')
     def test_processor_initialization_with_defaults(self, mock_falkordb):
@@ -125,9 +125,9 @@ class TestFalkorDBQueryProcessor:
         query = TriplesQueryRequest(
             user='test_user',
             collection='test_collection',
-            s=Value(value="http://example.com/subject", is_uri=True),
-            p=Value(value="http://example.com/predicate", is_uri=True),
-            o=Value(value="literal object", is_uri=False),
+            s=Term(type=IRI, iri="http://example.com/subject"),
+            p=Term(type=IRI, iri="http://example.com/predicate"),
+            o=Term(type=LITERAL, value="literal object"),
             limit=100
         )
         
@@ -138,8 +138,8 @@ class TestFalkorDBQueryProcessor:
         
         # Verify result contains the queried triple (appears twice - once from each query)
         assert len(result) == 2
-        assert result[0].s.value == "http://example.com/subject"
-        assert result[0].p.value == "http://example.com/predicate"
+        assert result[0].s.iri == "http://example.com/subject"
+        assert result[0].p.iri == "http://example.com/predicate"
         assert result[0].o.value == "literal object"
 
     @patch('trustgraph.query.triples.falkordb.service.FalkorDB')
@@ -166,8 +166,8 @@ class TestFalkorDBQueryProcessor:
         query = TriplesQueryRequest(
             user='test_user',
             collection='test_collection',
-            s=Value(value="http://example.com/subject", is_uri=True),
-            p=Value(value="http://example.com/predicate", is_uri=True),
+            s=Term(type=IRI, iri="http://example.com/subject"),
+            p=Term(type=IRI, iri="http://example.com/predicate"),
             o=None,
             limit=100
         )
@@ -179,13 +179,13 @@ class TestFalkorDBQueryProcessor:
         
         # Verify results contain different objects
         assert len(result) == 2
-        assert result[0].s.value == "http://example.com/subject"
-        assert result[0].p.value == "http://example.com/predicate"
+        assert result[0].s.iri == "http://example.com/subject"
+        assert result[0].p.iri == "http://example.com/predicate"
         assert result[0].o.value == "literal result"
         
-        assert result[1].s.value == "http://example.com/subject"
-        assert result[1].p.value == "http://example.com/predicate"
-        assert result[1].o.value == "http://example.com/uri_result"
+        assert result[1].s.iri == "http://example.com/subject"
+        assert result[1].p.iri == "http://example.com/predicate"
+        assert result[1].o.iri == "http://example.com/uri_result"
 
     @patch('trustgraph.query.triples.falkordb.service.FalkorDB')
     @pytest.mark.asyncio
@@ -211,9 +211,9 @@ class TestFalkorDBQueryProcessor:
         query = TriplesQueryRequest(
             user='test_user',
             collection='test_collection',
-            s=Value(value="http://example.com/subject", is_uri=True),
+            s=Term(type=IRI, iri="http://example.com/subject"),
             p=None,
-            o=Value(value="literal object", is_uri=False),
+            o=Term(type=LITERAL, value="literal object"),
             limit=100
         )
         
@@ -224,12 +224,12 @@ class TestFalkorDBQueryProcessor:
         
         # Verify results contain different predicates
         assert len(result) == 2
-        assert result[0].s.value == "http://example.com/subject"
-        assert result[0].p.value == "http://example.com/pred1"
+        assert result[0].s.iri == "http://example.com/subject"
+        assert result[0].p.iri == "http://example.com/pred1"
         assert result[0].o.value == "literal object"
         
-        assert result[1].s.value == "http://example.com/subject"
-        assert result[1].p.value == "http://example.com/pred2"
+        assert result[1].s.iri == "http://example.com/subject"
+        assert result[1].p.iri == "http://example.com/pred2"
         assert result[1].o.value == "literal object"
 
     @patch('trustgraph.query.triples.falkordb.service.FalkorDB')
@@ -256,7 +256,7 @@ class TestFalkorDBQueryProcessor:
         query = TriplesQueryRequest(
             user='test_user',
             collection='test_collection',
-            s=Value(value="http://example.com/subject", is_uri=True),
+            s=Term(type=IRI, iri="http://example.com/subject"),
             p=None,
             o=None,
             limit=100
@@ -269,13 +269,13 @@ class TestFalkorDBQueryProcessor:
         
         # Verify results contain different predicate-object pairs
         assert len(result) == 2
-        assert result[0].s.value == "http://example.com/subject"
-        assert result[0].p.value == "http://example.com/pred1"
+        assert result[0].s.iri == "http://example.com/subject"
+        assert result[0].p.iri == "http://example.com/pred1"
         assert result[0].o.value == "literal1"
         
-        assert result[1].s.value == "http://example.com/subject"
-        assert result[1].p.value == "http://example.com/pred2"
-        assert result[1].o.value == "http://example.com/uri2"
+        assert result[1].s.iri == "http://example.com/subject"
+        assert result[1].p.iri == "http://example.com/pred2"
+        assert result[1].o.iri == "http://example.com/uri2"
 
     @patch('trustgraph.query.triples.falkordb.service.FalkorDB')
     @pytest.mark.asyncio
@@ -302,8 +302,8 @@ class TestFalkorDBQueryProcessor:
             user='test_user',
             collection='test_collection',
             s=None,
-            p=Value(value="http://example.com/predicate", is_uri=True),
-            o=Value(value="literal object", is_uri=False),
+            p=Term(type=IRI, iri="http://example.com/predicate"),
+            o=Term(type=LITERAL, value="literal object"),
             limit=100
         )
         
@@ -314,12 +314,12 @@ class TestFalkorDBQueryProcessor:
         
         # Verify results contain different subjects
         assert len(result) == 2
-        assert result[0].s.value == "http://example.com/subj1"
-        assert result[0].p.value == "http://example.com/predicate"
+        assert result[0].s.iri == "http://example.com/subj1"
+        assert result[0].p.iri == "http://example.com/predicate"
         assert result[0].o.value == "literal object"
         
-        assert result[1].s.value == "http://example.com/subj2"
-        assert result[1].p.value == "http://example.com/predicate"
+        assert result[1].s.iri == "http://example.com/subj2"
+        assert result[1].p.iri == "http://example.com/predicate"
         assert result[1].o.value == "literal object"
 
     @patch('trustgraph.query.triples.falkordb.service.FalkorDB')
@@ -347,7 +347,7 @@ class TestFalkorDBQueryProcessor:
             user='test_user',
             collection='test_collection',
             s=None,
-            p=Value(value="http://example.com/predicate", is_uri=True),
+            p=Term(type=IRI, iri="http://example.com/predicate"),
             o=None,
             limit=100
         )
@@ -359,13 +359,13 @@ class TestFalkorDBQueryProcessor:
         
         # Verify results contain different subject-object pairs
         assert len(result) == 2
-        assert result[0].s.value == "http://example.com/subj1"
-        assert result[0].p.value == "http://example.com/predicate"
+        assert result[0].s.iri == "http://example.com/subj1"
+        assert result[0].p.iri == "http://example.com/predicate"
         assert result[0].o.value == "literal1"
         
-        assert result[1].s.value == "http://example.com/subj2"
-        assert result[1].p.value == "http://example.com/predicate"
-        assert result[1].o.value == "http://example.com/uri2"
+        assert result[1].s.iri == "http://example.com/subj2"
+        assert result[1].p.iri == "http://example.com/predicate"
+        assert result[1].o.iri == "http://example.com/uri2"
 
     @patch('trustgraph.query.triples.falkordb.service.FalkorDB')
     @pytest.mark.asyncio
@@ -393,7 +393,7 @@ class TestFalkorDBQueryProcessor:
             collection='test_collection',
             s=None,
             p=None,
-            o=Value(value="literal object", is_uri=False),
+            o=Term(type=LITERAL, value="literal object"),
             limit=100
         )
         
@@ -404,12 +404,12 @@ class TestFalkorDBQueryProcessor:
         
         # Verify results contain different subject-predicate pairs
         assert len(result) == 2
-        assert result[0].s.value == "http://example.com/subj1"
-        assert result[0].p.value == "http://example.com/pred1"
+        assert result[0].s.iri == "http://example.com/subj1"
+        assert result[0].p.iri == "http://example.com/pred1"
         assert result[0].o.value == "literal object"
         
-        assert result[1].s.value == "http://example.com/subj2"
-        assert result[1].p.value == "http://example.com/pred2"
+        assert result[1].s.iri == "http://example.com/subj2"
+        assert result[1].p.iri == "http://example.com/pred2"
         assert result[1].o.value == "literal object"
 
     @patch('trustgraph.query.triples.falkordb.service.FalkorDB')
@@ -449,13 +449,13 @@ class TestFalkorDBQueryProcessor:
         
         # Verify results contain different triples
         assert len(result) == 2
-        assert result[0].s.value == "http://example.com/s1"
-        assert result[0].p.value == "http://example.com/p1"
+        assert result[0].s.iri == "http://example.com/s1"
+        assert result[0].p.iri == "http://example.com/p1"
         assert result[0].o.value == "literal1"
         
-        assert result[1].s.value == "http://example.com/s2"
-        assert result[1].p.value == "http://example.com/p2"
-        assert result[1].o.value == "http://example.com/o2"
+        assert result[1].s.iri == "http://example.com/s2"
+        assert result[1].p.iri == "http://example.com/p2"
+        assert result[1].o.iri == "http://example.com/o2"
 
     @patch('trustgraph.query.triples.falkordb.service.FalkorDB')
     @pytest.mark.asyncio
@@ -476,7 +476,7 @@ class TestFalkorDBQueryProcessor:
         query = TriplesQueryRequest(
             user='test_user',
             collection='test_collection',
-            s=Value(value="http://example.com/subject", is_uri=True),
+            s=Term(type=IRI, iri="http://example.com/subject"),
             p=None,
             o=None,
             limit=100

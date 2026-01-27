@@ -9,9 +9,23 @@ from .... direct.milvus_graph_embeddings import EntityVectors
 from .... base import GraphEmbeddingsStoreService, CollectionConfigHandler
 from .... base import AsyncProcessor, Consumer, Producer
 from .... base import ConsumerMetrics, ProducerMetrics
+from .... schema import IRI, LITERAL
 
 # Module logger
 logger = logging.getLogger(__name__)
+
+
+def get_term_value(term):
+    """Extract the string value from a Term"""
+    if term is None:
+        return None
+    if term.type == IRI:
+        return term.iri
+    elif term.type == LITERAL:
+        return term.value
+    else:
+        # For blank nodes or other types, use id or value
+        return term.id or term.value
 
 default_ident = "ge-write"
 default_store_uri = 'http://localhost:19530'
@@ -36,11 +50,12 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
     async def store_graph_embeddings(self, message):
 
         for entity in message.entities:
+            entity_value = get_term_value(entity.entity)
 
-            if entity.entity.value != "" and entity.entity.value is not None:
+            if entity_value != "" and entity_value is not None:
                 for vec in entity.vectors:
                     self.vecstore.insert(
-                        vec, entity.entity.value,
+                        vec, entity_value,
                         message.metadata.user,
                         message.metadata.collection
                     )

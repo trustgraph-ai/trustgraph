@@ -8,7 +8,7 @@ import logging
 
 from .... direct.milvus_graph_embeddings import EntityVectors
 from .... schema import GraphEmbeddingsResponse
-from .... schema import Error, Value
+from .... schema import Error, Term, IRI, LITERAL
 from .... base import GraphEmbeddingsQueryService
 
 # Module logger
@@ -33,9 +33,9 @@ class Processor(GraphEmbeddingsQueryService):
 
     def create_value(self, ent):
         if ent.startswith("http://") or ent.startswith("https://"):
-            return Value(value=ent, is_uri=True)
+            return Term(type=IRI, iri=ent)
         else:
-            return Value(value=ent, is_uri=False)
+            return Term(type=LITERAL, value=ent)
         
     async def query_graph_embeddings(self, msg):
 

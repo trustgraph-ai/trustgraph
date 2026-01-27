@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from ..core.topic import topic
-from ..core.primitives import Error, Value
+from ..core.primitives import Error, Term
 
 ############################################################################
 

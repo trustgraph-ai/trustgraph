@@ -1,6 +1,6 @@
 
 from .. schema import KnowledgeResponse, Triple, Triples, EntityEmbeddings
-from .. schema import Metadata, Value, GraphEmbeddings
+from .. schema import Metadata, GraphEmbeddings
 
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider

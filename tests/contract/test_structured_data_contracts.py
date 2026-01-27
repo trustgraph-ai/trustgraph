@@ -15,7 +15,7 @@ from trustgraph.schema import (
     QuestionToStructuredQueryRequest, QuestionToStructuredQueryResponse,
     StructuredQueryRequest, StructuredQueryResponse,
     StructuredObjectEmbedding, Field, RowSchema,
-    Metadata, Error, Value
+    Metadata, Error
 )
 from .conftest import serialize_deserialize_test
 

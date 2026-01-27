@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from trustgraph.query.graph_embeddings.milvus.service import Processor
-from trustgraph.schema import Value, GraphEmbeddingsRequest
+from trustgraph.schema import Term, GraphEmbeddingsRequest, IRI, LITERAL
 
 
 class TestMilvusGraphEmbeddingsQueryProcessor:
@@ -68,50 +68,50 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
     def test_create_value_with_http_uri(self, processor):
         """Test create_value with HTTP URI"""
         result = processor.create_value("http://example.com/resource")
-        
-        assert isinstance(result, Value)
-        assert result.value == "http://example.com/resource"
-        assert result.is_uri is True
+
+        assert isinstance(result, Term)
+        assert result.iri == "http://example.com/resource"
+        assert result.type == IRI
 
     def test_create_value_with_https_uri(self, processor):
         """Test create_value with HTTPS URI"""
         result = processor.create_value("https://example.com/resource")
-        
-        assert isinstance(result, Value)
-        assert result.value == "https://example.com/resource"
-        assert result.is_uri is True
+
+        assert isinstance(result, Term)
+        assert result.iri == "https://example.com/resource"
+        assert result.type == IRI
 
     def test_create_value_with_literal(self, processor):
         """Test create_value with literal value"""
         result = processor.create_value("just a literal string")
         
-        assert isinstance(result, Value)
+        assert isinstance(result, Term)
         assert result.value == "just a literal string"
-        assert result.is_uri is False
+        assert result.type == LITERAL
 
     def test_create_value_with_empty_string(self, processor):
         """Test create_value with empty string"""
         result = processor.create_value("")
         
-        assert isinstance(result, Value)
+        assert isinstance(result, Term)
         assert result.value == ""
-        assert result.is_uri is False
+        assert result.type == LITERAL
 
     def test_create_value_with_partial_uri(self, processor):
         """Test create_value with string that looks like URI but isn't complete"""
         result = processor.create_value("http")
         
-        assert isinstance(result, Value)
+        assert isinstance(result, Term)
         assert result.value == "http"
-        assert result.is_uri is False
+        assert result.type == LITERAL
 
     def test_create_value_with_ftp_uri(self, processor):
         """Test create_value with FTP URI (should not be detected as URI)"""
         result = processor.create_value("ftp://example.com/file")
         
-        assert isinstance(result, Value)
+        assert isinstance(result, Term)
         assert result.value == "ftp://example.com/file"
-        assert result.is_uri is False
+        assert result.type == LITERAL
 
     @pytest.mark.asyncio
     async def test_query_graph_embeddings_single_vector(self, processor):
@@ -138,17 +138,17 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
             [0.1, 0.2, 0.3], 'test_user', 'test_collection', limit=10
         )
         
-        # Verify results are converted to Value objects
+        # Verify results are converted to Term objects
         assert len(result) == 3
-        assert isinstance(result[0], Value)
-        assert result[0].value == "http://example.com/entity1"
-        assert result[0].is_uri is True
-        assert isinstance(result[1], Value)
-        assert result[1].value == "http://example.com/entity2"
-        assert result[1].is_uri is True
-        assert isinstance(result[2], Value)
+        assert isinstance(result[0], Term)
+        assert result[0].iri == "http://example.com/entity1"
+        assert result[0].type == IRI
+        assert isinstance(result[1], Term)
+        assert result[1].iri == "http://example.com/entity2"
+        assert result[1].type == IRI
+        assert isinstance(result[2], Term)
         assert result[2].value == "literal entity"
-        assert result[2].is_uri is False
+        assert result[2].type == LITERAL
 
     @pytest.mark.asyncio
     async def test_query_graph_embeddings_multiple_vectors(self, processor):
@@ -186,7 +186,7 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         
         # Verify results are deduplicated and limited
         assert len(result) == 3
-        entity_values = [r.value for r in result]
+        entity_values = [r.iri if r.type == IRI else r.value for r in result]
         assert "http://example.com/entity1" in entity_values
         assert "http://example.com/entity2" in entity_values
         assert "http://example.com/entity3" in entity_values
@@ -246,7 +246,7 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         
         # Verify duplicates are removed
         assert len(result) == 3
-        entity_values = [r.value for r in result]
+        entity_values = [r.iri if r.type == IRI else r.value for r in result]
         assert len(set(entity_values)) == 3  # All unique
         assert "http://example.com/entity1" in entity_values
         assert "http://example.com/entity2" in entity_values
@@ -346,14 +346,14 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         assert len(result) == 4
         
         # Check URI entities
-        uri_results = [r for r in result if r.is_uri]
+        uri_results = [r for r in result if r.type == IRI]
         assert len(uri_results) == 2
-        uri_values = [r.value for r in uri_results]
+        uri_values = [r.iri for r in uri_results]
         assert "http://example.com/uri_entity" in uri_values
         assert "https://example.com/another_uri" in uri_values
         
         # Check literal entities
-        literal_results = [r for r in result if not r.is_uri]
+        literal_results = [r for r in result if not r.type == IRI]
         assert len(literal_results) == 2
         literal_values = [r.value for r in literal_results]
         assert "literal entity text" in literal_values
@@ -486,7 +486,7 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         
         # Verify results from all dimensions
         assert len(result) == 3
-        entity_values = [r.value for r in result]
+        entity_values = [r.iri if r.type == IRI else r.value for r in result]
         assert "entity_2d" in entity_values
         assert "entity_4d" in entity_values
         assert "entity_3d" in entity_values

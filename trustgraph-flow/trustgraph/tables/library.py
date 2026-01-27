@@ -1,8 +1,24 @@
 
 from .. schema import LibrarianRequest, LibrarianResponse
 from .. schema import DocumentMetadata, ProcessingMetadata
-from .. schema import Error, Triple, Value
+from .. schema import Error, Triple, Term, IRI, LITERAL
 from .. knowledge import hash
+
+
+def term_to_tuple(term):
+    """Convert Term to (value, is_uri) tuple for database storage."""
+    if term.type == IRI:
+        return (term.iri, True)
+    else:  # LITERAL
+        return (term.value, False)
+
+
+def tuple_to_term(value, is_uri):
+    """Convert (value, is_uri) tuple from database to Term."""
+    if is_uri:
+        return Term(type=IRI, iri=value)
+    else:
+        return Term(type=LITERAL, value=value)
 from .. exceptions import RequestError
 
 from cassandra.cluster import Cluster
@@ -215,8 +231,7 @@ class LibraryTableStore:
 
         metadata = [
             (
-                v.s.value, v.s.is_uri, v.p.value, v.p.is_uri,
-                v.o.value, v.o.is_uri
+                *term_to_tuple(v.s), *term_to_tuple(v.p), *term_to_tuple(v.o)
             )
             for v in document.metadata
         ]
@@ -249,8 +264,7 @@ class LibraryTableStore:
 
         metadata = [
             (
-                v.s.value, v.s.is_uri, v.p.value, v.p.is_uri,
-                v.o.value, v.o.is_uri
+                *term_to_tuple(v.s), *term_to_tuple(v.p), *term_to_tuple(v.o)
             )
             for v in document.metadata
         ]
@@ -331,9 +345,9 @@ class LibraryTableStore:
                 comments = row[4],
                 metadata = [
                     Triple(
-                        s=Value(value=m[0], is_uri=m[1]),
-                        p=Value(value=m[2], is_uri=m[3]),
-                        o=Value(value=m[4], is_uri=m[5])
+                        s=tuple_to_term(m[0], m[1]),
+                        p=tuple_to_term(m[2], m[3]),
+                        o=tuple_to_term(m[4], m[5])
                     )
                     for m in row[5]
                 ],
@@ -376,9 +390,9 @@ class LibraryTableStore:
                 comments = row[3],
                 metadata = [
                     Triple(
-                        s=Value(value=m[0], is_uri=m[1]),
-                        p=Value(value=m[2], is_uri=m[3]),
-                        o=Value(value=m[4], is_uri=m[5])
+                        s=tuple_to_term(m[0], m[1]),
+                        p=tuple_to_term(m[2], m[3]),
+                        o=tuple_to_term(m[4], m[5])
                     )
                     for m in row[4]
                 ],

@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from trustgraph.storage.triples.memgraph.write import Processor
-from trustgraph.schema import Value, Triple
+from trustgraph.schema import Term, Triple, IRI, LITERAL
 
 
 class TestMemgraphStorageProcessor:
@@ -22,9 +22,9 @@ class TestMemgraphStorageProcessor:
         
         # Create a test triple
         triple = Triple(
-            s=Value(value='http://example.com/subject', is_uri=True),
-            p=Value(value='http://example.com/predicate', is_uri=True),
-            o=Value(value='literal object', is_uri=False)
+            s=Term(type=IRI, iri='http://example.com/subject'),
+            p=Term(type=IRI, iri='http://example.com/predicate'),
+            o=Term(type=LITERAL, value='literal object')
         )
         message.triples = [triple]
         
@@ -231,9 +231,9 @@ class TestMemgraphStorageProcessor:
         mock_tx = MagicMock()
         
         triple = Triple(
-            s=Value(value='http://example.com/subject', is_uri=True),
-            p=Value(value='http://example.com/predicate', is_uri=True),
-            o=Value(value='http://example.com/object', is_uri=True)
+            s=Term(type=IRI, iri='http://example.com/subject'),
+            p=Term(type=IRI, iri='http://example.com/predicate'),
+            o=Term(type=IRI, iri='http://example.com/object')
         )
         
         processor.create_triple(mock_tx, triple, "test_user", "test_collection")
@@ -265,9 +265,9 @@ class TestMemgraphStorageProcessor:
         mock_tx = MagicMock()
         
         triple = Triple(
-            s=Value(value='http://example.com/subject', is_uri=True),
-            p=Value(value='http://example.com/predicate', is_uri=True),
-            o=Value(value='literal object', is_uri=False)
+            s=Term(type=IRI, iri='http://example.com/subject'),
+            p=Term(type=IRI, iri='http://example.com/predicate'),
+            o=Term(type=LITERAL, value='literal object')
         )
         
         processor.create_triple(mock_tx, triple, "test_user", "test_collection")
@@ -347,14 +347,14 @@ class TestMemgraphStorageProcessor:
         message.metadata.collection = 'test_collection'
         
         triple1 = Triple(
-            s=Value(value='http://example.com/subject1', is_uri=True),
-            p=Value(value='http://example.com/predicate1', is_uri=True),
-            o=Value(value='literal object1', is_uri=False)
+            s=Term(type=IRI, iri='http://example.com/subject1'),
+            p=Term(type=IRI, iri='http://example.com/predicate1'),
+            o=Term(type=LITERAL, value='literal object1')
         )
         triple2 = Triple(
-            s=Value(value='http://example.com/subject2', is_uri=True),
-            p=Value(value='http://example.com/predicate2', is_uri=True),
-            o=Value(value='http://example.com/object2', is_uri=True)
+            s=Term(type=IRI, iri='http://example.com/subject2'),
+            p=Term(type=IRI, iri='http://example.com/predicate2'),
+            o=Term(type=IRI, iri='http://example.com/object2')
         )
         message.triples = [triple1, triple2]
         

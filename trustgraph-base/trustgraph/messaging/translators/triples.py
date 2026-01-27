@@ -14,11 +14,13 @@ class TriplesQueryRequestTranslator(MessageTranslator):
         s = self.value_translator.to_pulsar(data["s"]) if "s" in data else None
         p = self.value_translator.to_pulsar(data["p"]) if "p" in data else None
         o = self.value_translator.to_pulsar(data["o"]) if "o" in data else None
-        
+        g = data.get("g")  # None=default graph, "*"=all graphs
+
         return TriplesQueryRequest(
             s=s,
             p=p,
             o=o,
+            g=g,
             limit=int(data.get("limit", 10000)),
             user=data.get("user", "trustgraph"),
             collection=data.get("collection", "default")
@@ -30,14 +32,16 @@ class TriplesQueryRequestTranslator(MessageTranslator):
             "user": obj.user,
             "collection": obj.collection
         }
-        
+
         if obj.s:
             result["s"] = self.value_translator.from_pulsar(obj.s)
         if obj.p:
             result["p"] = self.value_translator.from_pulsar(obj.p)
         if obj.o:
             result["o"] = self.value_translator.from_pulsar(obj.o)
-            
+        if obj.g is not None:
+            result["g"] = obj.g
+
         return result
 
 

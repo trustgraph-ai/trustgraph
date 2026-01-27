@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 pytest.skip("Pinecone library missing protoc_gen_openapiv2 dependency", allow_module_level=True)
 
 from trustgraph.query.graph_embeddings.pinecone.service import Processor
-from trustgraph.schema import Value
+from trustgraph.schema import Term, IRI, LITERAL
 
 
 class TestPineconeGraphEmbeddingsQueryProcessor:
@@ -105,27 +105,27 @@ class TestPineconeGraphEmbeddingsQueryProcessor:
         uri_entity = "http://example.org/entity"
         value = processor.create_value(uri_entity)
         
-        assert isinstance(value, Value)
+        assert isinstance(value, Term)
         assert value.value == uri_entity
-        assert value.is_uri == True
+        assert value.type == IRI
 
     def test_create_value_https_uri(self, processor):
         """Test create_value method for HTTPS URI entities"""
         uri_entity = "https://example.org/entity"
         value = processor.create_value(uri_entity)
         
-        assert isinstance(value, Value)
+        assert isinstance(value, Term)
         assert value.value == uri_entity
-        assert value.is_uri == True
+        assert value.type == IRI
 
     def test_create_value_literal(self, processor):
         """Test create_value method for literal entities"""
         literal_entity = "literal_entity"
         value = processor.create_value(literal_entity)
         
-        assert isinstance(value, Value)
+        assert isinstance(value, Term)
         assert value.value == literal_entity
-        assert value.is_uri == False
+        assert value.type == LITERAL
 
     @pytest.mark.asyncio
     async def test_query_graph_embeddings_single_vector(self, processor):
@@ -165,11 +165,11 @@ class TestPineconeGraphEmbeddingsQueryProcessor:
         # Verify results
         assert len(entities) == 3
         assert entities[0].value == 'http://example.org/entity1'
-        assert entities[0].is_uri == True
+        assert entities[0].type == IRI
         assert entities[1].value == 'entity2'
-        assert entities[1].is_uri == False
+        assert entities[1].type == LITERAL
         assert entities[2].value == 'http://example.org/entity3'
-        assert entities[2].is_uri == True
+        assert entities[2].type == IRI
 
     @pytest.mark.asyncio
     async def test_query_graph_embeddings_multiple_vectors(self, processor, mock_query_message):

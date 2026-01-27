@@ -9,7 +9,7 @@ import json
 import urllib.parse
 import logging
 
-from .... schema import Chunk, Triple, Triples, Metadata, Value
+from .... schema import Chunk, Triple, Triples, Metadata, Term, IRI, LITERAL
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -20,9 +20,9 @@ from .... rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL, SUBJECT_OF
 from .... base import FlowProcessor, ConsumerSpec,  ProducerSpec
 from .... base import PromptClientSpec
 
-DEFINITION_VALUE = Value(value=DEFINITION, is_uri=True)
-RDF_LABEL_VALUE = Value(value=RDF_LABEL, is_uri=True)
-SUBJECT_OF_VALUE = Value(value=SUBJECT_OF, is_uri=True)
+DEFINITION_VALUE = Term(type=IRI, iri=DEFINITION)
+RDF_LABEL_VALUE = Term(type=IRI, iri=RDF_LABEL)
+SUBJECT_OF_VALUE = Term(type=IRI, iri=SUBJECT_OF)
 
 default_ident = "kg-extract-definitions"
 default_concurrency = 1
@@ -142,13 +142,13 @@ class Processor(FlowProcessor):
 
                 s_uri = self.to_uri(s)
 
-                s_value = Value(value=str(s_uri), is_uri=True)
-                o_value = Value(value=str(o), is_uri=False)
+                s_value = Term(type=IRI, iri=str(s_uri))
+                o_value = Term(type=LITERAL, value=str(o))
 
                 triples.append(Triple(
                     s=s_value,
                     p=RDF_LABEL_VALUE,
-                    o=Value(value=s, is_uri=False),
+                    o=Term(type=LITERAL, value=s),
                 ))
 
                 triples.append(Triple(
@@ -158,7 +158,7 @@ class Processor(FlowProcessor):
                 triples.append(Triple(
                     s=s_value,
                     p=SUBJECT_OF_VALUE,
-                    o=Value(value=v.metadata.id, is_uri=True)
+                    o=Term(type=IRI, iri=v.metadata.id)
                 ))
 
                 ec = EntityContext(

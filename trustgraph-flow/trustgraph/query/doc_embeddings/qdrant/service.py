@@ -11,7 +11,7 @@ from qdrant_client.models import PointStruct
 from qdrant_client.models import Distance, VectorParams
 
 from .... schema import DocumentEmbeddingsResponse
-from .... schema import Error, Value
+from .... schema import Error
 from .... base import DocumentEmbeddingsQueryService
 
 # Module logger

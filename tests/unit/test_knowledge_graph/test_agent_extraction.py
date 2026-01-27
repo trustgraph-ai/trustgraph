@@ -11,7 +11,7 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from trustgraph.extract.kg.agent.extract import Processor as AgentKgExtractor
-from trustgraph.schema import Chunk, Triple, Triples, Metadata, Value, Error
+from trustgraph.schema import Chunk, Triple, Triples, Metadata, Term, Error, IRI, LITERAL
 from trustgraph.schema import EntityContext, EntityContexts
 from trustgraph.rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL, SUBJECT_OF
 from trustgraph.template.prompt_manager import PromptManager
@@ -53,9 +53,9 @@ class TestAgentKgExtractor:
             id="doc123",
             metadata=[
                 Triple(
-                    s=Value(value="doc123", is_uri=True),
-                    p=Value(value="http://example.org/type", is_uri=True),
-                    o=Value(value="document", is_uri=False)
+                    s=Term(type=IRI, iri="doc123"),
+                    p=Term(type=IRI, iri="http://example.org/type"),
+                    o=Term(type=LITERAL, value="document")
                 )
             ]
         )
@@ -178,27 +178,27 @@ This is not JSON at all
         triples, entity_contexts = agent_extractor.process_extraction_data(data, sample_metadata)
         
         # Check entity label triple
-        label_triple = next((t for t in triples if t.p.value == RDF_LABEL and t.o.value == "Machine Learning"), None)
+        label_triple = next((t for t in triples if t.p.iri == RDF_LABEL and t.o.value == "Machine Learning"), None)
         assert label_triple is not None
-        assert label_triple.s.value == f"{TRUSTGRAPH_ENTITIES}Machine%20Learning"
-        assert label_triple.s.is_uri == True
-        assert label_triple.o.is_uri == False
-        
+        assert label_triple.s.iri == f"{TRUSTGRAPH_ENTITIES}Machine%20Learning"
+        assert label_triple.s.type == IRI
+        assert label_triple.o.type == LITERAL
+
         # Check definition triple
-        def_triple = next((t for t in triples if t.p.value == DEFINITION), None)
+        def_triple = next((t for t in triples if t.p.iri == DEFINITION), None)
         assert def_triple is not None
-        assert def_triple.s.value == f"{TRUSTGRAPH_ENTITIES}Machine%20Learning"
+        assert def_triple.s.iri == f"{TRUSTGRAPH_ENTITIES}Machine%20Learning"
         assert def_triple.o.value == "A subset of AI that enables learning from data."
-        
+
         # Check subject-of triple
-        subject_of_triple = next((t for t in triples if t.p.value == SUBJECT_OF), None)
+        subject_of_triple = next((t for t in triples if t.p.iri == SUBJECT_OF), None)
         assert subject_of_triple is not None
-        assert subject_of_triple.s.value == f"{TRUSTGRAPH_ENTITIES}Machine%20Learning"
-        assert subject_of_triple.o.value == "doc123"
-        
+        assert subject_of_triple.s.iri == f"{TRUSTGRAPH_ENTITIES}Machine%20Learning"
+        assert subject_of_triple.o.iri == "doc123"
+
         # Check entity context
         assert len(entity_contexts) == 1
-        assert entity_contexts[0].entity.value == f"{TRUSTGRAPH_ENTITIES}Machine%20Learning"
+        assert entity_contexts[0].entity.iri == f"{TRUSTGRAPH_ENTITIES}Machine%20Learning"
         assert entity_contexts[0].context == "A subset of AI that enables learning from data."
 
     def test_process_extraction_data_relationships(self, agent_extractor, sample_metadata):
@@ -218,25 +218,25 @@ This is not JSON at all
         # Check that subject, predicate, and object labels are created
         subject_uri = f"{TRUSTGRAPH_ENTITIES}Machine%20Learning"
         predicate_uri = f"{TRUSTGRAPH_ENTITIES}is_subset_of"
-        
+
         # Find label triples
-        subject_label = next((t for t in triples if t.s.value == subject_uri and t.p.value == RDF_LABEL), None)
+        subject_label = next((t for t in triples if t.s.iri == subject_uri and t.p.iri == RDF_LABEL), None)
         assert subject_label is not None
         assert subject_label.o.value == "Machine Learning"
-        
-        predicate_label = next((t for t in triples if t.s.value == predicate_uri and t.p.value == RDF_LABEL), None)
+
+        predicate_label = next((t for t in triples if t.s.iri == predicate_uri and t.p.iri == RDF_LABEL), None)
         assert predicate_label is not None
         assert predicate_label.o.value == "is_subset_of"
-        
+
         # Check main relationship triple
         object_uri = f"{TRUSTGRAPH_ENTITIES}Artificial%20Intelligence"
-        rel_triple = next((t for t in triples if t.s.value == subject_uri and t.p.value == predicate_uri), None)
+        rel_triple = next((t for t in triples if t.s.iri == subject_uri and t.p.iri == predicate_uri), None)
         assert rel_triple is not None
-        assert rel_triple.o.value == object_uri
-        assert rel_triple.o.is_uri == True
-        
+        assert rel_triple.o.iri == object_uri
+        assert rel_triple.o.type == IRI
+
         # Check subject-of relationships
-        subject_of_triples = [t for t in triples if t.p.value == SUBJECT_OF and t.o.value == "doc123"]
+        subject_of_triples = [t for t in triples if t.p.iri == SUBJECT_OF and t.o.iri == "doc123"]
         assert len(subject_of_triples) >= 2  # At least subject and predicate should have subject-of relations
 
     def test_process_extraction_data_literal_object(self, agent_extractor, sample_metadata):
@@ -254,7 +254,7 @@ This is not JSON at all
         triples, entity_contexts = agent_extractor.process_extraction_data(data, sample_metadata)
 
         # Check that object labels are not created for literal objects
-        object_labels = [t for t in triples if t.p.value == RDF_LABEL and t.o.value == "95%"]
+        object_labels = [t for t in triples if t.p.iri == RDF_LABEL and t.o.value == "95%"]
         # Based on the code logic, it should not create object labels for non-entity objects
         # But there might be a bug in the original implementation
 
@@ -263,12 +263,12 @@ This is not JSON at all
         triples, entity_contexts = agent_extractor.process_extraction_data(sample_extraction_data, sample_metadata)
         
         # Check that we have both definition and relationship triples
-        definition_triples = [t for t in triples if t.p.value == DEFINITION]
+        definition_triples = [t for t in triples if t.p.iri == DEFINITION]
         assert len(definition_triples) == 2  # Two definitions
-        
+
         # Check entity contexts are created for definitions
         assert len(entity_contexts) == 2
-        entity_uris = [ec.entity.value for ec in entity_contexts]
+        entity_uris = [ec.entity.iri for ec in entity_contexts]
         assert f"{TRUSTGRAPH_ENTITIES}Machine%20Learning" in entity_uris
         assert f"{TRUSTGRAPH_ENTITIES}Neural%20Networks" in entity_uris
 
@@ -282,7 +282,7 @@ This is not JSON at all
         triples, entity_contexts = agent_extractor.process_extraction_data(data, metadata)
 
         # Should not create subject-of relationships when no metadata ID
-        subject_of_triples = [t for t in triples if t.p.value == SUBJECT_OF]
+        subject_of_triples = [t for t in triples if t.p.iri == SUBJECT_OF]
         assert len(subject_of_triples) == 0
 
         # Should still create entity contexts
@@ -327,17 +327,17 @@ This is not JSON at all
     async def test_emit_triples(self, agent_extractor, sample_metadata):
         """Test emitting triples to publisher"""
         mock_publisher = AsyncMock()
-        
+
         test_triples = [
             Triple(
-                s=Value(value="test:subject", is_uri=True),
-                p=Value(value="test:predicate", is_uri=True),
-                o=Value(value="test object", is_uri=False)
+                s=Term(type=IRI, iri="test:subject"),
+                p=Term(type=IRI, iri="test:predicate"),
+                o=Term(type=LITERAL, value="test object")
             )
         ]
-        
+
         await agent_extractor.emit_triples(mock_publisher, sample_metadata, test_triples)
-        
+
         mock_publisher.send.assert_called_once()
         sent_triples = mock_publisher.send.call_args[0][0]
         assert isinstance(sent_triples, Triples)
@@ -348,22 +348,22 @@ This is not JSON at all
         # Note: metadata.metadata is now empty array in the new implementation
         assert sent_triples.metadata.metadata == []
         assert len(sent_triples.triples) == 1
-        assert sent_triples.triples[0].s.value == "test:subject"
+        assert sent_triples.triples[0].s.iri == "test:subject"
 
     @pytest.mark.asyncio
     async def test_emit_entity_contexts(self, agent_extractor, sample_metadata):
         """Test emitting entity contexts to publisher"""
         mock_publisher = AsyncMock()
-        
+
         test_contexts = [
             EntityContext(
-                entity=Value(value="test:entity", is_uri=True),
+                entity=Term(type=IRI, iri="test:entity"),
                 context="Test context"
             )
         ]
-        
+
         await agent_extractor.emit_entity_contexts(mock_publisher, sample_metadata, test_contexts)
-        
+
         mock_publisher.send.assert_called_once()
         sent_contexts = mock_publisher.send.call_args[0][0]
         assert isinstance(sent_contexts, EntityContexts)
@@ -374,7 +374,7 @@ This is not JSON at all
         # Note: metadata.metadata is now empty array in the new implementation
         assert sent_contexts.metadata.metadata == []
         assert len(sent_contexts.entities) == 1
-        assert sent_contexts.entities[0].entity.value == "test:entity"
+        assert sent_contexts.entities[0].entity.iri == "test:entity"
 
     def test_agent_extractor_initialization_params(self):
         """Test agent extractor parameter validation"""

@@ -6,11 +6,21 @@ import pytest
 from unittest.mock import Mock, AsyncMock
 
 # Mock schema classes for testing
-class Value:
-    def __init__(self, value, is_uri, type):
-        self.value = value
-        self.is_uri = is_uri
+# Term type constants
+IRI = "i"
+LITERAL = "l"
+BLANK = "b"
+TRIPLE = "t"
+
+class Term:
+    def __init__(self, type, iri=None, value=None, id=None, datatype=None, language=None, triple=None):
         self.type = type
+        self.iri = iri
+        self.value = value
+        self.id = id
+        self.datatype = datatype
+        self.language = language
+        self.triple = triple
 
 class Triple:
     def __init__(self, s, p, o):
@@ -66,32 +76,30 @@ def sample_relationships():
 
 
 @pytest.fixture
-def sample_value_uri():
-    """Sample URI Value object"""
-    return Value(
-        value="http://example.com/person/john-smith",
-        is_uri=True,
-        type=""
+def sample_term_uri():
+    """Sample URI Term object"""
+    return Term(
+        type=IRI,
+        iri="http://example.com/person/john-smith"
     )
 
 
 @pytest.fixture
-def sample_value_literal():
-    """Sample literal Value object"""
-    return Value(
-        value="John Smith",
-        is_uri=False,
-        type="string"
+def sample_term_literal():
+    """Sample literal Term object"""
+    return Term(
+        type=LITERAL,
+        value="John Smith"
     )
 
 
 @pytest.fixture
-def sample_triple(sample_value_uri, sample_value_literal):
+def sample_triple(sample_term_uri, sample_term_literal):
     """Sample Triple object"""
     return Triple(
-        s=sample_value_uri,
-        p=Value(value="http://schema.org/name", is_uri=True, type=""),
-        o=sample_value_literal
+        s=sample_term_uri,
+        p=Term(type=IRI, iri="http://schema.org/name"),
+        o=sample_term_literal
     )
 
 

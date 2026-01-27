@@ -10,11 +10,18 @@ import json
 import base64
 
 from .. knowledge import hash, Uri, Literal
+from .. schema import IRI, LITERAL
 from . types import Triple
 
+
 def to_value(x):
-    if x["e"]: return Uri(x["v"])
-    return Literal(x["v"])
+    """Convert wire format to Uri or Literal."""
+    if x.get("t") == IRI:
+        return Uri(x.get("i", ""))
+    elif x.get("t") == LITERAL:
+        return Literal(x.get("v", ""))
+    # Fallback for any other type
+    return Literal(x.get("v", x.get("i", "")))
 
 class Knowledge:
     """

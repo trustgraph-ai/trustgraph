@@ -16,7 +16,7 @@ from .cassandra_test_helper import cassandra_container
 from trustgraph.direct.cassandra_kg import KnowledgeGraph
 from trustgraph.storage.triples.cassandra.write import Processor as StorageProcessor
 from trustgraph.query.triples.cassandra.service import Processor as QueryProcessor
-from trustgraph.schema import Triple, Value, Metadata, Triples, TriplesQueryRequest
+from trustgraph.schema import Triple, Term, Metadata, Triples, TriplesQueryRequest, IRI, LITERAL
 
 
 @pytest.mark.integration
@@ -118,19 +118,19 @@ class TestCassandraIntegration:
             metadata=Metadata(user="testuser", collection="testcol"),
             triples=[
                 Triple(
-                    s=Value(value="http://example.org/person1", is_uri=True),
-                    p=Value(value="http://example.org/name", is_uri=True),
-                    o=Value(value="Alice Smith", is_uri=False)
+                    s=Term(type=IRI, iri="http://example.org/person1"),
+                    p=Term(type=IRI, iri="http://example.org/name"),
+                    o=Term(type=LITERAL, value="Alice Smith")
                 ),
                 Triple(
-                    s=Value(value="http://example.org/person1", is_uri=True),
-                    p=Value(value="http://example.org/age", is_uri=True),
-                    o=Value(value="25", is_uri=False)
+                    s=Term(type=IRI, iri="http://example.org/person1"),
+                    p=Term(type=IRI, iri="http://example.org/age"),
+                    o=Term(type=LITERAL, value="25")
                 ),
                 Triple(
-                    s=Value(value="http://example.org/person1", is_uri=True),
-                    p=Value(value="http://example.org/department", is_uri=True),
-                    o=Value(value="Engineering", is_uri=False)
+                    s=Term(type=IRI, iri="http://example.org/person1"),
+                    p=Term(type=IRI, iri="http://example.org/department"),
+                    o=Term(type=LITERAL, value="Engineering")
                 )
             ]
         )
@@ -181,19 +181,19 @@ class TestCassandraIntegration:
             metadata=Metadata(user="testuser", collection="testcol"),
             triples=[
                 Triple(
-                    s=Value(value="http://example.org/alice", is_uri=True),
-                    p=Value(value="http://example.org/knows", is_uri=True),
-                    o=Value(value="http://example.org/bob", is_uri=True)
+                    s=Term(type=IRI, iri="http://example.org/alice"),
+                    p=Term(type=IRI, iri="http://example.org/knows"),
+                    o=Term(type=IRI, iri="http://example.org/bob")
                 ),
                 Triple(
-                    s=Value(value="http://example.org/alice", is_uri=True),
-                    p=Value(value="http://example.org/age", is_uri=True),
-                    o=Value(value="30", is_uri=False)
+                    s=Term(type=IRI, iri="http://example.org/alice"),
+                    p=Term(type=IRI, iri="http://example.org/age"),
+                    o=Term(type=LITERAL, value="30")
                 ),
                 Triple(
-                    s=Value(value="http://example.org/bob", is_uri=True),
-                    p=Value(value="http://example.org/knows", is_uri=True),
-                    o=Value(value="http://example.org/charlie", is_uri=True)
+                    s=Term(type=IRI, iri="http://example.org/bob"),
+                    p=Term(type=IRI, iri="http://example.org/knows"),
+                    o=Term(type=IRI, iri="http://example.org/charlie")
                 )
             ]
         )
@@ -208,7 +208,7 @@ class TestCassandraIntegration:
         
         # Test S query (find all relationships for Alice)
         s_query = TriplesQueryRequest(
-            s=Value(value="http://example.org/alice", is_uri=True),
+            s=Term(type=IRI, iri="http://example.org/alice"),
             p=None,  # None for wildcard
             o=None,  # None for wildcard
             limit=10,
@@ -218,18 +218,18 @@ class TestCassandraIntegration:
         s_results = await query_processor.query_triples(s_query)
         print(f"Query processor results: {len(s_results)}")
         for result in s_results:
-            print(f"  S={result.s.value}, P={result.p.value}, O={result.o.value}")
+            print(f"  S={result.s.iri}, P={result.p.iri}, O={result.o.iri if result.o.type == IRI else result.o.value}")
         assert len(s_results) == 2
-        
-        s_predicates = [t.p.value for t in s_results]
+
+        s_predicates = [t.p.iri for t in s_results]
         assert "http://example.org/knows" in s_predicates
         assert "http://example.org/age" in s_predicates
         print("✓ Subject queries via processor working")
-        
+
         # Test P query (find all "knows" relationships)
         p_query = TriplesQueryRequest(
             s=None,  # None for wildcard
-            p=Value(value="http://example.org/knows", is_uri=True),
+            p=Term(type=IRI, iri="http://example.org/knows"),
             o=None,  # None for wildcard
             limit=10,
             user="testuser",
@@ -238,8 +238,8 @@ class TestCassandraIntegration:
         p_results = await query_processor.query_triples(p_query)
         print(p_results)
         assert len(p_results) == 2  # Alice knows Bob, Bob knows Charlie
-        
-        p_subjects = [t.s.value for t in p_results]
+
+        p_subjects = [t.s.iri for t in p_results]
         assert "http://example.org/alice" in p_subjects
         assert "http://example.org/bob" in p_subjects
         print("✓ Predicate queries via processor working")
@@ -262,19 +262,19 @@ class TestCassandraIntegration:
                 metadata=Metadata(user="concurrent_test", collection="people"),
                 triples=[
                     Triple(
-                        s=Value(value=f"http://example.org/{person_id}", is_uri=True),
-                        p=Value(value="http://example.org/name", is_uri=True),
-                        o=Value(value=name, is_uri=False)
+                        s=Term(type=IRI, iri=f"http://example.org/{person_id}"),
+                        p=Term(type=IRI, iri="http://example.org/name"),
+                        o=Term(type=LITERAL, value=name)
                     ),
                     Triple(
-                        s=Value(value=f"http://example.org/{person_id}", is_uri=True),
-                        p=Value(value="http://example.org/age", is_uri=True),
-                        o=Value(value=str(age), is_uri=False)
+                        s=Term(type=IRI, iri=f"http://example.org/{person_id}"),
+                        p=Term(type=IRI, iri="http://example.org/age"),
+                        o=Term(type=LITERAL, value=str(age))
                     ),
                     Triple(
-                        s=Value(value=f"http://example.org/{person_id}", is_uri=True),
-                        p=Value(value="http://example.org/department", is_uri=True),
-                        o=Value(value=department, is_uri=False)
+                        s=Term(type=IRI, iri=f"http://example.org/{person_id}"),
+                        p=Term(type=IRI, iri="http://example.org/department"),
+                        o=Term(type=LITERAL, value=department)
                     )
                 ]
             )
@@ -333,36 +333,36 @@ class TestCassandraIntegration:
             triples=[
                 # People and their types
                 Triple(
-                    s=Value(value="http://company.org/alice", is_uri=True),
-                    p=Value(value="http://www.w3.org/1999/02/22-rdf-syntax-ns#type", is_uri=True),
-                    o=Value(value="http://company.org/Employee", is_uri=True)
+                    s=Term(type=IRI, iri="http://company.org/alice"),
+                    p=Term(type=IRI, iri="http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+                    o=Term(type=IRI, iri="http://company.org/Employee")
                 ),
                 Triple(
-                    s=Value(value="http://company.org/bob", is_uri=True),
-                    p=Value(value="http://www.w3.org/1999/02/22-rdf-syntax-ns#type", is_uri=True),
-                    o=Value(value="http://company.org/Employee", is_uri=True)
+                    s=Term(type=IRI, iri="http://company.org/bob"),
+                    p=Term(type=IRI, iri="http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+                    o=Term(type=IRI, iri="http://company.org/Employee")
                 ),
                 # Relationships
                 Triple(
-                    s=Value(value="http://company.org/alice", is_uri=True),
-                    p=Value(value="http://company.org/reportsTo", is_uri=True),
-                    o=Value(value="http://company.org/bob", is_uri=True)
+                    s=Term(type=IRI, iri="http://company.org/alice"),
+                    p=Term(type=IRI, iri="http://company.org/reportsTo"),
+                    o=Term(type=IRI, iri="http://company.org/bob")
                 ),
                 Triple(
-                    s=Value(value="http://company.org/alice", is_uri=True),
-                    p=Value(value="http://company.org/worksIn", is_uri=True),
-                    o=Value(value="http://company.org/engineering", is_uri=True)
+                    s=Term(type=IRI, iri="http://company.org/alice"),
+                    p=Term(type=IRI, iri="http://company.org/worksIn"),
+                    o=Term(type=IRI, iri="http://company.org/engineering")
                 ),
                 # Personal info
                 Triple(
-                    s=Value(value="http://company.org/alice", is_uri=True),
-                    p=Value(value="http://company.org/fullName", is_uri=True),
-                    o=Value(value="Alice Johnson", is_uri=False)
+                    s=Term(type=IRI, iri="http://company.org/alice"),
+                    p=Term(type=IRI, iri="http://company.org/fullName"),
+                    o=Term(type=LITERAL, value="Alice Johnson")
                 ),
                 Triple(
-                    s=Value(value="http://company.org/alice", is_uri=True),
-                    p=Value(value="http://company.org/email", is_uri=True),
-                    o=Value(value="alice@company.org", is_uri=False)
+                    s=Term(type=IRI, iri="http://company.org/alice"),
+                    p=Term(type=IRI, iri="http://company.org/email"),
+                    o=Term(type=LITERAL, value="alice@company.org")
                 ),
             ]
         )

@@ -15,10 +15,10 @@ from trustgraph.schema import (
     TextCompletionRequest, TextCompletionResponse,
     DocumentRagQuery, DocumentRagResponse,
     AgentRequest, AgentResponse, AgentStep,
-    Chunk, Triple, Triples, Value, Error,
+    Chunk, Triple, Triples, Term, Error,
     EntityContext, EntityContexts,
     GraphEmbeddings, EntityEmbeddings,
-    Metadata
+    Metadata, IRI, LITERAL
 )
 
 
@@ -43,7 +43,7 @@ def schema_registry():
         "Chunk": Chunk,
         "Triple": Triple,
         "Triples": Triples,
-        "Value": Value,
+        "Term": Term,
         "Error": Error,
         "EntityContext": EntityContext,
         "EntityContexts": EntityContexts,
@@ -98,26 +98,22 @@ def sample_message_data():
             "collection": "test_collection",
             "metadata": []
         },
-        "Value": {
-            "value": "http://example.com/entity",
-            "is_uri": True,
-            "type": ""
+        "Term": {
+            "type": IRI,
+            "iri": "http://example.com/entity"
         },
         "Triple": {
-            "s": Value(
-                value="http://example.com/subject",
-                is_uri=True,
-                type=""
+            "s": Term(
+                type=IRI,
+                iri="http://example.com/subject"
             ),
-            "p": Value(
-                value="http://example.com/predicate", 
-                is_uri=True,
-                type=""
+            "p": Term(
+                type=IRI,
+                iri="http://example.com/predicate"
             ),
-            "o": Value(
-                value="Object value",
-                is_uri=False,
-                type=""
+            "o": Term(
+                type=LITERAL,
+                value="Object value"
             )
         }
     }
@@ -139,10 +135,10 @@ def invalid_message_data():
             {"query": "test", "user": "test", "collection": "test", "doc_limit": -1},  # Invalid doc_limit
             {"query": "test"},  # Missing required fields
         ],
-        "Value": [
-            {"value": None, "is_uri": True, "type": ""},  # Invalid value (None)
-            {"value": "test", "is_uri": "not_boolean", "type": ""},  # Invalid is_uri
-            {"value": 123, "is_uri": True, "type": ""},  # Invalid value (not string)
+        "Term": [
+            {"type": IRI, "iri": None},  # Invalid iri (None)
+            {"type": "invalid_type", "value": "test"},  # Invalid type
+            {"type": LITERAL, "value": 123},  # Invalid value (not string)
         ]
     }
 

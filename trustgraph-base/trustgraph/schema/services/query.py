@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from ..core.primitives import Error, Value, Triple
+from ..core.primitives import Error, Term, Triple
 from ..core.topic import topic
 
 ############################################################################
@@ -17,7 +17,7 @@ class GraphEmbeddingsRequest:
 @dataclass
 class GraphEmbeddingsResponse:
     error: Error | None = None
-    entities: list[Value] = field(default_factory=list)
+    entities: list[Term] = field(default_factory=list)
 
 ############################################################################
 
@@ -27,9 +27,10 @@ class GraphEmbeddingsResponse:
 class TriplesQueryRequest:
     user: str = ""
     collection: str = ""
-    s: Value | None = None
-    p: Value | None = None
-    o: Value | None = None
+    s: Term | None = None
+    p: Term | None = None
+    o: Term | None = None
+    g: str | None = None  # Graph IRI. None=default graph, "*"=all graphs
     limit: int = 0
 
 @dataclass

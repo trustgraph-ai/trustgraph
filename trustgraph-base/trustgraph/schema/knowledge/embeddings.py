@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
 from ..core.metadata import Metadata
-from ..core.primitives import Value, RowSchema
+from ..core.primitives import Term, RowSchema
 from ..core.topic import topic
 
 ############################################################################
@@ -10,7 +10,7 @@ from ..core.topic import topic
 
 @dataclass
 class EntityEmbeddings:
-    entity: Value | None = None
+    entity: Term | None = None
     vectors: list[list[float]] = field(default_factory=list)
 
 # This is a 'batching' mechanism for the above data

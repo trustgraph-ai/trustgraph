@@ -6,7 +6,8 @@ import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
 
 from trustgraph.storage.triples.cassandra.write import Processor
-from trustgraph.schema import Value, Triple
+from trustgraph.schema import Triple, LITERAL
+from trustgraph.direct.cassandra_kg import DEFAULT_GRAPH
 
 
 class TestCassandraStorageProcessor:
@@ -175,29 +176,37 @@ class TestCassandraStorageProcessor:
         
         processor = Processor(taskgroup=taskgroup_mock)
         
-        # Create mock triples
+        # Create mock triples with proper Term structure
         triple1 = MagicMock()
+        triple1.s.type = LITERAL
         triple1.s.value = 'subject1'
+        triple1.p.type = LITERAL
         triple1.p.value = 'predicate1'
+        triple1.o.type = LITERAL
         triple1.o.value = 'object1'
-        
+        triple1.g = None
+
         triple2 = MagicMock()
+        triple2.s.type = LITERAL
         triple2.s.value = 'subject2'
+        triple2.p.type = LITERAL
         triple2.p.value = 'predicate2'
+        triple2.o.type = LITERAL
         triple2.o.value = 'object2'
-        
+        triple2.g = None
+
         # Create mock message
         mock_message = MagicMock()
         mock_message.metadata.user = 'user1'
         mock_message.metadata.collection = 'collection1'
         mock_message.triples = [triple1, triple2]
-        
+
         await processor.store_triples(mock_message)
-        
-        # Verify both triples were inserted
+
+        # Verify both triples were inserted (with g= parameter)
         assert mock_tg_instance.insert.call_count == 2
-        mock_tg_instance.insert.assert_any_call('collection1', 'subject1', 'predicate1', 'object1')
-        mock_tg_instance.insert.assert_any_call('collection1', 'subject2', 'predicate2', 'object2')
+        mock_tg_instance.insert.assert_any_call('collection1', 'subject1', 'predicate1', 'object1', g=DEFAULT_GRAPH)
+        mock_tg_instance.insert.assert_any_call('collection1', 'subject2', 'predicate2', 'object2', g=DEFAULT_GRAPH)
 
     @pytest.mark.asyncio
     @patch('trustgraph.storage.triples.cassandra.write.KnowledgeGraph')
@@ -369,25 +378,30 @@ class TestCassandraStorageProcessor:
         
         processor = Processor(taskgroup=taskgroup_mock)
         
-        # Create triple with special characters
+        # Create triple with special characters and proper Term structure
         triple = MagicMock()
+        triple.s.type = LITERAL
         triple.s.value = 'subject with spaces & symbols'
+        triple.p.type = LITERAL
         triple.p.value = 'predicate:with/colons'
+        triple.o.type = LITERAL
         triple.o.value = 'object with "quotes" and unicode: ñáéíóú'
-        
+        triple.g = None
+
         mock_message = MagicMock()
         mock_message.metadata.user = 'test_user'
         mock_message.metadata.collection = 'test_collection'
         mock_message.triples = [triple]
-        
+
         await processor.store_triples(mock_message)
-        
+
         # Verify the triple was inserted with special characters preserved
         mock_tg_instance.insert.assert_called_once_with(
             'test_collection',
             'subject with spaces & symbols',
             'predicate:with/colons',
-            'object with "quotes" and unicode: ñáéíóú'
+            'object with "quotes" and unicode: ñáéíóú',
+            g=DEFAULT_GRAPH
         )
 
     @pytest.mark.asyncio
@@ -475,11 +489,15 @@ class TestCassandraPerformanceOptimizations:
 
         processor = Processor(taskgroup=taskgroup_mock)
 
-        # Create test triple
+        # Create test triple with proper Term structure
         triple = MagicMock()
+        triple.s.type = LITERAL
         triple.s.value = 'test_subject'
+        triple.p.type = LITERAL
         triple.p.value = 'test_predicate'
+        triple.o.type = LITERAL
         triple.o.value = 'test_object'
+        triple.g = None
 
         mock_message = MagicMock()
         mock_message.metadata.user = 'user1'
@@ -490,7 +508,8 @@ class TestCassandraPerformanceOptimizations:
 
         # Verify insert was called for the triple (implementation details tested in KnowledgeGraph)
         mock_tg_instance.insert.assert_called_once_with(
-            'collection1', 'test_subject', 'test_predicate', 'test_object'
+            'collection1', 'test_subject', 'test_predicate', 'test_object',
+            g=DEFAULT_GRAPH
         )
 
     def test_environment_variable_controls_mode(self):

@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, Mock, patch, MagicMock
 from unittest.mock import call
 
 from trustgraph.cores.knowledge import KnowledgeManager
-from trustgraph.schema import KnowledgeResponse, Triples, GraphEmbeddings, Metadata, Triple, Value, EntityEmbeddings
+from trustgraph.schema import KnowledgeResponse, Triples, GraphEmbeddings, Metadata, Triple, Term, EntityEmbeddings, IRI, LITERAL
 
 
 @pytest.fixture
@@ -71,15 +71,15 @@ def sample_triples():
     return Triples(
         metadata=Metadata(
             id="test-doc-id",
-            user="test-user", 
+            user="test-user",
             collection="default",  # This should be overridden
             metadata=[]
         ),
         triples=[
             Triple(
-                s=Value(value="http://example.org/john", is_uri=True),
-                p=Value(value="http://example.org/name", is_uri=True),
-                o=Value(value="John Smith", is_uri=False)
+                s=Term(type=IRI, iri="http://example.org/john"),
+                p=Term(type=IRI, iri="http://example.org/name"),
+                o=Term(type=LITERAL, value="John Smith")
             )
         ]
     )
@@ -97,7 +97,7 @@ def sample_graph_embeddings():
         ),
         entities=[
             EntityEmbeddings(
-                entity=Value(value="http://example.org/john", is_uri=True),
+                entity=Term(type=IRI, iri="http://example.org/john"),
                 vectors=[[0.1, 0.2, 0.3]]
             )
         ]

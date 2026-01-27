@@ -11,7 +11,7 @@ import logging
 # Module logger
 logger = logging.getLogger(__name__)
 
-from .... schema import Chunk, Triple, Triples, Metadata, Value
+from .... schema import Chunk, Triple, Triples, Metadata, Term, IRI, LITERAL
 from .... schema import chunk_ingest_queue, triples_store_queue
 from .... schema import prompt_request_queue
 from .... schema import prompt_response_queue
@@ -20,7 +20,7 @@ from .... clients.prompt_client import PromptClient
 from .... rdf import TRUSTGRAPH_ENTITIES, DEFINITION
 from .... base import ConsumerProducer
 
-DEFINITION_VALUE = Value(value=DEFINITION, is_uri=True)
+DEFINITION_VALUE = Term(type=IRI, iri=DEFINITION)
 
 module = "kg-extract-topics"
 
@@ -106,8 +106,8 @@ class Processor(ConsumerProducer):
 
                 s_uri = self.to_uri(s)
 
-                s_value = Value(value=str(s_uri), is_uri=True)
-                o_value = Value(value=str(o), is_uri=False)
+                s_value = Term(type=IRI, iri=str(s_uri))
+                o_value = Term(type=LITERAL, value=str(o))
 
                 await self.emit_edge(
                     v.metadata, s_value, DEFINITION_VALUE, o_value

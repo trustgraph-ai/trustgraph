@@ -7,7 +7,7 @@ collecting labels and definitions for entity embedding and retrieval.
 
 import pytest
 from trustgraph.extract.kg.ontology.extract import Processor
-from trustgraph.schema.core.primitives import Triple, Value
+from trustgraph.schema.core.primitives import Triple, Term, IRI, LITERAL
 from trustgraph.schema.knowledge.graph import EntityContext
 
 
@@ -25,9 +25,9 @@ class TestEntityContextBuilding:
         """Test that entity context is built from rdfs:label."""
         triples = [
             Triple(
-                s=Value(value="https://example.com/entity/cornish-pasty", is_uri=True),
-                p=Value(value="http://www.w3.org/2000/01/rdf-schema#label", is_uri=True),
-                o=Value(value="Cornish Pasty", is_uri=False)
+                s=Term(type=IRI, iri="https://example.com/entity/cornish-pasty"),
+                p=Term(type=IRI, iri="http://www.w3.org/2000/01/rdf-schema#label"),
+                o=Term(type=LITERAL, value="Cornish Pasty")
             )
         ]
 
@@ -35,16 +35,16 @@ class TestEntityContextBuilding:
 
         assert len(contexts) == 1, "Should create one entity context"
         assert isinstance(contexts[0], EntityContext)
-        assert contexts[0].entity.value == "https://example.com/entity/cornish-pasty"
+        assert contexts[0].entity.iri == "https://example.com/entity/cornish-pasty"
         assert "Label: Cornish Pasty" in contexts[0].context
 
     def test_builds_context_from_definition(self, processor):
         """Test that entity context includes definitions."""
         triples = [
             Triple(
-                s=Value(value="https://example.com/entity/pasty", is_uri=True),
-                p=Value(value="http://www.w3.org/2004/02/skos/core#definition", is_uri=True),
-                o=Value(value="A baked pastry filled with savory ingredients", is_uri=False)
+                s=Term(type=IRI, iri="https://example.com/entity/pasty"),
+                p=Term(type=IRI, iri="http://www.w3.org/2004/02/skos/core#definition"),
+                o=Term(type=LITERAL, value="A baked pastry filled with savory ingredients")
             )
         ]
 
@@ -57,14 +57,14 @@ class TestEntityContextBuilding:
         """Test that label and definition are combined in context."""
         triples = [
             Triple(
-                s=Value(value="https://example.com/entity/recipe1", is_uri=True),
-                p=Value(value="http://www.w3.org/2000/01/rdf-schema#label", is_uri=True),
-                o=Value(value="Pasty Recipe", is_uri=False)
+                s=Term(type=IRI, iri="https://example.com/entity/recipe1"),
+                p=Term(type=IRI, iri="http://www.w3.org/2000/01/rdf-schema#label"),
+                o=Term(type=LITERAL, value="Pasty Recipe")
             ),
             Triple(
-                s=Value(value="https://example.com/entity/recipe1", is_uri=True),
-                p=Value(value="http://www.w3.org/2004/02/skos/core#definition", is_uri=True),
-                o=Value(value="Traditional Cornish pastry recipe", is_uri=False)
+                s=Term(type=IRI, iri="https://example.com/entity/recipe1"),
+                p=Term(type=IRI, iri="http://www.w3.org/2004/02/skos/core#definition"),
+                o=Term(type=LITERAL, value="Traditional Cornish pastry recipe")
             )
         ]
 
@@ -80,14 +80,14 @@ class TestEntityContextBuilding:
         """Test that only the first label is used in context."""
         triples = [
             Triple(
-                s=Value(value="https://example.com/entity/food1", is_uri=True),
-                p=Value(value="http://www.w3.org/2000/01/rdf-schema#label", is_uri=True),
-                o=Value(value="First Label", is_uri=False)
+                s=Term(type=IRI, iri="https://example.com/entity/food1"),
+                p=Term(type=IRI, iri="http://www.w3.org/2000/01/rdf-schema#label"),
+                o=Term(type=LITERAL, value="First Label")
             ),
             Triple(
-                s=Value(value="https://example.com/entity/food1", is_uri=True),
-                p=Value(value="http://www.w3.org/2000/01/rdf-schema#label", is_uri=True),
-                o=Value(value="Second Label", is_uri=False)
+                s=Term(type=IRI, iri="https://example.com/entity/food1"),
+                p=Term(type=IRI, iri="http://www.w3.org/2000/01/rdf-schema#label"),
+                o=Term(type=LITERAL, value="Second Label")
             )
         ]
 
@@ -101,14 +101,14 @@ class TestEntityContextBuilding:
         """Test that all definitions are included in context."""
         triples = [
             Triple(
-                s=Value(value="https://example.com/entity/food1", is_uri=True),
-                p=Value(value="http://www.w3.org/2004/02/skos/core#definition", is_uri=True),
-                o=Value(value="First definition", is_uri=False)
+                s=Term(type=IRI, iri="https://example.com/entity/food1"),
+                p=Term(type=IRI, iri="http://www.w3.org/2004/02/skos/core#definition"),
+                o=Term(type=LITERAL, value="First definition")
             ),
             Triple(
-                s=Value(value="https://example.com/entity/food1", is_uri=True),
-                p=Value(value="http://www.w3.org/2004/02/skos/core#definition", is_uri=True),
-                o=Value(value="Second definition", is_uri=False)
+                s=Term(type=IRI, iri="https://example.com/entity/food1"),
+                p=Term(type=IRI, iri="http://www.w3.org/2004/02/skos/core#definition"),
+                o=Term(type=LITERAL, value="Second definition")
             )
         ]
 
@@ -123,9 +123,9 @@ class TestEntityContextBuilding:
         """Test that schema.org description is treated as definition."""
         triples = [
             Triple(
-                s=Value(value="https://example.com/entity/food1", is_uri=True),
-                p=Value(value="https://schema.org/description", is_uri=True),
-                o=Value(value="A delicious food item", is_uri=False)
+                s=Term(type=IRI, iri="https://example.com/entity/food1"),
+                p=Term(type=IRI, iri="https://schema.org/description"),
+                o=Term(type=LITERAL, value="A delicious food item")
             )
         ]
 
@@ -138,26 +138,26 @@ class TestEntityContextBuilding:
         """Test that contexts are created for multiple entities."""
         triples = [
             Triple(
-                s=Value(value="https://example.com/entity/entity1", is_uri=True),
-                p=Value(value="http://www.w3.org/2000/01/rdf-schema#label", is_uri=True),
-                o=Value(value="Entity One", is_uri=False)
+                s=Term(type=IRI, iri="https://example.com/entity/entity1"),
+                p=Term(type=IRI, iri="http://www.w3.org/2000/01/rdf-schema#label"),
+                o=Term(type=LITERAL, value="Entity One")
             ),
             Triple(
-                s=Value(value="https://example.com/entity/entity2", is_uri=True),
-                p=Value(value="http://www.w3.org/2000/01/rdf-schema#label", is_uri=True),
-                o=Value(value="Entity Two", is_uri=False)
+                s=Term(type=IRI, iri="https://example.com/entity/entity2"),
+                p=Term(type=IRI, iri="http://www.w3.org/2000/01/rdf-schema#label"),
+                o=Term(type=LITERAL, value="Entity Two")
             ),
             Triple(
-                s=Value(value="https://example.com/entity/entity3", is_uri=True),
-                p=Value(value="http://www.w3.org/2000/01/rdf-schema#label", is_uri=True),
-                o=Value(value="Entity Three", is_uri=False)
+                s=Term(type=IRI, iri="https://example.com/entity/entity3"),
+                p=Term(type=IRI, iri="http://www.w3.org/2000/01/rdf-schema#label"),
+                o=Term(type=LITERAL, value="Entity Three")
             )
         ]
 
         contexts = processor.build_entity_contexts(triples)
 
         assert len(contexts) == 3, "Should create context for each entity"
-        entity_uris = [ctx.entity.value for ctx in contexts]
+        entity_uris = [ctx.entity.iri for ctx in contexts]
         assert "https://example.com/entity/entity1" in entity_uris
         assert "https://example.com/entity/entity2" in entity_uris
         assert "https://example.com/entity/entity3" in entity_uris
@@ -166,9 +166,9 @@ class TestEntityContextBuilding:
         """Test that URI objects are ignored (only literal labels/definitions)."""
         triples = [
             Triple(
-                s=Value(value="https://example.com/entity/food1", is_uri=True),
-                p=Value(value="http://www.w3.org/2000/01/rdf-schema#label", is_uri=True),
-                o=Value(value="https://example.com/some/uri", is_uri=True)  # URI, not literal
+                s=Term(type=IRI, iri="https://example.com/entity/food1"),
+                p=Term(type=IRI, iri="http://www.w3.org/2000/01/rdf-schema#label"),
+                o=Term(type=IRI, iri="https://example.com/some/uri")  # URI, not literal
             )
         ]
 
@@ -181,14 +181,14 @@ class TestEntityContextBuilding:
         """Test that other predicates are ignored."""
         triples = [
             Triple(
-                s=Value(value="https://example.com/entity/food1", is_uri=True),
-                p=Value(value="http://www.w3.org/1999/02/22-rdf-syntax-ns#type", is_uri=True),
-                o=Value(value="http://example.com/Food", is_uri=True)
+                s=Term(type=IRI, iri="https://example.com/entity/food1"),
+                p=Term(type=IRI, iri="http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+                o=Term(type=IRI, iri="http://example.com/Food")
             ),
             Triple(
-                s=Value(value="https://example.com/entity/food1", is_uri=True),
-                p=Value(value="http://example.com/produces", is_uri=True),
-                o=Value(value="https://example.com/entity/food2", is_uri=True)
+                s=Term(type=IRI, iri="https://example.com/entity/food1"),
+                p=Term(type=IRI, iri="http://example.com/produces"),
+                o=Term(type=IRI, iri="https://example.com/entity/food2")
             )
         ]
 
@@ -205,29 +205,29 @@ class TestEntityContextBuilding:
 
         assert len(contexts) == 0, "Empty triple list should return empty contexts"
 
-    def test_entity_context_has_value_object(self, processor):
-        """Test that EntityContext.entity is a Value object."""
+    def test_entity_context_has_term_object(self, processor):
+        """Test that EntityContext.entity is a Term object."""
         triples = [
             Triple(
-                s=Value(value="https://example.com/entity/test", is_uri=True),
-                p=Value(value="http://www.w3.org/2000/01/rdf-schema#label", is_uri=True),
-                o=Value(value="Test Entity", is_uri=False)
+                s=Term(type=IRI, iri="https://example.com/entity/test"),
+                p=Term(type=IRI, iri="http://www.w3.org/2000/01/rdf-schema#label"),
+                o=Term(type=LITERAL, value="Test Entity")
             )
         ]
 
         contexts = processor.build_entity_contexts(triples)
 
         assert len(contexts) == 1
-        assert isinstance(contexts[0].entity, Value), "Entity should be Value object"
-        assert contexts[0].entity.is_uri, "Entity should be marked as URI"
+        assert isinstance(contexts[0].entity, Term), "Entity should be Term object"
+        assert contexts[0].entity.type == IRI, "Entity should be IRI type"
 
     def test_entity_context_text_is_string(self, processor):
         """Test that EntityContext.context is a string."""
         triples = [
             Triple(
-                s=Value(value="https://example.com/entity/test", is_uri=True),
-                p=Value(value="http://www.w3.org/2000/01/rdf-schema#label", is_uri=True),
-                o=Value(value="Test Entity", is_uri=False)
+                s=Term(type=IRI, iri="https://example.com/entity/test"),
+                p=Term(type=IRI, iri="http://www.w3.org/2000/01/rdf-schema#label"),
+                o=Term(type=LITERAL, value="Test Entity")
             )
         ]
 
@@ -241,22 +241,22 @@ class TestEntityContextBuilding:
         triples = [
             # Entity with label - should create context
             Triple(
-                s=Value(value="https://example.com/entity/entity1", is_uri=True),
-                p=Value(value="http://www.w3.org/2000/01/rdf-schema#label", is_uri=True),
-                o=Value(value="Entity One", is_uri=False)
+                s=Term(type=IRI, iri="https://example.com/entity/entity1"),
+                p=Term(type=IRI, iri="http://www.w3.org/2000/01/rdf-schema#label"),
+                o=Term(type=LITERAL, value="Entity One")
             ),
             # Entity with only rdf:type - should NOT create context
             Triple(
-                s=Value(value="https://example.com/entity/entity2", is_uri=True),
-                p=Value(value="http://www.w3.org/1999/02/22-rdf-syntax-ns#type", is_uri=True),
-                o=Value(value="http://example.com/Food", is_uri=True)
+                s=Term(type=IRI, iri="https://example.com/entity/entity2"),
+                p=Term(type=IRI, iri="http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+                o=Term(type=IRI, iri="http://example.com/Food")
             )
         ]
 
         contexts = processor.build_entity_contexts(triples)
 
         assert len(contexts) == 1, "Should only create context for entity with label/definition"
-        assert contexts[0].entity.value == "https://example.com/entity/entity1"
+        assert contexts[0].entity.iri == "https://example.com/entity/entity1"
 
 
 class TestEntityContextEdgeCases:
@@ -266,9 +266,9 @@ class TestEntityContextEdgeCases:
         """Test handling of unicode characters in labels."""
         triples = [
             Triple(
-                s=Value(value="https://example.com/entity/café", is_uri=True),
-                p=Value(value="http://www.w3.org/2000/01/rdf-schema#label", is_uri=True),
-                o=Value(value="Café Spécial", is_uri=False)
+                s=Term(type=IRI, iri="https://example.com/entity/café"),
+                p=Term(type=IRI, iri="http://www.w3.org/2000/01/rdf-schema#label"),
+                o=Term(type=LITERAL, value="Café Spécial")
             )
         ]
 
@@ -282,9 +282,9 @@ class TestEntityContextEdgeCases:
         long_def = "This is a very long definition " * 50
         triples = [
             Triple(
-                s=Value(value="https://example.com/entity/test", is_uri=True),
-                p=Value(value="http://www.w3.org/2004/02/skos/core#definition", is_uri=True),
-                o=Value(value=long_def, is_uri=False)
+                s=Term(type=IRI, iri="https://example.com/entity/test"),
+                p=Term(type=IRI, iri="http://www.w3.org/2004/02/skos/core#definition"),
+                o=Term(type=LITERAL, value=long_def)
             )
         ]
 
@@ -297,9 +297,9 @@ class TestEntityContextEdgeCases:
         """Test handling of special characters in context text."""
         triples = [
             Triple(
-                s=Value(value="https://example.com/entity/test", is_uri=True),
-                p=Value(value="http://www.w3.org/2000/01/rdf-schema#label", is_uri=True),
-                o=Value(value="Test & Entity <with> \"quotes\"", is_uri=False)
+                s=Term(type=IRI, iri="https://example.com/entity/test"),
+                p=Term(type=IRI, iri="http://www.w3.org/2000/01/rdf-schema#label"),
+                o=Term(type=LITERAL, value="Test & Entity <with> \"quotes\"")
             )
         ]
 
@@ -313,27 +313,27 @@ class TestEntityContextEdgeCases:
         triples = [
             # Label - relevant
             Triple(
-                s=Value(value="https://example.com/entity/recipe1", is_uri=True),
-                p=Value(value="http://www.w3.org/2000/01/rdf-schema#label", is_uri=True),
-                o=Value(value="Cornish Pasty Recipe", is_uri=False)
+                s=Term(type=IRI, iri="https://example.com/entity/recipe1"),
+                p=Term(type=IRI, iri="http://www.w3.org/2000/01/rdf-schema#label"),
+                o=Term(type=LITERAL, value="Cornish Pasty Recipe")
             ),
             # Type - irrelevant
             Triple(
-                s=Value(value="https://example.com/entity/recipe1", is_uri=True),
-                p=Value(value="http://www.w3.org/1999/02/22-rdf-syntax-ns#type", is_uri=True),
-                o=Value(value="http://example.com/Recipe", is_uri=True)
+                s=Term(type=IRI, iri="https://example.com/entity/recipe1"),
+                p=Term(type=IRI, iri="http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+                o=Term(type=IRI, iri="http://example.com/Recipe")
             ),
             # Property - irrelevant
             Triple(
-                s=Value(value="https://example.com/entity/recipe1", is_uri=True),
-                p=Value(value="http://example.com/produces", is_uri=True),
-                o=Value(value="https://example.com/entity/pasty", is_uri=True)
+                s=Term(type=IRI, iri="https://example.com/entity/recipe1"),
+                p=Term(type=IRI, iri="http://example.com/produces"),
+                o=Term(type=IRI, iri="https://example.com/entity/pasty")
             ),
             # Definition - relevant
             Triple(
-                s=Value(value="https://example.com/entity/recipe1", is_uri=True),
-                p=Value(value="http://www.w3.org/2004/02/skos/core#definition", is_uri=True),
-                o=Value(value="Traditional British pastry recipe", is_uri=False)
+                s=Term(type=IRI, iri="https://example.com/entity/recipe1"),
+                p=Term(type=IRI, iri="http://www.w3.org/2004/02/skos/core#definition"),
+                o=Term(type=LITERAL, value="Traditional British pastry recipe")
             )
         ]
 

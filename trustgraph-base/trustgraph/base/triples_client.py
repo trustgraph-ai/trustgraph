@@ -1,7 +1,8 @@
 
 from . request_response_spec import RequestResponse, RequestResponseSpec
-from .. schema import TriplesQueryRequest, TriplesQueryResponse, Value
+from .. schema import TriplesQueryRequest, TriplesQueryResponse, Term, IRI, LITERAL
 from .. knowledge import Uri, Literal
+
 
 class Triple:
     def __init__(self, s, p, o):
@@ -9,16 +10,25 @@ class Triple:
         self.p = p
         self.o = o
 
+
 def to_value(x):
-    if x.is_uri: return Uri(x.value)
-    return Literal(x.value)
+    """Convert schema Term to Uri or Literal."""
+    if x.type == IRI:
+        return Uri(x.iri)
+    elif x.type == LITERAL:
+        return Literal(x.value)
+    # Fallback
+    return Literal(x.value or x.iri)
+
 
 def from_value(x):
-    if x is None: return None
+    """Convert Uri or Literal to schema Term."""
+    if x is None:
+        return None
     if isinstance(x, Uri):
-        return Value(value=str(x), is_uri=True)
+        return Term(type=IRI, iri=str(x))
     else:
-        return Value(value=str(x), is_uri=False)
+        return Term(type=LITERAL, value=str(x))
 
 class TriplesClient(RequestResponse):
     async def query(self, s=None, p=None, o=None, limit=20,

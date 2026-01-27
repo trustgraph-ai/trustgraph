@@ -2,7 +2,7 @@
 
 import _pulsar
 
-from .. schema import TriplesQueryRequest, TriplesQueryResponse, Value
+from .. schema import TriplesQueryRequest, TriplesQueryResponse, Term, IRI, LITERAL
 from .. schema import triples_request_queue
 from .. schema import triples_response_queue
 from . base import BaseClient
@@ -46,9 +46,9 @@ class TriplesQueryClient(BaseClient):
         if ent == None: return None
 
         if ent.startswith("http://") or ent.startswith("https://"):
-            return Value(value=ent, is_uri=True)
+            return Term(type=IRI, iri=ent)
 
-        return Value(value=ent, is_uri=False)
+        return Term(type=LITERAL, value=ent)
 
     def request(
             self, 

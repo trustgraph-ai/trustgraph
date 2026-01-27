@@ -10,11 +10,23 @@ import logging
 from neo4j import GraphDatabase
 
 from .... schema import TriplesQueryRequest, TriplesQueryResponse, Error
-from .... schema import Value, Triple
+from .... schema import Term, Triple, IRI, LITERAL
 from .... base import TriplesQueryService
 
 # Module logger
 logger = logging.getLogger(__name__)
+
+
+def get_term_value(term):
+    """Extract the string value from a Term"""
+    if term is None:
+        return None
+    if term.type == IRI:
+        return term.iri
+    elif term.type == LITERAL:
+        return term.value
+    else:
+        return term.id or term.value
 
 default_ident = "triples-query"
 
@@ -47,9 +59,9 @@ class Processor(TriplesQueryService):
     def create_value(self, ent):
 
         if ent.startswith("http://") or ent.startswith("https://"):
-            return Value(value=ent, is_uri=True)
+            return Term(type=IRI, iri=ent)
         else:
-            return Value(value=ent, is_uri=False)
+            return Term(type=LITERAL, value=ent)
 
     async def query_triples(self, query):
 
@@ -73,13 +85,13 @@ class Processor(TriplesQueryService):
                             "(dest:Literal {value: $value, user: $user, collection: $collection}) "
                             "RETURN $src as src "
                             "LIMIT " + str(query.limit),
-                            src=query.s.value, rel=query.p.value, value=query.o.value,
+                            src=get_term_value(query.s), rel=get_term_value(query.p), value=get_term_value(query.o),
                             user=user, collection=collection,
                             database_=self.db,
                         )
 
                         for rec in records:
-                            triples.append((query.s.value, query.p.value, query.o.value))
+                            triples.append((get_term_value(query.s), get_term_value(query.p), get_term_value(query.o)))
 
                         records, summary, keys = self.io.execute_query(
                             "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
@@ -87,13 +99,13 @@ class Processor(TriplesQueryService):
                             "(dest:Node {uri: $uri, user: $user, collection: $collection}) "
                             "RETURN $src as src "
                             "LIMIT " + str(query.limit),
-                            src=query.s.value, rel=query.p.value, uri=query.o.value,
+                            src=get_term_value(query.s), rel=get_term_value(query.p), uri=get_term_value(query.o),
                             user=user, collection=collection,
                             database_=self.db,
                         )
 
                         for rec in records:
-                            triples.append((query.s.value, query.p.value, query.o.value))
+                            triples.append((get_term_value(query.s), get_term_value(query.p), get_term_value(query.o)))
 
                     else:
 
@@ -105,14 +117,14 @@ class Processor(TriplesQueryService):
                             "(dest:Literal {user: $user, collection: $collection}) "
                             "RETURN dest.value as dest "
                             "LIMIT " + str(query.limit),
-                            src=query.s.value, rel=query.p.value,
+                            src=get_term_value(query.s), rel=get_term_value(query.p),
                             user=user, collection=collection,
                             database_=self.db,
                         )
 
                         for rec in records:
                             data = rec.data()
-                            triples.append((query.s.value, query.p.value, data["dest"]))
+                            triples.append((get_term_value(query.s), get_term_value(query.p), data["dest"]))
 
                         records, summary, keys = self.io.execute_query(
                             "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
@@ -120,14 +132,14 @@ class Processor(TriplesQueryService):
                             "(dest:Node {user: $user, collection: $collection}) "
                             "RETURN dest.uri as dest "
                             "LIMIT " + str(query.limit),
-                            src=query.s.value, rel=query.p.value,
+                            src=get_term_value(query.s), rel=get_term_value(query.p),
                             user=user, collection=collection,
                             database_=self.db,
                         )
 
                         for rec in records:
                             data = rec.data()
-                            triples.append((query.s.value, query.p.value, data["dest"]))
+                            triples.append((get_term_value(query.s), get_term_value(query.p), data["dest"]))
 
                 else:
 
@@ -141,14 +153,14 @@ class Processor(TriplesQueryService):
                             "(dest:Literal {value: $value, user: $user, collection: $collection}) "
                             "RETURN rel.uri as rel "
                             "LIMIT " + str(query.limit),
-                            src=query.s.value, value=query.o.value,
+                            src=get_term_value(query.s), value=get_term_value(query.o),
                             user=user, collection=collection,
                             database_=self.db,
                         )
 
                         for rec in records:
                             data = rec.data()
-                            triples.append((query.s.value, data["rel"], query.o.value))
+                            triples.append((get_term_value(query.s), data["rel"], get_term_value(query.o)))
 
                         records, summary, keys = self.io.execute_query(
                             "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
@@ -156,14 +168,14 @@ class Processor(TriplesQueryService):
                             "(dest:Node {uri: $uri, user: $user, collection: $collection}) "
                             "RETURN rel.uri as rel "
                             "LIMIT " + str(query.limit),
-                            src=query.s.value, uri=query.o.value,
+                            src=get_term_value(query.s), uri=get_term_value(query.o),
                             user=user, collection=collection,
                             database_=self.db,
                         )
 
                         for rec in records:
                             data = rec.data()
-                            triples.append((query.s.value, data["rel"], query.o.value))
+                            triples.append((get_term_value(query.s), data["rel"], get_term_value(query.o)))
 
                     else:
 
@@ -175,14 +187,14 @@ class Processor(TriplesQueryService):
                             "(dest:Literal {user: $user, collection: $collection}) "
                             "RETURN rel.uri as rel, dest.value as dest "
                             "LIMIT " + str(query.limit),
-                            src=query.s.value,
+                            src=get_term_value(query.s),
                             user=user, collection=collection,
                             database_=self.db,
                         )
 
                         for rec in records:
                             data = rec.data()
-                            triples.append((query.s.value, data["rel"], data["dest"]))
+                            triples.append((get_term_value(query.s), data["rel"], data["dest"]))
 
                         records, summary, keys = self.io.execute_query(
                             "MATCH (src:Node {uri: $src, user: $user, collection: $collection})-"
@@ -190,14 +202,14 @@ class Processor(TriplesQueryService):
                             "(dest:Node {user: $user, collection: $collection}) "
                             "RETURN rel.uri as rel, dest.uri as dest "
                             "LIMIT " + str(query.limit),
-                            src=query.s.value,
+                            src=get_term_value(query.s),
                             user=user, collection=collection,
                             database_=self.db,
                         )
 
                         for rec in records:
                             data = rec.data()
-                            triples.append((query.s.value, data["rel"], data["dest"]))
+                            triples.append((get_term_value(query.s), data["rel"], data["dest"]))
 
 
             else:
@@ -214,14 +226,14 @@ class Processor(TriplesQueryService):
                             "(dest:Literal {value: $value, user: $user, collection: $collection}) "
                             "RETURN src.uri as src "
                             "LIMIT " + str(query.limit),
-                            uri=query.p.value, value=query.o.value,
+                            uri=get_term_value(query.p), value=get_term_value(query.o),
                             user=user, collection=collection,
                             database_=self.db,
                         )
 
                         for rec in records:
                             data = rec.data()
-                            triples.append((data["src"], query.p.value, query.o.value))
+                            triples.append((data["src"], get_term_value(query.p), get_term_value(query.o)))
 
                         records, summary, keys = self.io.execute_query(
                             "MATCH (src:Node {user: $user, collection: $collection})-"
@@ -229,14 +241,14 @@ class Processor(TriplesQueryService):
                             "(dest:Node {uri: $dest, user: $user, collection: $collection}) "
                             "RETURN src.uri as src "
                             "LIMIT " + str(query.limit),
-                            uri=query.p.value, dest=query.o.value,
+                            uri=get_term_value(query.p), dest=get_term_value(query.o),
                             user=user, collection=collection,
                             database_=self.db,
                         )
 
                         for rec in records:
                             data = rec.data()
-                            triples.append((data["src"], query.p.value, query.o.value))
+                            triples.append((data["src"], get_term_value(query.p), get_term_value(query.o)))
 
                     else:
 
@@ -248,14 +260,14 @@ class Processor(TriplesQueryService):
                             "(dest:Literal {user: $user, collection: $collection}) "
                             "RETURN src.uri as src, dest.value as dest "
                             "LIMIT " + str(query.limit),
-                            uri=query.p.value,
+                            uri=get_term_value(query.p),
                             user=user, collection=collection,
                             database_=self.db,
                         )
 
                         for rec in records:
                             data = rec.data()
-                            triples.append((data["src"], query.p.value, data["dest"]))
+                            triples.append((data["src"], get_term_value(query.p), data["dest"]))
 
                         records, summary, keys = self.io.execute_query(
                             "MATCH (src:Node {user: $user, collection: $collection})-"
@@ -263,14 +275,14 @@ class Processor(TriplesQueryService):
                             "(dest:Node {user: $user, collection: $collection}) "
                             "RETURN src.uri as src, dest.uri as dest "
                             "LIMIT " + str(query.limit),
-                            uri=query.p.value,
+                            uri=get_term_value(query.p),
                             user=user, collection=collection,
                             database_=self.db,
                         )
 
                         for rec in records:
                             data = rec.data()
-                            triples.append((data["src"], query.p.value, data["dest"]))
+                            triples.append((data["src"], get_term_value(query.p), data["dest"]))
 
                 else:
 
@@ -284,14 +296,14 @@ class Processor(TriplesQueryService):
                             "(dest:Literal {value: $value, user: $user, collection: $collection}) "
                             "RETURN src.uri as src, rel.uri as rel "
                             "LIMIT " + str(query.limit),
-                            value=query.o.value,
+                            value=get_term_value(query.o),
                             user=user, collection=collection,
                             database_=self.db,
                         )
 
                         for rec in records:
                             data = rec.data()
-                            triples.append((data["src"], data["rel"], query.o.value))
+                            triples.append((data["src"], data["rel"], get_term_value(query.o)))
 
                         records, summary, keys = self.io.execute_query(
                             "MATCH (src:Node {user: $user, collection: $collection})-"
@@ -299,14 +311,14 @@ class Processor(TriplesQueryService):
                             "(dest:Node {uri: $uri, user: $user, collection: $collection}) "
                             "RETURN src.uri as src, rel.uri as rel "
                             "LIMIT " + str(query.limit),
-                            uri=query.o.value,
+                            uri=get_term_value(query.o),
                             user=user, collection=collection,
                             database_=self.db,
                         )
 
                         for rec in records:
                             data = rec.data()
-                            triples.append((data["src"], data["rel"], query.o.value))
+                            triples.append((data["src"], data["rel"], get_term_value(query.o)))
 
                     else:
 

@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from trustgraph.query.triples.memgraph.service import Processor
-from trustgraph.schema import TriplesQueryRequest, Value
+from trustgraph.schema import TriplesQueryRequest, Term, IRI, LITERAL
 
 
 class TestMemgraphQueryUserCollectionIsolation:
@@ -24,9 +24,9 @@ class TestMemgraphQueryUserCollectionIsolation:
         query = TriplesQueryRequest(
             user="test_user",
             collection="test_collection",
-            s=Value(value="http://example.com/s", is_uri=True),
-            p=Value(value="http://example.com/p", is_uri=True),
-            o=Value(value="test_object", is_uri=False),
+            s=Term(type=IRI, iri="http://example.com/s"),
+            p=Term(type=IRI, iri="http://example.com/p"),
+            o=Term(type=LITERAL, value="test_object"),
             limit=1000
         )
         
@@ -65,8 +65,8 @@ class TestMemgraphQueryUserCollectionIsolation:
         query = TriplesQueryRequest(
             user="test_user",
             collection="test_collection",
-            s=Value(value="http://example.com/s", is_uri=True),
-            p=Value(value="http://example.com/p", is_uri=True),
+            s=Term(type=IRI, iri="http://example.com/s"),
+            p=Term(type=IRI, iri="http://example.com/p"),
             o=None,
             limit=1000
         )
@@ -105,9 +105,9 @@ class TestMemgraphQueryUserCollectionIsolation:
         query = TriplesQueryRequest(
             user="test_user",
             collection="test_collection",
-            s=Value(value="http://example.com/s", is_uri=True),
+            s=Term(type=IRI, iri="http://example.com/s"),
             p=None,
-            o=Value(value="http://example.com/o", is_uri=True),
+            o=Term(type=IRI, iri="http://example.com/o"),
             limit=1000
         )
         
@@ -145,7 +145,7 @@ class TestMemgraphQueryUserCollectionIsolation:
         query = TriplesQueryRequest(
             user="test_user",
             collection="test_collection",
-            s=Value(value="http://example.com/s", is_uri=True),
+            s=Term(type=IRI, iri="http://example.com/s"),
             p=None,
             o=None,
             limit=1000
@@ -185,8 +185,8 @@ class TestMemgraphQueryUserCollectionIsolation:
             user="test_user",
             collection="test_collection",
             s=None,
-            p=Value(value="http://example.com/p", is_uri=True),
-            o=Value(value="literal", is_uri=False),
+            p=Term(type=IRI, iri="http://example.com/p"),
+            o=Term(type=LITERAL, value="literal"),
             limit=1000
         )
         
@@ -225,7 +225,7 @@ class TestMemgraphQueryUserCollectionIsolation:
             user="test_user",
             collection="test_collection",
             s=None,
-            p=Value(value="http://example.com/p", is_uri=True),
+            p=Term(type=IRI, iri="http://example.com/p"),
             o=None,
             limit=1000
         )
@@ -265,7 +265,7 @@ class TestMemgraphQueryUserCollectionIsolation:
             collection="test_collection",
             s=None,
             p=None,
-            o=Value(value="test_value", is_uri=False),
+            o=Term(type=LITERAL, value="test_value"),
             limit=1000
         )
         
@@ -355,7 +355,7 @@ class TestMemgraphQueryUserCollectionIsolation:
         
         # Query without user/collection fields
         query = TriplesQueryRequest(
-            s=Value(value="http://example.com/s", is_uri=True),
+            s=Term(type=IRI, iri="http://example.com/s"),
             p=None,
             o=None,
             limit=1000
@@ -385,7 +385,7 @@ class TestMemgraphQueryUserCollectionIsolation:
         query = TriplesQueryRequest(
             user="test_user",
             collection="test_collection",
-            s=Value(value="http://example.com/s", is_uri=True),
+            s=Term(type=IRI, iri="http://example.com/s"),
             p=None,
             o=None,
             limit=1000
@@ -416,17 +416,17 @@ class TestMemgraphQueryUserCollectionIsolation:
         assert len(result) == 2
         
         # First triple (literal object)
-        assert result[0].s.value == "http://example.com/s"
-        assert result[0].s.is_uri == True
-        assert result[0].p.value == "http://example.com/p1"
-        assert result[0].p.is_uri == True
+        assert result[0].s.iri == "http://example.com/s"
+        assert result[0].s.type == IRI
+        assert result[0].p.iri == "http://example.com/p1"
+        assert result[0].p.type == IRI
         assert result[0].o.value == "literal_value"
-        assert result[0].o.is_uri == False
-        
+        assert result[0].o.type == LITERAL
+
         # Second triple (URI object)
-        assert result[1].s.value == "http://example.com/s"
-        assert result[1].s.is_uri == True
-        assert result[1].p.value == "http://example.com/p2"
-        assert result[1].p.is_uri == True
-        assert result[1].o.value == "http://example.com/o"
-        assert result[1].o.is_uri == True
+        assert result[1].s.iri == "http://example.com/s"
+        assert result[1].s.type == IRI
+        assert result[1].p.iri == "http://example.com/p2"
+        assert result[1].p.type == IRI
+        assert result[1].o.iri == "http://example.com/o"
+        assert result[1].o.type == IRI

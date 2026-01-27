@@ -7,7 +7,7 @@ processing graph structures, and performing graph operations.
 
 import pytest
 from unittest.mock import Mock
-from .conftest import Triple, Value, Metadata
+from .conftest import Triple, Metadata
 from collections import defaultdict, deque
 
 

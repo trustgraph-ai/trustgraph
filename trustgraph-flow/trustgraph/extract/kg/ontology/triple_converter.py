@@ -8,7 +8,7 @@ with full URIs and correct is_uri flags.
 import logging
 from typing import List, Optional
 
-from .... schema import Triple, Value
+from .... schema import Triple, Term, IRI, LITERAL
 from .... rdf import RDF_TYPE, RDF_LABEL
 
 from .simplified_parser import Entity, Relationship, Attribute, ExtractionResult
@@ -87,17 +87,17 @@ class TripleConverter:
 
         # Generate type triple: entity rdf:type ClassURI
         type_triple = Triple(
-            s=Value(value=entity_uri, is_uri=True),
-            p=Value(value=RDF_TYPE, is_uri=True),
-            o=Value(value=class_uri, is_uri=True)
+            s=Term(type=IRI, iri=entity_uri),
+            p=Term(type=IRI, iri=RDF_TYPE),
+            o=Term(type=IRI, iri=class_uri)
         )
         triples.append(type_triple)
 
         # Generate label triple: entity rdfs:label "entity name"
         label_triple = Triple(
-            s=Value(value=entity_uri, is_uri=True),
-            p=Value(value=RDF_LABEL, is_uri=True),
-            o=Value(value=entity.entity, is_uri=False)  # Literal!
+            s=Term(type=IRI, iri=entity_uri),
+            p=Term(type=IRI, iri=RDF_LABEL),
+            o=Term(type=LITERAL, value=entity.entity)  # Literal!
         )
         triples.append(label_triple)
 
@@ -131,9 +131,9 @@ class TripleConverter:
 
         # Generate triple: subject property object
         return Triple(
-            s=Value(value=subject_uri, is_uri=True),
-            p=Value(value=property_uri, is_uri=True),
-            o=Value(value=object_uri, is_uri=True)
+            s=Term(type=IRI, iri=subject_uri),
+            p=Term(type=IRI, iri=property_uri),
+            o=Term(type=IRI, iri=object_uri)
         )
 
     def convert_attribute(self, attribute: Attribute) -> Optional[Triple]:
@@ -159,9 +159,9 @@ class TripleConverter:
 
         # Generate triple: entity property "literal value"
         return Triple(
-            s=Value(value=entity_uri, is_uri=True),
-            p=Value(value=property_uri, is_uri=True),
-            o=Value(value=attribute.value, is_uri=False)  # Literal!
+            s=Term(type=IRI, iri=entity_uri),
+            p=Term(type=IRI, iri=property_uri),
+            o=Term(type=LITERAL, value=attribute.value)  # Literal!
         )
 
     def _get_class_uri(self, class_id: str) -> Optional[str]:

@@ -12,13 +12,28 @@ import logging
 
 from . types import DocumentMetadata, ProcessingMetadata, Triple
 from .. knowledge import hash, Uri, Literal
+from .. schema import IRI, LITERAL
 from . exceptions import *
 
 logger = logging.getLogger(__name__)
 
+
 def to_value(x):
-    if x["e"]: return Uri(x["v"])
-    return Literal(x["v"])
+    """Convert wire format to Uri or Literal."""
+    if x.get("t") == IRI:
+        return Uri(x.get("i", ""))
+    elif x.get("t") == LITERAL:
+        return Literal(x.get("v", ""))
+    # Fallback for any other type
+    return Literal(x.get("v", x.get("i", "")))
+
+
+def from_value(v):
+    """Convert Uri or Literal to wire format."""
+    if isinstance(v, Uri):
+        return {"t": IRI, "i": str(v)}
+    else:
+        return {"t": LITERAL, "v": str(v)}
 
 class Library:
     """
@@ -118,18 +133,18 @@ class Library:
             if isinstance(metadata, list):
                 triples = [
                     {
-                        "s": { "v": t.s, "e": isinstance(t.s, Uri) },
-                        "p": { "v": t.p, "e": isinstance(t.p, Uri) },
-                        "o": { "v": t.o, "e": isinstance(t.o, Uri) }
+                        "s": from_value(t.s),
+                        "p": from_value(t.p),
+                        "o": from_value(t.o),
                     }
                     for t in metadata
                 ]
             elif hasattr(metadata, "emit"):
                 metadata.emit(
                     lambda t: triples.append({
-                        "s": { "v": t["s"], "e": isinstance(t["s"], Uri) },
-                        "p": { "v": t["p"], "e": isinstance(t["p"], Uri) },
-                        "o": { "v": t["o"], "e": isinstance(t["o"], Uri) }
+                        "s": from_value(t["s"]),
+                        "p": from_value(t["p"]),
+                        "o": from_value(t["o"]),
                     })
                 )
             else:
@@ -315,9 +330,9 @@ class Library:
                 "comments": metadata.comments,
                 "metadata": [
                     {
-                        "s": { "v": t["s"], "e": isinstance(t["s"], Uri) },
-                        "p": { "v": t["p"], "e": isinstance(t["p"], Uri) },
-                        "o": { "v": t["o"], "e": isinstance(t["o"], Uri) }
+                        "s": from_value(t["s"]),
+                        "p": from_value(t["p"]),
+                        "o": from_value(t["o"]),
                     }
                     for t in metadata.metadata
                 ],

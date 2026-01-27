@@ -7,7 +7,7 @@ null.  Output is a list of triples.
 import logging
 
 from .. schema import TriplesQueryRequest, TriplesQueryResponse, Error
-from .. schema import Value, Triple
+from .. schema import Term, Triple
 
 from . flow_processor import FlowProcessor
 from . consumer_spec import  ConsumerSpec
