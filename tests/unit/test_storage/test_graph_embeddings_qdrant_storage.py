@@ -9,6 +9,7 @@ from unittest import IsolatedAsyncioTestCase
 
 # Import the service under test
 from trustgraph.storage.graph_embeddings.qdrant.write import Processor
+from trustgraph.schema import IRI, LITERAL
 
 
 class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
@@ -67,7 +68,8 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_message.metadata.collection = 'test_collection'
         
         mock_entity = MagicMock()
-        mock_entity.entity.value = 'test_entity'
+        mock_entity.entity.type = IRI
+        mock_entity.entity.iri = 'test_entity'
         mock_entity.vectors = [[0.1, 0.2, 0.3]]  # Single vector with 3 dimensions
         
         mock_message.entities = [mock_entity]
@@ -120,11 +122,13 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_message.metadata.collection = 'multi_collection'
         
         mock_entity1 = MagicMock()
-        mock_entity1.entity.value = 'entity_one'
+        mock_entity1.entity.type = IRI
+        mock_entity1.entity.iri = 'entity_one'
         mock_entity1.vectors = [[0.1, 0.2]]
-        
+
         mock_entity2 = MagicMock()
-        mock_entity2.entity.value = 'entity_two'
+        mock_entity2.entity.type = IRI
+        mock_entity2.entity.iri = 'entity_two'
         mock_entity2.vectors = [[0.3, 0.4]]
         
         mock_message.entities = [mock_entity1, mock_entity2]
@@ -179,7 +183,8 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_message.metadata.collection = 'vector_collection'
         
         mock_entity = MagicMock()
-        mock_entity.entity.value = 'multi_vector_entity'
+        mock_entity.entity.type = IRI
+        mock_entity.entity.iri = 'multi_vector_entity'
         mock_entity.vectors = [
             [0.1, 0.2, 0.3],
             [0.4, 0.5, 0.6],
@@ -231,11 +236,12 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_message.metadata.collection = 'empty_collection'
         
         mock_entity_empty = MagicMock()
+        mock_entity_empty.entity.type = LITERAL
         mock_entity_empty.entity.value = ""  # Empty string
         mock_entity_empty.vectors = [[0.1, 0.2]]
-        
+
         mock_entity_none = MagicMock()
-        mock_entity_none.entity.value = None  # None value
+        mock_entity_none.entity = None  # None entity
         mock_entity_none.vectors = [[0.3, 0.4]]
         
         mock_message.entities = [mock_entity_empty, mock_entity_none]
