@@ -11,7 +11,7 @@
 
 <a href="https://trendshift.io/repositories/17291" target="_blank"><img src="https://trendshift.io/api/badge/repositories/17291" alt="trustgraph-ai%2Ftrustgraph | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
-# The Context Graph Factory for AI
+# The Context Graph Engine for AI
 
 </div>
 
