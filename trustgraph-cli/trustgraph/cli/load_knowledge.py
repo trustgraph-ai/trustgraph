@@ -87,13 +87,20 @@ class KnowledgeLoader:
 
             # Load triples from all files
             print("Loading triples...")
+            total_triples = 0
             for file in self.files:
                 print(f"  Processing {file}...")
-                triples = self.load_triples_from_file(file)
+                count = 0
+
+                def counting_triples():
+                    nonlocal count
+                    for triple in self.load_triples_from_file(file):
+                        count += 1
+                        yield triple
 
                 bulk.import_triples(
                     flow=self.flow,
-                    triples=triples,
+                    triples=counting_triples(),
                     metadata={
                         "id": self.document_id,
                         "metadata": [],
@@ -101,25 +108,33 @@ class KnowledgeLoader:
                         "collection": self.collection
                     }
                 )
+                print(f"    Loaded {count} triples")
+                total_triples += count
 
-            print("Triples loaded.")
+            print(f"Triples loaded. Total: {total_triples}")
 
             # Load entity contexts from all files
             print("Loading entity contexts...")
+            total_contexts = 0
             for file in self.files:
                 print(f"  Processing {file}...")
+                count = 0
 
                 # Convert tuples to the format expected by import_entity_contexts
+                # Entity must be in Term format: {"t": "i", "i": uri} for IRI
                 def entity_context_generator():
+                    nonlocal count
                     for entity, context in self.load_entity_contexts_from_file(file):
+                        count += 1
+                        # Entities from RDF are URIs, use IRI term format
                         yield {
-                            "entity": {"v": entity, "e": True},
+                            "entity": {"t": "i", "i": entity},
                             "context": context
                         }
 
                 bulk.import_entity_contexts(
                     flow=self.flow,
-                    entities=entity_context_generator(),
+                    contexts=entity_context_generator(),
                     metadata={
                         "id": self.document_id,
                         "metadata": [],
@@ -127,8 +142,10 @@ class KnowledgeLoader:
                         "collection": self.collection
                     }
                 )
+                print(f"    Loaded {count} entity contexts")
+                total_contexts += count
 
-            print("Entity contexts loaded.")
+            print(f"Entity contexts loaded. Total: {total_contexts}")
 
         except Exception as e:
             print(f"Error: {e}", flush=True)

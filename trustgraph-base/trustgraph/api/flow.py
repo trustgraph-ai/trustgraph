@@ -584,9 +584,13 @@ class FlowInstance:
             ```
         """
 
+        # First convert text to embeddings vectors
+        emb_result = self.embeddings(text=text)
+        vectors = emb_result.get("vectors", [])
+
         # Query graph embeddings for semantic search
         input = {
-            "text": text,
+            "vectors": vectors,
             "user": user,
             "collection": collection,
             "limit": limit
@@ -594,6 +598,51 @@ class FlowInstance:
 
         return self.request(
             "service/graph-embeddings",
+            input
+        )
+
+    def document_embeddings_query(self, text, user, collection, limit=10):
+        """
+        Query document chunks using semantic similarity.
+
+        Finds document chunks whose content is semantically similar to the
+        input text, using vector embeddings.
+
+        Args:
+            text: Query text for semantic search
+            user: User/keyspace identifier
+            collection: Collection identifier
+            limit: Maximum number of results (default: 10)
+
+        Returns:
+            dict: Query results with similar document chunks
+
+        Example:
+            ```python
+            flow = api.flow().id("default")
+            results = flow.document_embeddings_query(
+                text="machine learning algorithms",
+                user="trustgraph",
+                collection="research-papers",
+                limit=5
+            )
+            ```
+        """
+
+        # First convert text to embeddings vectors
+        emb_result = self.embeddings(text=text)
+        vectors = emb_result.get("vectors", [])
+
+        # Query document embeddings for semantic search
+        input = {
+            "vectors": vectors,
+            "user": user,
+            "collection": collection,
+            "limit": limit
+        }
+
+        return self.request(
+            "service/document-embeddings",
             input
         )
 

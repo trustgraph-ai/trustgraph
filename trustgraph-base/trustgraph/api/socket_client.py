@@ -649,8 +649,12 @@ class SocketFlowInstance:
             )
             ```
         """
+        # First convert text to embeddings vectors
+        emb_result = self.embeddings(text=text)
+        vectors = emb_result.get("vectors", [])
+
         request = {
-            "text": text,
+            "vectors": vectors,
             "user": user,
             "collection": collection,
             "limit": limit
@@ -658,6 +662,54 @@ class SocketFlowInstance:
         request.update(kwargs)
 
         return self.client._send_request_sync("graph-embeddings", self.flow_id, request, False)
+
+    def document_embeddings_query(
+        self,
+        text: str,
+        user: str,
+        collection: str,
+        limit: int = 10,
+        **kwargs: Any
+    ) -> Dict[str, Any]:
+        """
+        Query document chunks using semantic similarity.
+
+        Args:
+            text: Query text for semantic search
+            user: User/keyspace identifier
+            collection: Collection identifier
+            limit: Maximum number of results (default: 10)
+            **kwargs: Additional parameters passed to the service
+
+        Returns:
+            dict: Query results with similar document chunks
+
+        Example:
+            ```python
+            socket = api.socket()
+            flow = socket.flow("default")
+
+            results = flow.document_embeddings_query(
+                text="machine learning algorithms",
+                user="trustgraph",
+                collection="research-papers",
+                limit=5
+            )
+            ```
+        """
+        # First convert text to embeddings vectors
+        emb_result = self.embeddings(text=text)
+        vectors = emb_result.get("vectors", [])
+
+        request = {
+            "vectors": vectors,
+            "user": user,
+            "collection": collection,
+            "limit": limit
+        }
+        request.update(kwargs)
+
+        return self.client._send_request_sync("document-embeddings", self.flow_id, request, False)
 
     def embeddings(self, text: str, **kwargs: Any) -> Dict[str, Any]:
         """
