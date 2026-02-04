@@ -15,6 +15,15 @@ from . types import Triple
 from . exceptions import ProtocolException
 
 
+def _string_to_term(value: str) -> Dict[str, Any]:
+    """Convert a string value to Term format for the gateway."""
+    # Treat URIs as IRI type, otherwise as literal
+    if value.startswith("http://") or value.startswith("https://") or "://" in value:
+        return {"t": "i", "i": value}
+    else:
+        return {"t": "l", "v": value}
+
+
 class BulkClient:
     """
     Synchronous bulk operations client for import/export.
@@ -62,7 +71,12 @@ class BulkClient:
 
         return loop.run_until_complete(coro)
 
-    def import_triples(self, flow: str, triples: Iterator[Triple], **kwargs: Any) -> None:
+    def import_triples(
+        self, flow: str, triples: Iterator[Triple],
+        metadata: Optional[Dict[str, Any]] = None,
+        batch_size: int = 100,
+        **kwargs: Any
+    ) -> None:
         """
         Bulk import RDF triples into a flow.
 
@@ -71,6 +85,8 @@ class BulkClient:
         Args:
             flow: Flow identifier
             triples: Iterator yielding Triple objects
+            metadata: Metadata dict with id, metadata, user, collection
+            batch_size: Number of triples per batch (default 100)
             **kwargs: Additional parameters (reserved for future use)
 
         Example:
@@ -86,23 +102,47 @@ class BulkClient:
                 # ... more triples
 
             # Import triples
-            bulk.import_triples(flow="default", triples=triple_generator())
+            bulk.import_triples(
+                flow="default",
+                triples=triple_generator(),
+                metadata={"id": "doc1", "metadata": [], "user": "user1", "collection": "default"}
+            )
             ```
         """
-        self._run_async(self._import_triples_async(flow, triples))
+        self._run_async(self._import_triples_async(flow, triples, metadata, batch_size))
 
-    async def _import_triples_async(self, flow: str, triples: Iterator[Triple]) -> None:
+    async def _import_triples_async(
+        self, flow: str, triples: Iterator[Triple],
+        metadata: Optional[Dict[str, Any]], batch_size: int
+    ) -> None:
         """Async implementation of triple import"""
         ws_url = f"{self.url}/api/v1/flow/{flow}/import/triples"
         if self.token:
             ws_url = f"{ws_url}?token={self.token}"
 
+        if metadata is None:
+            metadata = {"id": "", "metadata": [], "user": "trustgraph", "collection": "default"}
+
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
+            batch = []
             for triple in triples:
+                batch.append({
+                    "s": _string_to_term(triple.s),
+                    "p": _string_to_term(triple.p),
+                    "o": _string_to_term(triple.o)
+                })
+                if len(batch) >= batch_size:
+                    message = {
+                        "metadata": metadata,
+                        "triples": batch
+                    }
+                    await websocket.send(json.dumps(message))
+                    batch = []
+            # Send remaining items
+            if batch:
                 message = {
-                    "s": triple.s,
-                    "p": triple.p,
-                    "o": triple.o
+                    "metadata": metadata,
+                    "triples": batch
                 }
                 await websocket.send(json.dumps(message))
 
@@ -362,7 +402,12 @@ class BulkClient:
             async for raw_message in websocket:
                 yield json.loads(raw_message)
 
-    def import_entity_contexts(self, flow: str, contexts: Iterator[Dict[str, Any]], **kwargs: Any) -> None:
+    def import_entity_contexts(
+        self, flow: str, contexts: Iterator[Dict[str, Any]],
+        metadata: Optional[Dict[str, Any]] = None,
+        batch_size: int = 100,
+        **kwargs: Any
+    ) -> None:
         """
         Bulk import entity contexts into a flow.
 
@@ -373,6 +418,8 @@ class BulkClient:
         Args:
             flow: Flow identifier
             contexts: Iterator yielding context dictionaries
+            metadata: Metadata dict with id, metadata, user, collection
+            batch_size: Number of contexts per batch (default 100)
             **kwargs: Additional parameters (reserved for future use)
 
         Example:
@@ -381,27 +428,49 @@ class BulkClient:
 
             # Generate entity contexts to import
             def context_generator():
-                yield {"entity": "entity1", "context": "Description of entity1..."}
-                yield {"entity": "entity2", "context": "Description of entity2..."}
+                yield {"entity": {"v": "entity1", "e": True}, "context": "Description..."}
+                yield {"entity": {"v": "entity2", "e": True}, "context": "Description..."}
                 # ... more contexts
 
             bulk.import_entity_contexts(
                 flow="default",
-                contexts=context_generator()
+                contexts=context_generator(),
+                metadata={"id": "doc1", "metadata": [], "user": "user1", "collection": "default"}
             )
             ```
         """
-        self._run_async(self._import_entity_contexts_async(flow, contexts))
+        self._run_async(self._import_entity_contexts_async(flow, contexts, metadata, batch_size))
 
-    async def _import_entity_contexts_async(self, flow: str, contexts: Iterator[Dict[str, Any]]) -> None:
+    async def _import_entity_contexts_async(
+        self, flow: str, contexts: Iterator[Dict[str, Any]],
+        metadata: Optional[Dict[str, Any]], batch_size: int
+    ) -> None:
         """Async implementation of entity contexts import"""
         ws_url = f"{self.url}/api/v1/flow/{flow}/import/entity-contexts"
         if self.token:
             ws_url = f"{ws_url}?token={self.token}"
 
+        if metadata is None:
+            metadata = {"id": "", "metadata": [], "user": "trustgraph", "collection": "default"}
+
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
+            batch = []
             for context in contexts:
-                await websocket.send(json.dumps(context))
+                batch.append(context)
+                if len(batch) >= batch_size:
+                    message = {
+                        "metadata": metadata,
+                        "entities": batch
+                    }
+                    await websocket.send(json.dumps(message))
+                    batch = []
+            # Send remaining items
+            if batch:
+                message = {
+                    "metadata": metadata,
+                    "entities": batch
+                }
+                await websocket.send(json.dumps(message))
 
     def export_entity_contexts(self, flow: str, **kwargs: Any) -> Iterator[Dict[str, Any]]:
         """

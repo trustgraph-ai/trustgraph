@@ -282,8 +282,12 @@ class AsyncSocketFlowInstance:
 
     async def graph_embeddings_query(self, text: str, user: str, collection: str, limit: int = 10, **kwargs):
         """Query graph embeddings for semantic search"""
+        # First convert text to embeddings vectors
+        emb_result = await self.embeddings(text=text)
+        vectors = emb_result.get("vectors", [])
+
         request = {
-            "text": text,
+            "vectors": vectors,
             "user": user,
             "collection": collection,
             "limit": limit

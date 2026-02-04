@@ -612,8 +612,12 @@ class AsyncFlowInstance:
                 print(f"{entity['name']}: {entity['score']}")
             ```
         """
+        # First convert text to embeddings vectors
+        emb_result = await self.embeddings(text=text)
+        vectors = emb_result.get("vectors", [])
+
         request_data = {
-            "text": text,
+            "vectors": vectors,
             "user": user,
             "collection": collection,
             "limit": limit
