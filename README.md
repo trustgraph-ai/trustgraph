@@ -11,13 +11,13 @@
 
 <a href="https://trendshift.io/repositories/17291" target="_blank"><img src="https://trendshift.io/api/badge/repositories/17291" alt="trustgraph-ai%2Ftrustgraph | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
-# The Context Graph Engine for AI
+# Programmable Context for the AI Stack
 
 </div>
 
-Build intelligent AI applications that reason, not hallucinate. TrustGraph is the open-source, full-stack solution for transforming raw data into precision-grounded context through automated context graph construction, custom ontology engineering, and intelligent context retrieval.
+Operationalizing AI requires more than a vector database. TrustGraph provides the complete Context Operating System service layer. Flexible Flows for real-time ingestion, isolated Context Cores for secure multi-tenancy, and comprehensive observability. Treat your context like infrastructure — predictable, scalable, and fully under your control.
 
-Deploy anywhere. Own your data. Control your AI stack.
+Deploy anywhere. Own your data. Control your context.
 
 <details>
 <summary>Table of Contents</summary>
@@ -40,7 +40,7 @@ Deploy anywhere. Own your data. Control your AI stack.
 ## Key Features
 
 - **Ontology-Driven Context Engineering**
-- **Unify Data Silos for Reliable, Accurate, and Precise AI**
+- **Unify Data Silos into a Single Context Graph**
 - **Automated Context Graph Construction and Retrieval**
 - **3D GraphViz**
 - **Single Agent or Multi-Agent Systems**
