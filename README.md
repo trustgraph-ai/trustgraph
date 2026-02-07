@@ -11,13 +11,22 @@
 
 <a href="https://trendshift.io/repositories/17291" target="_blank"><img src="https://trendshift.io/api/badge/repositories/17291" alt="trustgraph-ai%2Ftrustgraph | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
-# Programmable Context for the AI Stack
+# Graph-powered context harness for AI agents
 
 </div>
 
-Operationalizing AI requires more than a vector database. TrustGraph provides the complete Context Operating System service layer. Flexible Flows for real-time ingestion, isolated Context Cores for secure multi-tenancy, and comprehensive observability. Treat your context like infrastructure — predictable, scalable, and fully under your control.
+TrustGraph continuously builds a context graph creating a living context harness, so agents act with connected understanding — not isolated chunks.
 
-Deploy anywhere. Own your data. Control your context.
+Ingest your data into a unified context graph, enrich that graph with ontologies, and serve that graph as structured context to your agents and applications. Instead of letting LLMs guess from flat text, TrustGraph harnesses your graph so every response, tool call, and decision is driven by connected context.
+
+TrustGraph gives you a graph-backed context harness with:
+
+- a context graph over your data (nodes, edges, embeddings)
+- graphs built to your ontologies and protocols
+- GraphRAG APIs for context-aware retrieval
+- an agent harness that lets LLMs query, traverse, and update the graph with isolated collections and modular context cores
+
+Use it as the context layer under any model or agent framework with model inferencing for open models on Nvidia, AMD, or Intel hardware.
 
 <details>
 <summary>Table of Contents</summary>
