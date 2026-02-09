@@ -156,6 +156,9 @@ class Processor(LlmService):
                 response_format={"type": "text"}
             )
 
+            total_input_tokens = 0
+            total_output_tokens = 0
+
             for chunk in stream:
                 if chunk.data.choices and chunk.data.choices[0].delta.content:
                     yield LlmChunk(
@@ -166,11 +169,16 @@ class Processor(LlmService):
                         is_final=False
                     )
 
-            # Send final chunk
+                # Capture usage data when available (typically in final chunk)
+                if chunk.data.usage:
+                    total_input_tokens = chunk.data.usage.prompt_tokens
+                    total_output_tokens = chunk.data.usage.completion_tokens
+
+            # Send final chunk with token counts
             yield LlmChunk(
                 text="",
-                in_token=None,
-                out_token=None,
+                in_token=total_input_tokens,
+                out_token=total_output_tokens,
                 model=model_name,
                 is_final=True
             )
