@@ -135,10 +135,14 @@ class Processor(LlmService):
             "max_tokens": self.max_output,
             "temperature": effective_temperature,
             "stream": True,
+            "stream_options": {"include_usage": True},
         }
 
         try:
             url = f"{self.base_url.rstrip('/')}/completions"
+
+            total_input_tokens = 0
+            total_output_tokens = 0
 
             async with self.session.post(
                     url,
@@ -177,15 +181,21 @@ class Processor(LlmService):
                                         model=model_name,
                                         is_final=False
                                     )
+
+                            # Capture usage from final chunk
+                            if 'usage' in chunk_data and chunk_data['usage']:
+                                total_input_tokens = chunk_data['usage'].get('prompt_tokens', 0)
+                                total_output_tokens = chunk_data['usage'].get('completion_tokens', 0)
+
                         except json.JSONDecodeError:
                             logger.warning(f"Failed to parse chunk: {data}")
                             continue
 
-                # Send final chunk
+                # Send final chunk with token counts
                 yield LlmChunk(
                     text="",
-                    in_token=None,
-                    out_token=None,
+                    in_token=total_input_tokens,
+                    out_token=total_output_tokens,
                     model=model_name,
                     is_final=True
                 )

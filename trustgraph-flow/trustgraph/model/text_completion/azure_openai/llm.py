@@ -161,8 +161,12 @@ class Processor(LlmService):
                 temperature=effective_temperature,
                 max_tokens=self.max_output,
                 top_p=1,
-                stream=True  # Enable streaming
+                stream=True,
+                stream_options={"include_usage": True}
             )
+
+            total_input_tokens = 0
+            total_output_tokens = 0
 
             # Stream chunks
             for chunk in response:
@@ -175,11 +179,16 @@ class Processor(LlmService):
                         is_final=False
                     )
 
-            # Send final chunk
+                # Capture usage from final chunk
+                if chunk.usage:
+                    total_input_tokens = chunk.usage.prompt_tokens
+                    total_output_tokens = chunk.usage.completion_tokens
+
+            # Send final chunk with token counts
             yield LlmChunk(
                 text="",
-                in_token=None,
-                out_token=None,
+                in_token=total_input_tokens,
+                out_token=total_output_tokens,
                 model=model_name,
                 is_final=True
             )
