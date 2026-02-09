@@ -16,7 +16,7 @@ from trustgraph.extract.kg.definitions.extract import Processor as DefinitionsPr
 from trustgraph.extract.kg.relationships.extract import Processor as RelationshipsProcessor
 from trustgraph.storage.knowledge.store import Processor as KnowledgeStoreProcessor
 from trustgraph.schema import Chunk, Triple, Triples, Metadata, Term, Error, IRI, LITERAL
-from trustgraph.schema import EntityContext, EntityContexts, GraphEmbeddings
+from trustgraph.schema import EntityContext, EntityContexts, GraphEmbeddings, EntityEmbeddings
 from trustgraph.rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL, SUBJECT_OF
 
 
@@ -405,9 +405,14 @@ class TestKnowledgeGraphPipelineIntegration:
                 collection="test_collection",
                 metadata=[]
             ),
-            entities=[]
+            entities=[
+                EntityEmbeddings(
+                    entity=Term(type=IRI, iri="http://example.org/entity"),
+                    vectors=[[0.1, 0.2, 0.3]]
+                )
+            ]
         )
-        
+
         mock_msg = MagicMock()
         mock_msg.value.return_value = sample_embeddings
 
@@ -496,12 +501,12 @@ class TestKnowledgeGraphPipelineIntegration:
         await definitions_processor.on_message(mock_msg, mock_consumer, mock_flow_context)
 
         # Assert
-        # Should still call producers but with empty results
+        # Should NOT call producers with empty results (avoids Cassandra NULL issues)
         triples_producer = mock_flow_context("triples")
         entity_contexts_producer = mock_flow_context("entity-contexts")
-        
-        triples_producer.send.assert_called_once()
-        entity_contexts_producer.send.assert_called_once()
+
+        triples_producer.send.assert_not_called()
+        entity_contexts_producer.send.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_invalid_extraction_format_handling(self, definitions_processor, mock_flow_context, sample_chunk):
