@@ -64,12 +64,14 @@ class Processor(FlowProcessor):
     async def on_triples(self, msg, consumer, flow):
 
         v = msg.value()
-        await self.table_store.add_triples(v)
+        if v.triples:
+            await self.table_store.add_triples(v)
 
     async def on_graph_embeddings(self, msg, consumer, flow):
 
         v = msg.value()
-        await self.table_store.add_graph_embeddings(v)
+        if v.entities:
+            await self.table_store.add_graph_embeddings(v)
 
     @staticmethod
     def add_args(parser):
