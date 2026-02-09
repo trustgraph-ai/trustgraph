@@ -168,27 +168,29 @@ class Processor(FlowProcessor):
 
                 entities.append(ec)
 
-            await self.emit_triples(
-                flow("triples"),
-                Metadata(
-                    id=v.metadata.id,
-                    metadata=[],
-                    user=v.metadata.user,
-                    collection=v.metadata.collection,
-                ),
-                triples
-            )
+            if triples:
+                await self.emit_triples(
+                    flow("triples"),
+                    Metadata(
+                        id=v.metadata.id,
+                        metadata=[],
+                        user=v.metadata.user,
+                        collection=v.metadata.collection,
+                    ),
+                    triples
+                )
 
-            await self.emit_ecs(
-                flow("entity-contexts"),
-                Metadata(
-                    id=v.metadata.id,
-                    metadata=[],
-                    user=v.metadata.user,
-                    collection=v.metadata.collection,
-                ),
-                entities
-            )
+            if entities:
+                await self.emit_ecs(
+                    flow("entity-contexts"),
+                    Metadata(
+                        id=v.metadata.id,
+                        metadata=[],
+                        user=v.metadata.user,
+                        collection=v.metadata.collection,
+                    ),
+                    entities
+                )
 
         except Exception as e:
             logger.error(f"Definitions extraction exception: {e}", exc_info=True)

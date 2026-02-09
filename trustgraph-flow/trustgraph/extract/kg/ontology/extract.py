@@ -274,17 +274,6 @@ class Processor(FlowProcessor):
 
             if not ontology_subsets:
                 logger.warning("No relevant ontology elements found for chunk")
-                # Emit empty outputs
-                await self.emit_triples(
-                    flow("triples"),
-                    v.metadata,
-                    []
-                )
-                await self.emit_entity_contexts(
-                    flow("entity-contexts"),
-                    v.metadata,
-                    []
-                )
                 return
 
             # Merge subsets if multiple ontologies matched
@@ -319,35 +308,26 @@ class Processor(FlowProcessor):
             entity_contexts = self.build_entity_contexts(all_triples)
 
             # Emit all triples (extracted + ontology definitions)
-            await self.emit_triples(
-                flow("triples"),
-                v.metadata,
-                all_triples
-            )
+            if all_triples:
+                await self.emit_triples(
+                    flow("triples"),
+                    v.metadata,
+                    all_triples
+                )
 
             # Emit entity contexts
-            await self.emit_entity_contexts(
-                flow("entity-contexts"),
-                v.metadata,
-                entity_contexts
-            )
+            if entity_contexts:
+                await self.emit_entity_contexts(
+                    flow("entity-contexts"),
+                    v.metadata,
+                    entity_contexts
+                )
 
             logger.info(f"Extracted {len(triples)} content triples + {len(ontology_triples)} ontology triples "
                        f"= {len(all_triples)} total triples and {len(entity_contexts)} entity contexts")
 
         except Exception as e:
             logger.error(f"OntoRAG extraction exception: {e}", exc_info=True)
-            # Emit empty outputs on error
-            await self.emit_triples(
-                flow("triples"),
-                v.metadata,
-                []
-            )
-            await self.emit_entity_contexts(
-                flow("entity-contexts"),
-                v.metadata,
-                []
-            )
 
     async def extract_with_simplified_format(
         self,
