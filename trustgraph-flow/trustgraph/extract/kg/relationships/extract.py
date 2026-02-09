@@ -181,16 +181,17 @@ class Processor(FlowProcessor):
                         o=Value(value=v.metadata.id, is_uri=True)
                     ))
 
-            await self.emit_triples(
-                flow("triples"),
-                Metadata(
-                    id=v.metadata.id,
-                    metadata=[],
-                    user=v.metadata.user,
-                    collection=v.metadata.collection,
-                ),
-                triples
-            )
+            if triples:
+                await self.emit_triples(
+                    flow("triples"),
+                    Metadata(
+                        id=v.metadata.id,
+                        metadata=[],
+                        user=v.metadata.user,
+                        collection=v.metadata.collection,
+                    ),
+                    triples
+                )
 
         except Exception as e:
             logger.error(f"Relationship extraction exception: {e}", exc_info=True)

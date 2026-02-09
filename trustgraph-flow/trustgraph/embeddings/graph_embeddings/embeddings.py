@@ -73,12 +73,13 @@ class Processor(FlowProcessor):
                     )
                 )
 
-            r = GraphEmbeddings(
-                metadata=v.metadata,
-                entities=entities,
-            )
+            if entities:
+                r = GraphEmbeddings(
+                    metadata=v.metadata,
+                    entities=entities,
+                )
 
-            await flow("output").send(r)
+                await flow("output").send(r)
 
         except Exception as e:
             logger.error("Exception occurred", exc_info=True)

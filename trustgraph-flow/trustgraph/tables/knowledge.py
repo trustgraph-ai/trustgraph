@@ -423,14 +423,17 @@ class KnowledgeTableStore:
             else:
                 metadata = []
 
-            triples = [
-                Triple(
-                    s = Value(value = elt[0], is_uri = elt[1]),
-                    p = Value(value = elt[2], is_uri = elt[3]),
-                    o = Value(value = elt[4], is_uri = elt[5]),
-                )
-                for elt in row[3]
-            ]
+            if row[3]:
+                triples = [
+                    Triple(
+                        s = Value(value = elt[0], is_uri = elt[1]),
+                        p = Value(value = elt[2], is_uri = elt[3]),
+                        o = Value(value = elt[4], is_uri = elt[5]),
+                    )
+                    for elt in row[3]
+                ]
+            else:
+                triples = []
 
             await receiver(
                 Triples(
@@ -479,13 +482,16 @@ class KnowledgeTableStore:
             else:
                 metadata = []
 
-            entities = [
-                EntityEmbeddings(
-                    entity = Value(value = ent[0][0], is_uri = ent[0][1]),
-                    vectors = ent[1]
-                )
-                for ent in row[3]
-            ]
+            if row[3]:
+                entities = [
+                    EntityEmbeddings(
+                        entity = Value(value = ent[0][0], is_uri = ent[0][1]),
+                        vectors = ent[1]
+                    )
+                    for ent in row[3]
+                ]
+            else:
+                entities = []
 
             await receiver(
                 GraphEmbeddings(
