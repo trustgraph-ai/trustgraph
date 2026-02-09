@@ -27,16 +27,26 @@ class AsyncBulkClient:
 
     async def import_triples(self, flow: str, triples: AsyncIterator[Triple], **kwargs: Any) -> None:
         """Bulk import triples via WebSocket"""
+        metadata = kwargs.get('metadata')
         ws_url = f"{self.url}/api/v1/flow/{flow}/import/triples"
         if self.token:
             ws_url = f"{ws_url}?token={self.token}"
 
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
             async for triple in triples:
+                # Format in Value format expected by gateway
+                s_is_uri = getattr(triple, 's_is_uri', True)
+                p_is_uri = getattr(triple, 'p_is_uri', True)
+                o_is_uri = getattr(triple, 'o_is_uri', True)
                 message = {
-                    "s": triple.s,
-                    "p": triple.p,
-                    "o": triple.o
+                    "metadata": metadata or {},
+                    "triples": [
+                        {
+                            "s": {"v": triple.s, "e": s_is_uri},
+                            "p": {"v": triple.p, "e": p_is_uri},
+                            "o": {"v": triple.o, "e": o_is_uri},
+                        }
+                    ]
                 }
                 await websocket.send(json.dumps(message))
 
@@ -97,13 +107,18 @@ class AsyncBulkClient:
 
     async def import_entity_contexts(self, flow: str, contexts: AsyncIterator[Dict[str, Any]], **kwargs: Any) -> None:
         """Bulk import entity contexts via WebSocket"""
+        metadata = kwargs.get('metadata')
         ws_url = f"{self.url}/api/v1/flow/{flow}/import/entity-contexts"
         if self.token:
             ws_url = f"{ws_url}?token={self.token}"
 
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
             async for context in contexts:
-                await websocket.send(json.dumps(context))
+                message = {
+                    "metadata": metadata or {},
+                    "entities": [context]
+                }
+                await websocket.send(json.dumps(message))
 
     async def export_entity_contexts(self, flow: str, **kwargs: Any) -> AsyncIterator[Dict[str, Any]]:
         """Bulk export entity contexts via WebSocket"""
