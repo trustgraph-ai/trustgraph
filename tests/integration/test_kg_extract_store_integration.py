@@ -405,9 +405,14 @@ class TestKnowledgeGraphPipelineIntegration:
                 collection="test_collection",
                 metadata=[]
             ),
-            entities=[]
+            entities=[
+                EntityEmbeddings(
+                    entity=Value(value="http://example.org/entity", is_uri=True),
+                    vectors=[[0.1, 0.2, 0.3]]
+                )
+            ]
         )
-        
+
         mock_msg = MagicMock()
         mock_msg.value.return_value = sample_embeddings
 
