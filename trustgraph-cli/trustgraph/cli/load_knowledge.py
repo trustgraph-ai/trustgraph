@@ -119,7 +119,7 @@ class KnowledgeLoader:
 
                 bulk.import_entity_contexts(
                     flow=self.flow,
-                    entities=entity_context_generator(),
+                    contexts=entity_context_generator(),
                     metadata={
                         "id": self.document_id,
                         "metadata": [],

@@ -89,9 +89,10 @@ class BulkClient:
             bulk.import_triples(flow="default", triples=triple_generator())
             ```
         """
-        self._run_async(self._import_triples_async(flow, triples))
+        metadata = kwargs.get('metadata')
+        self._run_async(self._import_triples_async(flow, triples, metadata))
 
-    async def _import_triples_async(self, flow: str, triples: Iterator[Triple]) -> None:
+    async def _import_triples_async(self, flow: str, triples: Iterator[Triple], metadata: Dict[str, Any] = None) -> None:
         """Async implementation of triple import"""
         ws_url = f"{self.url}/api/v1/flow/{flow}/import/triples"
         if self.token:
@@ -99,10 +100,21 @@ class BulkClient:
 
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
             for triple in triples:
+                # Format in Value format expected by gateway
+                # In RDF, subjects and predicates are always URIs
+                # Objects default to URI but can be literals (is_uri=False)
+                s_is_uri = getattr(triple, 's_is_uri', True)
+                p_is_uri = getattr(triple, 'p_is_uri', True)
+                o_is_uri = getattr(triple, 'o_is_uri', True)
                 message = {
-                    "s": triple.s,
-                    "p": triple.p,
-                    "o": triple.o
+                    "metadata": metadata or {},
+                    "triples": [
+                        {
+                            "s": {"v": triple.s, "e": s_is_uri},
+                            "p": {"v": triple.p, "e": p_is_uri},
+                            "o": {"v": triple.o, "e": o_is_uri},
+                        }
+                    ]
                 }
                 await websocket.send(json.dumps(message))
 
@@ -391,9 +403,10 @@ class BulkClient:
             )
             ```
         """
-        self._run_async(self._import_entity_contexts_async(flow, contexts))
+        metadata = kwargs.get('metadata')
+        self._run_async(self._import_entity_contexts_async(flow, contexts, metadata))
 
-    async def _import_entity_contexts_async(self, flow: str, contexts: Iterator[Dict[str, Any]]) -> None:
+    async def _import_entity_contexts_async(self, flow: str, contexts: Iterator[Dict[str, Any]], metadata: Dict[str, Any] = None) -> None:
         """Async implementation of entity contexts import"""
         ws_url = f"{self.url}/api/v1/flow/{flow}/import/entity-contexts"
         if self.token:
@@ -401,7 +414,11 @@ class BulkClient:
 
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
             for context in contexts:
-                await websocket.send(json.dumps(context))
+                message = {
+                    "metadata": metadata or {},
+                    "entities": [context]
+                }
+                await websocket.send(json.dumps(message))
 
     def export_entity_contexts(self, flow: str, **kwargs: Any) -> Iterator[Dict[str, Any]]:
         """
