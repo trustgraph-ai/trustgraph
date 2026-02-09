@@ -12,7 +12,7 @@ requires-python = ">=3.8"
 dependencies = [
     "trustgraph-base>=2.0,<2.1",
     "pulsar-client",
-    "google-cloud-aiplatform",
+    "google-genai",
     "prometheus-client",
     "anthropic",
 ]
