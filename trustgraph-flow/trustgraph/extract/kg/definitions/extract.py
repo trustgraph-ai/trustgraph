@@ -161,12 +161,17 @@ class Processor(FlowProcessor):
                     o=Value(value=v.metadata.id, is_uri=True)
                 ))
 
-                ec = EntityContext(
+                # Output entity name as context for direct name matching
+                entities.append(EntityContext(
+                    entity=s_value,
+                    context=s,
+                ))
+
+                # Output definition as context for semantic matching
+                entities.append(EntityContext(
                     entity=s_value,
                     context=defn["definition"],
-                )
-
-                entities.append(ec)
+                ))
 
             if triples:
                 await self.emit_triples(
