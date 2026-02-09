@@ -13,6 +13,7 @@ dependencies = [
     "trustgraph-base>=2.0,<2.1",
     "pulsar-client",
     "google-genai",
+    "google-api-core",
     "prometheus-client",
     "anthropic",
 ]

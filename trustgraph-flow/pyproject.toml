@@ -20,6 +20,7 @@ dependencies = [
     "falkordb",
     "fastembed",
     "google-genai",
+    "google-api-core",
     "ibis",
     "jsonschema",
     "langchain",
