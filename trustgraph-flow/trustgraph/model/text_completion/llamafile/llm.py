@@ -126,8 +126,12 @@ class Processor(LlmService):
                 frequency_penalty=0,
                 presence_penalty=0,
                 response_format={"type": "text"},
-                stream=True
+                stream=True,
+                stream_options={"include_usage": True}
             )
+
+            total_input_tokens = 0
+            total_output_tokens = 0
 
             for chunk in response:
                 if chunk.choices and chunk.choices[0].delta.content:
@@ -139,10 +143,15 @@ class Processor(LlmService):
                         is_final=False
                     )
 
+                # Capture usage from final chunk
+                if chunk.usage:
+                    total_input_tokens = chunk.usage.prompt_tokens
+                    total_output_tokens = chunk.usage.completion_tokens
+
             yield LlmChunk(
                 text="",
-                in_token=None,
-                out_token=None,
+                in_token=total_input_tokens,
+                out_token=total_output_tokens,
                 model=model_name,
                 is_final=True
             )

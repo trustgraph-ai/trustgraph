@@ -75,6 +75,7 @@ class Processor(LlmService):
 
         if stream:
             data["stream"] = True
+            data["stream_options"] = {"include_usage": True}
 
         body = json.dumps(data)
 
@@ -191,6 +192,9 @@ class Processor(LlmService):
             if response.status_code != 200:
                 raise RuntimeError("LLM failure")
 
+            total_input_tokens = 0
+            total_output_tokens = 0
+
             # Parse SSE stream
             for line in response.iter_lines():
                 if line:
@@ -215,15 +219,21 @@ class Processor(LlmService):
                                         model=model_name,
                                         is_final=False
                                     )
+
+                            # Capture usage from final chunk
+                            if 'usage' in chunk_data and chunk_data['usage']:
+                                total_input_tokens = chunk_data['usage'].get('prompt_tokens', 0)
+                                total_output_tokens = chunk_data['usage'].get('completion_tokens', 0)
+
                         except json.JSONDecodeError:
                             logger.warning(f"Failed to parse chunk: {data}")
                             continue
 
-            # Send final chunk
+            # Send final chunk with token counts
             yield LlmChunk(
                 text="",
-                in_token=None,
-                out_token=None,
+                in_token=total_input_tokens,
+                out_token=total_output_tokens,
                 model=model_name,
                 is_final=True
             )
