@@ -21,10 +21,10 @@ Ingest your data into a unified context graph, enrich that graph with ontologies
 
 TrustGraph gives you a graph-backed context harness with:
 
-- a context graph over your data (nodes, edges, embeddings)
-- graphs built to your ontologies and protocols
+- A context graph over your data (nodes, edges, embeddings)
+- Graphs built to your ontologies and protocols
 - GraphRAG APIs for context-aware retrieval
-- an agent harness that lets LLMs query, traverse, and update the graph with isolated collections and modular context cores
+- An agent harness that lets LLMs query, traverse, and update the graph with isolated collections and modular context cores
 
 Use it as the context layer under any model or agent framework with model inferencing for open models on Nvidia, AMD, or Intel hardware.
 
@@ -34,7 +34,9 @@ Use it as the context layer under any model or agent framework with model infere
 npx @trustgraph/config
 ```
 
-TrustGraph downloads as a set of Docker containers and can be run locally with Docker, Podman, or Minikube. The config tool will generate `deploy.zip` which contains either a `docker-compose.yaml` file for a Docker/Podman deploy or `resources.yaml` for Kubernetes. Deployment instructions are generated as `INSTALLATION.md`.
+TrustGraph downloads as Docker containers and can be run locally with Docker, Podman, or Minikube. The config tool will generate:
+- `deploy.zip` with either a `docker-compose.yaml` file for a Docker/Podman deploy or `resources.yaml` for Kubernetes
+- Deployment instructions as `INSTALLATION.md`.
 
 <p align="center">
   <video src="https://github.com/user-attachments/assets/2978a6aa-4c9c-4d7c-ad02-8f3d01a1c602"
