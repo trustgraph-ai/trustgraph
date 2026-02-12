@@ -28,6 +28,17 @@ TrustGraph gives you a graph-backed context harness with:
 
 Use it as the context layer under any model or agent framework with model inferencing for open models on Nvidia, AMD, or Intel hardware.
 
+## Quickstart
+
+```
+npx @trustgraph/config
+```
+
+<p align="center">
+  <video src="https://github.com/user-attachments/assets/2978a6aa-4c9c-4d7c-ad02-8f3d01a1c602"
+width="80%" controls></video>
+</p>
+
 <details>
 <summary>Table of Contents</summary>
 <br>
@@ -192,7 +203,7 @@ TrustGraph provides component flexibility to optimize agent workflows.
 
 </details>
 <details>
-<summary>Control Plane</summary>
+<summary>Data Streaming</summary>
 <br>
 
 - Apache Pulsar<br>
