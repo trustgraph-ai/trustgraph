@@ -34,6 +34,8 @@ Use it as the context layer under any model or agent framework with model infere
 npx @trustgraph/config
 ```
 
+TrustGraph downloads as a set of Docker containers and can be run locally with Docker, Podman, or Minikube. The config tool will generate `deploy.zip` which contains either a `docker-compose.yaml` file for a Docker/Podman deploy or `resources.yaml` for Kubernetes. Deployment instructions are generated as `INSTALLATION.md`.
+
 <p align="center">
   <video src="https://github.com/user-attachments/assets/2978a6aa-4c9c-4d7c-ad02-8f3d01a1c602"
 width="80%" controls></video>
@@ -47,7 +49,6 @@ width="80%" controls></video>
 - [**What is a Context Graph?**](#what-is-a-context-graph)<br>
 - [**Why TrustGraph?**](#why-trustgraph)<br>
 - [**Getting Started**](#getting-started)<br>
-- [**Configuration Builder**](#configuration-builder)<br>
 - [**Context Cores**](#context-cores)<br>
 - [**Integrations**](#integrations)<br>
 - [**Observability & Telemetry**](#observability--telemetry)<br>
@@ -93,15 +94,6 @@ width="80%" controls></video>
 ### Watch TrustGraph 101
 
 [![TrustGraph 101](https://img.youtube.com/vi/rWYl_yhKCng/maxresdefault.jpg)](https://www.youtube.com/watch?v=rWYl_yhKCng)
-
-## Configuration Builder
-
-The [**Configuration Builder**](https://config-ui.demo.trustgraph.ai/) assembles all of the selected components and builds them into a deployable package. It has 4 sections:
-
-- **Version**: Select the version of TrustGraph you'd like to deploy
-- **Component Selection**: Choose from the available deployment platforms, LLMs, graph store, VectorDB, chunking algorithm, chunking parameters, and LLM parameters
-- **Customization**: Enable OCR pipelines and custom embeddings models
-- **Finish Deployment**: Download the launch `YAML` files with deployment instructions
 
 ## Workbench
 
