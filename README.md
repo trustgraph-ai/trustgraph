@@ -36,7 +36,7 @@ npx @trustgraph/config
 
 TrustGraph downloads as Docker containers and can be run locally with Docker, Podman, or Minikube. The config tool will generate:
 - `deploy.zip` with either a `docker-compose.yaml` file for a Docker/Podman deploy or `resources.yaml` for Kubernetes
-- Deployment instructions as `INSTALLATION.md`.
+- Deployment instructions as `INSTALLATION.md`
 
 <p align="center">
   <video src="https://github.com/user-attachments/assets/2978a6aa-4c9c-4d7c-ad02-8f3d01a1c602"
