@@ -50,9 +50,9 @@ width="80%" controls></video>
 - [**Key Features**](#key-features)<br>
 - [**What is a Context Graph?**](#what-is-a-context-graph)<br>
 - [**Why TrustGraph?**](#why-trustgraph)<br>
-- [**Getting Started**](#getting-started)<br>
+- [**Getting Started**](#getting-started-with-trustgraph)<br>
 - [**Context Cores**](#context-cores)<br>
-- [**Integrations**](#integrations)<br>
+- [**Tech Stack**](#tech-stack)<br>
 - [**Observability & Telemetry**](#observability--telemetry)<br>
 - [**Contributing**](#contributing)<br>
 - [**License**](#license)<br>
@@ -85,13 +85,12 @@ width="80%" controls></video>
 
 [![Why TrustGraph?](https://img.youtube.com/vi/Norboj8YP2M/maxresdefault.jpg)](https://www.youtube.com/watch?v=Norboj8YP2M)
 
-## Getting Started
+## Getting Started with TrustGraph
 
-- [**Quickstart Guide**](https://docs.trustgraph.ai/getting-started)
-- [**Configuration Builder**](#configuration-builder)
-- [**Workbench**](#workbench)
+- [**Getting Started Guides**](https://docs.trustgraph.ai/getting-started)
+- [**Using the Workbench**](#workbench)
 - [**Developer APIs and CLI**](https://docs.trustgraph.ai/reference)
-- [**Deployment Guide**](https://docs.trustgraph.ai/deployment)
+- [**Deployment Guides**](https://docs.trustgraph.ai/deployment)
 
 ### Watch TrustGraph 101
 
@@ -132,7 +131,7 @@ A Context Core has two components:
 - Context graph triples
 - Vector embeddings mapped to the context graph
 
-## Integrations
+## Tech Stack
 TrustGraph provides component flexibility to optimize agent workflows.
 
 <details>
