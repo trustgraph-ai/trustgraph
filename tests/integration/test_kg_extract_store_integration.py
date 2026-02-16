@@ -147,6 +147,8 @@ class TestKnowledgeGraphPipelineIntegration:
         processor.emit_triples = DefinitionsProcessor.emit_triples.__get__(processor, DefinitionsProcessor)
         processor.emit_ecs = DefinitionsProcessor.emit_ecs.__get__(processor, DefinitionsProcessor)
         processor.on_message = DefinitionsProcessor.on_message.__get__(processor, DefinitionsProcessor)
+        processor.triples_batch_size = 50
+        processor.entity_batch_size = 5
         return processor
 
     @pytest.fixture
@@ -156,6 +158,7 @@ class TestKnowledgeGraphPipelineIntegration:
         processor.to_uri = RelationshipsProcessor.to_uri.__get__(processor, RelationshipsProcessor)
         processor.emit_triples = RelationshipsProcessor.emit_triples.__get__(processor, RelationshipsProcessor)
         processor.on_message = RelationshipsProcessor.on_message.__get__(processor, RelationshipsProcessor)
+        processor.triples_batch_size = 50
         return processor
 
     @pytest.mark.asyncio
