@@ -39,7 +39,7 @@ def create_term(value, otype=None, dtype=None, lang=None):
 
     Args:
         value: The string value
-        otype: Object type - 'U' (URI), 'L' (literal), 'T' (triple)
+        otype: Object type - 'u' (URI), 'l' (literal), 't' (triple)
         dtype: XSD datatype (for literals)
         lang: Language tag (for literals)
 
@@ -47,16 +47,16 @@ def create_term(value, otype=None, dtype=None, lang=None):
     Otherwise falls back to URL detection heuristic.
     """
     if otype is not None:
-        if otype == 'U':
+        if otype == 'u':
             return Term(type=IRI, iri=value)
-        elif otype == 'L':
+        elif otype == 'l':
             return Term(
                 type=LITERAL,
                 value=value,
                 datatype=dtype or "",
                 language=lang or ""
             )
-        elif otype == 'T':
+        elif otype == 't':
             # Triple/reification - treat as IRI for now
             return Term(type=IRI, iri=value)
         else:

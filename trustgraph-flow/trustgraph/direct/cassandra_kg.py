@@ -732,7 +732,7 @@ class EntityCentricKnowledgeGraph:
             p: Predicate (string value)
             o: Object (string value)
             g: Graph/dataset (None for default graph)
-            otype: Object type - 'U' (URI), 'L' (literal), 'T' (triple)
+            otype: Object type - 'u' (URI), 'l' (literal), 't' (triple)
                    Auto-detected from o value if not provided
             dtype: XSD datatype (for literals)
             lang: Language tag (for literals)
@@ -744,9 +744,9 @@ class EntityCentricKnowledgeGraph:
         # Auto-detect otype if not provided (backwards compatibility)
         if otype is None:
             if o.startswith("http://") or o.startswith("https://"):
-                otype = "U"
+                otype = "u"
             else:
-                otype = "L"
+                otype = "l"
 
         batch = BatchStatement()
 
@@ -761,7 +761,7 @@ class EntityCentricKnowledgeGraph:
         ))
 
         # Write row for object entity (role='O') - only for URIs, not literals
-        if otype == 'U' or otype == 'T':
+        if otype == 'u' or otype == 't':
             batch.add(self.insert_entity_stmt, (
                 collection, o, 'O', p, otype, s, o, g, dtype, lang
             ))
@@ -1005,7 +1005,7 @@ class EntityCentricKnowledgeGraph:
             entities.add(p)
 
             # Object is an entity only for URIs
-            if otype == 'U' or otype == 'T':
+            if otype == 'u' or otype == 't':
                 entities.add(o)
 
             # Graph is an entity for non-default graphs
@@ -1073,12 +1073,12 @@ class QuadResult:
         p: Predicate value
         o: Object value
         g: Graph/dataset value
-        otype: Object type - 'U' (URI), 'L' (literal), 'T' (triple)
+        otype: Object type - 'u' (URI), 'l' (literal), 't' (triple)
         dtype: XSD datatype (for literals)
         lang: Language tag (for literals)
     """
 
-    def __init__(self, s, p, o, g, otype='U', dtype='', lang=''):
+    def __init__(self, s, p, o, g, otype='u', dtype='', lang=''):
         self.s = s
         self.p = p
         self.o = o

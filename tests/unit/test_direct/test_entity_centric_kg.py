@@ -93,7 +93,7 @@ class TestEntityCentricKnowledgeGraph:
             p='http://example.org/knows',
             o='http://example.org/Bob',
             g='http://example.org/graph1',
-            otype='U'
+            otype='u'
         )
 
         # Verify batch was executed
@@ -111,7 +111,7 @@ class TestEntityCentricKnowledgeGraph:
             p='http://www.w3.org/2000/01/rdf-schema#label',
             o='Alice Smith',
             g=None,
-            otype='L',
+            otype='l',
             dtype='xsd:string',
             lang='en'
         )
@@ -131,7 +131,7 @@ class TestEntityCentricKnowledgeGraph:
             p='http://example.org/knows',
             o='http://example.org/Bob',
             g=None,
-            otype='U'
+            otype='u'
         )
 
         mock_session.execute.assert_called()
@@ -169,7 +169,7 @@ class TestEntityCentricKnowledgeGraph:
         # Mock the query result
         mock_result = [
             MagicMock(p='http://example.org/knows', o='http://example.org/Bob',
-                      d='', otype='U', dtype='', lang='', s='http://example.org/Alice')
+                      d='', otype='u', dtype='', lang='', s='http://example.org/Alice')
         ]
         mock_session.execute.return_value = mock_result
 
@@ -190,7 +190,7 @@ class TestEntityCentricKnowledgeGraph:
 
         mock_result = [
             MagicMock(s='http://example.org/Alice', o='http://example.org/Bob',
-                      d='', otype='U', dtype='', lang='', p='http://example.org/knows')
+                      d='', otype='u', dtype='', lang='', p='http://example.org/knows')
         ]
         mock_session.execute.return_value = mock_result
 
@@ -205,7 +205,7 @@ class TestEntityCentricKnowledgeGraph:
 
         mock_result = [
             MagicMock(s='http://example.org/Alice', p='http://example.org/knows',
-                      d='', otype='U', dtype='', lang='', o='http://example.org/Bob')
+                      d='', otype='u', dtype='', lang='', o='http://example.org/Bob')
         ]
         mock_session.execute.return_value = mock_result
 
@@ -219,7 +219,7 @@ class TestEntityCentricKnowledgeGraph:
         kg, mock_session = entity_kg
 
         mock_result = [
-            MagicMock(o='http://example.org/Bob', d='', otype='U', dtype='', lang='')
+            MagicMock(o='http://example.org/Bob', d='', otype='u', dtype='', lang='')
         ]
         mock_session.execute.return_value = mock_result
 
@@ -234,7 +234,7 @@ class TestEntityCentricKnowledgeGraph:
         kg, mock_session = entity_kg
 
         mock_result = [
-            MagicMock(s='http://example.org/Alice', d='', otype='U', dtype='', lang='',
+            MagicMock(s='http://example.org/Alice', d='', otype='u', dtype='', lang='',
                       o='http://example.org/Bob')
         ]
         mock_session.execute.return_value = mock_result
@@ -250,7 +250,7 @@ class TestEntityCentricKnowledgeGraph:
         kg, mock_session = entity_kg
 
         mock_result = [
-            MagicMock(p='http://example.org/knows', d='', otype='U', dtype='', lang='',
+            MagicMock(p='http://example.org/knows', d='', otype='u', dtype='', lang='',
                       s='http://example.org/Alice', o='http://example.org/Bob')
         ]
         mock_session.execute.return_value = mock_result
@@ -266,7 +266,7 @@ class TestEntityCentricKnowledgeGraph:
         kg, mock_session = entity_kg
 
         mock_result = [
-            MagicMock(d='', otype='U', dtype='', lang='',
+            MagicMock(d='', otype='u', dtype='', lang='',
                       o='http://example.org/Bob')
         ]
         mock_session.execute.return_value = mock_result
@@ -283,7 +283,7 @@ class TestEntityCentricKnowledgeGraph:
 
         mock_result = [
             MagicMock(s='http://example.org/Alice', p='http://example.org/knows',
-                      o='http://example.org/Bob', otype='U', dtype='', lang='')
+                      o='http://example.org/Bob', otype='u', dtype='', lang='')
         ]
         mock_session.execute.return_value = mock_result
 
@@ -297,7 +297,7 @@ class TestEntityCentricKnowledgeGraph:
 
         mock_result = [
             MagicMock(d='', s='http://example.org/Alice', p='http://example.org/knows',
-                      o='http://example.org/Bob', otype='U', dtype='', lang='')
+                      o='http://example.org/Bob', otype='u', dtype='', lang='')
         ]
         mock_session.execute.return_value = mock_result
 
@@ -312,10 +312,10 @@ class TestEntityCentricKnowledgeGraph:
 
         mock_result = [
             MagicMock(p='http://example.org/knows', d='http://example.org/graph1',
-                      otype='U', dtype='', lang='', s='http://example.org/Alice',
+                      otype='u', dtype='', lang='', s='http://example.org/Alice',
                       o='http://example.org/Bob'),
             MagicMock(p='http://example.org/knows', d='http://example.org/graph2',
-                      otype='U', dtype='', lang='', s='http://example.org/Alice',
+                      otype='u', dtype='', lang='', s='http://example.org/Alice',
                       o='http://example.org/Charlie')
         ]
         mock_session.execute.return_value = mock_result
@@ -331,10 +331,10 @@ class TestEntityCentricKnowledgeGraph:
 
         mock_result = [
             MagicMock(p='http://example.org/knows', d='http://example.org/graph1',
-                      otype='U', dtype='', lang='', s='http://example.org/Alice',
+                      otype='u', dtype='', lang='', s='http://example.org/Alice',
                       o='http://example.org/Bob'),
             MagicMock(p='http://example.org/knows', d='http://example.org/graph2',
-                      otype='U', dtype='', lang='', s='http://example.org/Alice',
+                      otype='u', dtype='', lang='', s='http://example.org/Alice',
                       o='http://example.org/Charlie')
         ]
         mock_session.execute.return_value = mock_result
@@ -384,7 +384,7 @@ class TestEntityCentricKnowledgeGraph:
         # Mock reading quads from collection
         mock_quads = [
             MagicMock(d='', s='http://example.org/Alice', p='http://example.org/knows',
-                      o='http://example.org/Bob', otype='U')
+                      o='http://example.org/Bob', otype='u')
         ]
         mock_session.execute.return_value = mock_quads
 
@@ -416,7 +416,7 @@ class TestQuadResult:
             p='http://example.org/knows',
             o='http://example.org/Bob',
             g='http://example.org/graph1',
-            otype='U',
+            otype='u',
             dtype='',
             lang=''
         )
@@ -425,7 +425,7 @@ class TestQuadResult:
         assert result.p == 'http://example.org/knows'
         assert result.o == 'http://example.org/Bob'
         assert result.g == 'http://example.org/graph1'
-        assert result.otype == 'U'
+        assert result.otype == 'u'
         assert result.dtype == ''
         assert result.lang == ''
 
@@ -440,7 +440,7 @@ class TestQuadResult:
             g=''
         )
 
-        assert result.otype == 'U'  # Default otype
+        assert result.otype == 'u'  # Default otype
         assert result.dtype == ''
         assert result.lang == ''
 
@@ -453,12 +453,12 @@ class TestQuadResult:
             p='http://www.w3.org/2000/01/rdf-schema#label',
             o='Alice Smith',
             g='',
-            otype='L',
+            otype='l',
             dtype='xsd:string',
             lang='en'
         )
 
-        assert result.otype == 'L'
+        assert result.otype == 'l'
         assert result.dtype == 'xsd:string'
         assert result.lang == 'en'
 
@@ -511,42 +511,42 @@ class TestWriteHelperFunctions:
     """Test cases for helper functions in write.py"""
 
     def test_get_term_otype_for_iri(self):
-        """Test get_term_otype returns 'U' for IRI terms"""
+        """Test get_term_otype returns 'u' for IRI terms"""
         from trustgraph.storage.triples.cassandra.write import get_term_otype
         from trustgraph.schema import Term, IRI
 
         term = Term(type=IRI, iri='http://example.org/Alice')
-        assert get_term_otype(term) == 'U'
+        assert get_term_otype(term) == 'u'
 
     def test_get_term_otype_for_literal(self):
-        """Test get_term_otype returns 'L' for LITERAL terms"""
+        """Test get_term_otype returns 'l' for LITERAL terms"""
         from trustgraph.storage.triples.cassandra.write import get_term_otype
         from trustgraph.schema import Term, LITERAL
 
         term = Term(type=LITERAL, value='Alice Smith')
-        assert get_term_otype(term) == 'L'
+        assert get_term_otype(term) == 'l'
 
     def test_get_term_otype_for_blank(self):
-        """Test get_term_otype returns 'U' for BLANK terms"""
+        """Test get_term_otype returns 'u' for BLANK terms"""
         from trustgraph.storage.triples.cassandra.write import get_term_otype
         from trustgraph.schema import Term, BLANK
 
         term = Term(type=BLANK, id='_:b1')
-        assert get_term_otype(term) == 'U'
+        assert get_term_otype(term) == 'u'
 
     def test_get_term_otype_for_triple(self):
-        """Test get_term_otype returns 'T' for TRIPLE terms"""
+        """Test get_term_otype returns 't' for TRIPLE terms"""
         from trustgraph.storage.triples.cassandra.write import get_term_otype
         from trustgraph.schema import Term, TRIPLE
 
         term = Term(type=TRIPLE)
-        assert get_term_otype(term) == 'T'
+        assert get_term_otype(term) == 't'
 
     def test_get_term_otype_for_none(self):
-        """Test get_term_otype returns 'U' for None"""
+        """Test get_term_otype returns 'u' for None"""
         from trustgraph.storage.triples.cassandra.write import get_term_otype
 
-        assert get_term_otype(None) == 'U'
+        assert get_term_otype(None) == 'u'
 
     def test_get_term_dtype_for_literal(self):
         """Test get_term_dtype extracts datatype from LITERAL"""
@@ -591,21 +591,21 @@ class TestServiceHelperFunctions:
     """Test cases for helper functions in service.py"""
 
     def test_create_term_with_uri_otype(self):
-        """Test create_term creates IRI Term for otype='U'"""
+        """Test create_term creates IRI Term for otype='u'"""
         from trustgraph.query.triples.cassandra.service import create_term
         from trustgraph.schema import IRI
 
-        term = create_term('http://example.org/Alice', otype='U')
+        term = create_term('http://example.org/Alice', otype='u')
 
         assert term.type == IRI
         assert term.iri == 'http://example.org/Alice'
 
     def test_create_term_with_literal_otype(self):
-        """Test create_term creates LITERAL Term for otype='L'"""
+        """Test create_term creates LITERAL Term for otype='l'"""
         from trustgraph.query.triples.cassandra.service import create_term
         from trustgraph.schema import LITERAL
 
-        term = create_term('Alice Smith', otype='L', dtype='xsd:string', lang='en')
+        term = create_term('Alice Smith', otype='l', dtype='xsd:string', lang='en')
 
         assert term.type == LITERAL
         assert term.value == 'Alice Smith'
@@ -613,11 +613,11 @@ class TestServiceHelperFunctions:
         assert term.language == 'en'
 
     def test_create_term_with_triple_otype(self):
-        """Test create_term creates IRI Term for otype='T'"""
+        """Test create_term creates IRI Term for otype='t'"""
         from trustgraph.query.triples.cassandra.service import create_term
         from trustgraph.schema import IRI
 
-        term = create_term('http://example.org/statement1', otype='T')
+        term = create_term('http://example.org/statement1', otype='t')
 
         assert term.type == IRI
         assert term.iri == 'http://example.org/statement1'

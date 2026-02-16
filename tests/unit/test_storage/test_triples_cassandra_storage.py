@@ -219,11 +219,11 @@ class TestCassandraStorageProcessor:
         assert mock_tg_instance.insert.call_count == 2
         mock_tg_instance.insert.assert_any_call(
             'collection1', 'subject1', 'predicate1', 'object1',
-            g=DEFAULT_GRAPH, otype='L', dtype='', lang=''
+            g=DEFAULT_GRAPH, otype='l', dtype='', lang=''
         )
         mock_tg_instance.insert.assert_any_call(
             'collection1', 'subject2', 'predicate2', 'object2',
-            g=DEFAULT_GRAPH, otype='L', dtype='', lang=''
+            g=DEFAULT_GRAPH, otype='l', dtype='', lang=''
         )
 
     @pytest.mark.asyncio
@@ -428,7 +428,7 @@ class TestCassandraStorageProcessor:
             'predicate:with/colons',
             'object with "quotes" and unicode: ñáéíóú',
             g=DEFAULT_GRAPH,
-            otype='L',
+            otype='l',
             dtype='',
             lang=''
         )
@@ -544,7 +544,7 @@ class TestCassandraPerformanceOptimizations:
         # Verify insert was called for the triple (implementation details tested in KnowledgeGraph)
         mock_tg_instance.insert.assert_called_once_with(
             'collection1', 'test_subject', 'test_predicate', 'test_object',
-            g=DEFAULT_GRAPH, otype='L', dtype='', lang=''
+            g=DEFAULT_GRAPH, otype='l', dtype='', lang=''
         )
 
     def test_environment_variable_controls_mode(self):

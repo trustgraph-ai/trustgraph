@@ -43,21 +43,21 @@ def get_term_otype(term):
     Get object type code from a Term for entity-centric storage.
 
     Maps Term.type to otype:
-    - IRI ("i") → "U" (URI)
-    - BLANK ("b") → "U" (treated as URI)
-    - LITERAL ("l") → "L" (Literal)
-    - TRIPLE ("t") → "T" (Triple/reification)
+    - IRI ("i") → "u" (URI)
+    - BLANK ("b") → "u" (treated as URI)
+    - LITERAL ("l") → "l" (Literal)
+    - TRIPLE ("t") → "t" (Triple/reification)
     """
     if term is None:
-        return "U"
+        return "u"
     if term.type == IRI or term.type == BLANK:
-        return "U"
+        return "u"
     elif term.type == LITERAL:
-        return "L"
+        return "l"
     elif term.type == TRIPLE:
-        return "T"
+        return "t"
     else:
-        return "U"
+        return "u"
 
 
 def get_term_dtype(term):
