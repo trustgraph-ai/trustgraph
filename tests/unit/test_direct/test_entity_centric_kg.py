@@ -463,50 +463,6 @@ class TestQuadResult:
         assert result.lang == 'en'
 
 
-class TestFactoryFunction:
-    """Test cases for get_knowledge_graph_class factory function"""
-
-    def test_factory_returns_legacy_by_default(self):
-        """Test factory returns KnowledgeGraph when env var not set"""
-        from trustgraph.direct.cassandra_kg import get_knowledge_graph_class, KnowledgeGraph
-
-        with patch.dict(os.environ, {}, clear=True):
-            KGClass = get_knowledge_graph_class()
-            assert KGClass == KnowledgeGraph
-
-    def test_factory_returns_legacy_when_false(self):
-        """Test factory returns KnowledgeGraph when env var is false"""
-        from trustgraph.direct.cassandra_kg import get_knowledge_graph_class, KnowledgeGraph
-
-        with patch.dict(os.environ, {'CASSANDRA_ENTITY_CENTRIC': 'false'}):
-            KGClass = get_knowledge_graph_class()
-            assert KGClass == KnowledgeGraph
-
-    def test_factory_returns_entity_centric_when_true(self):
-        """Test factory returns EntityCentricKnowledgeGraph when env var is true"""
-        from trustgraph.direct.cassandra_kg import (
-            get_knowledge_graph_class, EntityCentricKnowledgeGraph
-        )
-
-        with patch.dict(os.environ, {'CASSANDRA_ENTITY_CENTRIC': 'true'}):
-            KGClass = get_knowledge_graph_class()
-            assert KGClass == EntityCentricKnowledgeGraph
-
-    def test_factory_case_insensitive(self):
-        """Test factory handles case insensitive values"""
-        from trustgraph.direct.cassandra_kg import (
-            get_knowledge_graph_class, EntityCentricKnowledgeGraph
-        )
-
-        with patch.dict(os.environ, {'CASSANDRA_ENTITY_CENTRIC': 'TRUE'}):
-            KGClass = get_knowledge_graph_class()
-            assert KGClass == EntityCentricKnowledgeGraph
-
-        with patch.dict(os.environ, {'CASSANDRA_ENTITY_CENTRIC': 'True'}):
-            KGClass = get_knowledge_graph_class()
-            assert KGClass == EntityCentricKnowledgeGraph
-
-
 class TestWriteHelperFunctions:
     """Test cases for helper functions in write.py"""
 

@@ -7,7 +7,7 @@ null.  Output is a list of quads.
 import logging
 
 from .... direct.cassandra_kg import (
-    KnowledgeGraph, GRAPH_WILDCARD, DEFAULT_GRAPH, get_knowledge_graph_class
+    EntityCentricKnowledgeGraph, GRAPH_WILDCARD, DEFAULT_GRAPH
 )
 from .... schema import TriplesQueryRequest, TriplesQueryResponse, Error
 from .... schema import Term, Triple, IRI, LITERAL
@@ -106,7 +106,7 @@ class Processor(TriplesQueryService):
 
             if user != self.table:
                 # Use factory function to select implementation
-                KGClass = get_knowledge_graph_class()
+                KGClass = EntityCentricKnowledgeGraph
 
                 if self.cassandra_username and self.cassandra_password:
                     self.tg = KGClass(

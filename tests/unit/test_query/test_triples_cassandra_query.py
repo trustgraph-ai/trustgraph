@@ -70,15 +70,14 @@ class TestCassandraQueryProcessor:
         assert result.type == LITERAL
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.get_knowledge_graph_class')
-    async def test_query_triples_spo_query(self, mock_get_kg_class):
+    @patch('trustgraph.query.triples.cassandra.service.EntityCentricKnowledgeGraph')
+    async def test_query_triples_spo_query(self, mock_kg_class):
         """Test querying triples with subject, predicate, and object specified"""
         from trustgraph.schema import TriplesQueryRequest, Term, IRI, LITERAL
 
         # Setup mock TrustGraph via factory function
         mock_tg_instance = MagicMock()
-        mock_kg_class = MagicMock(return_value=mock_tg_instance)
-        mock_get_kg_class.return_value = mock_kg_class
+        mock_kg_class.return_value = mock_tg_instance
         # SPO query returns a list of results (with mock graph attribute)
         mock_result = MagicMock()
         mock_result.g = ''
@@ -151,15 +150,14 @@ class TestCassandraQueryProcessor:
         assert processor.table is None
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.get_knowledge_graph_class')
-    async def test_query_triples_sp_pattern(self, mock_get_kg_class):
+    @patch('trustgraph.query.triples.cassandra.service.EntityCentricKnowledgeGraph')
+    async def test_query_triples_sp_pattern(self, mock_kg_class):
         """Test SP query pattern (subject and predicate, no object)"""
         from trustgraph.schema import TriplesQueryRequest, Term, IRI, LITERAL
 
         # Setup mock TrustGraph via factory function
         mock_tg_instance = MagicMock()
-        mock_kg_class = MagicMock(return_value=mock_tg_instance)
-        mock_get_kg_class.return_value = mock_kg_class
+        mock_kg_class.return_value = mock_tg_instance
 
         mock_result = MagicMock()
         mock_result.o = 'result_object'
@@ -189,14 +187,13 @@ class TestCassandraQueryProcessor:
         assert result[0].o.value == 'result_object'
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.get_knowledge_graph_class')
-    async def test_query_triples_s_pattern(self, mock_get_kg_class):
+    @patch('trustgraph.query.triples.cassandra.service.EntityCentricKnowledgeGraph')
+    async def test_query_triples_s_pattern(self, mock_kg_class):
         """Test S query pattern (subject only)"""
         from trustgraph.schema import TriplesQueryRequest, Term, IRI, LITERAL
 
         mock_tg_instance = MagicMock()
-        mock_kg_class = MagicMock(return_value=mock_tg_instance)
-        mock_get_kg_class.return_value = mock_kg_class
+        mock_kg_class.return_value = mock_tg_instance
 
         mock_result = MagicMock()
         mock_result.p = 'result_predicate'
@@ -227,14 +224,13 @@ class TestCassandraQueryProcessor:
         assert result[0].o.value == 'result_object'
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.get_knowledge_graph_class')
-    async def test_query_triples_p_pattern(self, mock_get_kg_class):
+    @patch('trustgraph.query.triples.cassandra.service.EntityCentricKnowledgeGraph')
+    async def test_query_triples_p_pattern(self, mock_kg_class):
         """Test P query pattern (predicate only)"""
         from trustgraph.schema import TriplesQueryRequest, Term, IRI, LITERAL
 
         mock_tg_instance = MagicMock()
-        mock_kg_class = MagicMock(return_value=mock_tg_instance)
-        mock_get_kg_class.return_value = mock_kg_class
+        mock_kg_class.return_value = mock_tg_instance
 
         mock_result = MagicMock()
         mock_result.s = 'result_subject'
@@ -265,14 +261,13 @@ class TestCassandraQueryProcessor:
         assert result[0].o.value == 'result_object'
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.get_knowledge_graph_class')
-    async def test_query_triples_o_pattern(self, mock_get_kg_class):
+    @patch('trustgraph.query.triples.cassandra.service.EntityCentricKnowledgeGraph')
+    async def test_query_triples_o_pattern(self, mock_kg_class):
         """Test O query pattern (object only)"""
         from trustgraph.schema import TriplesQueryRequest, Term, IRI, LITERAL
 
         mock_tg_instance = MagicMock()
-        mock_kg_class = MagicMock(return_value=mock_tg_instance)
-        mock_get_kg_class.return_value = mock_kg_class
+        mock_kg_class.return_value = mock_tg_instance
 
         mock_result = MagicMock()
         mock_result.s = 'result_subject'
@@ -303,14 +298,13 @@ class TestCassandraQueryProcessor:
         assert result[0].o.value == 'test_object'
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.get_knowledge_graph_class')
-    async def test_query_triples_get_all_pattern(self, mock_get_kg_class):
+    @patch('trustgraph.query.triples.cassandra.service.EntityCentricKnowledgeGraph')
+    async def test_query_triples_get_all_pattern(self, mock_kg_class):
         """Test query pattern with no constraints (get all)"""
         from trustgraph.schema import TriplesQueryRequest
 
         mock_tg_instance = MagicMock()
-        mock_kg_class = MagicMock(return_value=mock_tg_instance)
-        mock_get_kg_class.return_value = mock_kg_class
+        mock_kg_class.return_value = mock_tg_instance
 
         mock_result = MagicMock()
         mock_result.s = 'all_subject'
@@ -408,14 +402,13 @@ class TestCassandraQueryProcessor:
         mock_launch.assert_called_once_with(default_ident, '\nTriples query service.  Input is a (s, p, o, g) quad pattern, some values may be\nnull.  Output is a list of quads.\n')
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.get_knowledge_graph_class')
-    async def test_query_triples_with_authentication(self, mock_get_kg_class):
+    @patch('trustgraph.query.triples.cassandra.service.EntityCentricKnowledgeGraph')
+    async def test_query_triples_with_authentication(self, mock_kg_class):
         """Test querying with username and password authentication"""
         from trustgraph.schema import TriplesQueryRequest, Term, IRI, LITERAL
 
         mock_tg_instance = MagicMock()
-        mock_kg_class = MagicMock(return_value=mock_tg_instance)
-        mock_get_kg_class.return_value = mock_kg_class
+        mock_kg_class.return_value = mock_tg_instance
         # SPO query returns a list of results
         mock_result = MagicMock()
         mock_result.g = ''
@@ -451,14 +444,13 @@ class TestCassandraQueryProcessor:
         )
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.get_knowledge_graph_class')
-    async def test_query_triples_table_reuse(self, mock_get_kg_class):
+    @patch('trustgraph.query.triples.cassandra.service.EntityCentricKnowledgeGraph')
+    async def test_query_triples_table_reuse(self, mock_kg_class):
         """Test that TrustGraph is reused for same table"""
         from trustgraph.schema import TriplesQueryRequest, Term, IRI, LITERAL
 
         mock_tg_instance = MagicMock()
-        mock_kg_class = MagicMock(return_value=mock_tg_instance)
-        mock_get_kg_class.return_value = mock_kg_class
+        mock_kg_class.return_value = mock_tg_instance
         # SPO query returns a list of results
         mock_result = MagicMock()
         mock_result.g = ''
@@ -488,15 +480,14 @@ class TestCassandraQueryProcessor:
         assert mock_kg_class.call_count == 1  # Should not increase
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.get_knowledge_graph_class')
-    async def test_query_triples_table_switching(self, mock_get_kg_class):
+    @patch('trustgraph.query.triples.cassandra.service.EntityCentricKnowledgeGraph')
+    async def test_query_triples_table_switching(self, mock_kg_class):
         """Test table switching creates new TrustGraph"""
         from trustgraph.schema import TriplesQueryRequest, Term, IRI, LITERAL
 
         mock_tg_instance1 = MagicMock()
         mock_tg_instance2 = MagicMock()
-        mock_kg_class = MagicMock(side_effect=[mock_tg_instance1, mock_tg_instance2])
-        mock_get_kg_class.return_value = mock_kg_class
+        mock_kg_class.side_effect = [mock_tg_instance1, mock_tg_instance2]
 
         # Setup mock results for both instances
         mock_result = MagicMock()
@@ -541,14 +532,13 @@ class TestCassandraQueryProcessor:
         assert mock_kg_class.call_count == 2
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.get_knowledge_graph_class')
-    async def test_query_triples_exception_handling(self, mock_get_kg_class):
+    @patch('trustgraph.query.triples.cassandra.service.EntityCentricKnowledgeGraph')
+    async def test_query_triples_exception_handling(self, mock_kg_class):
         """Test exception handling during query execution"""
         from trustgraph.schema import TriplesQueryRequest, Term, IRI, LITERAL
 
         mock_tg_instance = MagicMock()
-        mock_kg_class = MagicMock(return_value=mock_tg_instance)
-        mock_get_kg_class.return_value = mock_kg_class
+        mock_kg_class.return_value = mock_tg_instance
         mock_tg_instance.get_spo.side_effect = Exception("Query failed")
 
         processor = Processor(taskgroup=MagicMock())
@@ -566,14 +556,13 @@ class TestCassandraQueryProcessor:
             await processor.query_triples(query)
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.get_knowledge_graph_class')
-    async def test_query_triples_multiple_results(self, mock_get_kg_class):
+    @patch('trustgraph.query.triples.cassandra.service.EntityCentricKnowledgeGraph')
+    async def test_query_triples_multiple_results(self, mock_kg_class):
         """Test query returning multiple results"""
         from trustgraph.schema import TriplesQueryRequest, Term, IRI, LITERAL
 
         mock_tg_instance = MagicMock()
-        mock_kg_class = MagicMock(return_value=mock_tg_instance)
-        mock_get_kg_class.return_value = mock_kg_class
+        mock_kg_class.return_value = mock_tg_instance
 
         # Mock multiple results
         mock_result1 = MagicMock()
@@ -612,14 +601,13 @@ class TestCassandraQueryPerformanceOptimizations:
     """Test cases for multi-table performance optimizations in query service"""
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.get_knowledge_graph_class')
-    async def test_get_po_query_optimization(self, mock_get_kg_class):
+    @patch('trustgraph.query.triples.cassandra.service.EntityCentricKnowledgeGraph')
+    async def test_get_po_query_optimization(self, mock_kg_class):
         """Test that get_po queries use optimized table (no ALLOW FILTERING)"""
         from trustgraph.schema import TriplesQueryRequest, Term, IRI, LITERAL
 
         mock_tg_instance = MagicMock()
-        mock_kg_class = MagicMock(return_value=mock_tg_instance)
-        mock_get_kg_class.return_value = mock_kg_class
+        mock_kg_class.return_value = mock_tg_instance
 
         mock_result = MagicMock()
         mock_result.s = 'result_subject'
@@ -654,14 +642,13 @@ class TestCassandraQueryPerformanceOptimizations:
         assert result[0].o.value == 'test_object'
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.get_knowledge_graph_class')
-    async def test_get_os_query_optimization(self, mock_get_kg_class):
+    @patch('trustgraph.query.triples.cassandra.service.EntityCentricKnowledgeGraph')
+    async def test_get_os_query_optimization(self, mock_kg_class):
         """Test that get_os queries use optimized table (no ALLOW FILTERING)"""
         from trustgraph.schema import TriplesQueryRequest, Term, IRI, LITERAL
 
         mock_tg_instance = MagicMock()
-        mock_kg_class = MagicMock(return_value=mock_tg_instance)
-        mock_get_kg_class.return_value = mock_kg_class
+        mock_kg_class.return_value = mock_tg_instance
 
         mock_result = MagicMock()
         mock_result.p = 'result_predicate'
@@ -696,14 +683,13 @@ class TestCassandraQueryPerformanceOptimizations:
         assert result[0].o.value == 'test_object'
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.get_knowledge_graph_class')
-    async def test_all_query_patterns_use_correct_tables(self, mock_get_kg_class):
+    @patch('trustgraph.query.triples.cassandra.service.EntityCentricKnowledgeGraph')
+    async def test_all_query_patterns_use_correct_tables(self, mock_kg_class):
         """Test that all query patterns route to their optimal tables"""
         from trustgraph.schema import TriplesQueryRequest, Term, IRI, LITERAL
 
         mock_tg_instance = MagicMock()
-        mock_kg_class = MagicMock(return_value=mock_tg_instance)
-        mock_get_kg_class.return_value = mock_kg_class
+        mock_kg_class.return_value = mock_tg_instance
 
         # Mock empty results for all queries
         mock_tg_instance.get_all.return_value = []
@@ -769,14 +755,13 @@ class TestCassandraQueryPerformanceOptimizations:
             # Mode is determined in KnowledgeGraph initialization
 
     @pytest.mark.asyncio
-    @patch('trustgraph.query.triples.cassandra.service.get_knowledge_graph_class')
-    async def test_performance_critical_po_query_no_filtering(self, mock_get_kg_class):
+    @patch('trustgraph.query.triples.cassandra.service.EntityCentricKnowledgeGraph')
+    async def test_performance_critical_po_query_no_filtering(self, mock_kg_class):
         """Test the performance-critical PO query that eliminates ALLOW FILTERING"""
         from trustgraph.schema import TriplesQueryRequest, Term, IRI, LITERAL
 
         mock_tg_instance = MagicMock()
-        mock_kg_class = MagicMock(return_value=mock_tg_instance)
-        mock_get_kg_class.return_value = mock_kg_class
+        mock_kg_class.return_value = mock_tg_instance
 
         # Mock multiple subjects for the same predicate-object pair
         mock_results = []

@@ -11,7 +11,7 @@ import time
 import logging
 
 from .... direct.cassandra_kg import (
-    KnowledgeGraph, DEFAULT_GRAPH, get_knowledge_graph_class
+    EntityCentricKnowledgeGraph, DEFAULT_GRAPH
 )
 from .... base import TriplesStoreService, CollectionConfigHandler
 from .... base import AsyncProcessor, Consumer, Producer
@@ -121,7 +121,7 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
             self.tg = None
 
             # Use factory function to select implementation
-            KGClass = get_knowledge_graph_class()
+            KGClass = EntityCentricKnowledgeGraph
 
             try:
                 if self.cassandra_username and self.cassandra_password:
@@ -174,7 +174,7 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
                 self.tg = None
 
                 # Use factory function to select implementation
-                KGClass = get_knowledge_graph_class()
+                KGClass = EntityCentricKnowledgeGraph
 
                 try:
                     if self.cassandra_username and self.cassandra_password:
@@ -216,7 +216,7 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
                 self.tg = None
 
                 # Use factory function to select implementation
-                KGClass = get_knowledge_graph_class()
+                KGClass = EntityCentricKnowledgeGraph
 
                 try:
                     if self.cassandra_username and self.cassandra_password:

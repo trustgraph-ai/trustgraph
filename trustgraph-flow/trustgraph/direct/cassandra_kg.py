@@ -20,6 +20,11 @@ DEFAULT_GRAPH = ""
 
 class KnowledgeGraph:
     """
+    REDUNDANT: This 7-table implementation has been superseded by
+    EntityCentricKnowledgeGraph which uses a more efficient 2-table model.
+    This class is retained temporarily for reference but should not be used
+    for new deployments.
+
     Cassandra-backed knowledge graph supporting quads (s, p, o, g).
 
     Uses 7 tables to support all 16 query patterns efficiently:
@@ -1088,18 +1093,3 @@ class QuadResult:
         self.lang = lang
 
 
-def get_knowledge_graph_class():
-    """
-    Factory function to select KnowledgeGraph implementation.
-
-    Uses CASSANDRA_ENTITY_CENTRIC environment variable to select:
-    - "true": EntityCentricKnowledgeGraph (new 2-table model)
-    - Otherwise: KnowledgeGraph (original 7-table model)
-    """
-    use_entity_centric = os.environ.get("CASSANDRA_ENTITY_CENTRIC", "").lower() == "true"
-    if use_entity_centric:
-        logger.info("Using EntityCentricKnowledgeGraph (2-table model)")
-        return EntityCentricKnowledgeGraph
-    else:
-        logger.info("Using KnowledgeGraph (7-table model)")
-        return KnowledgeGraph
