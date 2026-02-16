@@ -516,3 +516,590 @@ class KnowledgeGraph:
             self.cluster.shutdown()
             if self.cluster in _active_clusters:
                 _active_clusters.remove(self.cluster)
+
+
+class EntityCentricKnowledgeGraph:
+    """
+    Entity-centric Cassandra-backed knowledge graph supporting quads (s, p, o, g).
+
+    Uses 2 tables instead of 7:
+    - quads_by_entity: every entity knows every quad it participates in
+    - quads_by_collection: manifest for collection-level queries and deletion
+
+    Supports all 16 query patterns with single-partition reads.
+    """
+
+    def __init__(
+            self, hosts=None,
+            keyspace="trustgraph", username=None, password=None
+    ):
+
+        if hosts is None:
+            hosts = ["localhost"]
+
+        self.keyspace = keyspace
+        self.username = username
+
+        # 2-table entity-centric schema
+        self.entity_table = "quads_by_entity"
+        self.collection_table = "quads_by_collection"
+
+        # Collection metadata tracking
+        self.collection_metadata_table = "collection_metadata"
+
+        if username and password:
+            ssl_context = SSLContext(PROTOCOL_TLSv1_2)
+            auth_provider = PlainTextAuthProvider(username=username, password=password)
+            self.cluster = Cluster(hosts, auth_provider=auth_provider, ssl_context=ssl_context)
+        else:
+            self.cluster = Cluster(hosts)
+        self.session = self.cluster.connect()
+
+        # Track this cluster globally
+        _active_clusters.append(self.cluster)
+
+        self.init()
+        self.prepare_statements()
+
+    def clear(self):
+        self.session.execute(f"""
+            drop keyspace if exists {self.keyspace};
+        """)
+        self.init()
+
+    def init(self):
+        self.session.execute(f"""
+            create keyspace if not exists {self.keyspace}
+                with replication = {{
+                   'class' : 'SimpleStrategy',
+                   'replication_factor' : 1
+                }};
+        """)
+
+        self.session.set_keyspace(self.keyspace)
+        self.init_entity_centric_schema()
+
+    def init_entity_centric_schema(self):
+        """Initialize 2-table entity-centric schema"""
+
+        # quads_by_entity: primary data table
+        # Every entity has a partition containing all quads it participates in
+        self.session.execute(f"""
+            CREATE TABLE IF NOT EXISTS {self.entity_table} (
+                collection text,
+                entity     text,
+                role       text,
+                p          text,
+                otype      text,
+                s          text,
+                o          text,
+                d          text,
+                dtype      text,
+                lang       text,
+                PRIMARY KEY ((collection, entity), role, p, otype, s, o, d)
+            );
+        """)
+
+        # quads_by_collection: manifest for collection-level queries and deletion
+        self.session.execute(f"""
+            CREATE TABLE IF NOT EXISTS {self.collection_table} (
+                collection text,
+                d          text,
+                s          text,
+                p          text,
+                o          text,
+                otype      text,
+                dtype      text,
+                lang       text,
+                PRIMARY KEY (collection, d, s, p, o)
+            );
+        """)
+
+        # Collection metadata tracking
+        self.session.execute(f"""
+            CREATE TABLE IF NOT EXISTS {self.collection_metadata_table} (
+                collection text,
+                created_at timestamp,
+                PRIMARY KEY (collection)
+            );
+        """)
+
+        logger.info("Entity-centric schema initialized (2 tables + metadata)")
+
+    def prepare_statements(self):
+        """Prepare statements for entity-centric schema"""
+
+        # Insert statement for quads_by_entity
+        self.insert_entity_stmt = self.session.prepare(
+            f"INSERT INTO {self.entity_table} "
+            "(collection, entity, role, p, otype, s, o, d, dtype, lang) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        )
+
+        # Insert statement for quads_by_collection
+        self.insert_collection_stmt = self.session.prepare(
+            f"INSERT INTO {self.collection_table} "
+            "(collection, d, s, p, o, otype, dtype, lang) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        )
+
+        # Query statements for quads_by_entity
+
+        # Get all quads for an entity (any role)
+        self.get_entity_all_stmt = self.session.prepare(
+            f"SELECT role, p, otype, s, o, d, dtype, lang FROM {self.entity_table} "
+            "WHERE collection = ? AND entity = ? LIMIT ?"
+        )
+
+        # Get quads where entity is subject (role='S')
+        self.get_entity_as_s_stmt = self.session.prepare(
+            f"SELECT p, otype, s, o, d, dtype, lang FROM {self.entity_table} "
+            "WHERE collection = ? AND entity = ? AND role = 'S' LIMIT ?"
+        )
+
+        # Get quads where entity is subject with specific predicate
+        self.get_entity_as_s_p_stmt = self.session.prepare(
+            f"SELECT otype, s, o, d, dtype, lang FROM {self.entity_table} "
+            "WHERE collection = ? AND entity = ? AND role = 'S' AND p = ? LIMIT ?"
+        )
+
+        # Get quads where entity is subject with specific predicate and otype
+        self.get_entity_as_s_p_otype_stmt = self.session.prepare(
+            f"SELECT s, o, d, dtype, lang FROM {self.entity_table} "
+            "WHERE collection = ? AND entity = ? AND role = 'S' AND p = ? AND otype = ? LIMIT ?"
+        )
+
+        # Get quads where entity is predicate (role='P')
+        self.get_entity_as_p_stmt = self.session.prepare(
+            f"SELECT p, otype, s, o, d, dtype, lang FROM {self.entity_table} "
+            "WHERE collection = ? AND entity = ? AND role = 'P' LIMIT ?"
+        )
+
+        # Get quads where entity is object (role='O')
+        self.get_entity_as_o_stmt = self.session.prepare(
+            f"SELECT p, otype, s, o, d, dtype, lang FROM {self.entity_table} "
+            "WHERE collection = ? AND entity = ? AND role = 'O' LIMIT ?"
+        )
+
+        # Get quads where entity is object with specific predicate
+        self.get_entity_as_o_p_stmt = self.session.prepare(
+            f"SELECT otype, s, o, d, dtype, lang FROM {self.entity_table} "
+            "WHERE collection = ? AND entity = ? AND role = 'O' AND p = ? LIMIT ?"
+        )
+
+        # Get quads where entity is graph (role='G')
+        self.get_entity_as_g_stmt = self.session.prepare(
+            f"SELECT p, otype, s, o, d, dtype, lang FROM {self.entity_table} "
+            "WHERE collection = ? AND entity = ? AND role = 'G' LIMIT ?"
+        )
+
+        # Query statements for quads_by_collection
+
+        # Get all quads in collection
+        self.get_collection_all_stmt = self.session.prepare(
+            f"SELECT d, s, p, o, otype, dtype, lang FROM {self.collection_table} "
+            "WHERE collection = ? LIMIT ?"
+        )
+
+        # Get all quads in a specific graph
+        self.get_collection_by_graph_stmt = self.session.prepare(
+            f"SELECT s, p, o, otype, dtype, lang FROM {self.collection_table} "
+            "WHERE collection = ? AND d = ? LIMIT ?"
+        )
+
+        # Delete statements
+        self.delete_entity_partition_stmt = self.session.prepare(
+            f"DELETE FROM {self.entity_table} WHERE collection = ? AND entity = ?"
+        )
+
+        self.delete_collection_row_stmt = self.session.prepare(
+            f"DELETE FROM {self.collection_table} WHERE collection = ? AND d = ? AND s = ? AND p = ? AND o = ?"
+        )
+
+        logger.info("Prepared statements initialized for entity-centric schema")
+
+    def insert(self, collection, s, p, o, g=None, otype=None, dtype="", lang=""):
+        """
+        Insert a quad into entity-centric tables.
+
+        Writes 4 rows to quads_by_entity (one for each entity role) + 1 row to
+        quads_by_collection. For literals, only 3 entity rows are written since
+        literals are not independently queryable entities.
+
+        Args:
+            collection: Collection/tenant scope
+            s: Subject (string value)
+            p: Predicate (string value)
+            o: Object (string value)
+            g: Graph/dataset (None for default graph)
+            otype: Object type - 'U' (URI), 'L' (literal), 'T' (triple)
+                   Auto-detected from o value if not provided
+            dtype: XSD datatype (for literals)
+            lang: Language tag (for literals)
+        """
+        # Default graph stored as empty string
+        if g is None:
+            g = DEFAULT_GRAPH
+
+        # Auto-detect otype if not provided (backwards compatibility)
+        if otype is None:
+            if o.startswith("http://") or o.startswith("https://"):
+                otype = "U"
+            else:
+                otype = "L"
+
+        batch = BatchStatement()
+
+        # Write row for subject entity (role='S')
+        batch.add(self.insert_entity_stmt, (
+            collection, s, 'S', p, otype, s, o, g, dtype, lang
+        ))
+
+        # Write row for predicate entity (role='P')
+        batch.add(self.insert_entity_stmt, (
+            collection, p, 'P', p, otype, s, o, g, dtype, lang
+        ))
+
+        # Write row for object entity (role='O') - only for URIs, not literals
+        if otype == 'U' or otype == 'T':
+            batch.add(self.insert_entity_stmt, (
+                collection, o, 'O', p, otype, s, o, g, dtype, lang
+            ))
+
+        # Write row for graph entity (role='G') - only for non-default graphs
+        if g != DEFAULT_GRAPH:
+            batch.add(self.insert_entity_stmt, (
+                collection, g, 'G', p, otype, s, o, g, dtype, lang
+            ))
+
+        # Write row to quads_by_collection
+        batch.add(self.insert_collection_stmt, (
+            collection, g, s, p, o, otype, dtype, lang
+        ))
+
+        self.session.execute(batch)
+
+    # ========================================================================
+    # Query methods
+    # g=None means default graph, g="*" means all graphs
+    # Results include otype, dtype, lang for proper Term reconstruction
+    # ========================================================================
+
+    def get_all(self, collection, limit=50):
+        """Get all quads in collection"""
+        return self.session.execute(self.get_collection_all_stmt, (collection, limit))
+
+    def get_s(self, collection, s, g=None, limit=10):
+        """
+        Query by subject. Returns quads where s is the subject.
+        g=None: default graph, g='*': all graphs
+        """
+        rows = self.session.execute(self.get_entity_as_s_stmt, (collection, s, limit))
+
+        results = []
+        for row in rows:
+            d = row.d if hasattr(row, 'd') else DEFAULT_GRAPH
+            # Filter by graph if specified
+            if g is None or g == DEFAULT_GRAPH:
+                if d != DEFAULT_GRAPH:
+                    continue
+            elif g != GRAPH_WILDCARD and d != g:
+                continue
+
+            results.append(QuadResult(
+                s=row.s, p=row.p, o=row.o, g=d,
+                otype=row.otype, dtype=row.dtype, lang=row.lang
+            ))
+
+        return results
+
+    def get_p(self, collection, p, g=None, limit=10):
+        """Query by predicate"""
+        rows = self.session.execute(self.get_entity_as_p_stmt, (collection, p, limit))
+
+        results = []
+        for row in rows:
+            d = row.d if hasattr(row, 'd') else DEFAULT_GRAPH
+            if g is None or g == DEFAULT_GRAPH:
+                if d != DEFAULT_GRAPH:
+                    continue
+            elif g != GRAPH_WILDCARD and d != g:
+                continue
+
+            results.append(QuadResult(
+                s=row.s, p=row.p, o=row.o, g=d,
+                otype=row.otype, dtype=row.dtype, lang=row.lang
+            ))
+
+        return results
+
+    def get_o(self, collection, o, g=None, limit=10):
+        """Query by object"""
+        rows = self.session.execute(self.get_entity_as_o_stmt, (collection, o, limit))
+
+        results = []
+        for row in rows:
+            d = row.d if hasattr(row, 'd') else DEFAULT_GRAPH
+            if g is None or g == DEFAULT_GRAPH:
+                if d != DEFAULT_GRAPH:
+                    continue
+            elif g != GRAPH_WILDCARD and d != g:
+                continue
+
+            results.append(QuadResult(
+                s=row.s, p=row.p, o=row.o, g=d,
+                otype=row.otype, dtype=row.dtype, lang=row.lang
+            ))
+
+        return results
+
+    def get_sp(self, collection, s, p, g=None, limit=10):
+        """Query by subject and predicate"""
+        rows = self.session.execute(self.get_entity_as_s_p_stmt, (collection, s, p, limit))
+
+        results = []
+        for row in rows:
+            d = row.d if hasattr(row, 'd') else DEFAULT_GRAPH
+            if g is None or g == DEFAULT_GRAPH:
+                if d != DEFAULT_GRAPH:
+                    continue
+            elif g != GRAPH_WILDCARD and d != g:
+                continue
+
+            results.append(QuadResult(
+                s=s, p=p, o=row.o, g=d,
+                otype=row.otype, dtype=row.dtype, lang=row.lang
+            ))
+
+        return results
+
+    def get_po(self, collection, p, o, g=None, limit=10):
+        """Query by predicate and object"""
+        rows = self.session.execute(self.get_entity_as_o_p_stmt, (collection, o, p, limit))
+
+        results = []
+        for row in rows:
+            d = row.d if hasattr(row, 'd') else DEFAULT_GRAPH
+            if g is None or g == DEFAULT_GRAPH:
+                if d != DEFAULT_GRAPH:
+                    continue
+            elif g != GRAPH_WILDCARD and d != g:
+                continue
+
+            results.append(QuadResult(
+                s=row.s, p=p, o=o, g=d,
+                otype=row.otype, dtype=row.dtype, lang=row.lang
+            ))
+
+        return results
+
+    def get_os(self, collection, o, s, g=None, limit=10):
+        """Query by object and subject"""
+        # Use subject partition with role='S', filter by o
+        rows = self.session.execute(self.get_entity_as_s_stmt, (collection, s, limit))
+
+        results = []
+        for row in rows:
+            if row.o != o:
+                continue
+
+            d = row.d if hasattr(row, 'd') else DEFAULT_GRAPH
+            if g is None or g == DEFAULT_GRAPH:
+                if d != DEFAULT_GRAPH:
+                    continue
+            elif g != GRAPH_WILDCARD and d != g:
+                continue
+
+            results.append(QuadResult(
+                s=s, p=row.p, o=o, g=d,
+                otype=row.otype, dtype=row.dtype, lang=row.lang
+            ))
+
+        return results
+
+    def get_spo(self, collection, s, p, o, g=None, limit=10):
+        """Query by subject, predicate, object (find which graphs)"""
+        rows = self.session.execute(self.get_entity_as_s_p_stmt, (collection, s, p, limit))
+
+        results = []
+        for row in rows:
+            if row.o != o:
+                continue
+
+            d = row.d if hasattr(row, 'd') else DEFAULT_GRAPH
+            if g is None or g == DEFAULT_GRAPH:
+                if d != DEFAULT_GRAPH:
+                    continue
+            elif g != GRAPH_WILDCARD and d != g:
+                continue
+
+            results.append(QuadResult(
+                s=s, p=p, o=o, g=d,
+                otype=row.otype, dtype=row.dtype, lang=row.lang
+            ))
+
+        return results
+
+    def get_g(self, collection, g, limit=50):
+        """Get all quads in a specific graph"""
+        if g is None:
+            g = DEFAULT_GRAPH
+
+        return self.session.execute(self.get_collection_by_graph_stmt, (collection, g, limit))
+
+    # ========================================================================
+    # Collection management
+    # ========================================================================
+
+    def collection_exists(self, collection):
+        """Check if collection exists"""
+        try:
+            result = self.session.execute(
+                f"SELECT collection FROM {self.collection_metadata_table} WHERE collection = %s LIMIT 1",
+                (collection,)
+            )
+            return bool(list(result))
+        except Exception as e:
+            logger.error(f"Error checking collection existence: {e}")
+            return False
+
+    def create_collection(self, collection):
+        """Create collection by inserting metadata row"""
+        try:
+            import datetime
+            self.session.execute(
+                f"INSERT INTO {self.collection_metadata_table} (collection, created_at) VALUES (%s, %s)",
+                (collection, datetime.datetime.now())
+            )
+            logger.info(f"Created collection metadata for {collection}")
+        except Exception as e:
+            logger.error(f"Error creating collection: {e}")
+            raise e
+
+    def delete_collection(self, collection):
+        """
+        Delete all quads for a collection from both tables.
+
+        Uses efficient partition-level deletes:
+        1. Read quads from quads_by_collection to get all quads
+        2. Extract unique entities (s, p, o for URIs, g for non-default)
+        3. Delete entire entity partitions
+        4. Delete collection rows
+        """
+        # Read all quads from collection table
+        rows = self.session.execute(
+            f"SELECT d, s, p, o, otype FROM {self.collection_table} WHERE collection = %s",
+            (collection,)
+        )
+
+        # Collect unique entities and quad data for deletion
+        entities = set()
+        quads = []
+
+        for row in rows:
+            d, s, p, o, otype = row.d, row.s, row.p, row.o, row.otype
+            quads.append((d, s, p, o))
+
+            # Subject and predicate are always entities
+            entities.add(s)
+            entities.add(p)
+
+            # Object is an entity only for URIs
+            if otype == 'U' or otype == 'T':
+                entities.add(o)
+
+            # Graph is an entity for non-default graphs
+            if d != DEFAULT_GRAPH:
+                entities.add(d)
+
+        # Delete entity partitions (efficient partition-level deletes)
+        batch = BatchStatement()
+        count = 0
+
+        for entity in entities:
+            batch.add(self.delete_entity_partition_stmt, (collection, entity))
+            count += 1
+
+            # Execute batch every 50 entities
+            if count % 50 == 0:
+                self.session.execute(batch)
+                batch = BatchStatement()
+
+        # Execute remaining entity deletes
+        if count % 50 != 0:
+            self.session.execute(batch)
+
+        # Delete collection rows
+        batch = BatchStatement()
+        count = 0
+
+        for d, s, p, o in quads:
+            batch.add(self.delete_collection_row_stmt, (collection, d, s, p, o))
+            count += 1
+
+            # Execute batch every 50 quads
+            if count % 50 == 0:
+                self.session.execute(batch)
+                batch = BatchStatement()
+
+        # Execute remaining collection row deletes
+        if count % 50 != 0:
+            self.session.execute(batch)
+
+        # Delete collection metadata
+        self.session.execute(
+            f"DELETE FROM {self.collection_metadata_table} WHERE collection = %s",
+            (collection,)
+        )
+
+        logger.info(f"Deleted collection {collection}: {len(entities)} entity partitions, {len(quads)} quads")
+
+    def close(self):
+        """Close connections"""
+        if hasattr(self, 'session') and self.session:
+            self.session.shutdown()
+        if hasattr(self, 'cluster') and self.cluster:
+            self.cluster.shutdown()
+            if self.cluster in _active_clusters:
+                _active_clusters.remove(self.cluster)
+
+
+class QuadResult:
+    """
+    Result object for quad queries, including object type metadata.
+
+    Attributes:
+        s: Subject value
+        p: Predicate value
+        o: Object value
+        g: Graph/dataset value
+        otype: Object type - 'U' (URI), 'L' (literal), 'T' (triple)
+        dtype: XSD datatype (for literals)
+        lang: Language tag (for literals)
+    """
+
+    def __init__(self, s, p, o, g, otype='U', dtype='', lang=''):
+        self.s = s
+        self.p = p
+        self.o = o
+        self.g = g
+        self.otype = otype
+        self.dtype = dtype
+        self.lang = lang
+
+
+def get_knowledge_graph_class():
+    """
+    Factory function to select KnowledgeGraph implementation.
+
+    Uses CASSANDRA_ENTITY_CENTRIC environment variable to select:
+    - "true": EntityCentricKnowledgeGraph (new 2-table model)
+    - Otherwise: KnowledgeGraph (original 7-table model)
+    """
+    use_entity_centric = os.environ.get("CASSANDRA_ENTITY_CENTRIC", "").lower() == "true"
+    if use_entity_centric:
+        logger.info("Using EntityCentricKnowledgeGraph (2-table model)")
+        return EntityCentricKnowledgeGraph
+    else:
+        logger.info("Using KnowledgeGraph (7-table model)")
+        return KnowledgeGraph

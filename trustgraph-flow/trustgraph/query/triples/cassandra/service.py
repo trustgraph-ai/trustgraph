@@ -6,7 +6,9 @@ null.  Output is a list of quads.
 
 import logging
 
-from .... direct.cassandra_kg import KnowledgeGraph, GRAPH_WILDCARD, DEFAULT_GRAPH
+from .... direct.cassandra_kg import (
+    KnowledgeGraph, GRAPH_WILDCARD, DEFAULT_GRAPH, get_knowledge_graph_class
+)
 from .... schema import TriplesQueryRequest, TriplesQueryResponse, Error
 from .... schema import Term, Triple, IRI, LITERAL
 from .... base import TriplesQueryService
@@ -31,8 +33,37 @@ def get_term_value(term):
         return term.id or term.value
 
 
-def create_term(value):
-    """Create a Term from a string value"""
+def create_term(value, otype=None, dtype=None, lang=None):
+    """
+    Create a Term from a string value, optionally using type metadata.
+
+    Args:
+        value: The string value
+        otype: Object type - 'U' (URI), 'L' (literal), 'T' (triple)
+        dtype: XSD datatype (for literals)
+        lang: Language tag (for literals)
+
+    If otype is provided, uses it to determine Term type.
+    Otherwise falls back to URL detection heuristic.
+    """
+    if otype is not None:
+        if otype == 'U':
+            return Term(type=IRI, iri=value)
+        elif otype == 'L':
+            return Term(
+                type=LITERAL,
+                value=value,
+                datatype=dtype or "",
+                language=lang or ""
+            )
+        elif otype == 'T':
+            # Triple/reification - treat as IRI for now
+            return Term(type=IRI, iri=value)
+        else:
+            # Unknown otype, fall back to heuristic
+            pass
+
+    # Heuristic fallback for backwards compatibility
     if value.startswith("http://") or value.startswith("https://"):
         return Term(type=IRI, iri=value)
     else:
@@ -74,14 +105,17 @@ class Processor(TriplesQueryService):
             user = query.user
 
             if user != self.table:
+                # Use factory function to select implementation
+                KGClass = get_knowledge_graph_class()
+
                 if self.cassandra_username and self.cassandra_password:
-                    self.tg = KnowledgeGraph(
+                    self.tg = KGClass(
                         hosts=self.cassandra_host,
                         keyspace=query.user,
                         username=self.cassandra_username, password=self.cassandra_password
                     )
                 else:
-                    self.tg = KnowledgeGraph(
+                    self.tg = KGClass(
                         hosts=self.cassandra_host,
                         keyspace=query.user,
                     )
@@ -92,6 +126,14 @@ class Processor(TriplesQueryService):
             p_val = get_term_value(query.p)
             o_val = get_term_value(query.o)
             g_val = query.g  # Already a string or None
+
+            # Helper to extract object metadata from result row
+            def get_o_metadata(t):
+                """Extract otype/dtype/lang from result row if available"""
+                otype = getattr(t, 'otype', None)
+                dtype = getattr(t, 'dtype', None)
+                lang = getattr(t, 'lang', None)
+                return otype, dtype, lang
 
             quads = []
 
@@ -106,7 +148,8 @@ class Processor(TriplesQueryService):
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
-                            quads.append((s_val, p_val, o_val, g))
+                            otype, dtype, lang = get_o_metadata(t)
+                            quads.append((s_val, p_val, o_val, g, otype, dtype, lang))
                     else:
                         # SP specified
                         resp = self.tg.get_sp(
@@ -115,7 +158,8 @@ class Processor(TriplesQueryService):
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
-                            quads.append((s_val, p_val, t.o, g))
+                            otype, dtype, lang = get_o_metadata(t)
+                            quads.append((s_val, p_val, t.o, g, otype, dtype, lang))
                 else:
                     if o_val is not None:
                         # SO specified
@@ -125,7 +169,8 @@ class Processor(TriplesQueryService):
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
-                            quads.append((s_val, t.p, o_val, g))
+                            otype, dtype, lang = get_o_metadata(t)
+                            quads.append((s_val, t.p, o_val, g, otype, dtype, lang))
                     else:
                         # S only
                         resp = self.tg.get_s(
@@ -134,7 +179,8 @@ class Processor(TriplesQueryService):
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
-                            quads.append((s_val, t.p, t.o, g))
+                            otype, dtype, lang = get_o_metadata(t)
+                            quads.append((s_val, t.p, t.o, g, otype, dtype, lang))
             else:
                 if p_val is not None:
                     if o_val is not None:
@@ -145,7 +191,8 @@ class Processor(TriplesQueryService):
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
-                            quads.append((t.s, p_val, o_val, g))
+                            otype, dtype, lang = get_o_metadata(t)
+                            quads.append((t.s, p_val, o_val, g, otype, dtype, lang))
                     else:
                         # P only
                         resp = self.tg.get_p(
@@ -154,7 +201,8 @@ class Processor(TriplesQueryService):
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
-                            quads.append((t.s, p_val, t.o, g))
+                            otype, dtype, lang = get_o_metadata(t)
+                            quads.append((t.s, p_val, t.o, g, otype, dtype, lang))
                 else:
                     if o_val is not None:
                         # O only
@@ -164,7 +212,8 @@ class Processor(TriplesQueryService):
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
-                            quads.append((t.s, t.p, o_val, g))
+                            otype, dtype, lang = get_o_metadata(t)
+                            quads.append((t.s, t.p, o_val, g, otype, dtype, lang))
                     else:
                         # Nothing specified - get all
                         resp = self.tg.get_all(
@@ -173,14 +222,16 @@ class Processor(TriplesQueryService):
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
-                            quads.append((t.s, t.p, t.o, g))
+                            otype, dtype, lang = get_o_metadata(t)
+                            quads.append((t.s, t.p, t.o, g, otype, dtype, lang))
 
             # Convert to Triple objects (with g field)
+            # Use otype/dtype/lang for proper Term reconstruction if available
             triples = [
                 Triple(
                     s=create_term(q[0]),
                     p=create_term(q[1]),
-                    o=create_term(q[2]),
+                    o=create_term(q[2], otype=q[4], dtype=q[5], lang=q[6]),
                     g=q[3] if q[3] != DEFAULT_GRAPH else None
                 )
                 for q in quads
