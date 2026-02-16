@@ -27,6 +27,8 @@ logger = logging.getLogger(__name__)
 
 default_ident = "kg-extract-ontology"
 default_concurrency = 1
+default_triples_batch_size = 50
+default_entity_batch_size = 5
 
 # URI prefix mappings for common namespaces
 URI_PREFIXES = {
@@ -53,6 +55,8 @@ class Processor(FlowProcessor):
     def __init__(self, **params):
         id = params.get("id", default_ident)
         concurrency = params.get("concurrency", default_concurrency)
+        self.triples_batch_size = params.get("triples_batch_size", default_triples_batch_size)
+        self.entity_batch_size = params.get("entity_batch_size", default_entity_batch_size)
 
         super(Processor, self).__init__(
             **params | {
@@ -315,20 +319,22 @@ class Processor(FlowProcessor):
             # Build entity contexts from all triples (including ontology elements)
             entity_contexts = self.build_entity_contexts(all_triples)
 
-            # Emit all triples (extracted + ontology definitions)
-            if all_triples:
+            # Emit triples in batches
+            for i in range(0, len(all_triples), self.triples_batch_size):
+                batch = all_triples[i:i + self.triples_batch_size]
                 await self.emit_triples(
                     flow("triples"),
                     v.metadata,
-                    all_triples
+                    batch
                 )
 
-            # Emit entity contexts
-            if entity_contexts:
+            # Emit entity contexts in batches
+            for i in range(0, len(entity_contexts), self.entity_batch_size):
+                batch = entity_contexts[i:i + self.entity_batch_size]
                 await self.emit_entity_contexts(
                     flow("entity-contexts"),
                     v.metadata,
-                    entity_contexts
+                    batch
                 )
 
             logger.info(f"Extracted {len(triples)} content triples + {len(ontology_triples)} ontology triples "
@@ -863,6 +869,18 @@ class Processor(FlowProcessor):
             type=float,
             default=0.3,
             help='Similarity threshold for ontology matching (default: 0.3, range: 0.0-1.0)'
+        )
+        parser.add_argument(
+            '--triples-batch-size',
+            type=int,
+            default=default_triples_batch_size,
+            help=f'Maximum triples per output message (default: {default_triples_batch_size})'
+        )
+        parser.add_argument(
+            '--entity-batch-size',
+            type=int,
+            default=default_entity_batch_size,
+            help=f'Maximum entity contexts per output message (default: {default_entity_batch_size})'
         )
         FlowProcessor.add_args(parser)
 

@@ -25,6 +25,7 @@ SUBJECT_OF_VALUE = Term(type=IRI, iri=SUBJECT_OF)
 
 default_ident = "kg-extract-relationships"
 default_concurrency = 1
+default_triples_batch_size = 50
 
 class Processor(FlowProcessor):
 
@@ -32,6 +33,7 @@ class Processor(FlowProcessor):
 
         id = params.get("id")
         concurrency = params.get("concurrency", 1)
+        self.triples_batch_size = params.get("triples_batch_size", default_triples_batch_size)
 
         super(Processor, self).__init__(
             **params | {
@@ -181,7 +183,9 @@ class Processor(FlowProcessor):
                         o=Term(type=IRI, iri=v.metadata.id)
                     ))
 
-            if triples:
+            # Send triples in batches
+            for i in range(0, len(triples), self.triples_batch_size):
+                batch = triples[i:i + self.triples_batch_size]
                 await self.emit_triples(
                     flow("triples"),
                     Metadata(
@@ -190,7 +194,7 @@ class Processor(FlowProcessor):
                         user=v.metadata.user,
                         collection=v.metadata.collection,
                     ),
-                    triples
+                    batch
                 )
 
         except Exception as e:
@@ -206,6 +210,13 @@ class Processor(FlowProcessor):
             type=int,
             default=default_concurrency,
             help=f'Concurrent processing threads (default: {default_concurrency})'
+        )
+
+        parser.add_argument(
+            '--triples-batch-size',
+            type=int,
+            default=default_triples_batch_size,
+            help=f'Maximum triples per output message (default: {default_triples_batch_size})'
         )
 
         FlowProcessor.add_args(parser)
