@@ -10,12 +10,14 @@ import argparse
 import time
 import logging
 
-from .... direct.cassandra_kg import KnowledgeGraph, DEFAULT_GRAPH
+from .... direct.cassandra_kg import (
+    EntityCentricKnowledgeGraph, DEFAULT_GRAPH
+)
 from .... base import TriplesStoreService, CollectionConfigHandler
 from .... base import AsyncProcessor, Consumer, Producer
 from .... base import ConsumerMetrics, ProducerMetrics
 from .... base.cassandra_config import add_cassandra_args, resolve_cassandra_config
-from .... schema import IRI, LITERAL
+from .... schema import IRI, LITERAL, BLANK, TRIPLE
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -34,6 +36,46 @@ def get_term_value(term):
     else:
         # For blank nodes or other types, use id or value
         return term.id or term.value
+
+
+def get_term_otype(term):
+    """
+    Get object type code from a Term for entity-centric storage.
+
+    Maps Term.type to otype:
+    - IRI ("i") → "u" (URI)
+    - BLANK ("b") → "u" (treated as URI)
+    - LITERAL ("l") → "l" (Literal)
+    - TRIPLE ("t") → "t" (Triple/reification)
+    """
+    if term is None:
+        return "u"
+    if term.type == IRI or term.type == BLANK:
+        return "u"
+    elif term.type == LITERAL:
+        return "l"
+    elif term.type == TRIPLE:
+        return "t"
+    else:
+        return "u"
+
+
+def get_term_dtype(term):
+    """Extract datatype from a Term (for literals)"""
+    if term is None:
+        return ""
+    if term.type == LITERAL:
+        return term.datatype or ""
+    return ""
+
+
+def get_term_lang(term):
+    """Extract language tag from a Term (for literals)"""
+    if term is None:
+        return ""
+    if term.type == LITERAL:
+        return term.language or ""
+    return ""
 
 
 class Processor(CollectionConfigHandler, TriplesStoreService):
@@ -78,15 +120,18 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
 
             self.tg = None
 
+            # Use factory function to select implementation
+            KGClass = EntityCentricKnowledgeGraph
+
             try:
                 if self.cassandra_username and self.cassandra_password:
-                    self.tg = KnowledgeGraph(
+                    self.tg = KGClass(
                         hosts=self.cassandra_host,
                         keyspace=message.metadata.user,
                         username=self.cassandra_username, password=self.cassandra_password
                     )
                 else:
-                    self.tg = KnowledgeGraph(
+                    self.tg = KGClass(
                         hosts=self.cassandra_host,
                         keyspace=message.metadata.user,
                     )
@@ -105,12 +150,20 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
             # t.g is None for default graph, or a graph IRI
             g_val = t.g if t.g is not None else DEFAULT_GRAPH
 
+            # Extract object type metadata for entity-centric storage
+            otype = get_term_otype(t.o)
+            dtype = get_term_dtype(t.o)
+            lang = get_term_lang(t.o)
+
             self.tg.insert(
                 message.metadata.collection,
                 s_val,
                 p_val,
                 o_val,
-                g=g_val
+                g=g_val,
+                otype=otype,
+                dtype=dtype,
+                lang=lang
             )
 
     async def create_collection(self, user: str, collection: str, metadata: dict):
@@ -120,16 +173,19 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
             if self.table is None or self.table != user:
                 self.tg = None
 
+                # Use factory function to select implementation
+                KGClass = EntityCentricKnowledgeGraph
+
                 try:
                     if self.cassandra_username and self.cassandra_password:
-                        self.tg = KnowledgeGraph(
+                        self.tg = KGClass(
                             hosts=self.cassandra_host,
                             keyspace=user,
                             username=self.cassandra_username,
                             password=self.cassandra_password
                         )
                     else:
-                        self.tg = KnowledgeGraph(
+                        self.tg = KGClass(
                             hosts=self.cassandra_host,
                             keyspace=user,
                         )
@@ -159,16 +215,19 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
             if self.table is None or self.table != user:
                 self.tg = None
 
+                # Use factory function to select implementation
+                KGClass = EntityCentricKnowledgeGraph
+
                 try:
                     if self.cassandra_username and self.cassandra_password:
-                        self.tg = KnowledgeGraph(
+                        self.tg = KGClass(
                             hosts=self.cassandra_host,
                             keyspace=user,
                             username=self.cassandra_username,
                             password=self.cassandra_password
                         )
                     else:
-                        self.tg = KnowledgeGraph(
+                        self.tg = KGClass(
                             hosts=self.cassandra_host,
                             keyspace=user,
                         )
