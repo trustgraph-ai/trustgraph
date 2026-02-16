@@ -221,7 +221,8 @@ class Processor(TriplesQueryService):
                             limit=query.limit
                         )
                         for t in resp:
-                            g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
+                            # Note: quads_by_collection uses 'd' for graph field
+                            g = t.d if hasattr(t, 'd') else DEFAULT_GRAPH
                             otype, dtype, lang = get_o_metadata(t)
                             quads.append((t.s, t.p, t.o, g, otype, dtype, lang))
 
