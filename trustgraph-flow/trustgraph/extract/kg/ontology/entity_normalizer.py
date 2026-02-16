@@ -74,23 +74,27 @@ def build_entity_uri(entity_name: str, entity_type: str, ontology_id: str,
 
     Args:
         entity_name: Natural language entity name (e.g., "Cornish pasty")
-        entity_type: Ontology type (e.g., "fo/Recipe")
+        entity_type: Ontology type (e.g., "fo/Recipe" or "Recipe")
         ontology_id: Ontology identifier (e.g., "food")
         base_uri: Base URI for entity URIs (default: "https://trustgraph.ai")
 
     Returns:
-        Full entity URI (e.g., "https://trustgraph.ai/food/fo-recipe-cornish-pasty")
+        Full entity URI (e.g., "https://trustgraph.ai/food/recipe-cornish-pasty")
 
     Examples:
         >>> build_entity_uri("Cornish pasty", "fo/Recipe", "food")
-        'https://trustgraph.ai/food/fo-recipe-cornish-pasty'
+        'https://trustgraph.ai/food/recipe-cornish-pasty'
 
-        >>> build_entity_uri("Cornish pasty", "fo/Food", "food")
-        'https://trustgraph.ai/food/fo-food-cornish-pasty'
+        >>> build_entity_uri("Cornish pasty", "Food", "food")
+        'https://trustgraph.ai/food/food-cornish-pasty'
 
         >>> build_entity_uri("beef", "fo/Food", "food")
-        'https://trustgraph.ai/food/fo-food-beef'
+        'https://trustgraph.ai/food/food-beef'
     """
+    # Strip ontology prefix from type if present (e.g., "fo/Recipe" -> "Recipe")
+    if "/" in entity_type:
+        entity_type = entity_type.split("/")[-1]
+
     type_part = normalize_type_identifier(entity_type)
     name_part = normalize_entity_name(entity_name)
 
