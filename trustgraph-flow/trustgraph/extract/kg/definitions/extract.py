@@ -26,6 +26,8 @@ SUBJECT_OF_VALUE = Term(type=IRI, iri=SUBJECT_OF)
 
 default_ident = "kg-extract-definitions"
 default_concurrency = 1
+default_triples_batch_size = 50
+default_entity_batch_size = 5
 
 class Processor(FlowProcessor):
 
@@ -33,6 +35,8 @@ class Processor(FlowProcessor):
 
         id = params.get("id")
         concurrency = params.get("concurrency", 1)
+        self.triples_batch_size = params.get("triples_batch_size", default_triples_batch_size)
+        self.entity_batch_size = params.get("entity_batch_size", default_entity_batch_size)
 
         super(Processor, self).__init__(
             **params | {
@@ -173,7 +177,9 @@ class Processor(FlowProcessor):
                     context=defn["definition"],
                 ))
 
-            if triples:
+            # Send triples in batches
+            for i in range(0, len(triples), self.triples_batch_size):
+                batch = triples[i:i + self.triples_batch_size]
                 await self.emit_triples(
                     flow("triples"),
                     Metadata(
@@ -182,10 +188,12 @@ class Processor(FlowProcessor):
                         user=v.metadata.user,
                         collection=v.metadata.collection,
                     ),
-                    triples
+                    batch
                 )
 
-            if entities:
+            # Send entity contexts in batches
+            for i in range(0, len(entities), self.entity_batch_size):
+                batch = entities[i:i + self.entity_batch_size]
                 await self.emit_ecs(
                     flow("entity-contexts"),
                     Metadata(
@@ -194,7 +202,7 @@ class Processor(FlowProcessor):
                         user=v.metadata.user,
                         collection=v.metadata.collection,
                     ),
-                    entities
+                    batch
                 )
 
         except Exception as e:
@@ -210,6 +218,20 @@ class Processor(FlowProcessor):
             type=int,
             default=default_concurrency,
             help=f'Concurrent processing threads (default: {default_concurrency})'
+        )
+
+        parser.add_argument(
+            '--triples-batch-size',
+            type=int,
+            default=default_triples_batch_size,
+            help=f'Maximum triples per output message (default: {default_triples_batch_size})'
+        )
+
+        parser.add_argument(
+            '--entity-batch-size',
+            type=int,
+            default=default_entity_batch_size,
+            help=f'Maximum entity contexts per output message (default: {default_entity_batch_size})'
         )
 
         FlowProcessor.add_args(parser)
