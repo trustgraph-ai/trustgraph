@@ -26,23 +26,23 @@ Key benefits:
 
 ## Schema
 
-### Table 1: entity_quads
+### Table 1: quads_by_entity
 
-The primary data table. Every entity has a partition containing all quads it participates in.
+The primary data table. Every entity has a partition containing all quads it participates in. Named to reflect the query pattern (lookup by entity).
 
 ```sql
-CREATE TABLE entity_quads (
-    collection    text,          -- Collection/tenant scope (always specified)
-    entity        text,          -- The entity this row is about
-    role          text,          -- 'S', 'P', 'O', 'G' — how this entity participates
-    quad_p        text,          -- Predicate of the quad
-    o_type        text,          -- 'U' (URI), 'L' (literal), 'T' (triple/reification)
-    quad_s        text,          -- Subject of the quad
-    quad_o        text,          -- Object of the quad
-    quad_d        text,          -- Dataset/graph of the quad
-    o_datatype    text,          -- XSD datatype (when o_type = 'L'), e.g. 'xsd:string'
-    o_lang        text,          -- Language tag (when o_type = 'L'), e.g. 'en', 'fr'
-    PRIMARY KEY ((collection, entity), role, quad_p, o_type, quad_s, quad_o, quad_d)
+CREATE TABLE quads_by_entity (
+    collection text,       -- Collection/tenant scope (always specified)
+    entity     text,       -- The entity this row is about
+    role       text,       -- 'S', 'P', 'O', 'G' — how this entity participates
+    p          text,       -- Predicate of the quad
+    otype      text,       -- 'U' (URI), 'L' (literal), 'T' (triple/reification)
+    s          text,       -- Subject of the quad
+    o          text,       -- Object of the quad
+    d          text,       -- Dataset/graph of the quad
+    dtype      text,       -- XSD datatype (when otype = 'L'), e.g. 'xsd:string'
+    lang       text,       -- Language tag (when otype = 'L'), e.g. 'en', 'fr'
+    PRIMARY KEY ((collection, entity), role, p, otype, s, o, d)
 );
 ```
 
@@ -51,22 +51,25 @@ CREATE TABLE entity_quads (
 **Clustering column order rationale**:
 
 1. **role** — most queries start with "where is this entity a subject/object"
-2. **quad_p** — next most common filter, "give me all `knows` relationships"
-3. **o_type** — enables filtering by URI-valued vs literal-valued relationships
-4. **quad_s, quad_o, quad_d** — remaining columns for uniqueness
+2. **p** — next most common filter, "give me all `knows` relationships"
+3. **otype** — enables filtering by URI-valued vs literal-valued relationships
+4. **s, o, d** — remaining columns for uniqueness
 
-### Table 2: collection_manifest
+### Table 2: quads_by_collection
 
-Supports collection-level deletion. Provides a manifest of all quads belonging to a collection.
+Supports collection-level queries and deletion. Provides a manifest of all quads belonging to a collection. Named to reflect the query pattern (lookup by collection).
 
 ```sql
-CREATE TABLE collection_manifest (
-    collection    text,
-    quad_d        text,
-    quad_s        text,
-    quad_p        text,
-    quad_o        text,
-    PRIMARY KEY (collection, quad_d, quad_s, quad_p, quad_o)
+CREATE TABLE quads_by_collection (
+    collection text,
+    d          text,       -- Dataset/graph of the quad
+    s          text,       -- Subject of the quad
+    p          text,       -- Predicate of the quad
+    o          text,       -- Object of the quad
+    otype      text,       -- 'U' (URI), 'L' (literal), 'T' (triple/reification)
+    dtype      text,       -- XSD datatype (when otype = 'L')
+    lang       text,       -- Language tag (when otype = 'L')
+    PRIMARY KEY (collection, d, s, p, o)
 );
 ```
 
@@ -74,7 +77,7 @@ Clustered by dataset first, enabling deletion at either collection or dataset gr
 
 ## Write Path
 
-For each incoming quad `(D, S, P, O)` within a collection `C`, write **4 rows** to `entity_quads` and **1 row** to `collection_manifest`.
+For each incoming quad `(D, S, P, O)` within a collection `C`, write **4 rows** to `quads_by_entity` and **1 row** to `quads_by_collection`.
 
 ### Example
 
@@ -87,20 +90,20 @@ Predicate: https://example.org/knows
 Object:   https://example.org/Bob
 ```
 
-Write 4 rows to `entity_quads`:
+Write 4 rows to `quads_by_entity`:
 
-| collection | entity | role | quad_p | o_type | quad_s | quad_o | quad_d |
+| collection | entity | role | p | otype | s | o | d |
 |---|---|---|---|---|---|---|---|
 | tenant1 | https://example.org/graph1 | G | https://example.org/knows | U | https://example.org/Alice | https://example.org/Bob | https://example.org/graph1 |
 | tenant1 | https://example.org/Alice | S | https://example.org/knows | U | https://example.org/Alice | https://example.org/Bob | https://example.org/graph1 |
 | tenant1 | https://example.org/knows | P | https://example.org/knows | U | https://example.org/Alice | https://example.org/Bob | https://example.org/graph1 |
 | tenant1 | https://example.org/Bob | O | https://example.org/knows | U | https://example.org/Alice | https://example.org/Bob | https://example.org/graph1 |
 
-Write 1 row to `collection_manifest`:
+Write 1 row to `quads_by_collection`:
 
-| collection | quad_d | quad_s | quad_p | quad_o |
-|---|---|---|---|---|
-| tenant1 | https://example.org/graph1 | https://example.org/Alice | https://example.org/knows | https://example.org/Bob |
+| collection | d | s | p | o | otype | dtype | lang |
+|---|---|---|---|---|---|---|---|
+| tenant1 | https://example.org/graph1 | https://example.org/Alice | https://example.org/knows | https://example.org/Bob | U | | |
 
 ### Literal Example
 
@@ -113,7 +116,7 @@ Predicate: http://www.w3.org/2000/01/rdf-schema#label
 Object:   "Alice Smith" (lang: en)
 ```
 
-The `o_type` is `'L'`, `o_datatype` is `'xsd:string'`, and `o_lang` is `'en'`. The literal value `"Alice Smith"` is stored in `quad_o`. Only 3 rows are needed in `entity_quads` — no row is written for the literal as entity, since literals are not independently queryable entities.
+The `otype` is `'L'`, `dtype` is `'xsd:string'`, and `lang` is `'en'`. The literal value `"Alice Smith"` is stored in `o`. Only 3 rows are needed in `quads_by_entity` — no row is written for the literal as entity, since literals are not independently queryable entities.
 
 ## Query Patterns
 
@@ -123,17 +126,17 @@ In the table below, "Perfect prefix" means the query uses a contiguous prefix of
 
 | # | Known | Lookup entity | Clustering prefix | Efficiency |
 |---|---|---|---|---|
-| 1 | D,S,P,O | entity=S, role='S', quad_p=P | Full match | Perfect prefix |
-| 2 | D,S,P,? | entity=S, role='S', quad_p=P | Filter on D | Partition scan + filter |
+| 1 | D,S,P,O | entity=S, role='S', p=P | Full match | Perfect prefix |
+| 2 | D,S,P,? | entity=S, role='S', p=P | Filter on D | Partition scan + filter |
 | 3 | D,S,?,O | entity=S, role='S' | Filter on D, O | Partition scan + filter |
-| 4 | D,?,P,O | entity=O, role='O', quad_p=P | Filter on D | Partition scan + filter |
-| 5 | ?,S,P,O | entity=S, role='S', quad_p=P | Filter on O | Partition scan + filter |
+| 4 | D,?,P,O | entity=O, role='O', p=P | Filter on D | Partition scan + filter |
+| 5 | ?,S,P,O | entity=S, role='S', p=P | Filter on O | Partition scan + filter |
 | 6 | D,S,?,? | entity=S, role='S' | Filter on D | Partition scan + filter |
 | 7 | D,?,P,? | entity=P, role='P' | Filter on D | Partition scan + filter |
 | 8 | D,?,?,O | entity=O, role='O' | Filter on D | Partition scan + filter |
-| 9 | ?,S,P,? | entity=S, role='S', quad_p=P | — | **Perfect prefix** |
+| 9 | ?,S,P,? | entity=S, role='S', p=P | — | **Perfect prefix** |
 | 10 | ?,S,?,O | entity=S, role='S' | Filter on O | Partition scan + filter |
-| 11 | ?,?,P,O | entity=O, role='O', quad_p=P | — | **Perfect prefix** |
+| 11 | ?,?,P,O | entity=O, role='O', p=P | — | **Perfect prefix** |
 | 12 | D,?,?,? | entity=D, role='G' | — | **Perfect prefix** |
 | 13 | ?,S,?,? | entity=S, role='S' | — | **Perfect prefix** |
 | 14 | ?,?,P,? | entity=P, role='P' | — | **Perfect prefix** |
@@ -149,14 +152,14 @@ Pattern 16 (?,?,?,?) does not occur in practice since collection is always speci
 **Everything about an entity:**
 
 ```sql
-SELECT * FROM entity_quads
+SELECT * FROM quads_by_entity
 WHERE collection = 'tenant1' AND entity = 'https://example.org/Alice';
 ```
 
 **All outgoing relationships for an entity:**
 
 ```sql
-SELECT * FROM entity_quads
+SELECT * FROM quads_by_entity
 WHERE collection = 'tenant1' AND entity = 'https://example.org/Alice'
 AND role = 'S';
 ```
@@ -164,34 +167,34 @@ AND role = 'S';
 **Specific predicate for an entity:**
 
 ```sql
-SELECT * FROM entity_quads
+SELECT * FROM quads_by_entity
 WHERE collection = 'tenant1' AND entity = 'https://example.org/Alice'
-AND role = 'S' AND quad_p = 'https://example.org/knows';
+AND role = 'S' AND p = 'https://example.org/knows';
 ```
 
 **Label for an entity (specific language):**
 
 ```sql
-SELECT * FROM entity_quads
+SELECT * FROM quads_by_entity
 WHERE collection = 'tenant1' AND entity = 'https://example.org/Alice'
-AND role = 'S' AND quad_p = 'http://www.w3.org/2000/01/rdf-schema#label'
-AND o_type = 'L';
+AND role = 'S' AND p = 'http://www.w3.org/2000/01/rdf-schema#label'
+AND otype = 'L';
 ```
 
-Then filter by `o_lang = 'en'` application-side if needed.
+Then filter by `lang = 'en'` application-side if needed.
 
 **Only URI-valued relationships (entity-to-entity links):**
 
 ```sql
-SELECT * FROM entity_quads
+SELECT * FROM quads_by_entity
 WHERE collection = 'tenant1' AND entity = 'https://example.org/Alice'
-AND role = 'S' AND quad_p = 'https://example.org/knows' AND o_type = 'U';
+AND role = 'S' AND p = 'https://example.org/knows' AND otype = 'U';
 ```
 
 **Reverse lookup — what points to this entity:**
 
 ```sql
-SELECT * FROM entity_quads
+SELECT * FROM quads_by_entity
 WHERE collection = 'tenant1' AND entity = 'https://example.org/Bob'
 AND role = 'O';
 ```
@@ -225,17 +228,18 @@ Mitigating factors:
 
 Triggered by API call, runs in the background (eventually consistent).
 
-1. Read `collection_manifest` for the target collection
-2. For each quad, delete the corresponding 4 rows from `entity_quads`
-3. Delete the rows from `collection_manifest`
+1. Read `quads_by_collection` for the target collection to get all quads
+2. Extract unique entities from the quads (s, p, o, d values)
+3. For each unique entity, delete the partition from `quads_by_entity`
+4. Delete the rows from `quads_by_collection`
 
-The manifest provides the index needed to locate all rows without a full table scan.
+The `quads_by_collection` table provides the index needed to locate all entity partitions without a full table scan. Partition-level deletes are efficient since `(collection, entity)` is the partition key.
 
 ## Migration Path from Multi-Table Model
 
 The entity-centric model can coexist with the existing multi-table model during migration:
 
-1. Deploy `entity_quads` and `collection_manifest` tables alongside existing tables
+1. Deploy `quads_by_entity` and `quads_by_collection` tables alongside existing tables
 2. Dual-write new quads to both old and new tables
 3. Backfill existing data into the new tables
 4. Migrate read paths one query pattern at a time
@@ -252,5 +256,5 @@ The entity-centric model can coexist with the existing multi-table model during 
 | Schema complexity | High | Low |
 | Operational overhead | 6 tables to tune/repair | 1 data table |
 | Reification support | Additional complexity | Natural fit |
-| Object type filtering | Not available | Native (via o_type clustering) |
+| Object type filtering | Not available | Native (via otype clustering) |
 
