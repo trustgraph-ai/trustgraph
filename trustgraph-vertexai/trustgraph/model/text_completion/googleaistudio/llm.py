@@ -53,7 +53,7 @@ class Processor(LlmService):
             }
         )
 
-        self.client = genai.Client(api_key=api_key)
+        self.client = genai.Client(api_key=api_key, vertexai=False)
         self.default_model = model
         self.temperature = temperature
         self.max_output = max_output
