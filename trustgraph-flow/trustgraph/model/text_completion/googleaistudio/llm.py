@@ -15,6 +15,7 @@ Input is prompt, output is response.
 from google import genai
 from google.genai import types
 from google.genai.types import HarmCategory, HarmBlockThreshold
+from google.genai.errors import ClientError
 from google.api_core.exceptions import ResourceExhausted
 import os
 import logging
@@ -152,6 +153,15 @@ class Processor(LlmService):
             # Leave rate limit retries to the default handler
             raise TooManyRequests()
 
+        except ClientError as e:
+            # google-genai SDK throws ClientError for 4xx errors
+            if e.code == 429:
+                logger.warning(f"Rate limit exceeded (ClientError 429): {e}")
+                raise TooManyRequests()
+            # Other client errors are unrecoverable
+            logger.error(f"GoogleAIStudio ClientError: {e}", exc_info=True)
+            raise e
+
         except Exception as e:
 
             # Apart from rate limits, treat all exceptions as unrecoverable
@@ -215,6 +225,15 @@ class Processor(LlmService):
         except ResourceExhausted:
             logger.warning("Rate limit exceeded during streaming")
             raise TooManyRequests()
+
+        except ClientError as e:
+            # google-genai SDK throws ClientError for 4xx errors
+            if e.code == 429:
+                logger.warning(f"Rate limit exceeded during streaming (ClientError 429): {e}")
+                raise TooManyRequests()
+            # Other client errors are unrecoverable
+            logger.error(f"GoogleAIStudio streaming ClientError: {e}", exc_info=True)
+            raise e
 
         except Exception as e:
             logger.error(f"GoogleAIStudio streaming exception ({type(e).__name__}): {e}", exc_info=True)

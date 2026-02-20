@@ -16,6 +16,7 @@ import logging
 from google import genai
 from google.genai import types
 from google.genai.types import HarmCategory, HarmBlockThreshold
+from google.genai.errors import ClientError
 from google.api_core.exceptions import ResourceExhausted
 
 # Added for Anthropic model support
@@ -229,6 +230,15 @@ class Processor(LlmService):
             # Leave rate limit retries to the base handler
             raise TooManyRequests()
 
+        except ClientError as e:
+            # google-genai SDK throws ClientError for 4xx errors
+            if e.code == 429:
+                logger.warning(f"Hit rate limit (ClientError 429): {e}")
+                raise TooManyRequests()
+            # Other client errors are unrecoverable
+            logger.error(f"VertexAI ClientError: {e}", exc_info=True)
+            raise e
+
         except Exception as e:
             # Apart from rate limits, treat all exceptions as unrecoverable
             logger.error(f"VertexAI LLM exception: {e}", exc_info=True)
@@ -345,6 +355,15 @@ class Processor(LlmService):
         except (ResourceExhausted, RateLimitError) as e:
             logger.warning(f"Hit rate limit during streaming: {e}")
             raise TooManyRequests()
+
+        except ClientError as e:
+            # google-genai SDK throws ClientError for 4xx errors
+            if e.code == 429:
+                logger.warning(f"Hit rate limit during streaming (ClientError 429): {e}")
+                raise TooManyRequests()
+            # Other client errors are unrecoverable
+            logger.error(f"VertexAI streaming ClientError: {e}", exc_info=True)
+            raise e
 
         except Exception as e:
             logger.error(f"VertexAI streaming exception: {e}", exc_info=True)
