@@ -16,7 +16,7 @@ RUN dnf install -y python3.13 && \
   dnf clean all
 
 RUN pip3 install --no-cache-dir \
-    anthropic cohere mistralai openai google-generativeai \
+    anthropic cohere mistralai openai \
     ollama \
     langchain==0.3.25 langchain-core==0.3.60 \
     langchain-text-splitters==0.3.8 \
