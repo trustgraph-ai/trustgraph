@@ -26,6 +26,7 @@ classifiers = [
 Homepage = "https://github.com/trustgraph-ai/trustgraph"
 
 [project.scripts]
+text-completion-googleaistudio = "trustgraph.model.text_completion.googleaistudio:run"
 text-completion-vertexai = "trustgraph.model.text_completion.vertexai:run"
 
 [tool.setuptools.packages.find]
