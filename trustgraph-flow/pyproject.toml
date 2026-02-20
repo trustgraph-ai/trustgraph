@@ -19,8 +19,6 @@ dependencies = [
     "faiss-cpu",
     "falkordb",
     "fastembed",
-    "google-genai",
-    "google-api-core",
     "ibis",
     "jsonschema",
     "langchain",
@@ -105,7 +103,6 @@ text-completion-azure = "trustgraph.model.text_completion.azure:run"
 text-completion-azure-openai = "trustgraph.model.text_completion.azure_openai:run"
 text-completion-claude = "trustgraph.model.text_completion.claude:run"
 text-completion-cohere = "trustgraph.model.text_completion.cohere:run"
-text-completion-googleaistudio = "trustgraph.model.text_completion.googleaistudio:run"
 text-completion-llamafile = "trustgraph.model.text_completion.llamafile:run"
 text-completion-lmstudio = "trustgraph.model.text_completion.lmstudio:run"
 text-completion-mistral = "trustgraph.model.text_completion.mistral:run"
