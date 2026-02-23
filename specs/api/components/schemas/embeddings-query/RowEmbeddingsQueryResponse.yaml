@@ -1,0 +1,53 @@
+type: object
+description: Row embeddings query response with matching row index information
+properties:
+  error:
+    type: object
+    description: Error information if query failed
+    properties:
+      type:
+        type: string
+        description: Error type identifier
+        example: row-embeddings-query-error
+      message:
+        type: string
+        description: Human-readable error message
+        example: Schema not found
+  matches:
+    type: array
+    description: List of matching row index entries with similarity scores
+    items:
+      type: object
+      properties:
+        index_name:
+          type: string
+          description: Name of the indexed field(s)
+          example: full_name
+        index_value:
+          type: array
+          description: Values of the indexed fields for this row
+          items:
+            type: string
+          example: ["John", "Smith"]
+        text:
+          type: string
+          description: The text that was embedded for this index entry
+          example: "John Smith"
+        score:
+          type: number
+          description: Similarity score (higher is more similar)
+          example: 0.89
+example:
+  matches:
+    - index_name: full_name
+      index_value: ["John", "Smith"]
+      text: "John Smith"
+      score: 0.95
+    - index_name: full_name
+      index_value: ["Jon", "Smythe"]
+      text: "Jon Smythe"
+      score: 0.82
+    - index_name: full_name
+      index_value: ["Jonathan", "Schmidt"]
+      text: "Jonathan Schmidt"
+      score: 0.76

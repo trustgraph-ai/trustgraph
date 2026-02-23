@@ -31,6 +31,7 @@ payload:
     - $ref: './requests/StructuredDiagRequest.yaml'
     - $ref: './requests/GraphEmbeddingsRequest.yaml'
     - $ref: './requests/DocumentEmbeddingsRequest.yaml'
+    - $ref: './requests/RowEmbeddingsRequest.yaml'
     - $ref: './requests/TextLoadRequest.yaml'
     - $ref: './requests/DocumentLoadRequest.yaml'
 

@@ -133,6 +133,8 @@ paths:
     $ref: './paths/flow/graph-embeddings.yaml'
   /api/v1/flow/{flow}/service/document-embeddings:
     $ref: './paths/flow/document-embeddings.yaml'
+  /api/v1/flow/{flow}/service/row-embeddings:
+    $ref: './paths/flow/row-embeddings.yaml'
   /api/v1/flow/{flow}/service/text-load:
     $ref: './paths/flow/text-load.yaml'
   /api/v1/flow/{flow}/service/document-load:

@@ -1,0 +1,101 @@
+post:
+  tags:
+    - Flow Services
+  summary: Row Embeddings Query - semantic search on structured data
+  description: |
+    Query row embeddings to find similar rows by vector similarity on indexed fields.
+    Enables fuzzy/semantic matching on structured data.
+
+    ## Row Embeddings Query Overview
+
+    Find rows whose indexed field values are semantically similar to a query:
+    - **Input**: Query embedding vector, schema name, optional index filter
+    - **Search**: Compare against stored row index embeddings
+    - **Output**: Matching rows with index values and similarity scores
+
+    Core component of semantic search on structured data.
+
+    ## Use Cases
+
+    - **Fuzzy name matching**: Find customers by approximate name
+    - **Semantic field search**: Find products by description similarity
+    - **Data deduplication**: Identify potential duplicate records
+    - **Entity resolution**: Match records across datasets
+
+    ## Process
+
+    1. Obtain query embedding (via embeddings service)
+    2. Query stored row index embeddings for the specified schema
+    3. Calculate cosine similarity
+    4. Return top N most similar index entries
+    5. Use index values to retrieve full rows via GraphQL
+
+    ## Response Format
+
+    Each match includes:
+    - `index_name`: The indexed field(s) that matched
+    - `index_value`: The actual values for those fields
+    - `text`: The text that was embedded
+    - `score`: Similarity score (higher = more similar)
+
+  operationId: rowEmbeddingsQueryService
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: flow
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Flow instance ID
+      example: my-flow
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/schemas/embeddings-query/RowEmbeddingsQueryRequest.yaml'
+        examples:
+          basicQuery:
+            summary: Find similar customer names
+            value:
+              vectors: [0.023, -0.142, 0.089, 0.234, -0.067, 0.156, 0.201, -0.178]
+              schema_name: customers
+              limit: 10
+              user: alice
+              collection: sales
+          filteredQuery:
+            summary: Search specific index
+            value:
+              vectors: [0.1, -0.2, 0.3, -0.4, 0.5]
+              schema_name: products
+              index_name: description
+              limit: 20
+  responses:
+    '200':
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/embeddings-query/RowEmbeddingsQueryResponse.yaml'
+          examples:
+            similarRows:
+              summary: Similar rows found
+              value:
+                matches:
+                  - index_name: full_name
+                    index_value: ["John", "Smith"]
+                    text: "John Smith"
+                    score: 0.95
+                  - index_name: full_name
+                    index_value: ["Jon", "Smythe"]
+                    text: "Jon Smythe"
+                    score: 0.82
+                  - index_name: full_name
+                    index_value: ["Jonathan", "Schmidt"]
+                    text: "Jonathan Schmidt"
+                    score: 0.76
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../../components/responses/Error.yaml'
