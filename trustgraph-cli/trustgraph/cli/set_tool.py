@@ -67,6 +67,7 @@ def set_tool(
         template : str,
         schema_name : str,
         index_name : str,
+        limit : int,
         arguments : List[Argument],
         group : List[str],
         state : str,
@@ -95,6 +96,8 @@ def set_tool(
     if schema_name: object["schema-name"] = schema_name
 
     if index_name: object["index-name"] = index_name
+
+    if limit: object["limit"] = limit
 
     if arguments:
         object["arguments"] = [
@@ -156,7 +159,7 @@ def main():
                        --type row-embeddings-query \\
                        --description "Find customers by name using semantic search" \\
                        --schema-name customers --collection sales \\
-                       --index-name full_name
+                       --index-name full_name --limit 20
 
               %(prog)s --id calc_tool --name calculate --type mcp-tool \\
                        --description "Perform mathematical calculations" \\
@@ -216,6 +219,12 @@ def main():
     parser.add_argument(
         '--index-name',
         help=f'For row-embeddings-query type: specific index to filter search (optional)',
+    )
+
+    parser.add_argument(
+        '--limit',
+        type=int,
+        help=f'For row-embeddings-query type: maximum results to return (default: 10)',
     )
 
     parser.add_argument(
@@ -288,6 +297,7 @@ def main():
             template=args.template,
             schema_name=args.schema_name,
             index_name=args.index_name,
+            limit=args.limit,
             arguments=arguments,
             group=args.group,
             state=args.state,

@@ -130,12 +130,13 @@ class StructuredQueryImpl:
 
 # This tool implementation knows how to query row embeddings for semantic search
 class RowEmbeddingsQueryImpl:
-    def __init__(self, context, schema_name, collection=None, user=None, index_name=None):
+    def __init__(self, context, schema_name, collection=None, user=None, index_name=None, limit=10):
         self.context = context
         self.schema_name = schema_name
         self.collection = collection
         self.user = user
         self.index_name = index_name  # Optional: filter to specific index
+        self.limit = limit  # Max results to return
 
     @staticmethod
     def get_arguments():
@@ -168,7 +169,7 @@ class RowEmbeddingsQueryImpl:
             user=user,
             collection=self.collection or "default",
             index_name=self.index_name,
-            limit=10
+            limit=self.limit
         )
 
         # Format results for agent consumption

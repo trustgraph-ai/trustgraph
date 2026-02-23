@@ -52,6 +52,8 @@ def show_config(url, token=None):
                 table.append(("schema-name", data["schema-name"]))
             if "index-name" in data:
                 table.append(("index-name", data["index-name"]))
+            if "limit" in data:
+                table.append(("limit", data["limit"]))
 
         if tp == "prompt":
             table.append(("template", data["template"]))

@@ -173,7 +173,8 @@ class Processor(AgentService):
                             schema_name=data.get("schema-name"),
                             collection=data.get("collection"),
                             user=None,  # User will be provided dynamically via context
-                            index_name=data.get("index-name")  # Optional filter
+                            index_name=data.get("index-name"),  # Optional filter
+                            limit=int(data.get("limit", 10))  # Max results
                         )
                         arguments = RowEmbeddingsQueryImpl.get_arguments()
                     else:
