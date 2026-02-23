@@ -25,7 +25,7 @@ payload:
     - $ref: './requests/EmbeddingsRequest.yaml'
     - $ref: './requests/McpToolRequest.yaml'
     - $ref: './requests/TriplesRequest.yaml'
-    - $ref: './requests/ObjectsRequest.yaml'
+    - $ref: './requests/RowsRequest.yaml'
     - $ref: './requests/NlpQueryRequest.yaml'
     - $ref: './requests/StructuredQueryRequest.yaml'
     - $ref: './requests/StructuredDiagRequest.yaml'

@@ -5,7 +5,7 @@ VERSION=0.0.0
 
 DOCKER=podman
 
-all: container
+all: containers
 
 # Not used
 wheels:
@@ -49,7 +49,9 @@ update-package-versions:
 	echo __version__ = \"${VERSION}\" > trustgraph/trustgraph/trustgraph_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-mcp/trustgraph/mcp_version.py
 
-container: update-package-versions
+FORCE:
+
+containers: FORCE
 	${DOCKER} build -f containers/Containerfile.base \
 	    -t ${CONTAINER_BASE}/trustgraph-base:${VERSION} .
 	${DOCKER} build -f containers/Containerfile.flow \

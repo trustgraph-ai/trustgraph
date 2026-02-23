@@ -530,45 +530,45 @@ class BulkClient:
             async for raw_message in websocket:
                 yield json.loads(raw_message)
 
-    def import_objects(self, flow: str, objects: Iterator[Dict[str, Any]], **kwargs: Any) -> None:
+    def import_rows(self, flow: str, rows: Iterator[Dict[str, Any]], **kwargs: Any) -> None:
         """
-        Bulk import structured objects into a flow.
+        Bulk import structured rows into a flow.
 
-        Efficiently uploads structured data objects via WebSocket streaming
+        Efficiently uploads structured data rows via WebSocket streaming
         for use in GraphQL queries.
 
         Args:
             flow: Flow identifier
-            objects: Iterator yielding object dictionaries
+            rows: Iterator yielding row dictionaries
             **kwargs: Additional parameters (reserved for future use)
 
         Example:
             ```python
             bulk = api.bulk()
 
-            # Generate objects to import
-            def object_generator():
-                yield {"id": "obj1", "name": "Object 1", "value": 100}
-                yield {"id": "obj2", "name": "Object 2", "value": 200}
-                # ... more objects
+            # Generate rows to import
+            def row_generator():
+                yield {"id": "row1", "name": "Row 1", "value": 100}
+                yield {"id": "row2", "name": "Row 2", "value": 200}
+                # ... more rows
 
-            bulk.import_objects(
+            bulk.import_rows(
                 flow="default",
-                objects=object_generator()
+                rows=row_generator()
             )
             ```
         """
-        self._run_async(self._import_objects_async(flow, objects))
+        self._run_async(self._import_rows_async(flow, rows))
 
-    async def _import_objects_async(self, flow: str, objects: Iterator[Dict[str, Any]]) -> None:
-        """Async implementation of objects import"""
-        ws_url = f"{self.url}/api/v1/flow/{flow}/import/objects"
+    async def _import_rows_async(self, flow: str, rows: Iterator[Dict[str, Any]]) -> None:
+        """Async implementation of rows import"""
+        ws_url = f"{self.url}/api/v1/flow/{flow}/import/rows"
         if self.token:
             ws_url = f"{ws_url}?token={self.token}"
 
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
-            for obj in objects:
-                await websocket.send(json.dumps(obj))
+            for row in rows:
+                await websocket.send(json.dumps(row))
 
     def close(self) -> None:
         """Close connections"""

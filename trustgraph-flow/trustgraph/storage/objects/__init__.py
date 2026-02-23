@@ -1,1 +1,0 @@
-# Objects storage module

@@ -20,7 +20,7 @@ from . prompt import PromptRequestor
 from . graph_rag import GraphRagRequestor
 from . document_rag import DocumentRagRequestor
 from . triples_query import TriplesQueryRequestor
-from . objects_query import ObjectsQueryRequestor
+from . rows_query import RowsQueryRequestor
 from . nlp_query import NLPQueryRequestor
 from . structured_query import StructuredQueryRequestor
 from . structured_diag import StructuredDiagRequestor
@@ -40,7 +40,7 @@ from . triples_import import TriplesImport
 from . graph_embeddings_import import GraphEmbeddingsImport
 from . document_embeddings_import import DocumentEmbeddingsImport
 from . entity_contexts_import import EntityContextsImport
-from . objects_import import ObjectsImport
+from . rows_import import RowsImport
 
 from . core_export import CoreExport
 from . core_import import CoreImport
@@ -58,7 +58,7 @@ request_response_dispatchers = {
     "graph-embeddings": GraphEmbeddingsQueryRequestor,
     "document-embeddings": DocumentEmbeddingsQueryRequestor,
     "triples": TriplesQueryRequestor,
-    "objects": ObjectsQueryRequestor,
+    "rows": RowsQueryRequestor,
     "nlp-query": NLPQueryRequestor,
     "structured-query": StructuredQueryRequestor,
     "structured-diag": StructuredDiagRequestor,
@@ -89,7 +89,7 @@ import_dispatchers = {
     "graph-embeddings": GraphEmbeddingsImport,
     "document-embeddings": DocumentEmbeddingsImport,
     "entity-contexts": EntityContextsImport,
-    "objects": ObjectsImport,
+    "rows": RowsImport,
 }
 
 class DispatcherWrapper:

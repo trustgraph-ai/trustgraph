@@ -115,15 +115,15 @@ class AsyncBulkClient:
             async for raw_message in websocket:
                 yield json.loads(raw_message)
 
-    async def import_objects(self, flow: str, objects: AsyncIterator[Dict[str, Any]], **kwargs: Any) -> None:
-        """Bulk import objects via WebSocket"""
-        ws_url = f"{self.url}/api/v1/flow/{flow}/import/objects"
+    async def import_rows(self, flow: str, rows: AsyncIterator[Dict[str, Any]], **kwargs: Any) -> None:
+        """Bulk import rows via WebSocket"""
+        ws_url = f"{self.url}/api/v1/flow/{flow}/import/rows"
         if self.token:
             ws_url = f"{ws_url}?token={self.token}"
 
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
-            async for obj in objects:
-                await websocket.send(json.dumps(obj))
+            async for row in rows:
+                await websocket.send(json.dumps(row))
 
     async def aclose(self) -> None:
         """Close connections"""

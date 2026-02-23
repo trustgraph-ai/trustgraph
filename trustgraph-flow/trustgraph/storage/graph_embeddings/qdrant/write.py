@@ -31,7 +31,7 @@ def get_term_value(term):
         return term.id or term.value
 
 
-default_ident = "ge-write"
+default_ident = "graph-embeddings-write"
 
 default_store_uri = 'http://localhost:6333'
 

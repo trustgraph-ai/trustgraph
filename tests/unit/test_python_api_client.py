@@ -167,7 +167,7 @@ class TestFlowClient:
         expected_methods = [
             'text_completion', 'agent', 'graph_rag', 'document_rag',
             'graph_embeddings_query', 'embeddings', 'prompt',
-            'triples_query', 'objects_query'
+            'triples_query', 'rows_query'
         ]
 
         for method in expected_methods:
@@ -216,7 +216,7 @@ class TestSocketClient:
         expected_methods = [
             'agent', 'text_completion', 'graph_rag', 'document_rag',
             'prompt', 'graph_embeddings_query', 'embeddings',
-            'triples_query', 'objects_query', 'mcp_tool'
+            'triples_query', 'rows_query', 'mcp_tool'
         ]
 
         for method in expected_methods:
@@ -243,7 +243,7 @@ class TestBulkClient:
             'import_graph_embeddings',
             'import_document_embeddings',
             'import_entity_contexts',
-            'import_objects'
+            'import_rows'
         ]
 
         for method in import_methods:

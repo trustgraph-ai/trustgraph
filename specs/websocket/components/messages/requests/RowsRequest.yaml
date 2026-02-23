@@ -1,0 +1,26 @@
+type: object
+description: WebSocket request for rows service (flow-hosted service)
+required:
+  - id
+  - service
+  - flow
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: rows
+    description: Service identifier for rows service
+  flow:
+    type: string
+    description: Flow ID
+  request:
+    $ref: '../../../../api/components/schemas/query/RowsQueryRequest.yaml'
+examples:
+  - id: req-1
+    service: rows
+    flow: my-flow
+    request:
+      query: "{ entity(id: \"https://example.com/entity1\") { properties { key value } } }"

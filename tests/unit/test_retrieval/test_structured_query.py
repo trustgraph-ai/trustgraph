@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from trustgraph.schema import (
     StructuredQueryRequest, StructuredQueryResponse,
     QuestionToStructuredQueryRequest, QuestionToStructuredQueryResponse,
-    ObjectsQueryRequest, ObjectsQueryResponse,
+    RowsQueryRequest, RowsQueryResponse,
     Error, GraphQLError
 )
 from trustgraph.retrieval.structured_query.service import Processor
@@ -68,7 +68,7 @@ class TestStructuredQueryProcessor:
         )
         
         # Mock objects query service response
-        objects_response = ObjectsQueryResponse(
+        objects_response = RowsQueryResponse(
             error=None,
             data='{"customers": [{"id": "1", "name": "John", "email": "john@example.com"}]}',
             errors=None,
@@ -86,7 +86,7 @@ class TestStructuredQueryProcessor:
         def flow_router(service_name):
             if service_name == "nlp-query-request":
                 return mock_nlp_client
-            elif service_name == "objects-query-request":
+            elif service_name == "rows-query-request":
                 return mock_objects_client
             elif service_name == "response":
                 return flow_response
@@ -108,7 +108,7 @@ class TestStructuredQueryProcessor:
         # Verify objects query service was called correctly
         mock_objects_client.request.assert_called_once()
         objects_call_args = mock_objects_client.request.call_args[0][0]
-        assert isinstance(objects_call_args, ObjectsQueryRequest)
+        assert isinstance(objects_call_args, RowsQueryRequest)
         assert objects_call_args.query == 'query { customers(where: {state: {eq: "NY"}}) { id name email } }'
         assert objects_call_args.variables == {"state": "NY"}
         assert objects_call_args.user == "trustgraph"
@@ -224,7 +224,7 @@ class TestStructuredQueryProcessor:
         assert response.error is not None
         assert "empty GraphQL query" in response.error.message
 
-    async def test_objects_query_service_error(self, processor):
+    async def test_rows_query_service_error(self, processor):
         """Test handling of objects query service errors"""
         # Arrange
         request = StructuredQueryRequest(
@@ -250,7 +250,7 @@ class TestStructuredQueryProcessor:
         )
         
         # Mock objects query service error
-        objects_response = ObjectsQueryResponse(
+        objects_response = RowsQueryResponse(
             error=Error(type="graphql-execution-error", message="Table 'customers' not found"),
             data=None,
             errors=None,
@@ -267,7 +267,7 @@ class TestStructuredQueryProcessor:
         def flow_router(service_name):
             if service_name == "nlp-query-request":
                 return mock_nlp_client
-            elif service_name == "objects-query-request":
+            elif service_name == "rows-query-request":
                 return mock_objects_client
             elif service_name == "response":
                 return flow_response
@@ -284,7 +284,7 @@ class TestStructuredQueryProcessor:
         response = response_call[0][0]
         
         assert response.error is not None
-        assert "Objects query service error" in response.error.message
+        assert "Rows query service error" in response.error.message
         assert "Table 'customers' not found" in response.error.message
 
     async def test_graphql_errors_handling(self, processor):
@@ -321,7 +321,7 @@ class TestStructuredQueryProcessor:
             )
         ]
         
-        objects_response = ObjectsQueryResponse(
+        objects_response = RowsQueryResponse(
             error=None,
             data=None,
             errors=graphql_errors,
@@ -338,7 +338,7 @@ class TestStructuredQueryProcessor:
         def flow_router(service_name):
             if service_name == "nlp-query-request":
                 return mock_nlp_client
-            elif service_name == "objects-query-request":
+            elif service_name == "rows-query-request":
                 return mock_objects_client
             elif service_name == "response":
                 return flow_response
@@ -400,7 +400,7 @@ class TestStructuredQueryProcessor:
         )
         
         # Mock objects response
-        objects_response = ObjectsQueryResponse(
+        objects_response = RowsQueryResponse(
             error=None,
             data='{"customers": [{"id": "1", "name": "Alice", "orders": [{"id": "100", "total": 150.0}]}]}',
             errors=None
@@ -416,7 +416,7 @@ class TestStructuredQueryProcessor:
         def flow_router(service_name):
             if service_name == "nlp-query-request":
                 return mock_nlp_client
-            elif service_name == "objects-query-request":
+            elif service_name == "rows-query-request":
                 return mock_objects_client
             elif service_name == "response":
                 return flow_response
@@ -464,7 +464,7 @@ class TestStructuredQueryProcessor:
             confidence=0.9
         )
         
-        objects_response = ObjectsQueryResponse(
+        objects_response = RowsQueryResponse(
             error=None,
             data=None,  # Null data
             errors=None,
@@ -481,7 +481,7 @@ class TestStructuredQueryProcessor:
         def flow_router(service_name):
             if service_name == "nlp-query-request":
                 return mock_nlp_client
-            elif service_name == "objects-query-request":
+            elif service_name == "rows-query-request":
                 return mock_objects_client
             elif service_name == "response":
                 return flow_response

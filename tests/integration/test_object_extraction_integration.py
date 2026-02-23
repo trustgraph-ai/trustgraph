@@ -11,7 +11,7 @@ import json
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from trustgraph.extract.kg.objects.processor import Processor
+from trustgraph.extract.kg.rows.processor import Processor
 from trustgraph.schema import (
     Chunk, ExtractedObject, Metadata, RowSchema, Field,
     PromptRequest, PromptResponse
@@ -220,7 +220,7 @@ class TestObjectExtractionServiceIntegration:
         processor.extract_objects_for_schema = Processor.extract_objects_for_schema.__get__(processor, Processor)
         
         # Import and bind the convert_values_to_strings function
-        from trustgraph.extract.kg.objects.processor import convert_values_to_strings
+        from trustgraph.extract.kg.rows.processor import convert_values_to_strings
         processor.convert_values_to_strings = convert_values_to_strings
         
         # Load configuration
@@ -288,7 +288,7 @@ class TestObjectExtractionServiceIntegration:
         processor.extract_objects_for_schema = Processor.extract_objects_for_schema.__get__(processor, Processor)
         
         # Import and bind the convert_values_to_strings function
-        from trustgraph.extract.kg.objects.processor import convert_values_to_strings
+        from trustgraph.extract.kg.rows.processor import convert_values_to_strings
         processor.convert_values_to_strings = convert_values_to_strings
         
         # Load configuration
@@ -353,7 +353,7 @@ class TestObjectExtractionServiceIntegration:
         processor.extract_objects_for_schema = Processor.extract_objects_for_schema.__get__(processor, Processor)
         
         # Import and bind the convert_values_to_strings function
-        from trustgraph.extract.kg.objects.processor import convert_values_to_strings
+        from trustgraph.extract.kg.rows.processor import convert_values_to_strings
         processor.convert_values_to_strings = convert_values_to_strings
         
         # Load configuration
@@ -447,7 +447,7 @@ class TestObjectExtractionServiceIntegration:
         processor.extract_objects_for_schema = Processor.extract_objects_for_schema.__get__(processor, Processor)
         
         # Import and bind the convert_values_to_strings function
-        from trustgraph.extract.kg.objects.processor import convert_values_to_strings
+        from trustgraph.extract.kg.rows.processor import convert_values_to_strings
         processor.convert_values_to_strings = convert_values_to_strings
         
         # Mock flow with failing prompt service
@@ -496,7 +496,7 @@ class TestObjectExtractionServiceIntegration:
         processor.extract_objects_for_schema = Processor.extract_objects_for_schema.__get__(processor, Processor)
         
         # Import and bind the convert_values_to_strings function
-        from trustgraph.extract.kg.objects.processor import convert_values_to_strings
+        from trustgraph.extract.kg.rows.processor import convert_values_to_strings
         processor.convert_values_to_strings = convert_values_to_strings
         
         # Load configuration

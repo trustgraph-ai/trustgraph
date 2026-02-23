@@ -573,19 +573,19 @@ def _process_data_pipeline(input_file, descriptor_file, user, collection, sample
     return output_records, descriptor
 
 
-def _send_to_trustgraph(objects, api_url, flow, batch_size=1000, token=None):
+def _send_to_trustgraph(rows, api_url, flow, batch_size=1000, token=None):
     """Send ExtractedObject records to TrustGraph using Python API"""
     from trustgraph.api import Api
 
     try:
-        total_records = len(objects)
+        total_records = len(rows)
         logger.info(f"Importing {total_records} records to TrustGraph...")
 
         # Use Python API bulk import
         api = Api(api_url, token=token)
         bulk = api.bulk()
 
-        bulk.import_objects(flow=flow, objects=iter(objects))
+        bulk.import_rows(flow=flow, rows=iter(rows))
 
         logger.info(f"Successfully imported {total_records} records to TrustGraph")
 

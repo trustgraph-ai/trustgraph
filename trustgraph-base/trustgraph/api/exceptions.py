@@ -71,8 +71,8 @@ class NLPQueryError(TrustGraphException):
     pass
 
 
-class ObjectsQueryError(TrustGraphException):
-    """Objects query service error"""
+class RowsQueryError(TrustGraphException):
+    """Rows query service error"""
     pass
 
 
@@ -103,7 +103,7 @@ ERROR_TYPE_MAPPING = {
     "load-error": LoadError,
     "lookup-error": LookupError,
     "nlp-query-error": NLPQueryError,
-    "objects-query-error": ObjectsQueryError,
+    "rows-query-error": RowsQueryError,
     "request-error": RequestError,
     "structured-query-error": StructuredQueryError,
     "unexpected-error": UnexpectedError,

@@ -789,7 +789,7 @@ class SocketFlowInstance:
 
         return self.client._send_request_sync("triples", self.flow_id, request, False)
 
-    def objects_query(
+    def rows_query(
         self,
         query: str,
         user: str,
@@ -799,7 +799,7 @@ class SocketFlowInstance:
         **kwargs: Any
     ) -> Dict[str, Any]:
         """
-        Execute a GraphQL query against structured objects.
+        Execute a GraphQL query against structured rows.
 
         Args:
             query: GraphQL query string
@@ -826,7 +826,7 @@ class SocketFlowInstance:
               }
             }
             '''
-            result = flow.objects_query(
+            result = flow.rows_query(
                 query=query,
                 user="trustgraph",
                 collection="scientists"
@@ -844,7 +844,7 @@ class SocketFlowInstance:
             request["operationName"] = operation_name
         request.update(kwargs)
 
-        return self.client._send_request_sync("objects", self.flow_id, request, False)
+        return self.client._send_request_sync("rows", self.flow_id, request, False)
 
     def mcp_tool(
         self,

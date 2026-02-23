@@ -708,18 +708,18 @@ class AsyncFlowInstance:
 
         return await self.request("triples", request_data)
 
-    async def objects_query(self, query: str, user: str, collection: str, variables: Optional[Dict] = None,
-                            operation_name: Optional[str] = None, **kwargs: Any):
+    async def rows_query(self, query: str, user: str, collection: str, variables: Optional[Dict] = None,
+                         operation_name: Optional[str] = None, **kwargs: Any):
         """
-        Execute a GraphQL query on stored objects.
+        Execute a GraphQL query on stored rows.
 
-        Queries structured data objects using GraphQL syntax. Supports complex
+        Queries structured data rows using GraphQL syntax. Supports complex
         queries with variables and named operations.
 
         Args:
             query: GraphQL query string
             user: User identifier
-            collection: Collection identifier containing objects
+            collection: Collection identifier containing rows
             variables: Optional GraphQL query variables
             operation_name: Optional operation name for multi-operation queries
             **kwargs: Additional service-specific parameters
@@ -743,7 +743,7 @@ class AsyncFlowInstance:
                 }
             '''
 
-            result = await flow.objects_query(
+            result = await flow.rows_query(
                 query=query,
                 user="trustgraph",
                 collection="users",
@@ -765,4 +765,4 @@ class AsyncFlowInstance:
             request_data["operationName"] = operation_name
         request_data.update(kwargs)
 
-        return await self.request("objects", request_data)
+        return await self.request("rows", request_data)

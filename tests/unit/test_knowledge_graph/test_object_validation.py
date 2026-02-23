@@ -76,7 +76,7 @@ def cities_schema():
 def validator():
     """Create a mock processor with just the validation method"""
     from unittest.mock import MagicMock
-    from trustgraph.extract.kg.objects.processor import Processor
+    from trustgraph.extract.kg.rows.processor import Processor
     
     # Create a mock processor
     mock_processor = MagicMock()

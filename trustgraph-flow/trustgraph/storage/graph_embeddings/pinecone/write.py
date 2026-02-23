@@ -32,7 +32,7 @@ def get_term_value(term):
         # For blank nodes or other types, use id or value
         return term.id or term.value
 
-default_ident = "ge-write"
+default_ident = "graph-embeddings-write"
 default_api_key = os.getenv("PINECONE_API_KEY", "not-specified")
 default_cloud = "aws"
 default_region = "us-east-1"

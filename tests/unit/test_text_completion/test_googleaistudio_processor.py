@@ -48,7 +48,7 @@ class TestGoogleAIStudioProcessorSimple(IsolatedAsyncioTestCase):
         assert hasattr(processor, 'client')
         assert hasattr(processor, 'safety_settings')
         assert len(processor.safety_settings) == 4  # 4 safety categories
-        mock_genai_class.assert_called_once_with(api_key='test-api-key')
+        mock_genai_class.assert_called_once_with(api_key='test-api-key', vertexai=False)
 
     @patch('trustgraph.model.text_completion.googleaistudio.llm.genai.Client')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
@@ -208,7 +208,7 @@ class TestGoogleAIStudioProcessorSimple(IsolatedAsyncioTestCase):
         assert processor.default_model == 'gemini-1.5-pro'
         assert processor.temperature == 0.7
         assert processor.max_output == 4096
-        mock_genai_class.assert_called_once_with(api_key='custom-api-key')
+        mock_genai_class.assert_called_once_with(api_key='custom-api-key', vertexai=False)
 
     @patch('trustgraph.model.text_completion.googleaistudio.llm.genai.Client')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
@@ -237,7 +237,7 @@ class TestGoogleAIStudioProcessorSimple(IsolatedAsyncioTestCase):
         assert processor.default_model == 'gemini-2.0-flash-001'  # default_model
         assert processor.temperature == 0.0  # default_temperature
         assert processor.max_output == 8192  # default_max_output
-        mock_genai_class.assert_called_once_with(api_key='test-api-key')
+        mock_genai_class.assert_called_once_with(api_key='test-api-key', vertexai=False)
 
     @patch('trustgraph.model.text_completion.googleaistudio.llm.genai.Client')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
@@ -427,7 +427,7 @@ class TestGoogleAIStudioProcessorSimple(IsolatedAsyncioTestCase):
 
         # Assert
         # Verify Google AI Studio client was called with correct API key
-        mock_genai_class.assert_called_once_with(api_key='gai-test-key')
+        mock_genai_class.assert_called_once_with(api_key='gai-test-key', vertexai=False)
         
         # Verify processor has the client
         assert processor.client == mock_genai_client
