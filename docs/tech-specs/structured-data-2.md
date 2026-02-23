@@ -368,7 +368,153 @@ This separation keeps concerns clean:
 - Embeddings API handles semantic similarity
 - User workflow: fuzzy search via embeddings to find candidates, then exact query to get full row data
 
+#### Request/Response Schema
+
+```python
+@dataclass
+class RowEmbeddingsRequest:
+    vectors: list[list[float]]    # Query vectors (pre-computed embeddings)
+    user: str = ""
+    collection: str = ""
+    schema_name: str = ""
+    index_name: str = ""          # Optional: filter to specific index
+    limit: int = 10               # Max results per vector
+
+@dataclass
+class RowIndexMatch:
+    index_name: str = ""          # The matched index field(s)
+    index_value: list[str] = []   # The matched value(s)
+    text: str = ""                # Original text that was embedded
+    score: float = 0.0            # Similarity score
+
+@dataclass
+class RowEmbeddingsResponse:
+    error: Error | None = None
+    matches: list[RowIndexMatch] = []
+```
+
+#### Query Processor
+
 Module: `trustgraph-flow/trustgraph/query/row_embeddings/qdrant`
+
+Entry point: `row-embeddings-query-qdrant`
+
+The processor:
+1. Receives `RowEmbeddingsRequest` with query vectors
+2. Finds the appropriate Qdrant collection by prefix matching
+3. Searches for nearest vectors with optional `index_name` filter
+4. Returns `RowEmbeddingsResponse` with matching index information
+
+#### API Gateway Integration
+
+The gateway exposes row embeddings queries via the standard request/response pattern:
+
+| Component | Location |
+|-----------|----------|
+| Dispatcher | `trustgraph-flow/trustgraph/gateway/dispatch/row_embeddings_query.py` |
+| Registration | Add `"row-embeddings"` to `request_response_dispatchers` in `manager.py` |
+
+Flow interface name: `row-embeddings`
+
+Interface definition in flow blueprint:
+```json
+{
+  "interfaces": {
+    "row-embeddings": {
+      "request": "non-persistent://tg/request/row-embeddings:{id}",
+      "response": "non-persistent://tg/response/row-embeddings:{id}"
+    }
+  }
+}
+```
+
+#### Python SDK Support
+
+The SDK provides methods for row embeddings queries:
+
+```python
+# Flow-scoped query (preferred)
+api = Api(url)
+flow = api.flow().id("default")
+
+# Query with text (SDK computes embeddings)
+matches = flow.row_embeddings_query(
+    text="Chestnut Street",
+    collection="my_collection",
+    schema_name="addresses",
+    index_name="street_name",  # Optional filter
+    limit=10
+)
+
+# Query with pre-computed vectors
+matches = flow.row_embeddings_query(
+    vectors=[[0.1, 0.2, ...]],
+    collection="my_collection",
+    schema_name="addresses"
+)
+
+# Each match contains:
+for match in matches:
+    print(match.index_name)   # e.g., "street_name"
+    print(match.index_value)  # e.g., ["CHESTNUT ST"]
+    print(match.text)         # e.g., "CHESTNUT ST"
+    print(match.score)        # e.g., 0.95
+```
+
+#### CLI Utility
+
+Command: `tg-invoke-row-embeddings`
+
+```bash
+# Query by text (computes embedding automatically)
+tg-invoke-row-embeddings \
+  --text "Chestnut Street" \
+  --collection my_collection \
+  --schema addresses \
+  --index street_name \
+  --limit 10
+
+# Query by vector file
+tg-invoke-row-embeddings \
+  --vectors vectors.json \
+  --collection my_collection \
+  --schema addresses
+
+# Output formats
+tg-invoke-row-embeddings --text "..." --format json
+tg-invoke-row-embeddings --text "..." --format table
+```
+
+#### Typical Usage Pattern
+
+The row embeddings query is typically used as part of a fuzzy-to-exact lookup flow:
+
+```python
+# Step 1: Fuzzy search via embeddings
+matches = flow.row_embeddings_query(
+    text="chestnut street",
+    collection="geo",
+    schema_name="streets"
+)
+
+# Step 2: Exact lookup via GraphQL for full row data
+for match in matches:
+    query = f'''
+    query {{
+        streets(where: {{ {match.index_name}: {{ eq: "{match.index_value[0]}" }} }}) {{
+            street_name
+            city
+            zip_code
+        }}
+    }}
+    '''
+    rows = flow.rows_query(query, collection="geo")
+```
+
+This two-step pattern enables:
+- Finding "CHESTNUT ST" when user searches for "Chestnut Street"
+- Retrieving complete row data with all fields
+- Combining semantic similarity with structured data access
 
 ### Row Data Ingestion
 

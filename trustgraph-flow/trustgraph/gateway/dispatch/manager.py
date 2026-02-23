@@ -27,6 +27,7 @@ from . structured_diag import StructuredDiagRequestor
 from . embeddings import EmbeddingsRequestor
 from . graph_embeddings_query import GraphEmbeddingsQueryRequestor
 from . document_embeddings_query import DocumentEmbeddingsQueryRequestor
+from . row_embeddings_query import RowEmbeddingsQueryRequestor
 from . mcp_tool import McpToolRequestor
 from . text_load import TextLoad
 from . document_load import DocumentLoad
@@ -62,6 +63,7 @@ request_response_dispatchers = {
     "nlp-query": NLPQueryRequestor,
     "structured-query": StructuredQueryRequestor,
     "structured-diag": StructuredDiagRequestor,
+    "row-embeddings": RowEmbeddingsQueryRequestor,
 }
 
 global_dispatchers = {

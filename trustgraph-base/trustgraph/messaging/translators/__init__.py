@@ -15,7 +15,8 @@ from .flow import FlowRequestTranslator, FlowResponseTranslator
 from .prompt import PromptRequestTranslator, PromptResponseTranslator
 from .embeddings_query import (
     DocumentEmbeddingsRequestTranslator, DocumentEmbeddingsResponseTranslator,
-    GraphEmbeddingsRequestTranslator, GraphEmbeddingsResponseTranslator
+    GraphEmbeddingsRequestTranslator, GraphEmbeddingsResponseTranslator,
+    RowEmbeddingsRequestTranslator, RowEmbeddingsResponseTranslator
 )
 from .rows_query import RowsQueryRequestTranslator, RowsQueryResponseTranslator
 from .diagnosis import StructuredDataDiagnosisRequestTranslator, StructuredDataDiagnosisResponseTranslator

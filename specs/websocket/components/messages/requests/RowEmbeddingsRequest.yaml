@@ -1,0 +1,30 @@
+type: object
+description: WebSocket request for row-embeddings service (flow-hosted service)
+required:
+  - id
+  - service
+  - flow
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: row-embeddings
+    description: Service identifier for row-embeddings service
+  flow:
+    type: string
+    description: Flow ID
+  request:
+    $ref: '../../../../api/components/schemas/embeddings-query/RowEmbeddingsQueryRequest.yaml'
+examples:
+  - id: req-1
+    service: row-embeddings
+    flow: my-flow
+    request:
+      vectors: [0.023, -0.142, 0.089, 0.234]
+      schema_name: customers
+      limit: 10
+      user: trustgraph
+      collection: default

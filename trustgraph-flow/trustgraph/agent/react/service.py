@@ -13,10 +13,11 @@ logger = logging.getLogger(__name__)
 
 from ... base import AgentService, TextCompletionClientSpec, PromptClientSpec
 from ... base import GraphRagClientSpec, ToolClientSpec, StructuredQueryClientSpec
+from ... base import RowEmbeddingsQueryClientSpec, EmbeddingsClientSpec
 
 from ... schema import AgentRequest, AgentResponse, AgentStep, Error
 
-from . tools import KnowledgeQueryImpl, TextCompletionImpl, McpToolImpl, PromptImpl, StructuredQueryImpl
+from . tools import KnowledgeQueryImpl, TextCompletionImpl, McpToolImpl, PromptImpl, StructuredQueryImpl, RowEmbeddingsQueryImpl
 from . agent_manager import AgentManager
 from ..tool_filter import validate_tool_config, filter_tools_by_group_and_state, get_next_state
 
@@ -87,6 +88,20 @@ class Processor(AgentService):
             )
         )
 
+        self.register_specification(
+            EmbeddingsClientSpec(
+                request_name = "embeddings-request",
+                response_name = "embeddings-response",
+            )
+        )
+
+        self.register_specification(
+            RowEmbeddingsQueryClientSpec(
+                request_name = "row-embeddings-query-request",
+                response_name = "row-embeddings-query-response",
+            )
+        )
+
     async def on_tools_config(self, config, version):
 
         logger.info(f"Loading configuration version {version}")
@@ -147,11 +162,21 @@ class Processor(AgentService):
                         )
                     elif impl_id == "structured-query":
                         impl = functools.partial(
-                            StructuredQueryImpl, 
+                            StructuredQueryImpl,
                             collection=data.get("collection"),
                             user=None  # User will be provided dynamically via context
                         )
                         arguments = StructuredQueryImpl.get_arguments()
+                    elif impl_id == "row-embeddings-query":
+                        impl = functools.partial(
+                            RowEmbeddingsQueryImpl,
+                            schema_name=data.get("schema-name"),
+                            collection=data.get("collection"),
+                            user=None,  # User will be provided dynamically via context
+                            index_name=data.get("index-name"),  # Optional filter
+                            limit=int(data.get("limit", 10))  # Max results
+                        )
+                        arguments = RowEmbeddingsQueryImpl.get_arguments()
                     else:
                         raise RuntimeError(
                             f"Tool type {impl_id} not known"
@@ -327,11 +352,11 @@ class Processor(AgentService):
                 def __init__(self, flow, user):
                     self._flow = flow
                     self._user = user
-                
+
                 def __call__(self, service_name):
                     client = self._flow(service_name)
-                    # For structured query clients, store user context
-                    if service_name == "structured-query-request":
+                    # For query clients that need user context, store it
+                    if service_name in ("structured-query-request", "row-embeddings-query-request"):
                         client._current_user = self._user
                     return client
 

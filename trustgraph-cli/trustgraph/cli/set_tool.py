@@ -2,8 +2,9 @@
 Configures and registers tools in the TrustGraph system.
 
 This script allows you to define agent tools with various types including:
-- knowledge-query: Query knowledge bases  
+- knowledge-query: Query knowledge bases
 - structured-query: Query structured data using natural language
+- row-embeddings-query: Semantic search on structured data indexes
 - text-completion: Text generation
 - mcp-tool: Reference to MCP (Model Context Protocol) tools
 - prompt: Prompt template execution
@@ -64,6 +65,9 @@ def set_tool(
         mcp_tool : str,
         collection : str,
         template : str,
+        schema_name : str,
+        index_name : str,
+        limit : int,
         arguments : List[Argument],
         group : List[str],
         state : str,
@@ -88,6 +92,12 @@ def set_tool(
     if collection: object["collection"] = collection
 
     if template: object["template"] = template
+
+    if schema_name: object["schema-name"] = schema_name
+
+    if index_name: object["index-name"] = index_name
+
+    if limit: object["limit"] = limit
 
     if arguments:
         object["arguments"] = [
@@ -120,30 +130,37 @@ def main():
         description=__doc__,
         epilog=textwrap.dedent('''
             Valid tool types:
-              knowledge-query    - Query knowledge bases (fixed args)
-              structured-query   - Query structured data using natural language (fixed args)
-              text-completion    - Text completion/generation (fixed args)
-              mcp-tool           - Model Control Protocol tool (configurable args)
-              prompt             - Prompt template query (configurable args)
-            
-            Note: Tools marked "(fixed args)" have predefined arguments and don't need 
+              knowledge-query      - Query knowledge bases (fixed args)
+              structured-query     - Query structured data using natural language (fixed args)
+              row-embeddings-query - Semantic search on structured data indexes (fixed args)
+              text-completion      - Text completion/generation (fixed args)
+              mcp-tool             - Model Control Protocol tool (configurable args)
+              prompt               - Prompt template query (configurable args)
+
+            Note: Tools marked "(fixed args)" have predefined arguments and don't need
             --argument specified. Tools marked "(configurable args)" require --argument.
-            
+
             Valid argument types:
-              string            - String/text parameter  
+              string            - String/text parameter
               number            - Numeric parameter
-            
+
             Examples:
               %(prog)s --id weather_tool --name get_weather \\
                        --type knowledge-query \\
                        --description "Get weather information for a location" \\
                        --collection weather_data
-              
+
               %(prog)s --id data_query_tool --name query_data \\
                        --type structured-query \\
                        --description "Query structured data using natural language" \\
                        --collection sales_data
-              
+
+              %(prog)s --id customer_search --name find_customer \\
+                       --type row-embeddings-query \\
+                       --description "Find customers by name using semantic search" \\
+                       --schema-name customers --collection sales \\
+                       --index-name full_name --limit 20
+
               %(prog)s --id calc_tool --name calculate --type mcp-tool \\
                        --description "Perform mathematical calculations" \\
                        --mcp-tool calculator \\
@@ -181,7 +198,7 @@ def main():
 
     parser.add_argument(
         '--type',
-        help=f'Tool type, one of: knowledge-query, structured-query, text-completion, mcp-tool, prompt',
+        help=f'Tool type, one of: knowledge-query, structured-query, row-embeddings-query, text-completion, mcp-tool, prompt',
     )
 
     parser.add_argument(
@@ -191,7 +208,23 @@ def main():
 
     parser.add_argument(
         '--collection',
-        help=f'For knowledge-query and structured-query types: collection to query',
+        help=f'For knowledge-query, structured-query, and row-embeddings-query types: collection to query',
+    )
+
+    parser.add_argument(
+        '--schema-name',
+        help=f'For row-embeddings-query type: schema name to search within (required)',
+    )
+
+    parser.add_argument(
+        '--index-name',
+        help=f'For row-embeddings-query type: specific index to filter search (optional)',
+    )
+
+    parser.add_argument(
+        '--limit',
+        type=int,
+        help=f'For row-embeddings-query type: maximum results to return (default: 10)',
     )
 
     parser.add_argument(
@@ -227,7 +260,8 @@ def main():
     try:
 
         valid_types = [
-            "knowledge-query", "structured-query", "text-completion", "mcp-tool", "prompt"
+            "knowledge-query", "structured-query", "row-embeddings-query",
+            "text-completion", "mcp-tool", "prompt"
         ]
 
         if args.id is None:
@@ -261,6 +295,9 @@ def main():
             mcp_tool=mcp_tool,
             collection=args.collection,
             template=args.template,
+            schema_name=args.schema_name,
+            index_name=args.index_name,
+            limit=args.limit,
             arguments=arguments,
             group=args.group,
             state=args.state,

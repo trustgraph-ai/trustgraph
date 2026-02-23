@@ -128,6 +128,62 @@ class StructuredQueryImpl:
             return str(result)
 
 
+# This tool implementation knows how to query row embeddings for semantic search
+class RowEmbeddingsQueryImpl:
+    def __init__(self, context, schema_name, collection=None, user=None, index_name=None, limit=10):
+        self.context = context
+        self.schema_name = schema_name
+        self.collection = collection
+        self.user = user
+        self.index_name = index_name  # Optional: filter to specific index
+        self.limit = limit  # Max results to return
+
+    @staticmethod
+    def get_arguments():
+        return [
+            Argument(
+                name="query",
+                type="string",
+                description="Text to search for semantically similar values in the structured data index"
+            )
+        ]
+
+    async def invoke(self, **arguments):
+        # First get embeddings for the query text
+        embeddings_client = self.context("embeddings-request")
+        logger.debug("Getting embeddings for row query...")
+
+        query_text = arguments.get("query")
+        vectors = await embeddings_client.embed(query_text)
+
+        # Now query row embeddings
+        client = self.context("row-embeddings-query-request")
+        logger.debug("Row embeddings query...")
+
+        # Get user from client context if available
+        user = getattr(client, '_current_user', self.user or "trustgraph")
+
+        matches = await client.row_embeddings_query(
+            vectors=vectors,
+            schema_name=self.schema_name,
+            user=user,
+            collection=self.collection or "default",
+            index_name=self.index_name,
+            limit=self.limit
+        )
+
+        # Format results for agent consumption
+        if not matches:
+            return "No matching records found"
+
+        results = []
+        for match in matches:
+            result = f"- {match['index_name']}: {', '.join(match['index_value'])} (score: {match['score']:.3f})"
+            results.append(result)
+
+        return "Matching records:\n" + "\n".join(results)
+
+
 # This tool implementation knows how to execute prompt templates
 class PromptImpl:
     def __init__(self, context, template_id, arguments=None):

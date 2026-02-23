@@ -4,8 +4,9 @@ Displays the current agent tool configurations
 Shows all configured tools including their types:
 - knowledge-query: Tools that query knowledge bases
 - structured-query: Tools that query structured data using natural language
+- row-embeddings-query: Tools for semantic search on structured data indexes
 - text-completion: Tools for text generation
-- mcp-tool: References to MCP (Model Context Protocol) tools  
+- mcp-tool: References to MCP (Model Context Protocol) tools
 - prompt: Tools that execute prompt templates
 """
 
@@ -41,10 +42,18 @@ def show_config(url, token=None):
 
         if tp == "mcp-tool":
             table.append(("mcp-tool", data["mcp-tool"]))
-          
-        if tp == "knowledge-query" or tp == "structured-query":
+
+        if tp in ("knowledge-query", "structured-query", "row-embeddings-query"):
             if "collection" in data:
                 table.append(("collection", data["collection"]))
+
+        if tp == "row-embeddings-query":
+            if "schema-name" in data:
+                table.append(("schema-name", data["schema-name"]))
+            if "index-name" in data:
+                table.append(("index-name", data["index-name"]))
+            if "limit" in data:
+                table.append(("limit", data["limit"]))
 
         if tp == "prompt":
             table.append(("template", data["template"]))
