@@ -217,10 +217,11 @@ Each indexed value is embedded and stored in a vector store (Qdrant). At query t
 
 #### Qdrant Collection Structure
 
-One Qdrant collection per `(collection, schema_name)` pair:
+One Qdrant collection per `(user, collection, schema_name, dimension)` tuple:
 
-- **Collection naming:** `rows_{collection}_{schema_name}` (or hashed if names contain problematic characters)
-- **Rationale:** Enables clean deletion of a `(collection, schema_name)` instance by dropping the Qdrant collection
+- **Collection naming:** `rows_{user}_{collection}_{schema_name}_{dimension}`
+- Names are sanitized (non-alphanumeric characters replaced with `_`, lowercased, numeric prefixes get `r_` prefix)
+- **Rationale:** Enables clean deletion of a `(user, collection, schema_name)` instance by dropping matching Qdrant collections; dimension suffix allows different embedding models to coexist
 
 #### What Gets Embedded
 
@@ -253,15 +254,16 @@ Each Qdrant point contains:
 | `index_value` | The original list of values (for Cassandra lookup) |
 | `text` | The text that was embedded (for debugging/display) |
 
-Note: `collection` and `schema_name` are implicit from the Qdrant collection name.
+Note: `user`, `collection`, and `schema_name` are implicit from the Qdrant collection name.
 
 #### Query Flow
 
-1. User queries for "Chestnut Street" within collection X, schema Y
+1. User queries for "Chestnut Street" within user U, collection X, schema Y
 2. Embed the query text
-3. Search Qdrant collection `rows_X_Y` for nearest vectors
-4. Get matching points with payloads containing `index_name` and `index_value`
-5. Query Cassandra:
+3. Determine Qdrant collection name(s) matching prefix `rows_U_X_Y_`
+4. Search matching Qdrant collection(s) for nearest vectors
+5. Get matching points with payloads containing `index_name` and `index_value`
+6. Query Cassandra:
    ```sql
    SELECT * FROM rows
    WHERE collection = 'X'
@@ -269,7 +271,7 @@ Note: `collection` and `schema_name` are implicit from the Qdrant collection nam
      AND index_name = '<from payload>'
      AND index_value = <from payload>
    ```
-6. Return matched rows
+7. Return matched rows
 
 #### Optional: Filtering by Index Name
 
@@ -280,48 +282,77 @@ Queries can optionally filter by `index_name` in Qdrant to search only specific 
 
 #### Architecture
 
-The row embeddings writer is a **separate service** from the existing Cassandra row writer:
+Row embeddings follow the **two-stage pattern** used by GraphRAG (graph-embeddings, document-embeddings):
 
-- **Cassandra row writer** (`trustgraph-flow/trustgraph/storage/rows/cassandra`) - writes rows to Cassandra
-- **Row embeddings writer** (`trustgraph-flow/trustgraph/embeddings/row_embeddings/qdrant`) - writes embeddings to Qdrant
+- **Stage 1: Embedding computation** (`trustgraph-flow/trustgraph/embeddings/row_embeddings/`) - Consumes `ExtractedObject`, computes embeddings via the embeddings service, outputs `RowEmbeddings`
+- **Stage 2: Embedding storage** (`trustgraph-flow/trustgraph/storage/row_embeddings/qdrant/`) - Consumes `RowEmbeddings`, writes vectors to Qdrant
 
-Both services consume row objects from the same Pulsar topic, keeping them decoupled. This allows:
-- Independent scaling of Cassandra writes vs embedding generation
-- Embedding service can be disabled if not needed
-- Failures in one service don't affect the other
+The Cassandra row writer is a separate parallel consumer:
+
+- **Cassandra row writer** (`trustgraph-flow/trustgraph/storage/rows/cassandra`) - Consumes `ExtractedObject`, writes rows to Cassandra
+
+All three services consume from the same flow, keeping them decoupled. This allows:
+- Independent scaling of Cassandra writes vs embedding generation vs vector storage
+- Embedding services can be disabled if not needed
+- Failures in one service don't affect the others
+- Consistent architecture with GraphRAG pipelines
 
 #### Write Path
 
-When the row embeddings writer receives a row:
+**Stage 1 (row-embeddings processor):** When receiving an `ExtractedObject`:
 
-1. For each indexed field defined in the schema:
+1. Look up the schema to find indexed fields
+2. For each indexed field:
    - Build the text representation of the index value
    - Compute embedding via the embeddings service
-   - Upsert point to Qdrant collection `rows_{collection}_{schema_name}`
+3. Output a `RowEmbeddings` message containing all computed vectors
 
-The embeddings writer creates the Qdrant collection on first write for a `(collection, schema_name)` pair (similar to the partition registration flow in the Cassandra writer).
+**Stage 2 (row-embeddings-write-qdrant):** When receiving a `RowEmbeddings`:
+
+1. For each embedding in the message:
+   - Determine Qdrant collection from `(user, collection, schema_name, dimension)`
+   - Create collection if needed (lazy creation on first write)
+   - Upsert point with vector and payload
+
+#### Message Types
+
+```python
+@dataclass
+class RowIndexEmbedding:
+    index_name: str              # The indexed field name(s)
+    index_value: list[str]       # The field value(s)
+    text: str                    # Text that was embedded
+    vectors: list[list[float]]   # Computed embedding vectors
+
+@dataclass
+class RowEmbeddings:
+    metadata: Metadata
+    schema_name: str
+    embeddings: list[RowIndexEmbedding]
+```
 
 #### Deletion Integration
 
-The `row_partitions` table enables discovery of Qdrant collections for deletion:
+Qdrant collections are discovered by prefix matching on the collection name pattern:
 
-**Delete `(collection, schema_name)`:**
-1. Delete Qdrant collection `rows_{collection}_{schema_name}`
-2. Delete Cassandra rows partitions (as documented above)
-3. Clean up `row_partitions` entries
+**Delete `(user, collection)`:**
+1. List all Qdrant collections matching prefix `rows_{user}_{collection}_`
+2. Delete each matching collection
+3. Delete Cassandra rows partitions (as documented above)
+4. Clean up `row_partitions` entries
 
-**Delete `(collection, *)`:**
-1. Query `row_partitions` for distinct `schema_name` values where `collection = X`:
-   ```sql
-   SELECT DISTINCT schema_name FROM row_partitions WHERE collection = 'X';
-   ```
-2. For each `schema_name`, delete Qdrant collection `rows_X_{schema_name}`
+**Delete `(user, collection, schema_name)`:**
+1. List all Qdrant collections matching prefix `rows_{user}_{collection}_{schema_name}_`
+2. Delete each matching collection (handles multiple dimensions)
 3. Delete Cassandra rows partitions
 4. Clean up `row_partitions`
 
-#### Module Location
+#### Module Locations
 
-Module: `trustgraph-flow/trustgraph/embeddings/row_embeddings/qdrant`
+| Stage | Module | Entry Point |
+|-------|--------|-------------|
+| Stage 1 | `trustgraph-flow/trustgraph/embeddings/row_embeddings/` | `row-embeddings` |
+| Stage 2 | `trustgraph-flow/trustgraph/storage/row_embeddings/qdrant/` | `row-embeddings-write-qdrant` |
 
 ### Row Embeddings Query API
 
@@ -428,7 +459,8 @@ As part of the "object" → "row" naming cleanup:
 |--------|---------|
 | `trustgraph-flow/trustgraph/query/graphql/` | Shared GraphQL utilities |
 | `trustgraph-flow/trustgraph/query/row_embeddings/qdrant/` | Row embeddings query API |
-| `trustgraph-flow/trustgraph/embeddings/row_embeddings/qdrant/` | Row embeddings writer |
+| `trustgraph-flow/trustgraph/embeddings/row_embeddings/` | Row embeddings computation (Stage 1) |
+| `trustgraph-flow/trustgraph/storage/row_embeddings/qdrant/` | Row embeddings storage (Stage 2) |
 
 ## References
 
