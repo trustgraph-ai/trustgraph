@@ -1297,3 +1297,78 @@ class FlowInstance:
 
         return response["schema-matches"]
 
+    def row_embeddings_query(
+            self, text, schema_name, user="trustgraph", collection="default",
+            index_name=None, limit=10
+    ):
+        """
+        Query row data using semantic similarity on indexed fields.
+
+        Finds rows whose indexed field values are semantically similar to the
+        input text, using vector embeddings. This enables fuzzy/semantic matching
+        on structured data.
+
+        Args:
+            text: Query text for semantic search
+            schema_name: Schema name to search within
+            user: User/keyspace identifier (default: "trustgraph")
+            collection: Collection identifier (default: "default")
+            index_name: Optional index name to filter search to specific index
+            limit: Maximum number of results (default: 10)
+
+        Returns:
+            dict: Query results with matches containing index_name, index_value,
+                  text, and score
+
+        Example:
+            ```python
+            flow = api.flow().id("default")
+
+            # Search for customers by name similarity
+            results = flow.row_embeddings_query(
+                text="John Smith",
+                schema_name="customers",
+                user="trustgraph",
+                collection="sales",
+                limit=5
+            )
+
+            # Filter to specific index
+            results = flow.row_embeddings_query(
+                text="machine learning engineer",
+                schema_name="employees",
+                index_name="job_title",
+                limit=10
+            )
+            ```
+        """
+
+        # First convert text to embeddings vectors
+        emb_result = self.embeddings(text=text)
+        vectors = emb_result.get("vectors", [])
+
+        # Query row embeddings for semantic search
+        input = {
+            "vectors": vectors,
+            "schema_name": schema_name,
+            "user": user,
+            "collection": collection,
+            "limit": limit
+        }
+
+        if index_name:
+            input["index_name"] = index_name
+
+        response = self.request(
+            "service/row-embeddings",
+            input
+        )
+
+        # Check for system-level error
+        if "error" in response and response["error"]:
+            error_type = response["error"].get("type", "unknown")
+            error_message = response["error"].get("message", "Unknown error")
+            raise ProtocolException(f"{error_type}: {error_message}")
+
+        return response
+

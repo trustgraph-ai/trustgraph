@@ -19,7 +19,8 @@ from .translators.prompt import PromptRequestTranslator, PromptResponseTranslato
 from .translators.tool import ToolRequestTranslator, ToolResponseTranslator
 from .translators.embeddings_query import (
     DocumentEmbeddingsRequestTranslator, DocumentEmbeddingsResponseTranslator,
-    GraphEmbeddingsRequestTranslator, GraphEmbeddingsResponseTranslator
+    GraphEmbeddingsRequestTranslator, GraphEmbeddingsResponseTranslator,
+    RowEmbeddingsRequestTranslator, RowEmbeddingsResponseTranslator
 )
 from .translators.rows_query import RowsQueryRequestTranslator, RowsQueryResponseTranslator
 from .translators.nlp_query import QuestionToStructuredQueryRequestTranslator, QuestionToStructuredQueryResponseTranslator
@@ -107,9 +108,15 @@ TranslatorRegistry.register_service(
 )
 
 TranslatorRegistry.register_service(
-    "graph-embeddings-query", 
-    GraphEmbeddingsRequestTranslator(), 
+    "graph-embeddings-query",
+    GraphEmbeddingsRequestTranslator(),
     GraphEmbeddingsResponseTranslator()
+)
+
+TranslatorRegistry.register_service(
+    "row-embeddings-query",
+    RowEmbeddingsRequestTranslator(),
+    RowEmbeddingsResponseTranslator()
 )
 
 TranslatorRegistry.register_service(

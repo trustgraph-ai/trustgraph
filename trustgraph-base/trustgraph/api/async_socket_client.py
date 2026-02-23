@@ -345,3 +345,26 @@ class AsyncSocketFlowInstance:
         request.update(kwargs)
 
         return await self.client._send_request("mcp-tool", self.flow_id, request)
+
+    async def row_embeddings_query(
+        self, text: str, schema_name: str, user: str = "trustgraph",
+        collection: str = "default", index_name: Optional[str] = None,
+        limit: int = 10, **kwargs
+    ):
+        """Query row embeddings for semantic search on structured data"""
+        # First convert text to embeddings vectors
+        emb_result = await self.embeddings(text=text)
+        vectors = emb_result.get("vectors", [])
+
+        request = {
+            "vectors": vectors,
+            "schema_name": schema_name,
+            "user": user,
+            "collection": collection,
+            "limit": limit
+        }
+        if index_name:
+            request["index_name"] = index_name
+        request.update(kwargs)
+
+        return await self.client._send_request("row-embeddings", self.flow_id, request)
