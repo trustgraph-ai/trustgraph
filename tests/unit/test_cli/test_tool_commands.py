@@ -406,9 +406,9 @@ class TestShowToolsStructuredQuery:
 
     @patch('trustgraph.cli.show_tools.Api')
     def test_show_mixed_tool_types(self, mock_api_class, mock_api, capsys):
-        """Test displaying multiple tool types including structured-query."""
+        """Test displaying multiple tool types including structured-query and row-embeddings-query."""
         mock_api_class.return_value, mock_config = mock_api
-        
+
         tools = [
             {
                 "name": "ask_knowledge",
@@ -417,10 +417,17 @@ class TestShowToolsStructuredQuery:
                 "collection": "docs"
             },
             {
-                "name": "query_data", 
+                "name": "query_data",
                 "description": "Query structured data",
                 "type": "structured-query",
                 "collection": "sales"
+            },
+            {
+                "name": "find_customer",
+                "description": "Find customers by semantic search",
+                "type": "row-embeddings-query",
+                "schema-name": "customers",
+                "collection": "crm"
             },
             {
                 "name": "complete_text",
@@ -428,26 +435,29 @@ class TestShowToolsStructuredQuery:
                 "type": "text-completion"
             }
         ]
-        
+
         config_values = [
             ConfigValue(type="tool", key=f"tool_{i}", value=json.dumps(tool))
             for i, tool in enumerate(tools)
         ]
         mock_config.get_values.return_value = config_values
-        
+
         show_config("http://test.com")
-        
+
         captured = capsys.readouterr()
         output = captured.out
-        
+
         # All tool types should be displayed
         assert "knowledge-query" in output
-        assert "structured-query" in output  
+        assert "structured-query" in output
+        assert "row-embeddings-query" in output
         assert "text-completion" in output
-        
+
         # Collections should be shown for appropriate tools
         assert "docs" in output  # knowledge-query collection
         assert "sales" in output  # structured-query collection
+        assert "crm" in output  # row-embeddings-query collection
+        assert "customers" in output  # row-embeddings-query schema-name
 
     def test_show_main_parses_args_correctly(self):
         """Test that show main() parses arguments correctly."""
