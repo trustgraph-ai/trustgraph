@@ -2,7 +2,7 @@
 Integration tests for Structured Query Service
 
 These tests verify the end-to-end functionality of the structured query service,
-testing orchestration between nlp-query and objects-query services.
+testing orchestration between nlp-query and rows-query services.
 Following the TEST_STRATEGY.md approach for integration testing.
 """
 
@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock
 from trustgraph.schema import (
     StructuredQueryRequest, StructuredQueryResponse,
     QuestionToStructuredQueryRequest, QuestionToStructuredQueryResponse,
-    ObjectsQueryRequest, ObjectsQueryResponse,
+    RowsQueryRequest, RowsQueryResponse,
     Error, GraphQLError
 )
 from trustgraph.retrieval.structured_query.service import Processor
@@ -81,7 +81,7 @@ class TestStructuredQueryServiceIntegration:
         )
         
         # Mock Objects Query Service Response
-        objects_response = ObjectsQueryResponse(
+        objects_response = RowsQueryResponse(
             error=None,
             data='{"customers": [{"id": "123", "name": "Alice Johnson", "email": "alice@example.com", "orders": [{"id": "456", "total": 750.0, "date": "2024-01-15"}]}]}',
             errors=None,
@@ -99,7 +99,7 @@ class TestStructuredQueryServiceIntegration:
         def flow_router(service_name):
             if service_name == "nlp-query-request":
                 return mock_nlp_client
-            elif service_name == "objects-query-request": 
+            elif service_name == "rows-query-request": 
                 return mock_objects_client
             elif service_name == "response":
                 return flow_response
@@ -121,7 +121,7 @@ class TestStructuredQueryServiceIntegration:
         # Verify Objects service call
         mock_objects_client.request.assert_called_once()
         objects_call_args = mock_objects_client.request.call_args[0][0]
-        assert isinstance(objects_call_args, ObjectsQueryRequest)
+        assert isinstance(objects_call_args, RowsQueryRequest)
         assert "customers" in objects_call_args.query
         assert "orders" in objects_call_args.query
         assert objects_call_args.variables["minAmount"] == "500.0"  # Converted to string
@@ -220,7 +220,7 @@ class TestStructuredQueryServiceIntegration:
         )
         
         # Mock Objects service failure
-        objects_error_response = ObjectsQueryResponse(
+        objects_error_response = RowsQueryResponse(
             error=Error(type="graphql-schema-error", message="Table 'nonexistent_table' does not exist in schema"),
             data=None,
             errors=None,
@@ -237,7 +237,7 @@ class TestStructuredQueryServiceIntegration:
         def flow_router(service_name):
             if service_name == "nlp-query-request":
                 return mock_nlp_client
-            elif service_name == "objects-query-request": 
+            elif service_name == "rows-query-request": 
                 return mock_objects_client
             elif service_name == "response":
                 return flow_response
@@ -255,7 +255,7 @@ class TestStructuredQueryServiceIntegration:
         
         assert response.error is not None
         assert response.error.type == "structured-query-error"
-        assert "Objects query service error" in response.error.message
+        assert "Rows query service error" in response.error.message
         assert "nonexistent_table" in response.error.message
 
     @pytest.mark.asyncio
@@ -298,7 +298,7 @@ class TestStructuredQueryServiceIntegration:
             )
         ]
         
-        objects_response = ObjectsQueryResponse(
+        objects_response = RowsQueryResponse(
             error=None,
             data=None,  # No data when validation fails
             errors=validation_errors,
@@ -315,7 +315,7 @@ class TestStructuredQueryServiceIntegration:
         def flow_router(service_name):
             if service_name == "nlp-query-request":
                 return mock_nlp_client
-            elif service_name == "objects-query-request": 
+            elif service_name == "rows-query-request": 
                 return mock_objects_client
             elif service_name == "response":
                 return flow_response
@@ -422,7 +422,7 @@ class TestStructuredQueryServiceIntegration:
             ]
         }
         
-        objects_response = ObjectsQueryResponse(
+        objects_response = RowsQueryResponse(
             error=None,
             data=json.dumps(complex_data),
             errors=None,
@@ -443,7 +443,7 @@ class TestStructuredQueryServiceIntegration:
         def flow_router(service_name):
             if service_name == "nlp-query-request":
                 return mock_nlp_client
-            elif service_name == "objects-query-request": 
+            elif service_name == "rows-query-request": 
                 return mock_objects_client
             elif service_name == "response":
                 return flow_response
@@ -503,7 +503,7 @@ class TestStructuredQueryServiceIntegration:
         )
         
         # Mock empty Objects response
-        objects_response = ObjectsQueryResponse(
+        objects_response = RowsQueryResponse(
             error=None,
             data='{"customers": []}',  # Empty result set
             errors=None,
@@ -520,7 +520,7 @@ class TestStructuredQueryServiceIntegration:
         def flow_router(service_name):
             if service_name == "nlp-query-request":
                 return mock_nlp_client
-            elif service_name == "objects-query-request": 
+            elif service_name == "rows-query-request": 
                 return mock_objects_client
             elif service_name == "response":
                 return flow_response
@@ -577,7 +577,7 @@ class TestStructuredQueryServiceIntegration:
                 confidence=0.9
             )
             
-            objects_response = ObjectsQueryResponse(
+            objects_response = RowsQueryResponse(
                 error=None,
                 data=f'{{"test_{i}": [{{"id": "{i}"}}]}}',
                 errors=None,
@@ -599,7 +599,7 @@ class TestStructuredQueryServiceIntegration:
                     if service_name == "nlp-query-request":
                         service_call_count += 1
                         return nlp_client
-                    elif service_name == "objects-query-request":
+                    elif service_name == "rows-query-request":
                         service_call_count += 1
                         return objects_client
                     elif service_name == "response":
@@ -700,7 +700,7 @@ class TestStructuredQueryServiceIntegration:
         )
         
         # Mock Objects response
-        objects_response = ObjectsQueryResponse(
+        objects_response = RowsQueryResponse(
             error=None,
             data='{"orders": [{"id": "123", "total": 125.50, "date": "2024-01-15"}]}',
             errors=None,
@@ -717,7 +717,7 @@ class TestStructuredQueryServiceIntegration:
         def flow_router(service_name):
             if service_name == "nlp-query-request":
                 return mock_nlp_client
-            elif service_name == "objects-query-request": 
+            elif service_name == "rows-query-request": 
                 return mock_objects_client
             elif service_name == "response":
                 return flow_response

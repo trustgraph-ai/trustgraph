@@ -9,7 +9,7 @@ post:
 
     Combines two operations in one call:
     1. **NLP Query**: Generate GraphQL from question
-    2. **Objects Query**: Execute generated query
+    2. **Rows Query**: Execute generated query
     3. **Return Results**: Direct answer data
 
     Simplest way to query knowledge graph with natural language.
@@ -21,7 +21,7 @@ post:
     - **Output**: Query results (data)
     - **Use when**: Want simple, direct answers
 
-    ### NLP Query + Objects Query (separate calls)
+    ### NLP Query + Rows Query (separate calls)
     - **Step 1**: Convert question → GraphQL
     - **Step 2**: Execute GraphQL → results
     - **Use when**: Need to inspect/modify query before execution

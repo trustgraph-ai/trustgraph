@@ -1001,12 +1001,12 @@ class FlowInstance:
             input
         )
 
-    def objects_query(
+    def rows_query(
             self, query, user="trustgraph", collection="default",
             variables=None, operation_name=None
     ):
         """
-        Execute a GraphQL query against structured objects in the knowledge graph.
+        Execute a GraphQL query against structured rows in the knowledge graph.
 
         Queries structured data using GraphQL syntax, allowing complex queries
         with filtering, aggregation, and relationship traversal.
@@ -1038,7 +1038,7 @@ class FlowInstance:
               }
             }
             '''
-            result = flow.objects_query(
+            result = flow.rows_query(
                 query=query,
                 user="trustgraph",
                 collection="scientists"
@@ -1053,7 +1053,7 @@ class FlowInstance:
               }
             }
             '''
-            result = flow.objects_query(
+            result = flow.rows_query(
                 query=query,
                 variables={"name": "Marie Curie"}
             )
@@ -1074,7 +1074,7 @@ class FlowInstance:
             input["operation_name"] = operation_name
 
         response = self.request(
-            "service/objects",
+            "service/rows",
             input
         )
 

@@ -27,7 +27,7 @@ def get_term_value(term):
         # For blank nodes or other types, use id or value
         return term.id or term.value
 
-default_ident = "ge-write"
+default_ident = "graph-embeddings-write"
 default_store_uri = 'http://localhost:19530'
 
 class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):

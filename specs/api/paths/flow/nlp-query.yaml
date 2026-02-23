@@ -34,7 +34,7 @@ post:
     ```
     1. User asks: "Who does Alice know?"
     2. NLP Query generates GraphQL
-    3. Execute via /api/v1/flow/{flow}/service/objects
+    3. Execute via /api/v1/flow/{flow}/service/rows
     4. Return results to user
     ```
 

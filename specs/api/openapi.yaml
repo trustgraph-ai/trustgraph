@@ -121,8 +121,8 @@ paths:
     $ref: './paths/flow/mcp-tool.yaml'
   /api/v1/flow/{flow}/service/triples:
     $ref: './paths/flow/triples.yaml'
-  /api/v1/flow/{flow}/service/objects:
-    $ref: './paths/flow/objects.yaml'
+  /api/v1/flow/{flow}/service/rows:
+    $ref: './paths/flow/rows.yaml'
   /api/v1/flow/{flow}/service/nlp-query:
     $ref: './paths/flow/nlp-query.yaml'
   /api/v1/flow/{flow}/service/structured-query:

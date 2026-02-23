@@ -13,7 +13,7 @@ from .... base import ConsumerMetrics, ProducerMetrics
 # Module logger
 logger = logging.getLogger(__name__)
 
-default_ident = "de-write"
+default_ident = "doc-embeddings-write"
 default_store_uri = 'http://localhost:19530'
 
 class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):

@@ -18,7 +18,7 @@ from .... base import ConsumerMetrics, ProducerMetrics
 # Module logger
 logger = logging.getLogger(__name__)
 
-default_ident = "de-write"
+default_ident = "doc-embeddings-write"
 default_api_key = os.getenv("PINECONE_API_KEY", "not-specified")
 default_cloud = "aws"
 default_region = "us-east-1"

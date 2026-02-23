@@ -1,6 +1,6 @@
 """
 Structured Query Service - orchestrates natural language question processing.
-Takes a question, converts it to GraphQL via nlp-query, executes via objects-query,
+Takes a question, converts it to GraphQL via nlp-query, executes via rows-query,
 and returns the results.
 """
 
@@ -10,7 +10,7 @@ from typing import Dict, Any, Optional
 
 from ...schema import StructuredQueryRequest, StructuredQueryResponse
 from ...schema import QuestionToStructuredQueryRequest, QuestionToStructuredQueryResponse  
-from ...schema import ObjectsQueryRequest, ObjectsQueryResponse
+from ...schema import RowsQueryRequest, RowsQueryResponse
 from ...schema import Error
 
 from ...base import FlowProcessor, ConsumerSpec, ProducerSpec, RequestResponseSpec
@@ -57,13 +57,13 @@ class Processor(FlowProcessor):
             )
         )
         
-        # Client spec for calling objects query service
+        # Client spec for calling rows query service
         self.register_specification(
             RequestResponseSpec(
-                request_name = "objects-query-request",
-                response_name = "objects-query-response",
-                request_schema = ObjectsQueryRequest, 
-                response_schema = ObjectsQueryResponse
+                request_name = "rows-query-request",
+                response_name = "rows-query-response",
+                request_schema = RowsQueryRequest,
+                response_schema = RowsQueryResponse
             )
         )
         
@@ -112,7 +112,7 @@ class Processor(FlowProcessor):
                         variables_as_strings[key] = str(value)
             
             # Use user/collection values from request
-            objects_request = ObjectsQueryRequest(
+            objects_request = RowsQueryRequest(
                 user=request.user,
                 collection=request.collection,
                 query=nlp_response.graphql_query,
@@ -120,12 +120,12 @@ class Processor(FlowProcessor):
                 operation_name=None
             )
             
-            objects_response = await flow("objects-query-request").request(objects_request)
-            
+            objects_response = await flow("rows-query-request").request(objects_request)
+
             if objects_response.error is not None:
-                raise Exception(f"Objects query service error: {objects_response.error.message}")
-            
-            # Handle GraphQL errors from the objects query service
+                raise Exception(f"Rows query service error: {objects_response.error.message}")
+
+            # Handle GraphQL errors from the rows query service
             graphql_errors = []
             if objects_response.errors:
                 for gql_error in objects_response.errors:

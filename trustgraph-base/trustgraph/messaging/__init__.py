@@ -21,7 +21,7 @@ from .translators.embeddings_query import (
     DocumentEmbeddingsRequestTranslator, DocumentEmbeddingsResponseTranslator,
     GraphEmbeddingsRequestTranslator, GraphEmbeddingsResponseTranslator
 )
-from .translators.objects_query import ObjectsQueryRequestTranslator, ObjectsQueryResponseTranslator
+from .translators.rows_query import RowsQueryRequestTranslator, RowsQueryResponseTranslator
 from .translators.nlp_query import QuestionToStructuredQueryRequestTranslator, QuestionToStructuredQueryResponseTranslator
 from .translators.structured_query import StructuredQueryRequestTranslator, StructuredQueryResponseTranslator
 from .translators.diagnosis import StructuredDataDiagnosisRequestTranslator, StructuredDataDiagnosisResponseTranslator
@@ -113,9 +113,9 @@ TranslatorRegistry.register_service(
 )
 
 TranslatorRegistry.register_service(
-    "objects-query", 
-    ObjectsQueryRequestTranslator(), 
-    ObjectsQueryResponseTranslator()
+    "rows-query",
+    RowsQueryRequestTranslator(),
+    RowsQueryResponseTranslator()
 )
 
 TranslatorRegistry.register_service(

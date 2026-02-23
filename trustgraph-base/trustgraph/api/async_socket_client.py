@@ -320,9 +320,9 @@ class AsyncSocketFlowInstance:
 
         return await self.client._send_request("triples", self.flow_id, request)
 
-    async def objects_query(self, query: str, user: str, collection: str, variables: Optional[Dict] = None,
-                            operation_name: Optional[str] = None, **kwargs):
-        """GraphQL query"""
+    async def rows_query(self, query: str, user: str, collection: str, variables: Optional[Dict] = None,
+                         operation_name: Optional[str] = None, **kwargs):
+        """GraphQL query against structured rows"""
         request = {
             "query": query,
             "user": user,
@@ -334,7 +334,7 @@ class AsyncSocketFlowInstance:
             request["operationName"] = operation_name
         request.update(kwargs)
 
-        return await self.client._send_request("objects", self.flow_id, request)
+        return await self.client._send_request("rows", self.flow_id, request)
 
     async def mcp_tool(self, name: str, parameters: Dict[str, Any], **kwargs):
         """Execute MCP tool"""

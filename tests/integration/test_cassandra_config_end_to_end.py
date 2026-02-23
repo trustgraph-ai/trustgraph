@@ -12,7 +12,7 @@ from argparse import ArgumentParser
 
 # Import processors that use Cassandra configuration
 from trustgraph.storage.triples.cassandra.write import Processor as TriplesWriter
-from trustgraph.storage.objects.cassandra.write import Processor as ObjectsWriter
+from trustgraph.storage.rows.cassandra.write import Processor as RowsWriter
 from trustgraph.query.triples.cassandra.service import Processor as TriplesQuery
 from trustgraph.storage.knowledge.store import Processor as KgStore
 
@@ -55,8 +55,8 @@ class TestEndToEndConfigurationFlow:
             assert call_args.args[0] == ['integration-host1', 'integration-host2', 'integration-host3']
             assert 'auth_provider' in call_args.kwargs  # Should have auth since credentials provided
     
-    @patch('trustgraph.storage.objects.cassandra.write.Cluster')
-    @patch('trustgraph.storage.objects.cassandra.write.PlainTextAuthProvider')
+    @patch('trustgraph.storage.rows.cassandra.write.Cluster')
+    @patch('trustgraph.storage.rows.cassandra.write.PlainTextAuthProvider')
     def test_objects_writer_env_to_cluster_connection(self, mock_auth_provider, mock_cluster):
         """Test complete flow from environment variables to Cassandra Cluster connection."""
         env_vars = {
@@ -73,7 +73,7 @@ class TestEndToEndConfigurationFlow:
         mock_cluster.return_value = mock_cluster_instance
         
         with patch.dict(os.environ, env_vars, clear=True):
-            processor = ObjectsWriter(taskgroup=MagicMock())
+            processor = RowsWriter(taskgroup=MagicMock())
             
             # Trigger Cassandra connection
             processor.connect_cassandra()
@@ -320,7 +320,7 @@ class TestNoBackwardCompatibilityEndToEnd:
 class TestMultipleHostsHandling:
     """Test multiple Cassandra hosts handling end-to-end."""
     
-    @patch('trustgraph.storage.objects.cassandra.write.Cluster')
+    @patch('trustgraph.storage.rows.cassandra.write.Cluster')
     def test_multiple_hosts_passed_to_cluster(self, mock_cluster):
         """Test that multiple hosts are correctly passed to Cassandra cluster."""
         env_vars = {
@@ -333,7 +333,7 @@ class TestMultipleHostsHandling:
         mock_cluster.return_value = mock_cluster_instance
         
         with patch.dict(os.environ, env_vars, clear=True):
-            processor = ObjectsWriter(taskgroup=MagicMock())
+            processor = RowsWriter(taskgroup=MagicMock())
             processor.connect_cassandra()
             
             # Verify all hosts were passed to Cluster
@@ -386,8 +386,8 @@ class TestMultipleHostsHandling:
 class TestAuthenticationFlow:
     """Test authentication configuration flow end-to-end."""
     
-    @patch('trustgraph.storage.objects.cassandra.write.Cluster')
-    @patch('trustgraph.storage.objects.cassandra.write.PlainTextAuthProvider')
+    @patch('trustgraph.storage.rows.cassandra.write.Cluster')
+    @patch('trustgraph.storage.rows.cassandra.write.PlainTextAuthProvider')
     def test_authentication_enabled_when_both_credentials_provided(self, mock_auth_provider, mock_cluster):
         """Test that authentication is enabled when both username and password are provided."""
         env_vars = {
@@ -402,7 +402,7 @@ class TestAuthenticationFlow:
         mock_cluster.return_value = mock_cluster_instance
         
         with patch.dict(os.environ, env_vars, clear=True):
-            processor = ObjectsWriter(taskgroup=MagicMock())
+            processor = RowsWriter(taskgroup=MagicMock())
             processor.connect_cassandra()
             
             # Auth provider should be created
@@ -416,8 +416,8 @@ class TestAuthenticationFlow:
             assert 'auth_provider' in call_args.kwargs
             assert call_args.kwargs['auth_provider'] == mock_auth_instance
     
-    @patch('trustgraph.storage.objects.cassandra.write.Cluster')
-    @patch('trustgraph.storage.objects.cassandra.write.PlainTextAuthProvider')
+    @patch('trustgraph.storage.rows.cassandra.write.Cluster')
+    @patch('trustgraph.storage.rows.cassandra.write.PlainTextAuthProvider')
     def test_no_authentication_when_credentials_missing(self, mock_auth_provider, mock_cluster):
         """Test that authentication is not used when credentials are missing."""
         env_vars = {
@@ -429,7 +429,7 @@ class TestAuthenticationFlow:
         mock_cluster.return_value = mock_cluster_instance
         
         with patch.dict(os.environ, env_vars, clear=True):
-            processor = ObjectsWriter(taskgroup=MagicMock())
+            processor = RowsWriter(taskgroup=MagicMock())
             processor.connect_cassandra()
             
             # Auth provider should not be created
@@ -439,11 +439,11 @@ class TestAuthenticationFlow:
             call_args = mock_cluster.call_args
             assert 'auth_provider' not in call_args.kwargs
     
-    @patch('trustgraph.storage.objects.cassandra.write.Cluster')
-    @patch('trustgraph.storage.objects.cassandra.write.PlainTextAuthProvider')
+    @patch('trustgraph.storage.rows.cassandra.write.Cluster')
+    @patch('trustgraph.storage.rows.cassandra.write.PlainTextAuthProvider')
     def test_no_authentication_when_only_username_provided(self, mock_auth_provider, mock_cluster):
         """Test that authentication is not used when only username is provided."""
-        processor = ObjectsWriter(
+        processor = RowsWriter(
             taskgroup=MagicMock(),
             cassandra_host='partial-auth-host',
             cassandra_username='partial-user'

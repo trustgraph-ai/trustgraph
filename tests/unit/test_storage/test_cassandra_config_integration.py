@@ -10,7 +10,7 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 
 from trustgraph.storage.triples.cassandra.write import Processor as TriplesWriter
-from trustgraph.storage.objects.cassandra.write import Processor as ObjectsWriter
+from trustgraph.storage.rows.cassandra.write import Processor as RowsWriter
 from trustgraph.query.triples.cassandra.service import Processor as TriplesQuery
 from trustgraph.storage.knowledge.store import Processor as KgStore
 
@@ -81,10 +81,10 @@ class TestTriplesWriterConfiguration:
             assert processor.cassandra_password is None
 
 
-class TestObjectsWriterConfiguration:
+class TestRowsWriterConfiguration:
     """Test Cassandra configuration in objects writer processor."""
     
-    @patch('trustgraph.storage.objects.cassandra.write.Cluster')
+    @patch('trustgraph.storage.rows.cassandra.write.Cluster')
     def test_environment_variable_configuration(self, mock_cluster):
         """Test processor picks up configuration from environment variables."""
         env_vars = {
@@ -97,13 +97,13 @@ class TestObjectsWriterConfiguration:
         mock_cluster.return_value = mock_cluster_instance
         
         with patch.dict(os.environ, env_vars, clear=True):
-            processor = ObjectsWriter(taskgroup=MagicMock())
+            processor = RowsWriter(taskgroup=MagicMock())
             
             assert processor.cassandra_host == ['obj-env-host1', 'obj-env-host2']
             assert processor.cassandra_username == 'obj-env-user'
             assert processor.cassandra_password == 'obj-env-pass'
     
-    @patch('trustgraph.storage.objects.cassandra.write.Cluster')
+    @patch('trustgraph.storage.rows.cassandra.write.Cluster')
     def test_cassandra_connection_with_hosts_list(self, mock_cluster):
         """Test that Cassandra connection uses hosts list correctly."""
         env_vars = {
@@ -118,7 +118,7 @@ class TestObjectsWriterConfiguration:
         mock_cluster.return_value = mock_cluster_instance
         
         with patch.dict(os.environ, env_vars, clear=True):
-            processor = ObjectsWriter(taskgroup=MagicMock())
+            processor = RowsWriter(taskgroup=MagicMock())
             processor.connect_cassandra()
             
             # Verify cluster was called with hosts list
@@ -129,8 +129,8 @@ class TestObjectsWriterConfiguration:
             assert 'contact_points' in call_args.kwargs
             assert call_args.kwargs['contact_points'] == ['conn-host1', 'conn-host2', 'conn-host3']
     
-    @patch('trustgraph.storage.objects.cassandra.write.Cluster')
-    @patch('trustgraph.storage.objects.cassandra.write.PlainTextAuthProvider')
+    @patch('trustgraph.storage.rows.cassandra.write.Cluster')
+    @patch('trustgraph.storage.rows.cassandra.write.PlainTextAuthProvider')
     def test_authentication_configuration(self, mock_auth_provider, mock_cluster):
         """Test authentication is configured when credentials are provided."""
         env_vars = {
@@ -145,7 +145,7 @@ class TestObjectsWriterConfiguration:
         mock_cluster.return_value = mock_cluster_instance
         
         with patch.dict(os.environ, env_vars, clear=True):
-            processor = ObjectsWriter(taskgroup=MagicMock())
+            processor = RowsWriter(taskgroup=MagicMock())
             processor.connect_cassandra()
             
             # Verify auth provider was created with correct credentials
@@ -302,10 +302,10 @@ class TestCommandLineArgumentHandling:
     def test_objects_writer_add_args(self):
         """Test that objects writer adds standard Cassandra arguments."""
         import argparse
-        from trustgraph.storage.objects.cassandra.write import Processor as ObjectsWriter
+        from trustgraph.storage.rows.cassandra.write import Processor as RowsWriter
         
         parser = argparse.ArgumentParser()
-        ObjectsWriter.add_args(parser)
+        RowsWriter.add_args(parser)
         
         # Parse empty args to check that arguments exist
         args = parser.parse_args([])
