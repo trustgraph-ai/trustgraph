@@ -222,35 +222,50 @@ class Subscriber:
         # Store message for later acknowledgment
         msg_id = str(uuid.uuid4())
         self.pending_acks[msg_id] = msg
-        
+
         try:
             id = msg.properties()["id"]
         except:
             id = None
-            
+
         value = msg.value()
         delivery_success = False
-        
+        has_matching_waiter = False
+
         async with self.lock:
             # Deliver to specific subscribers
             if id in self.q:
+                has_matching_waiter = True
                 delivery_success = await self._deliver_to_queue(
                     self.q[id], value
                 )
-            
+
             # Deliver to all subscribers
             for q in self.full.values():
+                has_matching_waiter = True
                 if await self._deliver_to_queue(q, value):
                     delivery_success = True
-        
-        # Acknowledge only on successful delivery
-        if delivery_success:
-            self.consumer.acknowledge(msg)
-            del self.pending_acks[msg_id]
-        else:
-            # Negative acknowledge for retry
-            self.consumer.negative_acknowledge(msg)
-            del self.pending_acks[msg_id]
+
+        # Always acknowledge the message to prevent redelivery storms
+        # on shared topics. Negative acknowledging orphaned messages
+        # (no matching waiter) causes immediate redelivery to all
+        # subscribers, none of whom can handle it either.
+        self.consumer.acknowledge(msg)
+        del self.pending_acks[msg_id]
+
+        if not delivery_success:
+            if not has_matching_waiter:
+                # Message arrived for a waiter that no longer exists
+                # (likely due to client disconnect or timeout)
+                logger.debug(
+                    f"Discarding orphaned message with id={id} - "
+                    "no matching waiter"
+                )
+            else:
+                # Delivery failed (e.g., queue full with drop_new strategy)
+                logger.debug(
+                    f"Message with id={id} dropped due to backpressure"
+                )
                 
     async def _deliver_to_queue(self, queue, value):
         """Deliver message to queue with backpressure handling"""
