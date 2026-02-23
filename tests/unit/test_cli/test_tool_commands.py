@@ -55,6 +55,9 @@ class TestSetToolStructuredQuery:
             mcp_tool=None,
             collection="sales_data",
             template=None,
+            schema_name=None,
+            index_name=None,
+            limit=None,
             arguments=[],
             group=None,
             state=None,
@@ -92,6 +95,9 @@ class TestSetToolStructuredQuery:
             mcp_tool=None,
             collection=None,  # No collection specified
             template=None,
+            schema_name=None,
+            index_name=None,
+            limit=None,
             arguments=[],
             group=None,
             state=None,
@@ -132,6 +138,9 @@ class TestSetToolStructuredQuery:
                 mcp_tool=None,
                 collection='sales_data',
                 template=None,
+                schema_name=None,
+                index_name=None,
+                limit=None,
                 arguments=[],
                 group=None,
                 state=None,
@@ -199,6 +208,144 @@ class TestSetToolStructuredQuery:
             # Should print an exception about invalid type
             printed_output = ' '.join([str(call) for call in mock_print.call_args_list])
             assert 'Exception:' in printed_output or 'invalid choice:' in printed_output.lower()
+
+
+class TestSetToolRowEmbeddingsQuery:
+    """Test the set_tool function with row-embeddings-query type."""
+
+    @patch('trustgraph.cli.set_tool.Api')
+    def test_set_row_embeddings_query_tool_full(self, mock_api_class, mock_api, capsys):
+        """Test setting a row-embeddings-query tool with all parameters."""
+        mock_api_class.return_value, mock_config = mock_api
+        mock_config.get.return_value = []
+
+        set_tool(
+            url="http://test.com",
+            id="customer_search",
+            name="find_customer",
+            description="Find customers by name using semantic search",
+            type="row-embeddings-query",
+            mcp_tool=None,
+            collection="sales",
+            template=None,
+            schema_name="customers",
+            index_name="full_name",
+            limit=20,
+            arguments=[],
+            group=None,
+            state=None,
+            applicable_states=None
+        )
+
+        captured = capsys.readouterr()
+        assert "Tool set." in captured.out
+
+        # Verify the tool was stored correctly
+        call_args = mock_config.put.call_args[0][0]
+        assert len(call_args) == 1
+        config_value = call_args[0]
+        assert config_value.type == "tool"
+        assert config_value.key == "customer_search"
+
+        stored_tool = json.loads(config_value.value)
+        assert stored_tool["name"] == "find_customer"
+        assert stored_tool["type"] == "row-embeddings-query"
+        assert stored_tool["collection"] == "sales"
+        assert stored_tool["schema-name"] == "customers"
+        assert stored_tool["index-name"] == "full_name"
+        assert stored_tool["limit"] == 20
+
+    @patch('trustgraph.cli.set_tool.Api')
+    def test_set_row_embeddings_query_tool_minimal(self, mock_api_class, mock_api, capsys):
+        """Test setting row-embeddings-query tool with minimal parameters."""
+        mock_api_class.return_value, mock_config = mock_api
+        mock_config.get.return_value = []
+
+        set_tool(
+            url="http://test.com",
+            id="product_search",
+            name="find_product",
+            description="Find products using semantic search",
+            type="row-embeddings-query",
+            mcp_tool=None,
+            collection=None,
+            template=None,
+            schema_name="products",
+            index_name=None,  # No index filter
+            limit=None,  # Use default
+            arguments=[],
+            group=None,
+            state=None,
+            applicable_states=None
+        )
+
+        captured = capsys.readouterr()
+        assert "Tool set." in captured.out
+
+        call_args = mock_config.put.call_args[0][0]
+        stored_tool = json.loads(call_args[0].value)
+        assert stored_tool["type"] == "row-embeddings-query"
+        assert stored_tool["schema-name"] == "products"
+        assert "index-name" not in stored_tool  # Should not be included if None
+        assert "limit" not in stored_tool  # Should not be included if None
+        assert "collection" not in stored_tool  # Should not be included if None
+
+    def test_set_main_row_embeddings_query_with_all_options(self):
+        """Test set main() with row-embeddings-query tool type and all options."""
+        test_args = [
+            'tg-set-tool',
+            '--id', 'customer_search',
+            '--name', 'find_customer',
+            '--type', 'row-embeddings-query',
+            '--description', 'Find customers by name',
+            '--schema-name', 'customers',
+            '--collection', 'sales',
+            '--index-name', 'full_name',
+            '--limit', '25',
+            '--api-url', 'http://custom.com'
+        ]
+
+        with patch('sys.argv', test_args), \
+             patch('trustgraph.cli.set_tool.set_tool') as mock_set:
+
+            set_main()
+
+            mock_set.assert_called_once_with(
+                url='http://custom.com',
+                id='customer_search',
+                name='find_customer',
+                description='Find customers by name',
+                type='row-embeddings-query',
+                mcp_tool=None,
+                collection='sales',
+                template=None,
+                schema_name='customers',
+                index_name='full_name',
+                limit=25,
+                arguments=[],
+                group=None,
+                state=None,
+                applicable_states=None,
+                token=None
+            )
+
+    def test_valid_types_includes_row_embeddings_query(self):
+        """Test that 'row-embeddings-query' is included in valid tool types."""
+        test_args = [
+            'tg-set-tool',
+            '--id', 'test_tool',
+            '--name', 'test_tool',
+            '--type', 'row-embeddings-query',
+            '--description', 'Test tool',
+            '--schema-name', 'test_schema'
+        ]
+
+        with patch('sys.argv', test_args), \
+             patch('trustgraph.cli.set_tool.set_tool') as mock_set:
+
+            # Should not raise an exception about invalid type
+            set_main()
+            mock_set.assert_called_once()
 
 
 class TestShowToolsStructuredQuery:
@@ -315,6 +462,76 @@ class TestShowToolsStructuredQuery:
             show_main()
             
             mock_show.assert_called_once_with(url='http://custom.com', token=None)
+
+
+class TestShowToolsRowEmbeddingsQuery:
+    """Test the show_tools function with row-embeddings-query tools."""
+
+    @patch('trustgraph.cli.show_tools.Api')
+    def test_show_row_embeddings_query_tool_full(self, mock_api_class, mock_api, capsys):
+        """Test displaying a row-embeddings-query tool with all fields."""
+        mock_api_class.return_value, mock_config = mock_api
+
+        tool_config = {
+            "name": "find_customer",
+            "description": "Find customers by name using semantic search",
+            "type": "row-embeddings-query",
+            "collection": "sales",
+            "schema-name": "customers",
+            "index-name": "full_name",
+            "limit": 20
+        }
+
+        config_value = ConfigValue(
+            type="tool",
+            key="customer_search",
+            value=json.dumps(tool_config)
+        )
+        mock_config.get_values.return_value = [config_value]
+
+        show_config("http://test.com")
+
+        captured = capsys.readouterr()
+        output = captured.out
+
+        # Check that tool information is displayed
+        assert "customer_search" in output
+        assert "find_customer" in output
+        assert "row-embeddings-query" in output
+        assert "sales" in output  # Collection
+        assert "customers" in output  # Schema name
+        assert "full_name" in output  # Index name
+        assert "20" in output  # Limit
+
+    @patch('trustgraph.cli.show_tools.Api')
+    def test_show_row_embeddings_query_tool_minimal(self, mock_api_class, mock_api, capsys):
+        """Test displaying row-embeddings-query tool with minimal fields."""
+        mock_api_class.return_value, mock_config = mock_api
+
+        tool_config = {
+            "name": "find_product",
+            "description": "Find products using semantic search",
+            "type": "row-embeddings-query",
+            "schema-name": "products"
+            # No collection, index-name, or limit
+        }
+
+        config_value = ConfigValue(
+            type="tool",
+            key="product_search",
+            value=json.dumps(tool_config)
+        )
+        mock_config.get_values.return_value = [config_value]
+
+        show_config("http://test.com")
+
+        captured = capsys.readouterr()
+        output = captured.out
+
+        # Should display the tool with schema-name
+        assert "product_search" in output
+        assert "row-embeddings-query" in output
+        assert "products" in output  # Schema name
 
 
 class TestStructuredQueryToolValidation:
