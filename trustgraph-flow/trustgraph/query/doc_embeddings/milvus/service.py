@@ -14,7 +14,7 @@ from .... base import DocumentEmbeddingsQueryService
 # Module logger
 logger = logging.getLogger(__name__)
 
-default_ident = "de-query"
+default_ident = "doc-embeddings-query"
 default_store_uri = 'http://localhost:19530'
 
 class Processor(DocumentEmbeddingsQueryService):

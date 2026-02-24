@@ -18,7 +18,7 @@ from .... base import GraphEmbeddingsQueryService
 # Module logger
 logger = logging.getLogger(__name__)
 
-default_ident = "ge-query"
+default_ident = "graph-embeddings-query"
 default_api_key = os.getenv("PINECONE_API_KEY", "not-specified")
 
 class Processor(GraphEmbeddingsQueryService):

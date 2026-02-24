@@ -16,7 +16,7 @@ from .... base import DocumentEmbeddingsQueryService
 # Module logger
 logger = logging.getLogger(__name__)
 
-default_ident = "de-query"
+default_ident = "doc-embeddings-query"
 default_api_key = os.getenv("PINECONE_API_KEY", "not-specified")
 
 class Processor(DocumentEmbeddingsQueryService):

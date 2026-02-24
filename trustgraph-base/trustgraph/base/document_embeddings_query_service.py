@@ -16,7 +16,7 @@ from . producer_spec import ProducerSpec
 # Module logger
 logger = logging.getLogger(__name__)
 
-default_ident = "ge-query"
+default_ident = "doc-embeddings-query"
 
 class DocumentEmbeddingsQueryService(FlowProcessor):
 
