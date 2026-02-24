@@ -14,7 +14,7 @@ from .... base import GraphEmbeddingsQueryService
 # Module logger
 logger = logging.getLogger(__name__)
 
-default_ident = "ge-query"
+default_ident = "graph-embeddings-query"
 default_store_uri = 'http://localhost:19530'
 
 class Processor(GraphEmbeddingsQueryService):
