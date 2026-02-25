@@ -225,7 +225,7 @@ class Subscriber:
         
         try:
             id = msg.properties()["id"]
-        except:
+        except Exception:
             id = None
             
         value = msg.value()

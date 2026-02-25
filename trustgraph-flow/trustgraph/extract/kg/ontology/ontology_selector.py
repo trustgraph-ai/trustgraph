@@ -155,7 +155,7 @@ class OntologySelector:
                 import json
                 try:
                     definition = json.loads(definition.replace("'", '"'))
-                except:
+                except Exception:
                     definition = eval(definition)  # Fallback for dict-like strings
 
             # Get the actual ontology and element

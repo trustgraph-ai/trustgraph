@@ -50,7 +50,7 @@ def format_parameters(params_metadata, config_api):
                 if default is not None:
                     type_info = f"{param_type} (default: {default})"
 
-            except:
+            except Exception:
                 # If we can't get type definition, just show the type name
                 pass
 

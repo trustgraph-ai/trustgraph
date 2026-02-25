@@ -134,7 +134,7 @@ Charlie Davis,charlie@email.com,39,DE,inactive"""
         """Clean up temporary file"""
         try:
             os.unlink(file_path)
-        except:
+        except Exception:
             pass
     
     # End-to-end Pipeline Tests

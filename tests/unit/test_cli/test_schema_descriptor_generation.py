@@ -136,7 +136,7 @@ Bob Johnson,bob@company.org,42,UK,2024-01-10,inactive"""
         """Clean up temporary file"""
         try:
             os.unlink(file_path)
-        except:
+        except Exception:
             pass
     
     # Schema Suggestion Tests

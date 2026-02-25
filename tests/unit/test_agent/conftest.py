@@ -103,7 +103,7 @@ def mock_calculator_tool():
                     result *= int(p.strip())
                 return str(result)
             return str(eval(expression))  # Simplified for testing
-        except:
+        except Exception:
             return "Error: Invalid expression"
     
     return calculator_tool

@@ -59,7 +59,7 @@ class WebSocketManager:
                 for queue in self.pending_requests.values():
                     try:
                         await queue.put({"error": str(e)})
-                    except:
+                    except Exception:
                         pass
 
                 self.pending_requests.clear()

@@ -37,7 +37,7 @@ class ConstantEndpoint:
             if tokens[0] != "Bearer":
                 return web.HTTPUnauthorized()
             token = tokens[1]
-        except:
+        except Exception:
             token = ""
 
         if not self.auth.permitted(token, self.operation):

@@ -63,7 +63,7 @@ Charlie Davis,charlie@email.com,39,DE"""
         """Clean up temporary file"""
         try:
             os.unlink(file_path)
-        except:
+        except Exception:
             pass
     
     @pytest.mark.asyncio

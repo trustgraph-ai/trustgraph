@@ -134,7 +134,7 @@ class SocketClient:
             # Clean up async generator
             try:
                 loop.run_until_complete(async_gen.aclose())
-            except:
+            except Exception:
                 pass
 
     async def _send_request_async(

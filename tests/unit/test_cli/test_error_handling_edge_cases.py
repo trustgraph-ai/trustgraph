@@ -57,7 +57,7 @@ class TestErrorHandlingEdgeCases:
         """Clean up temporary file"""
         try:
             os.unlink(file_path)
-        except:
+        except Exception:
             pass
     
     # File Access Error Tests

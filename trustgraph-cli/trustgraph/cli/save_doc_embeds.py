@@ -31,7 +31,7 @@ async def fetch_de(running, queue, user, collection, url):
 
                 try:
                     msg = await asyncio.wait_for(ws.receive(), 1)
-                except:
+                except Exception:
                     continue
 
                 if msg.type == aiohttp.WSMsgType.TEXT:
@@ -94,7 +94,7 @@ async def output(running, queue, path, format):
 
             try:
                 msg = await asyncio.wait_for(queue.get(), 0.5)
-            except:
+            except Exception:
                 # Hopefully it's TimeoutError.  Annoying to match since
                 # it changed in 3.11.
                 continue

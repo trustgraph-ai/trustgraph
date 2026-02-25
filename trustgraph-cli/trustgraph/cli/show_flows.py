@@ -109,7 +109,7 @@ def format_parameters(flow_params, blueprint_params_metadata, config_api):
                     type_def_value = config_api.get([key])[0].value
                     param_type_def = json.loads(type_def_value)
                     display_value = get_enum_description(value, param_type_def)
-                except:
+                except Exception:
                     # If we can't get the type definition, just use the original value
                     display_value = value
 

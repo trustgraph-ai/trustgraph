@@ -130,7 +130,7 @@ Answer: The capital of France is Paris."""
                     parts = expression.split('+')
                     return str(sum(int(p.strip()) for p in parts))
                 return str(eval(expression))
-            except:
+            except Exception:
                 return "Error: Invalid expression"
         
         tools = {
@@ -676,7 +676,7 @@ Answer: The capital of France is Paris."""
                         import json
                         try:
                             args = json.loads(args_text)
-                        except:
+                        except Exception:
                             args = {"raw": args_text}
             
             return {

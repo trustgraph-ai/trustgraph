@@ -43,7 +43,7 @@ class Field:
 
         try:
             type = FieldType[type.upper()]
-        except:
+        except Exception:
             raise RuntimeError(f"Field type {type} is not known")
 
         pri = True if pri == "pri" else False

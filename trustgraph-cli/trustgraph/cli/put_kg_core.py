@@ -72,7 +72,7 @@ async def put(url, user, id, input, token=None):
 
                 try:
                     unpacked = unpacker.unpack()
-                except:
+                except Exception:
                     break
 
                 kind, msg = read_message(unpacked, id, user)

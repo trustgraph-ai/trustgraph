@@ -18,11 +18,11 @@ try:
 except LookupError:
     try:
         nltk.download('punkt_tab', quiet=True)
-    except:
+    except Exception:
         # Fallback to older punkt if punkt_tab not available
         try:
             nltk.download('punkt', quiet=True)
-        except:
+        except Exception:
             pass
 
 try:
@@ -30,11 +30,11 @@ try:
 except LookupError:
     try:
         nltk.download('averaged_perceptron_tagger_eng', quiet=True)
-    except:
+    except Exception:
         # Fallback to older name
         try:
             nltk.download('averaged_perceptron_tagger', quiet=True)
-        except:
+        except Exception:
             pass
 
 try:
@@ -62,7 +62,7 @@ class SentenceSplitter:
             # Try newer punkt_tab first
             self.sent_detector = nltk.data.load('tokenizers/punkt_tab/english/')
             logger.info("Using NLTK sentence tokenizer (punkt_tab)")
-        except:
+        except Exception:
             # Fallback to older punkt
             self.sent_detector = nltk.data.load('tokenizers/punkt/english.pickle')
             logger.info("Using NLTK sentence tokenizer (punkt)")

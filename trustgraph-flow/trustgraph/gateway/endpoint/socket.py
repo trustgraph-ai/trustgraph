@@ -64,7 +64,7 @@ class SocketEndpoint:
         """Enhanced handler with better cleanup"""
         try:
             token = request.query['token']
-        except:
+        except Exception:
             token = ""
 
         if not self.auth.permitted(token, self.operation):

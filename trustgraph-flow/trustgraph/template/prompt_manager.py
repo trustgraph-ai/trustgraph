@@ -31,12 +31,12 @@ class PromptManager:
 
         try:
             system = json.loads(config["system"])
-        except:
+        except Exception:
             system = "Be helpful."
 
         try:
             ix = json.loads(config["template-index"])
-        except:
+        except Exception:
             ix = []
 
         prompts = {}
@@ -68,7 +68,7 @@ class PromptManager:
 
         try:
             self.system_template = ibis.Template(self.config.system_template)
-        except:
+        except Exception:
             raise RuntimeError("Error in system template")
 
         self.templates = {}
@@ -126,7 +126,7 @@ class PromptManager:
 
         try:
             obj = self.parse_json(resp)
-        except:
+        except Exception:
             logger.error(f"JSON parse failed: {resp}")
             raise RuntimeError("JSON parse fail")
 

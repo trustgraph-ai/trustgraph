@@ -22,7 +22,7 @@ def check_error(response):
         try:
             msg = response["error"]["message"]
             tp = response["error"]["type"]
-        except:
+        except Exception:
             raise ApplicationException(response["error"])
 
         raise ApplicationException(f"{tp}: {msg}")
@@ -85,7 +85,7 @@ class AsyncFlow:
 
                 try:
                     obj = await resp.json()
-                except:
+                except Exception:
                     raise ProtocolException(f"Expected JSON response")
 
                 check_error(obj)

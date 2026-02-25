@@ -252,7 +252,7 @@ class Config:
                 )
                 for v in object["values"]
             ]
-        except:
+        except Exception:
             raise ProtocolException(f"Response not formatted correctly")
 
     def all(self):
@@ -288,6 +288,6 @@ class Config:
 
         try:
             return object["config"], object["version"]
-        except:
+        except Exception:
             raise ProtocolException(f"Response not formatted correctly")
 

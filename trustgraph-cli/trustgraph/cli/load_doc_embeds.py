@@ -37,7 +37,7 @@ async def load_de(running, queue, url):
                     if msg is None:
                         break
 
-                except:
+                except Exception:
                     # Hopefully it's TimeoutError.  Annoying to match since
                     # it changed in 3.11.
                     continue
@@ -93,7 +93,7 @@ async def loader(running, de_queue, path, format, user, collection):
 
                 try:
                     unpacked = unpacker.unpack()
-                except:
+                except Exception:
                     break
 
                 if user:
@@ -113,7 +113,7 @@ async def loader(running, de_queue, path, format, user, collection):
                         # Successful put message, move on
                         break
 
-                    except:
+                    except Exception:
                         # Hopefully it's TimeoutError.  Annoying to match since
                         # it changed in 3.11.
                         continue
@@ -129,7 +129,7 @@ async def loader(running, de_queue, path, format, user, collection):
                 # Successful put message, move on
                 break
 
-            except:
+            except Exception:
                 # Hopefully it's TimeoutError.  Annoying to match since
                 # it changed in 3.11.
                 continue

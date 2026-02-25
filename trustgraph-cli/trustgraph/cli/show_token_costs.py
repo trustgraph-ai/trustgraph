@@ -36,7 +36,7 @@ def show_config(url, token=None):
                 fmt(values.get("input_price")),
                 fmt(values.get("output_price")),
             ))
-        except:
+        except Exception:
             costs.append((
                 model, "-", "-"
             ))

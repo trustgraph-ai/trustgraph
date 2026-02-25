@@ -109,7 +109,7 @@ def format_signature(name, obj):
     try:
         sig = inspect.signature(obj)
         return f"{name}{sig}"
-    except:
+    except Exception:
         return f"{name}(...)"
 
 def document_function(name, func, indent=0):

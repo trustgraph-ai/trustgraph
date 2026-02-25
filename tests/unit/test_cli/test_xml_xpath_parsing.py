@@ -27,7 +27,7 @@ class TestXMLXPathParsing:
         """Clean up temporary file"""
         try:
             os.unlink(file_path)
-        except:
+        except Exception:
             pass
     
     def parse_xml_with_cli(self, xml_data, format_info, sample_size=100):
@@ -139,7 +139,7 @@ class TestXMLXPathParsing:
         """Clean up temporary file"""
         try:
             os.unlink(file_path)
-        except:
+        except Exception:
             pass
     
     # UN Data Format Tests (CLI-level testing)

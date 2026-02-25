@@ -30,7 +30,7 @@ session.mount('file://', FileAdapter())
 
 try:
     os.mkdir("doc-cache")
-except:
+except Exception:
     pass
 
 documents = [
