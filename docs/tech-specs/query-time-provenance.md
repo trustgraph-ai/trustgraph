@@ -57,8 +57,8 @@ Agent Session
 ### Storage
 
 - Provenance stored in knowledge graph infrastructure
-- Segregated from main data for separate retrieval patterns
-- Query-time provenance references extraction-time provenance nodes
+- Segregated in a **separate collection** for distinct retrieval patterns
+- Query-time provenance references extraction-time provenance nodes via IRIs
 - Persists beyond agent session (reusable, auditable)
 
 ### Real-Time Streaming
@@ -75,15 +75,23 @@ Provenance events stream back to the client as the agent works:
 
 Each provenance node represents a step in the reasoning process.
 
+### Node Identity
+
+Provenance nodes are identified by IRIs containing UUIDs, consistent with the RDF-style knowledge graph:
+
+```
+urn:trustgraph:prov:550e8400-e29b-41d4-a716-446655440000
+```
+
 ### Core Fields
 
 | Field | Description |
 |-------|-------------|
-| `id` | Unique identifier for this provenance node |
+| `id` | IRI with UUID (e.g., `urn:trustgraph:prov:{uuid}`) |
 | `session_id` | Agent session this belongs to |
 | `timestamp` | When this step occurred |
 | `type` | Node type (see below) |
-| `derived_from` | List of parent node IDs (DAG edges) |
+| `derived_from` | List of parent node IRIs (DAG edges) |
 
 ### Node Types
 
@@ -94,29 +102,32 @@ Each provenance node represents a step in the reasoning process.
 | `reasoning` | LLM reasoning step | `prompt_summary`, `conclusion` |
 | `answer` | Final answer produced | `content` |
 
-### Example Provenance Node
+### Example Provenance Nodes
 
 ```json
 {
-  "id": "prov-12345",
-  "session_id": "session-abc",
+  "id": "urn:trustgraph:prov:550e8400-e29b-41d4-a716-446655440001",
+  "session_id": "urn:trustgraph:session:7c9e6679-7425-40de-944b-e07fc1f90ae7",
   "timestamp": "2024-01-15T10:30:00Z",
   "type": "retrieval",
   "derived_from": [],
   "facts": [
-    {"id": "fact-001", "content": "Swallow airspeed is 8.5 m/s"}
+    {
+      "id": "urn:trustgraph:fact:9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+      "content": "Swallow airspeed is 8.5 m/s"
+    }
   ],
-  "source_refs": ["extract-prov-789"]
+  "source_refs": ["urn:trustgraph:extract:1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed"]
 }
 ```
 
 ```json
 {
-  "id": "prov-12346",
-  "session_id": "session-abc",
+  "id": "urn:trustgraph:prov:550e8400-e29b-41d4-a716-446655440002",
+  "session_id": "urn:trustgraph:session:7c9e6679-7425-40de-944b-e07fc1f90ae7",
   "timestamp": "2024-01-15T10:30:01Z",
   "type": "reasoning",
-  "derived_from": ["prov-12345"],
+  "derived_from": ["urn:trustgraph:prov:550e8400-e29b-41d4-a716-446655440001"],
   "prompt_summary": "Asked to determine average swallow speed",
   "conclusion": "Based on retrieved data, average speed is 8.5 m/s"
 }
@@ -126,25 +137,37 @@ Each provenance node represents a step in the reasoning process.
 
 Events streamed to the client during agent execution.
 
+### Design: Lightweight Reference Events
+
+Provenance events are lightweight - they reference provenance nodes by IRI rather than embedding full provenance data. This keeps the stream efficient while allowing the client to fetch full details if needed.
+
+A single agent step may create or modify multiple provenance objects. The event references all of them.
+
 ### Event Structure
 
 ```json
 {
-  "event_type": "provenance_update",
-  "session_id": "session-abc",
-  "node": { ... provenance node ... }
+  "provenance_refs": [
+    "urn:trustgraph:prov:550e8400-e29b-41d4-a716-446655440001",
+    "urn:trustgraph:prov:550e8400-e29b-41d4-a716-446655440002"
+  ]
 }
 ```
 
 ### Integration with Agent Response
 
-The existing `AgentResponse` streams chunks back to the client. Provenance events extend this:
+Provenance events extend `AgentResponse` with a new `chunk_type: "provenance"`:
 
-**Option A: Separate provenance chunks**
-Add a new `chunk_type: "provenance"` to `AgentResponse`.
+```json
+{
+  "chunk_type": "provenance",
+  "content": "",
+  "provenance_refs": ["urn:trustgraph:prov:..."],
+  "end_of_message": false
+}
+```
 
-**Option B: Parallel stream**
-Provenance flows on a separate topic/channel alongside the main response.
+This allows provenance updates to flow alongside existing chunk types (`thought`, `observation`, `answer`, `error`).
 
 ## Tool Provenance Reporting
 
@@ -178,47 +201,62 @@ Tools that can't provide detailed provenance still participate:
 }
 ```
 
+## Design Decisions
+
+### Provenance Node Identity: IRIs with UUIDs
+
+Provenance nodes use IRIs containing UUIDs, consistent with the RDF-style knowledge graph:
+- Format: `urn:trustgraph:prov:{uuid}`
+- Globally unique, persistent across sessions
+- Can be dereferenced to retrieve full node data
+
+### Storage Segregation: Separate Collection
+
+Provenance is stored in a separate collection within the knowledge graph infrastructure. This allows:
+- Distinct retrieval patterns for provenance vs. data
+- Independent scaling/retention policies
+- Clear separation of concerns
+
+### Client Protocol: Extended AgentResponse
+
+Provenance events extend `AgentResponse` with `chunk_type: "provenance"`. Events are lightweight, containing only IRI references to provenance nodes created/modified in the step.
+
+### Retrieval Granularity: Flexible, Multiple Objects Per Step
+
+A single agent step can create multiple provenance objects. The provenance event references all objects created or modified. This handles cases like:
+- Retrieval returning multiple facts (each gets a provenance node)
+- Tool invocation creating both an invocation node and result nodes
+
+### Graph Structure: True DAG
+
+The provenance structure is a DAG (not a tree):
+- A provenance node can have multiple parents (e.g., reasoning combines facts A and B)
+- Extraction-time nodes can be referenced by multiple query-time sessions
+- Enables proper modeling of how conclusions derive from multiple sources
+
+### Linking to Extraction Provenance: Direct IRI Reference
+
+Query-time provenance references extraction-time provenance via direct IRI links in the `source_refs` field. No separate linking mechanism needed.
+
 ## Open Questions
 
-### Provenance Node Identity
+### Provenance Retrieval API
 
-How are provenance nodes identified across sessions?
-- UUID per node?
-- Content-addressable (hash of content)?
-- Hierarchical (session-id/step-number)?
+Base layer uses the existing knowledge graph API to query the provenance collection. A higher-level service may be added to provide convenience methods. Details TBD during implementation.
 
-### Graph vs Tree
+### Provenance Node Granularity
 
-The provenance structure is described as a DAG:
-- Can a provenance node have multiple parents? (e.g., reasoning step combines multiple facts)
-- Can the same extraction-time node be referenced by multiple query-time sessions?
+Placeholder to explore: What level of detail should different node types capture?
+- Should `reasoning` nodes include the full LLM prompt, or just a summary?
+- How much of tool input/output to store?
+- Trade-offs between completeness and storage/performance
 
-### Retrieval Granularity
+### Provenance Retention
 
-When the agent retrieves facts:
-- One provenance node per retrieval call?
-- One provenance node per fact retrieved?
-- Both (retrieval node with child fact nodes)?
-
-### Storage Segregation
-
-How is provenance segregated in the knowledge graph?
-- Separate named graph?
-- Prefix on node IRIs?
-- Separate collection?
-
-### Linking to Extraction Provenance
-
-How does query-time provenance reference extraction-time provenance?
-- Direct IRI reference?
-- Separate linking mechanism?
-
-### Client Protocol
-
-How do provenance events reach the client?
-- Extension to existing AgentResponse?
-- Separate Pulsar topic?
-- Separate field in response envelope?
+TBD - retention policy to be determined:
+- Indefinitely?
+- Tied to session retention?
+- Configurable per collection?
 
 ## Implementation Considerations
 
