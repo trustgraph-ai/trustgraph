@@ -9,23 +9,71 @@
 
 [**Website**](https://trustgraph.ai) | [**Docs**](https://docs.trustgraph.ai) | [**YouTube**](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) | [**Configuration Builder**](https://config-ui.demo.trustgraph.ai/) | [**Discord**](https://discord.gg/sQMwkRz5GX) | [**Blog**](https://blog.trustgraph.ai/subscribe)
 
+<a href="https://trendshift.io/repositories/17291" target="_blank"><img src="https://trendshift.io/api/badge/repositories/17291" alt="trustgraph-ai%2Ftrustgraph | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+
+# The context backend for AI agents
+
 </div>
 
-# Eliminate AI Hallucinations with Private Knowledge Bases
+Durable agent memory you can trust. Build, version, and retrieve grounded context from a context graph.
 
-Build accurate, trustworthy AI agents powered by your own private data. TrustGraph connects your documents, databases, tools, and agents into a unified knowledge graph with precise retrieval, full observability, and deploy-anywhere control.
+- Give agents **memory** that persists across sessions and deployments.
+- Reduce hallucinations with **grounded context retrieval**
+- Ship reusable, portable [Context Cores](#context-cores) (packaged context you can move between projects/environments).
+
+The context backend:
+- [x] Multi-model and multimodal database system
+  - [x] Tabular/relational, key-value
+  - [x] Document, graph, and vectors
+  - [x] Images, video, and audio 
+- [x] Automated data ingest and loading
+  - [x] Quick ingest with semantic similarity retrieval
+  - [x] Ontology structuring for precision retrieval
+- [x] Out-of-the-box RAG pipelines
+  - [x] DocumentRAG
+  - [x] GraphRAG
+  - [x] OntologyRAG     
+- [x] 3D GraphViz for exploring context
+- [x] Fully Agentic System
+  - [x] Single Agent
+  - [x] Multi Agent
+  - [x] MCP integration 
+- [x] Run anywhere
+  - [x] Deploy locally with Docker
+  - [x] Deploy in cloud with Kubernetes
+- [x] Support for all major LLMs
+  - [x] API support for Anthropic, Cohere, Gemini, Mistral, OpenAI, and others
+  - [x] Model inferencing with vLLM, Ollama, TGI, LM Studio, and Llamafiles
+- [x] Developer friendly
+  - [x] REST API [Docs](https://docs.trustgraph.ai/reference/apis/rest.html)
+  - [x] Websocket API [Docs](https://docs.trustgraph.ai/reference/apis/websocket.html)
+  - [x] Python API [Docs](https://docs.trustgraph.ai/reference/apis/python)
+  - [x] CLI [Docs](https://docs.trustgraph.ai/reference/cli/)
+
+## Quickstart
+
+```
+npx @trustgraph/config
+```
+
+TrustGraph downloads as Docker containers and can be run locally with Docker, Podman, or Minikube. The config tool will generate:
+- `deploy.zip` with either a `docker-compose.yaml` file for a Docker/Podman deploy or `resources.yaml` for Kubernetes
+- Deployment instructions as `INSTALLATION.md`
+
+<p align="center">
+  <video src="https://github.com/user-attachments/assets/2978a6aa-4c9c-4d7c-ad02-8f3d01a1c602"
+width="80%" controls></video>
+</p>
 
 <details>
 <summary>Table of Contents</summary>
 <br>
 
-- [**Key Features**](#key-features)<br>
+- [**What is a Context Graph?**](#what-is-a-context-graph)<br>
 - [**Why TrustGraph?**](#why-trustgraph)<br>
-- [**Agentic MCP Demo**](#agentic-mcp-demo)<br>
-- [**Getting Started**](#getting-started)<br>
-- [**Configuration Builder**](#configuration-builder)<br>
-- [**Knowledge Cores**](#knowledge-cores)<br>
-- [**Integrations**](#integrations)<br>
+- [**Getting Started**](#getting-started-with-trustgraph)<br>
+- [**Context Cores**](#context-cores)<br>
+- [**Tech Stack**](#tech-stack)<br>
 - [**Observability & Telemetry**](#observability--telemetry)<br>
 - [**Contributing**](#contributing)<br>
 - [**License**](#license)<br>
@@ -33,51 +81,24 @@ Build accurate, trustworthy AI agents powered by your own private data. TrustGra
 
 </details>
 
-## Key Features
+## What is a Context Graph?
 
-- **Unify your Data for Smarter AI**
-- **Ship Intelligent Agents Powered with Your Data**
-- **Connect Your Agents with MCP**
-- **Run Anywhere**
-- **Observe Your Data**
-- **Serve Models for Private LLM Inference**
-- **Create Many Workflows**
-- **Control Data Access**
+[![What is a Context Graph?](https://img.youtube.com/vi/gZjlt5WcWB4/maxresdefault.jpg)](https://www.youtube.com/watch?v=gZjlt5WcWB4) 
 
 ## Why TrustGraph?
 
-Ingest structured and unstructured data (PDFs, databases, OCR, custom schemas, and ontologies) into a private knowledge bases to create deep data relationships that eliminate hallucinations from agent responses. Connect agents with the Model Context Protocol (MCP) to leverage external tools, services, and custom workflows.
-
-Deploy all of the services, datastores, and agents locally, on premises, or in cloud. Visualize deep data relationships with 3D GraphViz and a full observability and telemetry stack. Deploy LLMs on your hardware for full control of your data.
-
-Flows and Flow Classes enable unique agent workflows with collections and knowledge cores that manage user and agent data access.
-
 [![Why TrustGraph?](https://img.youtube.com/vi/Norboj8YP2M/maxresdefault.jpg)](https://www.youtube.com/watch?v=Norboj8YP2M)
 
-## Agentic MCP Demo
+## Getting Started with TrustGraph
 
-[![Agentic MCP Demo](https://img.youtube.com/vi/mUCL1b1lmbA/maxresdefault.jpg)](https://www.youtube.com/watch?v=mUCL1b1lmbA)
-
-## Getting Started
-
-- [**Quickstart Guide**](https://docs.trustgraph.ai/getting-started/)
-- [**Configuration Builder**](#configuration-builder)
-- [**Workbench**](#workbench)
-- [**Developer APIs and CLI**](https://docs.trustgraph.ai/reference/)
-- [**Deployment Guide**](https://docs.trustgraph.ai/deployment/)
+- [**Getting Started Guides**](https://docs.trustgraph.ai/getting-started)
+- [**Using the Workbench**](#workbench)
+- [**Developer APIs and CLI**](https://docs.trustgraph.ai/reference)
+- [**Deployment Guides**](https://docs.trustgraph.ai/deployment)
 
 ### Watch TrustGraph 101
 
 [![TrustGraph 101](https://img.youtube.com/vi/rWYl_yhKCng/maxresdefault.jpg)](https://www.youtube.com/watch?v=rWYl_yhKCng)
-
-## Configuration Builder
-
-The [**Configuration Builder**](https://config-ui.demo.trustgraph.ai/) assembles all of the selected components and builds them into a deployable package. It has 4 sections:
-
-- **Version**: Select the version of TrustGraph you'd like to deploy
-- **Component Selection**: Choose from the available deployment platforms, LLMs, graph store, VectorDB, chunking algorithm, chunking parameters, and LLM parameters
-- **Customization**: Enable OCR pipelines and custom embeddings models
-- **Finish Deployment**: Download the launch `YAML` files with deployment instructions
 
 ## Workbench
 
@@ -97,16 +118,27 @@ The **Workbench** provides tools for all major features of TrustGraph. The **Wor
 - **Agent Tools**: Define tools with collections, knowledge cores, MCP connections, and tool groups
 - **MCP Tools**: Connect to MCP servers
 
-## Knowledge Cores
+## TypeScript Library for UIs
 
-A challenge facing GraphRAG architectures is the ability to reuse and remove datasets from agent workflows. TrustGraph can store the data ingest process as reusable Knowledge Cores. Knowledge cores can be loaded and removed during runtime. Some sample knowledge cores are [here](https://github.com/trustgraph-ai/catalog/tree/master/v3).
+There are 3 libraries for quick UI integration of TrustGraph services.
 
-A Knowledge Core has two components:
+- [@trustgraph/client](https://www.npmjs.com/package/@trustgraph/client)
+- [@trustgraph/react-state](https://www.npmjs.com/package/@trustgraph/react-state)
+- [@trustgraph/react-provider](https://www.npmjs.com/package/@trustgraph/react-provider)
 
-- Knowledge graph triples
-- Vector embeddings mapped to the knowledge graph
+## Context Cores
 
-## Integrations
+A Context Core is a **portable, versioned bundle of context** that you can ship between projects and environments, pin in production, and reuse across agents. It packages the “stuff agents need to know” (structured knowledge + embeddings + evidence + policies) into a single artifact, so you can treat context like code: build it, test it, version it, promote it, and roll it back. TrustGraph is built to support this kind of end-to-end context engineering and orchestration workflow.
+
+### What’s inside a Context Core
+A Context Core typically includes:
+- Ontology (your domain schema) and mappings
+- Context Graph (entities, relationships, supporting evidence)
+- Embeddings / vector indexes for fast semantic entry-point lookup
+- Source manifests + provenance (where facts came from, when, and how they were derived)
+- Retrieval policies (traversal rules, freshness, authority ranking)
+
+## Tech Stack
 TrustGraph provides component flexibility to optimize agent workflows.
 
 <details>
@@ -136,6 +168,16 @@ TrustGraph provides component flexibility to optimize agent workflows.
 
 </details>
 <details>
+<summary>Graph Storage</summary>
+<br>
+
+- Apache Cassandra (default)<br>
+- Neo4j<br>
+- Memgraph<br>
+- FalkorDB<br>
+
+</details>
+<details>
 <summary>VectorDBs</summary>
 <br>
 
@@ -145,13 +187,11 @@ TrustGraph provides component flexibility to optimize agent workflows.
 
 </details>
 <details>
-<summary>Graph Storage</summary>
+<summary>File and Object Storage</summary>
 <br>
 
-- Apache Cassandra (default)<br>
-- Neo4j<br>
-- Memgraph<br>
-- FalkorDB<br>
+- Garage (default)<br>
+- MinIO<br>
 
 </details>
 <details>
@@ -163,7 +203,7 @@ TrustGraph provides component flexibility to optimize agent workflows.
 
 </details>
 <details>
-<summary>Control Plane</summary>
+<summary>Data Streaming</summary>
 <br>
 
 - Apache Pulsar<br>
