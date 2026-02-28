@@ -218,6 +218,25 @@ Response structure:
 
 This matches the pattern used throughout existing service schemas (e.g., `PromptResponse`, `QueryResponse`, `AgentResponse`).
 
+### Request/Response Correlation
+
+Requests and responses are correlated using an `id` in Pulsar message properties:
+
+- Request includes `id` in properties: `properties={"id": id}`
+- Response(s) include the same `id`: `properties={"id": id}`
+
+This follows the existing pattern used throughout the codebase (e.g., `agent_service.py`, `llm_service.py`).
+
+### Streaming Support
+
+Tool services can return streaming responses:
+
+- Multiple response messages with the same `id` in properties
+- Each response includes `end_of_message: bool` field
+- Final response has `end_of_message: True`
+
+This matches the pattern used in `AgentResponse` and other streaming services.
+
 ### Response Handling: String Return
 
 All existing tools follow the same pattern: **receive arguments as a dict, return observation as a string**.
@@ -236,13 +255,6 @@ Tool services follow the same contract:
 - No extraction configuration needed in the descriptor
 
 This keeps the descriptor simple and places responsibility on the service to return an appropriate text response for the agent.
-
-## Open Questions
-
-### Streaming Support
-
-- Should tool services support streaming responses?
-- How would streaming be configured in the descriptor?
 
 ## Implementation Considerations
 
