@@ -174,6 +174,11 @@ class Processor(DynamicToolService):
     @staticmethod
     def add_args(parser):
         DynamicToolService.add_args(parser)
+        # Override the topic default for this service
+        for action in parser._actions:
+            if '--topic' in action.option_strings:
+                action.default = default_topic
+                break
 
 
 def run():

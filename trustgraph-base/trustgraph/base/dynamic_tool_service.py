@@ -54,8 +54,8 @@ class DynamicToolService(AsyncProcessor):
         topic = params.get("topic", default_topic)
 
         # Build direct Pulsar topic paths
-        request_topic = f"non-persistent://tg/request/{topic}-request"
-        response_topic = f"non-persistent://tg/response/{topic}-response"
+        request_topic = f"non-persistent://tg/request/{topic}"
+        response_topic = f"non-persistent://tg/response/{topic}"
 
         logger.info(f"Tool service topics: request={request_topic}, response={response_topic}")
 
