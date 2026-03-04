@@ -1,19 +1,36 @@
 """
 Base chunking service that provides parameter specification functionality
-for chunk-size and chunk-overlap parameters
+for chunk-size and chunk-overlap parameters, and librarian client for
+fetching large document content.
 """
 
+import asyncio
+import base64
 import logging
+import uuid
+
 from .flow_processor import FlowProcessor
 from .parameter_spec import ParameterSpec
+from .consumer import Consumer
+from .producer import Producer
+from .metrics import ConsumerMetrics, ProducerMetrics
+
+from ..schema import LibrarianRequest, LibrarianResponse
+from ..schema import librarian_request_queue, librarian_response_queue
 
 # Module logger
 logger = logging.getLogger(__name__)
+
+default_librarian_request_queue = librarian_request_queue
+default_librarian_response_queue = librarian_response_queue
+
 
 class ChunkingService(FlowProcessor):
     """Base service for chunking processors with parameter specification support"""
 
     def __init__(self, **params):
+
+        id = params.get("id", "chunker")
 
         # Call parent constructor
         super(ChunkingService, self).__init__(**params)
@@ -27,7 +44,121 @@ class ChunkingService(FlowProcessor):
             ParameterSpec(name="chunk-overlap")
         )
 
+        # Librarian client for fetching document content
+        librarian_request_q = params.get(
+            "librarian_request_queue", default_librarian_request_queue
+        )
+        librarian_response_q = params.get(
+            "librarian_response_queue", default_librarian_response_queue
+        )
+
+        librarian_request_metrics = ProducerMetrics(
+            processor=id, flow=None, name="librarian-request"
+        )
+
+        self.librarian_request_producer = Producer(
+            backend=self.pubsub,
+            topic=librarian_request_q,
+            schema=LibrarianRequest,
+            metrics=librarian_request_metrics,
+        )
+
+        librarian_response_metrics = ConsumerMetrics(
+            processor=id, flow=None, name="librarian-response"
+        )
+
+        self.librarian_response_consumer = Consumer(
+            taskgroup=self.taskgroup,
+            backend=self.pubsub,
+            flow=None,
+            topic=librarian_response_q,
+            subscriber=f"{id}-librarian",
+            schema=LibrarianResponse,
+            handler=self.on_librarian_response,
+            metrics=librarian_response_metrics,
+        )
+
+        # Pending librarian requests: request_id -> asyncio.Future
+        self.pending_requests = {}
+
         logger.debug("ChunkingService initialized with parameter specifications")
+
+    async def start(self):
+        await super(ChunkingService, self).start()
+        await self.librarian_request_producer.start()
+        await self.librarian_response_consumer.start()
+
+    async def on_librarian_response(self, msg, consumer, flow):
+        """Handle responses from the librarian service."""
+        response = msg.value()
+        request_id = msg.properties().get("id")
+
+        if request_id and request_id in self.pending_requests:
+            future = self.pending_requests.pop(request_id)
+            future.set_result(response)
+        else:
+            logger.warning(f"Received unexpected librarian response: {request_id}")
+
+    async def fetch_document_content(self, document_id, user, timeout=120):
+        """
+        Fetch document content from librarian via Pulsar.
+        """
+        request_id = str(uuid.uuid4())
+
+        request = LibrarianRequest(
+            operation="get-document-content",
+            document_id=document_id,
+            user=user,
+        )
+
+        # Create future for response
+        future = asyncio.get_event_loop().create_future()
+        self.pending_requests[request_id] = future
+
+        try:
+            # Send request
+            await self.librarian_request_producer.send(
+                request, properties={"id": request_id}
+            )
+
+            # Wait for response
+            response = await asyncio.wait_for(future, timeout=timeout)
+
+            if response.error:
+                raise RuntimeError(
+                    f"Librarian error: {response.error.type}: {response.error.message}"
+                )
+
+            return response.content
+
+        except asyncio.TimeoutError:
+            self.pending_requests.pop(request_id, None)
+            raise RuntimeError(f"Timeout fetching document {document_id}")
+
+    async def get_document_text(self, doc):
+        """
+        Get text content from a TextDocument, fetching from librarian if needed.
+
+        Args:
+            doc: TextDocument with either inline text or document_id
+
+        Returns:
+            str: The document text content
+        """
+        if doc.document_id and not doc.text:
+            logger.info(f"Fetching document {doc.document_id} from librarian...")
+            content = await self.fetch_document_content(
+                document_id=doc.document_id,
+                user=doc.metadata.user,
+            )
+            # Content is base64 encoded
+            if isinstance(content, str):
+                content = content.encode('utf-8')
+            text = base64.b64decode(content).decode("utf-8")
+            logger.info(f"Fetched {len(text)} characters from librarian")
+            return text
+        else:
+            return doc.text.decode("utf-8")
 
     async def chunk_document(self, msg, consumer, flow, default_chunk_size, default_chunk_overlap):
         """
