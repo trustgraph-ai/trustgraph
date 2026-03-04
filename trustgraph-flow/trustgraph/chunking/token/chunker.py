@@ -4,26 +4,17 @@ Simple decoder, accepts text documents on input, outputs chunks from the
 as text as separate output objects.
 """
 
-import asyncio
-import base64
 import logging
-import uuid
 from langchain_text_splitters import TokenTextSplitter
 from prometheus_client import Histogram
 
 from ... schema import TextDocument, Chunk
-from ... schema import LibrarianRequest, LibrarianResponse
-from ... schema import librarian_request_queue, librarian_response_queue
 from ... base import ChunkingService, ConsumerSpec, ProducerSpec
-from ... base import Consumer, Producer, ConsumerMetrics, ProducerMetrics
 
 # Module logger
 logger = logging.getLogger(__name__)
 
 default_ident = "chunker"
-
-default_librarian_request_queue = librarian_request_queue
-default_librarian_response_queue = librarian_response_queue
 
 
 class Processor(ChunkingService):
@@ -71,116 +62,15 @@ class Processor(ChunkingService):
             )
         )
 
-        # Librarian client for fetching document content
-        librarian_request_q = params.get(
-            "librarian_request_queue", default_librarian_request_queue
-        )
-        librarian_response_q = params.get(
-            "librarian_response_queue", default_librarian_response_queue
-        )
-
-        librarian_request_metrics = ProducerMetrics(
-            processor = id, flow = None, name = "librarian-request"
-        )
-
-        self.librarian_request_producer = Producer(
-            backend = self.pubsub,
-            topic = librarian_request_q,
-            schema = LibrarianRequest,
-            metrics = librarian_request_metrics,
-        )
-
-        librarian_response_metrics = ConsumerMetrics(
-            processor = id, flow = None, name = "librarian-response"
-        )
-
-        self.librarian_response_consumer = Consumer(
-            taskgroup = self.taskgroup,
-            backend = self.pubsub,
-            flow = None,
-            topic = librarian_response_q,
-            subscriber = f"{id}-librarian",
-            schema = LibrarianResponse,
-            handler = self.on_librarian_response,
-            metrics = librarian_response_metrics,
-        )
-
-        # Pending librarian requests: request_id -> asyncio.Future
-        self.pending_requests = {}
-
         logger.info("Token chunker initialized")
-
-    async def start(self):
-        await super(Processor, self).start()
-        await self.librarian_request_producer.start()
-        await self.librarian_response_consumer.start()
-
-    async def on_librarian_response(self, msg, consumer, flow):
-        """Handle responses from the librarian service."""
-        response = msg.value()
-        request_id = msg.properties().get("id")
-
-        if request_id and request_id in self.pending_requests:
-            future = self.pending_requests.pop(request_id)
-            future.set_result(response)
-        else:
-            logger.warning(f"Received unexpected librarian response: {request_id}")
-
-    async def fetch_document_content(self, document_id, user, timeout=120):
-        """
-        Fetch document content from librarian via Pulsar.
-        """
-        request_id = str(uuid.uuid4())
-
-        request = LibrarianRequest(
-            operation="get-document-content",
-            document_id=document_id,
-            user=user,
-        )
-
-        # Create future for response
-        future = asyncio.get_event_loop().create_future()
-        self.pending_requests[request_id] = future
-
-        try:
-            # Send request
-            await self.librarian_request_producer.send(
-                request, properties={"id": request_id}
-            )
-
-            # Wait for response
-            response = await asyncio.wait_for(future, timeout=timeout)
-
-            if response.error:
-                raise RuntimeError(
-                    f"Librarian error: {response.error.type}: {response.error.message}"
-                )
-
-            return response.content
-
-        except asyncio.TimeoutError:
-            self.pending_requests.pop(request_id, None)
-            raise RuntimeError(f"Timeout fetching document {document_id}")
 
     async def on_message(self, msg, consumer, flow):
 
         v = msg.value()
         logger.info(f"Chunking document {v.metadata.id}...")
 
-        # Check if we need to fetch content from librarian
-        if v.document_id and not v.text:
-            logger.info(f"Fetching document {v.document_id} from librarian...")
-            content = await self.fetch_document_content(
-                document_id=v.document_id,
-                user=v.metadata.user,
-            )
-            # Content is base64 encoded
-            if isinstance(content, str):
-                content = content.encode('utf-8')
-            text = base64.b64decode(content).decode("utf-8")
-            logger.info(f"Fetched {len(text)} characters from librarian")
-        else:
-            text = v.text.decode("utf-8")
+        # Get text content (fetches from librarian if needed)
+        text = await self.get_document_text(v)
 
         # Extract chunk parameters from flow (allows runtime override)
         chunk_size, chunk_overlap = await self.chunk_document(
@@ -238,18 +128,6 @@ class Processor(ChunkingService):
             type=int,
             default=15,
             help=f'Chunk overlap (default: 15)'
-        )
-
-        parser.add_argument(
-            '--librarian-request-queue',
-            default=default_librarian_request_queue,
-            help=f'Librarian request queue (default: {default_librarian_request_queue})',
-        )
-
-        parser.add_argument(
-            '--librarian-response-queue',
-            default=default_librarian_response_queue,
-            help=f'Librarian response queue (default: {default_librarian_response_queue})',
         )
 
 def run():
