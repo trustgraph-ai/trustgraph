@@ -127,6 +127,32 @@ class LibraryTableStore:
             );
         """);
 
+        logger.debug("upload_session table...")
+
+        self.cassandra.execute("""
+            CREATE TABLE IF NOT EXISTS upload_session (
+                upload_id text PRIMARY KEY,
+                user text,
+                document_id text,
+                document_metadata text,
+                s3_upload_id text,
+                object_id uuid,
+                total_size bigint,
+                chunk_size int,
+                total_chunks int,
+                chunks_received map<int, text>,
+                created_at timestamp,
+                updated_at timestamp
+            ) WITH default_time_to_live = 86400;
+        """);
+
+        logger.debug("upload_session user index...")
+
+        self.cassandra.execute("""
+            CREATE INDEX IF NOT EXISTS upload_session_user
+            ON upload_session (user)
+        """);
+
         logger.info("Cassandra schema OK.")
 
     def prepare_statements(self):
@@ -207,6 +233,47 @@ class LibraryTableStore:
             SELECT
                 id, document_id, time, flow, collection, tags
             FROM processing
+            WHERE user = ?
+        """)
+
+        # Upload session prepared statements
+        self.insert_upload_session_stmt = self.cassandra.prepare("""
+            INSERT INTO upload_session
+            (
+                upload_id, user, document_id, document_metadata,
+                s3_upload_id, object_id, total_size, chunk_size,
+                total_chunks, chunks_received, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """)
+
+        self.get_upload_session_stmt = self.cassandra.prepare("""
+            SELECT
+                upload_id, user, document_id, document_metadata,
+                s3_upload_id, object_id, total_size, chunk_size,
+                total_chunks, chunks_received, created_at, updated_at
+            FROM upload_session
+            WHERE upload_id = ?
+        """)
+
+        self.update_upload_session_chunk_stmt = self.cassandra.prepare("""
+            UPDATE upload_session
+            SET chunks_received = chunks_received + ?,
+                updated_at = ?
+            WHERE upload_id = ?
+        """)
+
+        self.delete_upload_session_stmt = self.cassandra.prepare("""
+            DELETE FROM upload_session
+            WHERE upload_id = ?
+        """)
+
+        self.list_upload_sessions_stmt = self.cassandra.prepare("""
+            SELECT
+                upload_id, document_id, document_metadata,
+                total_size, chunk_size, total_chunks,
+                chunks_received, created_at, updated_at
+            FROM upload_session
             WHERE user = ?
         """)
 
@@ -532,3 +599,152 @@ class LibraryTableStore:
         logger.debug("Done")
 
         return lst
+
+    # Upload session methods
+
+    async def create_upload_session(
+        self,
+        upload_id,
+        user,
+        document_id,
+        document_metadata,
+        s3_upload_id,
+        object_id,
+        total_size,
+        chunk_size,
+        total_chunks,
+    ):
+        """Create a new upload session for chunked upload."""
+
+        logger.info(f"Creating upload session {upload_id}")
+
+        now = int(time.time() * 1000)
+
+        while True:
+            try:
+                self.cassandra.execute(
+                    self.insert_upload_session_stmt,
+                    (
+                        upload_id, user, document_id, document_metadata,
+                        s3_upload_id, object_id, total_size, chunk_size,
+                        total_chunks, {}, now, now
+                    )
+                )
+                break
+            except Exception as e:
+                logger.error("Exception occurred", exc_info=True)
+                raise e
+
+        logger.debug("Upload session created")
+
+    async def get_upload_session(self, upload_id):
+        """Get an upload session by ID."""
+
+        logger.debug(f"Get upload session {upload_id}")
+
+        while True:
+            try:
+                resp = self.cassandra.execute(
+                    self.get_upload_session_stmt,
+                    (upload_id,)
+                )
+                break
+            except Exception as e:
+                logger.error("Exception occurred", exc_info=True)
+                raise e
+
+        for row in resp:
+            session = {
+                "upload_id": row[0],
+                "user": row[1],
+                "document_id": row[2],
+                "document_metadata": row[3],
+                "s3_upload_id": row[4],
+                "object_id": row[5],
+                "total_size": row[6],
+                "chunk_size": row[7],
+                "total_chunks": row[8],
+                "chunks_received": row[9] if row[9] else {},
+                "created_at": row[10],
+                "updated_at": row[11],
+            }
+            logger.debug("Done")
+            return session
+
+        return None
+
+    async def update_upload_session_chunk(self, upload_id, chunk_index, etag):
+        """Record a successfully uploaded chunk."""
+
+        logger.debug(f"Update upload session {upload_id} chunk {chunk_index}")
+
+        now = int(time.time() * 1000)
+
+        while True:
+            try:
+                self.cassandra.execute(
+                    self.update_upload_session_chunk_stmt,
+                    (
+                        {chunk_index: etag},
+                        now,
+                        upload_id
+                    )
+                )
+                break
+            except Exception as e:
+                logger.error("Exception occurred", exc_info=True)
+                raise e
+
+        logger.debug("Chunk recorded")
+
+    async def delete_upload_session(self, upload_id):
+        """Delete an upload session."""
+
+        logger.info(f"Deleting upload session {upload_id}")
+
+        while True:
+            try:
+                self.cassandra.execute(
+                    self.delete_upload_session_stmt,
+                    (upload_id,)
+                )
+                break
+            except Exception as e:
+                logger.error("Exception occurred", exc_info=True)
+                raise e
+
+        logger.debug("Upload session deleted")
+
+    async def list_upload_sessions(self, user):
+        """List all upload sessions for a user."""
+
+        logger.debug(f"List upload sessions for {user}")
+
+        while True:
+            try:
+                resp = self.cassandra.execute(
+                    self.list_upload_sessions_stmt,
+                    (user,)
+                )
+                break
+            except Exception as e:
+                logger.error("Exception occurred", exc_info=True)
+                raise e
+
+        sessions = []
+        for row in resp:
+            chunks_received = row[6] if row[6] else {}
+            sessions.append({
+                "upload_id": row[0],
+                "document_id": row[1],
+                "document_metadata": row[2],
+                "total_size": row[3],
+                "chunk_size": row[4],
+                "total_chunks": row[5],
+                "chunks_received": len(chunks_received),
+                "created_at": row[7],
+                "updated_at": row[8],
+            })
+
+        logger.debug("Done")
+        return sessions
