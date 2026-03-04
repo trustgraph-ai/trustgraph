@@ -203,10 +203,11 @@ class Processor(AgentService):
                             )
 
                         service_config = tool_services[service_ref]
-                        service_topic = service_config.get("topic")
-                        if not service_topic:
+                        request_queue = service_config.get("request-queue")
+                        response_queue = service_config.get("response-queue")
+                        if not request_queue or not response_queue:
                             raise RuntimeError(
-                                f"Tool-service '{service_ref}' has no 'topic' defined"
+                                f"Tool-service '{service_ref}' must define 'request-queue' and 'response-queue'"
                             )
 
                         # Build config values from tool config
@@ -233,10 +234,11 @@ class Processor(AgentService):
                             for arg in config_args
                         ]
 
-                        # Store topic for the implementation
+                        # Store queues for the implementation
                         impl = functools.partial(
                             ToolServiceImpl,
-                            service_topic=service_topic,
+                            request_queue=request_queue,
+                            response_queue=response_queue,
                             config_values=config_values,
                             arguments=arguments,
                             processor=self,

@@ -210,23 +210,25 @@ class ToolServiceImpl:
     Implementation for dynamically pluggable tool services.
 
     Tool services are external Pulsar services that can be invoked as agent tools.
-    The service is configured via a tool-service descriptor that defines the topic,
+    The service is configured via a tool-service descriptor that defines the queues,
     and a tool descriptor that provides config values and argument definitions.
     """
 
-    def __init__(self, context, service_topic, config_values=None, arguments=None, processor=None):
+    def __init__(self, context, request_queue, response_queue, config_values=None, arguments=None, processor=None):
         """
         Initialize a tool service implementation.
 
         Args:
             context: The context function (provides user info)
-            service_topic: The base topic name for the service
+            request_queue: Full Pulsar topic for requests
+            response_queue: Full Pulsar topic for responses
             config_values: Dict of config values (e.g., {"collection": "customers"})
             arguments: List of Argument objects defining the tool's parameters
             processor: The Processor instance (for pubsub access)
         """
         self.context = context
-        self.service_topic = service_topic
+        self.request_queue = request_queue
+        self.response_queue = response_queue
         self.config_values = config_values or {}
         self.arguments = arguments or []
         self.processor = processor
@@ -240,9 +242,10 @@ class ToolServiceImpl:
         if self._client is not None:
             return self._client
 
-        # Check if processor already has a client for this topic
-        if self.service_topic in self.processor.tool_service_clients:
-            self._client = self.processor.tool_service_clients[self.service_topic]
+        # Check if processor already has a client for this queue pair
+        client_key = f"{self.request_queue}|{self.response_queue}"
+        if client_key in self.processor.tool_service_clients:
+            self._client = self.processor.tool_service_clients[client_key]
             return self._client
 
         # Import here to avoid circular imports
@@ -251,40 +254,28 @@ class ToolServiceImpl:
         from trustgraph.schema import ToolServiceRequest, ToolServiceResponse
         import uuid
 
-        # Construct full topic paths using non-persistent topics
-        # If topic already contains "://", assume it's a full Pulsar URI
-        # Otherwise, construct default path
-        if '://' in self.service_topic:
-            # Full Pulsar URI provided - use as base for request/response
-            request_topic = self.service_topic.replace("://tg/", "://tg/request/")
-            response_topic = self.service_topic.replace("://tg/", "://tg/response/")
-        else:
-            # Construct default path matching DynamicToolService pattern
-            request_topic = f"non-persistent://tg/request/{self.service_topic}"
-            response_topic = f"non-persistent://tg/response/{self.service_topic}"
-
         request_metrics = ProducerMetrics(
             processor=self.processor.id,
             flow="tool-service",
-            name=request_topic
+            name=self.request_queue
         )
         response_metrics = SubscriberMetrics(
             processor=self.processor.id,
             flow="tool-service",
-            name=response_topic
+            name=self.response_queue
         )
 
         # Create unique subscription for responses
-        subscription = f"{self.processor.id}--tool-service--{self.service_topic}--{uuid.uuid4()}"
+        subscription = f"{self.processor.id}--tool-service--{uuid.uuid4()}"
 
         self._client = ToolServiceClient(
             backend=self.processor.pubsub,
             subscription=subscription,
             consumer_name=self.processor.id,
-            request_topic=request_topic,
+            request_topic=self.request_queue,
             request_schema=ToolServiceRequest,
             request_metrics=request_metrics,
-            response_topic=response_topic,
+            response_topic=self.response_queue,
             response_schema=ToolServiceResponse,
             response_metrics=response_metrics,
         )
@@ -293,13 +284,13 @@ class ToolServiceImpl:
         await self._client.start()
 
         # Register for cleanup
-        self.processor.tool_service_clients[self.service_topic] = self._client
+        self.processor.tool_service_clients[client_key] = self._client
 
-        logger.debug(f"Created tool service client for {self.service_topic}")
+        logger.debug(f"Created tool service client for {self.request_queue}")
         return self._client
 
     async def invoke(self, **arguments):
-        logger.debug(f"Tool service invocation: {self.service_topic}...")
+        logger.debug(f"Tool service invocation: {self.request_queue}...")
         logger.debug(f"Config: {self.config_values}")
         logger.debug(f"Arguments: {arguments}")
 

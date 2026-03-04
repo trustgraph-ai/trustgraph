@@ -62,13 +62,14 @@ elif impl_id == "text-completion":
 #### Tier 1: Tool Service Descriptor
 
 A tool service defines a Pulsar service interface. It declares:
-- The topic to call
+- The Pulsar queues for request/response
 - Configuration parameters it requires from tools that use it
 
 ```json
 {
   "id": "custom-rag",
-  "topic": "custom-rag-request",
+  "request-queue": "non-persistent://tg/request/custom-rag",
+  "response-queue": "non-persistent://tg/response/custom-rag",
   "config-params": [
     {"name": "collection", "required": true}
   ]
@@ -80,7 +81,8 @@ A tool service that needs no configuration parameters:
 ```json
 {
   "id": "calculator",
-  "topic": "calc-request",
+  "request-queue": "non-persistent://tg/request/calc",
+  "response-queue": "non-persistent://tg/response/calc",
   "config-params": []
 }
 ```
@@ -199,16 +201,18 @@ Requests and responses use untyped dicts. No schema validation at the agent leve
 
 ### Client Interface: Direct Pulsar Topics
 
-Tool services use direct Pulsar topics without requiring flow configuration:
+Tool services use direct Pulsar topics without requiring flow configuration. The tool-service descriptor specifies the full queue names:
 
-- **Request Topic**: `non-persistent://tg/request/{topic}`
-- **Response Topic**: `non-persistent://tg/response/{topic}`
+```json
+{
+  "id": "joke-service",
+  "request-queue": "non-persistent://tg/request/joke",
+  "response-queue": "non-persistent://tg/response/joke",
+  "config-params": [...]
+}
+```
 
-Where `{topic}` comes from the tool-service descriptor. For example, a service with `"topic": "joke"` uses:
-- `non-persistent://tg/request/joke`
-- `non-persistent://tg/response/joke`
-
-This avoids the complexity of flow blueprints and allows services to be deployed independently.
+This allows services to be hosted in any namespace.
 
 ### Error Handling: Standard Error Convention
 
@@ -295,8 +299,7 @@ class DynamicToolService(AsyncProcessor):
 
     def __init__(self, **params):
         topic = params.get("topic", default_topic)
-        request_topic = f"non-persistent://tg/request/{topic}"
-        response_topic = f"non-persistent://tg/response/{topic}"
+        # Constructs topics: non-persistent://tg/request/{topic}, non-persistent://tg/response/{topic}
         # Sets up Consumer and Producer
 
     async def invoke(self, user, config, arguments):
@@ -310,8 +313,8 @@ Implementation in `trustgraph-flow/trustgraph/agent/react/tools.py`:
 
 ```python
 class ToolServiceImpl:
-    def __init__(self, context, service_topic, config_values, arguments, processor):
-        # Constructs topic paths: non-persistent://tg/request/{topic}, non-persistent://tg/response/{topic}
+    def __init__(self, context, request_queue, response_queue, config_values, arguments, processor):
+        # Uses the provided queue paths directly
         # Creates ToolServiceClient on first use
 
     async def invoke(self, **arguments):
@@ -326,7 +329,7 @@ Two config sections:
 
 ```
 tool-service/
-  joke-service: {"id": "joke-service", "topic": "joke", "config-params": [...]}
+  joke-service: {"id": "joke-service", "request-queue": "non-persistent://tg/request/joke", "response-queue": "non-persistent://tg/response/joke", "config-params": [...]}
 
 tool/
   tell-joke: {"type": "tool-service", "service": "joke-service", ...}
@@ -359,7 +362,8 @@ Tool service config:
 ```json
 {
   "id": "joke-service",
-  "topic": "joke",
+  "request-queue": "non-persistent://tg/request/joke",
+  "response-queue": "non-persistent://tg/response/joke",
   "config-params": [{"name": "style", "required": false}]
 }
 ```
