@@ -295,15 +295,30 @@ class Processor(AsyncProcessor):
         q = flow["interfaces"][kind]
 
         if kind == "text-load":
-            doc = TextDocument(
-                metadata = Metadata(
-                    id = document.id,
-                    metadata = document.metadata,
-                    user = processing.user,
-                    collection = processing.collection
-                ),
-                text = content,
-            )
+            # For large text documents, send document_id for streaming retrieval
+            if len(content) >= self.STREAMING_THRESHOLD:
+                logger.info(f"Text document {document.id} is large ({len(content)} bytes), "
+                           f"sending document_id for streaming retrieval")
+                doc = TextDocument(
+                    metadata = Metadata(
+                        id = document.id,
+                        metadata = document.metadata,
+                        user = processing.user,
+                        collection = processing.collection
+                    ),
+                    document_id = document.id,
+                    text = b"",  # Empty, receiver will fetch via librarian
+                )
+            else:
+                doc = TextDocument(
+                    metadata = Metadata(
+                        id = document.id,
+                        metadata = document.metadata,
+                        user = processing.user,
+                        collection = processing.collection
+                    ),
+                    text = content,
+                )
             schema = TextDocument
         else:
             # For large PDF documents, send document_id for streaming retrieval
