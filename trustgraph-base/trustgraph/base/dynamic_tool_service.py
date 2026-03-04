@@ -7,8 +7,8 @@ They receive a ToolServiceRequest with user, config, and arguments,
 and return a ToolServiceResponse with the result.
 
 Uses direct Pulsar topics (no flow configuration required):
-- Request: non-persistent://tg/request/{topic}-request
-- Response: non-persistent://tg/response/{topic}-response
+- Request: non-persistent://tg/request/{topic}
+- Response: non-persistent://tg/response/{topic}
 """
 
 import json
