@@ -3,7 +3,7 @@ from .. knowledge import hash
 from .. exceptions import RequestError
 
 from minio import Minio
-from minio.commonconfig import Part
+from minio.datatypes import Part
 import time
 import io
 import logging
