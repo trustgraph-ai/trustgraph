@@ -20,12 +20,14 @@ class DocumentMetadataTranslator(Translator):
             comments=data.get("comments"),
             metadata=self.subgraph_translator.to_pulsar(metadata) if metadata is not None else [],
             user=data.get("user"),
-            tags=data.get("tags")
+            tags=data.get("tags"),
+            parent_id=data.get("parent-id", ""),
+            document_type=data.get("document-type", "source"),
         )
     
     def from_pulsar(self, obj: DocumentMetadata) -> Dict[str, Any]:
         result = {}
-        
+
         if obj.id:
             result["id"] = obj.id
         if obj.time:
@@ -42,7 +44,11 @@ class DocumentMetadataTranslator(Translator):
             result["user"] = obj.user
         if obj.tags is not None:
             result["tags"] = obj.tags
-            
+        if obj.parent_id:
+            result["parent-id"] = obj.parent_id
+        if obj.document_type:
+            result["document-type"] = obj.document_type
+
         return result
 
 
