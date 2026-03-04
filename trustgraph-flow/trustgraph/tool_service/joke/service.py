@@ -41,6 +41,7 @@ from ... base import DynamicToolService
 logger = logging.getLogger(__name__)
 
 default_ident = "joke-service"
+default_topic = "joke"
 
 # Joke database organized by topic and style
 JOKES = {

@@ -251,8 +251,17 @@ class ToolServiceImpl:
         from trustgraph.schema import ToolServiceRequest, ToolServiceResponse
         import uuid
 
-        request_topic = f"{self.service_topic}-request"
-        response_topic = f"{self.service_topic}-response"
+        # Construct full topic paths using non-persistent topics
+        # If topic already contains "://", assume it's a full Pulsar URI
+        # Otherwise, construct default path
+        if '://' in self.service_topic:
+            # Full Pulsar URI provided
+            request_topic = f"{self.service_topic}-request"
+            response_topic = f"{self.service_topic}-response"
+        else:
+            # Construct default path matching DynamicToolService pattern
+            request_topic = f"non-persistent://tg/request/{self.service_topic}-request"
+            response_topic = f"non-persistent://tg/response/{self.service_topic}-response"
 
         request_metrics = ProducerMetrics(
             processor=self.processor.id,
