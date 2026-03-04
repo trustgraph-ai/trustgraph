@@ -246,9 +246,9 @@ class ToolServiceImpl:
             return self._client
 
         # Import here to avoid circular imports
-        from ....base.tool_service_client import ToolServiceClient
-        from ....base.metrics import ProducerMetrics, SubscriberMetrics
-        from ....schema import ToolServiceRequest, ToolServiceResponse
+        from trustgraph.base.tool_service_client import ToolServiceClient
+        from trustgraph.base.metrics import ProducerMetrics, SubscriberMetrics
+        from trustgraph.schema import ToolServiceRequest, ToolServiceResponse
         import uuid
 
         request_topic = f"{self.service_topic}-request"
