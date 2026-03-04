@@ -15,12 +15,14 @@ from trustgraph.schema import Document, TextDocument, Metadata
 class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
     """Test PDF decoder processor functionality"""
 
+    @patch('trustgraph.decoding.pdf.pdf_decoder.Consumer')
+    @patch('trustgraph.decoding.pdf.pdf_decoder.Producer')
     @patch('trustgraph.base.flow_processor.FlowProcessor.__init__')
-    async def test_processor_initialization(self, mock_flow_init):
+    async def test_processor_initialization(self, mock_flow_init, mock_producer, mock_consumer):
         """Test PDF decoder processor initialization"""
         # Arrange
         mock_flow_init.return_value = None
-        
+
         config = {
             'id': 'test-pdf-decoder',
             'taskgroup': AsyncMock()
@@ -48,9 +50,11 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
         assert producer_spec.name == "output"
         assert producer_spec.schema == TextDocument
 
+    @patch('trustgraph.decoding.pdf.pdf_decoder.Consumer')
+    @patch('trustgraph.decoding.pdf.pdf_decoder.Producer')
     @patch('trustgraph.decoding.pdf.pdf_decoder.PyPDFLoader')
     @patch('trustgraph.base.flow_processor.FlowProcessor.__init__')
-    async def test_on_message_success(self, mock_flow_init, mock_pdf_loader_class):
+    async def test_on_message_success(self, mock_flow_init, mock_pdf_loader_class, mock_producer, mock_consumer):
         """Test successful PDF processing"""
         # Arrange
         mock_flow_init.return_value = None
@@ -109,9 +113,11 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
         assert second_output.metadata == mock_metadata
         assert second_output.text == b"Page 2 content"
 
+    @patch('trustgraph.decoding.pdf.pdf_decoder.Consumer')
+    @patch('trustgraph.decoding.pdf.pdf_decoder.Producer')
     @patch('trustgraph.decoding.pdf.pdf_decoder.PyPDFLoader')
     @patch('trustgraph.base.flow_processor.FlowProcessor.__init__')
-    async def test_on_message_empty_pdf(self, mock_flow_init, mock_pdf_loader_class):
+    async def test_on_message_empty_pdf(self, mock_flow_init, mock_pdf_loader_class, mock_producer, mock_consumer):
         """Test handling of empty PDF"""
         # Arrange
         mock_flow_init.return_value = None
@@ -154,9 +160,11 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
         # Verify no output was sent
         mock_output_flow.send.assert_not_called()
 
+    @patch('trustgraph.decoding.pdf.pdf_decoder.Consumer')
+    @patch('trustgraph.decoding.pdf.pdf_decoder.Producer')
     @patch('trustgraph.decoding.pdf.pdf_decoder.PyPDFLoader')
     @patch('trustgraph.base.flow_processor.FlowProcessor.__init__')
-    async def test_on_message_unicode_content(self, mock_flow_init, mock_pdf_loader_class):
+    async def test_on_message_unicode_content(self, mock_flow_init, mock_pdf_loader_class, mock_producer, mock_consumer):
         """Test handling of unicode content in PDF"""
         # Arrange
         mock_flow_init.return_value = None
@@ -221,8 +229,8 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
         run()
         
         # Assert
-        mock_launch.assert_called_once_with("pdf-decoder", 
-            "\nSimple decoder, accepts PDF documents on input, outputs pages from the\nPDF document as text as separate output objects.\n")
+        mock_launch.assert_called_once_with("pdf-decoder",
+            "\nSimple decoder, accepts PDF documents on input, outputs pages from the\nPDF document as text as separate output objects.\n\nSupports both inline document data and fetching from librarian via Pulsar\nfor large documents.\n")
 
 
 if __name__ == '__main__':
