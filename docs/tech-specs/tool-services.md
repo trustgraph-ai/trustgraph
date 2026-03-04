@@ -25,9 +25,9 @@ This is a two-tier model, analogous to MCP tools:
 - MCP: MCP server defines the tool interface → Tool config references it
 - Tool Services: Tool service defines the Pulsar interface → Tool config references it
 
-## Current Architecture
+## Background: Existing Tools
 
-### Existing Tool Implementation
+### Built-in Tool Implementation
 
 Tools are currently defined in `trustgraph-flow/trustgraph/agent/react/tools.py` with typed implementations:
 
@@ -55,7 +55,7 @@ elif impl_id == "text-completion":
 # ... etc
 ```
 
-## Proposed Architecture
+## Architecture
 
 ### Two-Tier Model
 
@@ -134,18 +134,18 @@ Multiple tools can reference the same service with different configurations:
 
 When a tool is invoked, the request to the tool service includes:
 - `user`: From the agent request (multi-tenancy)
-- Config values: From the tool descriptor (e.g., `collection`)
-- `arguments`: From the LLM
+- `config`: JSON-encoded config values from the tool descriptor
+- `arguments`: JSON-encoded arguments from the LLM
 
 ```json
 {
   "user": "alice",
-  "collection": "customers",
-  "arguments": {
-    "question": "What are the top customer complaints?"
-  }
+  "config": "{\"collection\": \"customers\"}",
+  "arguments": "{\"question\": \"What are the top customer complaints?\"}"
 }
 ```
+
+The tool service receives these as parsed dicts in the `invoke` method.
 
 ### Generic Tool Service Implementation
 
@@ -153,19 +153,15 @@ A `ToolServiceImpl` class invokes tool services based on configuration:
 
 ```python
 class ToolServiceImpl:
-    def __init__(self, service_topic, config_values, context):
-        self.service_topic = service_topic
+    def __init__(self, context, request_queue, response_queue, config_values, arguments, processor):
+        self.request_queue = request_queue
+        self.response_queue = response_queue
         self.config_values = config_values  # e.g., {"collection": "customers"}
-        self.context = context
+        # ...
 
-    async def invoke(self, user, **arguments):
-        client = self.context(self.service_topic)
-        request = {
-            "user": user,
-            **self.config_values,
-            "arguments": arguments,
-        }
-        response = await client.call(request)
+    async def invoke(self, **arguments):
+        client = await self._get_or_create_client()
+        response = await client.call(user, self.config_values, arguments)
         if isinstance(response, str):
             return response
         else:
@@ -245,8 +241,8 @@ This follows the existing pattern used throughout the codebase (e.g., `agent_ser
 Tool services can return streaming responses:
 
 - Multiple response messages with the same `id` in properties
-- Each response includes `end_of_message: bool` field
-- Final response has `end_of_message: True`
+- Each response includes `end_of_stream: bool` field
+- Final response has `end_of_stream: True`
 
 This matches the pattern used in `AgentResponse` and other streaming services.
 
@@ -269,7 +265,88 @@ Tool services follow the same contract:
 
 This keeps the descriptor simple and places responsibility on the service to return an appropriate text response for the agent.
 
-## Implementation
+## Configuration Guide
+
+To add a new tool service, two configuration items are required:
+
+### 1. Tool Service Configuration
+
+Stored under the `tool-service` config key. Defines the Pulsar queues and available config parameters.
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | Yes | Unique identifier for the tool service |
+| `request-queue` | Yes | Full Pulsar topic for requests (e.g., `non-persistent://tg/request/joke`) |
+| `response-queue` | Yes | Full Pulsar topic for responses (e.g., `non-persistent://tg/response/joke`) |
+| `config-params` | No | Array of config parameters the service accepts |
+
+Each config param can specify:
+- `name`: Parameter name (required)
+- `required`: Whether the parameter must be provided by tools (default: false)
+
+Example:
+```json
+{
+  "id": "joke-service",
+  "request-queue": "non-persistent://tg/request/joke",
+  "response-queue": "non-persistent://tg/response/joke",
+  "config-params": [
+    {"name": "style", "required": false}
+  ]
+}
+```
+
+### 2. Tool Configuration
+
+Stored under the `tool` config key. Defines a tool that the agent can use.
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `type` | Yes | Must be `"tool-service"` |
+| `name` | Yes | Tool name exposed to the LLM |
+| `description` | Yes | Description of what the tool does (shown to LLM) |
+| `service` | Yes | ID of the tool-service to invoke |
+| `arguments` | No | Array of argument definitions for the LLM |
+| *(config params)* | Varies | Any config params defined by the service |
+
+Each argument can specify:
+- `name`: Argument name (required)
+- `type`: Data type, e.g., `"string"` (required)
+- `description`: Description shown to the LLM (required)
+
+Example:
+```json
+{
+  "type": "tool-service",
+  "name": "tell-joke",
+  "description": "Tell a joke on a given topic",
+  "service": "joke-service",
+  "style": "pun",
+  "arguments": [
+    {
+      "name": "topic",
+      "type": "string",
+      "description": "The topic for the joke (e.g., programming, animals, food)"
+    }
+  ]
+}
+```
+
+### Loading Configuration
+
+Use `tg-put-config-item` to load configurations:
+
+```bash
+# Load tool-service config
+tg-put-config-item tool-service/joke-service < joke-service.json
+
+# Load tool config
+tg-put-config-item tool/tell-joke < tell-joke.json
+```
+
+The agent-manager must be restarted to pick up new configurations.
+
+## Implementation Details
 
 ### Schema
 
@@ -321,18 +398,6 @@ class ToolServiceImpl:
         client = await self._get_or_create_client()
         response = await client.call(user, config_values, arguments)
         return response if isinstance(response, str) else json.dumps(response)
-```
-
-### Configuration Structure
-
-Two config sections:
-
-```
-tool-service/
-  joke-service: {"id": "joke-service", "request-queue": "non-persistent://tg/request/joke", "response-queue": "non-persistent://tg/response/joke", "config-params": [...]}
-
-tool/
-  tell-joke: {"type": "tool-service", "service": "joke-service", ...}
 ```
 
 ### Files
