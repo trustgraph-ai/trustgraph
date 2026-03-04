@@ -463,7 +463,7 @@ class LibraryTableStore:
                         p=tuple_to_term(m[2], m[3]),
                         o=tuple_to_term(m[4], m[5])
                     )
-                    for m in row[5]
+                    for m in (row[5] or [])
                 ],
                 tags = row[6] if row[6] else [],
                 parent_id = row[8] if row[8] else "",
@@ -510,7 +510,7 @@ class LibraryTableStore:
                         p=tuple_to_term(m[2], m[3]),
                         o=tuple_to_term(m[4], m[5])
                     )
-                    for m in row[6]
+                    for m in (row[6] or [])
                 ],
                 tags = row[7] if row[7] else [],
                 parent_id = row[9] if row[9] else "",
@@ -557,7 +557,7 @@ class LibraryTableStore:
                         p=tuple_to_term(m[2], m[3]),
                         o=tuple_to_term(m[4], m[5])
                     )
-                    for m in row[4]
+                    for m in (row[4] or [])
                 ],
                 tags = row[5] if row[5] else [],
                 parent_id = row[7] if row[7] else "",
