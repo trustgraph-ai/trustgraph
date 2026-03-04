@@ -18,8 +18,9 @@ from . exceptions import *
 
 logger = logging.getLogger(__name__)
 
-# Threshold for switching to chunked upload (10MB)
-CHUNKED_UPLOAD_THRESHOLD = 10 * 1024 * 1024
+# Threshold for switching to chunked upload (2MB)
+# Lower threshold provides progress feedback and resumability on slower connections
+CHUNKED_UPLOAD_THRESHOLD = 2 * 1024 * 1024
 
 # Default chunk size (5MB - S3 multipart minimum)
 DEFAULT_CHUNK_SIZE = 5 * 1024 * 1024

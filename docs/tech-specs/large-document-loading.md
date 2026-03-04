@@ -858,7 +858,7 @@ Internally, the SDK detects document size and switches strategy:
 
 ```python
 class Library:
-    CHUNKED_UPLOAD_THRESHOLD = 10 * 1024 * 1024  # 10MB
+    CHUNKED_UPLOAD_THRESHOLD = 2 * 1024 * 1024  # 2MB
 
     def add_document(self, id, title, kind, content, tags=None, ...):
         if len(content) < self.CHUNKED_UPLOAD_THRESHOLD:
