@@ -202,3 +202,116 @@ class PromptImpl:
             id=self.template_id,
             variables=arguments
         )
+
+
+# This tool implementation invokes a dynamically configured tool service
+class ToolServiceImpl:
+    """
+    Implementation for dynamically pluggable tool services.
+
+    Tool services are external Pulsar services that can be invoked as agent tools.
+    The service is configured via a tool-service descriptor that defines the queues,
+    and a tool descriptor that provides config values and argument definitions.
+    """
+
+    def __init__(self, context, request_queue, response_queue, config_values=None, arguments=None, processor=None):
+        """
+        Initialize a tool service implementation.
+
+        Args:
+            context: The context function (provides user info)
+            request_queue: Full Pulsar topic for requests
+            response_queue: Full Pulsar topic for responses
+            config_values: Dict of config values (e.g., {"collection": "customers"})
+            arguments: List of Argument objects defining the tool's parameters
+            processor: The Processor instance (for pubsub access)
+        """
+        self.context = context
+        self.request_queue = request_queue
+        self.response_queue = response_queue
+        self.config_values = config_values or {}
+        self.arguments = arguments or []
+        self.processor = processor
+        self._client = None
+
+    def get_arguments(self):
+        return self.arguments
+
+    async def _get_or_create_client(self):
+        """Get or create the tool service client."""
+        if self._client is not None:
+            return self._client
+
+        # Check if processor already has a client for this queue pair
+        client_key = f"{self.request_queue}|{self.response_queue}"
+        if client_key in self.processor.tool_service_clients:
+            self._client = self.processor.tool_service_clients[client_key]
+            return self._client
+
+        # Import here to avoid circular imports
+        from trustgraph.base.tool_service_client import ToolServiceClient
+        from trustgraph.base.metrics import ProducerMetrics, SubscriberMetrics
+        from trustgraph.schema import ToolServiceRequest, ToolServiceResponse
+        import uuid
+
+        request_metrics = ProducerMetrics(
+            processor=self.processor.id,
+            flow="tool-service",
+            name=self.request_queue
+        )
+        response_metrics = SubscriberMetrics(
+            processor=self.processor.id,
+            flow="tool-service",
+            name=self.response_queue
+        )
+
+        # Create unique subscription for responses
+        subscription = f"{self.processor.id}--tool-service--{uuid.uuid4()}"
+
+        self._client = ToolServiceClient(
+            backend=self.processor.pubsub,
+            subscription=subscription,
+            consumer_name=self.processor.id,
+            request_topic=self.request_queue,
+            request_schema=ToolServiceRequest,
+            request_metrics=request_metrics,
+            response_topic=self.response_queue,
+            response_schema=ToolServiceResponse,
+            response_metrics=response_metrics,
+        )
+
+        # Start the client
+        await self._client.start()
+
+        # Register for cleanup
+        self.processor.tool_service_clients[client_key] = self._client
+
+        logger.debug(f"Created tool service client for {self.request_queue}")
+        return self._client
+
+    async def invoke(self, **arguments):
+        logger.debug(f"Tool service invocation: {self.request_queue}...")
+        logger.debug(f"Config: {self.config_values}")
+        logger.debug(f"Arguments: {arguments}")
+
+        # Get user from context if available
+        user = "trustgraph"
+        if hasattr(self.context, '_user'):
+            user = self.context._user
+
+        # Get or create the client
+        client = await self._get_or_create_client()
+
+        # Call the tool service
+        response = await client.call(
+            user=user,
+            config=self.config_values,
+            arguments=arguments,
+        )
+
+        logger.debug(f"Tool service response: {response}")
+
+        if isinstance(response, str):
+            return response
+        else:
+            return json.dumps(response)

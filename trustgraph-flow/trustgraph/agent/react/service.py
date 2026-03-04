@@ -17,7 +17,7 @@ from ... base import RowEmbeddingsQueryClientSpec, EmbeddingsClientSpec
 
 from ... schema import AgentRequest, AgentResponse, AgentStep, Error
 
-from . tools import KnowledgeQueryImpl, TextCompletionImpl, McpToolImpl, PromptImpl, StructuredQueryImpl, RowEmbeddingsQueryImpl
+from . tools import KnowledgeQueryImpl, TextCompletionImpl, McpToolImpl, PromptImpl, StructuredQueryImpl, RowEmbeddingsQueryImpl, ToolServiceImpl
 from . agent_manager import AgentManager
 from ..tool_filter import validate_tool_config, filter_tools_by_group_and_state, get_next_state
 
@@ -50,6 +50,9 @@ class Processor(AgentService):
             tools={},
             additional_context="",
         )
+
+        # Track active tool service clients for cleanup
+        self.tool_service_clients = {}
 
         self.config_handlers.append(self.on_tools_config)
 
@@ -109,6 +112,16 @@ class Processor(AgentService):
         try:
 
             tools = {}
+
+            # Load tool-service configurations first
+            tool_services = {}
+            if "tool-service" in config:
+                for service_id, service_value in config["tool-service"].items():
+                    service_data = json.loads(service_value)
+                    tool_services[service_id] = service_data
+                    logger.debug(f"Loaded tool-service config: {service_id}")
+
+            logger.info(f"Loaded {len(tool_services)} tool-service configurations")
 
             # Load tool configurations from the new location
             if "tool" in config:
@@ -177,6 +190,59 @@ class Processor(AgentService):
                             limit=int(data.get("limit", 10))  # Max results
                         )
                         arguments = RowEmbeddingsQueryImpl.get_arguments()
+                    elif impl_id == "tool-service":
+                        # Dynamic tool service - look up the service config
+                        service_ref = data.get("service")
+                        if not service_ref:
+                            raise RuntimeError(
+                                f"Tool {name} has type 'tool-service' but no 'service' reference"
+                            )
+                        if service_ref not in tool_services:
+                            raise RuntimeError(
+                                f"Tool {name} references unknown tool-service '{service_ref}'"
+                            )
+
+                        service_config = tool_services[service_ref]
+                        request_queue = service_config.get("request-queue")
+                        response_queue = service_config.get("response-queue")
+                        if not request_queue or not response_queue:
+                            raise RuntimeError(
+                                f"Tool-service '{service_ref}' must define 'request-queue' and 'response-queue'"
+                            )
+
+                        # Build config values from tool config
+                        # Extract any config params defined by the service
+                        config_params = service_config.get("config-params", [])
+                        config_values = {}
+                        for param in config_params:
+                            param_name = param.get("name") if isinstance(param, dict) else param
+                            if param_name in data:
+                                config_values[param_name] = data[param_name]
+                            elif isinstance(param, dict) and param.get("required", False):
+                                raise RuntimeError(
+                                    f"Tool {name} missing required config param '{param_name}'"
+                                )
+
+                        # Arguments come from tool config
+                        config_args = data.get("arguments", [])
+                        arguments = [
+                            Argument(
+                                name=arg.get("name"),
+                                type=arg.get("type"),
+                                description=arg.get("description")
+                            )
+                            for arg in config_args
+                        ]
+
+                        # Store queues for the implementation
+                        impl = functools.partial(
+                            ToolServiceImpl,
+                            request_queue=request_queue,
+                            response_queue=response_queue,
+                            config_values=config_values,
+                            arguments=arguments,
+                            processor=self,
+                        )
                     else:
                         raise RuntimeError(
                             f"Tool type {impl_id} not known"

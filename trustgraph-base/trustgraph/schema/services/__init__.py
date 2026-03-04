@@ -13,3 +13,4 @@ from .rows_query import *
 from .diagnosis import *
 from .collection import *
 from .storage import *
+from .tool_service import *

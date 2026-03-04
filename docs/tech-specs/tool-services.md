@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft - Gathering Requirements
+Implemented
 
 ## Overview
 
@@ -25,9 +25,9 @@ This is a two-tier model, analogous to MCP tools:
 - MCP: MCP server defines the tool interface → Tool config references it
 - Tool Services: Tool service defines the Pulsar interface → Tool config references it
 
-## Current Architecture
+## Background: Existing Tools
 
-### Existing Tool Implementation
+### Built-in Tool Implementation
 
 Tools are currently defined in `trustgraph-flow/trustgraph/agent/react/tools.py` with typed implementations:
 
@@ -55,20 +55,21 @@ elif impl_id == "text-completion":
 # ... etc
 ```
 
-## Proposed Architecture
+## Architecture
 
 ### Two-Tier Model
 
 #### Tier 1: Tool Service Descriptor
 
 A tool service defines a Pulsar service interface. It declares:
-- The topic to call
+- The Pulsar queues for request/response
 - Configuration parameters it requires from tools that use it
 
 ```json
 {
   "id": "custom-rag",
-  "topic": "custom-rag-request",
+  "request-queue": "non-persistent://tg/request/custom-rag",
+  "response-queue": "non-persistent://tg/response/custom-rag",
   "config-params": [
     {"name": "collection", "required": true}
   ]
@@ -80,7 +81,8 @@ A tool service that needs no configuration parameters:
 ```json
 {
   "id": "calculator",
-  "topic": "calc-request",
+  "request-queue": "non-persistent://tg/request/calc",
+  "response-queue": "non-persistent://tg/response/calc",
   "config-params": []
 }
 ```
@@ -132,18 +134,18 @@ Multiple tools can reference the same service with different configurations:
 
 When a tool is invoked, the request to the tool service includes:
 - `user`: From the agent request (multi-tenancy)
-- Config values: From the tool descriptor (e.g., `collection`)
-- `arguments`: From the LLM
+- `config`: JSON-encoded config values from the tool descriptor
+- `arguments`: JSON-encoded arguments from the LLM
 
 ```json
 {
   "user": "alice",
-  "collection": "customers",
-  "arguments": {
-    "question": "What are the top customer complaints?"
-  }
+  "config": "{\"collection\": \"customers\"}",
+  "arguments": "{\"question\": \"What are the top customer complaints?\"}"
 }
 ```
+
+The tool service receives these as parsed dicts in the `invoke` method.
 
 ### Generic Tool Service Implementation
 
@@ -151,19 +153,15 @@ A `ToolServiceImpl` class invokes tool services based on configuration:
 
 ```python
 class ToolServiceImpl:
-    def __init__(self, service_topic, config_values, context):
-        self.service_topic = service_topic
+    def __init__(self, context, request_queue, response_queue, config_values, arguments, processor):
+        self.request_queue = request_queue
+        self.response_queue = response_queue
         self.config_values = config_values  # e.g., {"collection": "customers"}
-        self.context = context
+        # ...
 
-    async def invoke(self, user, **arguments):
-        client = self.context(self.service_topic)
-        request = {
-            "user": user,
-            **self.config_values,
-            "arguments": arguments,
-        }
-        response = await client.call(request)
+    async def invoke(self, **arguments):
+        client = await self._get_or_create_client()
+        response = await client.call(user, self.config_values, arguments)
         if isinstance(response, str):
             return response
         else:
@@ -197,9 +195,20 @@ The agent manager parses the LLM's response into `act.arguments` as a dict (`age
 
 Requests and responses use untyped dicts. No schema validation at the agent level - the tool service is responsible for validating its inputs. This provides maximum flexibility for defining new services.
 
-### Client Interface: Direct Pulsar
+### Client Interface: Direct Pulsar Topics
 
-Tool services are invoked via direct Pulsar messaging, not through the existing typed client abstraction. The tool-service descriptor specifies a Pulsar queue name. A base class will be defined for implementing tool services. Implementation details to be determined during development.
+Tool services use direct Pulsar topics without requiring flow configuration. The tool-service descriptor specifies the full queue names:
+
+```json
+{
+  "id": "joke-service",
+  "request-queue": "non-persistent://tg/request/joke",
+  "response-queue": "non-persistent://tg/response/joke",
+  "config-params": [...]
+}
+```
+
+This allows services to be hosted in any namespace.
 
 ### Error Handling: Standard Error Convention
 
@@ -232,8 +241,8 @@ This follows the existing pattern used throughout the codebase (e.g., `agent_ser
 Tool services can return streaming responses:
 
 - Multiple response messages with the same `id` in properties
-- Each response includes `end_of_message: bool` field
-- Final response has `end_of_message: True`
+- Each response includes `end_of_stream: bool` field
+- Final response has `end_of_stream: True`
 
 This matches the pattern used in `AgentResponse` and other streaming services.
 
@@ -256,29 +265,187 @@ Tool services follow the same contract:
 
 This keeps the descriptor simple and places responsibility on the service to return an appropriate text response for the agent.
 
-## Implementation Considerations
+## Configuration Guide
 
-### Configuration Structure
+To add a new tool service, two configuration items are required:
 
-Two new config sections:
+### 1. Tool Service Configuration
 
+Stored under the `tool-service` config key. Defines the Pulsar queues and available config parameters.
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | Yes | Unique identifier for the tool service |
+| `request-queue` | Yes | Full Pulsar topic for requests (e.g., `non-persistent://tg/request/joke`) |
+| `response-queue` | Yes | Full Pulsar topic for responses (e.g., `non-persistent://tg/response/joke`) |
+| `config-params` | No | Array of config parameters the service accepts |
+
+Each config param can specify:
+- `name`: Parameter name (required)
+- `required`: Whether the parameter must be provided by tools (default: false)
+
+Example:
+```json
+{
+  "id": "joke-service",
+  "request-queue": "non-persistent://tg/request/joke",
+  "response-queue": "non-persistent://tg/response/joke",
+  "config-params": [
+    {"name": "style", "required": false}
+  ]
+}
 ```
-tool-service/
-  custom-rag: {"id": "custom-rag", "topic": "...", "config-params": [...]}
-  calculator: {"id": "calculator", "topic": "...", "config-params": []}
 
-tool/
-  query-customers: {"type": "tool-service", "service": "custom-rag", ...}
-  query-products: {"type": "tool-service", "service": "custom-rag", ...}
+### 2. Tool Configuration
+
+Stored under the `tool` config key. Defines a tool that the agent can use.
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `type` | Yes | Must be `"tool-service"` |
+| `name` | Yes | Tool name exposed to the LLM |
+| `description` | Yes | Description of what the tool does (shown to LLM) |
+| `service` | Yes | ID of the tool-service to invoke |
+| `arguments` | No | Array of argument definitions for the LLM |
+| *(config params)* | Varies | Any config params defined by the service |
+
+Each argument can specify:
+- `name`: Argument name (required)
+- `type`: Data type, e.g., `"string"` (required)
+- `description`: Description shown to the LLM (required)
+
+Example:
+```json
+{
+  "type": "tool-service",
+  "name": "tell-joke",
+  "description": "Tell a joke on a given topic",
+  "service": "joke-service",
+  "style": "pun",
+  "arguments": [
+    {
+      "name": "topic",
+      "type": "string",
+      "description": "The topic for the joke (e.g., programming, animals, food)"
+    }
+  ]
+}
 ```
 
-### Files to Modify
+### Loading Configuration
 
-| File | Changes |
+Use `tg-put-config-item` to load configurations:
+
+```bash
+# Load tool-service config
+tg-put-config-item tool-service/joke-service < joke-service.json
+
+# Load tool config
+tg-put-config-item tool/tell-joke < tell-joke.json
+```
+
+The agent-manager must be restarted to pick up new configurations.
+
+## Implementation Details
+
+### Schema
+
+Request and response types in `trustgraph-base/trustgraph/schema/services/tool_service.py`:
+
+```python
+@dataclass
+class ToolServiceRequest:
+    user: str = ""           # User context for multi-tenancy
+    config: str = ""         # JSON-encoded config values from tool descriptor
+    arguments: str = ""      # JSON-encoded arguments from LLM
+
+@dataclass
+class ToolServiceResponse:
+    error: Error | None = None
+    response: str = ""       # String response (the observation)
+    end_of_stream: bool = False
+```
+
+### Server-Side: DynamicToolService
+
+Base class in `trustgraph-base/trustgraph/base/dynamic_tool_service.py`:
+
+```python
+class DynamicToolService(AsyncProcessor):
+    """Base class for implementing tool services."""
+
+    def __init__(self, **params):
+        topic = params.get("topic", default_topic)
+        # Constructs topics: non-persistent://tg/request/{topic}, non-persistent://tg/response/{topic}
+        # Sets up Consumer and Producer
+
+    async def invoke(self, user, config, arguments):
+        """Override this method to implement the tool's logic."""
+        raise NotImplementedError()
+```
+
+### Client-Side: ToolServiceImpl
+
+Implementation in `trustgraph-flow/trustgraph/agent/react/tools.py`:
+
+```python
+class ToolServiceImpl:
+    def __init__(self, context, request_queue, response_queue, config_values, arguments, processor):
+        # Uses the provided queue paths directly
+        # Creates ToolServiceClient on first use
+
+    async def invoke(self, **arguments):
+        client = await self._get_or_create_client()
+        response = await client.call(user, config_values, arguments)
+        return response if isinstance(response, str) else json.dumps(response)
+```
+
+### Files
+
+| File | Purpose |
 |------|---------|
-| `trustgraph-flow/trustgraph/agent/react/tools.py` | Add `ToolServiceImpl` |
-| `trustgraph-flow/trustgraph/agent/react/service.py` | Load tool-service configs, handle `type: "tool-service"` in tool configs |
-| `trustgraph-base/trustgraph/base/` | Add generic client call support |
+| `trustgraph-base/trustgraph/schema/services/tool_service.py` | Request/response schemas |
+| `trustgraph-base/trustgraph/base/tool_service_client.py` | Client for invoking services |
+| `trustgraph-base/trustgraph/base/dynamic_tool_service.py` | Base class for service implementation |
+| `trustgraph-flow/trustgraph/agent/react/tools.py` | `ToolServiceImpl` class |
+| `trustgraph-flow/trustgraph/agent/react/service.py` | Config loading |
+
+### Example: Joke Service
+
+An example service in `trustgraph-flow/trustgraph/tool_service/joke/`:
+
+```python
+class Processor(DynamicToolService):
+    async def invoke(self, user, config, arguments):
+        style = config.get("style", "pun")
+        topic = arguments.get("topic", "")
+        joke = pick_joke(topic, style)
+        return f"Hey {user}! Here's a {style} for you:\n\n{joke}"
+```
+
+Tool service config:
+```json
+{
+  "id": "joke-service",
+  "request-queue": "non-persistent://tg/request/joke",
+  "response-queue": "non-persistent://tg/response/joke",
+  "config-params": [{"name": "style", "required": false}]
+}
+```
+
+Tool config:
+```json
+{
+  "type": "tool-service",
+  "name": "tell-joke",
+  "description": "Tell a joke on a given topic",
+  "service": "joke-service",
+  "style": "pun",
+  "arguments": [
+    {"name": "topic", "type": "string", "description": "The topic for the joke"}
+  ]
+}
+```
 
 ### Backward Compatibility
 
