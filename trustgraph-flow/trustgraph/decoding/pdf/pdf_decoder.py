@@ -3,26 +3,31 @@
 Simple decoder, accepts PDF documents on input, outputs pages from the
 PDF document as text as separate output objects.
 
-Supports both inline document data and streaming from librarian API
+Supports both inline document data and fetching from librarian via Pulsar
 for large documents.
 """
 
+import asyncio
 import os
 import tempfile
 import base64
 import logging
+import uuid
 from langchain_community.document_loaders import PyPDFLoader
 
 from ... schema import Document, TextDocument, Metadata
+from ... schema import LibrarianRequest, LibrarianResponse
+from ... schema import librarian_request_queue, librarian_response_queue
 from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
+from ... base import Consumer, Producer, ConsumerMetrics, ProducerMetrics
 
 # Module logger
 logger = logging.getLogger(__name__)
 
 default_ident = "pdf-decoder"
 
-# Default API URL for fetching documents from librarian
-default_api_url = os.environ.get("TRUSTGRAPH_API_URL", "http://api:8088")
+default_librarian_request_queue = librarian_request_queue
+default_librarian_response_queue = librarian_response_queue
 
 
 class Processor(FlowProcessor):
@@ -36,8 +41,6 @@ class Processor(FlowProcessor):
                 "id": id,
             }
         )
-
-        self.api_url = params.get("api_url", default_api_url)
 
         self.register_specification(
             ConsumerSpec(
@@ -54,60 +57,96 @@ class Processor(FlowProcessor):
             )
         )
 
+        # Librarian client for fetching document content
+        librarian_request_q = params.get(
+            "librarian_request_queue", default_librarian_request_queue
+        )
+        librarian_response_q = params.get(
+            "librarian_response_queue", default_librarian_response_queue
+        )
+
+        librarian_request_metrics = ProducerMetrics(
+            processor = id, flow = None, name = "librarian-request"
+        )
+
+        self.librarian_request_producer = Producer(
+            backend = self.pubsub,
+            topic = librarian_request_q,
+            schema = LibrarianRequest,
+            metrics = librarian_request_metrics,
+        )
+
+        librarian_response_metrics = ConsumerMetrics(
+            processor = id, flow = None, name = "librarian-response"
+        )
+
+        self.librarian_response_consumer = Consumer(
+            taskgroup = self.taskgroup,
+            backend = self.pubsub,
+            flow = None,
+            topic = librarian_response_q,
+            subscriber = f"{id}-librarian",
+            schema = LibrarianResponse,
+            handler = self.on_librarian_response,
+            metrics = librarian_response_metrics,
+        )
+
+        # Pending librarian requests: request_id -> asyncio.Future
+        self.pending_requests = {}
+
         logger.info("PDF decoder initialized")
 
-    def _fetch_document_to_file(self, document_id, user, file_path, chunk_size=1024*1024):
+    async def start(self):
+        await super(Processor, self).start()
+        await self.librarian_request_producer.start()
+        await self.librarian_response_consumer.start()
+
+    async def on_librarian_response(self, msg, consumer, flow):
+        """Handle responses from the librarian service."""
+        response = msg.value()
+        request_id = msg.properties().get("id")
+
+        if request_id and request_id in self.pending_requests:
+            future = self.pending_requests.pop(request_id)
+            future.set_result(response)
+        else:
+            logger.warning(f"Received unexpected librarian response: {request_id}")
+
+    async def fetch_document_content(self, document_id, user, timeout=120):
         """
-        Fetch document content from librarian API and stream to file.
-
-        This avoids loading the entire document into memory at once.
+        Fetch document content from librarian via Pulsar.
         """
-        import requests
+        request_id = str(uuid.uuid4())
 
-        logger.info(f"Streaming document {document_id} to temp file...")
+        request = LibrarianRequest(
+            operation="get-document-content",
+            document_id=document_id,
+            user=user,
+        )
 
-        # Use chunk-based streaming to minimize memory usage
-        chunk_index = 0
-        total_bytes = 0
+        # Create future for response
+        future = asyncio.get_event_loop().create_future()
+        self.pending_requests[request_id] = future
 
-        with open(file_path, 'wb') as f:
-            while True:
-                url = f"{self.api_url}/api/v1/librarian"
-                payload = {
-                    "operation": "stream-document",
-                    "user": user,
-                    "document-id": document_id,
-                    "chunk-index": chunk_index,
-                    "chunk-size": chunk_size,
-                }
+        try:
+            # Send request
+            await self.librarian_request_producer.send(
+                request, properties={"id": request_id}
+            )
 
-                try:
-                    response = requests.post(url, json=payload, timeout=60)
-                    response.raise_for_status()
-                    data = response.json()
-                except requests.RequestException as e:
-                    logger.error(f"Failed to fetch chunk {chunk_index}: {e}")
-                    raise
+            # Wait for response
+            response = await asyncio.wait_for(future, timeout=timeout)
 
-                if "error" in data and data["error"]:
-                    raise RuntimeError(f"API error: {data['error']}")
+            if response.error:
+                raise RuntimeError(
+                    f"Librarian error: {response.error.type}: {response.error.message}"
+                )
 
-                content_b64 = data.get("content", "")
-                if not content_b64:
-                    break
+            return response.content
 
-                chunk_data = base64.b64decode(content_b64)
-                f.write(chunk_data)
-                total_bytes += len(chunk_data)
-
-                total_chunks = data.get("total-chunks", 1)
-                if chunk_index >= total_chunks - 1:
-                    break
-
-                chunk_index += 1
-
-        logger.info(f"Downloaded {total_bytes} bytes to temp file")
-        return total_bytes
+        except asyncio.TimeoutError:
+            self.pending_requests.pop(request_id, None)
+            raise RuntimeError(f"Timeout fetching document {document_id}")
 
     async def on_message(self, msg, consumer, flow):
 
@@ -122,14 +161,24 @@ class Processor(FlowProcessor):
 
             # Check if we should fetch from librarian or use inline data
             if v.document_id:
-                # Stream from librarian API to temp file
+                # Fetch from librarian via Pulsar
                 logger.info(f"Fetching document {v.document_id} from librarian...")
                 fp.close()
-                self._fetch_document_to_file(
+
+                content = await self.fetch_document_content(
                     document_id=v.document_id,
                     user=v.metadata.user,
-                    file_path=temp_path,
                 )
+
+                # Content is base64 encoded
+                if isinstance(content, str):
+                    content = content.encode('utf-8')
+                decoded_content = base64.b64decode(content)
+
+                with open(temp_path, 'wb') as f:
+                    f.write(decoded_content)
+
+                logger.info(f"Fetched {len(decoded_content)} bytes from librarian")
             else:
                 # Use inline data (backward compatibility)
                 fp.write(base64.b64decode(v.data))
@@ -162,12 +211,17 @@ class Processor(FlowProcessor):
         FlowProcessor.add_args(parser)
 
         parser.add_argument(
-            '--api-url',
-            default=default_api_url,
-            help=f'TrustGraph API URL for document streaming (default: {default_api_url})',
+            '--librarian-request-queue',
+            default=default_librarian_request_queue,
+            help=f'Librarian request queue (default: {default_librarian_request_queue})',
+        )
+
+        parser.add_argument(
+            '--librarian-response-queue',
+            default=default_librarian_response_queue,
+            help=f'Librarian response queue (default: {default_librarian_response_queue})',
         )
 
 def run():
 
     Processor.launch(default_ident, __doc__)
-
