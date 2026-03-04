@@ -32,6 +32,7 @@ from . agent_service import AgentService
 from . graph_rag_client import GraphRagClientSpec
 from . tool_service import ToolService
 from . tool_client import ToolClientSpec
+from . dynamic_tool_service import DynamicToolService
 from . tool_service_client import ToolServiceClientSpec
 from . agent_client import AgentClientSpec
 from . structured_query_client import StructuredQueryClientSpec
