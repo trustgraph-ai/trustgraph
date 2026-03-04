@@ -63,6 +63,23 @@ JOKES = {
             "99 little bugs in the code, 99 little bugs. Take one down, patch it around, 127 little bugs in the code.",
         ],
     },
+    "llama": {
+        "pun": [
+            "Why did the llama get a ticket? Because he was caught spitting in a no-spitting zone!",
+            "What do you call a llama who's a great musician? A llama del Rey!",
+            "Why did the llama cross the road? To prove he wasn't a chicken!",
+        ],
+        "dad-joke": [
+            "What did the llama say when he got kicked out of the zoo? 'Alpaca my bags!'",
+            "Why don't llamas ever get lost? Because they always know the way to the Andes!",
+            "What do you call a llama with no legs? A woolly rug!",
+        ],
+        "one-liner": [
+            "Llamas are great at meditation. They're always saying 'Dalai Llama.'",
+            "I asked a llama for directions. He said 'No probllama!'",
+            "Never trust a llama. They're always up to something woolly.",
+        ],
+    },
     "animals": {
         "pun": [
             "What do you call a fish without eyes? A fsh!",
