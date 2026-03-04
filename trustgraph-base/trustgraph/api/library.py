@@ -303,14 +303,16 @@ class Library:
                 logger.warning(f"Failed to abort upload: {abort_error}")
             raise
 
-    def get_documents(self, user):
+    def get_documents(self, user, include_children=False):
         """
         List all documents for a user.
 
         Retrieves metadata for all documents owned by the specified user.
+        By default, only returns top-level documents (not child/extracted documents).
 
         Args:
             user: User identifier
+            include_children: If True, also include child documents (default: False)
 
         Returns:
             list[DocumentMetadata]: List of document metadata objects
@@ -321,18 +323,24 @@ class Library:
         Example:
             ```python
             library = api.library()
+
+            # Get only top-level documents
             docs = library.get_documents(user="trustgraph")
 
             for doc in docs:
                 print(f"{doc.id}: {doc.title} ({doc.kind})")
                 print(f"  Uploaded: {doc.time}")
                 print(f"  Tags: {', '.join(doc.tags)}")
+
+            # Get all documents including extracted pages
+            all_docs = library.get_documents(user="trustgraph", include_children=True)
             ```
         """
 
         input = {
             "operation": "list-documents",
             "user": user,
+            "include-children": include_children,
         }
 
         object = self.request(input)
@@ -354,7 +362,9 @@ class Library:
                         for w in v["metadata"]
                     ],
                     user = v["user"],
-                    tags = v["tags"]
+                    tags = v["tags"],
+                    parent_id = v.get("parent-id", ""),
+                    document_type = v.get("document-type", "source"),
                 )
                 for v in object["document-metadatas"]
             ]
@@ -397,7 +407,7 @@ class Library:
         doc = object["document-metadata"]
 
         try:
-            DocumentMetadata(
+            return DocumentMetadata(
                 id = doc["id"],
                 time = datetime.datetime.fromtimestamp(doc["time"]),
                 kind = doc["kind"],
@@ -412,7 +422,9 @@ class Library:
                     for w in doc["metadata"]
                 ],
                 user = doc["user"],
-                tags = doc["tags"]
+                tags = doc["tags"],
+                parent_id = doc.get("parent-id", ""),
+                document_type = doc.get("document-type", "source"),
             )
         except Exception as e:
             logger.error("Failed to parse document response", exc_info=True)
@@ -859,4 +871,259 @@ class Library:
         }
 
         return self.request(complete_request)
+
+    # Child document methods
+
+    def add_child_document(
+            self, document, id, parent_id, user, title, comments,
+            kind="text/plain", tags=[], metadata=None,
+    ):
+        """
+        Add a child document linked to a parent document.
+
+        Child documents are typically extracted content (e.g., pages from a PDF).
+        They are automatically marked with document_type="extracted" and linked
+        to their parent via parent_id.
+
+        Args:
+            document: Document content as bytes
+            id: Document identifier (auto-generated if None)
+            parent_id: Parent document identifier (required)
+            user: User/owner identifier
+            title: Document title
+            comments: Document description or comments
+            kind: MIME type of the document (default: "text/plain")
+            tags: List of tags for categorization (default: [])
+            metadata: Optional metadata as list of Triple objects
+
+        Returns:
+            dict: Response from the add operation
+
+        Raises:
+            RuntimeError: If parent_id is not provided
+
+        Example:
+            ```python
+            library = api.library()
+
+            # Add extracted page from a PDF
+            library.add_child_document(
+                document=page_text.encode('utf-8'),
+                id="doc-123-page-1",
+                parent_id="doc-123",
+                user="trustgraph",
+                title="Page 1 of Research Paper",
+                comments="First page extracted from PDF",
+                kind="text/plain",
+                tags=["extracted", "page"]
+            )
+            ```
+        """
+        if not parent_id:
+            raise RuntimeError("parent_id is required for child documents")
+
+        if id is None:
+            id = hash(document)
+
+        if not title:
+            title = ""
+        if not comments:
+            comments = ""
+
+        triples = []
+        if metadata:
+            if isinstance(metadata, list):
+                triples = [
+                    {
+                        "s": from_value(t.s),
+                        "p": from_value(t.p),
+                        "o": from_value(t.o),
+                    }
+                    for t in metadata
+                ]
+
+        input = {
+            "operation": "add-child-document",
+            "document-metadata": {
+                "id": id,
+                "time": int(time.time()),
+                "kind": kind,
+                "title": title,
+                "comments": comments,
+                "metadata": triples,
+                "user": user,
+                "tags": tags,
+                "parent-id": parent_id,
+                "document-type": "extracted",
+            },
+            "content": base64.b64encode(document).decode("utf-8"),
+        }
+
+        return self.request(input)
+
+    def list_children(self, document_id, user):
+        """
+        List all child documents for a given parent document.
+
+        Args:
+            document_id: Parent document identifier
+            user: User identifier
+
+        Returns:
+            list[DocumentMetadata]: List of child document metadata objects
+
+        Example:
+            ```python
+            library = api.library()
+            children = library.list_children(
+                document_id="doc-123",
+                user="trustgraph"
+            )
+
+            for child in children:
+                print(f"{child.id}: {child.title}")
+            ```
+        """
+        input = {
+            "operation": "list-children",
+            "document-id": document_id,
+            "user": user,
+        }
+
+        response = self.request(input)
+
+        try:
+            return [
+                DocumentMetadata(
+                    id=v["id"],
+                    time=datetime.datetime.fromtimestamp(v["time"]),
+                    kind=v["kind"],
+                    title=v["title"],
+                    comments=v.get("comments", ""),
+                    metadata=[
+                        Triple(
+                            s=to_value(w["s"]),
+                            p=to_value(w["p"]),
+                            o=to_value(w["o"])
+                        )
+                        for w in v.get("metadata", [])
+                    ],
+                    user=v["user"],
+                    tags=v.get("tags", []),
+                    parent_id=v.get("parent-id", ""),
+                    document_type=v.get("document-type", "source"),
+                )
+                for v in response.get("document-metadatas", [])
+            ]
+        except Exception as e:
+            logger.error("Failed to parse children response", exc_info=True)
+            raise ProtocolException("Response not formatted correctly")
+
+    def get_document_content(self, user, id):
+        """
+        Get the content of a document.
+
+        Retrieves the full content of a document as bytes.
+
+        Args:
+            user: User identifier
+            id: Document identifier
+
+        Returns:
+            bytes: Document content
+
+        Example:
+            ```python
+            library = api.library()
+            content = library.get_document_content(
+                user="trustgraph",
+                id="doc-123"
+            )
+
+            # Write to file
+            with open("output.pdf", "wb") as f:
+                f.write(content)
+            ```
+        """
+        input = {
+            "operation": "get-document-content",
+            "user": user,
+            "document-id": id,
+        }
+
+        response = self.request(input)
+        content_b64 = response.get("content", "")
+
+        return base64.b64decode(content_b64)
+
+    def stream_document_to_file(self, user, id, file_path, chunk_size=1024*1024, on_progress=None):
+        """
+        Stream document content to a file.
+
+        Downloads document content in chunks and writes directly to a file,
+        enabling memory-efficient handling of large documents.
+
+        Args:
+            user: User identifier
+            id: Document identifier
+            file_path: Path to write the document content
+            chunk_size: Size of each chunk to download (default 1MB)
+            on_progress: Optional callback(bytes_received, total_bytes) for progress updates
+
+        Returns:
+            int: Total bytes written
+
+        Example:
+            ```python
+            library = api.library()
+
+            def progress(received, total):
+                print(f"Downloaded {received}/{total} bytes")
+
+            library.stream_document_to_file(
+                user="trustgraph",
+                id="large-doc-123",
+                file_path="/tmp/document.pdf",
+                on_progress=progress
+            )
+            ```
+        """
+        chunk_index = 0
+        total_bytes_written = 0
+        total_bytes = None
+
+        with open(file_path, "wb") as f:
+            while True:
+                input = {
+                    "operation": "stream-document",
+                    "user": user,
+                    "document-id": id,
+                    "chunk-index": chunk_index,
+                    "chunk-size": chunk_size,
+                }
+
+                response = self.request(input)
+
+                content_b64 = response.get("content", "")
+                chunk_data = base64.b64decode(content_b64)
+
+                if not chunk_data:
+                    break
+
+                f.write(chunk_data)
+                total_bytes_written += len(chunk_data)
+
+                total_chunks = response.get("total-chunks", 1)
+                total_bytes = response.get("total-bytes", total_bytes_written)
+
+                if on_progress:
+                    on_progress(total_bytes_written, total_bytes)
+
+                # Check if we've received all chunks
+                if chunk_index >= total_chunks - 1:
+                    break
+
+                chunk_index += 1
+
+        return total_bytes_written
 

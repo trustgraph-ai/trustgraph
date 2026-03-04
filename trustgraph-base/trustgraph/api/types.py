@@ -64,6 +64,8 @@ class DocumentMetadata:
         metadata: List of RDF triples providing structured metadata
         user: User/owner identifier
         tags: List of tags for categorization
+        parent_id: Parent document ID for child documents (empty for top-level docs)
+        document_type: "source" for uploaded documents, "extracted" for derived content
     """
     id : str
     time : datetime.datetime
@@ -73,6 +75,8 @@ class DocumentMetadata:
     metadata : List[Triple]
     user : str
     tags : List[str]
+    parent_id : str = ""
+    document_type : str = "source"
 
 @dataclasses.dataclass
 class ProcessingMetadata:

@@ -271,6 +271,9 @@ class Processor(AsyncProcessor):
 
         pass
 
+    # Threshold for sending document_id instead of inline content (2MB)
+    STREAMING_THRESHOLD = 2 * 1024 * 1024
+
     async def load_document(self, document, processing, content):
 
         logger.debug("Ready for document processing...")
@@ -303,15 +306,31 @@ class Processor(AsyncProcessor):
             )
             schema = TextDocument
         else:
-            doc = Document(
-                metadata = Metadata(
-                    id = document.id,
-                    metadata = document.metadata,
-                    user = processing.user,
-                    collection = processing.collection
-                ),
-                data = base64.b64encode(content).decode("utf-8")
-            )
+            # For large PDF documents, send document_id for streaming retrieval
+            # instead of embedding the entire content in the message
+            if len(content) >= self.STREAMING_THRESHOLD:
+                logger.info(f"Document {document.id} is large ({len(content)} bytes), "
+                           f"sending document_id for streaming retrieval")
+                doc = Document(
+                    metadata = Metadata(
+                        id = document.id,
+                        metadata = document.metadata,
+                        user = processing.user,
+                        collection = processing.collection
+                    ),
+                    document_id = document.id,
+                    data = b"",  # Empty data, receiver will fetch via API
+                )
+            else:
+                doc = Document(
+                    metadata = Metadata(
+                        id = document.id,
+                        metadata = document.metadata,
+                        user = processing.user,
+                        collection = processing.collection
+                    ),
+                    data = base64.b64encode(content).decode("utf-8")
+                )
             schema = Document
 
         logger.debug(f"Submitting to queue {q}...")
@@ -368,6 +387,10 @@ class Processor(AsyncProcessor):
             "abort-upload": self.librarian.abort_upload,
             "get-upload-status": self.librarian.get_upload_status,
             "list-uploads": self.librarian.list_uploads,
+            # Child document and streaming operations
+            "add-child-document": self.librarian.add_child_document,
+            "list-children": self.librarian.list_children,
+            "stream-document": self.librarian.stream_document,
         }
 
         if v.operation not in impls:

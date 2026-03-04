@@ -112,6 +112,34 @@ class LibraryTableStore:
             ON document (object_id)
         """);
 
+        # Add parent_id and document_type columns for child document support
+        logger.debug("document table parent_id column...")
+
+        try:
+            self.cassandra.execute("""
+                ALTER TABLE document ADD parent_id text
+            """);
+        except Exception as e:
+            # Column may already exist
+            if "already exists" not in str(e).lower() and "Invalid column name" not in str(e):
+                logger.debug(f"parent_id column may already exist: {e}")
+
+        try:
+            self.cassandra.execute("""
+                ALTER TABLE document ADD document_type text
+            """);
+        except Exception as e:
+            # Column may already exist
+            if "already exists" not in str(e).lower() and "Invalid column name" not in str(e):
+                logger.debug(f"document_type column may already exist: {e}")
+
+        logger.debug("document parent index...")
+
+        self.cassandra.execute("""
+            CREATE INDEX IF NOT EXISTS document_parent
+            ON document (parent_id)
+        """);
+
         logger.debug("processing table...")
 
         self.cassandra.execute("""
@@ -162,9 +190,10 @@ class LibraryTableStore:
             (
                 id, user, time,
                 kind, title, comments,
-                metadata, tags, object_id
+                metadata, tags, object_id,
+                parent_id, document_type
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """)
 
         self.update_document_stmt = self.cassandra.prepare("""
@@ -175,7 +204,8 @@ class LibraryTableStore:
         """)
 
         self.get_document_stmt = self.cassandra.prepare("""
-            SELECT time, kind, title, comments, metadata, tags, object_id
+            SELECT time, kind, title, comments, metadata, tags, object_id,
+                   parent_id, document_type
             FROM document
             WHERE user = ? AND id = ?
         """)
@@ -194,14 +224,16 @@ class LibraryTableStore:
 
         self.list_document_stmt = self.cassandra.prepare("""
             SELECT
-                id, time, kind, title, comments, metadata, tags, object_id
+                id, time, kind, title, comments, metadata, tags, object_id,
+                parent_id, document_type
             FROM document
             WHERE user = ?
         """)
 
         self.list_document_by_tag_stmt = self.cassandra.prepare("""
             SELECT
-                id, time, kind, title, comments, metadata, tags, object_id
+                id, time, kind, title, comments, metadata, tags, object_id,
+                parent_id, document_type
             FROM document
             WHERE user = ? AND tags CONTAINS ?
             ALLOW FILTERING
@@ -277,6 +309,16 @@ class LibraryTableStore:
             WHERE user = ?
         """)
 
+        # Child document queries
+        self.list_children_stmt = self.cassandra.prepare("""
+            SELECT
+                id, user, time, kind, title, comments, metadata, tags,
+                object_id, parent_id, document_type
+            FROM document
+            WHERE parent_id = ?
+            ALLOW FILTERING
+        """)
+
     async def document_exists(self, user, id):
 
         resp = self.cassandra.execute(
@@ -303,6 +345,10 @@ class LibraryTableStore:
             for v in document.metadata
         ]
 
+        # Get parent_id and document_type from document, defaulting if not set
+        parent_id = getattr(document, 'parent_id', '') or ''
+        document_type = getattr(document, 'document_type', 'source') or 'source'
+
         while True:
 
             try:
@@ -312,7 +358,8 @@ class LibraryTableStore:
                     (
                         document.id, document.user, int(document.time * 1000),
                         document.kind, document.title, document.comments,
-                        metadata, document.tags, object_id
+                        metadata, document.tags, object_id,
+                        parent_id, document_type
                     )
                 )
 
@@ -419,6 +466,55 @@ class LibraryTableStore:
                     for m in row[5]
                 ],
                 tags = row[6] if row[6] else [],
+                parent_id = row[8] if row[8] else "",
+                document_type = row[9] if row[9] else "source",
+            )
+            for row in resp
+        ]
+
+        logger.debug("Done")
+
+        return lst
+
+    async def list_children(self, parent_id):
+        """List all child documents for a given parent document ID."""
+
+        logger.debug(f"List children for parent {parent_id}")
+
+        while True:
+
+            try:
+
+                resp = self.cassandra.execute(
+                    self.list_children_stmt,
+                    (parent_id,)
+                )
+
+                break
+
+            except Exception as e:
+                logger.error("Exception occurred", exc_info=True)
+                raise e
+
+        lst = [
+            DocumentMetadata(
+                id = row[0],
+                user = row[1],
+                time = int(time.mktime(row[2].timetuple())),
+                kind = row[3],
+                title = row[4],
+                comments = row[5],
+                metadata = [
+                    Triple(
+                        s=tuple_to_term(m[0], m[1]),
+                        p=tuple_to_term(m[2], m[3]),
+                        o=tuple_to_term(m[4], m[5])
+                    )
+                    for m in row[6]
+                ],
+                tags = row[7] if row[7] else [],
+                parent_id = row[9] if row[9] else "",
+                document_type = row[10] if row[10] else "source",
             )
             for row in resp
         ]
@@ -464,6 +560,8 @@ class LibraryTableStore:
                     for m in row[4]
                 ],
                 tags = row[5] if row[5] else [],
+                parent_id = row[7] if row[7] else "",
+                document_type = row[8] if row[8] else "source",
             )
 
             logger.debug("Done")

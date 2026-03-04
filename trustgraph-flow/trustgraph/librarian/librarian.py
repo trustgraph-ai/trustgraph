@@ -91,6 +91,21 @@ class Librarian:
         ):
             raise RuntimeError("Document does not exist")
 
+        # First, cascade delete all child documents
+        children = await self.table_store.list_children(request.document_id)
+        for child in children:
+            logger.debug(f"Cascade deleting child document {child.id}")
+            try:
+                child_object_id = await self.table_store.get_document_object_id(
+                    child.user,
+                    child.id
+                )
+                await self.blob_store.remove(child_object_id)
+                await self.table_store.remove_document(child.user, child.id)
+            except Exception as e:
+                logger.warning(f"Failed to delete child document {child.id}: {e}")
+
+        # Now remove the parent document
         object_id = await self.table_store.get_document_object_id(
             request.user,
             request.document_id
@@ -261,6 +276,14 @@ class Librarian:
     async def list_documents(self, request):
 
         docs = await self.table_store.list_documents(request.user)
+
+        # Filter out child documents by default unless include_children is True
+        include_children = getattr(request, 'include_children', False)
+        if not include_children:
+            docs = [
+                doc for doc in docs
+                if not doc.parent_id  # Only include top-level documents
+            ]
 
         return LibrarianResponse(
             error = None,
@@ -591,5 +614,126 @@ class Librarian:
         return LibrarianResponse(
             error=None,
             upload_sessions=upload_sessions,
+        )
+
+    # Child document operations
+
+    async def add_child_document(self, request):
+        """
+        Add a child document linked to a parent document.
+
+        Child documents are typically extracted content (e.g., pages from a PDF).
+        They have a parent_id pointing to the source document and document_type
+        set to "extracted".
+        """
+        logger.info(f"Adding child document {request.document_metadata.id} "
+                   f"for parent {request.document_metadata.parent_id}")
+
+        if not request.document_metadata.parent_id:
+            raise RequestError("parent_id is required for child documents")
+
+        # Verify parent exists
+        if not await self.table_store.document_exists(
+                request.document_metadata.user,
+                request.document_metadata.parent_id
+        ):
+            raise RequestError(
+                f"Parent document {request.document_metadata.parent_id} does not exist"
+            )
+
+        if await self.table_store.document_exists(
+                request.document_metadata.user,
+                request.document_metadata.id
+        ):
+            raise RequestError("Document already exists")
+
+        # Ensure document_type is set to "extracted"
+        request.document_metadata.document_type = "extracted"
+
+        # Create object ID for blob
+        object_id = uuid.uuid4()
+
+        logger.debug("Adding blob...")
+
+        await self.blob_store.add(
+            object_id, base64.b64decode(request.content),
+            request.document_metadata.kind
+        )
+
+        logger.debug("Adding to table...")
+
+        await self.table_store.add_document(
+            request.document_metadata, object_id
+        )
+
+        logger.debug("Add child document complete")
+
+        return LibrarianResponse(
+            error=None,
+            document_id=request.document_metadata.id,
+        )
+
+    async def list_children(self, request):
+        """
+        List all child documents for a given parent document.
+        """
+        logger.debug(f"Listing children for parent {request.document_id}")
+
+        children = await self.table_store.list_children(request.document_id)
+
+        return LibrarianResponse(
+            error=None,
+            document_metadatas=children,
+        )
+
+    async def stream_document(self, request):
+        """
+        Stream document content in chunks.
+
+        This operation returns document content in smaller chunks, allowing
+        memory-efficient processing of large documents. The response includes
+        chunk information for reassembly.
+
+        Note: This operation returns a single chunk at a time. Clients should
+        call repeatedly with increasing chunk_index until all chunks are received.
+        """
+        logger.debug(f"Streaming document {request.document_id}, chunk {request.chunk_index}")
+
+        object_id = await self.table_store.get_document_object_id(
+            request.user,
+            request.document_id
+        )
+
+        # Default chunk size of 1MB
+        chunk_size = request.chunk_size if request.chunk_size > 0 else 1024 * 1024
+
+        # Get the full content and slice out the requested chunk
+        # Note: This is a simple implementation. For true streaming, we'd need
+        # range requests on the object storage.
+        content = await self.blob_store.get(object_id)
+        total_size = len(content)
+        total_chunks = math.ceil(total_size / chunk_size)
+
+        if request.chunk_index >= total_chunks:
+            raise RequestError(
+                f"Invalid chunk index {request.chunk_index}, "
+                f"document has {total_chunks} chunks"
+            )
+
+        start = request.chunk_index * chunk_size
+        end = min(start + chunk_size, total_size)
+        chunk_content = content[start:end]
+
+        logger.debug(f"Returning chunk {request.chunk_index}/{total_chunks}, "
+                    f"bytes {start}-{end} of {total_size}")
+
+        return LibrarianResponse(
+            error=None,
+            content=base64.b64encode(chunk_content),
+            chunk_index=request.chunk_index,
+            chunks_received=1,  # Using as "current chunk" indicator
+            total_chunks=total_chunks,
+            bytes_received=end,
+            total_bytes=total_size,
         )
 

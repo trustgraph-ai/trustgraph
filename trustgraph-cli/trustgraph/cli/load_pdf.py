@@ -1,15 +1,30 @@
 """
-Loads a PDF document into TrustGraph processing by directing to
-the pdf-decoder queue.
-Consider using tg-add-library-document to load
-a document, followed by tg-start-library-processing to initiate processing.
+DEPRECATED: This tool is deprecated and will be removed in a future version.
+
+Use tg-add-library-document to add a document to the library, followed by
+tg-start-library-processing to initiate processing.
+
+Example:
+    # Add document to library
+    tg-add-library-document --id my-doc --title "My PDF" document.pdf
+
+    # Start processing
+    tg-start-library-processing --document-id my-doc --collection default
+
+The library-based workflow provides:
+- Progress feedback for large file uploads
+- Resumable uploads
+- Better error handling
+- Centralized document management
 """
 
 import hashlib
 import argparse
 import os
+import sys
 import time
 import uuid
+import warnings
 
 from trustgraph.api import Api
 from trustgraph.knowledge import hash, to_uri
@@ -70,6 +85,18 @@ class Loader:
             raise e
 
 def main():
+
+    # Print deprecation warning
+    print("\n" + "=" * 70, file=sys.stderr)
+    print("DEPRECATION WARNING: tg-load-pdf is deprecated.", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("Please use the library-based workflow instead:", file=sys.stderr)
+    print("  1. tg-add-library-document to add the document", file=sys.stderr)
+    print("  2. tg-start-library-processing to start processing", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("This provides progress feedback, resumable uploads, and", file=sys.stderr)
+    print("better handling of large documents.", file=sys.stderr)
+    print("=" * 70 + "\n", file=sys.stderr)
 
     parser = argparse.ArgumentParser(
         prog='tg-load-pdf',

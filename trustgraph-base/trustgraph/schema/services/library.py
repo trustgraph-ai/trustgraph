@@ -89,6 +89,9 @@ class DocumentMetadata:
     metadata: list[Triple] = field(default_factory=list)
     user: str = ""
     tags: list[str] = field(default_factory=list)
+    # Child document support
+    parent_id: str = ""  # Empty for top-level docs, set for children
+    document_type: str = "source"  # "source" or "extracted"
 
 @dataclass
 class ProcessingMetadata:
@@ -167,8 +170,11 @@ class LibrarianRequest:
     # upload-chunk, complete-upload, abort-upload, get-upload-status
     upload_id: str = ""
 
-    # upload-chunk
+    # upload-chunk, stream-document
     chunk_index: int = 0
+
+    # list-documents - whether to include child documents (default False)
+    include_children: bool = False
 
 @dataclass
 class LibrarianResponse:
