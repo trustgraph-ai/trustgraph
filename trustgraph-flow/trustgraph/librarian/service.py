@@ -361,6 +361,13 @@ class Processor(AsyncProcessor):
             "remove-processing": self.librarian.remove_processing,
             "list-documents": self.librarian.list_documents,
             "list-processing": self.librarian.list_processing,
+            # Chunked upload operations
+            "begin-upload": self.librarian.begin_upload,
+            "upload-chunk": self.librarian.upload_chunk,
+            "complete-upload": self.librarian.complete_upload,
+            "abort-upload": self.librarian.abort_upload,
+            "get-upload-status": self.librarian.get_upload_status,
+            "list-uploads": self.librarian.list_uploads,
         }
 
         if v.operation not in impls:

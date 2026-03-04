@@ -1,16 +1,23 @@
 
 from .. schema import LibrarianRequest, LibrarianResponse, Error, Triple
+from .. schema import UploadSession
 from .. knowledge import hash
 from .. exceptions import RequestError
 from .. tables.library import LibraryTableStore
 from . blob_store import BlobStore
 import base64
+import json
 import logging
+import math
+import time
 
 import uuid
 
 # Module logger
 logger = logging.getLogger(__name__)
+
+# Default chunk size for multipart uploads (5MB - S3 minimum)
+DEFAULT_CHUNK_SIZE = 5 * 1024 * 1024
 
 class Librarian:
 
@@ -273,5 +280,316 @@ class Librarian:
             content = None,
             document_metadatas = None,
             processing_metadatas = procs,
+        )
+
+    # Chunked upload operations
+
+    async def begin_upload(self, request):
+        """
+        Initialize a chunked upload session.
+
+        Creates an S3 multipart upload and stores session state in Cassandra.
+        """
+        logger.info(f"Beginning chunked upload for document {request.document_metadata.id}")
+
+        if request.document_metadata.kind not in ("text/plain", "application/pdf"):
+            raise RequestError(
+                "Invalid document kind: " + request.document_metadata.kind
+            )
+
+        if await self.table_store.document_exists(
+                request.document_metadata.user,
+                request.document_metadata.id
+        ):
+            raise RequestError("Document already exists")
+
+        # Validate sizes
+        total_size = request.total_size
+        if total_size <= 0:
+            raise RequestError("total_size must be positive")
+
+        # Use provided chunk size or default (minimum 5MB for S3)
+        chunk_size = request.chunk_size if request.chunk_size > 0 else DEFAULT_CHUNK_SIZE
+        if chunk_size < DEFAULT_CHUNK_SIZE:
+            chunk_size = DEFAULT_CHUNK_SIZE
+
+        # Calculate total chunks
+        total_chunks = math.ceil(total_size / chunk_size)
+
+        # Generate IDs
+        upload_id = str(uuid.uuid4())
+        object_id = uuid.uuid4()
+
+        # Create S3 multipart upload
+        s3_upload_id = self.blob_store.create_multipart_upload(
+            object_id, request.document_metadata.kind
+        )
+
+        # Serialize document metadata for storage
+        doc_meta_json = json.dumps({
+            "id": request.document_metadata.id,
+            "time": request.document_metadata.time,
+            "kind": request.document_metadata.kind,
+            "title": request.document_metadata.title,
+            "comments": request.document_metadata.comments,
+            "user": request.document_metadata.user,
+            "tags": request.document_metadata.tags,
+        })
+
+        # Store session in Cassandra
+        await self.table_store.create_upload_session(
+            upload_id=upload_id,
+            user=request.document_metadata.user,
+            document_id=request.document_metadata.id,
+            document_metadata=doc_meta_json,
+            s3_upload_id=s3_upload_id,
+            object_id=object_id,
+            total_size=total_size,
+            chunk_size=chunk_size,
+            total_chunks=total_chunks,
+        )
+
+        logger.info(f"Created upload session {upload_id} with {total_chunks} chunks")
+
+        return LibrarianResponse(
+            error=None,
+            upload_id=upload_id,
+            chunk_size=chunk_size,
+            total_chunks=total_chunks,
+        )
+
+    async def upload_chunk(self, request):
+        """
+        Upload a single chunk of a document.
+
+        Forwards the chunk to S3 and updates session state.
+        """
+        logger.debug(f"Uploading chunk {request.chunk_index} for upload {request.upload_id}")
+
+        # Get session
+        session = await self.table_store.get_upload_session(request.upload_id)
+        if session is None:
+            raise RequestError("Upload session not found or expired")
+
+        # Validate ownership
+        if session["user"] != request.user:
+            raise RequestError("Not authorized to upload to this session")
+
+        # Validate chunk index
+        if request.chunk_index < 0 or request.chunk_index >= session["total_chunks"]:
+            raise RequestError(
+                f"Invalid chunk index {request.chunk_index}, "
+                f"must be 0-{session['total_chunks']-1}"
+            )
+
+        # Decode content
+        content = base64.b64decode(request.content)
+
+        # Upload to S3 (part numbers are 1-indexed in S3)
+        part_number = request.chunk_index + 1
+        etag = self.blob_store.upload_part(
+            object_id=session["object_id"],
+            upload_id=session["s3_upload_id"],
+            part_number=part_number,
+            data=content,
+        )
+
+        # Update session with chunk info
+        await self.table_store.update_upload_session_chunk(
+            upload_id=request.upload_id,
+            chunk_index=request.chunk_index,
+            etag=etag,
+        )
+
+        # Calculate progress
+        chunks_received = session["chunks_received"]
+        # Add this chunk if not already present
+        if request.chunk_index not in chunks_received:
+            chunks_received[request.chunk_index] = etag
+
+        num_chunks_received = len(chunks_received) + 1  # +1 for this chunk
+        bytes_received = num_chunks_received * session["chunk_size"]
+        # Adjust for last chunk potentially being smaller
+        if bytes_received > session["total_size"]:
+            bytes_received = session["total_size"]
+
+        logger.debug(f"Chunk {request.chunk_index} uploaded, {num_chunks_received}/{session['total_chunks']} complete")
+
+        return LibrarianResponse(
+            error=None,
+            upload_id=request.upload_id,
+            chunk_index=request.chunk_index,
+            chunks_received=num_chunks_received,
+            total_chunks=session["total_chunks"],
+            bytes_received=bytes_received,
+            total_bytes=session["total_size"],
+        )
+
+    async def complete_upload(self, request):
+        """
+        Finalize a chunked upload and create the document.
+
+        Completes the S3 multipart upload and creates the document metadata.
+        """
+        logger.info(f"Completing upload {request.upload_id}")
+
+        # Get session
+        session = await self.table_store.get_upload_session(request.upload_id)
+        if session is None:
+            raise RequestError("Upload session not found or expired")
+
+        # Validate ownership
+        if session["user"] != request.user:
+            raise RequestError("Not authorized to complete this upload")
+
+        # Verify all chunks received
+        chunks_received = session["chunks_received"]
+        if len(chunks_received) != session["total_chunks"]:
+            missing = [
+                i for i in range(session["total_chunks"])
+                if i not in chunks_received
+            ]
+            raise RequestError(
+                f"Missing chunks: {missing[:10]}{'...' if len(missing) > 10 else ''}"
+            )
+
+        # Build parts list for S3 (sorted by part number)
+        parts = [
+            (chunk_index + 1, etag)  # S3 part numbers are 1-indexed
+            for chunk_index, etag in sorted(chunks_received.items())
+        ]
+
+        # Complete S3 multipart upload
+        self.blob_store.complete_multipart_upload(
+            object_id=session["object_id"],
+            upload_id=session["s3_upload_id"],
+            parts=parts,
+        )
+
+        # Parse document metadata from session
+        doc_meta_dict = json.loads(session["document_metadata"])
+
+        # Create DocumentMetadata object
+        from .. schema import DocumentMetadata
+        doc_metadata = DocumentMetadata(
+            id=doc_meta_dict["id"],
+            time=doc_meta_dict.get("time", int(time.time())),
+            kind=doc_meta_dict["kind"],
+            title=doc_meta_dict.get("title", ""),
+            comments=doc_meta_dict.get("comments", ""),
+            user=doc_meta_dict["user"],
+            tags=doc_meta_dict.get("tags", []),
+            metadata=[],  # Triples not supported in chunked upload yet
+        )
+
+        # Add document to table
+        await self.table_store.add_document(doc_metadata, session["object_id"])
+
+        # Delete upload session
+        await self.table_store.delete_upload_session(request.upload_id)
+
+        logger.info(f"Upload {request.upload_id} completed, document {doc_metadata.id} created")
+
+        return LibrarianResponse(
+            error=None,
+            document_id=doc_metadata.id,
+            object_id=str(session["object_id"]),
+        )
+
+    async def abort_upload(self, request):
+        """
+        Cancel a chunked upload and clean up resources.
+        """
+        logger.info(f"Aborting upload {request.upload_id}")
+
+        # Get session
+        session = await self.table_store.get_upload_session(request.upload_id)
+        if session is None:
+            raise RequestError("Upload session not found or expired")
+
+        # Validate ownership
+        if session["user"] != request.user:
+            raise RequestError("Not authorized to abort this upload")
+
+        # Abort S3 multipart upload
+        self.blob_store.abort_multipart_upload(
+            object_id=session["object_id"],
+            upload_id=session["s3_upload_id"],
+        )
+
+        # Delete session from Cassandra
+        await self.table_store.delete_upload_session(request.upload_id)
+
+        logger.info(f"Upload {request.upload_id} aborted")
+
+        return LibrarianResponse(error=None)
+
+    async def get_upload_status(self, request):
+        """
+        Get the status of an in-progress upload.
+        """
+        logger.debug(f"Getting status for upload {request.upload_id}")
+
+        # Get session
+        session = await self.table_store.get_upload_session(request.upload_id)
+        if session is None:
+            return LibrarianResponse(
+                error=None,
+                upload_id=request.upload_id,
+                upload_state="expired",
+            )
+
+        # Validate ownership
+        if session["user"] != request.user:
+            raise RequestError("Not authorized to view this upload")
+
+        chunks_received = session["chunks_received"]
+        received_list = sorted(chunks_received.keys())
+        missing_list = [
+            i for i in range(session["total_chunks"])
+            if i not in chunks_received
+        ]
+
+        bytes_received = len(chunks_received) * session["chunk_size"]
+        if bytes_received > session["total_size"]:
+            bytes_received = session["total_size"]
+
+        return LibrarianResponse(
+            error=None,
+            upload_id=request.upload_id,
+            upload_state="in-progress",
+            received_chunks=received_list,
+            missing_chunks=missing_list,
+            chunks_received=len(chunks_received),
+            total_chunks=session["total_chunks"],
+            bytes_received=bytes_received,
+            total_bytes=session["total_size"],
+        )
+
+    async def list_uploads(self, request):
+        """
+        List all in-progress uploads for a user.
+        """
+        logger.debug(f"Listing uploads for user {request.user}")
+
+        sessions = await self.table_store.list_upload_sessions(request.user)
+
+        upload_sessions = [
+            UploadSession(
+                upload_id=s["upload_id"],
+                document_id=s["document_id"],
+                document_metadata_json=s.get("document_metadata", ""),
+                total_size=s["total_size"],
+                chunk_size=s["chunk_size"],
+                total_chunks=s["total_chunks"],
+                chunks_received=s["chunks_received"],
+                created_at=str(s.get("created_at", "")),
+            )
+            for s in sessions
+        ]
+
+        return LibrarianResponse(
+            error=None,
+            upload_sessions=upload_sessions,
         )
 

@@ -6,6 +6,7 @@ including document storage, metadata management, and processing workflow coordin
 """
 
 import datetime
+import math
 import time
 import base64
 import logging
@@ -16,6 +17,12 @@ from .. schema import IRI, LITERAL
 from . exceptions import *
 
 logger = logging.getLogger(__name__)
+
+# Threshold for switching to chunked upload (10MB)
+CHUNKED_UPLOAD_THRESHOLD = 10 * 1024 * 1024
+
+# Default chunk size (5MB - S3 multipart minimum)
+DEFAULT_CHUNK_SIZE = 5 * 1024 * 1024
 
 
 def to_value(x):
@@ -67,13 +74,14 @@ class Library:
 
     def add_document(
             self, document, id, metadata, user, title, comments,
-            kind="text/plain", tags=[],
+            kind="text/plain", tags=[], on_progress=None,
     ):
         """
         Add a document to the library.
 
         Stores a document with associated metadata in the library for
-        retrieval and processing.
+        retrieval and processing. For large documents (> 10MB), automatically
+        uses chunked upload for better reliability and progress tracking.
 
         Args:
             document: Document content as bytes
@@ -84,6 +92,7 @@ class Library:
             comments: Document description or comments
             kind: MIME type of the document (default: "text/plain")
             tags: List of tags for categorization (default: [])
+            on_progress: Optional callback(bytes_sent, total_bytes) for progress updates
 
         Returns:
             dict: Response from the add operation
@@ -107,6 +116,22 @@ class Library:
                     kind="application/pdf",
                     tags=["research", "physics"]
                 )
+
+            # Add a large document with progress tracking
+            def progress(sent, total):
+                print(f"Uploaded {sent}/{total} bytes ({100*sent//total}%)")
+
+            with open("large_document.pdf", "rb") as f:
+                library.add_document(
+                    document=f.read(),
+                    id="large-doc-001",
+                    metadata=[],
+                    user="trustgraph",
+                    title="Large Document",
+                    comments="A very large document",
+                    kind="application/pdf",
+                    on_progress=progress
+                )
             ```
         """
 
@@ -124,6 +149,21 @@ class Library:
         if not title: title = ""
         if not comments: comments = ""
 
+        # Check if we should use chunked upload
+        if len(document) >= CHUNKED_UPLOAD_THRESHOLD:
+            return self._add_document_chunked(
+                document=document,
+                id=id,
+                metadata=metadata,
+                user=user,
+                title=title,
+                comments=comments,
+                kind=kind,
+                tags=tags,
+                on_progress=on_progress,
+            )
+
+        # Small document: use single operation (existing behavior)
         triples = []
 
         def emit(t):
@@ -166,6 +206,101 @@ class Library:
         }
 
         return self.request(input)
+
+    def _add_document_chunked(
+            self, document, id, metadata, user, title, comments,
+            kind, tags, on_progress=None,
+    ):
+        """
+        Add a large document using chunked upload.
+
+        Internal method that handles multipart upload for large documents.
+        """
+        total_size = len(document)
+        chunk_size = DEFAULT_CHUNK_SIZE
+
+        logger.info(f"Starting chunked upload for document {id} ({total_size} bytes)")
+
+        # Begin upload session
+        begin_request = {
+            "operation": "begin-upload",
+            "document-metadata": {
+                "id": id,
+                "time": int(time.time()),
+                "kind": kind,
+                "title": title,
+                "comments": comments,
+                "user": user,
+                "tags": tags,
+            },
+            "total-size": total_size,
+            "chunk-size": chunk_size,
+        }
+
+        begin_response = self.request(begin_request)
+
+        upload_id = begin_response.get("upload-id")
+        if not upload_id:
+            raise RuntimeError("Failed to begin upload: no upload_id returned")
+
+        actual_chunk_size = begin_response.get("chunk-size", chunk_size)
+        total_chunks = begin_response.get("total-chunks", math.ceil(total_size / actual_chunk_size))
+
+        logger.info(f"Upload session {upload_id} created, {total_chunks} chunks")
+
+        try:
+            # Upload chunks
+            bytes_sent = 0
+            for chunk_index in range(total_chunks):
+                start = chunk_index * actual_chunk_size
+                end = min(start + actual_chunk_size, total_size)
+                chunk_data = document[start:end]
+
+                chunk_request = {
+                    "operation": "upload-chunk",
+                    "upload-id": upload_id,
+                    "chunk-index": chunk_index,
+                    "content": base64.b64encode(chunk_data).decode("utf-8"),
+                    "user": user,
+                }
+
+                chunk_response = self.request(chunk_request)
+
+                bytes_sent = end
+
+                # Call progress callback if provided
+                if on_progress:
+                    on_progress(bytes_sent, total_size)
+
+                logger.debug(f"Chunk {chunk_index + 1}/{total_chunks} uploaded")
+
+            # Complete upload
+            complete_request = {
+                "operation": "complete-upload",
+                "upload-id": upload_id,
+                "user": user,
+            }
+
+            complete_response = self.request(complete_request)
+
+            logger.info(f"Chunked upload completed for document {id}")
+
+            return complete_response
+
+        except Exception as e:
+            # Try to abort on failure
+            logger.error(f"Chunked upload failed: {e}")
+            try:
+                abort_request = {
+                    "operation": "abort-upload",
+                    "upload-id": upload_id,
+                    "user": user,
+                }
+                self.request(abort_request)
+                logger.info(f"Aborted failed upload {upload_id}")
+            except Exception as abort_error:
+                logger.warning(f"Failed to abort upload: {abort_error}")
+            raise
 
     def get_documents(self, user):
         """
@@ -534,4 +669,193 @@ class Library:
         except Exception as e:
             logger.error("Failed to parse processing list response", exc_info=True)
             raise ProtocolException(f"Response not formatted correctly")
+
+    # Chunked upload management methods
+
+    def get_pending_uploads(self, user):
+        """
+        List all pending (in-progress) uploads for a user.
+
+        Retrieves information about chunked uploads that have been started
+        but not yet completed.
+
+        Args:
+            user: User identifier
+
+        Returns:
+            list[dict]: List of pending upload information
+
+        Example:
+            ```python
+            library = api.library()
+            pending = library.get_pending_uploads(user="trustgraph")
+
+            for upload in pending:
+                print(f"Upload {upload['upload_id']}:")
+                print(f"  Document: {upload['document_id']}")
+                print(f"  Progress: {upload['chunks_received']}/{upload['total_chunks']}")
+            ```
+        """
+        input = {
+            "operation": "list-uploads",
+            "user": user,
+        }
+
+        response = self.request(input)
+
+        return response.get("upload-sessions", [])
+
+    def get_upload_status(self, upload_id, user):
+        """
+        Get the status of a specific upload.
+
+        Retrieves detailed status information about a chunked upload,
+        including which chunks have been received and which are missing.
+
+        Args:
+            upload_id: Upload session identifier
+            user: User identifier
+
+        Returns:
+            dict: Upload status information including:
+                - upload_id: The upload session ID
+                - state: "in-progress", "completed", or "expired"
+                - chunks_received: Number of chunks received
+                - total_chunks: Total number of chunks expected
+                - received_chunks: List of received chunk indices
+                - missing_chunks: List of missing chunk indices
+                - bytes_received: Total bytes received
+                - total_bytes: Total expected bytes
+
+        Example:
+            ```python
+            library = api.library()
+            status = library.get_upload_status(
+                upload_id="abc-123",
+                user="trustgraph"
+            )
+
+            if status['state'] == 'in-progress':
+                print(f"Missing chunks: {status['missing_chunks']}")
+            ```
+        """
+        input = {
+            "operation": "get-upload-status",
+            "upload-id": upload_id,
+            "user": user,
+        }
+
+        return self.request(input)
+
+    def abort_upload(self, upload_id, user):
+        """
+        Abort an in-progress upload.
+
+        Cancels a chunked upload and cleans up any uploaded chunks.
+
+        Args:
+            upload_id: Upload session identifier
+            user: User identifier
+
+        Returns:
+            dict: Empty response on success
+
+        Example:
+            ```python
+            library = api.library()
+            library.abort_upload(upload_id="abc-123", user="trustgraph")
+            ```
+        """
+        input = {
+            "operation": "abort-upload",
+            "upload-id": upload_id,
+            "user": user,
+        }
+
+        return self.request(input)
+
+    def resume_upload(self, upload_id, document, user, on_progress=None):
+        """
+        Resume an interrupted upload.
+
+        Continues a chunked upload that was previously interrupted,
+        uploading only the missing chunks.
+
+        Args:
+            upload_id: Upload session identifier to resume
+            document: Complete document content as bytes
+            user: User identifier
+            on_progress: Optional callback(bytes_sent, total_bytes) for progress updates
+
+        Returns:
+            dict: Response from completing the upload
+
+        Example:
+            ```python
+            library = api.library()
+
+            # Check what's missing
+            status = library.get_upload_status(
+                upload_id="abc-123",
+                user="trustgraph"
+            )
+
+            if status['state'] == 'in-progress':
+                # Resume with the same document
+                with open("large_document.pdf", "rb") as f:
+                    library.resume_upload(
+                        upload_id="abc-123",
+                        document=f.read(),
+                        user="trustgraph"
+                    )
+            ```
+        """
+        # Get current status
+        status = self.get_upload_status(upload_id, user)
+
+        if status.get("upload-state") == "expired":
+            raise RuntimeError("Upload session has expired, please start a new upload")
+
+        if status.get("upload-state") == "completed":
+            return {"message": "Upload already completed"}
+
+        missing_chunks = status.get("missing-chunks", [])
+        total_chunks = status.get("total-chunks", 0)
+        total_bytes = status.get("total-bytes", len(document))
+        chunk_size = total_bytes // total_chunks if total_chunks > 0 else DEFAULT_CHUNK_SIZE
+
+        logger.info(f"Resuming upload {upload_id}, {len(missing_chunks)} chunks remaining")
+
+        # Upload missing chunks
+        for chunk_index in missing_chunks:
+            start = chunk_index * chunk_size
+            end = min(start + chunk_size, len(document))
+            chunk_data = document[start:end]
+
+            chunk_request = {
+                "operation": "upload-chunk",
+                "upload-id": upload_id,
+                "chunk-index": chunk_index,
+                "content": base64.b64encode(chunk_data).decode("utf-8"),
+                "user": user,
+            }
+
+            self.request(chunk_request)
+
+            if on_progress:
+                # Estimate progress including previously uploaded chunks
+                uploaded = total_chunks - len(missing_chunks) + missing_chunks.index(chunk_index) + 1
+                bytes_sent = min(uploaded * chunk_size, total_bytes)
+                on_progress(bytes_sent, total_bytes)
+
+            logger.debug(f"Resumed chunk {chunk_index}")
+
+        # Complete upload
+        complete_request = {
+            "operation": "complete-upload",
+            "upload-id": upload_id,
+            "user": user,
+        }
+
+        return self.request(complete_request)
 
