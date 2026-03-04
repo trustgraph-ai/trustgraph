@@ -191,3 +191,15 @@ class ChunkingService(FlowProcessor):
     def add_args(parser):
         """Add chunking service arguments to parser"""
         FlowProcessor.add_args(parser)
+
+        parser.add_argument(
+            '--librarian-request-queue',
+            default=default_librarian_request_queue,
+            help=f'Librarian request queue (default: {default_librarian_request_queue})',
+        )
+
+        parser.add_argument(
+            '--librarian-response-queue',
+            default=default_librarian_response_queue,
+            help=f'Librarian response queue (default: {default_librarian_response_queue})',
+        )

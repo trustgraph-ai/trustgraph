@@ -4,26 +4,17 @@ Simple decoder, accepts text documents on input, outputs chunks from the
 as text as separate output objects.
 """
 
-import asyncio
-import base64
 import logging
-import uuid
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from prometheus_client import Histogram
 
 from ... schema import TextDocument, Chunk
-from ... schema import LibrarianRequest, LibrarianResponse
-from ... schema import librarian_request_queue, librarian_response_queue
 from ... base import ChunkingService, ConsumerSpec, ProducerSpec
-from ... base import Consumer, Producer, ConsumerMetrics, ProducerMetrics
 
 # Module logger
 logger = logging.getLogger(__name__)
 
 default_ident = "chunker"
-
-default_librarian_request_queue = librarian_request_queue
-default_librarian_response_queue = librarian_response_queue
 
 
 class Processor(ChunkingService):
