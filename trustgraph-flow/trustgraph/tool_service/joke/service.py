@@ -164,7 +164,9 @@ class Processor(DynamicToolService):
         # Map topic to our categories
         if "program" in topic or "code" in topic or "computer" in topic or "software" in topic:
             category = "programming"
-        elif "animal" in topic or "dog" in topic or "cat" in topic or "bird" in topic or "llama" in topic:
+        elif "llama" in topic:
+            category = "llama"
+        elif "animal" in topic or "dog" in topic or "cat" in topic or "bird" in topic:
             category = "animals"
         elif "food" in topic or "eat" in topic or "cook" in topic or "drink" in topic:
             category = "food"
