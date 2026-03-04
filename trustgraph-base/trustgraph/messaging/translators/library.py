@@ -44,14 +44,21 @@ class LibraryRequestTranslator(MessageTranslator):
         
         return LibrarianRequest(
             operation=data.get("operation"),
-            document_id=data.get("document-id"),
-            processing_id=data.get("processing-id"),
+            document_id=data.get("document-id", ""),
+            processing_id=data.get("processing-id", ""),
             document_metadata=doc_metadata,
             processing_metadata=proc_metadata,
             content=content,
-            user=data.get("user"),
-            collection=data.get("collection"),
-            criteria=criteria
+            user=data.get("user", ""),
+            collection=data.get("collection", ""),
+            criteria=criteria,
+            # Chunked upload fields
+            total_size=data.get("total-size", 0),
+            chunk_size=data.get("chunk-size", 0),
+            upload_id=data.get("upload-id", ""),
+            chunk_index=data.get("chunk-index", 0),
+            # List documents filtering
+            include_children=data.get("include-children", False),
         )
     
     def from_pulsar(self, obj: LibrarianRequest) -> Dict[str, Any]:
@@ -98,25 +105,71 @@ class LibraryResponseTranslator(MessageTranslator):
     
     def from_pulsar(self, obj: LibrarianResponse) -> Dict[str, Any]:
         result = {}
-        
+
+        if obj.error:
+            result["error"] = {
+                "type": obj.error.type,
+                "message": obj.error.message,
+            }
+
         if obj.document_metadata:
             result["document-metadata"] = self.doc_metadata_translator.from_pulsar(obj.document_metadata)
-        
+
         if obj.content:
             result["content"] = obj.content.decode("utf-8") if isinstance(obj.content, bytes) else obj.content
-        
+
         if obj.document_metadatas is not None:
             result["document-metadatas"] = [
                 self.doc_metadata_translator.from_pulsar(dm)
                 for dm in obj.document_metadatas
             ]
-        
+
         if obj.processing_metadatas is not None:
             result["processing-metadatas"] = [
                 self.proc_metadata_translator.from_pulsar(pm)
                 for pm in obj.processing_metadatas
             ]
-        
+
+        # Chunked upload response fields
+        if obj.upload_id:
+            result["upload-id"] = obj.upload_id
+        if obj.chunk_size:
+            result["chunk-size"] = obj.chunk_size
+        if obj.total_chunks:
+            result["total-chunks"] = obj.total_chunks
+        if obj.chunk_index:
+            result["chunk-index"] = obj.chunk_index
+        if obj.chunks_received:
+            result["chunks-received"] = obj.chunks_received
+        if obj.bytes_received:
+            result["bytes-received"] = obj.bytes_received
+        if obj.total_bytes:
+            result["total-bytes"] = obj.total_bytes
+        if obj.document_id:
+            result["document-id"] = obj.document_id
+        if obj.object_id:
+            result["object-id"] = obj.object_id
+        if obj.upload_state:
+            result["upload-state"] = obj.upload_state
+        if obj.received_chunks:
+            result["received-chunks"] = obj.received_chunks
+        if obj.missing_chunks:
+            result["missing-chunks"] = obj.missing_chunks
+        if obj.upload_sessions:
+            result["upload-sessions"] = [
+                {
+                    "upload-id": s.upload_id,
+                    "document-id": s.document_id,
+                    "document-metadata-json": s.document_metadata_json,
+                    "total-size": s.total_size,
+                    "chunk-size": s.chunk_size,
+                    "total-chunks": s.total_chunks,
+                    "chunks-received": s.chunks_received,
+                    "created-at": s.created_at,
+                }
+                for s in obj.upload_sessions
+            ]
+
         return result
     
     def from_response_with_completion(self, obj: LibrarianResponse) -> Tuple[Dict[str, Any], bool]:

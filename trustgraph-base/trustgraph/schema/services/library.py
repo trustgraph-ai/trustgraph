@@ -49,6 +49,36 @@ from ..core.metadata import Metadata
 #   <- (processing_metadata[])
 #   <- (error)
 
+# begin-upload
+#   -> (document_metadata, total_size, chunk_size)
+#   <- (upload_id, chunk_size, total_chunks)
+#   <- (error)
+
+# upload-chunk
+#   -> (upload_id, chunk_index, content)
+#   <- (upload_id, chunk_index, chunks_received, total_chunks, bytes_received, total_bytes)
+#   <- (error)
+
+# complete-upload
+#   -> (upload_id)
+#   <- (document_id, object_id)
+#   <- (error)
+
+# abort-upload
+#   -> (upload_id)
+#   <- ()
+#   <- (error)
+
+# get-upload-status
+#   -> (upload_id)
+#   <- (upload_id, state, chunks_received, missing_chunks, total_chunks, bytes_received, total_bytes)
+#   <- (error)
+
+# list-uploads
+#   -> (user)
+#   <- (uploads[])
+#   <- (error)
+
 @dataclass
 class DocumentMetadata:
     id: str = ""
@@ -59,6 +89,9 @@ class DocumentMetadata:
     metadata: list[Triple] = field(default_factory=list)
     user: str = ""
     tags: list[str] = field(default_factory=list)
+    # Child document support
+    parent_id: str = ""  # Empty for top-level docs, set for children
+    document_type: str = "source"  # "source" or "extracted"
 
 @dataclass
 class ProcessingMetadata:
@@ -77,10 +110,32 @@ class Criteria:
     operator: str = ""
 
 @dataclass
+class UploadProgress:
+    """Progress information for chunked uploads."""
+    upload_id: str = ""
+    chunks_received: int = 0
+    total_chunks: int = 0
+    bytes_received: int = 0
+    total_bytes: int = 0
+
+@dataclass
+class UploadSession:
+    """Information about an in-progress upload."""
+    upload_id: str = ""
+    document_id: str = ""
+    document_metadata_json: str = ""  # JSON-encoded DocumentMetadata
+    total_size: int = 0
+    chunk_size: int = 0
+    total_chunks: int = 0
+    chunks_received: int = 0
+    created_at: str = ""
+
+@dataclass
 class LibrarianRequest:
     # add-document, remove-document, update-document, get-document-metadata,
     # get-document-content, add-processing, remove-processing, list-documents,
-    # list-processing
+    # list-processing, begin-upload, upload-chunk, complete-upload, abort-upload,
+    # get-upload-status, list-uploads
     operation: str = ""
 
     # add-document, remove-document, update-document, get-document-metadata,
@@ -90,16 +145,16 @@ class LibrarianRequest:
     # add-processing, remove-processing
     processing_id: str = ""
 
-    # add-document, update-document
+    # add-document, update-document, begin-upload
     document_metadata: DocumentMetadata | None = None
 
     # add-processing
     processing_metadata: ProcessingMetadata | None = None
 
-    # add-document
+    # add-document, upload-chunk
     content: bytes = b""
 
-    # list-documents, list-processing
+    # list-documents, list-processing, list-uploads
     user: str = ""
 
     # list-documents?, list-processing?
@@ -108,6 +163,19 @@ class LibrarianRequest:
     #
     criteria: list[Criteria] = field(default_factory=list)
 
+    # begin-upload
+    total_size: int = 0
+    chunk_size: int = 0
+
+    # upload-chunk, complete-upload, abort-upload, get-upload-status
+    upload_id: str = ""
+
+    # upload-chunk, stream-document
+    chunk_index: int = 0
+
+    # list-documents - whether to include child documents (default False)
+    include_children: bool = False
+
 @dataclass
 class LibrarianResponse:
     error: Error | None = None
@@ -115,6 +183,29 @@ class LibrarianResponse:
     content: bytes = b""
     document_metadatas: list[DocumentMetadata] = field(default_factory=list)
     processing_metadatas: list[ProcessingMetadata] = field(default_factory=list)
+
+    # begin-upload response
+    upload_id: str = ""
+    chunk_size: int = 0
+    total_chunks: int = 0
+
+    # upload-chunk response
+    chunk_index: int = 0
+    chunks_received: int = 0
+    bytes_received: int = 0
+    total_bytes: int = 0
+
+    # complete-upload response
+    document_id: str = ""
+    object_id: str = ""
+
+    # get-upload-status response
+    upload_state: str = ""  # "in-progress", "completed", "expired"
+    received_chunks: list[int] = field(default_factory=list)
+    missing_chunks: list[int] = field(default_factory=list)
+
+    # list-uploads response
+    upload_sessions: list[UploadSession] = field(default_factory=list)
 
 # FIXME: Is this right?  Using persistence on librarian so that
 # message chunking works

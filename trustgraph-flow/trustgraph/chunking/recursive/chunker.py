@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 default_ident = "chunker"
 
+
 class Processor(ChunkingService):
 
     def __init__(self, **params):
@@ -23,7 +24,7 @@ class Processor(ChunkingService):
         id = params.get("id", default_ident)
         chunk_size = params.get("chunk_size", 2000)
         chunk_overlap = params.get("chunk_overlap", 100)
-        
+
         super(Processor, self).__init__(
             **params | { "id": id }
         )
@@ -69,6 +70,9 @@ class Processor(ChunkingService):
         v = msg.value()
         logger.info(f"Chunking document {v.metadata.id}...")
 
+        # Get text content (fetches from librarian if needed)
+        text = await self.get_document_text(v)
+
         # Extract chunk parameters from flow (allows runtime override)
         chunk_size, chunk_overlap = await self.chunk_document(
             msg, consumer, flow,
@@ -90,9 +94,7 @@ class Processor(ChunkingService):
             is_separator_regex=False,
         )
 
-        texts = text_splitter.create_documents(
-            [v.text.decode("utf-8")]
-        )
+        texts = text_splitter.create_documents([text])
 
         for ix, chunk in enumerate(texts):
 
@@ -133,4 +135,3 @@ class Processor(ChunkingService):
 def run():
 
     Processor.launch(default_ident, __doc__)
-

@@ -10,6 +10,9 @@ from ..core.topic import topic
 class Document:
     metadata: Metadata | None = None
     data: bytes = b""
+    # For large document streaming: if document_id is set, the receiver should
+    # fetch content from librarian instead of using inline data
+    document_id: str = ""
 
 ############################################################################
 
@@ -19,6 +22,9 @@ class Document:
 class TextDocument:
     metadata: Metadata | None = None
     text: bytes = b""
+    # For large document streaming: if document_id is set, the receiver should
+    # fetch content from librarian instead of using inline text
+    document_id: str = ""
 
 ############################################################################
 

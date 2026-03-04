@@ -112,6 +112,34 @@ class LibraryTableStore:
             ON document (object_id)
         """);
 
+        # Add parent_id and document_type columns for child document support
+        logger.debug("document table parent_id column...")
+
+        try:
+            self.cassandra.execute("""
+                ALTER TABLE document ADD parent_id text
+            """);
+        except Exception as e:
+            # Column may already exist
+            if "already exists" not in str(e).lower() and "Invalid column name" not in str(e):
+                logger.debug(f"parent_id column may already exist: {e}")
+
+        try:
+            self.cassandra.execute("""
+                ALTER TABLE document ADD document_type text
+            """);
+        except Exception as e:
+            # Column may already exist
+            if "already exists" not in str(e).lower() and "Invalid column name" not in str(e):
+                logger.debug(f"document_type column may already exist: {e}")
+
+        logger.debug("document parent index...")
+
+        self.cassandra.execute("""
+            CREATE INDEX IF NOT EXISTS document_parent
+            ON document (parent_id)
+        """);
+
         logger.debug("processing table...")
 
         self.cassandra.execute("""
@@ -127,6 +155,32 @@ class LibraryTableStore:
             );
         """);
 
+        logger.debug("upload_session table...")
+
+        self.cassandra.execute("""
+            CREATE TABLE IF NOT EXISTS upload_session (
+                upload_id text PRIMARY KEY,
+                user text,
+                document_id text,
+                document_metadata text,
+                s3_upload_id text,
+                object_id uuid,
+                total_size bigint,
+                chunk_size int,
+                total_chunks int,
+                chunks_received map<int, text>,
+                created_at timestamp,
+                updated_at timestamp
+            ) WITH default_time_to_live = 86400;
+        """);
+
+        logger.debug("upload_session user index...")
+
+        self.cassandra.execute("""
+            CREATE INDEX IF NOT EXISTS upload_session_user
+            ON upload_session (user)
+        """);
+
         logger.info("Cassandra schema OK.")
 
     def prepare_statements(self):
@@ -136,9 +190,10 @@ class LibraryTableStore:
             (
                 id, user, time,
                 kind, title, comments,
-                metadata, tags, object_id
+                metadata, tags, object_id,
+                parent_id, document_type
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """)
 
         self.update_document_stmt = self.cassandra.prepare("""
@@ -149,7 +204,8 @@ class LibraryTableStore:
         """)
 
         self.get_document_stmt = self.cassandra.prepare("""
-            SELECT time, kind, title, comments, metadata, tags, object_id
+            SELECT time, kind, title, comments, metadata, tags, object_id,
+                   parent_id, document_type
             FROM document
             WHERE user = ? AND id = ?
         """)
@@ -168,14 +224,16 @@ class LibraryTableStore:
 
         self.list_document_stmt = self.cassandra.prepare("""
             SELECT
-                id, time, kind, title, comments, metadata, tags, object_id
+                id, time, kind, title, comments, metadata, tags, object_id,
+                parent_id, document_type
             FROM document
             WHERE user = ?
         """)
 
         self.list_document_by_tag_stmt = self.cassandra.prepare("""
             SELECT
-                id, time, kind, title, comments, metadata, tags, object_id
+                id, time, kind, title, comments, metadata, tags, object_id,
+                parent_id, document_type
             FROM document
             WHERE user = ? AND tags CONTAINS ?
             ALLOW FILTERING
@@ -210,6 +268,57 @@ class LibraryTableStore:
             WHERE user = ?
         """)
 
+        # Upload session prepared statements
+        self.insert_upload_session_stmt = self.cassandra.prepare("""
+            INSERT INTO upload_session
+            (
+                upload_id, user, document_id, document_metadata,
+                s3_upload_id, object_id, total_size, chunk_size,
+                total_chunks, chunks_received, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """)
+
+        self.get_upload_session_stmt = self.cassandra.prepare("""
+            SELECT
+                upload_id, user, document_id, document_metadata,
+                s3_upload_id, object_id, total_size, chunk_size,
+                total_chunks, chunks_received, created_at, updated_at
+            FROM upload_session
+            WHERE upload_id = ?
+        """)
+
+        self.update_upload_session_chunk_stmt = self.cassandra.prepare("""
+            UPDATE upload_session
+            SET chunks_received = chunks_received + ?,
+                updated_at = ?
+            WHERE upload_id = ?
+        """)
+
+        self.delete_upload_session_stmt = self.cassandra.prepare("""
+            DELETE FROM upload_session
+            WHERE upload_id = ?
+        """)
+
+        self.list_upload_sessions_stmt = self.cassandra.prepare("""
+            SELECT
+                upload_id, document_id, document_metadata,
+                total_size, chunk_size, total_chunks,
+                chunks_received, created_at, updated_at
+            FROM upload_session
+            WHERE user = ?
+        """)
+
+        # Child document queries
+        self.list_children_stmt = self.cassandra.prepare("""
+            SELECT
+                id, user, time, kind, title, comments, metadata, tags,
+                object_id, parent_id, document_type
+            FROM document
+            WHERE parent_id = ?
+            ALLOW FILTERING
+        """)
+
     async def document_exists(self, user, id):
 
         resp = self.cassandra.execute(
@@ -236,6 +345,10 @@ class LibraryTableStore:
             for v in document.metadata
         ]
 
+        # Get parent_id and document_type from document, defaulting if not set
+        parent_id = getattr(document, 'parent_id', '') or ''
+        document_type = getattr(document, 'document_type', 'source') or 'source'
+
         while True:
 
             try:
@@ -245,7 +358,8 @@ class LibraryTableStore:
                     (
                         document.id, document.user, int(document.time * 1000),
                         document.kind, document.title, document.comments,
-                        metadata, document.tags, object_id
+                        metadata, document.tags, object_id,
+                        parent_id, document_type
                     )
                 )
 
@@ -349,9 +463,58 @@ class LibraryTableStore:
                         p=tuple_to_term(m[2], m[3]),
                         o=tuple_to_term(m[4], m[5])
                     )
-                    for m in row[5]
+                    for m in (row[5] or [])
                 ],
                 tags = row[6] if row[6] else [],
+                parent_id = row[8] if row[8] else "",
+                document_type = row[9] if row[9] else "source",
+            )
+            for row in resp
+        ]
+
+        logger.debug("Done")
+
+        return lst
+
+    async def list_children(self, parent_id):
+        """List all child documents for a given parent document ID."""
+
+        logger.debug(f"List children for parent {parent_id}")
+
+        while True:
+
+            try:
+
+                resp = self.cassandra.execute(
+                    self.list_children_stmt,
+                    (parent_id,)
+                )
+
+                break
+
+            except Exception as e:
+                logger.error("Exception occurred", exc_info=True)
+                raise e
+
+        lst = [
+            DocumentMetadata(
+                id = row[0],
+                user = row[1],
+                time = int(time.mktime(row[2].timetuple())),
+                kind = row[3],
+                title = row[4],
+                comments = row[5],
+                metadata = [
+                    Triple(
+                        s=tuple_to_term(m[0], m[1]),
+                        p=tuple_to_term(m[2], m[3]),
+                        o=tuple_to_term(m[4], m[5])
+                    )
+                    for m in (row[6] or [])
+                ],
+                tags = row[7] if row[7] else [],
+                parent_id = row[9] if row[9] else "",
+                document_type = row[10] if row[10] else "source",
             )
             for row in resp
         ]
@@ -394,9 +557,11 @@ class LibraryTableStore:
                         p=tuple_to_term(m[2], m[3]),
                         o=tuple_to_term(m[4], m[5])
                     )
-                    for m in row[4]
+                    for m in (row[4] or [])
                 ],
                 tags = row[5] if row[5] else [],
+                parent_id = row[7] if row[7] else "",
+                document_type = row[8] if row[8] else "source",
             )
 
             logger.debug("Done")
@@ -532,3 +697,152 @@ class LibraryTableStore:
         logger.debug("Done")
 
         return lst
+
+    # Upload session methods
+
+    async def create_upload_session(
+        self,
+        upload_id,
+        user,
+        document_id,
+        document_metadata,
+        s3_upload_id,
+        object_id,
+        total_size,
+        chunk_size,
+        total_chunks,
+    ):
+        """Create a new upload session for chunked upload."""
+
+        logger.info(f"Creating upload session {upload_id}")
+
+        now = int(time.time() * 1000)
+
+        while True:
+            try:
+                self.cassandra.execute(
+                    self.insert_upload_session_stmt,
+                    (
+                        upload_id, user, document_id, document_metadata,
+                        s3_upload_id, object_id, total_size, chunk_size,
+                        total_chunks, {}, now, now
+                    )
+                )
+                break
+            except Exception as e:
+                logger.error("Exception occurred", exc_info=True)
+                raise e
+
+        logger.debug("Upload session created")
+
+    async def get_upload_session(self, upload_id):
+        """Get an upload session by ID."""
+
+        logger.debug(f"Get upload session {upload_id}")
+
+        while True:
+            try:
+                resp = self.cassandra.execute(
+                    self.get_upload_session_stmt,
+                    (upload_id,)
+                )
+                break
+            except Exception as e:
+                logger.error("Exception occurred", exc_info=True)
+                raise e
+
+        for row in resp:
+            session = {
+                "upload_id": row[0],
+                "user": row[1],
+                "document_id": row[2],
+                "document_metadata": row[3],
+                "s3_upload_id": row[4],
+                "object_id": row[5],
+                "total_size": row[6],
+                "chunk_size": row[7],
+                "total_chunks": row[8],
+                "chunks_received": row[9] if row[9] else {},
+                "created_at": row[10],
+                "updated_at": row[11],
+            }
+            logger.debug("Done")
+            return session
+
+        return None
+
+    async def update_upload_session_chunk(self, upload_id, chunk_index, etag):
+        """Record a successfully uploaded chunk."""
+
+        logger.debug(f"Update upload session {upload_id} chunk {chunk_index}")
+
+        now = int(time.time() * 1000)
+
+        while True:
+            try:
+                self.cassandra.execute(
+                    self.update_upload_session_chunk_stmt,
+                    (
+                        {chunk_index: etag},
+                        now,
+                        upload_id
+                    )
+                )
+                break
+            except Exception as e:
+                logger.error("Exception occurred", exc_info=True)
+                raise e
+
+        logger.debug("Chunk recorded")
+
+    async def delete_upload_session(self, upload_id):
+        """Delete an upload session."""
+
+        logger.info(f"Deleting upload session {upload_id}")
+
+        while True:
+            try:
+                self.cassandra.execute(
+                    self.delete_upload_session_stmt,
+                    (upload_id,)
+                )
+                break
+            except Exception as e:
+                logger.error("Exception occurred", exc_info=True)
+                raise e
+
+        logger.debug("Upload session deleted")
+
+    async def list_upload_sessions(self, user):
+        """List all upload sessions for a user."""
+
+        logger.debug(f"List upload sessions for {user}")
+
+        while True:
+            try:
+                resp = self.cassandra.execute(
+                    self.list_upload_sessions_stmt,
+                    (user,)
+                )
+                break
+            except Exception as e:
+                logger.error("Exception occurred", exc_info=True)
+                raise e
+
+        sessions = []
+        for row in resp:
+            chunks_received = row[6] if row[6] else {}
+            sessions.append({
+                "upload_id": row[0],
+                "document_id": row[1],
+                "document_metadata": row[2],
+                "total_size": row[3],
+                "chunk_size": row[4],
+                "total_chunks": row[5],
+                "chunks_received": len(chunks_received),
+                "created_at": row[7],
+                "updated_at": row[8],
+            })
+
+        logger.debug("Done")
+        return sessions
