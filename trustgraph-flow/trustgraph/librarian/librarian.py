@@ -73,13 +73,7 @@ class Librarian:
 
         logger.debug("Add complete")
 
-        return LibrarianResponse(
-            error = None,
-            document_metadata = None,
-            content = None,
-            document_metadatas = None,
-            processing_metadatas = None,
-        )
+        return LibrarianResponse()
 
     async def remove_document(self, request):
 
@@ -122,13 +116,7 @@ class Librarian:
 
         logger.debug("Remove complete")
 
-        return LibrarianResponse(
-            error = None,
-            document_metadata = None,
-            content = None,
-            document_metadatas = None,
-            processing_metadatas = None,
-        )
+        return LibrarianResponse()
 
     async def update_document(self, request):
 
@@ -146,13 +134,7 @@ class Librarian:
 
         logger.debug("Update complete")
 
-        return LibrarianResponse(
-            error = None,
-            document_metadata = None,
-            content = None,
-            document_metadatas = None,
-            processing_metadatas = None,
-        )
+        return LibrarianResponse()
 
     async def get_document_metadata(self, request):
 
@@ -169,8 +151,6 @@ class Librarian:
             error = None,
             document_metadata = doc,
             content = None,
-            document_metadatas = None,
-            processing_metadatas = None,
         )
 
     async def get_document_content(self, request):
@@ -192,8 +172,6 @@ class Librarian:
             error = None,
             document_metadata = None,
             content = base64.b64encode(content),
-            document_metadatas = None,
-            processing_metadatas = None,
         )
 
     async def add_processing(self, request):
@@ -239,13 +217,7 @@ class Librarian:
 
         logger.debug("Add complete")
 
-        return LibrarianResponse(
-            error = None,
-            document_metadata = None,
-            content = None,
-            document_metadatas = None,
-            processing_metadatas = None,
-        )
+        return LibrarianResponse()
 
     async def remove_processing(self, request):
 
@@ -265,13 +237,7 @@ class Librarian:
 
         logger.debug("Remove complete")
 
-        return LibrarianResponse(
-            error = None,
-            document_metadata = None,
-            content = None,
-            document_metadatas = None,
-            processing_metadatas = None,
-        )
+        return LibrarianResponse()
 
     async def list_documents(self, request):
 
@@ -286,11 +252,7 @@ class Librarian:
             ]
 
         return LibrarianResponse(
-            error = None,
-            document_metadata = None,
-            content = None,
             document_metadatas = docs,
-            processing_metadatas = None,
         )
 
     async def list_processing(self, request):
@@ -298,10 +260,6 @@ class Librarian:
         procs = await self.table_store.list_processing(request.user)
 
         return LibrarianResponse(
-            error = None,
-            document_metadata = None,
-            content = None,
-            document_metadatas = None,
             processing_metadatas = procs,
         )
 

@@ -159,10 +159,10 @@ class BlobStore:
         etag = self.client._upload_part(
             bucket_name=self.bucket_name,
             object_name=object_name,
+            data=data,
+            headers={"Content-Length": str(len(data))},
             upload_id=upload_id,
             part_number=part_number,
-            data=io.BytesIO(data),
-            headers={"Content-Length": str(len(data))},
         )
 
         logger.debug(f"Uploaded part {part_number} for {object_id}, etag={etag}")
