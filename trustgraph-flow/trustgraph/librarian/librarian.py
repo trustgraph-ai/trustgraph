@@ -657,19 +657,20 @@ class Librarian:
         """
         logger.debug(f"Streaming document {request.document_id}, chunk {request.chunk_index}")
 
+        # Server-enforced limits
+        MAX_CHUNK_SIZE = 10 * 1024 * 1024  # 10MB max
+        DEFAULT_CHUNK_SIZE = 1024 * 1024   # 1MB default
+
+        chunk_size = request.chunk_size if request.chunk_size > 0 else DEFAULT_CHUNK_SIZE
+        chunk_size = min(chunk_size, MAX_CHUNK_SIZE)
+
         object_id = await self.table_store.get_document_object_id(
             request.user,
             request.document_id
         )
 
-        # Default chunk size of 1MB
-        chunk_size = request.chunk_size if request.chunk_size > 0 else 1024 * 1024
-
-        # Get the full content and slice out the requested chunk
-        # Note: This is a simple implementation. For true streaming, we'd need
-        # range requests on the object storage.
-        content = await self.blob_store.get(object_id)
-        total_size = len(content)
+        # Get size via stat (no content download)
+        total_size = await self.blob_store.get_size(object_id)
         total_chunks = math.ceil(total_size / chunk_size)
 
         if request.chunk_index >= total_chunks:
@@ -678,12 +679,15 @@ class Librarian:
                 f"document has {total_chunks} chunks"
             )
 
-        start = request.chunk_index * chunk_size
-        end = min(start + chunk_size, total_size)
-        chunk_content = content[start:end]
+        # Calculate byte range
+        offset = request.chunk_index * chunk_size
+        length = min(chunk_size, total_size - offset)
+
+        # Fetch only the requested range
+        chunk_content = await self.blob_store.get_range(object_id, offset, length)
 
         logger.debug(f"Returning chunk {request.chunk_index}/{total_chunks}, "
-                    f"bytes {start}-{end} of {total_size}")
+                    f"bytes {offset}-{offset + length} of {total_size}")
 
         return LibrarianResponse(
             error=None,
@@ -691,7 +695,7 @@ class Librarian:
             chunk_index=request.chunk_index,
             chunks_received=1,  # Using as "current chunk" indicator
             total_chunks=total_chunks,
-            bytes_received=end,
+            bytes_received=offset + length,
             total_bytes=total_size,
         )
 
