@@ -16,8 +16,8 @@ import uuid
 # Module logger
 logger = logging.getLogger(__name__)
 
-# Default chunk size for multipart uploads (5MB - S3 minimum)
-DEFAULT_CHUNK_SIZE = 5 * 1024 * 1024
+# Default chunk size for multipart uploads
+DEFAULT_CHUNK_SIZE = 2 * 1024 * 1024  # 2MB default
 
 class Librarian:
 
@@ -27,6 +27,7 @@ class Librarian:
             object_store_endpoint, object_store_access_key, object_store_secret_key,
             bucket_name, keyspace, load_document,
             object_store_use_ssl=False, object_store_region=None,
+            min_chunk_size=1,  # Default: no minimum (for Garage)
     ):
 
         self.blob_store = BlobStore(
@@ -39,6 +40,7 @@ class Librarian:
         )
 
         self.load_document = load_document
+        self.min_chunk_size = min_chunk_size
 
     async def add_document(self, request):
 
@@ -289,10 +291,12 @@ class Librarian:
         if total_size <= 0:
             raise RequestError("total_size must be positive")
 
-        # Use provided chunk size or default (minimum 5MB for S3)
+        # Use provided chunk size or default
         chunk_size = request.chunk_size if request.chunk_size > 0 else DEFAULT_CHUNK_SIZE
-        if chunk_size < DEFAULT_CHUNK_SIZE:
-            chunk_size = DEFAULT_CHUNK_SIZE
+        if chunk_size < self.min_chunk_size:
+            raise RequestError(
+                f"Chunk size {chunk_size} is below minimum {self.min_chunk_size}"
+            )
 
         # Calculate total chunks
         total_chunks = math.ceil(total_size / chunk_size)
@@ -657,12 +661,13 @@ class Librarian:
         """
         logger.debug(f"Streaming document {request.document_id}, chunk {request.chunk_index}")
 
-        # Server-enforced limits
-        MAX_CHUNK_SIZE = 10 * 1024 * 1024  # 10MB max
-        DEFAULT_CHUNK_SIZE = 1024 * 1024   # 1MB default
+        DEFAULT_CHUNK_SIZE = 1024 * 1024  # 1MB default
 
         chunk_size = request.chunk_size if request.chunk_size > 0 else DEFAULT_CHUNK_SIZE
-        chunk_size = min(chunk_size, MAX_CHUNK_SIZE)
+        if chunk_size < self.min_chunk_size:
+            raise RequestError(
+                f"Chunk size {chunk_size} is below minimum {self.min_chunk_size}"
+            )
 
         object_id = await self.table_store.get_document_object_id(
             request.user,
