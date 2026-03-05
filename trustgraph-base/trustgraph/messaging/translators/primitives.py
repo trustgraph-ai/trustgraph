@@ -81,10 +81,30 @@ def _triple_translator_to_pulsar(data: Dict[str, Any]) -> Triple:
     )
 
 
-def _triple_translator_from_pulsar(obj: Triple) -> Dict[str, Any]:
+def _triple_translator_from_pulsar(obj) -> Dict[str, Any]:
+    """
+    Convert Triple object or dict to wire format dict.
+
+    Handles both Triple objects (with .s, .p, .o attributes) and
+    dict representations (with "s", "p", "o" keys) since message
+    deserialization may not fully reconstruct nested objects.
+    """
     term_translator = TermTranslator()
     result: Dict[str, Any] = {}
 
+    # Handle dict representation
+    if isinstance(obj, dict):
+        if obj.get("s"):
+            result["s"] = term_translator.from_pulsar(obj["s"]) if not isinstance(obj["s"], dict) else obj["s"]
+        if obj.get("p"):
+            result["p"] = term_translator.from_pulsar(obj["p"]) if not isinstance(obj["p"], dict) else obj["p"]
+        if obj.get("o"):
+            result["o"] = term_translator.from_pulsar(obj["o"]) if not isinstance(obj["o"], dict) else obj["o"]
+        if obj.get("g"):
+            result["g"] = obj["g"]
+        return result
+
+    # Handle Triple object
     if obj.s:
         result["s"] = term_translator.from_pulsar(obj.s)
     if obj.p:
