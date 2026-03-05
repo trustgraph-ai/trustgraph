@@ -80,6 +80,9 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
 
         processor = Processor(**config)
 
+        # Mock save_child_document to avoid waiting for librarian response
+        processor.save_child_document = AsyncMock(return_value="mock-doc-id")
+
         await processor.on_message(mock_msg, None, mock_flow)
 
         # Verify output was sent for each page
@@ -149,6 +152,9 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
         }
 
         processor = Processor(**config)
+
+        # Mock save_child_document to avoid waiting for librarian response
+        processor.save_child_document = AsyncMock(return_value="mock-doc-id")
 
         await processor.on_message(mock_msg, None, mock_flow)
 
