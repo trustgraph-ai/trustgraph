@@ -609,8 +609,10 @@ class Librarian:
         ):
             raise RequestError("Document already exists")
 
-        # Ensure document_type is set to "extracted"
-        request.document_metadata.document_type = "extracted"
+        # Set document_type if not specified by caller
+        # Valid types: "page", "chunk", or "extracted" (legacy)
+        if not request.document_metadata.document_type or request.document_metadata.document_type == "source":
+            request.document_metadata.document_type = "extracted"
 
         # Create object ID for blob
         object_id = uuid.uuid4()

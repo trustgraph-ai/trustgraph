@@ -23,8 +23,13 @@ from .. schema import config_request_queue, config_response_queue
 
 from .. schema import Document, Metadata
 from .. schema import TextDocument, Metadata
+from .. schema import Triples
 
 from .. exceptions import RequestError
+
+from .. provenance import (
+    document_uri, document_triples, get_vocabulary_triples,
+)
 
 from . librarian import Librarian
 from . collection_manager import CollectionManager
@@ -281,6 +286,67 @@ class Processor(AsyncProcessor):
     # Threshold for sending document_id instead of inline content (2MB)
     STREAMING_THRESHOLD = 2 * 1024 * 1024
 
+    async def emit_document_provenance(self, document, processing, triples_queue):
+        """
+        Emit document provenance metadata to the knowledge graph.
+
+        This emits:
+        1. Vocabulary bootstrap triples (idempotent, safe to re-emit)
+        2. Document metadata as PROV-O triples
+        """
+        logger.debug(f"Emitting document provenance for {document.id}")
+
+        # Build document URI and provenance triples
+        doc_uri = document_uri(document.id)
+
+        # Get page count for PDFs (if available from document metadata)
+        page_count = None
+        if document.kind == "application/pdf":
+            # Page count might be in document metadata triples
+            # For now, we don't have it at this point - it gets determined during extraction
+            pass
+
+        # Build document metadata triples
+        prov_triples = document_triples(
+            doc_uri=doc_uri,
+            title=document.title if document.title else None,
+            mime_type=document.kind,
+        )
+
+        # Include any existing metadata triples from the document
+        if document.metadata:
+            prov_triples.extend(document.metadata)
+
+        # Get vocabulary bootstrap triples (idempotent)
+        vocab_triples = get_vocabulary_triples()
+
+        # Combine all triples
+        all_triples = vocab_triples + prov_triples
+
+        # Create publisher and emit
+        triples_pub = Publisher(
+            self.pubsub, triples_queue, schema=Triples
+        )
+
+        try:
+            await triples_pub.start()
+
+            triples_msg = Triples(
+                metadata=Metadata(
+                    id=doc_uri,
+                    metadata=[],
+                    user=processing.user,
+                    collection=processing.collection,
+                ),
+                triples=all_triples,
+            )
+
+            await triples_pub.send(None, triples_msg)
+            logger.debug(f"Emitted {len(all_triples)} provenance triples for {document.id}")
+
+        finally:
+            await triples_pub.stop()
+
     async def load_document(self, document, processing, content):
 
         logger.debug("Ready for document processing...")
@@ -300,6 +366,12 @@ class Processor(AsyncProcessor):
             raise RuntimeError("Document with a MIME type I don't know")
 
         q = flow["interfaces"][kind]
+
+        # Emit document provenance to knowledge graph
+        if "triples-store" in flow["interfaces"]:
+            await self.emit_document_provenance(
+                document, processing, flow["interfaces"]["triples-store"]
+            )
 
         if kind == "text-load":
             # For large text documents, send document_id for streaming retrieval

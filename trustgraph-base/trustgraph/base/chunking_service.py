@@ -15,7 +15,7 @@ from .consumer import Consumer
 from .producer import Producer
 from .metrics import ConsumerMetrics, ProducerMetrics
 
-from ..schema import LibrarianRequest, LibrarianResponse
+from ..schema import LibrarianRequest, LibrarianResponse, DocumentMetadata
 from ..schema import librarian_request_queue, librarian_response_queue
 
 # Module logger
@@ -134,6 +134,67 @@ class ChunkingService(FlowProcessor):
         except asyncio.TimeoutError:
             self.pending_requests.pop(request_id, None)
             raise RuntimeError(f"Timeout fetching document {document_id}")
+
+    async def save_child_document(self, doc_id, parent_id, user, content,
+                                   document_type="chunk", title=None, timeout=120):
+        """
+        Save a child document (chunk) to the librarian.
+
+        Args:
+            doc_id: ID for the new child document
+            parent_id: ID of the parent document
+            user: User ID
+            content: Document content (bytes or str)
+            document_type: Type of document ("chunk", etc.)
+            title: Optional title
+            timeout: Request timeout in seconds
+
+        Returns:
+            The document ID on success
+        """
+        request_id = str(uuid.uuid4())
+
+        if isinstance(content, str):
+            content = content.encode("utf-8")
+
+        doc_metadata = DocumentMetadata(
+            id=doc_id,
+            user=user,
+            kind="text/plain",
+            title=title or doc_id,
+            parent_id=parent_id,
+            document_type=document_type,
+        )
+
+        request = LibrarianRequest(
+            operation="add-child-document",
+            document_metadata=doc_metadata,
+            content=base64.b64encode(content).decode("utf-8"),
+        )
+
+        # Create future for response
+        future = asyncio.get_event_loop().create_future()
+        self.pending_requests[request_id] = future
+
+        try:
+            # Send request
+            await self.librarian_request_producer.send(
+                request, properties={"id": request_id}
+            )
+
+            # Wait for response
+            response = await asyncio.wait_for(future, timeout=timeout)
+
+            if response.error:
+                raise RuntimeError(
+                    f"Librarian error saving chunk: {response.error.type}: {response.error.message}"
+                )
+
+            return doc_id
+
+        except asyncio.TimeoutError:
+            self.pending_requests.pop(request_id, None)
+            raise RuntimeError(f"Timeout saving chunk {doc_id}")
 
     async def get_document_text(self, doc):
         """

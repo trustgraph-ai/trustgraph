@@ -71,7 +71,8 @@ class Processor(FlowProcessor):
                 entities.append(
                     EntityEmbeddings(
                         entity=entity.entity,
-                        vectors=vectors
+                        vectors=vectors,
+                        chunk_id=entity.chunk_id,  # Provenance: source chunk
                     )
                 )
 

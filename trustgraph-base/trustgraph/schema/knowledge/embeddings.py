@@ -12,6 +12,8 @@ from ..core.topic import topic
 class EntityEmbeddings:
     entity: Term | None = None
     vectors: list[list[float]] = field(default_factory=list)
+    # Provenance: which chunk this embedding was derived from
+    chunk_id: str = ""
 
 # This is a 'batching' mechanism for the above data
 @dataclass

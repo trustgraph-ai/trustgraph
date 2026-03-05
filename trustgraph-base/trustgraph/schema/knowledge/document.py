@@ -34,5 +34,9 @@ class TextDocument:
 class Chunk:
     metadata: Metadata | None = None
     chunk: bytes = b""
+    # For provenance: document_id of this chunk in librarian
+    # Post-chunker optimization: both document_id AND chunk content are included
+    # so downstream processors have the ID for provenance and content to work with
+    document_id: str = ""
 
 ############################################################################
