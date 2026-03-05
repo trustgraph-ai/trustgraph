@@ -1,11 +1,12 @@
 """
 URI generation for provenance entities.
 
-URI patterns:
-- Document:  https://trustgraph.ai/doc/{doc_id}
-- Page:      https://trustgraph.ai/page/{doc_id}/p{page_number}
-- Chunk:     https://trustgraph.ai/chunk/{doc_id}/p{page}/c{chunk} (from page)
-             https://trustgraph.ai/chunk/{doc_id}/c{chunk} (from text doc)
+Document IDs are already IRIs (e.g., https://trustgraph.ai/doc/abc123).
+Child entities (pages, chunks) append path segments to the parent IRI:
+- Document:  {doc_iri} (as provided)
+- Page:      {doc_iri}/p{page_number}
+- Chunk:     {page_iri}/c{chunk_index} (from page)
+             {doc_iri}/c{chunk_index} (from text doc)
 - Activity:  https://trustgraph.ai/activity/{uuid}
 - Statement: https://trustgraph.ai/stmt/{uuid}
 """
@@ -13,7 +14,7 @@ URI patterns:
 import uuid
 import urllib.parse
 
-# Base URI prefix
+# Base URI prefix for generated URIs (activities, statements, agents)
 TRUSTGRAPH_BASE = "https://trustgraph.ai"
 
 
@@ -22,24 +23,24 @@ def _encode_id(id_str: str) -> str:
     return urllib.parse.quote(str(id_str), safe='')
 
 
-def document_uri(doc_id: str) -> str:
-    """Generate URI for a source document."""
-    return f"{TRUSTGRAPH_BASE}/doc/{_encode_id(doc_id)}"
+def document_uri(doc_iri: str) -> str:
+    """Return the document IRI as-is (already a full URI)."""
+    return doc_iri
 
 
-def page_uri(doc_id: str, page_number: int) -> str:
-    """Generate URI for a page extracted from a document."""
-    return f"{TRUSTGRAPH_BASE}/page/{_encode_id(doc_id)}/p{page_number}"
+def page_uri(doc_iri: str, page_number: int) -> str:
+    """Generate URI for a page by appending to document IRI."""
+    return f"{doc_iri}/p{page_number}"
 
 
-def chunk_uri_from_page(doc_id: str, page_number: int, chunk_index: int) -> str:
+def chunk_uri_from_page(doc_iri: str, page_number: int, chunk_index: int) -> str:
     """Generate URI for a chunk extracted from a page."""
-    return f"{TRUSTGRAPH_BASE}/chunk/{_encode_id(doc_id)}/p{page_number}/c{chunk_index}"
+    return f"{doc_iri}/p{page_number}/c{chunk_index}"
 
 
-def chunk_uri_from_doc(doc_id: str, chunk_index: int) -> str:
+def chunk_uri_from_doc(doc_iri: str, chunk_index: int) -> str:
     """Generate URI for a chunk extracted directly from a text document."""
-    return f"{TRUSTGRAPH_BASE}/chunk/{_encode_id(doc_id)}/c{chunk_index}"
+    return f"{doc_iri}/c{chunk_index}"
 
 
 def activity_uri(activity_id: str = None) -> str:
