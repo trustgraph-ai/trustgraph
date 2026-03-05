@@ -81,6 +81,28 @@ class BlobStore:
 
         return resp.read()
 
+    async def get_range(self, object_id, offset: int, length: int) -> bytes:
+        """Fetch a specific byte range from an object."""
+        resp = self.client.get_object(
+            bucket_name=self.bucket_name,
+            object_name="doc/" + str(object_id),
+            offset=offset,
+            length=length,
+        )
+        try:
+            return resp.read()
+        finally:
+            resp.close()
+            resp.release_conn()
+
+    async def get_size(self, object_id) -> int:
+        """Get the size of an object without downloading it."""
+        stat = self.client.stat_object(
+            bucket_name=self.bucket_name,
+            object_name="doc/" + str(object_id),
+        )
+        return stat.size
+
     def get_stream(self, object_id, chunk_size: int = 1024 * 1024) -> Iterator[bytes]:
         """
         Stream document content in chunks.

@@ -47,6 +47,7 @@ default_object_store_secret_key = "object-password"
 default_object_store_use_ssl = False
 default_object_store_region = None
 default_cassandra_host = "cassandra"
+default_min_chunk_size = 1  # No minimum by default (for Garage)
 
 bucket_name = "library"
 
@@ -98,6 +99,11 @@ class Processor(AsyncProcessor):
         object_store_region = params.get(
             "object_store_region",
             default_object_store_region
+        )
+
+        min_chunk_size = params.get(
+            "min_chunk_size",
+            default_min_chunk_size
         )
 
         cassandra_host = params.get("cassandra_host")
@@ -226,6 +232,7 @@ class Processor(AsyncProcessor):
             load_document = self.load_document,
             object_store_use_ssl = object_store_use_ssl,
             object_store_region = object_store_region,
+            min_chunk_size = min_chunk_size,
         )
 
         self.collection_manager = CollectionManager(
@@ -581,6 +588,14 @@ class Processor(AsyncProcessor):
             '--object-store-region',
             default=default_object_store_region,
             help='Object storage region (optional)',
+        )
+
+        parser.add_argument(
+            '--min-chunk-size',
+            type=int,
+            default=default_min_chunk_size,
+            help=f'Minimum chunk size in bytes for uploads/downloads '
+            f'(default: {default_min_chunk_size})',
         )
 
         add_cassandra_args(parser)

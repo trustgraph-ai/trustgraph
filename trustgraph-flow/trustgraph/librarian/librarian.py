@@ -16,8 +16,8 @@ import uuid
 # Module logger
 logger = logging.getLogger(__name__)
 
-# Default chunk size for multipart uploads (5MB - S3 minimum)
-DEFAULT_CHUNK_SIZE = 5 * 1024 * 1024
+# Default chunk size for multipart uploads
+DEFAULT_CHUNK_SIZE = 2 * 1024 * 1024  # 2MB default
 
 class Librarian:
 
@@ -27,6 +27,7 @@ class Librarian:
             object_store_endpoint, object_store_access_key, object_store_secret_key,
             bucket_name, keyspace, load_document,
             object_store_use_ssl=False, object_store_region=None,
+            min_chunk_size=1,  # Default: no minimum (for Garage)
     ):
 
         self.blob_store = BlobStore(
@@ -39,6 +40,7 @@ class Librarian:
         )
 
         self.load_document = load_document
+        self.min_chunk_size = min_chunk_size
 
     async def add_document(self, request):
 
@@ -289,10 +291,12 @@ class Librarian:
         if total_size <= 0:
             raise RequestError("total_size must be positive")
 
-        # Use provided chunk size or default (minimum 5MB for S3)
+        # Use provided chunk size or default
         chunk_size = request.chunk_size if request.chunk_size > 0 else DEFAULT_CHUNK_SIZE
-        if chunk_size < DEFAULT_CHUNK_SIZE:
-            chunk_size = DEFAULT_CHUNK_SIZE
+        if chunk_size < self.min_chunk_size:
+            raise RequestError(
+                f"Chunk size {chunk_size} is below minimum {self.min_chunk_size}"
+            )
 
         # Calculate total chunks
         total_chunks = math.ceil(total_size / chunk_size)
@@ -657,19 +661,21 @@ class Librarian:
         """
         logger.debug(f"Streaming document {request.document_id}, chunk {request.chunk_index}")
 
+        DEFAULT_CHUNK_SIZE = 1024 * 1024  # 1MB default
+
+        chunk_size = request.chunk_size if request.chunk_size > 0 else DEFAULT_CHUNK_SIZE
+        if chunk_size < self.min_chunk_size:
+            raise RequestError(
+                f"Chunk size {chunk_size} is below minimum {self.min_chunk_size}"
+            )
+
         object_id = await self.table_store.get_document_object_id(
             request.user,
             request.document_id
         )
 
-        # Default chunk size of 1MB
-        chunk_size = request.chunk_size if request.chunk_size > 0 else 1024 * 1024
-
-        # Get the full content and slice out the requested chunk
-        # Note: This is a simple implementation. For true streaming, we'd need
-        # range requests on the object storage.
-        content = await self.blob_store.get(object_id)
-        total_size = len(content)
+        # Get size via stat (no content download)
+        total_size = await self.blob_store.get_size(object_id)
         total_chunks = math.ceil(total_size / chunk_size)
 
         if request.chunk_index >= total_chunks:
@@ -678,12 +684,15 @@ class Librarian:
                 f"document has {total_chunks} chunks"
             )
 
-        start = request.chunk_index * chunk_size
-        end = min(start + chunk_size, total_size)
-        chunk_content = content[start:end]
+        # Calculate byte range
+        offset = request.chunk_index * chunk_size
+        length = min(chunk_size, total_size - offset)
+
+        # Fetch only the requested range
+        chunk_content = await self.blob_store.get_range(object_id, offset, length)
 
         logger.debug(f"Returning chunk {request.chunk_index}/{total_chunks}, "
-                    f"bytes {start}-{end} of {total_size}")
+                    f"bytes {offset}-{offset + length} of {total_size}")
 
         return LibrarianResponse(
             error=None,
@@ -691,7 +700,7 @@ class Librarian:
             chunk_index=request.chunk_index,
             chunks_received=1,  # Using as "current chunk" indicator
             total_chunks=total_chunks,
-            bytes_received=end,
+            bytes_received=offset + length,
             total_bytes=total_size,
         )
 
