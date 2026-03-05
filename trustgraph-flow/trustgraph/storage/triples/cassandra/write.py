@@ -27,13 +27,39 @@ default_ident = "triples-write"
 
 
 def serialize_triple(triple):
-    """Serialize a Triple object to JSON for storage."""
+    """
+    Serialize a Triple object or dict to JSON for storage.
+
+    Handles both Triple objects (with .s, .p, .o attributes) and
+    dict representations (with "s", "p", "o" keys) since message
+    deserialization may not fully reconstruct nested objects.
+    """
     if triple is None:
         return None
 
     def term_to_dict(term):
         if term is None:
             return None
+
+        # Handle dict representation (from message deserialization)
+        if isinstance(term, dict):
+            term_type = term.get("type", "")
+            result = {"type": term_type}
+            if term_type == IRI:
+                result["iri"] = term.get("iri", "")
+            elif term_type == LITERAL:
+                result["value"] = term.get("value", "")
+                if term.get("datatype"):
+                    result["datatype"] = term.get("datatype")
+                if term.get("language"):
+                    result["language"] = term.get("language")
+            elif term_type == BLANK:
+                result["id"] = term.get("id", "")
+            elif term_type == TRIPLE:
+                result["triple"] = serialize_triple(term.get("triple"))
+            return result
+
+        # Handle Term object
         result = {"type": term.type}
         if term.type == IRI:
             result["iri"] = term.iri
@@ -50,6 +76,15 @@ def serialize_triple(triple):
             result["triple"] = serialize_triple(term.triple)
         return result
 
+    # Handle dict representation
+    if isinstance(triple, dict):
+        return json.dumps({
+            "s": term_to_dict(triple.get("s")),
+            "p": term_to_dict(triple.get("p")),
+            "o": term_to_dict(triple.get("o")),
+        })
+
+    # Handle Triple object
     return json.dumps({
         "s": term_to_dict(triple.s),
         "p": term_to_dict(triple.p),
