@@ -145,6 +145,7 @@ def derived_entity_triples(
 
         # Activity declaration
         _triple(act_uri, RDF_TYPE, _iri(PROV_ACTIVITY)),
+        _triple(act_uri, RDFS_LABEL, _literal(f"{component_name} extraction")),
         _triple(act_uri, PROV_USED, _iri(parent_uri)),
         _triple(act_uri, PROV_WAS_ASSOCIATED_WITH, _iri(agt_uri)),
         _triple(act_uri, PROV_STARTED_AT_TIME, _literal(timestamp)),
@@ -232,6 +233,7 @@ def triple_provenance_triples(
 
         # Activity
         _triple(act_uri, RDF_TYPE, _iri(PROV_ACTIVITY)),
+        _triple(act_uri, RDFS_LABEL, _literal(f"{component_name} extraction")),
         _triple(act_uri, PROV_USED, _iri(chunk_uri)),
         _triple(act_uri, PROV_WAS_ASSOCIATED_WITH, _iri(agt_uri)),
         _triple(act_uri, PROV_STARTED_AT_TIME, _literal(timestamp)),

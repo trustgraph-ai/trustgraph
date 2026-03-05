@@ -90,15 +90,19 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
                         )
                     )
 
+                payload = {
+                    "entity": entity_value,
+                }
+                if entity.chunk_id:
+                    payload["chunk_id"] = entity.chunk_id
+
                 self.qdrant.upsert(
                     collection_name=collection,
                     points=[
                         PointStruct(
                             id=str(uuid.uuid4()),
                             vector=vec,
-                            payload={
-                                "entity": entity_value,
-                            }
+                            payload=payload,
                         )
                     ]
                 )
