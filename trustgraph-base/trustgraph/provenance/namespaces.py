@@ -28,6 +28,18 @@ RDF_TYPE = RDF + "type"
 RDFS = "http://www.w3.org/2000/01/rdf-schema#"
 RDFS_LABEL = RDFS + "label"
 
+# Schema.org namespace
+SCHEMA = "https://schema.org/"
+SCHEMA_SUBJECT_OF = SCHEMA + "subjectOf"
+SCHEMA_DIGITAL_DOCUMENT = SCHEMA + "DigitalDocument"
+SCHEMA_DESCRIPTION = SCHEMA + "description"
+SCHEMA_KEYWORDS = SCHEMA + "keywords"
+SCHEMA_NAME = SCHEMA + "name"
+
+# SKOS namespace
+SKOS = "http://www.w3.org/2004/02/skos/core#"
+SKOS_DEFINITION = SKOS + "definition"
+
 # TrustGraph namespace for custom predicates
 TG = "https://trustgraph.ai/ns/"
 TG_REIFIES = TG + "reifies"
