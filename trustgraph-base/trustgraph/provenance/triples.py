@@ -5,7 +5,7 @@ Helper functions to build PROV-O triples for extraction-time provenance.
 from datetime import datetime
 from typing import List, Optional
 
-from .. schema import Triple, Term, IRI, LITERAL
+from .. schema import Triple, Term, IRI, LITERAL, TRIPLE
 
 from . namespaces import (
     RDF_TYPE, RDFS_LABEL,
@@ -182,9 +182,7 @@ def derived_entity_triples(
 
 def triple_provenance_triples(
     stmt_uri: str,
-    subject_uri: str,
-    predicate_uri: str,
-    object_term: Term,
+    extracted_triple: Triple,
     chunk_uri: str,
     component_name: str,
     component_version: str,
@@ -196,15 +194,13 @@ def triple_provenance_triples(
     Build provenance triples for an extracted knowledge triple using reification.
 
     Creates:
-    - Statement object that reifies the triple
+    - Reification triple: stmt_uri tg:reifies <<extracted_triple>>
     - wasDerivedFrom link to source chunk
     - Activity and agent metadata
 
     Args:
         stmt_uri: URI for the reified statement
-        subject_uri: Subject of the extracted triple
-        predicate_uri: Predicate of the extracted triple
-        object_term: Object of the extracted triple (Term)
+        extracted_triple: The extracted Triple to reify
         chunk_uri: URI of source chunk
         component_name: Name of extractor component
         component_version: Version of the component
@@ -213,7 +209,7 @@ def triple_provenance_triples(
         timestamp: ISO timestamp
 
     Returns:
-        List of Triple objects for the provenance (not the triple itself)
+        List of Triple objects for the provenance (including reification)
     """
     if timestamp is None:
         timestamp = datetime.utcnow().isoformat() + "Z"
@@ -221,12 +217,17 @@ def triple_provenance_triples(
     act_uri = activity_uri()
     agt_uri = agent_uri(component_name)
 
-    # Note: The actual reification (tg:reifies pointing at the edge) requires
-    # RDF 1.2 triple term support. This builds the surrounding provenance.
-    # The actual reification link must be handled by the knowledge extractor
-    # using the graph store's reification API.
+    # Create the quoted triple term (RDF-star reification)
+    triple_term = Term(type=TRIPLE, triple=extracted_triple)
 
     triples = [
+        # Reification: stmt_uri tg:reifies <<s p o>>
+        Triple(
+            s=_iri(stmt_uri),
+            p=_iri(TG_REIFIES),
+            o=triple_term
+        ),
+
         # Statement provenance
         _triple(stmt_uri, PROV_WAS_DERIVED_FROM, _iri(chunk_uri)),
         _triple(stmt_uri, PROV_WAS_GENERATED_BY, _iri(act_uri)),

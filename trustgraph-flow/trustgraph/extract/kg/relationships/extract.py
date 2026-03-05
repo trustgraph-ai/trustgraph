@@ -18,7 +18,10 @@ from .... schema import PromptRequest, PromptResponse
 from .... rdf import RDF_LABEL, TRUSTGRAPH_ENTITIES, SUBJECT_OF
 
 from .... base import FlowProcessor, ConsumerSpec,  ProducerSpec
-from .... base import PromptClientSpec
+from .... base import PromptClientSpec, ParameterSpec
+
+from .... provenance import statement_uri, triple_provenance_triples
+from .... flow_version import __version__ as COMPONENT_VERSION
 
 RDF_LABEL_VALUE = Term(type=IRI, iri=RDF_LABEL)
 SUBJECT_OF_VALUE = Term(type=IRI, iri=SUBJECT_OF)
@@ -64,6 +67,10 @@ class Processor(FlowProcessor):
                 schema = Triples
             )
         )
+
+        # Optional flow parameters for provenance
+        self.register_specification(ParameterSpec("llm-model"))
+        self.register_specification(ParameterSpec("ontology"))
 
     def to_uri(self, text):
 
@@ -113,6 +120,10 @@ class Processor(FlowProcessor):
             chunk_doc_id = v.document_id if v.document_id else v.metadata.id
             chunk_uri = v.metadata.id  # The URI form for the chunk
 
+            # Get optional provenance parameters
+            llm_model = flow("llm-model")
+            ontology_uri = flow("ontology")
+
             # Note: Document metadata is now emitted once by librarian at processing
             # initiation, so we don't need to duplicate it here.
 
@@ -142,11 +153,26 @@ class Processor(FlowProcessor):
                 else:
                     o_value = Term(type=LITERAL, value=str(o))
 
-                triples.append(Triple(
+                # The relationship triple - this is the main extracted fact
+                relationship_triple = Triple(
                     s=s_value,
                     p=p_value,
                     o=o_value
-                ))
+                )
+                triples.append(relationship_triple)
+
+                # Generate provenance for the relationship triple (reification)
+                stmt_uri = statement_uri()
+                prov_triples = triple_provenance_triples(
+                    stmt_uri=stmt_uri,
+                    extracted_triple=relationship_triple,
+                    chunk_uri=chunk_uri,
+                    component_name=default_ident,
+                    component_version=COMPONENT_VERSION,
+                    llm_model=llm_model,
+                    ontology_uri=ontology_uri,
+                )
+                triples.extend(prov_triples)
 
                 # Label for s
                 triples.append(Triple(

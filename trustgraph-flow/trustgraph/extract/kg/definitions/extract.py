@@ -18,7 +18,10 @@ from .... schema import PromptRequest, PromptResponse
 from .... rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL, SUBJECT_OF
 
 from .... base import FlowProcessor, ConsumerSpec,  ProducerSpec
-from .... base import PromptClientSpec
+from .... base import PromptClientSpec, ParameterSpec
+
+from .... provenance import statement_uri, triple_provenance_triples
+from .... flow_version import __version__ as COMPONENT_VERSION
 
 DEFINITION_VALUE = Term(type=IRI, iri=DEFINITION)
 RDF_LABEL_VALUE = Term(type=IRI, iri=RDF_LABEL)
@@ -74,6 +77,10 @@ class Processor(FlowProcessor):
                 schema = EntityContexts
             )
         )
+
+        # Optional flow parameters for provenance
+        self.register_specification(ParameterSpec("llm-model"))
+        self.register_specification(ParameterSpec("ontology"))
 
     def to_uri(self, text):
 
@@ -132,6 +139,10 @@ class Processor(FlowProcessor):
             chunk_doc_id = v.document_id if v.document_id else v.metadata.id
             chunk_uri = v.metadata.id  # The URI form for the chunk
 
+            # Get optional provenance parameters
+            llm_model = flow("llm-model")
+            ontology_uri = flow("ontology")
+
             # Note: Document metadata is now emitted once by librarian at processing
             # initiation, so we don't need to duplicate it here.
 
@@ -157,9 +168,24 @@ class Processor(FlowProcessor):
                     o=Term(type=LITERAL, value=s),
                 ))
 
-                triples.append(Triple(
+                # The definition triple - this is the main extracted fact
+                definition_triple = Triple(
                     s=s_value, p=DEFINITION_VALUE, o=o_value
-                ))
+                )
+                triples.append(definition_triple)
+
+                # Generate provenance for the definition triple (reification)
+                stmt_uri = statement_uri()
+                prov_triples = triple_provenance_triples(
+                    stmt_uri=stmt_uri,
+                    extracted_triple=definition_triple,
+                    chunk_uri=chunk_uri,
+                    component_name=default_ident,
+                    component_version=COMPONENT_VERSION,
+                    llm_model=llm_model,
+                    ontology_uri=ontology_uri,
+                )
+                triples.extend(prov_triples)
 
                 # Link entity to chunk (not top-level document)
                 triples.append(Triple(
