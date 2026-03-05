@@ -21,22 +21,15 @@ def to_value(x):
     elif x.get("t") == LITERAL:
         return Literal(x.get("v", ""))
     elif x.get("t") == TRIPLE:
-        # Parse the nested triple from JSON or structured data
         # Wire format uses "tr" key for nested triple dict
-        triple_data = x.get("tr") or x.get("v", "")
-        if isinstance(triple_data, str):
-            import json
-            try:
-                triple_data = json.loads(triple_data)
-            except json.JSONDecodeError:
-                return Literal(triple_data)
-        if isinstance(triple_data, dict):
+        triple_data = x.get("tr")
+        if triple_data:
             return QuotedTriple(
                 s=to_value(triple_data.get("s", {})),
                 p=to_value(triple_data.get("p", {})),
                 o=to_value(triple_data.get("o", {})),
             )
-        return Literal(str(triple_data))
+        return Literal("")
     # Fallback for any other type
     return Literal(x.get("v", x.get("i", "")))
 

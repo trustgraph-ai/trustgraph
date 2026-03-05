@@ -81,65 +81,11 @@ def _triple_translator_to_pulsar(data: Dict[str, Any]) -> Triple:
     )
 
 
-def _term_dict_to_wire(term_dict: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Convert a Term dict (with 'type', 'iri', etc.) to wire format (with 't', 'i', etc.).
-
-    If already in wire format, returns as-is.
-    """
-    # Check if already in wire format (has 't' key)
-    if "t" in term_dict:
-        return term_dict
-
-    # Convert from Term attribute format to wire format
-    result: Dict[str, Any] = {"t": term_dict.get("type", "")}
-    term_type = term_dict.get("type", "")
-
-    if term_type == IRI:
-        result["i"] = term_dict.get("iri", "")
-    elif term_type == BLANK:
-        result["d"] = term_dict.get("id", "")
-    elif term_type == LITERAL:
-        result["v"] = term_dict.get("value", "")
-        if term_dict.get("datatype"):
-            result["dt"] = term_dict.get("datatype")
-        if term_dict.get("language"):
-            result["ln"] = term_dict.get("language")
-    elif term_type == TRIPLE:
-        nested = term_dict.get("triple")
-        if nested:
-            result["tr"] = _triple_translator_from_pulsar(nested)
-
-    return result
-
-
-def _triple_translator_from_pulsar(obj) -> Dict[str, Any]:
-    """
-    Convert Triple object or dict to wire format dict.
-
-    Handles both Triple objects (with .s, .p, .o attributes) and
-    dict representations (with "s", "p", "o" keys) since message
-    deserialization may not fully reconstruct nested objects.
-    """
+def _triple_translator_from_pulsar(obj: Triple) -> Dict[str, Any]:
+    """Convert Triple object to wire format dict."""
     term_translator = TermTranslator()
     result: Dict[str, Any] = {}
 
-    # Handle dict representation
-    if isinstance(obj, dict):
-        if obj.get("s"):
-            s = obj["s"]
-            result["s"] = _term_dict_to_wire(s) if isinstance(s, dict) else term_translator.from_pulsar(s)
-        if obj.get("p"):
-            p = obj["p"]
-            result["p"] = _term_dict_to_wire(p) if isinstance(p, dict) else term_translator.from_pulsar(p)
-        if obj.get("o"):
-            o = obj["o"]
-            result["o"] = _term_dict_to_wire(o) if isinstance(o, dict) else term_translator.from_pulsar(o)
-        if obj.get("g"):
-            result["g"] = obj["g"]
-        return result
-
-    # Handle Triple object
     if obj.s:
         result["s"] = term_translator.from_pulsar(obj.s)
     if obj.p:
