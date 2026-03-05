@@ -26,8 +26,40 @@ KEYWORD = 'https://schema.org/keywords'
 class Uri(str):
     def is_uri(self): return True
     def is_literal(self): return False
+    def is_triple(self): return False
 
 class Literal(str):
     def is_uri(self): return False
     def is_literal(self): return True
+    def is_triple(self): return False
+
+class QuotedTriple:
+    """
+    RDF-star quoted triple (reification).
+
+    Represents a triple that can be used as the object of another triple,
+    enabling statements about statements.
+
+    Example:
+        # stmt:123 tg:reifies <<:Hope skos:definition "A feeling...">>
+        qt = QuotedTriple(
+            s=Uri("https://example.org/Hope"),
+            p=Uri("http://www.w3.org/2004/02/skos/core#definition"),
+            o=Literal("A feeling of expectation")
+        )
+    """
+    def __init__(self, s, p, o):
+        self.s = s  # Uri, Literal, or QuotedTriple
+        self.p = p  # Uri
+        self.o = o  # Uri, Literal, or QuotedTriple
+
+    def is_uri(self): return False
+    def is_literal(self): return False
+    def is_triple(self): return True
+
+    def __repr__(self):
+        return f"<<{self.s} {self.p} {self.o}>>"
+
+    def __str__(self):
+        return f"<<{self.s} {self.p} {self.o}>>"
 

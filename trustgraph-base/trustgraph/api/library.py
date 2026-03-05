@@ -12,8 +12,8 @@ import base64
 import logging
 
 from . types import DocumentMetadata, ProcessingMetadata, Triple
-from .. knowledge import hash, Uri, Literal
-from .. schema import IRI, LITERAL
+from .. knowledge import hash, Uri, Literal, QuotedTriple
+from .. schema import IRI, LITERAL, TRIPLE
 from . exceptions import *
 
 logger = logging.getLogger(__name__)
@@ -27,19 +27,45 @@ DEFAULT_CHUNK_SIZE = 5 * 1024 * 1024
 
 
 def to_value(x):
-    """Convert wire format to Uri or Literal."""
+    """Convert wire format to Uri, Literal, or QuotedTriple."""
     if x.get("t") == IRI:
         return Uri(x.get("i", ""))
     elif x.get("t") == LITERAL:
         return Literal(x.get("v", ""))
+    elif x.get("t") == TRIPLE:
+        # Parse the nested triple from JSON or structured data
+        triple_data = x.get("v", "")
+        if isinstance(triple_data, str):
+            import json
+            try:
+                triple_data = json.loads(triple_data)
+            except json.JSONDecodeError:
+                return Literal(triple_data)
+        if isinstance(triple_data, dict):
+            return QuotedTriple(
+                s=to_value(triple_data.get("s", {})),
+                p=to_value(triple_data.get("p", {})),
+                o=to_value(triple_data.get("o", {})),
+            )
+        return Literal(str(triple_data))
     # Fallback for any other type
     return Literal(x.get("v", x.get("i", "")))
 
 
 def from_value(v):
-    """Convert Uri or Literal to wire format."""
+    """Convert Uri, Literal, or QuotedTriple to wire format."""
     if isinstance(v, Uri):
         return {"t": IRI, "i": str(v)}
+    elif isinstance(v, QuotedTriple):
+        import json
+        return {
+            "t": TRIPLE,
+            "v": json.dumps({
+                "s": from_value(v.s),
+                "p": from_value(v.p),
+                "o": from_value(v.o),
+            })
+        }
     else:
         return {"t": LITERAL, "v": str(v)}
 

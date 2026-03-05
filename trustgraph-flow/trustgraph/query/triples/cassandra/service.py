@@ -6,11 +6,13 @@ null.  Output is a list of quads.
 
 import logging
 
+import json
+
 from .... direct.cassandra_kg import (
     EntityCentricKnowledgeGraph, GRAPH_WILDCARD, DEFAULT_GRAPH
 )
 from .... schema import TriplesQueryRequest, TriplesQueryResponse, Error
-from .... schema import Term, Triple, IRI, LITERAL
+from .... schema import Term, Triple, IRI, LITERAL, TRIPLE
 from .... base import TriplesQueryService
 from .... base.cassandra_config import add_cassandra_args, resolve_cassandra_config
 
@@ -31,6 +33,36 @@ def get_term_value(term):
     else:
         # For blank nodes or other types, use id or value
         return term.id or term.value
+
+
+def deserialize_term(term_dict):
+    """Deserialize a term from JSON structure."""
+    if term_dict is None:
+        return None
+    term_type = term_dict.get("type", "")
+    if term_type == IRI:
+        return Term(type=IRI, iri=term_dict.get("iri", ""))
+    elif term_type == LITERAL:
+        return Term(
+            type=LITERAL,
+            value=term_dict.get("value", ""),
+            datatype=term_dict.get("datatype", ""),
+            language=term_dict.get("language", "")
+        )
+    elif term_type == TRIPLE:
+        # Recursive for nested triples
+        nested = term_dict.get("triple")
+        if nested:
+            return Term(
+                type=TRIPLE,
+                triple=Triple(
+                    s=deserialize_term(nested.get("s")),
+                    p=deserialize_term(nested.get("p")),
+                    o=deserialize_term(nested.get("o")),
+                )
+            )
+    # Fallback
+    return Term(type=LITERAL, value=str(term_dict))
 
 
 def create_term(value, otype=None, dtype=None, lang=None):
@@ -57,8 +89,22 @@ def create_term(value, otype=None, dtype=None, lang=None):
                 language=lang or ""
             )
         elif otype == 't':
-            # Triple/reification - treat as IRI for now
-            return Term(type=IRI, iri=value)
+            # Triple/reification - parse JSON and create nested Triple
+            try:
+                triple_data = json.loads(value) if isinstance(value, str) else value
+                if isinstance(triple_data, dict):
+                    return Term(
+                        type=TRIPLE,
+                        triple=Triple(
+                            s=deserialize_term(triple_data.get("s")),
+                            p=deserialize_term(triple_data.get("p")),
+                            o=deserialize_term(triple_data.get("o")),
+                        )
+                    )
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning(f"Failed to parse triple JSON: {e}")
+            # Fallback if parsing fails
+            return Term(type=LITERAL, value=str(value))
         else:
             # Unknown otype, fall back to heuristic
             pass
