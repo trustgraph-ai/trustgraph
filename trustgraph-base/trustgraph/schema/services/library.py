@@ -91,7 +91,12 @@ class DocumentMetadata:
     tags: list[str] = field(default_factory=list)
     # Child document support
     parent_id: str = ""  # Empty for top-level docs, set for children
-    document_type: str = "source"  # "source" or "extracted"
+    # Document type vocabulary:
+    #   "source" - original uploaded document
+    #   "page" - page extracted from source (e.g., PDF page)
+    #   "chunk" - text chunk derived from page or source
+    #   "extracted" - legacy value, kept for backwards compatibility
+    document_type: str = "source"
 
 @dataclass
 class ProcessingMetadata:

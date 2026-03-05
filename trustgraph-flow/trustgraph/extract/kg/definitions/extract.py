@@ -128,10 +128,12 @@ class Processor(FlowProcessor):
             triples = []
             entities = []
 
-            # FIXME: Putting metadata into triples store is duplicated in
-            # relationships extractor too
-            for t in v.metadata.metadata:
-                triples.append(t)
+            # Get chunk document ID for provenance linking
+            chunk_doc_id = v.document_id if v.document_id else v.metadata.id
+            chunk_uri = v.metadata.id  # The URI form for the chunk
+
+            # Note: Document metadata is now emitted once by librarian at processing
+            # initiation, so we don't need to duplicate it here.
 
             for defn in defs:
 
@@ -159,22 +161,27 @@ class Processor(FlowProcessor):
                     s=s_value, p=DEFINITION_VALUE, o=o_value
                 ))
 
+                # Link entity to chunk (not top-level document)
                 triples.append(Triple(
                     s=s_value,
                     p=SUBJECT_OF_VALUE,
-                    o=Term(type=IRI, iri=v.metadata.id)
+                    o=Term(type=IRI, iri=chunk_uri)
                 ))
 
                 # Output entity name as context for direct name matching
+                # Include chunk_id for embedding provenance
                 entities.append(EntityContext(
                     entity=s_value,
                     context=s,
+                    chunk_id=chunk_doc_id,
                 ))
 
                 # Output definition as context for semantic matching
+                # Include chunk_id for embedding provenance
                 entities.append(EntityContext(
                     entity=s_value,
                     context=defn["definition"],
+                    chunk_id=chunk_doc_id,
                 ))
 
             # Send triples in batches

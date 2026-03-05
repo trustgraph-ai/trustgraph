@@ -109,10 +109,12 @@ class Processor(FlowProcessor):
 
             triples = []
 
-            # FIXME: Putting metadata into triples store is duplicated in
-            # relationships extractor too
-            for t in v.metadata.metadata:
-                triples.append(t)
+            # Get chunk document ID for provenance linking
+            chunk_doc_id = v.document_id if v.document_id else v.metadata.id
+            chunk_uri = v.metadata.id  # The URI form for the chunk
+
+            # Note: Document metadata is now emitted once by librarian at processing
+            # initiation, so we don't need to duplicate it here.
 
             for rel in rels:
 
@@ -168,19 +170,19 @@ class Processor(FlowProcessor):
                         o=Term(type=LITERAL, value=str(o))
                     ))
 
-                # 'Subject of' for s
+                # Link entity to chunk (not top-level document)
                 triples.append(Triple(
                     s=s_value,
                     p=SUBJECT_OF_VALUE,
-                    o=Term(type=IRI, iri=v.metadata.id)
+                    o=Term(type=IRI, iri=chunk_uri)
                 ))
 
                 if rel["object-entity"]:
-                    # 'Subject of' for o
+                    # Link object entity to chunk
                     triples.append(Triple(
                         s=o_value,
                         p=SUBJECT_OF_VALUE,
-                        o=Term(type=IRI, iri=v.metadata.id)
+                        o=Term(type=IRI, iri=chunk_uri)
                     ))
 
             # Send triples in batches

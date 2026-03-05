@@ -69,9 +69,13 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
         mock_msg = MagicMock()
         mock_msg.value.return_value = mock_document
 
-        # Mock flow
+        # Mock flow - separate mocks for output and triples
         mock_output_flow = AsyncMock()
-        mock_flow = MagicMock(return_value=mock_output_flow)
+        mock_triples_flow = AsyncMock()
+        mock_flow = MagicMock(side_effect=lambda name: {
+            "output": mock_output_flow,
+            "triples": mock_triples_flow,
+        }.get(name))
 
         config = {
             'id': 'test-pdf-decoder',
@@ -80,10 +84,15 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
 
         processor = Processor(**config)
 
+        # Mock save_child_document to avoid waiting for librarian response
+        processor.save_child_document = AsyncMock(return_value="mock-doc-id")
+
         await processor.on_message(mock_msg, None, mock_flow)
 
         # Verify output was sent for each page
         assert mock_output_flow.send.call_count == 2
+        # Verify triples were sent for each page (provenance)
+        assert mock_triples_flow.send.call_count == 2
 
     @patch('trustgraph.base.chunking_service.Consumer')
     @patch('trustgraph.base.chunking_service.Producer')
@@ -140,8 +149,13 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
         mock_msg = MagicMock()
         mock_msg.value.return_value = mock_document
 
+        # Mock flow - separate mocks for output and triples
         mock_output_flow = AsyncMock()
-        mock_flow = MagicMock(return_value=mock_output_flow)
+        mock_triples_flow = AsyncMock()
+        mock_flow = MagicMock(side_effect=lambda name: {
+            "output": mock_output_flow,
+            "triples": mock_triples_flow,
+        }.get(name))
 
         config = {
             'id': 'test-pdf-decoder',
@@ -150,11 +164,16 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
 
         processor = Processor(**config)
 
+        # Mock save_child_document to avoid waiting for librarian response
+        processor.save_child_document = AsyncMock(return_value="mock-doc-id")
+
         await processor.on_message(mock_msg, None, mock_flow)
 
         mock_output_flow.send.assert_called_once()
         call_args = mock_output_flow.send.call_args[0][0]
-        assert call_args.text == "Page with unicode: 你好世界 🌍".encode('utf-8')
+        # PDF decoder now forwards document_id, chunker fetches content from librarian
+        assert call_args.document_id == "test-doc/p1"
+        assert call_args.text == b""  # Content stored in librarian, not inline
 
     @patch('trustgraph.base.flow_processor.FlowProcessor.add_args')
     def test_add_args(self, mock_parent_add_args):

@@ -176,6 +176,9 @@ class TestRecursiveChunkerSimple(IsolatedAsyncioTestCase):
 
         processor = Processor(**config)
 
+        # Mock save_child_document to avoid waiting for librarian response
+        processor.save_child_document = AsyncMock(return_value="mock-doc-id")
+
         # Mock message with TextDocument
         mock_message = MagicMock()
         mock_text_doc = MagicMock()
@@ -192,11 +195,13 @@ class TestRecursiveChunkerSimple(IsolatedAsyncioTestCase):
         # Mock consumer and flow with parameter overrides
         mock_consumer = MagicMock()
         mock_producer = AsyncMock()
+        mock_triples_producer = AsyncMock()
         mock_flow = MagicMock()
         mock_flow.side_effect = lambda param: {
             "chunk-size": 1500,
             "chunk-overlap": 150,
-            "output": mock_producer
+            "output": mock_producer,
+            "triples": mock_triples_producer,
         }.get(param)
 
         # Act

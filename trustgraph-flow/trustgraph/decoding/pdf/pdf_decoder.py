@@ -16,10 +16,19 @@ import uuid
 from langchain_community.document_loaders import PyPDFLoader
 
 from ... schema import Document, TextDocument, Metadata
-from ... schema import LibrarianRequest, LibrarianResponse
+from ... schema import LibrarianRequest, LibrarianResponse, DocumentMetadata
 from ... schema import librarian_request_queue, librarian_response_queue
+from ... schema import Triples
 from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
 from ... base import Consumer, Producer, ConsumerMetrics, ProducerMetrics
+
+from ... provenance import (
+    document_uri, page_uri, derived_entity_triples,
+)
+
+# Component identification for provenance
+COMPONENT_NAME = "pdf-decoder"
+COMPONENT_VERSION = "1.0.0"
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -54,6 +63,13 @@ class Processor(FlowProcessor):
             ProducerSpec(
                 name = "output",
                 schema = TextDocument,
+            )
+        )
+
+        self.register_specification(
+            ProducerSpec(
+                name = "triples",
+                schema = Triples,
             )
         )
 
@@ -148,6 +164,66 @@ class Processor(FlowProcessor):
             self.pending_requests.pop(request_id, None)
             raise RuntimeError(f"Timeout fetching document {document_id}")
 
+    async def save_child_document(self, doc_id, parent_id, user, content,
+                                   document_type="page", title=None, timeout=120):
+        """
+        Save a child document to the librarian.
+
+        Args:
+            doc_id: ID for the new child document
+            parent_id: ID of the parent document
+            user: User ID
+            content: Document content (bytes)
+            document_type: Type of document ("page", "chunk", etc.)
+            title: Optional title
+            timeout: Request timeout in seconds
+
+        Returns:
+            The document ID on success
+        """
+        import base64
+
+        request_id = str(uuid.uuid4())
+
+        doc_metadata = DocumentMetadata(
+            id=doc_id,
+            user=user,
+            kind="text/plain",
+            title=title or doc_id,
+            parent_id=parent_id,
+            document_type=document_type,
+        )
+
+        request = LibrarianRequest(
+            operation="add-child-document",
+            document_metadata=doc_metadata,
+            content=base64.b64encode(content).decode("utf-8"),
+        )
+
+        # Create future for response
+        future = asyncio.get_event_loop().create_future()
+        self.pending_requests[request_id] = future
+
+        try:
+            # Send request
+            await self.librarian_request_producer.send(
+                request, properties={"id": request_id}
+            )
+
+            # Wait for response
+            response = await asyncio.wait_for(future, timeout=timeout)
+
+            if response.error:
+                raise RuntimeError(
+                    f"Librarian error saving child document: {response.error.type}: {response.error.message}"
+                )
+
+            return doc_id
+
+        except asyncio.TimeoutError:
+            self.pending_requests.pop(request_id, None)
+            raise RuntimeError(f"Timeout saving child document {doc_id}")
+
     async def on_message(self, msg, consumer, flow):
 
         logger.debug("PDF message received")
@@ -187,13 +263,62 @@ class Processor(FlowProcessor):
             loader = PyPDFLoader(temp_path)
             pages = loader.load()
 
+            # Get the source document ID
+            source_doc_id = v.document_id or v.metadata.id
+
             for ix, page in enumerate(pages):
+                page_num = ix + 1  # 1-indexed page numbers
 
-                logger.debug(f"Processing page {ix}")
+                logger.debug(f"Processing page {page_num}")
 
+                # Generate page document ID
+                page_doc_id = f"{source_doc_id}/p{page_num}"
+                page_content = page.page_content.encode("utf-8")
+
+                # Save page as child document in librarian
+                await self.save_child_document(
+                    doc_id=page_doc_id,
+                    parent_id=source_doc_id,
+                    user=v.metadata.user,
+                    content=page_content,
+                    document_type="page",
+                    title=f"Page {page_num}",
+                )
+
+                # Emit provenance triples
+                doc_uri = document_uri(source_doc_id)
+                pg_uri = page_uri(source_doc_id, page_num)
+
+                prov_triples = derived_entity_triples(
+                    entity_uri=pg_uri,
+                    parent_uri=doc_uri,
+                    component_name=COMPONENT_NAME,
+                    component_version=COMPONENT_VERSION,
+                    label=f"Page {page_num}",
+                    page_number=page_num,
+                )
+
+                await flow("triples").send(Triples(
+                    metadata=Metadata(
+                        id=pg_uri,
+                        metadata=[],
+                        user=v.metadata.user,
+                        collection=v.metadata.collection,
+                    ),
+                    triples=prov_triples,
+                ))
+
+                # Forward page document ID to chunker
+                # Chunker will fetch content from librarian
                 r = TextDocument(
-                    metadata=v.metadata,
-                    text=page.page_content.encode("utf-8"),
+                    metadata=Metadata(
+                        id=pg_uri,
+                        metadata=[],
+                        user=v.metadata.user,
+                        collection=v.metadata.collection,
+                    ),
+                    document_id=page_doc_id,
+                    text=b"",  # Empty, chunker will fetch from librarian
                 )
 
                 await flow("output").send(r)

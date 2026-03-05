@@ -12,6 +12,8 @@ from ..core.topic import topic
 class EntityContext:
     entity: Term | None = None
     context: str = ""
+    # Provenance: which chunk this entity context was derived from
+    chunk_id: str = ""
 
 # This is a 'batching' mechanism for the above data
 @dataclass
