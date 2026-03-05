@@ -69,9 +69,13 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
         mock_msg = MagicMock()
         mock_msg.value.return_value = mock_document
 
-        # Mock flow
+        # Mock flow - separate mocks for output and triples
         mock_output_flow = AsyncMock()
-        mock_flow = MagicMock(return_value=mock_output_flow)
+        mock_triples_flow = AsyncMock()
+        mock_flow = MagicMock(side_effect=lambda name: {
+            "output": mock_output_flow,
+            "triples": mock_triples_flow,
+        }.get(name))
 
         config = {
             'id': 'test-pdf-decoder',
@@ -87,6 +91,8 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
 
         # Verify output was sent for each page
         assert mock_output_flow.send.call_count == 2
+        # Verify triples were sent for each page (provenance)
+        assert mock_triples_flow.send.call_count == 2
 
     @patch('trustgraph.base.chunking_service.Consumer')
     @patch('trustgraph.base.chunking_service.Producer')
@@ -143,8 +149,13 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
         mock_msg = MagicMock()
         mock_msg.value.return_value = mock_document
 
+        # Mock flow - separate mocks for output and triples
         mock_output_flow = AsyncMock()
-        mock_flow = MagicMock(return_value=mock_output_flow)
+        mock_triples_flow = AsyncMock()
+        mock_flow = MagicMock(side_effect=lambda name: {
+            "output": mock_output_flow,
+            "triples": mock_triples_flow,
+        }.get(name))
 
         config = {
             'id': 'test-pdf-decoder',
