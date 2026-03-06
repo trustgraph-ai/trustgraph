@@ -90,8 +90,14 @@ class EntityVectors:
             max_length=65535,
         )
 
+        chunk_id_field = FieldSchema(
+            name="chunk_id",
+            dtype=DataType.VARCHAR,
+            max_length=65535,
+        )
+
         schema = CollectionSchema(
-            fields = [pkey_field, vec_field, entity_field],
+            fields = [pkey_field, vec_field, entity_field, chunk_id_field],
             description = "Graph embedding schema",
         )
 
@@ -119,17 +125,18 @@ class EntityVectors:
         self.collections[(dimension, user, collection)] = collection_name
         logger.info(f"Created Milvus collection {collection_name} with dimension {dimension}")
 
-    def insert(self, embeds, entity, user, collection):
+    def insert(self, embeds, entity, user, collection, chunk_id=""):
 
         dim = len(embeds)
 
         if (dim, user, collection) not in self.collections:
             self.init_collection(dim, user, collection)
-    
+
         data = [
             {
                 "vector": embeds,
                 "entity": entity,
+                "chunk_id": chunk_id,
             }
         ]
 

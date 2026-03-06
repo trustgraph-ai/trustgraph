@@ -9,17 +9,27 @@ into flows for use in queries and RAG operations.
 import json
 import base64
 
-from .. knowledge import hash, Uri, Literal
-from .. schema import IRI, LITERAL
+from .. knowledge import hash, Uri, Literal, QuotedTriple
+from .. schema import IRI, LITERAL, TRIPLE
 from . types import Triple
 
 
 def to_value(x):
-    """Convert wire format to Uri or Literal."""
+    """Convert wire format to Uri, Literal, or QuotedTriple."""
     if x.get("t") == IRI:
         return Uri(x.get("i", ""))
     elif x.get("t") == LITERAL:
         return Literal(x.get("v", ""))
+    elif x.get("t") == TRIPLE:
+        # Wire format uses "tr" key for nested triple dict
+        triple_data = x.get("tr")
+        if triple_data:
+            return QuotedTriple(
+                s=to_value(triple_data.get("s", {})),
+                p=to_value(triple_data.get("p", {})),
+                o=to_value(triple_data.get("o", {})),
+            )
+        return Literal("")
     # Fallback for any other type
     return Literal(x.get("v", x.get("i", "")))
 

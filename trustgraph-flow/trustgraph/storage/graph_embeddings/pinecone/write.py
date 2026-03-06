@@ -137,11 +137,15 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
                 # Generate unique ID for each vector
                 vector_id = str(uuid.uuid4())
 
+                metadata = {"entity": entity_value}
+                if entity.chunk_id:
+                    metadata["chunk_id"] = entity.chunk_id
+
                 records = [
                     {
                         "id": vector_id,
                         "values": vec,
-                        "metadata": { "entity": entity_value },
+                        "metadata": metadata,
                     }
                 ]
 

@@ -57,7 +57,8 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
                     self.vecstore.insert(
                         vec, entity_value,
                         message.metadata.user,
-                        message.metadata.collection
+                        message.metadata.collection,
+                        chunk_id=entity.chunk_id or "",
                     )
 
     @staticmethod

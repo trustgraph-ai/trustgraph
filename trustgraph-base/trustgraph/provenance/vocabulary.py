@@ -16,6 +16,9 @@ from . namespaces import (
     PROV_WAS_DERIVED_FROM, PROV_WAS_GENERATED_BY,
     PROV_USED, PROV_WAS_ASSOCIATED_WITH, PROV_STARTED_AT_TIME,
     DC_TITLE, DC_SOURCE, DC_DATE, DC_CREATOR,
+    SCHEMA_SUBJECT_OF, SCHEMA_DIGITAL_DOCUMENT, SCHEMA_DESCRIPTION,
+    SCHEMA_KEYWORDS, SCHEMA_NAME,
+    SKOS_DEFINITION,
     TG_REIFIES, TG_PAGE_COUNT, TG_MIME_TYPE, TG_PAGE_NUMBER,
     TG_CHUNK_INDEX, TG_CHAR_OFFSET, TG_CHAR_LENGTH,
     TG_CHUNK_SIZE, TG_CHUNK_OVERLAP, TG_COMPONENT_VERSION,
@@ -55,6 +58,20 @@ DC_PREDICATE_LABELS = [
     _label_triple(DC_SOURCE, "source"),
     _label_triple(DC_DATE, "date"),
     _label_triple(DC_CREATOR, "creator"),
+]
+
+# Schema.org labels
+SCHEMA_LABELS = [
+    _label_triple(SCHEMA_SUBJECT_OF, "subject of"),
+    _label_triple(SCHEMA_DIGITAL_DOCUMENT, "Digital Document"),
+    _label_triple(SCHEMA_DESCRIPTION, "description"),
+    _label_triple(SCHEMA_KEYWORDS, "keywords"),
+    _label_triple(SCHEMA_NAME, "name"),
+]
+
+# SKOS labels
+SKOS_LABELS = [
+    _label_triple(SKOS_DEFINITION, "definition"),
 ]
 
 # TrustGraph predicate labels
@@ -97,5 +114,7 @@ def get_vocabulary_triples() -> List[Triple]:
         PROV_CLASS_LABELS +
         PROV_PREDICATE_LABELS +
         DC_PREDICATE_LABELS +
+        SCHEMA_LABELS +
+        SKOS_LABELS +
         TG_PREDICATE_LABELS
     )

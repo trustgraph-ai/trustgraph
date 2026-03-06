@@ -1,6 +1,6 @@
 """
 Connects to the graph query service and dumps all graph edges in Turtle
-format.
+format with RDF-star support for quoted triples.
 """
 
 import rdflib
@@ -10,10 +10,36 @@ import argparse
 import os
 
 from trustgraph.api import Api, Uri
+from trustgraph.knowledge import QuotedTriple
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_user = 'trustgraph'
 default_collection = 'default'
+
+
+def value_to_rdflib(val):
+    """Convert a TrustGraph value to an rdflib term."""
+    if isinstance(val, Uri):
+        # Skip malformed URLs with spaces
+        if " " in val:
+            return None
+        return rdflib.term.URIRef(val)
+    elif isinstance(val, QuotedTriple):
+        # RDF-star quoted triple
+        s_term = value_to_rdflib(val.s)
+        p_term = value_to_rdflib(val.p)
+        o_term = value_to_rdflib(val.o)
+        if s_term is None or p_term is None or o_term is None:
+            return None
+        # rdflib 6.x+ supports Triple as a term type
+        try:
+            return rdflib.term.Triple((s_term, p_term, o_term))
+        except AttributeError:
+            # Fallback for older rdflib versions - represent as string
+            return rdflib.term.Literal(f"<<{val.s} {val.p} {val.o}>>")
+    else:
+        return rdflib.term.Literal(str(val))
+
 
 def show_graph(url, flow_id, user, collection):
 
@@ -30,18 +56,10 @@ def show_graph(url, flow_id, user, collection):
 
         sv = rdflib.term.URIRef(row.s)
         pv = rdflib.term.URIRef(row.p)
+        ov = value_to_rdflib(row.o)
 
-        if isinstance(row.o, Uri):
-
-            # Skip malformed URLs with spaces in
-            if " " in row.o:
-                continue
-
-            ov = rdflib.term.URIRef(row.o)
-
-        else:
-
-            ov = rdflib.term.Literal(row.o)
+        if ov is None:
+            continue
 
         g.add((sv, pv, ov))
 

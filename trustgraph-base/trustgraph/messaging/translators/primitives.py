@@ -82,6 +82,7 @@ def _triple_translator_to_pulsar(data: Dict[str, Any]) -> Triple:
 
 
 def _triple_translator_from_pulsar(obj: Triple) -> Dict[str, Any]:
+    """Convert Triple object to wire format dict."""
     term_translator = TermTranslator()
     result: Dict[str, Any] = {}
 
