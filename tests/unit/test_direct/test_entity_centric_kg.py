@@ -569,14 +569,24 @@ class TestServiceHelperFunctions:
         assert term.language == 'en'
 
     def test_create_term_with_triple_otype(self):
-        """Test create_term creates IRI Term for otype='t'"""
+        """Test create_term creates TRIPLE Term for otype='t' with valid JSON"""
         from trustgraph.query.triples.cassandra.service import create_term
-        from trustgraph.schema import IRI
+        from trustgraph.schema import TRIPLE, IRI
+        import json
 
-        term = create_term('http://example.org/statement1', otype='t')
+        # Valid JSON triple data
+        triple_json = json.dumps({
+            "s": {"type": "i", "iri": "http://example.org/Alice"},
+            "p": {"type": "i", "iri": "http://example.org/knows"},
+            "o": {"type": "i", "iri": "http://example.org/Bob"},
+        })
 
-        assert term.type == IRI
-        assert term.iri == 'http://example.org/statement1'
+        term = create_term(triple_json, otype='t')
+
+        assert term.type == TRIPLE
+        assert term.triple is not None
+        assert term.triple.s.type == IRI
+        assert term.triple.s.iri == "http://example.org/Alice"
 
     def test_create_term_heuristic_fallback_uri(self):
         """Test create_term uses URL heuristic when otype not provided"""
