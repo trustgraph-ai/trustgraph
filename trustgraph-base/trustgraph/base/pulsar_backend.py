@@ -12,7 +12,7 @@ import logging
 import base64
 import types
 from dataclasses import asdict, is_dataclass
-from typing import Any
+from typing import Any, get_type_hints
 
 from .backend import PubSubBackend, BackendProducer, BackendConsumer, Message
 
@@ -58,6 +58,7 @@ def dict_to_dataclass(data: dict, cls: type) -> Any:
     Convert a dictionary back to a dataclass instance.
 
     Handles nested dataclasses and missing fields.
+    Uses get_type_hints() to resolve forward references (string annotations).
     """
     if data is None:
         return None
@@ -65,8 +66,13 @@ def dict_to_dataclass(data: dict, cls: type) -> Any:
     if not is_dataclass(cls):
         return data
 
-    # Get field types from the dataclass
-    field_types = {f.name: f.type for f in cls.__dataclass_fields__.values()}
+    # Get field types from the dataclass, resolving forward references
+    # get_type_hints() evaluates string annotations like "Triple | None"
+    try:
+        field_types = get_type_hints(cls)
+    except Exception:
+        # Fallback if get_type_hints fails (shouldn't happen normally)
+        field_types = {f.name: f.type for f in cls.__dataclass_fields__.values()}
     kwargs = {}
 
     for key, value in data.items():
