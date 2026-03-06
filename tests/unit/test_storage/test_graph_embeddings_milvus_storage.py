@@ -172,26 +172,30 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         message.metadata = MagicMock()
         message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
-        
+
         valid_entity = EntityEmbeddings(
             entity=Term(type=IRI, iri='http://example.com/valid'),
-            vectors=[[0.1, 0.2, 0.3]]
+            vectors=[[0.1, 0.2, 0.3]],
+            chunk_id=''
         )
         empty_entity = EntityEmbeddings(
             entity=Term(type=LITERAL, value=''),
-            vectors=[[0.4, 0.5, 0.6]]
+            vectors=[[0.4, 0.5, 0.6]],
+            chunk_id=''
         )
         none_entity = EntityEmbeddings(
             entity=Term(type=LITERAL, value=None),
-            vectors=[[0.7, 0.8, 0.9]]
+            vectors=[[0.7, 0.8, 0.9]],
+            chunk_id=''
         )
         message.entities = [valid_entity, empty_entity, none_entity]
-        
+
         await processor.store_graph_embeddings(message)
-        
-        # Verify only valid entity was inserted with user/collection parameters
+
+        # Verify only valid entity was inserted with user/collection/chunk_id parameters
         processor.vecstore.insert.assert_called_once_with(
-            [0.1, 0.2, 0.3], 'http://example.com/valid', 'test_user', 'test_collection'
+            [0.1, 0.2, 0.3], 'http://example.com/valid', 'test_user', 'test_collection',
+            chunk_id=''
         )
 
     @pytest.mark.asyncio
