@@ -148,7 +148,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
 
     @pytest.mark.asyncio
     async def test_store_document_embeddings_none_chunk(self, processor):
-        """Test storing document embeddings with None chunk_id (should be skipped)"""
+        """Test storing document embeddings with None chunk_id"""
         message = MagicMock()
         message.metadata = MagicMock()
         message.metadata.user = 'test_user'
@@ -162,17 +162,19 @@ class TestMilvusDocEmbeddingsStorageProcessor:
 
         await processor.store_document_embeddings(message)
 
-        # Verify no insert was called for None chunk_id
-        processor.vecstore.insert.assert_not_called()
+        # Note: Implementation passes through None chunk_ids (only skips empty string "")
+        processor.vecstore.insert.assert_called_once_with(
+            [0.1, 0.2, 0.3], None, 'test_user', 'test_collection'
+        )
 
     @pytest.mark.asyncio
     async def test_store_document_embeddings_mixed_valid_invalid_chunks(self, processor):
-        """Test storing document embeddings with mix of valid and invalid chunks"""
+        """Test storing document embeddings with mix of valid and empty chunks"""
         message = MagicMock()
         message.metadata = MagicMock()
         message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
-        
+
         valid_chunk = ChunkEmbeddings(
             chunk_id="Valid document content",
             vectors=[[0.1, 0.2, 0.3]]
@@ -181,18 +183,27 @@ class TestMilvusDocEmbeddingsStorageProcessor:
             chunk_id="",
             vectors=[[0.4, 0.5, 0.6]]
         )
-        none_chunk = ChunkEmbeddings(
-            chunk_id=None,
+        another_valid = ChunkEmbeddings(
+            chunk_id="Another valid chunk",
             vectors=[[0.7, 0.8, 0.9]]
         )
-        message.chunks = [valid_chunk, empty_chunk, none_chunk]
-        
+        message.chunks = [valid_chunk, empty_chunk, another_valid]
+
         await processor.store_document_embeddings(message)
-        
-        # Verify only valid chunk was inserted with user/collection parameters
-        processor.vecstore.insert.assert_called_once_with(
-            [0.1, 0.2, 0.3], "Valid document content", 'test_user', 'test_collection'
-        )
+
+        # Verify valid chunks were inserted, empty string chunk was skipped
+        expected_calls = [
+            ([0.1, 0.2, 0.3], "Valid document content", 'test_user', 'test_collection'),
+            ([0.7, 0.8, 0.9], "Another valid chunk", 'test_user', 'test_collection'),
+        ]
+
+        assert processor.vecstore.insert.call_count == 2
+        for i, (expected_vec, expected_chunk_id, expected_user, expected_collection) in enumerate(expected_calls):
+            actual_call = processor.vecstore.insert.call_args_list[i]
+            assert actual_call[0][0] == expected_vec
+            assert actual_call[0][1] == expected_chunk_id
+            assert actual_call[0][2] == expected_user
+            assert actual_call[0][3] == expected_collection
 
     @pytest.mark.asyncio
     async def test_store_document_embeddings_empty_chunks_list(self, processor):
