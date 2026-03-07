@@ -77,9 +77,9 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         
         # Mock query response
         mock_point1 = MagicMock()
-        mock_point1.payload = {'doc': 'first document chunk'}
+        mock_point1.payload = {'chunk_id': 'first document chunk'}
         mock_point2 = MagicMock()
-        mock_point2.payload = {'doc': 'second document chunk'}
+        mock_point2.payload = {'chunk_id': 'second document chunk'}
         
         mock_response = MagicMock()
         mock_response.points = [mock_point1, mock_point2]
@@ -132,11 +132,11 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         
         # Mock query responses for different vectors
         mock_point1 = MagicMock()
-        mock_point1.payload = {'doc': 'document from vector 1'}
+        mock_point1.payload = {'chunk_id': 'document from vector 1'}
         mock_point2 = MagicMock()
-        mock_point2.payload = {'doc': 'document from vector 2'}
+        mock_point2.payload = {'chunk_id': 'document from vector 2'}
         mock_point3 = MagicMock()
-        mock_point3.payload = {'doc': 'another document from vector 2'}
+        mock_point3.payload = {'chunk_id': 'another document from vector 2'}
         
         mock_response1 = MagicMock()
         mock_response1.points = [mock_point1]
@@ -192,7 +192,7 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         mock_points = []
         for i in range(10):
             mock_point = MagicMock()
-            mock_point.payload = {'doc': f'document chunk {i}'}
+            mock_point.payload = {'chunk_id': f'document chunk {i}'}
             mock_points.append(mock_point)
         
         mock_response = MagicMock()
@@ -270,9 +270,9 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         
         # Mock query responses
         mock_point1 = MagicMock()
-        mock_point1.payload = {'doc': 'document from 2D vector'}
+        mock_point1.payload = {'chunk_id': 'document from 2D vector'}
         mock_point2 = MagicMock()
-        mock_point2.payload = {'doc': 'document from 3D vector'}
+        mock_point2.payload = {'chunk_id': 'document from 3D vector'}
         
         mock_response1 = MagicMock()
         mock_response1.points = [mock_point1]
@@ -326,9 +326,9 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         
         # Mock query response with UTF-8 content
         mock_point1 = MagicMock()
-        mock_point1.payload = {'doc': 'Document with UTF-8: café, naïve, résumé'}
+        mock_point1.payload = {'chunk_id': 'Document with UTF-8: café, naïve, résumé'}
         mock_point2 = MagicMock()
-        mock_point2.payload = {'doc': 'Chinese text: 你好世界'}
+        mock_point2.payload = {'chunk_id': 'Chinese text: 你好世界'}
         
         mock_response = MagicMock()
         mock_response.points = [mock_point1, mock_point2]
@@ -399,7 +399,7 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         
         # Mock query response
         mock_point = MagicMock()
-        mock_point.payload = {'doc': 'document chunk'}
+        mock_point.payload = {'chunk_id': 'document chunk'}
         mock_response = MagicMock()
         mock_response.points = [mock_point]
         mock_qdrant_instance.query_points.return_value = mock_response
@@ -442,9 +442,9 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         
         # Mock query response with fewer results than limit
         mock_point1 = MagicMock()
-        mock_point1.payload = {'doc': 'document 1'}
+        mock_point1.payload = {'chunk_id': 'document 1'}
         mock_point2 = MagicMock()
-        mock_point2.payload = {'doc': 'document 2'}
+        mock_point2.payload = {'chunk_id': 'document 2'}
         
         mock_response = MagicMock()
         mock_response.points = [mock_point1, mock_point2]
@@ -487,11 +487,11 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         mock_qdrant_instance = MagicMock()
         mock_qdrant_client.return_value = mock_qdrant_instance
         
-        # Mock query response with missing 'doc' key
+        # Mock query response with missing 'chunk_id' key
         mock_point1 = MagicMock()
-        mock_point1.payload = {'doc': 'valid document'}
+        mock_point1.payload = {'chunk_id': 'valid document'}
         mock_point2 = MagicMock()
-        mock_point2.payload = {}  # Missing 'doc' key
+        mock_point2.payload = {}  # Missing 'chunk_id' key
         mock_point3 = MagicMock()
         mock_point3.payload = {'other_key': 'invalid'}  # Wrong key
         
@@ -514,7 +514,7 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         mock_message.collection = 'payload_collection'
         
         # Act & Assert
-        # This should raise a KeyError when trying to access payload['doc']
+        # This should raise a KeyError when trying to access payload['chunk_id']
         with pytest.raises(KeyError):
             await processor.query_document_embeddings(mock_message)
 

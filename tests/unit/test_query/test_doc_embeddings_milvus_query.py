@@ -77,9 +77,9 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         
         # Mock search results
         mock_results = [
-            {"entity": {"doc": "First document chunk"}},
-            {"entity": {"doc": "Second document chunk"}},
-            {"entity": {"doc": "Third document chunk"}},
+            {"entity": {"chunk_id": "First document chunk"}},
+            {"entity": {"chunk_id": "Second document chunk"}},
+            {"entity": {"chunk_id": "Third document chunk"}},
         ]
         processor.vecstore.search.return_value = mock_results
         
@@ -108,11 +108,11 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         
         # Mock search results - different results for each vector
         mock_results_1 = [
-            {"entity": {"doc": "Document from first vector"}},
-            {"entity": {"doc": "Another doc from first vector"}},
+            {"entity": {"chunk_id": "Document from first vector"}},
+            {"entity": {"chunk_id": "Another doc from first vector"}},
         ]
         mock_results_2 = [
-            {"entity": {"doc": "Document from second vector"}},
+            {"entity": {"chunk_id": "Document from second vector"}},
         ]
         processor.vecstore.search.side_effect = [mock_results_1, mock_results_2]
         
@@ -147,10 +147,10 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         
         # Mock search results - more results than limit
         mock_results = [
-            {"entity": {"doc": "Document 1"}},
-            {"entity": {"doc": "Document 2"}},
-            {"entity": {"doc": "Document 3"}},
-            {"entity": {"doc": "Document 4"}},
+            {"entity": {"chunk_id": "Document 1"}},
+            {"entity": {"chunk_id": "Document 2"}},
+            {"entity": {"chunk_id": "Document 3"}},
+            {"entity": {"chunk_id": "Document 4"}},
         ]
         processor.vecstore.search.return_value = mock_results
         
@@ -217,9 +217,9 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         
         # Mock search results with Unicode content
         mock_results = [
-            {"entity": {"doc": "Document with Unicode: éñ中文🚀"}},
-            {"entity": {"doc": "Regular ASCII document"}},
-            {"entity": {"doc": "Document with émojis: 😀🎉"}},
+            {"entity": {"chunk_id": "Document with Unicode: éñ中文🚀"}},
+            {"entity": {"chunk_id": "Regular ASCII document"}},
+            {"entity": {"chunk_id": "Document with émojis: 😀🎉"}},
         ]
         processor.vecstore.search.return_value = mock_results
         
@@ -244,8 +244,8 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         # Mock search results with large content
         large_doc = "A" * 10000  # 10KB of content
         mock_results = [
-            {"entity": {"doc": large_doc}},
-            {"entity": {"doc": "Small document"}},
+            {"entity": {"chunk_id": large_doc}},
+            {"entity": {"chunk_id": "Small document"}},
         ]
         processor.vecstore.search.return_value = mock_results
         
@@ -268,9 +268,9 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         
         # Mock search results with special characters
         mock_results = [
-            {"entity": {"doc": "Document with \"quotes\" and 'apostrophes'"}},
-            {"entity": {"doc": "Document with\nnewlines\tand\ttabs"}},
-            {"entity": {"doc": "Document with special chars: @#$%^&*()"}},
+            {"entity": {"chunk_id": "Document with \"quotes\" and 'apostrophes'"}},
+            {"entity": {"chunk_id": "Document with\nnewlines\tand\ttabs"}},
+            {"entity": {"chunk_id": "Document with special chars: @#$%^&*()"}},
         ]
         processor.vecstore.search.return_value = mock_results
         
@@ -350,9 +350,9 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         )
         
         # Mock search results for each vector
-        mock_results_1 = [{"entity": {"doc": "Document from 2D vector"}}]
-        mock_results_2 = [{"entity": {"doc": "Document from 4D vector"}}]
-        mock_results_3 = [{"entity": {"doc": "Document from 3D vector"}}]
+        mock_results_1 = [{"entity": {"chunk_id": "Document from 2D vector"}}]
+        mock_results_2 = [{"entity": {"chunk_id": "Document from 4D vector"}}]
+        mock_results_3 = [{"entity": {"chunk_id": "Document from 3D vector"}}]
         processor.vecstore.search.side_effect = [mock_results_1, mock_results_2, mock_results_3]
         
         result = await processor.query_document_embeddings(query)
@@ -378,12 +378,12 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         
         # Mock search results with duplicates across vectors
         mock_results_1 = [
-            {"entity": {"doc": "Document A"}},
-            {"entity": {"doc": "Document B"}},
+            {"entity": {"chunk_id": "Document A"}},
+            {"entity": {"chunk_id": "Document B"}},
         ]
         mock_results_2 = [
-            {"entity": {"doc": "Document B"}},  # Duplicate
-            {"entity": {"doc": "Document C"}},
+            {"entity": {"chunk_id": "Document B"}},  # Duplicate
+            {"entity": {"chunk_id": "Document C"}},
         ]
         processor.vecstore.search.side_effect = [mock_results_1, mock_results_2]
         
@@ -458,5 +458,5 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         
         mock_launch.assert_called_once_with(
             default_ident,
-            "\nDocument embeddings query service.  Input is vector, output is an array\nof chunks\n"
+            "\nDocument embeddings query service.  Input is vector, output is an array\nof chunk_ids\n"
         )

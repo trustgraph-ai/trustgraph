@@ -22,11 +22,11 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         
         # Create test document embeddings
         chunk1 = ChunkEmbeddings(
-            chunk=b"This is the first document chunk",
+            chunk_id="This is the first document chunk",
             vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
         )
         chunk2 = ChunkEmbeddings(
-            chunk=b"This is the second document chunk",
+            chunk_id="This is the second document chunk",
             vectors=[[0.7, 0.8, 0.9]]
         )
         message.chunks = [chunk1, chunk2]
@@ -84,7 +84,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         message.metadata.collection = 'test_collection'
         
         chunk = ChunkEmbeddings(
-            chunk=b"Test document content",
+            chunk_id="Test document content",
             vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
         )
         message.chunks = [chunk]
@@ -136,7 +136,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         message.metadata.collection = 'test_collection'
         
         chunk = ChunkEmbeddings(
-            chunk=b"",
+            chunk_id="",
             vectors=[[0.1, 0.2, 0.3]]
         )
         message.chunks = [chunk]
@@ -148,21 +148,21 @@ class TestMilvusDocEmbeddingsStorageProcessor:
 
     @pytest.mark.asyncio
     async def test_store_document_embeddings_none_chunk(self, processor):
-        """Test storing document embeddings with None chunk (should be skipped)"""
+        """Test storing document embeddings with None chunk_id (should be skipped)"""
         message = MagicMock()
         message.metadata = MagicMock()
         message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
-        
+
         chunk = ChunkEmbeddings(
-            chunk=None,
+            chunk_id=None,
             vectors=[[0.1, 0.2, 0.3]]
         )
         message.chunks = [chunk]
-        
+
         await processor.store_document_embeddings(message)
-        
-        # Verify no insert was called for None chunk
+
+        # Verify no insert was called for None chunk_id
         processor.vecstore.insert.assert_not_called()
 
     @pytest.mark.asyncio
@@ -174,15 +174,15 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         message.metadata.collection = 'test_collection'
         
         valid_chunk = ChunkEmbeddings(
-            chunk=b"Valid document content",
+            chunk_id="Valid document content",
             vectors=[[0.1, 0.2, 0.3]]
         )
         empty_chunk = ChunkEmbeddings(
-            chunk=b"",
+            chunk_id="",
             vectors=[[0.4, 0.5, 0.6]]
         )
         none_chunk = ChunkEmbeddings(
-            chunk=None,
+            chunk_id=None,
             vectors=[[0.7, 0.8, 0.9]]
         )
         message.chunks = [valid_chunk, empty_chunk, none_chunk]
@@ -217,7 +217,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         message.metadata.collection = 'test_collection'
         
         chunk = ChunkEmbeddings(
-            chunk=b"Document with no vectors",
+            chunk_id="Document with no vectors",
             vectors=[]
         )
         message.chunks = [chunk]
@@ -236,7 +236,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         message.metadata.collection = 'test_collection'
         
         chunk = ChunkEmbeddings(
-            chunk=b"Document with mixed dimensions",
+            chunk_id="Document with mixed dimensions",
             vectors=[
                 [0.1, 0.2],  # 2D vector
                 [0.3, 0.4, 0.5, 0.6],  # 4D vector
@@ -264,46 +264,46 @@ class TestMilvusDocEmbeddingsStorageProcessor:
 
     @pytest.mark.asyncio
     async def test_store_document_embeddings_unicode_content(self, processor):
-        """Test storing document embeddings with Unicode content"""
+        """Test storing document embeddings with Unicode content in chunk_id"""
         message = MagicMock()
         message.metadata = MagicMock()
         message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
-        
+
         chunk = ChunkEmbeddings(
-            chunk="Document with Unicode: éñ中文🚀".encode('utf-8'),
+            chunk_id="chunk/doc/unicode-éñ中文🚀",
             vectors=[[0.1, 0.2, 0.3]]
         )
         message.chunks = [chunk]
-        
+
         await processor.store_document_embeddings(message)
-        
-        # Verify Unicode content was properly decoded and inserted with user/collection parameters
+
+        # Verify Unicode chunk_id was stored correctly with user/collection parameters
         processor.vecstore.insert.assert_called_once_with(
-            [0.1, 0.2, 0.3], "Document with Unicode: éñ中文🚀", 'test_user', 'test_collection'
+            [0.1, 0.2, 0.3], "chunk/doc/unicode-éñ中文🚀", 'test_user', 'test_collection'
         )
 
     @pytest.mark.asyncio
-    async def test_store_document_embeddings_large_chunks(self, processor):
-        """Test storing document embeddings with large document chunks"""
+    async def test_store_document_embeddings_large_chunk_id(self, processor):
+        """Test storing document embeddings with long chunk_id"""
         message = MagicMock()
         message.metadata = MagicMock()
         message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
-        
-        # Create a large document chunk
-        large_content = "A" * 10000  # 10KB of content
+
+        # Create a long chunk_id
+        long_chunk_id = "chunk/doc/" + "a" * 200
         chunk = ChunkEmbeddings(
-            chunk=large_content.encode('utf-8'),
+            chunk_id=long_chunk_id,
             vectors=[[0.1, 0.2, 0.3]]
         )
         message.chunks = [chunk]
-        
+
         await processor.store_document_embeddings(message)
-        
-        # Verify large content was inserted with user/collection parameters
+
+        # Verify long chunk_id was inserted with user/collection parameters
         processor.vecstore.insert.assert_called_once_with(
-            [0.1, 0.2, 0.3], large_content, 'test_user', 'test_collection'
+            [0.1, 0.2, 0.3], long_chunk_id, 'test_user', 'test_collection'
         )
 
     @pytest.mark.asyncio
@@ -315,7 +315,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         message.metadata.collection = 'test_collection'
         
         chunk = ChunkEmbeddings(
-            chunk=b"   \n\t   ",
+            chunk_id="   \n\t   ",
             vectors=[[0.1, 0.2, 0.3]]
         )
         message.chunks = [chunk]
@@ -346,7 +346,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
             message.metadata.collection = collection
             
             chunk = ChunkEmbeddings(
-                chunk=b"Test content",
+                chunk_id="Test content",
                 vectors=[[0.1, 0.2, 0.3]]
             )
             message.chunks = [chunk]
@@ -367,7 +367,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         message1.metadata.user = 'user1'
         message1.metadata.collection = 'collection1'
         chunk1 = ChunkEmbeddings(
-            chunk=b"User1 content",
+            chunk_id="User1 content",
             vectors=[[0.1, 0.2, 0.3]]
         )
         message1.chunks = [chunk1]
@@ -378,7 +378,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         message2.metadata.user = 'user2'
         message2.metadata.collection = 'collection2'
         chunk2 = ChunkEmbeddings(
-            chunk=b"User2 content",
+            chunk_id="User2 content",
             vectors=[[0.4, 0.5, 0.6]]
         )
         message2.chunks = [chunk2]
@@ -409,7 +409,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         message.metadata.collection = 'test-collection.v1'  # Collection with special chars
         
         chunk = ChunkEmbeddings(
-            chunk=b"Special chars test",
+            chunk_id="Special chars test",
             vectors=[[0.1, 0.2, 0.3]]
         )
         message.chunks = [chunk]
