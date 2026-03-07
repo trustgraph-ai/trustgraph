@@ -27,8 +27,11 @@ def query(url, flow_id, query_text, user, collection, limit, token=None):
         )
 
         chunk_ids = result.get("chunk_ids", [])
-        for i, chunk_id in enumerate(chunk_ids, 1):
-            print(f"{i}. {chunk_id}")
+        if not chunk_ids:
+            print("No matching chunks found.")
+        else:
+            for i, chunk_id in enumerate(chunk_ids, 1):
+                print(f"{i}. {chunk_id}")
 
     finally:
         # Clean up socket connection
