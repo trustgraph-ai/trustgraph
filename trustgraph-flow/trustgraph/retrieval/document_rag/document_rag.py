@@ -24,7 +24,7 @@ class Query:
         if self.verbose:
             logger.debug("Computing embeddings...")
 
-        qembeds = await  self.rag.embeddings_client.embed(query)
+        qembeds = await self.rag.embeddings_client.embed(query)
 
         if self.verbose:
             logger.debug("Embeddings computed")
@@ -36,17 +36,31 @@ class Query:
         vectors = await self.get_vector(query)
 
         if self.verbose:
-            logger.debug("Getting documents...")
+            logger.debug("Getting chunk_ids from embeddings store...")
 
-        docs = await self.rag.doc_embeddings_client.query(
+        # Get chunk_ids from embeddings store
+        chunk_ids = await self.rag.doc_embeddings_client.query(
             vectors, limit=self.doc_limit,
             user=self.user, collection=self.collection,
         )
 
         if self.verbose:
-            logger.debug("Documents:")
+            logger.debug(f"Got {len(chunk_ids)} chunk_ids, fetching content from Garage...")
+
+        # Fetch chunk content from Garage
+        docs = []
+        for chunk_id in chunk_ids:
+            if chunk_id:
+                try:
+                    content = await self.rag.fetch_chunk(chunk_id, self.user)
+                    docs.append(content)
+                except Exception as e:
+                    logger.warning(f"Failed to fetch chunk {chunk_id}: {e}")
+
+        if self.verbose:
+            logger.debug("Documents fetched:")
             for doc in docs:
-                logger.debug(f"  {doc}")
+                logger.debug(f"  {doc[:100]}...")
 
         return docs
 
@@ -54,6 +68,7 @@ class DocumentRag:
 
     def __init__(
             self, prompt_client, embeddings_client, doc_embeddings_client,
+            fetch_chunk,
             verbose=False,
     ):
 
@@ -62,6 +77,7 @@ class DocumentRag:
         self.prompt_client = prompt_client
         self.embeddings_client = embeddings_client
         self.doc_embeddings_client = doc_embeddings_client
+        self.fetch_chunk = fetch_chunk
 
         if self.verbose:
             logger.debug("DocumentRag initialized")

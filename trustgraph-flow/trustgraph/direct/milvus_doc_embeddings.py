@@ -84,14 +84,14 @@ class DocVectors:
             dim=dimension,
         )
 
-        doc_field = FieldSchema(
-            name="doc",
+        chunk_id_field = FieldSchema(
+            name="chunk_id",
             dtype=DataType.VARCHAR,
             max_length=65535,
         )
 
         schema = CollectionSchema(
-            fields = [pkey_field, vec_field, doc_field],
+            fields = [pkey_field, vec_field, chunk_id_field],
             description = "Document embedding schema",
         )
 
@@ -119,17 +119,17 @@ class DocVectors:
         self.collections[(dimension, user, collection)] = collection_name
         logger.info(f"Created Milvus collection {collection_name} with dimension {dimension}")
 
-    def insert(self, embeds, doc, user, collection):
+    def insert(self, embeds, chunk_id, user, collection):
 
         dim = len(embeds)
 
         if (dim, user, collection) not in self.collections:
             self.init_collection(dim, user, collection)
-    
+
         data = [
             {
                 "vector": embeds,
-                "doc": doc,
+                "chunk_id": chunk_id,
             }
         ]
 
@@ -138,7 +138,7 @@ class DocVectors:
             data=data
         )
 
-    def search(self, embeds, user, collection, fields=["doc"], limit=10):
+    def search(self, embeds, user, collection, fields=["chunk_id"], limit=10):
 
         dim = len(embeds)
 

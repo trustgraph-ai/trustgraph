@@ -50,14 +50,14 @@ async def fetch_de(running, queue, user, collection, url):
                         "de",
                         {
                             "m": {
-                                "i": data["metadata"]["id"], 
+                                "i": data["metadata"]["id"],
                                 "m": data["metadata"]["metadata"],
                                 "u": data["metadata"]["user"],
                                 "c": data["metadata"]["collection"],
                             },
                             "c": [
                                 {
-                                    "c": chunk["chunk"],
+                                    "c": chunk["chunk_id"],
                                     "v": chunk["vectors"],
                                 }
                                 for chunk in data["chunks"]

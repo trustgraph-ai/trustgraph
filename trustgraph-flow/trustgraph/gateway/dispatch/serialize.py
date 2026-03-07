@@ -89,7 +89,7 @@ def serialize_document_embeddings(message):
         "chunks": [
             {
                 "vectors": chunk.vectors,
-                "chunk": chunk.chunk.decode("utf-8"),
+                "chunk_id": chunk.chunk_id,
             }
             for chunk in message.chunks
         ],

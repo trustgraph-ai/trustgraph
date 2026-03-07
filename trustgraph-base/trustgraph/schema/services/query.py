@@ -52,7 +52,7 @@ class DocumentEmbeddingsRequest:
 @dataclass
 class DocumentEmbeddingsResponse:
     error: Error | None = None
-    chunks: list[str] = field(default_factory=list)
+    chunk_ids: list[str] = field(default_factory=list)
 
 document_embeddings_request_queue = topic(
     "document-embeddings-request", qos='q0', tenant='trustgraph', namespace='flow'

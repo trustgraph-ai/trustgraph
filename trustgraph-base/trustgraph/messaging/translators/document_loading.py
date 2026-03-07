@@ -144,15 +144,15 @@ class DocumentEmbeddingsTranslator(SendTranslator):
     
     def to_pulsar(self, data: Dict[str, Any]) -> DocumentEmbeddings:
         metadata = data.get("metadata", {})
-        
+
         chunks = [
             ChunkEmbeddings(
-                chunk=chunk["chunk"].encode("utf-8") if isinstance(chunk["chunk"], str) else chunk["chunk"],
+                chunk_id=chunk["chunk_id"],
                 vectors=chunk["vectors"]
             )
             for chunk in data.get("chunks", [])
         ]
-        
+
         from ...schema import Metadata
         return DocumentEmbeddings(
             metadata=Metadata(
@@ -168,7 +168,7 @@ class DocumentEmbeddingsTranslator(SendTranslator):
         result = {
             "chunks": [
                 {
-                    "chunk": chunk.chunk.decode("utf-8") if isinstance(chunk.chunk, bytes) else chunk.chunk,
+                    "chunk_id": chunk.chunk_id,
                     "vectors": chunk.vectors
                 }
                 for chunk in obj.chunks

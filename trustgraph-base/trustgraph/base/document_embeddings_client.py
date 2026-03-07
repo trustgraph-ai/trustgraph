@@ -27,7 +27,7 @@ class DocumentEmbeddingsClient(RequestResponse):
         if resp.error:
             raise RuntimeError(resp.error.message)
 
-        return resp.chunks
+        return resp.chunk_ids
 
 class DocumentEmbeddingsClientSpec(RequestResponseSpec):
     def __init__(

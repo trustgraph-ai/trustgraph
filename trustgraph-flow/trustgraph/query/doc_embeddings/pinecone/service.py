@@ -1,7 +1,7 @@
 
 """
 Document embeddings query service.  Input is vector, output is an array
-of chunks.  Pinecone implementation.
+of chunk_ids.  Pinecone implementation.
 """
 
 import logging
@@ -55,7 +55,7 @@ class Processor(DocumentEmbeddingsQueryService):
             if msg.limit <= 0:
                 return []
 
-            chunks = []
+            chunk_ids = []
 
             for vec in msg.vectors:
 
@@ -79,10 +79,10 @@ class Processor(DocumentEmbeddingsQueryService):
                 )
 
                 for r in results.matches:
-                    doc = r.metadata["doc"]
-                    chunks.append(doc)
+                    chunk_id = r.metadata["chunk_id"]
+                    chunk_ids.append(chunk_id)
 
-            return chunks
+            return chunk_ids
 
         except Exception as e:
 
