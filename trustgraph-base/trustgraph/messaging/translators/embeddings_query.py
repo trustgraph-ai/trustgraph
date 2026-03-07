@@ -36,13 +36,10 @@ class DocumentEmbeddingsResponseTranslator(MessageTranslator):
     
     def from_pulsar(self, obj: DocumentEmbeddingsResponse) -> Dict[str, Any]:
         result = {}
-        
-        if obj.chunks is not None:
-            result["chunks"] = [
-                chunk.decode("utf-8") if isinstance(chunk, bytes) else chunk
-                for chunk in obj.chunks
-            ]
-        
+
+        if obj.chunk_ids is not None:
+            result["chunk_ids"] = list(obj.chunk_ids)
+
         return result
     
     def from_response_with_completion(self, obj: DocumentEmbeddingsResponse) -> Tuple[Dict[str, Any], bool]:

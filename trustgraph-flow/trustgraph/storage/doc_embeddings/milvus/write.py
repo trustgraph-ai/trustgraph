@@ -37,14 +37,13 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
 
         for emb in message.chunks:
 
-            if emb.chunk is None or emb.chunk == b"": continue
-
-            chunk = emb.chunk.decode("utf-8")
-            if chunk == "": continue
+            chunk_id = emb.chunk_id
+            if chunk_id == "":
+                continue
 
             for vec in emb.vectors:
                 self.vecstore.insert(
-                    vec, chunk,
+                    vec, chunk_id,
                     message.metadata.user,
                     message.metadata.collection
                 )

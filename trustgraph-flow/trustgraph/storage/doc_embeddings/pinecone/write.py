@@ -101,10 +101,9 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
 
         for emb in message.chunks:
 
-            if emb.chunk is None or emb.chunk == b"": continue
-
-            chunk = emb.chunk.decode("utf-8")
-            if chunk == "": continue
+            chunk_id = emb.chunk_id
+            if chunk_id == "":
+                continue
 
             for vec in emb.vectors:
 
@@ -128,7 +127,7 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
                     {
                         "id": vector_id,
                         "values": vec,
-                        "metadata": { "doc": chunk },
+                        "metadata": { "chunk_id": chunk_id },
                     }
                 ]
 

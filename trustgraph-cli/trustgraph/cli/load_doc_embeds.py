@@ -44,14 +44,14 @@ async def load_de(running, queue, url):
 
                 msg = {
                     "metadata": {
-                        "id": msg["m"]["i"], 
+                        "id": msg["m"]["i"],
                         "metadata": msg["m"]["m"],
                         "user": msg["m"]["u"],
                         "collection": msg["m"]["c"],
                     },
                     "chunks": [
                         {
-                            "chunk": chunk["c"],
+                            "chunk_id": chunk["c"],
                             "vectors": chunk["v"],
                         }
                         for chunk in msg["c"]

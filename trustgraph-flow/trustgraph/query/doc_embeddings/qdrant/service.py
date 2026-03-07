@@ -1,7 +1,7 @@
 
 """
 Document embeddings query service.  Input is vector, output is an array
-of chunks
+of chunk_ids
 """
 
 import logging
@@ -69,7 +69,7 @@ class Processor(DocumentEmbeddingsQueryService):
 
         try:
 
-            chunks = []
+            chunk_ids = []
 
             for vec in msg.vectors:
 
@@ -90,10 +90,10 @@ class Processor(DocumentEmbeddingsQueryService):
                 ).points
 
                 for r in search_result:
-                    ent = r.payload["doc"]
-                    chunks.append(ent)
+                    chunk_id = r.payload["chunk_id"]
+                    chunk_ids.append(chunk_id)
 
-            return chunks
+            return chunk_ids
 
         except Exception as e:
 

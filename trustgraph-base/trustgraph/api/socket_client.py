@@ -682,7 +682,7 @@ class SocketFlowInstance:
             **kwargs: Additional parameters passed to the service
 
         Returns:
-            dict: Query results with similar document chunks
+            dict: Query results with chunk_ids of matching document chunks
 
         Example:
             ```python
@@ -695,6 +695,7 @@ class SocketFlowInstance:
                 collection="research-papers",
                 limit=5
             )
+            # results contains {"chunk_ids": ["doc1/p0/c0", ...]}
             ```
         """
         # First convert text to embeddings vectors

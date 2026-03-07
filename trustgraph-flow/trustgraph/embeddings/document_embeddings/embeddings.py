@@ -70,7 +70,7 @@ class Processor(FlowProcessor):
 
             embeds = [
                 ChunkEmbeddings(
-                    chunk=v.chunk,
+                    chunk_id=v.document_id,
                     vectors=vectors,
                 )
             ]

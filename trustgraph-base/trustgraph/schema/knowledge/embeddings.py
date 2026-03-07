@@ -27,7 +27,7 @@ class GraphEmbeddings:
 
 @dataclass
 class ChunkEmbeddings:
-    chunk: bytes = b""
+    chunk_id: str = ""
     vectors: list[list[float]] = field(default_factory=list)
 
 # This is a 'batching' mechanism for the above data

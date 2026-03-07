@@ -52,8 +52,9 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
 
         for emb in message.chunks:
 
-            chunk = emb.chunk.decode("utf-8")
-            if chunk == "": return
+            chunk_id = emb.chunk_id
+            if chunk_id == "":
+                continue
 
             for vec in emb.vectors:
 
@@ -81,7 +82,7 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
                             id=str(uuid.uuid4()),
                             vector=vec,
                             payload={
-                                "doc": chunk,
+                                "chunk_id": chunk_id,
                             }
                         )
                     ]

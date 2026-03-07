@@ -1,7 +1,7 @@
 
 """
 Document embeddings query service.  Input is vector, output is an array
-of chunks
+of chunk_ids
 """
 
 import logging
@@ -39,22 +39,22 @@ class Processor(DocumentEmbeddingsQueryService):
             if msg.limit <= 0:
                 return []
 
-            chunks = []
+            chunk_ids = []
 
             for vec in msg.vectors:
 
                 resp = self.vecstore.search(
-                    vec, 
-                    msg.user, 
-                    msg.collection, 
+                    vec,
+                    msg.user,
+                    msg.collection,
                     limit=msg.limit
                 )
 
                 for r in resp:
-                    chunk = r["entity"]["doc"]
-                    chunks.append(chunk)
+                    chunk_id = r["entity"]["chunk_id"]
+                    chunk_ids.append(chunk_id)
 
-            return chunks
+            return chunk_ids
 
         except Exception as e:
 
