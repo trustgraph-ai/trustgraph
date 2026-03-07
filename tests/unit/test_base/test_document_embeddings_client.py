@@ -22,7 +22,7 @@ class TestDocumentEmbeddingsClient(IsolatedAsyncioTestCase):
         client = DocumentEmbeddingsClient()
         mock_response = MagicMock(spec=DocumentEmbeddingsResponse)
         mock_response.error = None
-        mock_response.chunks = ["chunk1", "chunk2", "chunk3"]
+        mock_response.chunk_ids = ["chunk1", "chunk2", "chunk3"]
         
         # Mock the request method
         client.request = AsyncMock(return_value=mock_response)
@@ -75,7 +75,7 @@ class TestDocumentEmbeddingsClient(IsolatedAsyncioTestCase):
         client = DocumentEmbeddingsClient()
         mock_response = MagicMock(spec=DocumentEmbeddingsResponse)
         mock_response.error = None
-        mock_response.chunks = []
+        mock_response.chunk_ids = []
         
         client.request = AsyncMock(return_value=mock_response)
         
@@ -93,7 +93,7 @@ class TestDocumentEmbeddingsClient(IsolatedAsyncioTestCase):
         client = DocumentEmbeddingsClient()
         mock_response = MagicMock(spec=DocumentEmbeddingsResponse)
         mock_response.error = None
-        mock_response.chunks = ["test_chunk"]
+        mock_response.chunk_ids = ["test_chunk"]
         
         client.request = AsyncMock(return_value=mock_response)
         
@@ -115,7 +115,7 @@ class TestDocumentEmbeddingsClient(IsolatedAsyncioTestCase):
         client = DocumentEmbeddingsClient()
         mock_response = MagicMock(spec=DocumentEmbeddingsResponse)
         mock_response.error = None
-        mock_response.chunks = ["chunk1"]
+        mock_response.chunk_ids = ["chunk1"]
         
         client.request = AsyncMock(return_value=mock_response)
         
@@ -136,7 +136,7 @@ class TestDocumentEmbeddingsClient(IsolatedAsyncioTestCase):
         client = DocumentEmbeddingsClient()
         mock_response = MagicMock(spec=DocumentEmbeddingsResponse)
         mock_response.error = None
-        mock_response.chunks = ["test_chunk"]
+        mock_response.chunk_ids = ["test_chunk"]
         
         client.request = AsyncMock(return_value=mock_response)
         

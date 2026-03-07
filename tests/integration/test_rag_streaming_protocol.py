@@ -202,10 +202,17 @@ class TestDocumentRagStreamingProtocol:
 
     @pytest.fixture
     def mock_doc_embeddings_client(self):
-        """Mock document embeddings client"""
+        """Mock document embeddings client that returns chunk IDs"""
         client = AsyncMock()
-        client.query.return_value = ["doc1", "doc2"]
+        client.query.return_value = ["doc/c1", "doc/c2"]
         return client
+
+    @pytest.fixture
+    def mock_fetch_chunk(self):
+        """Mock fetch_chunk function that retrieves chunk content from librarian"""
+        async def fetch(chunk_id, user):
+            return f"Content for {chunk_id}"
+        return fetch
 
     @pytest.fixture
     def mock_streaming_prompt_client(self):
@@ -227,12 +234,13 @@ class TestDocumentRagStreamingProtocol:
 
     @pytest.fixture
     def document_rag(self, mock_embeddings_client, mock_doc_embeddings_client,
-                     mock_streaming_prompt_client):
+                     mock_streaming_prompt_client, mock_fetch_chunk):
         """Create DocumentRag instance with mocked dependencies"""
         return DocumentRag(
             embeddings_client=mock_embeddings_client,
             doc_embeddings_client=mock_doc_embeddings_client,
             prompt_client=mock_streaming_prompt_client,
+            fetch_chunk=mock_fetch_chunk,
             verbose=False
         )
 
