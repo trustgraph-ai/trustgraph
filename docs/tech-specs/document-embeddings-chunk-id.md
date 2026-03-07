@@ -11,12 +11,21 @@ Document embeddings storage currently stores chunk text directly in the vector s
 class ChunkEmbeddings:
     chunk: bytes = b""
     vectors: list[list[float]] = field(default_factory=list)
+
+@dataclass
+class DocumentEmbeddingsResponse:
+    error: Error | None = None
+    chunks: list[str] = field(default_factory=list)
 ```
 
 Vector store payload:
 ```python
 payload={"doc": chunk}  # Duplicates Garage content
 ```
+
+Document RAG flow:
+1. Query embeddings → get chunk text
+2. Pass chunk text directly to prompt
 
 ## Design
 
@@ -45,20 +54,55 @@ All stores (Qdrant, Milvus, Pinecone):
 payload={"chunk_id": chunk_id}
 ```
 
-### Query Flow
+### Document RAG Changes
 
-1. Search vector store → get matching `chunk_id` values
-2. Return chunk_ids to caller
-3. Caller fetches content from Garage if needed
+The document RAG processor must fetch chunk content from Garage:
+
+```python
+# In document_rag.py get_docs():
+async def get_docs(self, query):
+    vectors = await self.get_vector(query)
+
+    # Get chunk_ids from embeddings store
+    chunk_ids = await self.rag.doc_embeddings_client.query(
+        vectors, limit=self.doc_limit,
+        user=self.user, collection=self.collection,
+    )
+
+    # Fetch chunk content from Garage
+    docs = []
+    for chunk_id in chunk_ids:
+        content = await self.rag.librarian_client.get_document_content(
+            chunk_id, self.user
+        )
+        docs.append(content)
+
+    return docs
+```
+
+### Client Changes
+
+**DocumentEmbeddingsClient** - return chunk_ids:
+```python
+async def query(self, vectors, limit=20, user="trustgraph",
+                collection="default", timeout=30):
+    resp = await self.request(...)
+    if resp.error:
+        raise RuntimeError(resp.error.message)
+    return resp.chunk_ids  # Changed from resp.chunks
+```
 
 ## Files to Modify
 
 ### Schema
-- `trustgraph-base/trustgraph/schema/knowledge/embeddings.py`
-- `trustgraph-base/trustgraph/schema/services/query.py`
+- `trustgraph-base/trustgraph/schema/knowledge/embeddings.py` - ChunkEmbeddings
+- `trustgraph-base/trustgraph/schema/services/query.py` - DocumentEmbeddingsResponse
+
+### Client
+- `trustgraph-base/trustgraph/base/document_embeddings_client.py` - return chunk_ids
 
 ### Embeddings Service
-- `trustgraph-flow/trustgraph/embeddings/document_embeddings/embeddings.py`
+- `trustgraph-flow/trustgraph/embeddings/document_embeddings/embeddings.py` - pass chunk_id
 
 ### Storage Writers
 - `trustgraph-flow/trustgraph/storage/doc_embeddings/qdrant/write.py`
@@ -69,6 +113,10 @@ payload={"chunk_id": chunk_id}
 - `trustgraph-flow/trustgraph/query/doc_embeddings/qdrant/service.py`
 - `trustgraph-flow/trustgraph/query/doc_embeddings/milvus/service.py`
 - `trustgraph-flow/trustgraph/query/doc_embeddings/pinecone/service.py`
+
+### Document RAG
+- `trustgraph-flow/trustgraph/retrieval/document_rag/rag.py` - add librarian client
+- `trustgraph-flow/trustgraph/retrieval/document_rag/document_rag.py` - fetch from Garage
 
 ## Benefits
 
