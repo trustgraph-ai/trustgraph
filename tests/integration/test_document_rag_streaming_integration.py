@@ -14,6 +14,14 @@ from tests.utils.streaming_assertions import (
 )
 
 
+# Sample chunk content for testing - maps chunk_id to content
+CHUNK_CONTENT = {
+    "doc/c1": "Machine learning is a subset of AI.",
+    "doc/c2": "Deep learning uses neural networks.",
+    "doc/c3": "Supervised learning needs labeled data.",
+}
+
+
 @pytest.mark.integration
 class TestDocumentRagStreaming:
     """Integration tests for DocumentRAG streaming"""
@@ -27,14 +35,18 @@ class TestDocumentRagStreaming:
 
     @pytest.fixture
     def mock_doc_embeddings_client(self):
-        """Mock document embeddings client"""
+        """Mock document embeddings client that returns chunk IDs"""
         client = AsyncMock()
-        client.query.return_value = [
-            "Machine learning is a subset of AI.",
-            "Deep learning uses neural networks.",
-            "Supervised learning needs labeled data."
-        ]
+        # Now returns chunk_ids instead of actual content
+        client.query.return_value = ["doc/c1", "doc/c2", "doc/c3"]
         return client
+
+    @pytest.fixture
+    def mock_fetch_chunk(self):
+        """Mock fetch_chunk function that retrieves chunk content from librarian"""
+        async def fetch(chunk_id, user):
+            return CHUNK_CONTENT.get(chunk_id, f"Content for {chunk_id}")
+        return fetch
 
     @pytest.fixture
     def mock_streaming_prompt_client(self, mock_streaming_llm_response):
@@ -66,12 +78,13 @@ class TestDocumentRagStreaming:
 
     @pytest.fixture
     def document_rag_streaming(self, mock_embeddings_client, mock_doc_embeddings_client,
-                                mock_streaming_prompt_client):
+                                mock_streaming_prompt_client, mock_fetch_chunk):
         """Create DocumentRag instance with streaming support"""
         return DocumentRag(
             embeddings_client=mock_embeddings_client,
             doc_embeddings_client=mock_doc_embeddings_client,
             prompt_client=mock_streaming_prompt_client,
+            fetch_chunk=mock_fetch_chunk,
             verbose=True
         )
 
@@ -190,7 +203,7 @@ class TestDocumentRagStreaming:
                                                              mock_doc_embeddings_client):
         """Test streaming with no documents found"""
         # Arrange
-        mock_doc_embeddings_client.query.return_value = []  # No documents
+        mock_doc_embeddings_client.query.return_value = []  # No chunk_ids
         callback = AsyncMock()
 
         # Act
