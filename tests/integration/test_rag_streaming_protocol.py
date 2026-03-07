@@ -234,12 +234,13 @@ class TestDocumentRagStreamingProtocol:
 
     @pytest.fixture
     def document_rag(self, mock_embeddings_client, mock_doc_embeddings_client,
-                     mock_streaming_prompt_client):
+                     mock_streaming_prompt_client, mock_fetch_chunk):
         """Create DocumentRag instance with mocked dependencies"""
         return DocumentRag(
             embeddings_client=mock_embeddings_client,
             doc_embeddings_client=mock_doc_embeddings_client,
             prompt_client=mock_streaming_prompt_client,
+            fetch_chunk=mock_fetch_chunk,
             verbose=False
         )
 
