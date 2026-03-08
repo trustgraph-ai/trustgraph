@@ -148,8 +148,8 @@ class Processor(FlowProcessor):
 
             # Detect embedding dimension by embedding a test string
             logger.info("Detecting embedding dimension from embeddings service...")
-            test_embedding_response = await embeddings_client.embed("test")
-            test_embedding = test_embedding_response[0]  # Extract from [[vector]]
+            test_embedding_response = await embeddings_client.embed(["test"])
+            test_embedding = test_embedding_response[0][0]  # Extract first vector from first text
             dimension = len(test_embedding)
             logger.info(f"Detected embedding dimension: {dimension}")
 

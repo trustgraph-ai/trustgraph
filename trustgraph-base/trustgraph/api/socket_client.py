@@ -650,8 +650,8 @@ class SocketFlowInstance:
             ```
         """
         # First convert text to embeddings vectors
-        emb_result = self.embeddings(text=text)
-        vectors = emb_result.get("vectors", [])
+        emb_result = self.embeddings(texts=[text])
+        vectors = emb_result.get("vectors", [[]])[0]
 
         request = {
             "vectors": vectors,
@@ -699,8 +699,8 @@ class SocketFlowInstance:
             ```
         """
         # First convert text to embeddings vectors
-        emb_result = self.embeddings(text=text)
-        vectors = emb_result.get("vectors", [])
+        emb_result = self.embeddings(texts=[text])
+        vectors = emb_result.get("vectors", [[]])[0]
 
         request = {
             "vectors": vectors,
@@ -937,8 +937,8 @@ class SocketFlowInstance:
             ```
         """
         # First convert text to embeddings vectors
-        emb_result = self.embeddings(text=text)
-        vectors = emb_result.get("vectors", [])
+        emb_result = self.embeddings(texts=[text])
+        vectors = emb_result.get("vectors", [[]])[0]
 
         request = {
             "vectors": vectors,

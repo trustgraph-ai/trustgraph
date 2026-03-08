@@ -603,8 +603,8 @@ class FlowInstance:
         """
 
         # First convert text to embeddings vectors
-        emb_result = self.embeddings(text=text)
-        vectors = emb_result.get("vectors", [])
+        emb_result = self.embeddings(texts=[text])
+        vectors = emb_result.get("vectors", [[]])[0]
 
         # Query graph embeddings for semantic search
         input = {
@@ -649,8 +649,8 @@ class FlowInstance:
         """
 
         # First convert text to embeddings vectors
-        emb_result = self.embeddings(text=text)
-        vectors = emb_result.get("vectors", [])
+        emb_result = self.embeddings(texts=[text])
+        vectors = emb_result.get("vectors", [[]])[0]
 
         # Query document embeddings for semantic search
         input = {
@@ -1363,8 +1363,8 @@ class FlowInstance:
         """
 
         # First convert text to embeddings vectors
-        emb_result = self.embeddings(text=text)
-        vectors = emb_result.get("vectors", [])
+        emb_result = self.embeddings(texts=[text])
+        vectors = emb_result.get("vectors", [[]])[0]
 
         # Query row embeddings for semantic search
         input = {
