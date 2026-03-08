@@ -283,8 +283,8 @@ class AsyncSocketFlowInstance:
     async def graph_embeddings_query(self, text: str, user: str, collection: str, limit: int = 10, **kwargs):
         """Query graph embeddings for semantic search"""
         # First convert text to embeddings vectors
-        emb_result = await self.embeddings(text=text)
-        vectors = emb_result.get("vectors", [])
+        emb_result = await self.embeddings(texts=[text])
+        vectors = emb_result.get("vectors", [[]])[0]
 
         request = {
             "vectors": vectors,
@@ -296,9 +296,9 @@ class AsyncSocketFlowInstance:
 
         return await self.client._send_request("graph-embeddings", self.flow_id, request)
 
-    async def embeddings(self, text: str, **kwargs):
+    async def embeddings(self, texts: list, **kwargs):
         """Generate text embeddings"""
-        request = {"text": text}
+        request = {"texts": texts}
         request.update(kwargs)
 
         return await self.client._send_request("embeddings", self.flow_id, request)
@@ -353,8 +353,8 @@ class AsyncSocketFlowInstance:
     ):
         """Query row embeddings for semantic search on structured data"""
         # First convert text to embeddings vectors
-        emb_result = await self.embeddings(text=text)
-        vectors = emb_result.get("vectors", [])
+        emb_result = await self.embeddings(texts=[text])
+        vectors = emb_result.get("vectors", [[]])[0]
 
         request = {
             "vectors": vectors,

@@ -24,12 +24,13 @@ class Query:
         if self.verbose:
             logger.debug("Computing embeddings...")
 
-        qembeds = await self.rag.embeddings_client.embed(query)
+        qembeds = await self.rag.embeddings_client.embed([query])
 
         if self.verbose:
             logger.debug("Embeddings computed")
 
-        return qembeds
+        # Return the vector set for the first (only) text
+        return qembeds[0] if qembeds else []
 
     async def get_docs(self, query):
 

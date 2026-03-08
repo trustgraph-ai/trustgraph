@@ -154,7 +154,8 @@ class RowEmbeddingsQueryImpl:
         logger.debug("Getting embeddings for row query...")
 
         query_text = arguments.get("query")
-        vectors = await embeddings_client.embed(query_text)
+        all_vectors = await embeddings_client.embed([query_text])
+        vectors = all_vectors[0] if all_vectors else []
 
         # Now query row embeddings
         client = self.context("row-embeddings-query-request")

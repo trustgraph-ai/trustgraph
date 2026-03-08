@@ -72,7 +72,7 @@ class Processor(FlowProcessor):
             entities = [
                 EntityEmbeddings(
                     entity=entity.entity,
-                    vectors=vectors[0],  # First vector from the set
+                    vectors=vectors,  # Vector set for this entity
                     chunk_id=entity.chunk_id,  # Provenance: source chunk
                 )
                 for entity, vectors in zip(v.entities, all_vectors)
