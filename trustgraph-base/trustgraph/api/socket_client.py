@@ -712,27 +712,27 @@ class SocketFlowInstance:
 
         return self.client._send_request_sync("document-embeddings", self.flow_id, request, False)
 
-    def embeddings(self, text: str, **kwargs: Any) -> Dict[str, Any]:
+    def embeddings(self, texts: list, **kwargs: Any) -> Dict[str, Any]:
         """
-        Generate vector embeddings for text.
+        Generate vector embeddings for one or more texts.
 
         Args:
-            text: Input text to embed
+            texts: List of input texts to embed
             **kwargs: Additional parameters passed to the service
 
         Returns:
-            dict: Response containing vectors
+            dict: Response containing vectors (one set per input text)
 
         Example:
             ```python
             socket = api.socket()
             flow = socket.flow("default")
 
-            result = flow.embeddings("quantum computing")
+            result = flow.embeddings(["quantum computing"])
             vectors = result.get("vectors", [])
             ```
         """
-        request = {"text": text}
+        request = {"texts": texts}
         request.update(kwargs)
 
         return self.client._send_request_sync("embeddings", self.flow_id, request, False)

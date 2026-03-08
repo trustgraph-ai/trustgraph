@@ -10,7 +10,7 @@ from trustgraph.api import Api
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
-def query(url, flow_id, text, token=None):
+def query(url, flow_id, texts, token=None):
 
     # Create API client
     api = Api(url=url, token=token)
@@ -19,9 +19,14 @@ def query(url, flow_id, text, token=None):
 
     try:
         # Call embeddings service
-        result = flow.embeddings(text=text)
+        result = flow.embeddings(texts=texts)
         vectors = result.get("vectors", [])
-        print(vectors)
+        # Print each text's vectors
+        for i, vecs in enumerate(vectors):
+            if len(texts) > 1:
+                print(f"Text {i + 1}: {vecs}")
+            else:
+                print(vecs)
 
     finally:
         # Clean up socket connection
@@ -53,9 +58,9 @@ def main():
     )
 
     parser.add_argument(
-        'text',
-        nargs=1,
-        help='Text to convert to embedding vector',
+        'texts',
+        nargs='+',
+        help='Text(s) to convert to embedding vectors',
     )
 
     args = parser.parse_args()
@@ -65,7 +70,7 @@ def main():
         query(
             url=args.url,
             flow_id=args.flow_id,
-            text=args.text[0],
+            texts=args.texts,
             token=args.token,
         )
 

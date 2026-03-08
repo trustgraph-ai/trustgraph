@@ -65,7 +65,7 @@ class EmbeddingsService(FlowProcessor):
 
             # Pass model from request if specified (non-empty), otherwise use default
             model = flow("model")
-            vectors = await self.on_embeddings(request.text, model=model)
+            vectors = await self.on_embeddings(request.texts, model=model)
 
             await flow("response").send(
                 EmbeddingsResponse(
@@ -94,7 +94,7 @@ class EmbeddingsService(FlowProcessor):
                         type = "embeddings-error",
                         message = str(e),
                     ),
-                    vectors=None,
+                    vectors=[],
                 ),
                 properties={"id": id}
             )
