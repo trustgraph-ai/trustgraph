@@ -21,8 +21,12 @@ class TestGraphRagIntegration:
     def mock_embeddings_client(self):
         """Mock embeddings client that returns realistic vector embeddings"""
         client = AsyncMock()
+        # New batch format: [[[vectors_for_text1], ...]]
+        # One text input returns one vector set containing one vector
         client.embed.return_value = [
-            [0.1, 0.2, 0.3, 0.4, 0.5],  # Realistic 5-dimensional embedding
+            [
+                [0.1, 0.2, 0.3, 0.4, 0.5],  # Vector for text
+            ]
         ]
         return client
 
@@ -120,8 +124,8 @@ class TestGraphRagIntegration:
 
         # Assert - Verify service coordination
 
-        # 1. Should compute embeddings for query
-        mock_embeddings_client.embed.assert_called_once_with(query)
+        # 1. Should compute embeddings for query (now expects list of texts)
+        mock_embeddings_client.embed.assert_called_once_with([query])
 
         # 2. Should query graph embeddings to find relevant entities
         mock_graph_embeddings_client.query.assert_called_once()
