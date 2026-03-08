@@ -544,30 +544,29 @@ class FlowInstance:
             input
         )["response"]
 
-    def embeddings(self, text):
+    def embeddings(self, texts):
         """
-        Generate vector embeddings for text.
+        Generate vector embeddings for one or more texts.
 
-        Converts text into dense vector representations suitable for semantic
+        Converts texts into dense vector representations suitable for semantic
         search and similarity comparison.
 
         Args:
-            text: Input text to embed
+            texts: List of input texts to embed
 
         Returns:
-            list[float]: Vector embedding
+            list[list[list[float]]]: Vector embeddings, one set per input text
 
         Example:
             ```python
             flow = api.flow().id("default")
-            vectors = flow.embeddings("quantum computing")
-            print(f"Embedding dimension: {len(vectors)}")
+            vectors = flow.embeddings(["quantum computing"])
+            print(f"Embedding dimension: {len(vectors[0][0])}")
             ```
         """
 
-        # The input consists of a text block
         input = {
-            "text": text
+            "texts": texts
         }
 
         return self.request(

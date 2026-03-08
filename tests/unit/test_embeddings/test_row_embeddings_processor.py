@@ -353,7 +353,14 @@ class TestRowEmbeddingsProcessor(IsolatedAsyncioTestCase):
 
         # Mock the flow
         mock_embeddings_request = AsyncMock()
-        mock_embeddings_request.embed.return_value = [[0.1, 0.2, 0.3]]
+        # Return batch of vector sets (one per text)
+        # 4 unique texts: CUST001, John Doe, CUST002, Jane Smith
+        mock_embeddings_request.embed.return_value = [
+            [[0.1, 0.2, 0.3]],  # vectors for text 1
+            [[0.2, 0.3, 0.4]],  # vectors for text 2
+            [[0.3, 0.4, 0.5]],  # vectors for text 3
+            [[0.4, 0.5, 0.6]],  # vectors for text 4
+        ]
 
         mock_output = AsyncMock()
 
@@ -368,9 +375,12 @@ class TestRowEmbeddingsProcessor(IsolatedAsyncioTestCase):
 
         await processor.on_message(mock_msg, MagicMock(), mock_flow)
 
-        # Should have called embed for each unique text
-        # 4 values: CUST001, John Doe, CUST002, Jane Smith
-        assert mock_embeddings_request.embed.call_count == 4
+        # Should have called embed once with all texts in a batch
+        assert mock_embeddings_request.embed.call_count == 1
+        # Verify it was called with a list of texts
+        call_args = mock_embeddings_request.embed.call_args
+        assert 'texts' in call_args.kwargs
+        assert len(call_args.kwargs['texts']) == 4
 
         # Should have sent output
         mock_output.send.assert_called()

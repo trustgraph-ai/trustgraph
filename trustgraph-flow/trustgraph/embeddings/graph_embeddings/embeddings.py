@@ -58,23 +58,25 @@ class Processor(FlowProcessor):
         v = msg.value()
         logger.info(f"Indexing {v.metadata.id}...")
 
-        entities = []
-
         try:
 
-            for entity in v.entities:
+            # Collect all contexts for batch embedding
+            contexts = [entity.context for entity in v.entities]
 
-                vectors = await flow("embeddings-request").embed(
-                    text = entity.context
-                )
+            # Single batch embedding call
+            all_vectors = await flow("embeddings-request").embed(
+                texts=contexts
+            )
 
-                entities.append(
-                    EntityEmbeddings(
-                        entity=entity.entity,
-                        vectors=vectors,
-                        chunk_id=entity.chunk_id,  # Provenance: source chunk
-                    )
+            # Pair results with entities
+            entities = [
+                EntityEmbeddings(
+                    entity=entity.entity,
+                    vectors=vectors[0],  # First vector from the set
+                    chunk_id=entity.chunk_id,  # Provenance: source chunk
                 )
+                for entity, vectors in zip(v.entities, all_vectors)
+            ]
 
             # Send in batches to avoid oversized messages
             for i in range(0, len(entities), self.batch_size):

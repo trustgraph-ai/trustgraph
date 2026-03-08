@@ -5,15 +5,15 @@ from .base import MessageTranslator
 
 class EmbeddingsRequestTranslator(MessageTranslator):
     """Translator for EmbeddingsRequest schema objects"""
-    
+
     def to_pulsar(self, data: Dict[str, Any]) -> EmbeddingsRequest:
         return EmbeddingsRequest(
-            text=data["text"]
+            texts=data["texts"]
         )
-    
+
     def from_pulsar(self, obj: EmbeddingsRequest) -> Dict[str, Any]:
         return {
-            "text": obj.text
+            "texts": obj.texts
         }
 
 
