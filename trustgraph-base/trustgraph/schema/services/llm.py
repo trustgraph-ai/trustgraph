@@ -29,12 +29,12 @@ class TextCompletionResponse:
 
 @dataclass
 class EmbeddingsRequest:
-    text: str = ""
+    texts: list[str] = field(default_factory=list)
 
 @dataclass
 class EmbeddingsResponse:
     error: Error | None = None
-    vectors: list[list[float]] = field(default_factory=list)
+    vectors: list[list[list[float]]] = field(default_factory=list)
 
 ############################################################################
 

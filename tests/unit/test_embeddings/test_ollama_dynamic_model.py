@@ -53,14 +53,14 @@ class TestOllamaDynamicModelLoading(IsolatedAsyncioTestCase):
         processor = Processor(id="test", concurrency=1, model="test-model", taskgroup=AsyncMock())
 
         # Act
-        result = await processor.on_embeddings("test text")
+        result = await processor.on_embeddings(["test text"])
 
         # Assert
         mock_ollama_client.embed.assert_called_once_with(
             model="test-model",
-            input="test text"
+            input=["test text"]
         )
-        assert result == [[0.1, 0.2, 0.3, 0.4, 0.5]]
+        assert result == [[[0.1, 0.2, 0.3, 0.4, 0.5]]]
 
     @patch('trustgraph.embeddings.ollama.processor.Client')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
@@ -79,14 +79,14 @@ class TestOllamaDynamicModelLoading(IsolatedAsyncioTestCase):
         processor = Processor(id="test", concurrency=1, model="test-model", taskgroup=AsyncMock())
 
         # Act
-        result = await processor.on_embeddings("test text", model="custom-model")
+        result = await processor.on_embeddings(["test text"], model="custom-model")
 
         # Assert
         mock_ollama_client.embed.assert_called_once_with(
             model="custom-model",
-            input="test text"
+            input=["test text"]
         )
-        assert result == [[0.1, 0.2, 0.3, 0.4, 0.5]]
+        assert result == [[[0.1, 0.2, 0.3, 0.4, 0.5]]]
 
     @patch('trustgraph.embeddings.ollama.processor.Client')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
@@ -105,10 +105,10 @@ class TestOllamaDynamicModelLoading(IsolatedAsyncioTestCase):
         processor = Processor(id="test", concurrency=1, model="test-model", taskgroup=AsyncMock())
 
         # Act - switch between different models
-        await processor.on_embeddings("text1", model="model-a")
-        await processor.on_embeddings("text2", model="model-b")
-        await processor.on_embeddings("text3", model="model-a")
-        await processor.on_embeddings("text4")  # Use default
+        await processor.on_embeddings(["text1"], model="model-a")
+        await processor.on_embeddings(["text2"], model="model-b")
+        await processor.on_embeddings(["text3"], model="model-a")
+        await processor.on_embeddings(["text4"])  # Use default
 
         # Assert
         calls = mock_ollama_client.embed.call_args_list
@@ -135,12 +135,12 @@ class TestOllamaDynamicModelLoading(IsolatedAsyncioTestCase):
         processor = Processor(id="test", concurrency=1, model="test-model", taskgroup=AsyncMock())
 
         # Act
-        result = await processor.on_embeddings("test text", model=None)
+        result = await processor.on_embeddings(["test text"], model=None)
 
         # Assert
         mock_ollama_client.embed.assert_called_once_with(
             model="test-model",
-            input="test text"
+            input=["test text"]
         )
 
     @patch('trustgraph.embeddings.ollama.processor.Client')

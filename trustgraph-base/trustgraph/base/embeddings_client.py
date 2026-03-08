@@ -3,11 +3,11 @@ from . request_response_spec import RequestResponse, RequestResponseSpec
 from .. schema import EmbeddingsRequest, EmbeddingsResponse
 
 class EmbeddingsClient(RequestResponse):
-    async def embed(self, text, timeout=30):
+    async def embed(self, texts, timeout=300):
 
         resp = await self.request(
             EmbeddingsRequest(
-                text = text
+                texts = texts
             ),
             timeout=timeout
         )
