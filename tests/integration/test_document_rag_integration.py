@@ -27,9 +27,13 @@ class TestDocumentRagIntegration:
     def mock_embeddings_client(self):
         """Mock embeddings client that returns realistic vector embeddings"""
         client = AsyncMock()
+        # New batch format: [[[vectors_for_text1], ...]]
+        # One text input returns one vector set containing two vectors
         client.embed.return_value = [
-            [0.1, 0.2, 0.3, 0.4, 0.5],  # Realistic 5-dimensional embedding
-            [0.6, 0.7, 0.8, 0.9, 1.0]   # Second embedding for testing
+            [
+                [0.1, 0.2, 0.3, 0.4, 0.5],  # First vector for text
+                [0.6, 0.7, 0.8, 0.9, 1.0]   # Second vector for text
+            ]
         ]
         return client
 
@@ -90,7 +94,7 @@ class TestDocumentRagIntegration:
         )
 
         # Assert - Verify service coordination
-        mock_embeddings_client.embed.assert_called_once_with(query)
+        mock_embeddings_client.embed.assert_called_once_with([query])
 
         mock_doc_embeddings_client.query.assert_called_once_with(
             [[0.1, 0.2, 0.3, 0.4, 0.5], [0.6, 0.7, 0.8, 0.9, 1.0]],

@@ -18,7 +18,7 @@ class TestGraphRagStreamingProtocol:
     def mock_embeddings_client(self):
         """Mock embeddings client"""
         client = AsyncMock()
-        client.embed.return_value = [[0.1, 0.2, 0.3]]
+        client.embed.return_value = [[[0.1, 0.2, 0.3]]]
         return client
 
     @pytest.fixture
@@ -197,7 +197,7 @@ class TestDocumentRagStreamingProtocol:
     def mock_embeddings_client(self):
         """Mock embeddings client"""
         client = AsyncMock()
-        client.embed.return_value = [[0.1, 0.2, 0.3]]
+        client.embed.return_value = [[[0.1, 0.2, 0.3]]]
         return client
 
     @pytest.fixture

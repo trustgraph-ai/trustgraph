@@ -132,9 +132,10 @@ class TestQuery:
         mock_embeddings_client = AsyncMock()
         mock_rag.embeddings_client = mock_embeddings_client
 
-        # Mock the embed method to return test vectors
+        # Mock the embed method to return test vectors in batch format
+        # New format: [[[vectors_for_text1]]] - returns first text's vector set
         expected_vectors = [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
-        mock_embeddings_client.embed.return_value = expected_vectors
+        mock_embeddings_client.embed.return_value = [expected_vectors]
 
         # Initialize Query
         query = Query(
@@ -148,10 +149,10 @@ class TestQuery:
         test_query = "What documents are relevant?"
         result = await query.get_vector(test_query)
 
-        # Verify embeddings client was called correctly
-        mock_embeddings_client.embed.assert_called_once_with(test_query)
+        # Verify embeddings client was called correctly (now expects list)
+        mock_embeddings_client.embed.assert_called_once_with([test_query])
 
-        # Verify result matches expected vectors
+        # Verify result matches expected vectors (extracted from batch)
         assert result == expected_vectors
 
     @pytest.mark.asyncio
@@ -170,8 +171,9 @@ class TestQuery:
         mock_rag.fetch_chunk = mock_fetch
 
         # Mock the embedding and document query responses
+        # New batch format: [[[vectors]]] - get_vector extracts [0]
         test_vectors = [[0.1, 0.2, 0.3]]
-        mock_embeddings_client.embed.return_value = test_vectors
+        mock_embeddings_client.embed.return_value = [test_vectors]
 
         # Mock document embeddings returns chunk_ids
         test_chunk_ids = ["doc/c1", "doc/c2"]
@@ -190,10 +192,10 @@ class TestQuery:
         test_query = "Find relevant documents"
         result = await query.get_docs(test_query)
 
-        # Verify embeddings client was called
-        mock_embeddings_client.embed.assert_called_once_with(test_query)
+        # Verify embeddings client was called (now expects list)
+        mock_embeddings_client.embed.assert_called_once_with([test_query])
 
-        # Verify doc embeddings client was called correctly
+        # Verify doc embeddings client was called correctly (with extracted vectors)
         mock_doc_embeddings_client.query.assert_called_once_with(
             test_vectors,
             limit=15,

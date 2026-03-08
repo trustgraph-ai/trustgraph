@@ -30,7 +30,8 @@ class TestDocumentRagStreaming:
     def mock_embeddings_client(self):
         """Mock embeddings client"""
         client = AsyncMock()
-        client.embed.return_value = [[0.1, 0.2, 0.3, 0.4, 0.5]]
+        # New batch format: [[[vectors_for_text1]]]
+        client.embed.return_value = [[[0.1, 0.2, 0.3, 0.4, 0.5]]]
         return client
 
     @pytest.fixture
