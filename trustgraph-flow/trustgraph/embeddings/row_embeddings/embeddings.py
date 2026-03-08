@@ -216,7 +216,7 @@ class Processor(CollectionConfigHandler, FlowProcessor):
                         index_name=index_name,
                         index_value=index_value,
                         text=text,
-                        vectors=vectors[0]  # First vector from the set
+                        vectors=vectors  # Vector set for this text
                     )
                 )
 

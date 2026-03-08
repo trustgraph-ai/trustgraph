@@ -67,8 +67,7 @@ class Processor(FlowProcessor):
             )
 
             # vectors[0] is the vector set for the first (only) text
-            # vectors[0][0] is the first vector in that set
-            vectors = resp.vectors[0][0] if resp.vectors else []
+            vectors = resp.vectors[0] if resp.vectors else []
 
             embeds = [
                 ChunkEmbeddings(
