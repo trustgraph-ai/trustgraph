@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from trustgraph.query.graph_embeddings.milvus.service import Processor
-from trustgraph.schema import Term, GraphEmbeddingsRequest, IRI, LITERAL
+from trustgraph.schema import Term, GraphEmbeddingsRequest, IRI, LITERAL, EntityMatch
 
 
 class TestMilvusGraphEmbeddingsQueryProcessor:

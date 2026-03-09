@@ -126,27 +126,27 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         message.metadata = MagicMock()
         message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
-        
+
         entity = EntityEmbeddings(
             entity=Value(value="http://example.org/entity1", is_uri=True),
-            vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.entities = [entity]
-        
+
         # Mock index operations
         mock_index = MagicMock()
         processor.pinecone.Index.return_value = mock_index
         processor.pinecone.has_index.return_value = True
-        
-        with patch('uuid.uuid4', side_effect=['id1', 'id2']):
+
+        with patch('uuid.uuid4', side_effect=['id1']):
             await processor.store_graph_embeddings(message)
-        
+
         # Verify index name and operations (with dimension suffix)
         expected_index_name = "t-test_user-test_collection-3"  # 3 dimensions
         processor.pinecone.Index.assert_called_with(expected_index_name)
-        
-        # Verify upsert was called for each vector
-        assert mock_index.upsert.call_count == 2
+
+        # Verify upsert was called for the single vector
+        assert mock_index.upsert.call_count == 1
         
         # Check first vector upsert
         first_call = mock_index.upsert.call_args_list[0]
@@ -262,23 +262,27 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
 
     @pytest.mark.asyncio
     async def test_store_graph_embeddings_different_vector_dimensions(self, processor):
-        """Test storing graph embeddings with different vector dimensions to same index"""
+        """Test storing graph embeddings with different vector dimensions"""
         message = MagicMock()
         message.metadata = MagicMock()
         message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
 
-        entity = EntityEmbeddings(
-            entity=Value(value="test_entity", is_uri=False),
-            vectors=[
-                [0.1, 0.2],  # 2D vector
-                [0.3, 0.4, 0.5, 0.6],  # 4D vector
-                [0.7, 0.8, 0.9]  # 3D vector
-            ]
+        # Each entity has a single vector of different dimensions
+        entity1 = EntityEmbeddings(
+            entity=Value(value="entity1", is_uri=False),
+            vector=[0.1, 0.2]  # 2D vector
         )
-        message.entities = [entity]
+        entity2 = EntityEmbeddings(
+            entity=Value(value="entity2", is_uri=False),
+            vector=[0.3, 0.4, 0.5, 0.6]  # 4D vector
+        )
+        entity3 = EntityEmbeddings(
+            entity=Value(value="entity3", is_uri=False),
+            vector=[0.7, 0.8, 0.9]  # 3D vector
+        )
+        message.entities = [entity1, entity2, entity3]
 
-        # All vectors now use the same index (no dimension in name)
         mock_index = MagicMock()
         processor.pinecone.Index.return_value = mock_index
         processor.pinecone.has_index.return_value = True
