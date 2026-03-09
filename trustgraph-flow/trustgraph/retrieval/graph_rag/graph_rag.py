@@ -4,10 +4,24 @@ import logging
 import time
 from collections import OrderedDict
 
+from ... schema import IRI, LITERAL
+
 # Module logger
 logger = logging.getLogger(__name__)
 
 LABEL="http://www.w3.org/2000/01/rdf-schema#label"
+
+
+def term_to_string(term):
+    """Extract string value from a Term object."""
+    if term is None:
+        return None
+    if term.type == IRI:
+        return term.iri
+    elif term.type == LITERAL:
+        return term.value
+    # Fallback
+    return term.iri or term.value or str(term)
 
 class LRUCacheWithTTL:
     """LRU cache with TTL for label caching
@@ -93,7 +107,7 @@ class Query:
         )
 
         entities = [
-            str(e.entity)
+            term_to_string(e.entity)
             for e in entity_matches
         ]
 
@@ -129,26 +143,29 @@ class Query:
         return label
 
     async def execute_batch_triple_queries(self, entities, limit_per_entity):
-        """Execute triple queries for multiple entities concurrently"""
+        """Execute triple queries for multiple entities concurrently using streaming"""
         tasks = []
 
         for entity in entities:
-            # Create concurrent tasks for all 3 query types per entity
+            # Create concurrent streaming tasks for all 3 query types per entity
             tasks.extend([
-                self.rag.triples_client.query(
+                self.rag.triples_client.query_stream(
                     s=entity, p=None, o=None,
                     limit=limit_per_entity,
-                    user=self.user, collection=self.collection
+                    user=self.user, collection=self.collection,
+                    batch_size=20,
                 ),
-                self.rag.triples_client.query(
+                self.rag.triples_client.query_stream(
                     s=None, p=entity, o=None,
                     limit=limit_per_entity,
-                    user=self.user, collection=self.collection
+                    user=self.user, collection=self.collection,
+                    batch_size=20,
                 ),
-                self.rag.triples_client.query(
+                self.rag.triples_client.query_stream(
                     s=None, p=None, o=entity,
                     limit=limit_per_entity,
-                    user=self.user, collection=self.collection
+                    user=self.user, collection=self.collection,
+                    batch_size=20,
                 )
             ])
 
@@ -158,7 +175,7 @@ class Query:
         # Combine all results
         all_triples = []
         for result in results:
-            if not isinstance(result, Exception):
+            if not isinstance(result, Exception) and result is not None:
                 all_triples.extend(result)
 
         return all_triples

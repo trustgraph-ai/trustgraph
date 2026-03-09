@@ -48,7 +48,7 @@ class TestGraphRagIntegration:
         client = AsyncMock()
 
         # Mock different queries return different triples
-        async def query_side_effect(s=None, p=None, o=None, limit=None, user=None, collection=None):
+        async def query_stream_side_effect(s=None, p=None, o=None, limit=None, user=None, collection=None, batch_size=20):
             # Mock label queries
             if p == "http://www.w3.org/2000/01/rdf-schema#label":
                 if s == "http://trustgraph.ai/e/machine-learning":
@@ -76,7 +76,9 @@ class TestGraphRagIntegration:
 
             return []
 
-        client.query.side_effect = query_side_effect
+        client.query_stream.side_effect = query_stream_side_effect
+        # Also mock query for label lookups (maybe_label uses query, not query_stream)
+        client.query.side_effect = query_stream_side_effect
         return client
 
     @pytest.fixture
@@ -137,7 +139,7 @@ class TestGraphRagIntegration:
         assert call_args.kwargs['collection'] == collection
 
         # 3. Should query triples to build knowledge subgraph
-        assert mock_triples_client.query.call_count > 0
+        assert mock_triples_client.query_stream.call_count > 0
 
         # 4. Should call prompt with knowledge graph
         mock_prompt_client.kg_prompt.assert_called_once()
@@ -202,7 +204,7 @@ class TestGraphRagIntegration:
         """Test GraphRAG handles empty knowledge graph gracefully"""
         # Arrange
         mock_graph_embeddings_client.query.return_value = []  # No entities found
-        mock_triples_client.query.return_value = []  # No triples found
+        mock_triples_client.query_stream.return_value = []  # No triples found
 
         # Act
         result = await graph_rag.query(
@@ -231,7 +233,7 @@ class TestGraphRagIntegration:
             collection="test_collection"
         )
 
-        first_call_count = mock_triples_client.query.call_count
+        first_call_count = mock_triples_client.query_stream.call_count
         mock_triples_client.reset_mock()
 
         # Second identical query
@@ -241,7 +243,7 @@ class TestGraphRagIntegration:
             collection="test_collection"
         )
 
-        second_call_count = mock_triples_client.query.call_count
+        second_call_count = mock_triples_client.query_stream.call_count
 
         # Assert - Second query should make fewer triple queries due to caching
         # Note: This is a weak assertion because caching behavior depends on

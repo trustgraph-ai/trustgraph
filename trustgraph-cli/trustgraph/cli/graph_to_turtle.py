@@ -1,6 +1,7 @@
 """
 Connects to the graph query service and dumps all graph edges in Turtle
 format with RDF-star support for quoted triples.
+Uses streaming mode for lower time-to-first-processing.
 """
 
 import rdflib
@@ -9,66 +10,82 @@ import sys
 import argparse
 import os
 
-from trustgraph.api import Api, Uri
-from trustgraph.knowledge import QuotedTriple
+from trustgraph.api import Api
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_user = 'trustgraph'
 default_collection = 'default'
+default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
 
-def value_to_rdflib(val):
-    """Convert a TrustGraph value to an rdflib term."""
-    if isinstance(val, Uri):
+def term_to_rdflib(term):
+    """Convert a wire-format term to an rdflib term."""
+    if term is None:
+        return None
+
+    t = term.get("t", "")
+
+    if t == "i":  # IRI
+        iri = term.get("i", "")
         # Skip malformed URLs with spaces
-        if " " in val:
+        if " " in iri:
             return None
-        return rdflib.term.URIRef(val)
-    elif isinstance(val, QuotedTriple):
-        # RDF-star quoted triple
-        s_term = value_to_rdflib(val.s)
-        p_term = value_to_rdflib(val.p)
-        o_term = value_to_rdflib(val.o)
+        return rdflib.term.URIRef(iri)
+    elif t == "l":  # Literal
+        value = term.get("v", "")
+        datatype = term.get("d")
+        language = term.get("l")
+        if language:
+            return rdflib.term.Literal(value, lang=language)
+        elif datatype:
+            return rdflib.term.Literal(value, datatype=rdflib.term.URIRef(datatype))
+        else:
+            return rdflib.term.Literal(value)
+    elif t == "r":  # Quoted triple (RDF-star)
+        triple = term.get("r", {})
+        s_term = term_to_rdflib(triple.get("s"))
+        p_term = term_to_rdflib(triple.get("p"))
+        o_term = term_to_rdflib(triple.get("o"))
         if s_term is None or p_term is None or o_term is None:
             return None
-        # rdflib 6.x+ supports Triple as a term type
         try:
             return rdflib.term.Triple((s_term, p_term, o_term))
         except AttributeError:
-            # Fallback for older rdflib versions - represent as string
-            return rdflib.term.Literal(f"<<{val.s} {val.p} {val.o}>>")
+            # Fallback for older rdflib versions
+            return rdflib.term.Literal(f"<<{s_term} {p_term} {o_term}>>")
     else:
-        return rdflib.term.Literal(str(val))
+        # Fallback
+        return rdflib.term.Literal(str(term))
 
 
-def show_graph(url, flow_id, user, collection):
+def show_graph(url, flow_id, user, collection, limit, batch_size, token=None):
 
-    api = Api(url).flow().id(flow_id)
-
-    rows = api.triples_query(
-        s=None, p=None, o=None,
-        user=user, collection=collection,
-        limit=10_000)
+    socket = Api(url, token=token).socket()
+    flow = socket.flow(flow_id)
 
     g = rdflib.Graph()
 
-    for row in rows:
+    try:
+        for batch in flow.triples_query_stream(
+            s=None, p=None, o=None,
+            user=user, collection=collection,
+            limit=limit,
+            batch_size=batch_size,
+        ):
+            for triple in batch:
+                sv = term_to_rdflib(triple.get("s"))
+                pv = term_to_rdflib(triple.get("p"))
+                ov = term_to_rdflib(triple.get("o"))
 
-        sv = rdflib.term.URIRef(row.s)
-        pv = rdflib.term.URIRef(row.p)
-        ov = value_to_rdflib(row.o)
+                if sv is None or pv is None or ov is None:
+                    continue
 
-        if ov is None:
-            continue
-
-        g.add((sv, pv, ov))
-
-    g.serialize(destination="output.ttl", format="turtle")
+                g.add((sv, pv, ov))
+    finally:
+        socket.close()
 
     buf = io.BytesIO()
-
     g.serialize(destination=buf, format="turtle")
-
     sys.stdout.write(buf.getvalue().decode("utf-8"))
 
 
@@ -103,6 +120,26 @@ def main():
         help=f'Collection ID (default: {default_collection})'
     )
 
+    parser.add_argument(
+        '-t', '--token',
+        default=default_token,
+        help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
+    )
+
+    parser.add_argument(
+        '-l', '--limit',
+        type=int,
+        default=10000,
+        help='Maximum number of triples to return (default: 10000)',
+    )
+
+    parser.add_argument(
+        '-b', '--batch-size',
+        type=int,
+        default=20,
+        help='Triples per streaming batch (default: 20)',
+    )
+
     args = parser.parse_args()
 
     try:
@@ -112,6 +149,9 @@ def main():
             flow_id = args.flow_id,
             user = args.user,
             collection = args.collection,
+            limit = args.limit,
+            batch_size = args.batch_size,
+            token = args.token,
         )
 
     except Exception as e:

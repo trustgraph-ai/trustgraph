@@ -23,14 +23,18 @@ class TriplesQueryRequestTranslator(MessageTranslator):
             g=g,
             limit=int(data.get("limit", 10000)),
             user=data.get("user", "trustgraph"),
-            collection=data.get("collection", "default")
+            collection=data.get("collection", "default"),
+            streaming=data.get("streaming", False),
+            batch_size=int(data.get("batch-size", 20)),
         )
     
     def from_pulsar(self, obj: TriplesQueryRequest) -> Dict[str, Any]:
         result = {
             "limit": obj.limit,
             "user": obj.user,
-            "collection": obj.collection
+            "collection": obj.collection,
+            "streaming": obj.streaming,
+            "batch-size": obj.batch_size,
         }
 
         if obj.s:
@@ -61,4 +65,4 @@ class TriplesQueryResponseTranslator(MessageTranslator):
     
     def from_response_with_completion(self, obj: TriplesQueryResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
-        return self.from_pulsar(obj), True
+        return self.from_pulsar(obj), obj.is_final

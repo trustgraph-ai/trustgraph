@@ -38,11 +38,14 @@ class TriplesQueryRequest:
     o: Term | None = None
     g: str | None = None  # Graph IRI. None=default graph, "*"=all graphs
     limit: int = 0
+    streaming: bool = False  # Enable streaming mode (multiple batched responses)
+    batch_size: int = 20     # Triples per batch in streaming mode
 
 @dataclass
 class TriplesQueryResponse:
     error: Error | None = None
     triples: list[Triple] = field(default_factory=list)
+    is_final: bool = True    # False for intermediate batches in streaming mode
 
 ############################################################################
 
