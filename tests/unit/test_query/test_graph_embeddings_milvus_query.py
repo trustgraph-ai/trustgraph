@@ -138,17 +138,17 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
             [0.1, 0.2, 0.3], 'test_user', 'test_collection', limit=10
         )
         
-        # Verify results are converted to Term objects
+        # Verify results are converted to EntityMatch objects
         assert len(result) == 3
-        assert isinstance(result[0], Term)
-        assert result[0].iri == "http://example.com/entity1"
-        assert result[0].type == IRI
-        assert isinstance(result[1], Term)
-        assert result[1].iri == "http://example.com/entity2"
-        assert result[1].type == IRI
-        assert isinstance(result[2], Term)
-        assert result[2].value == "literal entity"
-        assert result[2].type == LITERAL
+        assert isinstance(result[0], EntityMatch)
+        assert result[0].entity.iri == "http://example.com/entity1"
+        assert result[0].entity.type == IRI
+        assert isinstance(result[1], EntityMatch)
+        assert result[1].entity.iri == "http://example.com/entity2"
+        assert result[1].entity.type == IRI
+        assert isinstance(result[2], EntityMatch)
+        assert result[2].entity.value == "literal entity"
+        assert result[2].entity.type == LITERAL
 
     @pytest.mark.asyncio
     async def test_query_graph_embeddings_multiple_vectors(self, processor):
@@ -186,7 +186,7 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         
         # Verify results are deduplicated and limited
         assert len(result) == 3
-        entity_values = [r.iri if r.type == IRI else r.value for r in result]
+        entity_values = [r.entity.iri if r.entity.type == IRI else r.entity.value for r in result]
         assert "http://example.com/entity1" in entity_values
         assert "http://example.com/entity2" in entity_values
         assert "http://example.com/entity3" in entity_values
@@ -246,7 +246,7 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         
         # Verify duplicates are removed
         assert len(result) == 3
-        entity_values = [r.iri if r.type == IRI else r.value for r in result]
+        entity_values = [r.entity.iri if r.entity.type == IRI else r.entity.value for r in result]
         assert len(set(entity_values)) == 3  # All unique
         assert "http://example.com/entity1" in entity_values
         assert "http://example.com/entity2" in entity_values
@@ -344,18 +344,18 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         
         # Verify all results are properly typed
         assert len(result) == 4
-        
+
         # Check URI entities
-        uri_results = [r for r in result if r.type == IRI]
+        uri_results = [r for r in result if r.entity.type == IRI]
         assert len(uri_results) == 2
-        uri_values = [r.iri for r in uri_results]
+        uri_values = [r.entity.iri for r in uri_results]
         assert "http://example.com/uri_entity" in uri_values
         assert "https://example.com/another_uri" in uri_values
-        
+
         # Check literal entities
-        literal_results = [r for r in result if not r.type == IRI]
+        literal_results = [r for r in result if not r.entity.type == IRI]
         assert len(literal_results) == 2
-        literal_values = [r.value for r in literal_results]
+        literal_values = [r.entity.value for r in literal_results]
         assert "literal entity text" in literal_values
         assert "another literal" in literal_values
 
@@ -483,6 +483,6 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
 
         # Verify results
         assert len(result) == 2
-        entity_values = [r.iri if r.type == IRI else r.value for r in result]
+        entity_values = [r.entity.iri if r.entity.type == IRI else r.entity.value for r in result]
         assert "http://example.com/entity1" in entity_values
         assert "http://example.com/entity2" in entity_values
