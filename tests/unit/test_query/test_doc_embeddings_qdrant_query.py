@@ -94,7 +94,7 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         
         # Create mock message
         mock_message = MagicMock()
-        mock_message.vectors = [[0.1, 0.2, 0.3]]
+        mock_message.vector = [0.1, 0.2, 0.3]
         mock_message.limit = 5
         mock_message.user = 'test_user'
         mock_message.collection = 'test_collection'
@@ -208,7 +208,7 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         
         # Create mock message with limit
         mock_message = MagicMock()
-        mock_message.vectors = [[0.1, 0.2, 0.3]]
+        mock_message.vector = [0.1, 0.2, 0.3]
         mock_message.limit = 3  # Should only return 3 results
         mock_message.user = 'limit_user'
         mock_message.collection = 'limit_collection'
@@ -248,7 +248,7 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         
         # Create mock message
         mock_message = MagicMock()
-        mock_message.vectors = [[0.1, 0.2]]
+        mock_message.vector = [0.1, 0.2]
         mock_message.limit = 5
         mock_message.user = 'empty_user'
         mock_message.collection = 'empty_collection'
@@ -343,7 +343,7 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         
         # Create mock message
         mock_message = MagicMock()
-        mock_message.vectors = [[0.1, 0.2]]
+        mock_message.vector = [0.1, 0.2]
         mock_message.limit = 5
         mock_message.user = 'utf8_user'
         mock_message.collection = 'utf8_collection'
@@ -379,7 +379,7 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         
         # Create mock message
         mock_message = MagicMock()
-        mock_message.vectors = [[0.1, 0.2]]
+        mock_message.vector = [0.1, 0.2]
         mock_message.limit = 5
         mock_message.user = 'error_user'
         mock_message.collection = 'error_collection'
@@ -413,7 +413,7 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         
         # Create mock message with zero limit
         mock_message = MagicMock()
-        mock_message.vectors = [[0.1, 0.2]]
+        mock_message.vector = [0.1, 0.2]
         mock_message.limit = 0
         mock_message.user = 'zero_user'
         mock_message.collection = 'zero_collection'
@@ -459,7 +459,7 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         
         # Create mock message with large limit
         mock_message = MagicMock()
-        mock_message.vectors = [[0.1, 0.2]]
+        mock_message.vector = [0.1, 0.2]
         mock_message.limit = 1000  # Large limit
         mock_message.user = 'large_user'
         mock_message.collection = 'large_collection'
@@ -508,7 +508,7 @@ class TestQdrantDocEmbeddingsQuery(IsolatedAsyncioTestCase):
         
         # Create mock message
         mock_message = MagicMock()
-        mock_message.vectors = [[0.1, 0.2]]
+        mock_message.vector = [0.1, 0.2]
         mock_message.limit = 5
         mock_message.user = 'payload_user'
         mock_message.collection = 'payload_collection'
