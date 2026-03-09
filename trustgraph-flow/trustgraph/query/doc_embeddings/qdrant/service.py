@@ -10,7 +10,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct
 from qdrant_client.models import Distance, VectorParams
 
-from .... schema import DocumentEmbeddingsResponse
+from .... schema import DocumentEmbeddingsResponse, ChunkMatch
 from .... schema import Error
 from .... base import DocumentEmbeddingsQueryService
 
@@ -69,31 +69,36 @@ class Processor(DocumentEmbeddingsQueryService):
 
         try:
 
-            chunk_ids = []
+            vec = msg.vector
+            if not vec:
+                return []
 
-            for vec in msg.vectors:
+            # Use dimension suffix in collection name
+            dim = len(vec)
+            collection = f"d_{msg.user}_{msg.collection}_{dim}"
 
-                # Use dimension suffix in collection name
-                dim = len(vec)
-                collection = f"d_{msg.user}_{msg.collection}_{dim}"
+            # Check if collection exists - return empty if not
+            if not self.collection_exists(collection):
+                logger.info(f"Collection {collection} does not exist, returning empty results")
+                return []
 
-                # Check if collection exists - return empty if not
-                if not self.collection_exists(collection):
-                    logger.info(f"Collection {collection} does not exist, returning empty results")
-                    continue
+            search_result = self.qdrant.query_points(
+                collection_name=collection,
+                query=vec,
+                limit=msg.limit,
+                with_payload=True,
+            ).points
 
-                search_result = self.qdrant.query_points(
-                    collection_name=collection,
-                    query=vec,
-                    limit=msg.limit,
-                    with_payload=True,
-                ).points
+            chunks = []
+            for r in search_result:
+                chunk_id = r.payload["chunk_id"]
+                score = r.score if hasattr(r, 'score') else 0.0
+                chunks.append(ChunkMatch(
+                    chunk_id=chunk_id,
+                    score=score,
+                ))
 
-                for r in search_result:
-                    chunk_id = r.payload["chunk_id"]
-                    chunk_ids.append(chunk_id)
-
-            return chunk_ids
+            return chunks
 
         except Exception as e:
 

@@ -41,7 +41,8 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
             if chunk_id == "":
                 continue
 
-            for vec in emb.vectors:
+            vec = emb.vector
+            if vec:
                 self.vecstore.insert(
                     vec, chunk_id,
                     message.metadata.user,

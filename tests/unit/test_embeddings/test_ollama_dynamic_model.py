@@ -60,7 +60,7 @@ class TestOllamaDynamicModelLoading(IsolatedAsyncioTestCase):
             model="test-model",
             input=["test text"]
         )
-        assert result == [[[0.1, 0.2, 0.3, 0.4, 0.5]]]
+        assert result == [[0.1, 0.2, 0.3, 0.4, 0.5]]
 
     @patch('trustgraph.embeddings.ollama.processor.Client')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')
@@ -86,7 +86,7 @@ class TestOllamaDynamicModelLoading(IsolatedAsyncioTestCase):
             model="custom-model",
             input=["test text"]
         )
-        assert result == [[[0.1, 0.2, 0.3, 0.4, 0.5]]]
+        assert result == [[0.1, 0.2, 0.3, 0.4, 0.5]]
 
     @patch('trustgraph.embeddings.ollama.processor.Client')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')

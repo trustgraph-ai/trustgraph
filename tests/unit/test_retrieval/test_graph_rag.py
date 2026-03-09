@@ -193,12 +193,20 @@ class TestQuery:
         test_vectors = [[0.1, 0.2, 0.3]]
         mock_embeddings_client.embed.return_value = [test_vectors]
 
-        # Mock entity objects that have string representation
+        # Mock EntityMatch objects with entity that has string representation
         mock_entity1 = MagicMock()
         mock_entity1.__str__ = MagicMock(return_value="entity1")
+        mock_match1 = MagicMock()
+        mock_match1.entity = mock_entity1
+        mock_match1.score = 0.95
+
         mock_entity2 = MagicMock()
         mock_entity2.__str__ = MagicMock(return_value="entity2")
-        mock_graph_embeddings_client.query.return_value = [mock_entity1, mock_entity2]
+        mock_match2 = MagicMock()
+        mock_match2.entity = mock_entity2
+        mock_match2.score = 0.85
+
+        mock_graph_embeddings_client.query.return_value = [mock_match1, mock_match2]
 
         # Initialize Query
         query = Query(
@@ -216,9 +224,9 @@ class TestQuery:
         # Verify embeddings client was called (now expects list)
         mock_embeddings_client.embed.assert_called_once_with([test_query])
 
-        # Verify graph embeddings client was called correctly (with extracted vectors)
+        # Verify graph embeddings client was called correctly (with extracted vector)
         mock_graph_embeddings_client.query.assert_called_once_with(
-            vectors=test_vectors,
+            vector=test_vectors,
             limit=25,
             user="test_user",
             collection="test_collection"

@@ -9,6 +9,7 @@ Following the TEST_STRATEGY.md approach for integration testing.
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from trustgraph.retrieval.document_rag.document_rag import DocumentRag
+from trustgraph.schema import ChunkMatch
 
 
 # Sample chunk content for testing - maps chunk_id to content
@@ -39,10 +40,14 @@ class TestDocumentRagIntegration:
 
     @pytest.fixture
     def mock_doc_embeddings_client(self):
-        """Mock document embeddings client that returns chunk IDs"""
+        """Mock document embeddings client that returns chunk matches"""
         client = AsyncMock()
-        # Now returns chunk_ids instead of actual content
-        client.query.return_value = ["doc/c1", "doc/c2", "doc/c3"]
+        # Returns ChunkMatch objects with chunk_id and score
+        client.query.return_value = [
+            ChunkMatch(chunk_id="doc/c1", score=0.95),
+            ChunkMatch(chunk_id="doc/c2", score=0.90),
+            ChunkMatch(chunk_id="doc/c3", score=0.85)
+        ]
         return client
 
     @pytest.fixture
@@ -97,7 +102,7 @@ class TestDocumentRagIntegration:
         mock_embeddings_client.embed.assert_called_once_with([query])
 
         mock_doc_embeddings_client.query.assert_called_once_with(
-            [[0.1, 0.2, 0.3, 0.4, 0.5], [0.6, 0.7, 0.8, 0.9, 1.0]],
+            vector=[[0.1, 0.2, 0.3, 0.4, 0.5], [0.6, 0.7, 0.8, 0.9, 1.0]],
             limit=doc_limit,
             user=user,
             collection=collection
@@ -298,7 +303,7 @@ class TestDocumentRagIntegration:
         assert "DocumentRag initialized" in log_messages
         assert "Constructing prompt..." in log_messages
         assert "Computing embeddings..." in log_messages
-        assert "chunk_ids" in log_messages.lower()
+        assert "chunks" in log_messages.lower()
         assert "Invoking LLM..." in log_messages
         assert "Query processing complete" in log_messages
 
@@ -307,9 +312,9 @@ class TestDocumentRagIntegration:
     async def test_document_rag_performance_with_large_document_set(self, document_rag,
                                                                    mock_doc_embeddings_client):
         """Test DocumentRAG performance with large document retrieval"""
-        # Arrange - Mock large chunk_id set (100 chunks)
-        large_chunk_ids = [f"doc/c{i}" for i in range(100)]
-        mock_doc_embeddings_client.query.return_value = large_chunk_ids
+        # Arrange - Mock large chunk match set (100 chunks)
+        large_chunk_matches = [ChunkMatch(chunk_id=f"doc/c{i}", score=0.9 - i*0.001) for i in range(100)]
+        mock_doc_embeddings_client.query.return_value = large_chunk_matches
 
         # Act
         import time

@@ -208,7 +208,7 @@ class Processor(CollectionConfigHandler, FlowProcessor):
             all_vectors = await flow("embeddings-request").embed(texts=texts)
 
             # Pair results with metadata
-            for text, (index_name, index_value), vectors in zip(
+            for text, (index_name, index_value), vector in zip(
                 texts, metadata, all_vectors
             ):
                 embeddings_list.append(
@@ -216,7 +216,7 @@ class Processor(CollectionConfigHandler, FlowProcessor):
                         index_name=index_name,
                         index_value=index_value,
                         text=text,
-                        vectors=vectors  # Vector set for this text
+                        vector=vector
                     )
                 )
 

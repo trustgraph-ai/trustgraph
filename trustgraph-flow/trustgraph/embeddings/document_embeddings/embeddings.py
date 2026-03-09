@@ -66,13 +66,13 @@ class Processor(FlowProcessor):
                 )
             )
 
-            # vectors[0] is the vector set for the first (only) text
-            vectors = resp.vectors[0] if resp.vectors else []
+            # vectors[0] is the vector for the first (only) text
+            vector = resp.vectors[0] if resp.vectors else []
 
             embeds = [
                 ChunkEmbeddings(
                     chunk_id=v.document_id,
-                    vectors=vectors,
+                    vector=vector,
                 )
             ]
 

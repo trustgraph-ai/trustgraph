@@ -59,11 +59,8 @@ class Processor(EmbeddingsService):
         # FastEmbed processes the full batch efficiently
         vecs = list(self.embeddings.embed(texts))
 
-        # Return list of vector sets, one per input text
-        return [
-            [v.tolist()]
-            for v in vecs
-        ]
+        # Return list of vectors, one per input text
+        return [v.tolist() for v in vecs]
 
     @staticmethod
     def add_args(parser):

@@ -98,7 +98,7 @@ def sample_graph_embeddings():
         entities=[
             EntityEmbeddings(
                 entity=Term(type=IRI, iri="http://example.org/john"),
-                vectors=[[0.1, 0.2, 0.3]]
+                vector=[0.1, 0.2, 0.3]
             )
         ]
     )

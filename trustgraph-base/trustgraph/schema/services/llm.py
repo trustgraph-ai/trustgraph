@@ -34,7 +34,7 @@ class EmbeddingsRequest:
 @dataclass
 class EmbeddingsResponse:
     error: Error | None = None
-    vectors: list[list[list[float]]] = field(default_factory=list)
+    vectors: list[list[float]] = field(default_factory=list)
 
 ############################################################################
 

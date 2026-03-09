@@ -155,7 +155,7 @@ class RowEmbeddingsQueryImpl:
 
         query_text = arguments.get("query")
         all_vectors = await embeddings_client.embed([query_text])
-        vectors = all_vectors[0] if all_vectors else []
+        vector = all_vectors[0] if all_vectors else []
 
         # Now query row embeddings
         client = self.context("row-embeddings-query-request")
@@ -165,7 +165,7 @@ class RowEmbeddingsQueryImpl:
         user = getattr(client, '_current_user', self.user or "trustgraph")
 
         matches = await client.row_embeddings_query(
-            vectors=vectors,
+            vector=vector,
             schema_name=self.schema_name,
             user=user,
             collection=self.collection or "default",

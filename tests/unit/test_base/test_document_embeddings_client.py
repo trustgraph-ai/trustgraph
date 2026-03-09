@@ -22,28 +22,28 @@ class TestDocumentEmbeddingsClient(IsolatedAsyncioTestCase):
         client = DocumentEmbeddingsClient()
         mock_response = MagicMock(spec=DocumentEmbeddingsResponse)
         mock_response.error = None
-        mock_response.chunk_ids = ["chunk1", "chunk2", "chunk3"]
-        
+        mock_response.chunks = ["chunk1", "chunk2", "chunk3"]
+
         # Mock the request method
         client.request = AsyncMock(return_value=mock_response)
-        
-        vectors = [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
-        
+
+        vector = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+
         # Act
         result = await client.query(
-            vectors=vectors,
+            vector=vector,
             limit=10,
             user="test_user",
             collection="test_collection",
             timeout=30
         )
-        
+
         # Assert
         assert result == ["chunk1", "chunk2", "chunk3"]
         client.request.assert_called_once()
         call_args = client.request.call_args[0][0]
         assert isinstance(call_args, DocumentEmbeddingsRequest)
-        assert call_args.vectors == vectors
+        assert call_args.vector == vector
         assert call_args.limit == 10
         assert call_args.user == "test_user"
         assert call_args.collection == "test_collection"
@@ -63,7 +63,7 @@ class TestDocumentEmbeddingsClient(IsolatedAsyncioTestCase):
         # Act & Assert
         with pytest.raises(RuntimeError, match="Database connection failed"):
             await client.query(
-                vectors=[[0.1, 0.2, 0.3]],
+                vector=[0.1, 0.2, 0.3],
                 limit=5
             )
 
@@ -75,13 +75,13 @@ class TestDocumentEmbeddingsClient(IsolatedAsyncioTestCase):
         client = DocumentEmbeddingsClient()
         mock_response = MagicMock(spec=DocumentEmbeddingsResponse)
         mock_response.error = None
-        mock_response.chunk_ids = []
-        
+        mock_response.chunks = []
+
         client.request = AsyncMock(return_value=mock_response)
-        
+
         # Act
-        result = await client.query(vectors=[[0.1, 0.2, 0.3]])
-        
+        result = await client.query(vector=[0.1, 0.2, 0.3])
+
         # Assert
         assert result == []
 
@@ -93,12 +93,12 @@ class TestDocumentEmbeddingsClient(IsolatedAsyncioTestCase):
         client = DocumentEmbeddingsClient()
         mock_response = MagicMock(spec=DocumentEmbeddingsResponse)
         mock_response.error = None
-        mock_response.chunk_ids = ["test_chunk"]
-        
+        mock_response.chunks = ["test_chunk"]
+
         client.request = AsyncMock(return_value=mock_response)
-        
+
         # Act
-        result = await client.query(vectors=[[0.1, 0.2, 0.3]])
+        result = await client.query(vector=[0.1, 0.2, 0.3])
         
         # Assert
         client.request.assert_called_once()
@@ -115,16 +115,16 @@ class TestDocumentEmbeddingsClient(IsolatedAsyncioTestCase):
         client = DocumentEmbeddingsClient()
         mock_response = MagicMock(spec=DocumentEmbeddingsResponse)
         mock_response.error = None
-        mock_response.chunk_ids = ["chunk1"]
-        
+        mock_response.chunks = ["chunk1"]
+
         client.request = AsyncMock(return_value=mock_response)
-        
+
         # Act
         await client.query(
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             timeout=60
         )
-        
+
         # Assert
         assert client.request.call_args[1]["timeout"] == 60
 
@@ -136,14 +136,14 @@ class TestDocumentEmbeddingsClient(IsolatedAsyncioTestCase):
         client = DocumentEmbeddingsClient()
         mock_response = MagicMock(spec=DocumentEmbeddingsResponse)
         mock_response.error = None
-        mock_response.chunk_ids = ["test_chunk"]
-        
+        mock_response.chunks = ["test_chunk"]
+
         client.request = AsyncMock(return_value=mock_response)
-        
+
         # Act
         with patch('trustgraph.base.document_embeddings_client.logger') as mock_logger:
-            result = await client.query(vectors=[[0.1, 0.2, 0.3]])
-            
+            result = await client.query(vector=[0.1, 0.2, 0.3])
+
             # Assert
             mock_logger.debug.assert_called_once()
             assert "Document embeddings response" in str(mock_logger.debug.call_args)

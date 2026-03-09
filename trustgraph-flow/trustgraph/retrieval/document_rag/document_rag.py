@@ -37,26 +37,26 @@ class Query:
         vectors = await self.get_vector(query)
 
         if self.verbose:
-            logger.debug("Getting chunk_ids from embeddings store...")
+            logger.debug("Getting chunks from embeddings store...")
 
-        # Get chunk_ids from embeddings store
-        chunk_ids = await self.rag.doc_embeddings_client.query(
-            vectors, limit=self.doc_limit,
+        # Get chunk matches from embeddings store
+        chunk_matches = await self.rag.doc_embeddings_client.query(
+            vector=vectors, limit=self.doc_limit,
             user=self.user, collection=self.collection,
         )
 
         if self.verbose:
-            logger.debug(f"Got {len(chunk_ids)} chunk_ids, fetching content from Garage...")
+            logger.debug(f"Got {len(chunk_matches)} chunks, fetching content from Garage...")
 
         # Fetch chunk content from Garage
         docs = []
-        for chunk_id in chunk_ids:
-            if chunk_id:
+        for match in chunk_matches:
+            if match.chunk_id:
                 try:
-                    content = await self.rag.fetch_chunk(chunk_id, self.user)
+                    content = await self.rag.fetch_chunk(match.chunk_id, self.user)
                     docs.append(content)
                 except Exception as e:
-                    logger.warning(f"Failed to fetch chunk {chunk_id}: {e}")
+                    logger.warning(f"Failed to fetch chunk {match.chunk_id}: {e}")
 
         if self.verbose:
             logger.debug("Documents fetched:")

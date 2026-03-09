@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from trustgraph.query.graph_embeddings.milvus.service import Processor
-from trustgraph.schema import Term, GraphEmbeddingsRequest, IRI, LITERAL
+from trustgraph.schema import Term, GraphEmbeddingsRequest, IRI, LITERAL, EntityMatch
 
 
 class TestMilvusGraphEmbeddingsQueryProcessor:
@@ -33,7 +33,7 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         query = GraphEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]],
+            vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
             limit=10
         )
         return query
@@ -119,7 +119,7 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         query = GraphEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             limit=5
         )
         
@@ -138,55 +138,46 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
             [0.1, 0.2, 0.3], 'test_user', 'test_collection', limit=10
         )
         
-        # Verify results are converted to Term objects
+        # Verify results are converted to EntityMatch objects
         assert len(result) == 3
-        assert isinstance(result[0], Term)
-        assert result[0].iri == "http://example.com/entity1"
-        assert result[0].type == IRI
-        assert isinstance(result[1], Term)
-        assert result[1].iri == "http://example.com/entity2"
-        assert result[1].type == IRI
-        assert isinstance(result[2], Term)
-        assert result[2].value == "literal entity"
-        assert result[2].type == LITERAL
+        assert isinstance(result[0], EntityMatch)
+        assert result[0].entity.iri == "http://example.com/entity1"
+        assert result[0].entity.type == IRI
+        assert isinstance(result[1], EntityMatch)
+        assert result[1].entity.iri == "http://example.com/entity2"
+        assert result[1].entity.type == IRI
+        assert isinstance(result[2], EntityMatch)
+        assert result[2].entity.value == "literal entity"
+        assert result[2].entity.type == LITERAL
 
     @pytest.mark.asyncio
-    async def test_query_graph_embeddings_multiple_vectors(self, processor):
-        """Test querying graph embeddings with multiple vectors"""
+    async def test_query_graph_embeddings_multiple_results(self, processor):
+        """Test querying graph embeddings returns multiple results"""
         query = GraphEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]],
-            limit=3
+            vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+            limit=5
         )
-        
-        # Mock search results - different results for each vector
-        mock_results_1 = [
+
+        # Mock search results with multiple entities
+        mock_results = [
             {"entity": {"entity": "http://example.com/entity1"}},
             {"entity": {"entity": "http://example.com/entity2"}},
-        ]
-        mock_results_2 = [
-            {"entity": {"entity": "http://example.com/entity2"}},  # Duplicate
             {"entity": {"entity": "http://example.com/entity3"}},
         ]
-        processor.vecstore.search.side_effect = [mock_results_1, mock_results_2]
-        
+        processor.vecstore.search.return_value = mock_results
+
         result = await processor.query_graph_embeddings(query)
-        
-        # Verify search was called twice with correct parameters including user/collection
-        expected_calls = [
-            (([0.1, 0.2, 0.3], 'test_user', 'test_collection'), {"limit": 6}),
-            (([0.4, 0.5, 0.6], 'test_user', 'test_collection'), {"limit": 6}),
-        ]
-        assert processor.vecstore.search.call_count == 2
-        for i, (expected_args, expected_kwargs) in enumerate(expected_calls):
-            actual_call = processor.vecstore.search.call_args_list[i]
-            assert actual_call[0] == expected_args
-            assert actual_call[1] == expected_kwargs
-        
-        # Verify results are deduplicated and limited
+
+        # Verify search was called once with the full vector
+        processor.vecstore.search.assert_called_once_with(
+            [0.1, 0.2, 0.3, 0.4, 0.5, 0.6], 'test_user', 'test_collection', limit=10
+        )
+
+        # Verify results are EntityMatch objects
         assert len(result) == 3
-        entity_values = [r.iri if r.type == IRI else r.value for r in result]
+        entity_values = [r.entity.iri if r.entity.type == IRI else r.entity.value for r in result]
         assert "http://example.com/entity1" in entity_values
         assert "http://example.com/entity2" in entity_values
         assert "http://example.com/entity3" in entity_values
@@ -197,7 +188,7 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         query = GraphEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             limit=2
         )
         
@@ -221,63 +212,57 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         assert len(result) == 2
 
     @pytest.mark.asyncio
-    async def test_query_graph_embeddings_deduplication(self, processor):
-        """Test that duplicate entities are properly deduplicated"""
+    async def test_query_graph_embeddings_preserves_order(self, processor):
+        """Test that query results preserve order from the vector store"""
         query = GraphEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]],
+            vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
             limit=5
         )
-        
-        # Mock search results with duplicates
-        mock_results_1 = [
-            {"entity": {"entity": "http://example.com/entity1"}},
-            {"entity": {"entity": "http://example.com/entity2"}},
-        ]
-        mock_results_2 = [
-            {"entity": {"entity": "http://example.com/entity2"}},  # Duplicate
-            {"entity": {"entity": "http://example.com/entity1"}},  # Duplicate
-            {"entity": {"entity": "http://example.com/entity3"}},  # New
-        ]
-        processor.vecstore.search.side_effect = [mock_results_1, mock_results_2]
-        
-        result = await processor.query_graph_embeddings(query)
-        
-        # Verify duplicates are removed
-        assert len(result) == 3
-        entity_values = [r.iri if r.type == IRI else r.value for r in result]
-        assert len(set(entity_values)) == 3  # All unique
-        assert "http://example.com/entity1" in entity_values
-        assert "http://example.com/entity2" in entity_values
-        assert "http://example.com/entity3" in entity_values
 
-    @pytest.mark.asyncio
-    async def test_query_graph_embeddings_early_termination_on_limit(self, processor):
-        """Test that querying stops early when limit is reached"""
-        query = GraphEmbeddingsRequest(
-            user='test_user',
-            collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]],
-            limit=2
-        )
-        
-        # Mock search results - first vector returns enough results
-        mock_results_1 = [
+        # Mock search results in specific order
+        mock_results = [
             {"entity": {"entity": "http://example.com/entity1"}},
             {"entity": {"entity": "http://example.com/entity2"}},
             {"entity": {"entity": "http://example.com/entity3"}},
         ]
-        processor.vecstore.search.return_value = mock_results_1
-        
+        processor.vecstore.search.return_value = mock_results
+
         result = await processor.query_graph_embeddings(query)
-        
-        # Verify only first vector was searched (limit reached)
-        processor.vecstore.search.assert_called_once_with(
-            [0.1, 0.2, 0.3], 'test_user', 'test_collection', limit=4
+
+        # Verify results are in the same order as returned by the store
+        assert len(result) == 3
+        assert result[0].entity.iri == "http://example.com/entity1"
+        assert result[1].entity.iri == "http://example.com/entity2"
+        assert result[2].entity.iri == "http://example.com/entity3"
+
+    @pytest.mark.asyncio
+    async def test_query_graph_embeddings_results_limited(self, processor):
+        """Test that results are properly limited when store returns more than requested"""
+        query = GraphEmbeddingsRequest(
+            user='test_user',
+            collection='test_collection',
+            vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+            limit=2
         )
-        
-        # Verify results are limited
+
+        # Mock search results - returns more results than limit
+        mock_results = [
+            {"entity": {"entity": "http://example.com/entity1"}},
+            {"entity": {"entity": "http://example.com/entity2"}},
+            {"entity": {"entity": "http://example.com/entity3"}},
+        ]
+        processor.vecstore.search.return_value = mock_results
+
+        result = await processor.query_graph_embeddings(query)
+
+        # Verify search was called with the full vector
+        processor.vecstore.search.assert_called_once_with(
+            [0.1, 0.2, 0.3, 0.4, 0.5, 0.6], 'test_user', 'test_collection', limit=4
+        )
+
+        # Verify results are limited to requested amount
         assert len(result) == 2
 
     @pytest.mark.asyncio
@@ -286,7 +271,7 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         query = GraphEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[],
+            vector=[],
             limit=5
         )
         
@@ -304,7 +289,7 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         query = GraphEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             limit=5
         )
         
@@ -327,7 +312,7 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         query = GraphEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             limit=5
         )
         
@@ -344,18 +329,18 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         
         # Verify all results are properly typed
         assert len(result) == 4
-        
+
         # Check URI entities
-        uri_results = [r for r in result if r.type == IRI]
+        uri_results = [r for r in result if r.entity.type == IRI]
         assert len(uri_results) == 2
-        uri_values = [r.iri for r in uri_results]
+        uri_values = [r.entity.iri for r in uri_results]
         assert "http://example.com/uri_entity" in uri_values
         assert "https://example.com/another_uri" in uri_values
-        
+
         # Check literal entities
-        literal_results = [r for r in result if not r.type == IRI]
+        literal_results = [r for r in result if not r.entity.type == IRI]
         assert len(literal_results) == 2
-        literal_values = [r.value for r in literal_results]
+        literal_values = [r.entity.value for r in literal_results]
         assert "literal entity text" in literal_values
         assert "another literal" in literal_values
 
@@ -365,7 +350,7 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         query = GraphEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             limit=5
         )
         
@@ -447,7 +432,7 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         query = GraphEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             limit=0
         )
         
@@ -460,33 +445,29 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         assert len(result) == 0
 
     @pytest.mark.asyncio
-    async def test_query_graph_embeddings_different_vector_dimensions(self, processor):
-        """Test querying graph embeddings with different vector dimensions"""
+    async def test_query_graph_embeddings_longer_vector(self, processor):
+        """Test querying graph embeddings with a longer vector"""
         query = GraphEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[
-                [0.1, 0.2],  # 2D vector
-                [0.3, 0.4, 0.5, 0.6],  # 4D vector
-                [0.7, 0.8, 0.9]  # 3D vector
-            ],
+            vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
             limit=5
         )
-        
-        # Mock search results for each vector
-        mock_results_1 = [{"entity": {"entity": "entity_2d"}}]
-        mock_results_2 = [{"entity": {"entity": "entity_4d"}}]
-        mock_results_3 = [{"entity": {"entity": "entity_3d"}}]
-        processor.vecstore.search.side_effect = [mock_results_1, mock_results_2, mock_results_3]
-        
+
+        # Mock search results
+        mock_results = [
+            {"entity": {"entity": "http://example.com/entity1"}},
+            {"entity": {"entity": "http://example.com/entity2"}},
+        ]
+        processor.vecstore.search.return_value = mock_results
+
         result = await processor.query_graph_embeddings(query)
-        
-        # Verify all vectors were searched
-        assert processor.vecstore.search.call_count == 3
-        
-        # Verify results from all dimensions
-        assert len(result) == 3
-        entity_values = [r.iri if r.type == IRI else r.value for r in result]
-        assert "entity_2d" in entity_values
-        assert "entity_4d" in entity_values
-        assert "entity_3d" in entity_values
+
+        # Verify search was called once with the full vector
+        processor.vecstore.search.assert_called_once()
+
+        # Verify results
+        assert len(result) == 2
+        entity_values = [r.entity.iri if r.entity.type == IRI else r.entity.value for r in result]
+        assert "http://example.com/entity1" in entity_values
+        assert "http://example.com/entity2" in entity_values

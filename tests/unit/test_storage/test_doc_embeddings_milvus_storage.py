@@ -23,11 +23,11 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         # Create test document embeddings
         chunk1 = ChunkEmbeddings(
             chunk_id="This is the first document chunk",
-            vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
+            vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
         )
         chunk2 = ChunkEmbeddings(
             chunk_id="This is the second document chunk",
-            vectors=[[0.7, 0.8, 0.9]]
+            vector=[0.7, 0.8, 0.9]
         )
         message.chunks = [chunk1, chunk2]
         
@@ -82,44 +82,34 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         message.metadata = MagicMock()
         message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
-        
+
         chunk = ChunkEmbeddings(
             chunk_id="Test document content",
-            vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
+            vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
         )
         message.chunks = [chunk]
-        
+
         await processor.store_document_embeddings(message)
-        
-        # Verify insert was called for each vector with user/collection parameters
-        expected_calls = [
-            ([0.1, 0.2, 0.3], "Test document content", 'test_user', 'test_collection'),
-            ([0.4, 0.5, 0.6], "Test document content", 'test_user', 'test_collection'),
-        ]
-        
-        assert processor.vecstore.insert.call_count == 2
-        for i, (expected_vec, expected_doc, expected_user, expected_collection) in enumerate(expected_calls):
-            actual_call = processor.vecstore.insert.call_args_list[i]
-            assert actual_call[0][0] == expected_vec
-            assert actual_call[0][1] == expected_doc
-            assert actual_call[0][2] == expected_user
-            assert actual_call[0][3] == expected_collection
+
+        # Verify insert was called once for the single chunk with its vector
+        processor.vecstore.insert.assert_called_once_with(
+            [0.1, 0.2, 0.3, 0.4, 0.5, 0.6], "Test document content", 'test_user', 'test_collection'
+        )
 
     @pytest.mark.asyncio
     async def test_store_document_embeddings_multiple_chunks(self, processor, mock_message):
         """Test storing document embeddings for multiple chunks"""
         await processor.store_document_embeddings(mock_message)
-        
-        # Verify insert was called for each vector of each chunk with user/collection parameters
+
+        # Verify insert was called once per chunk with user/collection parameters
         expected_calls = [
-            # Chunk 1 vectors
-            ([0.1, 0.2, 0.3], "This is the first document chunk", 'test_user', 'test_collection'),
-            ([0.4, 0.5, 0.6], "This is the first document chunk", 'test_user', 'test_collection'),
-            # Chunk 2 vectors
+            # Chunk 1 - single vector
+            ([0.1, 0.2, 0.3, 0.4, 0.5, 0.6], "This is the first document chunk", 'test_user', 'test_collection'),
+            # Chunk 2 - single vector
             ([0.7, 0.8, 0.9], "This is the second document chunk", 'test_user', 'test_collection'),
         ]
-        
-        assert processor.vecstore.insert.call_count == 3
+
+        assert processor.vecstore.insert.call_count == 2
         for i, (expected_vec, expected_doc, expected_user, expected_collection) in enumerate(expected_calls):
             actual_call = processor.vecstore.insert.call_args_list[i]
             assert actual_call[0][0] == expected_vec
@@ -137,7 +127,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         
         chunk = ChunkEmbeddings(
             chunk_id="",
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.chunks = [chunk]
         
@@ -156,7 +146,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
 
         chunk = ChunkEmbeddings(
             chunk_id=None,
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.chunks = [chunk]
 
@@ -177,15 +167,15 @@ class TestMilvusDocEmbeddingsStorageProcessor:
 
         valid_chunk = ChunkEmbeddings(
             chunk_id="Valid document content",
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         empty_chunk = ChunkEmbeddings(
             chunk_id="",
-            vectors=[[0.4, 0.5, 0.6]]
+            vector=[0.4, 0.5, 0.6]
         )
         another_valid = ChunkEmbeddings(
             chunk_id="Another valid chunk",
-            vectors=[[0.7, 0.8, 0.9]]
+            vector=[0.7, 0.8, 0.9]
         )
         message.chunks = [valid_chunk, empty_chunk, another_valid]
 
@@ -229,7 +219,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         
         chunk = ChunkEmbeddings(
             chunk_id="Document with no vectors",
-            vectors=[]
+            vector=[]
         )
         message.chunks = [chunk]
         
@@ -245,26 +235,31 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         message.metadata = MagicMock()
         message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
-        
-        chunk = ChunkEmbeddings(
-            chunk_id="Document with mixed dimensions",
-            vectors=[
-                [0.1, 0.2],  # 2D vector
-                [0.3, 0.4, 0.5, 0.6],  # 4D vector
-                [0.7, 0.8, 0.9]  # 3D vector
-            ]
+
+        # Each chunk has a single vector of different dimensions
+        chunk1 = ChunkEmbeddings(
+            chunk_id="chunk/doc/2d",
+            vector=[0.1, 0.2]  # 2D vector
         )
-        message.chunks = [chunk]
-        
+        chunk2 = ChunkEmbeddings(
+            chunk_id="chunk/doc/4d",
+            vector=[0.3, 0.4, 0.5, 0.6]  # 4D vector
+        )
+        chunk3 = ChunkEmbeddings(
+            chunk_id="chunk/doc/3d",
+            vector=[0.7, 0.8, 0.9]  # 3D vector
+        )
+        message.chunks = [chunk1, chunk2, chunk3]
+
         await processor.store_document_embeddings(message)
-        
+
         # Verify all vectors were inserted regardless of dimension with user/collection parameters
         expected_calls = [
-            ([0.1, 0.2], "Document with mixed dimensions", 'test_user', 'test_collection'),
-            ([0.3, 0.4, 0.5, 0.6], "Document with mixed dimensions", 'test_user', 'test_collection'),
-            ([0.7, 0.8, 0.9], "Document with mixed dimensions", 'test_user', 'test_collection'),
+            ([0.1, 0.2], "chunk/doc/2d", 'test_user', 'test_collection'),
+            ([0.3, 0.4, 0.5, 0.6], "chunk/doc/4d", 'test_user', 'test_collection'),
+            ([0.7, 0.8, 0.9], "chunk/doc/3d", 'test_user', 'test_collection'),
         ]
-        
+
         assert processor.vecstore.insert.call_count == 3
         for i, (expected_vec, expected_doc, expected_user, expected_collection) in enumerate(expected_calls):
             actual_call = processor.vecstore.insert.call_args_list[i]
@@ -283,7 +278,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
 
         chunk = ChunkEmbeddings(
             chunk_id="chunk/doc/unicode-éñ中文🚀",
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.chunks = [chunk]
 
@@ -306,7 +301,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         long_chunk_id = "chunk/doc/" + "a" * 200
         chunk = ChunkEmbeddings(
             chunk_id=long_chunk_id,
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.chunks = [chunk]
 
@@ -327,7 +322,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         
         chunk = ChunkEmbeddings(
             chunk_id="   \n\t   ",
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.chunks = [chunk]
         
@@ -358,7 +353,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
             
             chunk = ChunkEmbeddings(
                 chunk_id="Test content",
-                vectors=[[0.1, 0.2, 0.3]]
+                vector=[0.1, 0.2, 0.3]
             )
             message.chunks = [chunk]
             
@@ -379,7 +374,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         message1.metadata.collection = 'collection1'
         chunk1 = ChunkEmbeddings(
             chunk_id="User1 content",
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message1.chunks = [chunk1]
         
@@ -390,7 +385,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         message2.metadata.collection = 'collection2'
         chunk2 = ChunkEmbeddings(
             chunk_id="User2 content",
-            vectors=[[0.4, 0.5, 0.6]]
+            vector=[0.4, 0.5, 0.6]
         )
         message2.chunks = [chunk2]
         
@@ -421,7 +416,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         
         chunk = ChunkEmbeddings(
             chunk_id="Special chars test",
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.chunks = [chunk]
         
