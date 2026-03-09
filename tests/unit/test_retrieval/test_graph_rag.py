@@ -365,10 +365,10 @@ class TestQuery:
         mock_triple3 = MagicMock()
         mock_triple3.s, mock_triple3.p, mock_triple3.o = "subject3", "predicate3", "entity1"
         
-        # Setup query responses for s=ent, p=ent, o=ent patterns
-        mock_triples_client.query.side_effect = [
+        # Setup query_stream responses for s=ent, p=ent, o=ent patterns
+        mock_triples_client.query_stream.side_effect = [
             [mock_triple1],  # s=ent, p=None, o=None
-            [mock_triple2],  # s=None, p=ent, o=None  
+            [mock_triple2],  # s=None, p=ent, o=None
             [mock_triple3],  # s=None, p=None, o=ent
         ]
         
@@ -386,20 +386,20 @@ class TestQuery:
         await query.follow_edges("entity1", subgraph, path_length=1)
         
         # Verify all three query patterns were called
-        assert mock_triples_client.query.call_count == 3
-        
-        # Verify query calls
-        mock_triples_client.query.assert_any_call(
+        assert mock_triples_client.query_stream.call_count == 3
+
+        # Verify query_stream calls
+        mock_triples_client.query_stream.assert_any_call(
             s="entity1", p=None, o=None, limit=10,
-            user="test_user", collection="test_collection"
+            user="test_user", collection="test_collection", batch_size=20
         )
-        mock_triples_client.query.assert_any_call(
+        mock_triples_client.query_stream.assert_any_call(
             s=None, p="entity1", o=None, limit=10,
-            user="test_user", collection="test_collection"
+            user="test_user", collection="test_collection", batch_size=20
         )
-        mock_triples_client.query.assert_any_call(
+        mock_triples_client.query_stream.assert_any_call(
             s=None, p=None, o="entity1", limit=10,
-            user="test_user", collection="test_collection"
+            user="test_user", collection="test_collection", batch_size=20
         )
         
         # Verify subgraph contains discovered triples
@@ -429,9 +429,9 @@ class TestQuery:
         # Call follow_edges with path_length=0
         subgraph = set()
         await query.follow_edges("entity1", subgraph, path_length=0)
-        
+
         # Verify no queries were made
-        mock_triples_client.query.assert_not_called()
+        mock_triples_client.query_stream.assert_not_called()
         
         # Verify subgraph remains empty
         assert subgraph == set()
@@ -458,9 +458,9 @@ class TestQuery:
         
         # Call follow_edges
         await query.follow_edges("entity1", subgraph, path_length=1)
-        
+
         # Verify no queries were made due to size limit
-        mock_triples_client.query.assert_not_called()
+        mock_triples_client.query_stream.assert_not_called()
         
         # Verify subgraph unchanged
         assert len(subgraph) == 3
