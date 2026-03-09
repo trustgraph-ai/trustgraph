@@ -82,44 +82,37 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         message.metadata = MagicMock()
         message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
-        
+
         entity = EntityEmbeddings(
             entity=Term(type=IRI, iri='http://example.com/entity'),
             vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
         )
         message.entities = [entity]
-        
+
         await processor.store_graph_embeddings(message)
-        
-        # Verify insert was called for each vector with user/collection parameters
-        expected_calls = [
-            ([0.1, 0.2, 0.3], 'http://example.com/entity', 'test_user', 'test_collection'),
-            ([0.4, 0.5, 0.6], 'http://example.com/entity', 'test_user', 'test_collection'),
-        ]
-        
-        assert processor.vecstore.insert.call_count == 2
-        for i, (expected_vec, expected_entity, expected_user, expected_collection) in enumerate(expected_calls):
-            actual_call = processor.vecstore.insert.call_args_list[i]
-            assert actual_call[0][0] == expected_vec
-            assert actual_call[0][1] == expected_entity
-            assert actual_call[0][2] == expected_user
-            assert actual_call[0][3] == expected_collection
+
+        # Verify insert was called once with the full vector
+        processor.vecstore.insert.assert_called_once()
+        actual_call = processor.vecstore.insert.call_args_list[0]
+        assert actual_call[0][0] == [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+        assert actual_call[0][1] == 'http://example.com/entity'
+        assert actual_call[0][2] == 'test_user'
+        assert actual_call[0][3] == 'test_collection'
 
     @pytest.mark.asyncio
     async def test_store_graph_embeddings_multiple_entities(self, processor, mock_message):
         """Test storing graph embeddings for multiple entities"""
         await processor.store_graph_embeddings(mock_message)
-        
-        # Verify insert was called for each vector of each entity with user/collection parameters
+
+        # Verify insert was called once per entity with user/collection parameters
         expected_calls = [
-            # Entity 1 vectors
-            ([0.1, 0.2, 0.3], 'http://example.com/entity1', 'test_user', 'test_collection'),
-            ([0.4, 0.5, 0.6], 'http://example.com/entity1', 'test_user', 'test_collection'),
-            # Entity 2 vectors
+            # Entity 1 - single vector
+            ([0.1, 0.2, 0.3, 0.4, 0.5, 0.6], 'http://example.com/entity1', 'test_user', 'test_collection'),
+            # Entity 2 - single vector
             ([0.7, 0.8, 0.9], 'literal entity', 'test_user', 'test_collection'),
         ]
-        
-        assert processor.vecstore.insert.call_count == 3
+
+        assert processor.vecstore.insert.call_count == 2
         for i, (expected_vec, expected_entity, expected_user, expected_collection) in enumerate(expected_calls):
             actual_call = processor.vecstore.insert.call_args_list[i]
             assert actual_call[0][0] == expected_vec

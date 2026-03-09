@@ -151,40 +151,31 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         assert result[2].entity.type == LITERAL
 
     @pytest.mark.asyncio
-    async def test_query_graph_embeddings_multiple_vectors(self, processor):
-        """Test querying graph embeddings with multiple vectors"""
+    async def test_query_graph_embeddings_multiple_results(self, processor):
+        """Test querying graph embeddings returns multiple results"""
         query = GraphEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
-            limit=3
+            limit=5
         )
-        
-        # Mock search results - different results for each vector
-        mock_results_1 = [
+
+        # Mock search results with multiple entities
+        mock_results = [
             {"entity": {"entity": "http://example.com/entity1"}},
             {"entity": {"entity": "http://example.com/entity2"}},
-        ]
-        mock_results_2 = [
-            {"entity": {"entity": "http://example.com/entity2"}},  # Duplicate
             {"entity": {"entity": "http://example.com/entity3"}},
         ]
-        processor.vecstore.search.side_effect = [mock_results_1, mock_results_2]
-        
+        processor.vecstore.search.return_value = mock_results
+
         result = await processor.query_graph_embeddings(query)
-        
-        # Verify search was called twice with correct parameters including user/collection
-        expected_calls = [
-            (([0.1, 0.2, 0.3], 'test_user', 'test_collection'), {"limit": 6}),
-            (([0.4, 0.5, 0.6], 'test_user', 'test_collection'), {"limit": 6}),
-        ]
-        assert processor.vecstore.search.call_count == 2
-        for i, (expected_args, expected_kwargs) in enumerate(expected_calls):
-            actual_call = processor.vecstore.search.call_args_list[i]
-            assert actual_call[0] == expected_args
-            assert actual_call[1] == expected_kwargs
-        
-        # Verify results are deduplicated and limited
+
+        # Verify search was called once with the full vector
+        processor.vecstore.search.assert_called_once_with(
+            [0.1, 0.2, 0.3, 0.4, 0.5, 0.6], 'test_user', 'test_collection', limit=10
+        )
+
+        # Verify results are EntityMatch objects
         assert len(result) == 3
         entity_values = [r.entity.iri if r.entity.type == IRI else r.entity.value for r in result]
         assert "http://example.com/entity1" in entity_values
@@ -221,63 +212,57 @@ class TestMilvusGraphEmbeddingsQueryProcessor:
         assert len(result) == 2
 
     @pytest.mark.asyncio
-    async def test_query_graph_embeddings_deduplication(self, processor):
-        """Test that duplicate entities are properly deduplicated"""
+    async def test_query_graph_embeddings_preserves_order(self, processor):
+        """Test that query results preserve order from the vector store"""
         query = GraphEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
             limit=5
         )
-        
-        # Mock search results with duplicates
-        mock_results_1 = [
+
+        # Mock search results in specific order
+        mock_results = [
             {"entity": {"entity": "http://example.com/entity1"}},
             {"entity": {"entity": "http://example.com/entity2"}},
+            {"entity": {"entity": "http://example.com/entity3"}},
         ]
-        mock_results_2 = [
-            {"entity": {"entity": "http://example.com/entity2"}},  # Duplicate
-            {"entity": {"entity": "http://example.com/entity1"}},  # Duplicate
-            {"entity": {"entity": "http://example.com/entity3"}},  # New
-        ]
-        processor.vecstore.search.side_effect = [mock_results_1, mock_results_2]
-        
+        processor.vecstore.search.return_value = mock_results
+
         result = await processor.query_graph_embeddings(query)
-        
-        # Verify duplicates are removed
+
+        # Verify results are in the same order as returned by the store
         assert len(result) == 3
-        entity_values = [r.entity.iri if r.entity.type == IRI else r.entity.value for r in result]
-        assert len(set(entity_values)) == 3  # All unique
-        assert "http://example.com/entity1" in entity_values
-        assert "http://example.com/entity2" in entity_values
-        assert "http://example.com/entity3" in entity_values
+        assert result[0].entity.iri == "http://example.com/entity1"
+        assert result[1].entity.iri == "http://example.com/entity2"
+        assert result[2].entity.iri == "http://example.com/entity3"
 
     @pytest.mark.asyncio
-    async def test_query_graph_embeddings_early_termination_on_limit(self, processor):
-        """Test that querying stops early when limit is reached"""
+    async def test_query_graph_embeddings_results_limited(self, processor):
+        """Test that results are properly limited when store returns more than requested"""
         query = GraphEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
             vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
             limit=2
         )
-        
-        # Mock search results - first vector returns enough results
-        mock_results_1 = [
+
+        # Mock search results - returns more results than limit
+        mock_results = [
             {"entity": {"entity": "http://example.com/entity1"}},
             {"entity": {"entity": "http://example.com/entity2"}},
             {"entity": {"entity": "http://example.com/entity3"}},
         ]
-        processor.vecstore.search.return_value = mock_results_1
-        
+        processor.vecstore.search.return_value = mock_results
+
         result = await processor.query_graph_embeddings(query)
-        
-        # Verify only first vector was searched (limit reached)
+
+        # Verify search was called with the full vector
         processor.vecstore.search.assert_called_once_with(
-            [0.1, 0.2, 0.3], 'test_user', 'test_collection', limit=4
+            [0.1, 0.2, 0.3, 0.4, 0.5, 0.6], 'test_user', 'test_collection', limit=4
         )
-        
-        # Verify results are limited
+
+        # Verify results are limited to requested amount
         assert len(result) == 2
 
     @pytest.mark.asyncio

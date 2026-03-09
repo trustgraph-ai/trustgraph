@@ -108,7 +108,7 @@ class TestFastEmbedDynamicModelLoading(IsolatedAsyncioTestCase):
         # Assert
         mock_fastembed_instance.embed.assert_called_once_with(["test text"])
         assert processor.cached_model_name == "test-model"  # Still using default
-        assert result == [[[0.1, 0.2, 0.3, 0.4, 0.5]]]
+        assert result == [[0.1, 0.2, 0.3, 0.4, 0.5]]
 
     @patch('trustgraph.embeddings.fastembed.processor.TextEmbedding')
     @patch('trustgraph.base.async_processor.AsyncProcessor.__init__')

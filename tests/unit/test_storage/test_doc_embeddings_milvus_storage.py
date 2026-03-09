@@ -82,44 +82,34 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         message.metadata = MagicMock()
         message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
-        
+
         chunk = ChunkEmbeddings(
             chunk_id="Test document content",
             vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
         )
         message.chunks = [chunk]
-        
+
         await processor.store_document_embeddings(message)
-        
-        # Verify insert was called for each vector with user/collection parameters
-        expected_calls = [
-            ([0.1, 0.2, 0.3], "Test document content", 'test_user', 'test_collection'),
-            ([0.4, 0.5, 0.6], "Test document content", 'test_user', 'test_collection'),
-        ]
-        
-        assert processor.vecstore.insert.call_count == 2
-        for i, (expected_vec, expected_doc, expected_user, expected_collection) in enumerate(expected_calls):
-            actual_call = processor.vecstore.insert.call_args_list[i]
-            assert actual_call[0][0] == expected_vec
-            assert actual_call[0][1] == expected_doc
-            assert actual_call[0][2] == expected_user
-            assert actual_call[0][3] == expected_collection
+
+        # Verify insert was called once for the single chunk with its vector
+        processor.vecstore.insert.assert_called_once_with(
+            [0.1, 0.2, 0.3, 0.4, 0.5, 0.6], "Test document content", 'test_user', 'test_collection'
+        )
 
     @pytest.mark.asyncio
     async def test_store_document_embeddings_multiple_chunks(self, processor, mock_message):
         """Test storing document embeddings for multiple chunks"""
         await processor.store_document_embeddings(mock_message)
-        
-        # Verify insert was called for each vector of each chunk with user/collection parameters
+
+        # Verify insert was called once per chunk with user/collection parameters
         expected_calls = [
-            # Chunk 1 vectors
-            ([0.1, 0.2, 0.3], "This is the first document chunk", 'test_user', 'test_collection'),
-            ([0.4, 0.5, 0.6], "This is the first document chunk", 'test_user', 'test_collection'),
-            # Chunk 2 vectors
+            # Chunk 1 - single vector
+            ([0.1, 0.2, 0.3, 0.4, 0.5, 0.6], "This is the first document chunk", 'test_user', 'test_collection'),
+            # Chunk 2 - single vector
             ([0.7, 0.8, 0.9], "This is the second document chunk", 'test_user', 'test_collection'),
         ]
-        
-        assert processor.vecstore.insert.call_count == 3
+
+        assert processor.vecstore.insert.call_count == 2
         for i, (expected_vec, expected_doc, expected_user, expected_collection) in enumerate(expected_calls):
             actual_call = processor.vecstore.insert.call_args_list[i]
             assert actual_call[0][0] == expected_vec

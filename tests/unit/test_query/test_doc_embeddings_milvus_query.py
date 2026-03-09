@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from trustgraph.query.doc_embeddings.milvus.service import Processor
-from trustgraph.schema import DocumentEmbeddingsRequest
+from trustgraph.schema import DocumentEmbeddingsRequest, ChunkMatch
 
 
 class TestMilvusDocEmbeddingsQueryProcessor:
@@ -90,11 +90,12 @@ class TestMilvusDocEmbeddingsQueryProcessor:
             [0.1, 0.2, 0.3], 'test_user', 'test_collection', limit=5
         )
         
-        # Verify results are document chunks
+        # Verify results are ChunkMatch objects
         assert len(result) == 3
-        assert result[0] == "First document chunk"
-        assert result[1] == "Second document chunk"
-        assert result[2] == "Third document chunk"
+        assert isinstance(result[0], ChunkMatch)
+        assert result[0].chunk_id == "First document chunk"
+        assert result[1].chunk_id == "Second document chunk"
+        assert result[2].chunk_id == "Third document chunk"
 
     @pytest.mark.asyncio
     async def test_query_document_embeddings_longer_vector(self, processor):
@@ -121,11 +122,12 @@ class TestMilvusDocEmbeddingsQueryProcessor:
             [0.1, 0.2, 0.3, 0.4, 0.5, 0.6], 'test_user', 'test_collection', limit=3
         )
 
-        # Verify results
+        # Verify results are ChunkMatch objects
         assert len(result) == 3
-        assert "First document" in result
-        assert "Second document" in result
-        assert "Third document" in result
+        chunk_ids = [r.chunk_id for r in result]
+        assert "First document" in chunk_ids
+        assert "Second document" in chunk_ids
+        assert "Third document" in chunk_ids
 
     @pytest.mark.asyncio
     async def test_query_document_embeddings_with_limit(self, processor):
@@ -217,11 +219,12 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         
         result = await processor.query_document_embeddings(query)
         
-        # Verify Unicode content is preserved
+        # Verify Unicode content is preserved in ChunkMatch objects
         assert len(result) == 3
-        assert "Document with Unicode: éñ中文🚀" in result
-        assert "Regular ASCII document" in result
-        assert "Document with émojis: 😀🎉" in result
+        chunk_ids = [r.chunk_id for r in result]
+        assert "Document with Unicode: éñ中文🚀" in chunk_ids
+        assert "Regular ASCII document" in chunk_ids
+        assert "Document with émojis: 😀🎉" in chunk_ids
 
     @pytest.mark.asyncio
     async def test_query_document_embeddings_large_documents(self, processor):
@@ -243,10 +246,11 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         
         result = await processor.query_document_embeddings(query)
         
-        # Verify large content is preserved
+        # Verify large content is preserved in ChunkMatch objects
         assert len(result) == 2
-        assert large_doc in result
-        assert "Small document" in result
+        chunk_ids = [r.chunk_id for r in result]
+        assert large_doc in chunk_ids
+        assert "Small document" in chunk_ids
 
     @pytest.mark.asyncio
     async def test_query_document_embeddings_special_characters(self, processor):
@@ -268,11 +272,12 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         
         result = await processor.query_document_embeddings(query)
         
-        # Verify special characters are preserved
+        # Verify special characters are preserved in ChunkMatch objects
         assert len(result) == 3
-        assert "Document with \"quotes\" and 'apostrophes'" in result
-        assert "Document with\nnewlines\tand\ttabs" in result
-        assert "Document with special chars: @#$%^&*()" in result
+        chunk_ids = [r.chunk_id for r in result]
+        assert "Document with \"quotes\" and 'apostrophes'" in chunk_ids
+        assert "Document with\nnewlines\tand\ttabs" in chunk_ids
+        assert "Document with special chars: @#$%^&*()" in chunk_ids
 
     @pytest.mark.asyncio
     async def test_query_document_embeddings_zero_limit(self, processor):
@@ -349,10 +354,11 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         # Verify search was called with the vector
         processor.vecstore.search.assert_called_once()
 
-        # Verify results
+        # Verify results are ChunkMatch objects
         assert len(result) == 2
-        assert "Document 1" in result
-        assert "Document 2" in result
+        chunk_ids = [r.chunk_id for r in result]
+        assert "Document 1" in chunk_ids
+        assert "Document 2" in chunk_ids
 
     @pytest.mark.asyncio
     async def test_query_document_embeddings_multiple_results(self, processor):
@@ -374,11 +380,12 @@ class TestMilvusDocEmbeddingsQueryProcessor:
 
         result = await processor.query_document_embeddings(query)
 
-        # Verify results
+        # Verify results are ChunkMatch objects
         assert len(result) == 3
-        assert "Document A" in result
-        assert "Document B" in result
-        assert "Document C" in result
+        chunk_ids = [r.chunk_id for r in result]
+        assert "Document A" in chunk_ids
+        assert "Document B" in chunk_ids
+        assert "Document C" in chunk_ids
 
     def test_add_args_method(self):
         """Test that add_args properly configures argument parser"""
