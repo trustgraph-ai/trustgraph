@@ -285,11 +285,11 @@ class TestStructuredEmbeddingsContracts:
             collection="test_collection",
             metadata=[]
         )
-        
+
         # Act
         embedding = StructuredObjectEmbedding(
             metadata=metadata,
-            vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]],
+            vector=[0.1, 0.2, 0.3],
             schema_name="customer_records",
             object_id="customer_123",
             field_embeddings={
@@ -301,7 +301,7 @@ class TestStructuredEmbeddingsContracts:
         # Assert
         assert embedding.schema_name == "customer_records"
         assert embedding.object_id == "customer_123"
-        assert len(embedding.vectors) == 2
+        assert len(embedding.vector) == 3
         assert len(embedding.field_embeddings) == 2
         assert "name" in embedding.field_embeddings
 
