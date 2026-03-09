@@ -1,5 +1,6 @@
 """
 Connects to the graph query service and dumps all graph edges.
+Uses streaming mode for lower time-to-first-result and reduced memory overhead.
 """
 
 import argparse
@@ -11,17 +12,30 @@ default_user = 'trustgraph'
 default_collection = 'default'
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
-def show_graph(url, flow_id, user, collection, token=None):
+def show_graph(url, flow_id, user, collection, limit, batch_size, token=None):
 
-    api = Api(url, token=token).flow().id(flow_id)
+    socket = Api(url, token=token).socket()
+    flow = socket.flow(flow_id)
 
-    rows = api.triples_query(
-        user=user, collection=collection,
-        s=None, p=None, o=None, limit=10_000,
-    )
-
-    for row in rows:
-        print(row.s, row.p, row.o)
+    try:
+        for batch in flow.triples_query_stream(
+            user=user,
+            collection=collection,
+            s=None, p=None, o=None,
+            limit=limit,
+            batch_size=batch_size,
+        ):
+            for triple in batch:
+                s = triple.get("s", {})
+                p = triple.get("p", {})
+                o = triple.get("o", {})
+                # Format terms for display
+                s_str = s.get("v", s.get("i", str(s)))
+                p_str = p.get("v", p.get("i", str(p)))
+                o_str = o.get("v", o.get("i", str(o)))
+                print(s_str, p_str, o_str)
+    finally:
+        socket.close()
 
 def main():
 
@@ -60,6 +74,20 @@ def main():
         help='Authentication token (default: $TRUSTGRAPH_TOKEN)',
     )
 
+    parser.add_argument(
+        '-l', '--limit',
+        type=int,
+        default=10000,
+        help='Maximum number of triples to return (default: 10000)',
+    )
+
+    parser.add_argument(
+        '-b', '--batch-size',
+        type=int,
+        default=20,
+        help='Triples per streaming batch (default: 20)',
+    )
+
     args = parser.parse_args()
 
     try:
@@ -69,6 +97,8 @@ def main():
             flow_id = args.flow_id,
             user = args.user,
             collection = args.collection,
+            limit = args.limit,
+            batch_size = args.batch_size,
             token = args.token,
         )
 

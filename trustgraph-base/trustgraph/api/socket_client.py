@@ -790,6 +790,73 @@ class SocketFlowInstance:
 
         return self.client._send_request_sync("triples", self.flow_id, request, False)
 
+    def triples_query_stream(
+        self,
+        s: Optional[str] = None,
+        p: Optional[str] = None,
+        o: Optional[str] = None,
+        user: Optional[str] = None,
+        collection: Optional[str] = None,
+        limit: int = 100,
+        batch_size: int = 20,
+        **kwargs: Any
+    ) -> Iterator[List[Dict[str, Any]]]:
+        """
+        Query knowledge graph triples with streaming batches.
+
+        Yields batches of triples as they arrive, reducing time-to-first-result
+        and memory overhead for large result sets.
+
+        Args:
+            s: Subject URI (optional, use None for wildcard)
+            p: Predicate URI (optional, use None for wildcard)
+            o: Object URI or Literal (optional, use None for wildcard)
+            user: User/keyspace identifier (optional)
+            collection: Collection identifier (optional)
+            limit: Maximum results to return (default: 100)
+            batch_size: Triples per batch (default: 20)
+            **kwargs: Additional parameters passed to the service
+
+        Yields:
+            List[Dict]: Batches of triples in wire format
+
+        Example:
+            ```python
+            socket = api.socket()
+            flow = socket.flow("default")
+
+            for batch in flow.triples_query_stream(
+                user="trustgraph",
+                collection="default"
+            ):
+                for triple in batch:
+                    print(triple["s"], triple["p"], triple["o"])
+            ```
+        """
+        request = {
+            "limit": limit,
+            "streaming": True,
+            "batch-size": batch_size,
+        }
+        if s is not None:
+            request["s"] = str(s)
+        if p is not None:
+            request["p"] = str(p)
+        if o is not None:
+            request["o"] = str(o)
+        if user is not None:
+            request["user"] = user
+        if collection is not None:
+            request["collection"] = collection
+        request.update(kwargs)
+
+        for chunk in self.client._send_request_sync("triples", self.flow_id, request, streaming=True):
+            # Each chunk is the raw response containing triples batch
+            if hasattr(chunk, 'response'):
+                yield chunk.response
+            elif isinstance(chunk, dict) and "response" in chunk:
+                yield chunk["response"]
+
     def rows_query(
         self,
         query: str,
