@@ -173,7 +173,14 @@ class LibraryResponseTranslator(MessageTranslator):
         return result
     
     def from_response_with_completion(self, obj: LibrarianResponse) -> Tuple[Dict[str, Any], bool]:
-        """Returns (response_dict, is_final)"""
-        # For streaming responses, check end_of_stream to determine if this is the final message
-        is_final = getattr(obj, 'end_of_stream', True)
+        """Returns (response_dict, is_final)
+
+        For chunked streaming responses (total_chunks > 0), completion is
+        determined by whether we've reached the final chunk.
+        For non-streaming responses (total_chunks = 0), always final.
+        """
+        if obj.total_chunks > 0:
+            is_final = (obj.chunk_index >= obj.total_chunks - 1)
+        else:
+            is_final = True
         return self.from_pulsar(obj), is_final

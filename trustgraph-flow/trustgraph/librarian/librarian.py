@@ -656,9 +656,8 @@ class Librarian:
 
         This is an async generator that yields document content in smaller chunks,
         allowing memory-efficient processing of large documents. Each yielded
-        response includes chunk information and an end_of_stream flag.
-
-        The final chunk will have end_of_stream=True.
+        response includes chunk_index and total_chunks for tracking progress.
+        Completion is determined by chunk_index reaching total_chunks - 1.
         """
         logger.debug(f"Streaming document {request.document_id}")
 
@@ -688,11 +687,8 @@ class Librarian:
             # Fetch only the requested range
             chunk_content = await self.blob_store.get_range(object_id, offset, length)
 
-            is_last_chunk = (chunk_index == total_chunks - 1)
-
-            logger.debug(f"Streaming chunk {chunk_index}/{total_chunks}, "
-                        f"bytes {offset}-{offset + length} of {total_size}, "
-                        f"end_of_stream={is_last_chunk}")
+            logger.debug(f"Streaming chunk {chunk_index + 1}/{total_chunks}, "
+                        f"bytes {offset}-{offset + length} of {total_size}")
 
             yield LibrarianResponse(
                 error=None,
@@ -702,6 +698,5 @@ class Librarian:
                 total_chunks=total_chunks,
                 bytes_received=offset + length,
                 total_bytes=total_size,
-                end_of_stream=is_last_chunk,
             )
 

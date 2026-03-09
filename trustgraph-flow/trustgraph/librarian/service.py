@@ -527,7 +527,6 @@ class Processor(AsyncProcessor):
                     type = "request-error",
                     message = str(e),
                 ),
-                end_of_stream = True,
             )
 
             await self.librarian_response_producer.send(
@@ -541,7 +540,6 @@ class Processor(AsyncProcessor):
                     type = "unexpected-error",
                     message = str(e),
                 ),
-                end_of_stream = True,
             )
 
             await self.librarian_response_producer.send(
