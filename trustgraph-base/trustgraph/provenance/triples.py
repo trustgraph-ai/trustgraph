@@ -17,9 +17,12 @@ from . namespaces import (
     TG_CHUNK_INDEX, TG_CHAR_OFFSET, TG_CHAR_LENGTH,
     TG_CHUNK_SIZE, TG_CHUNK_OVERLAP, TG_COMPONENT_VERSION,
     TG_LLM_MODEL, TG_ONTOLOGY, TG_REIFIES,
+    # Query-time provenance predicates
+    TG_QUERY, TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_EDGE, TG_REASONING, TG_CONTENT,
+    TG_DOCUMENT,
 )
 
-from . uris import activity_uri, agent_uri
+from . uris import activity_uri, agent_uri, edge_selection_uri
 
 
 def _iri(uri: str) -> Term:
@@ -250,5 +253,179 @@ def triple_provenance_triples(
 
     if ontology_uri:
         triples.append(_triple(act_uri, TG_ONTOLOGY, _iri(ontology_uri)))
+
+    return triples
+
+
+# Query-time provenance triple builders
+
+def query_session_triples(
+    session_uri: str,
+    query: str,
+    timestamp: Optional[str] = None,
+) -> List[Triple]:
+    """
+    Build triples for a query session activity.
+
+    Creates:
+    - Activity declaration for the query session
+    - Query text and timestamp
+
+    Args:
+        session_uri: URI of the session (from query_session_uri)
+        query: The user's query text
+        timestamp: ISO timestamp (defaults to now)
+
+    Returns:
+        List of Triple objects
+    """
+    if timestamp is None:
+        timestamp = datetime.utcnow().isoformat() + "Z"
+
+    return [
+        _triple(session_uri, RDF_TYPE, _iri(PROV_ACTIVITY)),
+        _triple(session_uri, RDFS_LABEL, _literal("GraphRAG query session")),
+        _triple(session_uri, PROV_STARTED_AT_TIME, _literal(timestamp)),
+        _triple(session_uri, TG_QUERY, _literal(query)),
+    ]
+
+
+def retrieval_triples(
+    retrieval_uri: str,
+    session_uri: str,
+    edge_count: int,
+) -> List[Triple]:
+    """
+    Build triples for a retrieval entity (all edges retrieved from subgraph).
+
+    Creates:
+    - Entity declaration for retrieval
+    - wasGeneratedBy link to session
+    - Edge count metadata
+
+    Args:
+        retrieval_uri: URI of the retrieval entity (from retrieval_uri)
+        session_uri: URI of the parent session
+        edge_count: Number of edges retrieved
+
+    Returns:
+        List of Triple objects
+    """
+    return [
+        _triple(retrieval_uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(retrieval_uri, RDFS_LABEL, _literal("Retrieved edges")),
+        _triple(retrieval_uri, PROV_WAS_GENERATED_BY, _iri(session_uri)),
+        _triple(retrieval_uri, TG_EDGE_COUNT, _literal(edge_count)),
+    ]
+
+
+def _quoted_triple(s: str, p: str, o: str) -> Term:
+    """Create a quoted triple term (RDF-star) from string values."""
+    return Term(
+        type=TRIPLE,
+        triple=Triple(s=_iri(s), p=_iri(p), o=_iri(o))
+    )
+
+
+def selection_triples(
+    selection_uri: str,
+    retrieval_uri: str,
+    selected_edges_with_reasoning: List[dict],
+    session_id: str = "",
+) -> List[Triple]:
+    """
+    Build triples for a selection entity (selected edges with reasoning).
+
+    Creates:
+    - Entity declaration for selection
+    - wasDerivedFrom link to retrieval
+    - For each selected edge: an edge selection entity with quoted triple and reasoning
+
+    Structure:
+        <selection> tg:selectedEdge <edge_sel_1> .
+        <edge_sel_1> tg:edge << <s> <p> <o> >> .
+        <edge_sel_1> tg:reasoning "reason" .
+
+    Args:
+        selection_uri: URI of the selection entity (from selection_uri)
+        retrieval_uri: URI of the parent retrieval entity
+        selected_edges_with_reasoning: List of dicts with 'edge' (s,p,o tuple) and 'reasoning'
+        session_id: Session UUID for generating edge selection URIs
+
+    Returns:
+        List of Triple objects
+    """
+    triples = [
+        _triple(selection_uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(selection_uri, RDFS_LABEL, _literal("Selected edges")),
+        _triple(selection_uri, PROV_WAS_DERIVED_FROM, _iri(retrieval_uri)),
+    ]
+
+    # Add each selected edge with its reasoning via intermediate entity
+    for idx, edge_info in enumerate(selected_edges_with_reasoning):
+        edge = edge_info.get("edge")
+        reasoning = edge_info.get("reasoning", "")
+
+        if edge:
+            s, p, o = edge
+
+            # Create intermediate entity for this edge selection
+            edge_sel_uri = edge_selection_uri(session_id, idx)
+
+            # Link selection to edge selection entity
+            triples.append(
+                _triple(selection_uri, TG_SELECTED_EDGE, _iri(edge_sel_uri))
+            )
+
+            # Attach quoted triple to edge selection entity
+            quoted = _quoted_triple(s, p, o)
+            triples.append(
+                Triple(s=_iri(edge_sel_uri), p=_iri(TG_EDGE), o=quoted)
+            )
+
+            # Attach reasoning to edge selection entity
+            if reasoning:
+                triples.append(
+                    _triple(edge_sel_uri, TG_REASONING, _literal(reasoning))
+                )
+
+    return triples
+
+
+def answer_triples(
+    answer_uri: str,
+    selection_uri: str,
+    answer_text: str = "",
+    document_id: Optional[str] = None,
+) -> List[Triple]:
+    """
+    Build triples for an answer entity (final synthesis text).
+
+    Creates:
+    - Entity declaration for answer
+    - wasDerivedFrom link to selection
+    - Either document reference (if document_id provided) or inline content
+
+    Args:
+        answer_uri: URI of the answer entity (from answer_uri)
+        selection_uri: URI of the parent selection entity
+        answer_text: The synthesized answer text (used if no document_id)
+        document_id: Optional librarian document ID (preferred over inline content)
+
+    Returns:
+        List of Triple objects
+    """
+    triples = [
+        _triple(answer_uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(answer_uri, RDFS_LABEL, _literal("GraphRAG answer")),
+        _triple(answer_uri, PROV_WAS_DERIVED_FROM, _iri(selection_uri)),
+    ]
+
+    if document_id:
+        # Store reference to document in librarian (as IRI)
+        triples.append(_triple(answer_uri, TG_DOCUMENT, _iri(document_id)))
+    elif answer_text:
+        # Fallback: store inline content
+        triples.append(_triple(answer_uri, TG_CONTENT, _literal(answer_text)))
 
     return triples

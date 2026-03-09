@@ -40,6 +40,11 @@ from . uris import (
     activity_uri,
     statement_uri,
     agent_uri,
+    # Query-time provenance URIs
+    query_session_uri,
+    retrieval_uri,
+    selection_uri,
+    answer_uri,
 )
 
 # Namespace constants
@@ -58,6 +63,8 @@ from . namespaces import (
     TG_CHUNK_SIZE, TG_CHUNK_OVERLAP, TG_COMPONENT_VERSION,
     TG_LLM_MODEL, TG_ONTOLOGY, TG_EMBEDDING_MODEL,
     TG_SOURCE_TEXT, TG_SOURCE_CHAR_OFFSET, TG_SOURCE_CHAR_LENGTH,
+    # Query-time provenance predicates
+    TG_QUERY, TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_REASONING, TG_CONTENT,
 )
 
 # Triple builders
@@ -65,6 +72,11 @@ from . triples import (
     document_triples,
     derived_entity_triples,
     triple_provenance_triples,
+    # Query-time provenance triple builders
+    query_session_triples,
+    retrieval_triples,
+    selection_triples,
+    answer_triples,
 )
 
 # Vocabulary bootstrap
@@ -86,6 +98,11 @@ __all__ = [
     "activity_uri",
     "statement_uri",
     "agent_uri",
+    # Query-time provenance URIs
+    "query_session_uri",
+    "retrieval_uri",
+    "selection_uri",
+    "answer_uri",
     # Namespaces
     "PROV", "PROV_ENTITY", "PROV_ACTIVITY", "PROV_AGENT",
     "PROV_WAS_DERIVED_FROM", "PROV_WAS_GENERATED_BY",
@@ -97,10 +114,17 @@ __all__ = [
     "TG_CHUNK_SIZE", "TG_CHUNK_OVERLAP", "TG_COMPONENT_VERSION",
     "TG_LLM_MODEL", "TG_ONTOLOGY", "TG_EMBEDDING_MODEL",
     "TG_SOURCE_TEXT", "TG_SOURCE_CHAR_OFFSET", "TG_SOURCE_CHAR_LENGTH",
+    # Query-time provenance predicates
+    "TG_QUERY", "TG_EDGE_COUNT", "TG_SELECTED_EDGE", "TG_REASONING", "TG_CONTENT",
     # Triple builders
     "document_triples",
     "derived_entity_triples",
     "triple_provenance_triples",
+    # Query-time provenance triple builders
+    "query_session_triples",
+    "retrieval_triples",
+    "selection_triples",
+    "answer_triples",
     # Vocabulary
     "get_vocabulary_triples",
     "PROV_CLASS_LABELS",

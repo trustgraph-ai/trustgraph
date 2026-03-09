@@ -44,18 +44,23 @@ class TestGraphRagStreamingProtocol:
         """Mock prompt client that simulates realistic streaming with end_of_stream flags"""
         client = AsyncMock()
 
-        async def kg_prompt_side_effect(query, kg, timeout=600, streaming=False, chunk_callback=None):
-            if streaming and chunk_callback:
-                # Simulate realistic streaming: chunks with end_of_stream=False, then final with end_of_stream=True
-                await chunk_callback("The", False)
-                await chunk_callback(" answer", False)
-                await chunk_callback(" is here.", False)
-                await chunk_callback("", True)  # Empty final chunk with end_of_stream=True
-                return ""  # Return value not used since callback handles everything
-            else:
-                return "The answer is here."
+        async def prompt_side_effect(prompt_name, variables=None, streaming=False, chunk_callback=None):
+            if prompt_name == "kg-edge-selection":
+                # Edge selection returns empty (no edges selected)
+                return ""
+            elif prompt_name == "kg-synthesis":
+                if streaming and chunk_callback:
+                    # Simulate realistic streaming: chunks with end_of_stream=False, then final with end_of_stream=True
+                    await chunk_callback("The", False)
+                    await chunk_callback(" answer", False)
+                    await chunk_callback(" is here.", False)
+                    await chunk_callback("", True)  # Empty final chunk with end_of_stream=True
+                    return ""  # Return value not used since callback handles everything
+                else:
+                    return "The answer is here."
+            return ""
 
-        client.kg_prompt.side_effect = kg_prompt_side_effect
+        client.prompt.side_effect = prompt_side_effect
         return client
 
     @pytest.fixture
@@ -327,20 +332,24 @@ class TestStreamingProtocolEdgeCases:
         # Arrange
         client = AsyncMock()
 
-        async def kg_prompt_with_empties(query, kg, timeout=600, streaming=False, chunk_callback=None):
-            if streaming and chunk_callback:
-                await chunk_callback("text", False)
-                await chunk_callback("", False)  # Empty but not final
-                await chunk_callback("more", False)
-                await chunk_callback("", True)  # Empty and final
+        async def prompt_with_empties(prompt_name, variables=None, streaming=False, chunk_callback=None):
+            if prompt_name == "kg-edge-selection":
                 return ""
-            else:
-                return "textmore"
+            elif prompt_name == "kg-synthesis":
+                if streaming and chunk_callback:
+                    await chunk_callback("text", False)
+                    await chunk_callback("", False)  # Empty but not final
+                    await chunk_callback("more", False)
+                    await chunk_callback("", True)  # Empty and final
+                    return ""
+                else:
+                    return "textmore"
+            return ""
 
-        client.kg_prompt.side_effect = kg_prompt_with_empties
+        client.prompt.side_effect = prompt_with_empties
 
         rag = GraphRag(
-            embeddings_client=AsyncMock(embed=AsyncMock(return_value=[[0.1]])),
+            embeddings_client=AsyncMock(embed=AsyncMock(return_value=[[[0.1]]])),
             graph_embeddings_client=AsyncMock(query=AsyncMock(return_value=[])),
             triples_client=AsyncMock(query=AsyncMock(return_value=[])),
             prompt_client=client,

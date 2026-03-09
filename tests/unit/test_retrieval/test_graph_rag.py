@@ -540,41 +540,68 @@ class TestQuery:
         query.maybe_label = AsyncMock(side_effect=mock_maybe_label)
         
         # Call get_labelgraph
-        result = await query.get_labelgraph("test query")
-        
+        labeled_edges, uri_map = await query.get_labelgraph("test query")
+
         # Verify get_subgraph was called
         query.get_subgraph.assert_called_once_with("test query")
-        
+
         # Verify label triples are filtered out
-        assert len(result) == 2  # Label triple should be excluded
-        
+        assert len(labeled_edges) == 2  # Label triple should be excluded
+
         # Verify maybe_label was called for non-label triples
         expected_calls = [
             (("entity1",), {}), (("predicate1",), {}), (("object1",), {}),
             (("entity3",), {}), (("predicate3",), {}), (("object3",), {})
         ]
         assert query.maybe_label.call_count == 6
-        
+
         # Verify result contains human-readable labels
-        expected_result = [
+        expected_edges = [
             ("Human Entity One", "Human Predicate One", "Human Object One"),
             ("Human Entity Three", "Human Predicate Three", "Human Object Three")
         ]
-        assert result == expected_result
+        assert labeled_edges == expected_edges
+
+        # Verify uri_map maps labeled edges back to original URIs
+        assert len(uri_map) == 2
 
     @pytest.mark.asyncio
     async def test_graph_rag_query_method(self):
-        """Test GraphRag.query method orchestrates full RAG pipeline"""
+        """Test GraphRag.query method orchestrates full RAG pipeline with real-time provenance"""
+        import json
+        from trustgraph.retrieval.graph_rag.graph_rag import edge_id
+
         # Create mock clients
         mock_prompt_client = AsyncMock()
         mock_embeddings_client = AsyncMock()
         mock_graph_embeddings_client = AsyncMock()
         mock_triples_client = AsyncMock()
-        
-        # Mock prompt client response
+
+        # Mock prompt client responses for two-step process
         expected_response = "This is the RAG response"
-        mock_prompt_client.kg_prompt.return_value = expected_response
-        
+        test_labelgraph = [("Subject", "Predicate", "Object")]
+
+        # Compute the edge ID for the test edge
+        test_edge_id = edge_id("Subject", "Predicate", "Object")
+
+        # Create uri_map for the test edge (maps labeled edge ID to original URIs)
+        test_uri_map = {
+            test_edge_id: ("http://example.org/subject", "http://example.org/predicate", "http://example.org/object")
+        }
+
+        # Mock edge selection response (JSONL format)
+        edge_selection_response = json.dumps({"id": test_edge_id, "reasoning": "relevant"})
+
+        # Configure prompt mock to return different responses based on prompt name
+        async def mock_prompt(prompt_name, variables=None, streaming=False, chunk_callback=None):
+            if prompt_name == "kg-edge-selection":
+                return edge_selection_response
+            elif prompt_name == "kg-synthesis":
+                return expected_response
+            return ""
+
+        mock_prompt_client.prompt = mock_prompt
+
         # Initialize GraphRag
         graph_rag = GraphRag(
             prompt_client=mock_prompt_client,
@@ -583,39 +610,55 @@ class TestQuery:
             triples_client=mock_triples_client,
             verbose=False
         )
-        
-        # Mock the Query class behavior by patching get_labelgraph
-        test_labelgraph = [("Subject", "Predicate", "Object")]
-        
+
         # We need to patch the Query class's get_labelgraph method
         original_query_init = Query.__init__
         original_get_labelgraph = Query.get_labelgraph
-        
+
         def mock_query_init(self, *args, **kwargs):
             original_query_init(self, *args, **kwargs)
-        
+
         async def mock_get_labelgraph(self, query_text):
-            return test_labelgraph
-            
+            return test_labelgraph, test_uri_map
+
         Query.__init__ = mock_query_init
         Query.get_labelgraph = mock_get_labelgraph
-        
+
+        # Collect provenance emitted via callback
+        provenance_events = []
+
+        async def collect_provenance(triples, prov_id):
+            provenance_events.append((triples, prov_id))
+
         try:
-            # Call GraphRag.query
-            result = await graph_rag.query(
+            # Call GraphRag.query with provenance callback
+            response = await graph_rag.query(
                 query="test query",
                 user="test_user",
                 collection="test_collection",
                 entity_limit=25,
-                triple_limit=15
+                triple_limit=15,
+                explain_callback=collect_provenance
             )
-            
-            # Verify prompt client was called with knowledge graph and query
-            mock_prompt_client.kg_prompt.assert_called_once_with("test query", test_labelgraph)
-            
-            # Verify result
-            assert result == expected_response
-            
+
+            # Verify response text
+            assert response == expected_response
+
+            # Verify provenance was emitted incrementally (4 events: session, retrieval, selection, answer)
+            assert len(provenance_events) == 4
+
+            # Verify each event has triples and a URN
+            for triples, prov_id in provenance_events:
+                assert isinstance(triples, list)
+                assert len(triples) > 0
+                assert prov_id.startswith("urn:trustgraph:")
+
+            # Verify order: session, retrieval, selection, answer
+            assert "session" in provenance_events[0][1]
+            assert "retrieval" in provenance_events[1][1]
+            assert "selection" in provenance_events[2][1]
+            assert "answer" in provenance_events[3][1]
+
         finally:
             # Restore original methods
             Query.__init__ = original_query_init

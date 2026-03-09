@@ -110,15 +110,25 @@ class AsyncSocketClient:
 
                     # Parse different chunk types
                     chunk = self._parse_chunk(resp)
-                    yield chunk
+                    if chunk is not None:  # Skip provenance messages in streaming
+                        yield chunk
 
-                    # Check if this is the final chunk
-                    if resp.get("end_of_stream") or resp.get("end_of_dialog") or response.get("complete"):
+                    # Check if this is the final message
+                    # end_of_session indicates entire session is complete (including provenance)
+                    # end_of_dialog is for agent dialogs
+                    # complete is from the gateway envelope
+                    if resp.get("end_of_session") or resp.get("end_of_dialog") or response.get("complete"):
                         break
 
     def _parse_chunk(self, resp: Dict[str, Any]):
-        """Parse response chunk into appropriate type"""
+        """Parse response chunk into appropriate type. Returns None for non-content messages."""
         chunk_type = resp.get("chunk_type")
+        message_type = resp.get("message_type")
+
+        # Handle new GraphRAG message format with message_type
+        if message_type == "provenance":
+            # Provenance messages are not yielded to user - they're metadata
+            return None
 
         if chunk_type == "thought":
             return AgentThought(
@@ -143,7 +153,7 @@ class AsyncSocketClient:
                 end_of_message=resp.get("end_of_message", False)
             )
         else:
-            # RAG-style chunk (or generic chunk)
+            # RAG-style chunk (or generic chunk with message_type="chunk")
             # Text-completion uses "response" field, RAG uses "chunk" field, Prompt uses "text" field
             content = resp.get("response", resp.get("chunk", resp.get("text", "")))
             return RAGChunk(

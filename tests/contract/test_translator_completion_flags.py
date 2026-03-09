@@ -17,16 +17,18 @@ from trustgraph.messaging import TranslatorRegistry
 class TestRAGTranslatorCompletionFlags:
     """Contract tests for RAG response translator completion flags"""
 
-    def test_graph_rag_translator_is_final_with_end_of_stream_true(self):
+    def test_graph_rag_translator_is_final_with_end_of_session_true(self):
         """
         Test that GraphRagResponseTranslator returns is_final=True
-        when end_of_stream=True.
+        when end_of_session=True.
         """
         # Arrange
         translator = TranslatorRegistry.get_response_translator("graph-rag")
         response = GraphRagResponse(
             response="A small domesticated mammal.",
+            message_type="chunk",
             end_of_stream=True,
+            end_of_session=True,
             error=None
         )
 
@@ -34,20 +36,23 @@ class TestRAGTranslatorCompletionFlags:
         response_dict, is_final = translator.from_response_with_completion(response)
 
         # Assert
-        assert is_final is True, "is_final must be True when end_of_stream=True"
+        assert is_final is True, "is_final must be True when end_of_session=True"
         assert response_dict["response"] == "A small domesticated mammal."
-        assert response_dict["end_of_stream"] is True
+        assert response_dict["end_of_session"] is True
+        assert response_dict["message_type"] == "chunk"
 
-    def test_graph_rag_translator_is_final_with_end_of_stream_false(self):
+    def test_graph_rag_translator_is_final_with_end_of_session_false(self):
         """
         Test that GraphRagResponseTranslator returns is_final=False
-        when end_of_stream=False.
+        when end_of_session=False (even if end_of_stream=True).
         """
         # Arrange
         translator = TranslatorRegistry.get_response_translator("graph-rag")
         response = GraphRagResponse(
             response="Chunk 1",
+            message_type="chunk",
             end_of_stream=False,
+            end_of_session=False,
             error=None
         )
 
@@ -55,9 +60,55 @@ class TestRAGTranslatorCompletionFlags:
         response_dict, is_final = translator.from_response_with_completion(response)
 
         # Assert
-        assert is_final is False, "is_final must be False when end_of_stream=False"
+        assert is_final is False, "is_final must be False when end_of_session=False"
         assert response_dict["response"] == "Chunk 1"
-        assert response_dict["end_of_stream"] is False
+        assert response_dict["end_of_session"] is False
+
+    def test_graph_rag_translator_provenance_message(self):
+        """
+        Test that GraphRagResponseTranslator handles provenance messages.
+        """
+        # Arrange
+        translator = TranslatorRegistry.get_response_translator("graph-rag")
+        response = GraphRagResponse(
+            response="",
+            message_type="explain",
+            explain_id="urn:trustgraph:session:abc123",
+            end_of_stream=False,
+            end_of_session=False,
+            error=None
+        )
+
+        # Act
+        response_dict, is_final = translator.from_response_with_completion(response)
+
+        # Assert
+        assert is_final is False
+        assert response_dict["message_type"] == "explain"
+        assert response_dict["explain_id"] == "urn:trustgraph:session:abc123"
+
+    def test_graph_rag_translator_end_of_stream_not_final(self):
+        """
+        Test that end_of_stream=True alone does NOT make is_final=True.
+        The session continues with provenance messages after LLM stream completes.
+        """
+        # Arrange
+        translator = TranslatorRegistry.get_response_translator("graph-rag")
+        response = GraphRagResponse(
+            response="Final chunk",
+            message_type="chunk",
+            end_of_stream=True,
+            end_of_session=False,  # Session continues with provenance
+            error=None
+        )
+
+        # Act
+        response_dict, is_final = translator.from_response_with_completion(response)
+
+        # Assert
+        assert is_final is False, "end_of_stream=True should NOT make is_final=True"
+        assert response_dict["end_of_stream"] is True
+        assert response_dict["end_of_session"] is False
 
     def test_document_rag_translator_is_final_with_end_of_stream_true(self):
         """

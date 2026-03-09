@@ -202,3 +202,29 @@ class RAGChunk(StreamingChunk):
     chunk_type: str = "rag"
     end_of_stream: bool = False
     error: Optional[Dict[str, str]] = None
+
+@dataclasses.dataclass
+class ProvenanceEvent:
+    """
+    Provenance event for explainability.
+
+    Emitted during GraphRAG queries when explainable mode is enabled.
+    Each event represents a provenance node created during query processing.
+
+    Attributes:
+        provenance_id: URI of the provenance node (e.g., urn:trustgraph:session:abc123)
+        event_type: Type of provenance event (session, retrieval, selection, answer)
+    """
+    provenance_id: str
+    event_type: str = ""  # Derived from provenance_id (session, retrieval, selection, answer)
+
+    def __post_init__(self):
+        # Extract event type from provenance_id
+        if "session" in self.provenance_id:
+            self.event_type = "session"
+        elif "retrieval" in self.provenance_id:
+            self.event_type = "retrieval"
+        elif "selection" in self.provenance_id:
+            self.event_type = "selection"
+        elif "answer" in self.provenance_id:
+            self.event_type = "answer"
