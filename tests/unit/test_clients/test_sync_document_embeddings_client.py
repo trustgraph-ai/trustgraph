@@ -101,18 +101,18 @@ class TestSyncDocumentEmbeddingsClient:
         mock_response = MagicMock()
         mock_response.chunks = ["test_chunk"]
         client.call = MagicMock(return_value=mock_response)
-        
-        vectors = [[0.1, 0.2, 0.3]]
-        
+
+        vector = [0.1, 0.2, 0.3]
+
         # Act
-        result = client.request(vectors=vectors)
-        
+        result = client.request(vector=vector)
+
         # Assert
         assert result == ["test_chunk"]
         client.call.assert_called_once_with(
             user="trustgraph",
             collection="default",
-            vectors=vectors,
+            vector=vector,
             limit=10,
             timeout=300
         )
@@ -127,10 +127,10 @@ class TestSyncDocumentEmbeddingsClient:
         mock_response = MagicMock()
         mock_response.chunks = []
         client.call = MagicMock(return_value=mock_response)
-        
+
         # Act
-        result = client.request(vectors=[[0.1, 0.2, 0.3]])
-        
+        result = client.request(vector=[0.1, 0.2, 0.3])
+
         # Assert
         assert result == []
 
@@ -144,10 +144,10 @@ class TestSyncDocumentEmbeddingsClient:
         mock_response = MagicMock()
         mock_response.chunks = None
         client.call = MagicMock(return_value=mock_response)
-        
+
         # Act
-        result = client.request(vectors=[[0.1, 0.2, 0.3]])
-        
+        result = client.request(vector=[0.1, 0.2, 0.3])
+
         # Assert
         assert result is None
 
@@ -161,12 +161,12 @@ class TestSyncDocumentEmbeddingsClient:
         mock_response = MagicMock()
         mock_response.chunks = ["chunk1"]
         client.call = MagicMock(return_value=mock_response)
-        
+
         # Act
         client.request(
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             timeout=600
         )
-        
+
         # Assert
         assert client.call.call_args[1]["timeout"] == 600

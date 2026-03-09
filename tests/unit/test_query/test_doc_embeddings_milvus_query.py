@@ -33,7 +33,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]],
+            vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
             limit=10
         )
         return query
@@ -71,7 +71,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             limit=5
         )
         
@@ -97,43 +97,35 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         assert result[2] == "Third document chunk"
 
     @pytest.mark.asyncio
-    async def test_query_document_embeddings_multiple_vectors(self, processor):
-        """Test querying document embeddings with multiple vectors"""
+    async def test_query_document_embeddings_longer_vector(self, processor):
+        """Test querying document embeddings with a longer vector"""
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]],
+            vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
             limit=3
         )
-        
-        # Mock search results - different results for each vector
-        mock_results_1 = [
-            {"entity": {"chunk_id": "Document from first vector"}},
-            {"entity": {"chunk_id": "Another doc from first vector"}},
+
+        # Mock search results
+        mock_results = [
+            {"entity": {"chunk_id": "First document"}},
+            {"entity": {"chunk_id": "Second document"}},
+            {"entity": {"chunk_id": "Third document"}},
         ]
-        mock_results_2 = [
-            {"entity": {"chunk_id": "Document from second vector"}},
-        ]
-        processor.vecstore.search.side_effect = [mock_results_1, mock_results_2]
-        
+        processor.vecstore.search.return_value = mock_results
+
         result = await processor.query_document_embeddings(query)
-        
-        # Verify search was called twice with correct parameters including user/collection
-        expected_calls = [
-            (([0.1, 0.2, 0.3], 'test_user', 'test_collection'), {"limit": 3}),
-            (([0.4, 0.5, 0.6], 'test_user', 'test_collection'), {"limit": 3}),
-        ]
-        assert processor.vecstore.search.call_count == 2
-        for i, (expected_args, expected_kwargs) in enumerate(expected_calls):
-            actual_call = processor.vecstore.search.call_args_list[i]
-            assert actual_call[0] == expected_args
-            assert actual_call[1] == expected_kwargs
-        
-        # Verify results from all vectors are combined
+
+        # Verify search was called once with the full vector
+        processor.vecstore.search.assert_called_once_with(
+            [0.1, 0.2, 0.3, 0.4, 0.5, 0.6], 'test_user', 'test_collection', limit=3
+        )
+
+        # Verify results
         assert len(result) == 3
-        assert "Document from first vector" in result
-        assert "Another doc from first vector" in result
-        assert "Document from second vector" in result
+        assert "First document" in result
+        assert "Second document" in result
+        assert "Third document" in result
 
     @pytest.mark.asyncio
     async def test_query_document_embeddings_with_limit(self, processor):
@@ -141,7 +133,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             limit=2
         )
         
@@ -170,7 +162,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[],
+            vector=[],
             limit=5
         )
         
@@ -188,7 +180,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             limit=5
         )
         
@@ -211,7 +203,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             limit=5
         )
         
@@ -237,7 +229,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             limit=5
         )
         
@@ -262,7 +254,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             limit=5
         )
         
@@ -288,7 +280,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             limit=0
         )
         
@@ -306,7 +298,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             limit=-1
         )
         
@@ -324,7 +316,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             limit=5
         )
         
@@ -341,59 +333,51 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[
-                [0.1, 0.2],  # 2D vector
-                [0.3, 0.4, 0.5, 0.6],  # 4D vector
-                [0.7, 0.8, 0.9]  # 3D vector
-            ],
+            vector=[0.1, 0.2, 0.3, 0.4, 0.5],  # 5D vector
             limit=5
         )
-        
-        # Mock search results for each vector
-        mock_results_1 = [{"entity": {"chunk_id": "Document from 2D vector"}}]
-        mock_results_2 = [{"entity": {"chunk_id": "Document from 4D vector"}}]
-        mock_results_3 = [{"entity": {"chunk_id": "Document from 3D vector"}}]
-        processor.vecstore.search.side_effect = [mock_results_1, mock_results_2, mock_results_3]
-        
+
+        # Mock search results
+        mock_results = [
+            {"entity": {"chunk_id": "Document 1"}},
+            {"entity": {"chunk_id": "Document 2"}},
+        ]
+        processor.vecstore.search.return_value = mock_results
+
         result = await processor.query_document_embeddings(query)
-        
-        # Verify all vectors were searched
-        assert processor.vecstore.search.call_count == 3
-        
-        # Verify results from all dimensions
-        assert len(result) == 3
-        assert "Document from 2D vector" in result
-        assert "Document from 4D vector" in result
-        assert "Document from 3D vector" in result
+
+        # Verify search was called with the vector
+        processor.vecstore.search.assert_called_once()
+
+        # Verify results
+        assert len(result) == 2
+        assert "Document 1" in result
+        assert "Document 2" in result
 
     @pytest.mark.asyncio
-    async def test_query_document_embeddings_duplicate_documents(self, processor):
-        """Test querying document embeddings with duplicate documents in results"""
+    async def test_query_document_embeddings_multiple_results(self, processor):
+        """Test querying document embeddings with multiple results"""
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]],
+            vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
             limit=5
         )
-        
-        # Mock search results with duplicates across vectors
-        mock_results_1 = [
+
+        # Mock search results with multiple documents
+        mock_results = [
             {"entity": {"chunk_id": "Document A"}},
             {"entity": {"chunk_id": "Document B"}},
-        ]
-        mock_results_2 = [
-            {"entity": {"chunk_id": "Document B"}},  # Duplicate
             {"entity": {"chunk_id": "Document C"}},
         ]
-        processor.vecstore.search.side_effect = [mock_results_1, mock_results_2]
-        
+        processor.vecstore.search.return_value = mock_results
+
         result = await processor.query_document_embeddings(query)
-        
-        # Note: Unlike graph embeddings, doc embeddings don't deduplicate
-        # This preserves ranking and allows multiple occurrences
-        assert len(result) == 4
-        assert result.count("Document B") == 2  # Should appear twice
+
+        # Verify results
+        assert len(result) == 3
         assert "Document A" in result
+        assert "Document B" in result
         assert "Document C" in result
 
     def test_add_args_method(self):
