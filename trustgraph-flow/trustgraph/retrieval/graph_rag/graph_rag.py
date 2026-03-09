@@ -4,10 +4,24 @@ import logging
 import time
 from collections import OrderedDict
 
+from ... schema import IRI, LITERAL
+
 # Module logger
 logger = logging.getLogger(__name__)
 
 LABEL="http://www.w3.org/2000/01/rdf-schema#label"
+
+
+def term_to_string(term):
+    """Extract string value from a Term object."""
+    if term is None:
+        return None
+    if term.type == IRI:
+        return term.iri
+    elif term.type == LITERAL:
+        return term.value
+    # Fallback
+    return term.iri or term.value or str(term)
 
 class LRUCacheWithTTL:
     """LRU cache with TTL for label caching
@@ -93,7 +107,7 @@ class Query:
         )
 
         entities = [
-            str(e.entity)
+            term_to_string(e.entity)
             for e in entity_matches
         ]
 

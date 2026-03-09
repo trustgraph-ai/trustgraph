@@ -22,11 +22,19 @@ def to_value(x):
 
 
 def from_value(x):
-    """Convert Uri or Literal to schema Term."""
+    """Convert Uri, Literal, or string to schema Term."""
     if x is None:
         return None
     if isinstance(x, Uri):
         return Term(type=IRI, iri=str(x))
+    elif isinstance(x, Literal):
+        return Term(type=LITERAL, value=str(x))
+    elif isinstance(x, str):
+        # Detect IRIs by common prefixes
+        if x.startswith("http://") or x.startswith("https://") or x.startswith("urn:"):
+            return Term(type=IRI, iri=x)
+        else:
+            return Term(type=LITERAL, value=x)
     else:
         return Term(type=LITERAL, value=str(x))
 
