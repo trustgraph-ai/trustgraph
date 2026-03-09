@@ -174,4 +174,6 @@ class LibraryResponseTranslator(MessageTranslator):
     
     def from_response_with_completion(self, obj: LibrarianResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
-        return self.from_pulsar(obj), True
+        # For streaming responses, check end_of_stream to determine if this is the final message
+        is_final = getattr(obj, 'end_of_stream', True)
+        return self.from_pulsar(obj), is_final
