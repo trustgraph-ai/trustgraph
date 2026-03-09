@@ -312,9 +312,9 @@ class TestDocumentRagIntegration:
     async def test_document_rag_performance_with_large_document_set(self, document_rag,
                                                                    mock_doc_embeddings_client):
         """Test DocumentRAG performance with large document retrieval"""
-        # Arrange - Mock large chunk_id set (100 chunks)
-        large_chunk_ids = [f"doc/c{i}" for i in range(100)]
-        mock_doc_embeddings_client.query.return_value = large_chunk_ids
+        # Arrange - Mock large chunk match set (100 chunks)
+        large_chunk_matches = [ChunkMatch(chunk_id=f"doc/c{i}", score=0.9 - i*0.001) for i in range(100)]
+        mock_doc_embeddings_client.query.return_value = large_chunk_matches
 
         # Act
         import time

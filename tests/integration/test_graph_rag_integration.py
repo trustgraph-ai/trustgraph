@@ -131,7 +131,7 @@ class TestGraphRagIntegration:
         # 2. Should query graph embeddings to find relevant entities
         mock_graph_embeddings_client.query.assert_called_once()
         call_args = mock_graph_embeddings_client.query.call_args
-        assert call_args.kwargs['vectors'] == [[0.1, 0.2, 0.3, 0.4, 0.5]]
+        assert call_args.kwargs['vector'] == [0.1, 0.2, 0.3, 0.4, 0.5]
         assert call_args.kwargs['limit'] == entity_limit
         assert call_args.kwargs['user'] == user
         assert call_args.kwargs['collection'] == collection
