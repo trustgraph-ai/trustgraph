@@ -33,11 +33,16 @@ def query(url, flow_id, query_text, user, collection, limit, token=None):
             for i, match in enumerate(entities, 1):
                 entity = match.get("entity", {})
                 score = match.get("score", 0.0)
-                # Format entity based on type
-                if entity.get("is_uri"):
-                    entity_str = entity.get("value", "")
+                # Format entity based on type (wire format uses compact keys)
+                term_type = entity.get("t", "")
+                if term_type == "i":  # IRI
+                    entity_str = entity.get("i", "")
+                elif term_type == "l":  # Literal
+                    entity_str = f'"{entity.get("v", "")}"'
+                elif term_type == "b":  # Blank node
+                    entity_str = f'_:{entity.get("d", "")}'
                 else:
-                    entity_str = f'"{entity.get("value", "")}"'
+                    entity_str = str(entity)
                 print(f"{i}. {entity_str} (score: {score:.4f})")
 
     finally:
