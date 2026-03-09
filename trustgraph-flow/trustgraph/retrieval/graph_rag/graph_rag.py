@@ -129,26 +129,29 @@ class Query:
         return label
 
     async def execute_batch_triple_queries(self, entities, limit_per_entity):
-        """Execute triple queries for multiple entities concurrently"""
+        """Execute triple queries for multiple entities concurrently using streaming"""
         tasks = []
 
         for entity in entities:
-            # Create concurrent tasks for all 3 query types per entity
+            # Create concurrent streaming tasks for all 3 query types per entity
             tasks.extend([
-                self.rag.triples_client.query(
+                self.rag.triples_client.query_stream(
                     s=entity, p=None, o=None,
                     limit=limit_per_entity,
-                    user=self.user, collection=self.collection
+                    user=self.user, collection=self.collection,
+                    batch_size=20,
                 ),
-                self.rag.triples_client.query(
+                self.rag.triples_client.query_stream(
                     s=None, p=entity, o=None,
                     limit=limit_per_entity,
-                    user=self.user, collection=self.collection
+                    user=self.user, collection=self.collection,
+                    batch_size=20,
                 ),
-                self.rag.triples_client.query(
+                self.rag.triples_client.query_stream(
                     s=None, p=None, o=entity,
                     limit=limit_per_entity,
-                    user=self.user, collection=self.collection
+                    user=self.user, collection=self.collection,
+                    batch_size=20,
                 )
             ])
 
@@ -158,7 +161,7 @@ class Query:
         # Combine all results
         all_triples = []
         for result in results:
-            if not isinstance(result, Exception):
+            if not isinstance(result, Exception) and result is not None:
                 all_triples.extend(result)
 
         return all_triples
