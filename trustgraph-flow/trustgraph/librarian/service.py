@@ -504,6 +504,15 @@ class Processor(AsyncProcessor):
 
         try:
 
+            # Handle streaming operations specially
+            if v.operation == "stream-document":
+                async for resp in self.librarian.stream_document(v):
+                    await self.librarian_response_producer.send(
+                        resp, properties={"id": id}
+                    )
+                return
+
+            # Non-streaming operations
             resp = await self.process_request(v)
 
             await self.librarian_response_producer.send(
@@ -517,7 +526,8 @@ class Processor(AsyncProcessor):
                 error = Error(
                     type = "request-error",
                     message = str(e),
-                )
+                ),
+                end_of_stream = True,
             )
 
             await self.librarian_response_producer.send(
@@ -530,7 +540,8 @@ class Processor(AsyncProcessor):
                 error = Error(
                     type = "unexpected-error",
                     message = str(e),
-                )
+                ),
+                end_of_stream = True,
             )
 
             await self.librarian_response_producer.send(

@@ -654,14 +654,13 @@ class Librarian:
         """
         Stream document content in chunks.
 
-        This operation returns document content in smaller chunks, allowing
-        memory-efficient processing of large documents. The response includes
-        chunk information for reassembly.
+        This is an async generator that yields document content in smaller chunks,
+        allowing memory-efficient processing of large documents. Each yielded
+        response includes chunk information and an end_of_stream flag.
 
-        Note: This operation returns a single chunk at a time. Clients should
-        call repeatedly with increasing chunk_index until all chunks are received.
+        The final chunk will have end_of_stream=True.
         """
-        logger.debug(f"Streaming document {request.document_id}, chunk {request.chunk_index}")
+        logger.debug(f"Streaming document {request.document_id}")
 
         DEFAULT_CHUNK_SIZE = 1024 * 1024  # 1MB default
 
@@ -680,29 +679,29 @@ class Librarian:
         total_size = await self.blob_store.get_size(object_id)
         total_chunks = math.ceil(total_size / chunk_size)
 
-        if request.chunk_index >= total_chunks:
-            raise RequestError(
-                f"Invalid chunk index {request.chunk_index}, "
-                f"document has {total_chunks} chunks"
+        # Stream all chunks
+        for chunk_index in range(total_chunks):
+            # Calculate byte range
+            offset = chunk_index * chunk_size
+            length = min(chunk_size, total_size - offset)
+
+            # Fetch only the requested range
+            chunk_content = await self.blob_store.get_range(object_id, offset, length)
+
+            is_last_chunk = (chunk_index == total_chunks - 1)
+
+            logger.debug(f"Streaming chunk {chunk_index}/{total_chunks}, "
+                        f"bytes {offset}-{offset + length} of {total_size}, "
+                        f"end_of_stream={is_last_chunk}")
+
+            yield LibrarianResponse(
+                error=None,
+                content=base64.b64encode(chunk_content),
+                chunk_index=chunk_index,
+                chunks_received=chunk_index + 1,
+                total_chunks=total_chunks,
+                bytes_received=offset + length,
+                total_bytes=total_size,
+                end_of_stream=is_last_chunk,
             )
-
-        # Calculate byte range
-        offset = request.chunk_index * chunk_size
-        length = min(chunk_size, total_size - offset)
-
-        # Fetch only the requested range
-        chunk_content = await self.blob_store.get_range(object_id, offset, length)
-
-        logger.debug(f"Returning chunk {request.chunk_index}/{total_chunks}, "
-                    f"bytes {offset}-{offset + length} of {total_size}")
-
-        return LibrarianResponse(
-            error=None,
-            content=base64.b64encode(chunk_content),
-            chunk_index=request.chunk_index,
-            chunks_received=1,  # Using as "current chunk" indicator
-            total_chunks=total_chunks,
-            bytes_received=offset + length,
-            total_bytes=total_size,
-        )
 

@@ -45,6 +45,7 @@ from . rows_import import RowsImport
 
 from . core_export import CoreExport
 from . core_import import CoreImport
+from . document_stream import DocumentStreamExport
 
 from . mux import Mux
 
@@ -134,6 +135,14 @@ class DispatcherManager:
 
     def dispatch_core_import(self):
         return DispatcherWrapper(self.process_core_import)
+
+    def dispatch_document_stream(self):
+        return DispatcherWrapper(self.process_document_stream)
+
+    async def process_document_stream(self, data, error, ok, request):
+
+        ds = DocumentStreamExport(self.backend)
+        return await ds.process(data, error, ok, request)
 
     async def process_core_import(self, data, error, ok, request):
 
