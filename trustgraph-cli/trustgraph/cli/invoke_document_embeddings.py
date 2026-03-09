@@ -26,12 +26,14 @@ def query(url, flow_id, query_text, user, collection, limit, token=None):
             limit=limit
         )
 
-        chunk_ids = result.get("chunk_ids", [])
-        if not chunk_ids:
+        chunks = result.get("chunks", [])
+        if not chunks:
             print("No matching chunks found.")
         else:
-            for i, chunk_id in enumerate(chunk_ids, 1):
-                print(f"{i}. {chunk_id}")
+            for i, chunk in enumerate(chunks, 1):
+                chunk_id = chunk.get("chunk_id", "")
+                score = chunk.get("score", 0.0)
+                print(f"{i}. {chunk_id} (score: {score:.4f})")
 
     finally:
         # Clean up socket connection

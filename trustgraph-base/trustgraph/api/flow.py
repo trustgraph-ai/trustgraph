@@ -599,6 +599,7 @@ class FlowInstance:
                 collection="scientists",
                 limit=5
             )
+            # results contains {"entities": [{"entity": {...}, "score": 0.95}, ...]}
             ```
         """
 
@@ -633,7 +634,7 @@ class FlowInstance:
             limit: Maximum number of results (default: 10)
 
         Returns:
-            dict: Query results with chunk_ids of matching document chunks
+            dict: Query results with chunks containing chunk_id and score
 
         Example:
             ```python
@@ -644,7 +645,7 @@ class FlowInstance:
                 collection="research-papers",
                 limit=5
             )
-            # results contains {"chunk_ids": ["doc1/p0/c0", "doc2/p1/c3", ...]}
+            # results contains {"chunks": [{"chunk_id": "doc1/p0/c0", "score": 0.95}, ...]}
             ```
         """
 
