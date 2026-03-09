@@ -91,9 +91,18 @@ class SocketClient:
         service: str,
         flow: Optional[str],
         request: Dict[str, Any],
-        streaming: bool = False
-    ) -> Union[Dict[str, Any], Iterator[StreamingChunk]]:
-        """Synchronous wrapper around async WebSocket communication"""
+        streaming: bool = False,
+        streaming_raw: bool = False
+    ) -> Union[Dict[str, Any], Iterator[StreamingChunk], Iterator[Dict[str, Any]]]:
+        """Synchronous wrapper around async WebSocket communication.
+
+        Args:
+            service: Service name
+            flow: Flow ID (optional)
+            request: Request payload
+            streaming: Use parsed streaming (for agent/RAG chunk types)
+            streaming_raw: Use raw streaming (for data batches like triples)
+        """
         # Create event loop if needed
         try:
             loop = asyncio.get_event_loop()
@@ -105,12 +114,14 @@ class SocketClient:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
 
-        if streaming:
-            # For streaming, we need to return an iterator
-            # Create a generator that runs async code
+        if streaming_raw:
+            # Raw streaming for data batches (triples, rows, etc.)
+            return self._streaming_generator_raw(service, flow, request, loop)
+        elif streaming:
+            # Parsed streaming for agent/RAG chunk types
             return self._streaming_generator(service, flow, request, loop)
         else:
-            # For non-streaming, just run the async code and return result
+            # Non-streaming single response
             return loop.run_until_complete(self._send_request_async(service, flow, request))
 
     def _streaming_generator(
@@ -120,7 +131,7 @@ class SocketClient:
         request: Dict[str, Any],
         loop: asyncio.AbstractEventLoop
     ) -> Iterator[StreamingChunk]:
-        """Generator that yields streaming chunks"""
+        """Generator that yields streaming chunks (for agent/RAG responses)"""
         async_gen = self._send_request_async_streaming(service, flow, request)
 
         try:
@@ -136,6 +147,74 @@ class SocketClient:
                 loop.run_until_complete(async_gen.aclose())
             except:
                 pass
+
+    def _streaming_generator_raw(
+        self,
+        service: str,
+        flow: Optional[str],
+        request: Dict[str, Any],
+        loop: asyncio.AbstractEventLoop
+    ) -> Iterator[Dict[str, Any]]:
+        """Generator that yields raw response dicts (for data streaming like triples)"""
+        async_gen = self._send_request_async_streaming_raw(service, flow, request)
+
+        try:
+            while True:
+                try:
+                    data = loop.run_until_complete(async_gen.__anext__())
+                    yield data
+                except StopAsyncIteration:
+                    break
+        finally:
+            try:
+                loop.run_until_complete(async_gen.aclose())
+            except:
+                pass
+
+    async def _send_request_async_streaming_raw(
+        self,
+        service: str,
+        flow: Optional[str],
+        request: Dict[str, Any]
+    ) -> Iterator[Dict[str, Any]]:
+        """Async streaming that yields raw response dicts without parsing.
+
+        Used for data streaming (triples, rows, etc.) where responses are
+        just batches of data, not agent/RAG chunk types.
+        """
+        with self._lock:
+            self._request_counter += 1
+            request_id = f"req-{self._request_counter}"
+
+        ws_url = f"{self.url}/api/v1/socket"
+        if self.token:
+            ws_url = f"{ws_url}?token={self.token}"
+
+        message = {
+            "id": request_id,
+            "service": service,
+            "request": request
+        }
+        if flow:
+            message["flow"] = flow
+
+        async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
+            await websocket.send(json.dumps(message))
+
+            async for raw_message in websocket:
+                response = json.loads(raw_message)
+
+                if response.get("id") != request_id:
+                    continue
+
+                if "error" in response:
+                    raise_from_error_dict(response["error"])
+
+                if "response" in response:
+                    yield response["response"]
+
+                    if response.get("complete"):
+                        break
 
     async def _send_request_async(
         self,
@@ -850,12 +929,13 @@ class SocketFlowInstance:
             request["collection"] = collection
         request.update(kwargs)
 
-        for chunk in self.client._send_request_sync("triples", self.flow_id, request, streaming=True):
-            # Each chunk is the raw response containing triples batch
-            if hasattr(chunk, 'response'):
-                yield chunk.response
-            elif isinstance(chunk, dict) and "response" in chunk:
-                yield chunk["response"]
+        # Use raw streaming - yields response dicts directly without parsing
+        for response in self.client._send_request_sync("triples", self.flow_id, request, streaming_raw=True):
+            # Response is {"response": [...triples...]} from translator
+            if isinstance(response, dict) and "response" in response:
+                yield response["response"]
+            else:
+                yield response
 
     def rows_query(
         self,
