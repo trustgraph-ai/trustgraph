@@ -213,7 +213,8 @@ class LibrarianResponse:
     upload_sessions: list[UploadSession] = field(default_factory=list)
 
     # stream-document response - indicates final chunk in stream
-    end_of_stream: bool = False
+    # Default True so non-streaming operations are treated as final
+    end_of_stream: bool = True
 
 # FIXME: Is this right?  Using persistence on librarian so that
 # message chunking works
