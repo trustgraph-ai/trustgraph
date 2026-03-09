@@ -245,26 +245,31 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         message.metadata = MagicMock()
         message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
-        
-        chunk = ChunkEmbeddings(
-            chunk_id="Document with mixed dimensions",
-            vectors=[
-                [0.1, 0.2],  # 2D vector
-                [0.3, 0.4, 0.5, 0.6],  # 4D vector
-                [0.7, 0.8, 0.9]  # 3D vector
-            ]
+
+        # Each chunk has a single vector of different dimensions
+        chunk1 = ChunkEmbeddings(
+            chunk_id="chunk/doc/2d",
+            vector=[0.1, 0.2]  # 2D vector
         )
-        message.chunks = [chunk]
-        
+        chunk2 = ChunkEmbeddings(
+            chunk_id="chunk/doc/4d",
+            vector=[0.3, 0.4, 0.5, 0.6]  # 4D vector
+        )
+        chunk3 = ChunkEmbeddings(
+            chunk_id="chunk/doc/3d",
+            vector=[0.7, 0.8, 0.9]  # 3D vector
+        )
+        message.chunks = [chunk1, chunk2, chunk3]
+
         await processor.store_document_embeddings(message)
-        
+
         # Verify all vectors were inserted regardless of dimension with user/collection parameters
         expected_calls = [
-            ([0.1, 0.2], "Document with mixed dimensions", 'test_user', 'test_collection'),
-            ([0.3, 0.4, 0.5, 0.6], "Document with mixed dimensions", 'test_user', 'test_collection'),
-            ([0.7, 0.8, 0.9], "Document with mixed dimensions", 'test_user', 'test_collection'),
+            ([0.1, 0.2], "chunk/doc/2d", 'test_user', 'test_collection'),
+            ([0.3, 0.4, 0.5, 0.6], "chunk/doc/4d", 'test_user', 'test_collection'),
+            ([0.7, 0.8, 0.9], "chunk/doc/3d", 'test_user', 'test_collection'),
         ]
-        
+
         assert processor.vecstore.insert.call_count == 3
         for i, (expected_vec, expected_doc, expected_user, expected_collection) in enumerate(expected_calls):
             actual_call = processor.vecstore.insert.call_args_list[i]

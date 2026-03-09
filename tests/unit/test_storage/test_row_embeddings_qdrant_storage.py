@@ -197,7 +197,7 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
             index_name='customer_id',
             index_value=['CUST001'],
             text='CUST001',
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
 
         embeddings_msg = RowEmbeddings(
@@ -255,7 +255,7 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
             index_name='name',
             index_value=['John Doe'],
             text='John Doe',
-            vectors=[[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]
+            vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
         )
 
         embeddings_msg = RowEmbeddings(
@@ -299,7 +299,7 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
             index_name='id',
             index_value=['123'],
             text='123',
-            vectors=[]  # Empty vectors
+            vector=[]  # Empty vector
         )
 
         embeddings_msg = RowEmbeddings(
@@ -342,7 +342,7 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
             index_name='id',
             index_value=['123'],
             text='123',
-            vectors=[[0.1, 0.2]]
+            vector=[0.1, 0.2]
         )
 
         embeddings_msg = RowEmbeddings(

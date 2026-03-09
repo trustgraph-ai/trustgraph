@@ -180,7 +180,7 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         )
         empty_entity = EntityEmbeddings(
             entity=Term(type=LITERAL, value=''),
-            vectors=[[0.4, 0.5, 0.6]],
+            vector=[0.4, 0.5, 0.6],
             chunk_id=''
         )
         none_entity = EntityEmbeddings(
@@ -238,26 +238,31 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         message.metadata = MagicMock()
         message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
-        
-        entity = EntityEmbeddings(
-            entity=Term(type=IRI, iri='http://example.com/entity'),
-            vectors=[
-                [0.1, 0.2],  # 2D vector
-                [0.3, 0.4, 0.5, 0.6],  # 4D vector
-                [0.7, 0.8, 0.9]  # 3D vector
-            ]
+
+        # Each entity has a single vector of different dimensions
+        entity1 = EntityEmbeddings(
+            entity=Term(type=IRI, iri='http://example.com/entity1'),
+            vector=[0.1, 0.2]  # 2D vector
         )
-        message.entities = [entity]
-        
+        entity2 = EntityEmbeddings(
+            entity=Term(type=IRI, iri='http://example.com/entity2'),
+            vector=[0.3, 0.4, 0.5, 0.6]  # 4D vector
+        )
+        entity3 = EntityEmbeddings(
+            entity=Term(type=IRI, iri='http://example.com/entity3'),
+            vector=[0.7, 0.8, 0.9]  # 3D vector
+        )
+        message.entities = [entity1, entity2, entity3]
+
         await processor.store_graph_embeddings(message)
-        
+
         # Verify all vectors were inserted regardless of dimension
         expected_calls = [
-            ([0.1, 0.2], 'http://example.com/entity'),
-            ([0.3, 0.4, 0.5, 0.6], 'http://example.com/entity'),
-            ([0.7, 0.8, 0.9], 'http://example.com/entity'),
+            ([0.1, 0.2], 'http://example.com/entity1'),
+            ([0.3, 0.4, 0.5, 0.6], 'http://example.com/entity2'),
+            ([0.7, 0.8, 0.9], 'http://example.com/entity3'),
         ]
-        
+
         assert processor.vecstore.insert.call_count == 3
         for i, (expected_vec, expected_entity) in enumerate(expected_calls):
             actual_call = processor.vecstore.insert.call_args_list[i]
@@ -278,7 +283,7 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         )
         literal_entity = EntityEmbeddings(
             entity=Term(type=LITERAL, value='literal entity text'),
-            vectors=[[0.4, 0.5, 0.6]]
+            vector=[0.4, 0.5, 0.6]
         )
         message.entities = [uri_entity, literal_entity]
         

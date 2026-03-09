@@ -27,11 +27,11 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         # Create test document embeddings
         chunk1 = ChunkEmbeddings(
             chunk=b"This is the first document chunk",
-            vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
+            vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
         )
         chunk2 = ChunkEmbeddings(
             chunk=b"This is the second document chunk",
-            vectors=[[0.7, 0.8, 0.9]]
+            vector=[0.7, 0.8, 0.9]
         )
         message.chunks = [chunk1, chunk2]
         
@@ -125,7 +125,7 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         
         chunk = ChunkEmbeddings(
             chunk=b"Test document content",
-            vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
+            vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
         )
         message.chunks = [chunk]
         
@@ -190,7 +190,7 @@ class TestPineconeDocEmbeddingsStorageProcessor:
 
         chunk = ChunkEmbeddings(
             chunk=b"Test document content",
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.chunks = [chunk]
 
@@ -222,7 +222,7 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         
         chunk = ChunkEmbeddings(
             chunk=b"",
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.chunks = [chunk]
         
@@ -244,7 +244,7 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         
         chunk = ChunkEmbeddings(
             chunk=None,
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.chunks = [chunk]
         
@@ -266,7 +266,7 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         
         chunk = ChunkEmbeddings(
             chunk=b"",  # Empty bytes
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.chunks = [chunk]
         
@@ -368,7 +368,7 @@ class TestPineconeDocEmbeddingsStorageProcessor:
 
         chunk = ChunkEmbeddings(
             chunk=b"Test document content",
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.chunks = [chunk]
 
@@ -393,7 +393,7 @@ class TestPineconeDocEmbeddingsStorageProcessor:
 
         chunk = ChunkEmbeddings(
             chunk=b"Test document content",
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.chunks = [chunk]
 
@@ -419,7 +419,7 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         
         chunk = ChunkEmbeddings(
             chunk="Document with Unicode: éñ中文🚀".encode('utf-8'),
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.chunks = [chunk]
         
@@ -447,7 +447,7 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         large_content = "A" * 10000  # 10KB of content
         chunk = ChunkEmbeddings(
             chunk=large_content.encode('utf-8'),
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.chunks = [chunk]
         
