@@ -23,11 +23,11 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         # Create test document embeddings
         chunk1 = ChunkEmbeddings(
             chunk_id="This is the first document chunk",
-            vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
+            vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
         )
         chunk2 = ChunkEmbeddings(
             chunk_id="This is the second document chunk",
-            vectors=[[0.7, 0.8, 0.9]]
+            vector=[0.7, 0.8, 0.9]
         )
         message.chunks = [chunk1, chunk2]
         
@@ -85,7 +85,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         
         chunk = ChunkEmbeddings(
             chunk_id="Test document content",
-            vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
+            vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
         )
         message.chunks = [chunk]
         
@@ -137,7 +137,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         
         chunk = ChunkEmbeddings(
             chunk_id="",
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.chunks = [chunk]
         
@@ -156,7 +156,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
 
         chunk = ChunkEmbeddings(
             chunk_id=None,
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.chunks = [chunk]
 
@@ -177,15 +177,15 @@ class TestMilvusDocEmbeddingsStorageProcessor:
 
         valid_chunk = ChunkEmbeddings(
             chunk_id="Valid document content",
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         empty_chunk = ChunkEmbeddings(
             chunk_id="",
-            vectors=[[0.4, 0.5, 0.6]]
+            vector=[0.4, 0.5, 0.6]
         )
         another_valid = ChunkEmbeddings(
             chunk_id="Another valid chunk",
-            vectors=[[0.7, 0.8, 0.9]]
+            vector=[0.7, 0.8, 0.9]
         )
         message.chunks = [valid_chunk, empty_chunk, another_valid]
 
@@ -229,7 +229,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         
         chunk = ChunkEmbeddings(
             chunk_id="Document with no vectors",
-            vectors=[]
+            vector=[]
         )
         message.chunks = [chunk]
         
@@ -283,7 +283,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
 
         chunk = ChunkEmbeddings(
             chunk_id="chunk/doc/unicode-éñ中文🚀",
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.chunks = [chunk]
 
@@ -306,7 +306,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         long_chunk_id = "chunk/doc/" + "a" * 200
         chunk = ChunkEmbeddings(
             chunk_id=long_chunk_id,
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.chunks = [chunk]
 
@@ -327,7 +327,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         
         chunk = ChunkEmbeddings(
             chunk_id="   \n\t   ",
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.chunks = [chunk]
         
@@ -358,7 +358,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
             
             chunk = ChunkEmbeddings(
                 chunk_id="Test content",
-                vectors=[[0.1, 0.2, 0.3]]
+                vector=[0.1, 0.2, 0.3]
             )
             message.chunks = [chunk]
             
@@ -379,7 +379,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         message1.metadata.collection = 'collection1'
         chunk1 = ChunkEmbeddings(
             chunk_id="User1 content",
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message1.chunks = [chunk1]
         
@@ -390,7 +390,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         message2.metadata.collection = 'collection2'
         chunk2 = ChunkEmbeddings(
             chunk_id="User2 content",
-            vectors=[[0.4, 0.5, 0.6]]
+            vector=[0.4, 0.5, 0.6]
         )
         message2.chunks = [chunk2]
         
@@ -421,7 +421,7 @@ class TestMilvusDocEmbeddingsStorageProcessor:
         
         chunk = ChunkEmbeddings(
             chunk_id="Special chars test",
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.chunks = [chunk]
         

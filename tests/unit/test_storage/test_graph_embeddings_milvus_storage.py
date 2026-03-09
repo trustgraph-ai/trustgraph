@@ -23,11 +23,11 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         # Create test entities with embeddings
         entity1 = EntityEmbeddings(
             entity=Term(type=IRI, iri='http://example.com/entity1'),
-            vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
+            vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
         )
         entity2 = EntityEmbeddings(
             entity=Term(type=LITERAL, value='literal entity'),
-            vectors=[[0.7, 0.8, 0.9]]
+            vector=[0.7, 0.8, 0.9]
         )
         message.entities = [entity1, entity2]
         
@@ -85,7 +85,7 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         
         entity = EntityEmbeddings(
             entity=Term(type=IRI, iri='http://example.com/entity'),
-            vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
+            vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
         )
         message.entities = [entity]
         
@@ -137,7 +137,7 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         
         entity = EntityEmbeddings(
             entity=Term(type=LITERAL, value=''),
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.entities = [entity]
         
@@ -156,7 +156,7 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         
         entity = EntityEmbeddings(
             entity=Term(type=LITERAL, value=None),
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.entities = [entity]
         
@@ -175,7 +175,7 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
 
         valid_entity = EntityEmbeddings(
             entity=Term(type=IRI, iri='http://example.com/valid'),
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             chunk_id=''
         )
         empty_entity = EntityEmbeddings(
@@ -185,7 +185,7 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         )
         none_entity = EntityEmbeddings(
             entity=Term(type=LITERAL, value=None),
-            vectors=[[0.7, 0.8, 0.9]],
+            vector=[0.7, 0.8, 0.9],
             chunk_id=''
         )
         message.entities = [valid_entity, empty_entity, none_entity]
@@ -222,7 +222,7 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         
         entity = EntityEmbeddings(
             entity=Term(type=IRI, iri='http://example.com/entity'),
-            vectors=[]
+            vector=[]
         )
         message.entities = [entity]
         
@@ -274,7 +274,7 @@ class TestMilvusGraphEmbeddingsStorageProcessor:
         
         uri_entity = EntityEmbeddings(
             entity=Term(type=IRI, iri='http://example.com/uri_entity'),
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         literal_entity = EntityEmbeddings(
             entity=Term(type=LITERAL, value='literal entity text'),
