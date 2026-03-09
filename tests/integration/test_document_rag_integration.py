@@ -9,6 +9,7 @@ Following the TEST_STRATEGY.md approach for integration testing.
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from trustgraph.retrieval.document_rag.document_rag import DocumentRag
+from trustgraph.schema import ChunkMatch
 
 
 # Sample chunk content for testing - maps chunk_id to content
@@ -39,10 +40,14 @@ class TestDocumentRagIntegration:
 
     @pytest.fixture
     def mock_doc_embeddings_client(self):
-        """Mock document embeddings client that returns chunk IDs"""
+        """Mock document embeddings client that returns chunk matches"""
         client = AsyncMock()
-        # Now returns chunk_ids instead of actual content
-        client.query.return_value = ["doc/c1", "doc/c2", "doc/c3"]
+        # Returns ChunkMatch objects with chunk_id and score
+        client.query.return_value = [
+            ChunkMatch(chunk_id="doc/c1", score=0.95),
+            ChunkMatch(chunk_id="doc/c2", score=0.90),
+            ChunkMatch(chunk_id="doc/c3", score=0.85)
+        ]
         return client
 
     @pytest.fixture

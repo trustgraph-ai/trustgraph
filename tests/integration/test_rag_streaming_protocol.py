@@ -9,6 +9,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, call
 from trustgraph.retrieval.graph_rag.graph_rag import GraphRag
 from trustgraph.retrieval.document_rag.document_rag import DocumentRag
+from trustgraph.schema import EntityMatch, ChunkMatch, Term
 
 
 class TestGraphRagStreamingProtocol:
@@ -25,7 +26,10 @@ class TestGraphRagStreamingProtocol:
     def mock_graph_embeddings_client(self):
         """Mock graph embeddings client"""
         client = AsyncMock()
-        client.query.return_value = ["entity1", "entity2"]
+        client.query.return_value = [
+            EntityMatch(entity=Term(value="entity1", is_uri=True), score=0.95),
+            EntityMatch(entity=Term(value="entity2", is_uri=True), score=0.90)
+        ]
         return client
 
     @pytest.fixture
@@ -202,9 +206,12 @@ class TestDocumentRagStreamingProtocol:
 
     @pytest.fixture
     def mock_doc_embeddings_client(self):
-        """Mock document embeddings client that returns chunk IDs"""
+        """Mock document embeddings client that returns chunk matches"""
         client = AsyncMock()
-        client.query.return_value = ["doc/c1", "doc/c2"]
+        client.query.return_value = [
+            ChunkMatch(chunk_id="doc/c1", score=0.95),
+            ChunkMatch(chunk_id="doc/c2", score=0.90)
+        ]
         return client
 
     @pytest.fixture
