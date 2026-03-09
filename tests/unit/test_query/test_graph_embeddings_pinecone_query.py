@@ -360,33 +360,29 @@ class TestPineconeGraphEmbeddingsQueryProcessor:
         assert len(set(entity_values)) == 3  # All unique
 
     @pytest.mark.asyncio
-    async def test_query_graph_embeddings_early_termination_on_limit(self, processor):
-        """Test that querying stops early when limit is reached"""
+    async def test_query_graph_embeddings_respects_limit(self, processor):
+        """Test that query respects limit parameter"""
         message = MagicMock()
-        message.vectors = [
-            [0.1, 0.2, 0.3],
-            [0.4, 0.5, 0.6],
-            [0.7, 0.8, 0.9]
-        ]
+        message.vector = [0.1, 0.2, 0.3]
         message.limit = 2
         message.user = 'test_user'
         message.collection = 'test_collection'
-        
+
         mock_index = MagicMock()
         processor.pinecone.Index.return_value = mock_index
-        
-        # First query returns enough results to meet limit
-        mock_results1 = MagicMock()
-        mock_results1.matches = [
+
+        # Query returns more results than limit
+        mock_results = MagicMock()
+        mock_results.matches = [
             MagicMock(metadata={'entity': 'entity1'}),
             MagicMock(metadata={'entity': 'entity2'}),
             MagicMock(metadata={'entity': 'entity3'})
         ]
-        mock_index.query.return_value = mock_results1
-        
+        mock_index.query.return_value = mock_results
+
         entities = await processor.query_graph_embeddings(message)
-        
-        # Should only make one query since limit was reached
+
+        # Should only return 2 entities (respecting limit)
         mock_index.query.assert_called_once()
         assert len(entities) == 2
 
