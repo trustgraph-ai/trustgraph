@@ -212,6 +212,11 @@ class LibrarianResponse:
     # list-uploads response
     upload_sessions: list[UploadSession] = field(default_factory=list)
 
+    # Protocol flag: True if this is the final response for a request.
+    # Default True since most operations are single request/response.
+    # Only stream-document sets False for intermediate chunks.
+    is_final: bool = True
+
 # FIXME: Is this right?  Using persistence on librarian so that
 # message chunking works
 

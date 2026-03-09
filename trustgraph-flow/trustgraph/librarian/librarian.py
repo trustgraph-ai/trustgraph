@@ -687,6 +687,8 @@ class Librarian:
             # Fetch only the requested range
             chunk_content = await self.blob_store.get_range(object_id, offset, length)
 
+            is_last = (chunk_index == total_chunks - 1)
+
             logger.debug(f"Streaming chunk {chunk_index + 1}/{total_chunks}, "
                         f"bytes {offset}-{offset + length} of {total_size}")
 
@@ -698,5 +700,6 @@ class Librarian:
                 total_chunks=total_chunks,
                 bytes_received=offset + length,
                 total_bytes=total_size,
+                is_final=is_last,
             )
 
