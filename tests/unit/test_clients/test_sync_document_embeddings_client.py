@@ -69,24 +69,24 @@ class TestSyncDocumentEmbeddingsClient:
         mock_response = MagicMock()
         mock_response.chunks = ["chunk1", "chunk2", "chunk3"]
         client.call = MagicMock(return_value=mock_response)
-        
-        vectors = [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
-        
+
+        vector = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+
         # Act
         result = client.request(
-            vectors=vectors,
+            vector=vector,
             user="test_user",
             collection="test_collection",
             limit=10,
             timeout=300
         )
-        
+
         # Assert
         assert result == ["chunk1", "chunk2", "chunk3"]
         client.call.assert_called_once_with(
             user="test_user",
             collection="test_collection",
-            vectors=vectors,
+            vector=vector,
             limit=10,
             timeout=300
         )

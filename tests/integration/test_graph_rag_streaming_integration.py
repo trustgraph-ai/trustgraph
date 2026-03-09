@@ -8,7 +8,7 @@ response delivery through the complete pipeline.
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from trustgraph.retrieval.graph_rag.graph_rag import GraphRag
-from trustgraph.schema import EntityMatch, Term
+from trustgraph.schema import EntityMatch, Term, IRI
 from tests.utils.streaming_assertions import (
     assert_streaming_chunks_valid,
     assert_rag_streaming_chunks,
@@ -34,7 +34,7 @@ class TestGraphRagStreaming:
         """Mock graph embeddings client"""
         client = AsyncMock()
         client.query.return_value = [
-            EntityMatch(entity=Term(value="http://trustgraph.ai/e/machine-learning", is_uri=True), score=0.95),
+            EntityMatch(entity=Term(type=IRI, iri="http://trustgraph.ai/e/machine-learning"), score=0.95),
         ]
         return client
 

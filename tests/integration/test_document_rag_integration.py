@@ -303,7 +303,7 @@ class TestDocumentRagIntegration:
         assert "DocumentRag initialized" in log_messages
         assert "Constructing prompt..." in log_messages
         assert "Computing embeddings..." in log_messages
-        assert "chunk_ids" in log_messages.lower()
+        assert "chunks" in log_messages.lower()
         assert "Invoking LLM..." in log_messages
         assert "Query processing complete" in log_messages
 

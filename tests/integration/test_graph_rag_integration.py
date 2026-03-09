@@ -11,7 +11,7 @@ NOTE: This is the first integration test file for GraphRAG (previously had only 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from trustgraph.retrieval.graph_rag.graph_rag import GraphRag
-from trustgraph.schema import EntityMatch, Term
+from trustgraph.schema import EntityMatch, Term, IRI
 
 
 @pytest.mark.integration
@@ -36,9 +36,9 @@ class TestGraphRagIntegration:
         """Mock graph embeddings client that returns realistic entities"""
         client = AsyncMock()
         client.query.return_value = [
-            EntityMatch(entity=Term(value="http://trustgraph.ai/e/machine-learning", is_uri=True), score=0.95),
-            EntityMatch(entity=Term(value="http://trustgraph.ai/e/artificial-intelligence", is_uri=True), score=0.90),
-            EntityMatch(entity=Term(value="http://trustgraph.ai/e/neural-networks", is_uri=True), score=0.85)
+            EntityMatch(entity=Term(type=IRI, iri="http://trustgraph.ai/e/machine-learning"), score=0.95),
+            EntityMatch(entity=Term(type=IRI, iri="http://trustgraph.ai/e/artificial-intelligence"), score=0.90),
+            EntityMatch(entity=Term(type=IRI, iri="http://trustgraph.ai/e/neural-networks"), score=0.85)
         ]
         return client
 

@@ -9,7 +9,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, call
 from trustgraph.retrieval.graph_rag.graph_rag import GraphRag
 from trustgraph.retrieval.document_rag.document_rag import DocumentRag
-from trustgraph.schema import EntityMatch, ChunkMatch, Term
+from trustgraph.schema import EntityMatch, ChunkMatch, Term, IRI
 
 
 class TestGraphRagStreamingProtocol:
@@ -27,8 +27,8 @@ class TestGraphRagStreamingProtocol:
         """Mock graph embeddings client"""
         client = AsyncMock()
         client.query.return_value = [
-            EntityMatch(entity=Term(value="entity1", is_uri=True), score=0.95),
-            EntityMatch(entity=Term(value="entity2", is_uri=True), score=0.90)
+            EntityMatch(entity=Term(type=IRI, iri="entity1"), score=0.95),
+            EntityMatch(entity=Term(type=IRI, iri="entity2"), score=0.90)
         ]
         return client
 
