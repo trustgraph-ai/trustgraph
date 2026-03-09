@@ -24,16 +24,20 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
-        # Create test entity embeddings
+        # Create test entity embeddings (each entity has a single vector)
         entity1 = EntityEmbeddings(
             entity=Value(value="http://example.org/entity1", is_uri=True),
-            vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
+            vector=[0.1, 0.2, 0.3]
         )
         entity2 = EntityEmbeddings(
-            entity=Value(value="entity2", is_uri=False),
-            vectors=[[0.7, 0.8, 0.9]]
+            entity=Value(value="http://example.org/entity2", is_uri=True),
+            vector=[0.4, 0.5, 0.6]
         )
-        message.entities = [entity1, entity2]
+        entity3 = EntityEmbeddings(
+            entity=Value(value="entity3", is_uri=False),
+            vector=[0.7, 0.8, 0.9]
+        )
+        message.entities = [entity1, entity2, entity3]
         
         return message
 
@@ -190,7 +194,7 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
 
         entity = EntityEmbeddings(
             entity=Value(value="test_entity", is_uri=False),
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.entities = [entity]
 
@@ -222,7 +226,7 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         
         entity = EntityEmbeddings(
             entity=Value(value="", is_uri=False),
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.entities = [entity]
         
@@ -244,7 +248,7 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         
         entity = EntityEmbeddings(
             entity=Value(value=None, is_uri=False),
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.entities = [entity]
         
@@ -322,7 +326,7 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
         
         entity = EntityEmbeddings(
             entity=Value(value="test_entity", is_uri=False),
-            vectors=[]
+            vector=[]
         )
         message.entities = [entity]
         
@@ -344,7 +348,7 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
 
         entity = EntityEmbeddings(
             entity=Value(value="test_entity", is_uri=False),
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.entities = [entity]
 
@@ -369,7 +373,7 @@ class TestPineconeGraphEmbeddingsStorageProcessor:
 
         entity = EntityEmbeddings(
             entity=Value(value="test_entity", is_uri=False),
-            vectors=[[0.1, 0.2, 0.3]]
+            vector=[0.1, 0.2, 0.3]
         )
         message.entities = [entity]
 

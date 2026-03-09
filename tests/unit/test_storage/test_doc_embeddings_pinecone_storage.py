@@ -286,37 +286,39 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         message.metadata.user = 'test_user'
         message.metadata.collection = 'test_collection'
         
-        chunk = ChunkEmbeddings(
-            chunk=b"Document with mixed dimensions",
-            vectors=[
-                [0.1, 0.2],  # 2D vector
-                [0.3, 0.4, 0.5, 0.6],  # 4D vector
-                [0.7, 0.8, 0.9]  # 3D vector
-            ]
+        # Each chunk has a single vector of different dimensions
+        chunk1 = ChunkEmbeddings(
+            chunk=b"Document chunk 1",
+            vector=[0.1, 0.2]  # 2D vector
         )
-        message.chunks = [chunk]
-        
-        mock_index_2d = MagicMock()
-        mock_index_4d = MagicMock()
-        mock_index_3d = MagicMock()
-        
+        chunk2 = ChunkEmbeddings(
+            chunk=b"Document chunk 2",
+            vector=[0.3, 0.4, 0.5, 0.6]  # 4D vector
+        )
+        chunk3 = ChunkEmbeddings(
+            chunk=b"Document chunk 3",
+            vector=[0.7, 0.8, 0.9]  # 3D vector
+        )
+        message.chunks = [chunk1, chunk2, chunk3]
+
+        mock_index = MagicMock()
+
         def mock_index_side_effect(name):
             # All dimensions now use the same index name pattern
-            # Different dimensions will be handled within the same index
             if "test_user" in name and "test_collection" in name:
-                return mock_index_2d  # Just return one mock for all
+                return mock_index
             return MagicMock()
-        
+
         processor.pinecone.Index.side_effect = mock_index_side_effect
         processor.pinecone.has_index.return_value = True
-        
+
         with patch('uuid.uuid4', side_effect=['id1', 'id2', 'id3']):
             await processor.store_document_embeddings(message)
         
         # Verify all vectors are now stored in the same index
-        # (Pinecone can handle mixed dimensions in the same index)
-        assert processor.pinecone.Index.call_count == 3  # Called once per vector
-        mock_index_2d.upsert.call_count == 3  # All upserts go to same index
+        # (Each chunk has a single vector, called once per chunk)
+        assert processor.pinecone.Index.call_count == 3  # Called once per chunk
+        assert mock_index.upsert.call_count == 3  # All upserts go to same index
 
     @pytest.mark.asyncio
     async def test_store_document_embeddings_empty_chunks_list(self, processor):
@@ -346,7 +348,7 @@ class TestPineconeDocEmbeddingsStorageProcessor:
         
         chunk = ChunkEmbeddings(
             chunk=b"Document with no vectors",
-            vectors=[]
+            vector=[]
         )
         message.chunks = [chunk]
         
