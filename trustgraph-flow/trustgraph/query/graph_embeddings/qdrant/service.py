@@ -10,7 +10,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct
 from qdrant_client.models import Distance, VectorParams
 
-from .... schema import GraphEmbeddingsResponse
+from .... schema import GraphEmbeddingsResponse, EntityMatch
 from .... schema import Error, Term, IRI, LITERAL
 from .... base import GraphEmbeddingsQueryService
 
@@ -75,49 +75,46 @@ class Processor(GraphEmbeddingsQueryService):
 
         try:
 
+            vec = msg.vector
+            if not vec:
+                return []
+
+            # Use dimension suffix in collection name
+            dim = len(vec)
+            collection = f"t_{msg.user}_{msg.collection}_{dim}"
+
+            # Check if collection exists - return empty if not
+            if not self.collection_exists(collection):
+                logger.info(f"Collection {collection} does not exist")
+                return []
+
+            # Heuristic hack, get (2*limit), so that we have more chance
+            # of getting (limit) unique entities
+            search_result = self.qdrant.query_points(
+                collection_name=collection,
+                query=vec,
+                limit=msg.limit * 2,
+                with_payload=True,
+            ).points
+
             entity_set = set()
             entities = []
 
-            for vec in msg.vectors:
+            for r in search_result:
+                ent = r.payload["entity"]
+                score = r.score if hasattr(r, 'score') else 0.0
 
-                # Use dimension suffix in collection name
-                dim = len(vec)
-                collection = f"t_{msg.user}_{msg.collection}_{dim}"
-
-                # Check if collection exists - return empty if not
-                if not self.collection_exists(collection):
-                    logger.info(f"Collection {collection} does not exist, skipping this vector")
-                    continue
-
-                # Heuristic hack, get (2*limit), so that we have more chance
-                # of getting (limit) entities
-                search_result = self.qdrant.query_points(
-                    collection_name=collection,
-                    query=vec,
-                    limit=msg.limit * 2,
-                    with_payload=True,
-                ).points
-
-                for r in search_result:
-                    ent = r.payload["entity"]
-
-                    # De-dupe entities
-                    if ent not in entity_set:
-                        entity_set.add(ent)
-                        entities.append(ent)
-
-                    # Keep adding entities until limit
-                    if len(entity_set) >= msg.limit: break
+                # De-dupe entities, keep highest score
+                if ent not in entity_set:
+                    entity_set.add(ent)
+                    entities.append(EntityMatch(
+                        entity=self.create_value(ent),
+                        score=score,
+                    ))
 
                 # Keep adding entities until limit
-                if len(entity_set) >= msg.limit: break
-
-            ents2 = []
-
-            for ent in entities:
-                ents2.append(self.create_value(ent))
-
-            entities = ents2
+                if len(entities) >= msg.limit:
+                    break
 
             logger.debug("Send response...")
             return entities

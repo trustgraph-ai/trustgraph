@@ -612,12 +612,12 @@ class AsyncFlowInstance:
                 print(f"{entity['name']}: {entity['score']}")
             ```
         """
-        # First convert text to embeddings vectors
+        # First convert text to embedding vector
         emb_result = await self.embeddings(texts=[text])
-        vectors = emb_result.get("vectors", [[]])[0]
+        vector = emb_result.get("vectors", [[]])[0]
 
         request_data = {
-            "vectors": vectors,
+            "vector": vector,
             "user": user,
             "collection": collection,
             "limit": limit
@@ -810,12 +810,12 @@ class AsyncFlowInstance:
                 print(f"{match['index_name']}: {match['index_value']} (score: {match['score']})")
             ```
         """
-        # First convert text to embeddings vectors
+        # First convert text to embedding vector
         emb_result = await self.embeddings(texts=[text])
-        vectors = emb_result.get("vectors", [[]])[0]
+        vector = emb_result.get("vectors", [[]])[0]
 
         request_data = {
-            "vectors": vectors,
+            "vector": vector,
             "schema_name": schema_name,
             "user": user,
             "collection": collection,

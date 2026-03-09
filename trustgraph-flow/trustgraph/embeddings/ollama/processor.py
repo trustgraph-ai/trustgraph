@@ -43,11 +43,8 @@ class Processor(EmbeddingsService):
             input = texts
         )
 
-        # Return list of vector sets, one per input text
-        return [
-            [embedding]
-            for embedding in embeds.embeddings
-        ]
+        # Return list of vectors, one per input text
+        return list(embeds.embeddings)
 
     @staticmethod
     def add_args(parser):

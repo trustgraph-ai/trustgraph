@@ -87,14 +87,14 @@ class Query:
         if self.verbose:
             logger.debug("Getting entities...")
 
-        entities = await self.rag.graph_embeddings_client.query(
-            vectors=vectors, limit=self.entity_limit,
+        entity_matches = await self.rag.graph_embeddings_client.query(
+            vector=vectors, limit=self.entity_limit,
             user=self.user, collection=self.collection,
         )
 
         entities = [
-            str(e)
-            for e in entities
+            str(e.entity)
+            for e in entity_matches
         ]
 
         if self.verbose:

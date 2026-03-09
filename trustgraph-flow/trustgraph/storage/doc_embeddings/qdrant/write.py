@@ -56,37 +56,39 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
             if chunk_id == "":
                 continue
 
-            for vec in emb.vectors:
+            vec = emb.vector
+            if not vec:
+                continue
 
-                # Create collection name with dimension suffix for lazy creation
-                dim = len(vec)
-                collection = (
-                    f"d_{message.metadata.user}_{message.metadata.collection}_{dim}"
-                )
+            # Create collection name with dimension suffix for lazy creation
+            dim = len(vec)
+            collection = (
+                f"d_{message.metadata.user}_{message.metadata.collection}_{dim}"
+            )
 
-                # Lazily create collection if it doesn't exist (but only if authorized in config)
-                if not self.qdrant.collection_exists(collection):
-                    logger.info(f"Lazily creating Qdrant collection {collection} with dimension {dim}")
-                    self.qdrant.create_collection(
-                        collection_name=collection,
-                        vectors_config=VectorParams(
-                            size=dim,
-                            distance=Distance.COSINE
-                        )
-                    )
-
-                self.qdrant.upsert(
+            # Lazily create collection if it doesn't exist (but only if authorized in config)
+            if not self.qdrant.collection_exists(collection):
+                logger.info(f"Lazily creating Qdrant collection {collection} with dimension {dim}")
+                self.qdrant.create_collection(
                     collection_name=collection,
-                    points=[
-                        PointStruct(
-                            id=str(uuid.uuid4()),
-                            vector=vec,
-                            payload={
-                                "chunk_id": chunk_id,
-                            }
-                        )
-                    ]
+                    vectors_config=VectorParams(
+                        size=dim,
+                        distance=Distance.COSINE
+                    )
                 )
+
+            self.qdrant.upsert(
+                collection_name=collection,
+                points=[
+                    PointStruct(
+                        id=str(uuid.uuid4()),
+                        vector=vec,
+                        payload={
+                            "chunk_id": chunk_id,
+                        }
+                    )
+                ]
+            )
 
     @staticmethod
     def add_args(parser):

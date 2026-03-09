@@ -7,7 +7,7 @@ of chunk_ids
 import logging
 
 from .... direct.milvus_doc_embeddings import DocVectors
-from .... schema import DocumentEmbeddingsResponse
+from .... schema import DocumentEmbeddingsResponse, ChunkMatch
 from .... schema import Error
 from .... base import DocumentEmbeddingsQueryService
 
@@ -35,26 +35,33 @@ class Processor(DocumentEmbeddingsQueryService):
 
         try:
 
+            vec = msg.vector
+            if not vec:
+                return []
+
             # Handle zero limit case
             if msg.limit <= 0:
                 return []
 
-            chunk_ids = []
+            resp = self.vecstore.search(
+                vec,
+                msg.user,
+                msg.collection,
+                limit=msg.limit
+            )
 
-            for vec in msg.vectors:
+            chunks = []
+            for r in resp:
+                chunk_id = r["entity"]["chunk_id"]
+                # Milvus returns distance, convert to similarity score
+                distance = r.get("distance", 0.0)
+                score = 1.0 - distance if distance else 0.0
+                chunks.append(ChunkMatch(
+                    chunk_id=chunk_id,
+                    score=score,
+                ))
 
-                resp = self.vecstore.search(
-                    vec,
-                    msg.user,
-                    msg.collection,
-                    limit=msg.limit
-                )
-
-                for r in resp:
-                    chunk_id = r["entity"]["chunk_id"]
-                    chunk_ids.append(chunk_id)
-
-            return chunk_ids
+            return chunks
 
         except Exception as e:
 

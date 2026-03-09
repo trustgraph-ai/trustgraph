@@ -9,15 +9,21 @@ from ..core.topic import topic
 
 @dataclass
 class GraphEmbeddingsRequest:
-    vectors: list[list[float]] = field(default_factory=list)
+    vector: list[float] = field(default_factory=list)
     limit: int = 0
     user: str = ""
     collection: str = ""
 
 @dataclass
+class EntityMatch:
+    """A matching entity from a semantic search with similarity score"""
+    entity: Term | None = None
+    score: float = 0.0
+
+@dataclass
 class GraphEmbeddingsResponse:
     error: Error | None = None
-    entities: list[Term] = field(default_factory=list)
+    entities: list[EntityMatch] = field(default_factory=list)
 
 ############################################################################
 
@@ -44,15 +50,21 @@ class TriplesQueryResponse:
 
 @dataclass
 class DocumentEmbeddingsRequest:
-    vectors: list[list[float]] = field(default_factory=list)
+    vector: list[float] = field(default_factory=list)
     limit: int = 0
     user: str = ""
     collection: str = ""
 
 @dataclass
+class ChunkMatch:
+    """A matching chunk from a semantic search with similarity score"""
+    chunk_id: str = ""
+    score: float = 0.0
+
+@dataclass
 class DocumentEmbeddingsResponse:
     error: Error | None = None
-    chunk_ids: list[str] = field(default_factory=list)
+    chunks: list[ChunkMatch] = field(default_factory=list)
 
 document_embeddings_request_queue = topic(
     "document-embeddings-request", qos='q0', tenant='trustgraph', namespace='flow'
@@ -76,7 +88,7 @@ class RowIndexMatch:
 @dataclass
 class RowEmbeddingsRequest:
     """Request for row embeddings semantic search"""
-    vectors: list[list[float]] = field(default_factory=list)  # Query vectors
+    vector: list[float] = field(default_factory=list)  # Query vector
     limit: int = 10                         # Max results to return
     user: str = ""                          # User/keyspace
     collection: str = ""                    # Collection name

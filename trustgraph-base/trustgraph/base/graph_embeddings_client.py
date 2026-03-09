@@ -19,12 +19,12 @@ def to_value(x):
     return Literal(x.value or x.iri)
 
 class GraphEmbeddingsClient(RequestResponse):
-    async def query(self, vectors, limit=20, user="trustgraph",
+    async def query(self, vector, limit=20, user="trustgraph",
                     collection="default", timeout=30):
 
         resp = await self.request(
             GraphEmbeddingsRequest(
-                vectors = vectors,
+                vector = vector,
                 limit = limit,
                 user = user,
                 collection = collection
@@ -37,10 +37,8 @@ class GraphEmbeddingsClient(RequestResponse):
         if resp.error:
             raise RuntimeError(resp.error.message)
 
-        return [
-            to_value(v)
-            for v in resp.entities
-        ]
+        # Return EntityMatch objects with entity and score
+        return resp.entities
 
 class GraphEmbeddingsClientSpec(RequestResponseSpec):
     def __init__(

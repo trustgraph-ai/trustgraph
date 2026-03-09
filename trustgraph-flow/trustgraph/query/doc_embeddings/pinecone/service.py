@@ -11,6 +11,7 @@ import os
 from pinecone import Pinecone, ServerlessSpec
 from pinecone.grpc import PineconeGRPC, GRPCClientConfig
 
+from .... schema import ChunkMatch
 from .... base import DocumentEmbeddingsQueryService
 
 # Module logger
@@ -51,38 +52,43 @@ class Processor(DocumentEmbeddingsQueryService):
 
         try:
 
+            vec = msg.vector
+            if not vec:
+                return []
+
             # Handle zero limit case
             if msg.limit <= 0:
                 return []
 
-            chunk_ids = []
+            dim = len(vec)
 
-            for vec in msg.vectors:
+            # Use dimension suffix in index name
+            index_name = f"d-{msg.user}-{msg.collection}-{dim}"
 
-                dim = len(vec)
+            # Check if index exists - return empty if not
+            if not self.pinecone.has_index(index_name):
+                logger.info(f"Index {index_name} does not exist")
+                return []
 
-                # Use dimension suffix in index name
-                index_name = f"d-{msg.user}-{msg.collection}-{dim}"
+            index = self.pinecone.Index(index_name)
 
-                # Check if index exists - skip if not
-                if not self.pinecone.has_index(index_name):
-                    logger.info(f"Index {index_name} does not exist, skipping this vector")
-                    continue
+            results = index.query(
+                vector=vec,
+                top_k=msg.limit,
+                include_values=False,
+                include_metadata=True
+            )
 
-                index = self.pinecone.Index(index_name)
+            chunks = []
+            for r in results.matches:
+                chunk_id = r.metadata["chunk_id"]
+                score = r.score if hasattr(r, 'score') else 0.0
+                chunks.append(ChunkMatch(
+                    chunk_id=chunk_id,
+                    score=score,
+                ))
 
-                results = index.query(
-                    vector=vec,
-                    top_k=msg.limit,
-                    include_values=False,
-                    include_metadata=True
-                )
-
-                for r in results.matches:
-                    chunk_id = r.metadata["chunk_id"]
-                    chunk_ids.append(chunk_id)
-
-            return chunk_ids
+            return chunks
 
         except Exception as e:
 

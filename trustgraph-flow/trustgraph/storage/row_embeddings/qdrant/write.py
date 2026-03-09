@@ -133,39 +133,38 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         qdrant_collection = None
 
         for row_emb in embeddings.embeddings:
-            if not row_emb.vectors:
+            vector = row_emb.vector
+            if not vector:
                 logger.warning(
-                    f"No vectors for index {row_emb.index_name} - skipping"
+                    f"No vector for index {row_emb.index_name} - skipping"
                 )
                 continue
 
-            # Use first vector (there may be multiple from different models)
-            for vector in row_emb.vectors:
-                dimension = len(vector)
+            dimension = len(vector)
 
-                # Create/get collection name (lazily on first vector)
-                if qdrant_collection is None:
-                    qdrant_collection = self.get_collection_name(
-                        user, collection, schema_name, dimension
-                    )
-                    self.ensure_collection(qdrant_collection, dimension)
-
-                # Write to Qdrant
-                self.qdrant.upsert(
-                    collection_name=qdrant_collection,
-                    points=[
-                        PointStruct(
-                            id=str(uuid.uuid4()),
-                            vector=vector,
-                            payload={
-                                "index_name": row_emb.index_name,
-                                "index_value": row_emb.index_value,
-                                "text": row_emb.text
-                            }
-                        )
-                    ]
+            # Create/get collection name (lazily on first vector)
+            if qdrant_collection is None:
+                qdrant_collection = self.get_collection_name(
+                    user, collection, schema_name, dimension
                 )
-                embeddings_written += 1
+                self.ensure_collection(qdrant_collection, dimension)
+
+            # Write to Qdrant
+            self.qdrant.upsert(
+                collection_name=qdrant_collection,
+                points=[
+                    PointStruct(
+                        id=str(uuid.uuid4()),
+                        vector=vector,
+                        payload={
+                            "index_name": row_emb.index_name,
+                            "index_value": row_emb.index_value,
+                            "text": row_emb.text
+                        }
+                    )
+                ]
+            )
+            embeddings_written += 1
 
         logger.info(f"Wrote {embeddings_written} embeddings to Qdrant")
 

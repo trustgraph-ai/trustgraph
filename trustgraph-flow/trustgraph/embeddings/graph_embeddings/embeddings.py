@@ -72,10 +72,10 @@ class Processor(FlowProcessor):
             entities = [
                 EntityEmbeddings(
                     entity=entity.entity,
-                    vectors=vectors,  # Vector set for this entity
+                    vector=vector,
                     chunk_id=entity.chunk_id,  # Provenance: source chunk
                 )
-                for entity, vectors in zip(v.entities, all_vectors)
+                for entity, vector in zip(v.entities, all_vectors)
             ]
 
             # Send in batches to avoid oversized messages
