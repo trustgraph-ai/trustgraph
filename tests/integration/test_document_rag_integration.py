@@ -102,7 +102,7 @@ class TestDocumentRagIntegration:
         mock_embeddings_client.embed.assert_called_once_with([query])
 
         mock_doc_embeddings_client.query.assert_called_once_with(
-            [[0.1, 0.2, 0.3, 0.4, 0.5], [0.6, 0.7, 0.8, 0.9, 1.0]],
+            vector=[[0.1, 0.2, 0.3, 0.4, 0.5], [0.6, 0.7, 0.8, 0.9, 1.0]],
             limit=doc_limit,
             user=user,
             collection=collection
