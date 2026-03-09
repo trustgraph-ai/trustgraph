@@ -227,8 +227,8 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
 
     @patch('trustgraph.storage.row_embeddings.qdrant.write.QdrantClient')
     @patch('trustgraph.storage.row_embeddings.qdrant.write.uuid')
-    async def test_on_embeddings_multiple_vectors(self, mock_uuid, mock_qdrant_client):
-        """Test processing embeddings with multiple vectors"""
+    async def test_on_embeddings_single_vector(self, mock_uuid, mock_qdrant_client):
+        """Test processing embeddings with a single vector"""
         from trustgraph.storage.row_embeddings.qdrant.write import Processor
         from trustgraph.schema import RowEmbeddings, RowIndexEmbedding
 
@@ -250,7 +250,7 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
         metadata.collection = 'test_collection'
         metadata.id = 'doc-123'
 
-        # Embedding with multiple vectors
+        # Embedding with a single 6D vector
         embedding = RowIndexEmbedding(
             index_name='name',
             index_value=['John Doe'],
@@ -269,8 +269,8 @@ class TestQdrantRowEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         await processor.on_embeddings(mock_msg, MagicMock(), MagicMock())
 
-        # Should be called 3 times (once per vector)
-        assert mock_qdrant_instance.upsert.call_count == 3
+        # Should be called once for the single embedding
+        assert mock_qdrant_instance.upsert.call_count == 1
 
     @patch('trustgraph.storage.row_embeddings.qdrant.write.QdrantClient')
     async def test_on_embeddings_skips_empty_vectors(self, mock_qdrant_client):
