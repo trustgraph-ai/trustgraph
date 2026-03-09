@@ -193,15 +193,17 @@ class TestQuery:
         test_vectors = [[0.1, 0.2, 0.3]]
         mock_embeddings_client.embed.return_value = [test_vectors]
 
-        # Mock EntityMatch objects with entity that has string representation
+        # Mock EntityMatch objects with entity as Term-like object
         mock_entity1 = MagicMock()
-        mock_entity1.__str__ = MagicMock(return_value="entity1")
+        mock_entity1.type = "i"  # IRI type
+        mock_entity1.iri = "entity1"
         mock_match1 = MagicMock()
         mock_match1.entity = mock_entity1
         mock_match1.score = 0.95
 
         mock_entity2 = MagicMock()
-        mock_entity2.__str__ = MagicMock(return_value="entity2")
+        mock_entity2.type = "i"  # IRI type
+        mock_entity2.iri = "entity2"
         mock_match2 = MagicMock()
         mock_match2.entity = mock_entity2
         mock_match2.score = 0.85
