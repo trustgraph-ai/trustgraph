@@ -27,8 +27,18 @@ def query(url, flow_id, query_text, user, collection, limit, token=None):
         )
 
         entities = result.get("entities", [])
-        for entity in entities:
-            print(entity)
+        if not entities:
+            print("No matching entities found.")
+        else:
+            for i, match in enumerate(entities, 1):
+                entity = match.get("entity", {})
+                score = match.get("score", 0.0)
+                # Format entity based on type
+                if entity.get("is_uri"):
+                    entity_str = entity.get("value", "")
+                else:
+                    entity_str = f'"{entity.get("value", "")}"'
+                print(f"{i}. {entity_str} (score: {score:.4f})")
 
     finally:
         # Clean up socket connection

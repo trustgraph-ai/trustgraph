@@ -695,7 +695,7 @@ class SocketFlowInstance:
                 collection="research-papers",
                 limit=5
             )
-            # results contains {"chunk_ids": ["doc1/p0/c0", ...]}
+            # results contains {"chunks": [{"chunk_id": "...", "score": 0.95}, ...]}
             ```
         """
         # First convert text to embedding vector
