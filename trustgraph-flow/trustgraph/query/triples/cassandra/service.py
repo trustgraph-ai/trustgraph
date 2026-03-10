@@ -10,7 +10,7 @@ import json
 from cassandra.query import SimpleStatement
 
 from .... direct.cassandra_kg import (
-    EntityCentricKnowledgeGraph, GRAPH_WILDCARD, DEFAULT_GRAPH
+    EntityCentricKnowledgeGraph, DEFAULT_GRAPH
 )
 from .... schema import TriplesQueryRequest, TriplesQueryResponse, Error
 from .... schema import Term, Triple, IRI, LITERAL, TRIPLE, BLANK
@@ -304,6 +304,13 @@ class Processor(TriplesQueryService):
                         for t in resp:
                             # Note: quads_by_collection uses 'd' for graph field
                             g = t.d if hasattr(t, 'd') else DEFAULT_GRAPH
+                            # Filter by graph
+                            # g_val=None means all graphs (no filter)
+                            # g_val="" means default graph only
+                            # otherwise filter to specific named graph
+                            if g_val is not None:
+                                if g != g_val:
+                                    continue
                             term_type, datatype, language = get_object_metadata(t)
                             quads.append((t.s, t.p, t.o, g, term_type, datatype, language))
 
@@ -379,6 +386,15 @@ class Processor(TriplesQueryService):
                     break
 
                 g = row.d if hasattr(row, 'd') else DEFAULT_GRAPH
+
+                # Filter by graph
+                # g_val=None means all graphs (no filter)
+                # g_val="" means default graph only
+                # otherwise filter to specific named graph
+                if g_val is not None:
+                    if g != g_val:
+                        continue
+
                 term_type, datatype, language = get_object_metadata(row)
 
                 # s and p are always IRIs in RDF
