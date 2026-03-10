@@ -245,12 +245,13 @@ class Librarian:
 
         docs = await self.table_store.list_documents(request.user)
 
-        # Filter out child documents by default unless include_children is True
+        # Filter out child documents and answer documents by default
         include_children = getattr(request, 'include_children', False)
         if not include_children:
             docs = [
                 doc for doc in docs
                 if not doc.parent_id  # Only include top-level documents
+                and doc.document_type != "answer"  # Exclude GraphRAG answers
             ]
 
         return LibrarianResponse(
