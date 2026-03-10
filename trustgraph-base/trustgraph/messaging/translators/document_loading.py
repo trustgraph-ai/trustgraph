@@ -169,7 +169,7 @@ class DocumentEmbeddingsTranslator(SendTranslator):
             "chunks": [
                 {
                     "chunk_id": chunk.chunk_id,
-                    "vectors": chunk.vectors
+                    "vector": chunk.vector
                 }
                 for chunk in obj.chunks
             ]

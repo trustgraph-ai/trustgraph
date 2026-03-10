@@ -54,7 +54,7 @@ def serialize_graph_embeddings(message):
         },
         "entities": [
             {
-                "vectors": entity.vectors,
+                "vector": entity.vector,
                 "entity": serialize_value(entity.entity),
             }
             for entity in message.entities
@@ -88,7 +88,7 @@ def serialize_document_embeddings(message):
         },
         "chunks": [
             {
-                "vectors": chunk.vectors,
+                "vector": chunk.vector,
                 "chunk_id": chunk.chunk_id,
             }
             for chunk in message.chunks

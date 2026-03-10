@@ -18,10 +18,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
     def mock_query_message(self):
         """Create a mock query message for testing"""
         message = MagicMock()
-        message.vectors = [
-            [0.1, 0.2, 0.3],
-            [0.4, 0.5, 0.6]
-        ]
+        message.vector = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
         message.limit = 5
         message.user = 'test_user'
         message.collection = 'test_collection'
@@ -242,12 +239,9 @@ class TestPineconeDocEmbeddingsQueryProcessor:
 
     @pytest.mark.asyncio
     async def test_query_document_embeddings_different_vector_dimensions(self, processor):
-        """Test querying with vectors of different dimensions using same index"""
+        """Test querying with single vector (legacy test name, schema now uses single vector)"""
         message = MagicMock()
-        message.vectors = [
-            [0.1, 0.2],  # 2D vector
-            [0.3, 0.4, 0.5, 0.6]  # 4D vector
-        ]
+        message.vector = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
         message.limit = 5
         message.user = 'test_user'
         message.collection = 'test_collection'
@@ -437,13 +431,9 @@ class TestPineconeDocEmbeddingsQueryProcessor:
 
     @pytest.mark.asyncio
     async def test_query_document_embeddings_vector_accumulation(self, processor):
-        """Test that results from multiple vectors are properly accumulated"""
+        """Test that results from single vector query are returned (legacy multi-vector test)"""
         message = MagicMock()
-        message.vectors = [
-            [0.1, 0.2, 0.3],
-            [0.4, 0.5, 0.6],
-            [0.7, 0.8, 0.9]
-        ]
+        message.vector = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
         message.limit = 2
         message.user = 'test_user'
         message.collection = 'test_collection'

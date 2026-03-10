@@ -53,7 +53,7 @@ def mock_document_embeddings_message():
     
     mock_chunk = MagicMock()
     mock_chunk.chunk.decode.return_value = 'test document chunk'
-    mock_chunk.vectors = [[0.1, 0.2, 0.3]]
+    mock_chunk.vector = [0.1, 0.2, 0.3]
     
     mock_message.chunks = [mock_chunk]
     return mock_message
@@ -68,11 +68,11 @@ def mock_document_embeddings_multiple_chunks():
     
     mock_chunk1 = MagicMock()
     mock_chunk1.chunk.decode.return_value = 'first document chunk'
-    mock_chunk1.vectors = [[0.1, 0.2]]
-    
+    mock_chunk1.vector = [0.1, 0.2]
+
     mock_chunk2 = MagicMock()
     mock_chunk2.chunk.decode.return_value = 'second document chunk'
-    mock_chunk2.vectors = [[0.3, 0.4]]
+    mock_chunk2.vector = [0.3, 0.4]
     
     mock_message.chunks = [mock_chunk1, mock_chunk2]
     return mock_message
@@ -87,11 +87,7 @@ def mock_document_embeddings_multiple_vectors():
     
     mock_chunk = MagicMock()
     mock_chunk.chunk.decode.return_value = 'multi-vector document chunk'
-    mock_chunk.vectors = [
-        [0.1, 0.2, 0.3],
-        [0.4, 0.5, 0.6],
-        [0.7, 0.8, 0.9]
-    ]
+    mock_chunk.vector = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
     
     mock_message.chunks = [mock_chunk]
     return mock_message
@@ -106,7 +102,7 @@ def mock_document_embeddings_empty_chunk():
     
     mock_chunk = MagicMock()
     mock_chunk.chunk.decode.return_value = ""  # Empty string
-    mock_chunk.vectors = [[0.1, 0.2]]
+    mock_chunk.vector = [0.1, 0.2]
     
     mock_message.chunks = [mock_chunk]
     return mock_message
@@ -122,7 +118,7 @@ def mock_graph_embeddings_message():
     
     mock_entity = MagicMock()
     mock_entity.entity.value = 'test_entity'
-    mock_entity.vectors = [[0.1, 0.2, 0.3]]
+    mock_entity.vector = [0.1, 0.2, 0.3]
     
     mock_message.entities = [mock_entity]
     return mock_message
@@ -137,11 +133,11 @@ def mock_graph_embeddings_multiple_entities():
     
     mock_entity1 = MagicMock()
     mock_entity1.entity.value = 'entity_one'
-    mock_entity1.vectors = [[0.1, 0.2]]
-    
+    mock_entity1.vector = [0.1, 0.2]
+
     mock_entity2 = MagicMock()
     mock_entity2.entity.value = 'entity_two'
-    mock_entity2.vectors = [[0.3, 0.4]]
+    mock_entity2.vector = [0.3, 0.4]
     
     mock_message.entities = [mock_entity1, mock_entity2]
     return mock_message
@@ -156,7 +152,7 @@ def mock_graph_embeddings_empty_entity():
     
     mock_entity = MagicMock()
     mock_entity.entity.value = ""  # Empty string
-    mock_entity.vectors = [[0.1, 0.2]]
+    mock_entity.vector = [0.1, 0.2]
     
     mock_message.entities = [mock_entity]
     return mock_message

@@ -99,7 +99,7 @@ class KnowledgeRequestTranslator(MessageTranslator):
                 },
                 "entities": [
                     {
-                        "vectors": entity.vectors,
+                        "vector": entity.vector,
                         "entity": self.value_translator.from_pulsar(entity.entity),
                     }
                     for entity in obj.graph_embeddings.entities
@@ -154,7 +154,7 @@ class KnowledgeResponseTranslator(MessageTranslator):
                     },
                     "entities": [
                         {
-                            "vectors": entity.vectors,
+                            "vector": entity.vector,
                             "entity": self.value_translator.from_pulsar(entity.entity),
                         }
                         for entity in obj.graph_embeddings.entities
