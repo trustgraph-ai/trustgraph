@@ -41,10 +41,10 @@ from . uris import (
     statement_uri,
     agent_uri,
     # Query-time provenance URIs
-    query_session_uri,
-    retrieval_uri,
-    selection_uri,
-    answer_uri,
+    question_uri,
+    exploration_uri,
+    focus_uri,
+    synthesis_uri,
 )
 
 # Namespace constants
@@ -65,6 +65,8 @@ from . namespaces import (
     TG_SOURCE_TEXT, TG_SOURCE_CHAR_OFFSET, TG_SOURCE_CHAR_LENGTH,
     # Query-time provenance predicates
     TG_QUERY, TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_REASONING, TG_CONTENT,
+    # Named graphs
+    GRAPH_DEFAULT, GRAPH_SOURCE, GRAPH_RETRIEVAL,
 )
 
 # Triple builders
@@ -73,10 +75,12 @@ from . triples import (
     derived_entity_triples,
     triple_provenance_triples,
     # Query-time provenance triple builders
-    query_session_triples,
-    retrieval_triples,
-    selection_triples,
-    answer_triples,
+    question_triples,
+    exploration_triples,
+    focus_triples,
+    synthesis_triples,
+    # Utility
+    set_graph,
 )
 
 # Vocabulary bootstrap
@@ -99,10 +103,10 @@ __all__ = [
     "statement_uri",
     "agent_uri",
     # Query-time provenance URIs
-    "query_session_uri",
-    "retrieval_uri",
-    "selection_uri",
-    "answer_uri",
+    "question_uri",
+    "exploration_uri",
+    "focus_uri",
+    "synthesis_uri",
     # Namespaces
     "PROV", "PROV_ENTITY", "PROV_ACTIVITY", "PROV_AGENT",
     "PROV_WAS_DERIVED_FROM", "PROV_WAS_GENERATED_BY",
@@ -116,15 +120,19 @@ __all__ = [
     "TG_SOURCE_TEXT", "TG_SOURCE_CHAR_OFFSET", "TG_SOURCE_CHAR_LENGTH",
     # Query-time provenance predicates
     "TG_QUERY", "TG_EDGE_COUNT", "TG_SELECTED_EDGE", "TG_REASONING", "TG_CONTENT",
+    # Named graphs
+    "GRAPH_DEFAULT", "GRAPH_SOURCE", "GRAPH_RETRIEVAL",
     # Triple builders
     "document_triples",
     "derived_entity_triples",
     "triple_provenance_triples",
     # Query-time provenance triple builders
-    "query_session_triples",
-    "retrieval_triples",
-    "selection_triples",
-    "answer_triples",
+    "question_triples",
+    "exploration_triples",
+    "focus_triples",
+    "synthesis_triples",
+    # Utility
+    "set_graph",
     # Vocabulary
     "get_vocabulary_triples",
     "PROV_CLASS_LABELS",

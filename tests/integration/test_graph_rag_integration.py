@@ -168,7 +168,7 @@ class TestGraphRagIntegration:
         assert isinstance(response, str)
         assert "machine learning" in response.lower()
 
-        # Verify provenance was emitted in real-time (4 events: session, retrieval, selection, answer)
+        # Verify provenance was emitted in real-time (4 events: question, exploration, focus, synthesis)
         assert len(provenance_events) == 4
         for triples, prov_id in provenance_events:
             assert isinstance(triples, list)

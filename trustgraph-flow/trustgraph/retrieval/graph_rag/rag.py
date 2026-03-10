@@ -13,6 +13,7 @@ from ... schema import GraphRagQuery, GraphRagResponse, Error
 from ... schema import Triples, Metadata
 from ... schema import LibrarianRequest, LibrarianResponse, DocumentMetadata
 from ... schema import librarian_request_queue, librarian_response_queue
+from ... provenance import GRAPH_RETRIEVAL
 from . graph_rag import GraphRag
 from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
 from ... base import PromptClientSpec, EmbeddingsClientSpec
@@ -38,7 +39,6 @@ class Processor(FlowProcessor):
         triple_limit = params.get("triple_limit", 30)
         max_subgraph_size = params.get("max_subgraph_size", 150)
         max_path_length = params.get("max_path_length", 2)
-        explainability_collection = params.get("explainability_collection", "explainability")
 
         super(Processor, self).__init__(
             **params | {
@@ -48,7 +48,6 @@ class Processor(FlowProcessor):
                 "triple_limit": triple_limit,
                 "max_subgraph_size": max_subgraph_size,
                 "max_path_length": max_path_length,
-                "explainability_collection": explainability_collection,
             }
         )
 
@@ -56,7 +55,6 @@ class Processor(FlowProcessor):
         self.default_triple_limit = triple_limit
         self.default_max_subgraph_size = max_subgraph_size
         self.default_max_path_length = max_path_length
-        self.explainability_collection = explainability_collection
 
         # CRITICAL SECURITY: NEVER share data between users or collections
         # Each user/collection combination MUST have isolated data access
@@ -239,24 +237,25 @@ class Processor(FlowProcessor):
             explainability_refs_emitted = []
 
             # Real-time explainability callback - emits triples and IDs as they're generated
+            # Triples are stored in the user's collection with a named graph (urn:graph:retrieval)
             async def send_explainability(triples, explain_id):
-                # Send triples to explainability queue
+                # Send triples to explainability queue - stores in same collection with named graph
                 await flow("explainability").send(Triples(
                     metadata=Metadata(
                         id=explain_id,
                         metadata=[],
                         user=v.user,
-                        collection=self.explainability_collection,
+                        collection=v.collection,  # Store in user's collection, not separate explainability collection
                     ),
                     triples=triples,
                 ))
 
-                # Send explain ID and collection to response queue
+                # Send explain ID and graph to response queue
                 await flow("response").send(
                     GraphRagResponse(
                         message_type="explain",
                         explain_id=explain_id,
-                        explain_collection=self.explainability_collection,
+                        explain_graph=GRAPH_RETRIEVAL,
                     ),
                     properties={"id": id}
                 )
@@ -424,11 +423,8 @@ class Processor(FlowProcessor):
             help=f'Default max path length (default: 2)'
         )
 
-        parser.add_argument(
-            '--explainability-collection',
-            default='explainability',
-            help=f'Collection for storing explainability triples (default: explainability)'
-        )
+        # Note: Explainability triples are now stored in the user's collection
+        # with the named graph urn:graph:retrieval (no separate collection needed)
 
 def run():
 

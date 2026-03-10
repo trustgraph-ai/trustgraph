@@ -65,59 +65,65 @@ def agent_uri(component_name: str) -> str:
 # Query-time provenance URIs
 # These URIs use the urn:trustgraph: namespace to distinguish query-time
 # provenance from extraction-time provenance (which uses https://trustgraph.ai/)
+#
+# Terminology:
+#   Question    - What was asked, the anchor for everything
+#   Exploration - Casting wide, what do we know about this space
+#   Focus       - Closing down, what's actually relevant here
+#   Synthesis   - Weaving the relevant pieces into an answer
 
-def query_session_uri(session_id: str = None) -> str:
+def question_uri(session_id: str = None) -> str:
     """
-    Generate URI for a query session activity.
+    Generate URI for a question activity.
 
     Args:
         session_id: Optional UUID string. Auto-generates if not provided.
 
     Returns:
-        URN in format: urn:trustgraph:session:{uuid}
+        URN in format: urn:trustgraph:question:{uuid}
     """
     if session_id is None:
         session_id = str(uuid.uuid4())
-    return f"urn:trustgraph:session:{session_id}"
+    return f"urn:trustgraph:question:{session_id}"
 
 
-def retrieval_uri(session_id: str) -> str:
+def exploration_uri(session_id: str) -> str:
     """
-    Generate URI for a retrieval entity (edges retrieved from subgraph).
+    Generate URI for an exploration entity (edges retrieved from subgraph).
 
     Args:
-        session_id: The session UUID (same as query_session_uri).
+        session_id: The session UUID (same as question_uri).
 
     Returns:
-        URN in format: urn:trustgraph:prov:retrieval:{uuid}
+        URN in format: urn:trustgraph:prov:exploration:{uuid}
     """
-    return f"urn:trustgraph:prov:retrieval:{session_id}"
+    return f"urn:trustgraph:prov:exploration:{session_id}"
 
 
-def selection_uri(session_id: str) -> str:
+def focus_uri(session_id: str) -> str:
     """
-    Generate URI for a selection entity (selected edges with reasoning).
+    Generate URI for a focus entity (selected edges with reasoning).
 
     Args:
-        session_id: The session UUID (same as query_session_uri).
+        session_id: The session UUID (same as question_uri).
 
     Returns:
-        URN in format: urn:trustgraph:prov:selection:{uuid}
+        URN in format: urn:trustgraph:prov:focus:{uuid}
     """
-    return f"urn:trustgraph:prov:selection:{session_id}"
+    return f"urn:trustgraph:prov:focus:{session_id}"
 
 
-def answer_uri(session_id: str) -> str:
+def synthesis_uri(session_id: str) -> str:
     """
-    Generate URI for an answer entity (final synthesis text).
+    Generate URI for a synthesis entity (final answer text).
 
     Args:
-        session_id: The session UUID (same as query_session_uri).
+        session_id: The session UUID (same as question_uri).
 
     Returns:
-        URN in format: urn:trustgraph:prov:answer:{uuid}
+        URN in format: urn:trustgraph:prov:synthesis:{uuid}
     """
-    return f"urn:trustgraph:prov:answer:{session_id}"
+    return f"urn:trustgraph:prov:synthesis:{session_id}"
 
 
 def edge_selection_uri(session_id: str, edge_index: int) -> str:
