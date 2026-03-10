@@ -272,7 +272,7 @@ class KnowledgeTableStore:
         entities = [
             (
                 term_to_tuple(v.entity),
-                v.vectors
+                v.vector
             )
             for v in m.entities
         ]
@@ -313,8 +313,8 @@ class KnowledgeTableStore:
 
         chunks = [
             (
-                v.chunk,
-                v.vectors,
+                v.chunk_id,
+                v.vector,
             )
             for v in m.chunks
         ]
