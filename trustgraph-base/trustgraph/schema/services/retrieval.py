@@ -21,7 +21,11 @@ class GraphRagQuery:
 class GraphRagResponse:
     error: Error | None = None
     response: str = ""
-    end_of_stream: bool = False
+    end_of_stream: bool = False       # LLM response stream complete
+    explain_id: str | None = None  # Single explain URI (announced as created)
+    explain_collection: str | None = None  # Collection where explain was stored
+    message_type: str = ""            # "chunk" or "explain"
+    end_of_session: bool = False      # Entire session complete
 
 ############################################################################
 

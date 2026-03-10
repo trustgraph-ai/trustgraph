@@ -1,10 +1,26 @@
 
 import asyncio
+import hashlib
+import json
 import logging
 import time
+import uuid
 from collections import OrderedDict
+from datetime import datetime
 
 from ... schema import IRI, LITERAL
+
+# Provenance imports
+from trustgraph.provenance import (
+    query_session_uri,
+    retrieval_uri as make_retrieval_uri,
+    selection_uri as make_selection_uri,
+    answer_uri as make_answer_uri,
+    query_session_triples,
+    retrieval_triples,
+    selection_triples,
+    answer_triples,
+)
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -22,6 +38,12 @@ def term_to_string(term):
         return term.value
     # Fallback
     return term.iri or term.value or str(term)
+
+
+def edge_id(s, p, o):
+    """Generate an 8-character hash ID for an edge (s, p, o)."""
+    edge_str = f"{s}|{p}|{o}"
+    return hashlib.sha256(edge_str.encode()).hexdigest()[:8]
 
 class LRUCacheWithTTL:
     """LRU cache with TTL for label caching
@@ -258,7 +280,14 @@ class Query:
         return await asyncio.gather(*tasks, return_exceptions=True)
 
     async def get_labelgraph(self, query):
+        """
+        Get subgraph with labels resolved for display.
 
+        Returns:
+            tuple: (labeled_edges, uri_map) where:
+                - labeled_edges: list of (label_s, label_p, label_o) tuples
+                - uri_map: dict mapping edge_id(label_s, label_p, label_o) -> (uri_s, uri_p, uri_o)
+        """
         subgraph = await self.get_subgraph(query)
 
         # Filter out label triples
@@ -281,27 +310,33 @@ class Query:
             else:
                 label_map[entity] = entity  # Fallback to entity itself
 
-        # Apply labels to subgraph
-        sg2 = []
+        # Apply labels to subgraph and build URI mapping
+        labeled_edges = []
+        uri_map = {}  # Maps edge_id of labeled edge -> original URI triple
+
         for s, p, o in filtered_subgraph:
             labeled_triple = (
                 label_map.get(s, s),
                 label_map.get(p, p),
                 label_map.get(o, o)
             )
-            sg2.append(labeled_triple)
+            labeled_edges.append(labeled_triple)
 
-        sg2 = sg2[0:self.max_subgraph_size]
+            # Map from labeled edge ID to original URIs
+            labeled_eid = edge_id(labeled_triple[0], labeled_triple[1], labeled_triple[2])
+            uri_map[labeled_eid] = (s, p, o)
+
+        labeled_edges = labeled_edges[0:self.max_subgraph_size]
 
         if self.verbose:
             logger.debug("Subgraph:")
-            for edge in sg2:
+            for edge in labeled_edges:
                 logger.debug(f"  {str(edge)}")
 
         if self.verbose:
             logger.debug("Done.")
 
-        return sg2
+        return labeled_edges, uri_map
     
 class GraphRag:
     """
@@ -335,10 +370,43 @@ class GraphRag:
             self, query, user = "trustgraph", collection = "default",
             entity_limit = 50, triple_limit = 30, max_subgraph_size = 1000,
             max_path_length = 2, streaming = False, chunk_callback = None,
+            explain_callback = None, save_answer_callback = None,
     ):
+        """
+        Execute a GraphRAG query with real-time explainability tracking.
 
+        Args:
+            query: The query string
+            user: User identifier
+            collection: Collection identifier
+            entity_limit: Max entities to retrieve
+            triple_limit: Max triples per entity
+            max_subgraph_size: Max edges in subgraph
+            max_path_length: Max hops from seed entities
+            streaming: Enable streaming LLM response
+            chunk_callback: async def callback(chunk, end_of_stream) for streaming
+            explain_callback: async def callback(triples, explain_id) for real-time explainability
+            save_answer_callback: async def callback(doc_id, answer_text) -> doc_id to save answer to librarian
+
+        Returns:
+            str: The synthesized answer text
+        """
         if self.verbose:
             logger.debug("Constructing prompt...")
+
+        # Generate explainability URIs upfront
+        session_id = str(uuid.uuid4())
+        session_uri = query_session_uri(session_id)
+        ret_uri = make_retrieval_uri(session_id)
+        sel_uri = make_selection_uri(session_id)
+        ans_uri = make_answer_uri(session_id)
+
+        timestamp = datetime.utcnow().isoformat() + "Z"
+
+        # Emit session explainability immediately
+        if explain_callback:
+            session_triples = query_session_triples(session_uri, query, timestamp)
+            await explain_callback(session_triples, session_uri)
 
         q = Query(
             rag = self, user = user, collection = collection,
@@ -348,24 +416,171 @@ class GraphRag:
             max_path_length = max_path_length,
         )
 
-        kg = await q.get_labelgraph(query)
+        kg, uri_map = await q.get_labelgraph(query)
+
+        # Emit retrieval explain after graph retrieval completes
+        if explain_callback:
+            ret_triples = retrieval_triples(ret_uri, session_uri, len(kg))
+            await explain_callback(ret_triples, ret_uri)
 
         if self.verbose:
             logger.debug("Invoking LLM...")
             logger.debug(f"Knowledge graph: {kg}")
             logger.debug(f"Query: {query}")
 
-        if streaming and chunk_callback:
-            resp = await self.prompt_client.kg_prompt(
-                query, kg,
-                streaming=True,
-                chunk_callback=chunk_callback
+        # Build edge map: {hash_id: (labeled_s, labeled_p, labeled_o)}
+        # uri_map already maps edge_id -> (uri_s, uri_p, uri_o)
+        edge_map = {}
+        edges_with_ids = []
+        for s, p, o in kg:
+            eid = edge_id(s, p, o)
+            edge_map[eid] = (s, p, o)
+            edges_with_ids.append({
+                "id": eid,
+                "s": s,
+                "p": p,
+                "o": o
+            })
+
+        if self.verbose:
+            logger.debug(f"Built edge map with {len(edge_map)} edges")
+
+        # Step 1: Edge Selection - LLM selects relevant edges with reasoning
+        selection_response = await self.prompt_client.prompt(
+            "kg-edge-selection",
+            variables={
+                "query": query,
+                "knowledge": edges_with_ids
+            }
+        )
+
+        if self.verbose:
+            logger.debug(f"Edge selection response: {selection_response}")
+
+        # Parse response to get selected edge IDs and reasoning
+        # Response can be a string (JSONL) or a list (JSON array)
+        selected_ids = set()
+        selected_edges_with_reasoning = []  # For explain
+
+        if isinstance(selection_response, list):
+            # JSON array response
+            for obj in selection_response:
+                if isinstance(obj, dict) and "id" in obj:
+                    selected_ids.add(obj["id"])
+                    # Capture original URI edge (not labels) and reasoning for explain
+                    eid = obj["id"]
+                    if eid in uri_map:
+                        # Use original URIs for provenance tracing
+                        uri_s, uri_p, uri_o = uri_map[eid]
+                        selected_edges_with_reasoning.append({
+                            "edge": (uri_s, uri_p, uri_o),
+                            "reasoning": obj.get("reasoning", ""),
+                        })
+        elif isinstance(selection_response, str):
+            # JSONL string response
+            for line in selection_response.strip().split('\n'):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                    if "id" in obj:
+                        selected_ids.add(obj["id"])
+                        # Capture original URI edge (not labels) and reasoning for explain
+                        eid = obj["id"]
+                        if eid in uri_map:
+                            # Use original URIs for provenance tracing
+                            uri_s, uri_p, uri_o = uri_map[eid]
+                            selected_edges_with_reasoning.append({
+                                "edge": (uri_s, uri_p, uri_o),
+                                "reasoning": obj.get("reasoning", ""),
+                            })
+                except json.JSONDecodeError:
+                    logger.warning(f"Failed to parse edge selection line: {line}")
+                    continue
+
+        if self.verbose:
+            logger.debug(f"Selected {len(selected_ids)} edges: {selected_ids}")
+
+        # Filter to selected edges
+        selected_edges = []
+        for eid in selected_ids:
+            if eid in edge_map:
+                selected_edges.append(edge_map[eid])
+
+        if self.verbose:
+            logger.debug(f"Filtered to {len(selected_edges)} edges")
+
+        # Emit selection explain after edge selection completes
+        if explain_callback:
+            sel_triples = selection_triples(
+                sel_uri, ret_uri, selected_edges_with_reasoning, session_id
             )
+            await explain_callback(sel_triples, sel_uri)
+
+        # Step 2: Synthesis - LLM generates answer from selected edges only
+        selected_edge_dicts = [
+            {"s": s, "p": p, "o": o}
+            for s, p, o in selected_edges
+        ]
+        if streaming and chunk_callback:
+            # Accumulate chunks for answer storage while forwarding to callback
+            accumulated_chunks = []
+
+            async def accumulating_callback(chunk, end_of_stream):
+                accumulated_chunks.append(chunk)
+                await chunk_callback(chunk, end_of_stream)
+
+            await self.prompt_client.prompt(
+                "kg-synthesis",
+                variables={
+                    "query": query,
+                    "knowledge": selected_edge_dicts
+                },
+                streaming=True,
+                chunk_callback=accumulating_callback
+            )
+            # Combine all chunks into full response
+            resp = "".join(accumulated_chunks)
         else:
-            resp = await self.prompt_client.kg_prompt(query, kg)
+            resp = await self.prompt_client.prompt(
+                "kg-synthesis",
+                variables={
+                    "query": query,
+                    "knowledge": selected_edge_dicts
+                }
+            )
 
         if self.verbose:
             logger.debug("Query processing complete")
+
+        # Emit answer explain after synthesis completes
+        if explain_callback:
+            answer_doc_id = None
+            answer_text = resp if resp else ""
+
+            # Save answer to librarian if callback provided
+            if save_answer_callback and answer_text:
+                # Generate document ID as URN matching query-time provenance format
+                answer_doc_id = f"urn:trustgraph:answer:{session_id}"
+                try:
+                    await save_answer_callback(answer_doc_id, answer_text)
+                    if self.verbose:
+                        logger.debug(f"Saved answer to librarian: {answer_doc_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to save answer to librarian: {e}")
+                    answer_doc_id = None  # Fall back to inline content
+
+            # Generate triples with document reference or inline content
+            ans_triples = answer_triples(
+                ans_uri, sel_uri,
+                answer_text="" if answer_doc_id else answer_text,
+                document_id=answer_doc_id,
+            )
+            await explain_callback(ans_triples, ans_uri)
+
+        if self.verbose:
+            logger.debug(f"Emitted explain for session {session_id}")
 
         return resp
 

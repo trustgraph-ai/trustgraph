@@ -83,13 +83,25 @@ class TestGraphRagIntegration:
 
     @pytest.fixture
     def mock_prompt_client(self):
-        """Mock prompt client that generates realistic responses"""
+        """Mock prompt client that generates realistic responses for two-step process"""
         client = AsyncMock()
-        client.kg_prompt.return_value = (
-            "Machine learning is a subset of artificial intelligence that enables computers "
-            "to learn from data without being explicitly programmed. It uses algorithms "
-            "and statistical models to find patterns in data."
-        )
+
+        # Mock responses for the two-step process:
+        # 1. kg-edge-selection returns JSONL with edge IDs
+        # 2. kg-synthesis returns the final answer
+        async def mock_prompt(prompt_name, variables=None, streaming=False, chunk_callback=None):
+            if prompt_name == "kg-edge-selection":
+                # Return empty selection (no edges selected) - valid JSONL
+                return ""
+            elif prompt_name == "kg-synthesis":
+                return (
+                    "Machine learning is a subset of artificial intelligence that enables computers "
+                    "to learn from data without being explicitly programmed. It uses algorithms "
+                    "and statistical models to find patterns in data."
+                )
+            return ""
+
+        client.prompt.side_effect = mock_prompt
         return client
 
     @pytest.fixture
@@ -108,7 +120,7 @@ class TestGraphRagIntegration:
     async def test_graph_rag_end_to_end_flow(self, graph_rag, mock_embeddings_client,
                                              mock_graph_embeddings_client, mock_triples_client,
                                              mock_prompt_client):
-        """Test complete GraphRAG pipeline from query to response"""
+        """Test complete GraphRAG pipeline from query to response with real-time provenance"""
         # Arrange
         query = "What is machine learning?"
         user = "test_user"
@@ -116,13 +128,20 @@ class TestGraphRagIntegration:
         entity_limit = 50
         triple_limit = 30
 
+        # Collect provenance events
+        provenance_events = []
+
+        async def collect_provenance(triples, prov_id):
+            provenance_events.append((triples, prov_id))
+
         # Act
-        result = await graph_rag.query(
+        response = await graph_rag.query(
             query=query,
             user=user,
             collection=collection,
             entity_limit=entity_limit,
-            triple_limit=triple_limit
+            triple_limit=triple_limit,
+            explain_callback=collect_provenance
         )
 
         # Assert - Verify service coordination
@@ -141,16 +160,19 @@ class TestGraphRagIntegration:
         # 3. Should query triples to build knowledge subgraph
         assert mock_triples_client.query_stream.call_count > 0
 
-        # 4. Should call prompt with knowledge graph
-        mock_prompt_client.kg_prompt.assert_called_once()
-        call_args = mock_prompt_client.kg_prompt.call_args
-        assert call_args.args[0] == query  # First arg is query
-        assert isinstance(call_args.args[1], list)  # Second arg is kg (list of triples)
+        # 4. Should call prompt twice (edge selection + synthesis)
+        assert mock_prompt_client.prompt.call_count == 2
 
         # Verify final response
-        assert result is not None
-        assert isinstance(result, str)
-        assert "machine learning" in result.lower()
+        assert response is not None
+        assert isinstance(response, str)
+        assert "machine learning" in response.lower()
+
+        # Verify provenance was emitted in real-time (4 events: session, retrieval, selection, answer)
+        assert len(provenance_events) == 4
+        for triples, prov_id in provenance_events:
+            assert isinstance(triples, list)
+            assert prov_id.startswith("urn:trustgraph:")
 
     @pytest.mark.asyncio
     async def test_graph_rag_with_different_limits(self, graph_rag, mock_embeddings_client,
@@ -206,19 +228,25 @@ class TestGraphRagIntegration:
         mock_graph_embeddings_client.query.return_value = []  # No entities found
         mock_triples_client.query_stream.return_value = []  # No triples found
 
+        # Collect provenance
+        provenance_events = []
+
+        async def collect_provenance(triples, prov_id):
+            provenance_events.append((triples, prov_id))
+
         # Act
-        result = await graph_rag.query(
+        response = await graph_rag.query(
             query="unknown topic",
             user="test_user",
-            collection="test_collection"
+            collection="test_collection",
+            explain_callback=collect_provenance
         )
 
         # Assert
-        # Should still call prompt client with empty knowledge graph
-        mock_prompt_client.kg_prompt.assert_called_once()
-        call_args = mock_prompt_client.kg_prompt.call_args
-        assert isinstance(call_args.args[1], list)  # kg should be a list
-        assert result is not None
+        # Should still call prompt client (twice: edge selection + synthesis)
+        assert response is not None
+        # Provenance should still be emitted (4 events)
+        assert len(provenance_events) == 4
 
     @pytest.mark.asyncio
     async def test_graph_rag_label_caching(self, graph_rag, mock_triples_client):

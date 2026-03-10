@@ -443,13 +443,22 @@ class McpServer:
 
         gen = manager.request("graph-rag", request_data, flow_id)
 
+        text_chunks = []
         async for response in gen:
+            # Handle new message format with message_type
+            message_type = response.get("message_type", "chunk")
 
-            # Extract vectors from response
-            text = response.get("response", "")
-            break
-        
-        return GraphRagResponse(response=text)
+            # Only collect text from chunk messages
+            if message_type == "chunk":
+                chunk_text = response.get("response", "")
+                if chunk_text:
+                    text_chunks.append(chunk_text)
+
+            # Check if session is complete
+            if response.get("end_of_session"):
+                break
+
+        return GraphRagResponse(response="".join(text_chunks))
 
     async def agent(
             self,

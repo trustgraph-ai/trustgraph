@@ -60,3 +60,75 @@ def statement_uri(stmt_id: str = None) -> str:
 def agent_uri(component_name: str) -> str:
     """Generate URI for a TrustGraph component agent."""
     return f"{TRUSTGRAPH_BASE}/agent/{_encode_id(component_name)}"
+
+
+# Query-time provenance URIs
+# These URIs use the urn:trustgraph: namespace to distinguish query-time
+# provenance from extraction-time provenance (which uses https://trustgraph.ai/)
+
+def query_session_uri(session_id: str = None) -> str:
+    """
+    Generate URI for a query session activity.
+
+    Args:
+        session_id: Optional UUID string. Auto-generates if not provided.
+
+    Returns:
+        URN in format: urn:trustgraph:session:{uuid}
+    """
+    if session_id is None:
+        session_id = str(uuid.uuid4())
+    return f"urn:trustgraph:session:{session_id}"
+
+
+def retrieval_uri(session_id: str) -> str:
+    """
+    Generate URI for a retrieval entity (edges retrieved from subgraph).
+
+    Args:
+        session_id: The session UUID (same as query_session_uri).
+
+    Returns:
+        URN in format: urn:trustgraph:prov:retrieval:{uuid}
+    """
+    return f"urn:trustgraph:prov:retrieval:{session_id}"
+
+
+def selection_uri(session_id: str) -> str:
+    """
+    Generate URI for a selection entity (selected edges with reasoning).
+
+    Args:
+        session_id: The session UUID (same as query_session_uri).
+
+    Returns:
+        URN in format: urn:trustgraph:prov:selection:{uuid}
+    """
+    return f"urn:trustgraph:prov:selection:{session_id}"
+
+
+def answer_uri(session_id: str) -> str:
+    """
+    Generate URI for an answer entity (final synthesis text).
+
+    Args:
+        session_id: The session UUID (same as query_session_uri).
+
+    Returns:
+        URN in format: urn:trustgraph:prov:answer:{uuid}
+    """
+    return f"urn:trustgraph:prov:answer:{session_id}"
+
+
+def edge_selection_uri(session_id: str, edge_index: int) -> str:
+    """
+    Generate URI for an edge selection item (links edge to reasoning).
+
+    Args:
+        session_id: The session UUID.
+        edge_index: Index of this edge in the selection (0-based).
+
+    Returns:
+        URN in format: urn:trustgraph:prov:edge:{uuid}:{index}
+    """
+    return f"urn:trustgraph:prov:edge:{session_id}:{edge_index}"

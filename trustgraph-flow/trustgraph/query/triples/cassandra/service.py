@@ -13,7 +13,7 @@ from .... direct.cassandra_kg import (
     EntityCentricKnowledgeGraph, GRAPH_WILDCARD, DEFAULT_GRAPH
 )
 from .... schema import TriplesQueryRequest, TriplesQueryResponse, Error
-from .... schema import Term, Triple, IRI, LITERAL, TRIPLE
+from .... schema import Term, Triple, IRI, LITERAL, TRIPLE, BLANK
 from .... base import TriplesQueryService
 from .... base.cassandra_config import add_cassandra_args, resolve_cassandra_config
 
@@ -21,6 +21,36 @@ from .... base.cassandra_config import add_cassandra_args, resolve_cassandra_con
 logger = logging.getLogger(__name__)
 
 default_ident = "triples-query"
+
+
+def serialize_triple(triple):
+    """Serialize a Triple object to JSON for querying (must match storage format)."""
+    if triple is None:
+        return None
+
+    def term_to_dict(term):
+        if term is None:
+            return None
+        result = {"type": term.type}
+        if term.type == IRI:
+            result["iri"] = term.iri
+        elif term.type == LITERAL:
+            result["value"] = term.value
+            if term.datatype:
+                result["datatype"] = term.datatype
+            if term.language:
+                result["language"] = term.language
+        elif term.type == BLANK:
+            result["id"] = term.id
+        elif term.type == TRIPLE:
+            result["triple"] = serialize_triple(term.triple)
+        return result
+
+    return json.dumps({
+        "s": term_to_dict(triple.s),
+        "p": term_to_dict(triple.p),
+        "o": term_to_dict(triple.o),
+    })
 
 
 def get_term_value(term):
@@ -31,6 +61,9 @@ def get_term_value(term):
         return term.iri
     elif term.type == LITERAL:
         return term.value
+    elif term.type == TRIPLE:
+        # Serialize nested triple to JSON (must match storage format)
+        return serialize_triple(term.triple)
     else:
         # For blank nodes or other types, use id or value
         return term.id or term.value
@@ -66,51 +99,50 @@ def deserialize_term(term_dict):
     return Term(type=LITERAL, value=str(term_dict))
 
 
-def create_term(value, otype=None, dtype=None, lang=None):
+def create_term(value, term_type=None, datatype=None, language=None):
     """
     Create a Term from a string value, optionally using type metadata.
 
     Args:
         value: The string value
-        otype: Object type - 'u' (URI), 'l' (literal), 't' (triple)
-        dtype: XSD datatype (for literals)
-        lang: Language tag (for literals)
+        term_type: 'u' (IRI), 'l' (literal), 't' (triple)
+        datatype: XSD datatype for literals
+        language: Language tag for literals
 
-    If otype is provided, uses it to determine Term type.
-    Otherwise falls back to URL detection heuristic.
+    If term_type is provided, uses it to determine Term type.
+    Otherwise falls back to URL detection heuristic for object values.
     """
-    if otype is not None:
-        if otype == 'u':
-            return Term(type=IRI, iri=value)
-        elif otype == 'l':
-            return Term(
-                type=LITERAL,
-                value=value,
-                datatype=dtype or "",
-                language=lang or ""
-            )
-        elif otype == 't':
-            # Triple/reification - parse JSON and create nested Triple
-            try:
-                triple_data = json.loads(value) if isinstance(value, str) else value
-                if isinstance(triple_data, dict):
-                    return Term(
-                        type=TRIPLE,
-                        triple=Triple(
-                            s=deserialize_term(triple_data.get("s")),
-                            p=deserialize_term(triple_data.get("p")),
-                            o=deserialize_term(triple_data.get("o")),
-                        )
+    if term_type == 'u':
+        return Term(type=IRI, iri=value)
+    elif term_type == 'l':
+        return Term(
+            type=LITERAL,
+            value=value,
+            datatype=datatype or "",
+            language=language or ""
+        )
+    elif term_type == 't':
+        # Triple/reification - parse JSON and create nested Triple
+        try:
+            triple_data = json.loads(value) if isinstance(value, str) else value
+            if isinstance(triple_data, dict):
+                return Term(
+                    type=TRIPLE,
+                    triple=Triple(
+                        s=deserialize_term(triple_data.get("s")),
+                        p=deserialize_term(triple_data.get("p")),
+                        o=deserialize_term(triple_data.get("o")),
                     )
-            except (json.JSONDecodeError, TypeError) as e:
-                logger.warning(f"Failed to parse triple JSON: {e}")
-            # Fallback if parsing fails
-            return Term(type=LITERAL, value=str(value))
-        else:
-            # Unknown otype, fall back to heuristic
-            pass
+                )
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.warning(f"Failed to parse triple JSON: {e}")
+        # Fallback if parsing fails
+        return Term(type=LITERAL, value=str(value))
+    elif term_type is not None:
+        # Unknown term_type, fall back to heuristic
+        pass
 
-    # Heuristic fallback for backwards compatibility
+    # Heuristic fallback for backwards compatibility (object values only)
     if value.startswith("http://") or value.startswith("https://"):
         return Term(type=IRI, iri=value)
     else:
@@ -176,13 +208,13 @@ class Processor(TriplesQueryService):
             o_val = get_term_value(query.o)
             g_val = query.g  # Already a string or None
 
-            # Helper to extract object metadata from result row
-            def get_o_metadata(t):
-                """Extract otype/dtype/lang from result row if available"""
-                otype = getattr(t, 'otype', None)
-                dtype = getattr(t, 'dtype', None)
-                lang = getattr(t, 'lang', None)
-                return otype, dtype, lang
+            def get_object_metadata(row):
+                """Extract term type metadata from result row"""
+                return (
+                    getattr(row, 'otype', None),
+                    getattr(row, 'dtype', None),
+                    getattr(row, 'lang', None),
+                )
 
             quads = []
 
@@ -197,8 +229,8 @@ class Processor(TriplesQueryService):
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
-                            otype, dtype, lang = get_o_metadata(t)
-                            quads.append((s_val, p_val, o_val, g, otype, dtype, lang))
+                            term_type, datatype, language = get_object_metadata(t)
+                            quads.append((s_val, p_val, o_val, g, term_type, datatype, language))
                     else:
                         # SP specified
                         resp = self.tg.get_sp(
@@ -207,8 +239,8 @@ class Processor(TriplesQueryService):
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
-                            otype, dtype, lang = get_o_metadata(t)
-                            quads.append((s_val, p_val, t.o, g, otype, dtype, lang))
+                            term_type, datatype, language = get_object_metadata(t)
+                            quads.append((s_val, p_val, t.o, g, term_type, datatype, language))
                 else:
                     if o_val is not None:
                         # SO specified
@@ -218,8 +250,8 @@ class Processor(TriplesQueryService):
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
-                            otype, dtype, lang = get_o_metadata(t)
-                            quads.append((s_val, t.p, o_val, g, otype, dtype, lang))
+                            term_type, datatype, language = get_object_metadata(t)
+                            quads.append((s_val, t.p, o_val, g, term_type, datatype, language))
                     else:
                         # S only
                         resp = self.tg.get_s(
@@ -228,8 +260,8 @@ class Processor(TriplesQueryService):
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
-                            otype, dtype, lang = get_o_metadata(t)
-                            quads.append((s_val, t.p, t.o, g, otype, dtype, lang))
+                            term_type, datatype, language = get_object_metadata(t)
+                            quads.append((s_val, t.p, t.o, g, term_type, datatype, language))
             else:
                 if p_val is not None:
                     if o_val is not None:
@@ -240,8 +272,8 @@ class Processor(TriplesQueryService):
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
-                            otype, dtype, lang = get_o_metadata(t)
-                            quads.append((t.s, p_val, o_val, g, otype, dtype, lang))
+                            term_type, datatype, language = get_object_metadata(t)
+                            quads.append((t.s, p_val, o_val, g, term_type, datatype, language))
                     else:
                         # P only
                         resp = self.tg.get_p(
@@ -250,8 +282,8 @@ class Processor(TriplesQueryService):
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
-                            otype, dtype, lang = get_o_metadata(t)
-                            quads.append((t.s, p_val, t.o, g, otype, dtype, lang))
+                            term_type, datatype, language = get_object_metadata(t)
+                            quads.append((t.s, p_val, t.o, g, term_type, datatype, language))
                 else:
                     if o_val is not None:
                         # O only
@@ -261,8 +293,8 @@ class Processor(TriplesQueryService):
                         )
                         for t in resp:
                             g = t.g if hasattr(t, 'g') else DEFAULT_GRAPH
-                            otype, dtype, lang = get_o_metadata(t)
-                            quads.append((t.s, t.p, o_val, g, otype, dtype, lang))
+                            term_type, datatype, language = get_object_metadata(t)
+                            quads.append((t.s, t.p, o_val, g, term_type, datatype, language))
                     else:
                         # Nothing specified - get all
                         resp = self.tg.get_all(
@@ -272,16 +304,17 @@ class Processor(TriplesQueryService):
                         for t in resp:
                             # Note: quads_by_collection uses 'd' for graph field
                             g = t.d if hasattr(t, 'd') else DEFAULT_GRAPH
-                            otype, dtype, lang = get_o_metadata(t)
-                            quads.append((t.s, t.p, t.o, g, otype, dtype, lang))
+                            term_type, datatype, language = get_object_metadata(t)
+                            quads.append((t.s, t.p, t.o, g, term_type, datatype, language))
 
             # Convert to Triple objects (with g field)
-            # Use otype/dtype/lang for proper Term reconstruction if available
+            # s and p are always IRIs in RDF
+            # Object uses term_type/datatype/language metadata from database
             triples = [
                 Triple(
-                    s=create_term(q[0]),
-                    p=create_term(q[1]),
-                    o=create_term(q[2], otype=q[4], dtype=q[5], lang=q[6]),
+                    s=create_term(q[0], term_type='u'),
+                    p=create_term(q[1], term_type='u'),
+                    o=create_term(q[2], term_type=q[4], datatype=q[5], language=q[6]),
                     g=q[3] if q[3] != DEFAULT_GRAPH else None
                 )
                 for q in quads
@@ -311,12 +344,13 @@ class Processor(TriplesQueryService):
             o_val = get_term_value(query.o)
             g_val = query.g
 
-            # Helper to extract object metadata from result row
-            def get_o_metadata(t):
-                otype = getattr(t, 'otype', None)
-                dtype = getattr(t, 'dtype', None)
-                lang = getattr(t, 'lang', None)
-                return otype, dtype, lang
+            def get_object_metadata(row):
+                """Extract term type metadata from result row"""
+                return (
+                    getattr(row, 'otype', None),
+                    getattr(row, 'dtype', None),
+                    getattr(row, 'lang', None),
+                )
 
             # For streaming, we need to execute with fetch_size
             # Use the collection table for get_all queries (most common streaming case)
@@ -345,12 +379,13 @@ class Processor(TriplesQueryService):
                     break
 
                 g = row.d if hasattr(row, 'd') else DEFAULT_GRAPH
-                otype, dtype, lang = get_o_metadata(row)
+                term_type, datatype, language = get_object_metadata(row)
 
+                # s and p are always IRIs in RDF
                 triple = Triple(
-                    s=create_term(row.s),
-                    p=create_term(row.p),
-                    o=create_term(row.o, otype=otype, dtype=dtype, lang=lang),
+                    s=create_term(row.s, term_type='u'),
+                    p=create_term(row.p, term_type='u'),
+                    o=create_term(row.o, term_type=term_type, datatype=datatype, language=language),
                     g=g if g != DEFAULT_GRAPH else None
                 )
                 batch.append(triple)

@@ -53,30 +53,34 @@ class TestGraphRagStreaming:
 
     @pytest.fixture
     def mock_streaming_prompt_client(self, mock_streaming_llm_response):
-        """Mock prompt client with streaming support"""
+        """Mock prompt client with streaming support for two-stage GraphRAG"""
         client = AsyncMock()
 
-        async def kg_prompt_side_effect(query, kg, timeout=600, streaming=False, chunk_callback=None):
-            # Both modes return the same text
-            full_text = "Machine learning is a subset of artificial intelligence that focuses on algorithms that learn from data."
+        # Full synthesis text
+        full_text = "Machine learning is a subset of artificial intelligence that focuses on algorithms that learn from data."
 
-            if streaming and chunk_callback:
-                # Simulate streaming chunks with end_of_stream flags
-                chunks = []
-                async for chunk in mock_streaming_llm_response():
-                    chunks.append(chunk)
+        async def prompt_side_effect(prompt_id, variables, streaming=False, chunk_callback=None, **kwargs):
+            if prompt_id == "kg-edge-selection":
+                # Edge selection returns JSONL with IDs - simulate selecting first edge
+                return '{"id": "abc12345", "reasoning": "Relevant to query"}\n'
+            elif prompt_id == "kg-synthesis":
+                if streaming and chunk_callback:
+                    # Simulate streaming chunks with end_of_stream flags
+                    chunks = []
+                    async for chunk in mock_streaming_llm_response():
+                        chunks.append(chunk)
 
-                # Send all chunks with end_of_stream=False except the last
-                for i, chunk in enumerate(chunks):
-                    is_final = (i == len(chunks) - 1)
-                    await chunk_callback(chunk, is_final)
+                    # Send all chunks with end_of_stream=False except the last
+                    for i, chunk in enumerate(chunks):
+                        is_final = (i == len(chunks) - 1)
+                        await chunk_callback(chunk, is_final)
 
-                return full_text
-            else:
-                # Non-streaming response - same text
-                return full_text
+                    return full_text
+                else:
+                    return full_text
+            return ""
 
-        client.kg_prompt.side_effect = kg_prompt_side_effect
+        client.prompt.side_effect = prompt_side_effect
         return client
 
     @pytest.fixture
@@ -93,18 +97,25 @@ class TestGraphRagStreaming:
 
     @pytest.mark.asyncio
     async def test_graph_rag_streaming_basic(self, graph_rag_streaming, streaming_chunk_collector):
-        """Test basic GraphRAG streaming functionality"""
+        """Test basic GraphRAG streaming functionality with real-time provenance"""
         # Arrange
         query = "What is machine learning?"
         collector = streaming_chunk_collector()
 
-        # Act
-        result = await graph_rag_streaming.query(
+        # Collect provenance events
+        provenance_events = []
+
+        async def collect_provenance(triples, prov_id):
+            provenance_events.append((triples, prov_id))
+
+        # Act - query() returns response, provenance via callback
+        response = await graph_rag_streaming.query(
             query=query,
             user="test_user",
             collection="test_collection",
             streaming=True,
-            chunk_callback=collector.collect
+            chunk_callback=collector.collect,
+            explain_callback=collect_provenance
         )
 
         # Assert
@@ -116,10 +127,15 @@ class TestGraphRagStreaming:
 
         # Verify full response matches concatenated chunks
         full_from_chunks = collector.get_full_text()
-        assert result == full_from_chunks
+        assert response == full_from_chunks
 
         # Verify content is reasonable
-        assert "machine" in result.lower() or "learning" in result.lower()
+        assert "machine" in response.lower() or "learning" in response.lower()
+
+        # Verify provenance was emitted in real-time (4 events)
+        assert len(provenance_events) == 4
+        for triples, prov_id in provenance_events:
+            assert prov_id.startswith("urn:trustgraph:")
 
     @pytest.mark.asyncio
     async def test_graph_rag_streaming_vs_non_streaming(self, graph_rag_streaming):
@@ -130,7 +146,7 @@ class TestGraphRagStreaming:
         collection = "test_collection"
 
         # Act - Non-streaming
-        non_streaming_result = await graph_rag_streaming.query(
+        non_streaming_response = await graph_rag_streaming.query(
             query=query,
             user=user,
             collection=collection,
@@ -143,7 +159,7 @@ class TestGraphRagStreaming:
         async def collect(chunk, end_of_stream):
             streaming_chunks.append(chunk)
 
-        streaming_result = await graph_rag_streaming.query(
+        streaming_response = await graph_rag_streaming.query(
             query=query,
             user=user,
             collection=collection,
@@ -152,9 +168,9 @@ class TestGraphRagStreaming:
         )
 
         # Assert - Results should be equivalent
-        assert streaming_result == non_streaming_result
+        assert streaming_response == non_streaming_response
         assert len(streaming_chunks) > 0
-        assert "".join(streaming_chunks) == streaming_result
+        assert "".join(streaming_chunks) == streaming_response
 
     @pytest.mark.asyncio
     async def test_graph_rag_streaming_callback_invocation(self, graph_rag_streaming):
@@ -163,7 +179,7 @@ class TestGraphRagStreaming:
         callback = AsyncMock()
 
         # Act
-        result = await graph_rag_streaming.query(
+        response = await graph_rag_streaming.query(
             query="test query",
             user="test_user",
             collection="test_collection",
@@ -173,7 +189,7 @@ class TestGraphRagStreaming:
 
         # Assert
         assert callback.call_count > 0
-        assert result is not None
+        assert response is not None
 
         # Verify all callback invocations had string arguments
         for call in callback.call_args_list:
@@ -183,7 +199,7 @@ class TestGraphRagStreaming:
     async def test_graph_rag_streaming_without_callback(self, graph_rag_streaming):
         """Test streaming parameter without callback (should fall back to non-streaming)"""
         # Arrange & Act
-        result = await graph_rag_streaming.query(
+        response = await graph_rag_streaming.query(
             query="test query",
             user="test_user",
             collection="test_collection",
@@ -192,8 +208,8 @@ class TestGraphRagStreaming:
         )
 
         # Assert - Should complete without error
-        assert result is not None
-        assert isinstance(result, str)
+        assert response is not None
+        assert isinstance(response, str)
 
     @pytest.mark.asyncio
     async def test_graph_rag_streaming_with_empty_kg(self, graph_rag_streaming,
@@ -204,7 +220,7 @@ class TestGraphRagStreaming:
         callback = AsyncMock()
 
         # Act
-        result = await graph_rag_streaming.query(
+        response = await graph_rag_streaming.query(
             query="unknown topic",
             user="test_user",
             collection="test_collection",
@@ -213,7 +229,7 @@ class TestGraphRagStreaming:
         )
 
         # Assert - Should still produce streamed response
-        assert result is not None
+        assert response is not None
         assert callback.call_count > 0
 
     @pytest.mark.asyncio

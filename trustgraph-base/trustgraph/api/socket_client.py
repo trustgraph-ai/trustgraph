@@ -11,7 +11,7 @@ import websockets
 from typing import Optional, Dict, Any, Iterator, Union, List
 from threading import Lock
 
-from . types import AgentThought, AgentObservation, AgentAnswer, RAGChunk, StreamingChunk
+from . types import AgentThought, AgentObservation, AgentAnswer, RAGChunk, StreamingChunk, ProvenanceEvent
 from . exceptions import ProtocolException, raise_from_error_dict
 
 
@@ -310,15 +310,28 @@ class SocketClient:
 
                     # Parse different chunk types
                     chunk = self._parse_chunk(resp)
-                    yield chunk
+                    if chunk is not None:  # Skip provenance messages in streaming
+                        yield chunk
 
-                    # Check if this is the final chunk
-                    if resp.get("end_of_stream") or resp.get("end_of_dialog") or response.get("complete"):
+                    # Check if this is the final message
+                    # end_of_session indicates entire session is complete (including provenance)
+                    # end_of_dialog is for agent dialogs
+                    # complete is from the gateway envelope
+                    if resp.get("end_of_session") or resp.get("end_of_dialog") or response.get("complete"):
                         break
 
-    def _parse_chunk(self, resp: Dict[str, Any]) -> StreamingChunk:
-        """Parse response chunk into appropriate type"""
+    def _parse_chunk(self, resp: Dict[str, Any], include_provenance: bool = False) -> Optional[StreamingChunk]:
+        """Parse response chunk into appropriate type. Returns None for non-content messages."""
         chunk_type = resp.get("chunk_type")
+        message_type = resp.get("message_type")
+
+        # Handle new GraphRAG message format with message_type
+        if message_type == "provenance":
+            if include_provenance:
+                # Return provenance event for explainability
+                return ProvenanceEvent(provenance_id=resp.get("provenance_id", ""))
+            # Provenance messages are not yielded to user - they're metadata
+            return None
 
         if chunk_type == "thought":
             return AgentThought(
@@ -360,7 +373,7 @@ class SocketClient:
                 end_of_dialog=resp.get("end_of_dialog", False)
             )
         else:
-            # RAG-style chunk (or generic chunk)
+            # RAG-style chunk (or generic chunk with message_type="chunk")
             # Text-completion uses "response" field, RAG uses "chunk" field, Prompt uses "text" field
             content = resp.get("response", resp.get("chunk", resp.get("text", "")))
             return RAGChunk(

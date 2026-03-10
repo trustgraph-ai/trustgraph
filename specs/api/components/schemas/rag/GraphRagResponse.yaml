@@ -1,13 +1,27 @@
 type: object
-description: Graph RAG response
+description: Graph RAG response message
 properties:
+  message_type:
+    type: string
+    description: Type of message - "chunk" for LLM response chunks, "provenance" for provenance announcements
+    enum: [chunk, provenance]
+    example: chunk
   response:
     type: string
-    description: Generated response based on retrieved knowledge graph
+    description: Generated response text (for chunk messages)
     example: Quantum physics and computer science intersect in quantum computing...
-  end-of-stream:
+  provenance_id:
+    type: string
+    description: Provenance node URI (for provenance messages)
+    example: urn:trustgraph:session:abc123
+  end_of_stream:
     type: boolean
-    description: Indicates streaming is complete (streaming mode)
+    description: Indicates LLM response stream is complete
+    default: false
+    example: true
+  end_of_session:
+    type: boolean
+    description: Indicates entire session is complete (all messages sent)
     default: false
     example: true
   error:

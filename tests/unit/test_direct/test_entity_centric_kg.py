@@ -547,21 +547,21 @@ class TestServiceHelperFunctions:
     """Test cases for helper functions in service.py"""
 
     def test_create_term_with_uri_otype(self):
-        """Test create_term creates IRI Term for otype='u'"""
+        """Test create_term creates IRI Term for term_type='u'"""
         from trustgraph.query.triples.cassandra.service import create_term
         from trustgraph.schema import IRI
 
-        term = create_term('http://example.org/Alice', otype='u')
+        term = create_term('http://example.org/Alice', term_type='u')
 
         assert term.type == IRI
         assert term.iri == 'http://example.org/Alice'
 
     def test_create_term_with_literal_otype(self):
-        """Test create_term creates LITERAL Term for otype='l'"""
+        """Test create_term creates LITERAL Term for term_type='l'"""
         from trustgraph.query.triples.cassandra.service import create_term
         from trustgraph.schema import LITERAL
 
-        term = create_term('Alice Smith', otype='l', dtype='xsd:string', lang='en')
+        term = create_term('Alice Smith', term_type='l', datatype='xsd:string', language='en')
 
         assert term.type == LITERAL
         assert term.value == 'Alice Smith'
@@ -569,7 +569,7 @@ class TestServiceHelperFunctions:
         assert term.language == 'en'
 
     def test_create_term_with_triple_otype(self):
-        """Test create_term creates TRIPLE Term for otype='t' with valid JSON"""
+        """Test create_term creates TRIPLE Term for term_type='t' with valid JSON"""
         from trustgraph.query.triples.cassandra.service import create_term
         from trustgraph.schema import TRIPLE, IRI
         import json
@@ -581,7 +581,7 @@ class TestServiceHelperFunctions:
             "o": {"type": "i", "iri": "http://example.org/Bob"},
         })
 
-        term = create_term(triple_json, otype='t')
+        term = create_term(triple_json, term_type='t')
 
         assert term.type == TRIPLE
         assert term.triple is not None

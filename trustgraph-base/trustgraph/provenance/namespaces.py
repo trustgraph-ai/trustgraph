@@ -58,3 +58,12 @@ TG_EMBEDDING_MODEL = TG + "embeddingModel"
 TG_SOURCE_TEXT = TG + "sourceText"
 TG_SOURCE_CHAR_OFFSET = TG + "sourceCharOffset"
 TG_SOURCE_CHAR_LENGTH = TG + "sourceCharLength"
+
+# Query-time provenance predicates
+TG_QUERY = TG + "query"
+TG_EDGE_COUNT = TG + "edgeCount"
+TG_SELECTED_EDGE = TG + "selectedEdge"
+TG_EDGE = TG + "edge"
+TG_REASONING = TG + "reasoning"
+TG_CONTENT = TG + "content"
+TG_DOCUMENT = TG + "document"  # Reference to document in librarian

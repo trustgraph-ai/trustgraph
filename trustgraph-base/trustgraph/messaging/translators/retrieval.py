@@ -90,12 +90,30 @@ class GraphRagResponseTranslator(MessageTranslator):
     def from_pulsar(self, obj: GraphRagResponse) -> Dict[str, Any]:
         result = {}
 
-        # Include response content (even if empty string)
+        # Include message_type
+        message_type = getattr(obj, "message_type", "")
+        if message_type:
+            result["message_type"] = message_type
+
+        # Include response content for chunk messages
         if obj.response is not None:
             result["response"] = obj.response
 
-        # Include end_of_stream flag
+        # Include explain_id for explain messages
+        explain_id = getattr(obj, "explain_id", None)
+        if explain_id:
+            result["explain_id"] = explain_id
+
+        # Include explain_collection for explain messages
+        explain_collection = getattr(obj, "explain_collection", None)
+        if explain_collection:
+            result["explain_collection"] = explain_collection
+
+        # Include end_of_stream flag (LLM stream complete)
         result["end_of_stream"] = getattr(obj, "end_of_stream", False)
+
+        # Include end_of_session flag (entire session complete)
+        result["end_of_session"] = getattr(obj, "end_of_session", False)
 
         # Always include error if present
         if hasattr(obj, 'error') and obj.error and obj.error.message:
@@ -105,5 +123,6 @@ class GraphRagResponseTranslator(MessageTranslator):
 
     def from_response_with_completion(self, obj: GraphRagResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
-        is_final = getattr(obj, 'end_of_stream', False)
+        # Session is complete when end_of_session is True
+        is_final = getattr(obj, 'end_of_session', False)
         return self.from_pulsar(obj), is_final
