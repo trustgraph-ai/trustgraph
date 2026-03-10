@@ -589,6 +589,8 @@ class EntityCentricKnowledgeGraph:
 
         # quads_by_entity: primary data table
         # Every entity has a partition containing all quads it participates in
+        # Clustering key includes dtype/lang to distinguish literals with same value
+        # but different datatype or language tag (e.g., "thing" vs "thing"@en)
         self.session.execute(f"""
             CREATE TABLE IF NOT EXISTS {self.entity_table} (
                 collection text,
@@ -601,11 +603,13 @@ class EntityCentricKnowledgeGraph:
                 d          text,
                 dtype      text,
                 lang       text,
-                PRIMARY KEY ((collection, entity), role, p, otype, s, o, d)
+                PRIMARY KEY ((collection, entity), role, p, otype, s, o, d, dtype, lang)
             );
         """)
 
         # quads_by_collection: manifest for collection-level queries and deletion
+        # Clustering key includes otype/dtype/lang to distinguish literals with same
+        # value but different metadata (e.g., "thing" vs "thing"@en vs "thing"^^xsd:string)
         self.session.execute(f"""
             CREATE TABLE IF NOT EXISTS {self.collection_table} (
                 collection text,
@@ -616,7 +620,7 @@ class EntityCentricKnowledgeGraph:
                 otype      text,
                 dtype      text,
                 lang       text,
-                PRIMARY KEY (collection, d, s, p, o)
+                PRIMARY KEY (collection, d, s, p, o, otype, dtype, lang)
             );
         """)
 
@@ -718,7 +722,7 @@ class EntityCentricKnowledgeGraph:
         )
 
         self.delete_collection_row_stmt = self.session.prepare(
-            f"DELETE FROM {self.collection_table} WHERE collection = ? AND d = ? AND s = ? AND p = ? AND o = ?"
+            f"DELETE FROM {self.collection_table} WHERE collection = ? AND d = ? AND s = ? AND p = ? AND o = ? AND otype = ? AND dtype = ? AND lang = ?"
         )
 
         logger.info("Prepared statements initialized for entity-centric schema")
@@ -797,7 +801,7 @@ class EntityCentricKnowledgeGraph:
     def get_s(self, collection, s, g=None, limit=10):
         """
         Query by subject. Returns quads where s is the subject.
-        g=None: default graph, g='*': all graphs
+        g=None: all graphs, g='': default graph only, g='uri': specific graph
         """
         rows = self.session.execute(self.get_entity_as_s_stmt, (collection, s, limit))
 
@@ -805,10 +809,7 @@ class EntityCentricKnowledgeGraph:
         for row in rows:
             d = row.d if hasattr(row, 'd') else DEFAULT_GRAPH
             # Filter by graph if specified
-            if g is None or g == DEFAULT_GRAPH:
-                if d != DEFAULT_GRAPH:
-                    continue
-            elif g != GRAPH_WILDCARD and d != g:
+            if g is not None and d != g:
                 continue
 
             results.append(QuadResult(
@@ -819,16 +820,13 @@ class EntityCentricKnowledgeGraph:
         return results
 
     def get_p(self, collection, p, g=None, limit=10):
-        """Query by predicate"""
+        """Query by predicate. g=None: all graphs, g='': default graph only"""
         rows = self.session.execute(self.get_entity_as_p_stmt, (collection, p, limit))
 
         results = []
         for row in rows:
             d = row.d if hasattr(row, 'd') else DEFAULT_GRAPH
-            if g is None or g == DEFAULT_GRAPH:
-                if d != DEFAULT_GRAPH:
-                    continue
-            elif g != GRAPH_WILDCARD and d != g:
+            if g is not None and d != g:
                 continue
 
             results.append(QuadResult(
@@ -839,16 +837,13 @@ class EntityCentricKnowledgeGraph:
         return results
 
     def get_o(self, collection, o, g=None, limit=10):
-        """Query by object"""
+        """Query by object. g=None: all graphs, g='': default graph only"""
         rows = self.session.execute(self.get_entity_as_o_stmt, (collection, o, limit))
 
         results = []
         for row in rows:
             d = row.d if hasattr(row, 'd') else DEFAULT_GRAPH
-            if g is None or g == DEFAULT_GRAPH:
-                if d != DEFAULT_GRAPH:
-                    continue
-            elif g != GRAPH_WILDCARD and d != g:
+            if g is not None and d != g:
                 continue
 
             results.append(QuadResult(
@@ -859,16 +854,13 @@ class EntityCentricKnowledgeGraph:
         return results
 
     def get_sp(self, collection, s, p, g=None, limit=10):
-        """Query by subject and predicate"""
+        """Query by subject and predicate. g=None: all graphs, g='': default graph only"""
         rows = self.session.execute(self.get_entity_as_s_p_stmt, (collection, s, p, limit))
 
         results = []
         for row in rows:
             d = row.d if hasattr(row, 'd') else DEFAULT_GRAPH
-            if g is None or g == DEFAULT_GRAPH:
-                if d != DEFAULT_GRAPH:
-                    continue
-            elif g != GRAPH_WILDCARD and d != g:
+            if g is not None and d != g:
                 continue
 
             results.append(QuadResult(
@@ -879,16 +871,13 @@ class EntityCentricKnowledgeGraph:
         return results
 
     def get_po(self, collection, p, o, g=None, limit=10):
-        """Query by predicate and object"""
+        """Query by predicate and object. g=None: all graphs, g='': default graph only"""
         rows = self.session.execute(self.get_entity_as_o_p_stmt, (collection, o, p, limit))
 
         results = []
         for row in rows:
             d = row.d if hasattr(row, 'd') else DEFAULT_GRAPH
-            if g is None or g == DEFAULT_GRAPH:
-                if d != DEFAULT_GRAPH:
-                    continue
-            elif g != GRAPH_WILDCARD and d != g:
+            if g is not None and d != g:
                 continue
 
             results.append(QuadResult(
@@ -899,7 +888,7 @@ class EntityCentricKnowledgeGraph:
         return results
 
     def get_os(self, collection, o, s, g=None, limit=10):
-        """Query by object and subject"""
+        """Query by object and subject. g=None: all graphs, g='': default graph only"""
         # Use subject partition with role='S', filter by o
         rows = self.session.execute(self.get_entity_as_s_stmt, (collection, s, limit))
 
@@ -909,10 +898,7 @@ class EntityCentricKnowledgeGraph:
                 continue
 
             d = row.d if hasattr(row, 'd') else DEFAULT_GRAPH
-            if g is None or g == DEFAULT_GRAPH:
-                if d != DEFAULT_GRAPH:
-                    continue
-            elif g != GRAPH_WILDCARD and d != g:
+            if g is not None and d != g:
                 continue
 
             results.append(QuadResult(
@@ -923,7 +909,7 @@ class EntityCentricKnowledgeGraph:
         return results
 
     def get_spo(self, collection, s, p, o, g=None, limit=10):
-        """Query by subject, predicate, object (find which graphs)"""
+        """Query by subject, predicate, object (find which graphs). g=None: all graphs, g='': default graph only"""
         rows = self.session.execute(self.get_entity_as_s_p_stmt, (collection, s, p, limit))
 
         results = []
@@ -932,10 +918,7 @@ class EntityCentricKnowledgeGraph:
                 continue
 
             d = row.d if hasattr(row, 'd') else DEFAULT_GRAPH
-            if g is None or g == DEFAULT_GRAPH:
-                if d != DEFAULT_GRAPH:
-                    continue
-            elif g != GRAPH_WILDCARD and d != g:
+            if g is not None and d != g:
                 continue
 
             results.append(QuadResult(
@@ -991,9 +974,9 @@ class EntityCentricKnowledgeGraph:
         3. Delete entire entity partitions
         4. Delete collection rows
         """
-        # Read all quads from collection table
+        # Read all quads from collection table (including type metadata for delete)
         rows = self.session.execute(
-            f"SELECT d, s, p, o, otype FROM {self.collection_table} WHERE collection = %s",
+            f"SELECT d, s, p, o, otype, dtype, lang FROM {self.collection_table} WHERE collection = %s",
             (collection,)
         )
 
@@ -1002,8 +985,11 @@ class EntityCentricKnowledgeGraph:
         quads = []
 
         for row in rows:
-            d, s, p, o, otype = row.d, row.s, row.p, row.o, row.otype
-            quads.append((d, s, p, o))
+            d, s, p, o = row.d, row.s, row.p, row.o
+            otype = row.otype
+            dtype = row.dtype if hasattr(row, 'dtype') else ''
+            lang = row.lang if hasattr(row, 'lang') else ''
+            quads.append((d, s, p, o, otype, dtype, lang))
 
             # Subject and predicate are always entities
             entities.add(s)
@@ -1038,8 +1024,8 @@ class EntityCentricKnowledgeGraph:
         batch = BatchStatement()
         count = 0
 
-        for d, s, p, o in quads:
-            batch.add(self.delete_collection_row_stmt, (collection, d, s, p, o))
+        for d, s, p, o, otype, dtype, lang in quads:
+            batch.add(self.delete_collection_row_stmt, (collection, d, s, p, o, otype, dtype, lang))
             count += 1
 
             # Execute batch every 50 quads

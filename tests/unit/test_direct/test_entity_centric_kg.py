@@ -305,9 +305,8 @@ class TestEntityCentricKnowledgeGraph:
 
         mock_session.execute.assert_called()
 
-    def test_graph_wildcard_returns_all_graphs(self, entity_kg):
-        """Test that g='*' returns quads from all graphs"""
-        from trustgraph.direct.cassandra_kg import GRAPH_WILDCARD
+    def test_graph_none_returns_all_graphs(self, entity_kg):
+        """Test that g=None returns quads from all graphs"""
         kg, mock_session = entity_kg
 
         mock_result = [
@@ -320,7 +319,7 @@ class TestEntityCentricKnowledgeGraph:
         ]
         mock_session.execute.return_value = mock_result
 
-        results = kg.get_s('test_collection', 'http://example.org/Alice', g=GRAPH_WILDCARD)
+        results = kg.get_s('test_collection', 'http://example.org/Alice', g=None)
 
         # Should return quads from both graphs
         assert len(results) == 2

@@ -186,6 +186,12 @@ def build_quoted_triple_term(qt_subject, qt_subject_type,
 def format_term(term_dict):
     """Format a term dict for display in space/pipe output formats.
 
+    Handles multiple wire format styles:
+    - Short form (send): {"t": "i", "i": "..."}, {"t": "l", "v": "..."}
+    - Long form (receive): {"type": "i", "iri": "..."}, {"type": "l", "value": "..."}
+    - Raw quoted triple: {"s": {...}, "p": {...}, "o": {...}} (no type wrapper)
+    - Stringified quoted triple in IRI: {"t": "i", "i": "{\"s\":...}"} (backend quirk)
+
     Args:
         term_dict: Wire-format term dict
 
@@ -195,25 +201,53 @@ def format_term(term_dict):
     if not term_dict:
         return ""
 
-    t = term_dict.get("t")
+    # Get type - handle both short and long form
+    t = term_dict.get("t") or term_dict.get("type")
+
     if t == "i":
-        return term_dict.get("i", "")
+        # IRI - handle both "i" and "iri" keys
+        iri_value = term_dict.get("i") or term_dict.get("iri", "")
+        # Check if IRI value is actually a stringified quoted triple (backend quirk)
+        if iri_value.startswith('{"s":') or iri_value.startswith("{\"s\":"):
+            try:
+                parsed = json.loads(iri_value)
+                if "s" in parsed and "p" in parsed and "o" in parsed:
+                    # It's a stringified quoted triple - format it properly
+                    s = format_term(parsed.get("s", {}))
+                    p = format_term(parsed.get("p", {}))
+                    o = format_term(parsed.get("o", {}))
+                    return f"<<{s} {p} {o}>>"
+            except json.JSONDecodeError:
+                pass  # Not valid JSON, treat as regular IRI
+        return iri_value
     elif t == "l":
-        value = term_dict.get("v", "")
-        # Quote literals and show language/datatype if present
+        # Literal - handle both short and long form keys
+        value = term_dict.get("v") or term_dict.get("value", "")
         result = f'"{value}"'
-        if "ln" in term_dict:
-            result += f'@{term_dict["ln"]}'
-        elif "dt" in term_dict:
-            result += f'^^{term_dict["dt"]}'
+        # Language tag
+        lang = term_dict.get("ln") or term_dict.get("language")
+        if lang:
+            result += f'@{lang}'
+        else:
+            # Datatype
+            dt = term_dict.get("dt") or term_dict.get("datatype")
+            if dt:
+                result += f'^^{dt}'
         return result
     elif t == "t":
-        # Format quoted triple as <<s p o>>
-        tr = term_dict.get("tr", {})
+        # Quoted triple - handle both "tr" and "triple" keys
+        tr = term_dict.get("tr") or term_dict.get("triple", {})
         s = format_term(tr.get("s", {}))
         p = format_term(tr.get("p", {}))
         o = format_term(tr.get("o", {}))
         return f"<<{s} {p} {o}>>"
+    elif t is None and "s" in term_dict and "p" in term_dict and "o" in term_dict:
+        # Raw quoted triple without type wrapper (has s, p, o keys directly)
+        s = format_term(term_dict.get("s", {}))
+        p = format_term(term_dict.get("p", {}))
+        o = format_term(term_dict.get("o", {}))
+        return f"<<{s} {p} {o}>>"
+
     return str(term_dict)
 
 
@@ -526,8 +560,9 @@ def main():
         else:
             obj_term = None
 
-        # Graph is always an IRI
-        graph_term = build_term(args.graph, term_type='iri') if args.graph else None
+        # Graph is a plain IRI string, not a Term
+        # None = all graphs, "" = default graph only, "uri" = specific graph
+        graph_value = args.graph
 
         query_graph(
             url=args.api_url,
@@ -539,7 +574,7 @@ def main():
             subject=subject_term,
             predicate=predicate_term,
             obj=obj_term,
-            graph=graph_term,
+            graph=graph_value,
             output_format=args.format,
             headers=args.headers,
             token=args.token,

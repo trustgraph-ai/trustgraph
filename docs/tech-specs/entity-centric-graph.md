@@ -42,7 +42,7 @@ CREATE TABLE quads_by_entity (
     d          text,       -- Dataset/graph of the quad
     dtype      text,       -- XSD datatype (when otype = 'L'), e.g. 'xsd:string'
     lang       text,       -- Language tag (when otype = 'L'), e.g. 'en', 'fr'
-    PRIMARY KEY ((collection, entity), role, p, otype, s, o, d)
+    PRIMARY KEY ((collection, entity), role, p, otype, s, o, d, dtype, lang)
 );
 ```
 
@@ -54,6 +54,7 @@ CREATE TABLE quads_by_entity (
 2. **p** — next most common filter, "give me all `knows` relationships"
 3. **otype** — enables filtering by URI-valued vs literal-valued relationships
 4. **s, o, d** — remaining columns for uniqueness
+5. **dtype, lang** — distinguish literals with same value but different type metadata (e.g., `"thing"` vs `"thing"@en` vs `"thing"^^xsd:string`)
 
 ### Table 2: quads_by_collection
 
@@ -69,11 +70,11 @@ CREATE TABLE quads_by_collection (
     otype      text,       -- 'U' (URI), 'L' (literal), 'T' (triple/reification)
     dtype      text,       -- XSD datatype (when otype = 'L')
     lang       text,       -- Language tag (when otype = 'L')
-    PRIMARY KEY (collection, d, s, p, o)
+    PRIMARY KEY (collection, d, s, p, o, otype, dtype, lang)
 );
 ```
 
-Clustered by dataset first, enabling deletion at either collection or dataset granularity.
+Clustered by dataset first, enabling deletion at either collection or dataset granularity. The `otype`, `dtype`, and `lang` columns are included in the clustering key to distinguish literals with the same value but different type metadata — in RDF, `"thing"`, `"thing"@en`, and `"thing"^^xsd:string` are semantically distinct values.
 
 ## Write Path
 
