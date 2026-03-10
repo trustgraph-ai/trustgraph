@@ -114,7 +114,7 @@ class KnowledgeTableStore:
                 entity_embeddings list<
                     tuple<
                         tuple<text, boolean>,
-                        list<list<double>>
+                        list<double>
                     >
                 >,
                 PRIMARY KEY ((user, document_id), id)
@@ -140,7 +140,7 @@ class KnowledgeTableStore:
                 chunks list<
                     tuple<
                         blob,
-                        list<list<double>>
+                        list<double>
                     >
                 >,
                 PRIMARY KEY ((user, document_id), id)

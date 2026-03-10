@@ -67,3 +67,9 @@ TG_EDGE = TG + "edge"
 TG_REASONING = TG + "reasoning"
 TG_CONTENT = TG + "content"
 TG_DOCUMENT = TG + "document"  # Reference to document in librarian
+
+# Named graph URIs for RDF datasets
+# These separate different types of data while keeping them in the same collection
+GRAPH_DEFAULT = ""                       # Core knowledge facts (triples extracted from documents)
+GRAPH_SOURCE = "urn:graph:source"        # Extraction provenance (which document/chunk a triple came from)
+GRAPH_RETRIEVAL = "urn:graph:retrieval"  # Query-time explainability (question, exploration, focus, synthesis)

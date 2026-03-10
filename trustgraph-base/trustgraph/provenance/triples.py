@@ -25,6 +25,26 @@ from . namespaces import (
 from . uris import activity_uri, agent_uri, edge_selection_uri
 
 
+def set_graph(triples: List[Triple], graph: str) -> List[Triple]:
+    """
+    Set the named graph on a list of triples.
+
+    This creates new Triple objects with the graph field set,
+    leaving the original triples unchanged.
+
+    Args:
+        triples: List of Triple objects
+        graph: Named graph URI (e.g., "urn:graph:retrieval")
+
+    Returns:
+        List of Triple objects with graph field set
+    """
+    return [
+        Triple(s=t.s, p=t.p, o=t.o, g=graph)
+        for t in triples
+    ]
+
+
 def _iri(uri: str) -> Term:
     """Create an IRI term."""
     return Term(type=IRI, iri=uri)
@@ -258,21 +278,27 @@ def triple_provenance_triples(
 
 
 # Query-time provenance triple builders
+#
+# Terminology:
+#   Question    - What was asked, the anchor for everything
+#   Exploration - Casting wide, what do we know about this space
+#   Focus       - Closing down, what's actually relevant here
+#   Synthesis   - Weaving the relevant pieces into an answer
 
-def query_session_triples(
-    session_uri: str,
+def question_triples(
+    question_uri: str,
     query: str,
     timestamp: Optional[str] = None,
 ) -> List[Triple]:
     """
-    Build triples for a query session activity.
+    Build triples for a question activity.
 
     Creates:
-    - Activity declaration for the query session
+    - Activity declaration for the question
     - Query text and timestamp
 
     Args:
-        session_uri: URI of the session (from query_session_uri)
+        question_uri: URI of the question (from question_uri)
         query: The user's query text
         timestamp: ISO timestamp (defaults to now)
 
@@ -283,39 +309,39 @@ def query_session_triples(
         timestamp = datetime.utcnow().isoformat() + "Z"
 
     return [
-        _triple(session_uri, RDF_TYPE, _iri(PROV_ACTIVITY)),
-        _triple(session_uri, RDFS_LABEL, _literal("GraphRAG query session")),
-        _triple(session_uri, PROV_STARTED_AT_TIME, _literal(timestamp)),
-        _triple(session_uri, TG_QUERY, _literal(query)),
+        _triple(question_uri, RDF_TYPE, _iri(PROV_ACTIVITY)),
+        _triple(question_uri, RDFS_LABEL, _literal("GraphRAG question")),
+        _triple(question_uri, PROV_STARTED_AT_TIME, _literal(timestamp)),
+        _triple(question_uri, TG_QUERY, _literal(query)),
     ]
 
 
-def retrieval_triples(
-    retrieval_uri: str,
-    session_uri: str,
+def exploration_triples(
+    exploration_uri: str,
+    question_uri: str,
     edge_count: int,
 ) -> List[Triple]:
     """
-    Build triples for a retrieval entity (all edges retrieved from subgraph).
+    Build triples for an exploration entity (all edges retrieved from subgraph).
 
     Creates:
-    - Entity declaration for retrieval
-    - wasGeneratedBy link to session
+    - Entity declaration for exploration
+    - wasGeneratedBy link to question
     - Edge count metadata
 
     Args:
-        retrieval_uri: URI of the retrieval entity (from retrieval_uri)
-        session_uri: URI of the parent session
+        exploration_uri: URI of the exploration entity (from exploration_uri)
+        question_uri: URI of the parent question
         edge_count: Number of edges retrieved
 
     Returns:
         List of Triple objects
     """
     return [
-        _triple(retrieval_uri, RDF_TYPE, _iri(PROV_ENTITY)),
-        _triple(retrieval_uri, RDFS_LABEL, _literal("Retrieved edges")),
-        _triple(retrieval_uri, PROV_WAS_GENERATED_BY, _iri(session_uri)),
-        _triple(retrieval_uri, TG_EDGE_COUNT, _literal(edge_count)),
+        _triple(exploration_uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(exploration_uri, RDFS_LABEL, _literal("Exploration")),
+        _triple(exploration_uri, PROV_WAS_GENERATED_BY, _iri(question_uri)),
+        _triple(exploration_uri, TG_EDGE_COUNT, _literal(edge_count)),
     ]
 
 
@@ -327,28 +353,28 @@ def _quoted_triple(s: str, p: str, o: str) -> Term:
     )
 
 
-def selection_triples(
-    selection_uri: str,
-    retrieval_uri: str,
+def focus_triples(
+    focus_uri: str,
+    exploration_uri: str,
     selected_edges_with_reasoning: List[dict],
     session_id: str = "",
 ) -> List[Triple]:
     """
-    Build triples for a selection entity (selected edges with reasoning).
+    Build triples for a focus entity (selected edges with reasoning).
 
     Creates:
-    - Entity declaration for selection
-    - wasDerivedFrom link to retrieval
+    - Entity declaration for focus
+    - wasDerivedFrom link to exploration
     - For each selected edge: an edge selection entity with quoted triple and reasoning
 
     Structure:
-        <selection> tg:selectedEdge <edge_sel_1> .
+        <focus> tg:selectedEdge <edge_sel_1> .
         <edge_sel_1> tg:edge << <s> <p> <o> >> .
         <edge_sel_1> tg:reasoning "reason" .
 
     Args:
-        selection_uri: URI of the selection entity (from selection_uri)
-        retrieval_uri: URI of the parent retrieval entity
+        focus_uri: URI of the focus entity (from focus_uri)
+        exploration_uri: URI of the parent exploration entity
         selected_edges_with_reasoning: List of dicts with 'edge' (s,p,o tuple) and 'reasoning'
         session_id: Session UUID for generating edge selection URIs
 
@@ -356,9 +382,9 @@ def selection_triples(
         List of Triple objects
     """
     triples = [
-        _triple(selection_uri, RDF_TYPE, _iri(PROV_ENTITY)),
-        _triple(selection_uri, RDFS_LABEL, _literal("Selected edges")),
-        _triple(selection_uri, PROV_WAS_DERIVED_FROM, _iri(retrieval_uri)),
+        _triple(focus_uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(focus_uri, RDFS_LABEL, _literal("Focus")),
+        _triple(focus_uri, PROV_WAS_DERIVED_FROM, _iri(exploration_uri)),
     ]
 
     # Add each selected edge with its reasoning via intermediate entity
@@ -372,9 +398,9 @@ def selection_triples(
             # Create intermediate entity for this edge selection
             edge_sel_uri = edge_selection_uri(session_id, idx)
 
-            # Link selection to edge selection entity
+            # Link focus to edge selection entity
             triples.append(
-                _triple(selection_uri, TG_SELECTED_EDGE, _iri(edge_sel_uri))
+                _triple(focus_uri, TG_SELECTED_EDGE, _iri(edge_sel_uri))
             )
 
             # Attach quoted triple to edge selection entity
@@ -392,23 +418,23 @@ def selection_triples(
     return triples
 
 
-def answer_triples(
-    answer_uri: str,
-    selection_uri: str,
+def synthesis_triples(
+    synthesis_uri: str,
+    focus_uri: str,
     answer_text: str = "",
     document_id: Optional[str] = None,
 ) -> List[Triple]:
     """
-    Build triples for an answer entity (final synthesis text).
+    Build triples for a synthesis entity (final answer text).
 
     Creates:
-    - Entity declaration for answer
-    - wasDerivedFrom link to selection
+    - Entity declaration for synthesis
+    - wasDerivedFrom link to focus
     - Either document reference (if document_id provided) or inline content
 
     Args:
-        answer_uri: URI of the answer entity (from answer_uri)
-        selection_uri: URI of the parent selection entity
+        synthesis_uri: URI of the synthesis entity (from synthesis_uri)
+        focus_uri: URI of the parent focus entity
         answer_text: The synthesized answer text (used if no document_id)
         document_id: Optional librarian document ID (preferred over inline content)
 
@@ -416,16 +442,16 @@ def answer_triples(
         List of Triple objects
     """
     triples = [
-        _triple(answer_uri, RDF_TYPE, _iri(PROV_ENTITY)),
-        _triple(answer_uri, RDFS_LABEL, _literal("GraphRAG answer")),
-        _triple(answer_uri, PROV_WAS_DERIVED_FROM, _iri(selection_uri)),
+        _triple(synthesis_uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(synthesis_uri, RDFS_LABEL, _literal("Synthesis")),
+        _triple(synthesis_uri, PROV_WAS_DERIVED_FROM, _iri(focus_uri)),
     ]
 
     if document_id:
         # Store reference to document in librarian (as IRI)
-        triples.append(_triple(answer_uri, TG_DOCUMENT, _iri(document_id)))
+        triples.append(_triple(synthesis_uri, TG_DOCUMENT, _iri(document_id)))
     elif answer_text:
         # Fallback: store inline content
-        triples.append(_triple(answer_uri, TG_CONTENT, _literal(answer_text)))
+        triples.append(_triple(synthesis_uri, TG_CONTENT, _literal(answer_text)))
 
     return triples

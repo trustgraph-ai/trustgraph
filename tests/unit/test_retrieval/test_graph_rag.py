@@ -644,7 +644,7 @@ class TestQuery:
             # Verify response text
             assert response == expected_response
 
-            # Verify provenance was emitted incrementally (4 events: session, retrieval, selection, answer)
+            # Verify provenance was emitted incrementally (4 events: question, exploration, focus, synthesis)
             assert len(provenance_events) == 4
 
             # Verify each event has triples and a URN
@@ -653,11 +653,11 @@ class TestQuery:
                 assert len(triples) > 0
                 assert prov_id.startswith("urn:trustgraph:")
 
-            # Verify order: session, retrieval, selection, answer
-            assert "session" in provenance_events[0][1]
-            assert "retrieval" in provenance_events[1][1]
-            assert "selection" in provenance_events[2][1]
-            assert "answer" in provenance_events[3][1]
+            # Verify order: question, exploration, focus, synthesis
+            assert "question" in provenance_events[0][1]
+            assert "exploration" in provenance_events[1][1]
+            assert "focus" in provenance_events[2][1]
+            assert "synthesis" in provenance_events[3][1]
 
         finally:
             # Restore original methods

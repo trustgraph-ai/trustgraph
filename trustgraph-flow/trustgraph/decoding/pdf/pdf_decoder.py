@@ -24,6 +24,7 @@ from ... base import Consumer, Producer, ConsumerMetrics, ProducerMetrics
 
 from ... provenance import (
     document_uri, page_uri, derived_entity_triples,
+    set_graph, GRAPH_SOURCE,
 )
 
 # Component identification for provenance
@@ -285,7 +286,7 @@ class Processor(FlowProcessor):
                     title=f"Page {page_num}",
                 )
 
-                # Emit provenance triples
+                # Emit provenance triples (stored in source graph for separation from core knowledge)
                 doc_uri = document_uri(source_doc_id)
                 pg_uri = page_uri(source_doc_id, page_num)
 
@@ -305,7 +306,7 @@ class Processor(FlowProcessor):
                         user=v.metadata.user,
                         collection=v.metadata.collection,
                     ),
-                    triples=prov_triples,
+                    triples=set_graph(prov_triples, GRAPH_SOURCE),
                 ))
 
                 # Forward page document ID to chunker

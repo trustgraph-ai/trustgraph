@@ -20,7 +20,7 @@ from .... rdf import RDF_LABEL, TRUSTGRAPH_ENTITIES, SUBJECT_OF
 from .... base import FlowProcessor, ConsumerSpec,  ProducerSpec
 from .... base import PromptClientSpec, ParameterSpec
 
-from .... provenance import statement_uri, triple_provenance_triples
+from .... provenance import statement_uri, triple_provenance_triples, set_graph, GRAPH_SOURCE
 from .... flow_version import __version__ as COMPONENT_VERSION
 
 RDF_LABEL_VALUE = Term(type=IRI, iri=RDF_LABEL)
@@ -162,6 +162,7 @@ class Processor(FlowProcessor):
                 triples.append(relationship_triple)
 
                 # Generate provenance for the relationship triple (reification)
+                # Provenance triples go in the source graph for separation from core knowledge
                 stmt_uri = statement_uri()
                 prov_triples = triple_provenance_triples(
                     stmt_uri=stmt_uri,
@@ -172,7 +173,7 @@ class Processor(FlowProcessor):
                     llm_model=llm_model,
                     ontology_uri=ontology_uri,
                 )
-                triples.extend(prov_triples)
+                triples.extend(set_graph(prov_triples, GRAPH_SOURCE))
 
                 # Label for s
                 triples.append(Triple(

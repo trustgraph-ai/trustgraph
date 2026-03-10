@@ -12,14 +12,16 @@ from ... schema import IRI, LITERAL
 
 # Provenance imports
 from trustgraph.provenance import (
-    query_session_uri,
-    retrieval_uri as make_retrieval_uri,
-    selection_uri as make_selection_uri,
-    answer_uri as make_answer_uri,
-    query_session_triples,
-    retrieval_triples,
-    selection_triples,
-    answer_triples,
+    question_uri,
+    exploration_uri as make_exploration_uri,
+    focus_uri as make_focus_uri,
+    synthesis_uri as make_synthesis_uri,
+    question_triples,
+    exploration_triples,
+    focus_triples,
+    synthesis_triples,
+    set_graph,
+    GRAPH_RETRIEVAL,
 )
 
 # Module logger
@@ -396,17 +398,20 @@ class GraphRag:
 
         # Generate explainability URIs upfront
         session_id = str(uuid.uuid4())
-        session_uri = query_session_uri(session_id)
-        ret_uri = make_retrieval_uri(session_id)
-        sel_uri = make_selection_uri(session_id)
-        ans_uri = make_answer_uri(session_id)
+        q_uri = question_uri(session_id)
+        exp_uri = make_exploration_uri(session_id)
+        foc_uri = make_focus_uri(session_id)
+        syn_uri = make_synthesis_uri(session_id)
 
         timestamp = datetime.utcnow().isoformat() + "Z"
 
-        # Emit session explainability immediately
+        # Emit question explainability immediately
         if explain_callback:
-            session_triples = query_session_triples(session_uri, query, timestamp)
-            await explain_callback(session_triples, session_uri)
+            q_triples = set_graph(
+                question_triples(q_uri, query, timestamp),
+                GRAPH_RETRIEVAL
+            )
+            await explain_callback(q_triples, q_uri)
 
         q = Query(
             rag = self, user = user, collection = collection,
@@ -418,10 +423,13 @@ class GraphRag:
 
         kg, uri_map = await q.get_labelgraph(query)
 
-        # Emit retrieval explain after graph retrieval completes
+        # Emit exploration explain after graph retrieval completes
         if explain_callback:
-            ret_triples = retrieval_triples(ret_uri, session_uri, len(kg))
-            await explain_callback(ret_triples, ret_uri)
+            exp_triples = set_graph(
+                exploration_triples(exp_uri, q_uri, len(kg)),
+                GRAPH_RETRIEVAL
+            )
+            await explain_callback(exp_triples, exp_uri)
 
         if self.verbose:
             logger.debug("Invoking LLM...")
@@ -511,12 +519,15 @@ class GraphRag:
         if self.verbose:
             logger.debug(f"Filtered to {len(selected_edges)} edges")
 
-        # Emit selection explain after edge selection completes
+        # Emit focus explain after edge selection completes
         if explain_callback:
-            sel_triples = selection_triples(
-                sel_uri, ret_uri, selected_edges_with_reasoning, session_id
+            foc_triples = set_graph(
+                focus_triples(
+                    foc_uri, exp_uri, selected_edges_with_reasoning, session_id
+                ),
+                GRAPH_RETRIEVAL
             )
-            await explain_callback(sel_triples, sel_uri)
+            await explain_callback(foc_triples, foc_uri)
 
         # Step 2: Synthesis - LLM generates answer from selected edges only
         selected_edge_dicts = [
@@ -554,30 +565,33 @@ class GraphRag:
         if self.verbose:
             logger.debug("Query processing complete")
 
-        # Emit answer explain after synthesis completes
+        # Emit synthesis explain after synthesis completes
         if explain_callback:
-            answer_doc_id = None
+            synthesis_doc_id = None
             answer_text = resp if resp else ""
 
             # Save answer to librarian if callback provided
             if save_answer_callback and answer_text:
                 # Generate document ID as URN matching query-time provenance format
-                answer_doc_id = f"urn:trustgraph:answer:{session_id}"
+                synthesis_doc_id = f"urn:trustgraph:synthesis:{session_id}"
                 try:
-                    await save_answer_callback(answer_doc_id, answer_text)
+                    await save_answer_callback(synthesis_doc_id, answer_text)
                     if self.verbose:
-                        logger.debug(f"Saved answer to librarian: {answer_doc_id}")
+                        logger.debug(f"Saved answer to librarian: {synthesis_doc_id}")
                 except Exception as e:
                     logger.warning(f"Failed to save answer to librarian: {e}")
-                    answer_doc_id = None  # Fall back to inline content
+                    synthesis_doc_id = None  # Fall back to inline content
 
             # Generate triples with document reference or inline content
-            ans_triples = answer_triples(
-                ans_uri, sel_uri,
-                answer_text="" if answer_doc_id else answer_text,
-                document_id=answer_doc_id,
+            syn_triples = set_graph(
+                synthesis_triples(
+                    syn_uri, foc_uri,
+                    answer_text="" if synthesis_doc_id else answer_text,
+                    document_id=synthesis_doc_id,
+                ),
+                GRAPH_RETRIEVAL
             )
-            await explain_callback(ans_triples, ans_uri)
+            await explain_callback(syn_triples, syn_uri)
 
         if self.verbose:
             logger.debug(f"Emitted explain for session {session_id}")

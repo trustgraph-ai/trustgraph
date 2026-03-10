@@ -36,14 +36,14 @@ RDFS_LABEL = "http://www.w3.org/2000/01/rdf-schema#label"
 
 def _get_event_type(prov_id):
     """Extract event type from provenance_id"""
-    if "session" in prov_id:
-        return "session"
-    elif "retrieval" in prov_id:
-        return "retrieval"
-    elif "selection" in prov_id:
-        return "selection"
-    elif "answer" in prov_id:
-        return "answer"
+    if "question" in prov_id:
+        return "question"
+    elif "exploration" in prov_id:
+        return "exploration"
+    elif "focus" in prov_id:
+        return "focus"
+    elif "synthesis" in prov_id:
+        return "synthesis"
     return "provenance"
 
 
@@ -51,7 +51,7 @@ def _format_provenance_details(event_type, triples):
     """Format provenance details based on event type and triples"""
     lines = []
 
-    if event_type == "session":
+    if event_type == "question":
         # Show query and timestamp
         for s, p, o in triples:
             if p == TG_QUERY:
@@ -59,32 +59,32 @@ def _format_provenance_details(event_type, triples):
             elif p == PROV_STARTED_AT_TIME:
                 lines.append(f"    Time: {o}")
 
-    elif event_type == "retrieval":
+    elif event_type == "exploration":
         # Show edge count
         for s, p, o in triples:
             if p == TG_EDGE_COUNT:
-                lines.append(f"    Edges retrieved: {o}")
+                lines.append(f"    Edges explored: {o}")
 
-    elif event_type == "selection":
-        # For selection, just count edge selection URIs
+    elif event_type == "focus":
+        # For focus, just count edge selection URIs
         # The actual edge details are fetched separately via edge_selections parameter
         edge_sel_uris = []
         for s, p, o in triples:
             if p == TG_SELECTED_EDGE:
                 edge_sel_uris.append(o)
         if edge_sel_uris:
-            lines.append(f"    Selected {len(edge_sel_uris)} edge(s)")
+            lines.append(f"    Focused on {len(edge_sel_uris)} edge(s)")
 
-    elif event_type == "answer":
+    elif event_type == "synthesis":
         # Show content length (not full content - it's already streamed)
         for s, p, o in triples:
             if p == TG_CONTENT:
-                lines.append(f"    Answer length: {len(o)} chars")
+                lines.append(f"    Synthesis length: {len(o)} chars")
 
     return lines
 
 
-async def _query_triples_once(ws_url, flow_id, prov_id, user, collection, debug=False):
+async def _query_triples_once(ws_url, flow_id, prov_id, user, collection, graph=None, debug=False):
     """Query triples for a provenance node (single attempt)"""
     request = {
         "id": "triples-request",
@@ -97,6 +97,9 @@ async def _query_triples_once(ws_url, flow_id, prov_id, user, collection, debug=
             "limit": 100
         }
     }
+    # Add graph filter if specified (for named graph queries)
+    if graph is not None:
+        request["request"]["g"] = graph
 
     if debug:
         print(f"    [debug] querying triples for s={prov_id}", file=sys.stderr)
@@ -155,10 +158,10 @@ async def _query_triples_once(ws_url, flow_id, prov_id, user, collection, debug=
     return triples
 
 
-async def _query_triples(ws_url, flow_id, prov_id, user, collection, max_retries=5, retry_delay=0.2, debug=False):
+async def _query_triples(ws_url, flow_id, prov_id, user, collection, graph=None, max_retries=5, retry_delay=0.2, debug=False):
     """Query triples for a provenance node with retries for race condition"""
     for attempt in range(max_retries):
-        triples = await _query_triples_once(ws_url, flow_id, prov_id, user, collection, debug)
+        triples = await _query_triples_once(ws_url, flow_id, prov_id, user, collection, graph=graph, debug=debug)
         if triples:
             return triples
         # Wait before retry if empty (triples may not be stored yet)
@@ -515,14 +518,14 @@ async def _question_explainable(
                 if message_type == "explain":
                     # Display explain event with details
                     explain_id = resp.get("explain_id", "")
-                    explain_collection = resp.get("explain_collection", "explainability")
+                    explain_graph = resp.get("explain_graph")  # Named graph (e.g., urn:graph:retrieval)
                     if explain_id:
                         event_type = _get_event_type(explain_id)
                         print(f"\n  [{event_type}] {explain_id}", file=sys.stderr)
 
-                        # Query triples for this explain node (using explain collection from event)
+                        # Query triples for this explain node (using named graph filter)
                         triples = await _query_triples(
-                            ws_url, flow_id, explain_id, user, explain_collection, debug=debug
+                            ws_url, flow_id, explain_id, user, collection, graph=explain_graph, debug=debug
                         )
 
                         # Format and display details
@@ -530,17 +533,17 @@ async def _question_explainable(
                         for line in details:
                             print(line, file=sys.stderr)
 
-                        # For selection events, query each edge selection for details
-                        if event_type == "selection":
+                        # For focus events, query each edge selection for details
+                        if event_type == "focus":
                             for s, p, o in triples:
                                 if debug:
                                     print(f"    [debug] triple: p={p}, o={o}, o_type={type(o).__name__}", file=sys.stderr)
                                 if p == TG_SELECTED_EDGE and isinstance(o, str):
                                     if debug:
                                         print(f"    [debug] querying edge selection: {o}", file=sys.stderr)
-                                    # Query the edge selection entity (using explain collection from event)
+                                    # Query the edge selection entity (using named graph filter)
                                     edge_triples = await _query_triples(
-                                        ws_url, flow_id, o, user, explain_collection, debug=debug
+                                        ws_url, flow_id, o, user, collection, graph=explain_graph, debug=debug
                                     )
                                     if debug:
                                         print(f"    [debug] got {len(edge_triples)} edge triples", file=sys.stderr)
@@ -743,7 +746,7 @@ def main():
     parser.add_argument(
         '-x', '--explainable',
         action='store_true',
-        help='Show provenance events for explainability (implies streaming)'
+        help='Show provenance events: Question, Exploration, Focus, Synthesis (implies streaming)'
     )
 
     parser.add_argument(

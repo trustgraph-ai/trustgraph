@@ -104,10 +104,10 @@ class GraphRagResponseTranslator(MessageTranslator):
         if explain_id:
             result["explain_id"] = explain_id
 
-        # Include explain_collection for explain messages
-        explain_collection = getattr(obj, "explain_collection", None)
-        if explain_collection:
-            result["explain_collection"] = explain_collection
+        # Include explain_graph for explain messages (named graph filter)
+        explain_graph = getattr(obj, "explain_graph", None)
+        if explain_graph is not None:
+            result["explain_graph"] = explain_graph
 
         # Include end_of_stream flag (LLM stream complete)
         result["end_of_stream"] = getattr(obj, "end_of_stream", False)

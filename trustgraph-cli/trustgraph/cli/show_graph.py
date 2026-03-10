@@ -1,6 +1,11 @@
 """
 Connects to the graph query service and dumps all graph edges.
 Uses streaming mode for lower time-to-first-result and reduced memory overhead.
+
+Named graphs:
+  - Default graph (empty): Core knowledge facts
+  - urn:graph:source: Extraction provenance (document/chunk sources)
+  - urn:graph:retrieval: Query-time explainability (question, exploration, focus, synthesis)
 """
 
 import argparse
@@ -12,7 +17,13 @@ default_user = 'trustgraph'
 default_collection = 'default'
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
-def show_graph(url, flow_id, user, collection, limit, batch_size, token=None):
+# Named graph constants for convenience
+GRAPH_DEFAULT = ""
+GRAPH_SOURCE = "urn:graph:source"
+GRAPH_RETRIEVAL = "urn:graph:retrieval"
+
+
+def show_graph(url, flow_id, user, collection, limit, batch_size, graph=None, show_graph_column=False, token=None):
 
     socket = Api(url, token=token).socket()
     flow = socket.flow(flow_id)
@@ -22,6 +33,7 @@ def show_graph(url, flow_id, user, collection, limit, batch_size, token=None):
             user=user,
             collection=collection,
             s=None, p=None, o=None,
+            g=graph,  # Filter by named graph (None = all graphs)
             limit=limit,
             batch_size=batch_size,
         ):
@@ -29,11 +41,16 @@ def show_graph(url, flow_id, user, collection, limit, batch_size, token=None):
                 s = triple.get("s", {})
                 p = triple.get("p", {})
                 o = triple.get("o", {})
+                g = triple.get("g")  # Named graph (None = default graph)
                 # Format terms for display
                 s_str = s.get("v", s.get("i", str(s)))
                 p_str = p.get("v", p.get("i", str(p)))
                 o_str = o.get("v", o.get("i", str(o)))
-                print(s_str, p_str, o_str)
+                if show_graph_column:
+                    g_str = g if g else "(default)"
+                    print(f"[{g_str}]", s_str, p_str, o_str)
+                else:
+                    print(s_str, p_str, o_str)
     finally:
         socket.close()
 
@@ -88,7 +105,24 @@ def main():
         help='Triples per streaming batch (default: 20)',
     )
 
+    parser.add_argument(
+        '-g', '--graph',
+        default=None,
+        help='Filter by named graph (e.g., urn:graph:source, urn:graph:retrieval). Use "" for default graph only.',
+    )
+
+    parser.add_argument(
+        '--show-graph',
+        action='store_true',
+        help='Show graph column in output',
+    )
+
     args = parser.parse_args()
+
+    # Handle empty string for default graph filter
+    graph = args.graph
+    if graph == '""' or graph == "''":
+        graph = ""  # Filter to default graph only
 
     try:
 
@@ -99,6 +133,8 @@ def main():
             collection = args.collection,
             limit = args.limit,
             batch_size = args.batch_size,
+            graph = graph,
+            show_graph_column = args.show_graph,
             token = args.token,
         )
 

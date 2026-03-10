@@ -14,6 +14,7 @@ from ... base import ChunkingService, ConsumerSpec, ProducerSpec
 from ... provenance import (
     page_uri, chunk_uri_from_page, chunk_uri_from_doc,
     derived_entity_triples, document_uri,
+    set_graph, GRAPH_SOURCE,
 )
 
 # Component identification for provenance
@@ -160,7 +161,7 @@ class Processor(ChunkingService):
                 title=f"Chunk {chunk_index}",
             )
 
-            # Emit provenance triples
+            # Emit provenance triples (stored in source graph for separation from core knowledge)
             prov_triples = derived_entity_triples(
                 entity_uri=chunk_uri,
                 parent_uri=parent_uri,
@@ -181,7 +182,7 @@ class Processor(ChunkingService):
                     user=v.metadata.user,
                     collection=v.metadata.collection,
                 ),
-                triples=prov_triples,
+                triples=set_graph(prov_triples, GRAPH_SOURCE),
             ))
 
             # Forward chunk ID + content (post-chunker optimization)
