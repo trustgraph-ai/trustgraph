@@ -181,7 +181,6 @@ class TestTokenChunkerSimple(IsolatedAsyncioTestCase):
         mock_text_doc = MagicMock()
         mock_text_doc.metadata = Metadata(
             id="test-doc-456",
-            metadata=[],
             user="test-user",
             collection="test-collection"
         )

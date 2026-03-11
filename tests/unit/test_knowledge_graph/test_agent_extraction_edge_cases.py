@@ -177,13 +177,13 @@ class TestAgentKgExtractionEdgeCases:
             pass
 
         # Test with metadata without ID
-        metadata = Metadata(id=None, metadata=[])
+        metadata = Metadata(id=None)
         triples, contexts = agent_extractor.process_extraction_data([], metadata)
         assert len(triples) == 0
         assert len(contexts) == 0
 
         # Test with metadata with empty string ID
-        metadata = Metadata(id="", metadata=[])
+        metadata = Metadata(id="")
         data = [{"type": "definition", "entity": "Test", "definition": "Test def"}]
         triples, contexts = agent_extractor.process_extraction_data(data, metadata)
 
@@ -193,7 +193,7 @@ class TestAgentKgExtractionEdgeCases:
 
     def test_process_extraction_data_special_entity_names(self, agent_extractor):
         """Test processing with special characters in entity names"""
-        metadata = Metadata(id="doc123", metadata=[])
+        metadata = Metadata(id="doc123")
 
         special_entities = [
             "Entity with spaces",
@@ -225,7 +225,7 @@ class TestAgentKgExtractionEdgeCases:
 
     def test_process_extraction_data_very_long_definitions(self, agent_extractor):
         """Test processing with very long entity definitions"""
-        metadata = Metadata(id="doc123", metadata=[])
+        metadata = Metadata(id="doc123")
 
         # Create very long definition
         long_definition = "This is a very long definition. " * 1000
@@ -247,7 +247,7 @@ class TestAgentKgExtractionEdgeCases:
 
     def test_process_extraction_data_duplicate_entities(self, agent_extractor):
         """Test processing with duplicate entity names"""
-        metadata = Metadata(id="doc123", metadata=[])
+        metadata = Metadata(id="doc123")
 
         data = [
             {"type": "definition", "entity": "Machine Learning", "definition": "First definition"},
@@ -269,7 +269,7 @@ class TestAgentKgExtractionEdgeCases:
 
     def test_process_extraction_data_empty_strings(self, agent_extractor):
         """Test processing with empty strings in data"""
-        metadata = Metadata(id="doc123", metadata=[])
+        metadata = Metadata(id="doc123")
 
         data = [
             {"type": "definition", "entity": "", "definition": "Definition for empty entity"},
@@ -291,7 +291,7 @@ class TestAgentKgExtractionEdgeCases:
 
     def test_process_extraction_data_nested_json_in_strings(self, agent_extractor):
         """Test processing when definitions contain JSON-like strings"""
-        metadata = Metadata(id="doc123", metadata=[])
+        metadata = Metadata(id="doc123")
 
         data = [
             {
@@ -315,7 +315,7 @@ class TestAgentKgExtractionEdgeCases:
 
     def test_process_extraction_data_boolean_object_entity_variations(self, agent_extractor):
         """Test processing with various boolean values for object-entity"""
-        metadata = Metadata(id="doc123", metadata=[])
+        metadata = Metadata(id="doc123")
 
         data = [
             # Explicit True
@@ -343,7 +343,7 @@ class TestAgentKgExtractionEdgeCases:
     @pytest.mark.asyncio
     async def test_emit_empty_collections(self, agent_extractor):
         """Test emitting empty triples and entity contexts"""
-        metadata = Metadata(id="test", metadata=[])
+        metadata = Metadata(id="test")
         
         # Test emitting empty triples
         mock_publisher = AsyncMock()
@@ -389,7 +389,7 @@ class TestAgentKgExtractionEdgeCases:
 
     def test_process_extraction_data_performance_large_dataset(self, agent_extractor):
         """Test performance with large extraction datasets"""
-        metadata = Metadata(id="large-doc", metadata=[])
+        metadata = Metadata(id="large-doc")
 
         # Create large dataset in JSONL format
         num_definitions = 1000

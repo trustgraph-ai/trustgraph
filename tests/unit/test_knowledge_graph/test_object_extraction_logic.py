@@ -314,7 +314,6 @@ class TestObjectExtractionBusinessLogic:
             id="test-extraction-001",
             user="test_user", 
             collection="test_collection",
-            metadata=[]
         )
         
         values = [{

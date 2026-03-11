@@ -306,10 +306,6 @@ class Processor(FlowProcessor):
                 flow, chunk, ontology_subset, prompt_variables
             )
 
-            # Add metadata triples
-            for t in v.metadata.metadata:
-                triples.append(t)
-
             # Generate ontology definition triples
             ontology_triples = self.build_ontology_triples(ontology_subset)
 
@@ -558,7 +554,6 @@ class Processor(FlowProcessor):
         t = Triples(
             metadata=Metadata(
                 id=metadata.id,
-                metadata=[],
                 user=metadata.user,
                 collection=metadata.collection,
             ),
@@ -571,7 +566,6 @@ class Processor(FlowProcessor):
         ec = EntityContexts(
             metadata=Metadata(
                 id=metadata.id,
-                metadata=[],
                 user=metadata.user,
                 collection=metadata.collection,
             ),

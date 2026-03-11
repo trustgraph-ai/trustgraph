@@ -24,7 +24,6 @@ class TestRowsCassandraContracts:
             id="test-doc-001",
             user="test_user",
             collection="test_collection",
-            metadata=[]
         )
         
         test_object = ExtractedObject(
@@ -50,7 +49,6 @@ class TestRowsCassandraContracts:
         assert hasattr(test_object.metadata, 'id')
         assert hasattr(test_object.metadata, 'user')
         assert hasattr(test_object.metadata, 'collection')
-        assert hasattr(test_object.metadata, 'metadata')
         
         # Verify types
         assert isinstance(test_object.schema_name, str)
@@ -154,7 +152,6 @@ class TestRowsCassandraContracts:
                 id="serial-001",
                 user="test_user",
                 collection="test_coll",
-                metadata=[]
             ),
             schema_name="test_schema",
             values=[{"field1": "value1", "field2": "123"}],
@@ -234,7 +231,6 @@ class TestRowsCassandraContracts:
                 id="meta-001",
                 user="user123",  # -> keyspace
                 collection="coll456",  # -> partition key
-                metadata=[{"key": "value"}]
             ),
             schema_name="table789",  # -> table name
             values=[{"field": "value"}],
@@ -262,7 +258,6 @@ class TestRowsCassandraContractsBatch:
             id="batch-doc-001",
             user="test_user",
             collection="test_collection",
-            metadata=[]
         )
         
         batch_object = ExtractedObject(
@@ -308,10 +303,9 @@ class TestRowsCassandraContractsBatch:
         test_metadata = Metadata(
             id="empty-batch-001",
             user="test_user",
-            collection="test_collection", 
-            metadata=[]
+            collection="test_collection",
         )
-        
+
         empty_batch_object = ExtractedObject(
             metadata=test_metadata,
             schema_name="empty_schema",
@@ -332,9 +326,8 @@ class TestRowsCassandraContractsBatch:
             id="single-batch-001",
             user="test_user",
             collection="test_collection",
-            metadata=[]
         )
-        
+
         single_batch_object = ExtractedObject(
             metadata=test_metadata,
             schema_name="customer_records",
@@ -362,12 +355,11 @@ class TestRowsCassandraContractsBatch:
                 id="batch-serial-001",
                 user="test_user",
                 collection="test_coll",
-                metadata=[]
             ),
             schema_name="test_schema",
             values=[
                 {"field1": "value1", "field2": "123"},
-                {"field1": "value2", "field2": "456"},  
+                {"field1": "value2", "field2": "456"},
                 {"field1": "value3", "field2": "789"}
             ],
             confidence=0.92,
@@ -436,9 +428,8 @@ class TestRowsCassandraContractsBatch:
             id="partition-test-001",
             user="consistent_user",  # Same keyspace
             collection="consistent_collection",  # Same partition
-            metadata=[]
         )
-        
+
         batch_object = ExtractedObject(
             metadata=test_metadata,
             schema_name="partition_test",

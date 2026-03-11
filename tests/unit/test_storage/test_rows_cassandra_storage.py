@@ -190,7 +190,6 @@ class TestRowsCassandraStorageLogic:
                 id="test-001",
                 user="test_user",
                 collection="test_collection",
-                metadata=[]
             ),
             schema_name="test_schema",
             values=[{"id": "123", "value": "test_data"}],
@@ -252,7 +251,6 @@ class TestRowsCassandraStorageLogic:
                 id="test-001",
                 user="test_user",
                 collection="test_collection",
-                metadata=[]
             ),
             schema_name="multi_index_schema",
             values=[{"id": "123", "category": "electronics", "status": "active"}],
@@ -310,7 +308,6 @@ class TestRowsCassandraStorageBatchLogic:
                 id="batch-001",
                 user="test_user",
                 collection="batch_collection",
-                metadata=[]
             ),
             schema_name="batch_schema",
             values=[
@@ -365,7 +362,6 @@ class TestRowsCassandraStorageBatchLogic:
                 id="empty-001",
                 user="test_user",
                 collection="empty_collection",
-                metadata=[]
             ),
             schema_name="empty_schema",
             values=[],  # Empty batch

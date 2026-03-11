@@ -314,11 +314,19 @@ Converts row index fields into vector embeddings.
 | `document_id` | Librarian reference, provenance linking |
 | `chunk_id` | Provenance tracking through pipeline |
 
+<<<<<<< HEAD
 ### Potentially Redundant Fields
 
 | Field | Status |
 |-------|--------|
 | `metadata.metadata` | Set to `[]` by all extractors; document-level metadata now handled by librarian at submission time |
+=======
+### Removed Fields
+
+| Field | Status |
+|-------|--------|
+| `metadata.metadata` | Removed from `Metadata` class. Document-level metadata triples are now emitted directly by librarian to triple store at submission time, not carried through the extraction pipeline. |
+>>>>>>> e3bcbf73 (The metadata field (list of triples) in the pipeline Metadata class)
 
 ### Bytes Fields Pattern
 

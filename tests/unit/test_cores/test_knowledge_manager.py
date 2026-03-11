@@ -73,7 +73,6 @@ def sample_triples():
             id="test-doc-id",
             user="test-user",
             collection="default",  # This should be overridden
-            metadata=[]
         ),
         triples=[
             Triple(
@@ -93,7 +92,6 @@ def sample_graph_embeddings():
             id="test-doc-id",
             user="test-user",
             collection="default",  # This should be overridden
-            metadata=[]
         ),
         entities=[
             EntityEmbeddings(

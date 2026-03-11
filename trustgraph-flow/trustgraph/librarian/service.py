@@ -334,7 +334,6 @@ class Processor(AsyncProcessor):
             triples_msg = Triples(
                 metadata=Metadata(
                     id=doc_uri,
-                    metadata=[],
                     user=processing.user,
                     collection=processing.collection,
                 ),
@@ -381,7 +380,6 @@ class Processor(AsyncProcessor):
                 doc = TextDocument(
                     metadata = Metadata(
                         id = document.id,
-                        metadata = document.metadata,
                         user = processing.user,
                         collection = processing.collection
                     ),
@@ -392,7 +390,6 @@ class Processor(AsyncProcessor):
                 doc = TextDocument(
                     metadata = Metadata(
                         id = document.id,
-                        metadata = document.metadata,
                         user = processing.user,
                         collection = processing.collection
                     ),
@@ -408,7 +405,6 @@ class Processor(AsyncProcessor):
                 doc = Document(
                     metadata = Metadata(
                         id = document.id,
-                        metadata = document.metadata,
                         user = processing.user,
                         collection = processing.collection
                     ),
@@ -419,7 +415,6 @@ class Processor(AsyncProcessor):
                 doc = Document(
                     metadata = Metadata(
                         id = document.id,
-                        metadata = document.metadata,
                         user = processing.user,
                         collection = processing.collection
                     ),
