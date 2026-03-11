@@ -208,9 +208,12 @@ class TestQuery:
             collection="test_collection"
         )
 
-        # Verify result is list of fetched document content
-        assert "Document 1 content" in result
-        assert "Document 2 content" in result
+        # Verify result is tuple of (docs, chunk_ids)
+        docs, chunk_ids = result
+        assert "Document 1 content" in docs
+        assert "Document 2 content" in docs
+        assert "doc/c1" in chunk_ids
+        assert "doc/c2" in chunk_ids
 
     @pytest.mark.asyncio
     async def test_document_rag_query_method(self, mock_fetch_chunk):
@@ -350,8 +353,10 @@ class TestQuery:
         mock_embeddings_client.embed.assert_called_once_with(["verbose test"])
         mock_doc_embeddings_client.query.assert_called_once()
 
-        # Verify result contains fetched content
-        assert "Verbose test doc" in result
+        # Verify result is tuple of (docs, chunk_ids) with fetched content
+        docs, chunk_ids = result
+        assert "Verbose test doc" in docs
+        assert "doc/c6" in chunk_ids
 
     @pytest.mark.asyncio
     async def test_document_rag_query_with_verbose(self, mock_fetch_chunk):
@@ -426,8 +431,8 @@ class TestQuery:
         mock_embeddings_client.embed.assert_called_once_with(["query with no results"])
         mock_doc_embeddings_client.query.assert_called_once()
 
-        # Verify empty result is returned
-        assert result == []
+        # Verify empty result is returned (tuple of empty lists)
+        assert result == ([], [])
 
     @pytest.mark.asyncio
     async def test_document_rag_query_with_empty_documents(self, mock_fetch_chunk):

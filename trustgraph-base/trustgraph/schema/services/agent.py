@@ -23,7 +23,9 @@ class AgentRequest:
     group: list[str] | None = None
     history: list[AgentStep] = field(default_factory=list)
     user: str = ""              # User context for multi-tenancy
-    streaming: bool = False     # NEW: Enable streaming response delivery (default false)
+    collection: str = "default" # Collection for provenance traces
+    streaming: bool = False     # Enable streaming response delivery (default false)
+    session_id: str = ""        # For provenance tracking across iterations
 
 @dataclass
 class AgentResponse:

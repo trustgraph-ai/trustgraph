@@ -13,7 +13,9 @@ class AgentRequestTranslator(MessageTranslator):
             group=data.get("group", None),
             history=data.get("history", []),
             user=data.get("user", "trustgraph"),
-            streaming=data.get("streaming", False)
+            collection=data.get("collection", "default"),
+            streaming=data.get("streaming", False),
+            session_id=data.get("session_id", ""),
         )
 
     def from_pulsar(self, obj: AgentRequest) -> Dict[str, Any]:
@@ -23,7 +25,9 @@ class AgentRequestTranslator(MessageTranslator):
             "group": obj.group,
             "history": obj.history,
             "user": obj.user,
-            "streaming": getattr(obj, "streaming", False)
+            "collection": getattr(obj, "collection", "default"),
+            "streaming": getattr(obj, "streaming", False),
+            "session_id": getattr(obj, "session_id", ""),
         }
 
 

@@ -59,7 +59,7 @@ TG_SOURCE_TEXT = TG + "sourceText"
 TG_SOURCE_CHAR_OFFSET = TG + "sourceCharOffset"
 TG_SOURCE_CHAR_LENGTH = TG + "sourceCharLength"
 
-# Query-time provenance predicates
+# Query-time provenance predicates (GraphRAG)
 TG_QUERY = TG + "query"
 TG_EDGE_COUNT = TG + "edgeCount"
 TG_SELECTED_EDGE = TG + "selectedEdge"
@@ -67,6 +67,30 @@ TG_EDGE = TG + "edge"
 TG_REASONING = TG + "reasoning"
 TG_CONTENT = TG + "content"
 TG_DOCUMENT = TG + "document"  # Reference to document in librarian
+
+# Query-time provenance predicates (DocumentRAG)
+TG_CHUNK_COUNT = TG + "chunkCount"
+TG_SELECTED_CHUNK = TG + "selectedChunk"
+
+# Explainability entity types (shared)
+TG_QUESTION = TG + "Question"
+TG_EXPLORATION = TG + "Exploration"
+TG_FOCUS = TG + "Focus"
+TG_SYNTHESIS = TG + "Synthesis"
+TG_ANALYSIS = TG + "Analysis"
+TG_CONCLUSION = TG + "Conclusion"
+
+# Question subtypes (to distinguish retrieval mechanism)
+TG_GRAPH_RAG_QUESTION = TG + "GraphRagQuestion"
+TG_DOC_RAG_QUESTION = TG + "DocRagQuestion"
+TG_AGENT_QUESTION = TG + "AgentQuestion"
+
+# Agent provenance predicates
+TG_THOUGHT = TG + "thought"
+TG_ACTION = TG + "action"
+TG_ARGUMENTS = TG + "arguments"
+TG_OBSERVATION = TG + "observation"
+TG_ANSWER = TG + "answer"
 
 # Named graph URIs for RDF datasets
 # These separate different types of data while keeping them in the same collection

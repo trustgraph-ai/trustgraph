@@ -17,9 +17,15 @@ from . namespaces import (
     TG_CHUNK_INDEX, TG_CHAR_OFFSET, TG_CHAR_LENGTH,
     TG_CHUNK_SIZE, TG_CHUNK_OVERLAP, TG_COMPONENT_VERSION,
     TG_LLM_MODEL, TG_ONTOLOGY, TG_REIFIES,
-    # Query-time provenance predicates
+    # Query-time provenance predicates (GraphRAG)
     TG_QUERY, TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_EDGE, TG_REASONING, TG_CONTENT,
     TG_DOCUMENT,
+    # Query-time provenance predicates (DocumentRAG)
+    TG_CHUNK_COUNT, TG_SELECTED_CHUNK,
+    # Explainability entity types
+    TG_QUESTION, TG_EXPLORATION, TG_FOCUS, TG_SYNTHESIS,
+    # Question subtypes
+    TG_GRAPH_RAG_QUESTION, TG_DOC_RAG_QUESTION,
 )
 
 from . uris import activity_uri, agent_uri, edge_selection_uri
@@ -310,7 +316,9 @@ def question_triples(
 
     return [
         _triple(question_uri, RDF_TYPE, _iri(PROV_ACTIVITY)),
-        _triple(question_uri, RDFS_LABEL, _literal("GraphRAG question")),
+        _triple(question_uri, RDF_TYPE, _iri(TG_QUESTION)),
+        _triple(question_uri, RDF_TYPE, _iri(TG_GRAPH_RAG_QUESTION)),
+        _triple(question_uri, RDFS_LABEL, _literal("GraphRAG Question")),
         _triple(question_uri, PROV_STARTED_AT_TIME, _literal(timestamp)),
         _triple(question_uri, TG_QUERY, _literal(query)),
     ]
@@ -339,6 +347,7 @@ def exploration_triples(
     """
     return [
         _triple(exploration_uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(exploration_uri, RDF_TYPE, _iri(TG_EXPLORATION)),
         _triple(exploration_uri, RDFS_LABEL, _literal("Exploration")),
         _triple(exploration_uri, PROV_WAS_GENERATED_BY, _iri(question_uri)),
         _triple(exploration_uri, TG_EDGE_COUNT, _literal(edge_count)),
@@ -383,6 +392,7 @@ def focus_triples(
     """
     triples = [
         _triple(focus_uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(focus_uri, RDF_TYPE, _iri(TG_FOCUS)),
         _triple(focus_uri, RDFS_LABEL, _literal("Focus")),
         _triple(focus_uri, PROV_WAS_DERIVED_FROM, _iri(exploration_uri)),
     ]
@@ -443,6 +453,7 @@ def synthesis_triples(
     """
     triples = [
         _triple(synthesis_uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(synthesis_uri, RDF_TYPE, _iri(TG_SYNTHESIS)),
         _triple(synthesis_uri, RDFS_LABEL, _literal("Synthesis")),
         _triple(synthesis_uri, PROV_WAS_DERIVED_FROM, _iri(focus_uri)),
     ]
@@ -452,6 +463,123 @@ def synthesis_triples(
         triples.append(_triple(synthesis_uri, TG_DOCUMENT, _iri(document_id)))
     elif answer_text:
         # Fallback: store inline content
+        triples.append(_triple(synthesis_uri, TG_CONTENT, _literal(answer_text)))
+
+    return triples
+
+
+# Document RAG provenance triple builders
+#
+# Document RAG uses a subset of GraphRAG's model:
+#   Question    - What was asked
+#   Exploration - Chunks retrieved from document store
+#   Synthesis   - The final answer (no Focus step)
+
+def docrag_question_triples(
+    question_uri: str,
+    query: str,
+    timestamp: Optional[str] = None,
+) -> List[Triple]:
+    """
+    Build triples for a document RAG question activity.
+
+    Creates:
+    - Activity declaration with tg:Question type
+    - Query text and timestamp
+
+    Args:
+        question_uri: URI of the question (from docrag_question_uri)
+        query: The user's query text
+        timestamp: ISO timestamp (defaults to now)
+
+    Returns:
+        List of Triple objects
+    """
+    if timestamp is None:
+        timestamp = datetime.utcnow().isoformat() + "Z"
+
+    return [
+        _triple(question_uri, RDF_TYPE, _iri(PROV_ACTIVITY)),
+        _triple(question_uri, RDF_TYPE, _iri(TG_QUESTION)),
+        _triple(question_uri, RDF_TYPE, _iri(TG_DOC_RAG_QUESTION)),
+        _triple(question_uri, RDFS_LABEL, _literal("DocumentRAG Question")),
+        _triple(question_uri, PROV_STARTED_AT_TIME, _literal(timestamp)),
+        _triple(question_uri, TG_QUERY, _literal(query)),
+    ]
+
+
+def docrag_exploration_triples(
+    exploration_uri: str,
+    question_uri: str,
+    chunk_count: int,
+    chunk_ids: Optional[List[str]] = None,
+) -> List[Triple]:
+    """
+    Build triples for a document RAG exploration entity (chunks retrieved).
+
+    Creates:
+    - Entity declaration with tg:Exploration type
+    - wasGeneratedBy link to question
+    - Chunk count and optional chunk references
+
+    Args:
+        exploration_uri: URI of the exploration entity
+        question_uri: URI of the parent question
+        chunk_count: Number of chunks retrieved
+        chunk_ids: Optional list of chunk URIs/IDs
+
+    Returns:
+        List of Triple objects
+    """
+    triples = [
+        _triple(exploration_uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(exploration_uri, RDF_TYPE, _iri(TG_EXPLORATION)),
+        _triple(exploration_uri, RDFS_LABEL, _literal("Exploration")),
+        _triple(exploration_uri, PROV_WAS_GENERATED_BY, _iri(question_uri)),
+        _triple(exploration_uri, TG_CHUNK_COUNT, _literal(chunk_count)),
+    ]
+
+    # Add references to selected chunks
+    if chunk_ids:
+        for chunk_id in chunk_ids:
+            triples.append(_triple(exploration_uri, TG_SELECTED_CHUNK, _iri(chunk_id)))
+
+    return triples
+
+
+def docrag_synthesis_triples(
+    synthesis_uri: str,
+    exploration_uri: str,
+    answer_text: str = "",
+    document_id: Optional[str] = None,
+) -> List[Triple]:
+    """
+    Build triples for a document RAG synthesis entity (final answer).
+
+    Creates:
+    - Entity declaration with tg:Synthesis type
+    - wasDerivedFrom link to exploration (skips focus step)
+    - Either document reference or inline content
+
+    Args:
+        synthesis_uri: URI of the synthesis entity
+        exploration_uri: URI of the parent exploration entity
+        answer_text: The synthesized answer text (used if no document_id)
+        document_id: Optional librarian document ID (preferred over inline content)
+
+    Returns:
+        List of Triple objects
+    """
+    triples = [
+        _triple(synthesis_uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(synthesis_uri, RDF_TYPE, _iri(TG_SYNTHESIS)),
+        _triple(synthesis_uri, RDFS_LABEL, _literal("Synthesis")),
+        _triple(synthesis_uri, PROV_WAS_DERIVED_FROM, _iri(exploration_uri)),
+    ]
+
+    if document_id:
+        triples.append(_triple(synthesis_uri, TG_DOCUMENT, _iri(document_id)))
+    elif answer_text:
         triples.append(_triple(synthesis_uri, TG_CONTENT, _literal(answer_text)))
 
     return triples

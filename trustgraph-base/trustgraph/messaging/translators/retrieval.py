@@ -38,6 +38,16 @@ class DocumentRagResponseTranslator(MessageTranslator):
         if obj.response is not None:
             result["response"] = obj.response
 
+        # Include explain_id for explain messages
+        explain_id = getattr(obj, "explain_id", None)
+        if explain_id:
+            result["explain_id"] = explain_id
+
+        # Include explain_graph for explain messages (named graph filter)
+        explain_graph = getattr(obj, "explain_graph", None)
+        if explain_graph is not None:
+            result["explain_graph"] = explain_graph
+
         # Include end_of_stream flag
         result["end_of_stream"] = getattr(obj, "end_of_stream", False)
 

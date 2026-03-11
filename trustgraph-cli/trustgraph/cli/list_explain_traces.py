@@ -1,8 +1,8 @@
 """
-List all GraphRAG sessions (questions) in a collection.
+List all explainability sessions (GraphRAG and Agent) in a collection.
 
 Queries for all questions stored in the retrieval graph and displays them
-with their session IDs and timestamps.
+with their session IDs, type (GraphRAG or Agent), and timestamps.
 
 Examples:
   tg-list-explain-traces -U trustgraph -C default
@@ -24,8 +24,14 @@ default_collection = 'default'
 # Predicates
 TG = "https://trustgraph.ai/ns/"
 TG_QUERY = TG + "query"
+TG_QUESTION = TG + "Question"
+TG_ANALYSIS = TG + "Analysis"
+TG_EXPLORATION = TG + "Exploration"
 PROV = "http://www.w3.org/ns/prov#"
 PROV_STARTED_AT_TIME = PROV + "startedAtTime"
+PROV_WAS_DERIVED_FROM = PROV + "wasDerivedFrom"
+PROV_WAS_GENERATED_BY = PROV + "wasGeneratedBy"
+RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
 
 # Retrieval graph
 RETRIEVAL_GRAPH = "urn:graph:retrieval"
@@ -117,8 +123,45 @@ def get_timestamp(socket, flow_id, user, collection, question_id):
     return ""
 
 
+def get_session_type(socket, flow_id, user, collection, session_id):
+    """
+    Get the type of session (Agent or GraphRAG).
+
+    Both have tg:Question type, so we distinguish by URI pattern
+    or by checking what's derived from it.
+    """
+    # Fast path: check URI pattern
+    if session_id.startswith("urn:trustgraph:agent:"):
+        return "Agent"
+    if session_id.startswith("urn:trustgraph:question:"):
+        return "GraphRAG"
+
+    # Check what's derived from this entity
+    derived = query_triples(
+        socket, flow_id, user, collection,
+        p=PROV_WAS_DERIVED_FROM, o=session_id, g=RETRIEVAL_GRAPH
+    )
+    generated = query_triples(
+        socket, flow_id, user, collection,
+        p=PROV_WAS_GENERATED_BY, o=session_id, g=RETRIEVAL_GRAPH
+    )
+
+    for s, p, o in derived + generated:
+        child_types = query_triples(
+            socket, flow_id, user, collection,
+            s=s, p=RDF_TYPE, g=RETRIEVAL_GRAPH
+        )
+        for _, _, child_type in child_types:
+            if child_type == TG_ANALYSIS:
+                return "Agent"
+            if child_type == TG_EXPLORATION:
+                return "GraphRAG"
+
+    return "GraphRAG"
+
+
 def list_sessions(socket, flow_id, user, collection, limit):
-    """List all GraphRAG sessions by finding questions."""
+    """List all explainability sessions (GraphRAG and Agent) by finding questions."""
     # Query for all triples with predicate = tg:query
     triples = query_triples(
         socket, flow_id, user, collection,
@@ -129,9 +172,12 @@ def list_sessions(socket, flow_id, user, collection, limit):
     for question_id, _, query_text in triples:
         # Get timestamp if available
         timestamp = get_timestamp(socket, flow_id, user, collection, question_id)
+        # Get session type (Agent or GraphRAG)
+        session_type = get_session_type(socket, flow_id, user, collection, question_id)
 
         sessions.append({
             "id": question_id,
+            "type": session_type,
             "question": query_text,
             "time": timestamp,
         })
@@ -154,18 +200,19 @@ def truncate_text(text, max_len=60):
 def print_table(sessions):
     """Print sessions as a table."""
     if not sessions:
-        print("No GraphRAG sessions found.")
+        print("No explainability sessions found.")
         return
 
     rows = []
     for session in sessions:
         rows.append([
             session["id"],
-            truncate_text(session["question"], 50),
+            session.get("type", "Unknown"),
+            truncate_text(session["question"], 45),
             session.get("time", "")
         ])
 
-    headers = ["Session ID", "Question", "Time"]
+    headers = ["Session ID", "Type", "Question", "Time"]
     print(tabulate(rows, headers=headers, tablefmt="simple"))
 
 
