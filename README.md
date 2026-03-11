@@ -7,19 +7,15 @@
 [![Discord](https://img.shields.io/discord/1251652173201149994
 )](https://discord.gg/sQMwkRz5GX) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/trustgraph-ai/trustgraph)
 
-[**Website**](https://trustgraph.ai) | [**Docs**](https://docs.trustgraph.ai) | [**YouTube**](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) | [**Configuration Builder**](https://config-ui.demo.trustgraph.ai/) | [**Discord**](https://discord.gg/sQMwkRz5GX) | [**Blog**](https://blog.trustgraph.ai/subscribe)
+[**Website**](https://trustgraph.ai) | [**Docs**](https://docs.trustgraph.ai) | [**YouTube**](https://www.youtube.com/@TrustGraphAI?sub_confirmation=1) | [**Configuration Terminal**](https://config-ui.demo.trustgraph.ai/) | [**Discord**](https://discord.gg/sQMwkRz5GX) | [**Blog**](https://blog.trustgraph.ai/subscribe)
 
 <a href="https://trendshift.io/repositories/17291" target="_blank"><img src="https://trendshift.io/api/badge/repositories/17291" alt="trustgraph-ai%2Ftrustgraph | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
-# The context backend for AI agents
+# The context backend for reliable AI
 
 </div>
 
-Durable agent memory you can trust. Build, version, and retrieve grounded context from a context graph.
-
-- Give agents **memory** that persists across sessions and deployments.
-- Reduce hallucinations with **grounded context retrieval**
-- Ship reusable, portable [Context Cores](#context-cores) (packaged context you can move between projects/environments).
+LLMs alone hallucinate and diverge from ground truth. TrustGraph is a context system that stores, enriches, and delivers context to LLMs to enable reliable AI agents. Think like [Supabase](https://github.com/supabase/supabase) but AI-native with context graph enrichment.
 
 The context backend:
 - [x] Multi-model and multimodal database system
@@ -49,6 +45,21 @@ The context backend:
   - [x] Websocket API [Docs](https://docs.trustgraph.ai/reference/apis/websocket.html)
   - [x] Python API [Docs](https://docs.trustgraph.ai/reference/apis/python)
   - [x] CLI [Docs](https://docs.trustgraph.ai/reference/cli/)
+     
+## No API Keys Required
+
+How many times have you cloned a repo and opened the `.env.example` to see the dozens of API keys for 3rd party dependencies needed to make the services work? There are only 3 things in TrustGraph that might need an API key:
+
+- 3rd party LLM services like Anthropic, Cohere, Gemini, Mistral, OpenAI, etc.
+- 3rd party OCR like Mistral OCR
+- The API key *you set* for the TrustGraph API gateway
+
+Everything else is included.
+- [x] Managed Multi-model storage in [Cassandra](https://cassandra.apache.org/_/index.html)
+- [x] Managed Vector embedding storage in [Qdrant](https://github.com/qdrant/qdrant)
+- [x] Managed File and Object storage in [Garage](https://github.com/deuxfleurs-org/garage) (S3 compatible)
+- [x] Managed High-speed Pub/Sub messaging fabric with [Pulsar](https://github.com/apache/pulsar)
+- [x] Complete LLM inferencing stack for open LLMs with [vLLM](https://github.com/vllm-project/vllm), [TGI](https://github.com/huggingface/text-generation-inference), [Ollama](https://github.com/ollama/ollama), [LM Studio](https://github.com/lmstudio-ai), and [Llamafiles](https://github.com/mozilla-ai/llamafile) 
 
 ## Quickstart
 
@@ -64,6 +75,8 @@ TrustGraph downloads as Docker containers and can be run locally with Docker, Po
   <video src="https://github.com/user-attachments/assets/2978a6aa-4c9c-4d7c-ad02-8f3d01a1c602"
 width="80%" controls></video>
 </p>
+
+For a browser based quickstart, try the [Configuration Terminal](https://config-ui.demo.trustgraph.ai/). 
 
 <details>
 <summary>Table of Contents</summary>
@@ -168,30 +181,24 @@ TrustGraph provides component flexibility to optimize agent workflows.
 
 </details>
 <details>
-<summary>Graph Storage</summary>
+<summary>Multi-model storage</summary>
 <br>
 
-- Apache Cassandra (default)<br>
-- Neo4j<br>
-- Memgraph<br>
-- FalkorDB<br>
+- Apache Cassandra<br>
 
 </details>
 <details>
-<summary>VectorDBs</summary>
+<summary>VectorDB</summary>
 <br>
 
-- Qdrant (default)<br>
-- Pinecone<br>
-- Milvus<br>
+- Qdrant<br>
 
 </details>
 <details>
 <summary>File and Object Storage</summary>
 <br>
 
-- Garage (default)<br>
-- MinIO<br>
+- Garage<br>
 
 </details>
 <details>
@@ -200,6 +207,7 @@ TrustGraph provides component flexibility to optimize agent workflows.
 
 - Prometheus<br>
 - Grafana<br>
+- Loki<br>
 
 </details>
 <details>
