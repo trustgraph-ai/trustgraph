@@ -272,6 +272,7 @@ class Processor(FlowProcessor):
                     extracted = ExtractedObject(
                         metadata=Metadata(
                             id=f"{v.metadata.id}:{schema_name}",
+                            root=v.metadata.root,
                             user=v.metadata.user,
                             collection=v.metadata.collection,
                         ),

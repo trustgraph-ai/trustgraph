@@ -302,6 +302,7 @@ class Processor(FlowProcessor):
                 await flow("triples").send(Triples(
                     metadata=Metadata(
                         id=pg_uri,
+                        root=v.metadata.root,
                         user=v.metadata.user,
                         collection=v.metadata.collection,
                     ),
@@ -313,6 +314,7 @@ class Processor(FlowProcessor):
                 r = TextDocument(
                     metadata=Metadata(
                         id=pg_uri,
+                        root=v.metadata.root,
                         user=v.metadata.user,
                         collection=v.metadata.collection,
                     ),

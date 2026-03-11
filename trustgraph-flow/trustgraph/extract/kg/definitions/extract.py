@@ -218,6 +218,7 @@ class Processor(FlowProcessor):
                     flow("triples"),
                     Metadata(
                         id=v.metadata.id,
+                        root=v.metadata.root,
                         user=v.metadata.user,
                         collection=v.metadata.collection,
                     ),
@@ -231,6 +232,7 @@ class Processor(FlowProcessor):
                     flow("entity-contexts"),
                     Metadata(
                         id=v.metadata.id,
+                        root=v.metadata.root,
                         user=v.metadata.user,
                         collection=v.metadata.collection,
                     ),

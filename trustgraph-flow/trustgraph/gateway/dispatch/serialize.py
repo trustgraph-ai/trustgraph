@@ -37,6 +37,7 @@ def serialize_triples(message):
     return {
         "metadata": {
             "id": message.metadata.id,
+            "root": message.metadata.root,
             "user": message.metadata.user,
             "collection": message.metadata.collection,
         },
@@ -48,6 +49,7 @@ def serialize_graph_embeddings(message):
     return {
         "metadata": {
             "id": message.metadata.id,
+            "root": message.metadata.root,
             "user": message.metadata.user,
             "collection": message.metadata.collection,
         },
@@ -65,6 +67,7 @@ def serialize_entity_contexts(message):
     return {
         "metadata": {
             "id": message.metadata.id,
+            "root": message.metadata.root,
             "user": message.metadata.user,
             "collection": message.metadata.collection,
         },
@@ -82,6 +85,7 @@ def serialize_document_embeddings(message):
     return {
         "metadata": {
             "id": message.metadata.id,
+            "root": message.metadata.root,
             "user": message.metadata.user,
             "collection": message.metadata.collection,
         },

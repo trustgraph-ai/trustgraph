@@ -29,8 +29,9 @@ class Triple:
         self.o = o
 
 class Metadata:
-    def __init__(self, id, user, collection):
+    def __init__(self, id, user, collection, root=""):
         self.id = id
+        self.root = root
         self.user = user
         self.collection = collection
 

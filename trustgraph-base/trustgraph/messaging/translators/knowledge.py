@@ -20,6 +20,7 @@ class KnowledgeRequestTranslator(MessageTranslator):
             triples = Triples(
                 metadata=Metadata(
                     id=data["triples"]["metadata"]["id"],
+                    root=data["triples"]["metadata"].get("root", ""),
                     user=data["triples"]["metadata"]["user"],
                     collection=data["triples"]["metadata"]["collection"]
                 ),
@@ -31,6 +32,7 @@ class KnowledgeRequestTranslator(MessageTranslator):
             graph_embeddings = GraphEmbeddings(
                 metadata=Metadata(
                     id=data["graph-embeddings"]["metadata"]["id"],
+                    root=data["graph-embeddings"]["metadata"].get("root", ""),
                     user=data["graph-embeddings"]["metadata"]["user"],
                     collection=data["graph-embeddings"]["metadata"]["collection"]
                 ),
@@ -71,6 +73,7 @@ class KnowledgeRequestTranslator(MessageTranslator):
             result["triples"] = {
                 "metadata": {
                     "id": obj.triples.metadata.id,
+                    "root": obj.triples.metadata.root,
                     "user": obj.triples.metadata.user,
                     "collection": obj.triples.metadata.collection,
                 },
@@ -81,6 +84,7 @@ class KnowledgeRequestTranslator(MessageTranslator):
             result["graph-embeddings"] = {
                 "metadata": {
                     "id": obj.graph_embeddings.metadata.id,
+                    "root": obj.graph_embeddings.metadata.root,
                     "user": obj.graph_embeddings.metadata.user,
                     "collection": obj.graph_embeddings.metadata.collection,
                 },
@@ -117,6 +121,7 @@ class KnowledgeResponseTranslator(MessageTranslator):
                 "triples": {
                     "metadata": {
                         "id": obj.triples.metadata.id,
+                        "root": obj.triples.metadata.root,
                         "user": obj.triples.metadata.user,
                         "collection": obj.triples.metadata.collection,
                     },
@@ -130,6 +135,7 @@ class KnowledgeResponseTranslator(MessageTranslator):
                 "graph-embeddings": {
                     "metadata": {
                         "id": obj.graph_embeddings.metadata.id,
+                        "root": obj.graph_embeddings.metadata.root,
                         "user": obj.graph_embeddings.metadata.user,
                         "collection": obj.graph_embeddings.metadata.collection,
                     },
