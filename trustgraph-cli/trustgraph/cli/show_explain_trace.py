@@ -1,11 +1,15 @@
 """
-Show full explainability trace for a GraphRAG session.
+Show full explainability trace for a GraphRAG or Agent session.
 
-Given a question/session URI, displays the complete cascade:
-Question -> Exploration -> Focus (edge selection) -> Synthesis (answer).
+Given a question/session URI, displays the complete trace:
+- GraphRAG: Question -> Exploration -> Focus (edge selection) -> Synthesis (answer)
+- Agent: Session -> Iteration(s) (thought/action/observation) -> Final Answer
+
+The tool auto-detects the trace type based on rdf:type.
 
 Examples:
   tg-show-explain-trace -U trustgraph -C default "urn:trustgraph:question:abc123"
+  tg-show-explain-trace -U trustgraph -C default "urn:trustgraph:agent:abc123"
   tg-show-explain-trace --max-answer 1000 "urn:trustgraph:question:abc123"
   tg-show-explain-trace --show-provenance "urn:trustgraph:question:abc123"
 """
@@ -31,10 +35,20 @@ TG_REASONING = TG + "reasoning"
 TG_CONTENT = TG + "content"
 TG_DOCUMENT = TG + "document"
 TG_REIFIES = TG + "reifies"
+# Agent predicates
+TG_THOUGHT = TG + "thought"
+TG_ACTION = TG + "action"
+TG_ARGUMENTS = TG + "arguments"
+TG_OBSERVATION = TG + "observation"
+TG_ANSWER = TG + "answer"
+TG_AGENT_SESSION = TG + "AgentSession"
+TG_AGENT_ITERATION = TG + "AgentIteration"
+TG_AGENT_FINAL = TG + "AgentFinal"
 PROV = "http://www.w3.org/ns/prov#"
 PROV_STARTED_AT_TIME = PROV + "startedAtTime"
 PROV_WAS_DERIVED_FROM = PROV + "wasDerivedFrom"
 PROV_WAS_GENERATED_BY = PROV + "wasGeneratedBy"
+RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
 RDFS_LABEL = "http://www.w3.org/2000/01/rdf-schema#label"
 
 # Graphs
@@ -278,6 +292,153 @@ def format_edge(edge, label_cache=None, socket=None, flow_id=None, user=None, co
         o_label = o.split("/")[-1] if "/" in str(o) else o
 
     return f"({s_label}, {p_label}, {o_label})"
+
+
+def detect_trace_type(socket, flow_id, user, collection, entity_id):
+    """
+    Detect whether an entity is an agent session or GraphRAG question.
+
+    Returns:
+        "agent" if entity has rdf:type = tg:AgentSession
+        "graphrag" otherwise (default)
+    """
+    triples = query_triples(
+        socket, flow_id, user, collection,
+        s=entity_id, p=RDF_TYPE, g=RETRIEVAL_GRAPH
+    )
+    for s, p, o in triples:
+        if o == TG_AGENT_SESSION:
+            return "agent"
+    return "graphrag"
+
+
+def build_agent_trace(socket, flow_id, user, collection, session_id, api=None, max_answer=500):
+    """Build the full explainability trace for an agent session."""
+    trace = {
+        "session_id": session_id,
+        "type": "agent",
+        "question": None,
+        "time": None,
+        "iterations": [],
+        "final_answer": None,
+    }
+
+    # Get session metadata
+    props = get_node_properties(socket, flow_id, user, collection, session_id)
+    trace["question"] = props.get(TG_QUERY, [None])[0]
+    trace["time"] = props.get(PROV_STARTED_AT_TIME, [None])[0]
+
+    # Find all entities derived from this session (iterations and final)
+    # Start by looking for entities where prov:wasDerivedFrom = session_id
+    current_uri = session_id
+    iteration_num = 1
+
+    while True:
+        # Find entities derived from current
+        derived_ids = find_by_predicate_object(
+            socket, flow_id, user, collection,
+            PROV_WAS_DERIVED_FROM, current_uri
+        )
+
+        if not derived_ids:
+            break
+
+        derived_id = derived_ids[0]
+        derived_props = get_node_properties(socket, flow_id, user, collection, derived_id)
+
+        # Check type
+        types = derived_props.get(RDF_TYPE, [])
+
+        if TG_AGENT_ITERATION in types:
+            iteration = {
+                "id": derived_id,
+                "iteration_num": iteration_num,
+                "thought": derived_props.get(TG_THOUGHT, [None])[0],
+                "action": derived_props.get(TG_ACTION, [None])[0],
+                "arguments": derived_props.get(TG_ARGUMENTS, [None])[0],
+                "observation": derived_props.get(TG_OBSERVATION, [None])[0],
+            }
+            trace["iterations"].append(iteration)
+            current_uri = derived_id
+            iteration_num += 1
+
+        elif TG_AGENT_FINAL in types:
+            answer = derived_props.get(TG_ANSWER, [None])[0]
+            if answer and len(answer) > max_answer:
+                answer = answer[:max_answer] + "... [truncated]"
+            trace["final_answer"] = {
+                "id": derived_id,
+                "answer": answer,
+            }
+            break
+
+        else:
+            # Unknown type, stop traversal
+            break
+
+    return trace
+
+
+def print_agent_text(trace):
+    """Print agent trace in text format."""
+    print(f"=== Agent Session: {trace['session_id']} ===")
+    print()
+
+    if trace["question"]:
+        print(f"Question: {trace['question']}")
+    if trace["time"]:
+        print(f"Time: {trace['time']}")
+    print()
+
+    # Iterations
+    print("--- Iterations ---")
+    iterations = trace.get("iterations", [])
+    if iterations:
+        for iteration in iterations:
+            print(f"Iteration {iteration['iteration_num']}:")
+            print(f"  Thought: {iteration.get('thought', 'N/A')}")
+            print(f"  Action: {iteration.get('action', 'N/A')}")
+
+            args = iteration.get('arguments')
+            if args:
+                # Try to pretty-print JSON arguments
+                try:
+                    import json
+                    args_obj = json.loads(args)
+                    args_str = json.dumps(args_obj, indent=4)
+                    # Indent each line
+                    args_lines = args_str.split('\n')
+                    print(f"  Arguments:")
+                    for line in args_lines:
+                        print(f"    {line}")
+                except:
+                    print(f"  Arguments: {args}")
+            else:
+                print(f"  Arguments: N/A")
+
+            obs = iteration.get('observation', 'N/A')
+            if obs and len(obs) > 200:
+                obs = obs[:200] + "... [truncated]"
+            print(f"  Observation: {obs}")
+            print()
+    else:
+        print("No iterations recorded")
+        print()
+
+    # Final answer
+    print("--- Final Answer ---")
+    final = trace.get("final_answer")
+    if final and final.get("answer"):
+        print("Answer:")
+        for line in final["answer"].split("\n"):
+            print(f"  {line}")
+    else:
+        print("No final answer recorded")
+
+
+def print_agent_json(trace):
+    """Print agent trace as JSON."""
+    print(json.dumps(trace, indent=2))
 
 
 def build_trace(socket, flow_id, user, collection, question_id, api=None, show_provenance=False, max_answer=500):
@@ -530,21 +691,48 @@ def main():
         socket = api.socket()
 
         try:
-            trace = build_trace(
+            # Detect trace type (agent vs graphrag)
+            trace_type = detect_trace_type(
                 socket=socket,
                 flow_id=args.flow_id,
                 user=args.user,
                 collection=args.collection,
-                question_id=args.question_id,
-                api=api,
-                show_provenance=args.show_provenance,
-                max_answer=args.max_answer,
+                entity_id=args.question_id,
             )
 
-            if args.format == 'json':
-                print_json(trace)
+            if trace_type == "agent":
+                # Build and print agent trace
+                trace = build_agent_trace(
+                    socket=socket,
+                    flow_id=args.flow_id,
+                    user=args.user,
+                    collection=args.collection,
+                    session_id=args.question_id,
+                    api=api,
+                    max_answer=args.max_answer,
+                )
+
+                if args.format == 'json':
+                    print_agent_json(trace)
+                else:
+                    print_agent_text(trace)
             else:
-                print_text(trace, show_provenance=args.show_provenance)
+                # Build and print GraphRAG trace (existing behavior)
+                trace = build_trace(
+                    socket=socket,
+                    flow_id=args.flow_id,
+                    user=args.user,
+                    collection=args.collection,
+                    question_id=args.question_id,
+                    api=api,
+                    show_provenance=args.show_provenance,
+                    max_answer=args.max_answer,
+                )
+
+                if args.format == 'json':
+                    print_json(trace)
+                else:
+                    print_text(trace, show_provenance=args.show_provenance)
 
         finally:
             socket.close()

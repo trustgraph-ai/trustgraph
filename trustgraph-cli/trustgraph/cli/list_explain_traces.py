@@ -1,8 +1,8 @@
 """
-List all GraphRAG sessions (questions) in a collection.
+List all explainability sessions (GraphRAG and Agent) in a collection.
 
 Queries for all questions stored in the retrieval graph and displays them
-with their session IDs and timestamps.
+with their session IDs, type (GraphRAG or Agent), and timestamps.
 
 Examples:
   tg-list-explain-traces -U trustgraph -C default
@@ -24,8 +24,10 @@ default_collection = 'default'
 # Predicates
 TG = "https://trustgraph.ai/ns/"
 TG_QUERY = TG + "query"
+TG_AGENT_SESSION = TG + "AgentSession"
 PROV = "http://www.w3.org/ns/prov#"
 PROV_STARTED_AT_TIME = PROV + "startedAtTime"
+RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
 
 # Retrieval graph
 RETRIEVAL_GRAPH = "urn:graph:retrieval"
@@ -117,8 +119,20 @@ def get_timestamp(socket, flow_id, user, collection, question_id):
     return ""
 
 
+def get_session_type(socket, flow_id, user, collection, session_id):
+    """Get the type of session (Agent or GraphRAG)."""
+    triples = query_triples(
+        socket, flow_id, user, collection,
+        s=session_id, p=RDF_TYPE, g=RETRIEVAL_GRAPH
+    )
+    for s, p, o in triples:
+        if o == TG_AGENT_SESSION:
+            return "Agent"
+    return "GraphRAG"
+
+
 def list_sessions(socket, flow_id, user, collection, limit):
-    """List all GraphRAG sessions by finding questions."""
+    """List all explainability sessions (GraphRAG and Agent) by finding questions."""
     # Query for all triples with predicate = tg:query
     triples = query_triples(
         socket, flow_id, user, collection,
@@ -129,9 +143,12 @@ def list_sessions(socket, flow_id, user, collection, limit):
     for question_id, _, query_text in triples:
         # Get timestamp if available
         timestamp = get_timestamp(socket, flow_id, user, collection, question_id)
+        # Get session type (Agent or GraphRAG)
+        session_type = get_session_type(socket, flow_id, user, collection, question_id)
 
         sessions.append({
             "id": question_id,
+            "type": session_type,
             "question": query_text,
             "time": timestamp,
         })
@@ -154,18 +171,19 @@ def truncate_text(text, max_len=60):
 def print_table(sessions):
     """Print sessions as a table."""
     if not sessions:
-        print("No GraphRAG sessions found.")
+        print("No explainability sessions found.")
         return
 
     rows = []
     for session in sessions:
         rows.append([
             session["id"],
-            truncate_text(session["question"], 50),
+            session.get("type", "Unknown"),
+            truncate_text(session["question"], 45),
             session.get("time", "")
         ])
 
-    headers = ["Session ID", "Question", "Time"]
+    headers = ["Session ID", "Type", "Question", "Time"]
     print(tabulate(rows, headers=headers, tablefmt="simple"))
 
 

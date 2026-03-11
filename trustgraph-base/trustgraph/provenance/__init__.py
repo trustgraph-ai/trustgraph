@@ -45,6 +45,10 @@ from . uris import (
     exploration_uri,
     focus_uri,
     synthesis_uri,
+    # Agent provenance URIs
+    agent_session_uri,
+    agent_iteration_uri,
+    agent_final_uri,
 )
 
 # Namespace constants
@@ -65,6 +69,9 @@ from . namespaces import (
     TG_SOURCE_TEXT, TG_SOURCE_CHAR_OFFSET, TG_SOURCE_CHAR_LENGTH,
     # Query-time provenance predicates
     TG_QUERY, TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_REASONING, TG_CONTENT,
+    # Agent provenance predicates
+    TG_THOUGHT, TG_ACTION, TG_ARGUMENTS, TG_OBSERVATION, TG_ANSWER,
+    TG_AGENT_SESSION, TG_AGENT_ITERATION, TG_AGENT_FINAL,
     # Named graphs
     GRAPH_DEFAULT, GRAPH_SOURCE, GRAPH_RETRIEVAL,
 )
@@ -81,6 +88,13 @@ from . triples import (
     synthesis_triples,
     # Utility
     set_graph,
+)
+
+# Agent provenance triple builders
+from . agent import (
+    agent_session_triples,
+    agent_iteration_triples,
+    agent_final_triples,
 )
 
 # Vocabulary bootstrap
@@ -107,6 +121,10 @@ __all__ = [
     "exploration_uri",
     "focus_uri",
     "synthesis_uri",
+    # Agent provenance URIs
+    "agent_session_uri",
+    "agent_iteration_uri",
+    "agent_final_uri",
     # Namespaces
     "PROV", "PROV_ENTITY", "PROV_ACTIVITY", "PROV_AGENT",
     "PROV_WAS_DERIVED_FROM", "PROV_WAS_GENERATED_BY",
@@ -120,6 +138,9 @@ __all__ = [
     "TG_SOURCE_TEXT", "TG_SOURCE_CHAR_OFFSET", "TG_SOURCE_CHAR_LENGTH",
     # Query-time provenance predicates
     "TG_QUERY", "TG_EDGE_COUNT", "TG_SELECTED_EDGE", "TG_REASONING", "TG_CONTENT",
+    # Agent provenance predicates
+    "TG_THOUGHT", "TG_ACTION", "TG_ARGUMENTS", "TG_OBSERVATION", "TG_ANSWER",
+    "TG_AGENT_SESSION", "TG_AGENT_ITERATION", "TG_AGENT_FINAL",
     # Named graphs
     "GRAPH_DEFAULT", "GRAPH_SOURCE", "GRAPH_RETRIEVAL",
     # Triple builders
@@ -131,6 +152,10 @@ __all__ = [
     "exploration_triples",
     "focus_triples",
     "synthesis_triples",
+    # Agent provenance triple builders
+    "agent_session_triples",
+    "agent_iteration_triples",
+    "agent_final_triples",
     # Utility
     "set_graph",
     # Vocabulary

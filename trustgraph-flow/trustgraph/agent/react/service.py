@@ -7,6 +7,8 @@ import re
 import sys
 import functools
 import logging
+import uuid
+from datetime import datetime
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -14,8 +16,22 @@ logger = logging.getLogger(__name__)
 from ... base import AgentService, TextCompletionClientSpec, PromptClientSpec
 from ... base import GraphRagClientSpec, ToolClientSpec, StructuredQueryClientSpec
 from ... base import RowEmbeddingsQueryClientSpec, EmbeddingsClientSpec
+from ... base import ProducerSpec
 
 from ... schema import AgentRequest, AgentResponse, AgentStep, Error
+from ... schema import Triples, Metadata
+
+# Provenance imports for agent explainability
+from trustgraph.provenance import (
+    agent_session_uri,
+    agent_iteration_uri,
+    agent_final_uri,
+    agent_session_triples,
+    agent_iteration_triples,
+    agent_final_triples,
+    set_graph,
+    GRAPH_RETRIEVAL,
+)
 
 from . tools import KnowledgeQueryImpl, TextCompletionImpl, McpToolImpl, PromptImpl, StructuredQueryImpl, RowEmbeddingsQueryImpl, ToolServiceImpl
 from . agent_manager import AgentManager
@@ -102,6 +118,14 @@ class Processor(AgentService):
             RowEmbeddingsQueryClientSpec(
                 request_name = "row-embeddings-query-request",
                 response_name = "row-embeddings-query-response",
+            )
+        )
+
+        # Explainability producer for agent provenance triples
+        self.register_specification(
+            ProducerSpec(
+                name = "explainability",
+                schema = Triples,
             )
         )
 
@@ -285,6 +309,10 @@ class Processor(AgentService):
             # Check if streaming is enabled
             streaming = getattr(request, 'streaming', False)
 
+            # Generate or retrieve session ID for provenance tracking
+            session_id = getattr(request, 'session_id', '') or str(uuid.uuid4())
+            collection = getattr(request, 'collection', 'default')
+
             if request.history:
                 history = [
                     Action(
@@ -297,6 +325,27 @@ class Processor(AgentService):
                 ]
             else:
                 history = []
+
+            # Calculate iteration number (1-based)
+            iteration_num = len(history) + 1
+            session_uri = agent_session_uri(session_id)
+
+            # On first iteration, emit session triples
+            if iteration_num == 1:
+                timestamp = datetime.utcnow().isoformat() + "Z"
+                triples = set_graph(
+                    agent_session_triples(session_uri, request.question, timestamp),
+                    GRAPH_RETRIEVAL
+                )
+                await flow("explainability").send(Triples(
+                    metadata=Metadata(
+                        id=session_uri,
+                        user=request.user,
+                        collection=collection,
+                    ),
+                    triples=triples,
+                ))
+                logger.debug(f"Emitted session triples for {session_uri}")
 
             logger.info(f"Question: {request.question}")
 
@@ -447,6 +496,28 @@ class Processor(AgentService):
                 else:
                     f = json.dumps(act.final)
 
+                # Emit final answer provenance triples
+                final_uri = agent_final_uri(session_id)
+                # Parent is last iteration, or session if no iterations
+                if iteration_num > 1:
+                    parent_uri = agent_iteration_uri(session_id, iteration_num - 1)
+                else:
+                    parent_uri = session_uri
+
+                final_triples = set_graph(
+                    agent_final_triples(final_uri, parent_uri, f),
+                    GRAPH_RETRIEVAL
+                )
+                await flow("explainability").send(Triples(
+                    metadata=Metadata(
+                        id=final_uri,
+                        user=request.user,
+                        collection=collection,
+                    ),
+                    triples=final_triples,
+                ))
+                logger.debug(f"Emitted final triples for {final_uri}")
+
                 if streaming:
                     # Streaming format - send end-of-dialog marker
                     # Answer chunks were already sent via answer() callback during parsing
@@ -479,8 +550,37 @@ class Processor(AgentService):
 
             logger.debug("Send next...")
 
+            # Emit iteration provenance triples
+            iteration_uri = agent_iteration_uri(session_id, iteration_num)
+            # Parent is previous iteration, or session if this is first iteration
+            if iteration_num > 1:
+                parent_uri = agent_iteration_uri(session_id, iteration_num - 1)
+            else:
+                parent_uri = session_uri
+
+            iter_triples = set_graph(
+                agent_iteration_triples(
+                    iteration_uri,
+                    parent_uri,
+                    act.thought,
+                    act.name,
+                    act.arguments,
+                    act.observation,
+                ),
+                GRAPH_RETRIEVAL
+            )
+            await flow("explainability").send(Triples(
+                metadata=Metadata(
+                    id=iteration_uri,
+                    user=request.user,
+                    collection=collection,
+                ),
+                triples=iter_triples,
+            ))
+            logger.debug(f"Emitted iteration triples for {iteration_uri}")
+
             history.append(act)
-            
+
             # Handle state transitions if tool execution was successful
             next_state = request.state
             if act.name in filtered_tools:
@@ -501,7 +601,9 @@ class Processor(AgentService):
                     for h in history
                 ],
                 user=request.user,
+                collection=collection,
                 streaming=streaming,
+                session_id=session_id,  # Pass session_id for provenance continuity
             )
 
             await next(r)

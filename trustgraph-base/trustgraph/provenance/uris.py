@@ -138,3 +138,49 @@ def edge_selection_uri(session_id: str, edge_index: int) -> str:
         URN in format: urn:trustgraph:prov:edge:{uuid}:{index}
     """
     return f"urn:trustgraph:prov:edge:{session_id}:{edge_index}"
+
+
+# Agent provenance URIs
+# These URIs use the urn:trustgraph:agent: namespace to distinguish agent
+# provenance from GraphRAG question provenance
+
+def agent_session_uri(session_id: str = None) -> str:
+    """
+    Generate URI for an agent session.
+
+    Args:
+        session_id: Optional UUID string. Auto-generates if not provided.
+
+    Returns:
+        URN in format: urn:trustgraph:agent:{uuid}
+    """
+    if session_id is None:
+        session_id = str(uuid.uuid4())
+    return f"urn:trustgraph:agent:{session_id}"
+
+
+def agent_iteration_uri(session_id: str, iteration_num: int) -> str:
+    """
+    Generate URI for an agent iteration.
+
+    Args:
+        session_id: The session UUID.
+        iteration_num: 1-based iteration number.
+
+    Returns:
+        URN in format: urn:trustgraph:agent:{uuid}/i{num}
+    """
+    return f"urn:trustgraph:agent:{session_id}/i{iteration_num}"
+
+
+def agent_final_uri(session_id: str) -> str:
+    """
+    Generate URI for an agent final answer.
+
+    Args:
+        session_id: The session UUID.
+
+    Returns:
+        URN in format: urn:trustgraph:agent:{uuid}/final
+    """
+    return f"urn:trustgraph:agent:{session_id}/final"
