@@ -554,6 +554,7 @@ class Processor(FlowProcessor):
         t = Triples(
             metadata=Metadata(
                 id=metadata.id,
+                root=metadata.root,
                 user=metadata.user,
                 collection=metadata.collection,
             ),
@@ -566,6 +567,7 @@ class Processor(FlowProcessor):
         ec = EntityContexts(
             metadata=Metadata(
                 id=metadata.id,
+                root=metadata.root,
                 user=metadata.user,
                 collection=metadata.collection,
             ),

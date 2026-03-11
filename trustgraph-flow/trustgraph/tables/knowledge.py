@@ -233,7 +233,7 @@ class KnowledgeTableStore:
                     self.insert_triples_stmt,
                     (
                         uuid.uuid4(), m.metadata.user,
-                        m.metadata.id, when,
+                        m.metadata.root or m.metadata.id, when,
                         [], triples,
                     )
                 )
@@ -265,7 +265,7 @@ class KnowledgeTableStore:
                     self.insert_graph_embeddings_stmt,
                     (
                         uuid.uuid4(), m.metadata.user,
-                        m.metadata.id, when,
+                        m.metadata.root or m.metadata.id, when,
                         [], entities,
                     )
                 )
@@ -297,7 +297,7 @@ class KnowledgeTableStore:
                     self.insert_document_embeddings_stmt,
                     (
                         uuid.uuid4(), m.metadata.user,
-                        m.metadata.id, when,
+                        m.metadata.root or m.metadata.id, when,
                         [], chunks,
                     )
                 )

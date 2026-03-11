@@ -104,6 +104,7 @@ class Processor(FlowProcessor):
         tpls = Triples(
             metadata = Metadata(
                 id = metadata.id,
+                root = metadata.root,
                 user = metadata.user,
                 collection = metadata.collection,
             ),
@@ -116,6 +117,7 @@ class Processor(FlowProcessor):
         ecs = EntityContexts(
             metadata = Metadata(
                 id = metadata.id,
+                root = metadata.root,
                 user = metadata.user,
                 collection = metadata.collection,
             ),
