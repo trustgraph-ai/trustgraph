@@ -69,9 +69,11 @@ from . namespaces import (
     TG_SOURCE_TEXT, TG_SOURCE_CHAR_OFFSET, TG_SOURCE_CHAR_LENGTH,
     # Query-time provenance predicates
     TG_QUERY, TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_REASONING, TG_CONTENT,
+    # Explainability entity types
+    TG_QUESTION, TG_EXPLORATION, TG_FOCUS, TG_SYNTHESIS,
+    TG_ANALYSIS, TG_CONCLUSION,
     # Agent provenance predicates
     TG_THOUGHT, TG_ACTION, TG_ARGUMENTS, TG_OBSERVATION, TG_ANSWER,
-    TG_AGENT_SESSION, TG_AGENT_ITERATION, TG_AGENT_FINAL,
     # Named graphs
     GRAPH_DEFAULT, GRAPH_SOURCE, GRAPH_RETRIEVAL,
 )
@@ -138,9 +140,11 @@ __all__ = [
     "TG_SOURCE_TEXT", "TG_SOURCE_CHAR_OFFSET", "TG_SOURCE_CHAR_LENGTH",
     # Query-time provenance predicates
     "TG_QUERY", "TG_EDGE_COUNT", "TG_SELECTED_EDGE", "TG_REASONING", "TG_CONTENT",
+    # Explainability entity types
+    "TG_QUESTION", "TG_EXPLORATION", "TG_FOCUS", "TG_SYNTHESIS",
+    "TG_ANALYSIS", "TG_CONCLUSION",
     # Agent provenance predicates
     "TG_THOUGHT", "TG_ACTION", "TG_ARGUMENTS", "TG_OBSERVATION", "TG_ANSWER",
-    "TG_AGENT_SESSION", "TG_AGENT_ITERATION", "TG_AGENT_FINAL",
     # Named graphs
     "GRAPH_DEFAULT", "GRAPH_SOURCE", "GRAPH_RETRIEVAL",
     # Triple builders

@@ -2,9 +2,9 @@
 Helper functions to build PROV-O triples for agent provenance.
 
 Agent provenance tracks the reasoning trace of ReAct agent sessions:
-- AgentSession: The root entity with query and timestamp
-- AgentIteration: Each think/act/observe cycle
-- AgentFinal: The final answer
+- Question: The root activity with query and timestamp
+- Analysis: Each think/act/observe cycle
+- Conclusion: The final answer
 """
 
 import json
@@ -15,9 +15,9 @@ from .. schema import Triple, Term, IRI, LITERAL
 
 from . namespaces import (
     RDF_TYPE, RDFS_LABEL,
-    PROV_ENTITY, PROV_WAS_DERIVED_FROM, PROV_STARTED_AT_TIME,
+    PROV_ACTIVITY, PROV_ENTITY, PROV_WAS_DERIVED_FROM, PROV_STARTED_AT_TIME,
     TG_QUERY, TG_THOUGHT, TG_ACTION, TG_ARGUMENTS, TG_OBSERVATION, TG_ANSWER,
-    TG_AGENT_SESSION, TG_AGENT_ITERATION, TG_AGENT_FINAL,
+    TG_QUESTION, TG_ANALYSIS, TG_CONCLUSION,
 )
 
 
@@ -42,10 +42,10 @@ def agent_session_triples(
     timestamp: Optional[str] = None,
 ) -> List[Triple]:
     """
-    Build triples for an agent session start.
+    Build triples for an agent session start (Question).
 
     Creates:
-    - Entity declaration for the session
+    - Activity declaration with tg:Question type
     - Query text and timestamp
 
     Args:
@@ -60,8 +60,9 @@ def agent_session_triples(
         timestamp = datetime.utcnow().isoformat() + "Z"
 
     return [
-        _triple(session_uri, RDF_TYPE, _iri(TG_AGENT_SESSION)),
-        _triple(session_uri, RDFS_LABEL, _literal("Agent Session")),
+        _triple(session_uri, RDF_TYPE, _iri(PROV_ACTIVITY)),
+        _triple(session_uri, RDF_TYPE, _iri(TG_QUESTION)),
+        _triple(session_uri, RDFS_LABEL, _literal("Agent Question")),
         _triple(session_uri, PROV_STARTED_AT_TIME, _literal(timestamp)),
         _triple(session_uri, TG_QUERY, _literal(query)),
     ]
@@ -76,10 +77,10 @@ def agent_iteration_triples(
     observation: str,
 ) -> List[Triple]:
     """
-    Build triples for one agent iteration (think/act/observe cycle).
+    Build triples for one agent iteration (Analysis - think/act/observe cycle).
 
     Creates:
-    - Entity declaration for the iteration
+    - Entity declaration with tg:Analysis type
     - wasDerivedFrom link to parent (previous iteration or session)
     - Thought, action, arguments, and observation data
 
@@ -95,8 +96,9 @@ def agent_iteration_triples(
         List of Triple objects
     """
     triples = [
-        _triple(iteration_uri, RDF_TYPE, _iri(TG_AGENT_ITERATION)),
-        _triple(iteration_uri, RDFS_LABEL, _literal(f"Iteration: {action}")),
+        _triple(iteration_uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(iteration_uri, RDF_TYPE, _iri(TG_ANALYSIS)),
+        _triple(iteration_uri, RDFS_LABEL, _literal(f"Analysis: {action}")),
         _triple(iteration_uri, PROV_WAS_DERIVED_FROM, _iri(parent_uri)),
         _triple(iteration_uri, TG_THOUGHT, _literal(thought)),
         _triple(iteration_uri, TG_ACTION, _literal(action)),
@@ -113,10 +115,10 @@ def agent_final_triples(
     answer: str,
 ) -> List[Triple]:
     """
-    Build triples for an agent final answer.
+    Build triples for an agent final answer (Conclusion).
 
     Creates:
-    - Entity declaration for the final answer
+    - Entity declaration with tg:Conclusion type
     - wasDerivedFrom link to parent (last iteration or session)
     - The answer text
 
@@ -129,8 +131,9 @@ def agent_final_triples(
         List of Triple objects
     """
     return [
-        _triple(final_uri, RDF_TYPE, _iri(TG_AGENT_FINAL)),
-        _triple(final_uri, RDFS_LABEL, _literal("Final Answer")),
+        _triple(final_uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(final_uri, RDF_TYPE, _iri(TG_CONCLUSION)),
+        _triple(final_uri, RDFS_LABEL, _literal("Conclusion")),
         _triple(final_uri, PROV_WAS_DERIVED_FROM, _iri(parent_uri)),
         _triple(final_uri, TG_ANSWER, _literal(answer)),
     ]

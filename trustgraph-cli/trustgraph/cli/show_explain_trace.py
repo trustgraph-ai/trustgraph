@@ -35,15 +35,20 @@ TG_REASONING = TG + "reasoning"
 TG_CONTENT = TG + "content"
 TG_DOCUMENT = TG + "document"
 TG_REIFIES = TG + "reifies"
+# Explainability entity types
+TG_QUESTION = TG + "Question"
+TG_EXPLORATION = TG + "Exploration"
+TG_FOCUS = TG + "Focus"
+TG_SYNTHESIS = TG + "Synthesis"
+TG_ANALYSIS = TG + "Analysis"
+TG_CONCLUSION = TG + "Conclusion"
+
 # Agent predicates
 TG_THOUGHT = TG + "thought"
 TG_ACTION = TG + "action"
 TG_ARGUMENTS = TG + "arguments"
 TG_OBSERVATION = TG + "observation"
 TG_ANSWER = TG + "answer"
-TG_AGENT_SESSION = TG + "AgentSession"
-TG_AGENT_ITERATION = TG + "AgentIteration"
-TG_AGENT_FINAL = TG + "AgentFinal"
 PROV = "http://www.w3.org/ns/prov#"
 PROV_STARTED_AT_TIME = PROV + "startedAtTime"
 PROV_WAS_DERIVED_FROM = PROV + "wasDerivedFrom"
@@ -296,19 +301,52 @@ def format_edge(edge, label_cache=None, socket=None, flow_id=None, user=None, co
 
 def detect_trace_type(socket, flow_id, user, collection, entity_id):
     """
-    Detect whether an entity is an agent session or GraphRAG question.
+    Detect whether an entity is an agent Question or GraphRAG Question.
+
+    Both have rdf:type = tg:Question, so we distinguish by checking
+    what's derived from it:
+    - Agent: has tg:Analysis or tg:Conclusion derived
+    - GraphRAG: has tg:Exploration derived
+
+    Also checks URI pattern as fallback:
+    - urn:trustgraph:agent: -> agent
+    - urn:trustgraph:question: -> graphrag
 
     Returns:
-        "agent" if entity has rdf:type = tg:AgentSession
-        "graphrag" otherwise (default)
+        "agent" or "graphrag"
     """
-    triples = query_triples(
+    # Check URI pattern first (fast path)
+    if entity_id.startswith("urn:trustgraph:agent:"):
+        return "agent"
+    if entity_id.startswith("urn:trustgraph:question:"):
+        return "graphrag"
+
+    # Check what's derived from this entity
+    derived = find_by_predicate_object(
         socket, flow_id, user, collection,
-        s=entity_id, p=RDF_TYPE, g=RETRIEVAL_GRAPH
+        PROV_WAS_DERIVED_FROM, entity_id
     )
-    for s, p, o in triples:
-        if o == TG_AGENT_SESSION:
-            return "agent"
+
+    # Also check wasGeneratedBy (GraphRAG exploration uses this)
+    generated = find_by_predicate_object(
+        socket, flow_id, user, collection,
+        PROV_WAS_GENERATED_BY, entity_id
+    )
+
+    all_children = derived + generated
+
+    for child_id in all_children:
+        child_types = query_triples(
+            socket, flow_id, user, collection,
+            s=child_id, p=RDF_TYPE, g=RETRIEVAL_GRAPH
+        )
+        for s, p, o in child_types:
+            if o == TG_ANALYSIS or o == TG_CONCLUSION:
+                return "agent"
+            if o == TG_EXPLORATION:
+                return "graphrag"
+
+    # Default to graphrag
     return "graphrag"
 
 
@@ -349,7 +387,7 @@ def build_agent_trace(socket, flow_id, user, collection, session_id, api=None, m
         # Check type
         types = derived_props.get(RDF_TYPE, [])
 
-        if TG_AGENT_ITERATION in types:
+        if TG_ANALYSIS in types:
             iteration = {
                 "id": derived_id,
                 "iteration_num": iteration_num,
@@ -362,7 +400,7 @@ def build_agent_trace(socket, flow_id, user, collection, session_id, api=None, m
             current_uri = derived_id
             iteration_num += 1
 
-        elif TG_AGENT_FINAL in types:
+        elif TG_CONCLUSION in types:
             answer = derived_props.get(TG_ANSWER, [None])[0]
             if answer and len(answer) > max_answer:
                 answer = answer[:max_answer] + "... [truncated]"
@@ -390,12 +428,12 @@ def print_agent_text(trace):
         print(f"Time: {trace['time']}")
     print()
 
-    # Iterations
-    print("--- Iterations ---")
+    # Analysis steps
+    print("--- Analysis ---")
     iterations = trace.get("iterations", [])
     if iterations:
         for iteration in iterations:
-            print(f"Iteration {iteration['iteration_num']}:")
+            print(f"Analysis {iteration['iteration_num']}:")
             print(f"  Thought: {iteration.get('thought', 'N/A')}")
             print(f"  Action: {iteration.get('action', 'N/A')}")
 
@@ -422,18 +460,18 @@ def print_agent_text(trace):
             print(f"  Observation: {obs}")
             print()
     else:
-        print("No iterations recorded")
+        print("No analysis steps recorded")
         print()
 
-    # Final answer
-    print("--- Final Answer ---")
+    # Conclusion
+    print("--- Conclusion ---")
     final = trace.get("final_answer")
     if final and final.get("answer"):
         print("Answer:")
         for line in final["answer"].split("\n"):
             print(f"  {line}")
     else:
-        print("No final answer recorded")
+        print("No conclusion recorded")
 
 
 def print_agent_json(trace):

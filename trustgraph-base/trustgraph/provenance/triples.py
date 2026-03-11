@@ -20,6 +20,8 @@ from . namespaces import (
     # Query-time provenance predicates
     TG_QUERY, TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_EDGE, TG_REASONING, TG_CONTENT,
     TG_DOCUMENT,
+    # Explainability entity types
+    TG_QUESTION, TG_EXPLORATION, TG_FOCUS, TG_SYNTHESIS,
 )
 
 from . uris import activity_uri, agent_uri, edge_selection_uri
@@ -310,7 +312,8 @@ def question_triples(
 
     return [
         _triple(question_uri, RDF_TYPE, _iri(PROV_ACTIVITY)),
-        _triple(question_uri, RDFS_LABEL, _literal("GraphRAG question")),
+        _triple(question_uri, RDF_TYPE, _iri(TG_QUESTION)),
+        _triple(question_uri, RDFS_LABEL, _literal("GraphRAG Question")),
         _triple(question_uri, PROV_STARTED_AT_TIME, _literal(timestamp)),
         _triple(question_uri, TG_QUERY, _literal(query)),
     ]
@@ -339,6 +342,7 @@ def exploration_triples(
     """
     return [
         _triple(exploration_uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(exploration_uri, RDF_TYPE, _iri(TG_EXPLORATION)),
         _triple(exploration_uri, RDFS_LABEL, _literal("Exploration")),
         _triple(exploration_uri, PROV_WAS_GENERATED_BY, _iri(question_uri)),
         _triple(exploration_uri, TG_EDGE_COUNT, _literal(edge_count)),
@@ -383,6 +387,7 @@ def focus_triples(
     """
     triples = [
         _triple(focus_uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(focus_uri, RDF_TYPE, _iri(TG_FOCUS)),
         _triple(focus_uri, RDFS_LABEL, _literal("Focus")),
         _triple(focus_uri, PROV_WAS_DERIVED_FROM, _iri(exploration_uri)),
     ]
@@ -443,6 +448,7 @@ def synthesis_triples(
     """
     triples = [
         _triple(synthesis_uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(synthesis_uri, RDF_TYPE, _iri(TG_SYNTHESIS)),
         _triple(synthesis_uri, RDFS_LABEL, _literal("Synthesis")),
         _triple(synthesis_uri, PROV_WAS_DERIVED_FROM, _iri(focus_uri)),
     ]

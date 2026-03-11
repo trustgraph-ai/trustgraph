@@ -68,15 +68,20 @@ TG_REASONING = TG + "reasoning"
 TG_CONTENT = TG + "content"
 TG_DOCUMENT = TG + "document"  # Reference to document in librarian
 
+# Explainability entity types (used by both GraphRAG and Agent)
+TG_QUESTION = TG + "Question"
+TG_EXPLORATION = TG + "Exploration"
+TG_FOCUS = TG + "Focus"
+TG_SYNTHESIS = TG + "Synthesis"
+TG_ANALYSIS = TG + "Analysis"
+TG_CONCLUSION = TG + "Conclusion"
+
 # Agent provenance predicates
 TG_THOUGHT = TG + "thought"
 TG_ACTION = TG + "action"
 TG_ARGUMENTS = TG + "arguments"
 TG_OBSERVATION = TG + "observation"
 TG_ANSWER = TG + "answer"
-TG_AGENT_SESSION = TG + "AgentSession"
-TG_AGENT_ITERATION = TG + "AgentIteration"
-TG_AGENT_FINAL = TG + "AgentFinal"
 
 # Named graph URIs for RDF datasets
 # These separate different types of data while keeping them in the same collection

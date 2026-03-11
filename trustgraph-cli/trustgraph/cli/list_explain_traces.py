@@ -24,9 +24,13 @@ default_collection = 'default'
 # Predicates
 TG = "https://trustgraph.ai/ns/"
 TG_QUERY = TG + "query"
-TG_AGENT_SESSION = TG + "AgentSession"
+TG_QUESTION = TG + "Question"
+TG_ANALYSIS = TG + "Analysis"
+TG_EXPLORATION = TG + "Exploration"
 PROV = "http://www.w3.org/ns/prov#"
 PROV_STARTED_AT_TIME = PROV + "startedAtTime"
+PROV_WAS_DERIVED_FROM = PROV + "wasDerivedFrom"
+PROV_WAS_GENERATED_BY = PROV + "wasGeneratedBy"
 RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
 
 # Retrieval graph
@@ -120,14 +124,39 @@ def get_timestamp(socket, flow_id, user, collection, question_id):
 
 
 def get_session_type(socket, flow_id, user, collection, session_id):
-    """Get the type of session (Agent or GraphRAG)."""
-    triples = query_triples(
+    """
+    Get the type of session (Agent or GraphRAG).
+
+    Both have tg:Question type, so we distinguish by URI pattern
+    or by checking what's derived from it.
+    """
+    # Fast path: check URI pattern
+    if session_id.startswith("urn:trustgraph:agent:"):
+        return "Agent"
+    if session_id.startswith("urn:trustgraph:question:"):
+        return "GraphRAG"
+
+    # Check what's derived from this entity
+    derived = query_triples(
         socket, flow_id, user, collection,
-        s=session_id, p=RDF_TYPE, g=RETRIEVAL_GRAPH
+        p=PROV_WAS_DERIVED_FROM, o=session_id, g=RETRIEVAL_GRAPH
     )
-    for s, p, o in triples:
-        if o == TG_AGENT_SESSION:
-            return "Agent"
+    generated = query_triples(
+        socket, flow_id, user, collection,
+        p=PROV_WAS_GENERATED_BY, o=session_id, g=RETRIEVAL_GRAPH
+    )
+
+    for s, p, o in derived + generated:
+        child_types = query_triples(
+            socket, flow_id, user, collection,
+            s=s, p=RDF_TYPE, g=RETRIEVAL_GRAPH
+        )
+        for _, _, child_type in child_types:
+            if child_type == TG_ANALYSIS:
+                return "Agent"
+            if child_type == TG_EXPLORATION:
+                return "GraphRAG"
+
     return "GraphRAG"
 
 
