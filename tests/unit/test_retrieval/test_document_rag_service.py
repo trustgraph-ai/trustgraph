@@ -5,7 +5,7 @@ passed to the DocumentRag.query() method.
 """
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock, patch, ANY
 
 from trustgraph.retrieval.document_rag.rag import Processor
 from trustgraph.schema import DocumentRagQuery, DocumentRagResponse
@@ -65,8 +65,9 @@ class TestDocumentRagService:
         mock_rag_instance.query.assert_called_once_with(
             "test query",
             user="my_user",           # Must be from message, not hardcoded default
-            collection="test_coll_1", # Must be from message, not hardcoded default  
-            doc_limit=5
+            collection="test_coll_1", # Must be from message, not hardcoded default
+            doc_limit=5,
+            explain_callback=ANY,     # Explainability callback is always passed
         )
         
         # Verify response was sent
