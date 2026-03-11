@@ -24,6 +24,8 @@ from . namespaces import (
     TG_CHUNK_COUNT, TG_SELECTED_CHUNK,
     # Explainability entity types
     TG_QUESTION, TG_EXPLORATION, TG_FOCUS, TG_SYNTHESIS,
+    # Question subtypes
+    TG_GRAPH_RAG_QUESTION, TG_DOC_RAG_QUESTION,
 )
 
 from . uris import activity_uri, agent_uri, edge_selection_uri
@@ -315,6 +317,7 @@ def question_triples(
     return [
         _triple(question_uri, RDF_TYPE, _iri(PROV_ACTIVITY)),
         _triple(question_uri, RDF_TYPE, _iri(TG_QUESTION)),
+        _triple(question_uri, RDF_TYPE, _iri(TG_GRAPH_RAG_QUESTION)),
         _triple(question_uri, RDFS_LABEL, _literal("GraphRAG Question")),
         _triple(question_uri, PROV_STARTED_AT_TIME, _literal(timestamp)),
         _triple(question_uri, TG_QUERY, _literal(query)),
@@ -498,6 +501,7 @@ def docrag_question_triples(
     return [
         _triple(question_uri, RDF_TYPE, _iri(PROV_ACTIVITY)),
         _triple(question_uri, RDF_TYPE, _iri(TG_QUESTION)),
+        _triple(question_uri, RDF_TYPE, _iri(TG_DOC_RAG_QUESTION)),
         _triple(question_uri, RDFS_LABEL, _literal("DocumentRAG Question")),
         _triple(question_uri, PROV_STARTED_AT_TIME, _literal(timestamp)),
         _triple(question_uri, TG_QUERY, _literal(query)),

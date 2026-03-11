@@ -15,28 +15,40 @@ Add provenance recording to the React agent loop so agent sessions can be traced
 Both GraphRAG and Agent use PROV-O as the base ontology with TrustGraph-specific subtypes:
 
 ### GraphRAG Types
-| Entity | PROV-O Type | TG Type | Description |
-|--------|-------------|---------|-------------|
-| Question | `prov:Activity` | `tg:Question` | The user's query |
+| Entity | PROV-O Type | TG Types | Description |
+|--------|-------------|----------|-------------|
+| Question | `prov:Activity` | `tg:Question`, `tg:GraphRagQuestion` | The user's query |
 | Exploration | `prov:Entity` | `tg:Exploration` | Edges retrieved from knowledge graph |
 | Focus | `prov:Entity` | `tg:Focus` | Selected edges with reasoning |
 | Synthesis | `prov:Entity` | `tg:Synthesis` | Final answer |
 
 ### Agent Types
-| Entity | PROV-O Type | TG Type | Description |
-|--------|-------------|---------|-------------|
-| Question | `prov:Activity` | `tg:Question` | The user's query (same as GraphRAG) |
+| Entity | PROV-O Type | TG Types | Description |
+|--------|-------------|----------|-------------|
+| Question | `prov:Activity` | `tg:Question`, `tg:AgentQuestion` | The user's query |
 | Analysis | `prov:Entity` | `tg:Analysis` | Each think/act/observe cycle |
 | Conclusion | `prov:Entity` | `tg:Conclusion` | Final answer |
 
 ### Document RAG Types
-| Entity | PROV-O Type | TG Type | Description |
-|--------|-------------|---------|-------------|
-| Question | `prov:Activity` | `tg:Question` | The user's query (same as GraphRAG) |
+| Entity | PROV-O Type | TG Types | Description |
+|--------|-------------|----------|-------------|
+| Question | `prov:Activity` | `tg:Question`, `tg:DocRagQuestion` | The user's query |
 | Exploration | `prov:Entity` | `tg:Exploration` | Chunks retrieved from document store |
 | Synthesis | `prov:Entity` | `tg:Synthesis` | Final answer |
 
 **Note:** Document RAG uses a subset of GraphRAG's types (no Focus step since there's no edge selection/reasoning phase).
+
+### Question Subtypes
+
+All Question entities share `tg:Question` as a base type but have a specific subtype to identify the retrieval mechanism:
+
+| Subtype | URI Pattern | Mechanism |
+|---------|-------------|-----------|
+| `tg:GraphRagQuestion` | `urn:trustgraph:question:{uuid}` | Knowledge graph RAG |
+| `tg:DocRagQuestion` | `urn:trustgraph:docrag:{uuid}` | Document/chunk RAG |
+| `tg:AgentQuestion` | `urn:trustgraph:agent:{uuid}` | ReAct agent |
+
+This allows querying all questions via `tg:Question` while filtering by specific mechanism via the subtype.
 
 ## Provenance Model
 

@@ -78,6 +78,8 @@ from . namespaces import (
     # Explainability entity types
     TG_QUESTION, TG_EXPLORATION, TG_FOCUS, TG_SYNTHESIS,
     TG_ANALYSIS, TG_CONCLUSION,
+    # Question subtypes (to distinguish retrieval mechanism)
+    TG_GRAPH_RAG_QUESTION, TG_DOC_RAG_QUESTION, TG_AGENT_QUESTION,
     # Agent provenance predicates
     TG_THOUGHT, TG_ACTION, TG_ARGUMENTS, TG_OBSERVATION, TG_ANSWER,
     # Named graphs
@@ -159,6 +161,8 @@ __all__ = [
     # Explainability entity types
     "TG_QUESTION", "TG_EXPLORATION", "TG_FOCUS", "TG_SYNTHESIS",
     "TG_ANALYSIS", "TG_CONCLUSION",
+    # Question subtypes
+    "TG_GRAPH_RAG_QUESTION", "TG_DOC_RAG_QUESTION", "TG_AGENT_QUESTION",
     # Agent provenance predicates
     "TG_THOUGHT", "TG_ACTION", "TG_ARGUMENTS", "TG_OBSERVATION", "TG_ANSWER",
     # Named graphs

@@ -18,6 +18,7 @@ from . namespaces import (
     PROV_ACTIVITY, PROV_ENTITY, PROV_WAS_DERIVED_FROM, PROV_STARTED_AT_TIME,
     TG_QUERY, TG_THOUGHT, TG_ACTION, TG_ARGUMENTS, TG_OBSERVATION, TG_ANSWER,
     TG_QUESTION, TG_ANALYSIS, TG_CONCLUSION,
+    TG_AGENT_QUESTION,
 )
 
 
@@ -62,6 +63,7 @@ def agent_session_triples(
     return [
         _triple(session_uri, RDF_TYPE, _iri(PROV_ACTIVITY)),
         _triple(session_uri, RDF_TYPE, _iri(TG_QUESTION)),
+        _triple(session_uri, RDF_TYPE, _iri(TG_AGENT_QUESTION)),
         _triple(session_uri, RDFS_LABEL, _literal("Agent Question")),
         _triple(session_uri, PROV_STARTED_AT_TIME, _literal(timestamp)),
         _triple(session_uri, TG_QUERY, _literal(query)),

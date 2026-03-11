@@ -72,13 +72,18 @@ TG_DOCUMENT = TG + "document"  # Reference to document in librarian
 TG_CHUNK_COUNT = TG + "chunkCount"
 TG_SELECTED_CHUNK = TG + "selectedChunk"
 
-# Explainability entity types (used by both GraphRAG and Agent)
+# Explainability entity types (shared)
 TG_QUESTION = TG + "Question"
 TG_EXPLORATION = TG + "Exploration"
 TG_FOCUS = TG + "Focus"
 TG_SYNTHESIS = TG + "Synthesis"
 TG_ANALYSIS = TG + "Analysis"
 TG_CONCLUSION = TG + "Conclusion"
+
+# Question subtypes (to distinguish retrieval mechanism)
+TG_GRAPH_RAG_QUESTION = TG + "GraphRagQuestion"
+TG_DOC_RAG_QUESTION = TG + "DocRagQuestion"
+TG_AGENT_QUESTION = TG + "AgentQuestion"
 
 # Agent provenance predicates
 TG_THOUGHT = TG + "thought"
