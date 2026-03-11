@@ -11,6 +11,8 @@ import logging
 from ... schema import DocumentRagQuery, DocumentRagResponse, Error
 from ... schema import LibrarianRequest, LibrarianResponse
 from ... schema import librarian_request_queue, librarian_response_queue
+from ... schema import Triples, Metadata
+from ... provenance import GRAPH_RETRIEVAL
 from . document_rag import DocumentRag
 from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
 from ... base import PromptClientSpec, EmbeddingsClientSpec
@@ -75,6 +77,13 @@ class Processor(FlowProcessor):
             ProducerSpec(
                 name = "response",
                 schema = DocumentRagResponse,
+            )
+        )
+
+        self.register_specification(
+            ProducerSpec(
+                name = "explainability",
+                schema = Triples,
             )
         )
 
@@ -194,6 +203,29 @@ class Processor(FlowProcessor):
             else:
                 doc_limit = self.doc_limit
 
+            # Real-time explainability callback - emits triples and IDs as they're generated
+            # Triples are stored in the user's collection with a named graph (urn:graph:retrieval)
+            async def send_explainability(triples, explain_id):
+                # Send triples to explainability queue - stores in same collection with named graph
+                await flow("explainability").send(Triples(
+                    metadata=Metadata(
+                        id=explain_id,
+                        user=v.user,
+                        collection=v.collection,  # Store in user's collection
+                    ),
+                    triples=triples,
+                ))
+
+                # Send explain ID and graph to response queue
+                await flow("response").send(
+                    DocumentRagResponse(
+                        response=None,
+                        explain_id=explain_id,
+                        explain_graph=GRAPH_RETRIEVAL,
+                    ),
+                    properties={"id": id}
+                )
+
             # Check if streaming is requested
             if v.streaming:
                 # Define async callback for streaming chunks
@@ -217,6 +249,7 @@ class Processor(FlowProcessor):
                     doc_limit=doc_limit,
                     streaming=True,
                     chunk_callback=send_chunk,
+                    explain_callback=send_explainability,
                 )
             else:
                 # Non-streaming path (existing behavior)
@@ -224,7 +257,8 @@ class Processor(FlowProcessor):
                     v.query,
                     user=v.user,
                     collection=v.collection,
-                    doc_limit=doc_limit
+                    doc_limit=doc_limit,
+                    explain_callback=send_explainability,
                 )
 
                 await flow("response").send(

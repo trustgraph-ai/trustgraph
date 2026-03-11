@@ -42,5 +42,7 @@ class DocumentRagQuery:
 @dataclass
 class DocumentRagResponse:
     error: Error | None = None
-    response: str = ""
+    response: str | None = ""
     end_of_stream: bool = False
+    explain_id: str | None = None     # Single explain URI (announced as created)
+    explain_graph: str | None = None  # Named graph where explain was stored (e.g., urn:graph:retrieval)

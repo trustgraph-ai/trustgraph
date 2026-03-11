@@ -59,7 +59,7 @@ TG_SOURCE_TEXT = TG + "sourceText"
 TG_SOURCE_CHAR_OFFSET = TG + "sourceCharOffset"
 TG_SOURCE_CHAR_LENGTH = TG + "sourceCharLength"
 
-# Query-time provenance predicates
+# Query-time provenance predicates (GraphRAG)
 TG_QUERY = TG + "query"
 TG_EDGE_COUNT = TG + "edgeCount"
 TG_SELECTED_EDGE = TG + "selectedEdge"
@@ -67,6 +67,10 @@ TG_EDGE = TG + "edge"
 TG_REASONING = TG + "reasoning"
 TG_CONTENT = TG + "content"
 TG_DOCUMENT = TG + "document"  # Reference to document in librarian
+
+# Query-time provenance predicates (DocumentRAG)
+TG_CHUNK_COUNT = TG + "chunkCount"
+TG_SELECTED_CHUNK = TG + "selectedChunk"
 
 # Explainability entity types (used by both GraphRAG and Agent)
 TG_QUESTION = TG + "Question"

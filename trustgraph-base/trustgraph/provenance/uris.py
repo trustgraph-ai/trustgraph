@@ -184,3 +184,48 @@ def agent_final_uri(session_id: str) -> str:
         URN in format: urn:trustgraph:agent:{uuid}/final
     """
     return f"urn:trustgraph:agent:{session_id}/final"
+
+
+# Document RAG provenance URIs
+# These URIs use the urn:trustgraph:docrag: namespace to distinguish
+# document RAG provenance from graph RAG provenance
+
+def docrag_question_uri(session_id: str = None) -> str:
+    """
+    Generate URI for a document RAG question activity.
+
+    Args:
+        session_id: Optional UUID string. Auto-generates if not provided.
+
+    Returns:
+        URN in format: urn:trustgraph:docrag:{uuid}
+    """
+    if session_id is None:
+        session_id = str(uuid.uuid4())
+    return f"urn:trustgraph:docrag:{session_id}"
+
+
+def docrag_exploration_uri(session_id: str) -> str:
+    """
+    Generate URI for a document RAG exploration entity (chunks retrieved).
+
+    Args:
+        session_id: The session UUID.
+
+    Returns:
+        URN in format: urn:trustgraph:docrag:{uuid}/exploration
+    """
+    return f"urn:trustgraph:docrag:{session_id}/exploration"
+
+
+def docrag_synthesis_uri(session_id: str) -> str:
+    """
+    Generate URI for a document RAG synthesis entity (final answer).
+
+    Args:
+        session_id: The session UUID.
+
+    Returns:
+        URN in format: urn:trustgraph:docrag:{uuid}/synthesis
+    """
+    return f"urn:trustgraph:docrag:{session_id}/synthesis"

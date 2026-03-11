@@ -40,7 +40,7 @@ from . uris import (
     activity_uri,
     statement_uri,
     agent_uri,
-    # Query-time provenance URIs
+    # Query-time provenance URIs (GraphRAG)
     question_uri,
     exploration_uri,
     focus_uri,
@@ -49,6 +49,10 @@ from . uris import (
     agent_session_uri,
     agent_iteration_uri,
     agent_final_uri,
+    # Document RAG provenance URIs
+    docrag_question_uri,
+    docrag_exploration_uri,
+    docrag_synthesis_uri,
 )
 
 # Namespace constants
@@ -67,8 +71,10 @@ from . namespaces import (
     TG_CHUNK_SIZE, TG_CHUNK_OVERLAP, TG_COMPONENT_VERSION,
     TG_LLM_MODEL, TG_ONTOLOGY, TG_EMBEDDING_MODEL,
     TG_SOURCE_TEXT, TG_SOURCE_CHAR_OFFSET, TG_SOURCE_CHAR_LENGTH,
-    # Query-time provenance predicates
+    # Query-time provenance predicates (GraphRAG)
     TG_QUERY, TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_REASONING, TG_CONTENT,
+    # Query-time provenance predicates (DocumentRAG)
+    TG_CHUNK_COUNT, TG_SELECTED_CHUNK,
     # Explainability entity types
     TG_QUESTION, TG_EXPLORATION, TG_FOCUS, TG_SYNTHESIS,
     TG_ANALYSIS, TG_CONCLUSION,
@@ -83,11 +89,15 @@ from . triples import (
     document_triples,
     derived_entity_triples,
     triple_provenance_triples,
-    # Query-time provenance triple builders
+    # Query-time provenance triple builders (GraphRAG)
     question_triples,
     exploration_triples,
     focus_triples,
     synthesis_triples,
+    # Query-time provenance triple builders (DocumentRAG)
+    docrag_question_triples,
+    docrag_exploration_triples,
+    docrag_synthesis_triples,
     # Utility
     set_graph,
 )
@@ -127,6 +137,10 @@ __all__ = [
     "agent_session_uri",
     "agent_iteration_uri",
     "agent_final_uri",
+    # Document RAG provenance URIs
+    "docrag_question_uri",
+    "docrag_exploration_uri",
+    "docrag_synthesis_uri",
     # Namespaces
     "PROV", "PROV_ENTITY", "PROV_ACTIVITY", "PROV_AGENT",
     "PROV_WAS_DERIVED_FROM", "PROV_WAS_GENERATED_BY",
@@ -138,8 +152,10 @@ __all__ = [
     "TG_CHUNK_SIZE", "TG_CHUNK_OVERLAP", "TG_COMPONENT_VERSION",
     "TG_LLM_MODEL", "TG_ONTOLOGY", "TG_EMBEDDING_MODEL",
     "TG_SOURCE_TEXT", "TG_SOURCE_CHAR_OFFSET", "TG_SOURCE_CHAR_LENGTH",
-    # Query-time provenance predicates
+    # Query-time provenance predicates (GraphRAG)
     "TG_QUERY", "TG_EDGE_COUNT", "TG_SELECTED_EDGE", "TG_REASONING", "TG_CONTENT",
+    # Query-time provenance predicates (DocumentRAG)
+    "TG_CHUNK_COUNT", "TG_SELECTED_CHUNK",
     # Explainability entity types
     "TG_QUESTION", "TG_EXPLORATION", "TG_FOCUS", "TG_SYNTHESIS",
     "TG_ANALYSIS", "TG_CONCLUSION",
@@ -151,11 +167,15 @@ __all__ = [
     "document_triples",
     "derived_entity_triples",
     "triple_provenance_triples",
-    # Query-time provenance triple builders
+    # Query-time provenance triple builders (GraphRAG)
     "question_triples",
     "exploration_triples",
     "focus_triples",
     "synthesis_triples",
+    # Query-time provenance triple builders (DocumentRAG)
+    "docrag_question_triples",
+    "docrag_exploration_triples",
+    "docrag_synthesis_triples",
     # Agent provenance triple builders
     "agent_session_triples",
     "agent_iteration_triples",

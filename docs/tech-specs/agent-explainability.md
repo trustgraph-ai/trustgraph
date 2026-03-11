@@ -29,6 +29,15 @@ Both GraphRAG and Agent use PROV-O as the base ontology with TrustGraph-specific
 | Analysis | `prov:Entity` | `tg:Analysis` | Each think/act/observe cycle |
 | Conclusion | `prov:Entity` | `tg:Conclusion` | Final answer |
 
+### Document RAG Types
+| Entity | PROV-O Type | TG Type | Description |
+|--------|-------------|---------|-------------|
+| Question | `prov:Activity` | `tg:Question` | The user's query (same as GraphRAG) |
+| Exploration | `prov:Entity` | `tg:Exploration` | Chunks retrieved from document store |
+| Synthesis | `prov:Entity` | `tg:Synthesis` | Final answer |
+
+**Note:** Document RAG uses a subset of GraphRAG's types (no Focus step since there's no edge selection/reasoning phase).
+
 ## Provenance Model
 
 ```
@@ -58,6 +67,33 @@ Conclusion (urn:trustgraph:agent:{uuid}/final)
     │
     │  tg:answer = "The final response..."
     │  rdf:type = prov:Entity, tg:Conclusion
+```
+
+### Document RAG Provenance Model
+
+```
+Question (urn:trustgraph:docrag:{uuid})
+    │
+    │  tg:query = "User's question"
+    │  prov:startedAtTime = timestamp
+    │  rdf:type = prov:Activity, tg:Question
+    │
+    ↓ prov:wasGeneratedBy
+    │
+Exploration (urn:trustgraph:docrag:{uuid}/exploration)
+    │
+    │  tg:chunkCount = 5
+    │  tg:selectedChunk = "chunk-id-1"
+    │  tg:selectedChunk = "chunk-id-2"
+    │  ...
+    │  rdf:type = prov:Entity, tg:Exploration
+    │
+    ↓ prov:wasDerivedFrom
+    │
+Synthesis (urn:trustgraph:docrag:{uuid}/synthesis)
+    │
+    │  tg:content = "The synthesized answer..."
+    │  rdf:type = prov:Entity, tg:Synthesis
 ```
 
 ## Changes Required
@@ -167,10 +203,15 @@ TG_ANSWER = TG + "answer"
 |------|--------|
 | `trustgraph-base/trustgraph/schema/services/agent.py` | Add session_id and collection to AgentRequest |
 | `trustgraph-base/trustgraph/messaging/translators/agent.py` | Update translator for new fields |
-| `trustgraph-base/trustgraph/provenance/namespaces.py` | Add entity types and agent predicates |
-| `trustgraph-base/trustgraph/provenance/triples.py` | Add TG types to GraphRAG triple builders |
-| `trustgraph-base/trustgraph/provenance/__init__.py` | Export new types and predicates |
+| `trustgraph-base/trustgraph/provenance/namespaces.py` | Add entity types, agent predicates, and Document RAG predicates |
+| `trustgraph-base/trustgraph/provenance/triples.py` | Add TG types to GraphRAG triple builders, add Document RAG triple builders |
+| `trustgraph-base/trustgraph/provenance/uris.py` | Add Document RAG URI generators |
+| `trustgraph-base/trustgraph/provenance/__init__.py` | Export new types, predicates, and Document RAG functions |
+| `trustgraph-base/trustgraph/schema/services/retrieval.py` | Add explain_id and explain_graph to DocumentRagResponse |
+| `trustgraph-base/trustgraph/messaging/translators/retrieval.py` | Update DocumentRagResponseTranslator for explainability fields |
 | `trustgraph-flow/trustgraph/agent/react/service.py` | Add explainability producer + recording logic |
+| `trustgraph-flow/trustgraph/retrieval/document_rag/document_rag.py` | Add explainability callback and emit provenance triples |
+| `trustgraph-flow/trustgraph/retrieval/document_rag/rag.py` | Add explainability producer and wire up callback |
 | `trustgraph-cli/trustgraph/cli/show_explain_trace.py` | Handle agent trace types |
 | `trustgraph-cli/trustgraph/cli/list_explain_traces.py` | List agent sessions alongside GraphRAG |
 
@@ -216,5 +257,4 @@ tg-show-explain-trace "urn:trustgraph:agent:xxx"
 
 - DAG dependencies (when analysis N uses results from multiple prior analyses)
 - Tool-specific provenance linking (KnowledgeQuery → its GraphRAG trace)
-- Document RAG explainability
 - Streaming provenance emission (emit as we go, not batch at end)
