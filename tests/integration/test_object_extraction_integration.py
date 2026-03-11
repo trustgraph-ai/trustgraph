@@ -231,7 +231,6 @@ class TestObjectExtractionServiceIntegration:
             id="customer-doc-001",
             user="integration_test",
             collection="test_documents",
-            metadata=[]
         )
         
         chunk_text = """
@@ -299,7 +298,6 @@ class TestObjectExtractionServiceIntegration:
             id="product-doc-001",
             user="integration_test",
             collection="test_documents",
-            metadata=[]
         )
         
         chunk_text = """
@@ -373,7 +371,6 @@ class TestObjectExtractionServiceIntegration:
                 id=chunk_id,
                 user="concurrent_test",
                 collection="test_collection",
-                metadata=[]
             )
             chunk = Chunk(metadata=metadata, chunk=text.encode('utf-8'))
             chunks.append(chunk)
@@ -470,7 +467,7 @@ class TestObjectExtractionServiceIntegration:
         await processor.on_schema_config(integration_config, version=1)
         
         # Create test chunk
-        metadata = Metadata(id="error-test", user="test", collection="test", metadata=[])
+        metadata = Metadata(id="error-test", user="test", collection="test")
         chunk = Chunk(metadata=metadata, chunk=b"Some text that will fail to process")
         
         mock_msg = MagicMock()
@@ -507,7 +504,6 @@ class TestObjectExtractionServiceIntegration:
             id="metadata-test-chunk",
             user="test_user",
             collection="test_collection",
-            metadata=[]  # Could include source document metadata
         )
         
         chunk = Chunk(

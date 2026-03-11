@@ -219,7 +219,6 @@ class Processor(FlowProcessor):
                     flow("triples"),
                     Metadata(
                         id=v.metadata.id,
-                        metadata=[],
                         user=v.metadata.user,
                         collection=v.metadata.collection,
                     ),

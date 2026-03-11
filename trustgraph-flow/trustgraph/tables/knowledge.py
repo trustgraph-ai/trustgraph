@@ -218,16 +218,6 @@ class KnowledgeTableStore:
 
         when = int(time.time() * 1000)
 
-        if m.metadata.metadata:
-            metadata = [
-                (
-                    *term_to_tuple(v.s), *term_to_tuple(v.p), *term_to_tuple(v.o)
-                )
-                for v in m.metadata.metadata
-            ]
-        else:
-            metadata = []
-
         triples = [
             (
                 *term_to_tuple(v.s), *term_to_tuple(v.p), *term_to_tuple(v.o)
@@ -244,7 +234,7 @@ class KnowledgeTableStore:
                     (
                         uuid.uuid4(), m.metadata.user,
                         m.metadata.id, when,
-                        metadata, triples,
+                        [], triples,
                     )
                 )
 
@@ -258,16 +248,6 @@ class KnowledgeTableStore:
     async def add_graph_embeddings(self, m):
 
         when = int(time.time() * 1000)
-
-        if m.metadata.metadata:
-            metadata = [
-                (
-                    *term_to_tuple(v.s), *term_to_tuple(v.p), *term_to_tuple(v.o)
-                )
-                for v in m.metadata.metadata
-            ]
-        else:
-            metadata = []
 
         entities = [
             (
@@ -286,7 +266,7 @@ class KnowledgeTableStore:
                     (
                         uuid.uuid4(), m.metadata.user,
                         m.metadata.id, when,
-                        metadata, entities,
+                        [], entities,
                     )
                 )
 
@@ -300,16 +280,6 @@ class KnowledgeTableStore:
     async def add_document_embeddings(self, m):
 
         when = int(time.time() * 1000)
-
-        if m.metadata.metadata:
-            metadata = [
-                (
-                    *term_to_tuple(v.s), *term_to_tuple(v.p), *term_to_tuple(v.o)
-                )
-                for v in m.metadata.metadata
-            ]
-        else:
-            metadata = []
 
         chunks = [
             (
@@ -328,7 +298,7 @@ class KnowledgeTableStore:
                     (
                         uuid.uuid4(), m.metadata.user,
                         m.metadata.id, when,
-                        metadata, chunks,
+                        [], chunks,
                     )
                 )
 
@@ -423,18 +393,6 @@ class KnowledgeTableStore:
 
         for row in resp:
 
-            if row[2]:
-                metadata = [
-                    Triple(
-                        s = tuple_to_term(elt[0], elt[1]),
-                        p = tuple_to_term(elt[2], elt[3]),
-                        o = tuple_to_term(elt[4], elt[5]),
-                    )
-                    for elt in row[2]
-                ]
-            else:
-                metadata = []
-
             if row[3]:
                 triples = [
                     Triple(
@@ -453,7 +411,6 @@ class KnowledgeTableStore:
                         id = document_id,
                         user = user,
                         collection = "default",  # FIXME: What to put here?
-                        metadata = metadata,
                     ),
                     triples = triples
                 )
@@ -482,18 +439,6 @@ class KnowledgeTableStore:
 
         for row in resp:
 
-            if row[2]:
-                metadata = [
-                    Triple(
-                        s = tuple_to_term(elt[0], elt[1]),
-                        p = tuple_to_term(elt[2], elt[3]),
-                        o = tuple_to_term(elt[4], elt[5]),
-                    )
-                    for elt in row[2]
-                ]
-            else:
-                metadata = []
-
             if row[3]:
                 entities = [
                     EntityEmbeddings(
@@ -511,7 +456,6 @@ class KnowledgeTableStore:
                         id = document_id,
                         user = user,
                         collection = "default",   # FIXME: What to put here?
-                        metadata = metadata,
                     ),
                     entities = entities
                 )

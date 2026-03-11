@@ -76,13 +76,6 @@ class TestAgentKgExtractionIntegration:
             chunk=text.encode('utf-8'),
             metadata=Metadata(
                 id="doc123",
-                metadata=[
-                    Triple(
-                        s=Term(type=IRI, iri="doc123"),
-                        p=Term(type=IRI, iri="http://example.org/type"),
-                        o=Term(type=LITERAL, value="document")
-                    )
-                ]
             )
         )
 
@@ -136,11 +129,7 @@ class TestAgentKgExtractionIntegration:
             # Parse and process
             extraction_data = extractor.parse_jsonl(agent_response)
             triples, entity_contexts = extractor.process_extraction_data(extraction_data, v.metadata)
-            
-            # Add metadata triples
-            for t in v.metadata.metadata:
-                triples.append(t)
-            
+
             # Emit outputs
             if triples:
                 await extractor.emit_triples(flow("triples"), v.metadata, triples)
@@ -242,9 +231,9 @@ class TestAgentKgExtractionIntegration:
         # Act - JSONL parsing is lenient, invalid lines are skipped
         await configured_agent_extractor.on_message(mock_message, mock_consumer, mock_flow_context)
 
-        # Assert - should emit triples (with just metadata) but no entity contexts
+        # Assert - with no valid extraction data, nothing is emitted
         triples_publisher = mock_flow_context("triples")
-        triples_publisher.send.assert_called_once()
+        triples_publisher.send.assert_not_called()
 
         entity_contexts_publisher = mock_flow_context("entity-contexts")
         entity_contexts_publisher.send.assert_not_called()
@@ -268,17 +257,12 @@ class TestAgentKgExtractionIntegration:
         # Act
         await configured_agent_extractor.on_message(mock_message, mock_consumer, mock_flow_context)
 
-        # Assert
-        # Should still emit outputs (even if empty) to maintain flow consistency
+        # Assert - with empty extraction results, nothing is emitted
         triples_publisher = mock_flow_context("triples")
         entity_contexts_publisher = mock_flow_context("entity-contexts")
-        
-        # Triples should include metadata triples at minimum
-        triples_publisher.send.assert_called_once()
-        sent_triples = triples_publisher.send.call_args[0][0]
-        assert isinstance(sent_triples, Triples)
-        
-        # Entity contexts should not be sent if empty
+
+        # No triples or entity contexts emitted for empty results
+        triples_publisher.send.assert_not_called()
         entity_contexts_publisher.send.assert_not_called()
 
     @pytest.mark.asyncio
@@ -308,7 +292,7 @@ class TestAgentKgExtractionIntegration:
         test_text = "Test text for prompt rendering"
         chunk = Chunk(
             chunk=test_text.encode('utf-8'),
-            metadata=Metadata(id="test-doc", metadata=[])
+            metadata=Metadata(id="test-doc")
         )
         
         agent_client = mock_flow_context("agent-request")
@@ -340,7 +324,7 @@ class TestAgentKgExtractionIntegration:
             text = f"Test document {i} content"
             chunks.append(Chunk(
                 chunk=text.encode('utf-8'),
-                metadata=Metadata(id=f"doc{i}", metadata=[])
+                metadata=Metadata(id=f"doc{i}")
             ))
         
         agent_client = mock_flow_context("agent-request")
@@ -375,7 +359,7 @@ class TestAgentKgExtractionIntegration:
         unicode_text = "Machine Learning (学习机器) は人工知能の一分野です。"
         chunk = Chunk(
             chunk=unicode_text.encode('utf-8'),
-            metadata=Metadata(id="unicode-doc", metadata=[])
+            metadata=Metadata(id="unicode-doc")
         )
         
         agent_client = mock_flow_context("agent-request")
@@ -411,7 +395,7 @@ class TestAgentKgExtractionIntegration:
         large_text = "Machine Learning is important. " * 1000  # Repeat to create large text
         chunk = Chunk(
             chunk=large_text.encode('utf-8'),
-            metadata=Metadata(id="large-doc", metadata=[])
+            metadata=Metadata(id="large-doc")
         )
         
         agent_client = mock_flow_context("agent-request")

@@ -37,18 +37,17 @@ def serialize_triples(message):
     return {
         "metadata": {
             "id": message.metadata.id,
-            "metadata": serialize_subgraph(message.metadata.metadata),
             "user": message.metadata.user,
             "collection": message.metadata.collection,
         },
         "triples": serialize_subgraph(message.triples),
     }
-    
+
+
 def serialize_graph_embeddings(message):
     return {
         "metadata": {
             "id": message.metadata.id,
-            "metadata": serialize_subgraph(message.metadata.metadata),
             "user": message.metadata.user,
             "collection": message.metadata.collection,
         },
@@ -61,11 +60,11 @@ def serialize_graph_embeddings(message):
         ],
     }
 
+
 def serialize_entity_contexts(message):
     return {
         "metadata": {
             "id": message.metadata.id,
-            "metadata": serialize_subgraph(message.metadata.metadata),
             "user": message.metadata.user,
             "collection": message.metadata.collection,
         },
@@ -78,11 +77,11 @@ def serialize_entity_contexts(message):
         ],
     }
 
+
 def serialize_document_embeddings(message):
     return {
         "metadata": {
             "id": message.metadata.id,
-            "metadata": serialize_subgraph(message.metadata.metadata),
             "user": message.metadata.user,
             "collection": message.metadata.collection,
         },

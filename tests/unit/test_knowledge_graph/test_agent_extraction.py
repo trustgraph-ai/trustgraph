@@ -51,13 +51,6 @@ class TestAgentKgExtractor:
         """Sample metadata for testing"""
         return Metadata(
             id="doc123",
-            metadata=[
-                Triple(
-                    s=Term(type=IRI, iri="doc123"),
-                    p=Term(type=IRI, iri="http://example.org/type"),
-                    o=Term(type=LITERAL, value="document")
-                )
-            ]
         )
 
     @pytest.fixture
@@ -274,7 +267,7 @@ This is not JSON at all
 
     def test_process_extraction_data_no_metadata_id(self, agent_extractor):
         """Test processing when metadata has no ID"""
-        metadata = Metadata(id=None, metadata=[])
+        metadata = Metadata(id=None)
         data = [
             {"type": "definition", "entity": "Test Entity", "definition": "Test definition"}
         ]
@@ -345,8 +338,6 @@ This is not JSON at all
         assert sent_triples.metadata.id == sample_metadata.id
         assert sent_triples.metadata.user == sample_metadata.user
         assert sent_triples.metadata.collection == sample_metadata.collection
-        # Note: metadata.metadata is now empty array in the new implementation
-        assert sent_triples.metadata.metadata == []
         assert len(sent_triples.triples) == 1
         assert sent_triples.triples[0].s.iri == "test:subject"
 
@@ -371,8 +362,6 @@ This is not JSON at all
         assert sent_contexts.metadata.id == sample_metadata.id
         assert sent_contexts.metadata.user == sample_metadata.user
         assert sent_contexts.metadata.collection == sample_metadata.collection
-        # Note: metadata.metadata is now empty array in the new implementation
-        assert sent_contexts.metadata.metadata == []
         assert len(sent_contexts.entities) == 1
         assert sent_contexts.entities[0].entity.iri == "test:entity"
 

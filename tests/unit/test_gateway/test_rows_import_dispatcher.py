@@ -55,13 +55,6 @@ def sample_objects_message():
     return {
         "metadata": {
             "id": "obj-123",
-            "metadata": [
-                {
-                    "s": {"v": "obj-123", "e": False},
-                    "p": {"v": "source", "e": False},
-                    "o": {"v": "test", "e": False}
-                }
-            ],
             "user": "testuser",
             "collection": "testcollection"
         },
@@ -244,7 +237,6 @@ class TestRowsImportMessageProcessing:
         assert sent_object.metadata.id == "obj-123"
         assert sent_object.metadata.user == "testuser"
         assert sent_object.metadata.collection == "testcollection"
-        assert len(sent_object.metadata.metadata) == 1  # One triple in metadata
 
     @patch('trustgraph.gateway.dispatch.rows_import.Publisher')
     @pytest.mark.asyncio
@@ -277,7 +269,6 @@ class TestRowsImportMessageProcessing:
         assert sent_object.values[0]["field1"] == "value1"
         assert sent_object.confidence == 1.0  # Default value
         assert sent_object.source_span == ""  # Default value
-        assert len(sent_object.metadata.metadata) == 0  # Default empty list
 
     @patch('trustgraph.gateway.dispatch.rows_import.Publisher')
     @pytest.mark.asyncio

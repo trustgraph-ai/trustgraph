@@ -120,7 +120,6 @@ class TestRowsCassandraIntegration:
                     id="doc-001",
                     user="test_user",
                     collection="import_2024",
-                    metadata=[]
                 ),
                 schema_name="customer_records",
                 values=[{
@@ -201,7 +200,7 @@ class TestRowsCassandraIntegration:
 
             # Process objects for different schemas
             product_obj = ExtractedObject(
-                metadata=Metadata(id="p1", user="shop", collection="catalog", metadata=[]),
+                metadata=Metadata(id="p1", user="shop", collection="catalog"),
                 schema_name="products",
                 values=[{"product_id": "P001", "name": "Widget", "price": "19.99"}],
                 confidence=0.9,
@@ -209,7 +208,7 @@ class TestRowsCassandraIntegration:
             )
 
             order_obj = ExtractedObject(
-                metadata=Metadata(id="o1", user="shop", collection="sales", metadata=[]),
+                metadata=Metadata(id="o1", user="shop", collection="sales"),
                 schema_name="orders",
                 values=[{"order_id": "O001", "customer_id": "C001", "total": "59.97"}],
                 confidence=0.85,
@@ -254,7 +253,7 @@ class TestRowsCassandraIntegration:
             )
 
             test_obj = ExtractedObject(
-                metadata=Metadata(id="t1", user="test", collection="test", metadata=[]),
+                metadata=Metadata(id="t1", user="test", collection="test"),
                 schema_name="indexed_data",
                 values=[{
                     "id": "123",
@@ -337,7 +336,6 @@ class TestRowsCassandraIntegration:
                     id="batch-001",
                     user="test_user",
                     collection="batch_import",
-                    metadata=[]
                 ),
                 schema_name="batch_customers",
                 values=[
@@ -391,7 +389,7 @@ class TestRowsCassandraIntegration:
 
             # Process empty batch object
             empty_obj = ExtractedObject(
-                metadata=Metadata(id="empty-1", user="test", collection="empty", metadata=[]),
+                metadata=Metadata(id="empty-1", user="test", collection="empty"),
                 schema_name="empty_test",
                 values=[],  # Empty batch
                 confidence=1.0,
@@ -426,7 +424,7 @@ class TestRowsCassandraIntegration:
             )
 
             test_obj = ExtractedObject(
-                metadata=Metadata(id="t1", user="test", collection="test", metadata=[]),
+                metadata=Metadata(id="t1", user="test", collection="test"),
                 schema_name="map_test",
                 values=[{"id": "123", "name": "Test Item", "count": "42"}],
                 confidence=0.9,
@@ -470,7 +468,7 @@ class TestRowsCassandraIntegration:
             )
 
             test_obj = ExtractedObject(
-                metadata=Metadata(id="t1", user="test", collection="my_collection", metadata=[]),
+                metadata=Metadata(id="t1", user="test", collection="my_collection"),
                 schema_name="partition_test",
                 values=[{"id": "123", "category": "test"}],
                 confidence=0.9,

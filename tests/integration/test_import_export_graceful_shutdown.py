@@ -171,7 +171,6 @@ async def test_export_no_message_loss_integration(mock_backend):
         triples_obj = Triples(
             metadata=Metadata(
                 id=f"export-msg-{i}",
-                metadata=to_subgraph(msg_data["metadata"]["metadata"]),
                 user=msg_data["metadata"]["user"],
                 collection=msg_data["metadata"]["collection"],
             ),

@@ -243,7 +243,6 @@ class Processor(FlowProcessor):
                 await flow("explainability").send(Triples(
                     metadata=Metadata(
                         id=explain_id,
-                        metadata=[],
                         user=v.user,
                         collection=v.collection,  # Store in user's collection, not separate explainability collection
                     ),

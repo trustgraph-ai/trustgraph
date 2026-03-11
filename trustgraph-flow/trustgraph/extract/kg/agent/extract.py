@@ -104,7 +104,6 @@ class Processor(FlowProcessor):
         tpls = Triples(
             metadata = Metadata(
                 id = metadata.id,
-                metadata = [],
                 user = metadata.user,
                 collection = metadata.collection,
             ),
@@ -117,7 +116,6 @@ class Processor(FlowProcessor):
         ecs = EntityContexts(
             metadata = Metadata(
                 id = metadata.id,
-                metadata = [],
                 user = metadata.user,
                 collection = metadata.collection,
             ),
@@ -216,10 +214,6 @@ class Processor(FlowProcessor):
                 extraction_data, v.metadata
             )
 
-            # Put document metadata into triples
-            for t in v.metadata.metadata:
-                triples.append(t)
-        
             # Emit outputs
             if triples:
                 await self.emit_triples(flow("triples"), v.metadata, triples)

@@ -401,25 +401,6 @@ class TestMetadataMessageContracts:
         assert metadata.id == "test-doc-123"
         assert metadata.user == "test_user"
         assert metadata.collection == "test_collection"
-        assert isinstance(metadata.metadata, list)
-
-    def test_metadata_with_triples_contract(self, sample_message_data):
-        """Test Metadata with embedded triples contract"""
-        # Arrange
-        triple = Triple(**sample_message_data["Triple"])
-        metadata_data = {
-            "id": "doc-with-triples",
-            "user": "test_user",
-            "collection": "test_collection",
-            "metadata": [triple]
-        }
-
-        # Act & Assert
-        assert validate_schema_contract(Metadata, metadata_data)
-
-        metadata = Metadata(**metadata_data)
-        assert len(metadata.metadata) == 1
-        assert metadata.metadata[0].s.iri == "http://example.com/subject"
 
     def test_error_schema_contract(self):
         """Test Error schema contract"""

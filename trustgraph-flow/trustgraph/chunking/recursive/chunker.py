@@ -178,7 +178,6 @@ class Processor(ChunkingService):
             await flow("triples").send(Triples(
                 metadata=Metadata(
                     id=chunk_uri,
-                    metadata=[],
                     user=v.metadata.user,
                     collection=v.metadata.collection,
                 ),
@@ -189,7 +188,6 @@ class Processor(ChunkingService):
             r = Chunk(
                 metadata=Metadata(
                     id=chunk_uri,
-                    metadata=[],
                     user=v.metadata.user,
                     collection=v.metadata.collection,
                 ),

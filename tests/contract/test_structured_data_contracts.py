@@ -95,9 +95,8 @@ class TestStructuredDataSchemaContracts:
             id="structured-data-001",
             user="test_user",
             collection="test_collection",
-            metadata=[]
         )
-        
+
         # Act
         submission = StructuredDataSubmission(
             metadata=metadata,
@@ -121,9 +120,8 @@ class TestStructuredDataSchemaContracts:
             id="extracted-obj-001",
             user="test_user",
             collection="test_collection",
-            metadata=[]
         )
-        
+
         # Act
         obj = ExtractedObject(
             metadata=metadata,
@@ -147,9 +145,8 @@ class TestStructuredDataSchemaContracts:
             id="extracted-batch-001",
             user="test_user",
             collection="test_collection",
-            metadata=[]
         )
-        
+
         # Act - create object with multiple values
         obj = ExtractedObject(
             metadata=metadata,
@@ -180,11 +177,10 @@ class TestStructuredDataSchemaContracts:
         # Arrange
         metadata = Metadata(
             id="extracted-empty-001",
-            user="test_user", 
+            user="test_user",
             collection="test_collection",
-            metadata=[]
         )
-        
+
         # Act - create object with empty values array
         obj = ExtractedObject(
             metadata=metadata,
@@ -283,7 +279,6 @@ class TestStructuredEmbeddingsContracts:
             id="struct-embed-001",
             user="test_user",
             collection="test_collection",
-            metadata=[]
         )
 
         # Act
@@ -313,7 +308,7 @@ class TestStructuredDataSerializationContracts:
     def test_structured_data_submission_serialization(self):
         """Test StructuredDataSubmission serialization contract"""
         # Arrange
-        metadata = Metadata(id="test", user="user", collection="col", metadata=[])
+        metadata = Metadata(id="test", user="user", collection="col")
         submission_data = {
             "metadata": metadata,
             "format": "json",
@@ -328,7 +323,7 @@ class TestStructuredDataSerializationContracts:
     def test_extracted_object_serialization(self):
         """Test ExtractedObject serialization contract"""
         # Arrange
-        metadata = Metadata(id="test", user="user", collection="col", metadata=[])
+        metadata = Metadata(id="test", user="user", collection="col")
         object_data = {
             "metadata": metadata,
             "schema_name": "test_schema",
@@ -378,7 +373,7 @@ class TestStructuredDataSerializationContracts:
     def test_extracted_object_batch_serialization(self):
         """Test ExtractedObject batch serialization contract"""
         # Arrange
-        metadata = Metadata(id="test", user="user", collection="col", metadata=[])
+        metadata = Metadata(id="test", user="user", collection="col")
         batch_object_data = {
             "metadata": metadata,
             "schema_name": "test_schema",
@@ -397,7 +392,7 @@ class TestStructuredDataSerializationContracts:
     def test_extracted_object_empty_batch_serialization(self):
         """Test ExtractedObject empty batch serialization contract"""
         # Arrange
-        metadata = Metadata(id="test", user="user", collection="col", metadata=[])
+        metadata = Metadata(id="test", user="user", collection="col")
         empty_batch_data = {
             "metadata": metadata,
             "schema_name": "test_schema", 
