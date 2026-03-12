@@ -110,16 +110,17 @@ class TestRAGTranslatorCompletionFlags:
         assert response_dict["end_of_stream"] is True
         assert response_dict["end_of_session"] is False
 
-    def test_document_rag_translator_is_final_with_end_of_stream_true(self):
+    def test_document_rag_translator_is_final_with_end_of_session_true(self):
         """
         Test that DocumentRagResponseTranslator returns is_final=True
-        when end_of_stream=True.
+        when end_of_session=True.
         """
         # Arrange
         translator = TranslatorRegistry.get_response_translator("document-rag")
         response = DocumentRagResponse(
             response="A document about cats.",
             end_of_stream=True,
+            end_of_session=True,
             error=None
         )
 
@@ -127,9 +128,31 @@ class TestRAGTranslatorCompletionFlags:
         response_dict, is_final = translator.from_response_with_completion(response)
 
         # Assert
-        assert is_final is True, "is_final must be True when end_of_stream=True"
+        assert is_final is True, "is_final must be True when end_of_session=True"
         assert response_dict["response"] == "A document about cats."
+        assert response_dict["end_of_session"] is True
+
+    def test_document_rag_translator_end_of_stream_not_final(self):
+        """
+        Test that end_of_stream=True alone does NOT make is_final=True.
+        The session continues with provenance messages after LLM stream completes.
+        """
+        # Arrange
+        translator = TranslatorRegistry.get_response_translator("document-rag")
+        response = DocumentRagResponse(
+            response="Final chunk",
+            end_of_stream=True,
+            end_of_session=False,  # Session continues with provenance
+            error=None
+        )
+
+        # Act
+        response_dict, is_final = translator.from_response_with_completion(response)
+
+        # Assert
+        assert is_final is False, "end_of_stream=True should NOT make is_final=True"
         assert response_dict["end_of_stream"] is True
+        assert response_dict["end_of_session"] is False
 
     def test_document_rag_translator_is_final_with_end_of_stream_false(self):
         """

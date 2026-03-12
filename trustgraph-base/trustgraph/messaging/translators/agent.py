@@ -59,6 +59,15 @@ class AgentResponseTranslator(MessageTranslator):
             result["end_of_message"] = getattr(obj, "end_of_message", False)
             result["end_of_dialog"] = getattr(obj, "end_of_dialog", False)
 
+        # Include explainability fields if present
+        explain_id = getattr(obj, "explain_id", None)
+        if explain_id:
+            result["explain_id"] = explain_id
+
+        explain_graph = getattr(obj, "explain_graph", None)
+        if explain_graph is not None:
+            result["explain_graph"] = explain_graph
+
         # Always include error if present
         if hasattr(obj, 'error') and obj.error and obj.error.message:
             result["error"] = {"message": obj.error.message, "code": obj.error.code}

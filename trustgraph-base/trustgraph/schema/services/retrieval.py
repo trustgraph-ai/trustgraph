@@ -43,6 +43,8 @@ class DocumentRagQuery:
 class DocumentRagResponse:
     error: Error | None = None
     response: str | None = ""
-    end_of_stream: bool = False
+    end_of_stream: bool = False       # LLM response stream complete
     explain_id: str | None = None     # Single explain URI (announced as created)
     explain_graph: str | None = None  # Named graph where explain was stored (e.g., urn:graph:retrieval)
+    message_type: str = ""            # "chunk" or "explain"
+    end_of_session: bool = False      # Entire session complete

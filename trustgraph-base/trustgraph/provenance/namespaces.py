@@ -92,6 +92,10 @@ TG_ARGUMENTS = TG + "arguments"
 TG_OBSERVATION = TG + "observation"
 TG_ANSWER = TG + "answer"
 
+# Agent document references (for librarian storage)
+TG_THOUGHT_DOCUMENT = TG + "thoughtDocument"
+TG_OBSERVATION_DOCUMENT = TG + "observationDocument"
+
 # Named graph URIs for RDF datasets
 # These separate different types of data while keeping them in the same collection
 GRAPH_DEFAULT = ""                       # Core knowledge facts (triples extracted from documents)

@@ -4,8 +4,19 @@ Uses the agent service to answer a question
 
 import argparse
 import os
+import sys
 import textwrap
-from trustgraph.api import Api
+from trustgraph.api import (
+    Api,
+    ExplainabilityClient,
+    ProvenanceEvent,
+    Question,
+    Analysis,
+    Conclusion,
+    AgentThought,
+    AgentObservation,
+    AgentAnswer,
+)
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
@@ -97,11 +108,148 @@ def output(text, prefix="> ", width=78):
     )
     print(out)
 
+def question_explainable(
+    url, question_text, flow_id, user, collection,
+    state=None, group=None, verbose=False, token=None, debug=False
+):
+    """Execute agent with explainability - shows provenance events inline."""
+    api = Api(url=url, token=token)
+    socket = api.socket()
+    flow = socket.flow(flow_id)
+    explain_client = ExplainabilityClient(flow, retry_delay=0.2, max_retries=10)
+
+    try:
+        # Track last chunk type for formatting
+        last_chunk_type = None
+        current_outputter = None
+
+        # Stream agent with explainability - process events as they arrive
+        for item in flow.agent_explain(
+            question=question_text,
+            user=user,
+            collection=collection,
+            state=state,
+            group=group,
+        ):
+            if isinstance(item, AgentThought):
+                if last_chunk_type != "thought":
+                    if current_outputter:
+                        current_outputter.__exit__(None, None, None)
+                        current_outputter = None
+                        print()  # Blank line between message types
+                    if verbose:
+                        current_outputter = Outputter(width=78, prefix="\U0001f914  ")
+                        current_outputter.__enter__()
+                    last_chunk_type = "thought"
+                if current_outputter:
+                    current_outputter.output(item.content)
+                    if current_outputter.word_buffer:
+                        print(current_outputter.word_buffer, end="", flush=True)
+                        current_outputter.column += len(current_outputter.word_buffer)
+                        current_outputter.word_buffer = ""
+
+            elif isinstance(item, AgentObservation):
+                if last_chunk_type != "observation":
+                    if current_outputter:
+                        current_outputter.__exit__(None, None, None)
+                        current_outputter = None
+                        print()
+                    if verbose:
+                        current_outputter = Outputter(width=78, prefix="\U0001f4a1  ")
+                        current_outputter.__enter__()
+                    last_chunk_type = "observation"
+                if current_outputter:
+                    current_outputter.output(item.content)
+                    if current_outputter.word_buffer:
+                        print(current_outputter.word_buffer, end="", flush=True)
+                        current_outputter.column += len(current_outputter.word_buffer)
+                        current_outputter.word_buffer = ""
+
+            elif isinstance(item, AgentAnswer):
+                if last_chunk_type != "answer":
+                    if current_outputter:
+                        current_outputter.__exit__(None, None, None)
+                        current_outputter = None
+                        print()
+                    last_chunk_type = "answer"
+                # Print answer content directly
+                print(item.content, end="", flush=True)
+
+            elif isinstance(item, ProvenanceEvent):
+                # Process provenance event immediately
+                prov_id = item.explain_id
+                explain_graph = item.explain_graph or "urn:graph:retrieval"
+
+                entity = explain_client.fetch_entity(
+                    prov_id,
+                    graph=explain_graph,
+                    user=user,
+                    collection=collection
+                )
+
+                if entity is None:
+                    if debug:
+                        print(f"\n  [warning] Could not fetch entity: {prov_id}", file=sys.stderr)
+                    continue
+
+                # Display based on entity type
+                if isinstance(entity, Question):
+                    print(f"\n  [session] {prov_id}", file=sys.stderr)
+                    if entity.query:
+                        print(f"    Query: {entity.query}", file=sys.stderr)
+                    if entity.timestamp:
+                        print(f"    Time: {entity.timestamp}", file=sys.stderr)
+
+                elif isinstance(entity, Analysis):
+                    print(f"\n  [iteration] {prov_id}", file=sys.stderr)
+                    if entity.thought:
+                        thought_short = entity.thought[:80] + "..." if len(entity.thought) > 80 else entity.thought
+                        print(f"    Thought: {thought_short}", file=sys.stderr)
+                    if entity.action:
+                        print(f"    Action: {entity.action}", file=sys.stderr)
+
+                elif isinstance(entity, Conclusion):
+                    print(f"\n  [conclusion] {prov_id}", file=sys.stderr)
+                    if entity.answer:
+                        print(f"    Answer length: {len(entity.answer)} chars", file=sys.stderr)
+
+                else:
+                    if debug:
+                        print(f"\n  [unknown] {prov_id} (type: {entity.entity_type})", file=sys.stderr)
+
+        # Close any remaining outputter
+        if current_outputter:
+            current_outputter.__exit__(None, None, None)
+            current_outputter = None
+
+        # Final newline if we ended with answer
+        if last_chunk_type == "answer":
+            print()
+
+    finally:
+        socket.close()
+
+
 def question(
         url, question, flow_id, user, collection,
         plan=None, state=None, group=None, verbose=False, streaming=True,
-        token=None
+        token=None, explainable=False, debug=False
 ):
+    # Explainable mode uses the API to capture and process provenance events
+    if explainable:
+        question_explainable(
+            url=url,
+            question_text=question,
+            flow_id=flow_id,
+            user=user,
+            collection=collection,
+            state=state,
+            group=group,
+            verbose=verbose,
+            token=token,
+            debug=debug
+        )
+        return
 
     if verbose:
         output(wrap(question), "\U00002753 ")
@@ -270,6 +418,18 @@ def main():
         help=f'Disable streaming (use legacy mode)'
     )
 
+    parser.add_argument(
+        '-x', '--explainable',
+        action='store_true',
+        help='Show provenance events: Session, Iterations, Conclusion (implies streaming)'
+    )
+
+    parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='Show debug output for troubleshooting'
+    )
+
     args = parser.parse_args()
 
     try:
@@ -286,6 +446,8 @@ def main():
             verbose = args.verbose,
             streaming = not args.no_streaming,
             token = args.token,
+            explainable = args.explainable,
+            debug = args.debug,
         )
 
     except Exception as e:

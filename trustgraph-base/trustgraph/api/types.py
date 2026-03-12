@@ -212,19 +212,21 @@ class ProvenanceEvent:
     Each event represents a provenance node created during query processing.
 
     Attributes:
-        provenance_id: URI of the provenance node (e.g., urn:trustgraph:session:abc123)
-        event_type: Type of provenance event (session, retrieval, selection, answer)
+        explain_id: URI of the provenance node (e.g., urn:trustgraph:question:abc123)
+        explain_graph: Named graph where provenance triples are stored (e.g., urn:graph:retrieval)
+        event_type: Type of provenance event (question, exploration, focus, synthesis)
     """
-    provenance_id: str
-    event_type: str = ""  # Derived from provenance_id (session, retrieval, selection, answer)
+    explain_id: str
+    explain_graph: str = ""
+    event_type: str = ""  # Derived from explain_id
 
     def __post_init__(self):
-        # Extract event type from provenance_id
-        if "session" in self.provenance_id:
-            self.event_type = "session"
-        elif "retrieval" in self.provenance_id:
-            self.event_type = "retrieval"
-        elif "selection" in self.provenance_id:
-            self.event_type = "selection"
-        elif "answer" in self.provenance_id:
-            self.event_type = "answer"
+        # Extract event type from explain_id
+        if "question" in self.explain_id:
+            self.event_type = "question"
+        elif "exploration" in self.explain_id:
+            self.event_type = "exploration"
+        elif "focus" in self.explain_id:
+            self.event_type = "focus"
+        elif "synthesis" in self.explain_id:
+            self.event_type = "synthesis"

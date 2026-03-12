@@ -59,7 +59,7 @@ from .flow import Flow, FlowInstance
 from .async_flow import AsyncFlow, AsyncFlowInstance
 
 # WebSocket clients
-from .socket_client import SocketClient, SocketFlowInstance
+from .socket_client import SocketClient, SocketFlowInstance, build_term
 from .async_socket_client import AsyncSocketClient, AsyncSocketFlowInstance
 
 # Bulk operation clients
@@ -69,6 +69,21 @@ from .async_bulk_client import AsyncBulkClient
 # Metrics clients
 from .metrics import Metrics
 from .async_metrics import AsyncMetrics
+
+# Explainability
+from .explainability import (
+    ExplainabilityClient,
+    ExplainEntity,
+    Question,
+    Exploration,
+    Focus,
+    Synthesis,
+    Analysis,
+    Conclusion,
+    EdgeSelection,
+    wire_triples_to_tuples,
+    extract_term_value,
+)
 
 # Types
 from .types import (
@@ -85,6 +100,7 @@ from .types import (
     AgentObservation,
     AgentAnswer,
     RAGChunk,
+    ProvenanceEvent,
 )
 
 # Exceptions
@@ -124,6 +140,7 @@ __all__ = [
     "SocketFlowInstance",
     "AsyncSocketClient",
     "AsyncSocketFlowInstance",
+    "build_term",
 
     # Bulk operation clients
     "BulkClient",
@@ -132,6 +149,19 @@ __all__ = [
     # Metrics clients
     "Metrics",
     "AsyncMetrics",
+
+    # Explainability
+    "ExplainabilityClient",
+    "ExplainEntity",
+    "Question",
+    "Exploration",
+    "Focus",
+    "Synthesis",
+    "Analysis",
+    "Conclusion",
+    "EdgeSelection",
+    "wire_triples_to_tuples",
+    "extract_term_value",
 
     # Types
     "Triple",
@@ -147,6 +177,7 @@ __all__ = [
     "AgentObservation",
     "AgentAnswer",
     "RAGChunk",
+    "ProvenanceEvent",
 
     # Exceptions
     "ProtocolException",

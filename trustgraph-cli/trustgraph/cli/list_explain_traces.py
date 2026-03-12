@@ -14,178 +14,15 @@ import json
 import os
 import sys
 from tabulate import tabulate
-from trustgraph.api import Api
+from trustgraph.api import Api, ExplainabilityClient
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 default_user = 'trustgraph'
 default_collection = 'default'
 
-# Predicates
-TG = "https://trustgraph.ai/ns/"
-TG_QUERY = TG + "query"
-TG_QUESTION = TG + "Question"
-TG_ANALYSIS = TG + "Analysis"
-TG_EXPLORATION = TG + "Exploration"
-PROV = "http://www.w3.org/ns/prov#"
-PROV_STARTED_AT_TIME = PROV + "startedAtTime"
-PROV_WAS_DERIVED_FROM = PROV + "wasDerivedFrom"
-PROV_WAS_GENERATED_BY = PROV + "wasGeneratedBy"
-RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
-
 # Retrieval graph
 RETRIEVAL_GRAPH = "urn:graph:retrieval"
-
-
-def query_triples(socket, flow_id, user, collection, s=None, p=None, o=None, g=None, limit=1000):
-    """Query triples using the socket API."""
-    request = {
-        "user": user,
-        "collection": collection,
-        "limit": limit,
-        "streaming": False,
-    }
-
-    if s is not None:
-        request["s"] = {"t": "i", "i": s}
-    if p is not None:
-        request["p"] = {"t": "i", "i": p}
-    if o is not None:
-        if isinstance(o, str):
-            if o.startswith("http://") or o.startswith("https://") or o.startswith("urn:"):
-                request["o"] = {"t": "i", "i": o}
-            else:
-                request["o"] = {"t": "l", "v": o}
-        elif isinstance(o, dict):
-            request["o"] = o
-    if g is not None:
-        request["g"] = g
-
-    triples = []
-    try:
-        for response in socket._send_request_sync("triples", flow_id, request, streaming_raw=True):
-            if isinstance(response, dict):
-                triple_list = response.get("response", response.get("triples", []))
-            else:
-                triple_list = response
-
-            if not isinstance(triple_list, list):
-                triple_list = [triple_list] if triple_list else []
-
-            for t in triple_list:
-                s_val = extract_value(t.get("s", {}))
-                p_val = extract_value(t.get("p", {}))
-                o_val = extract_value(t.get("o", {}))
-                triples.append((s_val, p_val, o_val))
-    except Exception as e:
-        print(f"Error querying triples: {e}", file=sys.stderr)
-
-    return triples
-
-
-def extract_value(term):
-    """Extract value from a term dict."""
-    if not term:
-        return ""
-
-    t = term.get("t") or term.get("type")
-
-    if t == "i":
-        return term.get("i") or term.get("iri", "")
-    elif t == "l":
-        return term.get("v") or term.get("value", "")
-    elif t == "t":
-        # Quoted triple
-        tr = term.get("tr") or term.get("triple", {})
-        return {
-            "s": extract_value(tr.get("s", {})),
-            "p": extract_value(tr.get("p", {})),
-            "o": extract_value(tr.get("o", {})),
-        }
-
-    # Fallback for raw values
-    if "i" in term:
-        return term["i"]
-    if "v" in term:
-        return term["v"]
-
-    return str(term)
-
-
-def get_timestamp(socket, flow_id, user, collection, question_id):
-    """Get timestamp for a question."""
-    triples = query_triples(
-        socket, flow_id, user, collection,
-        s=question_id, p=PROV_STARTED_AT_TIME, g=RETRIEVAL_GRAPH
-    )
-    for s, p, o in triples:
-        return o
-    return ""
-
-
-def get_session_type(socket, flow_id, user, collection, session_id):
-    """
-    Get the type of session (Agent or GraphRAG).
-
-    Both have tg:Question type, so we distinguish by URI pattern
-    or by checking what's derived from it.
-    """
-    # Fast path: check URI pattern
-    if session_id.startswith("urn:trustgraph:agent:"):
-        return "Agent"
-    if session_id.startswith("urn:trustgraph:question:"):
-        return "GraphRAG"
-
-    # Check what's derived from this entity
-    derived = query_triples(
-        socket, flow_id, user, collection,
-        p=PROV_WAS_DERIVED_FROM, o=session_id, g=RETRIEVAL_GRAPH
-    )
-    generated = query_triples(
-        socket, flow_id, user, collection,
-        p=PROV_WAS_GENERATED_BY, o=session_id, g=RETRIEVAL_GRAPH
-    )
-
-    for s, p, o in derived + generated:
-        child_types = query_triples(
-            socket, flow_id, user, collection,
-            s=s, p=RDF_TYPE, g=RETRIEVAL_GRAPH
-        )
-        for _, _, child_type in child_types:
-            if child_type == TG_ANALYSIS:
-                return "Agent"
-            if child_type == TG_EXPLORATION:
-                return "GraphRAG"
-
-    return "GraphRAG"
-
-
-def list_sessions(socket, flow_id, user, collection, limit):
-    """List all explainability sessions (GraphRAG and Agent) by finding questions."""
-    # Query for all triples with predicate = tg:query
-    triples = query_triples(
-        socket, flow_id, user, collection,
-        p=TG_QUERY, g=RETRIEVAL_GRAPH, limit=limit
-    )
-
-    sessions = []
-    for question_id, _, query_text in triples:
-        # Get timestamp if available
-        timestamp = get_timestamp(socket, flow_id, user, collection, question_id)
-        # Get session type (Agent or GraphRAG)
-        session_type = get_session_type(socket, flow_id, user, collection, question_id)
-
-        sessions.append({
-            "id": question_id,
-            "type": session_type,
-            "question": query_text,
-            "time": timestamp,
-        })
-
-    # Sort by timestamp (newest first) if available
-    sessions.sort(key=lambda x: x.get("time", ""), reverse=True)
-
-    return sessions
 
 
 def truncate_text(text, max_len=60):
@@ -277,15 +114,41 @@ def main():
     try:
         api = Api(args.api_url, token=args.token)
         socket = api.socket()
+        flow = socket.flow(args.flow_id)
+        explain_client = ExplainabilityClient(flow)
 
         try:
-            sessions = list_sessions(
-                socket=socket,
-                flow_id=args.flow_id,
+            # List all sessions using the API
+            questions = explain_client.list_sessions(
+                graph=RETRIEVAL_GRAPH,
                 user=args.user,
                 collection=args.collection,
                 limit=args.limit,
             )
+
+            # Convert to output format
+            sessions = []
+            for q in questions:
+                session_type = explain_client.detect_session_type(
+                    q.uri,
+                    graph=RETRIEVAL_GRAPH,
+                    user=args.user,
+                    collection=args.collection
+                )
+
+                # Map type names
+                type_display = {
+                    "graphrag": "GraphRAG",
+                    "docrag": "DocRAG",
+                    "agent": "Agent",
+                }.get(session_type, session_type.title())
+
+                sessions.append({
+                    "id": q.uri,
+                    "type": type_display,
+                    "question": q.query,
+                    "time": q.timestamp,
+                })
 
             if args.format == 'json':
                 print_json(sessions)
