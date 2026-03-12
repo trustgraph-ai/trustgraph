@@ -31,7 +31,7 @@ class TestAgentKgExtractionIntegration:
         agent_client = AsyncMock()
         
         # Mock successful agent response in JSONL format
-        def mock_agent_response(recipient, question):
+        def mock_agent_response(question):
             # Simulate agent processing and return structured JSONL response
             mock_response = MagicMock()
             mock_response.error = None
@@ -124,7 +124,7 @@ class TestAgentKgExtractionIntegration:
             
             # Get agent response (the mock returns a string directly)
             agent_client = flow("agent-request")
-            agent_response = agent_client.invoke(recipient=lambda x: True, question=prompt)
+            agent_response = agent_client.invoke(question=prompt)
             
             # Parse and process
             extraction_data = extractor.parse_jsonl(agent_response)
@@ -197,7 +197,7 @@ class TestAgentKgExtractionIntegration:
         # Arrange - mock agent error response
         agent_client = mock_flow_context("agent-request")
         
-        def mock_error_response(recipient, question):
+        def mock_error_response(question):
             # Simulate agent error by raising an exception
             raise RuntimeError("Agent processing failed")
         
@@ -219,7 +219,7 @@ class TestAgentKgExtractionIntegration:
         # Arrange - mock invalid JSON response
         agent_client = mock_flow_context("agent-request")
 
-        def mock_invalid_json_response(recipient, question):
+        def mock_invalid_json_response(question):
             return "This is not valid JSON at all"
 
         agent_client.invoke = mock_invalid_json_response
@@ -244,7 +244,7 @@ class TestAgentKgExtractionIntegration:
         # Arrange - mock empty extraction response
         agent_client = mock_flow_context("agent-request")
         
-        def mock_empty_response(recipient, question):
+        def mock_empty_response(question):
             # Return empty JSONL (just empty/whitespace)
             return ''
         
@@ -271,7 +271,7 @@ class TestAgentKgExtractionIntegration:
         # Arrange - mock malformed extraction response
         agent_client = mock_flow_context("agent-request")
         
-        def mock_malformed_response(recipient, question):
+        def mock_malformed_response(question):
             # JSONL with definition missing required field
             return '{"type": "definition", "entity": "Missing Definition"}'
         
@@ -297,7 +297,7 @@ class TestAgentKgExtractionIntegration:
         
         agent_client = mock_flow_context("agent-request")
         
-        def capture_prompt(recipient, question):
+        def capture_prompt(question):
             # Verify the prompt contains the test text
             assert test_text in question
             return ''  # Empty JSONL response
@@ -330,7 +330,7 @@ class TestAgentKgExtractionIntegration:
         agent_client = mock_flow_context("agent-request")
         responses = []
         
-        def mock_response(recipient, question):
+        def mock_response(question):
             response = f'{{"type": "definition", "entity": "Entity {len(responses)}", "definition": "Definition {len(responses)}"}}'
             responses.append(response)
             return response
@@ -364,7 +364,7 @@ class TestAgentKgExtractionIntegration:
         
         agent_client = mock_flow_context("agent-request")
         
-        def mock_unicode_response(recipient, question):
+        def mock_unicode_response(question):
             # Verify unicode text was properly decoded and included
             assert "学习机器" in question
             assert "人工知能" in question
@@ -400,7 +400,7 @@ class TestAgentKgExtractionIntegration:
         
         agent_client = mock_flow_context("agent-request")
         
-        def mock_large_text_response(recipient, question):
+        def mock_large_text_response(question):
             # Verify large text was included
             assert len(question) > 10000
             return '{"type": "definition", "entity": "Machine Learning", "definition": "Important AI technique"}'

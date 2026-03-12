@@ -183,24 +183,8 @@ class Processor(FlowProcessor):
 
             logger.debug(f"Agent prompt: {prompt}")
 
-            async def handle(response):
-
-                logger.debug(f"Agent response: {response}")
-
-                if response.error is not None:
-                    if response.error.message:
-                        raise RuntimeError(str(response.error.message))
-                    else:
-                        raise RuntimeError(str(response.error))
-
-                if response.answer is not None:
-                    return True
-                else:
-                    return False
-            
             # Send to agent API
             agent_response = await flow("agent-request").invoke(
-                recipient = handle,
                 question = prompt
             )
             
