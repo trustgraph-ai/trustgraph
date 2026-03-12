@@ -12,8 +12,7 @@ from ... schema import TextDocument, Chunk, Metadata, Triples
 from ... base import ChunkingService, ConsumerSpec, ProducerSpec
 
 from ... provenance import (
-    page_uri, chunk_uri_from_page, chunk_uri_from_doc,
-    derived_entity_triples, document_uri,
+    derived_entity_triples,
     set_graph, GRAPH_SOURCE,
 )
 
@@ -114,21 +113,8 @@ class Processor(ChunkingService):
         texts = text_splitter.create_documents([text])
 
         # Get parent document ID for provenance linking
+        # This could be a page URI (doc/p3) or document URI (doc) - we don't need to parse it
         parent_doc_id = v.document_id or v.metadata.id
-
-        # Determine if parent is a page (from PDF) or source document (text)
-        # Check if parent_doc_id contains "/p" which indicates a page
-        is_from_page = "/p" in parent_doc_id
-
-        # Extract the root document ID for chunk URI generation
-        if is_from_page:
-            # Parent is a page like "doc123/p3", extract page number
-            parts = parent_doc_id.rsplit("/p", 1)
-            root_doc_id = parts[0]
-            page_num = int(parts[1]) if len(parts) > 1 else 1
-        else:
-            root_doc_id = parent_doc_id
-            page_num = None
 
         # Track character offset for provenance
         char_offset = 0
@@ -138,15 +124,11 @@ class Processor(ChunkingService):
 
             logger.debug(f"Created chunk of size {len(chunk.page_content)}")
 
-            # Generate chunk document ID
-            if is_from_page:
-                chunk_doc_id = f"{root_doc_id}/p{page_num}/c{chunk_index}"
-                chunk_uri = chunk_uri_from_page(root_doc_id, page_num, chunk_index)
-                parent_uri = page_uri(root_doc_id, page_num)
-            else:
-                chunk_doc_id = f"{root_doc_id}/c{chunk_index}"
-                chunk_uri = chunk_uri_from_doc(root_doc_id, chunk_index)
-                parent_uri = document_uri(root_doc_id)
+            # Generate chunk document ID by appending /c{index} to parent
+            # Works for both page URIs (doc/p3 -> doc/p3/c1) and doc URIs (doc -> doc/c1)
+            chunk_doc_id = f"{parent_doc_id}/c{chunk_index}"
+            chunk_uri = chunk_doc_id  # URI is same as document ID
+            parent_uri = parent_doc_id
 
             chunk_content = chunk.page_content.encode("utf-8")
             chunk_length = len(chunk.page_content)

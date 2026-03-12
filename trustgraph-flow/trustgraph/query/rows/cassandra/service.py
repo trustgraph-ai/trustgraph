@@ -30,6 +30,7 @@ from ... graphql import GraphQLSchemaBuilder, SortDirection
 logger = logging.getLogger(__name__)
 
 default_ident = "rows-query"
+default_concurrency = 10
 
 
 class Processor(FlowProcessor):
@@ -37,6 +38,7 @@ class Processor(FlowProcessor):
     def __init__(self, **params):
 
         id = params.get("id", default_ident)
+        concurrency = params.get("concurrency", default_concurrency)
 
         # Get Cassandra parameters
         cassandra_host = params.get("cassandra_host")
@@ -69,7 +71,8 @@ class Processor(FlowProcessor):
             ConsumerSpec(
                 name="request",
                 schema=RowsQueryRequest,
-                handler=self.on_message
+                handler=self.on_message,
+                concurrency=concurrency,
             )
         )
 
@@ -515,6 +518,13 @@ class Processor(FlowProcessor):
             '--config-type',
             default='schema',
             help='Configuration type prefix for schemas (default: schema)'
+        )
+
+        parser.add_argument(
+            '-c', '--concurrency',
+            type=int,
+            default=default_concurrency,
+            help=f'Number of concurrent requests (default: {default_concurrency})'
         )
 
 

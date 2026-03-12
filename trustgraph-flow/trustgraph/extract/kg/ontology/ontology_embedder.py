@@ -153,14 +153,11 @@ class OntologyEmbedder:
             # Get embeddings for batch
             texts = [elem['text'] for elem in batch]
             try:
-                # Single batch embedding call
+                # Single batch embedding call - returns list of vectors
                 embeddings_response = await self.embedding_service.embed(texts)
 
-                # Extract first vector from each text's vector set
-                embeddings_list = [resp[0] for resp in embeddings_response]
-
                 # Convert to numpy array
-                embeddings = np.array(embeddings_list)
+                embeddings = np.array(embeddings_response)
 
                 # Log embedding shape for debugging
                 logger.debug(f"Embeddings shape: {embeddings.shape}, expected: ({len(batch)}, {self.vector_store.dimension})")
@@ -216,9 +213,9 @@ class OntologyEmbedder:
             return None
 
         try:
-            # embed() with single text, extract first vector from first text
+            # embed() with single text, extract first vector
             embedding_response = await self.embedding_service.embed([text])
-            return np.array(embedding_response[0][0])
+            return np.array(embedding_response[0])
         except Exception as e:
             logger.error(f"Failed to embed text: {e}")
             return None
@@ -237,11 +234,9 @@ class OntologyEmbedder:
             return None
 
         try:
-            # Single batch embedding call
+            # Single batch embedding call - returns list of vectors
             embeddings_response = await self.embedding_service.embed(texts)
-            # Extract first vector from each text's vector set
-            embeddings_list = [resp[0] for resp in embeddings_response]
-            return np.array(embeddings_list)
+            return np.array(embeddings_response)
         except Exception as e:
             logger.error(f"Failed to embed texts: {e}")
             return None

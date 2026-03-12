@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 default_ident = "row-embeddings-query"
 default_store_uri = 'http://localhost:6333'
+default_concurrency = 10
 
 
 class Processor(FlowProcessor):
@@ -31,6 +32,7 @@ class Processor(FlowProcessor):
     def __init__(self, **params):
 
         id = params.get("id", default_ident)
+        concurrency = params.get("concurrency", default_concurrency)
 
         store_uri = params.get("store_uri", default_store_uri)
         api_key = params.get("api_key", None)
@@ -47,7 +49,8 @@ class Processor(FlowProcessor):
             ConsumerSpec(
                 name="request",
                 schema=RowEmbeddingsRequest,
-                handler=self.on_message
+                handler=self.on_message,
+                concurrency=concurrency,
             )
         )
 
@@ -203,6 +206,13 @@ class Processor(FlowProcessor):
             '-k', '--api-key',
             default=None,
             help='API key for Qdrant (default: None)'
+        )
+
+        parser.add_argument(
+            '-c', '--concurrency',
+            type=int,
+            default=default_concurrency,
+            help=f'Number of concurrent requests (default: {default_concurrency})'
         )
 
 

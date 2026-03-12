@@ -176,6 +176,9 @@ class TestTokenChunkerSimple(IsolatedAsyncioTestCase):
 
         processor = Processor(**config)
 
+        # Mock save_child_document to avoid librarian producer interactions
+        processor.save_child_document = AsyncMock(return_value="chunk-id")
+
         # Mock message with TextDocument
         mock_message = MagicMock()
         mock_text_doc = MagicMock()
@@ -191,11 +194,13 @@ class TestTokenChunkerSimple(IsolatedAsyncioTestCase):
         # Mock consumer and flow with parameter overrides
         mock_consumer = MagicMock()
         mock_producer = AsyncMock()
+        mock_triples_producer = AsyncMock()
         mock_flow = MagicMock()
         mock_flow.side_effect = lambda param: {
             "chunk-size": 400,
             "chunk-overlap": 40,
-            "output": mock_producer
+            "output": mock_producer,
+            "triples": mock_triples_producer,
         }.get(param)
 
         # Act
