@@ -17,12 +17,14 @@ from . producer_spec import ProducerSpec
 logger = logging.getLogger(__name__)
 
 default_ident = "triples-query"
+default_concurrency = 10
 
 class TriplesQueryService(FlowProcessor):
 
     def __init__(self, **params):
 
         id = params.get("id")
+        concurrency = params.get("concurrency", default_concurrency)
 
         super(TriplesQueryService, self).__init__(**params | { "id": id })
 
@@ -30,7 +32,8 @@ class TriplesQueryService(FlowProcessor):
             ConsumerSpec(
                 name = "request",
                 schema = TriplesQueryRequest,
-                handler = self.on_message
+                handler = self.on_message,
+                concurrency = concurrency,
             )
         )
 
@@ -108,6 +111,13 @@ class TriplesQueryService(FlowProcessor):
     def add_args(parser):
 
         FlowProcessor.add_args(parser)
+
+        parser.add_argument(
+            '-c', '--concurrency',
+            type=int,
+            default=default_concurrency,
+            help=f'Number of concurrent requests (default: {default_concurrency})'
+        )
 
 def run():
 
