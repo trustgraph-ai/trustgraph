@@ -8,7 +8,16 @@ import os
 import sys
 import websockets
 import asyncio
-from trustgraph.api import Api
+from trustgraph.api import (
+    Api,
+    ExplainabilityClient,
+    RAGChunk,
+    ProvenanceEvent,
+    Question,
+    Exploration,
+    Focus,
+    Synthesis,
+)
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
@@ -602,18 +611,111 @@ async def _question_explainable(
     print()  # Final newline
 
 
+def _question_explainable_api(
+        url, flow_id, question_text, user, collection, entity_limit, triple_limit,
+        max_subgraph_size, max_path_length, token=None, debug=False
+):
+    """Execute graph RAG with explainability using the new API classes."""
+    api = Api(url=url, token=token)
+    socket = api.socket()
+    flow = socket.flow(flow_id)
+    explain_client = ExplainabilityClient(flow, retry_delay=0.2, max_retries=10)
+
+    try:
+        # Stream GraphRAG with explainability - process events as they arrive
+        for item in flow.graph_rag_explain(
+            query=question_text,
+            user=user,
+            collection=collection,
+            max_subgraph_size=max_subgraph_size,
+            max_subgraph_count=5,
+            max_entity_distance=max_path_length,
+        ):
+            if isinstance(item, RAGChunk):
+                # Print response content
+                print(item.content, end="", flush=True)
+
+            elif isinstance(item, ProvenanceEvent):
+                # Process provenance event immediately
+                prov_id = item.explain_id
+                explain_graph = item.explain_graph or "urn:graph:retrieval"
+
+                entity = explain_client.fetch_entity(
+                    prov_id,
+                    graph=explain_graph,
+                    user=user,
+                    collection=collection
+                )
+
+                if entity is None:
+                    if debug:
+                        print(f"\n  [warning] Could not fetch entity: {prov_id}", file=sys.stderr)
+                    continue
+
+                # Display based on entity type
+                if isinstance(entity, Question):
+                    print(f"\n  [question] {prov_id}", file=sys.stderr)
+                    if entity.query:
+                        print(f"    Query: {entity.query}", file=sys.stderr)
+                    if entity.timestamp:
+                        print(f"    Time: {entity.timestamp}", file=sys.stderr)
+
+                elif isinstance(entity, Exploration):
+                    print(f"\n  [exploration] {prov_id}", file=sys.stderr)
+                    if entity.edge_count:
+                        print(f"    Edges explored: {entity.edge_count}", file=sys.stderr)
+
+                elif isinstance(entity, Focus):
+                    print(f"\n  [focus] {prov_id}", file=sys.stderr)
+                    if entity.selected_edge_uris:
+                        print(f"    Focused on {len(entity.selected_edge_uris)} edge(s)", file=sys.stderr)
+
+                    # Fetch full focus with edge details
+                    focus_full = explain_client.fetch_focus_with_edges(
+                        prov_id,
+                        graph=explain_graph,
+                        user=user,
+                        collection=collection
+                    )
+                    if focus_full and focus_full.edge_selections:
+                        for edge_sel in focus_full.edge_selections:
+                            if edge_sel.edge:
+                                # Resolve labels for edge components
+                                s_label, p_label, o_label = explain_client.resolve_edge_labels(
+                                    edge_sel.edge, user, collection
+                                )
+                                print(f"      Edge: ({s_label}, {p_label}, {o_label})", file=sys.stderr)
+                            if edge_sel.reasoning:
+                                r_short = edge_sel.reasoning[:100] + "..." if len(edge_sel.reasoning) > 100 else edge_sel.reasoning
+                                print(f"        Reason: {r_short}", file=sys.stderr)
+
+                elif isinstance(entity, Synthesis):
+                    print(f"\n  [synthesis] {prov_id}", file=sys.stderr)
+                    if entity.content:
+                        print(f"    Synthesis length: {len(entity.content)} chars", file=sys.stderr)
+
+                else:
+                    if debug:
+                        print(f"\n  [unknown] {prov_id} (type: {entity.entity_type})", file=sys.stderr)
+
+        print()  # Final newline
+
+    finally:
+        socket.close()
+
+
 def question(
         url, flow_id, question, user, collection, entity_limit, triple_limit,
         max_subgraph_size, max_path_length, streaming=True, token=None,
         explainable=False, debug=False
 ):
 
-    # Explainable mode uses direct websocket to capture provenance events
+    # Explainable mode uses the API to capture and process provenance events
     if explainable:
-        asyncio.run(_question_explainable(
+        _question_explainable_api(
             url=url,
             flow_id=flow_id,
-            question=question,
+            question_text=question,
             user=user,
             collection=collection,
             entity_limit=entity_limit,
@@ -622,7 +724,7 @@ def question(
             max_path_length=max_path_length,
             token=token,
             debug=debug
-        ))
+        )
         return
 
     # Create API client

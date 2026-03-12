@@ -8,8 +8,10 @@ import asyncio
 import base64
 import logging
 
+import uuid
+
 from ... schema import DocumentRagQuery, DocumentRagResponse, Error
-from ... schema import LibrarianRequest, LibrarianResponse
+from ... schema import LibrarianRequest, LibrarianResponse, DocumentMetadata
 from ... schema import librarian_request_queue, librarian_response_queue
 from ... schema import Triples, Metadata
 from ... provenance import GRAPH_RETRIEVAL
@@ -179,6 +181,62 @@ class Processor(FlowProcessor):
             self.pending_requests.pop(request_id, None)
             raise RuntimeError(f"Timeout fetching chunk {chunk_id}")
 
+    async def save_answer_content(self, doc_id, user, content, title=None, timeout=120):
+        """
+        Save answer content to the librarian.
+
+        Args:
+            doc_id: ID for the answer document
+            user: User ID
+            content: Answer text content
+            title: Optional title
+            timeout: Request timeout in seconds
+
+        Returns:
+            The document ID on success
+        """
+        request_id = str(uuid.uuid4())
+
+        doc_metadata = DocumentMetadata(
+            id=doc_id,
+            user=user,
+            kind="text/plain",
+            title=title or "DocumentRAG Answer",
+            document_type="answer",
+        )
+
+        request = LibrarianRequest(
+            operation="add-document",
+            document_id=doc_id,
+            document_metadata=doc_metadata,
+            content=base64.b64encode(content.encode("utf-8")).decode("utf-8"),
+            user=user,
+        )
+
+        # Create future for response
+        future = asyncio.get_event_loop().create_future()
+        self.pending_requests[request_id] = future
+
+        try:
+            # Send request
+            await self.librarian_request_producer.send(
+                request, properties={"id": request_id}
+            )
+
+            # Wait for response
+            response = await asyncio.wait_for(future, timeout=timeout)
+
+            if response.error:
+                raise RuntimeError(
+                    f"Librarian error saving answer: {response.error.type}: {response.error.message}"
+                )
+
+            return doc_id
+
+        except asyncio.TimeoutError:
+            self.pending_requests.pop(request_id, None)
+            raise RuntimeError(f"Timeout saving answer document {doc_id}")
+
     async def on_request(self, msg, consumer, flow):
 
         try:
@@ -222,8 +280,18 @@ class Processor(FlowProcessor):
                         response=None,
                         explain_id=explain_id,
                         explain_graph=GRAPH_RETRIEVAL,
+                        message_type="explain",
                     ),
                     properties={"id": id}
+                )
+
+            # Callback to save answer content to librarian
+            async def save_answer(doc_id, answer_text):
+                await self.save_answer_content(
+                    doc_id=doc_id,
+                    user=v.user,
+                    content=answer_text,
+                    title=f"DocumentRAG Answer: {v.query[:50]}...",
                 )
 
             # Check if streaming is requested
@@ -235,6 +303,7 @@ class Processor(FlowProcessor):
                         DocumentRagResponse(
                             response=chunk,
                             end_of_stream=end_of_stream,
+                            message_type="chunk",
                             error=None
                         ),
                         properties={"id": id}
@@ -250,6 +319,17 @@ class Processor(FlowProcessor):
                     streaming=True,
                     chunk_callback=send_chunk,
                     explain_callback=send_explainability,
+                    save_answer_callback=save_answer,
+                )
+
+                # Send end_of_session to signal entire session is complete
+                await flow("response").send(
+                    DocumentRagResponse(
+                        response=None,
+                        end_of_session=True,
+                        message_type="end",
+                    ),
+                    properties={"id": id}
                 )
             else:
                 # Non-streaming path (existing behavior)
@@ -259,6 +339,7 @@ class Processor(FlowProcessor):
                     collection=v.collection,
                     doc_limit=doc_limit,
                     explain_callback=send_explainability,
+                    save_answer_callback=save_answer,
                 )
 
                 await flow("response").send(

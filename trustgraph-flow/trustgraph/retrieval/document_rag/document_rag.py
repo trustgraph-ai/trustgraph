@@ -109,7 +109,7 @@ class DocumentRag:
     async def query(
             self, query, user="trustgraph", collection="default",
             doc_limit=20, streaming=False, chunk_callback=None,
-            explain_callback=None,
+            explain_callback=None, save_answer_callback=None,
     ):
         """
         Execute a Document RAG query with optional explainability tracking.
@@ -122,6 +122,7 @@ class DocumentRag:
             streaming: Enable streaming LLM response
             chunk_callback: async def callback(chunk, end_of_stream) for streaming
             explain_callback: async def callback(triples, explain_id) for explainability
+            save_answer_callback: async def callback(doc_id, answer_text) to save answer to librarian
 
         Returns:
             str: The synthesized answer text
@@ -192,9 +193,28 @@ class DocumentRag:
 
         # Emit synthesis explainability after answer generated
         if explain_callback:
+            synthesis_doc_id = None
             answer_text = resp if resp else ""
+
+            # Save answer to librarian if callback provided
+            if save_answer_callback and answer_text:
+                # Generate document ID as URN matching query-time provenance format
+                synthesis_doc_id = f"urn:trustgraph:docrag:{session_id}/answer"
+                try:
+                    await save_answer_callback(synthesis_doc_id, answer_text)
+                    if self.verbose:
+                        logger.debug(f"Saved answer to librarian: {synthesis_doc_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to save answer to librarian: {e}")
+                    synthesis_doc_id = None  # Fall back to inline content
+
+            # Generate triples with document reference or inline content
             syn_triples = set_graph(
-                docrag_synthesis_triples(syn_uri, exp_uri, answer_text),
+                docrag_synthesis_triples(
+                    syn_uri, exp_uri,
+                    answer_text="" if synthesis_doc_id else answer_text,
+                    document_id=synthesis_doc_id,
+                ),
                 GRAPH_RETRIEVAL
             )
             await explain_callback(syn_triples, syn_uri)

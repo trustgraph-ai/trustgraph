@@ -2,6 +2,8 @@
 Simple agent infrastructure broadly implements the ReAct flow.
 """
 
+import asyncio
+import base64
 import json
 import re
 import sys
@@ -17,9 +19,13 @@ from ... base import AgentService, TextCompletionClientSpec, PromptClientSpec
 from ... base import GraphRagClientSpec, ToolClientSpec, StructuredQueryClientSpec
 from ... base import RowEmbeddingsQueryClientSpec, EmbeddingsClientSpec
 from ... base import ProducerSpec
+from ... base import Consumer, Producer
+from ... base import ConsumerMetrics, ProducerMetrics
 
 from ... schema import AgentRequest, AgentResponse, AgentStep, Error
 from ... schema import Triples, Metadata
+from ... schema import LibrarianRequest, LibrarianResponse, DocumentMetadata
+from ... schema import librarian_request_queue, librarian_response_queue
 
 # Provenance imports for agent explainability
 from trustgraph.provenance import (
@@ -41,6 +47,8 @@ from . types import Final, Action, Tool, Argument
 
 default_ident = "agent-manager"
 default_max_iterations = 10
+default_librarian_request_queue = librarian_request_queue
+default_librarian_response_queue = librarian_response_queue
 
 class Processor(AgentService):
 
@@ -128,6 +136,115 @@ class Processor(AgentService):
                 schema = Triples,
             )
         )
+
+        # Librarian client for storing answer content
+        librarian_request_q = params.get(
+            "librarian_request_queue", default_librarian_request_queue
+        )
+        librarian_response_q = params.get(
+            "librarian_response_queue", default_librarian_response_queue
+        )
+
+        librarian_request_metrics = ProducerMetrics(
+            processor=id, flow=None, name="librarian-request"
+        )
+
+        self.librarian_request_producer = Producer(
+            backend=self.pubsub,
+            topic=librarian_request_q,
+            schema=LibrarianRequest,
+            metrics=librarian_request_metrics,
+        )
+
+        librarian_response_metrics = ConsumerMetrics(
+            processor=id, flow=None, name="librarian-response"
+        )
+
+        self.librarian_response_consumer = Consumer(
+            taskgroup=self.taskgroup,
+            backend=self.pubsub,
+            flow=None,
+            topic=librarian_response_q,
+            subscriber=f"{id}-librarian",
+            schema=LibrarianResponse,
+            handler=self.on_librarian_response,
+            metrics=librarian_response_metrics,
+        )
+
+        # Pending librarian requests: request_id -> asyncio.Future
+        self.pending_librarian_requests = {}
+
+    async def start(self):
+        await super(Processor, self).start()
+        await self.librarian_request_producer.start()
+        await self.librarian_response_consumer.start()
+
+    async def on_librarian_response(self, msg, consumer, flow):
+        """Handle responses from the librarian service."""
+        response = msg.value()
+        request_id = msg.properties().get("id")
+
+        if request_id in self.pending_librarian_requests:
+            future = self.pending_librarian_requests.pop(request_id)
+            future.set_result(response)
+        else:
+            logger.warning(f"Received unexpected librarian response: {request_id}")
+
+    async def save_answer_content(self, doc_id, user, content, title=None, timeout=120):
+        """
+        Save answer content to the librarian.
+
+        Args:
+            doc_id: ID for the answer document
+            user: User ID
+            content: Answer text content
+            title: Optional title
+            timeout: Request timeout in seconds
+
+        Returns:
+            The document ID on success
+        """
+        request_id = str(uuid.uuid4())
+
+        doc_metadata = DocumentMetadata(
+            id=doc_id,
+            user=user,
+            kind="text/plain",
+            title=title or "Agent Answer",
+            document_type="answer",
+        )
+
+        request = LibrarianRequest(
+            operation="add-document",
+            document_id=doc_id,
+            document_metadata=doc_metadata,
+            content=base64.b64encode(content.encode("utf-8")).decode("utf-8"),
+            user=user,
+        )
+
+        # Create future for response
+        future = asyncio.get_event_loop().create_future()
+        self.pending_librarian_requests[request_id] = future
+
+        try:
+            # Send request
+            await self.librarian_request_producer.send(
+                request, properties={"id": request_id}
+            )
+
+            # Wait for response
+            response = await asyncio.wait_for(future, timeout=timeout)
+
+            if response.error:
+                raise RuntimeError(
+                    f"Librarian error saving answer: {response.error.type}: {response.error.message}"
+                )
+
+            return doc_id
+
+        except asyncio.TimeoutError:
+            self.pending_librarian_requests.pop(request_id, None)
+            raise RuntimeError(f"Timeout saving answer document {doc_id}")
 
     async def on_tools_config(self, config, version):
 
@@ -347,6 +464,15 @@ class Processor(AgentService):
                 ))
                 logger.debug(f"Emitted session triples for {session_uri}")
 
+                # Send explain event for session
+                if streaming:
+                    await respond(AgentResponse(
+                        chunk_type="explain",
+                        content="",
+                        explain_id=session_uri,
+                        explain_graph=GRAPH_RETRIEVAL,
+                    ))
+
             logger.info(f"Question: {request.question}")
 
             if len(history) >= self.max_iterations:
@@ -504,8 +630,28 @@ class Processor(AgentService):
                 else:
                     parent_uri = session_uri
 
+                # Save answer to librarian
+                answer_doc_id = None
+                if f:
+                    answer_doc_id = f"urn:trustgraph:agent:{session_id}/answer"
+                    try:
+                        await self.save_answer_content(
+                            doc_id=answer_doc_id,
+                            user=request.user,
+                            content=f,
+                            title=f"Agent Answer: {request.question[:50]}...",
+                        )
+                        logger.debug(f"Saved answer to librarian: {answer_doc_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to save answer to librarian: {e}")
+                        answer_doc_id = None  # Fall back to inline content
+
                 final_triples = set_graph(
-                    agent_final_triples(final_uri, parent_uri, f),
+                    agent_final_triples(
+                        final_uri, parent_uri,
+                        answer="" if answer_doc_id else f,
+                        document_id=answer_doc_id,
+                    ),
                     GRAPH_RETRIEVAL
                 )
                 await flow("explainability").send(Triples(
@@ -517,6 +663,15 @@ class Processor(AgentService):
                     triples=final_triples,
                 ))
                 logger.debug(f"Emitted final triples for {final_uri}")
+
+                # Send explain event for conclusion
+                if streaming:
+                    await respond(AgentResponse(
+                        chunk_type="explain",
+                        content="",
+                        explain_id=final_uri,
+                        explain_graph=GRAPH_RETRIEVAL,
+                    ))
 
                 if streaming:
                     # Streaming format - send end-of-dialog marker
@@ -558,14 +713,48 @@ class Processor(AgentService):
             else:
                 parent_uri = session_uri
 
+            # Save thought to librarian
+            thought_doc_id = None
+            if act.thought:
+                thought_doc_id = f"urn:trustgraph:agent:{session_id}/i{iteration_num}/thought"
+                try:
+                    await self.save_answer_content(
+                        doc_id=thought_doc_id,
+                        user=request.user,
+                        content=act.thought,
+                        title=f"Agent Thought: {act.name}",
+                    )
+                    logger.debug(f"Saved thought to librarian: {thought_doc_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to save thought to librarian: {e}")
+                    thought_doc_id = None
+
+            # Save observation to librarian
+            observation_doc_id = None
+            if act.observation:
+                observation_doc_id = f"urn:trustgraph:agent:{session_id}/i{iteration_num}/observation"
+                try:
+                    await self.save_answer_content(
+                        doc_id=observation_doc_id,
+                        user=request.user,
+                        content=act.observation,
+                        title=f"Agent Observation: {act.name}",
+                    )
+                    logger.debug(f"Saved observation to librarian: {observation_doc_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to save observation to librarian: {e}")
+                    observation_doc_id = None
+
             iter_triples = set_graph(
                 agent_iteration_triples(
                     iteration_uri,
                     parent_uri,
-                    act.thought,
-                    act.name,
-                    act.arguments,
-                    act.observation,
+                    thought="" if thought_doc_id else act.thought,
+                    action=act.name,
+                    arguments=act.arguments,
+                    observation="" if observation_doc_id else act.observation,
+                    thought_document_id=thought_doc_id,
+                    observation_document_id=observation_doc_id,
                 ),
                 GRAPH_RETRIEVAL
             )
@@ -578,6 +767,15 @@ class Processor(AgentService):
                 triples=iter_triples,
             ))
             logger.debug(f"Emitted iteration triples for {iteration_uri}")
+
+            # Send explain event for iteration
+            if streaming:
+                await respond(AgentResponse(
+                    chunk_type="explain",
+                    content="",
+                    explain_id=iteration_uri,
+                    explain_graph=GRAPH_RETRIEVAL,
+                ))
 
             history.append(act)
 

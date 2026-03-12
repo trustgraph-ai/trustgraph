@@ -30,10 +30,13 @@ class TestAgentStructuredQueryIntegration:
             pulsar_client=AsyncMock(),
             max_iterations=3
         )
-        
+
         # Mock the client method for structured query
         proc.client = MagicMock()
-        
+
+        # Mock librarian to avoid hanging on save operations
+        proc.save_answer_content = AsyncMock(return_value=None)
+
         return proc
 
     @pytest.fixture

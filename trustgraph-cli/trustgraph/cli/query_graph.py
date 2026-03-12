@@ -291,42 +291,25 @@ def query_graph(
 ):
     """Query the triple store with pattern matching.
 
-    Uses the WebSocket API's raw streaming mode for efficient delivery of results.
+    Uses the API's triples_query_stream for efficient streaming delivery.
     """
     socket = Api(url, token=token).socket()
-
-    # Build request dict directly (bypassing triples_query_stream's string conversion)
-    request = {
-        "user": user,
-        "collection": collection,
-        "limit": limit,
-        "streaming": True,
-        "batch-size": batch_size,
-    }
-
-    # Add term dicts for s/p/o (None means wildcard)
-    if subject is not None:
-        request["s"] = subject
-    if predicate is not None:
-        request["p"] = predicate
-    if obj is not None:
-        request["o"] = obj
-    if graph is not None:
-        request["g"] = graph
+    flow = socket.flow(flow_id)
 
     all_triples = []
 
     try:
-        # Use raw streaming mode - yields response dicts directly
-        for response in socket._send_request_sync(
-            "triples", flow_id, request, streaming_raw=True
+        # Use triples_query_stream - accepts Term dicts directly
+        for triples in flow.triples_query_stream(
+            s=subject,
+            p=predicate,
+            o=obj,
+            g=graph,
+            user=user,
+            collection=collection,
+            limit=limit,
+            batch_size=batch_size,
         ):
-            # Response may have triples in different locations depending on format
-            if isinstance(response, dict):
-                triples = response.get("response", response.get("triples", []))
-            else:
-                triples = response
-
             if not isinstance(triples, list):
                 triples = [triples] if triples else []
 

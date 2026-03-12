@@ -82,6 +82,10 @@ from . namespaces import (
     TG_GRAPH_RAG_QUESTION, TG_DOC_RAG_QUESTION, TG_AGENT_QUESTION,
     # Agent provenance predicates
     TG_THOUGHT, TG_ACTION, TG_ARGUMENTS, TG_OBSERVATION, TG_ANSWER,
+    # Agent document references
+    TG_THOUGHT_DOCUMENT, TG_OBSERVATION_DOCUMENT,
+    # Document reference predicate
+    TG_DOCUMENT,
     # Named graphs
     GRAPH_DEFAULT, GRAPH_SOURCE, GRAPH_RETRIEVAL,
 )
@@ -165,6 +169,10 @@ __all__ = [
     "TG_GRAPH_RAG_QUESTION", "TG_DOC_RAG_QUESTION", "TG_AGENT_QUESTION",
     # Agent provenance predicates
     "TG_THOUGHT", "TG_ACTION", "TG_ARGUMENTS", "TG_OBSERVATION", "TG_ANSWER",
+    # Agent document references
+    "TG_THOUGHT_DOCUMENT", "TG_OBSERVATION_DOCUMENT",
+    # Document reference predicate
+    "TG_DOCUMENT",
     # Named graphs
     "GRAPH_DEFAULT", "GRAPH_SOURCE", "GRAPH_RETRIEVAL",
     # Triple builders
