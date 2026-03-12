@@ -17,12 +17,14 @@ from . producer_spec import ProducerSpec
 logger = logging.getLogger(__name__)
 
 default_ident = "doc-embeddings-query"
+default_concurrency = 10
 
 class DocumentEmbeddingsQueryService(FlowProcessor):
 
     def __init__(self, **params):
 
         id = params.get("id")
+        concurrency = params.get("concurrency", default_concurrency)
 
         super(DocumentEmbeddingsQueryService, self).__init__(
             **params | { "id": id }
@@ -32,7 +34,8 @@ class DocumentEmbeddingsQueryService(FlowProcessor):
             ConsumerSpec(
                 name = "request",
                 schema = DocumentEmbeddingsRequest,
-                handler = self.on_message
+                handler = self.on_message,
+                concurrency = concurrency,
             )
         )
 
@@ -82,6 +85,13 @@ class DocumentEmbeddingsQueryService(FlowProcessor):
     def add_args(parser):
 
         FlowProcessor.add_args(parser)
+
+        parser.add_argument(
+            '-c', '--concurrency',
+            type=int,
+            default=default_concurrency,
+            help=f'Number of concurrent requests (default: {default_concurrency})'
+        )
 
 def run():
 
