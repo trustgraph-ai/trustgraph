@@ -168,7 +168,7 @@ class TestAgentKgExtractionEdgeCases:
         """Test processing with empty or minimal metadata"""
         # Test with None metadata - may not raise AttributeError depending on implementation
         try:
-            triples, contexts = agent_extractor.process_extraction_data([], None)
+            triples, contexts, _ = agent_extractor.process_extraction_data([], None)
             # If it doesn't raise, check the results
             assert len(triples) == 0
             assert len(contexts) == 0
@@ -178,14 +178,14 @@ class TestAgentKgExtractionEdgeCases:
 
         # Test with metadata without ID
         metadata = Metadata(id=None)
-        triples, contexts = agent_extractor.process_extraction_data([], metadata)
+        triples, contexts, _ = agent_extractor.process_extraction_data([], metadata)
         assert len(triples) == 0
         assert len(contexts) == 0
 
         # Test with metadata with empty string ID
         metadata = Metadata(id="")
         data = [{"type": "definition", "entity": "Test", "definition": "Test def"}]
-        triples, contexts = agent_extractor.process_extraction_data(data, metadata)
+        triples, contexts, _ = agent_extractor.process_extraction_data(data, metadata)
 
         # Should not create subject-of triples when ID is empty string
         subject_of_triples = [t for t in triples if t.p.iri == SUBJECT_OF]
@@ -213,7 +213,7 @@ class TestAgentKgExtractionEdgeCases:
             for entity in special_entities
         ]
 
-        triples, contexts = agent_extractor.process_extraction_data(data, metadata)
+        triples, contexts, _ = agent_extractor.process_extraction_data(data, metadata)
 
         # Verify all entities were processed
         assert len(contexts) == len(special_entities)
@@ -234,7 +234,7 @@ class TestAgentKgExtractionEdgeCases:
             {"type": "definition", "entity": "Test Entity", "definition": long_definition}
         ]
 
-        triples, contexts = agent_extractor.process_extraction_data(data, metadata)
+        triples, contexts, _ = agent_extractor.process_extraction_data(data, metadata)
 
         # Should handle long definitions without issues
         assert len(contexts) == 1
@@ -256,7 +256,7 @@ class TestAgentKgExtractionEdgeCases:
             {"type": "definition", "entity": "AI", "definition": "Another AI definition"},  # Duplicate
         ]
 
-        triples, contexts = agent_extractor.process_extraction_data(data, metadata)
+        triples, contexts, _ = agent_extractor.process_extraction_data(data, metadata)
 
         # Should process all entries (including duplicates)
         assert len(contexts) == 4
@@ -280,7 +280,7 @@ class TestAgentKgExtractionEdgeCases:
             {"type": "relationship", "subject": "test", "predicate": "test", "object": "", "object-entity": True},
         ]
 
-        triples, contexts = agent_extractor.process_extraction_data(data, metadata)
+        triples, contexts, _ = agent_extractor.process_extraction_data(data, metadata)
 
         # Should handle empty strings by creating URIs (even if empty)
         assert len(contexts) == 3
@@ -306,7 +306,7 @@ class TestAgentKgExtractionEdgeCases:
             }
         ]
 
-        triples, contexts = agent_extractor.process_extraction_data(data, metadata)
+        triples, contexts, _ = agent_extractor.process_extraction_data(data, metadata)
 
         # Should handle JSON strings in definitions without parsing them
         assert len(contexts) == 2
@@ -334,7 +334,7 @@ class TestAgentKgExtractionEdgeCases:
             {"type": "relationship", "subject": "A", "predicate": "rel7", "object": "F", "object-entity": 1},
         ]
 
-        triples, contexts = agent_extractor.process_extraction_data(data, metadata)
+        triples, contexts, _ = agent_extractor.process_extraction_data(data, metadata)
 
         # Should process all relationships
         # Note: The current implementation has some logic issues that these tests document
@@ -416,7 +416,7 @@ class TestAgentKgExtractionEdgeCases:
         import time
         start_time = time.time()
 
-        triples, contexts = agent_extractor.process_extraction_data(large_data, metadata)
+        triples, contexts, _ = agent_extractor.process_extraction_data(large_data, metadata)
 
         end_time = time.time()
         processing_time = end_time - start_time

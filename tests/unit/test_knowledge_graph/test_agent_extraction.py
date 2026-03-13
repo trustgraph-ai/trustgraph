@@ -168,7 +168,7 @@ This is not JSON at all
             }
         ]
 
-        triples, entity_contexts = agent_extractor.process_extraction_data(data, sample_metadata)
+        triples, entity_contexts, _ = agent_extractor.process_extraction_data(data, sample_metadata)
         
         # Check entity label triple
         label_triple = next((t for t in triples if t.p.iri == RDF_LABEL and t.o.value == "Machine Learning"), None)
@@ -206,7 +206,7 @@ This is not JSON at all
             }
         ]
 
-        triples, entity_contexts = agent_extractor.process_extraction_data(data, sample_metadata)
+        triples, entity_contexts, _ = agent_extractor.process_extraction_data(data, sample_metadata)
         
         # Check that subject, predicate, and object labels are created
         subject_uri = f"{TRUSTGRAPH_ENTITIES}Machine%20Learning"
@@ -244,7 +244,7 @@ This is not JSON at all
             }
         ]
 
-        triples, entity_contexts = agent_extractor.process_extraction_data(data, sample_metadata)
+        triples, entity_contexts, _ = agent_extractor.process_extraction_data(data, sample_metadata)
 
         # Check that object labels are not created for literal objects
         object_labels = [t for t in triples if t.p.iri == RDF_LABEL and t.o.value == "95%"]
@@ -253,7 +253,7 @@ This is not JSON at all
 
     def test_process_extraction_data_combined(self, agent_extractor, sample_metadata, sample_extraction_data):
         """Test processing of combined definitions and relationships"""
-        triples, entity_contexts = agent_extractor.process_extraction_data(sample_extraction_data, sample_metadata)
+        triples, entity_contexts, _ = agent_extractor.process_extraction_data(sample_extraction_data, sample_metadata)
         
         # Check that we have both definition and relationship triples
         definition_triples = [t for t in triples if t.p.iri == DEFINITION]
@@ -272,7 +272,7 @@ This is not JSON at all
             {"type": "definition", "entity": "Test Entity", "definition": "Test definition"}
         ]
 
-        triples, entity_contexts = agent_extractor.process_extraction_data(data, metadata)
+        triples, entity_contexts, _ = agent_extractor.process_extraction_data(data, metadata)
 
         # Should not create subject-of relationships when no metadata ID
         subject_of_triples = [t for t in triples if t.p.iri == SUBJECT_OF]
@@ -285,7 +285,7 @@ This is not JSON at all
         """Test processing of empty extraction data"""
         data = []
 
-        triples, entity_contexts = agent_extractor.process_extraction_data(data, sample_metadata)
+        triples, entity_contexts, _ = agent_extractor.process_extraction_data(data, sample_metadata)
 
         # Should have no entity contexts
         assert len(entity_contexts) == 0
@@ -300,7 +300,7 @@ This is not JSON at all
             {"type": "relationship", "subject": "A", "predicate": "rel", "object": "B", "object-entity": True}
         ]
 
-        triples, entity_contexts = agent_extractor.process_extraction_data(data, sample_metadata)
+        triples, entity_contexts, _ = agent_extractor.process_extraction_data(data, sample_metadata)
 
         # Should process valid items and ignore unknown types
         assert len(entity_contexts) == 1  # Only the definition creates entity context

@@ -128,7 +128,7 @@ class TestAgentKgExtractionIntegration:
             
             # Parse and process
             extraction_data = extractor.parse_jsonl(agent_response)
-            triples, entity_contexts = extractor.process_extraction_data(extraction_data, v.metadata)
+            triples, entity_contexts, extracted_triples = extractor.process_extraction_data(extraction_data, v.metadata)
 
             # Emit outputs
             if triples:
