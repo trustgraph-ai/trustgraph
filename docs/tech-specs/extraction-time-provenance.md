@@ -311,10 +311,10 @@ activity:chunk-789 tg:chunkOverlap 200 .
 # The extracted triple (edge)
 entity:JohnSmith rel:worksAt entity:AcmeCorp .
 
-# Statement object pointing at the edge (RDF 1.2 reification)
-stmt:001 tg:reifies <<entity:JohnSmith rel:worksAt entity:AcmeCorp>> .
-stmt:001 prov:wasDerivedFrom chunk:123-1-1 .
-stmt:001 prov:wasGeneratedBy activity:extract-999 .
+# Subgraph containing the extracted triples
+subgraph:001 tg:contains <<entity:JohnSmith rel:worksAt entity:AcmeCorp>> .
+subgraph:001 prov:wasDerivedFrom chunk:123-1-1 .
+subgraph:001 prov:wasGeneratedBy activity:extract-999 .
 
 activity:extract-999 a prov:Activity .
 activity:extract-999 prov:used chunk:123-1-1 .
@@ -344,7 +344,7 @@ Custom predicates under the `tg:` namespace for extraction-specific metadata:
 
 | Predicate | Domain | Description |
 |-----------|--------|-------------|
-| `tg:reifies` | Statement | Points at the triple this statement object represents |
+| `tg:contains` | Subgraph | Points at a triple contained in this extraction subgraph |
 | `tg:pageCount` | Document | Total number of pages in source document |
 | `tg:mimeType` | Document | MIME type of source document |
 | `tg:pageNumber` | Page | Page number in source document |
@@ -383,7 +383,7 @@ prov:startedAtTime rdfs:label "started at" .
 
 **TrustGraph Predicates:**
 ```
-tg:reifies rdfs:label "reifies" .
+tg:contains rdfs:label "contains" .
 tg:pageCount rdfs:label "page count" .
 tg:mimeType rdfs:label "MIME type" .
 tg:pageNumber rdfs:label "page number" .
@@ -416,20 +416,20 @@ For finer-grained provenance, it would be valuable to record exactly where withi
 # The extracted triple
 entity:JohnSmith rel:worksAt entity:AcmeCorp .
 
-# Statement with sub-chunk provenance
-stmt:001 tg:reifies <<entity:JohnSmith rel:worksAt entity:AcmeCorp>> .
-stmt:001 prov:wasDerivedFrom chunk:123-1-1 .
-stmt:001 tg:sourceText "John Smith has worked at Acme Corp since 2019" .
-stmt:001 tg:sourceCharOffset 1547 .
-stmt:001 tg:sourceCharLength 46 .
+# Subgraph with sub-chunk provenance
+subgraph:001 tg:contains <<entity:JohnSmith rel:worksAt entity:AcmeCorp>> .
+subgraph:001 prov:wasDerivedFrom chunk:123-1-1 .
+subgraph:001 tg:sourceText "John Smith has worked at Acme Corp since 2019" .
+subgraph:001 tg:sourceCharOffset 1547 .
+subgraph:001 tg:sourceCharLength 46 .
 ```
 
 **Example with text range (alternative):**
 ```
-stmt:001 tg:reifies <<entity:JohnSmith rel:worksAt entity:AcmeCorp>> .
-stmt:001 prov:wasDerivedFrom chunk:123-1-1 .
-stmt:001 tg:sourceRange "1547-1593" .
-stmt:001 tg:sourceText "John Smith has worked at Acme Corp since 2019" .
+subgraph:001 tg:contains <<entity:JohnSmith rel:worksAt entity:AcmeCorp>> .
+subgraph:001 prov:wasDerivedFrom chunk:123-1-1 .
+subgraph:001 tg:sourceRange "1547-1593" .
+subgraph:001 tg:sourceText "John Smith has worked at Acme Corp since 2019" .
 ```
 
 **Implementation considerations:**

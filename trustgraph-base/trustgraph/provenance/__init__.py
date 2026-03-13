@@ -2,7 +2,7 @@
 Provenance module for extraction-time provenance support.
 
 Provides helpers for:
-- URI generation for documents, pages, chunks, activities, statements
+- URI generation for documents, pages, chunks, activities, subgraphs
 - PROV-O triple building for provenance metadata
 - Vocabulary bootstrap for per-collection initialization
 
@@ -38,7 +38,7 @@ from . uris import (
     chunk_uri_from_page,
     chunk_uri_from_doc,
     activity_uri,
-    statement_uri,
+    subgraph_uri,
     agent_uri,
     # Query-time provenance URIs (GraphRAG)
     question_uri,
@@ -66,11 +66,13 @@ from . namespaces import (
     # RDF/RDFS
     RDF, RDF_TYPE, RDFS, RDFS_LABEL,
     # TrustGraph
-    TG, TG_REIFIES, TG_PAGE_COUNT, TG_MIME_TYPE, TG_PAGE_NUMBER,
+    TG, TG_CONTAINS, TG_PAGE_COUNT, TG_MIME_TYPE, TG_PAGE_NUMBER,
     TG_CHUNK_INDEX, TG_CHAR_OFFSET, TG_CHAR_LENGTH,
     TG_CHUNK_SIZE, TG_CHUNK_OVERLAP, TG_COMPONENT_VERSION,
     TG_LLM_MODEL, TG_ONTOLOGY, TG_EMBEDDING_MODEL,
     TG_SOURCE_TEXT, TG_SOURCE_CHAR_OFFSET, TG_SOURCE_CHAR_LENGTH,
+    # Extraction provenance entity types
+    TG_DOCUMENT_TYPE, TG_PAGE_TYPE, TG_CHUNK_TYPE, TG_SUBGRAPH_TYPE,
     # Query-time provenance predicates (GraphRAG)
     TG_QUERY, TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_REASONING, TG_CONTENT,
     # Query-time provenance predicates (DocumentRAG)
@@ -94,7 +96,7 @@ from . namespaces import (
 from . triples import (
     document_triples,
     derived_entity_triples,
-    triple_provenance_triples,
+    subgraph_provenance_triples,
     # Query-time provenance triple builders (GraphRAG)
     question_triples,
     exploration_triples,
@@ -121,6 +123,7 @@ from . vocabulary import (
     PROV_CLASS_LABELS,
     PROV_PREDICATE_LABELS,
     DC_PREDICATE_LABELS,
+    TG_CLASS_LABELS,
     TG_PREDICATE_LABELS,
 )
 
@@ -132,7 +135,7 @@ __all__ = [
     "chunk_uri_from_page",
     "chunk_uri_from_doc",
     "activity_uri",
-    "statement_uri",
+    "subgraph_uri",
     "agent_uri",
     # Query-time provenance URIs
     "question_uri",
@@ -153,11 +156,13 @@ __all__ = [
     "PROV_USED", "PROV_WAS_ASSOCIATED_WITH", "PROV_STARTED_AT_TIME",
     "DC", "DC_TITLE", "DC_SOURCE", "DC_DATE", "DC_CREATOR",
     "RDF", "RDF_TYPE", "RDFS", "RDFS_LABEL",
-    "TG", "TG_REIFIES", "TG_PAGE_COUNT", "TG_MIME_TYPE", "TG_PAGE_NUMBER",
+    "TG", "TG_CONTAINS", "TG_PAGE_COUNT", "TG_MIME_TYPE", "TG_PAGE_NUMBER",
     "TG_CHUNK_INDEX", "TG_CHAR_OFFSET", "TG_CHAR_LENGTH",
     "TG_CHUNK_SIZE", "TG_CHUNK_OVERLAP", "TG_COMPONENT_VERSION",
     "TG_LLM_MODEL", "TG_ONTOLOGY", "TG_EMBEDDING_MODEL",
     "TG_SOURCE_TEXT", "TG_SOURCE_CHAR_OFFSET", "TG_SOURCE_CHAR_LENGTH",
+    # Extraction provenance entity types
+    "TG_DOCUMENT_TYPE", "TG_PAGE_TYPE", "TG_CHUNK_TYPE", "TG_SUBGRAPH_TYPE",
     # Query-time provenance predicates (GraphRAG)
     "TG_QUERY", "TG_EDGE_COUNT", "TG_SELECTED_EDGE", "TG_REASONING", "TG_CONTENT",
     # Query-time provenance predicates (DocumentRAG)
@@ -178,7 +183,7 @@ __all__ = [
     # Triple builders
     "document_triples",
     "derived_entity_triples",
-    "triple_provenance_triples",
+    "subgraph_provenance_triples",
     # Query-time provenance triple builders (GraphRAG)
     "question_triples",
     "exploration_triples",
@@ -199,5 +204,6 @@ __all__ = [
     "PROV_CLASS_LABELS",
     "PROV_PREDICATE_LABELS",
     "DC_PREDICATE_LABELS",
+    "TG_CLASS_LABELS",
     "TG_PREDICATE_LABELS",
 ]

@@ -19,11 +19,12 @@ from . namespaces import (
     SCHEMA_SUBJECT_OF, SCHEMA_DIGITAL_DOCUMENT, SCHEMA_DESCRIPTION,
     SCHEMA_KEYWORDS, SCHEMA_NAME,
     SKOS_DEFINITION,
-    TG_REIFIES, TG_PAGE_COUNT, TG_MIME_TYPE, TG_PAGE_NUMBER,
+    TG_CONTAINS, TG_PAGE_COUNT, TG_MIME_TYPE, TG_PAGE_NUMBER,
     TG_CHUNK_INDEX, TG_CHAR_OFFSET, TG_CHAR_LENGTH,
     TG_CHUNK_SIZE, TG_CHUNK_OVERLAP, TG_COMPONENT_VERSION,
     TG_LLM_MODEL, TG_ONTOLOGY, TG_EMBEDDING_MODEL,
     TG_SOURCE_TEXT, TG_SOURCE_CHAR_OFFSET, TG_SOURCE_CHAR_LENGTH,
+    TG_DOCUMENT_TYPE, TG_PAGE_TYPE, TG_CHUNK_TYPE, TG_SUBGRAPH_TYPE,
 )
 
 
@@ -74,9 +75,17 @@ SKOS_LABELS = [
     _label_triple(SKOS_DEFINITION, "definition"),
 ]
 
+# TrustGraph class labels (extraction provenance)
+TG_CLASS_LABELS = [
+    _label_triple(TG_DOCUMENT_TYPE, "Document"),
+    _label_triple(TG_PAGE_TYPE, "Page"),
+    _label_triple(TG_CHUNK_TYPE, "Chunk"),
+    _label_triple(TG_SUBGRAPH_TYPE, "Subgraph"),
+]
+
 # TrustGraph predicate labels
 TG_PREDICATE_LABELS = [
-    _label_triple(TG_REIFIES, "reifies"),
+    _label_triple(TG_CONTAINS, "contains"),
     _label_triple(TG_PAGE_COUNT, "page count"),
     _label_triple(TG_MIME_TYPE, "MIME type"),
     _label_triple(TG_PAGE_NUMBER, "page number"),
@@ -116,5 +125,6 @@ def get_vocabulary_triples() -> List[Triple]:
         DC_PREDICATE_LABELS +
         SCHEMA_LABELS +
         SKOS_LABELS +
+        TG_CLASS_LABELS +
         TG_PREDICATE_LABELS
     )

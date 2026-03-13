@@ -16,7 +16,9 @@ from . namespaces import (
     TG_PAGE_COUNT, TG_MIME_TYPE, TG_PAGE_NUMBER,
     TG_CHUNK_INDEX, TG_CHAR_OFFSET, TG_CHAR_LENGTH,
     TG_CHUNK_SIZE, TG_CHUNK_OVERLAP, TG_COMPONENT_VERSION,
-    TG_LLM_MODEL, TG_ONTOLOGY, TG_REIFIES,
+    TG_LLM_MODEL, TG_ONTOLOGY, TG_CONTAINS,
+    # Extraction provenance entity types
+    TG_DOCUMENT_TYPE, TG_PAGE_TYPE, TG_CHUNK_TYPE, TG_SUBGRAPH_TYPE,
     # Query-time provenance predicates (GraphRAG)
     TG_QUERY, TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_EDGE, TG_REASONING, TG_CONTENT,
     TG_DOCUMENT,
@@ -28,7 +30,7 @@ from . namespaces import (
     TG_GRAPH_RAG_QUESTION, TG_DOC_RAG_QUESTION,
 )
 
-from . uris import activity_uri, agent_uri, edge_selection_uri
+from . uris import activity_uri, agent_uri, subgraph_uri, edge_selection_uri
 
 
 def set_graph(triples: List[Triple], graph: str) -> List[Triple]:
@@ -92,6 +94,7 @@ def document_triples(
     """
     triples = [
         _triple(doc_uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(doc_uri, RDF_TYPE, _iri(TG_DOCUMENT_TYPE)),
     ]
 
     if title:
@@ -162,10 +165,23 @@ def derived_entity_triples(
     act_uri = activity_uri()
     agt_uri = agent_uri(component_name)
 
+    # Determine specific type from parameters
+    if page_number is not None:
+        specific_type = TG_PAGE_TYPE
+    elif chunk_index is not None:
+        specific_type = TG_CHUNK_TYPE
+    else:
+        specific_type = None
+
     triples = [
         # Entity declaration
         _triple(entity_uri, RDF_TYPE, _iri(PROV_ENTITY)),
+    ]
 
+    if specific_type:
+        triples.append(_triple(entity_uri, RDF_TYPE, _iri(specific_type)))
+
+    triples.extend([
         # Derivation from parent
         _triple(entity_uri, PROV_WAS_DERIVED_FROM, _iri(parent_uri)),
 
@@ -183,7 +199,7 @@ def derived_entity_triples(
         # Agent declaration
         _triple(agt_uri, RDF_TYPE, _iri(PROV_AGENT)),
         _triple(agt_uri, RDFS_LABEL, _literal(component_name)),
-    ]
+    ])
 
     if label:
         triples.append(_triple(entity_uri, RDFS_LABEL, _literal(label)))
@@ -209,9 +225,9 @@ def derived_entity_triples(
     return triples
 
 
-def triple_provenance_triples(
-    stmt_uri: str,
-    extracted_triple: Triple,
+def subgraph_provenance_triples(
+    subgraph_uri: str,
+    extracted_triples: List[Triple],
     chunk_uri: str,
     component_name: str,
     component_version: str,
@@ -220,16 +236,20 @@ def triple_provenance_triples(
     timestamp: Optional[str] = None,
 ) -> List[Triple]:
     """
-    Build provenance triples for an extracted knowledge triple using reification.
+    Build provenance triples for a subgraph of extracted knowledge.
+
+    One subgraph per chunk extraction, shared across all triples produced
+    from that chunk.  This replaces per-triple reification with a
+    containment model.
 
     Creates:
-    - Reification triple: stmt_uri tg:reifies <<extracted_triple>>
-    - wasDerivedFrom link to source chunk
-    - Activity and agent metadata
+    - tg:contains link for each extracted triple (RDF-star quoted)
+    - One prov:wasDerivedFrom link to source chunk
+    - One activity with agent metadata
 
     Args:
-        stmt_uri: URI for the reified statement
-        extracted_triple: The extracted Triple to reify
+        subgraph_uri: URI for the extraction subgraph
+        extracted_triples: The extracted Triple objects to include
         chunk_uri: URI of source chunk
         component_name: Name of extractor component
         component_version: Version of the component
@@ -238,7 +258,7 @@ def triple_provenance_triples(
         timestamp: ISO timestamp
 
     Returns:
-        List of Triple objects for the provenance (including reification)
+        List of Triple objects for the provenance
     """
     if timestamp is None:
         timestamp = datetime.utcnow().isoformat() + "Z"
@@ -246,20 +266,23 @@ def triple_provenance_triples(
     act_uri = activity_uri()
     agt_uri = agent_uri(component_name)
 
-    # Create the quoted triple term (RDF-star reification)
-    triple_term = Term(type=TRIPLE, triple=extracted_triple)
+    triples = []
 
-    triples = [
-        # Reification: stmt_uri tg:reifies <<s p o>>
-        Triple(
-            s=_iri(stmt_uri),
-            p=_iri(TG_REIFIES),
+    # Containment: subgraph tg:contains <<s p o>> for each extracted triple
+    for extracted_triple in extracted_triples:
+        triple_term = Term(type=TRIPLE, triple=extracted_triple)
+        triples.append(Triple(
+            s=_iri(subgraph_uri),
+            p=_iri(TG_CONTAINS),
             o=triple_term
-        ),
+        ))
 
-        # Statement provenance
-        _triple(stmt_uri, PROV_WAS_DERIVED_FROM, _iri(chunk_uri)),
-        _triple(stmt_uri, PROV_WAS_GENERATED_BY, _iri(act_uri)),
+    # Subgraph provenance
+    triples.extend([
+        _triple(subgraph_uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(subgraph_uri, RDF_TYPE, _iri(TG_SUBGRAPH_TYPE)),
+        _triple(subgraph_uri, PROV_WAS_DERIVED_FROM, _iri(chunk_uri)),
+        _triple(subgraph_uri, PROV_WAS_GENERATED_BY, _iri(act_uri)),
 
         # Activity
         _triple(act_uri, RDF_TYPE, _iri(PROV_ACTIVITY)),
@@ -272,7 +295,7 @@ def triple_provenance_triples(
         # Agent
         _triple(agt_uri, RDF_TYPE, _iri(PROV_AGENT)),
         _triple(agt_uri, RDFS_LABEL, _literal(component_name)),
-    ]
+    ])
 
     if llm_model:
         triples.append(_triple(act_uri, TG_LLM_MODEL, _literal(llm_model)))

@@ -20,7 +20,7 @@ from .... rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL, SUBJECT_OF
 from .... base import FlowProcessor, ConsumerSpec,  ProducerSpec
 from .... base import PromptClientSpec, ParameterSpec
 
-from .... provenance import statement_uri, triple_provenance_triples, set_graph, GRAPH_SOURCE
+from .... provenance import subgraph_uri, subgraph_provenance_triples, set_graph, GRAPH_SOURCE
 from .... flow_version import __version__ as COMPONENT_VERSION
 
 DEFINITION_VALUE = Term(type=IRI, iri=DEFINITION)
@@ -133,6 +133,7 @@ class Processor(FlowProcessor):
                 raise e
 
             triples = []
+            extracted_triples = []
             entities = []
 
             # Get chunk document ID for provenance linking
@@ -173,20 +174,7 @@ class Processor(FlowProcessor):
                     s=s_value, p=DEFINITION_VALUE, o=o_value
                 )
                 triples.append(definition_triple)
-
-                # Generate provenance for the definition triple (reification)
-                # Provenance triples go in the source graph for separation from core knowledge
-                stmt_uri = statement_uri()
-                prov_triples = triple_provenance_triples(
-                    stmt_uri=stmt_uri,
-                    extracted_triple=definition_triple,
-                    chunk_uri=chunk_uri,
-                    component_name=default_ident,
-                    component_version=COMPONENT_VERSION,
-                    llm_model=llm_model,
-                    ontology_uri=ontology_uri,
-                )
-                triples.extend(set_graph(prov_triples, GRAPH_SOURCE))
+                extracted_triples.append(definition_triple)
 
                 # Link entity to chunk (not top-level document)
                 triples.append(Triple(
@@ -210,6 +198,20 @@ class Processor(FlowProcessor):
                     context=defn["definition"],
                     chunk_id=chunk_doc_id,
                 ))
+
+            # Generate subgraph provenance once for all extracted triples
+            if extracted_triples:
+                sg_uri = subgraph_uri()
+                prov_triples = subgraph_provenance_triples(
+                    subgraph_uri=sg_uri,
+                    extracted_triples=extracted_triples,
+                    chunk_uri=chunk_uri,
+                    component_name=default_ident,
+                    component_version=COMPONENT_VERSION,
+                    llm_model=llm_model,
+                    ontology_uri=ontology_uri,
+                )
+                triples.extend(set_graph(prov_triples, GRAPH_SOURCE))
 
             # Send triples in batches
             for i in range(0, len(triples), self.triples_batch_size):

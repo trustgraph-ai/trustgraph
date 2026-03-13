@@ -11,6 +11,8 @@ from ....rdf import TRUSTGRAPH_ENTITIES, RDF_LABEL, SUBJECT_OF, DEFINITION
 from ....base import FlowProcessor, ConsumerSpec, ProducerSpec
 from ....base import AgentClientSpec
 
+from ....provenance import subgraph_uri, subgraph_provenance_triples, set_graph, GRAPH_SOURCE
+from ....flow_version import __version__ as COMPONENT_VERSION
 from ....template import PromptManager
 
 # Module logger
@@ -196,9 +198,21 @@ class Processor(FlowProcessor):
                 return
             
             # Process extraction data
-            triples, entity_contexts = self.process_extraction_data(
-                extraction_data, v.metadata
-            )
+            triples, entity_contexts, extracted_triples = \
+                self.process_extraction_data(extraction_data, v.metadata)
+
+            # Generate subgraph provenance for extracted triples
+            if extracted_triples:
+                chunk_uri = v.metadata.id
+                sg_uri = subgraph_uri()
+                prov_triples = subgraph_provenance_triples(
+                    subgraph_uri=sg_uri,
+                    extracted_triples=extracted_triples,
+                    chunk_uri=chunk_uri,
+                    component_name=default_ident,
+                    component_version=COMPONENT_VERSION,
+                )
+                triples.extend(set_graph(prov_triples, GRAPH_SOURCE))
 
             # Emit outputs
             if triples:
@@ -221,8 +235,13 @@ class Processor(FlowProcessor):
         Data is a flat list of objects with 'type' discriminator field:
         - {"type": "definition", "entity": "...", "definition": "..."}
         - {"type": "relationship", "subject": "...", "predicate": "...", "object": "...", "object-entity": bool}
+
+        Returns:
+            Tuple of (all_triples, entity_contexts, extracted_triples) where
+            extracted_triples contains only the core knowledge facts (for provenance).
         """
         triples = []
+        extracted_triples = []
         entity_contexts = []
 
         # Categorize items by type
@@ -242,11 +261,13 @@ class Processor(FlowProcessor):
             ))
 
             # Add definition
-            triples.append(Triple(
+            definition_triple = Triple(
                 s = Term(type=IRI, iri=entity_uri),
                 p = Term(type=IRI, iri=DEFINITION),
                 o = Term(type=LITERAL, value=defn["definition"]),
-            ))
+            )
+            triples.append(definition_triple)
+            extracted_triples.append(definition_triple)
 
             # Add subject-of relationship to document
             if metadata.id:
@@ -261,7 +282,7 @@ class Processor(FlowProcessor):
                 entity=Term(type=IRI, iri=entity_uri),
                 context=defn["definition"]
             ))
-        
+
         # Process relationships
         for rel in relationships:
 
@@ -298,11 +319,13 @@ class Processor(FlowProcessor):
                 ))
 
             # Add the main relationship triple
-            triples.append(Triple(
+            relationship_triple = Triple(
                 s = subject_value,
                 p = predicate_value,
                 o = object_value
-            ))
+            )
+            triples.append(relationship_triple)
+            extracted_triples.append(relationship_triple)
 
             # Add subject-of relationships to document
             if metadata.id:
@@ -324,8 +347,8 @@ class Processor(FlowProcessor):
                         p = Term(type=IRI, iri=SUBJECT_OF),
                         o = Term(type=IRI, iri=metadata.id),
                     ))
-        
-        return triples, entity_contexts
+
+        return triples, entity_contexts, extracted_triples
 
     @staticmethod
     def add_args(parser):

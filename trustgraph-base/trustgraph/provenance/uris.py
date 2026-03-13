@@ -8,7 +8,7 @@ Child entities (pages, chunks) append path segments to the parent IRI:
 - Chunk:     {page_iri}/c{chunk_index} (from page)
              {doc_iri}/c{chunk_index} (from text doc)
 - Activity:  https://trustgraph.ai/activity/{uuid}
-- Statement: https://trustgraph.ai/stmt/{uuid}
+- Subgraph:  https://trustgraph.ai/subgraph/{uuid}
 """
 
 import uuid
@@ -50,11 +50,11 @@ def activity_uri(activity_id: str = None) -> str:
     return f"{TRUSTGRAPH_BASE}/activity/{_encode_id(activity_id)}"
 
 
-def statement_uri(stmt_id: str = None) -> str:
-    """Generate URI for a reified statement. Auto-generates UUID if not provided."""
-    if stmt_id is None:
-        stmt_id = str(uuid.uuid4())
-    return f"{TRUSTGRAPH_BASE}/stmt/{_encode_id(stmt_id)}"
+def subgraph_uri(subgraph_id: str = None) -> str:
+    """Generate URI for an extraction subgraph. Auto-generates UUID if not provided."""
+    if subgraph_id is None:
+        subgraph_id = str(uuid.uuid4())
+    return f"{TRUSTGRAPH_BASE}/subgraph/{_encode_id(subgraph_id)}"
 
 
 def agent_uri(component_name: str) -> str:

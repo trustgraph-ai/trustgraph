@@ -36,7 +36,7 @@ TG_SELECTED_EDGE = TG + "selectedEdge"
 TG_EDGE = TG + "edge"
 TG_REASONING = TG + "reasoning"
 TG_CONTENT = TG + "content"
-TG_REIFIES = TG + "reifies"
+TG_CONTAINS = TG + "contains"
 PROV = "http://www.w3.org/ns/prov#"
 PROV_STARTED_AT_TIME = PROV + "startedAtTime"
 PROV_WAS_DERIVED_FROM = PROV + "wasDerivedFrom"
@@ -185,18 +185,18 @@ async def _query_edge_provenance(ws_url, flow_id, edge_s, edge_p, edge_o, user, 
     """
     Query for provenance of an edge (s, p, o) in the knowledge graph.
 
-    Finds statements that reify the edge via tg:reifies, then follows
+    Finds subgraphs that contain the edge via tg:contains, then follows
     prov:wasDerivedFrom to find source documents.
 
     Returns list of source URIs (chunks, pages, documents).
     """
-    # Query for statements that reify this edge: ?stmt tg:reifies <<s p o>>
+    # Query for subgraphs that contain this edge: ?subgraph tg:contains <<s p o>>
     request = {
         "id": "edge-prov-request",
         "service": "triples",
         "flow": flow_id,
         "request": {
-            "p": {"t": "i", "i": TG_REIFIES},
+            "p": {"t": "i", "i": TG_CONTAINS},
             "o": {
                 "t": "t",  # Quoted triple type
                 "tr": {
