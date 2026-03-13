@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from trustgraph.extract.kg.agent.extract import Processor as AgentKgExtractor
 from trustgraph.schema import Chunk, Triple, Triples, Metadata, Term, Error, IRI, LITERAL
 from trustgraph.schema import EntityContext, EntityContexts, AgentRequest, AgentResponse
-from trustgraph.rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL, SUBJECT_OF
+from trustgraph.rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL
 from trustgraph.template.prompt_manager import PromptManager
 
 
@@ -173,10 +173,6 @@ class TestAgentKgExtractionIntegration:
         # Check that we have label triples
         label_triples = [t for t in sent_triples.triples if t.p.iri == RDF_LABEL]
         assert len(label_triples) >= 2  # Should have labels for entities
-
-        # Check subject-of relationships
-        subject_of_triples = [t for t in sent_triples.triples if t.p.iri == SUBJECT_OF]
-        assert len(subject_of_triples) >= 2  # Entities should be linked to document
 
         # Verify entity contexts were emitted
         entity_contexts_publisher = mock_flow_context("entity-contexts")

@@ -30,7 +30,6 @@ RDFS_LABEL = RDFS + "label"
 
 # Schema.org namespace
 SCHEMA = "https://schema.org/"
-SCHEMA_SUBJECT_OF = SCHEMA + "subjectOf"
 SCHEMA_DIGITAL_DOCUMENT = SCHEMA + "DigitalDocument"
 SCHEMA_DESCRIPTION = SCHEMA + "description"
 SCHEMA_KEYWORDS = SCHEMA + "keywords"

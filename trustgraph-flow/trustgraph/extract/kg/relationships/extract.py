@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 from .... schema import Chunk, Triple, Triples
 from .... schema import Metadata, Term, IRI, LITERAL
 from .... schema import PromptRequest, PromptResponse
-from .... rdf import RDF_LABEL, TRUSTGRAPH_ENTITIES, SUBJECT_OF
+from .... rdf import RDF_LABEL, TRUSTGRAPH_ENTITIES
 
 from .... base import FlowProcessor, ConsumerSpec,  ProducerSpec
 from .... base import PromptClientSpec, ParameterSpec
@@ -24,7 +24,6 @@ from .... provenance import subgraph_uri, subgraph_provenance_triples, set_graph
 from .... flow_version import __version__ as COMPONENT_VERSION
 
 RDF_LABEL_VALUE = Term(type=IRI, iri=RDF_LABEL)
-SUBJECT_OF_VALUE = Term(type=IRI, iri=SUBJECT_OF)
 
 default_ident = "kg-extract-relationships"
 default_concurrency = 1
@@ -183,21 +182,6 @@ class Processor(FlowProcessor):
                         s=o_value,
                         p=RDF_LABEL_VALUE,
                         o=Term(type=LITERAL, value=str(o))
-                    ))
-
-                # Link entity to chunk (not top-level document)
-                triples.append(Triple(
-                    s=s_value,
-                    p=SUBJECT_OF_VALUE,
-                    o=Term(type=IRI, iri=chunk_uri)
-                ))
-
-                if rel["object-entity"]:
-                    # Link object entity to chunk
-                    triples.append(Triple(
-                        s=o_value,
-                        p=SUBJECT_OF_VALUE,
-                        o=Term(type=IRI, iri=chunk_uri)
                     ))
 
             # Generate subgraph provenance once for all extracted triples
