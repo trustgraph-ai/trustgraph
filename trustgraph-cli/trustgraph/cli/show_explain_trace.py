@@ -40,7 +40,7 @@ SOURCE_GRAPH = "urn:graph:source"
 
 # Provenance predicates for edge tracing
 TG = "https://trustgraph.ai/ns/"
-TG_REIFIES = TG + "reifies"
+TG_CONTAINS = TG + "contains"
 PROV = "http://www.w3.org/ns/prov#"
 PROV_WAS_DERIVED_FROM = PROV + "wasDerivedFrom"
 
@@ -79,10 +79,10 @@ def trace_edge_provenance(flow, user, collection, edge, label_cache, explain_cli
         }
     }
 
-    # Query: ?stmt tg:reifies <<edge>>
+    # Query: ?subgraph tg:contains <<edge>>
     try:
         results = flow.triples_query(
-            p=TG_REIFIES,
+            p=TG_CONTAINS,
             o=quoted_triple,
             g=SOURCE_GRAPH,
             user=user,

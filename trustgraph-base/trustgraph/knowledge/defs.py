@@ -41,7 +41,7 @@ class QuotedTriple:
     enabling statements about statements.
 
     Example:
-        # stmt:123 tg:reifies <<:Hope skos:definition "A feeling...">>
+        # subgraph:123 tg:contains <<:Hope skos:definition "A feeling...">>
         qt = QuotedTriple(
             s=Uri("https://example.org/Hope"),
             p=Uri("http://www.w3.org/2004/02/skos/core#definition"),

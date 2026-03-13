@@ -23,6 +23,9 @@ from .ontology_selector import OntologySelector, OntologySubset
 from .simplified_parser import parse_extraction_response
 from .triple_converter import TripleConverter
 
+from .... provenance import subgraph_uri, subgraph_provenance_triples, set_graph, GRAPH_SOURCE
+from .... flow_version import __version__ as COMPONENT_VERSION
+
 logger = logging.getLogger(__name__)
 
 default_ident = "kg-extract-ontology"
@@ -306,11 +309,25 @@ class Processor(FlowProcessor):
                 flow, chunk, ontology_subset, prompt_variables
             )
 
+            # Generate subgraph provenance for extracted triples
+            if triples:
+                chunk_uri = v.metadata.id
+                sg_uri = subgraph_uri()
+                prov_triples = subgraph_provenance_triples(
+                    subgraph_uri=sg_uri,
+                    extracted_triples=triples,
+                    chunk_uri=chunk_uri,
+                    component_name=default_ident,
+                    component_version=COMPONENT_VERSION,
+                )
+
             # Generate ontology definition triples
             ontology_triples = self.build_ontology_triples(ontology_subset)
 
-            # Combine extracted triples with ontology triples
+            # Combine extracted triples with ontology triples and provenance
             all_triples = triples + ontology_triples
+            if triples:
+                all_triples.extend(set_graph(prov_triples, GRAPH_SOURCE))
 
             # Build entity contexts from all triples (including ontology elements)
             entity_contexts = self.build_entity_contexts(all_triples)

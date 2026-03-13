@@ -193,7 +193,7 @@ When storing explainability data, URIs from `uri_map` are used.
 
 Selected edges can be traced back to source documents:
 
-1. Query for reifying statement: `?stmt tg:reifies <<s p o>>`
+1. Query for containing subgraph: `?subgraph tg:contains <<s p o>>`
 2. Follow `prov:wasDerivedFrom` chain to root document
 3. Each step in chain: chunk → page → document
 
@@ -209,7 +209,7 @@ elif term.type == TRIPLE:
 
 This enables queries like:
 ```
-?stmt tg:reifies <<http://example.org/s http://example.org/p "value">>
+?subgraph tg:contains <<http://example.org/s http://example.org/p "value">>
 ```
 
 ## CLI Usage

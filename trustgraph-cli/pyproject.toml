@@ -96,7 +96,7 @@ tg-delete-config-item = "trustgraph.cli.delete_config_item:main"
 tg-list-collections = "trustgraph.cli.list_collections:main"
 tg-set-collection = "trustgraph.cli.set_collection:main"
 tg-delete-collection = "trustgraph.cli.delete_collection:main"
-tg-show-document-hierarchy = "trustgraph.cli.show_document_hierarchy:main"
+tg-show-extraction-provenance = "trustgraph.cli.show_extraction_provenance:main"
 tg-list-explain-traces = "trustgraph.cli.list_explain_traces:main"
 tg-show-explain-trace = "trustgraph.cli.show_explain_trace:main"
 

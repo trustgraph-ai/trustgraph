@@ -42,7 +42,7 @@ SKOS_DEFINITION = SKOS + "definition"
 
 # TrustGraph namespace for custom predicates
 TG = "https://trustgraph.ai/ns/"
-TG_REIFIES = TG + "reifies"
+TG_CONTAINS = TG + "contains"
 TG_PAGE_COUNT = TG + "pageCount"
 TG_MIME_TYPE = TG + "mimeType"
 TG_PAGE_NUMBER = TG + "pageNumber"
@@ -71,6 +71,12 @@ TG_DOCUMENT = TG + "document"  # Reference to document in librarian
 # Query-time provenance predicates (DocumentRAG)
 TG_CHUNK_COUNT = TG + "chunkCount"
 TG_SELECTED_CHUNK = TG + "selectedChunk"
+
+# Extraction provenance entity types
+TG_DOCUMENT_TYPE = TG + "Document"
+TG_PAGE_TYPE = TG + "Page"
+TG_CHUNK_TYPE = TG + "Chunk"
+TG_SUBGRAPH_TYPE = TG + "Subgraph"
 
 # Explainability entity types (shared)
 TG_QUESTION = TG + "Question"
