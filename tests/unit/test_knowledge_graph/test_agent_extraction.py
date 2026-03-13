@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from trustgraph.extract.kg.agent.extract import Processor as AgentKgExtractor
 from trustgraph.schema import Chunk, Triple, Triples, Metadata, Term, Error, IRI, LITERAL
 from trustgraph.schema import EntityContext, EntityContexts
-from trustgraph.rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL, SUBJECT_OF
+from trustgraph.rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL
 from trustgraph.template.prompt_manager import PromptManager
 
 
@@ -183,12 +183,6 @@ This is not JSON at all
         assert def_triple.s.iri == f"{TRUSTGRAPH_ENTITIES}Machine%20Learning"
         assert def_triple.o.value == "A subset of AI that enables learning from data."
 
-        # Check subject-of triple
-        subject_of_triple = next((t for t in triples if t.p.iri == SUBJECT_OF), None)
-        assert subject_of_triple is not None
-        assert subject_of_triple.s.iri == f"{TRUSTGRAPH_ENTITIES}Machine%20Learning"
-        assert subject_of_triple.o.iri == "doc123"
-
         # Check entity context
         assert len(entity_contexts) == 1
         assert entity_contexts[0].entity.iri == f"{TRUSTGRAPH_ENTITIES}Machine%20Learning"
@@ -227,10 +221,6 @@ This is not JSON at all
         assert rel_triple is not None
         assert rel_triple.o.iri == object_uri
         assert rel_triple.o.type == IRI
-
-        # Check subject-of relationships
-        subject_of_triples = [t for t in triples if t.p.iri == SUBJECT_OF and t.o.iri == "doc123"]
-        assert len(subject_of_triples) >= 2  # At least subject and predicate should have subject-of relations
 
     def test_process_extraction_data_literal_object(self, agent_extractor, sample_metadata):
         """Test processing of relationships with literal objects"""
@@ -273,10 +263,6 @@ This is not JSON at all
         ]
 
         triples, entity_contexts, _ = agent_extractor.process_extraction_data(data, metadata)
-
-        # Should not create subject-of relationships when no metadata ID
-        subject_of_triples = [t for t in triples if t.p.iri == SUBJECT_OF]
-        assert len(subject_of_triples) == 0
 
         # Should still create entity contexts
         assert len(entity_contexts) == 1

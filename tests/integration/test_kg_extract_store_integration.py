@@ -17,7 +17,7 @@ from trustgraph.extract.kg.relationships.extract import Processor as Relationshi
 from trustgraph.storage.knowledge.store import Processor as KnowledgeStoreProcessor
 from trustgraph.schema import Chunk, Triple, Triples, Metadata, Term, Error, IRI, LITERAL
 from trustgraph.schema import EntityContext, EntityContexts, GraphEmbeddings, EntityEmbeddings
-from trustgraph.rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL, SUBJECT_OF
+from trustgraph.rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL
 
 
 @pytest.mark.integration

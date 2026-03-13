@@ -15,7 +15,7 @@ from .... schema import Chunk, Triple, Triples, Metadata, Term, IRI, LITERAL
 logger = logging.getLogger(__name__)
 from .... schema import EntityContext, EntityContexts
 from .... schema import PromptRequest, PromptResponse
-from .... rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL, SUBJECT_OF
+from .... rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL
 
 from .... base import FlowProcessor, ConsumerSpec,  ProducerSpec
 from .... base import PromptClientSpec, ParameterSpec
@@ -25,8 +25,6 @@ from .... flow_version import __version__ as COMPONENT_VERSION
 
 DEFINITION_VALUE = Term(type=IRI, iri=DEFINITION)
 RDF_LABEL_VALUE = Term(type=IRI, iri=RDF_LABEL)
-SUBJECT_OF_VALUE = Term(type=IRI, iri=SUBJECT_OF)
-
 default_ident = "kg-extract-definitions"
 default_concurrency = 1
 default_triples_batch_size = 50
@@ -175,13 +173,6 @@ class Processor(FlowProcessor):
                 )
                 triples.append(definition_triple)
                 extracted_triples.append(definition_triple)
-
-                # Link entity to chunk (not top-level document)
-                triples.append(Triple(
-                    s=s_value,
-                    p=SUBJECT_OF_VALUE,
-                    o=Term(type=IRI, iri=chunk_uri)
-                ))
 
                 # Output entity name as context for direct name matching
                 # Include chunk_id for embedding provenance

@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock
 from trustgraph.extract.kg.agent.extract import Processor as AgentKgExtractor
 from trustgraph.schema import Chunk, Triple, Triples, Metadata, Term, IRI, LITERAL
 from trustgraph.schema import EntityContext, EntityContexts
-from trustgraph.rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL, SUBJECT_OF
+from trustgraph.rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL
 
 
 @pytest.mark.unit
@@ -187,10 +187,6 @@ class TestAgentKgExtractionEdgeCases:
         data = [{"type": "definition", "entity": "Test", "definition": "Test def"}]
         triples, contexts, _ = agent_extractor.process_extraction_data(data, metadata)
 
-        # Should not create subject-of triples when ID is empty string
-        subject_of_triples = [t for t in triples if t.p.iri == SUBJECT_OF]
-        assert len(subject_of_triples) == 0
-
     def test_process_extraction_data_special_entity_names(self, agent_extractor):
         """Test processing with special characters in entity names"""
         metadata = Metadata(id="doc123")
@@ -338,7 +334,7 @@ class TestAgentKgExtractionEdgeCases:
 
         # Should process all relationships
         # Note: The current implementation has some logic issues that these tests document
-        assert len([t for t in triples if t.p.iri != RDF_LABEL and t.p.iri != SUBJECT_OF]) >= 7
+        assert len([t for t in triples if t.p.iri != RDF_LABEL]) >= 7
 
     @pytest.mark.asyncio
     async def test_emit_empty_collections(self, agent_extractor):

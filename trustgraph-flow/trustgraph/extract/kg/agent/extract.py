@@ -6,7 +6,7 @@ import logging
 from ....schema import Chunk, Triple, Triples, Metadata, Term, IRI, LITERAL
 from ....schema import EntityContext, EntityContexts
 
-from ....rdf import TRUSTGRAPH_ENTITIES, RDF_LABEL, SUBJECT_OF, DEFINITION
+from ....rdf import TRUSTGRAPH_ENTITIES, RDF_LABEL, DEFINITION
 
 from ....base import FlowProcessor, ConsumerSpec, ProducerSpec
 from ....base import AgentClientSpec
@@ -269,14 +269,6 @@ class Processor(FlowProcessor):
             triples.append(definition_triple)
             extracted_triples.append(definition_triple)
 
-            # Add subject-of relationship to document
-            if metadata.id:
-                triples.append(Triple(
-                    s = Term(type=IRI, iri=entity_uri),
-                    p = Term(type=IRI, iri=SUBJECT_OF),
-                    o = Term(type=IRI, iri=metadata.id),
-                ))
-
             # Create entity context for embeddings
             entity_contexts.append(EntityContext(
                 entity=Term(type=IRI, iri=entity_uri),
@@ -326,27 +318,6 @@ class Processor(FlowProcessor):
             )
             triples.append(relationship_triple)
             extracted_triples.append(relationship_triple)
-
-            # Add subject-of relationships to document
-            if metadata.id:
-                triples.append(Triple(
-                    s = subject_value,
-                    p = Term(type=IRI, iri=SUBJECT_OF),
-                    o = Term(type=IRI, iri=metadata.id),
-                ))
-
-                triples.append(Triple(
-                    s = predicate_value,
-                    p = Term(type=IRI, iri=SUBJECT_OF),
-                    o = Term(type=IRI, iri=metadata.id),
-                ))
-
-                if rel.get("object-entity", True):
-                    triples.append(Triple(
-                        s = object_value,
-                        p = Term(type=IRI, iri=SUBJECT_OF),
-                        o = Term(type=IRI, iri=metadata.id),
-                    ))
 
         return triples, entity_contexts, extracted_triples
 
