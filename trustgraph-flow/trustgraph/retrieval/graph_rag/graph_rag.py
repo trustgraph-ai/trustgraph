@@ -156,6 +156,7 @@ class Query:
         res = await self.rag.triples_client.query(
             s=e, p=LABEL, o=None, limit=1,
             user=self.user, collection=self.collection,
+            g="",
         )
 
         if len(res) == 0:
@@ -177,19 +178,19 @@ class Query:
                     s=entity, p=None, o=None,
                     limit=limit_per_entity,
                     user=self.user, collection=self.collection,
-                    batch_size=20,
+                    batch_size=20, g="",
                 ),
                 self.rag.triples_client.query_stream(
                     s=None, p=entity, o=None,
                     limit=limit_per_entity,
                     user=self.user, collection=self.collection,
-                    batch_size=20,
+                    batch_size=20, g="",
                 ),
                 self.rag.triples_client.query_stream(
                     s=None, p=None, o=entity,
                     limit=limit_per_entity,
                     user=self.user, collection=self.collection,
-                    batch_size=20,
+                    batch_size=20, g="",
                 )
             ])
 
