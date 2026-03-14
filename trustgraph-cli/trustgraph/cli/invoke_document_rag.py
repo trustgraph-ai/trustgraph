@@ -11,6 +11,7 @@ from trustgraph.api import (
     RAGChunk,
     ProvenanceEvent,
     Question,
+    Grounding,
     Exploration,
     Synthesis,
 )
@@ -68,6 +69,12 @@ def question_explainable(
                     if entity.timestamp:
                         print(f"    Time: {entity.timestamp}", file=sys.stderr)
 
+                elif isinstance(entity, Grounding):
+                    print(f"\n  [grounding] {prov_id}", file=sys.stderr)
+                    if entity.concepts:
+                        for concept in entity.concepts:
+                            print(f"    Concept: {concept}", file=sys.stderr)
+
                 elif isinstance(entity, Exploration):
                     print(f"\n  [exploration] {prov_id}", file=sys.stderr)
                     if entity.chunk_count:
@@ -75,8 +82,8 @@ def question_explainable(
 
                 elif isinstance(entity, Synthesis):
                     print(f"\n  [synthesis] {prov_id}", file=sys.stderr)
-                    if entity.content:
-                        print(f"    Synthesis length: {len(entity.content)} chars", file=sys.stderr)
+                    if entity.document_uri:
+                        print(f"    Document: {entity.document_uri}", file=sys.stderr)
 
                 else:
                     if debug:

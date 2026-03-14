@@ -202,16 +202,17 @@ def question_explainable(
 
                 elif isinstance(entity, Analysis):
                     print(f"\n  [iteration] {prov_id}", file=sys.stderr)
-                    if entity.thought:
-                        thought_short = entity.thought[:80] + "..." if len(entity.thought) > 80 else entity.thought
-                        print(f"    Thought: {thought_short}", file=sys.stderr)
                     if entity.action:
                         print(f"    Action: {entity.action}", file=sys.stderr)
+                    if entity.thought_uri:
+                        print(f"    Thought: {entity.thought_uri}", file=sys.stderr)
+                    if entity.observation_uri:
+                        print(f"    Observation: {entity.observation_uri}", file=sys.stderr)
 
                 elif isinstance(entity, Conclusion):
                     print(f"\n  [conclusion] {prov_id}", file=sys.stderr)
-                    if entity.answer:
-                        print(f"    Answer length: {len(entity.answer)} chars", file=sys.stderr)
+                    if entity.document_uri:
+                        print(f"    Document: {entity.document_uri}", file=sys.stderr)
 
                 else:
                     if debug:

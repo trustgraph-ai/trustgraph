@@ -14,6 +14,7 @@ from trustgraph.api import (
     RAGChunk,
     ProvenanceEvent,
     Question,
+    Grounding,
     Exploration,
     Focus,
     Synthesis,
@@ -31,11 +32,13 @@ default_max_path_length = 2
 # Provenance predicates
 TG = "https://trustgraph.ai/ns/"
 TG_QUERY = TG + "query"
+TG_CONCEPT = TG + "concept"
+TG_ENTITY = TG + "entity"
 TG_EDGE_COUNT = TG + "edgeCount"
 TG_SELECTED_EDGE = TG + "selectedEdge"
 TG_EDGE = TG + "edge"
 TG_REASONING = TG + "reasoning"
-TG_CONTENT = TG + "content"
+TG_DOCUMENT = TG + "document"
 TG_CONTAINS = TG + "contains"
 PROV = "http://www.w3.org/ns/prov#"
 PROV_STARTED_AT_TIME = PROV + "startedAtTime"
@@ -47,6 +50,8 @@ def _get_event_type(prov_id):
     """Extract event type from provenance_id"""
     if "question" in prov_id:
         return "question"
+    elif "grounding" in prov_id:
+        return "grounding"
     elif "exploration" in prov_id:
         return "exploration"
     elif "focus" in prov_id:
@@ -68,8 +73,16 @@ def _format_provenance_details(event_type, triples):
             elif p == PROV_STARTED_AT_TIME:
                 lines.append(f"    Time: {o}")
 
+    elif event_type == "grounding":
+        # Show extracted concepts
+        concepts = [o for s, p, o in triples if p == TG_CONCEPT]
+        if concepts:
+            lines.append(f"    Concepts: {len(concepts)}")
+            for concept in concepts:
+                lines.append(f"      - {concept}")
+
     elif event_type == "exploration":
-        # Show edge count
+        # Show edge count (seed entities resolved separately with labels)
         for s, p, o in triples:
             if p == TG_EDGE_COUNT:
                 lines.append(f"    Edges explored: {o}")
@@ -85,10 +98,10 @@ def _format_provenance_details(event_type, triples):
             lines.append(f"    Focused on {len(edge_sel_uris)} edge(s)")
 
     elif event_type == "synthesis":
-        # Show content length (not full content - it's already streamed)
+        # Show document reference (content already streamed)
         for s, p, o in triples:
-            if p == TG_CONTENT:
-                lines.append(f"    Synthesis length: {len(o)} chars")
+            if p == TG_DOCUMENT:
+                lines.append(f"    Document: {o}")
 
     return lines
 
@@ -542,6 +555,18 @@ async def _question_explainable(
                         for line in details:
                             print(line, file=sys.stderr)
 
+                        # For exploration events, resolve entity labels
+                        if event_type == "exploration":
+                            entity_iris = [o for s, p, o in triples if p == TG_ENTITY]
+                            if entity_iris:
+                                print(f"    Seed entities: {len(entity_iris)}", file=sys.stderr)
+                                for iri in entity_iris:
+                                    label = await _query_label(
+                                        ws_url, flow_id, iri, user, collection,
+                                        label_cache, debug=debug
+                                    )
+                                    print(f"      - {label}", file=sys.stderr)
+
                         # For focus events, query each edge selection for details
                         if event_type == "focus":
                             for s, p, o in triples:
@@ -660,10 +685,22 @@ def _question_explainable_api(
                     if entity.timestamp:
                         print(f"    Time: {entity.timestamp}", file=sys.stderr)
 
+                elif isinstance(entity, Grounding):
+                    print(f"\n  [grounding] {prov_id}", file=sys.stderr)
+                    if entity.concepts:
+                        print(f"    Concepts: {len(entity.concepts)}", file=sys.stderr)
+                        for concept in entity.concepts:
+                            print(f"      - {concept}", file=sys.stderr)
+
                 elif isinstance(entity, Exploration):
                     print(f"\n  [exploration] {prov_id}", file=sys.stderr)
                     if entity.edge_count:
                         print(f"    Edges explored: {entity.edge_count}", file=sys.stderr)
+                    if entity.entities:
+                        print(f"    Seed entities: {len(entity.entities)}", file=sys.stderr)
+                        for ent in entity.entities:
+                            label = explain_client.resolve_label(ent, user, collection)
+                            print(f"      - {label}", file=sys.stderr)
 
                 elif isinstance(entity, Focus):
                     print(f"\n  [focus] {prov_id}", file=sys.stderr)
@@ -691,8 +728,8 @@ def _question_explainable_api(
 
                 elif isinstance(entity, Synthesis):
                     print(f"\n  [synthesis] {prov_id}", file=sys.stderr)
-                    if entity.content:
-                        print(f"    Synthesis length: {len(entity.content)} chars", file=sys.stderr)
+                    if entity.document_uri:
+                        print(f"    Document: {entity.document_uri}", file=sys.stderr)
 
                 else:
                     if debug:
@@ -848,7 +885,7 @@ def main():
     parser.add_argument(
         '-x', '--explainable',
         action='store_true',
-        help='Show provenance events: Question, Exploration, Focus, Synthesis (implies streaming)'
+        help='Show provenance events: Question, Grounding, Exploration, Focus, Synthesis (implies streaming)'
     )
 
     parser.add_argument(

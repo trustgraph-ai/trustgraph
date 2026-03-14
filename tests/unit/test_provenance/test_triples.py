@@ -13,6 +13,7 @@ from trustgraph.provenance.triples import (
     derived_entity_triples,
     subgraph_provenance_triples,
     question_triples,
+    grounding_triples,
     exploration_triples,
     focus_triples,
     synthesis_triples,
@@ -32,10 +33,12 @@ from trustgraph.provenance.namespaces import (
     TG_CHUNK_SIZE, TG_CHUNK_OVERLAP, TG_COMPONENT_VERSION,
     TG_LLM_MODEL, TG_ONTOLOGY, TG_CONTAINS,
     TG_DOCUMENT_TYPE, TG_PAGE_TYPE, TG_CHUNK_TYPE, TG_SUBGRAPH_TYPE,
-    TG_QUERY, TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_EDGE, TG_REASONING,
-    TG_CONTENT, TG_DOCUMENT,
+    TG_QUERY, TG_CONCEPT, TG_ENTITY,
+    TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_EDGE, TG_REASONING,
+    TG_DOCUMENT,
     TG_CHUNK_COUNT, TG_SELECTED_CHUNK,
-    TG_QUESTION, TG_EXPLORATION, TG_FOCUS, TG_SYNTHESIS,
+    TG_QUESTION, TG_GROUNDING, TG_EXPLORATION, TG_FOCUS, TG_SYNTHESIS,
+    TG_ANSWER_TYPE,
     TG_GRAPH_RAG_QUESTION, TG_DOC_RAG_QUESTION,
     GRAPH_SOURCE, GRAPH_RETRIEVAL,
 )
@@ -530,36 +533,77 @@ class TestQuestionTriples:
         assert len(triples) == 6
 
 
-class TestExplorationTriples:
+class TestGroundingTriples:
 
-    EXP_URI = "urn:trustgraph:prov:exploration:test-session"
+    GND_URI = "urn:trustgraph:prov:grounding:test-session"
     Q_URI = "urn:trustgraph:question:test-session"
 
-    def test_exploration_types(self):
-        triples = exploration_triples(self.EXP_URI, self.Q_URI, 15)
-        assert has_type(triples, self.EXP_URI, PROV_ENTITY)
-        assert has_type(triples, self.EXP_URI, TG_EXPLORATION)
+    def test_grounding_types(self):
+        triples = grounding_triples(self.GND_URI, self.Q_URI, ["AI", "ML"])
+        assert has_type(triples, self.GND_URI, PROV_ENTITY)
+        assert has_type(triples, self.GND_URI, TG_GROUNDING)
 
-    def test_exploration_generated_by_question(self):
-        triples = exploration_triples(self.EXP_URI, self.Q_URI, 15)
-        gen = find_triple(triples, PROV_WAS_GENERATED_BY, self.EXP_URI)
+    def test_grounding_generated_by_question(self):
+        triples = grounding_triples(self.GND_URI, self.Q_URI, ["AI"])
+        gen = find_triple(triples, PROV_WAS_GENERATED_BY, self.GND_URI)
         assert gen is not None
         assert gen.o.iri == self.Q_URI
 
+    def test_grounding_concepts(self):
+        triples = grounding_triples(self.GND_URI, self.Q_URI, ["AI", "ML", "robots"])
+        concepts = find_triples(triples, TG_CONCEPT, self.GND_URI)
+        assert len(concepts) == 3
+        values = {t.o.value for t in concepts}
+        assert values == {"AI", "ML", "robots"}
+
+    def test_grounding_empty_concepts(self):
+        triples = grounding_triples(self.GND_URI, self.Q_URI, [])
+        concepts = find_triples(triples, TG_CONCEPT, self.GND_URI)
+        assert len(concepts) == 0
+
+    def test_grounding_label(self):
+        triples = grounding_triples(self.GND_URI, self.Q_URI, [])
+        label = find_triple(triples, RDFS_LABEL, self.GND_URI)
+        assert label is not None
+        assert label.o.value == "Grounding"
+
+
+class TestExplorationTriples:
+
+    EXP_URI = "urn:trustgraph:prov:exploration:test-session"
+    GND_URI = "urn:trustgraph:prov:grounding:test-session"
+
+    def test_exploration_types(self):
+        triples = exploration_triples(self.EXP_URI, self.GND_URI, 15)
+        assert has_type(triples, self.EXP_URI, PROV_ENTITY)
+        assert has_type(triples, self.EXP_URI, TG_EXPLORATION)
+
+    def test_exploration_derived_from_grounding(self):
+        triples = exploration_triples(self.EXP_URI, self.GND_URI, 15)
+        derived = find_triple(triples, PROV_WAS_DERIVED_FROM, self.EXP_URI)
+        assert derived is not None
+        assert derived.o.iri == self.GND_URI
+
     def test_exploration_edge_count(self):
-        triples = exploration_triples(self.EXP_URI, self.Q_URI, 15)
+        triples = exploration_triples(self.EXP_URI, self.GND_URI, 15)
         ec = find_triple(triples, TG_EDGE_COUNT, self.EXP_URI)
         assert ec is not None
         assert ec.o.value == "15"
 
     def test_exploration_zero_edges(self):
-        triples = exploration_triples(self.EXP_URI, self.Q_URI, 0)
+        triples = exploration_triples(self.EXP_URI, self.GND_URI, 0)
         ec = find_triple(triples, TG_EDGE_COUNT, self.EXP_URI)
         assert ec is not None
         assert ec.o.value == "0"
 
+    def test_exploration_with_entities(self):
+        entities = ["urn:e:machine-learning", "urn:e:neural-networks"]
+        triples = exploration_triples(self.EXP_URI, self.GND_URI, 10, entities=entities)
+        ent_triples = find_triples(triples, TG_ENTITY, self.EXP_URI)
+        assert len(ent_triples) == 2
+
     def test_exploration_triple_count(self):
-        triples = exploration_triples(self.EXP_URI, self.Q_URI, 10)
+        triples = exploration_triples(self.EXP_URI, self.GND_URI, 10)
         assert len(triples) == 5
 
 
@@ -652,18 +696,13 @@ class TestSynthesisTriples:
         triples = synthesis_triples(self.SYN_URI, self.FOC_URI)
         assert has_type(triples, self.SYN_URI, PROV_ENTITY)
         assert has_type(triples, self.SYN_URI, TG_SYNTHESIS)
+        assert has_type(triples, self.SYN_URI, TG_ANSWER_TYPE)
 
     def test_synthesis_derived_from_focus(self):
         triples = synthesis_triples(self.SYN_URI, self.FOC_URI)
         derived = find_triple(triples, PROV_WAS_DERIVED_FROM, self.SYN_URI)
         assert derived is not None
         assert derived.o.iri == self.FOC_URI
-
-    def test_synthesis_with_inline_content(self):
-        triples = synthesis_triples(self.SYN_URI, self.FOC_URI, answer_text="The answer is 42")
-        content = find_triple(triples, TG_CONTENT, self.SYN_URI)
-        assert content is not None
-        assert content.o.value == "The answer is 42"
 
     def test_synthesis_with_document_reference(self):
         triples = synthesis_triples(
@@ -675,23 +714,9 @@ class TestSynthesisTriples:
         assert doc.o.type == IRI
         assert doc.o.iri == "urn:trustgraph:question:abc/answer"
 
-    def test_synthesis_document_takes_precedence(self):
-        """When both document_id and answer_text are provided, document_id wins."""
-        triples = synthesis_triples(
-            self.SYN_URI, self.FOC_URI,
-            answer_text="inline",
-            document_id="urn:doc:123",
-        )
-        doc = find_triple(triples, TG_DOCUMENT, self.SYN_URI)
-        assert doc is not None
-        content = find_triple(triples, TG_CONTENT, self.SYN_URI)
-        assert content is None
-
-    def test_synthesis_no_content_or_document(self):
+    def test_synthesis_no_document(self):
         triples = synthesis_triples(self.SYN_URI, self.FOC_URI)
-        content = find_triple(triples, TG_CONTENT, self.SYN_URI)
         doc = find_triple(triples, TG_DOCUMENT, self.SYN_URI)
-        assert content is None
         assert doc is None
 
 
@@ -723,31 +748,31 @@ class TestDocRagQuestionTriples:
 class TestDocRagExplorationTriples:
 
     EXP_URI = "urn:trustgraph:docrag:test/exploration"
-    Q_URI = "urn:trustgraph:docrag:test"
+    GND_URI = "urn:trustgraph:docrag:test/grounding"
 
     def test_docrag_exploration_types(self):
-        triples = docrag_exploration_triples(self.EXP_URI, self.Q_URI, 5)
+        triples = docrag_exploration_triples(self.EXP_URI, self.GND_URI, 5)
         assert has_type(triples, self.EXP_URI, PROV_ENTITY)
         assert has_type(triples, self.EXP_URI, TG_EXPLORATION)
 
-    def test_docrag_exploration_generated_by(self):
-        triples = docrag_exploration_triples(self.EXP_URI, self.Q_URI, 5)
-        gen = find_triple(triples, PROV_WAS_GENERATED_BY, self.EXP_URI)
-        assert gen.o.iri == self.Q_URI
+    def test_docrag_exploration_derived_from_grounding(self):
+        triples = docrag_exploration_triples(self.EXP_URI, self.GND_URI, 5)
+        derived = find_triple(triples, PROV_WAS_DERIVED_FROM, self.EXP_URI)
+        assert derived.o.iri == self.GND_URI
 
     def test_docrag_exploration_chunk_count(self):
-        triples = docrag_exploration_triples(self.EXP_URI, self.Q_URI, 7)
+        triples = docrag_exploration_triples(self.EXP_URI, self.GND_URI, 7)
         cc = find_triple(triples, TG_CHUNK_COUNT, self.EXP_URI)
         assert cc.o.value == "7"
 
     def test_docrag_exploration_without_chunk_ids(self):
-        triples = docrag_exploration_triples(self.EXP_URI, self.Q_URI, 3)
+        triples = docrag_exploration_triples(self.EXP_URI, self.GND_URI, 3)
         chunks = find_triples(triples, TG_SELECTED_CHUNK)
         assert len(chunks) == 0
 
     def test_docrag_exploration_with_chunk_ids(self):
         chunk_ids = ["urn:chunk:1", "urn:chunk:2", "urn:chunk:3"]
-        triples = docrag_exploration_triples(self.EXP_URI, self.Q_URI, 3, chunk_ids)
+        triples = docrag_exploration_triples(self.EXP_URI, self.GND_URI, 3, chunk_ids)
         chunks = find_triples(triples, TG_SELECTED_CHUNK, self.EXP_URI)
         assert len(chunks) == 3
         chunk_uris = {t.o.iri for t in chunks}
@@ -770,10 +795,9 @@ class TestDocRagSynthesisTriples:
         derived = find_triple(triples, PROV_WAS_DERIVED_FROM, self.SYN_URI)
         assert derived.o.iri == self.EXP_URI
 
-    def test_docrag_synthesis_with_inline(self):
-        triples = docrag_synthesis_triples(self.SYN_URI, self.EXP_URI, answer_text="answer")
-        content = find_triple(triples, TG_CONTENT, self.SYN_URI)
-        assert content.o.value == "answer"
+    def test_docrag_synthesis_has_answer_type(self):
+        triples = docrag_synthesis_triples(self.SYN_URI, self.EXP_URI)
+        assert has_type(triples, self.SYN_URI, TG_ANSWER_TYPE)
 
     def test_docrag_synthesis_with_document(self):
         triples = docrag_synthesis_triples(
@@ -781,5 +805,8 @@ class TestDocRagSynthesisTriples:
         )
         doc = find_triple(triples, TG_DOCUMENT, self.SYN_URI)
         assert doc.o.iri == "urn:doc:ans"
-        content = find_triple(triples, TG_CONTENT, self.SYN_URI)
-        assert content is None
+
+    def test_docrag_synthesis_no_document(self):
+        triples = docrag_synthesis_triples(self.SYN_URI, self.EXP_URI)
+        doc = find_triple(triples, TG_DOCUMENT, self.SYN_URI)
+        assert doc is None

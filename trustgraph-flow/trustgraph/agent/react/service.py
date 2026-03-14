@@ -31,6 +31,8 @@ from ... schema import librarian_request_queue, librarian_response_queue
 from trustgraph.provenance import (
     agent_session_uri,
     agent_iteration_uri,
+    agent_thought_uri,
+    agent_observation_uri,
     agent_final_uri,
     agent_session_triples,
     agent_iteration_triples,
@@ -624,11 +626,13 @@ class Processor(AgentService):
 
                 # Emit final answer provenance triples
                 final_uri = agent_final_uri(session_id)
-                # Parent is last iteration, or session if no iterations
+                # No iterations: link to question; otherwise: link to last iteration
                 if iteration_num > 1:
-                    parent_uri = agent_iteration_uri(session_id, iteration_num - 1)
+                    final_question_uri = None
+                    final_previous_uri = agent_iteration_uri(session_id, iteration_num - 1)
                 else:
-                    parent_uri = session_uri
+                    final_question_uri = session_uri
+                    final_previous_uri = None
 
                 # Save answer to librarian
                 answer_doc_id = None
@@ -648,8 +652,9 @@ class Processor(AgentService):
 
                 final_triples = set_graph(
                     agent_final_triples(
-                        final_uri, parent_uri,
-                        answer="" if answer_doc_id else f,
+                        final_uri,
+                        question_uri=final_question_uri,
+                        previous_uri=final_previous_uri,
                         document_id=answer_doc_id,
                     ),
                     GRAPH_RETRIEVAL
@@ -707,11 +712,13 @@ class Processor(AgentService):
 
             # Emit iteration provenance triples
             iteration_uri = agent_iteration_uri(session_id, iteration_num)
-            # Parent is previous iteration, or session if this is first iteration
+            # First iteration links to question, subsequent to previous
             if iteration_num > 1:
-                parent_uri = agent_iteration_uri(session_id, iteration_num - 1)
+                iter_question_uri = None
+                iter_previous_uri = agent_iteration_uri(session_id, iteration_num - 1)
             else:
-                parent_uri = session_uri
+                iter_question_uri = session_uri
+                iter_previous_uri = None
 
             # Save thought to librarian
             thought_doc_id = None
@@ -745,15 +752,19 @@ class Processor(AgentService):
                     logger.warning(f"Failed to save observation to librarian: {e}")
                     observation_doc_id = None
 
+            thought_entity_uri = agent_thought_uri(session_id, iteration_num)
+            observation_entity_uri = agent_observation_uri(session_id, iteration_num)
+
             iter_triples = set_graph(
                 agent_iteration_triples(
                     iteration_uri,
-                    parent_uri,
-                    thought="" if thought_doc_id else act.thought,
+                    question_uri=iter_question_uri,
+                    previous_uri=iter_previous_uri,
                     action=act.name,
                     arguments=act.arguments,
-                    observation="" if observation_doc_id else act.observation,
+                    thought_uri=thought_entity_uri if thought_doc_id else None,
                     thought_document_id=thought_doc_id,
+                    observation_uri=observation_entity_uri if observation_doc_id else None,
                     observation_document_id=observation_doc_id,
                 ),
                 GRAPH_RETRIEVAL

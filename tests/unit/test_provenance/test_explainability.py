@@ -10,9 +10,11 @@ from trustgraph.api.explainability import (
     EdgeSelection,
     ExplainEntity,
     Question,
+    Grounding,
     Exploration,
     Focus,
     Synthesis,
+    Reflection,
     Analysis,
     Conclusion,
     parse_edge_selection_triples,
@@ -20,11 +22,11 @@ from trustgraph.api.explainability import (
     wire_triples_to_tuples,
     ExplainabilityClient,
     TG_QUERY, TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_EDGE, TG_REASONING,
-    TG_CONTENT, TG_DOCUMENT, TG_CHUNK_COUNT,
-    TG_THOUGHT, TG_ACTION, TG_ARGUMENTS, TG_OBSERVATION, TG_ANSWER,
-    TG_THOUGHT_DOCUMENT, TG_OBSERVATION_DOCUMENT,
-    TG_QUESTION, TG_EXPLORATION, TG_FOCUS, TG_SYNTHESIS,
+    TG_DOCUMENT, TG_CHUNK_COUNT, TG_CONCEPT, TG_ENTITY,
+    TG_THOUGHT, TG_ACTION, TG_ARGUMENTS, TG_OBSERVATION,
+    TG_QUESTION, TG_GROUNDING, TG_EXPLORATION, TG_FOCUS, TG_SYNTHESIS,
     TG_ANALYSIS, TG_CONCLUSION,
+    TG_REFLECTION_TYPE, TG_THOUGHT_TYPE, TG_OBSERVATION_TYPE,
     TG_GRAPH_RAG_QUESTION, TG_DOC_RAG_QUESTION, TG_AGENT_QUESTION,
     PROV_STARTED_AT_TIME, PROV_WAS_DERIVED_FROM, PROV_WAS_GENERATED_BY,
     RDF_TYPE, RDFS_LABEL,
@@ -71,6 +73,18 @@ class TestExplainEntityFromTriples:
         assert isinstance(entity, Question)
         assert entity.question_type == "agent"
 
+    def test_grounding(self):
+        triples = [
+            ("urn:gnd:1", RDF_TYPE, TG_GROUNDING),
+            ("urn:gnd:1", TG_CONCEPT, "machine learning"),
+            ("urn:gnd:1", TG_CONCEPT, "neural networks"),
+        ]
+        entity = ExplainEntity.from_triples("urn:gnd:1", triples)
+        assert isinstance(entity, Grounding)
+        assert len(entity.concepts) == 2
+        assert "machine learning" in entity.concepts
+        assert "neural networks" in entity.concepts
+
     def test_exploration(self):
         triples = [
             ("urn:exp:1", RDF_TYPE, TG_EXPLORATION),
@@ -88,6 +102,17 @@ class TestExplainEntityFromTriples:
         entity = ExplainEntity.from_triples("urn:exp:2", triples)
         assert isinstance(entity, Exploration)
         assert entity.chunk_count == 5
+
+    def test_exploration_with_entities(self):
+        triples = [
+            ("urn:exp:3", RDF_TYPE, TG_EXPLORATION),
+            ("urn:exp:3", TG_EDGE_COUNT, "10"),
+            ("urn:exp:3", TG_ENTITY, "urn:e:machine-learning"),
+            ("urn:exp:3", TG_ENTITY, "urn:e:neural-networks"),
+        ]
+        entity = ExplainEntity.from_triples("urn:exp:3", triples)
+        assert isinstance(entity, Exploration)
+        assert len(entity.entities) == 2
 
     def test_exploration_invalid_count(self):
         triples = [
@@ -110,69 +135,76 @@ class TestExplainEntityFromTriples:
         assert "urn:edge:1" in entity.selected_edge_uris
         assert "urn:edge:2" in entity.selected_edge_uris
 
-    def test_synthesis_with_content(self):
+    def test_synthesis_with_document(self):
         triples = [
             ("urn:syn:1", RDF_TYPE, TG_SYNTHESIS),
-            ("urn:syn:1", TG_CONTENT, "The answer is 42"),
+            ("urn:syn:1", TG_DOCUMENT, "urn:doc:answer-1"),
         ]
         entity = ExplainEntity.from_triples("urn:syn:1", triples)
         assert isinstance(entity, Synthesis)
-        assert entity.content == "The answer is 42"
-        assert entity.document_uri == ""
+        assert entity.document_uri == "urn:doc:answer-1"
 
-    def test_synthesis_with_document(self):
+    def test_synthesis_no_document(self):
         triples = [
             ("urn:syn:2", RDF_TYPE, TG_SYNTHESIS),
-            ("urn:syn:2", TG_DOCUMENT, "urn:doc:answer-1"),
         ]
         entity = ExplainEntity.from_triples("urn:syn:2", triples)
         assert isinstance(entity, Synthesis)
-        assert entity.document_uri == "urn:doc:answer-1"
+        assert entity.document_uri == ""
+
+    def test_reflection_thought(self):
+        triples = [
+            ("urn:ref:1", RDF_TYPE, TG_REFLECTION_TYPE),
+            ("urn:ref:1", RDF_TYPE, TG_THOUGHT_TYPE),
+            ("urn:ref:1", TG_DOCUMENT, "urn:doc:thought-1"),
+        ]
+        entity = ExplainEntity.from_triples("urn:ref:1", triples)
+        assert isinstance(entity, Reflection)
+        assert entity.reflection_type == "thought"
+        assert entity.document_uri == "urn:doc:thought-1"
+
+    def test_reflection_observation(self):
+        triples = [
+            ("urn:ref:2", RDF_TYPE, TG_REFLECTION_TYPE),
+            ("urn:ref:2", RDF_TYPE, TG_OBSERVATION_TYPE),
+            ("urn:ref:2", TG_DOCUMENT, "urn:doc:obs-1"),
+        ]
+        entity = ExplainEntity.from_triples("urn:ref:2", triples)
+        assert isinstance(entity, Reflection)
+        assert entity.reflection_type == "observation"
+        assert entity.document_uri == "urn:doc:obs-1"
 
     def test_analysis(self):
         triples = [
             ("urn:ana:1", RDF_TYPE, TG_ANALYSIS),
-            ("urn:ana:1", TG_THOUGHT, "I should search"),
             ("urn:ana:1", TG_ACTION, "graph-rag-query"),
             ("urn:ana:1", TG_ARGUMENTS, '{"query": "test"}'),
-            ("urn:ana:1", TG_OBSERVATION, "Found results"),
+            ("urn:ana:1", TG_THOUGHT, "urn:ref:thought-1"),
+            ("urn:ana:1", TG_OBSERVATION, "urn:ref:obs-1"),
         ]
         entity = ExplainEntity.from_triples("urn:ana:1", triples)
         assert isinstance(entity, Analysis)
-        assert entity.thought == "I should search"
         assert entity.action == "graph-rag-query"
         assert entity.arguments == '{"query": "test"}'
-        assert entity.observation == "Found results"
-
-    def test_analysis_with_document_refs(self):
-        triples = [
-            ("urn:ana:2", RDF_TYPE, TG_ANALYSIS),
-            ("urn:ana:2", TG_ACTION, "search"),
-            ("urn:ana:2", TG_THOUGHT_DOCUMENT, "urn:doc:thought-1"),
-            ("urn:ana:2", TG_OBSERVATION_DOCUMENT, "urn:doc:obs-1"),
-        ]
-        entity = ExplainEntity.from_triples("urn:ana:2", triples)
-        assert isinstance(entity, Analysis)
-        assert entity.thought_document_uri == "urn:doc:thought-1"
-        assert entity.observation_document_uri == "urn:doc:obs-1"
-
-    def test_conclusion_with_answer(self):
-        triples = [
-            ("urn:conc:1", RDF_TYPE, TG_CONCLUSION),
-            ("urn:conc:1", TG_ANSWER, "The final answer"),
-        ]
-        entity = ExplainEntity.from_triples("urn:conc:1", triples)
-        assert isinstance(entity, Conclusion)
-        assert entity.answer == "The final answer"
+        assert entity.thought_uri == "urn:ref:thought-1"
+        assert entity.observation_uri == "urn:ref:obs-1"
 
     def test_conclusion_with_document(self):
         triples = [
+            ("urn:conc:1", RDF_TYPE, TG_CONCLUSION),
+            ("urn:conc:1", TG_DOCUMENT, "urn:doc:final"),
+        ]
+        entity = ExplainEntity.from_triples("urn:conc:1", triples)
+        assert isinstance(entity, Conclusion)
+        assert entity.document_uri == "urn:doc:final"
+
+    def test_conclusion_no_document(self):
+        triples = [
             ("urn:conc:2", RDF_TYPE, TG_CONCLUSION),
-            ("urn:conc:2", TG_DOCUMENT, "urn:doc:final"),
         ]
         entity = ExplainEntity.from_triples("urn:conc:2", triples)
         assert isinstance(entity, Conclusion)
-        assert entity.document_uri == "urn:doc:final"
+        assert entity.document_uri == ""
 
     def test_unknown_type(self):
         triples = [
@@ -457,25 +489,7 @@ class TestExplainabilityClientResolveLabel:
 
 class TestExplainabilityClientContentFetching:
 
-    def test_fetch_synthesis_inline_content(self):
-        mock_flow = MagicMock()
-        client = ExplainabilityClient(mock_flow, retry_delay=0.0)
-
-        synthesis = Synthesis(uri="urn:syn:1", content="inline answer")
-        result = client.fetch_synthesis_content(synthesis, api=None)
-        assert result == "inline answer"
-
-    def test_fetch_synthesis_truncated_content(self):
-        mock_flow = MagicMock()
-        client = ExplainabilityClient(mock_flow, retry_delay=0.0)
-
-        long_content = "x" * 20000
-        synthesis = Synthesis(uri="urn:syn:1", content=long_content)
-        result = client.fetch_synthesis_content(synthesis, api=None, max_content=100)
-        assert len(result) < 20000
-        assert result.endswith("... [truncated]")
-
-    def test_fetch_synthesis_from_librarian(self):
+    def test_fetch_document_content_from_librarian(self):
         mock_flow = MagicMock()
         mock_api = MagicMock()
         mock_library = MagicMock()
@@ -483,66 +497,32 @@ class TestExplainabilityClientContentFetching:
         mock_library.get_document_content.return_value = b"librarian content"
 
         client = ExplainabilityClient(mock_flow, retry_delay=0.0)
-        synthesis = Synthesis(
-            uri="urn:syn:1",
-            document_uri="urn:document:abc123"
+        result = client.fetch_document_content(
+            "urn:document:abc123", api=mock_api
         )
-        result = client.fetch_synthesis_content(synthesis, api=mock_api)
         assert result == "librarian content"
 
-    def test_fetch_synthesis_no_content_or_document(self):
-        mock_flow = MagicMock()
-        client = ExplainabilityClient(mock_flow, retry_delay=0.0)
-
-        synthesis = Synthesis(uri="urn:syn:1")
-        result = client.fetch_synthesis_content(synthesis, api=None)
-        assert result == ""
-
-    def test_fetch_conclusion_inline(self):
-        mock_flow = MagicMock()
-        client = ExplainabilityClient(mock_flow, retry_delay=0.0)
-
-        conclusion = Conclusion(uri="urn:conc:1", answer="42")
-        result = client.fetch_conclusion_content(conclusion, api=None)
-        assert result == "42"
-
-    def test_fetch_analysis_content_from_librarian(self):
+    def test_fetch_document_content_truncated(self):
         mock_flow = MagicMock()
         mock_api = MagicMock()
         mock_library = MagicMock()
         mock_api.library.return_value = mock_library
-        mock_library.get_document_content.side_effect = [
-            b"thought content",
-            b"observation content",
-        ]
+        mock_library.get_document_content.return_value = b"x" * 20000
 
         client = ExplainabilityClient(mock_flow, retry_delay=0.0)
-        analysis = Analysis(
-            uri="urn:ana:1",
-            action="search",
-            thought_document_uri="urn:doc:thought",
-            observation_document_uri="urn:doc:obs",
+        result = client.fetch_document_content(
+            "urn:doc:1", api=mock_api, max_content=100
         )
-        client.fetch_analysis_content(analysis, api=mock_api)
-        assert analysis.thought == "thought content"
-        assert analysis.observation == "observation content"
+        assert len(result) < 20000
+        assert result.endswith("... [truncated]")
 
-    def test_fetch_analysis_skips_when_inline_exists(self):
+    def test_fetch_document_content_empty_uri(self):
         mock_flow = MagicMock()
         mock_api = MagicMock()
 
         client = ExplainabilityClient(mock_flow, retry_delay=0.0)
-        analysis = Analysis(
-            uri="urn:ana:1",
-            action="search",
-            thought="already have thought",
-            observation="already have observation",
-            thought_document_uri="urn:doc:thought",
-            observation_document_uri="urn:doc:obs",
-        )
-        client.fetch_analysis_content(analysis, api=mock_api)
-        # Should not call librarian since inline content exists
-        mock_api.library.assert_not_called()
+        result = client.fetch_document_content("", api=mock_api)
+        assert result == ""
 
 
 class TestExplainabilityClientDetectSessionType:

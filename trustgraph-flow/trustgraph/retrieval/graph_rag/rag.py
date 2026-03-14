@@ -39,6 +39,7 @@ class Processor(FlowProcessor):
         triple_limit = params.get("triple_limit", 30)
         max_subgraph_size = params.get("max_subgraph_size", 150)
         max_path_length = params.get("max_path_length", 2)
+        edge_limit = params.get("edge_limit", 25)
 
         super(Processor, self).__init__(
             **params | {
@@ -48,6 +49,7 @@ class Processor(FlowProcessor):
                 "triple_limit": triple_limit,
                 "max_subgraph_size": max_subgraph_size,
                 "max_path_length": max_path_length,
+                "edge_limit": edge_limit,
             }
         )
 
@@ -55,6 +57,7 @@ class Processor(FlowProcessor):
         self.default_triple_limit = triple_limit
         self.default_max_subgraph_size = max_subgraph_size
         self.default_max_path_length = max_path_length
+        self.default_edge_limit = edge_limit
 
         # CRITICAL SECURITY: NEVER share data between users or collections
         # Each user/collection combination MUST have isolated data access
@@ -292,6 +295,11 @@ class Processor(FlowProcessor):
             else:
                 max_path_length = self.default_max_path_length
 
+            if v.edge_limit:
+                edge_limit = v.edge_limit
+            else:
+                edge_limit = self.default_edge_limit
+
             # Callback to save answer content to librarian
             async def save_answer(doc_id, answer_text):
                 await self.save_answer_content(
@@ -322,6 +330,7 @@ class Processor(FlowProcessor):
                     entity_limit = entity_limit, triple_limit = triple_limit,
                     max_subgraph_size = max_subgraph_size,
                     max_path_length = max_path_length,
+                    edge_limit = edge_limit,
                     streaming = True,
                     chunk_callback = send_chunk,
                     explain_callback = send_explainability,
@@ -335,6 +344,7 @@ class Processor(FlowProcessor):
                     entity_limit = entity_limit, triple_limit = triple_limit,
                     max_subgraph_size = max_subgraph_size,
                     max_path_length = max_path_length,
+                    edge_limit = edge_limit,
                     explain_callback = send_explainability,
                     save_answer_callback = save_answer,
                 )

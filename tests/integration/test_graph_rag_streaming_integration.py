@@ -60,8 +60,12 @@ class TestGraphRagStreaming:
         full_text = "Machine learning is a subset of artificial intelligence that focuses on algorithms that learn from data."
 
         async def prompt_side_effect(prompt_id, variables, streaming=False, chunk_callback=None, **kwargs):
-            if prompt_id == "kg-edge-selection":
-                # Edge selection returns JSONL with IDs - simulate selecting first edge
+            if prompt_id == "extract-concepts":
+                return ""  # Falls back to raw query
+            elif prompt_id == "kg-edge-scoring":
+                # Edge scoring returns JSONL with IDs and scores
+                return '{"id": "abc12345", "score": 0.9}\n'
+            elif prompt_id == "kg-edge-reasoning":
                 return '{"id": "abc12345", "reasoning": "Relevant to query"}\n'
             elif prompt_id == "kg-synthesis":
                 if streaming and chunk_callback:
@@ -132,8 +136,8 @@ class TestGraphRagStreaming:
         # Verify content is reasonable
         assert "machine" in response.lower() or "learning" in response.lower()
 
-        # Verify provenance was emitted in real-time (4 events)
-        assert len(provenance_events) == 4
+        # Verify provenance was emitted in real-time (5 events: question, grounding, exploration, focus, synthesis)
+        assert len(provenance_events) == 5
         for triples, prov_id in provenance_events:
             assert prov_id.startswith("urn:trustgraph:")
 

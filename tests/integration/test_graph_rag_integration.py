@@ -86,13 +86,18 @@ class TestGraphRagIntegration:
         """Mock prompt client that generates realistic responses for two-step process"""
         client = AsyncMock()
 
-        # Mock responses for the two-step process:
-        # 1. kg-edge-selection returns JSONL with edge IDs
-        # 2. kg-synthesis returns the final answer
+        # Mock responses for the multi-step process:
+        # 1. extract-concepts extracts key concepts from the query
+        # 2. kg-edge-scoring scores edges for relevance
+        # 3. kg-edge-reasoning provides reasoning for selected edges
+        # 4. kg-synthesis returns the final answer
         async def mock_prompt(prompt_name, variables=None, streaming=False, chunk_callback=None):
-            if prompt_name == "kg-edge-selection":
-                # Return empty selection (no edges selected) - valid JSONL
-                return ""
+            if prompt_name == "extract-concepts":
+                return ""  # Falls back to raw query
+            elif prompt_name == "kg-edge-scoring":
+                return ""  # No edges scored
+            elif prompt_name == "kg-edge-reasoning":
+                return ""  # No reasoning
             elif prompt_name == "kg-synthesis":
                 return (
                     "Machine learning is a subset of artificial intelligence that enables computers "
@@ -160,16 +165,16 @@ class TestGraphRagIntegration:
         # 3. Should query triples to build knowledge subgraph
         assert mock_triples_client.query_stream.call_count > 0
 
-        # 4. Should call prompt twice (edge selection + synthesis)
-        assert mock_prompt_client.prompt.call_count == 2
+        # 4. Should call prompt four times (extract-concepts + edge-scoring + edge-reasoning + synthesis)
+        assert mock_prompt_client.prompt.call_count == 4
 
         # Verify final response
         assert response is not None
         assert isinstance(response, str)
         assert "machine learning" in response.lower()
 
-        # Verify provenance was emitted in real-time (4 events: question, exploration, focus, synthesis)
-        assert len(provenance_events) == 4
+        # Verify provenance was emitted in real-time (5 events: question, grounding, exploration, focus, synthesis)
+        assert len(provenance_events) == 5
         for triples, prov_id in provenance_events:
             assert isinstance(triples, list)
             assert prov_id.startswith("urn:trustgraph:")
@@ -243,10 +248,10 @@ class TestGraphRagIntegration:
         )
 
         # Assert
-        # Should still call prompt client (twice: edge selection + synthesis)
+        # Should still call prompt client
         assert response is not None
-        # Provenance should still be emitted (4 events)
-        assert len(provenance_events) == 4
+        # Provenance should still be emitted (5 events)
+        assert len(provenance_events) == 5
 
     @pytest.mark.asyncio
     async def test_graph_rag_label_caching(self, graph_rag, mock_triples_client):
