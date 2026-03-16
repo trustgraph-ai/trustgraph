@@ -18,25 +18,28 @@ TG_EDGE_COUNT = TG + "edgeCount"
 TG_SELECTED_EDGE = TG + "selectedEdge"
 TG_EDGE = TG + "edge"
 TG_REASONING = TG + "reasoning"
-TG_CONTENT = TG + "content"
 TG_DOCUMENT = TG + "document"
+TG_CONCEPT = TG + "concept"
+TG_ENTITY = TG + "entity"
 TG_CHUNK_COUNT = TG + "chunkCount"
 TG_SELECTED_CHUNK = TG + "selectedChunk"
 TG_THOUGHT = TG + "thought"
 TG_ACTION = TG + "action"
 TG_ARGUMENTS = TG + "arguments"
 TG_OBSERVATION = TG + "observation"
-TG_ANSWER = TG + "answer"
-TG_THOUGHT_DOCUMENT = TG + "thoughtDocument"
-TG_OBSERVATION_DOCUMENT = TG + "observationDocument"
 
 # Entity types
 TG_QUESTION = TG + "Question"
+TG_GROUNDING = TG + "Grounding"
 TG_EXPLORATION = TG + "Exploration"
 TG_FOCUS = TG + "Focus"
 TG_SYNTHESIS = TG + "Synthesis"
 TG_ANALYSIS = TG + "Analysis"
 TG_CONCLUSION = TG + "Conclusion"
+TG_ANSWER_TYPE = TG + "Answer"
+TG_REFLECTION_TYPE = TG + "Reflection"
+TG_THOUGHT_TYPE = TG + "Thought"
+TG_OBSERVATION_TYPE = TG + "Observation"
 TG_GRAPH_RAG_QUESTION = TG + "GraphRagQuestion"
 TG_DOC_RAG_QUESTION = TG + "DocRagQuestion"
 TG_AGENT_QUESTION = TG + "AgentQuestion"
@@ -73,12 +76,16 @@ class ExplainEntity:
 
         if TG_GRAPH_RAG_QUESTION in types or TG_DOC_RAG_QUESTION in types or TG_AGENT_QUESTION in types:
             return Question.from_triples(uri, triples, types)
+        elif TG_GROUNDING in types:
+            return Grounding.from_triples(uri, triples)
         elif TG_EXPLORATION in types:
             return Exploration.from_triples(uri, triples)
         elif TG_FOCUS in types:
             return Focus.from_triples(uri, triples)
         elif TG_SYNTHESIS in types:
             return Synthesis.from_triples(uri, triples)
+        elif TG_REFLECTION_TYPE in types:
+            return Reflection.from_triples(uri, triples)
         elif TG_ANALYSIS in types:
             return Analysis.from_triples(uri, triples)
         elif TG_CONCLUSION in types:
@@ -125,15 +132,37 @@ class Question(ExplainEntity):
 
 
 @dataclass
+class Grounding(ExplainEntity):
+    """Grounding entity - concept decomposition of the query."""
+    concepts: List[str] = field(default_factory=list)
+
+    @classmethod
+    def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "Grounding":
+        concepts = []
+
+        for s, p, o in triples:
+            if p == TG_CONCEPT:
+                concepts.append(o)
+
+        return cls(
+            uri=uri,
+            entity_type="grounding",
+            concepts=concepts
+        )
+
+
+@dataclass
 class Exploration(ExplainEntity):
     """Exploration entity - edges/chunks retrieved from the knowledge store."""
     edge_count: int = 0
     chunk_count: int = 0
+    entities: List[str] = field(default_factory=list)
 
     @classmethod
     def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "Exploration":
         edge_count = 0
         chunk_count = 0
+        entities = []
 
         for s, p, o in triples:
             if p == TG_EDGE_COUNT:
@@ -146,12 +175,15 @@ class Exploration(ExplainEntity):
                     chunk_count = int(o)
                 except (ValueError, TypeError):
                     pass
+            elif p == TG_ENTITY:
+                entities.append(o)
 
         return cls(
             uri=uri,
             entity_type="exploration",
             edge_count=edge_count,
-            chunk_count=chunk_count
+            chunk_count=chunk_count,
+            entities=entities
         )
 
 
@@ -180,94 +212,104 @@ class Focus(ExplainEntity):
 @dataclass
 class Synthesis(ExplainEntity):
     """Synthesis entity - the final answer."""
-    content: str = ""
     document_uri: str = ""  # Reference to librarian document
 
     @classmethod
     def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "Synthesis":
-        content = ""
         document_uri = ""
 
         for s, p, o in triples:
-            if p == TG_CONTENT:
-                content = o
-            elif p == TG_DOCUMENT:
+            if p == TG_DOCUMENT:
                 document_uri = o
 
         return cls(
             uri=uri,
             entity_type="synthesis",
-            content=content,
             document_uri=document_uri
+        )
+
+
+@dataclass
+class Reflection(ExplainEntity):
+    """Reflection entity - intermediate commentary (Thought or Observation)."""
+    document_uri: str = ""  # Reference to content in librarian
+    reflection_type: str = ""  # "thought" or "observation"
+
+    @classmethod
+    def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "Reflection":
+        document_uri = ""
+        reflection_type = ""
+
+        types = [o for s, p, o in triples if p == RDF_TYPE]
+
+        if TG_THOUGHT_TYPE in types:
+            reflection_type = "thought"
+        elif TG_OBSERVATION_TYPE in types:
+            reflection_type = "observation"
+
+        for s, p, o in triples:
+            if p == TG_DOCUMENT:
+                document_uri = o
+
+        return cls(
+            uri=uri,
+            entity_type="reflection",
+            document_uri=document_uri,
+            reflection_type=reflection_type
         )
 
 
 @dataclass
 class Analysis(ExplainEntity):
     """Analysis entity - one think/act/observe cycle (Agent only)."""
-    thought: str = ""
     action: str = ""
     arguments: str = ""  # JSON string
-    observation: str = ""
-    thought_document_uri: str = ""  # Reference to thought in librarian
-    observation_document_uri: str = ""  # Reference to observation in librarian
+    thought_uri: str = ""  # URI of thought sub-entity
+    observation_uri: str = ""  # URI of observation sub-entity
 
     @classmethod
     def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "Analysis":
-        thought = ""
         action = ""
         arguments = ""
-        observation = ""
-        thought_document_uri = ""
-        observation_document_uri = ""
+        thought_uri = ""
+        observation_uri = ""
 
         for s, p, o in triples:
-            if p == TG_THOUGHT:
-                thought = o
-            elif p == TG_ACTION:
+            if p == TG_ACTION:
                 action = o
             elif p == TG_ARGUMENTS:
                 arguments = o
+            elif p == TG_THOUGHT:
+                thought_uri = o
             elif p == TG_OBSERVATION:
-                observation = o
-            elif p == TG_THOUGHT_DOCUMENT:
-                thought_document_uri = o
-            elif p == TG_OBSERVATION_DOCUMENT:
-                observation_document_uri = o
+                observation_uri = o
 
         return cls(
             uri=uri,
             entity_type="analysis",
-            thought=thought,
             action=action,
             arguments=arguments,
-            observation=observation,
-            thought_document_uri=thought_document_uri,
-            observation_document_uri=observation_document_uri
+            thought_uri=thought_uri,
+            observation_uri=observation_uri
         )
 
 
 @dataclass
 class Conclusion(ExplainEntity):
     """Conclusion entity - final answer (Agent only)."""
-    answer: str = ""
     document_uri: str = ""  # Reference to librarian document
 
     @classmethod
     def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "Conclusion":
-        answer = ""
         document_uri = ""
 
         for s, p, o in triples:
-            if p == TG_ANSWER:
-                answer = o
-            elif p == TG_DOCUMENT:
+            if p == TG_DOCUMENT:
                 document_uri = o
 
         return cls(
             uri=uri,
             entity_type="conclusion",
-            answer=answer,
             document_uri=document_uri
         )
 
@@ -543,42 +585,29 @@ class ExplainabilityClient:
         o_label = self.resolve_label(edge.get("o", ""), user, collection)
         return (s_label, p_label, o_label)
 
-    def fetch_synthesis_content(
+    def fetch_document_content(
         self,
-        synthesis: Synthesis,
+        document_uri: str,
         api: Any,
         user: Optional[str] = None,
         max_content: int = 10000
     ) -> str:
         """
-        Fetch the content for a Synthesis entity.
-
-        If synthesis has inline content, returns that.
-        If synthesis has a document_uri, fetches from librarian with retry.
+        Fetch content from the librarian by document URI.
 
         Args:
-            synthesis: The Synthesis entity
+            document_uri: The document URI in the librarian
             api: TrustGraph Api instance for librarian access
             user: User identifier for librarian
             max_content: Maximum content length to return
 
         Returns:
-            The synthesis content as a string
+            The document content as a string
         """
-        # If inline content exists, use it
-        if synthesis.content:
-            if len(synthesis.content) > max_content:
-                return synthesis.content[:max_content] + "... [truncated]"
-            return synthesis.content
-
-        # Otherwise fetch from librarian
-        if not synthesis.document_uri:
+        if not document_uri:
             return ""
 
-        # Extract document ID from URI (e.g., "urn:document:abc123" -> "abc123")
-        doc_id = synthesis.document_uri
-        if doc_id.startswith("urn:document:"):
-            doc_id = doc_id[len("urn:document:"):]
+        doc_id = document_uri
 
         # Retry fetching from librarian for eventual consistency
         for attempt in range(self.max_retries):
@@ -603,129 +632,6 @@ class ExplainabilityClient:
 
         return ""
 
-    def fetch_conclusion_content(
-        self,
-        conclusion: Conclusion,
-        api: Any,
-        user: Optional[str] = None,
-        max_content: int = 10000
-    ) -> str:
-        """
-        Fetch the content for a Conclusion entity (Agent final answer).
-
-        If conclusion has inline answer, returns that.
-        If conclusion has a document_uri, fetches from librarian with retry.
-
-        Args:
-            conclusion: The Conclusion entity
-            api: TrustGraph Api instance for librarian access
-            user: User identifier for librarian
-            max_content: Maximum content length to return
-
-        Returns:
-            The conclusion answer as a string
-        """
-        # If inline answer exists, use it
-        if conclusion.answer:
-            if len(conclusion.answer) > max_content:
-                return conclusion.answer[:max_content] + "... [truncated]"
-            return conclusion.answer
-
-        # Otherwise fetch from librarian
-        if not conclusion.document_uri:
-            return ""
-
-        # Use document URI directly (it's already a full URN)
-        doc_id = conclusion.document_uri
-
-        # Retry fetching from librarian for eventual consistency
-        for attempt in range(self.max_retries):
-            try:
-                library = api.library()
-                content_bytes = library.get_document_content(user=user, id=doc_id)
-
-                # Decode as text
-                try:
-                    content = content_bytes.decode('utf-8')
-                    if len(content) > max_content:
-                        return content[:max_content] + "... [truncated]"
-                    return content
-                except UnicodeDecodeError:
-                    return f"[Binary: {len(content_bytes)} bytes]"
-
-            except Exception as e:
-                if attempt < self.max_retries - 1:
-                    time.sleep(self.retry_delay)
-                    continue
-                return f"[Error fetching content: {e}]"
-
-        return ""
-
-    def fetch_analysis_content(
-        self,
-        analysis: Analysis,
-        api: Any,
-        user: Optional[str] = None,
-        max_content: int = 10000
-    ) -> None:
-        """
-        Fetch thought and observation content for an Analysis entity.
-
-        If analysis has inline content, uses that.
-        If analysis has document URIs, fetches from librarian with retry.
-        Modifies the analysis object in place.
-
-        Args:
-            analysis: The Analysis entity (modified in place)
-            api: TrustGraph Api instance for librarian access
-            user: User identifier for librarian
-            max_content: Maximum content length to return
-        """
-        # Fetch thought if needed
-        if not analysis.thought and analysis.thought_document_uri:
-            doc_id = analysis.thought_document_uri
-            for attempt in range(self.max_retries):
-                try:
-                    library = api.library()
-                    content_bytes = library.get_document_content(user=user, id=doc_id)
-                    try:
-                        content = content_bytes.decode('utf-8')
-                        if len(content) > max_content:
-                            analysis.thought = content[:max_content] + "... [truncated]"
-                        else:
-                            analysis.thought = content
-                        break
-                    except UnicodeDecodeError:
-                        analysis.thought = f"[Binary: {len(content_bytes)} bytes]"
-                        break
-                except Exception as e:
-                    if attempt < self.max_retries - 1:
-                        time.sleep(self.retry_delay)
-                        continue
-                    analysis.thought = f"[Error fetching thought: {e}]"
-
-        # Fetch observation if needed
-        if not analysis.observation and analysis.observation_document_uri:
-            doc_id = analysis.observation_document_uri
-            for attempt in range(self.max_retries):
-                try:
-                    library = api.library()
-                    content_bytes = library.get_document_content(user=user, id=doc_id)
-                    try:
-                        content = content_bytes.decode('utf-8')
-                        if len(content) > max_content:
-                            analysis.observation = content[:max_content] + "... [truncated]"
-                        else:
-                            analysis.observation = content
-                        break
-                    except UnicodeDecodeError:
-                        analysis.observation = f"[Binary: {len(content_bytes)} bytes]"
-                        break
-                except Exception as e:
-                    if attempt < self.max_retries - 1:
-                        time.sleep(self.retry_delay)
-                        continue
-                    analysis.observation = f"[Error fetching observation: {e}]"
 
     def fetch_graphrag_trace(
         self,
@@ -739,7 +645,7 @@ class ExplainabilityClient:
         """
         Fetch the complete GraphRAG trace starting from a question URI.
 
-        Follows the provenance chain: Question -> Exploration -> Focus -> Synthesis
+        Follows the provenance chain: Question -> Grounding -> Exploration -> Focus -> Synthesis
 
         Args:
             question_uri: The question entity URI
@@ -750,13 +656,14 @@ class ExplainabilityClient:
             max_content: Maximum content length for synthesis
 
         Returns:
-            Dict with question, exploration, focus, synthesis entities
+            Dict with question, grounding, exploration, focus, synthesis entities
         """
         if graph is None:
             graph = "urn:graph:retrieval"
 
         trace = {
             "question": None,
+            "grounding": None,
             "exploration": None,
             "focus": None,
             "synthesis": None,
@@ -768,10 +675,34 @@ class ExplainabilityClient:
             return trace
         trace["question"] = question
 
-        # Find exploration: ?exploration prov:wasGeneratedBy question_uri
-        exploration_triples = self.flow.triples_query(
+        # Find grounding: ?grounding prov:wasGeneratedBy question_uri
+        grounding_triples = self.flow.triples_query(
             p=PROV_WAS_GENERATED_BY,
             o=question_uri,
+            g=graph,
+            user=user,
+            collection=collection,
+            limit=10
+        )
+
+        if grounding_triples:
+            grounding_uris = [
+                extract_term_value(t.get("s", {}))
+                for t in grounding_triples
+            ]
+            for gnd_uri in grounding_uris:
+                grounding = self.fetch_entity(gnd_uri, graph, user, collection)
+                if isinstance(grounding, Grounding):
+                    trace["grounding"] = grounding
+                    break
+
+        if not trace["grounding"]:
+            return trace
+
+        # Find exploration: ?exploration prov:wasDerivedFrom grounding_uri
+        exploration_triples = self.flow.triples_query(
+            p=PROV_WAS_DERIVED_FROM,
+            o=trace["grounding"].uri,
             g=graph,
             user=user,
             collection=collection,
@@ -834,11 +765,6 @@ class ExplainabilityClient:
             for synth_uri in synthesis_uris:
                 synthesis = self.fetch_entity(synth_uri, graph, user, collection)
                 if isinstance(synthesis, Synthesis):
-                    # Fetch content if needed
-                    if api and not synthesis.content and synthesis.document_uri:
-                        synthesis.content = self.fetch_synthesis_content(
-                            synthesis, api, user, max_content
-                        )
                     trace["synthesis"] = synthesis
                     break
 
@@ -928,11 +854,6 @@ class ExplainabilityClient:
             for synth_uri in synthesis_uris:
                 synthesis = self.fetch_entity(synth_uri, graph, user, collection)
                 if isinstance(synthesis, Synthesis):
-                    # Fetch content if needed
-                    if api and not synthesis.content and synthesis.document_uri:
-                        synthesis.content = self.fetch_synthesis_content(
-                            synthesis, api, user, max_content
-                        )
                     trace["synthesis"] = synthesis
                     break
 
@@ -978,20 +899,43 @@ class ExplainabilityClient:
             return trace
         trace["question"] = question
 
-        # Follow the chain of wasDerivedFrom
+        # Follow the chain: wasGeneratedBy for first hop, wasDerivedFrom after
         current_uri = session_uri
+        is_first = True
         max_iterations = 50  # Safety limit
 
         for _ in range(max_iterations):
-            # Find entity derived from current
-            derived_triples = self.flow.triples_query(
-                p=PROV_WAS_DERIVED_FROM,
-                o=current_uri,
-                g=graph,
-                user=user,
-                collection=collection,
-                limit=10
-            )
+            # First hop uses wasGeneratedBy (entity←activity),
+            # subsequent hops use wasDerivedFrom (entity←entity)
+            if is_first:
+                derived_triples = self.flow.triples_query(
+                    p=PROV_WAS_GENERATED_BY,
+                    o=current_uri,
+                    g=graph,
+                    user=user,
+                    collection=collection,
+                    limit=10
+                )
+                # Fall back to wasDerivedFrom for backwards compatibility
+                if not derived_triples:
+                    derived_triples = self.flow.triples_query(
+                        p=PROV_WAS_DERIVED_FROM,
+                        o=current_uri,
+                        g=graph,
+                        user=user,
+                        collection=collection,
+                        limit=10
+                    )
+                is_first = False
+            else:
+                derived_triples = self.flow.triples_query(
+                    p=PROV_WAS_DERIVED_FROM,
+                    o=current_uri,
+                    g=graph,
+                    user=user,
+                    collection=collection,
+                    limit=10
+                )
 
             if not derived_triples:
                 break
@@ -1003,19 +947,9 @@ class ExplainabilityClient:
             entity = self.fetch_entity(derived_uri, graph, user, collection)
 
             if isinstance(entity, Analysis):
-                # Fetch thought/observation content from librarian if needed
-                if api:
-                    self.fetch_analysis_content(
-                        entity, api, user=user, max_content=max_content
-                    )
                 trace["iterations"].append(entity)
                 current_uri = derived_uri
             elif isinstance(entity, Conclusion):
-                # Fetch answer content from librarian if needed
-                if api and not entity.answer and entity.document_uri:
-                    entity.answer = self.fetch_conclusion_content(
-                        entity, api, user=user, max_content=max_content
-                    )
                 trace["conclusion"] = entity
                 break
             else:

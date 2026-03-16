@@ -7,9 +7,11 @@ from datetime import datetime
 # Provenance imports
 from trustgraph.provenance import (
     docrag_question_uri,
+    docrag_grounding_uri,
     docrag_exploration_uri,
     docrag_synthesis_uri,
     docrag_question_triples,
+    grounding_triples,
     docrag_exploration_triples,
     docrag_synthesis_triples,
     set_graph,
@@ -33,38 +35,78 @@ class Query:
         self.verbose = verbose
         self.doc_limit = doc_limit
 
-    async def get_vector(self, query):
+    async def extract_concepts(self, query):
+        """Extract key concepts from query for independent embedding."""
+        response = await self.rag.prompt_client.prompt(
+            "extract-concepts",
+            variables={"query": query}
+        )
 
+        concepts = []
+        if isinstance(response, str):
+            for line in response.strip().split('\n'):
+                line = line.strip()
+                if line:
+                    concepts.append(line)
+
+        # Fallback to raw query if no concepts extracted
+        if not concepts:
+            concepts = [query]
+
+        if self.verbose:
+            logger.debug(f"Extracted concepts: {concepts}")
+
+        return concepts
+
+    async def get_vectors(self, concepts):
+        """Compute embeddings for a list of concepts."""
         if self.verbose:
             logger.debug("Computing embeddings...")
 
-        qembeds = await self.rag.embeddings_client.embed([query])
+        qembeds = await self.rag.embeddings_client.embed(concepts)
 
         if self.verbose:
             logger.debug("Embeddings computed")
 
-        # Return the vector set for the first (only) text
-        return qembeds[0] if qembeds else []
+        return qembeds
 
-    async def get_docs(self, query):
+    async def get_docs(self, concepts):
         """
-        Get documents (chunks) matching the query.
+        Get documents (chunks) matching the extracted concepts.
 
         Returns:
             tuple: (docs, chunk_ids) where:
                 - docs: list of document content strings
                 - chunk_ids: list of chunk IDs that were successfully fetched
         """
-        vectors = await self.get_vector(query)
+        vectors = await self.get_vectors(concepts)
 
         if self.verbose:
             logger.debug("Getting chunks from embeddings store...")
 
-        # Get chunk matches from embeddings store
-        chunk_matches = await self.rag.doc_embeddings_client.query(
-            vector=vectors, limit=self.doc_limit,
-            user=self.user, collection=self.collection,
+        # Query chunk matches for each concept concurrently
+        per_concept_limit = max(
+            1, self.doc_limit // len(vectors)
         )
+
+        async def query_concept(vec):
+            return await self.rag.doc_embeddings_client.query(
+                vector=vec, limit=per_concept_limit,
+                user=self.user, collection=self.collection,
+            )
+
+        results = await asyncio.gather(
+            *[query_concept(v) for v in vectors]
+        )
+
+        # Deduplicate chunk matches by chunk_id
+        seen = set()
+        chunk_matches = []
+        for matches in results:
+            for match in matches:
+                if match.chunk_id and match.chunk_id not in seen:
+                    seen.add(match.chunk_id)
+                    chunk_matches.append(match)
 
         if self.verbose:
             logger.debug(f"Got {len(chunk_matches)} chunks, fetching content from Garage...")
@@ -133,6 +175,7 @@ class DocumentRag:
         # Generate explainability URIs upfront
         session_id = str(uuid.uuid4())
         q_uri = docrag_question_uri(session_id)
+        gnd_uri = docrag_grounding_uri(session_id)
         exp_uri = docrag_exploration_uri(session_id)
         syn_uri = docrag_synthesis_uri(session_id)
 
@@ -151,12 +194,23 @@ class DocumentRag:
             doc_limit=doc_limit
         )
 
-        docs, chunk_ids = await q.get_docs(query)
+        # Extract concepts from query (grounding step)
+        concepts = await q.extract_concepts(query)
+
+        # Emit grounding explainability after concept extraction
+        if explain_callback:
+            gnd_triples = set_graph(
+                grounding_triples(gnd_uri, q_uri, concepts),
+                GRAPH_RETRIEVAL
+            )
+            await explain_callback(gnd_triples, gnd_uri)
+
+        docs, chunk_ids = await q.get_docs(concepts)
 
         # Emit exploration explainability after chunks retrieved
         if explain_callback:
             exp_triples = set_graph(
-                docrag_exploration_triples(exp_uri, q_uri, len(chunk_ids), chunk_ids),
+                docrag_exploration_triples(exp_uri, gnd_uri, len(chunk_ids), chunk_ids),
                 GRAPH_RETRIEVAL
             )
             await explain_callback(exp_triples, exp_uri)
@@ -196,9 +250,8 @@ class DocumentRag:
             synthesis_doc_id = None
             answer_text = resp if resp else ""
 
-            # Save answer to librarian if callback provided
+            # Save answer to librarian
             if save_answer_callback and answer_text:
-                # Generate document ID as URN matching query-time provenance format
                 synthesis_doc_id = f"urn:trustgraph:docrag:{session_id}/answer"
                 try:
                     await save_answer_callback(synthesis_doc_id, answer_text)
@@ -206,13 +259,11 @@ class DocumentRag:
                         logger.debug(f"Saved answer to librarian: {synthesis_doc_id}")
                 except Exception as e:
                     logger.warning(f"Failed to save answer to librarian: {e}")
-                    synthesis_doc_id = None  # Fall back to inline content
+                    synthesis_doc_id = None
 
-            # Generate triples with document reference or inline content
             syn_triples = set_graph(
                 docrag_synthesis_triples(
                     syn_uri, exp_uri,
-                    answer_text="" if synthesis_doc_id else answer_text,
                     document_id=synthesis_doc_id,
                 ),
                 GRAPH_RETRIEVAL

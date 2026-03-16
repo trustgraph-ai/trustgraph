@@ -42,15 +42,19 @@ from . uris import (
     agent_uri,
     # Query-time provenance URIs (GraphRAG)
     question_uri,
+    grounding_uri,
     exploration_uri,
     focus_uri,
     synthesis_uri,
     # Agent provenance URIs
     agent_session_uri,
     agent_iteration_uri,
+    agent_thought_uri,
+    agent_observation_uri,
     agent_final_uri,
     # Document RAG provenance URIs
     docrag_question_uri,
+    docrag_grounding_uri,
     docrag_exploration_uri,
     docrag_synthesis_uri,
 )
@@ -74,18 +78,19 @@ from . namespaces import (
     # Extraction provenance entity types
     TG_DOCUMENT_TYPE, TG_PAGE_TYPE, TG_CHUNK_TYPE, TG_SUBGRAPH_TYPE,
     # Query-time provenance predicates (GraphRAG)
-    TG_QUERY, TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_REASONING, TG_CONTENT,
+    TG_QUERY, TG_CONCEPT, TG_ENTITY,
+    TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_REASONING,
     # Query-time provenance predicates (DocumentRAG)
     TG_CHUNK_COUNT, TG_SELECTED_CHUNK,
     # Explainability entity types
-    TG_QUESTION, TG_EXPLORATION, TG_FOCUS, TG_SYNTHESIS,
+    TG_QUESTION, TG_GROUNDING, TG_EXPLORATION, TG_FOCUS, TG_SYNTHESIS,
     TG_ANALYSIS, TG_CONCLUSION,
+    # Unifying types
+    TG_ANSWER_TYPE, TG_REFLECTION_TYPE, TG_THOUGHT_TYPE, TG_OBSERVATION_TYPE,
     # Question subtypes (to distinguish retrieval mechanism)
     TG_GRAPH_RAG_QUESTION, TG_DOC_RAG_QUESTION, TG_AGENT_QUESTION,
     # Agent provenance predicates
-    TG_THOUGHT, TG_ACTION, TG_ARGUMENTS, TG_OBSERVATION, TG_ANSWER,
-    # Agent document references
-    TG_THOUGHT_DOCUMENT, TG_OBSERVATION_DOCUMENT,
+    TG_THOUGHT, TG_ACTION, TG_ARGUMENTS, TG_OBSERVATION,
     # Document reference predicate
     TG_DOCUMENT,
     # Named graphs
@@ -99,6 +104,7 @@ from . triples import (
     subgraph_provenance_triples,
     # Query-time provenance triple builders (GraphRAG)
     question_triples,
+    grounding_triples,
     exploration_triples,
     focus_triples,
     synthesis_triples,
@@ -139,15 +145,19 @@ __all__ = [
     "agent_uri",
     # Query-time provenance URIs
     "question_uri",
+    "grounding_uri",
     "exploration_uri",
     "focus_uri",
     "synthesis_uri",
     # Agent provenance URIs
     "agent_session_uri",
     "agent_iteration_uri",
+    "agent_thought_uri",
+    "agent_observation_uri",
     "agent_final_uri",
     # Document RAG provenance URIs
     "docrag_question_uri",
+    "docrag_grounding_uri",
     "docrag_exploration_uri",
     "docrag_synthesis_uri",
     # Namespaces
@@ -164,18 +174,19 @@ __all__ = [
     # Extraction provenance entity types
     "TG_DOCUMENT_TYPE", "TG_PAGE_TYPE", "TG_CHUNK_TYPE", "TG_SUBGRAPH_TYPE",
     # Query-time provenance predicates (GraphRAG)
-    "TG_QUERY", "TG_EDGE_COUNT", "TG_SELECTED_EDGE", "TG_REASONING", "TG_CONTENT",
+    "TG_QUERY", "TG_CONCEPT", "TG_ENTITY",
+    "TG_EDGE_COUNT", "TG_SELECTED_EDGE", "TG_REASONING",
     # Query-time provenance predicates (DocumentRAG)
     "TG_CHUNK_COUNT", "TG_SELECTED_CHUNK",
     # Explainability entity types
-    "TG_QUESTION", "TG_EXPLORATION", "TG_FOCUS", "TG_SYNTHESIS",
+    "TG_QUESTION", "TG_GROUNDING", "TG_EXPLORATION", "TG_FOCUS", "TG_SYNTHESIS",
     "TG_ANALYSIS", "TG_CONCLUSION",
+    # Unifying types
+    "TG_ANSWER_TYPE", "TG_REFLECTION_TYPE", "TG_THOUGHT_TYPE", "TG_OBSERVATION_TYPE",
     # Question subtypes
     "TG_GRAPH_RAG_QUESTION", "TG_DOC_RAG_QUESTION", "TG_AGENT_QUESTION",
     # Agent provenance predicates
-    "TG_THOUGHT", "TG_ACTION", "TG_ARGUMENTS", "TG_OBSERVATION", "TG_ANSWER",
-    # Agent document references
-    "TG_THOUGHT_DOCUMENT", "TG_OBSERVATION_DOCUMENT",
+    "TG_THOUGHT", "TG_ACTION", "TG_ARGUMENTS", "TG_OBSERVATION",
     # Document reference predicate
     "TG_DOCUMENT",
     # Named graphs
@@ -186,6 +197,7 @@ __all__ = [
     "subgraph_provenance_triples",
     # Query-time provenance triple builders (GraphRAG)
     "question_triples",
+    "grounding_triples",
     "exploration_triples",
     "focus_triples",
     "synthesis_triples",

@@ -25,6 +25,8 @@ from . namespaces import (
     TG_LLM_MODEL, TG_ONTOLOGY, TG_EMBEDDING_MODEL,
     TG_SOURCE_TEXT, TG_SOURCE_CHAR_OFFSET, TG_SOURCE_CHAR_LENGTH,
     TG_DOCUMENT_TYPE, TG_PAGE_TYPE, TG_CHUNK_TYPE, TG_SUBGRAPH_TYPE,
+    TG_CONCEPT, TG_ENTITY, TG_GROUNDING,
+    TG_ANSWER_TYPE, TG_REFLECTION_TYPE, TG_THOUGHT_TYPE, TG_OBSERVATION_TYPE,
 )
 
 
@@ -80,6 +82,11 @@ TG_CLASS_LABELS = [
     _label_triple(TG_PAGE_TYPE, "Page"),
     _label_triple(TG_CHUNK_TYPE, "Chunk"),
     _label_triple(TG_SUBGRAPH_TYPE, "Subgraph"),
+    _label_triple(TG_GROUNDING, "Grounding"),
+    _label_triple(TG_ANSWER_TYPE, "Answer"),
+    _label_triple(TG_REFLECTION_TYPE, "Reflection"),
+    _label_triple(TG_THOUGHT_TYPE, "Thought"),
+    _label_triple(TG_OBSERVATION_TYPE, "Observation"),
 ]
 
 # TrustGraph predicate labels
@@ -100,6 +107,8 @@ TG_PREDICATE_LABELS = [
     _label_triple(TG_SOURCE_TEXT, "source text"),
     _label_triple(TG_SOURCE_CHAR_OFFSET, "source character offset"),
     _label_triple(TG_SOURCE_CHAR_LENGTH, "source character length"),
+    _label_triple(TG_CONCEPT, "concept"),
+    _label_triple(TG_ENTITY, "entity"),
 ]
 
 

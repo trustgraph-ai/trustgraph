@@ -20,12 +20,15 @@ from . namespaces import (
     # Extraction provenance entity types
     TG_DOCUMENT_TYPE, TG_PAGE_TYPE, TG_CHUNK_TYPE, TG_SUBGRAPH_TYPE,
     # Query-time provenance predicates (GraphRAG)
-    TG_QUERY, TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_EDGE, TG_REASONING, TG_CONTENT,
+    TG_QUERY, TG_CONCEPT, TG_ENTITY,
+    TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_EDGE, TG_REASONING,
     TG_DOCUMENT,
     # Query-time provenance predicates (DocumentRAG)
     TG_CHUNK_COUNT, TG_SELECTED_CHUNK,
     # Explainability entity types
-    TG_QUESTION, TG_EXPLORATION, TG_FOCUS, TG_SYNTHESIS,
+    TG_QUESTION, TG_GROUNDING, TG_EXPLORATION, TG_FOCUS, TG_SYNTHESIS,
+    # Unifying types
+    TG_ANSWER_TYPE,
     # Question subtypes
     TG_GRAPH_RAG_QUESTION, TG_DOC_RAG_QUESTION,
 )
@@ -347,34 +350,77 @@ def question_triples(
     ]
 
 
+def grounding_triples(
+    grounding_uri: str,
+    question_uri: str,
+    concepts: List[str],
+) -> List[Triple]:
+    """
+    Build triples for a grounding entity (concept decomposition of query).
+
+    Creates:
+    - Entity declaration for grounding
+    - wasGeneratedBy link to question
+    - Concept literals for each extracted concept
+
+    Args:
+        grounding_uri: URI of the grounding entity (from grounding_uri)
+        question_uri: URI of the parent question
+        concepts: List of concept strings extracted from the query
+
+    Returns:
+        List of Triple objects
+    """
+    triples = [
+        _triple(grounding_uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(grounding_uri, RDF_TYPE, _iri(TG_GROUNDING)),
+        _triple(grounding_uri, RDFS_LABEL, _literal("Grounding")),
+        _triple(grounding_uri, PROV_WAS_GENERATED_BY, _iri(question_uri)),
+    ]
+
+    for concept in concepts:
+        triples.append(_triple(grounding_uri, TG_CONCEPT, _literal(concept)))
+
+    return triples
+
+
 def exploration_triples(
     exploration_uri: str,
-    question_uri: str,
+    grounding_uri: str,
     edge_count: int,
+    entities: Optional[List[str]] = None,
 ) -> List[Triple]:
     """
     Build triples for an exploration entity (all edges retrieved from subgraph).
 
     Creates:
     - Entity declaration for exploration
-    - wasGeneratedBy link to question
+    - wasDerivedFrom link to grounding
     - Edge count metadata
+    - Entity IRIs for each seed entity
 
     Args:
         exploration_uri: URI of the exploration entity (from exploration_uri)
-        question_uri: URI of the parent question
+        grounding_uri: URI of the parent grounding entity
         edge_count: Number of edges retrieved
+        entities: Optional list of seed entity URIs
 
     Returns:
         List of Triple objects
     """
-    return [
+    triples = [
         _triple(exploration_uri, RDF_TYPE, _iri(PROV_ENTITY)),
         _triple(exploration_uri, RDF_TYPE, _iri(TG_EXPLORATION)),
         _triple(exploration_uri, RDFS_LABEL, _literal("Exploration")),
-        _triple(exploration_uri, PROV_WAS_GENERATED_BY, _iri(question_uri)),
+        _triple(exploration_uri, PROV_WAS_DERIVED_FROM, _iri(grounding_uri)),
         _triple(exploration_uri, TG_EDGE_COUNT, _literal(edge_count)),
     ]
+
+    if entities:
+        for entity in entities:
+            triples.append(_triple(exploration_uri, TG_ENTITY, _iri(entity)))
+
+    return triples
 
 
 def _quoted_triple(s: str, p: str, o: str) -> Term:
@@ -454,22 +500,20 @@ def focus_triples(
 def synthesis_triples(
     synthesis_uri: str,
     focus_uri: str,
-    answer_text: str = "",
     document_id: Optional[str] = None,
 ) -> List[Triple]:
     """
-    Build triples for a synthesis entity (final answer text).
+    Build triples for a synthesis entity (final answer).
 
     Creates:
-    - Entity declaration for synthesis
+    - Entity declaration for synthesis with tg:Answer type
     - wasDerivedFrom link to focus
-    - Either document reference (if document_id provided) or inline content
+    - Document reference to librarian
 
     Args:
         synthesis_uri: URI of the synthesis entity (from synthesis_uri)
         focus_uri: URI of the parent focus entity
-        answer_text: The synthesized answer text (used if no document_id)
-        document_id: Optional librarian document ID (preferred over inline content)
+        document_id: Librarian document ID for the answer content
 
     Returns:
         List of Triple objects
@@ -477,16 +521,13 @@ def synthesis_triples(
     triples = [
         _triple(synthesis_uri, RDF_TYPE, _iri(PROV_ENTITY)),
         _triple(synthesis_uri, RDF_TYPE, _iri(TG_SYNTHESIS)),
+        _triple(synthesis_uri, RDF_TYPE, _iri(TG_ANSWER_TYPE)),
         _triple(synthesis_uri, RDFS_LABEL, _literal("Synthesis")),
         _triple(synthesis_uri, PROV_WAS_DERIVED_FROM, _iri(focus_uri)),
     ]
 
     if document_id:
-        # Store reference to document in librarian (as IRI)
         triples.append(_triple(synthesis_uri, TG_DOCUMENT, _iri(document_id)))
-    elif answer_text:
-        # Fallback: store inline content
-        triples.append(_triple(synthesis_uri, TG_CONTENT, _literal(answer_text)))
 
     return triples
 
@@ -533,7 +574,7 @@ def docrag_question_triples(
 
 def docrag_exploration_triples(
     exploration_uri: str,
-    question_uri: str,
+    grounding_uri: str,
     chunk_count: int,
     chunk_ids: Optional[List[str]] = None,
 ) -> List[Triple]:
@@ -542,12 +583,12 @@ def docrag_exploration_triples(
 
     Creates:
     - Entity declaration with tg:Exploration type
-    - wasGeneratedBy link to question
+    - wasDerivedFrom link to grounding
     - Chunk count and optional chunk references
 
     Args:
         exploration_uri: URI of the exploration entity
-        question_uri: URI of the parent question
+        grounding_uri: URI of the parent grounding entity
         chunk_count: Number of chunks retrieved
         chunk_ids: Optional list of chunk URIs/IDs
 
@@ -558,7 +599,7 @@ def docrag_exploration_triples(
         _triple(exploration_uri, RDF_TYPE, _iri(PROV_ENTITY)),
         _triple(exploration_uri, RDF_TYPE, _iri(TG_EXPLORATION)),
         _triple(exploration_uri, RDFS_LABEL, _literal("Exploration")),
-        _triple(exploration_uri, PROV_WAS_GENERATED_BY, _iri(question_uri)),
+        _triple(exploration_uri, PROV_WAS_DERIVED_FROM, _iri(grounding_uri)),
         _triple(exploration_uri, TG_CHUNK_COUNT, _literal(chunk_count)),
     ]
 
@@ -573,22 +614,20 @@ def docrag_exploration_triples(
 def docrag_synthesis_triples(
     synthesis_uri: str,
     exploration_uri: str,
-    answer_text: str = "",
     document_id: Optional[str] = None,
 ) -> List[Triple]:
     """
     Build triples for a document RAG synthesis entity (final answer).
 
     Creates:
-    - Entity declaration with tg:Synthesis type
+    - Entity declaration with tg:Synthesis and tg:Answer types
     - wasDerivedFrom link to exploration (skips focus step)
-    - Either document reference or inline content
+    - Document reference to librarian
 
     Args:
         synthesis_uri: URI of the synthesis entity
         exploration_uri: URI of the parent exploration entity
-        answer_text: The synthesized answer text (used if no document_id)
-        document_id: Optional librarian document ID (preferred over inline content)
+        document_id: Librarian document ID for the answer content
 
     Returns:
         List of Triple objects
@@ -596,13 +635,12 @@ def docrag_synthesis_triples(
     triples = [
         _triple(synthesis_uri, RDF_TYPE, _iri(PROV_ENTITY)),
         _triple(synthesis_uri, RDF_TYPE, _iri(TG_SYNTHESIS)),
+        _triple(synthesis_uri, RDF_TYPE, _iri(TG_ANSWER_TYPE)),
         _triple(synthesis_uri, RDFS_LABEL, _literal("Synthesis")),
         _triple(synthesis_uri, PROV_WAS_DERIVED_FROM, _iri(exploration_uri)),
     ]
 
     if document_id:
         triples.append(_triple(synthesis_uri, TG_DOCUMENT, _iri(document_id)))
-    elif answer_text:
-        triples.append(_triple(synthesis_uri, TG_CONTENT, _literal(answer_text)))
 
     return triples

@@ -60,11 +60,12 @@ TG_SOURCE_CHAR_LENGTH = TG + "sourceCharLength"
 
 # Query-time provenance predicates (GraphRAG)
 TG_QUERY = TG + "query"
+TG_CONCEPT = TG + "concept"
+TG_ENTITY = TG + "entity"
 TG_EDGE_COUNT = TG + "edgeCount"
 TG_SELECTED_EDGE = TG + "selectedEdge"
 TG_EDGE = TG + "edge"
 TG_REASONING = TG + "reasoning"
-TG_CONTENT = TG + "content"
 TG_DOCUMENT = TG + "document"  # Reference to document in librarian
 
 # Query-time provenance predicates (DocumentRAG)
@@ -79,11 +80,18 @@ TG_SUBGRAPH_TYPE = TG + "Subgraph"
 
 # Explainability entity types (shared)
 TG_QUESTION = TG + "Question"
+TG_GROUNDING = TG + "Grounding"
 TG_EXPLORATION = TG + "Exploration"
 TG_FOCUS = TG + "Focus"
 TG_SYNTHESIS = TG + "Synthesis"
 TG_ANALYSIS = TG + "Analysis"
 TG_CONCLUSION = TG + "Conclusion"
+
+# Unifying types for answer and intermediate commentary
+TG_ANSWER_TYPE = TG + "Answer"          # Final answer (Synthesis, Conclusion)
+TG_REFLECTION_TYPE = TG + "Reflection"  # Intermediate commentary (Thought, Observation)
+TG_THOUGHT_TYPE = TG + "Thought"        # Agent reasoning
+TG_OBSERVATION_TYPE = TG + "Observation" # Agent tool result
 
 # Question subtypes (to distinguish retrieval mechanism)
 TG_GRAPH_RAG_QUESTION = TG + "GraphRagQuestion"
@@ -91,15 +99,10 @@ TG_DOC_RAG_QUESTION = TG + "DocRagQuestion"
 TG_AGENT_QUESTION = TG + "AgentQuestion"
 
 # Agent provenance predicates
-TG_THOUGHT = TG + "thought"
+TG_THOUGHT = TG + "thought"        # Links iteration to thought sub-entity
 TG_ACTION = TG + "action"
 TG_ARGUMENTS = TG + "arguments"
-TG_OBSERVATION = TG + "observation"
-TG_ANSWER = TG + "answer"
-
-# Agent document references (for librarian storage)
-TG_THOUGHT_DOCUMENT = TG + "thoughtDocument"
-TG_OBSERVATION_DOCUMENT = TG + "observationDocument"
+TG_OBSERVATION = TG + "observation" # Links iteration to observation sub-entity
 
 # Named graph URIs for RDF datasets
 # These separate different types of data while keeping them in the same collection

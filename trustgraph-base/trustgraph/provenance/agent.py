@@ -15,10 +15,11 @@ from .. schema import Triple, Term, IRI, LITERAL
 
 from . namespaces import (
     RDF_TYPE, RDFS_LABEL,
-    PROV_ACTIVITY, PROV_ENTITY, PROV_WAS_DERIVED_FROM, PROV_STARTED_AT_TIME,
-    TG_QUERY, TG_THOUGHT, TG_ACTION, TG_ARGUMENTS, TG_OBSERVATION, TG_ANSWER,
+    PROV_ACTIVITY, PROV_ENTITY, PROV_WAS_DERIVED_FROM,
+    PROV_WAS_GENERATED_BY, PROV_STARTED_AT_TIME,
+    TG_QUERY, TG_THOUGHT, TG_ACTION, TG_ARGUMENTS, TG_OBSERVATION,
     TG_QUESTION, TG_ANALYSIS, TG_CONCLUSION, TG_DOCUMENT,
-    TG_THOUGHT_DOCUMENT, TG_OBSERVATION_DOCUMENT,
+    TG_ANSWER_TYPE, TG_REFLECTION_TYPE, TG_THOUGHT_TYPE, TG_OBSERVATION_TYPE,
     TG_AGENT_QUESTION,
 )
 
@@ -73,12 +74,13 @@ def agent_session_triples(
 
 def agent_iteration_triples(
     iteration_uri: str,
-    parent_uri: str,
-    thought: str = "",
+    question_uri: Optional[str] = None,
+    previous_uri: Optional[str] = None,
     action: str = "",
     arguments: Dict[str, Any] = None,
-    observation: str = "",
+    thought_uri: Optional[str] = None,
     thought_document_id: Optional[str] = None,
+    observation_uri: Optional[str] = None,
     observation_document_id: Optional[str] = None,
 ) -> List[Triple]:
     """
@@ -86,19 +88,22 @@ def agent_iteration_triples(
 
     Creates:
     - Entity declaration with tg:Analysis type
-    - wasDerivedFrom link to parent (previous iteration or session)
-    - Thought, action, arguments, and observation data
-    - Document references for thought/observation when stored in librarian
+    - wasGeneratedBy link to question (if first iteration)
+    - wasDerivedFrom link to previous iteration (if not first)
+    - Action and arguments metadata
+    - Thought sub-entity (tg:Reflection, tg:Thought) with librarian document
+    - Observation sub-entity (tg:Reflection, tg:Observation) with librarian document
 
     Args:
         iteration_uri: URI of this iteration (from agent_iteration_uri)
-        parent_uri: URI of the parent (previous iteration or session)
-        thought: The agent's reasoning/thought (used if thought_document_id not provided)
+        question_uri: URI of the question activity (for first iteration)
+        previous_uri: URI of the previous iteration (for subsequent iterations)
         action: The tool/action name
         arguments: Arguments passed to the tool (will be JSON-encoded)
-        observation: The result/observation from the tool (used if observation_document_id not provided)
-        thought_document_id: Optional document URI for thought in librarian (preferred)
-        observation_document_id: Optional document URI for observation in librarian (preferred)
+        thought_uri: URI for the thought sub-entity
+        thought_document_id: Document URI for thought in librarian
+        observation_uri: URI for the observation sub-entity
+        observation_document_id: Document URI for observation in librarian
 
     Returns:
         List of Triple objects
@@ -110,45 +115,70 @@ def agent_iteration_triples(
         _triple(iteration_uri, RDF_TYPE, _iri(PROV_ENTITY)),
         _triple(iteration_uri, RDF_TYPE, _iri(TG_ANALYSIS)),
         _triple(iteration_uri, RDFS_LABEL, _literal(f"Analysis: {action}")),
-        _triple(iteration_uri, PROV_WAS_DERIVED_FROM, _iri(parent_uri)),
         _triple(iteration_uri, TG_ACTION, _literal(action)),
         _triple(iteration_uri, TG_ARGUMENTS, _literal(json.dumps(arguments))),
     ]
 
-    # Thought: use document reference or inline
-    if thought_document_id:
-        triples.append(_triple(iteration_uri, TG_THOUGHT_DOCUMENT, _iri(thought_document_id)))
-    elif thought:
-        triples.append(_triple(iteration_uri, TG_THOUGHT, _literal(thought)))
+    if question_uri:
+        triples.append(
+            _triple(iteration_uri, PROV_WAS_GENERATED_BY, _iri(question_uri))
+        )
+    elif previous_uri:
+        triples.append(
+            _triple(iteration_uri, PROV_WAS_DERIVED_FROM, _iri(previous_uri))
+        )
 
-    # Observation: use document reference or inline
-    if observation_document_id:
-        triples.append(_triple(iteration_uri, TG_OBSERVATION_DOCUMENT, _iri(observation_document_id)))
-    elif observation:
-        triples.append(_triple(iteration_uri, TG_OBSERVATION, _literal(observation)))
+    # Thought sub-entity
+    if thought_uri:
+        triples.extend([
+            _triple(iteration_uri, TG_THOUGHT, _iri(thought_uri)),
+            _triple(thought_uri, RDF_TYPE, _iri(TG_REFLECTION_TYPE)),
+            _triple(thought_uri, RDF_TYPE, _iri(TG_THOUGHT_TYPE)),
+            _triple(thought_uri, RDFS_LABEL, _literal("Thought")),
+            _triple(thought_uri, PROV_WAS_GENERATED_BY, _iri(iteration_uri)),
+        ])
+        if thought_document_id:
+            triples.append(
+                _triple(thought_uri, TG_DOCUMENT, _iri(thought_document_id))
+            )
+
+    # Observation sub-entity
+    if observation_uri:
+        triples.extend([
+            _triple(iteration_uri, TG_OBSERVATION, _iri(observation_uri)),
+            _triple(observation_uri, RDF_TYPE, _iri(TG_REFLECTION_TYPE)),
+            _triple(observation_uri, RDF_TYPE, _iri(TG_OBSERVATION_TYPE)),
+            _triple(observation_uri, RDFS_LABEL, _literal("Observation")),
+            _triple(observation_uri, PROV_WAS_GENERATED_BY, _iri(iteration_uri)),
+        ])
+        if observation_document_id:
+            triples.append(
+                _triple(observation_uri, TG_DOCUMENT, _iri(observation_document_id))
+            )
 
     return triples
 
 
 def agent_final_triples(
     final_uri: str,
-    parent_uri: str,
-    answer: str = "",
+    question_uri: Optional[str] = None,
+    previous_uri: Optional[str] = None,
     document_id: Optional[str] = None,
 ) -> List[Triple]:
     """
     Build triples for an agent final answer (Conclusion).
 
     Creates:
-    - Entity declaration with tg:Conclusion type
-    - wasDerivedFrom link to parent (last iteration or session)
-    - Either document reference (if document_id provided) or inline answer
+    - Entity declaration with tg:Conclusion and tg:Answer types
+    - wasGeneratedBy link to question (if no iterations)
+    - wasDerivedFrom link to last iteration (if iterations exist)
+    - Document reference to librarian
 
     Args:
         final_uri: URI of the final answer (from agent_final_uri)
-        parent_uri: URI of the parent (last iteration or session if no iterations)
-        answer: The final answer text (used if document_id not provided)
-        document_id: Optional document URI in librarian (preferred)
+        question_uri: URI of the question activity (if no iterations)
+        previous_uri: URI of the last iteration (if iterations exist)
+        document_id: Librarian document ID for the answer content
 
     Returns:
         List of Triple objects
@@ -156,15 +186,20 @@ def agent_final_triples(
     triples = [
         _triple(final_uri, RDF_TYPE, _iri(PROV_ENTITY)),
         _triple(final_uri, RDF_TYPE, _iri(TG_CONCLUSION)),
+        _triple(final_uri, RDF_TYPE, _iri(TG_ANSWER_TYPE)),
         _triple(final_uri, RDFS_LABEL, _literal("Conclusion")),
-        _triple(final_uri, PROV_WAS_DERIVED_FROM, _iri(parent_uri)),
     ]
 
+    if question_uri:
+        triples.append(
+            _triple(final_uri, PROV_WAS_GENERATED_BY, _iri(question_uri))
+        )
+    elif previous_uri:
+        triples.append(
+            _triple(final_uri, PROV_WAS_DERIVED_FROM, _iri(previous_uri))
+        )
+
     if document_id:
-        # Store reference to document in librarian (as IRI)
         triples.append(_triple(final_uri, TG_DOCUMENT, _iri(document_id)))
-    elif answer:
-        # Fallback: store inline answer
-        triples.append(_triple(final_uri, TG_ANSWER, _literal(answer)))
 
     return triples

@@ -1,6 +1,6 @@
 
 from . request_response_spec import RequestResponse, RequestResponseSpec
-from .. schema import TriplesQueryRequest, TriplesQueryResponse, Term, IRI, LITERAL
+from .. schema import TriplesQueryRequest, TriplesQueryResponse, Term, IRI, LITERAL, TRIPLE
 from .. knowledge import Uri, Literal
 
 
@@ -22,9 +22,11 @@ def to_value(x):
 
 
 def from_value(x):
-    """Convert Uri, Literal, or string to schema Term."""
+    """Convert Uri, Literal, string, or Term to schema Term."""
     if x is None:
         return None
+    if isinstance(x, Term):
+        return x
     if isinstance(x, Uri):
         return Term(type=IRI, iri=str(x))
     elif isinstance(x, Literal):
@@ -41,7 +43,7 @@ def from_value(x):
 class TriplesClient(RequestResponse):
     async def query(self, s=None, p=None, o=None, limit=20,
                     user="trustgraph", collection="default",
-                    timeout=30):
+                    timeout=30, g=None):
 
         resp = await self.request(
             TriplesQueryRequest(
@@ -51,6 +53,7 @@ class TriplesClient(RequestResponse):
                 limit = limit,
                 user = user,
                 collection = collection,
+                g = g,
             ),
             timeout=timeout
         )
@@ -68,7 +71,7 @@ class TriplesClient(RequestResponse):
     async def query_stream(self, s=None, p=None, o=None, limit=20,
                            user="trustgraph", collection="default",
                            batch_size=20, timeout=30,
-                           batch_callback=None):
+                           batch_callback=None, g=None):
         """
         Streaming triple query - calls callback for each batch as it arrives.
 
@@ -80,6 +83,8 @@ class TriplesClient(RequestResponse):
             batch_size: Triples per batch
             timeout: Request timeout in seconds
             batch_callback: Async callback(batch, is_final) called for each batch
+            g: Graph filter. ""=default graph only, None=all graphs,
+               or a specific graph IRI.
 
         Returns:
             List[Triple]: All triples (flattened) if no callback provided
@@ -112,6 +117,7 @@ class TriplesClient(RequestResponse):
                 collection=collection,
                 streaming=True,
                 batch_size=batch_size,
+                g=g,
             ),
             timeout=timeout,
             recipient=recipient,

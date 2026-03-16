@@ -68,6 +68,7 @@ def agent_uri(component_name: str) -> str:
 #
 # Terminology:
 #   Question    - What was asked, the anchor for everything
+#   Grounding   - Decomposing the question into concepts
 #   Exploration - Casting wide, what do we know about this space
 #   Focus       - Closing down, what's actually relevant here
 #   Synthesis   - Weaving the relevant pieces into an answer
@@ -85,6 +86,19 @@ def question_uri(session_id: str = None) -> str:
     if session_id is None:
         session_id = str(uuid.uuid4())
     return f"urn:trustgraph:question:{session_id}"
+
+
+def grounding_uri(session_id: str) -> str:
+    """
+    Generate URI for a grounding entity (concept decomposition of query).
+
+    Args:
+        session_id: The session UUID (same as question_uri).
+
+    Returns:
+        URN in format: urn:trustgraph:prov:grounding:{uuid}
+    """
+    return f"urn:trustgraph:prov:grounding:{session_id}"
 
 
 def exploration_uri(session_id: str) -> str:
@@ -173,6 +187,34 @@ def agent_iteration_uri(session_id: str, iteration_num: int) -> str:
     return f"urn:trustgraph:agent:{session_id}/i{iteration_num}"
 
 
+def agent_thought_uri(session_id: str, iteration_num: int) -> str:
+    """
+    Generate URI for an agent thought sub-entity.
+
+    Args:
+        session_id: The session UUID.
+        iteration_num: 1-based iteration number.
+
+    Returns:
+        URN in format: urn:trustgraph:agent:{uuid}/i{num}/thought
+    """
+    return f"urn:trustgraph:agent:{session_id}/i{iteration_num}/thought"
+
+
+def agent_observation_uri(session_id: str, iteration_num: int) -> str:
+    """
+    Generate URI for an agent observation sub-entity.
+
+    Args:
+        session_id: The session UUID.
+        iteration_num: 1-based iteration number.
+
+    Returns:
+        URN in format: urn:trustgraph:agent:{uuid}/i{num}/observation
+    """
+    return f"urn:trustgraph:agent:{session_id}/i{iteration_num}/observation"
+
+
 def agent_final_uri(session_id: str) -> str:
     """
     Generate URI for an agent final answer.
@@ -203,6 +245,19 @@ def docrag_question_uri(session_id: str = None) -> str:
     if session_id is None:
         session_id = str(uuid.uuid4())
     return f"urn:trustgraph:docrag:{session_id}"
+
+
+def docrag_grounding_uri(session_id: str) -> str:
+    """
+    Generate URI for a document RAG grounding entity (concept decomposition).
+
+    Args:
+        session_id: The session UUID.
+
+    Returns:
+        URN in format: urn:trustgraph:docrag:{uuid}/grounding
+    """
+    return f"urn:trustgraph:docrag:{session_id}/grounding"
 
 
 def docrag_exploration_uri(session_id: str) -> str:
