@@ -212,32 +212,32 @@ class Focus(ExplainEntity):
 @dataclass
 class Synthesis(ExplainEntity):
     """Synthesis entity - the final answer."""
-    document_uri: str = ""  # Reference to librarian document
+    document: str = ""
 
     @classmethod
     def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "Synthesis":
-        document_uri = ""
+        document = ""
 
         for s, p, o in triples:
             if p == TG_DOCUMENT:
-                document_uri = o
+                document = o
 
         return cls(
             uri=uri,
             entity_type="synthesis",
-            document_uri=document_uri
+            document=document
         )
 
 
 @dataclass
 class Reflection(ExplainEntity):
     """Reflection entity - intermediate commentary (Thought or Observation)."""
-    document_uri: str = ""  # Reference to content in librarian
+    document: str = ""
     reflection_type: str = ""  # "thought" or "observation"
 
     @classmethod
     def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "Reflection":
-        document_uri = ""
+        document = ""
         reflection_type = ""
 
         types = [o for s, p, o in triples if p == RDF_TYPE]
@@ -249,12 +249,12 @@ class Reflection(ExplainEntity):
 
         for s, p, o in triples:
             if p == TG_DOCUMENT:
-                document_uri = o
+                document = o
 
         return cls(
             uri=uri,
             entity_type="reflection",
-            document_uri=document_uri,
+            document=document,
             reflection_type=reflection_type
         )
 
@@ -264,15 +264,15 @@ class Analysis(ExplainEntity):
     """Analysis entity - one think/act/observe cycle (Agent only)."""
     action: str = ""
     arguments: str = ""  # JSON string
-    thought_uri: str = ""  # URI of thought sub-entity
-    observation_uri: str = ""  # URI of observation sub-entity
+    thought: str = ""
+    observation: str = ""
 
     @classmethod
     def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "Analysis":
         action = ""
         arguments = ""
-        thought_uri = ""
-        observation_uri = ""
+        thought = ""
+        observation = ""
 
         for s, p, o in triples:
             if p == TG_ACTION:
@@ -280,37 +280,37 @@ class Analysis(ExplainEntity):
             elif p == TG_ARGUMENTS:
                 arguments = o
             elif p == TG_THOUGHT:
-                thought_uri = o
+                thought = o
             elif p == TG_OBSERVATION:
-                observation_uri = o
+                observation = o
 
         return cls(
             uri=uri,
             entity_type="analysis",
             action=action,
             arguments=arguments,
-            thought_uri=thought_uri,
-            observation_uri=observation_uri
+            thought=thought,
+            observation=observation
         )
 
 
 @dataclass
 class Conclusion(ExplainEntity):
     """Conclusion entity - final answer (Agent only)."""
-    document_uri: str = ""  # Reference to librarian document
+    document: str = ""
 
     @classmethod
     def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "Conclusion":
-        document_uri = ""
+        document = ""
 
         for s, p, o in triples:
             if p == TG_DOCUMENT:
-                document_uri = o
+                document = o
 
         return cls(
             uri=uri,
             entity_type="conclusion",
-            document_uri=document_uri
+            document=document
         )
 
 
@@ -782,8 +782,8 @@ class ExplainabilityClient:
         """
         Fetch the complete DocumentRAG trace starting from a question URI.
 
-        Follows the provenance chain: Question -> Exploration -> Synthesis
-        (No Focus step for DocRAG since it doesn't do edge selection)
+        Follows the provenance chain:
+            Question -> Grounding -> Exploration -> Synthesis
 
         Args:
             question_uri: The question entity URI
@@ -794,13 +794,14 @@ class ExplainabilityClient:
             max_content: Maximum content length for synthesis
 
         Returns:
-            Dict with question, exploration, synthesis entities
+            Dict with question, grounding, exploration, synthesis entities
         """
         if graph is None:
             graph = "urn:graph:retrieval"
 
         trace = {
             "question": None,
+            "grounding": None,
             "exploration": None,
             "synthesis": None,
         }
@@ -811,10 +812,34 @@ class ExplainabilityClient:
             return trace
         trace["question"] = question
 
-        # Find exploration: ?exploration prov:wasGeneratedBy question_uri
-        exploration_triples = self.flow.triples_query(
+        # Find grounding: ?grounding prov:wasGeneratedBy question_uri
+        grounding_triples = self.flow.triples_query(
             p=PROV_WAS_GENERATED_BY,
             o=question_uri,
+            g=graph,
+            user=user,
+            collection=collection,
+            limit=10
+        )
+
+        if grounding_triples:
+            grounding_uris = [
+                extract_term_value(t.get("s", {}))
+                for t in grounding_triples
+            ]
+            for gnd_uri in grounding_uris:
+                grounding = self.fetch_entity(gnd_uri, graph, user, collection)
+                if isinstance(grounding, Grounding):
+                    trace["grounding"] = grounding
+                    break
+
+        if not trace["grounding"]:
+            return trace
+
+        # Find exploration: ?exploration prov:wasDerivedFrom grounding_uri
+        exploration_triples = self.flow.triples_query(
+            p=PROV_WAS_DERIVED_FROM,
+            o=trace["grounding"].uri,
             g=graph,
             user=user,
             collection=collection,
@@ -836,7 +861,6 @@ class ExplainabilityClient:
             return trace
 
         # Find synthesis: ?synthesis prov:wasDerivedFrom exploration_uri
-        # (DocRAG goes directly from exploration to synthesis, no focus step)
         synthesis_triples = self.flow.triples_query(
             p=PROV_WAS_DERIVED_FROM,
             o=trace["exploration"].uri,

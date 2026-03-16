@@ -162,7 +162,7 @@ def format_provenance_chain(chain):
     return " -> ".join(labels)
 
 
-def print_graphrag_text(trace, explain_client, flow, user, collection, show_provenance=False):
+def print_graphrag_text(trace, explain_client, flow, user, collection, api=None, show_provenance=False):
     """Print GraphRAG trace in text format."""
     question = trace.get("question")
 
@@ -224,17 +224,24 @@ def print_graphrag_text(trace, explain_client, flow, user, collection, show_prov
     print("--- Synthesis ---")
     synthesis = trace.get("synthesis")
     if synthesis:
-        if synthesis.content:
+        content = ""
+        if synthesis.document and api:
+            content = explain_client.fetch_document_content(
+                synthesis.document, api, user
+            )
+        if content:
             print("Answer:")
-            for line in synthesis.content.split("\n"):
+            for line in content.split("\n"):
                 print(f"  {line}")
+        elif synthesis.document:
+            print(f"Document: {synthesis.document}")
         else:
             print("No answer content found")
     else:
         print("No synthesis data found")
 
 
-def print_docrag_text(trace):
+def print_docrag_text(trace, explain_client, api, user):
     """Print DocRAG trace in text format."""
     question = trace.get("question")
 
@@ -246,6 +253,13 @@ def print_docrag_text(trace):
         if question.timestamp:
             print(f"Time: {question.timestamp}")
     print()
+
+    # Grounding
+    grounding = trace.get("grounding")
+    if grounding:
+        print("--- Grounding ---")
+        print(f"Concepts: {', '.join(grounding.concepts)}")
+        print()
 
     # Exploration
     print("--- Exploration ---")
@@ -260,17 +274,24 @@ def print_docrag_text(trace):
     print("--- Synthesis ---")
     synthesis = trace.get("synthesis")
     if synthesis:
-        if synthesis.content:
+        content = ""
+        if synthesis.document and api:
+            content = explain_client.fetch_document_content(
+                synthesis.document, api, user
+            )
+        if content:
             print("Answer:")
-            for line in synthesis.content.split("\n"):
+            for line in content.split("\n"):
                 print(f"  {line}")
+        elif synthesis.document:
+            print(f"Document: {synthesis.document}")
         else:
             print("No answer content found")
     else:
         print("No synthesis data found")
 
 
-def print_agent_text(trace):
+def print_agent_text(trace, explain_client, api, user):
     """Print Agent trace in text format."""
     question = trace.get("question")
 
@@ -291,6 +312,7 @@ def print_agent_text(trace):
             print(f"Analysis {i}:")
             print(f"  Thought: {analysis.thought or 'N/A'}")
             print(f"  Action: {analysis.action or 'N/A'}")
+
 
             if analysis.arguments:
                 # Try to pretty-print JSON arguments
@@ -317,10 +339,20 @@ def print_agent_text(trace):
     # Conclusion
     print("--- Conclusion ---")
     conclusion = trace.get("conclusion")
-    if conclusion and conclusion.answer:
-        print("Answer:")
-        for line in conclusion.answer.split("\n"):
-            print(f"  {line}")
+    if conclusion:
+        content = ""
+        if conclusion.document and api:
+            content = explain_client.fetch_document_content(
+                conclusion.document, api, user
+            )
+        if content:
+            print("Answer:")
+            for line in content.split("\n"):
+                print(f"  {line}")
+        elif conclusion.document:
+            print(f"Document: {conclusion.document}")
+        else:
+            print("No conclusion recorded")
     else:
         print("No conclusion recorded")
 
@@ -346,11 +378,12 @@ def trace_to_dict(trace, trace_type):
             ],
             "conclusion": {
                 "id": trace["conclusion"].uri,
-                "answer": trace["conclusion"].answer,
+                "document": trace["conclusion"].document,
             } if trace.get("conclusion") else None,
         }
     elif trace_type == "docrag":
         question = trace.get("question")
+        grounding = trace.get("grounding")
         exploration = trace.get("exploration")
         synthesis = trace.get("synthesis")
 
@@ -359,14 +392,17 @@ def trace_to_dict(trace, trace_type):
             "question_id": question.uri if question else None,
             "question": question.query if question else None,
             "time": question.timestamp if question else None,
+            "grounding": {
+                "id": grounding.uri,
+                "concepts": grounding.concepts,
+            } if grounding else None,
             "exploration": {
                 "id": exploration.uri,
                 "chunk_count": exploration.chunk_count,
             } if exploration else None,
             "synthesis": {
                 "id": synthesis.uri,
-                "document_uri": synthesis.document_uri,
-                "answer": synthesis.content,
+                "document": synthesis.document,
             } if synthesis else None,
         }
     else:
@@ -397,8 +433,7 @@ def trace_to_dict(trace, trace_type):
             } if focus else None,
             "synthesis": {
                 "id": synthesis.uri,
-                "document_uri": synthesis.document_uri,
-                "answer": synthesis.content,
+                "document": synthesis.document,
             } if synthesis else None,
         }
 
@@ -496,7 +531,7 @@ def main():
                 if args.format == 'json':
                     print(json.dumps(trace_to_dict(trace, "agent"), indent=2))
                 else:
-                    print_agent_text(trace)
+                    print_agent_text(trace, explain_client, api, args.user)
 
             elif trace_type == "docrag":
                 # Fetch and display DocRAG trace
@@ -512,7 +547,7 @@ def main():
                 if args.format == 'json':
                     print(json.dumps(trace_to_dict(trace, "docrag"), indent=2))
                 else:
-                    print_docrag_text(trace)
+                    print_docrag_text(trace, explain_client, api, args.user)
 
             else:
                 # Fetch and display GraphRAG trace
@@ -531,6 +566,7 @@ def main():
                     print_graphrag_text(
                         trace, explain_client, flow,
                         args.user, args.collection,
+                        api=api,
                         show_provenance=args.show_provenance
                     )
 

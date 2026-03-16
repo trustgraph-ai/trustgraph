@@ -204,15 +204,15 @@ def question_explainable(
                     print(f"\n  [iteration] {prov_id}", file=sys.stderr)
                     if entity.action:
                         print(f"    Action: {entity.action}", file=sys.stderr)
-                    if entity.thought_uri:
-                        print(f"    Thought: {entity.thought_uri}", file=sys.stderr)
-                    if entity.observation_uri:
-                        print(f"    Observation: {entity.observation_uri}", file=sys.stderr)
+                    if entity.thought:
+                        print(f"    Thought: {entity.thought}", file=sys.stderr)
+                    if entity.observation:
+                        print(f"    Observation: {entity.observation}", file=sys.stderr)
 
                 elif isinstance(entity, Conclusion):
                     print(f"\n  [conclusion] {prov_id}", file=sys.stderr)
-                    if entity.document_uri:
-                        print(f"    Document: {entity.document_uri}", file=sys.stderr)
+                    if entity.document:
+                        print(f"    Document: {entity.document}", file=sys.stderr)
 
                 else:
                     if debug:
