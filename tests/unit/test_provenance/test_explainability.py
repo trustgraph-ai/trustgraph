@@ -142,7 +142,7 @@ class TestExplainEntityFromTriples:
         ]
         entity = ExplainEntity.from_triples("urn:syn:1", triples)
         assert isinstance(entity, Synthesis)
-        assert entity.document_uri == "urn:doc:answer-1"
+        assert entity.document == "urn:doc:answer-1"
 
     def test_synthesis_no_document(self):
         triples = [
@@ -150,7 +150,7 @@ class TestExplainEntityFromTriples:
         ]
         entity = ExplainEntity.from_triples("urn:syn:2", triples)
         assert isinstance(entity, Synthesis)
-        assert entity.document_uri == ""
+        assert entity.document == ""
 
     def test_reflection_thought(self):
         triples = [
@@ -161,7 +161,7 @@ class TestExplainEntityFromTriples:
         entity = ExplainEntity.from_triples("urn:ref:1", triples)
         assert isinstance(entity, Reflection)
         assert entity.reflection_type == "thought"
-        assert entity.document_uri == "urn:doc:thought-1"
+        assert entity.document == "urn:doc:thought-1"
 
     def test_reflection_observation(self):
         triples = [
@@ -172,7 +172,7 @@ class TestExplainEntityFromTriples:
         entity = ExplainEntity.from_triples("urn:ref:2", triples)
         assert isinstance(entity, Reflection)
         assert entity.reflection_type == "observation"
-        assert entity.document_uri == "urn:doc:obs-1"
+        assert entity.document == "urn:doc:obs-1"
 
     def test_analysis(self):
         triples = [
@@ -186,8 +186,8 @@ class TestExplainEntityFromTriples:
         assert isinstance(entity, Analysis)
         assert entity.action == "graph-rag-query"
         assert entity.arguments == '{"query": "test"}'
-        assert entity.thought_uri == "urn:ref:thought-1"
-        assert entity.observation_uri == "urn:ref:obs-1"
+        assert entity.thought == "urn:ref:thought-1"
+        assert entity.observation == "urn:ref:obs-1"
 
     def test_conclusion_with_document(self):
         triples = [
@@ -196,7 +196,7 @@ class TestExplainEntityFromTriples:
         ]
         entity = ExplainEntity.from_triples("urn:conc:1", triples)
         assert isinstance(entity, Conclusion)
-        assert entity.document_uri == "urn:doc:final"
+        assert entity.document == "urn:doc:final"
 
     def test_conclusion_no_document(self):
         triples = [
@@ -204,7 +204,7 @@ class TestExplainEntityFromTriples:
         ]
         entity = ExplainEntity.from_triples("urn:conc:2", triples)
         assert isinstance(entity, Conclusion)
-        assert entity.document_uri == ""
+        assert entity.document == ""
 
     def test_unknown_type(self):
         triples = [

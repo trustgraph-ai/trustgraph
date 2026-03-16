@@ -728,8 +728,8 @@ def _question_explainable_api(
 
                 elif isinstance(entity, Synthesis):
                     print(f"\n  [synthesis] {prov_id}", file=sys.stderr)
-                    if entity.document_uri:
-                        print(f"    Document: {entity.document_uri}", file=sys.stderr)
+                    if entity.document:
+                        print(f"    Document: {entity.document}", file=sys.stderr)
 
                 else:
                     if debug:
