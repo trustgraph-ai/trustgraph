@@ -28,3 +28,23 @@ properties:
     description: Collection to query
     default: default
     example: research
+  g:
+    type: string
+    description: |
+      Named graph filter (optional).
+      - Omitted/null: all graphs
+      - Empty string: default graph only
+      - URI string: specific named graph (e.g., urn:graph:source, urn:graph:retrieval)
+    example: urn:graph:source
+  streaming:
+    type: boolean
+    description: Enable streaming response delivery
+    default: false
+    example: true
+  batch-size:
+    type: integer
+    description: Number of triples per streaming batch
+    default: 20
+    minimum: 1
+    maximum: 1000
+    example: 50

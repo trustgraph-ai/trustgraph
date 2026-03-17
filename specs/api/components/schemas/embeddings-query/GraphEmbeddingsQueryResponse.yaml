@@ -1,12 +1,21 @@
 type: object
-description: Graph embeddings query response
+description: Graph embeddings query response with matching entities and similarity scores
 properties:
   entities:
     type: array
-    description: Similar entities (RDF values)
+    description: Matching graph entities with similarity scores
     items:
-      $ref: '../../common/RdfValue.yaml'
+      type: object
+      properties:
+        entity:
+          $ref: '../../common/RdfValue.yaml'
+          description: Matching graph entity
+        score:
+          type: number
+          description: Similarity score (higher is more similar)
+          example: 0.92
     example:
-      - {v: "https://example.com/person/alice", e: true}
-      - {v: "https://example.com/person/bob", e: true}
-      - {v: "https://example.com/concept/quantum", e: true}
+      - entity: {t: i, i: "https://example.com/person/alice"}
+        score: 0.95
+      - entity: {t: i, i: "https://example.com/concept/quantum"}
+        score: 0.82

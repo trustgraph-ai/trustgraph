@@ -1,5 +1,6 @@
 type: object
-description: RDF triple (subject-predicate-object)
+description: |
+  RDF triple (subject-predicate-object), optionally scoped to a named graph.
 required:
   - s
   - p
@@ -14,3 +15,7 @@ properties:
   o:
     $ref: './RdfValue.yaml'
     description: Object
+  g:
+    type: string
+    description: Named graph URI (optional)
+    example: urn:graph:source

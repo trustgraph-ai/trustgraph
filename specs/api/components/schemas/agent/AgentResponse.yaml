@@ -9,12 +9,26 @@ properties:
       - action
       - observation
       - answer
+      - final-answer
       - error
     example: answer
   content:
     type: string
     description: Chunk content (streaming mode only)
     example: Paris is the capital of France.
+  message_type:
+    type: string
+    description: Message type - "chunk" for agent chunks, "explain" for explainability events
+    enum: [chunk, explain]
+    example: chunk
+  explain_id:
+    type: string
+    description: Explainability node URI (for explain messages)
+    example: urn:trustgraph:agent:abc123
+  explain_graph:
+    type: string
+    description: Named graph containing the explainability data
+    example: urn:graph:retrieval
   end-of-message:
     type: boolean
     description: Current chunk type is complete (streaming mode)

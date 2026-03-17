@@ -1,21 +1,57 @@
 type: object
 description: |
-  RDF value - represents either a URI/entity or a literal value.
+  RDF Term - typed representation of a value in the knowledge graph.
 
-  When `e` is true, `v` must be a full URI (e.g., http://schema.org/name).
-  When `e` is false, `v` is a literal value (string, number, etc.).
+  Term types (discriminated by `t` field):
+  - `i`: IRI (URI reference)
+  - `l`: Literal (string value, optionally with datatype or language tag)
+  - `r`: Quoted triple (RDF-star reification)
+  - `b`: Blank node
 properties:
+  t:
+    type: string
+    description: Term type discriminator
+    enum: [i, l, r, b]
+    example: i
+  i:
+    type: string
+    description: IRI value (when t=i)
+    example: http://example.com/Person1
   v:
     type: string
-    description: The value - full URI when e=true, literal when e=false
-    example: http://example.com/Person1
-  e:
-    type: boolean
-    description: True if entity/URI, false if literal value
-    example: true
+    description: Literal value (when t=l)
+    example: John Doe
+  d:
+    type: string
+    description: Datatype IRI for literal (when t=l, optional)
+    example: http://www.w3.org/2001/XMLSchema#integer
+  l:
+    type: string
+    description: Language tag for literal (when t=l, optional)
+    example: en
+  r:
+    type: object
+    description: Quoted triple (when t=r) - contains s, p, o Term fields
+    properties:
+      s:
+        $ref: '#'
+      p:
+        $ref: '#'
+      o:
+        $ref: '#'
 required:
-  - v
-  - e
-example:
-  v: http://schema.org/name
-  e: true
+  - t
+examples:
+  - description: IRI term
+    value:
+      t: i
+      i: http://schema.org/name
+  - description: Literal term
+    value:
+      t: l
+      v: John Doe
+  - description: Literal with language tag
+    value:
+      t: l
+      v: Bonjour
+      l: fr

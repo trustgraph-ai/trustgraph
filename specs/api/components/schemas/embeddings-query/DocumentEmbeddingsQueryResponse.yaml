@@ -1,12 +1,22 @@
 type: object
-description: Document embeddings query response
+description: Document embeddings query response with matching chunks and similarity scores
 properties:
   chunks:
     type: array
-    description: Similar document chunks (text strings)
+    description: Matching document chunks with similarity scores
     items:
-      type: string
+      type: object
+      properties:
+        chunk_id:
+          type: string
+          description: Chunk identifier URI
+          example: "urn:trustgraph:chunk:abc123"
+        score:
+          type: number
+          description: Similarity score (higher is more similar)
+          example: 0.89
     example:
-      - "Quantum computing uses quantum mechanics principles for computation..."
-      - "Neural networks are computing systems inspired by biological neurons..."
-      - "Machine learning algorithms learn patterns from data..."
+      - chunk_id: "urn:trustgraph:chunk:abc123"
+        score: 0.95
+      - chunk_id: "urn:trustgraph:chunk:def456"
+        score: 0.82
