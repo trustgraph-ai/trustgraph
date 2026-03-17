@@ -3,17 +3,21 @@ description: Graph RAG response message
 properties:
   message_type:
     type: string
-    description: Type of message - "chunk" for LLM response chunks, "provenance" for provenance announcements
-    enum: [chunk, provenance]
+    description: Type of message - "chunk" for LLM response chunks, "explain" for explainability events
+    enum: [chunk, explain]
     example: chunk
   response:
     type: string
     description: Generated response text (for chunk messages)
     example: Quantum physics and computer science intersect in quantum computing...
-  provenance_id:
+  explain_id:
     type: string
-    description: Provenance node URI (for provenance messages)
-    example: urn:trustgraph:session:abc123
+    description: Explainability node URI (for explain messages)
+    example: urn:trustgraph:question:abc123
+  explain_graph:
+    type: string
+    description: Named graph containing the explainability data
+    example: urn:graph:retrieval
   end_of_stream:
     type: boolean
     description: Indicates LLM response stream is complete
