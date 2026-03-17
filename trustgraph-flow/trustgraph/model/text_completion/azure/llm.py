@@ -200,9 +200,6 @@ class Processor(LlmService):
             total_input_tokens = 0
             total_output_tokens = 0
 
-            total_input_tokens = 0
-            total_output_tokens = 0
-
             # Parse SSE stream
             for line in response.iter_lines():
                 if line:
