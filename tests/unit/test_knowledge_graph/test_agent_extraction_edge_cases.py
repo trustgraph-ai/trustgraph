@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock
 from trustgraph.extract.kg.agent.extract import Processor as AgentKgExtractor
 from trustgraph.schema import Chunk, Triple, Triples, Metadata, Term, IRI, LITERAL
 from trustgraph.schema import EntityContext, EntityContexts
-from trustgraph.rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL, SUBJECT_OF
+from trustgraph.rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL
 
 
 @pytest.mark.unit
@@ -168,7 +168,7 @@ class TestAgentKgExtractionEdgeCases:
         """Test processing with empty or minimal metadata"""
         # Test with None metadata - may not raise AttributeError depending on implementation
         try:
-            triples, contexts = agent_extractor.process_extraction_data([], None)
+            triples, contexts, _ = agent_extractor.process_extraction_data([], None)
             # If it doesn't raise, check the results
             assert len(triples) == 0
             assert len(contexts) == 0
@@ -177,23 +177,19 @@ class TestAgentKgExtractionEdgeCases:
             pass
 
         # Test with metadata without ID
-        metadata = Metadata(id=None, metadata=[])
-        triples, contexts = agent_extractor.process_extraction_data([], metadata)
+        metadata = Metadata(id=None)
+        triples, contexts, _ = agent_extractor.process_extraction_data([], metadata)
         assert len(triples) == 0
         assert len(contexts) == 0
 
         # Test with metadata with empty string ID
-        metadata = Metadata(id="", metadata=[])
+        metadata = Metadata(id="")
         data = [{"type": "definition", "entity": "Test", "definition": "Test def"}]
-        triples, contexts = agent_extractor.process_extraction_data(data, metadata)
-
-        # Should not create subject-of triples when ID is empty string
-        subject_of_triples = [t for t in triples if t.p.iri == SUBJECT_OF]
-        assert len(subject_of_triples) == 0
+        triples, contexts, _ = agent_extractor.process_extraction_data(data, metadata)
 
     def test_process_extraction_data_special_entity_names(self, agent_extractor):
         """Test processing with special characters in entity names"""
-        metadata = Metadata(id="doc123", metadata=[])
+        metadata = Metadata(id="doc123")
 
         special_entities = [
             "Entity with spaces",
@@ -213,7 +209,7 @@ class TestAgentKgExtractionEdgeCases:
             for entity in special_entities
         ]
 
-        triples, contexts = agent_extractor.process_extraction_data(data, metadata)
+        triples, contexts, _ = agent_extractor.process_extraction_data(data, metadata)
 
         # Verify all entities were processed
         assert len(contexts) == len(special_entities)
@@ -225,7 +221,7 @@ class TestAgentKgExtractionEdgeCases:
 
     def test_process_extraction_data_very_long_definitions(self, agent_extractor):
         """Test processing with very long entity definitions"""
-        metadata = Metadata(id="doc123", metadata=[])
+        metadata = Metadata(id="doc123")
 
         # Create very long definition
         long_definition = "This is a very long definition. " * 1000
@@ -234,7 +230,7 @@ class TestAgentKgExtractionEdgeCases:
             {"type": "definition", "entity": "Test Entity", "definition": long_definition}
         ]
 
-        triples, contexts = agent_extractor.process_extraction_data(data, metadata)
+        triples, contexts, _ = agent_extractor.process_extraction_data(data, metadata)
 
         # Should handle long definitions without issues
         assert len(contexts) == 1
@@ -247,7 +243,7 @@ class TestAgentKgExtractionEdgeCases:
 
     def test_process_extraction_data_duplicate_entities(self, agent_extractor):
         """Test processing with duplicate entity names"""
-        metadata = Metadata(id="doc123", metadata=[])
+        metadata = Metadata(id="doc123")
 
         data = [
             {"type": "definition", "entity": "Machine Learning", "definition": "First definition"},
@@ -256,7 +252,7 @@ class TestAgentKgExtractionEdgeCases:
             {"type": "definition", "entity": "AI", "definition": "Another AI definition"},  # Duplicate
         ]
 
-        triples, contexts = agent_extractor.process_extraction_data(data, metadata)
+        triples, contexts, _ = agent_extractor.process_extraction_data(data, metadata)
 
         # Should process all entries (including duplicates)
         assert len(contexts) == 4
@@ -269,7 +265,7 @@ class TestAgentKgExtractionEdgeCases:
 
     def test_process_extraction_data_empty_strings(self, agent_extractor):
         """Test processing with empty strings in data"""
-        metadata = Metadata(id="doc123", metadata=[])
+        metadata = Metadata(id="doc123")
 
         data = [
             {"type": "definition", "entity": "", "definition": "Definition for empty entity"},
@@ -280,7 +276,7 @@ class TestAgentKgExtractionEdgeCases:
             {"type": "relationship", "subject": "test", "predicate": "test", "object": "", "object-entity": True},
         ]
 
-        triples, contexts = agent_extractor.process_extraction_data(data, metadata)
+        triples, contexts, _ = agent_extractor.process_extraction_data(data, metadata)
 
         # Should handle empty strings by creating URIs (even if empty)
         assert len(contexts) == 3
@@ -291,7 +287,7 @@ class TestAgentKgExtractionEdgeCases:
 
     def test_process_extraction_data_nested_json_in_strings(self, agent_extractor):
         """Test processing when definitions contain JSON-like strings"""
-        metadata = Metadata(id="doc123", metadata=[])
+        metadata = Metadata(id="doc123")
 
         data = [
             {
@@ -306,7 +302,7 @@ class TestAgentKgExtractionEdgeCases:
             }
         ]
 
-        triples, contexts = agent_extractor.process_extraction_data(data, metadata)
+        triples, contexts, _ = agent_extractor.process_extraction_data(data, metadata)
 
         # Should handle JSON strings in definitions without parsing them
         assert len(contexts) == 2
@@ -315,7 +311,7 @@ class TestAgentKgExtractionEdgeCases:
 
     def test_process_extraction_data_boolean_object_entity_variations(self, agent_extractor):
         """Test processing with various boolean values for object-entity"""
-        metadata = Metadata(id="doc123", metadata=[])
+        metadata = Metadata(id="doc123")
 
         data = [
             # Explicit True
@@ -334,16 +330,16 @@ class TestAgentKgExtractionEdgeCases:
             {"type": "relationship", "subject": "A", "predicate": "rel7", "object": "F", "object-entity": 1},
         ]
 
-        triples, contexts = agent_extractor.process_extraction_data(data, metadata)
+        triples, contexts, _ = agent_extractor.process_extraction_data(data, metadata)
 
         # Should process all relationships
         # Note: The current implementation has some logic issues that these tests document
-        assert len([t for t in triples if t.p.iri != RDF_LABEL and t.p.iri != SUBJECT_OF]) >= 7
+        assert len([t for t in triples if t.p.iri != RDF_LABEL]) >= 7
 
     @pytest.mark.asyncio
     async def test_emit_empty_collections(self, agent_extractor):
         """Test emitting empty triples and entity contexts"""
-        metadata = Metadata(id="test", metadata=[])
+        metadata = Metadata(id="test")
         
         # Test emitting empty triples
         mock_publisher = AsyncMock()
@@ -389,7 +385,7 @@ class TestAgentKgExtractionEdgeCases:
 
     def test_process_extraction_data_performance_large_dataset(self, agent_extractor):
         """Test performance with large extraction datasets"""
-        metadata = Metadata(id="large-doc", metadata=[])
+        metadata = Metadata(id="large-doc")
 
         # Create large dataset in JSONL format
         num_definitions = 1000
@@ -416,7 +412,7 @@ class TestAgentKgExtractionEdgeCases:
         import time
         start_time = time.time()
 
-        triples, contexts = agent_extractor.process_extraction_data(large_data, metadata)
+        triples, contexts, _ = agent_extractor.process_extraction_data(large_data, metadata)
 
         end_time = time.time()
         processing_time = end_time - start_time

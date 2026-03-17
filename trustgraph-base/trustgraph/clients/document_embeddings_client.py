@@ -41,11 +41,11 @@ class DocumentEmbeddingsClient(BaseClient):
         )
 
     def request(
-            self, vectors, user="trustgraph", collection="default",
+            self, vector, user="trustgraph", collection="default",
             limit=10, timeout=300
     ):
         return self.call(
             user=user, collection=collection,
-            vectors=vectors, limit=limit, timeout=timeout
+            vector=vector, limit=limit, timeout=timeout
         ).chunks
 

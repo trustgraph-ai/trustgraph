@@ -71,37 +71,43 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
             if entity_value == "" or entity_value is None:
                 continue
 
-            for vec in entity.vectors:
+            vec = entity.vector
+            if not vec:
+                continue
 
-                # Create collection name with dimension suffix for lazy creation
-                dim = len(vec)
-                collection = (
-                    f"t_{message.metadata.user}_{message.metadata.collection}_{dim}"
-                )
+            # Create collection name with dimension suffix for lazy creation
+            dim = len(vec)
+            collection = (
+                f"t_{message.metadata.user}_{message.metadata.collection}_{dim}"
+            )
 
-                # Lazily create collection if it doesn't exist (but only if authorized in config)
-                if not self.qdrant.collection_exists(collection):
-                    logger.info(f"Lazily creating Qdrant collection {collection} with dimension {dim}")
-                    self.qdrant.create_collection(
-                        collection_name=collection,
-                        vectors_config=VectorParams(
-                            size=dim,
-                            distance=Distance.COSINE
-                        )
-                    )
-
-                self.qdrant.upsert(
+            # Lazily create collection if it doesn't exist (but only if authorized in config)
+            if not self.qdrant.collection_exists(collection):
+                logger.info(f"Lazily creating Qdrant collection {collection} with dimension {dim}")
+                self.qdrant.create_collection(
                     collection_name=collection,
-                    points=[
-                        PointStruct(
-                            id=str(uuid.uuid4()),
-                            vector=vec,
-                            payload={
-                                "entity": entity_value,
-                            }
-                        )
-                    ]
+                    vectors_config=VectorParams(
+                        size=dim,
+                        distance=Distance.COSINE
+                    )
                 )
+
+            payload = {
+                "entity": entity_value,
+            }
+            if entity.chunk_id:
+                payload["chunk_id"] = entity.chunk_id
+
+            self.qdrant.upsert(
+                collection_name=collection,
+                points=[
+                    PointStruct(
+                        id=str(uuid.uuid4()),
+                        vector=vec,
+                        payload=payload,
+                    )
+                ]
+            )
 
     @staticmethod
     def add_args(parser):

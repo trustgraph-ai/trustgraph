@@ -153,16 +153,11 @@ class OntologyEmbedder:
             # Get embeddings for batch
             texts = [elem['text'] for elem in batch]
             try:
-                # Call embedding service for each text
-                # Note: embed() returns 2D array [[vector]], so extract first element
-                embedding_tasks = [self.embedding_service.embed(text) for text in texts]
-                embeddings_responses = await asyncio.gather(*embedding_tasks)
-
-                # Extract vectors from responses (each is [[vector]])
-                embeddings_list = [resp[0] for resp in embeddings_responses]
+                # Single batch embedding call - returns list of vectors
+                embeddings_response = await self.embedding_service.embed(texts)
 
                 # Convert to numpy array
-                embeddings = np.array(embeddings_list)
+                embeddings = np.array(embeddings_response)
 
                 # Log embedding shape for debugging
                 logger.debug(f"Embeddings shape: {embeddings.shape}, expected: ({len(batch)}, {self.vector_store.dimension})")
@@ -218,8 +213,8 @@ class OntologyEmbedder:
             return None
 
         try:
-            # embed() returns 2D array [[vector]], extract first element
-            embedding_response = await self.embedding_service.embed(text)
+            # embed() with single text, extract first vector
+            embedding_response = await self.embedding_service.embed([text])
             return np.array(embedding_response[0])
         except Exception as e:
             logger.error(f"Failed to embed text: {e}")
@@ -239,12 +234,9 @@ class OntologyEmbedder:
             return None
 
         try:
-            # Call embed() for each text (returns [[vector]] per call)
-            embedding_tasks = [self.embedding_service.embed(text) for text in texts]
-            embeddings_responses = await asyncio.gather(*embedding_tasks)
-            # Extract first vector from each response
-            embeddings_list = [resp[0] for resp in embeddings_responses]
-            return np.array(embeddings_list)
+            # Single batch embedding call - returns list of vectors
+            embeddings_response = await self.embedding_service.embed(texts)
+            return np.array(embeddings_response)
         except Exception as e:
             logger.error(f"Failed to embed texts: {e}")
             return None

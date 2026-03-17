@@ -28,6 +28,9 @@ class TestAgentServiceNonStreaming:
             max_iterations=10
         )
 
+        # Mock librarian to avoid hanging on save operations
+        processor.save_answer_content = AsyncMock(return_value=None)
+
         # Track all responses sent
         sent_responses = []
 
@@ -106,6 +109,9 @@ class TestAgentServiceNonStreaming:
             max_iterations=10
         )
 
+        # Mock librarian to avoid hanging on save operations
+        processor.save_answer_content = AsyncMock(return_value=None)
+
         # Track all responses sent
         sent_responses = []
 
@@ -172,6 +178,9 @@ class TestAgentServiceNonStreaming:
             id="test-agent",
             max_iterations=10
         )
+
+        # Mock librarian to avoid hanging on save operations
+        processor.save_answer_content = AsyncMock(return_value=None)
 
         # Track all responses sent
         sent_responses = []

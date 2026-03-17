@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from trustgraph.extract.kg.agent.extract import Processor as AgentKgExtractor
 from trustgraph.schema import Chunk, Triple, Triples, Metadata, Term, Error, IRI, LITERAL
 from trustgraph.schema import EntityContext, EntityContexts
-from trustgraph.rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL, SUBJECT_OF
+from trustgraph.rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL
 from trustgraph.template.prompt_manager import PromptManager
 
 
@@ -51,13 +51,6 @@ class TestAgentKgExtractor:
         """Sample metadata for testing"""
         return Metadata(
             id="doc123",
-            metadata=[
-                Triple(
-                    s=Term(type=IRI, iri="doc123"),
-                    p=Term(type=IRI, iri="http://example.org/type"),
-                    o=Term(type=LITERAL, value="document")
-                )
-            ]
         )
 
     @pytest.fixture
@@ -175,7 +168,7 @@ This is not JSON at all
             }
         ]
 
-        triples, entity_contexts = agent_extractor.process_extraction_data(data, sample_metadata)
+        triples, entity_contexts, _ = agent_extractor.process_extraction_data(data, sample_metadata)
         
         # Check entity label triple
         label_triple = next((t for t in triples if t.p.iri == RDF_LABEL and t.o.value == "Machine Learning"), None)
@@ -189,12 +182,6 @@ This is not JSON at all
         assert def_triple is not None
         assert def_triple.s.iri == f"{TRUSTGRAPH_ENTITIES}Machine%20Learning"
         assert def_triple.o.value == "A subset of AI that enables learning from data."
-
-        # Check subject-of triple
-        subject_of_triple = next((t for t in triples if t.p.iri == SUBJECT_OF), None)
-        assert subject_of_triple is not None
-        assert subject_of_triple.s.iri == f"{TRUSTGRAPH_ENTITIES}Machine%20Learning"
-        assert subject_of_triple.o.iri == "doc123"
 
         # Check entity context
         assert len(entity_contexts) == 1
@@ -213,7 +200,7 @@ This is not JSON at all
             }
         ]
 
-        triples, entity_contexts = agent_extractor.process_extraction_data(data, sample_metadata)
+        triples, entity_contexts, _ = agent_extractor.process_extraction_data(data, sample_metadata)
         
         # Check that subject, predicate, and object labels are created
         subject_uri = f"{TRUSTGRAPH_ENTITIES}Machine%20Learning"
@@ -235,10 +222,6 @@ This is not JSON at all
         assert rel_triple.o.iri == object_uri
         assert rel_triple.o.type == IRI
 
-        # Check subject-of relationships
-        subject_of_triples = [t for t in triples if t.p.iri == SUBJECT_OF and t.o.iri == "doc123"]
-        assert len(subject_of_triples) >= 2  # At least subject and predicate should have subject-of relations
-
     def test_process_extraction_data_literal_object(self, agent_extractor, sample_metadata):
         """Test processing of relationships with literal objects"""
         data = [
@@ -251,7 +234,7 @@ This is not JSON at all
             }
         ]
 
-        triples, entity_contexts = agent_extractor.process_extraction_data(data, sample_metadata)
+        triples, entity_contexts, _ = agent_extractor.process_extraction_data(data, sample_metadata)
 
         # Check that object labels are not created for literal objects
         object_labels = [t for t in triples if t.p.iri == RDF_LABEL and t.o.value == "95%"]
@@ -260,7 +243,7 @@ This is not JSON at all
 
     def test_process_extraction_data_combined(self, agent_extractor, sample_metadata, sample_extraction_data):
         """Test processing of combined definitions and relationships"""
-        triples, entity_contexts = agent_extractor.process_extraction_data(sample_extraction_data, sample_metadata)
+        triples, entity_contexts, _ = agent_extractor.process_extraction_data(sample_extraction_data, sample_metadata)
         
         # Check that we have both definition and relationship triples
         definition_triples = [t for t in triples if t.p.iri == DEFINITION]
@@ -274,16 +257,12 @@ This is not JSON at all
 
     def test_process_extraction_data_no_metadata_id(self, agent_extractor):
         """Test processing when metadata has no ID"""
-        metadata = Metadata(id=None, metadata=[])
+        metadata = Metadata(id=None)
         data = [
             {"type": "definition", "entity": "Test Entity", "definition": "Test definition"}
         ]
 
-        triples, entity_contexts = agent_extractor.process_extraction_data(data, metadata)
-
-        # Should not create subject-of relationships when no metadata ID
-        subject_of_triples = [t for t in triples if t.p.iri == SUBJECT_OF]
-        assert len(subject_of_triples) == 0
+        triples, entity_contexts, _ = agent_extractor.process_extraction_data(data, metadata)
 
         # Should still create entity contexts
         assert len(entity_contexts) == 1
@@ -292,7 +271,7 @@ This is not JSON at all
         """Test processing of empty extraction data"""
         data = []
 
-        triples, entity_contexts = agent_extractor.process_extraction_data(data, sample_metadata)
+        triples, entity_contexts, _ = agent_extractor.process_extraction_data(data, sample_metadata)
 
         # Should have no entity contexts
         assert len(entity_contexts) == 0
@@ -307,7 +286,7 @@ This is not JSON at all
             {"type": "relationship", "subject": "A", "predicate": "rel", "object": "B", "object-entity": True}
         ]
 
-        triples, entity_contexts = agent_extractor.process_extraction_data(data, sample_metadata)
+        triples, entity_contexts, _ = agent_extractor.process_extraction_data(data, sample_metadata)
 
         # Should process valid items and ignore unknown types
         assert len(entity_contexts) == 1  # Only the definition creates entity context
@@ -345,8 +324,6 @@ This is not JSON at all
         assert sent_triples.metadata.id == sample_metadata.id
         assert sent_triples.metadata.user == sample_metadata.user
         assert sent_triples.metadata.collection == sample_metadata.collection
-        # Note: metadata.metadata is now empty array in the new implementation
-        assert sent_triples.metadata.metadata == []
         assert len(sent_triples.triples) == 1
         assert sent_triples.triples[0].s.iri == "test:subject"
 
@@ -371,8 +348,6 @@ This is not JSON at all
         assert sent_contexts.metadata.id == sample_metadata.id
         assert sent_contexts.metadata.user == sample_metadata.user
         assert sent_contexts.metadata.collection == sample_metadata.collection
-        # Note: metadata.metadata is now empty array in the new implementation
-        assert sent_contexts.metadata.metadata == []
         assert len(sent_contexts.entities) == 1
         assert sent_contexts.entities[0].entity.iri == "test:entity"
 

@@ -17,7 +17,7 @@ from trustgraph.extract.kg.relationships.extract import Processor as Relationshi
 from trustgraph.storage.knowledge.store import Processor as KnowledgeStoreProcessor
 from trustgraph.schema import Chunk, Triple, Triples, Metadata, Term, Error, IRI, LITERAL
 from trustgraph.schema import EntityContext, EntityContexts, GraphEmbeddings, EntityEmbeddings
-from trustgraph.rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL, SUBJECT_OF
+from trustgraph.rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL
 
 
 @pytest.mark.integration
@@ -92,7 +92,6 @@ class TestKnowledgeGraphPipelineIntegration:
                 id="doc-123",
                 user="test_user",
                 collection="test_collection",
-                metadata=[]
             ),
             chunk=b"Machine Learning is a subset of Artificial Intelligence. Neural Networks are used in Machine Learning to process complex patterns."
         )
@@ -243,13 +242,12 @@ class TestKnowledgeGraphPipelineIntegration:
             id="test-doc",
             user="test_user",
             collection="test_collection",
-            metadata=[]
         )
 
         # Act
         triples = []
         entities = []
-        
+
         for defn in sample_definitions_response:
             s = defn["entity"]
             o = defn["definition"]
@@ -302,12 +300,11 @@ class TestKnowledgeGraphPipelineIntegration:
             id="test-doc",
             user="test_user",
             collection="test_collection",
-            metadata=[]
         )
 
         # Act
         triples = []
-        
+
         for rel in sample_relationships_response:
             s = rel["subject"]
             p = rel["predicate"]
@@ -373,7 +370,6 @@ class TestKnowledgeGraphPipelineIntegration:
                 id="test-doc",
                 user="test_user",
                 collection="test_collection",
-                metadata=[]
             ),
             triples=[
                 Triple(
@@ -406,12 +402,11 @@ class TestKnowledgeGraphPipelineIntegration:
                 id="test-doc",
                 user="test_user",
                 collection="test_collection",
-                metadata=[]
             ),
             entities=[
                 EntityEmbeddings(
                     entity=Term(type=IRI, iri="http://example.org/entity"),
-                    vectors=[[0.1, 0.2, 0.3]]
+                    vector=[0.1, 0.2, 0.3]
                 )
             ]
         )
@@ -542,7 +537,7 @@ class TestKnowledgeGraphPipelineIntegration:
         ]
         
         sample_chunk = Chunk(
-            metadata=Metadata(id="test", user="user", collection="collection", metadata=[]),
+            metadata=Metadata(id="test", user="user", collection="collection"),
             chunk=b"Test chunk"
         )
         
@@ -569,7 +564,7 @@ class TestKnowledgeGraphPipelineIntegration:
         # Arrange
         large_chunk_batch = [
             Chunk(
-                metadata=Metadata(id=f"doc-{i}", user="user", collection="collection", metadata=[]),
+                metadata=Metadata(id=f"doc-{i}", user="user", collection="collection"),
                 chunk=f"Document {i} contains machine learning and AI content.".encode("utf-8")
             )
             for i in range(100)  # Large batch
@@ -608,15 +603,8 @@ class TestKnowledgeGraphPipelineIntegration:
             id="test-doc-123",
             user="test_user",
             collection="test_collection",
-            metadata=[
-                Triple(
-                    s=Term(type=IRI, iri="doc:test"),
-                    p=Term(type=IRI, iri="dc:title"),
-                    o=Term(type=LITERAL, value="Test Document")
-                )
-            ]
         )
-        
+
         sample_chunk = Chunk(
             metadata=original_metadata,
             chunk=b"Test content for metadata propagation"

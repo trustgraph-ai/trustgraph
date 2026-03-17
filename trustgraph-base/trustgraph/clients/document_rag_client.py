@@ -40,9 +40,47 @@ class DocumentRagClient(BaseClient):
             output_schema=DocumentRagResponse,
         )
 
-    def request(self, query, timeout=300):
+    def request(self, query, user="trustgraph", collection="default",
+                chunk_callback=None, explain_callback=None, timeout=300):
+        """
+        Request a document RAG query with optional streaming callbacks.
 
-        return self.call(
-            query=query, timeout=timeout
-        ).response
+        Args:
+            query: The question to ask
+            user: User identifier
+            collection: Collection identifier
+            chunk_callback: Optional callback(text, end_of_stream) for text chunks
+            explain_callback: Optional callback(explain_id, explain_graph) for explain notifications
+            timeout: Request timeout in seconds
+
+        Returns:
+            Complete response text (accumulated from all chunks)
+        """
+        accumulated_response = []
+
+        def inspect(x):
+            # Handle explain notifications (response is None/empty, explain_id present)
+            if x.explain_id and not x.response:
+                if explain_callback:
+                    explain_callback(x.explain_id, x.explain_graph)
+                return False  # Continue receiving
+
+            # Handle text chunks
+            if x.response:
+                accumulated_response.append(x.response)
+                if chunk_callback:
+                    chunk_callback(x.response, x.end_of_stream)
+
+            # Complete when stream ends
+            if x.end_of_stream:
+                return True
+
+            return False  # Continue receiving
+
+        self.call(
+            query=query, user=user, collection=collection,
+            inspect=inspect, timeout=timeout
+        )
+
+        return "".join(accumulated_response)
 

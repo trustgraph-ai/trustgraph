@@ -70,7 +70,7 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_entity = MagicMock()
         mock_entity.entity.type = IRI
         mock_entity.entity.iri = 'test_entity'
-        mock_entity.vectors = [[0.1, 0.2, 0.3]]  # Single vector with 3 dimensions
+        mock_entity.vector = [0.1, 0.2, 0.3]  # Single vector with 3 dimensions
         
         mock_message.entities = [mock_entity]
         
@@ -124,12 +124,12 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_entity1 = MagicMock()
         mock_entity1.entity.type = IRI
         mock_entity1.entity.iri = 'entity_one'
-        mock_entity1.vectors = [[0.1, 0.2]]
+        mock_entity1.vector = [0.1, 0.2]
 
         mock_entity2 = MagicMock()
         mock_entity2.entity.type = IRI
         mock_entity2.entity.iri = 'entity_two'
-        mock_entity2.vectors = [[0.3, 0.4]]
+        mock_entity2.vector = [0.3, 0.4]
         
         mock_message.entities = [mock_entity1, mock_entity2]
         
@@ -157,14 +157,14 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
 
     @patch('trustgraph.storage.graph_embeddings.qdrant.write.QdrantClient')
     @patch('trustgraph.storage.graph_embeddings.qdrant.write.uuid')
-    async def test_store_graph_embeddings_multiple_vectors_per_entity(self, mock_uuid, mock_qdrant_client):
-        """Test storing graph embeddings with multiple vectors per entity"""
+    async def test_store_graph_embeddings_three_entities(self, mock_uuid, mock_qdrant_client):
+        """Test storing graph embeddings with three entities"""
         # Arrange
         mock_qdrant_instance = MagicMock()
         mock_qdrant_instance.collection_exists.return_value = True
         mock_qdrant_client.return_value = mock_qdrant_instance
         mock_uuid.uuid4.return_value.return_value = 'test-uuid'
-        
+
         config = {
             'store_uri': 'http://localhost:6333',
             'api_key': 'test-api-key',
@@ -177,42 +177,48 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         # Add collection to known_collections (simulates config push)
         processor.known_collections[('vector_user', 'vector_collection')] = {}
 
-        # Create mock message with entity having multiple vectors
+        # Create mock message with three entities
         mock_message = MagicMock()
         mock_message.metadata.user = 'vector_user'
         mock_message.metadata.collection = 'vector_collection'
-        
-        mock_entity = MagicMock()
-        mock_entity.entity.type = IRI
-        mock_entity.entity.iri = 'multi_vector_entity'
-        mock_entity.vectors = [
-            [0.1, 0.2, 0.3],
-            [0.4, 0.5, 0.6],
-            [0.7, 0.8, 0.9]
-        ]
-        
-        mock_message.entities = [mock_entity]
-        
+
+        mock_entity1 = MagicMock()
+        mock_entity1.entity.type = IRI
+        mock_entity1.entity.iri = 'entity_one'
+        mock_entity1.vector = [0.1, 0.2, 0.3]
+
+        mock_entity2 = MagicMock()
+        mock_entity2.entity.type = IRI
+        mock_entity2.entity.iri = 'entity_two'
+        mock_entity2.vector = [0.4, 0.5, 0.6]
+
+        mock_entity3 = MagicMock()
+        mock_entity3.entity.type = IRI
+        mock_entity3.entity.iri = 'entity_three'
+        mock_entity3.vector = [0.7, 0.8, 0.9]
+
+        mock_message.entities = [mock_entity1, mock_entity2, mock_entity3]
+
         # Act
         await processor.store_graph_embeddings(mock_message)
 
         # Assert
-        # Should be called 3 times (once per vector)
+        # Should be called 3 times (once per entity)
         assert mock_qdrant_instance.upsert.call_count == 3
-        
-        # Verify all vectors were processed
+
+        # Verify all entities were processed
         upsert_calls = mock_qdrant_instance.upsert.call_args_list
-        
-        expected_vectors = [
-            [0.1, 0.2, 0.3],
-            [0.4, 0.5, 0.6], 
-            [0.7, 0.8, 0.9]
+
+        expected_data = [
+            ([0.1, 0.2, 0.3], 'entity_one'),
+            ([0.4, 0.5, 0.6], 'entity_two'),
+            ([0.7, 0.8, 0.9], 'entity_three')
         ]
-        
+
         for i, call in enumerate(upsert_calls):
             point = call[1]['points'][0]
-            assert point.vector == expected_vectors[i]
-            assert point.payload['entity'] == 'multi_vector_entity'
+            assert point.vector == expected_data[i][0]
+            assert point.payload['entity'] == expected_data[i][1]
 
     @patch('trustgraph.storage.graph_embeddings.qdrant.write.QdrantClient')
     async def test_store_graph_embeddings_empty_entity_value(self, mock_qdrant_client):
@@ -238,11 +244,11 @@ class TestQdrantGraphEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_entity_empty = MagicMock()
         mock_entity_empty.entity.type = LITERAL
         mock_entity_empty.entity.value = ""  # Empty string
-        mock_entity_empty.vectors = [[0.1, 0.2]]
+        mock_entity_empty.vector = [0.1, 0.2]
 
         mock_entity_none = MagicMock()
         mock_entity_none.entity = None  # None entity
-        mock_entity_none.vectors = [[0.3, 0.4]]
+        mock_entity_none.vector = [0.3, 0.4]
         
         mock_message.entities = [mock_entity_empty, mock_entity_none]
         

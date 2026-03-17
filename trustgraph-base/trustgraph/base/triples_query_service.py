@@ -17,12 +17,14 @@ from . producer_spec import ProducerSpec
 logger = logging.getLogger(__name__)
 
 default_ident = "triples-query"
+default_concurrency = 10
 
 class TriplesQueryService(FlowProcessor):
 
     def __init__(self, **params):
 
         id = params.get("id")
+        concurrency = params.get("concurrency", default_concurrency)
 
         super(TriplesQueryService, self).__init__(**params | { "id": id })
 
@@ -30,7 +32,8 @@ class TriplesQueryService(FlowProcessor):
             ConsumerSpec(
                 name = "request",
                 schema = TriplesQueryRequest,
-                handler = self.on_message
+                handler = self.on_message,
+                concurrency = concurrency,
             )
         )
 
@@ -52,13 +55,23 @@ class TriplesQueryService(FlowProcessor):
 
             logger.debug(f"Handling triples query request {id}...")
 
-            triples = await self.query_triples(request)
-
-            logger.debug("Sending triples query response...")
-            r = TriplesQueryResponse(triples=triples, error=None)
-            await flow("response").send(r, properties={"id": id})
-
-            logger.debug("Triples query request completed")
+            if request.streaming:
+                # Streaming mode: send batches
+                async for batch, is_final in self.query_triples_stream(request):
+                    r = TriplesQueryResponse(
+                        triples=batch,
+                        error=None,
+                        is_final=is_final,
+                    )
+                    await flow("response").send(r, properties={"id": id})
+                logger.debug("Triples query streaming completed")
+            else:
+                # Non-streaming mode: single response
+                triples = await self.query_triples(request)
+                logger.debug("Sending triples query response...")
+                r = TriplesQueryResponse(triples=triples, error=None)
+                await flow("response").send(r, properties={"id": id})
+                logger.debug("Triples query request completed")
 
         except Exception as e:
 
@@ -76,10 +89,35 @@ class TriplesQueryService(FlowProcessor):
 
             await flow("response").send(r, properties={"id": id})
 
+    async def query_triples_stream(self, request):
+        """
+        Streaming query - yields (batch, is_final) tuples.
+        Default implementation batches results from query_triples.
+        Override for true streaming from backend.
+        """
+        triples = await self.query_triples(request)
+        batch_size = request.batch_size if request.batch_size > 0 else 20
+
+        for i in range(0, len(triples), batch_size):
+            batch = triples[i:i + batch_size]
+            is_final = (i + batch_size >= len(triples))
+            yield batch, is_final
+
+        # Handle empty result
+        if len(triples) == 0:
+            yield [], True
+
     @staticmethod
     def add_args(parser):
 
         FlowProcessor.add_args(parser)
+
+        parser.add_argument(
+            '-c', '--concurrency',
+            type=int,
+            default=default_concurrency,
+            help=f'Number of concurrent requests (default: {default_concurrency})'
+        )
 
 def run():
 

@@ -15,15 +15,16 @@ from .... schema import Chunk, Triple, Triples, Metadata, Term, IRI, LITERAL
 logger = logging.getLogger(__name__)
 from .... schema import EntityContext, EntityContexts
 from .... schema import PromptRequest, PromptResponse
-from .... rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL, SUBJECT_OF
+from .... rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL
 
 from .... base import FlowProcessor, ConsumerSpec,  ProducerSpec
-from .... base import PromptClientSpec
+from .... base import PromptClientSpec, ParameterSpec
+
+from .... provenance import subgraph_uri, subgraph_provenance_triples, set_graph, GRAPH_SOURCE
+from .... flow_version import __version__ as COMPONENT_VERSION
 
 DEFINITION_VALUE = Term(type=IRI, iri=DEFINITION)
 RDF_LABEL_VALUE = Term(type=IRI, iri=RDF_LABEL)
-SUBJECT_OF_VALUE = Term(type=IRI, iri=SUBJECT_OF)
-
 default_ident = "kg-extract-definitions"
 default_concurrency = 1
 default_triples_batch_size = 50
@@ -74,6 +75,10 @@ class Processor(FlowProcessor):
                 schema = EntityContexts
             )
         )
+
+        # Optional flow parameters for provenance
+        self.register_specification(ParameterSpec("llm-model"))
+        self.register_specification(ParameterSpec("ontology"))
 
     def to_uri(self, text):
 
@@ -126,12 +131,19 @@ class Processor(FlowProcessor):
                 raise e
 
             triples = []
+            extracted_triples = []
             entities = []
 
-            # FIXME: Putting metadata into triples store is duplicated in
-            # relationships extractor too
-            for t in v.metadata.metadata:
-                triples.append(t)
+            # Get chunk document ID for provenance linking
+            chunk_doc_id = v.document_id if v.document_id else v.metadata.id
+            chunk_uri = v.metadata.id  # The URI form for the chunk
+
+            # Get optional provenance parameters
+            llm_model = flow("llm-model")
+            ontology_uri = flow("ontology")
+
+            # Note: Document metadata is now emitted once by librarian at processing
+            # initiation, so we don't need to duplicate it here.
 
             for defn in defs:
 
@@ -155,27 +167,42 @@ class Processor(FlowProcessor):
                     o=Term(type=LITERAL, value=s),
                 ))
 
-                triples.append(Triple(
+                # The definition triple - this is the main extracted fact
+                definition_triple = Triple(
                     s=s_value, p=DEFINITION_VALUE, o=o_value
-                ))
-
-                triples.append(Triple(
-                    s=s_value,
-                    p=SUBJECT_OF_VALUE,
-                    o=Term(type=IRI, iri=v.metadata.id)
-                ))
+                )
+                triples.append(definition_triple)
+                extracted_triples.append(definition_triple)
 
                 # Output entity name as context for direct name matching
+                # Include chunk_id for embedding provenance
                 entities.append(EntityContext(
                     entity=s_value,
                     context=s,
+                    chunk_id=chunk_doc_id,
                 ))
 
                 # Output definition as context for semantic matching
+                # Include chunk_id for embedding provenance
                 entities.append(EntityContext(
                     entity=s_value,
                     context=defn["definition"],
+                    chunk_id=chunk_doc_id,
                 ))
+
+            # Generate subgraph provenance once for all extracted triples
+            if extracted_triples:
+                sg_uri = subgraph_uri()
+                prov_triples = subgraph_provenance_triples(
+                    subgraph_uri=sg_uri,
+                    extracted_triples=extracted_triples,
+                    chunk_uri=chunk_uri,
+                    component_name=default_ident,
+                    component_version=COMPONENT_VERSION,
+                    llm_model=llm_model,
+                    ontology_uri=ontology_uri,
+                )
+                triples.extend(set_graph(prov_triples, GRAPH_SOURCE))
 
             # Send triples in batches
             for i in range(0, len(triples), self.triples_batch_size):
@@ -184,7 +211,7 @@ class Processor(FlowProcessor):
                     flow("triples"),
                     Metadata(
                         id=v.metadata.id,
-                        metadata=[],
+                        root=v.metadata.root,
                         user=v.metadata.user,
                         collection=v.metadata.collection,
                     ),
@@ -198,7 +225,7 @@ class Processor(FlowProcessor):
                     flow("entity-contexts"),
                     Metadata(
                         id=v.metadata.id,
-                        metadata=[],
+                        root=v.metadata.root,
                         user=v.metadata.user,
                         collection=v.metadata.collection,
                     ),

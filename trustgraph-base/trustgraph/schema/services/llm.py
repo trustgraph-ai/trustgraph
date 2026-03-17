@@ -29,7 +29,7 @@ class TextCompletionResponse:
 
 @dataclass
 class EmbeddingsRequest:
-    text: str = ""
+    texts: list[str] = field(default_factory=list)
 
 @dataclass
 class EmbeddingsResponse:

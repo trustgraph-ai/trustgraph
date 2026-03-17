@@ -42,25 +42,59 @@ class AgentClient(BaseClient):
             question,
             think=None,
             observe=None,
+            answer_callback=None,
+            error_callback=None,
             timeout=300
     ):
+        """
+        Request an agent query with optional streaming callbacks.
+
+        Args:
+            question: The question to ask
+            think: Optional callback(content, end_of_message) for thought chunks
+            observe: Optional callback(content, end_of_message) for observation chunks
+            answer_callback: Optional callback(content, end_of_message) for answer chunks
+            error_callback: Optional callback(content) for error messages
+            timeout: Request timeout in seconds
+
+        Returns:
+            Complete answer text (accumulated from all answer chunks)
+        """
+        accumulated_answer = []
 
         def inspect(x):
+            # Handle errors
+            if x.chunk_type == 'error' or x.error:
+                if error_callback:
+                    error_callback(x.content or (x.error.message if x.error else ""))
+                # Continue to check end_of_dialog
 
-            if x.thought and think:
-                think(x.thought)
-                return
+            # Handle thought chunks
+            elif x.chunk_type == 'thought':
+                if think:
+                    think(x.content, x.end_of_message)
 
-            if x.observation and observe:
-                observe(x.observation)
-                return
+            # Handle observation chunks
+            elif x.chunk_type == 'observation':
+                if observe:
+                    observe(x.content, x.end_of_message)
 
-            if x.answer:
+            # Handle answer chunks
+            elif x.chunk_type == 'answer':
+                if x.content:
+                    accumulated_answer.append(x.content)
+                if answer_callback:
+                    answer_callback(x.content, x.end_of_message)
+
+            # Complete when dialog ends
+            if x.end_of_dialog:
                 return True
 
-            return False
+            return False  # Continue receiving
 
-        return self.call(
+        self.call(
             question=question, inspect=inspect, timeout=timeout
-        ).answer
+        )
+
+        return "".join(accumulated_answer)
 

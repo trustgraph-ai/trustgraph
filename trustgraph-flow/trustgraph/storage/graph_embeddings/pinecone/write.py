@@ -119,35 +119,41 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
             if entity_value == "" or entity_value is None:
                 continue
 
-            for vec in entity.vectors:
+            vec = entity.vector
+            if not vec:
+                continue
 
-                # Create index name with dimension suffix for lazy creation
-                dim = len(vec)
-                index_name = (
-                    f"t-{message.metadata.user}-{message.metadata.collection}-{dim}"
-                )
+            # Create index name with dimension suffix for lazy creation
+            dim = len(vec)
+            index_name = (
+                f"t-{message.metadata.user}-{message.metadata.collection}-{dim}"
+            )
 
-                # Lazily create index if it doesn't exist (but only if authorized in config)
-                if not self.pinecone.has_index(index_name):
-                    logger.info(f"Lazily creating Pinecone index {index_name} with dimension {dim}")
-                    self.create_index(index_name, dim)
+            # Lazily create index if it doesn't exist (but only if authorized in config)
+            if not self.pinecone.has_index(index_name):
+                logger.info(f"Lazily creating Pinecone index {index_name} with dimension {dim}")
+                self.create_index(index_name, dim)
 
-                index = self.pinecone.Index(index_name)
+            index = self.pinecone.Index(index_name)
 
-                # Generate unique ID for each vector
-                vector_id = str(uuid.uuid4())
+            # Generate unique ID for each vector
+            vector_id = str(uuid.uuid4())
 
-                records = [
-                    {
-                        "id": vector_id,
-                        "values": vec,
-                        "metadata": { "entity": entity_value },
-                    }
-                ]
+            metadata = {"entity": entity_value}
+            if entity.chunk_id:
+                metadata["chunk_id"] = entity.chunk_id
 
-                index.upsert(
-                    vectors = records,
-                )
+            records = [
+                {
+                    "id": vector_id,
+                    "values": vec,
+                    "metadata": metadata,
+                }
+            ]
+
+            index.upsert(
+                vectors = records,
+            )
 
     @staticmethod
     def add_args(parser):

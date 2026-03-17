@@ -3,9 +3,12 @@ from .. knowledge import hash
 from .. exceptions import RequestError
 
 from minio import Minio
+from minio.datatypes import Part
 import time
 import io
 import logging
+from typing import Iterator, List, Tuple
+from uuid import UUID
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -77,4 +80,164 @@ class BlobStore:
         )
 
         return resp.read()
+
+    async def get_range(self, object_id, offset: int, length: int) -> bytes:
+        """Fetch a specific byte range from an object."""
+        resp = self.client.get_object(
+            bucket_name=self.bucket_name,
+            object_name="doc/" + str(object_id),
+            offset=offset,
+            length=length,
+        )
+        try:
+            return resp.read()
+        finally:
+            resp.close()
+            resp.release_conn()
+
+    async def get_size(self, object_id) -> int:
+        """Get the size of an object without downloading it."""
+        stat = self.client.stat_object(
+            bucket_name=self.bucket_name,
+            object_name="doc/" + str(object_id),
+        )
+        return stat.size
+
+    def get_stream(self, object_id, chunk_size: int = 1024 * 1024) -> Iterator[bytes]:
+        """
+        Stream document content in chunks.
+
+        Yields chunks of the document, allowing processing without loading
+        the entire document into memory.
+
+        Args:
+            object_id: The UUID of the document object
+            chunk_size: Size of each chunk in bytes (default 1MB)
+
+        Yields:
+            Chunks of document content as bytes
+        """
+        resp = self.client.get_object(
+            bucket_name=self.bucket_name,
+            object_name="doc/" + str(object_id),
+        )
+
+        try:
+            while True:
+                chunk = resp.read(chunk_size)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            resp.close()
+            resp.release_conn()
+
+        logger.debug("Stream complete")
+
+    def create_multipart_upload(self, object_id: UUID, kind: str) -> str:
+        """
+        Initialize a multipart upload.
+
+        Args:
+            object_id: The UUID for the new object
+            kind: MIME type of the document
+
+        Returns:
+            The S3 upload_id for this multipart upload session
+        """
+        object_name = "doc/" + str(object_id)
+
+        # Use minio's internal method to create multipart upload
+        upload_id = self.client._create_multipart_upload(
+            bucket_name=self.bucket_name,
+            object_name=object_name,
+            headers={"Content-Type": kind},
+        )
+
+        logger.info(f"Created multipart upload {upload_id} for {object_id}")
+        return upload_id
+
+    def upload_part(
+        self,
+        object_id: UUID,
+        upload_id: str,
+        part_number: int,
+        data: bytes
+    ) -> str:
+        """
+        Upload a single part of a multipart upload.
+
+        Args:
+            object_id: The UUID of the object being uploaded
+            upload_id: The S3 upload_id from create_multipart_upload
+            part_number: Part number (1-indexed, as per S3 spec)
+            data: The chunk data to upload
+
+        Returns:
+            The ETag for this part (needed for complete_multipart_upload)
+        """
+        object_name = "doc/" + str(object_id)
+
+        etag = self.client._upload_part(
+            bucket_name=self.bucket_name,
+            object_name=object_name,
+            data=data,
+            headers={"Content-Length": str(len(data))},
+            upload_id=upload_id,
+            part_number=part_number,
+        )
+
+        logger.debug(f"Uploaded part {part_number} for {object_id}, etag={etag}")
+        return etag
+
+    def complete_multipart_upload(
+        self,
+        object_id: UUID,
+        upload_id: str,
+        parts: List[Tuple[int, str]]
+    ) -> None:
+        """
+        Complete a multipart upload, assembling all parts into the final object.
+
+        S3 coalesces the parts server-side - no data transfer through this client.
+
+        Args:
+            object_id: The UUID of the object
+            upload_id: The S3 upload_id from create_multipart_upload
+            parts: List of (part_number, etag) tuples in order
+        """
+        object_name = "doc/" + str(object_id)
+
+        # Convert to Part objects as expected by minio
+        part_objects = [
+            Part(part_number, etag)
+            for part_number, etag in parts
+        ]
+
+        self.client._complete_multipart_upload(
+            bucket_name=self.bucket_name,
+            object_name=object_name,
+            upload_id=upload_id,
+            parts=part_objects,
+        )
+
+        logger.info(f"Completed multipart upload for {object_id}")
+
+    def abort_multipart_upload(self, object_id: UUID, upload_id: str) -> None:
+        """
+        Abort a multipart upload, cleaning up any uploaded parts.
+
+        Args:
+            object_id: The UUID of the object
+            upload_id: The S3 upload_id from create_multipart_upload
+        """
+        object_name = "doc/" + str(object_id)
+
+        self.client._abort_multipart_upload(
+            bucket_name=self.bucket_name,
+            object_name=object_name,
+            upload_id=upload_id,
+        )
+
+        logger.info(f"Aborted multipart upload {upload_id} for {object_id}")
 

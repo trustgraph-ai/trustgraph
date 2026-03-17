@@ -1,6 +1,7 @@
 """
-Unit tests for GraphRAG service non-streaming mode.
-Tests that end_of_stream flag is correctly set in non-streaming responses.
+Unit tests for GraphRAG service message format.
+Tests the new message protocol with message_type, explain_id, and end_of_session.
+Real-time explainability emission via callback.
 """
 
 import pytest
@@ -11,16 +12,14 @@ from trustgraph.schema import GraphRagQuery, GraphRagResponse
 
 
 class TestGraphRagService:
-    """Test GraphRAG service non-streaming behavior"""
+    """Test GraphRAG service message protocol"""
 
     @patch('trustgraph.retrieval.graph_rag.rag.GraphRag')
     @pytest.mark.asyncio
-    async def test_non_streaming_mode_sets_end_of_stream_true(self, mock_graph_rag_class):
+    async def test_non_streaming_sends_chunk_then_provenance_messages(self, mock_graph_rag_class):
         """
-        Test that non-streaming mode sets end_of_stream=True in response.
-
-        This is a regression test for the bug where non-streaming responses
-        didn't set end_of_stream, causing clients to hang waiting for more data.
+        Test that non-streaming mode sends real-time provenance messages
+        followed by chunk message with response.
         """
         # Setup processor
         processor = Processor(
@@ -32,10 +31,22 @@ class TestGraphRagService:
             max_path_length=2
         )
 
-        # Setup mock GraphRag instance
+        # Setup mock GraphRag instance that calls explain_callback
         mock_rag_instance = AsyncMock()
         mock_graph_rag_class.return_value = mock_rag_instance
-        mock_rag_instance.query.return_value = "A small domesticated mammal."
+
+        # Mock query() to call the explain_callback with each provenance event
+        async def mock_query(**kwargs):
+            explain_callback = kwargs.get('explain_callback')
+            if explain_callback:
+                # Simulate real-time provenance emission
+                await explain_callback([], "urn:trustgraph:session:test")
+                await explain_callback([], "urn:trustgraph:prov:retrieval:test")
+                await explain_callback([], "urn:trustgraph:prov:selection:test")
+                await explain_callback([], "urn:trustgraph:prov:answer:test")
+            return "A small domesticated mammal."
+
+        mock_rag_instance.query.side_effect = mock_query
 
         # Setup message with non-streaming request
         msg = MagicMock()
@@ -47,7 +58,7 @@ class TestGraphRagService:
             triple_limit=30,
             max_subgraph_size=150,
             max_path_length=2,
-            streaming=False  # Non-streaming mode
+            streaming=False
         )
         msg.properties.return_value = {"id": "test-id"}
 
@@ -55,30 +66,48 @@ class TestGraphRagService:
         consumer = MagicMock()
         flow = MagicMock()
 
-        # Mock flow to return AsyncMock for clients and response producer
-        mock_producer = AsyncMock()
+        mock_response_producer = AsyncMock()
+        mock_provenance_producer = AsyncMock()
         def flow_router(service_name):
             if service_name == "response":
-                return mock_producer
-            return AsyncMock()  # embeddings, graph-embeddings, triples, prompt clients
+                return mock_response_producer
+            elif service_name == "explainability":
+                return mock_provenance_producer
+            return AsyncMock()
         flow.side_effect = flow_router
 
         # Execute
         await processor.on_request(msg, consumer, flow)
 
-        # Verify: response was sent with end_of_stream=True
-        mock_producer.send.assert_called_once()
-        sent_response = mock_producer.send.call_args[0][0]
-        assert isinstance(sent_response, GraphRagResponse)
-        assert sent_response.response == "A small domesticated mammal."
-        assert sent_response.end_of_stream is True, "Non-streaming response must have end_of_stream=True"
-        assert sent_response.error is None
+        # Verify: 6 messages sent (4 provenance + 1 chunk + 1 end_of_session)
+        assert mock_response_producer.send.call_count == 6
+
+        # First 4 messages are explain (emitted in real-time during query)
+        for i in range(4):
+            prov_msg = mock_response_producer.send.call_args_list[i][0][0]
+            assert prov_msg.message_type == "explain"
+            assert prov_msg.explain_id is not None
+
+        # 5th message is chunk with response
+        chunk_msg = mock_response_producer.send.call_args_list[4][0][0]
+        assert chunk_msg.message_type == "chunk"
+        assert chunk_msg.response == "A small domesticated mammal."
+        assert chunk_msg.end_of_stream is True
+
+        # 6th message is empty chunk with end_of_session=True
+        close_msg = mock_response_producer.send.call_args_list[5][0][0]
+        assert close_msg.message_type == "chunk"
+        assert close_msg.response == ""
+        assert close_msg.end_of_session is True
+
+        # Verify provenance triples were sent to provenance queue
+        assert mock_provenance_producer.send.call_count == 4
 
     @patch('trustgraph.retrieval.graph_rag.rag.GraphRag')
     @pytest.mark.asyncio
-    async def test_error_response_in_non_streaming_mode(self, mock_graph_rag_class):
+    async def test_error_response_closes_session(self, mock_graph_rag_class):
         """
-        Test that error responses in non-streaming mode set end_of_stream=True.
+        Test that error responses set end_of_session=True.
         """
         # Setup processor
         processor = Processor(
@@ -105,7 +134,7 @@ class TestGraphRagService:
             triple_limit=30,
             max_subgraph_size=150,
             max_path_length=2,
-            streaming=False  # Non-streaming mode
+            streaming=False
         )
         msg.properties.return_value = {"id": "test-id"}
 
@@ -113,22 +142,93 @@ class TestGraphRagService:
         consumer = MagicMock()
         flow = MagicMock()
 
-        mock_producer = AsyncMock()
+        mock_response_producer = AsyncMock()
+        mock_provenance_producer = AsyncMock()
         def flow_router(service_name):
             if service_name == "response":
-                return mock_producer
+                return mock_response_producer
+            elif service_name == "explainability":
+                return mock_provenance_producer
             return AsyncMock()
         flow.side_effect = flow_router
 
         # Execute
         await processor.on_request(msg, consumer, flow)
 
-        # Verify: error response was sent without end_of_stream (not streaming mode)
-        mock_producer.send.assert_called_once()
-        sent_response = mock_producer.send.call_args[0][0]
+        # Verify: error response was sent with session closed
+        mock_response_producer.send.assert_called_once()
+        sent_response = mock_response_producer.send.call_args[0][0]
         assert isinstance(sent_response, GraphRagResponse)
-        assert sent_response.response is None
+        assert sent_response.message_type == "chunk"
         assert sent_response.error is not None
         assert sent_response.error.message == "Test error"
-        # Note: error responses in non-streaming mode don't set end_of_stream
-        # because streaming was never started
+        assert sent_response.end_of_stream is True
+        assert sent_response.end_of_session is True
+
+    @patch('trustgraph.retrieval.graph_rag.rag.GraphRag')
+    @pytest.mark.asyncio
+    async def test_no_provenance_sends_empty_chunk_to_close(self, mock_graph_rag_class):
+        """
+        Test that when no provenance callback is invoked, an empty chunk closes the session.
+        """
+        # Setup processor
+        processor = Processor(
+            taskgroup=MagicMock(),
+            id="test-processor",
+            entity_limit=50,
+            triple_limit=30,
+            max_subgraph_size=150,
+            max_path_length=2
+        )
+
+        # Setup mock GraphRag instance that doesn't call provenance callback
+        mock_rag_instance = AsyncMock()
+        mock_graph_rag_class.return_value = mock_rag_instance
+
+        async def mock_query(**kwargs):
+            # Don't call explain_callback
+            return "Response text"
+
+        mock_rag_instance.query.side_effect = mock_query
+
+        # Setup message
+        msg = MagicMock()
+        msg.value.return_value = GraphRagQuery(
+            query="Test query",
+            user="trustgraph",
+            collection="default",
+            streaming=False
+        )
+        msg.properties.return_value = {"id": "test-id"}
+
+        # Setup flow mock
+        consumer = MagicMock()
+        flow = MagicMock()
+
+        mock_response_producer = AsyncMock()
+        mock_provenance_producer = AsyncMock()
+        def flow_router(service_name):
+            if service_name == "response":
+                return mock_response_producer
+            elif service_name == "explainability":
+                return mock_provenance_producer
+            return AsyncMock()
+        flow.side_effect = flow_router
+
+        # Execute
+        await processor.on_request(msg, consumer, flow)
+
+        # Verify: 2 messages (chunk + empty chunk to close)
+        assert mock_response_producer.send.call_count == 2
+
+        # First is the response chunk
+        chunk_msg = mock_response_producer.send.call_args_list[0][0][0]
+        assert chunk_msg.message_type == "chunk"
+        assert chunk_msg.response == "Response text"
+        assert chunk_msg.end_of_stream is True
+
+        # Second is empty chunk to close session
+        close_msg = mock_response_producer.send.call_args_list[1][0][0]
+        assert close_msg.message_type == "chunk"
+        assert close_msg.response == ""
+        assert close_msg.end_of_session is True

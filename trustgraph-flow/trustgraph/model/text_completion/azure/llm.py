@@ -55,11 +55,13 @@ class Processor(LlmService):
         self.max_output = max_output
         self.default_model = model
 
-    def build_prompt(self, system, content, temperature=None, stream=False):
+    def build_prompt(self, system, content, temperature=None, stream=False, model=None):
         # Use provided temperature or fall back to default
         effective_temperature = temperature if temperature is not None else self.temperature
+        model_name = model or self.default_model
 
         data =  {
+            "model": model_name,
             "messages": [
                 {
                     "role": "system", "content": system
@@ -100,7 +102,8 @@ class Processor(LlmService):
             raise TooManyRequests()
 
         if resp.status_code != 200:
-            raise RuntimeError("LLM failure")
+            logger.error(f"Azure API error: status={resp.status_code}, body={resp.text}")
+            raise RuntimeError(f"LLM failure: HTTP {resp.status_code}")
 
         result = resp.json()
 
@@ -121,7 +124,8 @@ class Processor(LlmService):
             prompt = self.build_prompt(
                 system,
                 prompt,
-                effective_temperature
+                effective_temperature,
+                model=model_name
             )
 
             response = self.call_llm(prompt)
@@ -174,7 +178,7 @@ class Processor(LlmService):
         logger.debug(f"Using temperature: {effective_temperature}")
 
         try:
-            body = self.build_prompt(system, prompt, effective_temperature, stream=True)
+            body = self.build_prompt(system, prompt, effective_temperature, stream=True, model=model_name)
 
             url = self.endpoint
             api_key = self.token
@@ -190,7 +194,11 @@ class Processor(LlmService):
                 raise TooManyRequests()
 
             if response.status_code != 200:
-                raise RuntimeError("LLM failure")
+                logger.error(f"Azure API error: status={response.status_code}, body={response.text}")
+                raise RuntimeError(f"LLM failure: HTTP {response.status_code}")
+
+            total_input_tokens = 0
+            total_output_tokens = 0
 
             total_input_tokens = 0
             total_output_tokens = 0
@@ -277,6 +285,12 @@ class Processor(LlmService):
             type=int,
             default=default_max_output,
             help=f'LLM max output tokens (default: {default_max_output})'
+        )
+
+        parser.add_argument(
+            '-m', '--model',
+            default=default_model,
+            help=f'LLM model name (default: {default_model})'
         )
 
 def run():

@@ -13,7 +13,9 @@ class AgentRequestTranslator(MessageTranslator):
             group=data.get("group", None),
             history=data.get("history", []),
             user=data.get("user", "trustgraph"),
-            streaming=data.get("streaming", False)
+            collection=data.get("collection", "default"),
+            streaming=data.get("streaming", False),
+            session_id=data.get("session_id", ""),
         )
 
     def from_pulsar(self, obj: AgentRequest) -> Dict[str, Any]:
@@ -23,7 +25,9 @@ class AgentRequestTranslator(MessageTranslator):
             "group": obj.group,
             "history": obj.history,
             "user": obj.user,
-            "streaming": getattr(obj, "streaming", False)
+            "collection": getattr(obj, "collection", "default"),
+            "streaming": getattr(obj, "streaming", False),
+            "session_id": getattr(obj, "session_id", ""),
         }
 
 
@@ -54,6 +58,15 @@ class AgentResponseTranslator(MessageTranslator):
             # Include completion flags for legacy format too
             result["end_of_message"] = getattr(obj, "end_of_message", False)
             result["end_of_dialog"] = getattr(obj, "end_of_dialog", False)
+
+        # Include explainability fields if present
+        explain_id = getattr(obj, "explain_id", None)
+        if explain_id:
+            result["explain_id"] = explain_id
+
+        explain_graph = getattr(obj, "explain_graph", None)
+        if explain_graph is not None:
+            result["explain_graph"] = explain_graph
 
         # Always include error if present
         if hasattr(obj, 'error') and obj.error and obj.error.message:

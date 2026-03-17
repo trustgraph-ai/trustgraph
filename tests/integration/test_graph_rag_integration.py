@@ -11,6 +11,7 @@ NOTE: This is the first integration test file for GraphRAG (previously had only 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from trustgraph.retrieval.graph_rag.graph_rag import GraphRag
+from trustgraph.schema import EntityMatch, Term, IRI
 
 
 @pytest.mark.integration
@@ -21,8 +22,12 @@ class TestGraphRagIntegration:
     def mock_embeddings_client(self):
         """Mock embeddings client that returns realistic vector embeddings"""
         client = AsyncMock()
+        # New batch format: [[[vectors_for_text1], ...]]
+        # One text input returns one vector set containing one vector
         client.embed.return_value = [
-            [0.1, 0.2, 0.3, 0.4, 0.5],  # Realistic 5-dimensional embedding
+            [
+                [0.1, 0.2, 0.3, 0.4, 0.5],  # Vector for text
+            ]
         ]
         return client
 
@@ -31,9 +36,9 @@ class TestGraphRagIntegration:
         """Mock graph embeddings client that returns realistic entities"""
         client = AsyncMock()
         client.query.return_value = [
-            "http://trustgraph.ai/e/machine-learning",
-            "http://trustgraph.ai/e/artificial-intelligence",
-            "http://trustgraph.ai/e/neural-networks"
+            EntityMatch(entity=Term(type=IRI, iri="http://trustgraph.ai/e/machine-learning"), score=0.95),
+            EntityMatch(entity=Term(type=IRI, iri="http://trustgraph.ai/e/artificial-intelligence"), score=0.90),
+            EntityMatch(entity=Term(type=IRI, iri="http://trustgraph.ai/e/neural-networks"), score=0.85)
         ]
         return client
 
@@ -43,7 +48,7 @@ class TestGraphRagIntegration:
         client = AsyncMock()
 
         # Mock different queries return different triples
-        async def query_side_effect(s=None, p=None, o=None, limit=None, user=None, collection=None):
+        async def query_stream_side_effect(s=None, p=None, o=None, limit=None, user=None, collection=None, batch_size=20):
             # Mock label queries
             if p == "http://www.w3.org/2000/01/rdf-schema#label":
                 if s == "http://trustgraph.ai/e/machine-learning":
@@ -71,18 +76,37 @@ class TestGraphRagIntegration:
 
             return []
 
-        client.query.side_effect = query_side_effect
+        client.query_stream.side_effect = query_stream_side_effect
+        # Also mock query for label lookups (maybe_label uses query, not query_stream)
+        client.query.side_effect = query_stream_side_effect
         return client
 
     @pytest.fixture
     def mock_prompt_client(self):
-        """Mock prompt client that generates realistic responses"""
+        """Mock prompt client that generates realistic responses for two-step process"""
         client = AsyncMock()
-        client.kg_prompt.return_value = (
-            "Machine learning is a subset of artificial intelligence that enables computers "
-            "to learn from data without being explicitly programmed. It uses algorithms "
-            "and statistical models to find patterns in data."
-        )
+
+        # Mock responses for the multi-step process:
+        # 1. extract-concepts extracts key concepts from the query
+        # 2. kg-edge-scoring scores edges for relevance
+        # 3. kg-edge-reasoning provides reasoning for selected edges
+        # 4. kg-synthesis returns the final answer
+        async def mock_prompt(prompt_name, variables=None, streaming=False, chunk_callback=None):
+            if prompt_name == "extract-concepts":
+                return ""  # Falls back to raw query
+            elif prompt_name == "kg-edge-scoring":
+                return ""  # No edges scored
+            elif prompt_name == "kg-edge-reasoning":
+                return ""  # No reasoning
+            elif prompt_name == "kg-synthesis":
+                return (
+                    "Machine learning is a subset of artificial intelligence that enables computers "
+                    "to learn from data without being explicitly programmed. It uses algorithms "
+                    "and statistical models to find patterns in data."
+                )
+            return ""
+
+        client.prompt.side_effect = mock_prompt
         return client
 
     @pytest.fixture
@@ -101,7 +125,7 @@ class TestGraphRagIntegration:
     async def test_graph_rag_end_to_end_flow(self, graph_rag, mock_embeddings_client,
                                              mock_graph_embeddings_client, mock_triples_client,
                                              mock_prompt_client):
-        """Test complete GraphRAG pipeline from query to response"""
+        """Test complete GraphRAG pipeline from query to response with real-time provenance"""
         # Arrange
         query = "What is machine learning?"
         user = "test_user"
@@ -109,41 +133,51 @@ class TestGraphRagIntegration:
         entity_limit = 50
         triple_limit = 30
 
+        # Collect provenance events
+        provenance_events = []
+
+        async def collect_provenance(triples, prov_id):
+            provenance_events.append((triples, prov_id))
+
         # Act
-        result = await graph_rag.query(
+        response = await graph_rag.query(
             query=query,
             user=user,
             collection=collection,
             entity_limit=entity_limit,
-            triple_limit=triple_limit
+            triple_limit=triple_limit,
+            explain_callback=collect_provenance
         )
 
         # Assert - Verify service coordination
 
-        # 1. Should compute embeddings for query
-        mock_embeddings_client.embed.assert_called_once_with(query)
+        # 1. Should compute embeddings for query (now expects list of texts)
+        mock_embeddings_client.embed.assert_called_once_with([query])
 
         # 2. Should query graph embeddings to find relevant entities
         mock_graph_embeddings_client.query.assert_called_once()
         call_args = mock_graph_embeddings_client.query.call_args
-        assert call_args.kwargs['vectors'] == [[0.1, 0.2, 0.3, 0.4, 0.5]]
+        assert call_args.kwargs['vector'] == [[0.1, 0.2, 0.3, 0.4, 0.5]]
         assert call_args.kwargs['limit'] == entity_limit
         assert call_args.kwargs['user'] == user
         assert call_args.kwargs['collection'] == collection
 
         # 3. Should query triples to build knowledge subgraph
-        assert mock_triples_client.query.call_count > 0
+        assert mock_triples_client.query_stream.call_count > 0
 
-        # 4. Should call prompt with knowledge graph
-        mock_prompt_client.kg_prompt.assert_called_once()
-        call_args = mock_prompt_client.kg_prompt.call_args
-        assert call_args.args[0] == query  # First arg is query
-        assert isinstance(call_args.args[1], list)  # Second arg is kg (list of triples)
+        # 4. Should call prompt four times (extract-concepts + edge-scoring + edge-reasoning + synthesis)
+        assert mock_prompt_client.prompt.call_count == 4
 
         # Verify final response
-        assert result is not None
-        assert isinstance(result, str)
-        assert "machine learning" in result.lower()
+        assert response is not None
+        assert isinstance(response, str)
+        assert "machine learning" in response.lower()
+
+        # Verify provenance was emitted in real-time (5 events: question, grounding, exploration, focus, synthesis)
+        assert len(provenance_events) == 5
+        for triples, prov_id in provenance_events:
+            assert isinstance(triples, list)
+            assert prov_id.startswith("urn:trustgraph:")
 
     @pytest.mark.asyncio
     async def test_graph_rag_with_different_limits(self, graph_rag, mock_embeddings_client,
@@ -197,21 +231,27 @@ class TestGraphRagIntegration:
         """Test GraphRAG handles empty knowledge graph gracefully"""
         # Arrange
         mock_graph_embeddings_client.query.return_value = []  # No entities found
-        mock_triples_client.query.return_value = []  # No triples found
+        mock_triples_client.query_stream.return_value = []  # No triples found
+
+        # Collect provenance
+        provenance_events = []
+
+        async def collect_provenance(triples, prov_id):
+            provenance_events.append((triples, prov_id))
 
         # Act
-        result = await graph_rag.query(
+        response = await graph_rag.query(
             query="unknown topic",
             user="test_user",
-            collection="test_collection"
+            collection="test_collection",
+            explain_callback=collect_provenance
         )
 
         # Assert
-        # Should still call prompt client with empty knowledge graph
-        mock_prompt_client.kg_prompt.assert_called_once()
-        call_args = mock_prompt_client.kg_prompt.call_args
-        assert isinstance(call_args.args[1], list)  # kg should be a list
-        assert result is not None
+        # Should still call prompt client
+        assert response is not None
+        # Provenance should still be emitted (5 events)
+        assert len(provenance_events) == 5
 
     @pytest.mark.asyncio
     async def test_graph_rag_label_caching(self, graph_rag, mock_triples_client):
@@ -226,7 +266,7 @@ class TestGraphRagIntegration:
             collection="test_collection"
         )
 
-        first_call_count = mock_triples_client.query.call_count
+        first_call_count = mock_triples_client.query_stream.call_count
         mock_triples_client.reset_mock()
 
         # Second identical query
@@ -236,7 +276,7 @@ class TestGraphRagIntegration:
             collection="test_collection"
         )
 
-        second_call_count = mock_triples_client.query.call_count
+        second_call_count = mock_triples_client.query_stream.call_count
 
         # Assert - Second query should make fewer triple queries due to caching
         # Note: This is a weak assertion because caching behavior depends on

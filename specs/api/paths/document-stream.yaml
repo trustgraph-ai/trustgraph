@@ -1,0 +1,53 @@
+get:
+  tags:
+    - Import/Export
+  summary: Stream document content from library
+  description: |
+    Streams the raw content of a document stored in the library.
+    Returns the document content in chunked transfer encoding.
+
+    ## Parameters
+
+    - `user`: User identifier (required)
+    - `document-id`: Document IRI to retrieve (required)
+    - `chunk-size`: Size of each response chunk in bytes (optional, default: 1MB)
+
+  operationId: documentStream
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: user
+      in: query
+      required: true
+      schema:
+        type: string
+      description: User identifier
+      example: trustgraph
+    - name: document-id
+      in: query
+      required: true
+      schema:
+        type: string
+      description: Document IRI to retrieve
+      example: "urn:trustgraph:doc:abc123"
+    - name: chunk-size
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 1048576
+      description: Chunk size in bytes (default 1MB)
+  responses:
+    '200':
+      description: Document content streamed as raw bytes
+      content:
+        application/octet-stream:
+          schema:
+            type: string
+            format: binary
+    '400':
+      description: Missing required parameters
+    '401':
+      $ref: '../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../components/responses/Error.yaml'

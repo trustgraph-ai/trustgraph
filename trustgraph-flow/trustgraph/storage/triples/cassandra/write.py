@@ -9,6 +9,7 @@ import os
 import argparse
 import time
 import logging
+import json
 
 from .... direct.cassandra_kg import (
     EntityCentricKnowledgeGraph, DEFAULT_GRAPH
@@ -25,6 +26,37 @@ logger = logging.getLogger(__name__)
 default_ident = "triples-write"
 
 
+def serialize_triple(triple):
+    """Serialize a Triple object to JSON for storage."""
+    if triple is None:
+        return None
+
+    def term_to_dict(term):
+        if term is None:
+            return None
+
+        result = {"type": term.type}
+        if term.type == IRI:
+            result["iri"] = term.iri
+        elif term.type == LITERAL:
+            result["value"] = term.value
+            if term.datatype:
+                result["datatype"] = term.datatype
+            if term.language:
+                result["language"] = term.language
+        elif term.type == BLANK:
+            result["id"] = term.id
+        elif term.type == TRIPLE:
+            result["triple"] = serialize_triple(term.triple)
+        return result
+
+    return json.dumps({
+        "s": term_to_dict(triple.s),
+        "p": term_to_dict(triple.p),
+        "o": term_to_dict(triple.o),
+    })
+
+
 def get_term_value(term):
     """Extract the string value from a Term"""
     if term is None:
@@ -33,6 +65,9 @@ def get_term_value(term):
         return term.iri
     elif term.type == LITERAL:
         return term.value
+    elif term.type == TRIPLE:
+        # Serialize nested triple as JSON
+        return serialize_triple(term.triple)
     else:
         # For blank nodes or other types, use id or value
         return term.id or term.value

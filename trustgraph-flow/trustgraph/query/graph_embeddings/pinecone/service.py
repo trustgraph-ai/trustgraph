@@ -11,7 +11,7 @@ import os
 from pinecone import Pinecone, ServerlessSpec
 from pinecone.grpc import PineconeGRPC, GRPCClientConfig
 
-from .... schema import GraphEmbeddingsResponse
+from .... schema import GraphEmbeddingsResponse, EntityMatch
 from .... schema import Error, Term, IRI, LITERAL
 from .... base import GraphEmbeddingsQueryService
 
@@ -59,57 +59,53 @@ class Processor(GraphEmbeddingsQueryService):
 
         try:
 
+            vec = msg.vector
+            if not vec:
+                return []
+
             # Handle zero limit case
             if msg.limit <= 0:
                 return []
 
+            dim = len(vec)
+
+            # Use dimension suffix in index name
+            index_name = f"t-{msg.user}-{msg.collection}-{dim}"
+
+            # Check if index exists - return empty if not
+            if not self.pinecone.has_index(index_name):
+                logger.info(f"Index {index_name} does not exist")
+                return []
+
+            index = self.pinecone.Index(index_name)
+
+            # Heuristic hack, get (2*limit), so that we have more chance
+            # of getting (limit) unique entities
+            results = index.query(
+                vector=vec,
+                top_k=msg.limit * 2,
+                include_values=False,
+                include_metadata=True
+            )
+
             entity_set = set()
             entities = []
 
-            for vec in msg.vectors:
+            for r in results.matches:
+                ent = r.metadata["entity"]
+                score = r.score if hasattr(r, 'score') else 0.0
 
-                dim = len(vec)
-
-                # Use dimension suffix in index name
-                index_name = f"t-{msg.user}-{msg.collection}-{dim}"
-
-                # Check if index exists - skip if not
-                if not self.pinecone.has_index(index_name):
-                    logger.info(f"Index {index_name} does not exist, skipping this vector")
-                    continue
-
-                index = self.pinecone.Index(index_name)
-
-                # Heuristic hack, get (2*limit), so that we have more chance
-                # of getting (limit) entities
-                results = index.query(
-                    vector=vec,
-                    top_k=msg.limit * 2,
-                    include_values=False,
-                    include_metadata=True
-                )
-
-                for r in results.matches:
-
-                    ent = r.metadata["entity"]
-
-                    # De-dupe entities
-                    if ent not in entity_set:
-                        entity_set.add(ent)
-                        entities.append(ent)
-
-                    # Keep adding entities until limit
-                    if len(entity_set) >= msg.limit: break
+                # De-dupe entities, keep highest score
+                if ent not in entity_set:
+                    entity_set.add(ent)
+                    entities.append(EntityMatch(
+                        entity=self.create_value(ent),
+                        score=score,
+                    ))
 
                 # Keep adding entities until limit
-                if len(entity_set) >= msg.limit: break
-
-            ents2 = []
-
-            for ent in entities:
-                ents2.append(self.create_value(ent))
-
-            entities = ents2
+                if len(entities) >= msg.limit:
+                    break
 
             return entities
 

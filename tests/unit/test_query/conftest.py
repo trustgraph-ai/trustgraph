@@ -37,7 +37,7 @@ def mock_qdrant_client():
 def mock_graph_embeddings_request():
     """Mock graph embeddings request message"""
     mock_message = MagicMock()
-    mock_message.vectors = [[0.1, 0.2, 0.3]]
+    mock_message.vector = [0.1, 0.2, 0.3]
     mock_message.limit = 5
     mock_message.user = 'test_user'
     mock_message.collection = 'test_collection'
@@ -46,9 +46,9 @@ def mock_graph_embeddings_request():
 
 @pytest.fixture
 def mock_graph_embeddings_multiple_vectors():
-    """Mock graph embeddings request with multiple vectors"""
+    """Mock graph embeddings request with multiple vectors (legacy name, now single vector)"""
     mock_message = MagicMock()
-    mock_message.vectors = [[0.1, 0.2], [0.3, 0.4]]
+    mock_message.vector = [0.1, 0.2, 0.3, 0.4]
     mock_message.limit = 3
     mock_message.user = 'multi_user'
     mock_message.collection = 'multi_collection'
@@ -82,7 +82,7 @@ def mock_graph_embeddings_uri_response():
 def mock_document_embeddings_request():
     """Mock document embeddings request message"""
     mock_message = MagicMock()
-    mock_message.vectors = [[0.1, 0.2, 0.3]]
+    mock_message.vector = [0.1, 0.2, 0.3]
     mock_message.limit = 5
     mock_message.user = 'test_user'
     mock_message.collection = 'test_collection'
@@ -91,9 +91,9 @@ def mock_document_embeddings_request():
 
 @pytest.fixture
 def mock_document_embeddings_multiple_vectors():
-    """Mock document embeddings request with multiple vectors"""
+    """Mock document embeddings request with multiple vectors (legacy name, now single vector)"""
     mock_message = MagicMock()
-    mock_message.vectors = [[0.1, 0.2], [0.3, 0.4]]
+    mock_message.vector = [0.1, 0.2, 0.3, 0.4]
     mock_message.limit = 3
     mock_message.user = 'multi_user'
     mock_message.collection = 'multi_collection'
@@ -139,9 +139,9 @@ def mock_large_query_response():
 
 @pytest.fixture
 def mock_mixed_dimension_vectors():
-    """Mock request with vectors of different dimensions"""
+    """Mock request with vector (legacy name suggested mixed dimensions, now single vector)"""
     mock_message = MagicMock()
-    mock_message.vectors = [[0.1, 0.2], [0.3, 0.4, 0.5]]  # 2D and 3D
+    mock_message.vector = [0.1, 0.2, 0.3, 0.4, 0.5]
     mock_message.limit = 5
     mock_message.user = 'dim_user'
     mock_message.collection = 'dim_collection'

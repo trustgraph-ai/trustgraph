@@ -20,7 +20,7 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         # Arrange
         mock_qdrant_instance = MagicMock()
         mock_qdrant_client.return_value = mock_qdrant_instance
-        
+
         config = {
             'store_uri': 'http://localhost:6333',
             'api_key': 'test-api-key',
@@ -34,7 +34,7 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         # Assert
         # Verify QdrantClient was created with correct parameters
         mock_qdrant_client.assert_called_once_with(url='http://localhost:6333', api_key='test-api-key')
-        
+
         # Verify processor attributes
         assert hasattr(processor, 'qdrant')
         assert processor.qdrant == mock_qdrant_instance
@@ -45,7 +45,7 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         # Arrange
         mock_qdrant_instance = MagicMock()
         mock_qdrant_client.return_value = mock_qdrant_instance
-        
+
         config = {
             'taskgroup': AsyncMock(),
             'id': 'test-doc-qdrant-processor'
@@ -69,7 +69,7 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_qdrant_client.return_value = mock_qdrant_instance
         mock_uuid.uuid4.return_value = MagicMock()
         mock_uuid.uuid4.return_value.__str__ = MagicMock(return_value='test-uuid-123')
-        
+
         config = {
             'store_uri': 'http://localhost:6333',
             'api_key': 'test-api-key',
@@ -86,13 +86,13 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_message = MagicMock()
         mock_message.metadata.user = 'test_user'
         mock_message.metadata.collection = 'test_collection'
-        
+
         mock_chunk = MagicMock()
-        mock_chunk.chunk.decode.return_value = 'test document chunk'
-        mock_chunk.vectors = [[0.1, 0.2, 0.3]]  # Single vector with 3 dimensions
-        
+        mock_chunk.chunk_id = 'doc/c1'  # chunk_id instead of chunk bytes
+        mock_chunk.vector = [0.1, 0.2, 0.3]  # Single vector with 3 dimensions
+
         mock_message.chunks = [mock_chunk]
-        
+
         # Act
         await processor.store_document_embeddings(mock_message)
 
@@ -100,18 +100,18 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         # Verify collection existence was checked (with dimension suffix)
         expected_collection = 'd_test_user_test_collection_3'  # 3 dimensions in vector [0.1, 0.2, 0.3]
         mock_qdrant_instance.collection_exists.assert_called_once_with(expected_collection)
-        
+
         # Verify upsert was called
         mock_qdrant_instance.upsert.assert_called_once()
-        
+
         # Verify upsert parameters
         upsert_call_args = mock_qdrant_instance.upsert.call_args
         assert upsert_call_args[1]['collection_name'] == 'd_test_user_test_collection_3'
         assert len(upsert_call_args[1]['points']) == 1
-        
+
         point = upsert_call_args[1]['points'][0]
         assert point.vector == [0.1, 0.2, 0.3]
-        assert point.payload['doc'] == 'test document chunk'
+        assert point.payload['chunk_id'] == 'doc/c1'
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.uuid')
@@ -123,7 +123,7 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_qdrant_client.return_value = mock_qdrant_instance
         mock_uuid.uuid4.return_value = MagicMock()
         mock_uuid.uuid4.return_value.__str__ = MagicMock(return_value='test-uuid')
-        
+
         config = {
             'store_uri': 'http://localhost:6333',
             'api_key': 'test-api-key',
@@ -140,50 +140,50 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_message = MagicMock()
         mock_message.metadata.user = 'multi_user'
         mock_message.metadata.collection = 'multi_collection'
-        
+
         mock_chunk1 = MagicMock()
-        mock_chunk1.chunk.decode.return_value = 'first document chunk'
-        mock_chunk1.vectors = [[0.1, 0.2]]
-        
+        mock_chunk1.chunk_id = 'doc/c1'
+        mock_chunk1.vector = [0.1, 0.2]
+
         mock_chunk2 = MagicMock()
-        mock_chunk2.chunk.decode.return_value = 'second document chunk'
-        mock_chunk2.vectors = [[0.3, 0.4]]
-        
+        mock_chunk2.chunk_id = 'doc/c2'
+        mock_chunk2.vector = [0.3, 0.4]
+
         mock_message.chunks = [mock_chunk1, mock_chunk2]
-        
+
         # Act
         await processor.store_document_embeddings(mock_message)
 
         # Assert
         # Should be called twice (once per chunk)
         assert mock_qdrant_instance.upsert.call_count == 2
-        
+
         # Verify both chunks were processed
         upsert_calls = mock_qdrant_instance.upsert.call_args_list
-        
+
         # First chunk
         first_call = upsert_calls[0]
         first_point = first_call[1]['points'][0]
         assert first_point.vector == [0.1, 0.2]
-        assert first_point.payload['doc'] == 'first document chunk'
-        
+        assert first_point.payload['chunk_id'] == 'doc/c1'
+
         # Second chunk
         second_call = upsert_calls[1]
         second_point = second_call[1]['points'][0]
         assert second_point.vector == [0.3, 0.4]
-        assert second_point.payload['doc'] == 'second document chunk'
+        assert second_point.payload['chunk_id'] == 'doc/c2'
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.uuid')
-    async def test_store_document_embeddings_multiple_vectors_per_chunk(self, mock_uuid, mock_qdrant_client):
-        """Test storing document embeddings with multiple vectors per chunk"""
+    async def test_store_document_embeddings_multiple_chunks(self, mock_uuid, mock_qdrant_client):
+        """Test storing document embeddings with multiple chunks"""
         # Arrange
         mock_qdrant_instance = MagicMock()
         mock_qdrant_instance.collection_exists.return_value = True
         mock_qdrant_client.return_value = mock_qdrant_instance
         mock_uuid.uuid4.return_value = MagicMock()
         mock_uuid.uuid4.return_value.__str__ = MagicMock(return_value='test-uuid')
-        
+
         config = {
             'store_uri': 'http://localhost:6333',
             'api_key': 'test-api-key',
@@ -196,45 +196,49 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         # Add collection to known_collections (simulates config push)
         processor.known_collections[('vector_user', 'vector_collection')] = {}
 
-        # Create mock message with chunk having multiple vectors
+        # Create mock message with multiple chunks, each having a single vector
         mock_message = MagicMock()
         mock_message.metadata.user = 'vector_user'
         mock_message.metadata.collection = 'vector_collection'
-        
-        mock_chunk = MagicMock()
-        mock_chunk.chunk.decode.return_value = 'multi-vector document chunk'
-        mock_chunk.vectors = [
-            [0.1, 0.2, 0.3],
-            [0.4, 0.5, 0.6],
-            [0.7, 0.8, 0.9]
-        ]
-        
-        mock_message.chunks = [mock_chunk]
-        
+
+        mock_chunk1 = MagicMock()
+        mock_chunk1.chunk_id = 'doc/c1'
+        mock_chunk1.vector = [0.1, 0.2, 0.3]
+
+        mock_chunk2 = MagicMock()
+        mock_chunk2.chunk_id = 'doc/c2'
+        mock_chunk2.vector = [0.4, 0.5, 0.6]
+
+        mock_chunk3 = MagicMock()
+        mock_chunk3.chunk_id = 'doc/c3'
+        mock_chunk3.vector = [0.7, 0.8, 0.9]
+
+        mock_message.chunks = [mock_chunk1, mock_chunk2, mock_chunk3]
+
         # Act
         await processor.store_document_embeddings(mock_message)
 
         # Assert
-        # Should be called 3 times (once per vector)
+        # Should be called 3 times (once per chunk)
         assert mock_qdrant_instance.upsert.call_count == 3
-        
+
         # Verify all vectors were processed
         upsert_calls = mock_qdrant_instance.upsert.call_args_list
-        
-        expected_vectors = [
-            [0.1, 0.2, 0.3],
-            [0.4, 0.5, 0.6], 
-            [0.7, 0.8, 0.9]
+
+        expected_data = [
+            ([0.1, 0.2, 0.3], 'doc/c1'),
+            ([0.4, 0.5, 0.6], 'doc/c2'),
+            ([0.7, 0.8, 0.9], 'doc/c3')
         ]
-        
+
         for i, call in enumerate(upsert_calls):
             point = call[1]['points'][0]
-            assert point.vector == expected_vectors[i]
-            assert point.payload['doc'] == 'multi-vector document chunk'
+            assert point.vector == expected_data[i][0]
+            assert point.payload['chunk_id'] == expected_data[i][1]
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
-    async def test_store_document_embeddings_empty_chunk(self, mock_qdrant_client):
-        """Test storing document embeddings skips empty chunks"""
+    async def test_store_document_embeddings_empty_chunk_id(self, mock_qdrant_client):
+        """Test storing document embeddings skips empty chunk_ids"""
         # Arrange
         mock_qdrant_instance = MagicMock()
         mock_qdrant_instance.collection_exists.return_value = True  # Collection exists
@@ -249,14 +253,14 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
 
         processor = Processor(**config)
 
-        # Create mock message with empty chunk
+        # Create mock message with empty chunk_id
         mock_message = MagicMock()
         mock_message.metadata.user = 'empty_user'
         mock_message.metadata.collection = 'empty_collection'
 
         mock_chunk_empty = MagicMock()
-        mock_chunk_empty.chunk.decode.return_value = ""  # Empty string
-        mock_chunk_empty.vectors = [[0.1, 0.2]]
+        mock_chunk_empty.chunk_id = ""  # Empty chunk_id
+        mock_chunk_empty.vector = [0.1, 0.2]
 
         mock_message.chunks = [mock_chunk_empty]
 
@@ -264,9 +268,9 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         await processor.store_document_embeddings(mock_message)
 
         # Assert
-        # Should not call upsert for empty chunks
+        # Should not call upsert for empty chunk_ids
         mock_qdrant_instance.upsert.assert_not_called()
-        # collection_exists should NOT be called since we return early for empty chunks
+        # collection_exists should NOT be called since we return early for empty chunk_ids
         mock_qdrant_instance.collection_exists.assert_not_called()
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
@@ -298,8 +302,8 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_message.metadata.collection = 'new_collection'
 
         mock_chunk = MagicMock()
-        mock_chunk.chunk.decode.return_value = 'test chunk'
-        mock_chunk.vectors = [[0.1, 0.2, 0.3, 0.4, 0.5]]  # 5 dimensions
+        mock_chunk.chunk_id = 'doc/test-chunk'
+        mock_chunk.vector = [0.1, 0.2, 0.3, 0.4, 0.5]  # 5 dimensions
 
         mock_message.chunks = [mock_chunk]
 
@@ -350,8 +354,8 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_message.metadata.collection = 'error_collection'
 
         mock_chunk = MagicMock()
-        mock_chunk.chunk.decode.return_value = 'test chunk'
-        mock_chunk.vectors = [[0.1, 0.2]]
+        mock_chunk.chunk_id = 'doc/test-chunk'
+        mock_chunk.vector = [0.1, 0.2]
 
         mock_message.chunks = [mock_chunk]
 
@@ -388,8 +392,8 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_message1.metadata.collection = 'cache_collection'
 
         mock_chunk1 = MagicMock()
-        mock_chunk1.chunk.decode.return_value = 'first chunk'
-        mock_chunk1.vectors = [[0.1, 0.2, 0.3]]
+        mock_chunk1.chunk_id = 'doc/c1'
+        mock_chunk1.vector = [0.1, 0.2, 0.3]
 
         mock_message1.chunks = [mock_chunk1]
 
@@ -406,8 +410,8 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         mock_message2.metadata.collection = 'cache_collection'
 
         mock_chunk2 = MagicMock()
-        mock_chunk2.chunk.decode.return_value = 'second chunk'
-        mock_chunk2.vectors = [[0.4, 0.5, 0.6]]  # Same dimension (3)
+        mock_chunk2.chunk_id = 'doc/c2'
+        mock_chunk2.vector = [0.4, 0.5, 0.6]  # Same dimension (3)
 
         mock_message2.chunks = [mock_chunk2]
 
@@ -446,19 +450,20 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         # Add collection to known_collections (simulates config push)
         processor.known_collections[('dim_user', 'dim_collection')] = {}
 
-        # Create mock message with different dimension vectors
+        # Create mock message with chunks of different dimensions
         mock_message = MagicMock()
         mock_message.metadata.user = 'dim_user'
         mock_message.metadata.collection = 'dim_collection'
 
-        mock_chunk = MagicMock()
-        mock_chunk.chunk.decode.return_value = 'dimension test chunk'
-        mock_chunk.vectors = [
-            [0.1, 0.2],          # 2 dimensions
-            [0.3, 0.4, 0.5]      # 3 dimensions
-        ]
+        mock_chunk1 = MagicMock()
+        mock_chunk1.chunk_id = 'doc/c1'
+        mock_chunk1.vector = [0.1, 0.2]  # 2 dimensions
 
-        mock_message.chunks = [mock_chunk]
+        mock_chunk2 = MagicMock()
+        mock_chunk2.chunk_id = 'doc/c2'
+        mock_chunk2.vector = [0.3, 0.4, 0.5]  # 3 dimensions
+
+        mock_message.chunks = [mock_chunk1, mock_chunk2]
 
         # Act
         await processor.store_document_embeddings(mock_message)
@@ -485,28 +490,28 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         # Arrange
         mock_qdrant_client.return_value = MagicMock()
         mock_parser = MagicMock()
-        
+
         # Act
         with patch('trustgraph.base.DocumentEmbeddingsStoreService.add_args') as mock_parent_add_args:
             Processor.add_args(mock_parser)
 
         # Assert
         mock_parent_add_args.assert_called_once_with(mock_parser)
-        
+
         # Verify processor-specific arguments were added
         assert mock_parser.add_argument.call_count >= 2  # At least store-uri and api-key
 
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
     @patch('trustgraph.storage.doc_embeddings.qdrant.write.uuid')
-    async def test_utf8_decoding_handling(self, mock_uuid, mock_qdrant_client):
-        """Test proper UTF-8 decoding of chunk text"""
+    async def test_chunk_id_with_special_characters(self, mock_uuid, mock_qdrant_client):
+        """Test storing chunk_id with special characters (URIs)"""
         # Arrange
         mock_qdrant_instance = MagicMock()
         mock_qdrant_instance.collection_exists.return_value = True
         mock_qdrant_client.return_value = mock_qdrant_instance
         mock_uuid.uuid4.return_value = MagicMock()
         mock_uuid.uuid4.return_value.__str__ = MagicMock(return_value='test-uuid')
-        
+
         config = {
             'store_uri': 'http://localhost:6333',
             'api_key': 'test-api-key',
@@ -517,64 +522,27 @@ class TestQdrantDocEmbeddingsStorage(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Add collection to known_collections (simulates config push)
-        processor.known_collections[('utf8_user', 'utf8_collection')] = {}
+        processor.known_collections[('uri_user', 'uri_collection')] = {}
 
-        # Create mock message with UTF-8 encoded text
+        # Create mock message with URI-style chunk_id
         mock_message = MagicMock()
-        mock_message.metadata.user = 'utf8_user'
-        mock_message.metadata.collection = 'utf8_collection'
-        
+        mock_message.metadata.user = 'uri_user'
+        mock_message.metadata.collection = 'uri_collection'
+
         mock_chunk = MagicMock()
-        mock_chunk.chunk.decode.return_value = 'UTF-8 text with special chars: café, naïve, résumé'
-        mock_chunk.vectors = [[0.1, 0.2]]
-        
+        mock_chunk.chunk_id = 'https://trustgraph.ai/doc/my-document/p1/c3'
+        mock_chunk.vector = [0.1, 0.2]
+
         mock_message.chunks = [mock_chunk]
-        
+
         # Act
         await processor.store_document_embeddings(mock_message)
 
         # Assert
-        # Verify chunk.decode was called with 'utf-8'
-        mock_chunk.chunk.decode.assert_called_with('utf-8')
-        
-        # Verify the decoded text was stored in payload
+        # Verify the chunk_id was stored correctly
         upsert_call_args = mock_qdrant_instance.upsert.call_args
         point = upsert_call_args[1]['points'][0]
-        assert point.payload['doc'] == 'UTF-8 text with special chars: café, naïve, résumé'
-
-    @patch('trustgraph.storage.doc_embeddings.qdrant.write.QdrantClient')
-    async def test_chunk_decode_exception_handling(self, mock_qdrant_client):
-        """Test handling of chunk decode exceptions"""
-        # Arrange
-        mock_qdrant_instance = MagicMock()
-        mock_qdrant_client.return_value = mock_qdrant_instance
-        
-        config = {
-            'store_uri': 'http://localhost:6333',
-            'api_key': 'test-api-key',
-            'taskgroup': AsyncMock(),
-            'id': 'test-doc-qdrant-processor'
-        }
-
-        processor = Processor(**config)
-
-        # Add collection to known_collections (simulates config push)
-        processor.known_collections[('decode_user', 'decode_collection')] = {}
-
-        # Create mock message with decode error
-        mock_message = MagicMock()
-        mock_message.metadata.user = 'decode_user'
-        mock_message.metadata.collection = 'decode_collection'
-        
-        mock_chunk = MagicMock()
-        mock_chunk.chunk.decode.side_effect = UnicodeDecodeError('utf-8', b'', 0, 1, 'invalid start byte')
-        mock_chunk.vectors = [[0.1, 0.2]]
-        
-        mock_message.chunks = [mock_chunk]
-        
-        # Act & Assert
-        with pytest.raises(UnicodeDecodeError):
-            await processor.store_document_embeddings(mock_message)
+        assert point.payload['chunk_id'] == 'https://trustgraph.ai/doc/my-document/p1/c3'
 
 
 if __name__ == '__main__':

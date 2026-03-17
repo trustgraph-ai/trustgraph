@@ -62,16 +62,17 @@ class Processor(FlowProcessor):
 
             resp = await flow("embeddings-request").request(
                 EmbeddingsRequest(
-                    text = v.chunk
+                    texts=[v.chunk]
                 )
             )
 
-            vectors = resp.vectors
+            # vectors[0] is the vector for the first (only) text
+            vector = resp.vectors[0] if resp.vectors else []
 
             embeds = [
                 ChunkEmbeddings(
-                    chunk=v.chunk,
-                    vectors=vectors,
+                    chunk_id=v.document_id,
+                    vector=vector,
                 )
             ]
 

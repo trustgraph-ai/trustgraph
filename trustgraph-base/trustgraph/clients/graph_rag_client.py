@@ -42,10 +42,50 @@ class GraphRagClient(BaseClient):
 
     def request(
             self, query, user="trustgraph", collection="default",
+            chunk_callback=None,
+            explain_callback=None,
             timeout=500
     ):
+        """
+        Request a graph RAG query with optional streaming callbacks.
 
-        return self.call(
-            user=user, collection=collection, query=query, timeout=timeout
-        ).response
+        Args:
+            query: The question to ask
+            user: User identifier
+            collection: Collection identifier
+            chunk_callback: Optional callback(text, end_of_stream) for text chunks
+            explain_callback: Optional callback(explain_id, explain_graph) for explain notifications
+            timeout: Request timeout in seconds
+
+        Returns:
+            Complete response text (accumulated from all chunks)
+        """
+        accumulated_response = []
+
+        def inspect(x):
+            # Handle explain notifications
+            if x.message_type == 'explain':
+                if explain_callback and x.explain_id:
+                    explain_callback(x.explain_id, x.explain_graph)
+                return False  # Continue receiving
+
+            # Handle text chunks
+            if x.message_type == 'chunk':
+                if x.response:
+                    accumulated_response.append(x.response)
+                if chunk_callback:
+                    chunk_callback(x.response, x.end_of_stream)
+
+            # Complete when session ends
+            if x.end_of_session:
+                return True
+
+            return False  # Continue receiving
+
+        self.call(
+            user=user, collection=collection, query=query,
+            inspect=inspect, timeout=timeout
+        )
+
+        return "".join(accumulated_response)
 

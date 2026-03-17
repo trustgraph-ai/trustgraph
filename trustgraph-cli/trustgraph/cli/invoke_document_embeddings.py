@@ -1,6 +1,6 @@
 """
 Queries document chunks by text similarity using vector embeddings.
-Returns a list of matching document chunks, truncated to the specified length.
+Returns a list of matching chunk IDs.
 """
 
 import argparse
@@ -10,13 +10,7 @@ from trustgraph.api import Api
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
 
-def truncate_chunk(chunk, max_length):
-    """Truncate a chunk to max_length characters, adding ellipsis if needed."""
-    if len(chunk) <= max_length:
-        return chunk
-    return chunk[:max_length] + "..."
-
-def query(url, flow_id, query_text, user, collection, limit, max_chunk_length, token=None):
+def query(url, flow_id, query_text, user, collection, limit, token=None):
 
     # Create API client
     api = Api(url=url, token=token)
@@ -33,9 +27,13 @@ def query(url, flow_id, query_text, user, collection, limit, max_chunk_length, t
         )
 
         chunks = result.get("chunks", [])
-        for i, chunk in enumerate(chunks, 1):
-            truncated = truncate_chunk(chunk, max_chunk_length)
-            print(f"{i}. {truncated}")
+        if not chunks:
+            print("No matching chunks found.")
+        else:
+            for i, chunk in enumerate(chunks, 1):
+                chunk_id = chunk.get("chunk_id", "")
+                score = chunk.get("score", 0.0)
+                print(f"{i}. {chunk_id} (score: {score:.4f})")
 
     finally:
         # Clean up socket connection
@@ -86,13 +84,6 @@ def main():
     )
 
     parser.add_argument(
-        '--max-chunk-length',
-        type=int,
-        default=200,
-        help='Truncate chunks to N characters (default: 200)',
-    )
-
-    parser.add_argument(
         'query',
         nargs=1,
         help='Query text to search for similar document chunks',
@@ -109,7 +100,6 @@ def main():
             user=args.user,
             collection=args.collection,
             limit=args.limit,
-            max_chunk_length=args.max_chunk_length,
             token=args.token,
         )
 

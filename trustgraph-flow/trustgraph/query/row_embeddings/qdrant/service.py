@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 default_ident = "row-embeddings-query"
 default_store_uri = 'http://localhost:6333'
+default_concurrency = 10
 
 
 class Processor(FlowProcessor):
@@ -31,6 +32,7 @@ class Processor(FlowProcessor):
     def __init__(self, **params):
 
         id = params.get("id", default_ident)
+        concurrency = params.get("concurrency", default_concurrency)
 
         store_uri = params.get("store_uri", default_store_uri)
         api_key = params.get("api_key", None)
@@ -47,7 +49,8 @@ class Processor(FlowProcessor):
             ConsumerSpec(
                 name="request",
                 schema=RowEmbeddingsRequest,
-                handler=self.on_message
+                handler=self.on_message,
+                concurrency=concurrency,
             )
         )
 
@@ -93,7 +96,9 @@ class Processor(FlowProcessor):
     async def query_row_embeddings(self, request: RowEmbeddingsRequest):
         """Execute row embeddings query"""
 
-        matches = []
+        vec = request.vector
+        if not vec:
+            return []
 
         # Find the collection for this user/collection/schema
         qdrant_collection = self.find_collection(
@@ -105,47 +110,47 @@ class Processor(FlowProcessor):
                 f"No Qdrant collection found for "
                 f"{request.user}/{request.collection}/{request.schema_name}"
             )
+            return []
+
+        try:
+            # Build optional filter for index_name
+            query_filter = None
+            if request.index_name:
+                query_filter = Filter(
+                    must=[
+                        FieldCondition(
+                            key="index_name",
+                            match=MatchValue(value=request.index_name)
+                        )
+                    ]
+                )
+
+            # Query Qdrant
+            search_result = self.qdrant.query_points(
+                collection_name=qdrant_collection,
+                query=vec,
+                limit=request.limit,
+                with_payload=True,
+                query_filter=query_filter,
+            ).points
+
+            # Convert to RowIndexMatch objects
+            matches = []
+            for point in search_result:
+                payload = point.payload or {}
+                match = RowIndexMatch(
+                    index_name=payload.get("index_name", ""),
+                    index_value=payload.get("index_value", []),
+                    text=payload.get("text", ""),
+                    score=point.score if hasattr(point, 'score') else 0.0
+                )
+                matches.append(match)
+
             return matches
 
-        for vec in request.vectors:
-            try:
-                # Build optional filter for index_name
-                query_filter = None
-                if request.index_name:
-                    query_filter = Filter(
-                        must=[
-                            FieldCondition(
-                                key="index_name",
-                                match=MatchValue(value=request.index_name)
-                            )
-                        ]
-                    )
-
-                # Query Qdrant
-                search_result = self.qdrant.query_points(
-                    collection_name=qdrant_collection,
-                    query=vec,
-                    limit=request.limit,
-                    with_payload=True,
-                    query_filter=query_filter,
-                ).points
-
-                # Convert to RowIndexMatch objects
-                for point in search_result:
-                    payload = point.payload or {}
-                    match = RowIndexMatch(
-                        index_name=payload.get("index_name", ""),
-                        index_value=payload.get("index_value", []),
-                        text=payload.get("text", ""),
-                        score=point.score if hasattr(point, 'score') else 0.0
-                    )
-                    matches.append(match)
-
-            except Exception as e:
-                logger.error(f"Failed to query Qdrant: {e}", exc_info=True)
-                raise
-
-        return matches
+        except Exception as e:
+            logger.error(f"Failed to query Qdrant: {e}", exc_info=True)
+            raise
 
     async def on_message(self, msg, consumer, flow):
         """Handle incoming query request"""
@@ -201,6 +206,13 @@ class Processor(FlowProcessor):
             '-k', '--api-key',
             default=None,
             help='API key for Qdrant (default: None)'
+        )
+
+        parser.add_argument(
+            '-c', '--concurrency',
+            type=int,
+            default=default_concurrency,
+            help=f'Number of concurrent requests (default: {default_concurrency})'
         )
 
 

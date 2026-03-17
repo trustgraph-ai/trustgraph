@@ -10,7 +10,7 @@ description = "TrustGraph provides a means to run a pipeline of flexible AI proc
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
-    "trustgraph-base>=2.0,<2.1",
+    "trustgraph-base>=2.1,<2.2",
     "requests",
     "pulsar-client",
     "aiohttp",
@@ -37,6 +37,7 @@ tg-dump-msgpack = "trustgraph.cli.dump_msgpack:main"
 tg-dump-queues = "trustgraph.cli.dump_queues:main"
 tg-get-flow-blueprint = "trustgraph.cli.get_flow_blueprint:main"
 tg-get-kg-core = "trustgraph.cli.get_kg_core:main"
+tg-get-document-content = "trustgraph.cli.get_document_content:main"
 tg-graph-to-turtle = "trustgraph.cli.graph_to_turtle:main"
 tg-init-trustgraph = "trustgraph.cli.init_trustgraph:main"
 tg-invoke-agent = "trustgraph.cli.invoke_agent:main"
@@ -54,9 +55,7 @@ tg-invoke-prompt = "trustgraph.cli.invoke_prompt:main"
 tg-invoke-structured-query = "trustgraph.cli.invoke_structured_query:main"
 tg-load-doc-embeds = "trustgraph.cli.load_doc_embeds:main"
 tg-load-kg-core = "trustgraph.cli.load_kg_core:main"
-tg-load-pdf = "trustgraph.cli.load_pdf:main"
 tg-load-sample-documents = "trustgraph.cli.load_sample_documents:main"
-tg-load-text = "trustgraph.cli.load_text:main"
 tg-load-turtle = "trustgraph.cli.load_turtle:main"
 tg-load-knowledge = "trustgraph.cli.load_knowledge:main"
 tg-load-structured-data = "trustgraph.cli.load_structured_data:main"
@@ -72,6 +71,7 @@ tg-show-config = "trustgraph.cli.show_config:main"
 tg-show-flow-blueprints = "trustgraph.cli.show_flow_blueprints:main"
 tg-show-flow-state = "trustgraph.cli.show_flow_state:main"
 tg-show-flows = "trustgraph.cli.show_flows:main"
+tg-query-graph = "trustgraph.cli.query_graph:main"
 tg-show-graph = "trustgraph.cli.show_graph:main"
 tg-show-kg-cores = "trustgraph.cli.show_kg_cores:main"
 tg-show-library-documents = "trustgraph.cli.show_library_documents:main"
@@ -96,6 +96,9 @@ tg-delete-config-item = "trustgraph.cli.delete_config_item:main"
 tg-list-collections = "trustgraph.cli.list_collections:main"
 tg-set-collection = "trustgraph.cli.set_collection:main"
 tg-delete-collection = "trustgraph.cli.delete_collection:main"
+tg-show-extraction-provenance = "trustgraph.cli.show_extraction_provenance:main"
+tg-list-explain-traces = "trustgraph.cli.list_explain_traces:main"
+tg-show-explain-trace = "trustgraph.cli.show_explain_trace:main"
 
 [tool.setuptools.packages.find]
 include = ["trustgraph*"]

@@ -53,7 +53,6 @@ class RowsImport:
         elt = ExtractedObject(
             metadata=Metadata(
                 id=data["metadata"]["id"],
-                metadata=to_subgraph(data["metadata"].get("metadata", [])),
                 user=data["metadata"]["user"],
                 collection=data["metadata"]["collection"],
             ),

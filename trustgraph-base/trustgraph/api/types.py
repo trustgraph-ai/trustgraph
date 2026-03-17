@@ -64,6 +64,8 @@ class DocumentMetadata:
         metadata: List of RDF triples providing structured metadata
         user: User/owner identifier
         tags: List of tags for categorization
+        parent_id: Parent document ID for child documents (empty for top-level docs)
+        document_type: "source" for uploaded documents, "extracted" for derived content
     """
     id : str
     time : datetime.datetime
@@ -73,6 +75,8 @@ class DocumentMetadata:
     metadata : List[Triple]
     user : str
     tags : List[str]
+    parent_id : str = ""
+    document_type : str = "source"
 
 @dataclasses.dataclass
 class ProcessingMetadata:
@@ -198,3 +202,31 @@ class RAGChunk(StreamingChunk):
     chunk_type: str = "rag"
     end_of_stream: bool = False
     error: Optional[Dict[str, str]] = None
+
+@dataclasses.dataclass
+class ProvenanceEvent:
+    """
+    Provenance event for explainability.
+
+    Emitted during GraphRAG queries when explainable mode is enabled.
+    Each event represents a provenance node created during query processing.
+
+    Attributes:
+        explain_id: URI of the provenance node (e.g., urn:trustgraph:question:abc123)
+        explain_graph: Named graph where provenance triples are stored (e.g., urn:graph:retrieval)
+        event_type: Type of provenance event (question, exploration, focus, synthesis)
+    """
+    explain_id: str
+    explain_graph: str = ""
+    event_type: str = ""  # Derived from explain_id
+
+    def __post_init__(self):
+        # Extract event type from explain_id
+        if "question" in self.explain_id:
+            self.event_type = "question"
+        elif "exploration" in self.explain_id:
+            self.event_type = "exploration"
+        elif "focus" in self.explain_id:
+            self.event_type = "focus"
+        elif "synthesis" in self.explain_id:
+            self.event_type = "synthesis"

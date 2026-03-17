@@ -305,9 +305,8 @@ class TestEntityCentricKnowledgeGraph:
 
         mock_session.execute.assert_called()
 
-    def test_graph_wildcard_returns_all_graphs(self, entity_kg):
-        """Test that g='*' returns quads from all graphs"""
-        from trustgraph.direct.cassandra_kg import GRAPH_WILDCARD
+    def test_graph_none_returns_all_graphs(self, entity_kg):
+        """Test that g=None returns quads from all graphs"""
         kg, mock_session = entity_kg
 
         mock_result = [
@@ -320,7 +319,7 @@ class TestEntityCentricKnowledgeGraph:
         ]
         mock_session.execute.return_value = mock_result
 
-        results = kg.get_s('test_collection', 'http://example.org/Alice', g=GRAPH_WILDCARD)
+        results = kg.get_s('test_collection', 'http://example.org/Alice', g=None)
 
         # Should return quads from both graphs
         assert len(results) == 2
@@ -547,21 +546,21 @@ class TestServiceHelperFunctions:
     """Test cases for helper functions in service.py"""
 
     def test_create_term_with_uri_otype(self):
-        """Test create_term creates IRI Term for otype='u'"""
+        """Test create_term creates IRI Term for term_type='u'"""
         from trustgraph.query.triples.cassandra.service import create_term
         from trustgraph.schema import IRI
 
-        term = create_term('http://example.org/Alice', otype='u')
+        term = create_term('http://example.org/Alice', term_type='u')
 
         assert term.type == IRI
         assert term.iri == 'http://example.org/Alice'
 
     def test_create_term_with_literal_otype(self):
-        """Test create_term creates LITERAL Term for otype='l'"""
+        """Test create_term creates LITERAL Term for term_type='l'"""
         from trustgraph.query.triples.cassandra.service import create_term
         from trustgraph.schema import LITERAL
 
-        term = create_term('Alice Smith', otype='l', dtype='xsd:string', lang='en')
+        term = create_term('Alice Smith', term_type='l', datatype='xsd:string', language='en')
 
         assert term.type == LITERAL
         assert term.value == 'Alice Smith'
@@ -569,14 +568,24 @@ class TestServiceHelperFunctions:
         assert term.language == 'en'
 
     def test_create_term_with_triple_otype(self):
-        """Test create_term creates IRI Term for otype='t'"""
+        """Test create_term creates TRIPLE Term for term_type='t' with valid JSON"""
         from trustgraph.query.triples.cassandra.service import create_term
-        from trustgraph.schema import IRI
+        from trustgraph.schema import TRIPLE, IRI
+        import json
 
-        term = create_term('http://example.org/statement1', otype='t')
+        # Valid JSON triple data
+        triple_json = json.dumps({
+            "s": {"type": "i", "iri": "http://example.org/Alice"},
+            "p": {"type": "i", "iri": "http://example.org/knows"},
+            "o": {"type": "i", "iri": "http://example.org/Bob"},
+        })
 
-        assert term.type == IRI
-        assert term.iri == 'http://example.org/statement1'
+        term = create_term(triple_json, term_type='t')
+
+        assert term.type == TRIPLE
+        assert term.triple is not None
+        assert term.triple.s.type == IRI
+        assert term.triple.s.iri == "http://example.org/Alice"
 
     def test_create_term_heuristic_fallback_uri(self):
         """Test create_term uses URL heuristic when otype not provided"""

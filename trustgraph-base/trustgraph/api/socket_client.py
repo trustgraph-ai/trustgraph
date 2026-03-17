@@ -11,8 +11,65 @@ import websockets
 from typing import Optional, Dict, Any, Iterator, Union, List
 from threading import Lock
 
-from . types import AgentThought, AgentObservation, AgentAnswer, RAGChunk, StreamingChunk
+from . types import AgentThought, AgentObservation, AgentAnswer, RAGChunk, StreamingChunk, ProvenanceEvent
 from . exceptions import ProtocolException, raise_from_error_dict
+
+
+def build_term(value: Any, term_type: Optional[str] = None,
+               datatype: Optional[str] = None, language: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """
+    Build wire-format Term dict from a value.
+
+    Auto-detection rules (when term_type is None):
+      - Already a dict with 't' key -> return as-is (already a Term)
+      - Starts with http://, https://, urn: -> IRI
+      - Wrapped in <> (e.g., <http://...>) -> IRI (angle brackets stripped)
+      - Anything else -> literal
+
+    Args:
+        value: The term value (string, dict, or None)
+        term_type: One of 'iri', 'literal', or None for auto-detect
+        datatype: Datatype for literal objects (e.g., xsd:integer)
+        language: Language tag for literal objects (e.g., en)
+
+    Returns:
+        dict: Wire-format Term dict, or None if value is None
+    """
+    if value is None:
+        return None
+
+    # If already a Term dict, return as-is
+    if isinstance(value, dict) and "t" in value:
+        return value
+
+    # Convert to string for processing
+    value = str(value)
+
+    # Auto-detect type if not specified
+    if term_type is None:
+        if value.startswith("<") and value.endswith(">") and not value.startswith("<<"):
+            # Angle-bracket wrapped IRI: <http://...>
+            value = value[1:-1]  # Strip < and >
+            term_type = "iri"
+        elif value.startswith(("http://", "https://", "urn:")):
+            term_type = "iri"
+        else:
+            term_type = "literal"
+
+    if term_type == "iri":
+        # Strip angle brackets if present
+        if value.startswith("<") and value.endswith(">"):
+            value = value[1:-1]
+        return {"t": "i", "i": value}
+    elif term_type == "literal":
+        result = {"t": "l", "v": value}
+        if datatype:
+            result["dt"] = datatype
+        if language:
+            result["ln"] = language
+        return result
+    else:
+        raise ValueError(f"Unknown term type: {term_type}")
 
 
 class SocketClient:
@@ -91,9 +148,19 @@ class SocketClient:
         service: str,
         flow: Optional[str],
         request: Dict[str, Any],
-        streaming: bool = False
-    ) -> Union[Dict[str, Any], Iterator[StreamingChunk]]:
-        """Synchronous wrapper around async WebSocket communication"""
+        streaming: bool = False,
+        streaming_raw: bool = False,
+        include_provenance: bool = False
+    ) -> Union[Dict[str, Any], Iterator[StreamingChunk], Iterator[Dict[str, Any]]]:
+        """Synchronous wrapper around async WebSocket communication.
+
+        Args:
+            service: Service name
+            flow: Flow ID (optional)
+            request: Request payload
+            streaming: Use parsed streaming (for agent/RAG chunk types)
+            streaming_raw: Use raw streaming (for data batches like triples)
+        """
         # Create event loop if needed
         try:
             loop = asyncio.get_event_loop()
@@ -105,12 +172,14 @@ class SocketClient:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
 
-        if streaming:
-            # For streaming, we need to return an iterator
-            # Create a generator that runs async code
-            return self._streaming_generator(service, flow, request, loop)
+        if streaming_raw:
+            # Raw streaming for data batches (triples, rows, etc.)
+            return self._streaming_generator_raw(service, flow, request, loop)
+        elif streaming:
+            # Parsed streaming for agent/RAG chunk types
+            return self._streaming_generator(service, flow, request, loop, include_provenance)
         else:
-            # For non-streaming, just run the async code and return result
+            # Non-streaming single response
             return loop.run_until_complete(self._send_request_async(service, flow, request))
 
     def _streaming_generator(
@@ -118,10 +187,11 @@ class SocketClient:
         service: str,
         flow: Optional[str],
         request: Dict[str, Any],
-        loop: asyncio.AbstractEventLoop
+        loop: asyncio.AbstractEventLoop,
+        include_provenance: bool = False
     ) -> Iterator[StreamingChunk]:
-        """Generator that yields streaming chunks"""
-        async_gen = self._send_request_async_streaming(service, flow, request)
+        """Generator that yields streaming chunks (for agent/RAG responses)"""
+        async_gen = self._send_request_async_streaming(service, flow, request, include_provenance)
 
         try:
             while True:
@@ -136,6 +206,74 @@ class SocketClient:
                 loop.run_until_complete(async_gen.aclose())
             except:
                 pass
+
+    def _streaming_generator_raw(
+        self,
+        service: str,
+        flow: Optional[str],
+        request: Dict[str, Any],
+        loop: asyncio.AbstractEventLoop
+    ) -> Iterator[Dict[str, Any]]:
+        """Generator that yields raw response dicts (for data streaming like triples)"""
+        async_gen = self._send_request_async_streaming_raw(service, flow, request)
+
+        try:
+            while True:
+                try:
+                    data = loop.run_until_complete(async_gen.__anext__())
+                    yield data
+                except StopAsyncIteration:
+                    break
+        finally:
+            try:
+                loop.run_until_complete(async_gen.aclose())
+            except:
+                pass
+
+    async def _send_request_async_streaming_raw(
+        self,
+        service: str,
+        flow: Optional[str],
+        request: Dict[str, Any]
+    ) -> Iterator[Dict[str, Any]]:
+        """Async streaming that yields raw response dicts without parsing.
+
+        Used for data streaming (triples, rows, etc.) where responses are
+        just batches of data, not agent/RAG chunk types.
+        """
+        with self._lock:
+            self._request_counter += 1
+            request_id = f"req-{self._request_counter}"
+
+        ws_url = f"{self.url}/api/v1/socket"
+        if self.token:
+            ws_url = f"{ws_url}?token={self.token}"
+
+        message = {
+            "id": request_id,
+            "service": service,
+            "request": request
+        }
+        if flow:
+            message["flow"] = flow
+
+        async with websockets.connect(ws_url, ping_interval=20, ping_timeout=self.timeout) as websocket:
+            await websocket.send(json.dumps(message))
+
+            async for raw_message in websocket:
+                response = json.loads(raw_message)
+
+                if response.get("id") != request_id:
+                    continue
+
+                if "error" in response:
+                    raise_from_error_dict(response["error"])
+
+                if "response" in response:
+                    yield response["response"]
+
+                    if response.get("complete"):
+                        break
 
     async def _send_request_async(
         self,
@@ -186,7 +324,8 @@ class SocketClient:
         self,
         service: str,
         flow: Optional[str],
-        request: Dict[str, Any]
+        request: Dict[str, Any],
+        include_provenance: bool = False
     ) -> Iterator[StreamingChunk]:
         """Async implementation of WebSocket request (streaming)"""
         # Generate unique request ID
@@ -230,16 +369,41 @@ class SocketClient:
                         raise_from_error_dict(resp["error"])
 
                     # Parse different chunk types
-                    chunk = self._parse_chunk(resp)
-                    yield chunk
+                    chunk = self._parse_chunk(resp, include_provenance=include_provenance)
+                    if chunk is not None:  # Skip provenance messages unless include_provenance
+                        yield chunk
 
-                    # Check if this is the final chunk
-                    if resp.get("end_of_stream") or resp.get("end_of_dialog") or response.get("complete"):
+                    # Check if this is the final message
+                    # end_of_session indicates entire session is complete (including provenance)
+                    # end_of_dialog is for agent dialogs
+                    # complete is from the gateway envelope
+                    if resp.get("end_of_session") or resp.get("end_of_dialog") or response.get("complete"):
                         break
 
-    def _parse_chunk(self, resp: Dict[str, Any]) -> StreamingChunk:
-        """Parse response chunk into appropriate type"""
+    def _parse_chunk(self, resp: Dict[str, Any], include_provenance: bool = False) -> Optional[StreamingChunk]:
+        """Parse response chunk into appropriate type. Returns None for non-content messages."""
         chunk_type = resp.get("chunk_type")
+        message_type = resp.get("message_type")
+
+        # Handle GraphRAG/DocRAG message format with message_type
+        if message_type == "explain":
+            if include_provenance:
+                # Return provenance event for explainability
+                return ProvenanceEvent(
+                    explain_id=resp.get("explain_id", ""),
+                    explain_graph=resp.get("explain_graph", "")
+                )
+            # Provenance messages are not yielded to user - they're metadata
+            return None
+
+        # Handle Agent message format with chunk_type="explain"
+        if chunk_type == "explain":
+            if include_provenance:
+                return ProvenanceEvent(
+                    explain_id=resp.get("explain_id", ""),
+                    explain_graph=resp.get("explain_graph", "")
+                )
+            return None
 
         if chunk_type == "thought":
             return AgentThought(
@@ -281,7 +445,7 @@ class SocketClient:
                 end_of_dialog=resp.get("end_of_dialog", False)
             )
         else:
-            # RAG-style chunk (or generic chunk)
+            # RAG-style chunk (or generic chunk with message_type="chunk")
             # Text-completion uses "response" field, RAG uses "chunk" field, Prompt uses "text" field
             content = resp.get("response", resp.get("chunk", resp.get("text", "")))
             return RAGChunk(
@@ -384,6 +548,95 @@ class SocketFlowInstance:
         # Agents always use multipart messaging (multiple complete messages)
         # regardless of streaming flag, so always use the streaming code path
         return self.client._send_request_sync("agent", self.flow_id, request, streaming=True)
+
+    def agent_explain(
+        self,
+        question: str,
+        user: str,
+        collection: str,
+        state: Optional[Dict[str, Any]] = None,
+        group: Optional[str] = None,
+        history: Optional[List[Dict[str, Any]]] = None,
+        **kwargs: Any
+    ) -> Iterator[Union[StreamingChunk, ProvenanceEvent]]:
+        """
+        Execute an agent operation with explainability support.
+
+        Streams both content chunks (AgentThought, AgentObservation, AgentAnswer)
+        and provenance events (ProvenanceEvent). Provenance events contain URIs
+        that can be fetched using ExplainabilityClient to get detailed information
+        about the agent's reasoning process.
+
+        Agent trace consists of:
+        - Session: The initial question and session metadata
+        - Iterations: Each thought/action/observation cycle
+        - Conclusion: The final answer
+
+        Args:
+            question: User question or instruction
+            user: User identifier
+            collection: Collection identifier for provenance storage
+            state: Optional state dictionary for stateful conversations
+            group: Optional group identifier for multi-user contexts
+            history: Optional conversation history as list of message dicts
+            **kwargs: Additional parameters passed to the agent service
+
+        Yields:
+            Union[StreamingChunk, ProvenanceEvent]: Agent chunks and provenance events
+
+        Example:
+            ```python
+            from trustgraph.api import Api, ExplainabilityClient, ProvenanceEvent
+            from trustgraph.api import AgentThought, AgentObservation, AgentAnswer
+
+            socket = api.socket()
+            flow = socket.flow("default")
+            explain_client = ExplainabilityClient(flow)
+
+            provenance_ids = []
+            for item in flow.agent_explain(
+                question="What is the capital of France?",
+                user="trustgraph",
+                collection="default"
+            ):
+                if isinstance(item, AgentThought):
+                    print(f"[Thought] {item.content}")
+                elif isinstance(item, AgentObservation):
+                    print(f"[Observation] {item.content}")
+                elif isinstance(item, AgentAnswer):
+                    print(f"[Answer] {item.content}")
+                elif isinstance(item, ProvenanceEvent):
+                    provenance_ids.append(item.explain_id)
+
+            # Fetch session trace after completion
+            if provenance_ids:
+                trace = explain_client.fetch_agent_trace(
+                    provenance_ids[0],  # Session URI is first
+                    graph="urn:graph:retrieval",
+                    user="trustgraph",
+                    collection="default"
+                )
+            ```
+        """
+        request = {
+            "question": question,
+            "user": user,
+            "collection": collection,
+            "streaming": True  # Always streaming for explain
+        }
+        if state is not None:
+            request["state"] = state
+        if group is not None:
+            request["group"] = group
+        if history is not None:
+            request["history"] = history
+        request.update(kwargs)
+
+        # Use streaming with provenance enabled
+        return self.client._send_request_sync(
+            "agent", self.flow_id, request,
+            streaming=True, include_provenance=True
+        )
 
     def text_completion(self, system: str, prompt: str, streaming: bool = False, **kwargs) -> Union[str, Iterator[str]]:
         """
@@ -504,6 +757,86 @@ class SocketFlowInstance:
         else:
             return result.get("response", "")
 
+    def graph_rag_explain(
+        self,
+        query: str,
+        user: str,
+        collection: str,
+        max_subgraph_size: int = 1000,
+        max_subgraph_count: int = 5,
+        max_entity_distance: int = 3,
+        **kwargs: Any
+    ) -> Iterator[Union[RAGChunk, ProvenanceEvent]]:
+        """
+        Execute graph-based RAG query with explainability support.
+
+        Streams both content chunks (RAGChunk) and provenance events (ProvenanceEvent).
+        Provenance events contain URIs that can be fetched using ExplainabilityClient
+        to get detailed information about how the response was generated.
+
+        Args:
+            query: Natural language query
+            user: User/keyspace identifier
+            collection: Collection identifier
+            max_subgraph_size: Maximum total triples in subgraph (default: 1000)
+            max_subgraph_count: Maximum number of subgraphs (default: 5)
+            max_entity_distance: Maximum traversal depth (default: 3)
+            **kwargs: Additional parameters passed to the service
+
+        Yields:
+            Union[RAGChunk, ProvenanceEvent]: Content chunks and provenance events
+
+        Example:
+            ```python
+            from trustgraph.api import Api, ExplainabilityClient, RAGChunk, ProvenanceEvent
+
+            socket = api.socket()
+            flow = socket.flow("default")
+            explain_client = ExplainabilityClient(flow)
+
+            provenance_ids = []
+            response_text = ""
+
+            for item in flow.graph_rag_explain(
+                query="Tell me about Marie Curie",
+                user="trustgraph",
+                collection="scientists"
+            ):
+                if isinstance(item, RAGChunk):
+                    response_text += item.content
+                    print(item.content, end='', flush=True)
+                elif isinstance(item, ProvenanceEvent):
+                    provenance_ids.append(item.provenance_id)
+
+            # Fetch explainability details
+            for prov_id in provenance_ids:
+                entity = explain_client.fetch_entity(
+                    prov_id,
+                    graph="urn:graph:retrieval",
+                    user="trustgraph",
+                    collection="scientists"
+                )
+                print(f"Entity: {entity}")
+            ```
+        """
+        request = {
+            "query": query,
+            "user": user,
+            "collection": collection,
+            "max-subgraph-size": max_subgraph_size,
+            "max-subgraph-count": max_subgraph_count,
+            "max-entity-distance": max_entity_distance,
+            "streaming": True,
+            "explainable": True,  # Enable explainability mode
+        }
+        request.update(kwargs)
+
+        # Use streaming with provenance events included
+        return self.client._send_request_sync(
+            "graph-rag", self.flow_id, request,
+            streaming=True, include_provenance=True
+        )
+
     def document_rag(
         self,
         query: str,
@@ -561,6 +894,79 @@ class SocketFlowInstance:
             return self._rag_generator(result)
         else:
             return result.get("response", "")
+
+    def document_rag_explain(
+        self,
+        query: str,
+        user: str,
+        collection: str,
+        doc_limit: int = 10,
+        **kwargs: Any
+    ) -> Iterator[Union[RAGChunk, ProvenanceEvent]]:
+        """
+        Execute document-based RAG query with explainability support.
+
+        Streams both content chunks (RAGChunk) and provenance events (ProvenanceEvent).
+        Provenance events contain URIs that can be fetched using ExplainabilityClient
+        to get detailed information about how the response was generated.
+
+        Document RAG trace consists of:
+        - Question: The user's query
+        - Exploration: Chunks retrieved from document store (chunk_count)
+        - Synthesis: The generated answer
+
+        Args:
+            query: Natural language query
+            user: User/keyspace identifier
+            collection: Collection identifier
+            doc_limit: Maximum document chunks to retrieve (default: 10)
+            **kwargs: Additional parameters passed to the service
+
+        Yields:
+            Union[RAGChunk, ProvenanceEvent]: Content chunks and provenance events
+
+        Example:
+            ```python
+            from trustgraph.api import Api, ExplainabilityClient, RAGChunk, ProvenanceEvent
+
+            socket = api.socket()
+            flow = socket.flow("default")
+            explain_client = ExplainabilityClient(flow)
+
+            for item in flow.document_rag_explain(
+                query="Summarize the key findings",
+                user="trustgraph",
+                collection="research-papers",
+                doc_limit=5
+            ):
+                if isinstance(item, RAGChunk):
+                    print(item.content, end='', flush=True)
+                elif isinstance(item, ProvenanceEvent):
+                    # Fetch entity details
+                    entity = explain_client.fetch_entity(
+                        item.explain_id,
+                        graph=item.explain_graph,
+                        user="trustgraph",
+                        collection="research-papers"
+                    )
+                    print(f"Event: {entity}", file=sys.stderr)
+            ```
+        """
+        request = {
+            "query": query,
+            "user": user,
+            "collection": collection,
+            "doc-limit": doc_limit,
+            "streaming": True,
+            "explainable": True,
+        }
+        request.update(kwargs)
+
+        # Use streaming with provenance events included
+        return self.client._send_request_sync(
+            "document-rag", self.flow_id, request,
+            streaming=True, include_provenance=True
+        )
 
     def _rag_generator(self, result: Iterator[StreamingChunk]) -> Iterator[str]:
         """Generator for RAG streaming (graph-rag and document-rag)"""
@@ -649,12 +1055,12 @@ class SocketFlowInstance:
             )
             ```
         """
-        # First convert text to embeddings vectors
-        emb_result = self.embeddings(text=text)
-        vectors = emb_result.get("vectors", [])
+        # First convert text to embedding vector
+        emb_result = self.embeddings(texts=[text])
+        vector = emb_result.get("vectors", [[]])[0]
 
         request = {
-            "vectors": vectors,
+            "vector": vector,
             "user": user,
             "collection": collection,
             "limit": limit
@@ -682,7 +1088,7 @@ class SocketFlowInstance:
             **kwargs: Additional parameters passed to the service
 
         Returns:
-            dict: Query results with similar document chunks
+            dict: Query results with chunk_ids of matching document chunks
 
         Example:
             ```python
@@ -695,14 +1101,15 @@ class SocketFlowInstance:
                 collection="research-papers",
                 limit=5
             )
+            # results contains {"chunks": [{"chunk_id": "...", "score": 0.95}, ...]}
             ```
         """
-        # First convert text to embeddings vectors
-        emb_result = self.embeddings(text=text)
-        vectors = emb_result.get("vectors", [])
+        # First convert text to embedding vector
+        emb_result = self.embeddings(texts=[text])
+        vector = emb_result.get("vectors", [[]])[0]
 
         request = {
-            "vectors": vectors,
+            "vector": vector,
             "user": user,
             "collection": collection,
             "limit": limit
@@ -711,55 +1118,57 @@ class SocketFlowInstance:
 
         return self.client._send_request_sync("document-embeddings", self.flow_id, request, False)
 
-    def embeddings(self, text: str, **kwargs: Any) -> Dict[str, Any]:
+    def embeddings(self, texts: list, **kwargs: Any) -> Dict[str, Any]:
         """
-        Generate vector embeddings for text.
+        Generate vector embeddings for one or more texts.
 
         Args:
-            text: Input text to embed
+            texts: List of input texts to embed
             **kwargs: Additional parameters passed to the service
 
         Returns:
-            dict: Response containing vectors
+            dict: Response containing vectors (one set per input text)
 
         Example:
             ```python
             socket = api.socket()
             flow = socket.flow("default")
 
-            result = flow.embeddings("quantum computing")
+            result = flow.embeddings(["quantum computing"])
             vectors = result.get("vectors", [])
             ```
         """
-        request = {"text": text}
+        request = {"texts": texts}
         request.update(kwargs)
 
         return self.client._send_request_sync("embeddings", self.flow_id, request, False)
 
     def triples_query(
         self,
-        s: Optional[str] = None,
-        p: Optional[str] = None,
-        o: Optional[str] = None,
+        s: Optional[Union[str, Dict[str, Any]]] = None,
+        p: Optional[Union[str, Dict[str, Any]]] = None,
+        o: Optional[Union[str, Dict[str, Any]]] = None,
+        g: Optional[str] = None,
         user: Optional[str] = None,
         collection: Optional[str] = None,
         limit: int = 100,
         **kwargs: Any
-    ) -> Dict[str, Any]:
+    ) -> List[Dict[str, Any]]:
         """
         Query knowledge graph triples using pattern matching.
 
         Args:
-            s: Subject URI (optional, use None for wildcard)
-            p: Predicate URI (optional, use None for wildcard)
-            o: Object URI or Literal (optional, use None for wildcard)
+            s: Subject filter - URI string, Term dict, or None for wildcard
+            p: Predicate filter - URI string, Term dict, or None for wildcard
+            o: Object filter - URI/literal string, Term dict, or None for wildcard
+            g: Named graph filter - URI string or None for all graphs
             user: User/keyspace identifier (optional)
             collection: Collection identifier (optional)
             limit: Maximum results to return (default: 100)
             **kwargs: Additional parameters passed to the service
 
         Returns:
-            dict: Query results with matching triples
+            List[Dict]: List of matching triples in wire format
 
         Example:
             ```python
@@ -767,27 +1176,125 @@ class SocketFlowInstance:
             flow = socket.flow("default")
 
             # Find all triples about a specific subject
-            result = flow.triples_query(
+            triples = flow.triples_query(
                 s="http://example.org/person/marie-curie",
                 user="trustgraph",
                 collection="scientists"
             )
+
+            # Query with named graph filter
+            triples = flow.triples_query(
+                s="urn:trustgraph:session:abc123",
+                g="urn:graph:retrieval",
+                user="trustgraph",
+                collection="default"
+            )
             ```
         """
         request = {"limit": limit}
-        if s is not None:
-            request["s"] = str(s)
-        if p is not None:
-            request["p"] = str(p)
-        if o is not None:
-            request["o"] = str(o)
+
+        # Build Term dicts for s/p/o (auto-converts strings)
+        s_term = build_term(s)
+        p_term = build_term(p)
+        o_term = build_term(o)
+
+        if s_term is not None:
+            request["s"] = s_term
+        if p_term is not None:
+            request["p"] = p_term
+        if o_term is not None:
+            request["o"] = o_term
+        if g is not None:
+            request["g"] = g
         if user is not None:
             request["user"] = user
         if collection is not None:
             request["collection"] = collection
         request.update(kwargs)
 
-        return self.client._send_request_sync("triples", self.flow_id, request, False)
+        result = self.client._send_request_sync("triples", self.flow_id, request, False)
+        # Return the triples list from the response
+        if isinstance(result, dict) and "response" in result:
+            return result["response"]
+        return result
+
+    def triples_query_stream(
+        self,
+        s: Optional[Union[str, Dict[str, Any]]] = None,
+        p: Optional[Union[str, Dict[str, Any]]] = None,
+        o: Optional[Union[str, Dict[str, Any]]] = None,
+        g: Optional[str] = None,
+        user: Optional[str] = None,
+        collection: Optional[str] = None,
+        limit: int = 100,
+        batch_size: int = 20,
+        **kwargs: Any
+    ) -> Iterator[List[Dict[str, Any]]]:
+        """
+        Query knowledge graph triples with streaming batches.
+
+        Yields batches of triples as they arrive, reducing time-to-first-result
+        and memory overhead for large result sets.
+
+        Args:
+            s: Subject filter - URI string, Term dict, or None for wildcard
+            p: Predicate filter - URI string, Term dict, or None for wildcard
+            o: Object filter - URI/literal string, Term dict, or None for wildcard
+            g: Named graph filter - URI string or None for all graphs
+            user: User/keyspace identifier (optional)
+            collection: Collection identifier (optional)
+            limit: Maximum results to return (default: 100)
+            batch_size: Triples per batch (default: 20)
+            **kwargs: Additional parameters passed to the service
+
+        Yields:
+            List[Dict]: Batches of triples in wire format
+
+        Example:
+            ```python
+            socket = api.socket()
+            flow = socket.flow("default")
+
+            for batch in flow.triples_query_stream(
+                user="trustgraph",
+                collection="default"
+            ):
+                for triple in batch:
+                    print(triple["s"], triple["p"], triple["o"])
+            ```
+        """
+        request = {
+            "limit": limit,
+            "streaming": True,
+            "batch-size": batch_size,
+        }
+
+        # Build Term dicts for s/p/o (auto-converts strings)
+        s_term = build_term(s)
+        p_term = build_term(p)
+        o_term = build_term(o)
+
+        if s_term is not None:
+            request["s"] = s_term
+        if p_term is not None:
+            request["p"] = p_term
+        if o_term is not None:
+            request["o"] = o_term
+        if g is not None:
+            request["g"] = g
+        if user is not None:
+            request["user"] = user
+        if collection is not None:
+            request["collection"] = collection
+        request.update(kwargs)
+
+        # Use raw streaming - yields response dicts directly without parsing
+        for response in self.client._send_request_sync("triples", self.flow_id, request, streaming_raw=True):
+            # Response is {"response": [...triples...]} from translator
+            if isinstance(response, dict) and "response" in response:
+                yield response["response"]
+            else:
+                yield response
 
     def rows_query(
         self,
@@ -935,12 +1442,12 @@ class SocketFlowInstance:
             )
             ```
         """
-        # First convert text to embeddings vectors
-        emb_result = self.embeddings(text=text)
-        vectors = emb_result.get("vectors", [])
+        # First convert text to embedding vector
+        emb_result = self.embeddings(texts=[text])
+        vector = emb_result.get("vectors", [[]])[0]
 
         request = {
-            "vectors": vectors,
+            "vector": vector,
             "schema_name": schema_name,
             "user": user,
             "collection": collection,

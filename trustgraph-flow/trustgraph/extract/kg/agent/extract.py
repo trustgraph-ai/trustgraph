@@ -6,11 +6,13 @@ import logging
 from ....schema import Chunk, Triple, Triples, Metadata, Term, IRI, LITERAL
 from ....schema import EntityContext, EntityContexts
 
-from ....rdf import TRUSTGRAPH_ENTITIES, RDF_LABEL, SUBJECT_OF, DEFINITION
+from ....rdf import TRUSTGRAPH_ENTITIES, RDF_LABEL, DEFINITION
 
 from ....base import FlowProcessor, ConsumerSpec, ProducerSpec
 from ....base import AgentClientSpec
 
+from ....provenance import subgraph_uri, subgraph_provenance_triples, set_graph, GRAPH_SOURCE
+from ....flow_version import __version__ as COMPONENT_VERSION
 from ....template import PromptManager
 
 # Module logger
@@ -104,7 +106,7 @@ class Processor(FlowProcessor):
         tpls = Triples(
             metadata = Metadata(
                 id = metadata.id,
-                metadata = [],
+                root = metadata.root,
                 user = metadata.user,
                 collection = metadata.collection,
             ),
@@ -117,7 +119,7 @@ class Processor(FlowProcessor):
         ecs = EntityContexts(
             metadata = Metadata(
                 id = metadata.id,
-                metadata = [],
+                root = metadata.root,
                 user = metadata.user,
                 collection = metadata.collection,
             ),
@@ -183,24 +185,8 @@ class Processor(FlowProcessor):
 
             logger.debug(f"Agent prompt: {prompt}")
 
-            async def handle(response):
-
-                logger.debug(f"Agent response: {response}")
-
-                if response.error is not None:
-                    if response.error.message:
-                        raise RuntimeError(str(response.error.message))
-                    else:
-                        raise RuntimeError(str(response.error))
-
-                if response.answer is not None:
-                    return True
-                else:
-                    return False
-            
             # Send to agent API
             agent_response = await flow("agent-request").invoke(
-                recipient = handle,
                 question = prompt
             )
             
@@ -212,14 +198,22 @@ class Processor(FlowProcessor):
                 return
             
             # Process extraction data
-            triples, entity_contexts = self.process_extraction_data(
-                extraction_data, v.metadata
-            )
+            triples, entity_contexts, extracted_triples = \
+                self.process_extraction_data(extraction_data, v.metadata)
 
-            # Put document metadata into triples
-            for t in v.metadata.metadata:
-                triples.append(t)
-        
+            # Generate subgraph provenance for extracted triples
+            if extracted_triples:
+                chunk_uri = v.metadata.id
+                sg_uri = subgraph_uri()
+                prov_triples = subgraph_provenance_triples(
+                    subgraph_uri=sg_uri,
+                    extracted_triples=extracted_triples,
+                    chunk_uri=chunk_uri,
+                    component_name=default_ident,
+                    component_version=COMPONENT_VERSION,
+                )
+                triples.extend(set_graph(prov_triples, GRAPH_SOURCE))
+
             # Emit outputs
             if triples:
                 await self.emit_triples(flow("triples"), v.metadata, triples)
@@ -241,8 +235,13 @@ class Processor(FlowProcessor):
         Data is a flat list of objects with 'type' discriminator field:
         - {"type": "definition", "entity": "...", "definition": "..."}
         - {"type": "relationship", "subject": "...", "predicate": "...", "object": "...", "object-entity": bool}
+
+        Returns:
+            Tuple of (all_triples, entity_contexts, extracted_triples) where
+            extracted_triples contains only the core knowledge facts (for provenance).
         """
         triples = []
+        extracted_triples = []
         entity_contexts = []
 
         # Categorize items by type
@@ -262,26 +261,20 @@ class Processor(FlowProcessor):
             ))
 
             # Add definition
-            triples.append(Triple(
+            definition_triple = Triple(
                 s = Term(type=IRI, iri=entity_uri),
                 p = Term(type=IRI, iri=DEFINITION),
                 o = Term(type=LITERAL, value=defn["definition"]),
-            ))
-
-            # Add subject-of relationship to document
-            if metadata.id:
-                triples.append(Triple(
-                    s = Term(type=IRI, iri=entity_uri),
-                    p = Term(type=IRI, iri=SUBJECT_OF),
-                    o = Term(type=IRI, iri=metadata.id),
-                ))
+            )
+            triples.append(definition_triple)
+            extracted_triples.append(definition_triple)
 
             # Create entity context for embeddings
             entity_contexts.append(EntityContext(
                 entity=Term(type=IRI, iri=entity_uri),
                 context=defn["definition"]
             ))
-        
+
         # Process relationships
         for rel in relationships:
 
@@ -318,34 +311,15 @@ class Processor(FlowProcessor):
                 ))
 
             # Add the main relationship triple
-            triples.append(Triple(
+            relationship_triple = Triple(
                 s = subject_value,
                 p = predicate_value,
                 o = object_value
-            ))
+            )
+            triples.append(relationship_triple)
+            extracted_triples.append(relationship_triple)
 
-            # Add subject-of relationships to document
-            if metadata.id:
-                triples.append(Triple(
-                    s = subject_value,
-                    p = Term(type=IRI, iri=SUBJECT_OF),
-                    o = Term(type=IRI, iri=metadata.id),
-                ))
-
-                triples.append(Triple(
-                    s = predicate_value,
-                    p = Term(type=IRI, iri=SUBJECT_OF),
-                    o = Term(type=IRI, iri=metadata.id),
-                ))
-
-                if rel.get("object-entity", True):
-                    triples.append(Triple(
-                        s = object_value,
-                        p = Term(type=IRI, iri=SUBJECT_OF),
-                        o = Term(type=IRI, iri=metadata.id),
-                    ))
-        
-        return triples, entity_contexts
+        return triples, entity_contexts, extracted_triples
 
     @staticmethod
     def add_args(parser):

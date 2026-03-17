@@ -37,35 +37,37 @@ def serialize_triples(message):
     return {
         "metadata": {
             "id": message.metadata.id,
-            "metadata": serialize_subgraph(message.metadata.metadata),
+            "root": message.metadata.root,
             "user": message.metadata.user,
             "collection": message.metadata.collection,
         },
         "triples": serialize_subgraph(message.triples),
     }
-    
+
+
 def serialize_graph_embeddings(message):
     return {
         "metadata": {
             "id": message.metadata.id,
-            "metadata": serialize_subgraph(message.metadata.metadata),
+            "root": message.metadata.root,
             "user": message.metadata.user,
             "collection": message.metadata.collection,
         },
         "entities": [
             {
-                "vectors": entity.vectors,
+                "vector": entity.vector,
                 "entity": serialize_value(entity.entity),
             }
             for entity in message.entities
         ],
     }
 
+
 def serialize_entity_contexts(message):
     return {
         "metadata": {
             "id": message.metadata.id,
-            "metadata": serialize_subgraph(message.metadata.metadata),
+            "root": message.metadata.root,
             "user": message.metadata.user,
             "collection": message.metadata.collection,
         },
@@ -78,18 +80,19 @@ def serialize_entity_contexts(message):
         ],
     }
 
+
 def serialize_document_embeddings(message):
     return {
         "metadata": {
             "id": message.metadata.id,
-            "metadata": serialize_subgraph(message.metadata.metadata),
+            "root": message.metadata.root,
             "user": message.metadata.user,
             "collection": message.metadata.collection,
         },
         "chunks": [
             {
-                "vectors": chunk.vectors,
-                "chunk": chunk.chunk.decode("utf-8"),
+                "vector": chunk.vector,
+                "chunk_id": chunk.chunk_id,
             }
             for chunk in message.chunks
         ],

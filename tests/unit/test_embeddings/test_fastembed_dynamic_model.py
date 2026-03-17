@@ -103,7 +103,7 @@ class TestFastEmbedDynamicModelLoading(IsolatedAsyncioTestCase):
         mock_text_embedding_class.reset_mock()
 
         # Act
-        result = await processor.on_embeddings("test text")
+        result = await processor.on_embeddings(["test text"])
 
         # Assert
         mock_fastembed_instance.embed.assert_called_once_with(["test text"])
@@ -126,7 +126,7 @@ class TestFastEmbedDynamicModelLoading(IsolatedAsyncioTestCase):
         mock_text_embedding_class.reset_mock()
 
         # Act
-        result = await processor.on_embeddings("test text", model="custom-model")
+        result = await processor.on_embeddings(["test text"], model="custom-model")
 
         # Assert
         mock_text_embedding_class.assert_called_once_with(model_name="custom-model")
@@ -149,16 +149,16 @@ class TestFastEmbedDynamicModelLoading(IsolatedAsyncioTestCase):
         initial_call_count = mock_text_embedding_class.call_count
 
         # Act - switch between models
-        await processor.on_embeddings("text1", model="model-a")
+        await processor.on_embeddings(["text1"], model="model-a")
         call_count_after_a = mock_text_embedding_class.call_count
 
-        await processor.on_embeddings("text2", model="model-a")  # Same, no reload
+        await processor.on_embeddings(["text2"], model="model-a")  # Same, no reload
         call_count_after_a_repeat = mock_text_embedding_class.call_count
 
-        await processor.on_embeddings("text3", model="model-b")  # Different, reload
+        await processor.on_embeddings(["text3"], model="model-b")  # Different, reload
         call_count_after_b = mock_text_embedding_class.call_count
 
-        await processor.on_embeddings("text4", model="model-a")  # Back to A, reload
+        await processor.on_embeddings(["text4"], model="model-a")  # Back to A, reload
         call_count_after_a_again = mock_text_embedding_class.call_count
 
         # Assert
@@ -183,7 +183,7 @@ class TestFastEmbedDynamicModelLoading(IsolatedAsyncioTestCase):
         initial_count = mock_text_embedding_class.call_count
 
         # Act
-        result = await processor.on_embeddings("test text", model=None)
+        result = await processor.on_embeddings(["test text"], model=None)
 
         # Assert
         # No reload, using cached default

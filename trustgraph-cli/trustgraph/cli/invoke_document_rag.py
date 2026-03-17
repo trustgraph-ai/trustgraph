@@ -4,7 +4,17 @@ Uses the DocumentRAG service to answer a question
 
 import argparse
 import os
-from trustgraph.api import Api
+import sys
+from trustgraph.api import (
+    Api,
+    ExplainabilityClient,
+    RAGChunk,
+    ProvenanceEvent,
+    Question,
+    Grounding,
+    Exploration,
+    Synthesis,
+)
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
 default_token = os.getenv("TRUSTGRAPH_TOKEN", None)
@@ -12,7 +22,96 @@ default_user = 'trustgraph'
 default_collection = 'default'
 default_doc_limit = 10
 
-def question(url, flow_id, question, user, collection, doc_limit, streaming=True, token=None):
+
+def question_explainable(
+    url, flow_id, question_text, user, collection, doc_limit, token=None, debug=False
+):
+    """Execute document RAG with explainability - shows provenance events inline."""
+    api = Api(url=url, token=token)
+    socket = api.socket()
+    flow = socket.flow(flow_id)
+    explain_client = ExplainabilityClient(flow, retry_delay=0.2, max_retries=10)
+
+    try:
+        # Stream DocumentRAG with explainability - process events as they arrive
+        for item in flow.document_rag_explain(
+            query=question_text,
+            user=user,
+            collection=collection,
+            doc_limit=doc_limit,
+        ):
+            if isinstance(item, RAGChunk):
+                # Print response content
+                print(item.content, end="", flush=True)
+
+            elif isinstance(item, ProvenanceEvent):
+                # Process provenance event immediately
+                prov_id = item.explain_id
+                explain_graph = item.explain_graph or "urn:graph:retrieval"
+
+                entity = explain_client.fetch_entity(
+                    prov_id,
+                    graph=explain_graph,
+                    user=user,
+                    collection=collection
+                )
+
+                if entity is None:
+                    if debug:
+                        print(f"\n  [warning] Could not fetch entity: {prov_id}", file=sys.stderr)
+                    continue
+
+                # Display based on entity type
+                if isinstance(entity, Question):
+                    print(f"\n  [question] {prov_id}", file=sys.stderr)
+                    if entity.query:
+                        print(f"    Query: {entity.query}", file=sys.stderr)
+                    if entity.timestamp:
+                        print(f"    Time: {entity.timestamp}", file=sys.stderr)
+
+                elif isinstance(entity, Grounding):
+                    print(f"\n  [grounding] {prov_id}", file=sys.stderr)
+                    if entity.concepts:
+                        for concept in entity.concepts:
+                            print(f"    Concept: {concept}", file=sys.stderr)
+
+                elif isinstance(entity, Exploration):
+                    print(f"\n  [exploration] {prov_id}", file=sys.stderr)
+                    if entity.chunk_count:
+                        print(f"    Chunks retrieved: {entity.chunk_count}", file=sys.stderr)
+
+                elif isinstance(entity, Synthesis):
+                    print(f"\n  [synthesis] {prov_id}", file=sys.stderr)
+                    if entity.document:
+                        print(f"    Document: {entity.document}", file=sys.stderr)
+
+                else:
+                    if debug:
+                        print(f"\n  [unknown] {prov_id} (type: {entity.entity_type})", file=sys.stderr)
+
+        print()  # Final newline
+
+    finally:
+        socket.close()
+
+
+def question(
+    url, flow_id, question_text, user, collection, doc_limit,
+    streaming=True, token=None, explainable=False, debug=False
+):
+    # Explainable mode uses the API to capture and process provenance events
+    if explainable:
+        question_explainable(
+            url=url,
+            flow_id=flow_id,
+            question_text=question_text,
+            user=user,
+            collection=collection,
+            doc_limit=doc_limit,
+            token=token,
+            debug=debug
+        )
+        return
 
     # Create API client
     api = Api(url=url, token=token)
@@ -24,7 +123,7 @@ def question(url, flow_id, question, user, collection, doc_limit, streaming=True
 
         try:
             response = flow.document_rag(
-                query=question,
+                query=question_text,
                 user=user,
                 collection=collection,
                 doc_limit=doc_limit,
@@ -42,12 +141,13 @@ def question(url, flow_id, question, user, collection, doc_limit, streaming=True
         # Use REST API for non-streaming
         flow = api.flow().id(flow_id)
         resp = flow.document_rag(
-            query=question,
+            query=question_text,
             user=user,
             collection=collection,
             doc_limit=doc_limit,
         )
         print(resp)
+
 
 def main():
 
@@ -105,6 +205,18 @@ def main():
         help='Disable streaming (use non-streaming mode)'
     )
 
+    parser.add_argument(
+        '-x', '--explainable',
+        action='store_true',
+        help='Show provenance events: Question, Exploration, Synthesis (implies streaming)'
+    )
+
+    parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='Show debug output for troubleshooting'
+    )
+
     args = parser.parse_args()
 
     try:
@@ -112,12 +224,14 @@ def main():
         question(
             url=args.url,
             flow_id=args.flow_id,
-            question=args.question,
+            question_text=args.question,
             user=args.user,
             collection=args.collection,
             doc_limit=args.doc_limit,
             streaming=not args.no_streaming,
             token=args.token,
+            explainable=args.explainable,
+            debug=args.debug,
         )
 
     except Exception as e:

@@ -46,19 +46,21 @@ class Processor(EmbeddingsService):
         else:
             logger.debug(f"Using cached model: {model_name}")
 
-    async def on_embeddings(self, text, model=None):
+    async def on_embeddings(self, texts, model=None):
+
+        if not texts:
+            return []
 
         use_model = model or self.default_model
 
         # Reload model if it has changed
         self._load_model(use_model)
 
-        vecs = self.embeddings.embed([text])
+        # FastEmbed processes the full batch efficiently
+        vecs = list(self.embeddings.embed(texts))
 
-        return [
-            v.tolist()
-            for v in vecs
-        ]
+        # Return list of vectors, one per input text
+        return [v.tolist() for v in vecs]
 
     @staticmethod
     def add_args(parser):

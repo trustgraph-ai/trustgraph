@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from trustgraph.extract.kg.agent.extract import Processor as AgentKgExtractor
 from trustgraph.schema import Chunk, Triple, Triples, Metadata, Term, Error, IRI, LITERAL
 from trustgraph.schema import EntityContext, EntityContexts, AgentRequest, AgentResponse
-from trustgraph.rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL, SUBJECT_OF
+from trustgraph.rdf import TRUSTGRAPH_ENTITIES, DEFINITION, RDF_LABEL
 from trustgraph.template.prompt_manager import PromptManager
 
 
@@ -31,7 +31,7 @@ class TestAgentKgExtractionIntegration:
         agent_client = AsyncMock()
         
         # Mock successful agent response in JSONL format
-        def mock_agent_response(recipient, question):
+        def mock_agent_response(question):
             # Simulate agent processing and return structured JSONL response
             mock_response = MagicMock()
             mock_response.error = None
@@ -76,13 +76,6 @@ class TestAgentKgExtractionIntegration:
             chunk=text.encode('utf-8'),
             metadata=Metadata(
                 id="doc123",
-                metadata=[
-                    Triple(
-                        s=Term(type=IRI, iri="doc123"),
-                        p=Term(type=IRI, iri="http://example.org/type"),
-                        o=Term(type=LITERAL, value="document")
-                    )
-                ]
             )
         )
 
@@ -131,16 +124,12 @@ class TestAgentKgExtractionIntegration:
             
             # Get agent response (the mock returns a string directly)
             agent_client = flow("agent-request")
-            agent_response = agent_client.invoke(recipient=lambda x: True, question=prompt)
+            agent_response = agent_client.invoke(question=prompt)
             
             # Parse and process
             extraction_data = extractor.parse_jsonl(agent_response)
-            triples, entity_contexts = extractor.process_extraction_data(extraction_data, v.metadata)
-            
-            # Add metadata triples
-            for t in v.metadata.metadata:
-                triples.append(t)
-            
+            triples, entity_contexts, extracted_triples = extractor.process_extraction_data(extraction_data, v.metadata)
+
             # Emit outputs
             if triples:
                 await extractor.emit_triples(flow("triples"), v.metadata, triples)
@@ -185,10 +174,6 @@ class TestAgentKgExtractionIntegration:
         label_triples = [t for t in sent_triples.triples if t.p.iri == RDF_LABEL]
         assert len(label_triples) >= 2  # Should have labels for entities
 
-        # Check subject-of relationships
-        subject_of_triples = [t for t in sent_triples.triples if t.p.iri == SUBJECT_OF]
-        assert len(subject_of_triples) >= 2  # Entities should be linked to document
-
         # Verify entity contexts were emitted
         entity_contexts_publisher = mock_flow_context("entity-contexts")
         entity_contexts_publisher.send.assert_called_once()
@@ -208,7 +193,7 @@ class TestAgentKgExtractionIntegration:
         # Arrange - mock agent error response
         agent_client = mock_flow_context("agent-request")
         
-        def mock_error_response(recipient, question):
+        def mock_error_response(question):
             # Simulate agent error by raising an exception
             raise RuntimeError("Agent processing failed")
         
@@ -230,7 +215,7 @@ class TestAgentKgExtractionIntegration:
         # Arrange - mock invalid JSON response
         agent_client = mock_flow_context("agent-request")
 
-        def mock_invalid_json_response(recipient, question):
+        def mock_invalid_json_response(question):
             return "This is not valid JSON at all"
 
         agent_client.invoke = mock_invalid_json_response
@@ -242,9 +227,9 @@ class TestAgentKgExtractionIntegration:
         # Act - JSONL parsing is lenient, invalid lines are skipped
         await configured_agent_extractor.on_message(mock_message, mock_consumer, mock_flow_context)
 
-        # Assert - should emit triples (with just metadata) but no entity contexts
+        # Assert - with no valid extraction data, nothing is emitted
         triples_publisher = mock_flow_context("triples")
-        triples_publisher.send.assert_called_once()
+        triples_publisher.send.assert_not_called()
 
         entity_contexts_publisher = mock_flow_context("entity-contexts")
         entity_contexts_publisher.send.assert_not_called()
@@ -255,7 +240,7 @@ class TestAgentKgExtractionIntegration:
         # Arrange - mock empty extraction response
         agent_client = mock_flow_context("agent-request")
         
-        def mock_empty_response(recipient, question):
+        def mock_empty_response(question):
             # Return empty JSONL (just empty/whitespace)
             return ''
         
@@ -268,17 +253,12 @@ class TestAgentKgExtractionIntegration:
         # Act
         await configured_agent_extractor.on_message(mock_message, mock_consumer, mock_flow_context)
 
-        # Assert
-        # Should still emit outputs (even if empty) to maintain flow consistency
+        # Assert - with empty extraction results, nothing is emitted
         triples_publisher = mock_flow_context("triples")
         entity_contexts_publisher = mock_flow_context("entity-contexts")
-        
-        # Triples should include metadata triples at minimum
-        triples_publisher.send.assert_called_once()
-        sent_triples = triples_publisher.send.call_args[0][0]
-        assert isinstance(sent_triples, Triples)
-        
-        # Entity contexts should not be sent if empty
+
+        # No triples or entity contexts emitted for empty results
+        triples_publisher.send.assert_not_called()
         entity_contexts_publisher.send.assert_not_called()
 
     @pytest.mark.asyncio
@@ -287,7 +267,7 @@ class TestAgentKgExtractionIntegration:
         # Arrange - mock malformed extraction response
         agent_client = mock_flow_context("agent-request")
         
-        def mock_malformed_response(recipient, question):
+        def mock_malformed_response(question):
             # JSONL with definition missing required field
             return '{"type": "definition", "entity": "Missing Definition"}'
         
@@ -308,12 +288,12 @@ class TestAgentKgExtractionIntegration:
         test_text = "Test text for prompt rendering"
         chunk = Chunk(
             chunk=test_text.encode('utf-8'),
-            metadata=Metadata(id="test-doc", metadata=[])
+            metadata=Metadata(id="test-doc")
         )
         
         agent_client = mock_flow_context("agent-request")
         
-        def capture_prompt(recipient, question):
+        def capture_prompt(question):
             # Verify the prompt contains the test text
             assert test_text in question
             return ''  # Empty JSONL response
@@ -340,13 +320,13 @@ class TestAgentKgExtractionIntegration:
             text = f"Test document {i} content"
             chunks.append(Chunk(
                 chunk=text.encode('utf-8'),
-                metadata=Metadata(id=f"doc{i}", metadata=[])
+                metadata=Metadata(id=f"doc{i}")
             ))
         
         agent_client = mock_flow_context("agent-request")
         responses = []
         
-        def mock_response(recipient, question):
+        def mock_response(question):
             response = f'{{"type": "definition", "entity": "Entity {len(responses)}", "definition": "Definition {len(responses)}"}}'
             responses.append(response)
             return response
@@ -375,12 +355,12 @@ class TestAgentKgExtractionIntegration:
         unicode_text = "Machine Learning (学习机器) は人工知能の一分野です。"
         chunk = Chunk(
             chunk=unicode_text.encode('utf-8'),
-            metadata=Metadata(id="unicode-doc", metadata=[])
+            metadata=Metadata(id="unicode-doc")
         )
         
         agent_client = mock_flow_context("agent-request")
         
-        def mock_unicode_response(recipient, question):
+        def mock_unicode_response(question):
             # Verify unicode text was properly decoded and included
             assert "学习机器" in question
             assert "人工知能" in question
@@ -411,12 +391,12 @@ class TestAgentKgExtractionIntegration:
         large_text = "Machine Learning is important. " * 1000  # Repeat to create large text
         chunk = Chunk(
             chunk=large_text.encode('utf-8'),
-            metadata=Metadata(id="large-doc", metadata=[])
+            metadata=Metadata(id="large-doc")
         )
         
         agent_client = mock_flow_context("agent-request")
         
-        def mock_large_text_response(recipient, question):
+        def mock_large_text_response(question):
             # Verify large text was included
             assert len(question) > 10000
             return '{"type": "definition", "entity": "Machine Learning", "definition": "Important AI technique"}'

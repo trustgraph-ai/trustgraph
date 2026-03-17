@@ -30,16 +30,21 @@ class Processor(EmbeddingsService):
         self.client = Client(host=ollama)
         self.default_model = model
 
-    async def on_embeddings(self, text, model=None):
+    async def on_embeddings(self, texts, model=None):
+
+        if not texts:
+            return []
 
         use_model = model or self.default_model
 
+        # Ollama handles batch input efficiently
         embeds = self.client.embed(
             model = use_model,
-            input = text
+            input = texts
         )
 
-        return embeds.embeddings
+        # Return list of vectors, one per input text
+        return list(embeds.embeddings)
 
     @staticmethod
     def add_args(parser):

@@ -96,20 +96,21 @@ class TestGraphRagResponseTranslator:
         assert is_final is False
         assert result["end_of_stream"] is False
 
-        # Test final chunk with empty content
+        # Test final message with end_of_session=True
         final_response = GraphRagResponse(
             response="",
             end_of_stream=True,
+            end_of_session=True,
             error=None
         )
 
         # Act
         result, is_final = translator.from_response_with_completion(final_response)
 
-        # Assert
+        # Assert - is_final is based on end_of_session, not end_of_stream
         assert is_final is True
         assert result["response"] == ""
-        assert result["end_of_stream"] is True
+        assert result["end_of_session"] is True
 
 
 class TestDocumentRagResponseTranslator:

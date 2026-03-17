@@ -53,11 +53,13 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
             entity_value = get_term_value(entity.entity)
 
             if entity_value != "" and entity_value is not None:
-                for vec in entity.vectors:
+                vec = entity.vector
+                if vec:
                     self.vecstore.insert(
                         vec, entity_value,
                         message.metadata.user,
-                        message.metadata.collection
+                        message.metadata.collection,
+                        chunk_id=entity.chunk_id or "",
                     )
 
     @staticmethod

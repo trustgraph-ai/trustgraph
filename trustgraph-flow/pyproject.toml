@@ -10,7 +10,7 @@ description = "TrustGraph provides a means to run a pipeline of flexible AI proc
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
-    "trustgraph-base>=2.0,<2.1",
+    "trustgraph-base>=2.1,<2.2",
     "aiohttp",
     "anthropic",
     "scylla-driver",
@@ -27,7 +27,7 @@ dependencies = [
     "langchain-text-splitters",
     "mcp",
     "minio",
-    "mistralai",
+    "mistralai<2.0.0",
     "neo4j",
     "nltk",
     "ollama",
@@ -122,6 +122,7 @@ triples-write-falkordb = "trustgraph.storage.triples.falkordb:run"
 triples-write-memgraph = "trustgraph.storage.triples.memgraph:run"
 triples-write-neo4j = "trustgraph.storage.triples.neo4j:run"
 wikipedia-lookup = "trustgraph.external.wikipedia:run"
+joke-service = "trustgraph.tool_service.joke:run"
 
 [tool.setuptools.packages.find]
 include = ["trustgraph*"]

@@ -9,12 +9,12 @@ from .. knowledge import Uri, Literal
 logger = logging.getLogger(__name__)
 
 class DocumentEmbeddingsClient(RequestResponse):
-    async def query(self, vectors, limit=20, user="trustgraph",
+    async def query(self, vector, limit=20, user="trustgraph",
                     collection="default", timeout=30):
 
         resp = await self.request(
             DocumentEmbeddingsRequest(
-                vectors = vectors,
+                vector = vector,
                 limit = limit,
                 user = user,
                 collection = collection
@@ -27,6 +27,7 @@ class DocumentEmbeddingsClient(RequestResponse):
         if resp.error:
             raise RuntimeError(resp.error.message)
 
+        # Return ChunkMatch objects with chunk_id and score
         return resp.chunks
 
 class DocumentEmbeddingsClientSpec(RequestResponseSpec):

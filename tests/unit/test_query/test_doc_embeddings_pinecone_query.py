@@ -18,10 +18,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
     def mock_query_message(self):
         """Create a mock query message for testing"""
         message = MagicMock()
-        message.vectors = [
-            [0.1, 0.2, 0.3],
-            [0.4, 0.5, 0.6]
-        ]
+        message.vector = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
         message.limit = 5
         message.user = 'test_user'
         message.collection = 'test_collection'
@@ -103,7 +100,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
     async def test_query_document_embeddings_single_vector(self, processor):
         """Test querying document embeddings with a single vector"""
         message = MagicMock()
-        message.vectors = [[0.1, 0.2, 0.3]]
+        message.vector = [0.1, 0.2, 0.3]
         message.limit = 3
         message.user = 'test_user'
         message.collection = 'test_collection'
@@ -179,7 +176,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
     async def test_query_document_embeddings_limit_handling(self, processor):
         """Test that query respects the limit parameter"""
         message = MagicMock()
-        message.vectors = [[0.1, 0.2, 0.3]]
+        message.vector = [0.1, 0.2, 0.3]
         message.limit = 2
         message.user = 'test_user'
         message.collection = 'test_collection'
@@ -208,7 +205,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
     async def test_query_document_embeddings_zero_limit(self, processor):
         """Test querying with zero limit returns empty results"""
         message = MagicMock()
-        message.vectors = [[0.1, 0.2, 0.3]]
+        message.vector = [0.1, 0.2, 0.3]
         message.limit = 0
         message.user = 'test_user'
         message.collection = 'test_collection'
@@ -226,7 +223,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
     async def test_query_document_embeddings_negative_limit(self, processor):
         """Test querying with negative limit returns empty results"""
         message = MagicMock()
-        message.vectors = [[0.1, 0.2, 0.3]]
+        message.vector = [0.1, 0.2, 0.3]
         message.limit = -1
         message.user = 'test_user'
         message.collection = 'test_collection'
@@ -242,12 +239,9 @@ class TestPineconeDocEmbeddingsQueryProcessor:
 
     @pytest.mark.asyncio
     async def test_query_document_embeddings_different_vector_dimensions(self, processor):
-        """Test querying with vectors of different dimensions using same index"""
+        """Test querying with single vector (legacy test name, schema now uses single vector)"""
         message = MagicMock()
-        message.vectors = [
-            [0.1, 0.2],  # 2D vector
-            [0.3, 0.4, 0.5, 0.6]  # 4D vector
-        ]
+        message.vector = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
         message.limit = 5
         message.user = 'test_user'
         message.collection = 'test_collection'
@@ -285,7 +279,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
     async def test_query_document_embeddings_empty_vectors_list(self, processor):
         """Test querying with empty vectors list"""
         message = MagicMock()
-        message.vectors = []
+        message.vector = []
         message.limit = 5
         message.user = 'test_user'
         message.collection = 'test_collection'
@@ -304,7 +298,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
     async def test_query_document_embeddings_no_results(self, processor):
         """Test querying when index returns no results"""
         message = MagicMock()
-        message.vectors = [[0.1, 0.2, 0.3]]
+        message.vector = [0.1, 0.2, 0.3]
         message.limit = 5
         message.user = 'test_user'
         message.collection = 'test_collection'
@@ -325,7 +319,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
     async def test_query_document_embeddings_unicode_content(self, processor):
         """Test querying document embeddings with Unicode content results"""
         message = MagicMock()
-        message.vectors = [[0.1, 0.2, 0.3]]
+        message.vector = [0.1, 0.2, 0.3]
         message.limit = 2
         message.user = 'test_user'
         message.collection = 'test_collection'
@@ -351,7 +345,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
     async def test_query_document_embeddings_large_content(self, processor):
         """Test querying document embeddings with large content results"""
         message = MagicMock()
-        message.vectors = [[0.1, 0.2, 0.3]]
+        message.vector = [0.1, 0.2, 0.3]
         message.limit = 1
         message.user = 'test_user'
         message.collection = 'test_collection'
@@ -377,7 +371,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
     async def test_query_document_embeddings_mixed_content_types(self, processor):
         """Test querying document embeddings with mixed content types"""
         message = MagicMock()
-        message.vectors = [[0.1, 0.2, 0.3]]
+        message.vector = [0.1, 0.2, 0.3]
         message.limit = 5
         message.user = 'test_user'
         message.collection = 'test_collection'
@@ -409,7 +403,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
     async def test_query_document_embeddings_exception_handling(self, processor):
         """Test that exceptions are properly raised"""
         message = MagicMock()
-        message.vectors = [[0.1, 0.2, 0.3]]
+        message.vector = [0.1, 0.2, 0.3]
         message.limit = 5
         message.user = 'test_user'
         message.collection = 'test_collection'
@@ -425,7 +419,7 @@ class TestPineconeDocEmbeddingsQueryProcessor:
     async def test_query_document_embeddings_index_access_failure(self, processor):
         """Test handling of index access failure"""
         message = MagicMock()
-        message.vectors = [[0.1, 0.2, 0.3]]
+        message.vector = [0.1, 0.2, 0.3]
         message.limit = 5
         message.user = 'test_user'
         message.collection = 'test_collection'
@@ -437,13 +431,9 @@ class TestPineconeDocEmbeddingsQueryProcessor:
 
     @pytest.mark.asyncio
     async def test_query_document_embeddings_vector_accumulation(self, processor):
-        """Test that results from multiple vectors are properly accumulated"""
+        """Test that results from single vector query are returned (legacy multi-vector test)"""
         message = MagicMock()
-        message.vectors = [
-            [0.1, 0.2, 0.3],
-            [0.4, 0.5, 0.6],
-            [0.7, 0.8, 0.9]
-        ]
+        message.vector = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
         message.limit = 2
         message.user = 'test_user'
         message.collection = 'test_collection'

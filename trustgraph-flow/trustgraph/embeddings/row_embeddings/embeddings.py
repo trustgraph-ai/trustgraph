@@ -200,15 +200,23 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         embeddings_list = []
 
         try:
-            for text, (index_name, index_value) in texts_to_embed.items():
-                vectors = await flow("embeddings-request").embed(text=text)
+            # Collect texts and metadata for batch embedding
+            texts = list(texts_to_embed.keys())
+            metadata = list(texts_to_embed.values())
 
+            # Single batch embedding call
+            all_vectors = await flow("embeddings-request").embed(texts=texts)
+
+            # Pair results with metadata
+            for text, (index_name, index_value), vector in zip(
+                texts, metadata, all_vectors
+            ):
                 embeddings_list.append(
                     RowIndexEmbedding(
                         index_name=index_name,
                         index_value=index_value,
                         text=text,
-                        vectors=vectors
+                        vector=vector
                     )
                 )
 

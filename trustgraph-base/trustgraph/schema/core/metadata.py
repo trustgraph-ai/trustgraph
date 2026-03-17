@@ -1,13 +1,12 @@
-from dataclasses import dataclass, field
-from .primitives import Triple
+from dataclasses import dataclass
 
 @dataclass
 class Metadata:
     # Source identifier
     id: str = ""
 
-    # Subgraph
-    metadata: list[Triple] = field(default_factory=list)
+    # Root document identifier (set by librarian, preserved through pipeline)
+    root: str = ""
 
     # Collection management
     user: str = ""

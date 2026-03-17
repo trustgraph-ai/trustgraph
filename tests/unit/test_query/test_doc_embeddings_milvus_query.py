@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from trustgraph.query.doc_embeddings.milvus.service import Processor
-from trustgraph.schema import DocumentEmbeddingsRequest
+from trustgraph.schema import DocumentEmbeddingsRequest, ChunkMatch
 
 
 class TestMilvusDocEmbeddingsQueryProcessor:
@@ -33,7 +33,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]],
+            vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
             limit=10
         )
         return query
@@ -71,15 +71,15 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             limit=5
         )
         
         # Mock search results
         mock_results = [
-            {"entity": {"doc": "First document chunk"}},
-            {"entity": {"doc": "Second document chunk"}},
-            {"entity": {"doc": "Third document chunk"}},
+            {"entity": {"chunk_id": "First document chunk"}},
+            {"entity": {"chunk_id": "Second document chunk"}},
+            {"entity": {"chunk_id": "Third document chunk"}},
         ]
         processor.vecstore.search.return_value = mock_results
         
@@ -90,50 +90,44 @@ class TestMilvusDocEmbeddingsQueryProcessor:
             [0.1, 0.2, 0.3], 'test_user', 'test_collection', limit=5
         )
         
-        # Verify results are document chunks
+        # Verify results are ChunkMatch objects
         assert len(result) == 3
-        assert result[0] == "First document chunk"
-        assert result[1] == "Second document chunk"
-        assert result[2] == "Third document chunk"
+        assert isinstance(result[0], ChunkMatch)
+        assert result[0].chunk_id == "First document chunk"
+        assert result[1].chunk_id == "Second document chunk"
+        assert result[2].chunk_id == "Third document chunk"
 
     @pytest.mark.asyncio
-    async def test_query_document_embeddings_multiple_vectors(self, processor):
-        """Test querying document embeddings with multiple vectors"""
+    async def test_query_document_embeddings_longer_vector(self, processor):
+        """Test querying document embeddings with a longer vector"""
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]],
+            vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
             limit=3
         )
-        
-        # Mock search results - different results for each vector
-        mock_results_1 = [
-            {"entity": {"doc": "Document from first vector"}},
-            {"entity": {"doc": "Another doc from first vector"}},
+
+        # Mock search results
+        mock_results = [
+            {"entity": {"chunk_id": "First document"}},
+            {"entity": {"chunk_id": "Second document"}},
+            {"entity": {"chunk_id": "Third document"}},
         ]
-        mock_results_2 = [
-            {"entity": {"doc": "Document from second vector"}},
-        ]
-        processor.vecstore.search.side_effect = [mock_results_1, mock_results_2]
-        
+        processor.vecstore.search.return_value = mock_results
+
         result = await processor.query_document_embeddings(query)
-        
-        # Verify search was called twice with correct parameters including user/collection
-        expected_calls = [
-            (([0.1, 0.2, 0.3], 'test_user', 'test_collection'), {"limit": 3}),
-            (([0.4, 0.5, 0.6], 'test_user', 'test_collection'), {"limit": 3}),
-        ]
-        assert processor.vecstore.search.call_count == 2
-        for i, (expected_args, expected_kwargs) in enumerate(expected_calls):
-            actual_call = processor.vecstore.search.call_args_list[i]
-            assert actual_call[0] == expected_args
-            assert actual_call[1] == expected_kwargs
-        
-        # Verify results from all vectors are combined
+
+        # Verify search was called once with the full vector
+        processor.vecstore.search.assert_called_once_with(
+            [0.1, 0.2, 0.3, 0.4, 0.5, 0.6], 'test_user', 'test_collection', limit=3
+        )
+
+        # Verify results are ChunkMatch objects
         assert len(result) == 3
-        assert "Document from first vector" in result
-        assert "Another doc from first vector" in result
-        assert "Document from second vector" in result
+        chunk_ids = [r.chunk_id for r in result]
+        assert "First document" in chunk_ids
+        assert "Second document" in chunk_ids
+        assert "Third document" in chunk_ids
 
     @pytest.mark.asyncio
     async def test_query_document_embeddings_with_limit(self, processor):
@@ -141,16 +135,16 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             limit=2
         )
         
         # Mock search results - more results than limit
         mock_results = [
-            {"entity": {"doc": "Document 1"}},
-            {"entity": {"doc": "Document 2"}},
-            {"entity": {"doc": "Document 3"}},
-            {"entity": {"doc": "Document 4"}},
+            {"entity": {"chunk_id": "Document 1"}},
+            {"entity": {"chunk_id": "Document 2"}},
+            {"entity": {"chunk_id": "Document 3"}},
+            {"entity": {"chunk_id": "Document 4"}},
         ]
         processor.vecstore.search.return_value = mock_results
         
@@ -170,7 +164,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[],
+            vector=[],
             limit=5
         )
         
@@ -188,7 +182,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             limit=5
         )
         
@@ -211,25 +205,26 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             limit=5
         )
         
         # Mock search results with Unicode content
         mock_results = [
-            {"entity": {"doc": "Document with Unicode: éñ中文🚀"}},
-            {"entity": {"doc": "Regular ASCII document"}},
-            {"entity": {"doc": "Document with émojis: 😀🎉"}},
+            {"entity": {"chunk_id": "Document with Unicode: éñ中文🚀"}},
+            {"entity": {"chunk_id": "Regular ASCII document"}},
+            {"entity": {"chunk_id": "Document with émojis: 😀🎉"}},
         ]
         processor.vecstore.search.return_value = mock_results
         
         result = await processor.query_document_embeddings(query)
         
-        # Verify Unicode content is preserved
+        # Verify Unicode content is preserved in ChunkMatch objects
         assert len(result) == 3
-        assert "Document with Unicode: éñ中文🚀" in result
-        assert "Regular ASCII document" in result
-        assert "Document with émojis: 😀🎉" in result
+        chunk_ids = [r.chunk_id for r in result]
+        assert "Document with Unicode: éñ中文🚀" in chunk_ids
+        assert "Regular ASCII document" in chunk_ids
+        assert "Document with émojis: 😀🎉" in chunk_ids
 
     @pytest.mark.asyncio
     async def test_query_document_embeddings_large_documents(self, processor):
@@ -237,24 +232,25 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             limit=5
         )
         
         # Mock search results with large content
         large_doc = "A" * 10000  # 10KB of content
         mock_results = [
-            {"entity": {"doc": large_doc}},
-            {"entity": {"doc": "Small document"}},
+            {"entity": {"chunk_id": large_doc}},
+            {"entity": {"chunk_id": "Small document"}},
         ]
         processor.vecstore.search.return_value = mock_results
         
         result = await processor.query_document_embeddings(query)
         
-        # Verify large content is preserved
+        # Verify large content is preserved in ChunkMatch objects
         assert len(result) == 2
-        assert large_doc in result
-        assert "Small document" in result
+        chunk_ids = [r.chunk_id for r in result]
+        assert large_doc in chunk_ids
+        assert "Small document" in chunk_ids
 
     @pytest.mark.asyncio
     async def test_query_document_embeddings_special_characters(self, processor):
@@ -262,25 +258,26 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             limit=5
         )
         
         # Mock search results with special characters
         mock_results = [
-            {"entity": {"doc": "Document with \"quotes\" and 'apostrophes'"}},
-            {"entity": {"doc": "Document with\nnewlines\tand\ttabs"}},
-            {"entity": {"doc": "Document with special chars: @#$%^&*()"}},
+            {"entity": {"chunk_id": "Document with \"quotes\" and 'apostrophes'"}},
+            {"entity": {"chunk_id": "Document with\nnewlines\tand\ttabs"}},
+            {"entity": {"chunk_id": "Document with special chars: @#$%^&*()"}},
         ]
         processor.vecstore.search.return_value = mock_results
         
         result = await processor.query_document_embeddings(query)
         
-        # Verify special characters are preserved
+        # Verify special characters are preserved in ChunkMatch objects
         assert len(result) == 3
-        assert "Document with \"quotes\" and 'apostrophes'" in result
-        assert "Document with\nnewlines\tand\ttabs" in result
-        assert "Document with special chars: @#$%^&*()" in result
+        chunk_ids = [r.chunk_id for r in result]
+        assert "Document with \"quotes\" and 'apostrophes'" in chunk_ids
+        assert "Document with\nnewlines\tand\ttabs" in chunk_ids
+        assert "Document with special chars: @#$%^&*()" in chunk_ids
 
     @pytest.mark.asyncio
     async def test_query_document_embeddings_zero_limit(self, processor):
@@ -288,7 +285,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             limit=0
         )
         
@@ -306,7 +303,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             limit=-1
         )
         
@@ -324,7 +321,7 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3]],
+            vector=[0.1, 0.2, 0.3],
             limit=5
         )
         
@@ -341,60 +338,54 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[
-                [0.1, 0.2],  # 2D vector
-                [0.3, 0.4, 0.5, 0.6],  # 4D vector
-                [0.7, 0.8, 0.9]  # 3D vector
-            ],
+            vector=[0.1, 0.2, 0.3, 0.4, 0.5],  # 5D vector
             limit=5
         )
-        
-        # Mock search results for each vector
-        mock_results_1 = [{"entity": {"doc": "Document from 2D vector"}}]
-        mock_results_2 = [{"entity": {"doc": "Document from 4D vector"}}]
-        mock_results_3 = [{"entity": {"doc": "Document from 3D vector"}}]
-        processor.vecstore.search.side_effect = [mock_results_1, mock_results_2, mock_results_3]
-        
+
+        # Mock search results
+        mock_results = [
+            {"entity": {"chunk_id": "Document 1"}},
+            {"entity": {"chunk_id": "Document 2"}},
+        ]
+        processor.vecstore.search.return_value = mock_results
+
         result = await processor.query_document_embeddings(query)
-        
-        # Verify all vectors were searched
-        assert processor.vecstore.search.call_count == 3
-        
-        # Verify results from all dimensions
-        assert len(result) == 3
-        assert "Document from 2D vector" in result
-        assert "Document from 4D vector" in result
-        assert "Document from 3D vector" in result
+
+        # Verify search was called with the vector
+        processor.vecstore.search.assert_called_once()
+
+        # Verify results are ChunkMatch objects
+        assert len(result) == 2
+        chunk_ids = [r.chunk_id for r in result]
+        assert "Document 1" in chunk_ids
+        assert "Document 2" in chunk_ids
 
     @pytest.mark.asyncio
-    async def test_query_document_embeddings_duplicate_documents(self, processor):
-        """Test querying document embeddings with duplicate documents in results"""
+    async def test_query_document_embeddings_multiple_results(self, processor):
+        """Test querying document embeddings with multiple results"""
         query = DocumentEmbeddingsRequest(
             user='test_user',
             collection='test_collection',
-            vectors=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]],
+            vector=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
             limit=5
         )
-        
-        # Mock search results with duplicates across vectors
-        mock_results_1 = [
-            {"entity": {"doc": "Document A"}},
-            {"entity": {"doc": "Document B"}},
+
+        # Mock search results with multiple documents
+        mock_results = [
+            {"entity": {"chunk_id": "Document A"}},
+            {"entity": {"chunk_id": "Document B"}},
+            {"entity": {"chunk_id": "Document C"}},
         ]
-        mock_results_2 = [
-            {"entity": {"doc": "Document B"}},  # Duplicate
-            {"entity": {"doc": "Document C"}},
-        ]
-        processor.vecstore.search.side_effect = [mock_results_1, mock_results_2]
-        
+        processor.vecstore.search.return_value = mock_results
+
         result = await processor.query_document_embeddings(query)
-        
-        # Note: Unlike graph embeddings, doc embeddings don't deduplicate
-        # This preserves ranking and allows multiple occurrences
-        assert len(result) == 4
-        assert result.count("Document B") == 2  # Should appear twice
-        assert "Document A" in result
-        assert "Document C" in result
+
+        # Verify results are ChunkMatch objects
+        assert len(result) == 3
+        chunk_ids = [r.chunk_id for r in result]
+        assert "Document A" in chunk_ids
+        assert "Document B" in chunk_ids
+        assert "Document C" in chunk_ids
 
     def test_add_args_method(self):
         """Test that add_args properly configures argument parser"""
@@ -458,5 +449,5 @@ class TestMilvusDocEmbeddingsQueryProcessor:
         
         mock_launch.assert_called_once_with(
             default_ident,
-            "\nDocument embeddings query service.  Input is vector, output is an array\nof chunks\n"
+            "\nDocument embeddings query service.  Input is vector, output is an array\nof chunk_ids\n"
         )

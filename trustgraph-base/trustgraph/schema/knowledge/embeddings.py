@@ -11,7 +11,9 @@ from ..core.topic import topic
 @dataclass
 class EntityEmbeddings:
     entity: Term | None = None
-    vectors: list[list[float]] = field(default_factory=list)
+    vector: list[float] = field(default_factory=list)
+    # Provenance: which chunk this embedding was derived from
+    chunk_id: str = ""
 
 # This is a 'batching' mechanism for the above data
 @dataclass
@@ -25,8 +27,8 @@ class GraphEmbeddings:
 
 @dataclass
 class ChunkEmbeddings:
-    chunk: bytes = b""
-    vectors: list[list[float]] = field(default_factory=list)
+    chunk_id: str = ""
+    vector: list[float] = field(default_factory=list)
 
 # This is a 'batching' mechanism for the above data
 @dataclass
@@ -42,7 +44,7 @@ class DocumentEmbeddings:
 @dataclass
 class ObjectEmbeddings:
     metadata: Metadata | None = None
-    vectors: list[list[float]] = field(default_factory=list)
+    vector: list[float] = field(default_factory=list)
     name: str = ""
     key_name: str = ""
     id: str = ""
@@ -54,7 +56,7 @@ class ObjectEmbeddings:
 @dataclass
 class StructuredObjectEmbedding:
     metadata: Metadata | None = None
-    vectors: list[list[float]] = field(default_factory=list)
+    vector: list[float] = field(default_factory=list)
     schema_name: str = ""
     object_id: str = ""  # Primary key value
     field_embeddings: dict[str, list[float]] = field(default_factory=dict)  # Per-field embeddings
@@ -70,7 +72,7 @@ class RowIndexEmbedding:
     index_name: str = ""              # The indexed field name(s)
     index_value: list[str] = field(default_factory=list)  # The field value(s)
     text: str = ""                    # Text that was embedded
-    vectors: list[list[float]] = field(default_factory=list)
+    vector: list[float] = field(default_factory=list)
 
 @dataclass
 class RowEmbeddings:

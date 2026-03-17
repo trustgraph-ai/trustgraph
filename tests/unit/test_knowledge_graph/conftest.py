@@ -29,11 +29,11 @@ class Triple:
         self.o = o
 
 class Metadata:
-    def __init__(self, id, user, collection, metadata):
+    def __init__(self, id, user, collection, root=""):
         self.id = id
+        self.root = root
         self.user = user
         self.collection = collection
-        self.metadata = metadata
 
 class Triples:
     def __init__(self, metadata, triples):
@@ -110,7 +110,6 @@ def sample_triples(sample_triple):
         id="test-doc-123",
         user="test_user",
         collection="test_collection",
-        metadata=[]
     )
     
     return Triples(
@@ -126,7 +125,6 @@ def sample_chunk():
         id="test-chunk-456",
         user="test_user",
         collection="test_collection",
-        metadata=[]
     )
     
     return Chunk(

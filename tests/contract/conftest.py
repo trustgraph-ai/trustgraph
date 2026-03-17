@@ -95,8 +95,7 @@ def sample_message_data():
         "Metadata": {
             "id": "test-doc-123",
             "user": "test_user",
-            "collection": "test_collection",
-            "metadata": []
+            "collection": "test_collection"
         },
         "Term": {
             "type": IRI,

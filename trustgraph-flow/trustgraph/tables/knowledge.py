@@ -114,7 +114,7 @@ class KnowledgeTableStore:
                 entity_embeddings list<
                     tuple<
                         tuple<text, boolean>,
-                        list<list<double>>
+                        list<double>
                     >
                 >,
                 PRIMARY KEY ((user, document_id), id)
@@ -140,7 +140,7 @@ class KnowledgeTableStore:
                 chunks list<
                     tuple<
                         blob,
-                        list<list<double>>
+                        list<double>
                     >
                 >,
                 PRIMARY KEY ((user, document_id), id)
@@ -218,16 +218,6 @@ class KnowledgeTableStore:
 
         when = int(time.time() * 1000)
 
-        if m.metadata.metadata:
-            metadata = [
-                (
-                    *term_to_tuple(v.s), *term_to_tuple(v.p), *term_to_tuple(v.o)
-                )
-                for v in m.metadata.metadata
-            ]
-        else:
-            metadata = []
-
         triples = [
             (
                 *term_to_tuple(v.s), *term_to_tuple(v.p), *term_to_tuple(v.o)
@@ -243,8 +233,8 @@ class KnowledgeTableStore:
                     self.insert_triples_stmt,
                     (
                         uuid.uuid4(), m.metadata.user,
-                        m.metadata.id, when,
-                        metadata, triples,
+                        m.metadata.root or m.metadata.id, when,
+                        [], triples,
                     )
                 )
 
@@ -259,20 +249,10 @@ class KnowledgeTableStore:
 
         when = int(time.time() * 1000)
 
-        if m.metadata.metadata:
-            metadata = [
-                (
-                    *term_to_tuple(v.s), *term_to_tuple(v.p), *term_to_tuple(v.o)
-                )
-                for v in m.metadata.metadata
-            ]
-        else:
-            metadata = []
-
         entities = [
             (
                 term_to_tuple(v.entity),
-                v.vectors
+                v.vector
             )
             for v in m.entities
         ]
@@ -285,8 +265,8 @@ class KnowledgeTableStore:
                     self.insert_graph_embeddings_stmt,
                     (
                         uuid.uuid4(), m.metadata.user,
-                        m.metadata.id, when,
-                        metadata, entities,
+                        m.metadata.root or m.metadata.id, when,
+                        [], entities,
                     )
                 )
 
@@ -301,20 +281,10 @@ class KnowledgeTableStore:
 
         when = int(time.time() * 1000)
 
-        if m.metadata.metadata:
-            metadata = [
-                (
-                    *term_to_tuple(v.s), *term_to_tuple(v.p), *term_to_tuple(v.o)
-                )
-                for v in m.metadata.metadata
-            ]
-        else:
-            metadata = []
-
         chunks = [
             (
-                v.chunk,
-                v.vectors,
+                v.chunk_id,
+                v.vector,
             )
             for v in m.chunks
         ]
@@ -327,8 +297,8 @@ class KnowledgeTableStore:
                     self.insert_document_embeddings_stmt,
                     (
                         uuid.uuid4(), m.metadata.user,
-                        m.metadata.id, when,
-                        metadata, chunks,
+                        m.metadata.root or m.metadata.id, when,
+                        [], chunks,
                     )
                 )
 
@@ -423,18 +393,6 @@ class KnowledgeTableStore:
 
         for row in resp:
 
-            if row[2]:
-                metadata = [
-                    Triple(
-                        s = tuple_to_term(elt[0], elt[1]),
-                        p = tuple_to_term(elt[2], elt[3]),
-                        o = tuple_to_term(elt[4], elt[5]),
-                    )
-                    for elt in row[2]
-                ]
-            else:
-                metadata = []
-
             if row[3]:
                 triples = [
                     Triple(
@@ -453,7 +411,6 @@ class KnowledgeTableStore:
                         id = document_id,
                         user = user,
                         collection = "default",  # FIXME: What to put here?
-                        metadata = metadata,
                     ),
                     triples = triples
                 )
@@ -482,18 +439,6 @@ class KnowledgeTableStore:
 
         for row in resp:
 
-            if row[2]:
-                metadata = [
-                    Triple(
-                        s = tuple_to_term(elt[0], elt[1]),
-                        p = tuple_to_term(elt[2], elt[3]),
-                        o = tuple_to_term(elt[4], elt[5]),
-                    )
-                    for elt in row[2]
-                ]
-            else:
-                metadata = []
-
             if row[3]:
                 entities = [
                     EntityEmbeddings(
@@ -511,7 +456,6 @@ class KnowledgeTableStore:
                         id = document_id,
                         user = user,
                         collection = "default",   # FIXME: What to put here?
-                        metadata = metadata,
                     ),
                     entities = entities
                 )

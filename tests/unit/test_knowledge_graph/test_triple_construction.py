@@ -373,7 +373,6 @@ class TestTripleConstructionLogic:
             id="test-doc-123",
             user="test_user",
             collection="test_collection",
-            metadata=[]
         )
 
         # Act

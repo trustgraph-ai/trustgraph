@@ -9,6 +9,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, call
 from trustgraph.retrieval.graph_rag.graph_rag import GraphRag
 from trustgraph.retrieval.document_rag.document_rag import DocumentRag
+from trustgraph.schema import EntityMatch, ChunkMatch, Term, IRI
 
 
 class TestGraphRagStreamingProtocol:
@@ -18,14 +19,17 @@ class TestGraphRagStreamingProtocol:
     def mock_embeddings_client(self):
         """Mock embeddings client"""
         client = AsyncMock()
-        client.embed.return_value = [[0.1, 0.2, 0.3]]
+        client.embed.return_value = [[[0.1, 0.2, 0.3]]]
         return client
 
     @pytest.fixture
     def mock_graph_embeddings_client(self):
         """Mock graph embeddings client"""
         client = AsyncMock()
-        client.query.return_value = ["entity1", "entity2"]
+        client.query.return_value = [
+            EntityMatch(entity=Term(type=IRI, iri="entity1"), score=0.95),
+            EntityMatch(entity=Term(type=IRI, iri="entity2"), score=0.90)
+        ]
         return client
 
     @pytest.fixture
@@ -40,18 +44,23 @@ class TestGraphRagStreamingProtocol:
         """Mock prompt client that simulates realistic streaming with end_of_stream flags"""
         client = AsyncMock()
 
-        async def kg_prompt_side_effect(query, kg, timeout=600, streaming=False, chunk_callback=None):
-            if streaming and chunk_callback:
-                # Simulate realistic streaming: chunks with end_of_stream=False, then final with end_of_stream=True
-                await chunk_callback("The", False)
-                await chunk_callback(" answer", False)
-                await chunk_callback(" is here.", False)
-                await chunk_callback("", True)  # Empty final chunk with end_of_stream=True
-                return ""  # Return value not used since callback handles everything
-            else:
-                return "The answer is here."
+        async def prompt_side_effect(prompt_name, variables=None, streaming=False, chunk_callback=None):
+            if prompt_name == "kg-edge-selection":
+                # Edge selection returns empty (no edges selected)
+                return ""
+            elif prompt_name == "kg-synthesis":
+                if streaming and chunk_callback:
+                    # Simulate realistic streaming: chunks with end_of_stream=False, then final with end_of_stream=True
+                    await chunk_callback("The", False)
+                    await chunk_callback(" answer", False)
+                    await chunk_callback(" is here.", False)
+                    await chunk_callback("", True)  # Empty final chunk with end_of_stream=True
+                    return ""  # Return value not used since callback handles everything
+                else:
+                    return "The answer is here."
+            return ""
 
-        client.kg_prompt.side_effect = kg_prompt_side_effect
+        client.prompt.side_effect = prompt_side_effect
         return client
 
     @pytest.fixture
@@ -197,15 +206,25 @@ class TestDocumentRagStreamingProtocol:
     def mock_embeddings_client(self):
         """Mock embeddings client"""
         client = AsyncMock()
-        client.embed.return_value = [[0.1, 0.2, 0.3]]
+        client.embed.return_value = [[[0.1, 0.2, 0.3]]]
         return client
 
     @pytest.fixture
     def mock_doc_embeddings_client(self):
-        """Mock document embeddings client"""
+        """Mock document embeddings client that returns chunk matches"""
         client = AsyncMock()
-        client.query.return_value = ["doc1", "doc2"]
+        client.query.return_value = [
+            ChunkMatch(chunk_id="doc/c1", score=0.95),
+            ChunkMatch(chunk_id="doc/c2", score=0.90)
+        ]
         return client
+
+    @pytest.fixture
+    def mock_fetch_chunk(self):
+        """Mock fetch_chunk function that retrieves chunk content from librarian"""
+        async def fetch(chunk_id, user):
+            return f"Content for {chunk_id}"
+        return fetch
 
     @pytest.fixture
     def mock_streaming_prompt_client(self):
@@ -227,12 +246,13 @@ class TestDocumentRagStreamingProtocol:
 
     @pytest.fixture
     def document_rag(self, mock_embeddings_client, mock_doc_embeddings_client,
-                     mock_streaming_prompt_client):
+                     mock_streaming_prompt_client, mock_fetch_chunk):
         """Create DocumentRag instance with mocked dependencies"""
         return DocumentRag(
             embeddings_client=mock_embeddings_client,
             doc_embeddings_client=mock_doc_embeddings_client,
             prompt_client=mock_streaming_prompt_client,
+            fetch_chunk=mock_fetch_chunk,
             verbose=False
         )
 
@@ -312,20 +332,24 @@ class TestStreamingProtocolEdgeCases:
         # Arrange
         client = AsyncMock()
 
-        async def kg_prompt_with_empties(query, kg, timeout=600, streaming=False, chunk_callback=None):
-            if streaming and chunk_callback:
-                await chunk_callback("text", False)
-                await chunk_callback("", False)  # Empty but not final
-                await chunk_callback("more", False)
-                await chunk_callback("", True)  # Empty and final
+        async def prompt_with_empties(prompt_name, variables=None, streaming=False, chunk_callback=None):
+            if prompt_name == "kg-edge-selection":
                 return ""
-            else:
-                return "textmore"
+            elif prompt_name == "kg-synthesis":
+                if streaming and chunk_callback:
+                    await chunk_callback("text", False)
+                    await chunk_callback("", False)  # Empty but not final
+                    await chunk_callback("more", False)
+                    await chunk_callback("", True)  # Empty and final
+                    return ""
+                else:
+                    return "textmore"
+            return ""
 
-        client.kg_prompt.side_effect = kg_prompt_with_empties
+        client.prompt.side_effect = prompt_with_empties
 
         rag = GraphRag(
-            embeddings_client=AsyncMock(embed=AsyncMock(return_value=[[0.1]])),
+            embeddings_client=AsyncMock(embed=AsyncMock(return_value=[[[0.1]]])),
             graph_embeddings_client=AsyncMock(query=AsyncMock(return_value=[])),
             triples_client=AsyncMock(query=AsyncMock(return_value=[])),
             prompt_client=client,

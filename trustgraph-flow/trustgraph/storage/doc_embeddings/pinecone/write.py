@@ -101,40 +101,41 @@ class Processor(CollectionConfigHandler, DocumentEmbeddingsStoreService):
 
         for emb in message.chunks:
 
-            if emb.chunk is None or emb.chunk == b"": continue
+            chunk_id = emb.chunk_id
+            if chunk_id == "":
+                continue
 
-            chunk = emb.chunk.decode("utf-8")
-            if chunk == "": continue
+            vec = emb.vector
+            if not vec:
+                continue
 
-            for vec in emb.vectors:
+            # Create index name with dimension suffix for lazy creation
+            dim = len(vec)
+            index_name = (
+                f"d-{message.metadata.user}-{message.metadata.collection}-{dim}"
+            )
 
-                # Create index name with dimension suffix for lazy creation
-                dim = len(vec)
-                index_name = (
-                    f"d-{message.metadata.user}-{message.metadata.collection}-{dim}"
-                )
+            # Lazily create index if it doesn't exist (but only if authorized in config)
+            if not self.pinecone.has_index(index_name):
+                logger.info(f"Lazily creating Pinecone index {index_name} with dimension {dim}")
+                self.create_index(index_name, dim)
 
-                # Lazily create index if it doesn't exist (but only if authorized in config)
-                if not self.pinecone.has_index(index_name):
-                    logger.info(f"Lazily creating Pinecone index {index_name} with dimension {dim}")
-                    self.create_index(index_name, dim)
+            index = self.pinecone.Index(index_name)
 
-                index = self.pinecone.Index(index_name)
+            # Generate unique ID for each vector
+            vector_id = str(uuid.uuid4())
 
-                # Generate unique ID for each vector
-                vector_id = str(uuid.uuid4())
+            records = [
+                {
+                    "id": vector_id,
+                    "values": vec,
+                    "metadata": { "chunk_id": chunk_id },
+                }
+            ]
 
-                records = [
-                    {
-                        "id": vector_id,
-                        "values": vec,
-                        "metadata": { "doc": chunk },
-                    }
-                ]
-
-                index.upsert(
-                    vectors = records,
-                )
+            index.upsert(
+                vectors = records,
+            )
 
     @staticmethod
     def add_args(parser):

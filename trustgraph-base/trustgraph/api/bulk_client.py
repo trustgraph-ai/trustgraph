@@ -322,8 +322,8 @@ class BulkClient:
 
             # Generate document embeddings to import
             def doc_embedding_generator():
-                yield {"id": "doc1-chunk1", "embedding": [0.1, 0.2, ...]}
-                yield {"id": "doc1-chunk2", "embedding": [0.3, 0.4, ...]}
+                yield {"chunk_id": "doc1/p0/c0", "embedding": [0.1, 0.2, ...]}
+                yield {"chunk_id": "doc1/p0/c1", "embedding": [0.3, 0.4, ...]}
                 # ... more embeddings
 
             bulk.import_document_embeddings(
@@ -363,9 +363,9 @@ class BulkClient:
 
             # Export and process document embeddings
             for embedding in bulk.export_document_embeddings(flow="default"):
-                doc_id = embedding.get("id")
+                chunk_id = embedding.get("chunk_id")
                 vector = embedding.get("embedding")
-                print(f"{doc_id}: {len(vector)} dimensions")
+                print(f"{chunk_id}: {len(vector)} dimensions")
             ```
         """
         async_gen = self._export_document_embeddings_async(flow)

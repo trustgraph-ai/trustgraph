@@ -1,6 +1,7 @@
 type: object
 description: |
-  RDF triple representing a subject-predicate-object statement in the knowledge graph.
+  RDF triple representing a subject-predicate-object statement in the knowledge graph,
+  optionally scoped to a named graph.
 
   Example: (Person1) -[has name]-> ("John Doe")
 properties:
@@ -13,17 +14,26 @@ properties:
   o:
     $ref: './RdfValue.yaml'
     description: Object - the value or target entity
+  g:
+    type: string
+    description: |
+      Named graph URI (optional). When absent, the triple is in the default graph.
+      Well-known graphs:
+      - (empty/absent): Core knowledge facts
+      - urn:graph:source: Extraction provenance
+      - urn:graph:retrieval: Query-time explainability
+    example: urn:graph:source
 required:
   - s
   - p
   - o
 example:
   s:
-    v: http://example.com/Person1
-    e: true
+    t: i
+    i: http://example.com/Person1
   p:
-    v: http://schema.org/name
-    e: true
+    t: i
+    i: http://schema.org/name
   o:
+    t: l
     v: John Doe
-    e: false

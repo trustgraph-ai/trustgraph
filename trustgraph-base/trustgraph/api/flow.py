@@ -9,26 +9,45 @@ including LLM operations, RAG queries, knowledge graph management, and more.
 import json
 import base64
 
-from .. knowledge import hash, Uri, Literal
-from .. schema import IRI, LITERAL
+from .. knowledge import hash, Uri, Literal, QuotedTriple
+from .. schema import IRI, LITERAL, TRIPLE
 from . types import Triple
 from . exceptions import ProtocolException
 
 
 def to_value(x):
-    """Convert wire format to Uri or Literal."""
+    """Convert wire format to Uri, Literal, or QuotedTriple."""
     if x.get("t") == IRI:
         return Uri(x.get("i", ""))
     elif x.get("t") == LITERAL:
         return Literal(x.get("v", ""))
+    elif x.get("t") == TRIPLE:
+        # Wire format uses "tr" key for nested triple dict
+        triple_data = x.get("tr")
+        if triple_data:
+            return QuotedTriple(
+                s=to_value(triple_data.get("s", {})),
+                p=to_value(triple_data.get("p", {})),
+                o=to_value(triple_data.get("o", {})),
+            )
+        return Literal("")
     # Fallback for any other type
     return Literal(x.get("v", x.get("i", "")))
 
 
 def from_value(v):
-    """Convert Uri or Literal to wire format."""
+    """Convert Uri, Literal, or QuotedTriple to wire format."""
     if isinstance(v, Uri):
         return {"t": IRI, "i": str(v)}
+    elif isinstance(v, QuotedTriple):
+        return {
+            "t": TRIPLE,
+            "tr": {
+                "s": from_value(v.s),
+                "p": from_value(v.p),
+                "o": from_value(v.o),
+            }
+        }
     else:
         return {"t": LITERAL, "v": str(v)}
 
@@ -525,30 +544,29 @@ class FlowInstance:
             input
         )["response"]
 
-    def embeddings(self, text):
+    def embeddings(self, texts):
         """
-        Generate vector embeddings for text.
+        Generate vector embeddings for one or more texts.
 
-        Converts text into dense vector representations suitable for semantic
+        Converts texts into dense vector representations suitable for semantic
         search and similarity comparison.
 
         Args:
-            text: Input text to embed
+            texts: List of input texts to embed
 
         Returns:
-            list[float]: Vector embedding
+            list[list[list[float]]]: Vector embeddings, one set per input text
 
         Example:
             ```python
             flow = api.flow().id("default")
-            vectors = flow.embeddings("quantum computing")
-            print(f"Embedding dimension: {len(vectors)}")
+            vectors = flow.embeddings(["quantum computing"])
+            print(f"Embedding dimension: {len(vectors[0][0])}")
             ```
         """
 
-        # The input consists of a text block
         input = {
-            "text": text
+            "texts": texts
         }
 
         return self.request(
@@ -581,16 +599,17 @@ class FlowInstance:
                 collection="scientists",
                 limit=5
             )
+            # results contains {"entities": [{"entity": {...}, "score": 0.95}, ...]}
             ```
         """
 
-        # First convert text to embeddings vectors
-        emb_result = self.embeddings(text=text)
-        vectors = emb_result.get("vectors", [])
+        # First convert text to embedding vector
+        emb_result = self.embeddings(texts=[text])
+        vector = emb_result.get("vectors", [[]])[0]
 
         # Query graph embeddings for semantic search
         input = {
-            "vectors": vectors,
+            "vector": vector,
             "user": user,
             "collection": collection,
             "limit": limit
@@ -615,7 +634,7 @@ class FlowInstance:
             limit: Maximum number of results (default: 10)
 
         Returns:
-            dict: Query results with similar document chunks
+            dict: Query results with chunks containing chunk_id and score
 
         Example:
             ```python
@@ -626,16 +645,17 @@ class FlowInstance:
                 collection="research-papers",
                 limit=5
             )
+            # results contains {"chunks": [{"chunk_id": "doc1/p0/c0", "score": 0.95}, ...]}
             ```
         """
 
-        # First convert text to embeddings vectors
-        emb_result = self.embeddings(text=text)
-        vectors = emb_result.get("vectors", [])
+        # First convert text to embedding vector
+        emb_result = self.embeddings(texts=[text])
+        vector = emb_result.get("vectors", [[]])[0]
 
         # Query document embeddings for semantic search
         input = {
-            "vectors": vectors,
+            "vector": vector,
             "user": user,
             "collection": collection,
             "limit": limit
@@ -1343,13 +1363,13 @@ class FlowInstance:
             ```
         """
 
-        # First convert text to embeddings vectors
-        emb_result = self.embeddings(text=text)
-        vectors = emb_result.get("vectors", [])
+        # First convert text to embedding vector
+        emb_result = self.embeddings(texts=[text])
+        vector = emb_result.get("vectors", [[]])[0]
 
         # Query row embeddings for semantic search
         input = {
-            "vectors": vectors,
+            "vector": vector,
             "schema_name": schema_name,
             "user": user,
             "collection": collection,

@@ -612,12 +612,12 @@ class AsyncFlowInstance:
                 print(f"{entity['name']}: {entity['score']}")
             ```
         """
-        # First convert text to embeddings vectors
-        emb_result = await self.embeddings(text=text)
-        vectors = emb_result.get("vectors", [])
+        # First convert text to embedding vector
+        emb_result = await self.embeddings(texts=[text])
+        vector = emb_result.get("vectors", [[]])[0]
 
         request_data = {
-            "vectors": vectors,
+            "vector": vector,
             "user": user,
             "collection": collection,
             "limit": limit
@@ -626,20 +626,20 @@ class AsyncFlowInstance:
 
         return await self.request("graph-embeddings", request_data)
 
-    async def embeddings(self, text: str, **kwargs: Any):
+    async def embeddings(self, texts: list, **kwargs: Any):
         """
-        Generate embeddings for input text.
+        Generate embeddings for input texts.
 
-        Converts text into a numerical vector representation using the flow's
+        Converts texts into numerical vector representations using the flow's
         configured embedding model. Useful for semantic search and similarity
         comparisons.
 
         Args:
-            text: Input text to embed
+            texts: List of input texts to embed
             **kwargs: Additional service-specific parameters
 
         Returns:
-            dict: Response containing embedding vector and metadata
+            dict: Response containing embedding vectors
 
         Example:
             ```python
@@ -647,12 +647,12 @@ class AsyncFlowInstance:
             flow = async_flow.id("default")
 
             # Generate embeddings
-            result = await flow.embeddings(text="Sample text to embed")
-            vector = result.get("embedding")
-            print(f"Embedding dimension: {len(vector)}")
+            result = await flow.embeddings(texts=["Sample text to embed"])
+            vectors = result.get("vectors")
+            print(f"Embedding dimension: {len(vectors[0][0])}")
             ```
         """
-        request_data = {"text": text}
+        request_data = {"texts": texts}
         request_data.update(kwargs)
 
         return await self.request("embeddings", request_data)
@@ -810,12 +810,12 @@ class AsyncFlowInstance:
                 print(f"{match['index_name']}: {match['index_value']} (score: {match['score']})")
             ```
         """
-        # First convert text to embeddings vectors
-        emb_result = await self.embeddings(text=text)
-        vectors = emb_result.get("vectors", [])
+        # First convert text to embedding vector
+        emb_result = await self.embeddings(texts=[text])
+        vector = emb_result.get("vectors", [[]])[0]
 
         request_data = {
-            "vectors": vectors,
+            "vector": vector,
             "schema_name": schema_name,
             "user": user,
             "collection": collection,

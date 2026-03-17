@@ -1,7 +1,7 @@
 
 """
 Document embeddings query service.  Input is vector, output is an array
-of chunks.  Pinecone implementation.
+of chunk_ids.  Pinecone implementation.
 """
 
 import logging
@@ -11,6 +11,7 @@ import os
 from pinecone import Pinecone, ServerlessSpec
 from pinecone.grpc import PineconeGRPC, GRPCClientConfig
 
+from .... schema import ChunkMatch
 from .... base import DocumentEmbeddingsQueryService
 
 # Module logger
@@ -51,36 +52,41 @@ class Processor(DocumentEmbeddingsQueryService):
 
         try:
 
+            vec = msg.vector
+            if not vec:
+                return []
+
             # Handle zero limit case
             if msg.limit <= 0:
                 return []
 
+            dim = len(vec)
+
+            # Use dimension suffix in index name
+            index_name = f"d-{msg.user}-{msg.collection}-{dim}"
+
+            # Check if index exists - return empty if not
+            if not self.pinecone.has_index(index_name):
+                logger.info(f"Index {index_name} does not exist")
+                return []
+
+            index = self.pinecone.Index(index_name)
+
+            results = index.query(
+                vector=vec,
+                top_k=msg.limit,
+                include_values=False,
+                include_metadata=True
+            )
+
             chunks = []
-
-            for vec in msg.vectors:
-
-                dim = len(vec)
-
-                # Use dimension suffix in index name
-                index_name = f"d-{msg.user}-{msg.collection}-{dim}"
-
-                # Check if index exists - skip if not
-                if not self.pinecone.has_index(index_name):
-                    logger.info(f"Index {index_name} does not exist, skipping this vector")
-                    continue
-
-                index = self.pinecone.Index(index_name)
-
-                results = index.query(
-                    vector=vec,
-                    top_k=msg.limit,
-                    include_values=False,
-                    include_metadata=True
-                )
-
-                for r in results.matches:
-                    doc = r.metadata["doc"]
-                    chunks.append(doc)
+            for r in results.matches:
+                chunk_id = r.metadata["chunk_id"]
+                score = r.score if hasattr(r, 'score') else 0.0
+                chunks.append(ChunkMatch(
+                    chunk_id=chunk_id,
+                    score=score,
+                ))
 
             return chunks
 

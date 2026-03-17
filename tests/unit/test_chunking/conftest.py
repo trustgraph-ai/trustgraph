@@ -28,7 +28,6 @@ def sample_text_document():
     """Sample document with moderate length text."""
     metadata = Metadata(
         id="test-doc-1",
-        metadata=[],
         user="test-user",
         collection="test-collection"
     )
@@ -44,7 +43,6 @@ def long_text_document():
     """Long document for testing multiple chunks."""
     metadata = Metadata(
         id="test-doc-long",
-        metadata=[],
         user="test-user",
         collection="test-collection"
     )
@@ -61,7 +59,6 @@ def unicode_text_document():
     """Document with various unicode characters."""
     metadata = Metadata(
         id="test-doc-unicode",
-        metadata=[],
         user="test-user",
         collection="test-collection"
     )
@@ -87,7 +84,6 @@ def empty_text_document():
     """Empty document for edge case testing."""
     metadata = Metadata(
         id="test-doc-empty",
-        metadata=[],
         user="test-user",
         collection="test-collection"
     )

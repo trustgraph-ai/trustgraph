@@ -1,13 +1,31 @@
 type: object
-description: Graph RAG response
+description: Graph RAG response message
 properties:
+  message_type:
+    type: string
+    description: Type of message - "chunk" for LLM response chunks, "explain" for explainability events
+    enum: [chunk, explain]
+    example: chunk
   response:
     type: string
-    description: Generated response based on retrieved knowledge graph
+    description: Generated response text (for chunk messages)
     example: Quantum physics and computer science intersect in quantum computing...
-  end-of-stream:
+  explain_id:
+    type: string
+    description: Explainability node URI (for explain messages)
+    example: urn:trustgraph:question:abc123
+  explain_graph:
+    type: string
+    description: Named graph containing the explainability data
+    example: urn:graph:retrieval
+  end_of_stream:
     type: boolean
-    description: Indicates streaming is complete (streaming mode)
+    description: Indicates LLM response stream is complete
+    default: false
+    example: true
+  end_of_session:
+    type: boolean
+    description: Indicates entire session is complete (all messages sent)
     default: false
     example: true
   error:

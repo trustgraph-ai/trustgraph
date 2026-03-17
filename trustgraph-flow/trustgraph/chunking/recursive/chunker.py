@@ -8,13 +8,23 @@ import logging
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from prometheus_client import Histogram
 
-from ... schema import TextDocument, Chunk
+from ... schema import TextDocument, Chunk, Metadata, Triples
 from ... base import ChunkingService, ConsumerSpec, ProducerSpec
+
+from ... provenance import (
+    derived_entity_triples,
+    set_graph, GRAPH_SOURCE,
+)
+
+# Component identification for provenance
+COMPONENT_NAME = "chunker"
+COMPONENT_VERSION = "1.0.0"
 
 # Module logger
 logger = logging.getLogger(__name__)
 
 default_ident = "chunker"
+
 
 class Processor(ChunkingService):
 
@@ -23,7 +33,7 @@ class Processor(ChunkingService):
         id = params.get("id", default_ident)
         chunk_size = params.get("chunk_size", 2000)
         chunk_overlap = params.get("chunk_overlap", 100)
-        
+
         super(Processor, self).__init__(
             **params | { "id": id }
         )
@@ -62,12 +72,22 @@ class Processor(ChunkingService):
             )
         )
 
+        self.register_specification(
+            ProducerSpec(
+                name = "triples",
+                schema = Triples,
+            )
+        )
+
         logger.info("Recursive chunker initialized")
 
     async def on_message(self, msg, consumer, flow):
 
         v = msg.value()
         logger.info(f"Chunking document {v.metadata.id}...")
+
+        # Get text content (fetches from librarian if needed)
+        text = await self.get_document_text(v)
 
         # Extract chunk parameters from flow (allows runtime override)
         chunk_size, chunk_overlap = await self.chunk_document(
@@ -90,24 +110,83 @@ class Processor(ChunkingService):
             is_separator_regex=False,
         )
 
-        texts = text_splitter.create_documents(
-            [v.text.decode("utf-8")]
-        )
+        texts = text_splitter.create_documents([text])
+
+        # Get parent document ID for provenance linking
+        # This could be a page URI (doc/p3) or document URI (doc) - we don't need to parse it
+        parent_doc_id = v.document_id or v.metadata.id
+
+        # Track character offset for provenance
+        char_offset = 0
 
         for ix, chunk in enumerate(texts):
+            chunk_index = ix + 1  # 1-indexed
 
             logger.debug(f"Created chunk of size {len(chunk.page_content)}")
 
+            # Generate chunk document ID by appending /c{index} to parent
+            # Works for both page URIs (doc/p3 -> doc/p3/c1) and doc URIs (doc -> doc/c1)
+            chunk_doc_id = f"{parent_doc_id}/c{chunk_index}"
+            chunk_uri = chunk_doc_id  # URI is same as document ID
+            parent_uri = parent_doc_id
+
+            chunk_content = chunk.page_content.encode("utf-8")
+            chunk_length = len(chunk.page_content)
+
+            # Save chunk to librarian as child document
+            await self.save_child_document(
+                doc_id=chunk_doc_id,
+                parent_id=parent_doc_id,
+                user=v.metadata.user,
+                content=chunk_content,
+                document_type="chunk",
+                title=f"Chunk {chunk_index}",
+            )
+
+            # Emit provenance triples (stored in source graph for separation from core knowledge)
+            prov_triples = derived_entity_triples(
+                entity_uri=chunk_uri,
+                parent_uri=parent_uri,
+                component_name=COMPONENT_NAME,
+                component_version=COMPONENT_VERSION,
+                label=f"Chunk {chunk_index}",
+                chunk_index=chunk_index,
+                char_offset=char_offset,
+                char_length=chunk_length,
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
+            )
+
+            await flow("triples").send(Triples(
+                metadata=Metadata(
+                    id=chunk_uri,
+                    root=v.metadata.root,
+                    user=v.metadata.user,
+                    collection=v.metadata.collection,
+                ),
+                triples=set_graph(prov_triples, GRAPH_SOURCE),
+            ))
+
+            # Forward chunk ID + content (post-chunker optimization)
             r = Chunk(
-                metadata=v.metadata,
-                chunk=chunk.page_content.encode("utf-8"),
+                metadata=Metadata(
+                    id=chunk_uri,
+                    root=v.metadata.root,
+                    user=v.metadata.user,
+                    collection=v.metadata.collection,
+                ),
+                chunk=chunk_content,
+                document_id=chunk_doc_id,
             )
 
             __class__.chunk_metric.labels(
                 id=consumer.id, flow=consumer.flow
-            ).observe(len(chunk.page_content))
+            ).observe(chunk_length)
 
             await flow("output").send(r)
+
+            # Update character offset (approximate, doesn't account for overlap)
+            char_offset += chunk_length - chunk_overlap
 
         logger.debug("Document chunking complete")
 
@@ -133,4 +212,3 @@ class Processor(ChunkingService):
 def run():
 
     Processor.launch(default_ident, __doc__)
-

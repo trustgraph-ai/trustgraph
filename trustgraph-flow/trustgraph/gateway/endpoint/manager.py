@@ -64,6 +64,12 @@ class EndpointManager:
                 method = "GET",
                 dispatcher = dispatcher_manager.dispatch_core_export(),
             ),
+            StreamEndpoint(
+                endpoint_path = "/api/v1/document-stream",
+                auth = auth,
+                method = "GET",
+                dispatcher = dispatcher_manager.dispatch_document_stream(),
+            ),
         ]
 
     def add_routes(self, app):

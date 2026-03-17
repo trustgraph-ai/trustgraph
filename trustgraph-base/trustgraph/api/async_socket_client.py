@@ -110,15 +110,25 @@ class AsyncSocketClient:
 
                     # Parse different chunk types
                     chunk = self._parse_chunk(resp)
-                    yield chunk
+                    if chunk is not None:  # Skip provenance messages in streaming
+                        yield chunk
 
-                    # Check if this is the final chunk
-                    if resp.get("end_of_stream") or resp.get("end_of_dialog") or response.get("complete"):
+                    # Check if this is the final message
+                    # end_of_session indicates entire session is complete (including provenance)
+                    # end_of_dialog is for agent dialogs
+                    # complete is from the gateway envelope
+                    if resp.get("end_of_session") or resp.get("end_of_dialog") or response.get("complete"):
                         break
 
     def _parse_chunk(self, resp: Dict[str, Any]):
-        """Parse response chunk into appropriate type"""
+        """Parse response chunk into appropriate type. Returns None for non-content messages."""
         chunk_type = resp.get("chunk_type")
+        message_type = resp.get("message_type")
+
+        # Handle new GraphRAG message format with message_type
+        if message_type == "provenance":
+            # Provenance messages are not yielded to user - they're metadata
+            return None
 
         if chunk_type == "thought":
             return AgentThought(
@@ -143,7 +153,7 @@ class AsyncSocketClient:
                 end_of_message=resp.get("end_of_message", False)
             )
         else:
-            # RAG-style chunk (or generic chunk)
+            # RAG-style chunk (or generic chunk with message_type="chunk")
             # Text-completion uses "response" field, RAG uses "chunk" field, Prompt uses "text" field
             content = resp.get("response", resp.get("chunk", resp.get("text", "")))
             return RAGChunk(
@@ -282,12 +292,12 @@ class AsyncSocketFlowInstance:
 
     async def graph_embeddings_query(self, text: str, user: str, collection: str, limit: int = 10, **kwargs):
         """Query graph embeddings for semantic search"""
-        # First convert text to embeddings vectors
-        emb_result = await self.embeddings(text=text)
-        vectors = emb_result.get("vectors", [])
+        # First convert text to embedding vector
+        emb_result = await self.embeddings(texts=[text])
+        vector = emb_result.get("vectors", [[]])[0]
 
         request = {
-            "vectors": vectors,
+            "vector": vector,
             "user": user,
             "collection": collection,
             "limit": limit
@@ -296,9 +306,9 @@ class AsyncSocketFlowInstance:
 
         return await self.client._send_request("graph-embeddings", self.flow_id, request)
 
-    async def embeddings(self, text: str, **kwargs):
+    async def embeddings(self, texts: list, **kwargs):
         """Generate text embeddings"""
-        request = {"text": text}
+        request = {"texts": texts}
         request.update(kwargs)
 
         return await self.client._send_request("embeddings", self.flow_id, request)
@@ -352,12 +362,12 @@ class AsyncSocketFlowInstance:
         limit: int = 10, **kwargs
     ):
         """Query row embeddings for semantic search on structured data"""
-        # First convert text to embeddings vectors
-        emb_result = await self.embeddings(text=text)
-        vectors = emb_result.get("vectors", [])
+        # First convert text to embedding vector
+        emb_result = await self.embeddings(texts=[text])
+        vector = emb_result.get("vectors", [[]])[0]
 
         request = {
-            "vectors": vectors,
+            "vector": vector,
             "schema_name": schema_name,
             "user": user,
             "collection": collection,
