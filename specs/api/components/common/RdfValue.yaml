@@ -31,14 +31,17 @@ properties:
     example: en
   r:
     type: object
-    description: Quoted triple (when t=r) - contains s, p, o Term fields
+    description: Quoted triple (when t=r) - contains s, p, o as nested Term objects with the same structure
     properties:
       s:
-        $ref: '#'
+        type: object
+        description: Subject term
       p:
-        $ref: '#'
+        type: object
+        description: Predicate term
       o:
-        $ref: '#'
+        type: object
+        description: Object term
 required:
   - t
 examples:
