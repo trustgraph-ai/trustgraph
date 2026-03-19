@@ -11,13 +11,13 @@
 
 <a href="https://trendshift.io/repositories/17291" target="_blank"><img src="https://trendshift.io/api/badge/repositories/17291" alt="trustgraph-ai%2Ftrustgraph | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
-# The context backend for reliable AI
+# The context development platform
 
 </div>
 
-LLMs alone hallucinate and diverge from ground truth. [TrustGraph](https://trustgraph.ai) is a context system that stores, enriches, and delivers context to LLMs to enable reliable AI agents. Think like [Supabase](https://github.com/supabase/supabase) but AI-native and powered by context graphs.
+Building applications that need to know things requires more than a database. [TrustGraph](https://trustgraph.ai) is the context development platform: graph-native infrastructure for storing, enriching, and retrieving structured knowledge at any scale. Think like [Supabase](https://github.com/supabase/supabase) but built around context graphs: multi-model storage, semantic retrieval pipelines, portable [context cores](#context-cores), and a full developer toolkit out of the box. Deploy locally or in the cloud. No unnecessary API keys. Just context, engineered.
 
-The context backend:
+The platform:
 - [x] Multi-model and multimodal database system
   - [x] Tabular/relational, key-value
   - [x] Document, graph, and vectors
