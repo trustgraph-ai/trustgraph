@@ -83,7 +83,7 @@ For a browser based quickstart, try the [Configuration Terminal](https://config-
 <br>
 
 - [**What is a Context Graph?**](#what-is-a-context-graph)<br>
-- [**Why TrustGraph?**](#why-trustgraph)<br>
+- [**Context Graphs in Action**](#context-graphs-in-action)<br>
 - [**Getting Started**](#getting-started-with-trustgraph)<br>
 - [**Context Cores**](#context-cores)<br>
 - [**Tech Stack**](#tech-stack)<br>
@@ -98,9 +98,9 @@ For a browser based quickstart, try the [Configuration Terminal](https://config-
 
 [![What is a Context Graph?](https://img.youtube.com/vi/gZjlt5WcWB4/maxresdefault.jpg)](https://www.youtube.com/watch?v=gZjlt5WcWB4) 
 
-## Why TrustGraph?
+## Context Graphs in Action
 
-[![Why TrustGraph?](https://img.youtube.com/vi/Norboj8YP2M/maxresdefault.jpg)](https://www.youtube.com/watch?v=Norboj8YP2M)
+[![Context Graphs in Action with TrustGraph](https://img.youtube.com/vi/sWc7mkhITIo/maxresdefault.jpg)](https://www.youtube.com/watch?v=sWc7mkhITIo)
 
 ## Getting Started with TrustGraph
 
@@ -108,10 +108,6 @@ For a browser based quickstart, try the [Configuration Terminal](https://config-
 - [**Using the Workbench**](#workbench)
 - [**Developer APIs and CLI**](https://docs.trustgraph.ai/reference)
 - [**Deployment Guides**](https://docs.trustgraph.ai/deployment)
-
-### Watch TrustGraph 101
-
-[![TrustGraph 101](https://img.youtube.com/vi/rWYl_yhKCng/maxresdefault.jpg)](https://www.youtube.com/watch?v=rWYl_yhKCng)
 
 ## Workbench
 
