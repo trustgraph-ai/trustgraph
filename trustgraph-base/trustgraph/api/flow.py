@@ -449,7 +449,7 @@ class FlowInstance:
     def graph_rag(
             self, query, user="trustgraph", collection="default",
             entity_limit=50, triple_limit=30, max_subgraph_size=150,
-            max_path_length=2,
+            max_path_length=2, edge_score_limit=30, edge_limit=25,
     ):
         """
         Execute graph-based Retrieval-Augmented Generation (RAG) query.
@@ -465,6 +465,8 @@ class FlowInstance:
             triple_limit: Maximum triples per entity (default: 30)
             max_subgraph_size: Maximum total triples in subgraph (default: 150)
             max_path_length: Maximum traversal depth (default: 2)
+            edge_score_limit: Max edges for semantic pre-filter (default: 50)
+            edge_limit: Max edges after LLM scoring (default: 25)
 
         Returns:
             str: Generated response incorporating graph context
@@ -492,6 +494,8 @@ class FlowInstance:
             "triple-limit": triple_limit,
             "max-subgraph-size": max_subgraph_size,
             "max-path-length": max_path_length,
+            "edge-score-limit": edge_score_limit,
+            "edge-limit": edge_limit,
         }
 
         return self.request(

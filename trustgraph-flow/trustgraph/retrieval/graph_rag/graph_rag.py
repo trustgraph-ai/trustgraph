@@ -3,6 +3,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import math
 import time
 import uuid
 from collections import OrderedDict
@@ -550,7 +551,8 @@ class GraphRag:
     async def query(
             self, query, user = "trustgraph", collection = "default",
             entity_limit = 50, triple_limit = 30, max_subgraph_size = 1000,
-            max_path_length = 2, edge_limit = 25, streaming = False,
+            max_path_length = 2, edge_score_limit = 30, edge_limit = 25,
+            streaming = False,
             chunk_callback = None,
             explain_callback = None, save_answer_callback = None,
     ):
@@ -565,6 +567,8 @@ class GraphRag:
             triple_limit: Max triples per entity
             max_subgraph_size: Max edges in subgraph
             max_path_length: Max hops from seed entities
+            edge_score_limit: Max edges to pass to LLM scoring (semantic pre-filter)
+            edge_limit: Max edges after LLM scoring
             streaming: Enable streaming LLM response
             chunk_callback: async def callback(chunk, end_of_stream) for streaming
             explain_callback: async def callback(triples, explain_id) for real-time explainability
@@ -627,6 +631,70 @@ class GraphRag:
             logger.debug("Invoking LLM...")
             logger.debug(f"Knowledge graph: {kg}")
             logger.debug(f"Query: {query}")
+
+        # Semantic pre-filter: reduce edges before expensive LLM scoring
+        if edge_score_limit > 0 and len(kg) > edge_score_limit:
+
+            if self.verbose:
+                logger.debug(
+                    f"Semantic pre-filter: {len(kg)} edges > "
+                    f"limit {edge_score_limit}, filtering..."
+                )
+
+            # Embed edge descriptions: "subject, predicate, object"
+            edge_descriptions = [
+                f"{s}, {p}, {o}" for s, p, o in kg
+            ]
+
+            # Embed concepts and edge descriptions concurrently
+            concept_embed_task = self.embeddings_client.embed(concepts)
+            edge_embed_task = self.embeddings_client.embed(edge_descriptions)
+
+            concept_vectors, edge_vectors = await asyncio.gather(
+                concept_embed_task, edge_embed_task
+            )
+
+            # Score each edge by max cosine similarity to any concept
+            def cosine_similarity(a, b):
+                dot = sum(x * y for x, y in zip(a, b))
+                norm_a = math.sqrt(sum(x * x for x in a))
+                norm_b = math.sqrt(sum(x * x for x in b))
+                if norm_a == 0 or norm_b == 0:
+                    return 0.0
+                return dot / (norm_a * norm_b)
+
+            edge_scores = []
+            for i, edge_vec in enumerate(edge_vectors):
+                max_sim = max(
+                    cosine_similarity(edge_vec, cv)
+                    for cv in concept_vectors
+                )
+                edge_scores.append((max_sim, i))
+
+            # Sort by similarity descending and keep top edge_score_limit
+            edge_scores.sort(reverse=True)
+            keep_indices = set(
+                idx for _, idx in edge_scores[:edge_score_limit]
+            )
+
+            # Filter kg and rebuild uri_map
+            filtered_kg = []
+            filtered_uri_map = {}
+            for i, (s, p, o) in enumerate(kg):
+                if i in keep_indices:
+                    filtered_kg.append((s, p, o))
+                    eid = edge_id(s, p, o)
+                    if eid in uri_map:
+                        filtered_uri_map[eid] = uri_map[eid]
+
+            if self.verbose:
+                logger.debug(
+                    f"Semantic pre-filter kept {len(filtered_kg)} "
+                    f"of {len(kg)} edges"
+                )
+
+            kg = filtered_kg
+            uri_map = filtered_uri_map
 
         # Build edge map: {hash_id: (labeled_s, labeled_p, labeled_o)}
         # uri_map already maps edge_id -> (uri_s, uri_p, uri_o)
