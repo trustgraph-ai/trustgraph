@@ -9,14 +9,14 @@ Provides helpers for:
 Usage example:
 
     from trustgraph.provenance import (
-        document_uri, page_uri, chunk_uri_from_page,
+        document_uri, page_uri, chunk_uri,
         document_triples, derived_entity_triples,
         get_vocabulary_triples,
     )
 
     # Generate URIs
     doc_uri = document_uri("my-doc-123")
-    page_uri = page_uri("my-doc-123", page_number=1)
+    pg_uri = page_uri()
 
     # Build provenance triples
     triples = document_triples(
@@ -35,8 +35,7 @@ from . uris import (
     TRUSTGRAPH_BASE,
     document_uri,
     page_uri,
-    chunk_uri_from_page,
-    chunk_uri_from_doc,
+    chunk_uri,
     activity_uri,
     subgraph_uri,
     agent_uri,
@@ -138,8 +137,7 @@ __all__ = [
     "TRUSTGRAPH_BASE",
     "document_uri",
     "page_uri",
-    "chunk_uri_from_page",
-    "chunk_uri_from_doc",
+    "chunk_uri",
     "activity_uri",
     "subgraph_uri",
     "agent_uri",

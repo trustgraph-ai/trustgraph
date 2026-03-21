@@ -23,7 +23,7 @@ from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
 from ... base import Consumer, Producer, ConsumerMetrics, ProducerMetrics
 
 from ... provenance import (
-    document_uri, page_uri, derived_entity_triples,
+    document_uri, page_uri as make_page_uri, derived_entity_triples,
     set_graph, GRAPH_SOURCE,
 )
 
@@ -272,8 +272,9 @@ class Processor(FlowProcessor):
 
                 logger.debug(f"Processing page {page_num}")
 
-                # Generate page document ID
-                page_doc_id = f"{source_doc_id}/p{page_num}"
+                # Generate unique page ID
+                pg_uri = make_page_uri()
+                page_doc_id = pg_uri
                 page_content = page.page_content.encode("utf-8")
 
                 # Save page as child document in librarian
@@ -288,7 +289,6 @@ class Processor(FlowProcessor):
 
                 # Emit provenance triples (stored in source graph for separation from core knowledge)
                 doc_uri = document_uri(source_doc_id)
-                pg_uri = page_uri(source_doc_id, page_num)
 
                 prov_triples = derived_entity_triples(
                     entity_uri=pg_uri,
