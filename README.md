@@ -82,8 +82,8 @@ For a browser based quickstart, try the [Configuration Terminal](https://config-
 <summary>Table of Contents</summary>
 <br>
 
-- [**What is a Context Graph?**](#what-is-a-context-graph)<br>
-- [**Context Graphs in Action**](#context-graphs-in-action)<br>
+- [**What is a Context Graph?**](#watch-what-is-a-context-graph)<br>
+- [**Context Graphs in Action**](#watch-context-graphs-in-action)<br>
 - [**Getting Started**](#getting-started-with-trustgraph)<br>
 - [**Context Cores**](#context-cores)<br>
 - [**Tech Stack**](#tech-stack)<br>
@@ -94,11 +94,11 @@ For a browser based quickstart, try the [Configuration Terminal](https://config-
 
 </details>
 
-## What is a Context Graph?
+## Watch What is a Context Graph?
 
 [![What is a Context Graph?](https://img.youtube.com/vi/gZjlt5WcWB4/maxresdefault.jpg)](https://www.youtube.com/watch?v=gZjlt5WcWB4) 
 
-## Context Graphs in Action
+## Watch Context Graphs in Action
 
 [![Context Graphs in Action with TrustGraph](https://img.youtube.com/vi/sWc7mkhITIo/maxresdefault.jpg)](https://www.youtube.com/watch?v=sWc7mkhITIo)
 
