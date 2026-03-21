@@ -10,8 +10,7 @@ from trustgraph.provenance.uris import (
     _encode_id,
     document_uri,
     page_uri,
-    chunk_uri_from_page,
-    chunk_uri_from_doc,
+    chunk_uri,
     activity_uri,
     subgraph_uri,
     agent_uri,
@@ -60,31 +59,22 @@ class TestDocumentUris:
         assert document_uri(iri) == iri
 
     def test_page_uri_format(self):
-        result = page_uri("https://example.com/doc/123", 5)
-        assert result == "https://example.com/doc/123/p5"
+        result = page_uri()
+        assert result.startswith("urn:page:")
 
-    def test_page_uri_page_zero(self):
-        result = page_uri("https://example.com/doc/123", 0)
-        assert result == "https://example.com/doc/123/p0"
+    def test_page_uri_unique(self):
+        r1 = page_uri()
+        r2 = page_uri()
+        assert r1 != r2
 
-    def test_chunk_uri_from_page_format(self):
-        result = chunk_uri_from_page("https://example.com/doc/123", 2, 3)
-        assert result == "https://example.com/doc/123/p2/c3"
+    def test_chunk_uri_format(self):
+        result = chunk_uri()
+        assert result.startswith("urn:chunk:")
 
-    def test_chunk_uri_from_doc_format(self):
-        result = chunk_uri_from_doc("https://example.com/doc/123", 7)
-        assert result == "https://example.com/doc/123/c7"
-
-    def test_page_uri_preserves_doc_iri(self):
-        doc = "urn:isbn:978-3-16-148410-0"
-        result = page_uri(doc, 1)
-        assert result.startswith(doc)
-
-    def test_chunk_from_page_hierarchy(self):
-        """Chunk URI should contain both page and chunk identifiers."""
-        result = chunk_uri_from_page("https://example.com/doc", 3, 5)
-        assert "/p3/" in result
-        assert result.endswith("/c5")
+    def test_chunk_uri_unique(self):
+        r1 = chunk_uri()
+        r2 = chunk_uri()
+        assert r1 != r2
 
 
 class TestActivityAndSubgraphUris:

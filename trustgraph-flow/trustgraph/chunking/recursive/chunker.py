@@ -12,7 +12,7 @@ from ... schema import TextDocument, Chunk, Metadata, Triples
 from ... base import ChunkingService, ConsumerSpec, ProducerSpec
 
 from ... provenance import (
-    derived_entity_triples,
+    chunk_uri as make_chunk_uri, derived_entity_triples,
     set_graph, GRAPH_SOURCE,
 )
 
@@ -124,10 +124,9 @@ class Processor(ChunkingService):
 
             logger.debug(f"Created chunk of size {len(chunk.page_content)}")
 
-            # Generate chunk document ID by appending /c{index} to parent
-            # Works for both page URIs (doc/p3 -> doc/p3/c1) and doc URIs (doc -> doc/c1)
-            chunk_doc_id = f"{parent_doc_id}/c{chunk_index}"
-            chunk_uri = chunk_doc_id  # URI is same as document ID
+            # Generate unique chunk ID
+            c_uri = make_chunk_uri()
+            chunk_doc_id = c_uri
             parent_uri = parent_doc_id
 
             chunk_content = chunk.page_content.encode("utf-8")
@@ -145,7 +144,7 @@ class Processor(ChunkingService):
 
             # Emit provenance triples (stored in source graph for separation from core knowledge)
             prov_triples = derived_entity_triples(
-                entity_uri=chunk_uri,
+                entity_uri=c_uri,
                 parent_uri=parent_uri,
                 component_name=COMPONENT_NAME,
                 component_version=COMPONENT_VERSION,
@@ -159,7 +158,7 @@ class Processor(ChunkingService):
 
             await flow("triples").send(Triples(
                 metadata=Metadata(
-                    id=chunk_uri,
+                    id=c_uri,
                     root=v.metadata.root,
                     user=v.metadata.user,
                     collection=v.metadata.collection,
@@ -170,7 +169,7 @@ class Processor(ChunkingService):
             # Forward chunk ID + content (post-chunker optimization)
             r = Chunk(
                 metadata=Metadata(
-                    id=chunk_uri,
+                    id=c_uri,
                     root=v.metadata.root,
                     user=v.metadata.user,
                     collection=v.metadata.collection,
