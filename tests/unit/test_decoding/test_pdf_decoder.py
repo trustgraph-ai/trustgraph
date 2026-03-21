@@ -171,8 +171,8 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
 
         mock_output_flow.send.assert_called_once()
         call_args = mock_output_flow.send.call_args[0][0]
-        # PDF decoder now forwards document_id, chunker fetches content from librarian
-        assert call_args.document_id == "test-doc/p1"
+        # PDF decoder now forwards document_id with UUID-based URN
+        assert call_args.document_id.startswith("urn:page:")
         assert call_args.text == b""  # Content stored in librarian, not inline
 
     @patch('trustgraph.base.flow_processor.FlowProcessor.add_args')
