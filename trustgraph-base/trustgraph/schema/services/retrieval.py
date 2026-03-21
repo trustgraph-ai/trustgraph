@@ -15,6 +15,7 @@ class GraphRagQuery:
     triple_limit: int = 0
     max_subgraph_size: int = 0
     max_path_length: int = 0
+    edge_score_limit: int = 0
     edge_limit: int = 0
     streaming: bool = False
 

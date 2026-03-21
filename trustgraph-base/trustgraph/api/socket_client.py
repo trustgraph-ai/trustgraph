@@ -699,9 +699,12 @@ class SocketFlowInstance:
         query: str,
         user: str,
         collection: str,
+        entity_limit: int = 50,
+        triple_limit: int = 30,
         max_subgraph_size: int = 1000,
-        max_subgraph_count: int = 5,
-        max_entity_distance: int = 3,
+        max_path_length: int = 2,
+        edge_score_limit: int = 30,
+        edge_limit: int = 25,
         streaming: bool = False,
         **kwargs: Any
     ) -> Union[str, Iterator[str]]:
@@ -715,9 +718,12 @@ class SocketFlowInstance:
             query: Natural language query
             user: User/keyspace identifier
             collection: Collection identifier
+            entity_limit: Maximum entities to retrieve (default: 50)
+            triple_limit: Maximum triples per entity (default: 30)
             max_subgraph_size: Maximum total triples in subgraph (default: 1000)
-            max_subgraph_count: Maximum number of subgraphs (default: 5)
-            max_entity_distance: Maximum traversal depth (default: 3)
+            max_path_length: Maximum traversal depth (default: 2)
+            edge_score_limit: Max edges for semantic pre-filter (default: 50)
+            edge_limit: Max edges after LLM scoring (default: 25)
             streaming: Enable streaming mode (default: False)
             **kwargs: Additional parameters passed to the service
 
@@ -743,9 +749,12 @@ class SocketFlowInstance:
             "query": query,
             "user": user,
             "collection": collection,
+            "entity-limit": entity_limit,
+            "triple-limit": triple_limit,
             "max-subgraph-size": max_subgraph_size,
-            "max-subgraph-count": max_subgraph_count,
-            "max-entity-distance": max_entity_distance,
+            "max-path-length": max_path_length,
+            "edge-score-limit": edge_score_limit,
+            "edge-limit": edge_limit,
             "streaming": streaming
         }
         request.update(kwargs)
@@ -762,9 +771,12 @@ class SocketFlowInstance:
         query: str,
         user: str,
         collection: str,
+        entity_limit: int = 50,
+        triple_limit: int = 30,
         max_subgraph_size: int = 1000,
-        max_subgraph_count: int = 5,
-        max_entity_distance: int = 3,
+        max_path_length: int = 2,
+        edge_score_limit: int = 30,
+        edge_limit: int = 25,
         **kwargs: Any
     ) -> Iterator[Union[RAGChunk, ProvenanceEvent]]:
         """
@@ -778,9 +790,12 @@ class SocketFlowInstance:
             query: Natural language query
             user: User/keyspace identifier
             collection: Collection identifier
+            entity_limit: Maximum entities to retrieve (default: 50)
+            triple_limit: Maximum triples per entity (default: 30)
             max_subgraph_size: Maximum total triples in subgraph (default: 1000)
-            max_subgraph_count: Maximum number of subgraphs (default: 5)
-            max_entity_distance: Maximum traversal depth (default: 3)
+            max_path_length: Maximum traversal depth (default: 2)
+            edge_score_limit: Max edges for semantic pre-filter (default: 50)
+            edge_limit: Max edges after LLM scoring (default: 25)
             **kwargs: Additional parameters passed to the service
 
         Yields:
@@ -823,11 +838,14 @@ class SocketFlowInstance:
             "query": query,
             "user": user,
             "collection": collection,
+            "entity-limit": entity_limit,
+            "triple-limit": triple_limit,
             "max-subgraph-size": max_subgraph_size,
-            "max-subgraph-count": max_subgraph_count,
-            "max-entity-distance": max_entity_distance,
+            "max-path-length": max_path_length,
+            "edge-score-limit": edge_score_limit,
+            "edge-limit": edge_limit,
             "streaming": True,
-            "explainable": True,  # Enable explainability mode
+            "explainable": True,
         }
         request.update(kwargs)
 
