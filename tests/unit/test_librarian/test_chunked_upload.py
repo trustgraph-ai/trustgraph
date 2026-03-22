@@ -121,11 +121,11 @@ class TestBeginUpload:
         assert resp.total_chunks == math.ceil(10_000 / 3000)
 
     @pytest.mark.asyncio
-    async def test_rejects_invalid_kind(self):
+    async def test_rejects_empty_kind(self):
         lib = _make_librarian()
-        req = _make_begin_request(kind="image/png")
+        req = _make_begin_request(kind="")
 
-        with pytest.raises(RequestError, match="Invalid document kind"):
+        with pytest.raises(RequestError, match="MIME type.*required"):
             await lib.begin_upload(req)
 
     @pytest.mark.asyncio

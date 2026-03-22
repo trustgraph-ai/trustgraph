@@ -39,6 +39,9 @@ jobs:
       - name: Install trustgraph-flow
         run: (cd trustgraph-flow; pip install .)
 
+      - name: Install trustgraph-unstructured
+        run: (cd trustgraph-unstructured; pip install .)
+
       - name: Install trustgraph-vertexai
         run: (cd trustgraph-vertexai; pip install .)
 

@@ -75,8 +75,15 @@ TG_SELECTED_CHUNK = TG + "selectedChunk"
 # Extraction provenance entity types
 TG_DOCUMENT_TYPE = TG + "Document"
 TG_PAGE_TYPE = TG + "Page"
+TG_SECTION_TYPE = TG + "Section"
 TG_CHUNK_TYPE = TG + "Chunk"
+TG_IMAGE_TYPE = TG + "Image"
 TG_SUBGRAPH_TYPE = TG + "Subgraph"
+
+# Universal decoder metadata predicates
+TG_ELEMENT_TYPES = TG + "elementTypes"
+TG_TABLE_COUNT = TG + "tableCount"
+TG_IMAGE_COUNT = TG + "imageCount"
 
 # Explainability entity types (shared)
 TG_QUESTION = TG + "Question"

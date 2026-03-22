@@ -5,7 +5,9 @@ Document IDs are externally provided (e.g., https://trustgraph.ai/doc/abc123).
 Child entities (pages, chunks) use UUID-based URNs:
 - Document:  {doc_iri} (as provided, not generated here)
 - Page:      urn:page:{uuid}
+- Section:   urn:section:{uuid}
 - Chunk:     urn:chunk:{uuid}
+- Image:     urn:image:{uuid}
 - Activity:  https://trustgraph.ai/activity/{uuid}
 - Subgraph:  https://trustgraph.ai/subgraph/{uuid}
 """
@@ -32,9 +34,19 @@ def page_uri() -> str:
     return f"urn:page:{uuid.uuid4()}"
 
 
+def section_uri() -> str:
+    """Generate a unique URI for a document section."""
+    return f"urn:section:{uuid.uuid4()}"
+
+
 def chunk_uri() -> str:
     """Generate a unique URI for a chunk."""
     return f"urn:chunk:{uuid.uuid4()}"
+
+
+def image_uri() -> str:
+    """Generate a unique URI for an image."""
+    return f"urn:image:{uuid.uuid4()}"
 
 
 def activity_uri(activity_id: str = None) -> str:

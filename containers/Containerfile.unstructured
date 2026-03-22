@@ -1,0 +1,48 @@
+
+# ----------------------------------------------------------------------------
+# Base container with system dependencies
+# ----------------------------------------------------------------------------
+
+FROM docker.io/fedora:42 AS base
+
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
+
+RUN dnf install -y python3.13 && \
+  alternatives --install /usr/bin/python python /usr/bin/python3.13 1 && \
+  python -m ensurepip --upgrade && \
+  pip3 install --no-cache-dir build wheel aiohttp && \
+  pip3 install --no-cache-dir pulsar-client==3.7.0 && \
+  dnf clean all
+
+# ----------------------------------------------------------------------------
+# Build a container which contains the built Python packages.  The build
+# creates a bunch of left-over cruft, a separate phase means this is only
+# needed to support package build
+# ----------------------------------------------------------------------------
+
+FROM base AS build
+
+COPY trustgraph-base/ /root/build/trustgraph-base/
+COPY trustgraph-unstructured/ /root/build/trustgraph-unstructured/
+
+WORKDIR /root/build/
+
+RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-base/
+RUN pip3 wheel -w /root/wheels/ --no-deps ./trustgraph-unstructured/
+
+RUN ls /root/wheels
+
+# ----------------------------------------------------------------------------
+# Finally, the target container.  Start with base and add the package.
+# ----------------------------------------------------------------------------
+
+FROM base
+
+COPY --from=build /root/wheels /root/wheels
+
+RUN \
+    pip3 install --no-cache-dir /root/wheels/trustgraph_base-* && \
+    pip3 install --no-cache-dir /root/wheels/trustgraph_unstructured-* && \
+    rm -rf /root/wheels
+
+WORKDIR /

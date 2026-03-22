@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trustgraph-unstructured"
+dynamic = ["version"]
+authors = [{name = "trustgraph.ai", email = "security@trustgraph.ai"}]
+description = "TrustGraph provides a means to run a pipeline of flexible AI processing components in a flexible means to achieve a processing pipeline."
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "trustgraph-base>=2.2,<2.3",
+    "pulsar-client",
+    "prometheus-client",
+    "python-magic",
+    "unstructured[csv,docx,epub,md,odt,pptx,rst,rtf,tsv,xlsx]",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/trustgraph-ai/trustgraph"
+
+[project.scripts]
+universal-decoder = "trustgraph.decoding.universal:run"
+
+[tool.setuptools.packages.find]
+include = ["trustgraph*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "trustgraph.unstructured_version.__version__"}
