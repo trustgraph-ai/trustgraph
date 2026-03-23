@@ -214,6 +214,12 @@ def print_graphrag_text(trace, explain_client, flow, user, collection, api=None,
                     chain_str = format_provenance_chain(chain)
                     if chain_str:
                         print(f"     Source: {chain_str}")
+                        # Show content ID for the chunk (second item in chain)
+                        for item in chain:
+                            uri = item.get("uri", "")
+                            if uri.startswith("urn:chunk:"):
+                                print(f"     Content: {uri}")
+                                break
 
             print()
     else:
