@@ -284,7 +284,6 @@ class Processor(AsyncProcessor):
         pass
 
     # Threshold for sending document_id instead of inline content (2MB)
-    STREAMING_THRESHOLD = 2 * 1024 * 1024
 
     async def emit_document_provenance(self, document, processing, triples_queue):
         """
@@ -360,10 +359,8 @@ class Processor(AsyncProcessor):
 
         if document.kind == "text/plain":
             kind = "text-load"
-        elif document.kind == "application/pdf":
-            kind = "document-load"
         else:
-            raise RuntimeError("Document with a MIME type I don't know")
+            kind = "document-load"
 
         q = flow["interfaces"][kind]
 
@@ -374,57 +371,28 @@ class Processor(AsyncProcessor):
             )
 
         if kind == "text-load":
-            # For large text documents, send document_id for streaming retrieval
-            if len(content) >= self.STREAMING_THRESHOLD:
-                logger.info(f"Text document {document.id} is large ({len(content)} bytes), "
-                           f"sending document_id for streaming retrieval")
-                doc = TextDocument(
-                    metadata = Metadata(
-                        id = document.id,
-                        root = document.id,
-                        user = processing.user,
-                        collection = processing.collection
-                    ),
-                    document_id = document.id,
-                    text = b"",  # Empty, receiver will fetch via librarian
-                )
-            else:
-                doc = TextDocument(
-                    metadata = Metadata(
-                        id = document.id,
-                        root = document.id,
-                        user = processing.user,
-                        collection = processing.collection
-                    ),
-                    text = content,
-                )
+            doc = TextDocument(
+                metadata = Metadata(
+                    id = document.id,
+                    root = document.id,
+                    user = processing.user,
+                    collection = processing.collection
+                ),
+                document_id = document.id,
+                text = b"",
+            )
             schema = TextDocument
         else:
-            # For large PDF documents, send document_id for streaming retrieval
-            # instead of embedding the entire content in the message
-            if len(content) >= self.STREAMING_THRESHOLD:
-                logger.info(f"Document {document.id} is large ({len(content)} bytes), "
-                           f"sending document_id for streaming retrieval")
-                doc = Document(
-                    metadata = Metadata(
-                        id = document.id,
-                        root = document.id,
-                        user = processing.user,
-                        collection = processing.collection
-                    ),
-                    document_id = document.id,
-                    data = b"",  # Empty data, receiver will fetch via API
-                )
-            else:
-                doc = Document(
-                    metadata = Metadata(
-                        id = document.id,
-                        root = document.id,
-                        user = processing.user,
-                        collection = processing.collection
-                    ),
-                    data = base64.b64encode(content).decode("utf-8")
-                )
+            doc = Document(
+                metadata = Metadata(
+                    id = document.id,
+                    root = document.id,
+                    user = processing.user,
+                    collection = processing.collection
+                ),
+                document_id = document.id,
+                data = b"",
+            )
             schema = Document
 
         logger.debug(f"Submitting to queue {q}...")

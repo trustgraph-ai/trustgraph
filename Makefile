@@ -17,6 +17,7 @@ wheels:
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-embeddings-hf/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-cli/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-ocr/
+	pip3 wheel --no-deps --wheel-dir dist trustgraph-unstructured/
 	pip3 wheel --no-deps --wheel-dir dist trustgraph-mcp/
 
 packages: update-package-versions
@@ -29,6 +30,7 @@ packages: update-package-versions
 	cd trustgraph-embeddings-hf && python -m build --sdist --outdir ../dist/
 	cd trustgraph-cli && python -m build --sdist --outdir ../dist/
 	cd trustgraph-ocr && python -m build --sdist --outdir ../dist/
+	cd trustgraph-unstructured && python -m build --sdist --outdir ../dist/
 	cd trustgraph-mcp && python -m build --sdist --outdir ../dist/
 
 pypi-upload:
@@ -46,6 +48,7 @@ update-package-versions:
 	echo __version__ = \"${VERSION}\" > trustgraph-embeddings-hf/trustgraph/embeddings_hf_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-cli/trustgraph/cli_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-ocr/trustgraph/ocr_version.py
+	echo __version__ = \"${VERSION}\" > trustgraph-unstructured/trustgraph/unstructured_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph/trustgraph/trustgraph_version.py
 	echo __version__ = \"${VERSION}\" > trustgraph-mcp/trustgraph/mcp_version.py
 
@@ -64,6 +67,8 @@ containers: FORCE
 	    -t ${CONTAINER_BASE}/trustgraph-hf:${VERSION} .
 	${DOCKER} build -f containers/Containerfile.ocr \
 	    -t ${CONTAINER_BASE}/trustgraph-ocr:${VERSION} .
+	${DOCKER} build -f containers/Containerfile.unstructured \
+	    -t ${CONTAINER_BASE}/trustgraph-unstructured:${VERSION} .
 	${DOCKER} build -f containers/Containerfile.mcp \
 	    -t ${CONTAINER_BASE}/trustgraph-mcp:${VERSION} .
 
@@ -72,6 +77,8 @@ some-containers:
 	    -t ${CONTAINER_BASE}/trustgraph-base:${VERSION} .
 	${DOCKER} build -f containers/Containerfile.flow \
 	    -t ${CONTAINER_BASE}/trustgraph-flow:${VERSION} .
+	${DOCKER} build -f containers/Containerfile.unstructured \
+	    -t ${CONTAINER_BASE}/trustgraph-unstructured:${VERSION} .
 #	${DOCKER} build -f containers/Containerfile.vertexai \
 #	    -t ${CONTAINER_BASE}/trustgraph-vertexai:${VERSION} .
 #	${DOCKER} build -f containers/Containerfile.mcp \
@@ -98,6 +105,7 @@ push:
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-vertexai:${VERSION}
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-hf:${VERSION}
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-ocr:${VERSION}
+	${DOCKER} push ${CONTAINER_BASE}/trustgraph-unstructured:${VERSION}
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-mcp:${VERSION}
 
 # Individual container build targets
@@ -118,6 +126,9 @@ container-trustgraph-hf: update-package-versions
 
 container-trustgraph-ocr: update-package-versions
 	${DOCKER} build -f containers/Containerfile.ocr -t ${CONTAINER_BASE}/trustgraph-ocr:${VERSION} .
+
+container-trustgraph-unstructured: update-package-versions
+	${DOCKER} build -f containers/Containerfile.unstructured -t ${CONTAINER_BASE}/trustgraph-unstructured:${VERSION} .
 
 container-trustgraph-mcp: update-package-versions
 	${DOCKER} build -f containers/Containerfile.mcp -t ${CONTAINER_BASE}/trustgraph-mcp:${VERSION} .
@@ -140,6 +151,9 @@ push-trustgraph-hf:
 
 push-trustgraph-ocr:
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-ocr:${VERSION}
+
+push-trustgraph-unstructured:
+	${DOCKER} push ${CONTAINER_BASE}/trustgraph-unstructured:${VERSION}
 
 push-trustgraph-mcp:
 	${DOCKER} push ${CONTAINER_BASE}/trustgraph-mcp:${VERSION}

@@ -240,7 +240,7 @@ class TestMistralOcrProcessor(IsolatedAsyncioTestCase):
 
         mock_launch.assert_called_once()
         args = mock_launch.call_args[0]
-        assert args[0] == "pdf-decoder"
+        assert args[0] == "document-decoder"
         assert "Mistral OCR decoder" in args[1]
 
 

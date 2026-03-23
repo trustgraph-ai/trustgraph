@@ -18,7 +18,10 @@ from . namespaces import (
     TG_CHUNK_SIZE, TG_CHUNK_OVERLAP, TG_COMPONENT_VERSION,
     TG_LLM_MODEL, TG_ONTOLOGY, TG_CONTAINS,
     # Extraction provenance entity types
-    TG_DOCUMENT_TYPE, TG_PAGE_TYPE, TG_CHUNK_TYPE, TG_SUBGRAPH_TYPE,
+    TG_DOCUMENT_TYPE, TG_PAGE_TYPE, TG_SECTION_TYPE, TG_CHUNK_TYPE,
+    TG_IMAGE_TYPE, TG_SUBGRAPH_TYPE,
+    # Universal decoder metadata predicates
+    TG_ELEMENT_TYPES, TG_TABLE_COUNT, TG_IMAGE_COUNT,
     # Query-time provenance predicates (GraphRAG)
     TG_QUERY, TG_CONCEPT, TG_ENTITY,
     TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_EDGE, TG_REASONING,
@@ -129,15 +132,22 @@ def derived_entity_triples(
     component_version: str,
     label: Optional[str] = None,
     page_number: Optional[int] = None,
+    section: bool = False,
+    image: bool = False,
     chunk_index: Optional[int] = None,
     char_offset: Optional[int] = None,
     char_length: Optional[int] = None,
     chunk_size: Optional[int] = None,
     chunk_overlap: Optional[int] = None,
+    mime_type: Optional[str] = None,
+    element_types: Optional[str] = None,
+    table_count: Optional[int] = None,
+    image_count: Optional[int] = None,
     timestamp: Optional[str] = None,
 ) -> List[Triple]:
     """
-    Build triples for a derived entity (page or chunk) with full PROV-O provenance.
+    Build triples for a derived entity (page, section, chunk, or image)
+    with full PROV-O provenance.
 
     Creates:
     - Entity declaration
@@ -146,17 +156,23 @@ def derived_entity_triples(
     - Agent for the component
 
     Args:
-        entity_uri: URI of the derived entity (page or chunk)
+        entity_uri: URI of the derived entity
         parent_uri: URI of the parent entity
         component_name: Name of TG component (e.g., "pdf-extractor", "chunker")
         component_version: Version of the component
         label: Human-readable label
         page_number: Page number (for pages)
+        section: True if this is a document section (non-page format)
+        image: True if this is an image entity
         chunk_index: Chunk index (for chunks)
-        char_offset: Character offset in parent (for chunks)
-        char_length: Character length (for chunks)
+        char_offset: Character offset in parent
+        char_length: Character length
         chunk_size: Configured chunk size (for chunking activity)
         chunk_overlap: Configured chunk overlap (for chunking activity)
+        mime_type: Source document MIME type
+        element_types: Comma-separated unstructured element categories
+        table_count: Number of tables in this page/section
+        image_count: Number of images in this page/section
         timestamp: ISO timestamp (defaults to now)
 
     Returns:
@@ -169,7 +185,11 @@ def derived_entity_triples(
     agt_uri = agent_uri(component_name)
 
     # Determine specific type from parameters
-    if page_number is not None:
+    if image:
+        specific_type = TG_IMAGE_TYPE
+    elif section:
+        specific_type = TG_SECTION_TYPE
+    elif page_number is not None:
         specific_type = TG_PAGE_TYPE
     elif chunk_index is not None:
         specific_type = TG_CHUNK_TYPE
@@ -224,6 +244,18 @@ def derived_entity_triples(
 
     if chunk_overlap is not None:
         triples.append(_triple(act_uri, TG_CHUNK_OVERLAP, _literal(chunk_overlap)))
+
+    if mime_type:
+        triples.append(_triple(entity_uri, TG_MIME_TYPE, _literal(mime_type)))
+
+    if element_types:
+        triples.append(_triple(entity_uri, TG_ELEMENT_TYPES, _literal(element_types)))
+
+    if table_count is not None:
+        triples.append(_triple(entity_uri, TG_TABLE_COUNT, _literal(table_count)))
+
+    if image_count is not None:
+        triples.append(_triple(entity_uri, TG_IMAGE_COUNT, _literal(image_count)))
 
     return triples
 

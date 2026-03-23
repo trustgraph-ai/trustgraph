@@ -58,6 +58,7 @@ jobs:
           - trustgraph-vertexai
           - trustgraph-hf
           - trustgraph-ocr
+          - trustgraph-unstructured
           - trustgraph-mcp
 
     steps:

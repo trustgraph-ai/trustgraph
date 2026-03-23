@@ -187,7 +187,7 @@ class TestPdfDecoderProcessor(IsolatedAsyncioTestCase):
         """Test run function"""
         from trustgraph.decoding.pdf.pdf_decoder import run
         run()
-        mock_launch.assert_called_once_with("pdf-decoder",
+        mock_launch.assert_called_once_with("document-decoder",
             "\nSimple decoder, accepts PDF documents on input, outputs pages from the\nPDF document as text as separate output objects.\n\nSupports both inline document data and fetching from librarian via Pulsar\nfor large documents.\n")
 
 
