@@ -169,8 +169,6 @@ class Processor(FlowProcessor):
         if request_id and request_id in self.pending_librarian_requests:
             future = self.pending_librarian_requests.pop(request_id)
             future.set_result(response)
-        else:
-            logger.warning(f"Received unexpected librarian response: {request_id}")
 
     async def save_answer_content(self, doc_id, user, content, title=None, timeout=120):
         """
