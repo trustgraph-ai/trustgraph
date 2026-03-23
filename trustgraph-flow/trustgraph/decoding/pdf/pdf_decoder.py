@@ -126,8 +126,6 @@ class Processor(FlowProcessor):
         if request_id and request_id in self.pending_requests:
             future = self.pending_requests.pop(request_id)
             future.set_result(response)
-        else:
-            logger.warning(f"Received unexpected librarian response: {request_id}")
 
     async def fetch_document_metadata(self, document_id, user, timeout=120):
         """
