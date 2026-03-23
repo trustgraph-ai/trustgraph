@@ -402,23 +402,6 @@ class SocketClient:
                 content=resp.get("content", ""),
                 end_of_message=resp.get("end_of_message", False)
             )
-        # Non-streaming agent format: chunk_type is empty but has thought/observation/answer fields
-        elif resp.get("thought"):
-            return AgentThought(
-                content=resp.get("thought", ""),
-                end_of_message=resp.get("end_of_message", False)
-            )
-        elif resp.get("observation"):
-            return AgentObservation(
-                content=resp.get("observation", ""),
-                end_of_message=resp.get("end_of_message", False)
-            )
-        elif resp.get("answer"):
-            return AgentAnswer(
-                content=resp.get("answer", ""),
-                end_of_message=resp.get("end_of_message", False),
-                end_of_dialog=resp.get("end_of_dialog", False)
-            )
         else:
             content = resp.get("response", resp.get("chunk", resp.get("text", "")))
             return RAGChunk(

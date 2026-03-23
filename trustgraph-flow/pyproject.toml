@@ -56,6 +56,7 @@ Homepage = "https://github.com/trustgraph-ai/trustgraph"
 
 [project.scripts]
 agent-manager-react = "trustgraph.agent.react:run"
+agent-orchestrator = "trustgraph.agent.orchestrator:run"
 api-gateway = "trustgraph.gateway:run"
 chunker-recursive = "trustgraph.chunking.recursive:run"
 chunker-token = "trustgraph.chunking.token:run"

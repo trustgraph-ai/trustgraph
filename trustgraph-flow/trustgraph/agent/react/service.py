@@ -485,25 +485,16 @@ class Processor(AgentService):
                 logger.debug(f"Think: {x} (is_final={is_final})")
 
                 if streaming:
-                    # Streaming format
                     r = AgentResponse(
                         chunk_type="thought",
                         content=x,
                         end_of_message=is_final,
                         end_of_dialog=False,
-                        # Legacy fields for backward compatibility
-                        answer=None,
-                        error=None,
-                        thought=x,
-                        observation=None,
                     )
                 else:
-                    # Non-streaming format
                     r = AgentResponse(
-                        answer=None,
-                        error=None,
-                        thought=x,
-                        observation=None,
+                        chunk_type="thought",
+                        content=x,
                         end_of_message=True,
                         end_of_dialog=False,
                     )
@@ -515,25 +506,16 @@ class Processor(AgentService):
                 logger.debug(f"Observe: {x} (is_final={is_final})")
 
                 if streaming:
-                    # Streaming format
                     r = AgentResponse(
                         chunk_type="observation",
                         content=x,
                         end_of_message=is_final,
                         end_of_dialog=False,
-                        # Legacy fields for backward compatibility
-                        answer=None,
-                        error=None,
-                        thought=None,
-                        observation=x,
                     )
                 else:
-                    # Non-streaming format
                     r = AgentResponse(
-                        answer=None,
-                        error=None,
-                        thought=None,
-                        observation=x,
+                        chunk_type="observation",
+                        content=x,
                         end_of_message=True,
                         end_of_dialog=False,
                     )
@@ -545,25 +527,16 @@ class Processor(AgentService):
                 logger.debug(f"Answer: {x}")
 
                 if streaming:
-                    # Streaming format
                     r = AgentResponse(
                         chunk_type="answer",
                         content=x,
-                        end_of_message=False,  # More chunks may follow
+                        end_of_message=False,
                         end_of_dialog=False,
-                        # Legacy fields for backward compatibility
-                        answer=None,
-                        error=None,
-                        thought=None,
-                        observation=None,
                     )
                 else:
-                    # Non-streaming format - shouldn't normally be called
                     r = AgentResponse(
-                        answer=x,
-                        error=None,
-                        thought=None,
-                        observation=None,
+                        chunk_type="answer",
+                        content=x,
                         end_of_message=True,
                         end_of_dialog=False,
                     )
@@ -677,25 +650,17 @@ class Processor(AgentService):
                     ))
 
                 if streaming:
-                    # Streaming format - send end-of-dialog marker
-                    # Answer chunks were already sent via answer() callback during parsing
+                    # End-of-dialog marker — answer chunks already sent via callback
                     r = AgentResponse(
                         chunk_type="answer",
-                        content="",  # Empty content, just marking end of dialog
+                        content="",
                         end_of_message=True,
                         end_of_dialog=True,
-                        # Legacy fields set to None - answer already sent via streaming chunks
-                        answer=None,
-                        error=None,
-                        thought=None,
                     )
                 else:
-                    # Non-streaming format - send complete answer
                     r = AgentResponse(
-                        answer=act.final,
-                        error=None,
-                        thought=None,
-                        observation=None,
+                        chunk_type="answer",
+                        content=f,
                         end_of_message=True,
                         end_of_dialog=True,
                     )
@@ -833,21 +798,13 @@ class Processor(AgentService):
             # Check if streaming was enabled (may not be set if error occurred early)
             streaming = getattr(request, 'streaming', False) if 'request' in locals() else False
 
-            if streaming:
-                # Streaming format
-                r = AgentResponse(
-                    chunk_type="error",
-                    content=str(e),
-                    end_of_message=True,
-                    end_of_dialog=True,
-                    # Legacy fields for backward compatibility
-                    error=error_obj,
-                )
-            else:
-                # Legacy format
-                r = AgentResponse(
-                    error=error_obj,
-                )
+            r = AgentResponse(
+                chunk_type="error",
+                content=str(e),
+                end_of_message=True,
+                end_of_dialog=True,
+                error=error_obj,
+            )
 
             await respond(r)
 
