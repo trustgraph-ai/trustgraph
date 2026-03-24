@@ -45,14 +45,17 @@ class Processor(EmbeddingsService):
         else:
             logger.debug(f"Using cached model: {model_name}")
 
-    async def on_embeddings(self, text, model=None):
+    async def on_embeddings(self, texts, model=None):
+
+        if not texts:
+            return []
 
         use_model = model or self.default_model
 
         # Reload model if it has changed
         self._load_model(use_model)
 
-        embeds = self.embeddings.embed_documents([text])
+        embeds = self.embeddings.embed_documents(texts)
         logger.debug("Embeddings generation complete")
         return embeds
 
