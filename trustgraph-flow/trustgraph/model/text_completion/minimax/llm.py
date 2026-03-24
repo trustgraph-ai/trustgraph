@@ -1,0 +1,251 @@
+
+"""
+Simple LLM service, performs text prompt completion using MiniMax.
+Input is prompt, output is response.
+"""
+
+from openai import OpenAI, RateLimitError
+import os
+import logging
+
+from .... exceptions import TooManyRequests
+from .... base import LlmService, LlmResult, LlmChunk
+
+# Module logger
+logger = logging.getLogger(__name__)
+
+default_ident = "text-completion"
+
+default_model = 'MiniMax-M2.7'
+default_temperature = 1.0
+default_max_output = 4096
+default_api_key = os.getenv("MINIMAX_API_KEY")
+default_base_url = os.getenv("MINIMAX_BASE_URL")
+
+if default_base_url is None or default_base_url == "":
+    default_base_url = "https://api.minimax.io/v1"
+
+class Processor(LlmService):
+
+    def __init__(self, **params):
+
+        model = params.get("model", default_model)
+        api_key = params.get("api_key", default_api_key)
+        base_url = params.get("url", default_base_url)
+        temperature = params.get("temperature", default_temperature)
+        max_output = params.get("max_output", default_max_output)
+
+        if api_key is None:
+            raise RuntimeError("MiniMax API key not specified")
+
+        # Clamp temperature to MiniMax's valid range (0.0, 1.0]
+        if temperature is not None:
+            if temperature <= 0.0:
+                temperature = 0.01
+            elif temperature > 1.0:
+                temperature = 1.0
+
+        super(Processor, self).__init__(
+            **params | {
+                "model": model,
+                "temperature": temperature,
+                "max_output": max_output,
+                "base_url": base_url,
+            }
+        )
+
+        self.default_model = model
+        self.temperature = temperature
+        self.max_output = max_output
+
+        self.openai = OpenAI(base_url=base_url, api_key=api_key)
+
+        logger.info("MiniMax LLM service initialized")
+
+    def _clamp_temperature(self, temperature):
+        """Clamp temperature to MiniMax's valid range (0.0, 1.0]"""
+        if temperature is None:
+            return self.temperature
+        if temperature <= 0.0:
+            return 0.01
+        if temperature > 1.0:
+            return 1.0
+        return temperature
+
+    async def generate_content(self, system, prompt, model=None, temperature=None):
+
+        # Use provided model or fall back to default
+        model_name = model or self.default_model
+        # Use provided temperature or fall back to default
+        effective_temperature = self._clamp_temperature(temperature)
+
+        logger.debug(f"Using model: {model_name}")
+        logger.debug(f"Using temperature: {effective_temperature}")
+
+        prompt = system + "\n\n" + prompt
+
+        try:
+
+            resp = self.openai.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": prompt
+                            }
+                        ]
+                    }
+                ],
+                temperature=effective_temperature,
+                max_tokens=self.max_output,
+            )
+
+            inputtokens = resp.usage.prompt_tokens
+            outputtokens = resp.usage.completion_tokens
+            logger.debug(f"LLM response: {resp.choices[0].message.content}")
+            logger.info(f"Input Tokens: {inputtokens}")
+            logger.info(f"Output Tokens: {outputtokens}")
+
+            resp = LlmResult(
+                text = resp.choices[0].message.content,
+                in_token = inputtokens,
+                out_token = outputtokens,
+                model = model_name
+            )
+
+            return resp
+
+        # FIXME: Wrong exception, don't know what this LLM throws
+        # for a rate limit
+        except RateLimitError:
+
+            # Leave rate limit retries to the base handler
+            raise TooManyRequests()
+
+        except Exception as e:
+
+            # Apart from rate limits, treat all exceptions as unrecoverable
+
+            logger.error(f"MiniMax LLM exception ({type(e).__name__}): {e}", exc_info=True)
+            raise e
+
+    def supports_streaming(self):
+        """MiniMax supports streaming"""
+        return True
+
+    async def generate_content_stream(self, system, prompt, model=None, temperature=None):
+        """
+        Stream content generation from MiniMax.
+        Yields LlmChunk objects with is_final=True on the last chunk.
+        """
+        # Use provided model or fall back to default
+        model_name = model or self.default_model
+        # Use provided temperature or fall back to default
+        effective_temperature = self._clamp_temperature(temperature)
+
+        logger.debug(f"Using model (streaming): {model_name}")
+        logger.debug(f"Using temperature: {effective_temperature}")
+
+        prompt = system + "\n\n" + prompt
+
+        try:
+            response = self.openai.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": prompt
+                            }
+                        ]
+                    }
+                ],
+                temperature=effective_temperature,
+                max_tokens=self.max_output,
+                stream=True,
+                stream_options={"include_usage": True}
+            )
+
+            total_input_tokens = 0
+            total_output_tokens = 0
+
+            # Stream chunks
+            for chunk in response:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    yield LlmChunk(
+                        text=chunk.choices[0].delta.content,
+                        in_token=None,
+                        out_token=None,
+                        model=model_name,
+                        is_final=False
+                    )
+
+                # Capture usage from final chunk
+                if chunk.usage:
+                    total_input_tokens = chunk.usage.prompt_tokens
+                    total_output_tokens = chunk.usage.completion_tokens
+
+            # Send final chunk with token counts
+            yield LlmChunk(
+                text="",
+                in_token=total_input_tokens,
+                out_token=total_output_tokens,
+                model=model_name,
+                is_final=True
+            )
+
+            logger.debug("Streaming complete")
+
+        except RateLimitError:
+            logger.warning("Hit rate limit during streaming")
+            raise TooManyRequests()
+
+        except Exception as e:
+            logger.error(f"MiniMax streaming exception ({type(e).__name__}): {e}", exc_info=True)
+            raise e
+
+    @staticmethod
+    def add_args(parser):
+
+        LlmService.add_args(parser)
+
+        parser.add_argument(
+            '-m', '--model',
+            default="MiniMax-M2.7",
+            help=f'LLM model (default: MiniMax-M2.7)'
+        )
+
+        parser.add_argument(
+            '-k', '--api-key',
+            default=default_api_key,
+            help=f'MiniMax API key'
+        )
+
+        parser.add_argument(
+            '-u', '--url',
+            default=default_base_url,
+            help=f'MiniMax service base URL'
+        )
+
+        parser.add_argument(
+            '-t', '--temperature',
+            type=float,
+            default=default_temperature,
+            help=f'LLM temperature parameter (default: {default_temperature})'
+        )
+
+        parser.add_argument(
+            '-x', '--max-output',
+            type=int,
+            default=default_max_output,
+            help=f'LLM max output tokens (default: {default_max_output})'
+        )
+
+def run():
+
+    Processor.launch(default_ident, __doc__)

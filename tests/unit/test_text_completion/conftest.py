@@ -494,6 +494,45 @@ def mock_llamafile_client():
     mock_response.choices[0].message.content = "Test response from LlamaFile"
     mock_response.usage.prompt_tokens = 14
     mock_response.usage.completion_tokens = 8
-    
+
     mock_client.chat.completions.create.return_value = mock_response
     return mock_client
+
+
+# === MiniMax Specific Fixtures ===
+
+@pytest.fixture
+def minimax_processor_config(base_processor_config):
+    """Default configuration for MiniMax processor"""
+    config = base_processor_config.copy()
+    config.update({
+        'model': 'MiniMax-M2.7',
+        'api_key': 'test-api-key',
+        'url': 'https://api.minimax.io/v1',
+        'temperature': 1.0,
+        'max_output': 4096
+    })
+    return config
+
+
+@pytest.fixture
+def mock_minimax_client():
+    """Mock OpenAI client for MiniMax"""
+    mock_client = MagicMock()
+
+    # Mock the response structure
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message.content = "Test response from MiniMax"
+    mock_response.usage.prompt_tokens = 18
+    mock_response.usage.completion_tokens = 10
+
+    mock_client.chat.completions.create.return_value = mock_response
+    return mock_client
+
+
+@pytest.fixture
+def mock_minimax_rate_limit_error():
+    """Mock MiniMax (OpenAI) rate limit error"""
+    from openai import RateLimitError
+    return RateLimitError("Rate limit exceeded", response=MagicMock(), body=None)
