@@ -90,7 +90,7 @@ class Processor(LlmService):
                     }
                 ],
                 temperature=effective_temperature,
-                max_tokens=self.max_output,
+                max_completion_tokens=self.max_output,
                 top_p=1,
             )
 
@@ -159,7 +159,7 @@ class Processor(LlmService):
                     }
                 ],
                 temperature=effective_temperature,
-                max_tokens=self.max_output,
+                max_completion_tokens=self.max_output,
                 top_p=1,
                 stream=True,
                 stream_options={"include_usage": True}
