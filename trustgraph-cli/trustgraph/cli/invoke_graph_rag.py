@@ -28,6 +28,8 @@ default_entity_limit = 50
 default_triple_limit = 30
 default_max_subgraph_size = 150
 default_max_path_length = 2
+default_edge_score_limit = 30
+default_edge_limit = 25
 
 # Provenance predicates
 TG = "https://trustgraph.ai/ns/"
@@ -638,7 +640,8 @@ async def _question_explainable(
 
 def _question_explainable_api(
         url, flow_id, question_text, user, collection, entity_limit, triple_limit,
-        max_subgraph_size, max_path_length, token=None, debug=False
+        max_subgraph_size, max_path_length, edge_score_limit=30,
+        edge_limit=25, token=None, debug=False
 ):
     """Execute graph RAG with explainability using the new API classes."""
     api = Api(url=url, token=token)
@@ -652,9 +655,12 @@ def _question_explainable_api(
             query=question_text,
             user=user,
             collection=collection,
+            entity_limit=entity_limit,
+            triple_limit=triple_limit,
             max_subgraph_size=max_subgraph_size,
-            max_subgraph_count=5,
-            max_entity_distance=max_path_length,
+            max_path_length=max_path_length,
+            edge_score_limit=edge_score_limit,
+            edge_limit=edge_limit,
         ):
             if isinstance(item, RAGChunk):
                 # Print response content
@@ -743,7 +749,8 @@ def _question_explainable_api(
 
 def question(
         url, flow_id, question, user, collection, entity_limit, triple_limit,
-        max_subgraph_size, max_path_length, streaming=True, token=None,
+        max_subgraph_size, max_path_length, edge_score_limit=50,
+        edge_limit=25, streaming=True, token=None,
         explainable=False, debug=False
 ):
 
@@ -759,6 +766,8 @@ def question(
             triple_limit=triple_limit,
             max_subgraph_size=max_subgraph_size,
             max_path_length=max_path_length,
+            edge_score_limit=edge_score_limit,
+            edge_limit=edge_limit,
             token=token,
             debug=debug
         )
@@ -781,6 +790,8 @@ def question(
                 triple_limit=triple_limit,
                 max_subgraph_size=max_subgraph_size,
                 max_path_length=max_path_length,
+                edge_score_limit=edge_score_limit,
+                edge_limit=edge_limit,
                 streaming=True
             )
 
@@ -801,7 +812,9 @@ def question(
             entity_limit=entity_limit,
             triple_limit=triple_limit,
             max_subgraph_size=max_subgraph_size,
-            max_path_length=max_path_length
+            max_path_length=max_path_length,
+            edge_score_limit=edge_score_limit,
+            edge_limit=edge_limit,
         )
         print(resp)
 
@@ -877,6 +890,20 @@ def main():
     )
 
     parser.add_argument(
+        '--edge-score-limit',
+        type=int,
+        default=default_edge_score_limit,
+        help=f'Semantic pre-filter limit before LLM scoring (default: {default_edge_score_limit})'
+    )
+
+    parser.add_argument(
+        '--edge-limit',
+        type=int,
+        default=default_edge_limit,
+        help=f'Max edges after LLM scoring (default: {default_edge_limit})'
+    )
+
+    parser.add_argument(
         '--no-streaming',
         action='store_true',
         help='Disable streaming (use non-streaming mode)'
@@ -908,6 +935,8 @@ def main():
             triple_limit=args.triple_limit,
             max_subgraph_size=args.max_subgraph_size,
             max_path_length=args.max_path_length,
+            edge_score_limit=args.edge_score_limit,
+            edge_limit=args.edge_limit,
             streaming=not args.no_streaming,
             token=args.token,
             explainable=args.explainable,

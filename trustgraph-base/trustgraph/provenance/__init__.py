@@ -9,14 +9,14 @@ Provides helpers for:
 Usage example:
 
     from trustgraph.provenance import (
-        document_uri, page_uri, chunk_uri_from_page,
+        document_uri, page_uri, chunk_uri,
         document_triples, derived_entity_triples,
         get_vocabulary_triples,
     )
 
     # Generate URIs
     doc_uri = document_uri("my-doc-123")
-    page_uri = page_uri("my-doc-123", page_number=1)
+    pg_uri = page_uri()
 
     # Build provenance triples
     triples = document_triples(
@@ -35,8 +35,9 @@ from . uris import (
     TRUSTGRAPH_BASE,
     document_uri,
     page_uri,
-    chunk_uri_from_page,
-    chunk_uri_from_doc,
+    section_uri,
+    chunk_uri,
+    image_uri,
     activity_uri,
     subgraph_uri,
     agent_uri,
@@ -75,8 +76,10 @@ from . namespaces import (
     TG_CHUNK_SIZE, TG_CHUNK_OVERLAP, TG_COMPONENT_VERSION,
     TG_LLM_MODEL, TG_ONTOLOGY, TG_EMBEDDING_MODEL,
     TG_SOURCE_TEXT, TG_SOURCE_CHAR_OFFSET, TG_SOURCE_CHAR_LENGTH,
+    TG_ELEMENT_TYPES, TG_TABLE_COUNT, TG_IMAGE_COUNT,
     # Extraction provenance entity types
-    TG_DOCUMENT_TYPE, TG_PAGE_TYPE, TG_CHUNK_TYPE, TG_SUBGRAPH_TYPE,
+    TG_DOCUMENT_TYPE, TG_PAGE_TYPE, TG_SECTION_TYPE, TG_CHUNK_TYPE,
+    TG_IMAGE_TYPE, TG_SUBGRAPH_TYPE,
     # Query-time provenance predicates (GraphRAG)
     TG_QUERY, TG_CONCEPT, TG_ENTITY,
     TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_REASONING,
@@ -138,8 +141,9 @@ __all__ = [
     "TRUSTGRAPH_BASE",
     "document_uri",
     "page_uri",
-    "chunk_uri_from_page",
-    "chunk_uri_from_doc",
+    "section_uri",
+    "chunk_uri",
+    "image_uri",
     "activity_uri",
     "subgraph_uri",
     "agent_uri",
@@ -171,8 +175,10 @@ __all__ = [
     "TG_CHUNK_SIZE", "TG_CHUNK_OVERLAP", "TG_COMPONENT_VERSION",
     "TG_LLM_MODEL", "TG_ONTOLOGY", "TG_EMBEDDING_MODEL",
     "TG_SOURCE_TEXT", "TG_SOURCE_CHAR_OFFSET", "TG_SOURCE_CHAR_LENGTH",
+    "TG_ELEMENT_TYPES", "TG_TABLE_COUNT", "TG_IMAGE_COUNT",
     # Extraction provenance entity types
-    "TG_DOCUMENT_TYPE", "TG_PAGE_TYPE", "TG_CHUNK_TYPE", "TG_SUBGRAPH_TYPE",
+    "TG_DOCUMENT_TYPE", "TG_PAGE_TYPE", "TG_SECTION_TYPE",
+    "TG_CHUNK_TYPE", "TG_IMAGE_TYPE", "TG_SUBGRAPH_TYPE",
     # Query-time provenance predicates (GraphRAG)
     "TG_QUERY", "TG_CONCEPT", "TG_ENTITY",
     "TG_EDGE_COUNT", "TG_SELECTED_EDGE", "TG_REASONING",

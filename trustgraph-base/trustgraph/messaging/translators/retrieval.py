@@ -84,6 +84,7 @@ class GraphRagRequestTranslator(MessageTranslator):
             triple_limit=int(data.get("triple-limit", 30)),
             max_subgraph_size=int(data.get("max-subgraph-size", 1000)),
             max_path_length=int(data.get("max-path-length", 2)),
+            edge_score_limit=int(data.get("edge-score-limit", 30)),
             edge_limit=int(data.get("edge-limit", 25)),
             streaming=data.get("streaming", False)
         )
@@ -97,6 +98,7 @@ class GraphRagRequestTranslator(MessageTranslator):
             "triple-limit": obj.triple_limit,
             "max-subgraph-size": obj.max_subgraph_size,
             "max-path-length": obj.max_path_length,
+            "edge-score-limit": obj.edge_score_limit,
             "edge-limit": obj.edge_limit,
             "streaming": getattr(obj, "streaming", False)
         }

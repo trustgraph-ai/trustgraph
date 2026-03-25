@@ -1,12 +1,13 @@
 """
 URI generation for provenance entities.
 
-Document IDs are already IRIs (e.g., https://trustgraph.ai/doc/abc123).
-Child entities (pages, chunks) append path segments to the parent IRI:
-- Document:  {doc_iri} (as provided)
-- Page:      {doc_iri}/p{page_number}
-- Chunk:     {page_iri}/c{chunk_index} (from page)
-             {doc_iri}/c{chunk_index} (from text doc)
+Document IDs are externally provided (e.g., https://trustgraph.ai/doc/abc123).
+Child entities (pages, chunks) use UUID-based URNs:
+- Document:  {doc_iri} (as provided, not generated here)
+- Page:      urn:page:{uuid}
+- Section:   urn:section:{uuid}
+- Chunk:     urn:chunk:{uuid}
+- Image:     urn:image:{uuid}
 - Activity:  https://trustgraph.ai/activity/{uuid}
 - Subgraph:  https://trustgraph.ai/subgraph/{uuid}
 """
@@ -28,19 +29,24 @@ def document_uri(doc_iri: str) -> str:
     return doc_iri
 
 
-def page_uri(doc_iri: str, page_number: int) -> str:
-    """Generate URI for a page by appending to document IRI."""
-    return f"{doc_iri}/p{page_number}"
+def page_uri() -> str:
+    """Generate a unique URI for a page."""
+    return f"urn:page:{uuid.uuid4()}"
 
 
-def chunk_uri_from_page(doc_iri: str, page_number: int, chunk_index: int) -> str:
-    """Generate URI for a chunk extracted from a page."""
-    return f"{doc_iri}/p{page_number}/c{chunk_index}"
+def section_uri() -> str:
+    """Generate a unique URI for a document section."""
+    return f"urn:section:{uuid.uuid4()}"
 
 
-def chunk_uri_from_doc(doc_iri: str, chunk_index: int) -> str:
-    """Generate URI for a chunk extracted directly from a text document."""
-    return f"{doc_iri}/c{chunk_index}"
+def chunk_uri() -> str:
+    """Generate a unique URI for a chunk."""
+    return f"urn:chunk:{uuid.uuid4()}"
+
+
+def image_uri() -> str:
+    """Generate a unique URI for an image."""
+    return f"urn:image:{uuid.uuid4()}"
 
 
 def activity_uri(activity_id: str = None) -> str:

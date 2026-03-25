@@ -23,7 +23,7 @@ from ... base import FlowProcessor, ConsumerSpec, ProducerSpec
 from ... base import Consumer, Producer, ConsumerMetrics, ProducerMetrics
 
 from ... provenance import (
-    document_uri, page_uri, derived_entity_triples,
+    document_uri, page_uri as make_page_uri, derived_entity_triples,
     set_graph, GRAPH_SOURCE,
 )
 
@@ -34,7 +34,7 @@ COMPONENT_VERSION = "1.0.0"
 # Module logger
 logger = logging.getLogger(__name__)
 
-default_ident = "pdf-decoder"
+default_ident = "document-decoder"
 
 default_librarian_request_queue = librarian_request_queue
 default_librarian_response_queue = librarian_response_queue
@@ -126,8 +126,39 @@ class Processor(FlowProcessor):
         if request_id and request_id in self.pending_requests:
             future = self.pending_requests.pop(request_id)
             future.set_result(response)
-        else:
-            logger.warning(f"Received unexpected librarian response: {request_id}")
+
+    async def fetch_document_metadata(self, document_id, user, timeout=120):
+        """
+        Fetch document metadata from librarian via Pulsar.
+        """
+        request_id = str(uuid.uuid4())
+
+        request = LibrarianRequest(
+            operation="get-document-metadata",
+            document_id=document_id,
+            user=user,
+        )
+
+        future = asyncio.get_event_loop().create_future()
+        self.pending_requests[request_id] = future
+
+        try:
+            await self.librarian_request_producer.send(
+                request, properties={"id": request_id}
+            )
+
+            response = await asyncio.wait_for(future, timeout=timeout)
+
+            if response.error:
+                raise RuntimeError(
+                    f"Librarian error: {response.error.type}: {response.error.message}"
+                )
+
+            return response.document_metadata
+
+        except asyncio.TimeoutError:
+            self.pending_requests.pop(request_id, None)
+            raise RuntimeError(f"Timeout fetching metadata for {document_id}")
 
     async def fetch_document_content(self, document_id, user, timeout=120):
         """
@@ -233,6 +264,20 @@ class Processor(FlowProcessor):
 
         logger.info(f"Decoding PDF {v.metadata.id}...")
 
+        # Check MIME type if fetching from librarian
+        if v.document_id:
+            doc_meta = await self.fetch_document_metadata(
+                document_id=v.document_id,
+                user=v.metadata.user,
+            )
+            if doc_meta and doc_meta.kind and doc_meta.kind != "application/pdf":
+                logger.error(
+                    f"Unsupported MIME type: {doc_meta.kind}. "
+                    f"PDF decoder only handles application/pdf. "
+                    f"Ignoring document {v.metadata.id}."
+                )
+                return
+
         with tempfile.NamedTemporaryFile(delete_on_close=False, suffix='.pdf') as fp:
             temp_path = fp.name
 
@@ -272,8 +317,9 @@ class Processor(FlowProcessor):
 
                 logger.debug(f"Processing page {page_num}")
 
-                # Generate page document ID
-                page_doc_id = f"{source_doc_id}/p{page_num}"
+                # Generate unique page ID
+                pg_uri = make_page_uri()
+                page_doc_id = pg_uri
                 page_content = page.page_content.encode("utf-8")
 
                 # Save page as child document in librarian
@@ -288,7 +334,6 @@ class Processor(FlowProcessor):
 
                 # Emit provenance triples (stored in source graph for separation from core knowledge)
                 doc_uri = document_uri(source_doc_id)
-                pg_uri = page_uri(source_doc_id, page_num)
 
                 prov_triples = derived_entity_triples(
                     entity_uri=pg_uri,

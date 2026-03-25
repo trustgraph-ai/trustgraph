@@ -3,27 +3,18 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "trustgraph-embeddings-hf"
+name = "trustgraph-unstructured"
 dynamic = ["version"]
 authors = [{name = "trustgraph.ai", email = "security@trustgraph.ai"}]
-description = "HuggingFace embeddings support for TrustGraph."
+description = "TrustGraph provides a means to run a pipeline of flexible AI processing components in a flexible means to achieve a processing pipeline."
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
     "trustgraph-base>=2.2,<2.3",
-    "trustgraph-flow>=2.2,<2.3",
-    "torch",
-    "urllib3",
-    "transformers",
-    "sentence-transformers",
-    "langchain",
-    "langchain-core",
-    "langchain-huggingface",
-    "langchain-community",
-    "huggingface-hub",
     "pulsar-client",
-    "pyyaml",
     "prometheus-client",
+    "python-magic",
+    "unstructured[csv,docx,epub,md,odt,pptx,rst,rtf,tsv,xlsx]",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -34,10 +25,10 @@ classifiers = [
 Homepage = "https://github.com/trustgraph-ai/trustgraph"
 
 [project.scripts]
-embeddings-hf = "trustgraph.embeddings.hf:run"
+universal-decoder = "trustgraph.decoding.universal:run"
 
 [tool.setuptools.packages.find]
 include = ["trustgraph*"]
 
 [tool.setuptools.dynamic]
-version = {attr = "trustgraph.embeddings_hf_version.__version__"}
+version = {attr = "trustgraph.unstructured_version.__version__"}

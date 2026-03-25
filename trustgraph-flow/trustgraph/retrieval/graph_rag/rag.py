@@ -39,6 +39,7 @@ class Processor(FlowProcessor):
         triple_limit = params.get("triple_limit", 30)
         max_subgraph_size = params.get("max_subgraph_size", 150)
         max_path_length = params.get("max_path_length", 2)
+        edge_score_limit = params.get("edge_score_limit", 30)
         edge_limit = params.get("edge_limit", 25)
 
         super(Processor, self).__init__(
@@ -49,6 +50,7 @@ class Processor(FlowProcessor):
                 "triple_limit": triple_limit,
                 "max_subgraph_size": max_subgraph_size,
                 "max_path_length": max_path_length,
+                "edge_score_limit": edge_score_limit,
                 "edge_limit": edge_limit,
             }
         )
@@ -57,6 +59,7 @@ class Processor(FlowProcessor):
         self.default_triple_limit = triple_limit
         self.default_max_subgraph_size = max_subgraph_size
         self.default_max_path_length = max_path_length
+        self.default_edge_score_limit = edge_score_limit
         self.default_edge_limit = edge_limit
 
         # CRITICAL SECURITY: NEVER share data between users or collections
@@ -166,8 +169,6 @@ class Processor(FlowProcessor):
         if request_id and request_id in self.pending_librarian_requests:
             future = self.pending_librarian_requests.pop(request_id)
             future.set_result(response)
-        else:
-            logger.warning(f"Received unexpected librarian response: {request_id}")
 
     async def save_answer_content(self, doc_id, user, content, title=None, timeout=120):
         """
@@ -295,6 +296,11 @@ class Processor(FlowProcessor):
             else:
                 max_path_length = self.default_max_path_length
 
+            if v.edge_score_limit:
+                edge_score_limit = v.edge_score_limit
+            else:
+                edge_score_limit = self.default_edge_score_limit
+
             if v.edge_limit:
                 edge_limit = v.edge_limit
             else:
@@ -330,6 +336,7 @@ class Processor(FlowProcessor):
                     entity_limit = entity_limit, triple_limit = triple_limit,
                     max_subgraph_size = max_subgraph_size,
                     max_path_length = max_path_length,
+                    edge_score_limit = edge_score_limit,
                     edge_limit = edge_limit,
                     streaming = True,
                     chunk_callback = send_chunk,
@@ -344,6 +351,7 @@ class Processor(FlowProcessor):
                     entity_limit = entity_limit, triple_limit = triple_limit,
                     max_subgraph_size = max_subgraph_size,
                     max_path_length = max_path_length,
+                    edge_score_limit = edge_score_limit,
                     edge_limit = edge_limit,
                     explain_callback = send_explainability,
                     save_answer_callback = save_answer,
@@ -430,6 +438,20 @@ class Processor(FlowProcessor):
             type=int,
             default=2,
             help=f'Default max path length (default: 2)'
+        )
+
+        parser.add_argument(
+            '--edge-score-limit',
+            type=int,
+            default=30,
+            help=f'Semantic pre-filter limit before LLM scoring (default: 30)'
+        )
+
+        parser.add_argument(
+            '--edge-limit',
+            type=int,
+            default=25,
+            help=f'Max edges after LLM scoring (default: 25)'
         )
 
         # Note: Explainability triples are now stored in the user's collection

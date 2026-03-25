@@ -44,12 +44,8 @@ class Librarian:
 
     async def add_document(self, request):
 
-        if request.document_metadata.kind not in (
-                "text/plain", "application/pdf"
-        ):
-            raise RequestError(
-                "Invalid document kind: " + request.document_metadata.kind
-            )
+        if not request.document_metadata.kind:
+            raise RequestError("Document kind (MIME type) is required")
 
         if await self.table_store.document_exists(
                 request.document_metadata.user,
@@ -276,10 +272,8 @@ class Librarian:
         """
         logger.info(f"Beginning chunked upload for document {request.document_metadata.id}")
 
-        if request.document_metadata.kind not in ("text/plain", "application/pdf"):
-            raise RequestError(
-                "Invalid document kind: " + request.document_metadata.kind
-            )
+        if not request.document_metadata.kind:
+            raise RequestError("Document kind (MIME type) is required")
 
         if await self.table_store.document_exists(
                 request.document_metadata.user,
