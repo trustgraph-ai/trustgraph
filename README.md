@@ -11,13 +11,13 @@
 
 <a href="https://trendshift.io/repositories/17291" target="_blank"><img src="https://trendshift.io/api/badge/repositories/17291" alt="trustgraph-ai%2Ftrustgraph | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
-# The context backend for reliable AI
+# The context development platform
 
 </div>
 
-LLMs alone hallucinate and diverge from ground truth. [TrustGraph](https://trustgraph.ai) is a context system that stores, enriches, and delivers context to LLMs to enable reliable AI agents. Think like [Supabase](https://github.com/supabase/supabase) but AI-native and powered by context graphs.
+Building applications that need to know things requires more than a database. [TrustGraph](https://trustgraph.ai) is the context development platform: graph-native infrastructure for storing, enriching, and retrieving structured knowledge at any scale. Think like [Supabase](https://github.com/supabase/supabase) but built around context graphs: multi-model storage, semantic retrieval pipelines, portable [context cores](#context-cores), and a full developer toolkit out of the box. Deploy locally or in the cloud. No unnecessary API keys. Just context, engineered.
 
-The context backend:
+The platform:
 - [x] Multi-model and multimodal database system
   - [x] Tabular/relational, key-value
   - [x] Document, graph, and vectors
@@ -82,8 +82,8 @@ For a browser based quickstart, try the [Configuration Terminal](https://config-
 <summary>Table of Contents</summary>
 <br>
 
-- [**What is a Context Graph?**](#what-is-a-context-graph)<br>
-- [**Why TrustGraph?**](#why-trustgraph)<br>
+- [**What is a Context Graph?**](#watch-what-is-a-context-graph)<br>
+- [**Context Graphs in Action**](#watch-context-graphs-in-action)<br>
 - [**Getting Started**](#getting-started-with-trustgraph)<br>
 - [**Context Cores**](#context-cores)<br>
 - [**Tech Stack**](#tech-stack)<br>
@@ -94,13 +94,13 @@ For a browser based quickstart, try the [Configuration Terminal](https://config-
 
 </details>
 
-## What is a Context Graph?
+## Watch What is a Context Graph?
 
 [![What is a Context Graph?](https://img.youtube.com/vi/gZjlt5WcWB4/maxresdefault.jpg)](https://www.youtube.com/watch?v=gZjlt5WcWB4) 
 
-## Why TrustGraph?
+## Watch Context Graphs in Action
 
-[![Why TrustGraph?](https://img.youtube.com/vi/Norboj8YP2M/maxresdefault.jpg)](https://www.youtube.com/watch?v=Norboj8YP2M)
+[![Context Graphs in Action with TrustGraph](https://img.youtube.com/vi/sWc7mkhITIo/maxresdefault.jpg)](https://www.youtube.com/watch?v=sWc7mkhITIo)
 
 ## Getting Started with TrustGraph
 
@@ -108,10 +108,6 @@ For a browser based quickstart, try the [Configuration Terminal](https://config-
 - [**Using the Workbench**](#workbench)
 - [**Developer APIs and CLI**](https://docs.trustgraph.ai/reference)
 - [**Deployment Guides**](https://docs.trustgraph.ai/deployment)
-
-### Watch TrustGraph 101
-
-[![TrustGraph 101](https://img.youtube.com/vi/rWYl_yhKCng/maxresdefault.jpg)](https://www.youtube.com/watch?v=rWYl_yhKCng)
 
 ## Workbench
 
