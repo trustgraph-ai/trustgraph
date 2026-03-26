@@ -1,6 +1,7 @@
 
 from dataclasses import dataclass
 from websockets.asyncio.client import connect
+from urllib.parse import urlencode, urlparse, urlunparse, parse_qs
 import asyncio
 import logging
 import json
@@ -9,12 +10,22 @@ import time
 
 class WebSocketManager:
 
-    def __init__(self, url):
+    def __init__(self, url, token=None):
         self.url = url
+        self.token = token
         self.socket = None
 
+    def _build_url(self):
+        if not self.token:
+            return self.url
+        parsed = urlparse(self.url)
+        params = parse_qs(parsed.query)
+        params["token"] = [self.token]
+        new_query = urlencode(params, doseq=True)
+        return urlunparse(parsed._replace(query=new_query))
+
     async def start(self):
-        self.socket = await connect(self.url)
+        self.socket = await connect(self._build_url())
         self.pending_requests = {}
         self.running = True
         self.reader_task = asyncio.create_task(self.reader())
