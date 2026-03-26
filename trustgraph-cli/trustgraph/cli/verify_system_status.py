@@ -178,7 +178,11 @@ def check_processors(url: str, min_processors: int, timeout: int, token: Optiona
             url += '/'
         metrics_url = f"{url}api/metrics/query?query=processor_info"
 
-        resp = requests.get(metrics_url, timeout=timeout)
+        headers = {}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
+        resp = requests.get(metrics_url, timeout=timeout, headers=headers)
         if resp.status_code == 200:
             data = resp.json()
             processor_count = len(data.get("data", {}).get("result", []))
