@@ -28,7 +28,7 @@ dependencies = [
     "langchain-text-splitters",
     "mcp",
     "minio",
-    "mistralai",
+    "mistralai<2.0.0",
     "neo4j",
     "nltk",
     "ollama",
