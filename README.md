@@ -38,7 +38,7 @@ The platform:
   - [x] Deploy locally with Docker
   - [x] Deploy in cloud with Kubernetes
 - [x] Support for all major LLMs
-  - [x] API support for Anthropic, Cohere, Gemini, Mistral, OpenAI, and others
+  - [x] API support for Anthropic, Cohere, Gemini, MiniMax, Mistral, OpenAI, and others
   - [x] Model inferencing with vLLM, Ollama, TGI, LM Studio, and Llamafiles
 - [x] Developer friendly
   - [x] REST API [Docs](https://docs.trustgraph.ai/reference/apis/rest.html)
@@ -50,7 +50,7 @@ The platform:
 
 How many times have you cloned a repo and opened the `.env.example` to see the dozens of API keys for 3rd party dependencies needed to make the services work? There are only 3 things in TrustGraph that might need an API key:
 
-- 3rd party LLM services like Anthropic, Cohere, Gemini, Mistral, OpenAI, etc.
+- 3rd party LLM services like Anthropic, Cohere, Gemini, MiniMax, Mistral, OpenAI, etc.
 - 3rd party OCR like Mistral OCR
 - The API key *you set* for the TrustGraph API gateway
 
@@ -161,6 +161,7 @@ TrustGraph provides component flexibility to optimize agent workflows.
 - Cohere<br>
 - Google AI Studio<br>
 - Google VertexAI<br>
+- MiniMax<br>
 - Mistral<br>
 - OpenAI<br>
 
