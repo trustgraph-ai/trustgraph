@@ -20,7 +20,7 @@ default_ident = "text-completion"
 
 default_temperature = 0.0
 default_max_output = 4192
-default_api = "2024-12-01-preview"
+default_api = os.getenv("AZURE_API_VERSION", "2024-12-01-preview")
 default_endpoint = os.getenv("AZURE_ENDPOINT", None)
 default_token = os.getenv("AZURE_TOKEN", None)
 default_model = os.getenv("AZURE_MODEL", None)
