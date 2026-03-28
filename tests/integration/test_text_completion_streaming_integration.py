@@ -201,7 +201,7 @@ class TestTextCompletionStreaming:
         call_args = mock_streaming_openai_client.chat.completions.create.call_args
         assert call_args.kwargs['model'] == "gpt-4"
         assert call_args.kwargs['temperature'] == 0.5
-        assert call_args.kwargs['max_tokens'] == 2048
+        assert call_args.kwargs['max_completion_tokens'] == 2048
         assert call_args.kwargs['stream'] is True
 
         # Verify chunks have correct model
