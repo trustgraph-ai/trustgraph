@@ -33,9 +33,12 @@ class Mux:
 
     async def receive(self, msg):
 
+        request_id = None
+
         try:
 
             data = msg.json()
+            request_id = data.get("id")
 
             if "request" not in data:
                 raise RuntimeError("Bad message")
@@ -51,7 +54,13 @@ class Mux:
 
         except Exception as e:
             logger.error(f"Receive exception: {str(e)}", exc_info=True)
-            await self.ws.send_json({"error": str(e)})
+            error_resp = {
+                "error": {"message": str(e), "type": "error"},
+                "complete": True,
+            }
+            if request_id:
+                error_resp["id"] = request_id
+            await self.ws.send_json(error_resp)
 
     async def maybe_tidy_workers(self, workers):
 
@@ -97,12 +106,12 @@ class Mux:
             })
 
         worker = asyncio.create_task(
-            self.request_task(request, responder, flow, svc)
+            self.request_task(id, request, responder, flow, svc)
         )
 
         workers.append(worker)
 
-    async def request_task(self, request, responder, flow, svc):
+    async def request_task(self, id, request, responder, flow, svc):
 
         try:
 
@@ -119,7 +128,11 @@ class Mux:
                 )
 
         except Exception as e:
-            await self.ws.send_json({"error": str(e)})
+            await self.ws.send_json({
+                "id": id,
+                "error": {"message": str(e), "type": "error"},
+                "complete": True,
+            })
 
     async def run(self):
 
@@ -143,7 +156,11 @@ class Mux:
             except Exception as e:
                 # This is an internal working error, may not be recoverable
                 logger.error(f"Run prepare exception: {e}", exc_info=True)
-                await self.ws.send_json({"id": id, "error": str(e)})
+                await self.ws.send_json({
+                    "id": id,
+                    "error": {"message": str(e), "type": "error"},
+                    "complete": True,
+                })
                 self.running.stop()
 
                 if self.ws:
@@ -160,7 +177,11 @@ class Mux:
 
             except Exception as e:
                 logger.error(f"Exception in mux: {e}", exc_info=True)
-                await self.ws.send_json({"error": str(e)})
+                await self.ws.send_json({
+                    "id": id,
+                    "error": {"message": str(e), "type": "error"},
+                    "complete": True,
+                })
 
         self.running.stop()
 
