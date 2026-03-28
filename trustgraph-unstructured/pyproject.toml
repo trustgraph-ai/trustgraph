@@ -18,6 +18,9 @@ dependencies = [
     "pdfminer.six",
     "pdf2image",
     "pikepdf",
+    "pi_heif",
+    "pypdfium2",
+    "unstructured.pytesseract",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
