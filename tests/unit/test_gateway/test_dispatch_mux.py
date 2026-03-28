@@ -121,7 +121,11 @@ class TestMux:
         # Based on the code, it seems to catch exceptions
         await mux.receive(mock_msg)
         
-        mock_ws.send_json.assert_called_once_with({"error": "Bad message"})
+        mock_ws.send_json.assert_called_once_with({
+            "error": {"message": "Bad message", "type": "error"},
+            "complete": True,
+            "id": "test-id-123",
+        })
 
     @pytest.mark.asyncio
     async def test_mux_receive_message_without_id(self):
@@ -129,23 +133,26 @@ class TestMux:
         mock_dispatcher_manager = MagicMock()
         mock_ws = AsyncMock()
         mock_running = MagicMock()
-        
+
         mux = Mux(
             dispatcher_manager=mock_dispatcher_manager,
             ws=mock_ws,
             running=mock_running
         )
-        
+
         # Mock message without id field
         mock_msg = MagicMock()
         mock_msg.json.return_value = {
             "request": {"type": "test"}
         }
-        
+
         # receive method should handle the RuntimeError internally
         await mux.receive(mock_msg)
-        
-        mock_ws.send_json.assert_called_once_with({"error": "Bad message"})
+
+        mock_ws.send_json.assert_called_once_with({
+            "error": {"message": "Bad message", "type": "error"},
+            "complete": True,
+        })
 
     @pytest.mark.asyncio
     async def test_mux_receive_invalid_json(self):
@@ -153,19 +160,22 @@ class TestMux:
         mock_dispatcher_manager = MagicMock()
         mock_ws = AsyncMock()
         mock_running = MagicMock()
-        
+
         mux = Mux(
             dispatcher_manager=mock_dispatcher_manager,
             ws=mock_ws,
             running=mock_running
         )
-        
+
         # Mock message with invalid JSON
         mock_msg = MagicMock()
         mock_msg.json.side_effect = ValueError("Invalid JSON")
-        
+
         # receive method should handle the ValueError internally
         await mux.receive(mock_msg)
-        
+
         mock_msg.json.assert_called_once()
-        mock_ws.send_json.assert_called_once_with({"error": "Invalid JSON"})
+        mock_ws.send_json.assert_called_once_with({
+            "error": {"message": "Invalid JSON", "type": "error"},
+            "complete": True,
+        })
