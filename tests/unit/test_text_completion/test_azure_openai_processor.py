@@ -108,7 +108,7 @@ class TestAzureOpenAIProcessorSimple(IsolatedAsyncioTestCase):
                 }]
             }],
             temperature=0.0,
-            max_tokens=4192,
+            max_completion_tokens=4192,
             top_p=1
         )
 
@@ -399,7 +399,7 @@ class TestAzureOpenAIProcessorSimple(IsolatedAsyncioTestCase):
         # Verify other parameters
         assert call_args[1]['model'] == 'gpt-4'
         assert call_args[1]['temperature'] == 0.5
-        assert call_args[1]['max_tokens'] == 1024
+        assert call_args[1]['max_completion_tokens'] == 1024
         assert call_args[1]['top_p'] == 1
 
     @patch('trustgraph.model.text_completion.azure_openai.llm.AzureOpenAI')
