@@ -38,6 +38,11 @@ RUN ls /root/wheels
 
 FROM base
 
+# Pre-install CPU-only PyTorch so that unstructured[pdf]'s torch
+# dependency is satisfied without pulling in CUDA (~190MB vs ~2GB+)
+RUN pip3 install --no-cache-dir torch==2.11.0+cpu \
+    --index-url https://download.pytorch.org/whl/cpu
+
 COPY --from=build /root/wheels /root/wheels
 
 RUN \

@@ -14,13 +14,7 @@ dependencies = [
     "pulsar-client",
     "prometheus-client",
     "python-magic",
-    "unstructured[csv,docx,epub,md,odt,pptx,rst,rtf,tsv,xlsx]",
-    "pdfminer.six",
-    "pdf2image",
-    "pikepdf",
-    "pi_heif",
-    "pypdfium2",
-    "unstructured.pytesseract",
+    "unstructured[csv,docx,epub,md,odt,pdf,pptx,rst,rtf,tsv,xlsx]",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
