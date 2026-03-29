@@ -263,7 +263,7 @@ The default Grafana dashboard tracks the following:
 
 ## Contributing
 
-[Developer's Guide](https://docs.trustgraph.ai/community/developer.html)
+[Developer's Guide](https://docs.trustgraph.ai/guides/building/introduction.html)
 
 ## License
 
