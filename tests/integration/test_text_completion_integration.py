@@ -93,7 +93,7 @@ class TestTextCompletionIntegration:
         
         assert call_args.kwargs['model'] == "gpt-3.5-turbo"
         assert call_args.kwargs['temperature'] == 0.7
-        assert call_args.kwargs['max_tokens'] == 1024
+        assert call_args.kwargs['max_completion_tokens'] == 1024
         assert len(call_args.kwargs['messages']) == 1
         assert call_args.kwargs['messages'][0]['role'] == "user"
         assert "You are a helpful assistant." in call_args.kwargs['messages'][0]['content'][0]['text']
@@ -134,7 +134,7 @@ class TestTextCompletionIntegration:
             call_args = mock_openai_client.chat.completions.create.call_args
             assert call_args.kwargs['model'] == config['model']
             assert call_args.kwargs['temperature'] == config['temperature']
-            assert call_args.kwargs['max_tokens'] == config['max_output']
+            assert call_args.kwargs['max_completion_tokens'] == config['max_output']
             
             # Reset mock for next iteration
             mock_openai_client.reset_mock()
@@ -286,7 +286,7 @@ class TestTextCompletionIntegration:
         # were removed in #561 as unnecessary parameters
         assert 'model' in call_args.kwargs
         assert 'temperature' in call_args.kwargs
-        assert 'max_tokens' in call_args.kwargs
+        assert 'max_completion_tokens' in call_args.kwargs
 
         # Verify result structure
         assert hasattr(result, 'text')
@@ -362,7 +362,7 @@ class TestTextCompletionIntegration:
         call_args = mock_openai_client.chat.completions.create.call_args
         assert call_args.kwargs['model'] == "gpt-4"
         assert call_args.kwargs['temperature'] == 0.8
-        assert call_args.kwargs['max_tokens'] == 2048
+        assert call_args.kwargs['max_completion_tokens'] == 2048
         # Note: top_p, frequency_penalty, and presence_penalty
         # were removed in #561 as unnecessary parameters
 

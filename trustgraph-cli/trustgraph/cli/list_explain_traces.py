@@ -58,6 +58,14 @@ def print_json(sessions):
     print(json.dumps(sessions, indent=2))
 
 
+# Map type names for display
+TYPE_DISPLAY = {
+    "graphrag": "GraphRAG",
+    "docrag": "DocRAG",
+    "agent": "Agent",
+}
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog='tg-list-explain-traces',
@@ -118,7 +126,7 @@ def main():
         explain_client = ExplainabilityClient(flow)
 
         try:
-            # List all sessions using the API
+            # List all sessions — uses persistent websocket via SocketClient
             questions = explain_client.list_sessions(
                 graph=RETRIEVAL_GRAPH,
                 user=args.user,
@@ -126,7 +134,8 @@ def main():
                 limit=args.limit,
             )
 
-            # Convert to output format
+            # detect_session_type is mostly a fast URI pattern check,
+            # only falls back to network calls for unrecognised URIs
             sessions = []
             for q in questions:
                 session_type = explain_client.detect_session_type(
@@ -136,16 +145,9 @@ def main():
                     collection=args.collection
                 )
 
-                # Map type names
-                type_display = {
-                    "graphrag": "GraphRAG",
-                    "docrag": "DocRAG",
-                    "agent": "Agent",
-                }.get(session_type, session_type.title())
-
                 sessions.append({
                     "id": q.uri,
-                    "type": type_display,
+                    "type": TYPE_DISPLAY.get(session_type, session_type.title()),
                     "question": q.query,
                     "time": q.timestamp,
                 })

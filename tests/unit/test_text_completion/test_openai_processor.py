@@ -102,7 +102,7 @@ class TestOpenAIProcessorSimple(IsolatedAsyncioTestCase):
                 }]
             }],
             temperature=0.0,
-            max_tokens=4096
+            max_completion_tokens=4096
         )
 
     @patch('trustgraph.model.text_completion.openai.llm.OpenAI')
@@ -380,7 +380,7 @@ class TestOpenAIProcessorSimple(IsolatedAsyncioTestCase):
         # Verify other parameters
         assert call_args[1]['model'] == 'gpt-3.5-turbo'
         assert call_args[1]['temperature'] == 0.5
-        assert call_args[1]['max_tokens'] == 1024
+        assert call_args[1]['max_completion_tokens'] == 1024
 
 
     @patch('trustgraph.model.text_completion.openai.llm.OpenAI')

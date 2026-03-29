@@ -86,7 +86,7 @@ class Processor(LlmService):
                     }
                 ],
                 temperature=effective_temperature,
-                max_tokens=self.max_output,
+                max_completion_tokens=self.max_output,
             )
             
             inputtokens = resp.usage.prompt_tokens
@@ -152,7 +152,7 @@ class Processor(LlmService):
                     }
                 ],
                 temperature=effective_temperature,
-                max_tokens=self.max_output,
+                max_completion_tokens=self.max_output,
                 stream=True,
                 stream_options={"include_usage": True}
             )
