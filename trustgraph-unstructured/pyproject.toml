@@ -14,7 +14,7 @@ dependencies = [
     "pulsar-client",
     "prometheus-client",
     "python-magic",
-    "unstructured[csv,docx,epub,md,odt,pptx,rst,rtf,tsv,xlsx]",
+    "unstructured[csv,docx,epub,md,odt,pdf,pptx,rst,rtf,tsv,xlsx]",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
