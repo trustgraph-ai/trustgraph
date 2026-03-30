@@ -3,7 +3,8 @@ Monitor prompt request/response queues and log activity with timing.
 
 Subscribes to prompt request and response Pulsar queues, correlates
 them by message ID, and logs a summary of each request/response with
-elapsed time.
+elapsed time. Streaming responses are accumulated and shown once at
+completion.
 
 Examples:
   tg-monitor-prompts
@@ -47,39 +48,50 @@ def truncate_text(text, max_lines, max_width):
     return "\n".join(result)
 
 
+def summarise_value(value, max_width):
+    """Summarise a term value — show type and size for large values."""
+    # Try to parse JSON
+    try:
+        parsed = json.loads(value)
+    except (json.JSONDecodeError, TypeError):
+        parsed = value
+
+    if isinstance(parsed, list):
+        return f"[{len(parsed)} items]"
+    elif isinstance(parsed, dict):
+        return f"{{{len(parsed)} keys}}"
+    elif isinstance(parsed, str):
+        if len(parsed) > max_width:
+            return parsed[:max_width - 3] + "..."
+        return parsed
+    else:
+        s = str(parsed)
+        if len(s) > max_width:
+            return s[:max_width - 3] + "..."
+        return s
+
+
 def format_terms(terms, max_lines, max_width):
-    """Format prompt terms for display."""
+    """Format prompt terms for display — concise summary."""
     if not terms:
         return ""
 
     parts = []
     for key, value in terms.items():
-        # Try to parse JSON-encoded values
-        try:
-            parsed = json.loads(value)
-            if isinstance(parsed, str):
-                value = parsed
-            else:
-                value = json.dumps(parsed, indent=2)
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-        truncated = truncate_text(str(value), max_lines, max_width)
-        parts.append(f"  {key}: {truncated}")
+        summary = summarise_value(value, max_width - len(key) - 4)
+        parts.append(f"  {key}: {summary}")
 
     return "\n".join(parts)
 
 
 def parse_raw_message(msg):
     """Parse a raw Pulsar message into (correlation_id, body_dict)."""
-    # Get correlation ID from properties
     try:
         props = msg.properties()
         corr_id = props.get("id", "")
     except Exception:
         corr_id = ""
 
-    # Parse body
     try:
         value = msg.value()
         if isinstance(value, bytes):
@@ -134,13 +146,19 @@ async def monitor(flow, queue_type, max_lines, max_width,
     # Track in-flight requests: corr_id -> (timestamp, template_id)
     in_flight = OrderedDict()
 
+    # Accumulate streaming responses: corr_id -> list of text chunks
+    streaming_chunks = {}
+
     print("Listening...\n")
 
     try:
         while True:
-            # Poll both queues
+            got_message = False
+
+            # Poll request queue
             msg = receive_with_timeout(req_consumer, 100)
             if msg:
+                got_message = True
                 timestamp = datetime.now()
                 corr_id, body = parse_raw_message(msg)
                 time_str = timestamp.strftime("%H:%M:%S.%f")[:-3]
@@ -165,18 +183,13 @@ async def monitor(flow, queue_type, max_lines, max_width,
 
                 req_consumer.acknowledge(msg)
 
+            # Poll response queue
             msg = receive_with_timeout(resp_consumer, 100)
             if msg:
+                got_message = True
                 timestamp = datetime.now()
                 corr_id, body = parse_raw_message(msg)
                 time_str = timestamp.strftime("%H:%M:%S.%f")[:-3]
-
-                elapsed_str = ""
-                if corr_id in in_flight:
-                    req_timestamp, template_id = in_flight.pop(corr_id)
-                    elapsed = (timestamp - req_timestamp).total_seconds()
-                    elapsed_str = f"  ({elapsed:.3f}s)"
-
                 id_display = corr_id[:8] if corr_id else "--------"
 
                 error = body.get("error")
@@ -185,32 +198,75 @@ async def monitor(flow, queue_type, max_lines, max_width,
                 eos = body.get("end_of_stream", False)
 
                 if error:
+                    # Error — show immediately
+                    elapsed_str = ""
+                    if corr_id in in_flight:
+                        req_timestamp, _ = in_flight.pop(corr_id)
+                        elapsed = (timestamp - req_timestamp).total_seconds()
+                        elapsed_str = f"  ({elapsed:.3f}s)"
+                    streaming_chunks.pop(corr_id, None)
+
                     err_msg = error
                     if isinstance(error, dict):
                         err_msg = error.get("message", str(error))
                     print(f"[{time_str}] ERR  {id_display}  "
                           f"{err_msg}{elapsed_str}")
+
                 elif eos:
-                    print(f"[{time_str}] END  {id_display}"
-                          f"{elapsed_str}")
-                elif text:
-                    truncated = truncate_text(text, max_lines, max_width)
-                    print(f"[{time_str}] RESP {id_display}"
-                          f"{elapsed_str}")
-                    print(f"  {truncated}")
-                elif obj:
-                    truncated = truncate_text(obj, max_lines, max_width)
-                    print(f"[{time_str}] RESP {id_display}  "
-                          f"(object){elapsed_str}")
-                    print(f"  {truncated}")
-                else:
-                    print(f"[{time_str}] RESP {id_display}  "
-                          f"(empty){elapsed_str}")
+                    # End of stream — show accumulated text + timing
+                    elapsed_str = ""
+                    if corr_id in in_flight:
+                        req_timestamp, _ = in_flight.pop(corr_id)
+                        elapsed = (timestamp - req_timestamp).total_seconds()
+                        elapsed_str = f"  ({elapsed:.3f}s)"
+
+                    accumulated = streaming_chunks.pop(corr_id, [])
+                    if text:
+                        accumulated.append(text)
+
+                    full_text = "".join(accumulated)
+                    if full_text:
+                        truncated = truncate_text(
+                            full_text, max_lines, max_width
+                        )
+                        print(f"[{time_str}] RESP {id_display}"
+                              f"{elapsed_str}")
+                        print(f"  {truncated}")
+                    else:
+                        print(f"[{time_str}] RESP {id_display}"
+                              f"{elapsed_str}  (empty)")
+
+                elif text or obj:
+                    # Streaming chunk or non-streaming response
+                    if corr_id in streaming_chunks or (
+                        corr_id in in_flight
+                    ):
+                        # Accumulate streaming chunk
+                        if corr_id not in streaming_chunks:
+                            streaming_chunks[corr_id] = []
+                        streaming_chunks[corr_id].append(text or obj)
+                    else:
+                        # Non-streaming single response
+                        elapsed_str = ""
+                        if corr_id in in_flight:
+                            req_timestamp, _ = in_flight.pop(corr_id)
+                            elapsed = (
+                                timestamp - req_timestamp
+                            ).total_seconds()
+                            elapsed_str = f"  ({elapsed:.3f}s)"
+
+                        content = text or obj
+                        label = "" if text else "  (object)"
+                        truncated = truncate_text(
+                            content, max_lines, max_width
+                        )
+                        print(f"[{time_str}] RESP {id_display}"
+                              f"{label}{elapsed_str}")
+                        print(f"  {truncated}")
 
                 resp_consumer.acknowledge(msg)
 
-            # Small sleep if no messages from either queue
-            if not msg:
+            if not got_message:
                 await asyncio.sleep(0.05)
 
     except KeyboardInterrupt:
