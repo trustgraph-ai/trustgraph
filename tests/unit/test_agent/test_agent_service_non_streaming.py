@@ -82,16 +82,16 @@ class TestAgentServiceNonStreaming:
         # Check thought message
         thought_response = sent_responses[0]
         assert isinstance(thought_response, AgentResponse)
-        assert thought_response.thought == "I need to solve this."
-        assert thought_response.answer is None
+        assert thought_response.chunk_type == "thought"
+        assert thought_response.content == "I need to solve this."
         assert thought_response.end_of_message is True, "Thought message must have end_of_message=True"
         assert thought_response.end_of_dialog is False, "Thought message must have end_of_dialog=False"
 
         # Check observation message
         observation_response = sent_responses[1]
         assert isinstance(observation_response, AgentResponse)
-        assert observation_response.observation == "The answer is 4."
-        assert observation_response.answer is None
+        assert observation_response.chunk_type == "observation"
+        assert observation_response.content == "The answer is 4."
         assert observation_response.end_of_message is True, "Observation message must have end_of_message=True"
         assert observation_response.end_of_dialog is False, "Observation message must have end_of_dialog=False"
 
@@ -161,9 +161,8 @@ class TestAgentServiceNonStreaming:
         # Check final answer message
         answer_response = sent_responses[0]
         assert isinstance(answer_response, AgentResponse)
-        assert answer_response.answer == "4"
-        assert answer_response.thought is None
-        assert answer_response.observation is None
+        assert answer_response.chunk_type == "answer"
+        assert answer_response.content == "4"
         assert answer_response.end_of_message is True, "Final answer must have end_of_message=True"
         assert answer_response.end_of_dialog is True, "Final answer must have end_of_dialog=True"
 
