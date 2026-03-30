@@ -4,6 +4,29 @@ from ...schema import Document, TextDocument, Chunk, DocumentEmbeddings, ChunkEm
 from .base import SendTranslator
 
 
+def _decode_text_payload(payload: str | bytes, charset: str) -> str:
+    """
+    Decode text-load payloads.
+
+    Historical clients send base64-encoded text, but direct REST callers may
+    send raw UTF-8 text. Support both so Unicode text-load requests do not fail
+    at the gateway translation layer.
+    """
+    if isinstance(payload, bytes):
+        if not payload.isascii():
+            return payload.decode(charset)
+        candidate = payload.decode("ascii")
+    else:
+        if not payload.isascii():
+            return payload
+        candidate = payload
+
+    try:
+        return base64.b64decode(candidate, validate=True).decode(charset)
+    except (ValueError, UnicodeDecodeError):
+        return candidate
+
+
 class DocumentTranslator(SendTranslator):
     """Translator for Document schema objects (PDF docs etc.)"""
 
@@ -49,8 +72,7 @@ class TextDocumentTranslator(SendTranslator):
     def to_pulsar(self, data: Dict[str, Any]) -> TextDocument:
         charset = data.get("charset", "utf-8")
 
-        # Text is base64 encoded in input
-        text = base64.b64decode(data["text"]).decode(charset)
+        text = _decode_text_payload(data["text"], charset)
 
         from ...schema import Metadata
         return TextDocument(

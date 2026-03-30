@@ -8,8 +8,7 @@ required:
 properties:
   text:
     type: string
-    description: Text content (base64 encoded)
-    format: byte
+    description: Text content, either raw text or base64 encoded for compatibility with older clients
     example: VGhpcyBpcyB0aGUgZG9jdW1lbnQgdGV4dC4uLg==
   id:
     type: string
