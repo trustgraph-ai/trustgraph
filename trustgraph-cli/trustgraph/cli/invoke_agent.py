@@ -267,7 +267,8 @@ def question_explainable(
 
 def question(
         url, question, flow_id, user, collection,
-        plan=None, state=None, group=None, verbose=False, streaming=True,
+        plan=None, state=None, group=None, pattern=None,
+        verbose=False, streaming=True,
         token=None, explainable=False, debug=False
 ):
     # Explainable mode uses the API to capture and process provenance events
@@ -307,6 +308,8 @@ def question(
         request_params["state"] = state
     if group is not None:
         request_params["group"] = group
+    if pattern is not None:
+        request_params["pattern"] = pattern
 
     try:
         # Call agent
@@ -431,6 +434,12 @@ def main():
     )
 
     parser.add_argument(
+        '-p', '--pattern',
+        choices=['react', 'plan-then-execute', 'supervisor'],
+        help='Force execution pattern (default: auto-selected by meta-router)'
+    )
+
+    parser.add_argument(
         '-s', '--state',
         help=f'Agent initial state (default: unspecified)'
     )
@@ -478,6 +487,7 @@ def main():
             plan = args.plan,
             state = args.state,
             group = args.group,
+            pattern = args.pattern,
             verbose = args.verbose,
             streaming = not args.no_streaming,
             token = args.token,

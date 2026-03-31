@@ -106,7 +106,7 @@ class PatternBase:
         )
 
         await next(completion_request)
-        logger.info(
+        logger.debug(
             f"Subagent completion emitted for "
             f"correlation={request.correlation_id}, "
             f"goal={getattr(request, 'subagent_goal', '')}"

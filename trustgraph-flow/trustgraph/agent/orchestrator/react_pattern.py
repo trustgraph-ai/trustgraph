@@ -60,10 +60,6 @@ class ReactPattern(PatternBase):
         filtered_tools = self.filter_tools(
             self.processor.agent.tools, request,
         )
-        logger.info(
-            f"Filtered from {len(self.processor.agent.tools)} "
-            f"to {len(filtered_tools)} available tools"
-        )
 
         # Create temporary agent with filtered tools and optional framing
         additional_context = self.processor.agent.additional_context

@@ -550,8 +550,6 @@ class Processor(AgentService):
                 current_state=getattr(request, 'state', None)
             )
             
-            logger.info(f"Filtered from {len(self.agent.tools)} to {len(filtered_tools)} available tools")
-            
             # Create temporary agent with filtered tools
             temp_agent = AgentManager(
                 tools=filtered_tools,
