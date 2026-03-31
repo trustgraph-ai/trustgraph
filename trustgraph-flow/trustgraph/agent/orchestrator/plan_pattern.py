@@ -11,7 +11,7 @@ import uuid
 
 from ... schema import AgentRequest, AgentResponse, AgentStep, PlanStep
 
-from ..react.types import Action
+
 
 from . pattern_base import PatternBase
 
@@ -125,6 +125,13 @@ class PlanThenExecutePattern(PatternBase):
         # Emit thought about the plan
         thought_text = f"Created plan with {len(plan_steps)} steps"
         await think(thought_text, is_final=True)
+
+        # Emit plan provenance
+        step_goals = [ps.get("goal", "") for ps in plan_steps]
+        await self.emit_plan_triples(
+            flow, session_id, session_uri, step_goals,
+            request.user, collection, respond, streaming,
+        )
 
         # Build PlanStep objects
         plan_agent_steps = [
@@ -263,16 +270,10 @@ class PlanThenExecutePattern(PatternBase):
             result=step_result,
         )
 
-        # Emit iteration provenance
-        prov_act = Action(
-            thought=f"Plan step {pending_idx}: {goal}",
-            name=tool_name,
-            arguments=tool_arguments,
-            observation=step_result,
-        )
-        await self.emit_iteration_triples(
-            flow, session_id, iteration_num, session_uri,
-            prov_act, request, respond, streaming,
+        # Emit step result provenance
+        await self.emit_step_result_triples(
+            flow, session_id, pending_idx, goal, step_result,
+            request.user, collection, respond, streaming,
         )
 
         # Build execution step for history
@@ -340,9 +341,12 @@ class PlanThenExecutePattern(PatternBase):
             streaming=streaming,
         )
 
-        await self.emit_final_triples(
-            flow, session_id, iteration_num, session_uri,
-            response_text, request, respond, streaming,
+        # Emit synthesis provenance (links back to last step result)
+        from trustgraph.provenance import agent_step_result_uri
+        last_step_uri = agent_step_result_uri(session_id, len(plan) - 1)
+        await self.emit_synthesis_triples(
+            flow, session_id, last_step_uri,
+            response_text, request.user, collection, respond, streaming,
         )
 
         if self.is_subagent(request):

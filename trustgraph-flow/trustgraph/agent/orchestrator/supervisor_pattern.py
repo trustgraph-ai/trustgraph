@@ -16,7 +16,7 @@ import uuid
 
 from ... schema import AgentRequest, AgentResponse, AgentStep
 
-from ..react.types import Action, Final
+from trustgraph.provenance import agent_finding_uri
 
 from . pattern_base import PatternBase
 
@@ -121,15 +121,9 @@ class SupervisorPattern(PatternBase):
         correlation_id = str(uuid.uuid4())
 
         # Emit decomposition provenance
-        decompose_act = Action(
-            thought=f"Decomposed into {len(goals)} sub-goals",
-            name="decompose",
-            arguments={"goals": json.dumps(goals), "correlation_id": correlation_id},
-            observation=f"Fanning out {len(goals)} subagents",
-        )
-        await self.emit_iteration_triples(
-            flow, session_id, iteration_num, session_uri,
-            decompose_act, request, respond, streaming,
+        await self.emit_decomposition_triples(
+            flow, session_id, session_uri, goals,
+            request.user, collection, respond, streaming,
         )
 
         # Fan out: emit a subagent request for each goal
@@ -207,10 +201,15 @@ class SupervisorPattern(PatternBase):
             streaming=streaming,
         )
 
-        await self.emit_final_triples(
-            flow, session_id, iteration_num, session_uri,
-            response_text, request, respond, streaming,
+        # Emit synthesis provenance (links back to last finding)
+        last_finding_uri = agent_finding_uri(
+            session_id, len(subagent_results) - 1
         )
+        await self.emit_synthesis_triples(
+            flow, session_id, last_finding_uri,
+            response_text, request.user, collection, respond, streaming,
+        )
+
         await self.send_final_response(
             respond, streaming, response_text, already_streamed=streaming,
         )

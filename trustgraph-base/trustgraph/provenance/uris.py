@@ -234,6 +234,31 @@ def agent_final_uri(session_id: str) -> str:
     return f"urn:trustgraph:agent:{session_id}/final"
 
 
+def agent_decomposition_uri(session_id: str) -> str:
+    """Generate URI for a supervisor decomposition step."""
+    return f"urn:trustgraph:agent:{session_id}/decompose"
+
+
+def agent_finding_uri(session_id: str, index: int) -> str:
+    """Generate URI for a subagent finding."""
+    return f"urn:trustgraph:agent:{session_id}/finding/{index}"
+
+
+def agent_plan_uri(session_id: str) -> str:
+    """Generate URI for a plan-then-execute plan."""
+    return f"urn:trustgraph:agent:{session_id}/plan"
+
+
+def agent_step_result_uri(session_id: str, index: int) -> str:
+    """Generate URI for a plan step result."""
+    return f"urn:trustgraph:agent:{session_id}/step/{index}"
+
+
+def agent_synthesis_uri(session_id: str) -> str:
+    """Generate URI for a synthesis answer."""
+    return f"urn:trustgraph:agent:{session_id}/synthesis"
+
+
 # Document RAG provenance URIs
 # These URIs use the urn:trustgraph:docrag: namespace to distinguish
 # document RAG provenance from graph RAG provenance

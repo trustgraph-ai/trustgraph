@@ -13,6 +13,11 @@ from trustgraph.api import (
     Question,
     Analysis,
     Conclusion,
+    Decomposition,
+    Finding,
+    Plan,
+    StepResult,
+    Synthesis,
     AgentThought,
     AgentObservation,
     AgentAnswer,
@@ -208,6 +213,35 @@ def question_explainable(
                         print(f"    Thought: {entity.thought}", file=sys.stderr)
                     if entity.observation:
                         print(f"    Observation: {entity.observation}", file=sys.stderr)
+
+                elif isinstance(entity, Decomposition):
+                    print(f"\n  [decompose] {prov_id}", file=sys.stderr)
+                    for i, goal in enumerate(entity.goals):
+                        print(f"    Thread {i}: {goal}", file=sys.stderr)
+
+                elif isinstance(entity, Finding):
+                    print(f"\n  [finding] {prov_id}", file=sys.stderr)
+                    if entity.goal:
+                        print(f"    Goal: {entity.goal}", file=sys.stderr)
+                    if entity.document:
+                        print(f"    Document: {entity.document}", file=sys.stderr)
+
+                elif isinstance(entity, Plan):
+                    print(f"\n  [plan] {prov_id}", file=sys.stderr)
+                    for i, step in enumerate(entity.steps):
+                        print(f"    Step {i}: {step}", file=sys.stderr)
+
+                elif isinstance(entity, StepResult):
+                    print(f"\n  [step-result] {prov_id}", file=sys.stderr)
+                    if entity.step:
+                        print(f"    Step: {entity.step}", file=sys.stderr)
+                    if entity.document:
+                        print(f"    Document: {entity.document}", file=sys.stderr)
+
+                elif isinstance(entity, Synthesis):
+                    print(f"\n  [synthesis] {prov_id}", file=sys.stderr)
+                    if entity.document:
+                        print(f"    Document: {entity.document}", file=sys.stderr)
 
                 elif isinstance(entity, Conclusion):
                     print(f"\n  [conclusion] {prov_id}", file=sys.stderr)

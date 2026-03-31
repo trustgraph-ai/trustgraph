@@ -20,9 +20,19 @@ from trustgraph.provenance import (
     agent_thought_uri,
     agent_observation_uri,
     agent_final_uri,
+    agent_decomposition_uri,
+    agent_finding_uri,
+    agent_plan_uri,
+    agent_step_result_uri,
+    agent_synthesis_uri,
     agent_session_triples,
     agent_iteration_triples,
     agent_final_triples,
+    agent_decomposition_triples,
+    agent_finding_triples,
+    agent_plan_triples,
+    agent_step_result_triples,
+    agent_synthesis_triples,
     set_graph,
     GRAPH_RETRIEVAL,
 )
@@ -357,6 +367,146 @@ class PatternBase:
                 content="",
                 explain_id=final_uri,
                 explain_graph=GRAPH_RETRIEVAL,
+            ))
+
+    # ---- Orchestrator provenance helpers ------------------------------------
+
+    async def emit_decomposition_triples(
+        self, flow, session_id, session_uri, goals, user, collection,
+        respond, streaming,
+    ):
+        """Emit provenance for a supervisor decomposition step."""
+        uri = agent_decomposition_uri(session_id)
+        triples = set_graph(
+            agent_decomposition_triples(uri, session_uri, goals),
+            GRAPH_RETRIEVAL,
+        )
+        await flow("explainability").send(Triples(
+            metadata=Metadata(id=uri, user=user, collection=collection),
+            triples=triples,
+        ))
+        if streaming:
+            await respond(AgentResponse(
+                chunk_type="explain", content="",
+                explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
+            ))
+
+    async def emit_finding_triples(
+        self, flow, session_id, index, goal, answer_text, user, collection,
+        respond, streaming,
+    ):
+        """Emit provenance for a subagent finding."""
+        uri = agent_finding_uri(session_id, index)
+        decomposition_uri = agent_decomposition_uri(session_id)
+
+        doc_id = f"urn:trustgraph:agent:{session_id}/finding/{index}/doc"
+        try:
+            await self.processor.save_answer_content(
+                doc_id=doc_id, user=user,
+                content=answer_text,
+                title=f"Finding: {goal[:60]}",
+            )
+        except Exception as e:
+            logger.warning(f"Failed to save finding to librarian: {e}")
+            doc_id = None
+
+        triples = set_graph(
+            agent_finding_triples(uri, decomposition_uri, goal, doc_id),
+            GRAPH_RETRIEVAL,
+        )
+        await flow("explainability").send(Triples(
+            metadata=Metadata(id=uri, user=user, collection=collection),
+            triples=triples,
+        ))
+        if streaming:
+            await respond(AgentResponse(
+                chunk_type="explain", content="",
+                explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
+            ))
+
+    async def emit_plan_triples(
+        self, flow, session_id, session_uri, steps, user, collection,
+        respond, streaming,
+    ):
+        """Emit provenance for a plan creation."""
+        uri = agent_plan_uri(session_id)
+        triples = set_graph(
+            agent_plan_triples(uri, session_uri, steps),
+            GRAPH_RETRIEVAL,
+        )
+        await flow("explainability").send(Triples(
+            metadata=Metadata(id=uri, user=user, collection=collection),
+            triples=triples,
+        ))
+        if streaming:
+            await respond(AgentResponse(
+                chunk_type="explain", content="",
+                explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
+            ))
+
+    async def emit_step_result_triples(
+        self, flow, session_id, index, goal, answer_text, user, collection,
+        respond, streaming,
+    ):
+        """Emit provenance for a plan step result."""
+        uri = agent_step_result_uri(session_id, index)
+        plan_uri = agent_plan_uri(session_id)
+
+        doc_id = f"urn:trustgraph:agent:{session_id}/step/{index}/doc"
+        try:
+            await self.processor.save_answer_content(
+                doc_id=doc_id, user=user,
+                content=answer_text,
+                title=f"Step result: {goal[:60]}",
+            )
+        except Exception as e:
+            logger.warning(f"Failed to save step result to librarian: {e}")
+            doc_id = None
+
+        triples = set_graph(
+            agent_step_result_triples(uri, plan_uri, goal, doc_id),
+            GRAPH_RETRIEVAL,
+        )
+        await flow("explainability").send(Triples(
+            metadata=Metadata(id=uri, user=user, collection=collection),
+            triples=triples,
+        ))
+        if streaming:
+            await respond(AgentResponse(
+                chunk_type="explain", content="",
+                explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
+            ))
+
+    async def emit_synthesis_triples(
+        self, flow, session_id, previous_uri, answer_text, user, collection,
+        respond, streaming,
+    ):
+        """Emit provenance for a synthesis answer."""
+        uri = agent_synthesis_uri(session_id)
+
+        doc_id = f"urn:trustgraph:agent:{session_id}/synthesis/doc"
+        try:
+            await self.processor.save_answer_content(
+                doc_id=doc_id, user=user,
+                content=answer_text,
+                title="Synthesis",
+            )
+        except Exception as e:
+            logger.warning(f"Failed to save synthesis to librarian: {e}")
+            doc_id = None
+
+        triples = set_graph(
+            agent_synthesis_triples(uri, previous_uri, doc_id),
+            GRAPH_RETRIEVAL,
+        )
+        await flow("explainability").send(Triples(
+            metadata=Metadata(id=uri, user=user, collection=collection),
+            triples=triples,
+        ))
+        if streaming:
+            await respond(AgentResponse(
+                chunk_type="explain", content="",
+                explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
             ))
 
     # ---- Response helpers ---------------------------------------------------

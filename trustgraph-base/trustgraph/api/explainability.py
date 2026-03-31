@@ -44,6 +44,16 @@ TG_GRAPH_RAG_QUESTION = TG + "GraphRagQuestion"
 TG_DOC_RAG_QUESTION = TG + "DocRagQuestion"
 TG_AGENT_QUESTION = TG + "AgentQuestion"
 
+# Orchestrator entity types
+TG_DECOMPOSITION = TG + "Decomposition"
+TG_FINDING = TG + "Finding"
+TG_PLAN_TYPE = TG + "Plan"
+TG_STEP_RESULT = TG + "StepResult"
+
+# Orchestrator predicates
+TG_SUBAGENT_GOAL = TG + "subagentGoal"
+TG_PLAN_STEP = TG + "planStep"
+
 # PROV-O predicates
 PROV = "http://www.w3.org/ns/prov#"
 PROV_STARTED_AT_TIME = PROV + "startedAtTime"
@@ -82,6 +92,14 @@ class ExplainEntity:
             return Exploration.from_triples(uri, triples)
         elif TG_FOCUS in types:
             return Focus.from_triples(uri, triples)
+        elif TG_DECOMPOSITION in types:
+            return Decomposition.from_triples(uri, triples)
+        elif TG_FINDING in types:
+            return Finding.from_triples(uri, triples)
+        elif TG_PLAN_TYPE in types:
+            return Plan.from_triples(uri, triples)
+        elif TG_STEP_RESULT in types:
+            return StepResult.from_triples(uri, triples)
         elif TG_SYNTHESIS in types:
             return Synthesis.from_triples(uri, triples)
         elif TG_REFLECTION_TYPE in types:
@@ -312,6 +330,70 @@ class Conclusion(ExplainEntity):
             entity_type="conclusion",
             document=document
         )
+
+
+@dataclass
+class Decomposition(ExplainEntity):
+    """Decomposition entity - supervisor broke question into sub-goals."""
+    goals: List[str] = field(default_factory=list)
+
+    @classmethod
+    def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "Decomposition":
+        goals = []
+        for s, p, o in triples:
+            if p == TG_SUBAGENT_GOAL:
+                goals.append(o)
+        return cls(uri=uri, entity_type="decomposition", goals=goals)
+
+
+@dataclass
+class Finding(ExplainEntity):
+    """Finding entity - a subagent's result."""
+    goal: str = ""
+    document: str = ""
+
+    @classmethod
+    def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "Finding":
+        goal = ""
+        document = ""
+        for s, p, o in triples:
+            if p == TG_SUBAGENT_GOAL:
+                goal = o
+            elif p == TG_DOCUMENT:
+                document = o
+        return cls(uri=uri, entity_type="finding", goal=goal, document=document)
+
+
+@dataclass
+class Plan(ExplainEntity):
+    """Plan entity - a structured plan of steps."""
+    steps: List[str] = field(default_factory=list)
+
+    @classmethod
+    def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "Plan":
+        steps = []
+        for s, p, o in triples:
+            if p == TG_PLAN_STEP:
+                steps.append(o)
+        return cls(uri=uri, entity_type="plan", steps=steps)
+
+
+@dataclass
+class StepResult(ExplainEntity):
+    """StepResult entity - a plan step's result."""
+    step: str = ""
+    document: str = ""
+
+    @classmethod
+    def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "StepResult":
+        step = ""
+        document = ""
+        for s, p, o in triples:
+            if p == TG_PLAN_STEP:
+                step = o
+            elif p == TG_DOCUMENT:
+                document = o
+        return cls(uri=uri, entity_type="step-result", step=step, document=document)
 
 
 def parse_edge_selection_triples(triples: List[Tuple[str, str, Any]]) -> EdgeSelection:
@@ -895,7 +977,10 @@ class ExplainabilityClient:
         """
         Fetch the complete Agent trace starting from a session URI.
 
-        Follows the provenance chain: Question -> Analysis(s) -> Conclusion
+        Follows the provenance chain for all patterns:
+        - ReAct: Question -> Analysis(s) -> Conclusion
+        - Supervisor: Question -> Decomposition -> Finding(s) -> Synthesis
+        - Plan-then-Execute: Question -> Plan -> StepResult(s) -> Synthesis
 
         Args:
             session_uri: The agent session/question URI
@@ -906,14 +991,15 @@ class ExplainabilityClient:
             max_content: Maximum content length for conclusion
 
         Returns:
-            Dict with question, iterations (Analysis list), conclusion entities
+            Dict with question, steps (mixed entity list), conclusion/synthesis
         """
         if graph is None:
             graph = "urn:graph:retrieval"
 
         trace = {
             "question": None,
-            "iterations": [],
+            "steps": [],
+            "iterations": [],  # Backwards compatibility for ReAct
             "conclusion": None,
         }
 
@@ -923,64 +1009,79 @@ class ExplainabilityClient:
             return trace
         trace["question"] = question
 
-        # Follow the chain: wasGeneratedBy for first hop, wasDerivedFrom after
-        current_uri = session_uri
-        is_first = True
-        max_iterations = 50  # Safety limit
+        # Follow the provenance chain from the question
+        self._follow_provenance_chain(
+            session_uri, trace, graph, user, collection,
+            is_first=True, max_depth=50,
+        )
 
-        for _ in range(max_iterations):
-            # First hop uses wasGeneratedBy (entity←activity),
-            # subsequent hops use wasDerivedFrom (entity←entity)
-            if is_first:
-                derived_triples = self.flow.triples_query(
-                    p=PROV_WAS_GENERATED_BY,
-                    o=current_uri,
-                    g=graph,
-                    user=user,
-                    collection=collection,
-                    limit=10
-                )
-                # Fall back to wasDerivedFrom for backwards compatibility
-                if not derived_triples:
-                    derived_triples = self.flow.triples_query(
-                        p=PROV_WAS_DERIVED_FROM,
-                        o=current_uri,
-                        g=graph,
-                        user=user,
-                        collection=collection,
-                        limit=10
-                    )
-                is_first = False
-            else:
+        # Backwards compat: populate iterations from steps
+        trace["iterations"] = [
+            s for s in trace["steps"] if isinstance(s, Analysis)
+        ]
+
+        return trace
+
+    def _follow_provenance_chain(
+        self, current_uri, trace, graph, user, collection,
+        is_first=False, max_depth=50,
+    ):
+        """Recursively follow the provenance chain, handling branches."""
+        if max_depth <= 0:
+            return
+
+        # Find entities derived from current_uri
+        if is_first:
+            derived_triples = self.flow.triples_query(
+                p=PROV_WAS_GENERATED_BY,
+                o=current_uri,
+                g=graph, user=user, collection=collection,
+                limit=20
+            )
+            if not derived_triples:
                 derived_triples = self.flow.triples_query(
                     p=PROV_WAS_DERIVED_FROM,
                     o=current_uri,
-                    g=graph,
-                    user=user,
-                    collection=collection,
-                    limit=10
+                    g=graph, user=user, collection=collection,
+                    limit=20
                 )
+        else:
+            derived_triples = self.flow.triples_query(
+                p=PROV_WAS_DERIVED_FROM,
+                o=current_uri,
+                g=graph, user=user, collection=collection,
+                limit=20
+            )
 
-            if not derived_triples:
-                break
+        if not derived_triples:
+            return
 
-            derived_uri = extract_term_value(derived_triples[0].get("s", {}))
+        derived_uris = [
+            extract_term_value(t.get("s", {}))
+            for t in derived_triples
+        ]
+
+        for derived_uri in derived_uris:
             if not derived_uri:
-                break
+                continue
 
             entity = self.fetch_entity(derived_uri, graph, user, collection)
+            if entity is None:
+                continue
 
-            if isinstance(entity, Analysis):
-                trace["iterations"].append(entity)
-                current_uri = derived_uri
-            elif isinstance(entity, Conclusion):
+            if isinstance(entity, (Analysis, Decomposition, Finding,
+                                   Plan, StepResult)):
+                trace["steps"].append(entity)
+
+                # Continue following from this entity
+                self._follow_provenance_chain(
+                    derived_uri, trace, graph, user, collection,
+                    max_depth=max_depth - 1,
+                )
+
+            elif isinstance(entity, (Conclusion, Synthesis)):
+                trace["steps"].append(entity)
                 trace["conclusion"] = entity
-                break
-            else:
-                # Unknown entity type, stop
-                break
-
-        return trace
 
     def list_sessions(
         self,
@@ -1082,7 +1183,7 @@ class ExplainabilityClient:
 
         for child_uri in all_child_uris:
             entity = self.fetch_entity(child_uri, graph, user, collection)
-            if isinstance(entity, Analysis):
+            if isinstance(entity, (Analysis, Decomposition, Plan)):
                 return "agent"
             if isinstance(entity, Exploration):
                 return "graphrag"
