@@ -19,43 +19,67 @@ import argparse
 from trustgraph.base.subscriber import Subscriber
 from trustgraph.base.pubsub import get_pubsub
 
+def decode_json_strings(obj):
+    """Recursively decode JSON-encoded string values within a dict/list."""
+    if isinstance(obj, dict):
+        return {k: decode_json_strings(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [decode_json_strings(v) for v in obj]
+    if isinstance(obj, str):
+        try:
+            parsed = json.loads(obj)
+            if isinstance(parsed, (dict, list)):
+                return decode_json_strings(parsed)
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return obj
+
+
+def to_dict(value):
+    """Recursively convert a value to a JSON-serialisable structure."""
+
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+
+    if isinstance(value, bytes):
+        value = value.decode('utf-8')
+
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, TypeError):
+            return value
+
+    if isinstance(value, dict):
+        return {k: to_dict(v) for k, v in value.items()}
+
+    if isinstance(value, (list, tuple)):
+        return [to_dict(v) for v in value]
+
+    # Pulsar schema objects expose fields via __dict__
+    if hasattr(value, '__dict__'):
+        return {
+            k: to_dict(v) for k, v in value.__dict__.items()
+            if not k.startswith('_')
+        }
+
+    return str(value)
+
+
 def format_message(queue_name, msg):
     """Format a message with timestamp and queue name."""
     timestamp = datetime.now().isoformat()
 
-    # Try to parse as JSON and pretty-print
     try:
-        # Handle both Message objects and raw bytes
-        if hasattr(msg, 'value'):
-            # Message object with .value() method
-            value = msg.value()
-        else:
-            # Raw bytes from schema-less subscription
-            value = msg
+        value = msg.value() if hasattr(msg, 'value') else msg
+        parsed = to_dict(value)
 
-        # If it's bytes, decode it
-        if isinstance(value, bytes):
-            value = value.decode('utf-8')
-
-        # If it's a string, try to parse as JSON
-        if isinstance(value, str):
-            try:
-                parsed = json.loads(value)
-                body = json.dumps(parsed, indent=2)
-            except (json.JSONDecodeError, TypeError):
-                body = value
+        # Unwrap nested JSON strings (e.g. terms values)
+        if isinstance(parsed, (dict, list)):
+            parsed = decode_json_strings(parsed)
+            body = json.dumps(parsed, indent=2, default=str)
         else:
-            # Try to convert to dict for pretty printing
-            try:
-                # Pulsar schema objects have __dict__ or similar
-                if hasattr(value, '__dict__'):
-                    parsed = {k: v for k, v in value.__dict__.items()
-                             if not k.startswith('_')}
-                else:
-                    parsed = str(value)
-                body = json.dumps(parsed, indent=2, default=str)
-            except (TypeError, AttributeError):
-                body = str(value)
+            body = str(parsed)
 
     except Exception as e:
         body = f"<Error formatting message: {e}>\n{str(msg)}"

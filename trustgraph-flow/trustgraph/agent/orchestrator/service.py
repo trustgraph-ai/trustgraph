@@ -422,9 +422,74 @@ class Processor(AgentService):
             )
             logger.error("Configuration reload failed")
 
+    async def _handle_subagent_completion(self, request, respond, next, flow):
+        """Handle a subagent completion by feeding it to the aggregator."""
+
+        correlation_id = request.correlation_id
+        subagent_goal = getattr(request, 'subagent_goal', '')
+
+        # Extract the answer from the completion step
+        answer_text = ""
+        for step in request.history:
+            if getattr(step, 'step_type', '') == 'subagent-completion':
+                answer_text = step.observation
+                break
+
+        logger.info(
+            f"Received subagent completion: "
+            f"correlation={correlation_id}, goal={subagent_goal}"
+        )
+
+        all_done = self.aggregator.record_completion(
+            correlation_id, subagent_goal, answer_text
+        )
+
+        if all_done is None:
+            logger.warning(
+                f"Unknown correlation_id {correlation_id} — "
+                f"possibly timed out or duplicate"
+            )
+            return
+
+        if all_done:
+            logger.info(
+                f"All subagents complete for {correlation_id}, "
+                f"dispatching synthesis"
+            )
+
+            template = self.aggregator.get_original_request(correlation_id)
+            if template is None:
+                logger.error(
+                    f"No template for correlation {correlation_id}"
+                )
+                return
+
+            synthesis_request = self.aggregator.build_synthesis_request(
+                correlation_id,
+                original_question=template.question,
+                user=template.user,
+                collection=getattr(template, 'collection', 'default'),
+            )
+
+            await next(synthesis_request)
+
     async def agent_request(self, request, respond, next, flow):
 
         try:
+
+            # Intercept subagent completion messages
+            correlation_id = getattr(request, 'correlation_id', '')
+            if correlation_id and request.history:
+                is_completion = any(
+                    getattr(h, 'step_type', '') == 'subagent-completion'
+                    for h in request.history
+                )
+                if is_completion:
+                    await self._handle_subagent_completion(
+                        request, respond, next, flow
+                    )
+                    return
+
             pattern = getattr(request, 'pattern', '') or ''
 
             # If no pattern set and this is the first iteration, route

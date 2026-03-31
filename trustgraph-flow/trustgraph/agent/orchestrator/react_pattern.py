@@ -106,9 +106,12 @@ class ReactPattern(PatternBase):
                 f, request, respond, streaming,
             )
 
-            await self.send_final_response(
-                respond, streaming, f, already_streamed=streaming,
-            )
+            if self.is_subagent(request):
+                await self.emit_subagent_completion(request, next, f)
+            else:
+                await self.send_final_response(
+                    respond, streaming, f, already_streamed=streaming,
+                )
             return
 
         # Not final — emit iteration provenance and send next request

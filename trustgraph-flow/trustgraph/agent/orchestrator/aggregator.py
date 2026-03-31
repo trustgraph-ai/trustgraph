@@ -1,10 +1,12 @@
 """
-Aggregator — monitors the explainability topic for subagent completions
-and triggers synthesis when all siblings in a fan-out have completed.
+Aggregator — tracks in-flight fan-out correlations and triggers
+synthesis when all subagents have completed.
 
-The aggregator watches for tg:Conclusion triples that carry a
-correlation_id. When it detects that all expected siblings have
-completed, it emits a synthesis AgentRequest on the agent request topic.
+Subagent completions arrive as AgentRequest messages on the agent
+request queue with step_type="subagent-completion". The orchestrator
+intercepts these and feeds them to the aggregator. When all expected
+siblings for a correlation ID have reported, the aggregator builds
+a synthesis request for the supervisor pattern.
 """
 
 import asyncio
@@ -87,6 +89,13 @@ class Aggregator:
 
         return completed >= expected
 
+    def get_original_request(self, correlation_id):
+        """Peek at the stored request template without consuming it."""
+        entry = self.correlations.get(correlation_id)
+        if entry is None:
+            return None
+        return entry["request_template"]
+
     def get_results(self, correlation_id):
         """Get all results for a correlation and remove the tracking entry."""
         entry = self.correlations.pop(correlation_id, None)
@@ -138,7 +147,7 @@ class Aggregator:
             pattern="supervisor",
             task_type=template.task_type if template else "",
             framing=template.framing if template else "",
-            correlation_id=correlation_id,
+            correlation_id="",
             parent_session_id="",
             subagent_goal="",
             expected_siblings=0,

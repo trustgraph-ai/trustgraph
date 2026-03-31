@@ -57,11 +57,8 @@ class SupervisorPattern(PatternBase):
         has_results = bool(
             request.history
             and any(
-                getattr(h, 'step_type', '') == 'decompose'
-                for h in request.history
-            )
-            and any(
-                getattr(h, 'subagent_results', None)
+                getattr(h, 'step_type', '') == 'synthesise'
+                and getattr(h, 'subagent_results', None)
                 for h in request.history
             )
         )
@@ -159,9 +156,14 @@ class SupervisorPattern(PatternBase):
             await next(sub_request)
             logger.info(f"Fan-out: emitted subagent {i} for goal: {goal}")
 
-        # NOTE: The supervisor stops here. The aggregator will detect
-        # when all subagents complete and emit a synthesis request
-        # with the results populated.
+        # Register with aggregator for fan-in tracking
+        self.processor.aggregator.register_fanout(
+            correlation_id=correlation_id,
+            parent_session_id=session_id,
+            expected_siblings=len(goals),
+            request_template=request,
+        )
+
         logger.info(
             f"Supervisor fan-out complete: {len(goals)} subagents, "
             f"correlation_id={correlation_id}"
