@@ -344,6 +344,10 @@ class PlanThenExecutePattern(PatternBase):
             flow, session_id, iteration_num, session_uri,
             response_text, request, respond, streaming,
         )
-        await self.send_final_response(
-            respond, streaming, response_text, already_streamed=streaming,
-        )
+
+        if self.is_subagent(request):
+            await self.emit_subagent_completion(request, next, response_text)
+        else:
+            await self.send_final_response(
+                respond, streaming, response_text, already_streamed=streaming,
+            )

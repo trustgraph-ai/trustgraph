@@ -61,6 +61,47 @@ class PatternBase:
     def __init__(self, processor):
         self.processor = processor
 
+    def is_subagent(self, request):
+        """Check if this request is running as a subagent of a supervisor."""
+        return bool(getattr(request, 'correlation_id', ''))
+
+    async def emit_subagent_completion(self, request, next, answer_text):
+        """Signal completion back to the orchestrator via the agent request
+        queue. Instead of sending the final answer to the client, send a
+        completion message so the aggregator can collect it."""
+
+        completion_step = AgentStep(
+            thought="Subagent completed",
+            action="complete",
+            arguments={},
+            observation=answer_text,
+            step_type="subagent-completion",
+        )
+
+        completion_request = AgentRequest(
+            question=request.question,
+            state="",
+            group=getattr(request, 'group', []),
+            history=[completion_step],
+            user=request.user,
+            collection=getattr(request, 'collection', 'default'),
+            streaming=False,
+            session_id=getattr(request, 'session_id', ''),
+            conversation_id=getattr(request, 'conversation_id', ''),
+            pattern="",
+            correlation_id=request.correlation_id,
+            parent_session_id=getattr(request, 'parent_session_id', ''),
+            subagent_goal=getattr(request, 'subagent_goal', ''),
+            expected_siblings=getattr(request, 'expected_siblings', 0),
+        )
+
+        await next(completion_request)
+        logger.info(
+            f"Subagent completion emitted for "
+            f"correlation={request.correlation_id}, "
+            f"goal={getattr(request, 'subagent_goal', '')}"
+        )
+
     def filter_tools(self, tools, request):
         """Apply group/state filtering to the tool set."""
         return filter_tools_by_group_and_state(
