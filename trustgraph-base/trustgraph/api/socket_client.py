@@ -397,7 +397,8 @@ class SocketClient:
             return AgentAnswer(
                 content=resp.get("content", ""),
                 end_of_message=resp.get("end_of_message", False),
-                end_of_dialog=resp.get("end_of_dialog", False)
+                end_of_dialog=resp.get("end_of_dialog", False),
+                message_id=resp.get("message_id", ""),
             )
         elif chunk_type == "action":
             return AgentThought(

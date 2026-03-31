@@ -15,6 +15,8 @@ from trustgraph.provenance import (
     agent_iteration_uri,
     agent_thought_uri,
     agent_observation_uri,
+    agent_final_uri,
+    agent_decomposition_uri,
 )
 
 from ..react.agent_manager import AgentManager
@@ -47,9 +49,16 @@ class ReactPattern(PatternBase):
 
         # Emit session provenance on first iteration
         if iteration_num == 1:
+            # Subagents link back to the parent's decomposition
+            parent_session_id = getattr(request, 'parent_session_id', '')
+            parent_uri = (
+                agent_decomposition_uri(parent_session_id)
+                if parent_session_id else None
+            )
             await self.emit_session_triples(
                 flow, session_uri, request.question,
                 request.user, collection, respond, streaming,
+                parent_uri=parent_uri,
             )
 
         logger.info(f"ReactPattern iteration {iteration_num}: {request.question}")
@@ -60,11 +69,12 @@ class ReactPattern(PatternBase):
         # Compute URIs upfront for message_id
         thought_msg_id = agent_thought_uri(session_id, iteration_num)
         observation_msg_id = agent_observation_uri(session_id, iteration_num)
+        answer_msg_id = agent_final_uri(session_id)
 
         # Build callbacks
         think = self.make_think_callback(respond, streaming, message_id=thought_msg_id)
         observe = self.make_observe_callback(respond, streaming, message_id=observation_msg_id)
-        answer_cb = self.make_answer_callback(respond, streaming)
+        answer_cb = self.make_answer_callback(respond, streaming, message_id=answer_msg_id)
 
         # Filter tools
         filtered_tools = self.filter_tools(
@@ -133,6 +143,7 @@ class ReactPattern(PatternBase):
             else:
                 await self.send_final_response(
                     respond, streaming, f, already_streamed=streaming,
+                    message_id=answer_msg_id,
                 )
             return
 
@@ -140,6 +151,7 @@ class ReactPattern(PatternBase):
         await self.emit_observation_triples(
             flow, session_id, iteration_num,
             act.observation, request, respond,
+            context=context,
         )
 
         history.append(act)

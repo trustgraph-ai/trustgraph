@@ -1095,6 +1095,15 @@ class ExplainabilityClient:
                         "trace": sub_trace,
                     })
 
+                    # Continue from the sub-trace's terminal entity
+                    # (Observation may derive from Synthesis)
+                    terminal = sub_trace.get("synthesis")
+                    if terminal:
+                        self._follow_provenance_chain(
+                            terminal.uri, trace, graph, user, collection,
+                            max_depth=max_depth - 1,
+                        )
+
             elif isinstance(entity, (Conclusion, Synthesis)):
                 trace["steps"].append(entity)
 

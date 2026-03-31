@@ -16,7 +16,11 @@ import uuid
 
 from ... schema import AgentRequest, AgentResponse, AgentStep
 
-from trustgraph.provenance import agent_finding_uri
+from trustgraph.provenance import (
+    agent_finding_uri,
+    agent_decomposition_uri,
+    agent_synthesis_uri,
+)
 
 from . pattern_base import PatternBase
 
@@ -81,7 +85,10 @@ class SupervisorPattern(PatternBase):
                                     session_uri, iteration_num):
         """Decompose the question into sub-goals and fan out subagents."""
 
-        think = self.make_think_callback(respond, streaming)
+        decompose_msg_id = agent_decomposition_uri(session_id)
+        think = self.make_think_callback(
+            respond, streaming, message_id=decompose_msg_id,
+        )
         framing = getattr(request, 'framing', '')
 
         tools = self.filter_tools(self.processor.agent.tools, request)
@@ -171,7 +178,10 @@ class SupervisorPattern(PatternBase):
                           session_uri, iteration_num):
         """Synthesise final answer from subagent results."""
 
-        think = self.make_think_callback(respond, streaming)
+        synthesis_msg_id = agent_synthesis_uri(session_id)
+        think = self.make_think_callback(
+            respond, streaming, message_id=synthesis_msg_id,
+        )
         framing = getattr(request, 'framing', '')
 
         # Collect subagent results from history
@@ -205,17 +215,20 @@ class SupervisorPattern(PatternBase):
             },
             respond=respond,
             streaming=streaming,
+            message_id=synthesis_msg_id,
         )
 
-        # Emit synthesis provenance (links back to last finding)
-        last_finding_uri = agent_finding_uri(
-            session_id, len(subagent_results) - 1
-        )
+        # Emit synthesis provenance (links back to all findings)
+        finding_uris = [
+            agent_finding_uri(session_id, i)
+            for i in range(len(subagent_results))
+        ]
         await self.emit_synthesis_triples(
-            flow, session_id, last_finding_uri,
+            flow, session_id, finding_uris,
             response_text, request.user, collection, respond, streaming,
         )
 
         await self.send_final_response(
             respond, streaming, response_text, already_streamed=streaming,
+            message_id=synthesis_msg_id,
         )

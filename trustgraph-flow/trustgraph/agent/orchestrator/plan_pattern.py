@@ -15,6 +15,7 @@ from trustgraph.provenance import (
     agent_step_result_uri as make_step_result_uri,
     agent_thought_uri,
     agent_observation_uri,
+    agent_synthesis_uri,
 )
 
 from . pattern_base import PatternBase
@@ -352,6 +353,8 @@ class PlanThenExecutePattern(PatternBase):
 
         await think("Synthesising final answer from plan results", is_final=True)
 
+        synthesis_msg_id = agent_synthesis_uri(session_id)
+
         response_text = await self.prompt_as_answer(
             client, "plan-synthesise",
             variables={
@@ -361,6 +364,7 @@ class PlanThenExecutePattern(PatternBase):
             },
             respond=respond,
             streaming=streaming,
+            message_id=synthesis_msg_id,
         )
 
         # Emit synthesis provenance (links back to last step result)
@@ -375,4 +379,5 @@ class PlanThenExecutePattern(PatternBase):
         else:
             await self.send_final_response(
                 respond, streaming, response_text, already_streamed=streaming,
+                message_id=synthesis_msg_id,
             )

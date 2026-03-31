@@ -40,6 +40,7 @@ class KnowledgeQueryImpl:
             from ... schema import AgentResponse
 
             async def explain_callback(explain_id, explain_graph):
+                self.context.last_sub_explain_uri = explain_id
                 await respond(AgentResponse(
                     chunk_type="explain",
                     content="",
