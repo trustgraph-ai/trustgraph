@@ -86,7 +86,10 @@ class SupervisorPattern(PatternBase):
 
         tools = self.filter_tools(self.processor.agent.tools, request)
 
-        context = self.make_context(flow, request.user)
+        context = self.make_context(
+            flow, request.user,
+            respond=respond, streaming=streaming,
+        )
         client = context("prompt-request")
 
         # Use the supervisor-decompose prompt template
@@ -182,7 +185,10 @@ class SupervisorPattern(PatternBase):
             logger.warning("Synthesis called with no subagent results")
             subagent_results = {"(no results)": "No subagent results available"}
 
-        context = self.make_context(flow, request.user)
+        context = self.make_context(
+            flow, request.user,
+            respond=respond, streaming=streaming,
+        )
         client = context("prompt-request")
 
         await think("Synthesising final answer from sub-agent results", is_final=True)

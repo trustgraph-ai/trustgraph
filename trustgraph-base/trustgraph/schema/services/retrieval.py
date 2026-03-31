@@ -18,6 +18,7 @@ class GraphRagQuery:
     edge_score_limit: int = 0
     edge_limit: int = 0
     streaming: bool = False
+    parent_uri: str = ""
 
 @dataclass
 class GraphRagResponse:

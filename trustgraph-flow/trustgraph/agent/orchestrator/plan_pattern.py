@@ -11,7 +11,11 @@ import uuid
 
 from ... schema import AgentRequest, AgentResponse, AgentStep, PlanStep
 
-
+from trustgraph.provenance import (
+    agent_step_result_uri as make_step_result_uri,
+    agent_thought_uri,
+    agent_observation_uri,
+)
 
 from . pattern_base import PatternBase
 
@@ -101,7 +105,10 @@ class PlanThenExecutePattern(PatternBase):
         tools = self.filter_tools(self.processor.agent.tools, request)
         framing = getattr(request, 'framing', '')
 
-        context = self.make_context(flow, request.user)
+        context = self.make_context(
+            flow, request.user,
+            respond=respond, streaming=streaming,
+        )
         client = context("prompt-request")
 
         # Use the plan-create prompt template
@@ -198,8 +205,11 @@ class PlanThenExecutePattern(PatternBase):
 
         logger.info(f"Executing plan step {pending_idx}: {goal}")
 
-        think = self.make_think_callback(respond, streaming)
-        observe = self.make_observe_callback(respond, streaming)
+        thought_msg_id = agent_thought_uri(session_id, iteration_num)
+        observation_msg_id = agent_observation_uri(session_id, iteration_num)
+
+        think = self.make_think_callback(respond, streaming, message_id=thought_msg_id)
+        observe = self.make_observe_callback(respond, streaming, message_id=observation_msg_id)
 
         # Gather results from dependencies
         previous_results = []
@@ -216,7 +226,16 @@ class PlanThenExecutePattern(PatternBase):
                         })
 
         tools = self.filter_tools(self.processor.agent.tools, request)
-        context = self.make_context(flow, request.user)
+        context = self.make_context(
+            flow, request.user,
+            respond=respond, streaming=streaming,
+        )
+
+        # Set current explain URI so tools can link sub-traces
+        context.current_explain_uri = make_step_result_uri(
+            session_id, pending_idx,
+        )
+
         client = context("prompt-request")
 
         # Single-shot: ask LLM which tool + arguments to use for this goal
@@ -316,7 +335,10 @@ class PlanThenExecutePattern(PatternBase):
         think = self.make_think_callback(respond, streaming)
         framing = getattr(request, 'framing', '')
 
-        context = self.make_context(flow, request.user)
+        context = self.make_context(
+            flow, request.user,
+            respond=respond, streaming=streaming,
+        )
         client = context("prompt-request")
 
         # Use the plan-synthesise prompt template
@@ -342,8 +364,7 @@ class PlanThenExecutePattern(PatternBase):
         )
 
         # Emit synthesis provenance (links back to last step result)
-        from trustgraph.provenance import agent_step_result_uri
-        last_step_uri = agent_step_result_uri(session_id, len(plan) - 1)
+        last_step_uri = make_step_result_uri(session_id, len(plan) - 1)
         await self.emit_synthesis_triples(
             flow, session_id, last_step_uri,
             response_text, request.user, collection, respond, streaming,

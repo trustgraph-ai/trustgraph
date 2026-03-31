@@ -96,6 +96,7 @@ from . namespaces import (
     TG_ANALYSIS, TG_CONCLUSION,
     # Unifying types
     TG_ANSWER_TYPE, TG_REFLECTION_TYPE, TG_THOUGHT_TYPE, TG_OBSERVATION_TYPE,
+    TG_TOOL_USE,
     # Question subtypes (to distinguish retrieval mechanism)
     TG_GRAPH_RAG_QUESTION, TG_DOC_RAG_QUESTION, TG_AGENT_QUESTION,
     # Agent provenance predicates
@@ -132,6 +133,7 @@ from . triples import (
 from . agent import (
     agent_session_triples,
     agent_iteration_triples,
+    agent_observation_triples,
     agent_final_triples,
     # Orchestrator provenance triple builders
     agent_decomposition_triples,
@@ -210,6 +212,7 @@ __all__ = [
     "TG_ANALYSIS", "TG_CONCLUSION",
     # Unifying types
     "TG_ANSWER_TYPE", "TG_REFLECTION_TYPE", "TG_THOUGHT_TYPE", "TG_OBSERVATION_TYPE",
+    "TG_TOOL_USE",
     # Question subtypes
     "TG_GRAPH_RAG_QUESTION", "TG_DOC_RAG_QUESTION", "TG_AGENT_QUESTION",
     # Agent provenance predicates
@@ -238,6 +241,7 @@ __all__ = [
     # Agent provenance triple builders
     "agent_session_triples",
     "agent_iteration_triples",
+    "agent_observation_triples",
     "agent_final_triples",
     # Orchestrator provenance triple builders
     "agent_decomposition_triples",

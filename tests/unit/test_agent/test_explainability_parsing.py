@@ -13,6 +13,7 @@ from trustgraph.api.explainability import (
     StepResult,
     Synthesis,
     Analysis,
+    Observation,
     Conclusion,
     TG_DECOMPOSITION,
     TG_FINDING,
@@ -20,6 +21,7 @@ from trustgraph.api.explainability import (
     TG_STEP_RESULT,
     TG_SYNTHESIS,
     TG_ANSWER_TYPE,
+    TG_OBSERVATION_TYPE,
     TG_ANALYSIS,
     TG_CONCLUSION,
     TG_DOCUMENT,
@@ -73,6 +75,11 @@ class TestFromTriplesDispatch:
         triples = _make_triples("urn:a", [PROV_ENTITY, TG_ANALYSIS])
         entity = ExplainEntity.from_triples("urn:a", triples)
         assert isinstance(entity, Analysis)
+
+    def test_dispatches_observation(self):
+        triples = _make_triples("urn:o", [PROV_ENTITY, TG_OBSERVATION_TYPE])
+        entity = ExplainEntity.from_triples("urn:o", triples)
+        assert isinstance(entity, Observation)
 
     def test_dispatches_conclusion_unchanged(self):
         triples = _make_triples("urn:c",

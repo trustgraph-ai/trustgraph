@@ -26,6 +26,7 @@ from trustgraph.api import (
     Focus,
     Synthesis,
     Analysis,
+    Observation,
     Conclusion,
     Decomposition,
     Finding,
@@ -379,11 +380,13 @@ def print_agent_text(trace, explain_client, api, user):
                         print(f"    {line}")
                 except Exception:
                     print(f"  Arguments: {step.arguments}")
+            print()
 
-            obs = step.observation or 'N/A'
-            if obs and len(obs) > 200:
-                obs = obs[:200] + "... [truncated]"
-            print(f"  Observation: {obs}")
+        elif isinstance(step, Observation):
+            print("--- Observation ---")
+            _print_document_content(
+                explain_client, api, user, step.document, "Content",
+            )
             print()
 
         elif isinstance(step, Synthesis):
@@ -437,6 +440,12 @@ def trace_to_dict(trace, trace_type):
                     "step": step.step,
                     "document": step.document,
                 }
+            elif isinstance(step, Observation):
+                return {
+                    "type": "observation",
+                    "id": step.uri,
+                    "document": step.document,
+                }
             elif isinstance(step, Analysis):
                 return {
                     "type": "analysis",
@@ -444,7 +453,6 @@ def trace_to_dict(trace, trace_type):
                     "action": step.action,
                     "arguments": step.arguments,
                     "thought": step.thought,
-                    "observation": step.observation,
                 }
             elif isinstance(step, Synthesis):
                 return {
