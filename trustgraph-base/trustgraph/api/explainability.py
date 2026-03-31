@@ -999,8 +999,6 @@ class ExplainabilityClient:
         trace = {
             "question": None,
             "steps": [],
-            "iterations": [],  # Backwards compatibility for ReAct
-            "conclusion": None,
         }
 
         # Fetch question/session
@@ -1014,11 +1012,6 @@ class ExplainabilityClient:
             session_uri, trace, graph, user, collection,
             is_first=True, max_depth=50,
         )
-
-        # Backwards compat: populate iterations from steps
-        trace["iterations"] = [
-            s for s in trace["steps"] if isinstance(s, Analysis)
-        ]
 
         return trace
 
@@ -1081,7 +1074,6 @@ class ExplainabilityClient:
 
             elif isinstance(entity, (Conclusion, Synthesis)):
                 trace["steps"].append(entity)
-                trace["conclusion"] = entity
 
     def list_sessions(
         self,

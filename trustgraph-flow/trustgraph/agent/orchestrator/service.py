@@ -414,7 +414,6 @@ class Processor(AgentService):
             self.meta_router = MetaRouter(config=config)
 
             logger.info(f"Loaded {len(tools)} tools")
-            logger.info("Tool configuration reloaded.")
 
         except Exception as e:
             logger.error(
@@ -436,7 +435,7 @@ class Processor(AgentService):
                 answer_text = step.observation
                 break
 
-        logger.info(
+        logger.debug(
             f"Received subagent completion: "
             f"correlation={correlation_id}, goal={subagent_goal}"
         )

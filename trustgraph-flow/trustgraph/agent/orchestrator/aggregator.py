@@ -57,7 +57,7 @@ class Aggregator:
             "request_template": request_template,
             "created_at": time.time(),
         }
-        logger.info(
+        logger.debug(
             f"Aggregator: registered fan-out {correlation_id}, "
             f"expecting {expected_siblings} subagents"
         )
@@ -82,7 +82,7 @@ class Aggregator:
         completed = len(entry["results"])
         expected = entry["expected"]
 
-        logger.info(
+        logger.debug(
             f"Aggregator: {correlation_id} — "
             f"{completed}/{expected} subagents complete"
         )

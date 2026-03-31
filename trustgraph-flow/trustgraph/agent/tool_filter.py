@@ -34,17 +34,17 @@ def filter_tools_by_group_and_state(
     if current_state is None or current_state == "":
         current_state = "undefined"
         
-    logger.info(f"Filtering tools with groups={requested_groups}, state={current_state}")
-    
+    logger.debug(f"Filtering tools with groups={requested_groups}, state={current_state}")
+
     filtered_tools = {}
-    
+
     for tool_name, tool in tools.items():
         if _is_tool_available(tool, requested_groups, current_state):
             filtered_tools[tool_name] = tool
         else:
             logger.debug(f"Tool {tool_name} filtered out")
-            
-    logger.info(f"Filtered {len(tools)} tools to {len(filtered_tools)} available tools")
+
+    logger.debug(f"Filtered {len(tools)} tools to {len(filtered_tools)} available tools")
     return filtered_tools
 
 
