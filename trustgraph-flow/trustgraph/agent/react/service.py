@@ -36,6 +36,7 @@ from trustgraph.provenance import (
     agent_final_uri,
     agent_session_triples,
     agent_iteration_triples,
+    agent_observation_triples,
     agent_final_triples,
     set_graph,
     GRAPH_RETRIEVAL,
@@ -465,13 +466,12 @@ class Processor(AgentService):
                 logger.debug(f"Emitted session triples for {session_uri}")
 
                 # Send explain event for session
-                if streaming:
-                    await respond(AgentResponse(
-                        chunk_type="explain",
-                        content="",
-                        explain_id=session_uri,
-                        explain_graph=GRAPH_RETRIEVAL,
-                    ))
+                await respond(AgentResponse(
+                    chunk_type="explain",
+                    content="",
+                    explain_id=session_uri,
+                    explain_graph=GRAPH_RETRIEVAL,
+                ))
 
             logger.info(f"Question: {request.question}")
 
@@ -479,6 +479,9 @@ class Processor(AgentService):
                 raise RuntimeError("Too many agent iterations")
 
             logger.debug(f"History: {history}")
+
+            thought_msg_id = agent_thought_uri(session_id, iteration_num)
+            observation_msg_id = agent_observation_uri(session_id, iteration_num)
 
             async def think(x, is_final=False):
 
@@ -490,6 +493,7 @@ class Processor(AgentService):
                         content=x,
                         end_of_message=is_final,
                         end_of_dialog=False,
+                        message_id=thought_msg_id,
                     )
                 else:
                     r = AgentResponse(
@@ -497,6 +501,7 @@ class Processor(AgentService):
                         content=x,
                         end_of_message=True,
                         end_of_dialog=False,
+                        message_id=thought_msg_id,
                     )
 
                 await respond(r)
@@ -511,6 +516,7 @@ class Processor(AgentService):
                         content=x,
                         end_of_message=is_final,
                         end_of_dialog=False,
+                        message_id=observation_msg_id,
                     )
                 else:
                     r = AgentResponse(
@@ -518,6 +524,7 @@ class Processor(AgentService):
                         content=x,
                         end_of_message=True,
                         end_of_dialog=False,
+                        message_id=observation_msg_id,
                     )
 
                 await respond(r)
@@ -572,6 +579,62 @@ class Processor(AgentService):
                         client._current_user = self._user
                     return client
 
+            # Callback: emit Analysis+ToolUse triples before tool executes
+            async def on_action(act_decision):
+                iter_uri = agent_iteration_uri(session_id, iteration_num)
+                if iteration_num > 1:
+                    iter_q_uri = None
+                    iter_prev_uri = agent_observation_uri(session_id, iteration_num - 1)
+                else:
+                    iter_q_uri = session_uri
+                    iter_prev_uri = None
+
+                # Save thought to librarian
+                t_doc_id = None
+                if act_decision.thought:
+                    t_doc_id = f"urn:trustgraph:agent:{session_id}/i{iteration_num}/thought"
+                    try:
+                        await self.save_answer_content(
+                            doc_id=t_doc_id,
+                            user=request.user,
+                            content=act_decision.thought,
+                            title=f"Agent Thought: {act_decision.name}",
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to save thought to librarian: {e}")
+                        t_doc_id = None
+
+                t_entity_uri = agent_thought_uri(session_id, iteration_num)
+
+                iter_triples = set_graph(
+                    agent_iteration_triples(
+                        iter_uri,
+                        question_uri=iter_q_uri,
+                        previous_uri=iter_prev_uri,
+                        action=act_decision.name,
+                        arguments=act_decision.arguments,
+                        thought_uri=t_entity_uri if t_doc_id else None,
+                        thought_document_id=t_doc_id,
+                    ),
+                    GRAPH_RETRIEVAL
+                )
+                await flow("explainability").send(Triples(
+                    metadata=Metadata(
+                        id=iter_uri,
+                        user=request.user,
+                        collection=collection,
+                    ),
+                    triples=iter_triples,
+                ))
+                logger.debug(f"Emitted iteration triples for {iter_uri}")
+
+                await respond(AgentResponse(
+                    chunk_type="explain",
+                    content="",
+                    explain_id=iter_uri,
+                    explain_graph=GRAPH_RETRIEVAL,
+                ))
+
             act = await temp_agent.react(
                 question = request.question,
                 history = history,
@@ -580,6 +643,7 @@ class Processor(AgentService):
                 answer = answer,
                 context = UserAwareContext(flow, request.user),
                 streaming = streaming,
+                on_action = on_action,
             )
 
             logger.debug(f"Action: {act}")
@@ -595,10 +659,10 @@ class Processor(AgentService):
 
                 # Emit final answer provenance triples
                 final_uri = agent_final_uri(session_id)
-                # No iterations: link to question; otherwise: link to last iteration
+                # No iterations: link to question; otherwise: link to last observation
                 if iteration_num > 1:
                     final_question_uri = None
-                    final_previous_uri = agent_iteration_uri(session_id, iteration_num - 1)
+                    final_previous_uri = agent_observation_uri(session_id, iteration_num - 1)
                 else:
                     final_question_uri = session_uri
                     final_previous_uri = None
@@ -639,13 +703,12 @@ class Processor(AgentService):
                 logger.debug(f"Emitted final triples for {final_uri}")
 
                 # Send explain event for conclusion
-                if streaming:
-                    await respond(AgentResponse(
-                        chunk_type="explain",
-                        content="",
-                        explain_id=final_uri,
-                        explain_graph=GRAPH_RETRIEVAL,
-                    ))
+                await respond(AgentResponse(
+                    chunk_type="explain",
+                    content="",
+                    explain_id=final_uri,
+                    explain_graph=GRAPH_RETRIEVAL,
+                ))
 
                 if streaming:
                     # End-of-dialog marker — answer chunks already sent via callback
@@ -671,33 +734,9 @@ class Processor(AgentService):
 
             logger.debug("Send next...")
 
-            # Emit iteration provenance triples
+            # Emit standalone observation provenance (iteration was emitted in on_action)
             iteration_uri = agent_iteration_uri(session_id, iteration_num)
-            # First iteration links to question, subsequent to previous
-            if iteration_num > 1:
-                iter_question_uri = None
-                iter_previous_uri = agent_iteration_uri(session_id, iteration_num - 1)
-            else:
-                iter_question_uri = session_uri
-                iter_previous_uri = None
-
-            # Save thought to librarian
-            thought_doc_id = None
-            if act.thought:
-                thought_doc_id = f"urn:trustgraph:agent:{session_id}/i{iteration_num}/thought"
-                try:
-                    await self.save_answer_content(
-                        doc_id=thought_doc_id,
-                        user=request.user,
-                        content=act.thought,
-                        title=f"Agent Thought: {act.name}",
-                    )
-                    logger.debug(f"Saved thought to librarian: {thought_doc_id}")
-                except Exception as e:
-                    logger.warning(f"Failed to save thought to librarian: {e}")
-                    thought_doc_id = None
-
-            # Save observation to librarian
+            observation_entity_uri = agent_observation_uri(session_id, iteration_num)
             observation_doc_id = None
             if act.observation:
                 observation_doc_id = f"urn:trustgraph:agent:{session_id}/i{iteration_num}/observation"
@@ -706,48 +745,38 @@ class Processor(AgentService):
                         doc_id=observation_doc_id,
                         user=request.user,
                         content=act.observation,
-                        title=f"Agent Observation: {act.name}",
+                        title=f"Agent Observation",
                     )
                     logger.debug(f"Saved observation to librarian: {observation_doc_id}")
                 except Exception as e:
                     logger.warning(f"Failed to save observation to librarian: {e}")
                     observation_doc_id = None
 
-            thought_entity_uri = agent_thought_uri(session_id, iteration_num)
-            observation_entity_uri = agent_observation_uri(session_id, iteration_num)
-
-            iter_triples = set_graph(
-                agent_iteration_triples(
+            obs_triples = set_graph(
+                agent_observation_triples(
+                    observation_entity_uri,
                     iteration_uri,
-                    question_uri=iter_question_uri,
-                    previous_uri=iter_previous_uri,
-                    action=act.name,
-                    arguments=act.arguments,
-                    thought_uri=thought_entity_uri if thought_doc_id else None,
-                    thought_document_id=thought_doc_id,
-                    observation_uri=observation_entity_uri if observation_doc_id else None,
-                    observation_document_id=observation_doc_id,
+                    document_id=observation_doc_id,
                 ),
                 GRAPH_RETRIEVAL
             )
             await flow("explainability").send(Triples(
                 metadata=Metadata(
-                    id=iteration_uri,
+                    id=observation_entity_uri,
                     user=request.user,
                     collection=collection,
                 ),
-                triples=iter_triples,
+                triples=obs_triples,
             ))
-            logger.debug(f"Emitted iteration triples for {iteration_uri}")
+            logger.debug(f"Emitted observation triples for {observation_entity_uri}")
 
-            # Send explain event for iteration
-            if streaming:
-                await respond(AgentResponse(
-                    chunk_type="explain",
-                    content="",
-                    explain_id=iteration_uri,
-                    explain_graph=GRAPH_RETRIEVAL,
-                ))
+            # Send explain event for observation
+            await respond(AgentResponse(
+                chunk_type="explain",
+                content="",
+                explain_id=observation_entity_uri,
+                explain_graph=GRAPH_RETRIEVAL,
+            ))
 
             history.append(act)
 

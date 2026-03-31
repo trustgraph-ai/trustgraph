@@ -150,8 +150,10 @@ class AgentThought(StreamingChunk):
         content: Agent's thought text
         end_of_message: True if this completes the current thought
         chunk_type: Always "thought"
+        message_id: Provenance URI of the entity being built
     """
     chunk_type: str = "thought"
+    message_id: str = ""
 
 @dataclasses.dataclass
 class AgentObservation(StreamingChunk):
@@ -165,8 +167,10 @@ class AgentObservation(StreamingChunk):
         content: Observation text describing tool results
         end_of_message: True if this completes the current observation
         chunk_type: Always "observation"
+        message_id: Provenance URI of the entity being built
     """
     chunk_type: str = "observation"
+    message_id: str = ""
 
 @dataclasses.dataclass
 class AgentAnswer(StreamingChunk):

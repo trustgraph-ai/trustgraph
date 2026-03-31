@@ -40,6 +40,7 @@ TG_ANSWER_TYPE = TG + "Answer"
 TG_REFLECTION_TYPE = TG + "Reflection"
 TG_THOUGHT_TYPE = TG + "Thought"
 TG_OBSERVATION_TYPE = TG + "Observation"
+TG_TOOL_USE = TG + "ToolUse"
 TG_GRAPH_RAG_QUESTION = TG + "GraphRagQuestion"
 TG_DOC_RAG_QUESTION = TG + "DocRagQuestion"
 TG_AGENT_QUESTION = TG + "AgentQuestion"
@@ -58,7 +59,6 @@ TG_PLAN_STEP = TG + "planStep"
 PROV = "http://www.w3.org/ns/prov#"
 PROV_STARTED_AT_TIME = PROV + "startedAtTime"
 PROV_WAS_DERIVED_FROM = PROV + "wasDerivedFrom"
-PROV_WAS_GENERATED_BY = PROV + "wasGeneratedBy"
 
 RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
 RDFS_LABEL = "http://www.w3.org/2000/01/rdf-schema#label"
@@ -102,6 +102,8 @@ class ExplainEntity:
             return StepResult.from_triples(uri, triples)
         elif TG_SYNTHESIS in types:
             return Synthesis.from_triples(uri, triples)
+        elif TG_OBSERVATION_TYPE in types and TG_REFLECTION_TYPE not in types:
+            return Observation.from_triples(uri, triples)
         elif TG_REFLECTION_TYPE in types:
             return Reflection.from_triples(uri, triples)
         elif TG_ANALYSIS in types:
@@ -279,18 +281,16 @@ class Reflection(ExplainEntity):
 
 @dataclass
 class Analysis(ExplainEntity):
-    """Analysis entity - one think/act/observe cycle (Agent only)."""
+    """Analysis+ToolUse entity - decision + tool call (Agent only)."""
     action: str = ""
     arguments: str = ""  # JSON string
     thought: str = ""
-    observation: str = ""
 
     @classmethod
     def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "Analysis":
         action = ""
         arguments = ""
         thought = ""
-        observation = ""
 
         for s, p, o in triples:
             if p == TG_ACTION:
@@ -299,8 +299,6 @@ class Analysis(ExplainEntity):
                 arguments = o
             elif p == TG_THOUGHT:
                 thought = o
-            elif p == TG_OBSERVATION:
-                observation = o
 
         return cls(
             uri=uri,
@@ -308,7 +306,26 @@ class Analysis(ExplainEntity):
             action=action,
             arguments=arguments,
             thought=thought,
-            observation=observation
+        )
+
+
+@dataclass
+class Observation(ExplainEntity):
+    """Observation entity - standalone tool result (Agent only)."""
+    document: str = ""
+
+    @classmethod
+    def from_triples(cls, uri: str, triples: List[Tuple[str, str, Any]]) -> "Observation":
+        document = ""
+
+        for s, p, o in triples:
+            if p == TG_DOCUMENT:
+                document = o
+
+        return cls(
+            uri=uri,
+            entity_type="observation",
+            document=document,
         )
 
 
@@ -757,9 +774,9 @@ class ExplainabilityClient:
             return trace
         trace["question"] = question
 
-        # Find grounding: ?grounding prov:wasGeneratedBy question_uri
+        # Find grounding: ?grounding prov:wasDerivedFrom question_uri
         grounding_triples = self.flow.triples_query(
-            p=PROV_WAS_GENERATED_BY,
+            p=PROV_WAS_DERIVED_FROM,
             o=question_uri,
             g=graph,
             user=user,
@@ -894,9 +911,9 @@ class ExplainabilityClient:
             return trace
         trace["question"] = question
 
-        # Find grounding: ?grounding prov:wasGeneratedBy question_uri
+        # Find grounding: ?grounding prov:wasDerivedFrom question_uri
         grounding_triples = self.flow.triples_query(
-            p=PROV_WAS_GENERATED_BY,
+            p=PROV_WAS_DERIVED_FROM,
             o=question_uri,
             g=graph,
             user=user,
@@ -1010,41 +1027,26 @@ class ExplainabilityClient:
         # Follow the provenance chain from the question
         self._follow_provenance_chain(
             session_uri, trace, graph, user, collection,
-            is_first=True, max_depth=50,
+            max_depth=50,
         )
 
         return trace
 
     def _follow_provenance_chain(
         self, current_uri, trace, graph, user, collection,
-        is_first=False, max_depth=50,
+        max_depth=50,
     ):
         """Recursively follow the provenance chain, handling branches."""
         if max_depth <= 0:
             return
 
         # Find entities derived from current_uri
-        if is_first:
-            derived_triples = self.flow.triples_query(
-                p=PROV_WAS_GENERATED_BY,
-                o=current_uri,
-                g=graph, user=user, collection=collection,
-                limit=20
-            )
-            if not derived_triples:
-                derived_triples = self.flow.triples_query(
-                    p=PROV_WAS_DERIVED_FROM,
-                    o=current_uri,
-                    g=graph, user=user, collection=collection,
-                    limit=20
-                )
-        else:
-            derived_triples = self.flow.triples_query(
-                p=PROV_WAS_DERIVED_FROM,
-                o=current_uri,
-                g=graph, user=user, collection=collection,
-                limit=20
-            )
+        derived_triples = self.flow.triples_query(
+            p=PROV_WAS_DERIVED_FROM,
+            o=current_uri,
+            g=graph, user=user, collection=collection,
+            limit=20
+        )
 
         if not derived_triples:
             return
@@ -1062,8 +1064,8 @@ class ExplainabilityClient:
             if entity is None:
                 continue
 
-            if isinstance(entity, (Analysis, Decomposition, Finding,
-                                   Plan, StepResult)):
+            if isinstance(entity, (Analysis, Observation, Decomposition,
+                                   Finding, Plan, StepResult)):
                 trace["steps"].append(entity)
 
                 # Continue following from this entity
@@ -1071,6 +1073,27 @@ class ExplainabilityClient:
                     derived_uri, trace, graph, user, collection,
                     max_depth=max_depth - 1,
                 )
+
+            elif isinstance(entity, Question):
+                # Sub-trace: a RAG session linked to this agent step.
+                # Fetch the full sub-trace and embed it.
+                if entity.question_type == "graph-rag":
+                    sub_trace = self.fetch_graphrag_trace(
+                        derived_uri, graph, user, collection,
+                    )
+                elif entity.question_type == "document-rag":
+                    sub_trace = self.fetch_docrag_trace(
+                        derived_uri, graph, user, collection,
+                    )
+                else:
+                    sub_trace = None
+
+                if sub_trace:
+                    trace["steps"].append({
+                        "type": "sub-trace",
+                        "question": entity,
+                        "trace": sub_trace,
+                    })
 
             elif isinstance(entity, (Conclusion, Synthesis)):
                 trace["steps"].append(entity)
@@ -1114,10 +1137,25 @@ class ExplainabilityClient:
                 if isinstance(entity, Question):
                     questions.append(entity)
 
-        # Sort by timestamp (newest first)
-        questions.sort(key=lambda q: q.timestamp or "", reverse=True)
+        # Filter out sub-traces: sessions that have a wasDerivedFrom link
+        # (they are child sessions linked to a parent agent iteration)
+        top_level = []
+        for q in questions:
+            parent_triples = self.flow.triples_query(
+                s=q.uri,
+                p=PROV_WAS_DERIVED_FROM,
+                g=graph,
+                user=user,
+                collection=collection,
+                limit=1
+            )
+            if not parent_triples:
+                top_level.append(q)
 
-        return questions
+        # Sort by timestamp (newest first)
+        top_level.sort(key=lambda q: q.timestamp or "", reverse=True)
+
+        return top_level
 
     def detect_session_type(
         self,
@@ -1159,18 +1197,9 @@ class ExplainabilityClient:
             limit=5
         )
 
-        generated_triples = self.flow.triples_query(
-            p=PROV_WAS_GENERATED_BY,
-            o=session_uri,
-            g=graph,
-            user=user,
-            collection=collection,
-            limit=5
-        )
-
         all_child_uris = [
             extract_term_value(t.get("s", {}))
-            for t in (derived_triples + generated_triples)
+            for t in derived_triples
         ]
 
         for child_uri in all_child_uris:

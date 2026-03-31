@@ -27,6 +27,7 @@ from trustgraph.provenance import (
     agent_synthesis_uri,
     agent_session_triples,
     agent_iteration_triples,
+    agent_observation_triples,
     agent_final_triples,
     agent_decomposition_triples,
     agent_finding_triples,
@@ -46,9 +47,12 @@ logger = logging.getLogger(__name__)
 class UserAwareContext:
     """Wraps flow interface to inject user context for tools that need it."""
 
-    def __init__(self, flow, user):
+    def __init__(self, flow, user, respond=None, streaming=False):
         self._flow = flow
         self._user = user
+        self.respond = respond
+        self.streaming = streaming
+        self.current_explain_uri = None
 
     def __call__(self, service_name):
         client = self._flow(service_name)
@@ -120,9 +124,9 @@ class PatternBase:
             current_state=getattr(request, 'state', None),
         )
 
-    def make_context(self, flow, user):
+    def make_context(self, flow, user, respond=None, streaming=False):
         """Create a user-aware context wrapper."""
-        return UserAwareContext(flow, user)
+        return UserAwareContext(flow, user, respond=respond, streaming=streaming)
 
     def build_history(self, request):
         """Convert AgentStep history into Action objects."""
@@ -140,7 +144,7 @@ class PatternBase:
 
     # ---- Streaming callbacks ------------------------------------------------
 
-    def make_think_callback(self, respond, streaming):
+    def make_think_callback(self, respond, streaming, message_id=""):
         """Create the think callback for streaming/non-streaming."""
         async def think(x, is_final=False):
             logger.debug(f"Think: {x} (is_final={is_final})")
@@ -150,6 +154,7 @@ class PatternBase:
                     content=x,
                     end_of_message=is_final,
                     end_of_dialog=False,
+                    message_id=message_id,
                 )
             else:
                 r = AgentResponse(
@@ -157,11 +162,12 @@ class PatternBase:
                     content=x,
                     end_of_message=True,
                     end_of_dialog=False,
+                    message_id=message_id,
                 )
             await respond(r)
         return think
 
-    def make_observe_callback(self, respond, streaming):
+    def make_observe_callback(self, respond, streaming, message_id=""):
         """Create the observe callback for streaming/non-streaming."""
         async def observe(x, is_final=False):
             logger.debug(f"Observe: {x} (is_final={is_final})")
@@ -171,6 +177,7 @@ class PatternBase:
                     content=x,
                     end_of_message=is_final,
                     end_of_dialog=False,
+                    message_id=message_id,
                 )
             else:
                 r = AgentResponse(
@@ -178,6 +185,7 @@ class PatternBase:
                     content=x,
                     end_of_message=True,
                     end_of_dialog=False,
+                    message_id=message_id,
                 )
             await respond(r)
         return observe
@@ -223,23 +231,23 @@ class PatternBase:
         ))
         logger.debug(f"Emitted session triples for {session_uri}")
 
-        if streaming:
-            await respond(AgentResponse(
-                chunk_type="explain",
-                content="",
-                explain_id=session_uri,
-                explain_graph=GRAPH_RETRIEVAL,
-            ))
+        await respond(AgentResponse(
+            chunk_type="explain",
+            content="",
+            explain_id=session_uri,
+            explain_graph=GRAPH_RETRIEVAL,
+        ))
 
     async def emit_iteration_triples(self, flow, session_id, iteration_num,
                                      session_uri, act, request, respond,
                                      streaming):
-        """Emit provenance triples for an iteration and save to librarian."""
+        """Emit provenance triples for an iteration (Analysis+ToolUse)."""
         iteration_uri = agent_iteration_uri(session_id, iteration_num)
 
         if iteration_num > 1:
+            # Chain through previous Observation (last entity in prior cycle)
             iter_question_uri = None
-            iter_previous_uri = agent_iteration_uri(session_id, iteration_num - 1)
+            iter_previous_uri = agent_observation_uri(session_id, iteration_num - 1)
         else:
             iter_question_uri = session_uri
             iter_previous_uri = None
@@ -261,25 +269,7 @@ class PatternBase:
                 logger.warning(f"Failed to save thought to librarian: {e}")
                 thought_doc_id = None
 
-        # Save observation to librarian
-        observation_doc_id = None
-        if act.observation:
-            observation_doc_id = (
-                f"urn:trustgraph:agent:{session_id}/i{iteration_num}/observation"
-            )
-            try:
-                await self.processor.save_answer_content(
-                    doc_id=observation_doc_id,
-                    user=request.user,
-                    content=act.observation,
-                    title=f"Agent Observation: {act.name}",
-                )
-            except Exception as e:
-                logger.warning(f"Failed to save observation to librarian: {e}")
-                observation_doc_id = None
-
         thought_entity_uri = agent_thought_uri(session_id, iteration_num)
-        observation_entity_uri = agent_observation_uri(session_id, iteration_num)
 
         iter_triples = set_graph(
             agent_iteration_triples(
@@ -290,8 +280,6 @@ class PatternBase:
                 arguments=act.arguments,
                 thought_uri=thought_entity_uri if thought_doc_id else None,
                 thought_document_id=thought_doc_id,
-                observation_uri=observation_entity_uri if observation_doc_id else None,
-                observation_document_id=observation_doc_id,
             ),
             GRAPH_RETRIEVAL,
         )
@@ -305,13 +293,60 @@ class PatternBase:
         ))
         logger.debug(f"Emitted iteration triples for {iteration_uri}")
 
-        if streaming:
-            await respond(AgentResponse(
-                chunk_type="explain",
-                content="",
-                explain_id=iteration_uri,
-                explain_graph=GRAPH_RETRIEVAL,
-            ))
+        await respond(AgentResponse(
+            chunk_type="explain",
+            content="",
+            explain_id=iteration_uri,
+            explain_graph=GRAPH_RETRIEVAL,
+        ))
+
+    async def emit_observation_triples(self, flow, session_id, iteration_num,
+                                       observation_text, request, respond):
+        """Emit provenance triples for a standalone Observation entity."""
+        iteration_uri = agent_iteration_uri(session_id, iteration_num)
+        observation_entity_uri = agent_observation_uri(session_id, iteration_num)
+
+        # Save observation to librarian
+        observation_doc_id = None
+        if observation_text:
+            observation_doc_id = (
+                f"urn:trustgraph:agent:{session_id}/i{iteration_num}/observation"
+            )
+            try:
+                await self.processor.save_answer_content(
+                    doc_id=observation_doc_id,
+                    user=request.user,
+                    content=observation_text,
+                    title=f"Agent Observation",
+                )
+            except Exception as e:
+                logger.warning(f"Failed to save observation to librarian: {e}")
+                observation_doc_id = None
+
+        obs_triples = set_graph(
+            agent_observation_triples(
+                observation_entity_uri,
+                iteration_uri,
+                document_id=observation_doc_id,
+            ),
+            GRAPH_RETRIEVAL,
+        )
+        await flow("explainability").send(Triples(
+            metadata=Metadata(
+                id=observation_entity_uri,
+                user=request.user,
+                collection=getattr(request, 'collection', 'default'),
+            ),
+            triples=obs_triples,
+        ))
+        logger.debug(f"Emitted observation triples for {observation_entity_uri}")
+
+        await respond(AgentResponse(
+            chunk_type="explain",
+            content="",
+            explain_id=observation_entity_uri,
+            explain_graph=GRAPH_RETRIEVAL,
+        ))
 
     async def emit_final_triples(self, flow, session_id, iteration_num,
                                  session_uri, answer_text, request, respond,
@@ -320,8 +355,9 @@ class PatternBase:
         final_uri = agent_final_uri(session_id)
 
         if iteration_num > 1:
+            # Chain through last Observation (last entity in prior cycle)
             final_question_uri = None
-            final_previous_uri = agent_iteration_uri(session_id, iteration_num - 1)
+            final_previous_uri = agent_observation_uri(session_id, iteration_num - 1)
         else:
             final_question_uri = session_uri
             final_previous_uri = None
@@ -361,13 +397,12 @@ class PatternBase:
         ))
         logger.debug(f"Emitted final triples for {final_uri}")
 
-        if streaming:
-            await respond(AgentResponse(
-                chunk_type="explain",
-                content="",
-                explain_id=final_uri,
-                explain_graph=GRAPH_RETRIEVAL,
-            ))
+        await respond(AgentResponse(
+            chunk_type="explain",
+            content="",
+            explain_id=final_uri,
+            explain_graph=GRAPH_RETRIEVAL,
+        ))
 
     # ---- Orchestrator provenance helpers ------------------------------------
 
@@ -385,11 +420,10 @@ class PatternBase:
             metadata=Metadata(id=uri, user=user, collection=collection),
             triples=triples,
         ))
-        if streaming:
-            await respond(AgentResponse(
-                chunk_type="explain", content="",
-                explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
-            ))
+        await respond(AgentResponse(
+            chunk_type="explain", content="",
+            explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
+        ))
 
     async def emit_finding_triples(
         self, flow, session_id, index, goal, answer_text, user, collection,
@@ -418,11 +452,10 @@ class PatternBase:
             metadata=Metadata(id=uri, user=user, collection=collection),
             triples=triples,
         ))
-        if streaming:
-            await respond(AgentResponse(
-                chunk_type="explain", content="",
-                explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
-            ))
+        await respond(AgentResponse(
+            chunk_type="explain", content="",
+            explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
+        ))
 
     async def emit_plan_triples(
         self, flow, session_id, session_uri, steps, user, collection,
@@ -438,11 +471,10 @@ class PatternBase:
             metadata=Metadata(id=uri, user=user, collection=collection),
             triples=triples,
         ))
-        if streaming:
-            await respond(AgentResponse(
-                chunk_type="explain", content="",
-                explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
-            ))
+        await respond(AgentResponse(
+            chunk_type="explain", content="",
+            explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
+        ))
 
     async def emit_step_result_triples(
         self, flow, session_id, index, goal, answer_text, user, collection,
@@ -471,11 +503,10 @@ class PatternBase:
             metadata=Metadata(id=uri, user=user, collection=collection),
             triples=triples,
         ))
-        if streaming:
-            await respond(AgentResponse(
-                chunk_type="explain", content="",
-                explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
-            ))
+        await respond(AgentResponse(
+            chunk_type="explain", content="",
+            explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
+        ))
 
     async def emit_synthesis_triples(
         self, flow, session_id, previous_uri, answer_text, user, collection,
@@ -503,11 +534,10 @@ class PatternBase:
             metadata=Metadata(id=uri, user=user, collection=collection),
             triples=triples,
         ))
-        if streaming:
-            await respond(AgentResponse(
-                chunk_type="explain", content="",
-                explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
-            ))
+        await respond(AgentResponse(
+            chunk_type="explain", content="",
+            explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
+        ))
 
     # ---- Response helpers ---------------------------------------------------
 

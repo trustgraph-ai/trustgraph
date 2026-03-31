@@ -11,6 +11,12 @@ import uuid
 
 from ... schema import AgentRequest, AgentResponse, AgentStep
 
+from trustgraph.provenance import (
+    agent_iteration_uri,
+    agent_thought_uri,
+    agent_observation_uri,
+)
+
 from ..react.agent_manager import AgentManager
 from ..react.types import Action, Final
 from ..tool_filter import get_next_state
@@ -51,9 +57,13 @@ class ReactPattern(PatternBase):
         if len(history) >= self.processor.max_iterations:
             raise RuntimeError("Too many agent iterations")
 
+        # Compute URIs upfront for message_id
+        thought_msg_id = agent_thought_uri(session_id, iteration_num)
+        observation_msg_id = agent_observation_uri(session_id, iteration_num)
+
         # Build callbacks
-        think = self.make_think_callback(respond, streaming)
-        observe = self.make_observe_callback(respond, streaming)
+        think = self.make_think_callback(respond, streaming, message_id=thought_msg_id)
+        observe = self.make_observe_callback(respond, streaming, message_id=observation_msg_id)
         answer_cb = self.make_answer_callback(respond, streaming)
 
         # Filter tools
@@ -75,7 +85,22 @@ class ReactPattern(PatternBase):
             additional_context=additional_context,
         )
 
-        context = self.make_context(flow, request.user)
+        context = self.make_context(
+            flow, request.user,
+            respond=respond, streaming=streaming,
+        )
+
+        # Set current explain URI so tools can link sub-traces
+        context.current_explain_uri = agent_iteration_uri(
+            session_id, iteration_num,
+        )
+
+        # Callback: emit Analysis+ToolUse triples before tool executes
+        async def on_action(act):
+            await self.emit_iteration_triples(
+                flow, session_id, iteration_num, session_uri,
+                act, request, respond, streaming,
+            )
 
         act = await temp_agent.react(
             question=request.question,
@@ -85,6 +110,7 @@ class ReactPattern(PatternBase):
             answer=answer_cb,
             context=context,
             streaming=streaming,
+            on_action=on_action,
         )
 
         logger.debug(f"Action: {act}")
@@ -110,10 +136,10 @@ class ReactPattern(PatternBase):
                 )
             return
 
-        # Not final — emit iteration provenance and send next request
-        await self.emit_iteration_triples(
-            flow, session_id, iteration_num, session_uri,
-            act, request, respond, streaming,
+        # Emit observation provenance after tool execution
+        await self.emit_observation_triples(
+            flow, session_id, iteration_num,
+            act.observation, request, respond,
         )
 
         history.append(act)

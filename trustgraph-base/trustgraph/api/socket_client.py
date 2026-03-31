@@ -384,12 +384,14 @@ class SocketClient:
         if chunk_type == "thought":
             return AgentThought(
                 content=resp.get("content", ""),
-                end_of_message=resp.get("end_of_message", False)
+                end_of_message=resp.get("end_of_message", False),
+                message_id=resp.get("message_id", ""),
             )
         elif chunk_type == "observation":
             return AgentObservation(
                 content=resp.get("content", ""),
-                end_of_message=resp.get("end_of_message", False)
+                end_of_message=resp.get("end_of_message", False),
+                message_id=resp.get("message_id", ""),
             )
         elif chunk_type == "answer" or chunk_type == "final-answer":
             return AgentAnswer(

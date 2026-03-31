@@ -16,6 +16,7 @@ from trustgraph.api.explainability import (
     Synthesis,
     Reflection,
     Analysis,
+    Observation,
     Conclusion,
     parse_edge_selection_triples,
     extract_term_value,
@@ -23,12 +24,12 @@ from trustgraph.api.explainability import (
     ExplainabilityClient,
     TG_QUERY, TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_EDGE, TG_REASONING,
     TG_DOCUMENT, TG_CHUNK_COUNT, TG_CONCEPT, TG_ENTITY,
-    TG_THOUGHT, TG_ACTION, TG_ARGUMENTS, TG_OBSERVATION,
+    TG_THOUGHT, TG_ACTION, TG_ARGUMENTS,
     TG_QUESTION, TG_GROUNDING, TG_EXPLORATION, TG_FOCUS, TG_SYNTHESIS,
     TG_ANALYSIS, TG_CONCLUSION,
     TG_REFLECTION_TYPE, TG_THOUGHT_TYPE, TG_OBSERVATION_TYPE,
     TG_GRAPH_RAG_QUESTION, TG_DOC_RAG_QUESTION, TG_AGENT_QUESTION,
-    PROV_STARTED_AT_TIME, PROV_WAS_DERIVED_FROM, PROV_WAS_GENERATED_BY,
+    PROV_STARTED_AT_TIME, PROV_WAS_DERIVED_FROM,
     RDF_TYPE, RDFS_LABEL,
 )
 
@@ -180,14 +181,30 @@ class TestExplainEntityFromTriples:
             ("urn:ana:1", TG_ACTION, "graph-rag-query"),
             ("urn:ana:1", TG_ARGUMENTS, '{"query": "test"}'),
             ("urn:ana:1", TG_THOUGHT, "urn:ref:thought-1"),
-            ("urn:ana:1", TG_OBSERVATION, "urn:ref:obs-1"),
         ]
         entity = ExplainEntity.from_triples("urn:ana:1", triples)
         assert isinstance(entity, Analysis)
         assert entity.action == "graph-rag-query"
         assert entity.arguments == '{"query": "test"}'
         assert entity.thought == "urn:ref:thought-1"
-        assert entity.observation == "urn:ref:obs-1"
+
+    def test_observation(self):
+        triples = [
+            ("urn:obs:1", RDF_TYPE, TG_OBSERVATION_TYPE),
+            ("urn:obs:1", TG_DOCUMENT, "urn:doc:obs-content"),
+        ]
+        entity = ExplainEntity.from_triples("urn:obs:1", triples)
+        assert isinstance(entity, Observation)
+        assert entity.document == "urn:doc:obs-content"
+        assert entity.entity_type == "observation"
+
+    def test_observation_no_document(self):
+        triples = [
+            ("urn:obs:2", RDF_TYPE, TG_OBSERVATION_TYPE),
+        ]
+        entity = ExplainEntity.from_triples("urn:obs:2", triples)
+        assert isinstance(entity, Observation)
+        assert entity.document == ""
 
     def test_conclusion_with_document(self):
         triples = [

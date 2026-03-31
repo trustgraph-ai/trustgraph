@@ -5,6 +5,7 @@ from .. schema import GraphRagQuery, GraphRagResponse
 class GraphRagClient(RequestResponse):
     async def rag(self, query, user="trustgraph", collection="default",
                   chunk_callback=None, explain_callback=None,
+                  parent_uri="",
                   timeout=600):
         """
         Execute a graph RAG query with optional streaming callbacks.
@@ -50,6 +51,7 @@ class GraphRagClient(RequestResponse):
                 query = query,
                 user = user,
                 collection = collection,
+                parent_uri = parent_uri,
             ),
             timeout=timeout,
             recipient=recipient,

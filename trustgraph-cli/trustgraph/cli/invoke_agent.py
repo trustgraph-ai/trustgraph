@@ -12,6 +12,7 @@ from trustgraph.api import (
     ProvenanceEvent,
     Question,
     Analysis,
+    Observation,
     Conclusion,
     Decomposition,
     Finding,
@@ -206,13 +207,13 @@ def question_explainable(
                         print(f"    Time: {entity.timestamp}", file=sys.stderr)
 
                 elif isinstance(entity, Analysis):
-                    print(f"\n  [iteration] {prov_id}", file=sys.stderr)
-                    if entity.action:
-                        print(f"    Action: {entity.action}", file=sys.stderr)
-                    if entity.thought:
-                        print(f"    Thought: {entity.thought}", file=sys.stderr)
-                    if entity.observation:
-                        print(f"    Observation: {entity.observation}", file=sys.stderr)
+                    action_label = f": {entity.action}" if entity.action else ""
+                    print(f"\n  [analysis{action_label}] {prov_id}", file=sys.stderr)
+
+                elif isinstance(entity, Observation):
+                    print(f"\n  [observation] {prov_id}", file=sys.stderr)
+                    if entity.document:
+                        print(f"    Document: {entity.document}", file=sys.stderr)
 
                 elif isinstance(entity, Decomposition):
                     print(f"\n  [decompose] {prov_id}", file=sys.stderr)

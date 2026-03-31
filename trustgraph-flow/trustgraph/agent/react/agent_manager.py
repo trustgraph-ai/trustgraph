@@ -291,7 +291,8 @@ class AgentManager:
                 logger.error(f"Response was: {response_text}")
                 raise RuntimeError(f"Failed to parse agent response: {e}")
 
-    async def react(self, question, history, think, observe, context, streaming=False, answer=None):
+    async def react(self, question, history, think, observe, context,
+                    streaming=False, answer=None, on_action=None):
 
         act = await self.reason(
             question = question,
@@ -324,6 +325,10 @@ class AgentManager:
                 action = self.tools[act.name]
             else:
                 raise RuntimeError(f"No action for {act.name}!")
+
+            # Notify caller before tool execution (for provenance)
+            if on_action:
+                await on_action(act)
 
             resp = await action.implementation(context).invoke(
                 **act.arguments

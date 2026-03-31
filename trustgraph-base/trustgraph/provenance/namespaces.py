@@ -105,6 +105,7 @@ TG_ANSWER_TYPE = TG + "Answer"          # Final answer (Synthesis, Conclusion, F
 TG_REFLECTION_TYPE = TG + "Reflection"  # Intermediate commentary (Thought, Observation)
 TG_THOUGHT_TYPE = TG + "Thought"        # Agent reasoning
 TG_OBSERVATION_TYPE = TG + "Observation" # Agent tool result
+TG_TOOL_USE = TG + "ToolUse"            # Analysis+ToolUse mixin
 
 # Question subtypes (to distinguish retrieval mechanism)
 TG_GRAPH_RAG_QUESTION = TG + "GraphRagQuestion"

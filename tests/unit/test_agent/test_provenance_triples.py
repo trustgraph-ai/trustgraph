@@ -14,7 +14,7 @@ from trustgraph.provenance import (
 
 from trustgraph.provenance.namespaces import (
     RDF_TYPE, RDFS_LABEL,
-    PROV_ENTITY, PROV_WAS_DERIVED_FROM, PROV_WAS_GENERATED_BY,
+    PROV_ENTITY, PROV_WAS_DERIVED_FROM,
     TG_DECOMPOSITION, TG_FINDING, TG_PLAN_TYPE, TG_STEP_RESULT,
     TG_SYNTHESIS, TG_ANSWER_TYPE, TG_DOCUMENT,
     TG_SUBAGENT_GOAL, TG_PLAN_STEP,
@@ -63,7 +63,7 @@ class TestDecompositionTriples:
             "urn:decompose", "urn:session", ["goal-a"],
         )
         ts = _triple_set(triples)
-        assert ("urn:decompose", PROV_WAS_GENERATED_BY, "urn:session") in ts
+        assert ("urn:decompose", PROV_WAS_DERIVED_FROM, "urn:session") in ts
 
     def test_includes_goals(self):
         goals = ["What is X?", "What is Y?", "What is Z?"]
@@ -141,7 +141,7 @@ class TestPlanTriples:
             "urn:plan", "urn:session", ["step-a"],
         )
         ts = _triple_set(triples)
-        assert ("urn:plan", PROV_WAS_GENERATED_BY, "urn:session") in ts
+        assert ("urn:plan", PROV_WAS_DERIVED_FROM, "urn:session") in ts
 
     def test_includes_steps(self):
         steps = ["Define X", "Research Y", "Analyse Z"]

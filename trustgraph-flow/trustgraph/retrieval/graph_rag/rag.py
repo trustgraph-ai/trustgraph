@@ -342,6 +342,7 @@ class Processor(FlowProcessor):
                     chunk_callback = send_chunk,
                     explain_callback = send_explainability,
                     save_answer_callback = save_answer,
+                    parent_uri = v.parent_uri,
                 )
 
             else:
@@ -355,6 +356,7 @@ class Processor(FlowProcessor):
                     edge_limit = edge_limit,
                     explain_callback = send_explainability,
                     save_answer_callback = save_answer,
+                    parent_uri = v.parent_uri,
                 )
 
                 # Send chunk with response
