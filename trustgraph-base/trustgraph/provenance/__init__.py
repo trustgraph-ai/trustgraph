@@ -53,6 +53,12 @@ from . uris import (
     agent_thought_uri,
     agent_observation_uri,
     agent_final_uri,
+    # Orchestrator provenance URIs
+    agent_decomposition_uri,
+    agent_finding_uri,
+    agent_plan_uri,
+    agent_step_result_uri,
+    agent_synthesis_uri,
     # Document RAG provenance URIs
     docrag_question_uri,
     docrag_grounding_uri,
@@ -94,6 +100,9 @@ from . namespaces import (
     TG_GRAPH_RAG_QUESTION, TG_DOC_RAG_QUESTION, TG_AGENT_QUESTION,
     # Agent provenance predicates
     TG_THOUGHT, TG_ACTION, TG_ARGUMENTS, TG_OBSERVATION,
+    TG_SUBAGENT_GOAL, TG_PLAN_STEP,
+    # Orchestrator entity types
+    TG_DECOMPOSITION, TG_FINDING, TG_PLAN_TYPE, TG_STEP_RESULT,
     # Document reference predicate
     TG_DOCUMENT,
     # Named graphs
@@ -124,6 +133,12 @@ from . agent import (
     agent_session_triples,
     agent_iteration_triples,
     agent_final_triples,
+    # Orchestrator provenance triple builders
+    agent_decomposition_triples,
+    agent_finding_triples,
+    agent_plan_triples,
+    agent_step_result_triples,
+    agent_synthesis_triples,
 )
 
 # Vocabulary bootstrap
@@ -159,6 +174,12 @@ __all__ = [
     "agent_thought_uri",
     "agent_observation_uri",
     "agent_final_uri",
+    # Orchestrator provenance URIs
+    "agent_decomposition_uri",
+    "agent_finding_uri",
+    "agent_plan_uri",
+    "agent_step_result_uri",
+    "agent_synthesis_uri",
     # Document RAG provenance URIs
     "docrag_question_uri",
     "docrag_grounding_uri",
@@ -193,6 +214,9 @@ __all__ = [
     "TG_GRAPH_RAG_QUESTION", "TG_DOC_RAG_QUESTION", "TG_AGENT_QUESTION",
     # Agent provenance predicates
     "TG_THOUGHT", "TG_ACTION", "TG_ARGUMENTS", "TG_OBSERVATION",
+    "TG_SUBAGENT_GOAL", "TG_PLAN_STEP",
+    # Orchestrator entity types
+    "TG_DECOMPOSITION", "TG_FINDING", "TG_PLAN_TYPE", "TG_STEP_RESULT",
     # Document reference predicate
     "TG_DOCUMENT",
     # Named graphs
@@ -215,6 +239,12 @@ __all__ = [
     "agent_session_triples",
     "agent_iteration_triples",
     "agent_final_triples",
+    # Orchestrator provenance triple builders
+    "agent_decomposition_triples",
+    "agent_finding_triples",
+    "agent_plan_triples",
+    "agent_step_result_triples",
+    "agent_synthesis_triples",
     # Utility
     "set_graph",
     # Vocabulary

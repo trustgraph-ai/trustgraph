@@ -1,10 +1,15 @@
 """
 Helper functions to build PROV-O triples for agent provenance.
 
-Agent provenance tracks the reasoning trace of ReAct agent sessions:
+Agent provenance tracks the reasoning trace of agent sessions:
 - Question: The root activity with query and timestamp
-- Analysis: Each think/act/observe cycle
-- Conclusion: The final answer
+- Analysis: Each think/act/observe cycle (ReAct)
+- Conclusion: The final answer (ReAct)
+- Decomposition: Supervisor broke question into sub-goals
+- Finding: A subagent's result (Supervisor)
+- Plan: Structured plan of steps (Plan-then-Execute)
+- StepResult: A plan step's result (Plan-then-Execute)
+- Synthesis: Final synthesised answer (Supervisor, Plan-then-Execute)
 """
 
 import json
@@ -21,6 +26,8 @@ from . namespaces import (
     TG_QUESTION, TG_ANALYSIS, TG_CONCLUSION, TG_DOCUMENT,
     TG_ANSWER_TYPE, TG_REFLECTION_TYPE, TG_THOUGHT_TYPE, TG_OBSERVATION_TYPE,
     TG_AGENT_QUESTION,
+    TG_DECOMPOSITION, TG_FINDING, TG_PLAN_TYPE, TG_STEP_RESULT,
+    TG_SYNTHESIS, TG_SUBAGENT_GOAL, TG_PLAN_STEP,
 )
 
 
@@ -202,4 +209,98 @@ def agent_final_triples(
     if document_id:
         triples.append(_triple(final_uri, TG_DOCUMENT, _iri(document_id)))
 
+    return triples
+
+
+def agent_decomposition_triples(
+    uri: str,
+    session_uri: str,
+    goals: List[str],
+) -> List[Triple]:
+    """Build triples for a supervisor decomposition step."""
+    triples = [
+        _triple(uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(uri, RDF_TYPE, _iri(TG_DECOMPOSITION)),
+        _triple(uri, RDFS_LABEL,
+                _literal(f"Decomposed into {len(goals)} research threads")),
+        _triple(uri, PROV_WAS_GENERATED_BY, _iri(session_uri)),
+    ]
+    for goal in goals:
+        triples.append(_triple(uri, TG_SUBAGENT_GOAL, _literal(goal)))
+    return triples
+
+
+def agent_finding_triples(
+    uri: str,
+    decomposition_uri: str,
+    goal: str,
+    document_id: Optional[str] = None,
+) -> List[Triple]:
+    """Build triples for a subagent finding."""
+    triples = [
+        _triple(uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(uri, RDF_TYPE, _iri(TG_FINDING)),
+        _triple(uri, RDF_TYPE, _iri(TG_ANSWER_TYPE)),
+        _triple(uri, RDFS_LABEL, _literal(f"Finding: {goal[:60]}")),
+        _triple(uri, PROV_WAS_DERIVED_FROM, _iri(decomposition_uri)),
+        _triple(uri, TG_SUBAGENT_GOAL, _literal(goal)),
+    ]
+    if document_id:
+        triples.append(_triple(uri, TG_DOCUMENT, _iri(document_id)))
+    return triples
+
+
+def agent_plan_triples(
+    uri: str,
+    session_uri: str,
+    steps: List[str],
+) -> List[Triple]:
+    """Build triples for a plan-then-execute plan."""
+    triples = [
+        _triple(uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(uri, RDF_TYPE, _iri(TG_PLAN_TYPE)),
+        _triple(uri, RDFS_LABEL,
+                _literal(f"Plan with {len(steps)} steps")),
+        _triple(uri, PROV_WAS_GENERATED_BY, _iri(session_uri)),
+    ]
+    for step in steps:
+        triples.append(_triple(uri, TG_PLAN_STEP, _literal(step)))
+    return triples
+
+
+def agent_step_result_triples(
+    uri: str,
+    plan_uri: str,
+    goal: str,
+    document_id: Optional[str] = None,
+) -> List[Triple]:
+    """Build triples for a plan step result."""
+    triples = [
+        _triple(uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(uri, RDF_TYPE, _iri(TG_STEP_RESULT)),
+        _triple(uri, RDF_TYPE, _iri(TG_ANSWER_TYPE)),
+        _triple(uri, RDFS_LABEL, _literal(f"Step result: {goal[:60]}")),
+        _triple(uri, PROV_WAS_DERIVED_FROM, _iri(plan_uri)),
+        _triple(uri, TG_PLAN_STEP, _literal(goal)),
+    ]
+    if document_id:
+        triples.append(_triple(uri, TG_DOCUMENT, _iri(document_id)))
+    return triples
+
+
+def agent_synthesis_triples(
+    uri: str,
+    previous_uri: str,
+    document_id: Optional[str] = None,
+) -> List[Triple]:
+    """Build triples for a synthesis answer."""
+    triples = [
+        _triple(uri, RDF_TYPE, _iri(PROV_ENTITY)),
+        _triple(uri, RDF_TYPE, _iri(TG_SYNTHESIS)),
+        _triple(uri, RDF_TYPE, _iri(TG_ANSWER_TYPE)),
+        _triple(uri, RDFS_LABEL, _literal("Synthesis")),
+        _triple(uri, PROV_WAS_DERIVED_FROM, _iri(previous_uri)),
+    ]
+    if document_id:
+        triples.append(_triple(uri, TG_DOCUMENT, _iri(document_id)))
     return triples

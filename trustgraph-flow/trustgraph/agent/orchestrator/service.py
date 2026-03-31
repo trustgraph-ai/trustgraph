@@ -427,6 +427,7 @@ class Processor(AgentService):
 
         correlation_id = request.correlation_id
         subagent_goal = getattr(request, 'subagent_goal', '')
+        parent_session_id = getattr(request, 'parent_session_id', '')
 
         # Extract the answer from the completion step
         answer_text = ""
@@ -451,13 +452,26 @@ class Processor(AgentService):
             )
             return
 
+        # Emit finding provenance for this subagent
+        template = self.aggregator.get_original_request(correlation_id)
+        if template and parent_session_id:
+            entry = self.aggregator.correlations.get(correlation_id)
+            finding_index = len(entry["results"]) - 1 if entry else 0
+            collection = getattr(template, 'collection', 'default')
+
+            await self.supervisor_pattern.emit_finding_triples(
+                flow, parent_session_id, finding_index,
+                subagent_goal, answer_text,
+                template.user, collection,
+                respond, template.streaming,
+            )
+
         if all_done:
             logger.info(
                 f"All subagents complete for {correlation_id}, "
                 f"dispatching synthesis"
             )
 
-            template = self.aggregator.get_original_request(correlation_id)
             if template is None:
                 logger.error(
                     f"No template for correlation {correlation_id}"
