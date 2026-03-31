@@ -24,7 +24,7 @@ from pulsar.schema import BytesSchema
 
 
 default_flow = "default"
-default_queue_type = "prompt"
+default_queue_type = "prompt-rag"
 default_max_lines = 3
 default_max_width = 80
 
