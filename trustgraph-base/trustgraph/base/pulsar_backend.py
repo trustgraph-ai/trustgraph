@@ -181,8 +181,11 @@ class PulsarBackendConsumer:
         self._schema_cls = schema_cls
 
     def receive(self, timeout_millis: int = 2000) -> Message:
-        """Receive a message."""
-        pulsar_msg = self._consumer.receive(timeout_millis=timeout_millis)
+        """Receive a message. Raises TimeoutError if no message available."""
+        try:
+            pulsar_msg = self._consumer.receive(timeout_millis=timeout_millis)
+        except _pulsar.Timeout:
+            raise TimeoutError("No message received within timeout")
         return PulsarMessage(pulsar_msg, self._schema_cls)
 
     def acknowledge(self, message: Message) -> None:
@@ -237,38 +240,44 @@ class PulsarBackend:
         self.client = pulsar.Client(**client_args)
         logger.info(f"Pulsar client connected to {host}")
 
-    def map_topic(self, generic_topic: str) -> str:
+    def map_topic(self, queue_id: str) -> str:
         """
-        Map generic topic format to Pulsar URI.
+        Map queue identifier to Pulsar URI.
 
-        Format: qos/tenant/namespace/queue
-        Example: q1/tg/flow/my-queue -> persistent://tg/flow/my-queue
+        Format: class:topicspace:topic
+        Example: flow:tg:text-completion-request -> persistent://tg/flow/text-completion-request
 
         Args:
-            generic_topic: Generic topic string or already-formatted Pulsar URI
+            queue_id: Queue identifier string or already-formatted Pulsar URI
 
         Returns:
             Pulsar topic URI
         """
         # If already a Pulsar URI, return as-is
-        if '://' in generic_topic:
-            return generic_topic
+        if '://' in queue_id:
+            return queue_id
 
-        parts = generic_topic.split('/', 3)
-        if len(parts) != 4:
-            raise ValueError(f"Invalid topic format: {generic_topic}, expected qos/tenant/namespace/queue")
+        parts = queue_id.split(':', 2)
+        if len(parts) != 3:
+            raise ValueError(
+                f"Invalid queue format: {queue_id}, "
+                f"expected class:topicspace:topic"
+            )
 
-        qos, tenant, namespace, queue = parts
+        cls, topicspace, topic = parts
 
-        # Map QoS to persistence
-        if qos == 'q0':
-            persistence = 'non-persistent'
-        elif qos in ['q1', 'q2']:
+        # Map class to Pulsar persistence and namespace
+        if cls in ('flow', 'state'):
             persistence = 'persistent'
+        elif cls in ('request', 'response'):
+            persistence = 'non-persistent'
         else:
-            raise ValueError(f"Invalid QoS level: {qos}, expected q0, q1, or q2")
+            raise ValueError(
+                f"Invalid queue class: {cls}, "
+                f"expected flow, request, response, or state"
+            )
 
-        return f"{persistence}://{tenant}/{namespace}/{queue}"
+        return f"{persistence}://{topicspace}/{cls}/{topic}"
 
     def create_producer(self, topic: str, schema: type, **options) -> BackendProducer:
         """

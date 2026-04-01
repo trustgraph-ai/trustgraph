@@ -6,8 +6,6 @@
 import json
 import logging
 
-from pulsar.schema import JsonSchema
-
 from .. schema import Error
 from .. schema import config_request_queue, config_response_queue
 from .. schema import config_push_queue

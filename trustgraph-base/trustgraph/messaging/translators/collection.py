@@ -6,7 +6,7 @@ from .base import MessageTranslator
 class CollectionManagementRequestTranslator(MessageTranslator):
     """Translator for CollectionManagementRequest schema objects"""
 
-    def to_pulsar(self, data: Dict[str, Any]) -> CollectionManagementRequest:
+    def decode(self, data: Dict[str, Any]) -> CollectionManagementRequest:
         return CollectionManagementRequest(
             operation=data.get("operation"),
             user=data.get("user"),
@@ -19,7 +19,7 @@ class CollectionManagementRequestTranslator(MessageTranslator):
             limit=data.get("limit")
         )
 
-    def from_pulsar(self, obj: CollectionManagementRequest) -> Dict[str, Any]:
+    def encode(self, obj: CollectionManagementRequest) -> Dict[str, Any]:
         result = {}
 
         if obj.operation is not None:
@@ -47,7 +47,7 @@ class CollectionManagementRequestTranslator(MessageTranslator):
 class CollectionManagementResponseTranslator(MessageTranslator):
     """Translator for CollectionManagementResponse schema objects"""
 
-    def to_pulsar(self, data: Dict[str, Any]) -> CollectionManagementResponse:
+    def decode(self, data: Dict[str, Any]) -> CollectionManagementResponse:
 
         # Handle error
         error = None
@@ -76,7 +76,7 @@ class CollectionManagementResponseTranslator(MessageTranslator):
             collections=collections
         )
 
-    def from_pulsar(self, obj: CollectionManagementResponse) -> Dict[str, Any]:
+    def encode(self, obj: CollectionManagementResponse) -> Dict[str, Any]:
         result = {}
 
         print("COLLECTIONMGMT", obj, flush=True)

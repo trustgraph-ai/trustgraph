@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from ..core.primitives import Triple, Error
-from ..core.topic import topic
+from ..core.topic import queue
 from ..core.metadata import Metadata
 # Note: Document imports will be updated after knowledge schemas are converted
 
@@ -220,9 +220,5 @@ class LibrarianResponse:
 # FIXME: Is this right?  Using persistence on librarian so that
 # message chunking works
 
-librarian_request_queue = topic(
-    'librarian', qos='q1', namespace='request'
-)
-librarian_response_queue = topic(
-    'librarian', qos='q1', namespace='response',
-)
+librarian_request_queue = queue('librarian-request', cls='flow')
+librarian_response_queue = queue('librarian-response', cls='flow')

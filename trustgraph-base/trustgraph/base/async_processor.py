@@ -6,7 +6,6 @@
 
 import asyncio
 import argparse
-import _pulsar
 import time
 import uuid
 import logging
@@ -15,7 +14,7 @@ from prometheus_client import start_http_server, Info
 
 from .. schema import ConfigPush, config_push_queue
 from .. log_level import LogLevel
-from . pubsub import PulsarClient, get_pubsub
+from . pubsub import get_pubsub, add_pubsub_args
 from . producer import Producer
 from . consumer import Consumer
 from . metrics import ProcessorMetrics, ConsumerMetrics
@@ -223,8 +222,8 @@ class AsyncProcessor:
                 logger.info("Keyboard interrupt.")
                 return
 
-            except _pulsar.Interrupted:
-                logger.info("Pulsar Interrupted.")
+            except KeyboardInterrupt:
+                logger.info("Interrupted.")
                 return
 
             # Exceptions from a taskgroup come in as an exception group
@@ -250,15 +249,7 @@ class AsyncProcessor:
     @staticmethod
     def add_args(parser):
 
-        # Pub/sub backend selection
-        parser.add_argument(
-            '--pubsub-backend',
-            default=os.getenv('PUBSUB_BACKEND', 'pulsar'),
-            choices=['pulsar', 'mqtt'],
-            help='Pub/sub backend (default: pulsar, env: PUBSUB_BACKEND)',
-        )
-
-        PulsarClient.add_args(parser)
+        add_pubsub_args(parser)
         add_logging_args(parser)
 
         parser.add_argument(

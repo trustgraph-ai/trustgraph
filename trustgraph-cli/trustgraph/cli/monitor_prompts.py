@@ -1,7 +1,7 @@
 """
 Monitor prompt request/response queues and log activity with timing.
 
-Subscribes to prompt request and response Pulsar queues, correlates
+Subscribes to prompt request and response queues, correlates
 them by message ID, and logs a summary of each request/response with
 elapsed time. Streaming responses are accumulated and shown once at
 completion.
@@ -19,8 +19,7 @@ import argparse
 from datetime import datetime
 from collections import OrderedDict
 
-import pulsar
-from pulsar.schema import BytesSchema
+from trustgraph.base.pubsub import get_pubsub, add_pubsub_args
 
 
 default_flow = "default"
@@ -85,7 +84,7 @@ def format_terms(terms, max_lines, max_width):
 
 
 def parse_raw_message(msg):
-    """Parse a raw Pulsar message into (correlation_id, body_dict)."""
+    """Parse a raw message into (correlation_id, body_dict)."""
     try:
         props = msg.properties()
         corr_id = props.get("id", "")
@@ -94,53 +93,46 @@ def parse_raw_message(msg):
 
     try:
         value = msg.value()
-        if isinstance(value, bytes):
-            value = value.decode("utf-8")
-        body = json.loads(value) if isinstance(value, str) else {}
+        if isinstance(value, dict):
+            body = value
+        elif isinstance(value, bytes):
+            body = json.loads(value.decode("utf-8"))
+        elif isinstance(value, str):
+            body = json.loads(value)
+        else:
+            body = {}
     except Exception:
         body = {}
 
     return corr_id, body
 
 
-def receive_with_timeout(consumer, timeout_ms=500):
-    """Receive a message with timeout, returning None on timeout."""
-    try:
-        return consumer.receive(timeout_millis=timeout_ms)
-    except Exception:
-        return None
+async def monitor(flow, queue_type, max_lines, max_width, **config):
 
-
-async def monitor(flow, queue_type, max_lines, max_width,
-                  pulsar_host, listener_name):
-
-    request_queue = f"non-persistent://tg/request/{queue_type}:{flow}"
-    response_queue = f"non-persistent://tg/response/{queue_type}:{flow}"
+    request_queue = f"request:tg:{queue_type}:{flow}"
+    response_queue = f"response:tg:{queue_type}:{flow}"
 
     print(f"Monitoring prompt queues:")
     print(f"  Request:  {request_queue}")
     print(f"  Response: {response_queue}")
     print(f"Press Ctrl+C to stop\n")
 
-    client = pulsar.Client(
-        pulsar_host,
-        listener_name=listener_name,
+    backend = get_pubsub(**config)
+
+    req_consumer = backend.create_consumer(
+        topic=request_queue,
+        subscription="prompt-monitor-req",
+        schema=None,
+        consumer_type='shared',
+        initial_position='latest',
     )
 
-    req_consumer = client.subscribe(
-        request_queue,
-        subscription_name="prompt-monitor-req",
-        consumer_type=pulsar.ConsumerType.Shared,
-        schema=BytesSchema(),
-        initial_position=pulsar.InitialPosition.Latest,
-    )
-
-    resp_consumer = client.subscribe(
-        response_queue,
-        subscription_name="prompt-monitor-resp",
-        consumer_type=pulsar.ConsumerType.Shared,
-        schema=BytesSchema(),
-        initial_position=pulsar.InitialPosition.Latest,
+    resp_consumer = backend.create_consumer(
+        topic=response_queue,
+        subscription="prompt-monitor-resp",
+        schema=None,
+        consumer_type='shared',
+        initial_position='latest',
     )
 
     # Track in-flight requests: corr_id -> (timestamp, template_id)
@@ -156,8 +148,8 @@ async def monitor(flow, queue_type, max_lines, max_width,
             got_message = False
 
             # Poll request queue
-            msg = receive_with_timeout(req_consumer, 100)
-            if msg:
+            try:
+                msg = req_consumer.receive(timeout_millis=100)
                 got_message = True
                 timestamp = datetime.now()
                 corr_id, body = parse_raw_message(msg)
@@ -182,10 +174,12 @@ async def monitor(flow, queue_type, max_lines, max_width,
                     print(format_terms(terms, max_lines, max_width))
 
                 req_consumer.acknowledge(msg)
+            except TimeoutError:
+                pass
 
             # Poll response queue
-            msg = receive_with_timeout(resp_consumer, 100)
-            if msg:
+            try:
+                msg = resp_consumer.receive(timeout_millis=100)
                 got_message = True
                 timestamp = datetime.now()
                 corr_id, body = parse_raw_message(msg)
@@ -265,6 +259,8 @@ async def monitor(flow, queue_type, max_lines, max_width,
                         print(f"  {truncated}")
 
                 resp_consumer.acknowledge(msg)
+            except TimeoutError:
+                pass
 
             if not got_message:
                 await asyncio.sleep(0.05)
@@ -274,7 +270,7 @@ async def monitor(flow, queue_type, max_lines, max_width,
     finally:
         req_consumer.close()
         resp_consumer.close()
-        client.close()
+        backend.close()
 
 
 def main():
@@ -310,17 +306,7 @@ def main():
         help=f"Max width per line (default: {default_max_width})",
     )
 
-    parser.add_argument(
-        "--pulsar-host",
-        default="pulsar://localhost:6650",
-        help="Pulsar host URL (default: pulsar://localhost:6650)",
-    )
-
-    parser.add_argument(
-        "--listener-name",
-        default="localhost",
-        help="Pulsar listener name (default: localhost)",
-    )
+    add_pubsub_args(parser, standalone=True)
 
     args = parser.parse_args()
 
@@ -331,7 +317,9 @@ def main():
             max_lines=args.max_lines,
             max_width=args.max_width,
             pulsar_host=args.pulsar_host,
-            listener_name=args.listener_name,
+            pulsar_api_key=args.pulsar_api_key,
+            pulsar_listener=args.pulsar_listener,
+            pubsub_backend=args.pubsub_backend,
         ))
     except KeyboardInterrupt:
         pass

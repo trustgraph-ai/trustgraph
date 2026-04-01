@@ -23,7 +23,6 @@ import uuid
 logger = logging.getLogger(__name__)
 import json
 
-import pulsar
 from prometheus_client import start_http_server
 
 from ... schema import ConfigPush, config_push_queue

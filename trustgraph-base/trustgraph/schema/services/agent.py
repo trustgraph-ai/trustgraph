@@ -2,7 +2,6 @@
 from dataclasses import dataclass, field
 from typing import Optional
 
-from ..core.topic import topic
 from ..core.primitives import Error
 
 ############################################################################

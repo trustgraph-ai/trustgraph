@@ -28,7 +28,7 @@ class TestRequestTranslation:
         }
 
         # Translate to Pulsar
-        pulsar_msg = translator.to_pulsar(api_data)
+        pulsar_msg = translator.decode(api_data)
 
         assert pulsar_msg.operation == "schema-selection"
         assert pulsar_msg.sample == "test data sample"
@@ -46,7 +46,7 @@ class TestRequestTranslation:
             "options": {"delimiter": ","}
         }
 
-        pulsar_msg = translator.to_pulsar(api_data)
+        pulsar_msg = translator.decode(api_data)
 
         assert pulsar_msg.operation == "generate-descriptor"
         assert pulsar_msg.sample == "csv data"
@@ -70,7 +70,7 @@ class TestResponseTranslation:
         )
 
         # Translate to API format
-        api_data = translator.from_pulsar(pulsar_response)
+        api_data = translator.encode(pulsar_response)
 
         assert api_data["operation"] == "schema-selection"
         assert api_data["schema-matches"] == ["products", "inventory", "catalog"]
@@ -86,7 +86,7 @@ class TestResponseTranslation:
             error=None
         )
 
-        api_data = translator.from_pulsar(pulsar_response)
+        api_data = translator.encode(pulsar_response)
 
         assert api_data["operation"] == "schema-selection"
         assert api_data["schema-matches"] == []
@@ -103,7 +103,7 @@ class TestResponseTranslation:
             error=None
         )
 
-        api_data = translator.from_pulsar(pulsar_response)
+        api_data = translator.encode(pulsar_response)
 
         assert api_data["operation"] == "detect-type"
         assert api_data["detected-type"] == "xml"
@@ -123,7 +123,7 @@ class TestResponseTranslation:
             )
         )
 
-        api_data = translator.from_pulsar(pulsar_response)
+        api_data = translator.encode(pulsar_response)
 
         assert api_data["operation"] == "schema-selection"
         # Error objects are typically handled separately by the gateway
@@ -146,7 +146,7 @@ class TestResponseTranslation:
             error=None
         )
 
-        api_data = translator.from_pulsar(pulsar_response)
+        api_data = translator.encode(pulsar_response)
 
         assert api_data["operation"] == "diagnose"
         assert api_data["detected-type"] == "csv"
@@ -165,7 +165,7 @@ class TestResponseTranslation:
             error=None
         )
 
-        api_data, is_final = translator.from_response_with_completion(pulsar_response)
+        api_data, is_final = translator.encode_with_completion(pulsar_response)
 
         assert is_final is True  # Structured-diag responses are always final
         assert api_data["operation"] == "schema-selection"

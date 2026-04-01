@@ -30,7 +30,7 @@ def _decode_text_payload(payload: str | bytes, charset: str) -> str:
 class DocumentTranslator(SendTranslator):
     """Translator for Document schema objects (PDF docs etc.)"""
 
-    def to_pulsar(self, data: Dict[str, Any]) -> Document:
+    def decode(self, data: Dict[str, Any]) -> Document:
         # Handle base64 content validation
         doc = base64.b64decode(data["data"])
 
@@ -45,7 +45,7 @@ class DocumentTranslator(SendTranslator):
             data=base64.b64encode(doc).decode("utf-8")
         )
 
-    def from_pulsar(self, obj: Document) -> Dict[str, Any]:
+    def encode(self, obj: Document) -> Dict[str, Any]:
         result = {
             "data": obj.data
         }
@@ -69,7 +69,7 @@ class DocumentTranslator(SendTranslator):
 class TextDocumentTranslator(SendTranslator):
     """Translator for TextDocument schema objects"""
 
-    def to_pulsar(self, data: Dict[str, Any]) -> TextDocument:
+    def decode(self, data: Dict[str, Any]) -> TextDocument:
         charset = data.get("charset", "utf-8")
 
         text = _decode_text_payload(data["text"], charset)
@@ -85,7 +85,7 @@ class TextDocumentTranslator(SendTranslator):
             text=text.encode("utf-8")
         )
 
-    def from_pulsar(self, obj: TextDocument) -> Dict[str, Any]:
+    def encode(self, obj: TextDocument) -> Dict[str, Any]:
         result = {
             "text": obj.text.decode("utf-8") if isinstance(obj.text, bytes) else obj.text
         }
@@ -109,7 +109,7 @@ class TextDocumentTranslator(SendTranslator):
 class ChunkTranslator(SendTranslator):
     """Translator for Chunk schema objects"""
 
-    def to_pulsar(self, data: Dict[str, Any]) -> Chunk:
+    def decode(self, data: Dict[str, Any]) -> Chunk:
         from ...schema import Metadata
         return Chunk(
             metadata=Metadata(
@@ -121,7 +121,7 @@ class ChunkTranslator(SendTranslator):
             chunk=data["chunk"].encode("utf-8") if isinstance(data["chunk"], str) else data["chunk"]
         )
 
-    def from_pulsar(self, obj: Chunk) -> Dict[str, Any]:
+    def encode(self, obj: Chunk) -> Dict[str, Any]:
         result = {
             "chunk": obj.chunk.decode("utf-8") if isinstance(obj.chunk, bytes) else obj.chunk
         }
@@ -145,7 +145,7 @@ class ChunkTranslator(SendTranslator):
 class DocumentEmbeddingsTranslator(SendTranslator):
     """Translator for DocumentEmbeddings schema objects"""
 
-    def to_pulsar(self, data: Dict[str, Any]) -> DocumentEmbeddings:
+    def decode(self, data: Dict[str, Any]) -> DocumentEmbeddings:
         metadata = data.get("metadata", {})
 
         chunks = [
@@ -167,7 +167,7 @@ class DocumentEmbeddingsTranslator(SendTranslator):
             chunks=chunks
         )
 
-    def from_pulsar(self, obj: DocumentEmbeddings) -> Dict[str, Any]:
+    def encode(self, obj: DocumentEmbeddings) -> Dict[str, Any]:
         result = {
             "chunks": [
                 {

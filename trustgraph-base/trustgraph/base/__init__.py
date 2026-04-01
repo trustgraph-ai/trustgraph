@@ -1,5 +1,5 @@
 
-from . pubsub import PulsarClient, get_pubsub
+from . pubsub import get_pubsub, add_pubsub_args
 from . async_processor import AsyncProcessor
 from . consumer import Consumer
 from . producer import Producer

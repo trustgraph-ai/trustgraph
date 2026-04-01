@@ -17,7 +17,7 @@ class TermTranslator(Translator):
     - "tr": triple (for TRIPLE type, nested)
     """
 
-    def to_pulsar(self, data: Dict[str, Any]) -> Term:
+    def decode(self, data: Dict[str, Any]) -> Term:
         term_type = data.get("t", "")
 
         if term_type == IRI:
@@ -38,7 +38,7 @@ class TermTranslator(Translator):
             # Nested triple - use TripleTranslator
             triple_data = data.get("tr")
             if triple_data:
-                triple = _triple_translator_to_pulsar(triple_data)
+                triple = _triple_translator_decode(triple_data)
             else:
                 triple = None
             return Term(type=TRIPLE, triple=triple)
@@ -47,7 +47,7 @@ class TermTranslator(Translator):
             # Unknown or empty type
             return Term(type=term_type)
 
-    def from_pulsar(self, obj: Term) -> Dict[str, Any]:
+    def encode(self, obj: Term) -> Dict[str, Any]:
         result: Dict[str, Any] = {"t": obj.type}
 
         if obj.type == IRI:
@@ -65,33 +65,33 @@ class TermTranslator(Translator):
 
         elif obj.type == TRIPLE:
             if obj.triple:
-                result["tr"] = _triple_translator_from_pulsar(obj.triple)
+                result["tr"] = _triple_translator_encode(obj.triple)
 
         return result
 
 
 # Module-level helper functions to avoid circular instantiation
-def _triple_translator_to_pulsar(data: Dict[str, Any]) -> Triple:
+def _triple_translator_decode(data: Dict[str, Any]) -> Triple:
     term_translator = TermTranslator()
     return Triple(
-        s=term_translator.to_pulsar(data["s"]) if data.get("s") else None,
-        p=term_translator.to_pulsar(data["p"]) if data.get("p") else None,
-        o=term_translator.to_pulsar(data["o"]) if data.get("o") else None,
+        s=term_translator.decode(data["s"]) if data.get("s") else None,
+        p=term_translator.decode(data["p"]) if data.get("p") else None,
+        o=term_translator.decode(data["o"]) if data.get("o") else None,
         g=data.get("g"),
     )
 
 
-def _triple_translator_from_pulsar(obj: Triple) -> Dict[str, Any]:
+def _triple_translator_encode(obj: Triple) -> Dict[str, Any]:
     """Convert Triple object to wire format dict."""
     term_translator = TermTranslator()
     result: Dict[str, Any] = {}
 
     if obj.s:
-        result["s"] = term_translator.from_pulsar(obj.s)
+        result["s"] = term_translator.encode(obj.s)
     if obj.p:
-        result["p"] = term_translator.from_pulsar(obj.p)
+        result["p"] = term_translator.encode(obj.p)
     if obj.o:
-        result["o"] = term_translator.from_pulsar(obj.o)
+        result["o"] = term_translator.encode(obj.o)
     if obj.g:
         result["g"] = obj.g
 
@@ -104,23 +104,23 @@ class TripleTranslator(Translator):
     def __init__(self):
         self.term_translator = TermTranslator()
 
-    def to_pulsar(self, data: Dict[str, Any]) -> Triple:
+    def decode(self, data: Dict[str, Any]) -> Triple:
         return Triple(
-            s=self.term_translator.to_pulsar(data["s"]) if data.get("s") else None,
-            p=self.term_translator.to_pulsar(data["p"]) if data.get("p") else None,
-            o=self.term_translator.to_pulsar(data["o"]) if data.get("o") else None,
+            s=self.term_translator.decode(data["s"]) if data.get("s") else None,
+            p=self.term_translator.decode(data["p"]) if data.get("p") else None,
+            o=self.term_translator.decode(data["o"]) if data.get("o") else None,
             g=data.get("g"),
         )
 
-    def from_pulsar(self, obj: Triple) -> Dict[str, Any]:
+    def encode(self, obj: Triple) -> Dict[str, Any]:
         result: Dict[str, Any] = {}
 
         if obj.s:
-            result["s"] = self.term_translator.from_pulsar(obj.s)
+            result["s"] = self.term_translator.encode(obj.s)
         if obj.p:
-            result["p"] = self.term_translator.from_pulsar(obj.p)
+            result["p"] = self.term_translator.encode(obj.p)
         if obj.o:
-            result["o"] = self.term_translator.from_pulsar(obj.o)
+            result["o"] = self.term_translator.encode(obj.o)
         if obj.g:
             result["g"] = obj.g
 
@@ -137,17 +137,17 @@ class SubgraphTranslator(Translator):
     def __init__(self):
         self.triple_translator = TripleTranslator()
     
-    def to_pulsar(self, data: List[Dict[str, Any]]) -> List[Triple]:
-        return [self.triple_translator.to_pulsar(t) for t in data]
+    def decode(self, data: List[Dict[str, Any]]) -> List[Triple]:
+        return [self.triple_translator.decode(t) for t in data]
     
-    def from_pulsar(self, obj: List[Triple]) -> List[Dict[str, Any]]:
-        return [self.triple_translator.from_pulsar(t) for t in obj]
+    def encode(self, obj: List[Triple]) -> List[Dict[str, Any]]:
+        return [self.triple_translator.encode(t) for t in obj]
 
 
 class RowSchemaTranslator(Translator):
     """Translator for RowSchema objects"""
     
-    def to_pulsar(self, data: Dict[str, Any]) -> RowSchema:
+    def decode(self, data: Dict[str, Any]) -> RowSchema:
         """Convert dict to RowSchema Pulsar object"""
         fields = []
         for field_data in data.get("fields", []):
@@ -169,7 +169,7 @@ class RowSchemaTranslator(Translator):
             fields=fields
         )
     
-    def from_pulsar(self, obj: RowSchema) -> Dict[str, Any]:
+    def encode(self, obj: RowSchema) -> Dict[str, Any]:
         """Convert RowSchema Pulsar object to JSON-serializable dictionary"""
         result = {
             "name": obj.name,
@@ -200,7 +200,7 @@ class RowSchemaTranslator(Translator):
 class FieldTranslator(Translator):
     """Translator for Field objects"""
     
-    def to_pulsar(self, data: Dict[str, Any]) -> Field:
+    def decode(self, data: Dict[str, Any]) -> Field:
         """Convert dict to Field Pulsar object"""
         return Field(
             name=data.get("name", ""),
@@ -213,7 +213,7 @@ class FieldTranslator(Translator):
             enum_values=data.get("enum_values", [])
         )
     
-    def from_pulsar(self, obj: Field) -> Dict[str, Any]:
+    def encode(self, obj: Field) -> Dict[str, Any]:
         """Convert Field Pulsar object to JSON-serializable dictionary"""
         result = {
             "name": obj.name,

@@ -33,7 +33,7 @@ class TestRAGTranslatorCompletionFlags:
         )
 
         # Act
-        response_dict, is_final = translator.from_response_with_completion(response)
+        response_dict, is_final = translator.encode_with_completion(response)
 
         # Assert
         assert is_final is True, "is_final must be True when end_of_session=True"
@@ -57,7 +57,7 @@ class TestRAGTranslatorCompletionFlags:
         )
 
         # Act
-        response_dict, is_final = translator.from_response_with_completion(response)
+        response_dict, is_final = translator.encode_with_completion(response)
 
         # Assert
         assert is_final is False, "is_final must be False when end_of_session=False"
@@ -80,7 +80,7 @@ class TestRAGTranslatorCompletionFlags:
         )
 
         # Act
-        response_dict, is_final = translator.from_response_with_completion(response)
+        response_dict, is_final = translator.encode_with_completion(response)
 
         # Assert
         assert is_final is False
@@ -103,7 +103,7 @@ class TestRAGTranslatorCompletionFlags:
         )
 
         # Act
-        response_dict, is_final = translator.from_response_with_completion(response)
+        response_dict, is_final = translator.encode_with_completion(response)
 
         # Assert
         assert is_final is False, "end_of_stream=True should NOT make is_final=True"
@@ -125,7 +125,7 @@ class TestRAGTranslatorCompletionFlags:
         )
 
         # Act
-        response_dict, is_final = translator.from_response_with_completion(response)
+        response_dict, is_final = translator.encode_with_completion(response)
 
         # Assert
         assert is_final is True, "is_final must be True when end_of_session=True"
@@ -147,7 +147,7 @@ class TestRAGTranslatorCompletionFlags:
         )
 
         # Act
-        response_dict, is_final = translator.from_response_with_completion(response)
+        response_dict, is_final = translator.encode_with_completion(response)
 
         # Assert
         assert is_final is False, "end_of_stream=True should NOT make is_final=True"
@@ -168,7 +168,7 @@ class TestRAGTranslatorCompletionFlags:
         )
 
         # Act
-        response_dict, is_final = translator.from_response_with_completion(response)
+        response_dict, is_final = translator.encode_with_completion(response)
 
         # Assert
         assert is_final is False, "is_final must be False when end_of_stream=False"
@@ -195,7 +195,7 @@ class TestAgentTranslatorCompletionFlags:
         )
 
         # Act
-        response_dict, is_final = translator.from_response_with_completion(response)
+        response_dict, is_final = translator.encode_with_completion(response)
 
         # Assert
         assert is_final is True, "is_final must be True when end_of_dialog=True"
@@ -217,7 +217,7 @@ class TestAgentTranslatorCompletionFlags:
         )
 
         # Act
-        response_dict, is_final = translator.from_response_with_completion(response)
+        response_dict, is_final = translator.encode_with_completion(response)
 
         # Assert
         assert is_final is False, "is_final must be False when end_of_dialog=False"
@@ -240,7 +240,7 @@ class TestAgentTranslatorCompletionFlags:
         )
 
         # Act
-        thought_dict, thought_is_final = translator.from_response_with_completion(thought_response)
+        thought_dict, thought_is_final = translator.encode_with_completion(thought_response)
 
         # Assert
         assert thought_is_final is False, "Thought message must not be final"
@@ -254,7 +254,7 @@ class TestAgentTranslatorCompletionFlags:
         )
 
         # Act
-        obs_dict, obs_is_final = translator.from_response_with_completion(observation_response)
+        obs_dict, obs_is_final = translator.encode_with_completion(observation_response)
 
         # Assert
         assert obs_is_final is False, "Observation message must not be final"
@@ -275,7 +275,7 @@ class TestAgentTranslatorCompletionFlags:
         )
 
         # Act
-        response_dict, is_final = translator.from_response_with_completion(response)
+        response_dict, is_final = translator.encode_with_completion(response)
 
         # Assert
         assert is_final is True, "Streaming format must use end_of_dialog for is_final"
