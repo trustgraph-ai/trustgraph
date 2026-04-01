@@ -12,6 +12,7 @@ from trustgraph.provenance.agent import (
     agent_iteration_triples,
     agent_observation_triples,
     agent_final_triples,
+    agent_synthesis_triples,
 )
 
 from trustgraph.provenance.namespaces import (
@@ -21,7 +22,7 @@ from trustgraph.provenance.namespaces import (
     TG_QUERY, TG_THOUGHT, TG_ACTION, TG_ARGUMENTS,
     TG_QUESTION, TG_ANALYSIS, TG_CONCLUSION, TG_DOCUMENT,
     TG_ANSWER_TYPE, TG_REFLECTION_TYPE, TG_THOUGHT_TYPE, TG_OBSERVATION_TYPE,
-    TG_TOOL_USE,
+    TG_TOOL_USE, TG_SYNTHESIS,
     TG_AGENT_QUESTION,
 )
 
@@ -104,6 +105,25 @@ class TestAgentSessionTriples:
             self.SESSION_URI, "Q", "2024-01-01T00:00:00Z"
         )
         assert len(triples) == 6
+
+    def test_session_parent_uri(self):
+        """Subagent sessions derive from a parent entity (e.g. Decomposition)."""
+        parent = "urn:trustgraph:agent:parent/decompose"
+        triples = agent_session_triples(
+            self.SESSION_URI, "Q", "2024-01-01T00:00:00Z",
+            parent_uri=parent,
+        )
+        derived = find_triple(triples, PROV_WAS_DERIVED_FROM, self.SESSION_URI)
+        assert derived is not None
+        assert derived.o.iri == parent
+
+    def test_session_no_parent_uri(self):
+        """Top-level sessions have no wasDerivedFrom."""
+        triples = agent_session_triples(
+            self.SESSION_URI, "Q", "2024-01-01T00:00:00Z"
+        )
+        derived = find_triple(triples, PROV_WAS_DERIVED_FROM, self.SESSION_URI)
+        assert derived is None
 
 
 # ---------------------------------------------------------------------------
@@ -358,3 +378,59 @@ class TestAgentFinalTriples:
         )
         doc = find_triple(triples, TG_DOCUMENT, self.FINAL_URI)
         assert doc is None
+
+
+# ---------------------------------------------------------------------------
+# agent_synthesis_triples
+# ---------------------------------------------------------------------------
+
+class TestAgentSynthesisTriples:
+
+    SYNTH_URI = "urn:trustgraph:agent:test-session/synthesis"
+    FINDING_0 = "urn:trustgraph:agent:test-session/finding/0"
+    FINDING_1 = "urn:trustgraph:agent:test-session/finding/1"
+    FINDING_2 = "urn:trustgraph:agent:test-session/finding/2"
+
+    def test_synthesis_types(self):
+        triples = agent_synthesis_triples(self.SYNTH_URI, self.FINDING_0)
+        assert has_type(triples, self.SYNTH_URI, PROV_ENTITY)
+        assert has_type(triples, self.SYNTH_URI, TG_SYNTHESIS)
+        assert has_type(triples, self.SYNTH_URI, TG_ANSWER_TYPE)
+
+    def test_synthesis_single_parent_string(self):
+        """Single parent passed as string."""
+        triples = agent_synthesis_triples(self.SYNTH_URI, self.FINDING_0)
+        derived = find_triples(triples, PROV_WAS_DERIVED_FROM, self.SYNTH_URI)
+        assert len(derived) == 1
+        assert derived[0].o.iri == self.FINDING_0
+
+    def test_synthesis_multiple_parents(self):
+        """Multiple parents for supervisor fan-in."""
+        parents = [self.FINDING_0, self.FINDING_1, self.FINDING_2]
+        triples = agent_synthesis_triples(self.SYNTH_URI, parents)
+        derived = find_triples(triples, PROV_WAS_DERIVED_FROM, self.SYNTH_URI)
+        assert len(derived) == 3
+        derived_uris = {t.o.iri for t in derived}
+        assert derived_uris == set(parents)
+
+    def test_synthesis_single_parent_as_list(self):
+        """Single parent passed as list."""
+        triples = agent_synthesis_triples(self.SYNTH_URI, [self.FINDING_0])
+        derived = find_triples(triples, PROV_WAS_DERIVED_FROM, self.SYNTH_URI)
+        assert len(derived) == 1
+        assert derived[0].o.iri == self.FINDING_0
+
+    def test_synthesis_document(self):
+        triples = agent_synthesis_triples(
+            self.SYNTH_URI, self.FINDING_0,
+            document_id="urn:doc:synth",
+        )
+        doc = find_triple(triples, TG_DOCUMENT, self.SYNTH_URI)
+        assert doc is not None
+        assert doc.o.iri == "urn:doc:synth"
+
+    def test_synthesis_label(self):
+        triples = agent_synthesis_triples(self.SYNTH_URI, self.FINDING_0)
+        label = find_triple(triples, RDFS_LABEL, self.SYNTH_URI)
+        assert label is not None
+        assert label.o.value == "Synthesis"
