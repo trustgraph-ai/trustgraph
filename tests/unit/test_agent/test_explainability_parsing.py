@@ -22,6 +22,7 @@ from trustgraph.api.explainability import (
     TG_SYNTHESIS,
     TG_ANSWER_TYPE,
     TG_OBSERVATION_TYPE,
+    TG_TOOL_USE,
     TG_ANALYSIS,
     TG_CONCLUSION,
     TG_DOCUMENT,
@@ -73,6 +74,13 @@ class TestFromTriplesDispatch:
 
     def test_dispatches_analysis_unchanged(self):
         triples = _make_triples("urn:a", [PROV_ENTITY, TG_ANALYSIS])
+        entity = ExplainEntity.from_triples("urn:a", triples)
+        assert isinstance(entity, Analysis)
+
+    def test_dispatches_analysis_with_tooluse(self):
+        """Analysis+ToolUse mixin still dispatches to Analysis."""
+        triples = _make_triples("urn:a",
+                                [PROV_ENTITY, TG_ANALYSIS, TG_TOOL_USE])
         entity = ExplainEntity.from_triples("urn:a", triples)
         assert isinstance(entity, Analysis)
 
