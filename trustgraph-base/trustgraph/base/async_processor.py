@@ -68,11 +68,12 @@ class AsyncProcessor:
             processor = self.id, flow = None, name = "config",
         )
 
-        # Subscribe to config queue
+        # Subscribe to config queue — exclusive so every processor
+        # gets its own copy of config pushes (broadcast pattern)
         self.config_sub_task = Consumer(
 
             taskgroup = self.taskgroup,
-            backend = self.pubsub_backend,  # Changed from client to backend
+            backend = self.pubsub_backend,
             subscriber = config_subscriber_id,
             flow = None,
 
@@ -83,9 +84,8 @@ class AsyncProcessor:
 
             metrics = config_consumer_metrics,
 
-            # This causes new subscriptions to view the entire history of
-            # configuration
-            start_of_messages = True
+            start_of_messages = True,
+            consumer_type = 'exclusive',
         )
 
         self.running = True

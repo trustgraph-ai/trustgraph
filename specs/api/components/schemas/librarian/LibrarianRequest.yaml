@@ -3,6 +3,9 @@ description: |
   Librarian service request for document library management.
 
   Operations: add-document, remove-document, list-documents,
+  get-document-metadata, stream-document, add-child-document,
+  list-children, begin-upload, upload-chunk, complete-upload,
+  abort-upload, get-upload-status, list-uploads,
   start-processing, stop-processing, list-processing
 required:
   - operation
@@ -13,6 +16,17 @@ properties:
       - add-document
       - remove-document
       - list-documents
+      - get-document-metadata
+      - get-document-content
+      - stream-document
+      - add-child-document
+      - list-children
+      - begin-upload
+      - upload-chunk
+      - complete-upload
+      - abort-upload
+      - get-upload-status
+      - list-uploads
       - start-processing
       - stop-processing
       - list-processing
@@ -21,6 +35,21 @@ properties:
       - `add-document`: Add document to library
       - `remove-document`: Remove document from library
       - `list-documents`: List documents in library
+      - `get-document-metadata`: Get document metadata
+      - `get-document-content`: Get full document content in a single response.
+        **Deprecated** — use `stream-document` instead. Fails for documents
+        exceeding the broker's max message size.
+      - `stream-document`: Stream document content in chunks. Each response
+        includes `chunk_index` and `is_final`. Preferred over `get-document-content`
+        for all document sizes.
+      - `add-child-document`: Add a child document (e.g. page, chunk)
+      - `list-children`: List child documents of a parent
+      - `begin-upload`: Start a chunked upload session
+      - `upload-chunk`: Upload a chunk of data
+      - `complete-upload`: Finalize a chunked upload
+      - `abort-upload`: Cancel a chunked upload
+      - `get-upload-status`: Check upload progress
+      - `list-uploads`: List active upload sessions
       - `start-processing`: Start processing library documents
       - `stop-processing`: Stop library processing
       - `list-processing`: List processing status

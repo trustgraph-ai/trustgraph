@@ -133,7 +133,7 @@ class Processor(ChunkingService):
             chunk_length = len(chunk.page_content)
 
             # Save chunk to librarian as child document
-            await self.save_child_document(
+            await self.librarian.save_child_document(
                 doc_id=chunk_doc_id,
                 parent_id=parent_doc_id,
                 user=v.metadata.user,

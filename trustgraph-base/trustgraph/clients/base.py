@@ -18,9 +18,7 @@ class BaseClient:
             output_queue=None,
             input_schema=None,
             output_schema=None,
-            pulsar_host="pulsar://pulsar:6650",
-            pulsar_api_key=None,
-            listener=None,
+            **pubsub_config,
     ):
 
         if input_queue == None: raise RuntimeError("Need input_queue")
@@ -32,12 +30,7 @@ class BaseClient:
             subscriber = str(uuid.uuid4())
 
         # Create backend using factory
-        self.backend = get_pubsub(
-            pulsar_host=pulsar_host,
-            pulsar_api_key=pulsar_api_key,
-            pulsar_listener=listener,
-            pubsub_backend='pulsar'
-        )
+        self.backend = get_pubsub(**pubsub_config)
 
         self.producer = self.backend.create_producer(
             topic=input_queue,

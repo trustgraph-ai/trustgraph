@@ -83,7 +83,7 @@ class TestTaskGroupConcurrency:
         call_count = 0
         original_running = True
 
-        async def mock_consume():
+        async def mock_consume(backend_consumer):
             nonlocal call_count
             call_count += 1
             # Wait a bit to let all tasks start, then signal stop
@@ -107,7 +107,7 @@ class TestTaskGroupConcurrency:
         consumer = _make_consumer(concurrency=1)
         call_count = 0
 
-        async def mock_consume():
+        async def mock_consume(backend_consumer):
             nonlocal call_count
             call_count += 1
             await asyncio.sleep(0.01)
@@ -147,7 +147,7 @@ class TestRateLimitRetry:
         mock_msg = _make_msg()
         consumer.consumer = MagicMock()
 
-        await consumer.handle_one_from_queue(mock_msg)
+        await consumer.handle_one_from_queue(mock_msg, consumer.consumer)
 
         assert call_count == 2
         consumer.consumer.acknowledge.assert_called_once_with(mock_msg)
@@ -166,7 +166,7 @@ class TestRateLimitRetry:
         mock_msg = _make_msg()
         consumer.consumer = MagicMock()
 
-        await consumer.handle_one_from_queue(mock_msg)
+        await consumer.handle_one_from_queue(mock_msg, consumer.consumer)
 
         consumer.consumer.negative_acknowledge.assert_called_with(mock_msg)
         consumer.consumer.acknowledge.assert_not_called()
@@ -185,7 +185,7 @@ class TestRateLimitRetry:
         mock_msg = _make_msg()
         consumer.consumer = MagicMock()
 
-        await consumer.handle_one_from_queue(mock_msg)
+        await consumer.handle_one_from_queue(mock_msg, consumer.consumer)
 
         assert call_count == 1
         consumer.consumer.negative_acknowledge.assert_called_once_with(mock_msg)
@@ -197,7 +197,7 @@ class TestRateLimitRetry:
         mock_msg = _make_msg()
         consumer.consumer = MagicMock()
 
-        await consumer.handle_one_from_queue(mock_msg)
+        await consumer.handle_one_from_queue(mock_msg, consumer.consumer)
 
         consumer.consumer.acknowledge.assert_called_once_with(mock_msg)
 
@@ -219,7 +219,7 @@ class TestMetricsIntegration:
         mock_metrics.record_time.return_value.__exit__ = MagicMock()
         consumer.metrics = mock_metrics
 
-        await consumer.handle_one_from_queue(mock_msg)
+        await consumer.handle_one_from_queue(mock_msg, consumer.consumer)
 
         mock_metrics.process.assert_called_once_with("success")
 
@@ -235,7 +235,7 @@ class TestMetricsIntegration:
         mock_metrics = MagicMock()
         consumer.metrics = mock_metrics
 
-        await consumer.handle_one_from_queue(mock_msg)
+        await consumer.handle_one_from_queue(mock_msg, consumer.consumer)
 
         mock_metrics.process.assert_called_once_with("error")
 
@@ -261,7 +261,7 @@ class TestMetricsIntegration:
         mock_metrics.record_time.return_value.__exit__ = MagicMock(return_value=False)
         consumer.metrics = mock_metrics
 
-        await consumer.handle_one_from_queue(mock_msg)
+        await consumer.handle_one_from_queue(mock_msg, consumer.consumer)
 
         mock_metrics.rate_limit.assert_called_once()
 

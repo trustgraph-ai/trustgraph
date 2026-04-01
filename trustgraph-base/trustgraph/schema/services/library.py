@@ -24,10 +24,13 @@ from ..core.metadata import Metadata
 #   <- (document_metadata)
 #   <- (error)
 
-# get-document-content
+# get-document-content [DEPRECATED — use stream-document instead]
 #   -> (document_id)
 #   <- (content)
 #   <- (error)
+#   NOTE: Returns entire document in a single message. Fails for documents
+#   exceeding the broker's max message size. Use stream-document which
+#   returns content in chunks.
 
 # add-processing
 #   -> (processing_id, processing_metadata)
@@ -220,5 +223,5 @@ class LibrarianResponse:
 # FIXME: Is this right?  Using persistence on librarian so that
 # message chunking works
 
-librarian_request_queue = queue('librarian-request', cls='flow')
-librarian_response_queue = queue('librarian-response', cls='flow')
+librarian_request_queue = queue('librarian', cls='request')
+librarian_response_queue = queue('librarian', cls='response')

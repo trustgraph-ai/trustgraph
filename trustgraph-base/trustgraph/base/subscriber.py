@@ -51,7 +51,7 @@ class Subscriber:
             topic=self.topic,
             subscription=self.subscription,
             schema=self.schema,
-            consumer_type='shared',
+            consumer_type='exclusive',
         )
 
         self.task = asyncio.create_task(self.run())

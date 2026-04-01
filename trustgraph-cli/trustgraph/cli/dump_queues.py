@@ -354,10 +354,8 @@ IMPORTANT:
             output_file=args.output,
             subscriber_name=args.subscriber,
             append_mode=args.append,
-            pubsub_backend=args.pubsub_backend,
-            pulsar_host=args.pulsar_host,
-            pulsar_api_key=args.pulsar_api_key,
-            pulsar_listener=args.pulsar_listener,
+            **{k: v for k, v in vars(args).items()
+               if k not in ('queues', 'output', 'subscriber', 'append')},
         ))
     except KeyboardInterrupt:
         # Already handled in async_main

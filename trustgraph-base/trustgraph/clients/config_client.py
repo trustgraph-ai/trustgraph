@@ -33,9 +33,7 @@ class ConfigClient(BaseClient):
             subscriber=None,
             input_queue=None,
             output_queue=None,
-            pulsar_host="pulsar://pulsar:6650",
-            listener=None,
-            pulsar_api_key=None,
+            **pubsub_config,
     ):
 
         if input_queue == None:
@@ -48,11 +46,9 @@ class ConfigClient(BaseClient):
             subscriber=subscriber,
             input_queue=input_queue,
             output_queue=output_queue,
-            pulsar_host=pulsar_host,
-            pulsar_api_key=pulsar_api_key,
             input_schema=ConfigRequest,
             output_schema=ConfigResponse,
-            listener=listener,
+            **pubsub_config,
         )
 
     def get(self, keys, timeout=300):

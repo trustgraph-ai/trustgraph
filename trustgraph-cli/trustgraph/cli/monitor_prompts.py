@@ -316,10 +316,8 @@ def main():
             queue_type=args.queue_type,
             max_lines=args.max_lines,
             max_width=args.max_width,
-            pulsar_host=args.pulsar_host,
-            pulsar_api_key=args.pulsar_api_key,
-            pulsar_listener=args.pulsar_listener,
-            pubsub_backend=args.pubsub_backend,
+            **{k: v for k, v in vars(args).items()
+               if k not in ('flow', 'queue_type', 'max_lines', 'max_width')},
         ))
     except KeyboardInterrupt:
         pass
