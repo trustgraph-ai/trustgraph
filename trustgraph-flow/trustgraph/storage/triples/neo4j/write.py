@@ -3,7 +3,6 @@
 Graph writer.  Input is graph edge.  Writes edges to Neo4j graph.
 """
 
-import pulsar
 import base64
 import os
 import argparse

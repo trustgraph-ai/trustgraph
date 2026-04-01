@@ -8,11 +8,11 @@ from trustgraph.messaging.translators.document_loading import TextDocumentTransl
 
 
 class TestTextDocumentTranslator:
-    def test_to_pulsar_decodes_base64_text(self):
+    def test_decode_decodes_base64_text(self):
         translator = TextDocumentTranslator()
         payload = "Cancer survival: 2.74× higher hazard ratio"
 
-        msg = translator.to_pulsar(
+        msg = translator.decode(
             {
                 "id": "doc-1",
                 "user": "alice",
@@ -27,11 +27,11 @@ class TestTextDocumentTranslator:
         assert msg.metadata.collection == "research"
         assert msg.text == payload.encode("utf-8")
 
-    def test_to_pulsar_accepts_raw_utf8_text(self):
+    def test_decode_accepts_raw_utf8_text(self):
         translator = TextDocumentTranslator()
         payload = "Cancer survival: 2.74× higher hazard ratio"
 
-        msg = translator.to_pulsar(
+        msg = translator.decode(
             {
                 "charset": "utf-8",
                 "text": payload,
@@ -40,11 +40,11 @@ class TestTextDocumentTranslator:
 
         assert msg.text == payload.encode("utf-8")
 
-    def test_to_pulsar_falls_back_to_raw_non_base64_ascii(self):
+    def test_decode_falls_back_to_raw_non_base64_ascii(self):
         translator = TextDocumentTranslator()
         payload = "plain-text payload"
 
-        msg = translator.to_pulsar(
+        msg = translator.decode(
             {
                 "charset": "utf-8",
                 "text": payload,

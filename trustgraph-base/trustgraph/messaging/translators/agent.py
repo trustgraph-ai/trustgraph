@@ -6,7 +6,7 @@ from .base import MessageTranslator
 class AgentRequestTranslator(MessageTranslator):
     """Translator for AgentRequest schema objects"""
     
-    def to_pulsar(self, data: Dict[str, Any]) -> AgentRequest:
+    def decode(self, data: Dict[str, Any]) -> AgentRequest:
         return AgentRequest(
             question=data["question"],
             state=data.get("state", None),
@@ -26,7 +26,7 @@ class AgentRequestTranslator(MessageTranslator):
             expected_siblings=data.get("expected_siblings", 0),
         )
 
-    def from_pulsar(self, obj: AgentRequest) -> Dict[str, Any]:
+    def encode(self, obj: AgentRequest) -> Dict[str, Any]:
         return {
             "question": obj.question,
             "state": obj.state,
@@ -50,10 +50,10 @@ class AgentRequestTranslator(MessageTranslator):
 class AgentResponseTranslator(MessageTranslator):
     """Translator for AgentResponse schema objects"""
     
-    def to_pulsar(self, data: Dict[str, Any]) -> AgentResponse:
+    def decode(self, data: Dict[str, Any]) -> AgentResponse:
         raise NotImplementedError("Response translation to Pulsar not typically needed")
     
-    def from_pulsar(self, obj: AgentResponse) -> Dict[str, Any]:
+    def encode(self, obj: AgentResponse) -> Dict[str, Any]:
         result = {}
 
         if obj.chunk_type:
@@ -81,7 +81,7 @@ class AgentResponseTranslator(MessageTranslator):
 
         return result
 
-    def from_response_with_completion(self, obj: AgentResponse) -> Tuple[Dict[str, Any], bool]:
+    def encode_with_completion(self, obj: AgentResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
         is_final = getattr(obj, 'end_of_dialog', False)
-        return self.from_pulsar(obj), is_final
+        return self.encode(obj), is_final

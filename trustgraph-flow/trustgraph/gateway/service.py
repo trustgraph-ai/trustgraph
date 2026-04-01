@@ -18,7 +18,6 @@ from . dispatch.manager import DispatcherManager
 
 from . endpoint.manager import EndpointManager
 
-import pulsar
 from prometheus_client import start_http_server
 
 # Import default queue names

@@ -7,7 +7,7 @@ from .base import MessageTranslator
 class StructuredDataDiagnosisRequestTranslator(MessageTranslator):
     """Translator for StructuredDataDiagnosisRequest schema objects"""
 
-    def to_pulsar(self, data: Dict[str, Any]) -> StructuredDataDiagnosisRequest:
+    def decode(self, data: Dict[str, Any]) -> StructuredDataDiagnosisRequest:
         return StructuredDataDiagnosisRequest(
             operation=data["operation"],
             sample=data["sample"],
@@ -16,7 +16,7 @@ class StructuredDataDiagnosisRequestTranslator(MessageTranslator):
             options=data.get("options", {})
         )
 
-    def from_pulsar(self, obj: StructuredDataDiagnosisRequest) -> Dict[str, Any]:
+    def encode(self, obj: StructuredDataDiagnosisRequest) -> Dict[str, Any]:
         result = {
             "operation": obj.operation,
             "sample": obj.sample,
@@ -36,10 +36,10 @@ class StructuredDataDiagnosisRequestTranslator(MessageTranslator):
 class StructuredDataDiagnosisResponseTranslator(MessageTranslator):
     """Translator for StructuredDataDiagnosisResponse schema objects"""
 
-    def to_pulsar(self, data: Dict[str, Any]) -> StructuredDataDiagnosisResponse:
+    def decode(self, data: Dict[str, Any]) -> StructuredDataDiagnosisResponse:
         raise NotImplementedError("Response translation to Pulsar not typically needed")
 
-    def from_pulsar(self, obj: StructuredDataDiagnosisResponse) -> Dict[str, Any]:
+    def encode(self, obj: StructuredDataDiagnosisResponse) -> Dict[str, Any]:
         result = {
             "operation": obj.operation
         }
@@ -64,6 +64,6 @@ class StructuredDataDiagnosisResponseTranslator(MessageTranslator):
 
         return result
 
-    def from_response_with_completion(self, obj: StructuredDataDiagnosisResponse) -> Tuple[Dict[str, Any], bool]:
+    def encode_with_completion(self, obj: StructuredDataDiagnosisResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
-        return self.from_pulsar(obj), True
+        return self.encode(obj), True

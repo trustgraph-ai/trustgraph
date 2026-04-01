@@ -3,7 +3,6 @@
 Graph writer.  Input is graph edge.  Writes edges to FalkorDB graph.
 """
 
-import pulsar
 import base64
 import os
 import argparse

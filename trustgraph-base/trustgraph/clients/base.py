@@ -1,10 +1,6 @@
 
-import pulsar
-import _pulsar
-import hashlib
 import uuid
 import time
-from pulsar.schema import JsonSchema
 
 from .. exceptions import *
 from ..base.pubsub import get_pubsub
@@ -12,16 +8,11 @@ from ..base.pubsub import get_pubsub
 # Default timeout for a request/response.  In seconds.
 DEFAULT_TIMEOUT=300
 
-# Ugly
-ERROR=_pulsar.LoggerLevel.Error
-WARN=_pulsar.LoggerLevel.Warn
-INFO=_pulsar.LoggerLevel.Info
-DEBUG=_pulsar.LoggerLevel.Debug
 
 class BaseClient:
 
     def __init__(
-            self, log_level=ERROR,
+            self,
             subscriber=None,
             input_queue=None,
             output_queue=None,
@@ -87,7 +78,7 @@ class BaseClient:
 
             try:
                 msg = self.consumer.receive(timeout_millis=2500)
-            except pulsar.exceptions.Timeout:
+            except TimeoutError:
                 continue
 
             mid = msg.properties()["id"]
@@ -139,4 +130,3 @@ class BaseClient:
 
         if hasattr(self, "backend"):
             self.backend.close()
-

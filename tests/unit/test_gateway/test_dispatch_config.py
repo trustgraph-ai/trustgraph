@@ -49,7 +49,7 @@ class TestConfigRequestor:
         mock_translator_registry.get_response_translator.return_value = Mock()
         
         # Setup translator response
-        mock_request_translator.to_pulsar.return_value = "translated_request"
+        mock_request_translator.decode.return_value = "translated_request"
         
         # Patch ServiceRequestor async methods with regular mocks (not AsyncMock)
         with patch.object(ServiceRequestor, 'start', return_value=None), \
@@ -64,7 +64,7 @@ class TestConfigRequestor:
         result = requestor.to_request({"test": "body"})
         
         # Verify translator was called correctly
-        mock_request_translator.to_pulsar.assert_called_once_with({"test": "body"})
+        mock_request_translator.decode.assert_called_once_with({"test": "body"})
         assert result == "translated_request"
 
     @patch('trustgraph.gateway.dispatch.config.TranslatorRegistry')
@@ -76,7 +76,7 @@ class TestConfigRequestor:
         mock_translator_registry.get_response_translator.return_value = mock_response_translator
         
         # Setup translator response
-        mock_response_translator.from_response_with_completion.return_value = "translated_response"
+        mock_response_translator.encode_with_completion.return_value = "translated_response"
         
         requestor = ConfigRequestor(
             backend=Mock(),
@@ -89,5 +89,5 @@ class TestConfigRequestor:
         result = requestor.from_response(mock_message)
         
         # Verify translator was called correctly
-        mock_response_translator.from_response_with_completion.assert_called_once_with(mock_message)
+        mock_response_translator.encode_with_completion.assert_called_once_with(mock_message)
         assert result == "translated_response"
