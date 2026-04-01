@@ -188,6 +188,7 @@ class AgentAnswer(StreamingChunk):
     """
     chunk_type: str = "final-answer"
     end_of_dialog: bool = False
+    message_id: str = ""
 
 @dataclasses.dataclass
 class RAGChunk(StreamingChunk):

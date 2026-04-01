@@ -458,11 +458,14 @@ class Processor(AgentService):
             finding_index = len(entry["results"]) - 1 if entry else 0
             collection = getattr(template, 'collection', 'default')
 
+            subagent_session_id = getattr(request, 'session_id', '')
+
             await self.supervisor_pattern.emit_finding_triples(
                 flow, parent_session_id, finding_index,
                 subagent_goal, answer_text,
                 template.user, collection,
                 respond, template.streaming,
+                subagent_session_id=subagent_session_id,
             )
 
         if all_done:

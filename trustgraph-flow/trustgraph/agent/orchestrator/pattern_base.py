@@ -53,6 +53,7 @@ class UserAwareContext:
         self.respond = respond
         self.streaming = streaming
         self.current_explain_uri = None
+        self.last_sub_explain_uri = None
 
     def __call__(self, service_name):
         client = self._flow(service_name)
@@ -190,7 +191,7 @@ class PatternBase:
             await respond(r)
         return observe
 
-    def make_answer_callback(self, respond, streaming):
+    def make_answer_callback(self, respond, streaming, message_id=""):
         """Create the answer callback for streaming/non-streaming."""
         async def answer(x):
             logger.debug(f"Answer: {x}")
@@ -200,6 +201,7 @@ class PatternBase:
                     content=x,
                     end_of_message=False,
                     end_of_dialog=False,
+                    message_id=message_id,
                 )
             else:
                 r = AgentResponse(
@@ -207,6 +209,7 @@ class PatternBase:
                     content=x,
                     end_of_message=True,
                     end_of_dialog=False,
+                    message_id=message_id,
                 )
             await respond(r)
         return answer
@@ -214,11 +217,15 @@ class PatternBase:
     # ---- Provenance emission ------------------------------------------------
 
     async def emit_session_triples(self, flow, session_uri, question, user,
-                                   collection, respond, streaming):
+                                   collection, respond, streaming,
+                                   parent_uri=None):
         """Emit provenance triples for a new session."""
         timestamp = datetime.utcnow().isoformat() + "Z"
         triples = set_graph(
-            agent_session_triples(session_uri, question, timestamp),
+            agent_session_triples(
+                session_uri, question, timestamp,
+                parent_uri=parent_uri,
+            ),
             GRAPH_RETRIEVAL,
         )
         await flow("explainability").send(Triples(
@@ -301,10 +308,17 @@ class PatternBase:
         ))
 
     async def emit_observation_triples(self, flow, session_id, iteration_num,
-                                       observation_text, request, respond):
+                                       observation_text, request, respond,
+                                       context=None):
         """Emit provenance triples for a standalone Observation entity."""
         iteration_uri = agent_iteration_uri(session_id, iteration_num)
         observation_entity_uri = agent_observation_uri(session_id, iteration_num)
+
+        # Derive from the last sub-trace entity if available (e.g. Synthesis),
+        # otherwise fall back to the iteration (Analysis+ToolUse).
+        parent_uri = iteration_uri
+        if context and getattr(context, 'last_sub_explain_uri', None):
+            parent_uri = context.last_sub_explain_uri
 
         # Save observation to librarian
         observation_doc_id = None
@@ -326,7 +340,7 @@ class PatternBase:
         obs_triples = set_graph(
             agent_observation_triples(
                 observation_entity_uri,
-                iteration_uri,
+                parent_uri,
                 document_id=observation_doc_id,
             ),
             GRAPH_RETRIEVAL,
@@ -427,11 +441,17 @@ class PatternBase:
 
     async def emit_finding_triples(
         self, flow, session_id, index, goal, answer_text, user, collection,
-        respond, streaming,
+        respond, streaming, subagent_session_id="",
     ):
         """Emit provenance for a subagent finding."""
         uri = agent_finding_uri(session_id, index)
-        decomposition_uri = agent_decomposition_uri(session_id)
+
+        # Derive from the subagent's conclusion if available,
+        # otherwise fall back to the decomposition.
+        if subagent_session_id:
+            parent_uri = agent_final_uri(subagent_session_id)
+        else:
+            parent_uri = agent_decomposition_uri(session_id)
 
         doc_id = f"urn:trustgraph:agent:{session_id}/finding/{index}/doc"
         try:
@@ -445,7 +465,7 @@ class PatternBase:
             doc_id = None
 
         triples = set_graph(
-            agent_finding_triples(uri, decomposition_uri, goal, doc_id),
+            agent_finding_triples(uri, parent_uri, goal, doc_id),
             GRAPH_RETRIEVAL,
         )
         await flow("explainability").send(Triples(
@@ -509,7 +529,7 @@ class PatternBase:
         ))
 
     async def emit_synthesis_triples(
-        self, flow, session_id, previous_uri, answer_text, user, collection,
+        self, flow, session_id, previous_uris, answer_text, user, collection,
         respond, streaming,
     ):
         """Emit provenance for a synthesis answer."""
@@ -527,7 +547,7 @@ class PatternBase:
             doc_id = None
 
         triples = set_graph(
-            agent_synthesis_triples(uri, previous_uri, doc_id),
+            agent_synthesis_triples(uri, previous_uris, doc_id),
             GRAPH_RETRIEVAL,
         )
         await flow("explainability").send(Triples(
@@ -542,7 +562,7 @@ class PatternBase:
     # ---- Response helpers ---------------------------------------------------
 
     async def prompt_as_answer(self, client, prompt_id, variables,
-                               respond, streaming):
+                               respond, streaming, message_id=""):
         """Call a prompt template, forwarding chunks as answer
         AgentResponse messages when streaming is enabled.
 
@@ -559,6 +579,7 @@ class PatternBase:
                         content=text,
                         end_of_message=False,
                         end_of_dialog=False,
+                        message_id=message_id,
                     ))
 
             await client.prompt(
@@ -576,13 +597,14 @@ class PatternBase:
             )
 
     async def send_final_response(self, respond, streaming, answer_text,
-                                  already_streamed=False):
+                                  already_streamed=False, message_id=""):
         """Send the answer content and end-of-dialog marker.
 
         Args:
             already_streamed: If True, answer chunks were already sent
                 via streaming callbacks (e.g. ReactPattern). Only the
                 end-of-dialog marker is emitted.
+            message_id: Provenance URI for the answer entity.
         """
         if streaming and not already_streamed:
             # Answer wasn't streamed yet — send it as a chunk first
@@ -592,6 +614,7 @@ class PatternBase:
                     content=answer_text,
                     end_of_message=False,
                     end_of_dialog=False,
+                    message_id=message_id,
                 ))
         if streaming:
             # End-of-dialog marker
@@ -600,6 +623,7 @@ class PatternBase:
                 content="",
                 end_of_message=True,
                 end_of_dialog=True,
+                message_id=message_id,
             ))
         else:
             await respond(AgentResponse(
@@ -607,6 +631,7 @@ class PatternBase:
                 content=answer_text,
                 end_of_message=True,
                 end_of_dialog=True,
+                message_id=message_id,
             ))
 
     def build_next_request(self, request, history, session_id, collection,

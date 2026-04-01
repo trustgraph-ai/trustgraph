@@ -529,6 +529,8 @@ class Processor(AgentService):
 
                 await respond(r)
 
+            answer_msg_id = agent_final_uri(session_id)
+
             async def answer(x):
 
                 logger.debug(f"Answer: {x}")
@@ -539,6 +541,7 @@ class Processor(AgentService):
                         content=x,
                         end_of_message=False,
                         end_of_dialog=False,
+                        message_id=answer_msg_id,
                     )
                 else:
                     r = AgentResponse(
@@ -546,6 +549,7 @@ class Processor(AgentService):
                         content=x,
                         end_of_message=True,
                         end_of_dialog=False,
+                        message_id=answer_msg_id,
                     )
 
                 await respond(r)
@@ -571,6 +575,7 @@ class Processor(AgentService):
                 def __init__(self, flow, user):
                     self._flow = flow
                     self._user = user
+                    self.last_sub_explain_uri = None
 
                 def __call__(self, service_name):
                     client = self._flow(service_name)
@@ -635,13 +640,15 @@ class Processor(AgentService):
                     explain_graph=GRAPH_RETRIEVAL,
                 ))
 
+            user_context = UserAwareContext(flow, request.user)
+
             act = await temp_agent.react(
                 question = request.question,
                 history = history,
                 think = think,
                 observe = observe,
                 answer = answer,
-                context = UserAwareContext(flow, request.user),
+                context = user_context,
                 streaming = streaming,
                 on_action = on_action,
             )
@@ -717,6 +724,7 @@ class Processor(AgentService):
                         content="",
                         end_of_message=True,
                         end_of_dialog=True,
+                        message_id=answer_msg_id,
                     )
                 else:
                     r = AgentResponse(
@@ -724,6 +732,7 @@ class Processor(AgentService):
                         content=f,
                         end_of_message=True,
                         end_of_dialog=True,
+                        message_id=answer_msg_id,
                     )
 
                 await respond(r)
@@ -737,6 +746,12 @@ class Processor(AgentService):
             # Emit standalone observation provenance (iteration was emitted in on_action)
             iteration_uri = agent_iteration_uri(session_id, iteration_num)
             observation_entity_uri = agent_observation_uri(session_id, iteration_num)
+
+            # Derive from last sub-trace entity if available, else iteration
+            obs_parent_uri = iteration_uri
+            if user_context.last_sub_explain_uri:
+                obs_parent_uri = user_context.last_sub_explain_uri
+
             observation_doc_id = None
             if act.observation:
                 observation_doc_id = f"urn:trustgraph:agent:{session_id}/i{iteration_num}/observation"
@@ -755,7 +770,7 @@ class Processor(AgentService):
             obs_triples = set_graph(
                 agent_observation_triples(
                     observation_entity_uri,
-                    iteration_uri,
+                    obs_parent_uri,
                     document_id=observation_doc_id,
                 ),
                 GRAPH_RETRIEVAL

@@ -51,6 +51,7 @@ def agent_session_triples(
     session_uri: str,
     query: str,
     timestamp: Optional[str] = None,
+    parent_uri: Optional[str] = None,
 ) -> List[Triple]:
     """
     Build triples for an agent session start (Question).
@@ -58,11 +59,13 @@ def agent_session_triples(
     Creates:
     - Activity declaration with tg:Question type
     - Query text and timestamp
+    - wasDerivedFrom link to parent (for subagent sessions)
 
     Args:
         session_uri: URI of the session (from agent_session_uri)
         query: The user's query text
         timestamp: ISO timestamp (defaults to now)
+        parent_uri: URI of the parent entity (e.g. Decomposition) for subagents
 
     Returns:
         List of Triple objects
@@ -70,7 +73,7 @@ def agent_session_triples(
     if timestamp is None:
         timestamp = datetime.utcnow().isoformat() + "Z"
 
-    return [
+    triples = [
         _triple(session_uri, RDF_TYPE, _iri(PROV_ENTITY)),
         _triple(session_uri, RDF_TYPE, _iri(TG_QUESTION)),
         _triple(session_uri, RDF_TYPE, _iri(TG_AGENT_QUESTION)),
@@ -78,6 +81,13 @@ def agent_session_triples(
         _triple(session_uri, PROV_STARTED_AT_TIME, _literal(timestamp)),
         _triple(session_uri, TG_QUERY, _literal(query)),
     ]
+
+    if parent_uri:
+        triples.append(
+            _triple(session_uri, PROV_WAS_DERIVED_FROM, _iri(parent_uri))
+        )
+
+    return triples
 
 
 def agent_iteration_triples(
@@ -308,17 +318,28 @@ def agent_step_result_triples(
 
 def agent_synthesis_triples(
     uri: str,
-    previous_uri: str,
+    previous_uris,
     document_id: Optional[str] = None,
 ) -> List[Triple]:
-    """Build triples for a synthesis answer."""
+    """Build triples for a synthesis answer.
+
+    Args:
+        uri: URI of the synthesis entity
+        previous_uris: Single URI string or list of URIs to derive from
+        document_id: Librarian document ID for the answer content
+    """
     triples = [
         _triple(uri, RDF_TYPE, _iri(PROV_ENTITY)),
         _triple(uri, RDF_TYPE, _iri(TG_SYNTHESIS)),
         _triple(uri, RDF_TYPE, _iri(TG_ANSWER_TYPE)),
         _triple(uri, RDFS_LABEL, _literal("Synthesis")),
-        _triple(uri, PROV_WAS_DERIVED_FROM, _iri(previous_uri)),
     ]
+
+    if isinstance(previous_uris, str):
+        previous_uris = [previous_uris]
+    for prev in previous_uris:
+        triples.append(_triple(uri, PROV_WAS_DERIVED_FROM, _iri(prev)))
+
     if document_id:
         triples.append(_triple(uri, TG_DOCUMENT, _iri(document_id)))
     return triples
