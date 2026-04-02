@@ -812,6 +812,31 @@ class SocketFlowInstance:
             else:
                 yield response
 
+    def sparql_query_stream(
+        self,
+        query: str,
+        user: str = "trustgraph",
+        collection: str = "default",
+        limit: int = 10000,
+        batch_size: int = 20,
+        **kwargs: Any
+    ) -> Iterator[Dict[str, Any]]:
+        """Execute a SPARQL query with streaming batches."""
+        request = {
+            "query": query,
+            "user": user,
+            "collection": collection,
+            "limit": limit,
+            "streaming": True,
+            "batch-size": batch_size,
+        }
+        request.update(kwargs)
+
+        for response in self.client._send_request_sync(
+            "sparql", self.flow_id, request, streaming_raw=True
+        ):
+            yield response
+
     def rows_query(
         self,
         query: str,

@@ -13,85 +13,20 @@ default_user = 'trustgraph'
 default_collection = 'default'
 
 
-def format_select(response, output_format):
-    """Format SELECT query results."""
-    variables = response.get("variables", [])
-    bindings = response.get("bindings", [])
-
-    if not bindings:
-        return "No results."
-
-    if output_format == "json":
-        rows = []
-        for binding in bindings:
-            row = {}
-            for var, val in zip(variables, binding.get("values", [])):
-                if val is None:
-                    row[var] = None
-                elif val.get("t") == "i":
-                    row[var] = val.get("i", "")
-                elif val.get("t") == "l":
-                    row[var] = val.get("v", "")
-                else:
-                    row[var] = val.get("v", val.get("i", ""))
-            rows.append(row)
-        return json.dumps(rows, indent=2)
-
-    # Table format
-    col_widths = [len(v) for v in variables]
-    rows = []
-    for binding in bindings:
-        row = []
-        for i, val in enumerate(binding.get("values", [])):
-            if val is None:
-                cell = ""
-            elif val.get("t") == "i":
-                cell = val.get("i", "")
-            elif val.get("t") == "l":
-                cell = val.get("v", "")
-            else:
-                cell = val.get("v", val.get("i", ""))
-            row.append(cell)
-            if i < len(col_widths):
-                col_widths[i] = max(col_widths[i], len(cell))
-        rows.append(row)
-
-    # Build table
-    header = " | ".join(
-        v.ljust(col_widths[i]) for i, v in enumerate(variables)
-    )
-    separator = "-+-".join("-" * w for w in col_widths)
-    lines = [header, separator]
-    for row in rows:
-        line = " | ".join(
-            cell.ljust(col_widths[i]) if i < len(col_widths) else cell
-            for i, cell in enumerate(row)
-        )
-        lines.append(line)
-    return "\n".join(lines)
-
-
-def format_triples(response, output_format):
-    """Format CONSTRUCT/DESCRIBE results."""
-    triples = response.get("triples", [])
-
-    if not triples:
-        return "No triples."
-
-    if output_format == "json":
-        return json.dumps(triples, indent=2)
-
-    lines = []
-    for t in triples:
-        s = _term_str(t.get("s"))
-        p = _term_str(t.get("p"))
-        o = _term_str(t.get("o"))
-        lines.append(f"{s} {p} {o} .")
-    return "\n".join(lines)
+def _term_cell(val):
+    """Extract display string from a wire-format term."""
+    if val is None:
+        return ""
+    t = val.get("t", "")
+    if t == "i":
+        return val.get("i", "")
+    elif t == "l":
+        return val.get("v", "")
+    return val.get("v", val.get("i", ""))
 
 
 def _term_str(val):
-    """Convert a wire-format term to a display string."""
+    """Convert a wire-format term to a Turtle-style display string."""
     if val is None:
         return "?"
     t = val.get("t", "")
@@ -110,27 +45,93 @@ def _term_str(val):
 
 
 def sparql_query(url, token, flow_id, query, user, collection, limit,
-                 output_format):
+                 batch_size, output_format):
 
-    api = Api(url=url, token=token).flow().id(flow_id)
+    socket = Api(url=url, token=token).socket()
+    flow = socket.flow(flow_id)
 
-    resp = api.sparql_query(
-        query=query,
-        user=user,
-        collection=collection,
-        limit=limit,
-    )
+    variables = None
+    all_rows = []
 
-    query_type = resp.get("query-type", "select")
+    try:
 
-    if query_type == "select":
-        print(format_select(resp, output_format))
-    elif query_type == "ask":
-        print("true" if resp.get("ask-result") else "false")
-    elif query_type in ("construct", "describe"):
-        print(format_triples(resp, output_format))
-    else:
-        print(json.dumps(resp, indent=2))
+        for response in flow.sparql_query_stream(
+            query=query,
+            user=user,
+            collection=collection,
+            limit=limit,
+            batch_size=batch_size,
+        ):
+            query_type = response.get("query-type", "select")
+
+            # ASK queries - just print and return
+            if query_type == "ask":
+                print("true" if response.get("ask-result") else "false")
+                return
+
+            # CONSTRUCT/DESCRIBE - print triples
+            if query_type in ("construct", "describe"):
+                triples = response.get("triples", [])
+                if not triples:
+                    print("No triples.")
+                elif output_format == "json":
+                    print(json.dumps(triples, indent=2))
+                else:
+                    for t in triples:
+                        s = _term_str(t.get("s"))
+                        p = _term_str(t.get("p"))
+                        o = _term_str(t.get("o"))
+                        print(f"{s} {p} {o} .")
+                return
+
+            # SELECT - accumulate bindings across batches
+            if variables is None:
+                variables = response.get("variables", [])
+
+            bindings = response.get("bindings", [])
+            for binding in bindings:
+                values = binding.get("values", [])
+                all_rows.append([_term_cell(v) for v in values])
+
+        # Output SELECT results
+        if variables is None:
+            print("No results.")
+            return
+
+        if not all_rows:
+            print("No results.")
+            return
+
+        if output_format == "json":
+            rows = []
+            for row in all_rows:
+                rows.append({
+                    var: cell for var, cell in zip(variables, row)
+                })
+            print(json.dumps(rows, indent=2))
+        else:
+            # Table format
+            col_widths = [len(v) for v in variables]
+            for row in all_rows:
+                for i, cell in enumerate(row):
+                    if i < len(col_widths):
+                        col_widths[i] = max(col_widths[i], len(cell))
+
+            header = " | ".join(
+                v.ljust(col_widths[i]) for i, v in enumerate(variables)
+            )
+            separator = "-+-".join("-" * w for w in col_widths)
+            print(header)
+            print(separator)
+            for row in all_rows:
+                line = " | ".join(
+                    cell.ljust(col_widths[i]) if i < len(col_widths) else cell
+                    for i, cell in enumerate(row)
+                )
+                print(line)
+
+    finally:
+        socket.close()
 
 
 def main():
@@ -188,6 +189,13 @@ def main():
     )
 
     parser.add_argument(
+        '-b', '--batch-size',
+        type=int,
+        default=20,
+        help='Streaming batch size (default: 20)',
+    )
+
+    parser.add_argument(
         '--format',
         choices=['table', 'json'],
         default='table',
@@ -218,6 +226,7 @@ def main():
             user=args.user,
             collection=args.collection,
             limit=args.limit,
+            batch_size=args.batch_size,
             output_format=args.format,
         )
 
