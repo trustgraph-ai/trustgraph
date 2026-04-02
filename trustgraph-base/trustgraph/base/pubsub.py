@@ -8,6 +8,12 @@ logger = logging.getLogger(__name__)
 DEFAULT_PULSAR_HOST = os.getenv("PULSAR_HOST", 'pulsar://pulsar:6650')
 DEFAULT_PULSAR_API_KEY = os.getenv("PULSAR_API_KEY", None)
 
+DEFAULT_RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", 'rabbitmq')
+DEFAULT_RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT", '5672'))
+DEFAULT_RABBITMQ_USERNAME = os.getenv("RABBITMQ_USERNAME", 'guest')
+DEFAULT_RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD", 'guest')
+DEFAULT_RABBITMQ_VHOST = os.getenv("RABBITMQ_VHOST", '/')
+
 
 def get_pubsub(**config):
     """
@@ -29,6 +35,15 @@ def get_pubsub(**config):
             api_key=config.get('pulsar_api_key', DEFAULT_PULSAR_API_KEY),
             listener=config.get('pulsar_listener'),
         )
+    elif backend_type == 'rabbitmq':
+        from .rabbitmq_backend import RabbitMQBackend
+        return RabbitMQBackend(
+            host=config.get('rabbitmq_host', DEFAULT_RABBITMQ_HOST),
+            port=config.get('rabbitmq_port', DEFAULT_RABBITMQ_PORT),
+            username=config.get('rabbitmq_username', DEFAULT_RABBITMQ_USERNAME),
+            password=config.get('rabbitmq_password', DEFAULT_RABBITMQ_PASSWORD),
+            vhost=config.get('rabbitmq_vhost', DEFAULT_RABBITMQ_VHOST),
+        )
     else:
         raise ValueError(f"Unknown pub/sub backend: {backend_type}")
 
@@ -44,8 +59,9 @@ def add_pubsub_args(parser, standalone=False):
         standalone: If True, default host is localhost (for CLI tools
                     that run outside containers)
     """
-    host = STANDALONE_PULSAR_HOST if standalone else DEFAULT_PULSAR_HOST
-    listener_default = 'localhost' if standalone else None
+    pulsar_host = STANDALONE_PULSAR_HOST if standalone else DEFAULT_PULSAR_HOST
+    pulsar_listener = 'localhost' if standalone else None
+    rabbitmq_host = 'localhost' if standalone else DEFAULT_RABBITMQ_HOST
 
     parser.add_argument(
         '--pubsub-backend',
@@ -53,10 +69,11 @@ def add_pubsub_args(parser, standalone=False):
         help='Pub/sub backend (default: pulsar, env: PUBSUB_BACKEND)',
     )
 
+    # Pulsar options
     parser.add_argument(
         '-p', '--pulsar-host',
-        default=host,
-        help=f'Pulsar host (default: {host})',
+        default=pulsar_host,
+        help=f'Pulsar host (default: {pulsar_host})',
     )
 
     parser.add_argument(
@@ -67,6 +84,38 @@ def add_pubsub_args(parser, standalone=False):
 
     parser.add_argument(
         '--pulsar-listener',
-        default=listener_default,
-        help=f'Pulsar listener (default: {listener_default or "none"})',
+        default=pulsar_listener,
+        help=f'Pulsar listener (default: {pulsar_listener or "none"})',
+    )
+
+    # RabbitMQ options
+    parser.add_argument(
+        '--rabbitmq-host',
+        default=rabbitmq_host,
+        help=f'RabbitMQ host (default: {rabbitmq_host})',
+    )
+
+    parser.add_argument(
+        '--rabbitmq-port',
+        type=int,
+        default=DEFAULT_RABBITMQ_PORT,
+        help=f'RabbitMQ port (default: {DEFAULT_RABBITMQ_PORT})',
+    )
+
+    parser.add_argument(
+        '--rabbitmq-username',
+        default=DEFAULT_RABBITMQ_USERNAME,
+        help='RabbitMQ username',
+    )
+
+    parser.add_argument(
+        '--rabbitmq-password',
+        default=DEFAULT_RABBITMQ_PASSWORD,
+        help='RabbitMQ password',
+    )
+
+    parser.add_argument(
+        '--rabbitmq-vhost',
+        default=DEFAULT_RABBITMQ_VHOST,
+        help=f'RabbitMQ vhost (default: {DEFAULT_RABBITMQ_VHOST})',
     )

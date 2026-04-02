@@ -25,8 +25,8 @@ class MockAsyncProcessor:
 class TestMistralOcrProcessor(IsolatedAsyncioTestCase):
     """Test Mistral OCR processor functionality"""
 
-    @patch('trustgraph.decoding.mistral_ocr.processor.Consumer')
-    @patch('trustgraph.decoding.mistral_ocr.processor.Producer')
+    @patch('trustgraph.base.librarian_client.Consumer')
+    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.decoding.mistral_ocr.processor.Mistral')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_processor_initialization_with_api_key(
@@ -51,8 +51,8 @@ class TestMistralOcrProcessor(IsolatedAsyncioTestCase):
         assert consumer_specs[0].name == "input"
         assert consumer_specs[0].schema == Document
 
-    @patch('trustgraph.decoding.mistral_ocr.processor.Consumer')
-    @patch('trustgraph.decoding.mistral_ocr.processor.Producer')
+    @patch('trustgraph.base.librarian_client.Consumer')
+    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_processor_initialization_without_api_key(
         self, mock_producer, mock_consumer
@@ -66,8 +66,8 @@ class TestMistralOcrProcessor(IsolatedAsyncioTestCase):
         with pytest.raises(RuntimeError, match="Mistral API key not specified"):
             Processor(**config)
 
-    @patch('trustgraph.decoding.mistral_ocr.processor.Consumer')
-    @patch('trustgraph.decoding.mistral_ocr.processor.Producer')
+    @patch('trustgraph.base.librarian_client.Consumer')
+    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.decoding.mistral_ocr.processor.Mistral')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_ocr_single_chunk(
@@ -131,8 +131,8 @@ class TestMistralOcrProcessor(IsolatedAsyncioTestCase):
         )
         mock_mistral.ocr.process.assert_called_once()
 
-    @patch('trustgraph.decoding.mistral_ocr.processor.Consumer')
-    @patch('trustgraph.decoding.mistral_ocr.processor.Producer')
+    @patch('trustgraph.base.librarian_client.Consumer')
+    @patch('trustgraph.base.librarian_client.Producer')
     @patch('trustgraph.decoding.mistral_ocr.processor.Mistral')
     @patch('trustgraph.base.async_processor.AsyncProcessor', MockAsyncProcessor)
     async def test_on_message_success(
@@ -172,7 +172,7 @@ class TestMistralOcrProcessor(IsolatedAsyncioTestCase):
         ]
 
         # Mock save_child_document
-        processor.save_child_document = AsyncMock(return_value="mock-doc-id")
+        processor.librarian.save_child_document = AsyncMock(return_value="mock-doc-id")
 
         with patch.object(processor, 'ocr', return_value=ocr_result):
             await processor.on_message(mock_msg, None, mock_flow)

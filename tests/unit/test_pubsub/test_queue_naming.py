@@ -109,6 +109,37 @@ class TestAddPubsubArgs:
         assert args.pubsub_backend == 'pulsar'
 
 
+class TestAddPubsubArgsRabbitMQ:
+
+    def test_rabbitmq_args_present(self):
+        parser = argparse.ArgumentParser()
+        add_pubsub_args(parser)
+        args = parser.parse_args([
+            '--pubsub-backend', 'rabbitmq',
+            '--rabbitmq-host', 'myhost',
+            '--rabbitmq-port', '5673',
+        ])
+        assert args.pubsub_backend == 'rabbitmq'
+        assert args.rabbitmq_host == 'myhost'
+        assert args.rabbitmq_port == 5673
+
+    def test_rabbitmq_defaults_container(self):
+        parser = argparse.ArgumentParser()
+        add_pubsub_args(parser)
+        args = parser.parse_args([])
+        assert args.rabbitmq_host == 'rabbitmq'
+        assert args.rabbitmq_port == 5672
+        assert args.rabbitmq_username == 'guest'
+        assert args.rabbitmq_password == 'guest'
+        assert args.rabbitmq_vhost == '/'
+
+    def test_rabbitmq_standalone_defaults_to_localhost(self):
+        parser = argparse.ArgumentParser()
+        add_pubsub_args(parser, standalone=True)
+        args = parser.parse_args([])
+        assert args.rabbitmq_host == 'localhost'
+
+
 class TestQueueDefinitions:
     """Verify the actual queue constants produce correct names."""
 
@@ -124,9 +155,9 @@ class TestQueueDefinitions:
         from trustgraph.schema.services.config import config_push_queue
         assert config_push_queue == 'state:tg:config'
 
-    def test_librarian_request_is_persistent(self):
+    def test_librarian_request(self):
         from trustgraph.schema.services.library import librarian_request_queue
-        assert librarian_request_queue.startswith('flow:')
+        assert librarian_request_queue == 'request:tg:librarian'
 
     def test_knowledge_request(self):
         from trustgraph.schema.knowledge.knowledge import knowledge_request_queue
