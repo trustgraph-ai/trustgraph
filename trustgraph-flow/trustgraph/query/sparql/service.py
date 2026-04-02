@@ -68,7 +68,12 @@ class Processor(FlowProcessor):
 
             response = await self.execute_sparql(request, flow)
 
-            await flow("response").send(response, properties={"id": id})
+            if request.streaming and response.query_type == "select":
+                await self.send_streaming(response, flow, id, request)
+            else:
+                await flow("response").send(
+                    response, properties={"id": id}
+                )
 
             logger.debug("SPARQL query request completed")
 
@@ -85,6 +90,33 @@ class Processor(FlowProcessor):
                 ),
             )
 
+            await flow("response").send(r, properties={"id": id})
+
+    async def send_streaming(self, response, flow, id, request):
+        """Send SELECT results in batches."""
+
+        bindings = response.bindings
+        batch_size = request.batch_size if request.batch_size > 0 else 20
+
+        for i in range(0, len(bindings), batch_size):
+            batch = bindings[i:i + batch_size]
+            is_final = (i + batch_size >= len(bindings))
+            r = SparqlQueryResponse(
+                query_type=response.query_type,
+                variables=response.variables,
+                bindings=batch,
+                is_final=is_final,
+            )
+            await flow("response").send(r, properties={"id": id})
+
+        # Handle empty results
+        if len(bindings) == 0:
+            r = SparqlQueryResponse(
+                query_type=response.query_type,
+                variables=response.variables,
+                bindings=[],
+                is_final=True,
+            )
             await flow("response").send(r, properties={"id": id})
 
     async def execute_sparql(self, request, flow):

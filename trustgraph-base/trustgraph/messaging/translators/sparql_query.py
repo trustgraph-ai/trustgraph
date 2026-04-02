@@ -16,6 +16,8 @@ class SparqlQueryRequestTranslator(MessageTranslator):
             collection=data.get("collection", "default"),
             query=data.get("query", ""),
             limit=int(data.get("limit", 10000)),
+            streaming=data.get("streaming", False),
+            batch_size=int(data.get("batch-size", 20)),
         )
 
     def encode(self, obj: SparqlQueryRequest) -> Dict[str, Any]:
@@ -24,6 +26,8 @@ class SparqlQueryRequestTranslator(MessageTranslator):
             "collection": obj.collection,
             "query": obj.query,
             "limit": obj.limit,
+            "streaming": obj.streaming,
+            "batch-size": obj.batch_size,
         }
 
 
@@ -108,4 +112,4 @@ class SparqlQueryResponseTranslator(MessageTranslator):
     def encode_with_completion(
         self, obj: SparqlQueryResponse
     ) -> Tuple[Dict[str, Any], bool]:
-        return self.encode(obj), True
+        return self.encode(obj), obj.is_final

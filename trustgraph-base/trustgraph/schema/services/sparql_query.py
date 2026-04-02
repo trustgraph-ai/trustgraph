@@ -20,6 +20,8 @@ class SparqlQueryRequest:
     collection: str = ""
     query: str = ""           # SPARQL query string
     limit: int = 10000        # Safety limit on results
+    streaming: bool = False   # Enable streaming mode
+    batch_size: int = 20      # Bindings per batch in streaming mode
 
 @dataclass
 class SparqlQueryResponse:
@@ -35,6 +37,8 @@ class SparqlQueryResponse:
 
     # For CONSTRUCT/DESCRIBE queries
     triples: list[Triple] = field(default_factory=list)
+
+    is_final: bool = True     # False for intermediate batches in streaming
 
 sparql_query_request_queue = queue('sparql-query', cls='request')
 sparql_query_response_queue = queue('sparql-query', cls='response')
