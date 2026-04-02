@@ -1,0 +1,145 @@
+post:
+  tags:
+    - Flow Services
+  summary: SPARQL query - execute SPARQL 1.1 queries against the knowledge graph
+  description: |
+    Execute a SPARQL 1.1 query against the knowledge graph.
+
+    ## Supported Query Types
+
+    - **SELECT**: Returns variable bindings as a table of results
+    - **ASK**: Returns true/false for existence checks
+    - **CONSTRUCT**: Returns a set of triples built from a template
+    - **DESCRIBE**: Returns triples describing matched resources
+
+    ## SPARQL Features
+
+    Supports standard SPARQL 1.1 features including:
+    - Basic Graph Patterns (BGPs) with triple pattern matching
+    - OPTIONAL, UNION, FILTER
+    - BIND, VALUES
+    - ORDER BY, LIMIT, OFFSET, DISTINCT
+    - GROUP BY with aggregates (COUNT, SUM, AVG, MIN, MAX, GROUP_CONCAT)
+    - Built-in functions (isIRI, STR, REGEX, CONTAINS, etc.)
+
+    ## Query Examples
+
+    Find all entities of a type:
+    ```sparql
+    SELECT ?s ?label WHERE {
+      ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.com/Person> .
+      ?s <http://www.w3.org/2000/01/rdf-schema#label> ?label .
+    }
+    LIMIT 10
+    ```
+
+    Check if an entity exists:
+    ```sparql
+    ASK { <http://example.com/alice> ?p ?o }
+    ```
+
+  operationId: sparqlQueryService
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: flow
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Flow instance ID
+      example: my-flow
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - query
+          properties:
+            query:
+              type: string
+              description: SPARQL 1.1 query string
+            user:
+              type: string
+              default: trustgraph
+              description: User/keyspace identifier
+            collection:
+              type: string
+              default: default
+              description: Collection identifier
+            limit:
+              type: integer
+              default: 10000
+              description: Safety limit on number of results
+        examples:
+          selectQuery:
+            summary: SELECT query
+            value:
+              query: "SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10"
+              user: trustgraph
+              collection: default
+          askQuery:
+            summary: ASK query
+            value:
+              query: "ASK { <http://example.com/alice> ?p ?o }"
+  responses:
+    '200':
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              query-type:
+                type: string
+                enum: [select, ask, construct, describe]
+              variables:
+                type: array
+                items:
+                  type: string
+                description: Variable names (SELECT only)
+              bindings:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    values:
+                      type: array
+                      items:
+                        $ref: '../../components/schemas/common/RdfValue.yaml'
+                description: Result rows (SELECT only)
+              ask-result:
+                type: boolean
+                description: Boolean result (ASK only)
+              triples:
+                type: array
+                description: Result triples (CONSTRUCT/DESCRIBE only)
+              error:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  message:
+                    type: string
+          examples:
+            selectResult:
+              summary: SELECT result
+              value:
+                query-type: select
+                variables: [s, p, o]
+                bindings:
+                  - values:
+                    - {t: i, i: "http://example.com/alice"}
+                    - {t: i, i: "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"}
+                    - {t: i, i: "http://example.com/Person"}
+            askResult:
+              summary: ASK result
+              value:
+                query-type: ask
+                ask-result: true
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '500':
+      $ref: '../../components/responses/Error.yaml'
