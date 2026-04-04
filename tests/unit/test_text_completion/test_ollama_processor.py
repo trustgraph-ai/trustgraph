@@ -160,7 +160,7 @@ class TestOllamaProcessorSimple(IsolatedAsyncioTestCase):
         processor = Processor(**config)
 
         # Assert
-        assert processor.default_model == 'gemma2:9b'  # default_model
+        assert processor.default_model == 'granite4:350m'  # default_model
         # Should use default_ollama (http://localhost:11434 or from OLLAMA_HOST env)
         mock_client_class.assert_called_once()
 
