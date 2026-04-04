@@ -69,7 +69,7 @@ There's no need to clone this repo, unless you want to build from source. TrustG
 npx @trustgraph/config
 ```
 
-The config process will generate app config that can be run locally with Docker, Podman, or Minikube. The process will output:
+The config process will generate an app config that can be run locally with Docker, Podman, or Minikube. The process will output:
 - `deploy.zip` with either a `docker-compose.yaml` file for a Docker/Podman or `resources.yaml` for Kubernetes
 - Deployment instructions as `INSTALLATION.md`
 
@@ -79,22 +79,6 @@ width="80%" controls></video>
 </p>
 
 For a browser based configuration, try the [Configuration Terminal](https://config-ui.demo.trustgraph.ai/). 
-
-<details>
-<summary>Table of Contents</summary>
-<br>
-
-- [**What is a Context Graph?**](#watch-what-is-a-context-graph)<br>
-- [**Context Graphs in Action**](#watch-context-graphs-in-action)<br>
-- [**Getting Started**](#getting-started-with-trustgraph)<br>
-- [**Context Cores**](#context-cores)<br>
-- [**Tech Stack**](#tech-stack)<br>
-- [**Observability & Telemetry**](#observability--telemetry)<br>
-- [**Contributing**](#contributing)<br>
-- [**License**](#license)<br>
-- [**Support & Community**](#support--community)<br>
-
-</details>
 
 ## Watch What is a Context Graph?
 
