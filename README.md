@@ -63,12 +63,14 @@ Everything else is included.
 
 ## Quickstart
 
+There's no need to clone this repo, unless you want to build from source. TrustGraph is a fully containerized app that deploys as a set of Docker containers. To configure TrustGraph on the command line:
+
 ```
 npx @trustgraph/config
 ```
 
-TrustGraph downloads as Docker containers and can be run locally with Docker, Podman, or Minikube. The config tool will generate:
-- `deploy.zip` with either a `docker-compose.yaml` file for a Docker/Podman deploy or `resources.yaml` for Kubernetes
+The config process will generate app config that can be run locally with Docker, Podman, or Minikube. The process will output:
+- `deploy.zip` with either a `docker-compose.yaml` file for a Docker/Podman or `resources.yaml` for Kubernetes
 - Deployment instructions as `INSTALLATION.md`
 
 <p align="center">
@@ -76,7 +78,7 @@ TrustGraph downloads as Docker containers and can be run locally with Docker, Po
 width="80%" controls></video>
 </p>
 
-For a browser based quickstart, try the [Configuration Terminal](https://config-ui.demo.trustgraph.ai/). 
+For a browser based configuration, try the [Configuration Terminal](https://config-ui.demo.trustgraph.ai/). 
 
 <details>
 <summary>Table of Contents</summary>
