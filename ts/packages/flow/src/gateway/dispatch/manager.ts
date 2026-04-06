@@ -152,6 +152,7 @@ export class DispatcherManager {
       !!res.endOfSession ||
       !!res.end_of_stream ||
       !!res.end_of_session ||
+      !!res.end_of_dialog ||
       !!res.eos ||
       // error responses are always final
       !!res.error

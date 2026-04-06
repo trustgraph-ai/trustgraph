@@ -70,10 +70,18 @@ export interface AgentRequest {
   question: string;
   collection?: string;
   streaming?: boolean;
+  group?: string[];
+  state?: string;
 }
 
 export interface AgentResponse {
-  answer: string;
+  /** Streaming chunk type */
+  chunk_type?: "thought" | "observation" | "answer" | "error";
+  content?: string;
+  end_of_message?: boolean;
+  end_of_dialog?: boolean;
+  /** Legacy non-streaming fields */
+  answer?: string;
   error?: TgError;
   endOfStream?: boolean;
   endOfSession?: boolean;
@@ -132,4 +140,162 @@ export interface PromptResponse {
   system: string;
   prompt: string;
   error?: TgError;
+}
+
+// ---------- Pipeline types ----------
+
+export interface PipelineMetadata {
+  id: string;
+  root: string;
+  user: string;
+  collection: string;
+}
+
+export interface TextDocument {
+  metadata: PipelineMetadata;
+  text: string;
+  documentId: string;
+}
+
+export interface Chunk {
+  metadata: PipelineMetadata;
+  chunk: string;
+  documentId: string;
+}
+
+export interface EntityContext {
+  entity: Term;
+  context: string;
+  chunkId: string;
+}
+
+export interface EntityContexts {
+  metadata: PipelineMetadata;
+  entities: EntityContext[];
+}
+
+export interface Triples {
+  metadata: PipelineMetadata;
+  triples: Triple[];
+}
+
+// ---------- Document metadata ----------
+
+export interface DocumentMetadata {
+  id: string;
+  time: number;
+  kind: string;
+  title: string;
+  comments: string;
+  user: string;
+  tags: string[];
+  parentId?: string;
+  documentType: string; // "source" | "page" | "chunk" | "extracted"
+  metadata?: Triple[];
+}
+
+export interface ProcessingMetadata {
+  id: string;
+  documentId: string;
+  time: number;
+  flow: string;
+  user: string;
+  collection: string;
+  tags: string[];
+}
+
+// ---------- Librarian ----------
+
+export type LibrarianOperation =
+  | "add-document"
+  | "remove-document"
+  | "list-documents"
+  | "get-document-metadata"
+  | "get-document-content"
+  | "add-child-document"
+  | "list-children"
+  | "add-processing"
+  | "remove-processing"
+  | "list-processing";
+
+export interface LibrarianRequest {
+  operation: LibrarianOperation;
+  documentId?: string;
+  processingId?: string;
+  documentMetadata?: DocumentMetadata;
+  processingMetadata?: ProcessingMetadata;
+  content?: string; // base64
+  user?: string;
+  collection?: string;
+}
+
+export interface LibrarianResponse {
+  error?: TgError;
+  documentMetadata?: DocumentMetadata;
+  content?: string; // base64
+  documents?: DocumentMetadata[];
+  processing?: ProcessingMetadata[];
+}
+
+// ---------- Knowledge core ----------
+
+export type KnowledgeOperation =
+  | "list-kg-cores"
+  | "get-kg-core"
+  | "delete-kg-core"
+  | "put-kg-core"
+  | "load-kg-core";
+
+export interface KnowledgeRequest {
+  operation: KnowledgeOperation;
+  user?: string;
+  id?: string;
+  flow?: string;
+  collection?: string;
+  triples?: Triple[];
+  graphEmbeddings?: { entity: Term; vectors: number[][] }[];
+}
+
+export interface KnowledgeResponse {
+  error?: TgError;
+  ids?: string[];
+  eos?: boolean;
+  triples?: Triple[];
+  graphEmbeddings?: { entity: Term; vectors: number[][] }[];
+}
+
+// ---------- Collection management ----------
+
+export type CollectionOperation =
+  | "list-collections"
+  | "update-collection"
+  | "delete-collection";
+
+export interface CollectionManagementRequest {
+  operation: CollectionOperation;
+  user?: string;
+  collection?: string;
+  name?: string;
+  description?: string;
+  tags?: string[];
+}
+
+export interface CollectionManagementResponse {
+  error?: TgError;
+  collections?: { user: string; collection: string; name: string; description: string; tags: string[] }[];
+}
+
+// ---------- Flow management ----------
+
+export type FlowOperation = "list" | "get" | "start" | "stop";
+
+export interface FlowRequest {
+  operation: FlowOperation;
+  id?: string;
+  blueprint?: string;
+}
+
+export interface FlowResponse {
+  error?: TgError;
+  flows?: { id: string; status: string; blueprint?: string }[];
 }

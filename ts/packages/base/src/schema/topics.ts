@@ -59,4 +59,20 @@ export const topics = {
   // Prompt
   promptRequest: topic("prompt-request"),
   promptResponse: topic("prompt-response"),
+
+  // Librarian (document management)
+  librarianRequest: topic("librarian-request"),
+  librarianResponse: topic("librarian-response"),
+
+  // Knowledge core management
+  knowledgeRequest: topic("knowledge-request"),
+  knowledgeResponse: topic("knowledge-response"),
+
+  // Collection management
+  collectionManagementRequest: topic("collection-management-request"),
+  collectionManagementResponse: topic("collection-management-response"),
+
+  // Flow management
+  flowRequest: topic("flow-request"),
+  flowResponse: topic("flow-response"),
 } as const;

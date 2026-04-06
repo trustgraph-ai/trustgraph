@@ -8,6 +8,7 @@ import type { PubSubBackend } from "../backend/types.js";
 import type { Spec } from "../spec/types.js";
 import type { Producer } from "../messaging/producer.js";
 import type { Consumer } from "../messaging/consumer.js";
+import type { RequestResponse } from "../messaging/request-response.js";
 
 export interface FlowDefinition {
   /** Topic overrides keyed by spec name */
@@ -19,6 +20,7 @@ export interface FlowDefinition {
 export class Flow {
   private producers = new Map<string, Producer<unknown>>();
   private consumers = new Map<string, Consumer<unknown>>();
+  private requestors = new Map<string, RequestResponse<unknown, unknown>>();
   private parameters = new Map<string, unknown>();
 
   constructor(
@@ -49,6 +51,9 @@ export class Flow {
     for (const producer of this.producers.values()) {
       await producer.stop();
     }
+    for (const rr of this.requestors.values()) {
+      await rr.stop();
+    }
   }
 
   registerProducer(name: string, producer: Producer<unknown>): void {
@@ -57,6 +62,10 @@ export class Flow {
 
   registerConsumer(name: string, consumer: Consumer<unknown>): void {
     this.consumers.set(name, consumer);
+  }
+
+  registerRequestor(name: string, rr: RequestResponse<unknown, unknown>): void {
+    this.requestors.set(name, rr);
   }
 
   setParameter(name: string, value: unknown): void {
@@ -73,6 +82,12 @@ export class Flow {
     const c = this.consumers.get(name);
     if (!c) throw new Error(`Consumer "${name}" not found in flow "${this.name}"`);
     return c as Consumer<T>;
+  }
+
+  requestor<TReq, TRes>(name: string): RequestResponse<TReq, TRes> {
+    const rr = this.requestors.get(name);
+    if (!rr) throw new Error(`Requestor "${name}" not found in flow "${this.name}"`);
+    return rr as RequestResponse<TReq, TRes>;
   }
 
   parameter<T>(name: string): T {
