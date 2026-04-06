@@ -1,0 +1,31 @@
+● Service connections: Same connection type (kind=service) where consumer's {connection-name}-request/{connection-name}-response
+  queues = provider's request/response queues
+
+  Flow connections: Same connection type (kind=flow) where they share the exact same queue value
+
+  Passive connections: Same connection type (kind=passive) where consumer's single queue value = provider's response queue value
+
+
+
+
+Interfaces...
+
+  1. Look up the interface name in the service map's interfaces definitions
+  2. Check the kind:
+
+  2. If kind = "flow":
+    - The flow class specifies a single queue string
+    - Example: "entity-contexts-load": "persistent://tg/flow/entity-contexts-load:{id}"
+    - To connect: find any processor that produces/consumes this exact queue
+
+  If kind = "service":
+    - The flow class specifies request/response queues
+    - Example: "agent": {"request": "non-persistent://tg/request/agent:{id}", "response": "non-persistent://tg/response/agent:{id}"}
+    - To connect: find any processor whose request/response queues match these
+  3. The interface definition provides:
+    - Documentation (description)
+    - Validation (ensuring correct structure based on kind)
+    - Visibility hints (for UI purposes)
+
+  So the interfaces are essentially the "public API" of a flow class - they declare which standard connection points this flow class
+  exposes, and other components can connect to these standardized interfaces without knowing the internal implementation details.

@@ -1,0 +1,28 @@
+
+name: Test pull request
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+
+  container-push:
+
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Typescript support
+        run: npm install
+
+      - name: Run tests
+        run: npm test -- --run
+
+      - name: Build
+        run: make service-package VERSION=0.0.0
