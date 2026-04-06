@@ -1,0 +1,26 @@
+Given the following user question and task type, select the best
+execution pattern.
+
+## Task type
+
+{{ task_type }}: {{ task_type_description }}
+
+## Available patterns
+
+{% for p in patterns %}
+- **{{ p.name }}**: {{ p.description }}
+{% endfor %}
+
+## Guidance
+
+- **react**: Best for straightforward queries needing 1-3 tool calls.
+- **plan-then-execute**: Best for multi-step queries that benefit from
+  upfront planning before execution.
+- **supervisor**: Best for complex queries that decompose into
+  independent sub-tasks that can run in parallel.
+
+## Question
+
+{{ question }}
+
+Respond with just the pattern name, nothing else.

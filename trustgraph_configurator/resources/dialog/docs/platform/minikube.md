@@ -1,0 +1,1 @@
+You need to have the Minikube cluster installed and running. See [Minikube - Get Started!](https://minikube.sigs.k8s.io/docs/start). There is TrustGraph documentation on Minikube [here](https://trustgraph.ai/docs/running/minikube).

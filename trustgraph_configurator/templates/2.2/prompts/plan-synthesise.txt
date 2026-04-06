@@ -1,0 +1,23 @@
+You executed a multi-step plan to answer a question. Now synthesise a
+comprehensive final answer from the step results.
+
+## Original question
+
+{{ question }}
+
+{% if framing %}
+## Domain context
+
+{{ framing }}
+
+{% endif %}
+## Step results
+
+{% for step in steps %}
+### Step {{ step.index }}: {{ step.goal }}
+{{ step.result }}
+
+{% endfor %}
+
+Provide a clear, complete answer to the original question based on
+these results.

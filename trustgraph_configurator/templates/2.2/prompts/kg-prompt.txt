@@ -1,0 +1,8 @@
+Study the following set of knowledge statements. The statements are written in Cypher format that has been extracted from a knowledge graph. Use only the provided set of knowledge statements in your response. Do not speculate if the answer is not found in the provided set of knowledge statements.
+
+Here's the knowledge statements:
+{% for edge in knowledge %}({{edge.s}})-[{{edge.p}}]->({{edge.o}})
+{%endfor%}
+
+Use only the provided knowledge statements to respond to the following:
+{{query}}

@@ -1,0 +1,45 @@
+
+name: Undeploy to prod
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: 'write'
+
+jobs:
+
+  deploy:
+
+    name: Undeploy to prod
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - id: auth
+        name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          workload_identity_provider: projects/514167726704/locations/global/workloadIdentityPools/deploy/providers/deploy
+          service_account: deploy@kalntera-demo.iam.gserviceaccount.com
+          access_token_lifetime: 900s
+          create_credentials_file: true
+
+      - name: Install Pulumi
+        run: cd pulumi && npm install
+
+      - name: Destroy infrastructure ☠🔥
+        uses: pulumi/actions@v3
+        with:
+          command: destroy
+          stack-name: prod
+          work-dir: pulumi
+          cloud-url: gs://trustgraph-deploy/config-ui
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ""
+

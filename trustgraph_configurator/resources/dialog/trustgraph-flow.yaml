@@ -1,0 +1,343 @@
+# TrustGraph Configuration Builder - Dialog Flow (State Machine)
+# Each step declares its own transitions to the next state(s)
+
+flow:
+  id: "trustgraph-config"
+  title: "TrustGraph Configuration Builder"
+  version: "1.0"
+  start: version
+
+steps:
+
+  # ─────────────────────────────────────────────────────────────
+  # Version Selection
+  # ─────────────────────────────────────────────────────────────
+  version:
+    title: "Which TrustGraph version?"
+    state_key: version
+    input:
+      type: select
+      options:
+        - label: "TrustGraph 2.2"
+          value: "2.2"
+          description: "Additional document format support"
+          badge: pre-release
+          recommended: false
+        - label: "TrustGraph 2.1"
+          value: "2.1"
+          description: "Explainability and provenance support"
+          badge: stable
+          recommended: true
+        - label: "TrustGraph 1.9"
+          value: "1.9"
+          description: "Improvements to ontology and knowledge extraction prompts"
+          badge: pre-release
+          recommended: false
+        - label: "TrustGraph 1.8"
+          value: "1.8"
+          description: "Pluggable messaging fabric, switched to Garage for object store"
+          badge: stable
+          recommended: false
+    transitions:
+      - next: platform
+
+  # ─────────────────────────────────────────────────────────────
+  # Platform Selection
+  # ─────────────────────────────────────────────────────────────
+  platform:
+    title: "Which platform?"
+    description: "Choose how you'll run the TrustGraph containers"
+    state_key: platform
+    input:
+      type: select
+      options:
+        - label: "Docker Compose"
+          value: "docker-compose"
+          icon: "docker"
+          description: "Easy to install on MacOS and Linux. Great for evaluation and learning. May not be well suited to production deployments."
+          recommended: true
+        - label: "Podman Compose"
+          value: "podman-compose"
+          icon: "podman"
+          description: "Feature-compatible with Docker Compose, default for most Linux systems. May not be well suited to production deployments."
+        - label: "Minikube"
+          value: "minikube"
+          icon: "minikube"
+          description: "Stand-alone Kubernetes for small-to-medium deployments. Good for learning Kubernetes. Single node cluster limits production use."
+        - label: "Google Kubernetes Engine (GKE)"
+          value: "gke"
+          icon: "google-cloud"
+          description: "Managed Kubernetes on Google Cloud. Production-ready with full observability and scalability."
+        - label: "AWS EKS"
+          value: "eks"
+          icon: "aws"
+          description: "Elastic Kubernetes Service on AWS infrastructure. Suitable for production deployment."
+        - label: "Azure AKS"
+          value: "aks"
+          icon: "azure"
+          description: "Azure Kubernetes Service on Microsoft infrastructure. Suitable for production deployment."
+        - label: "Scaleway Kubernetes"
+          value: "scw"
+          icon: "scaleway"
+          description: "Managed Kubernetes on Scaleway European cloud infrastructure. Suitable for production deployment."
+        - label: "OVHCloud Kubernetes"
+          value: "ovh"
+          icon: "ovhcloud"
+          description: "Managed Kubernetes on OVHCloud European infrastructure. Suitable for production deployment."
+    transitions:
+      - next: graph-store
+
+  # ─────────────────────────────────────────────────────────────
+  # Graph Store
+  # ─────────────────────────────────────────────────────────────
+  graph-store:
+    title: "Which graph store?"
+    description: "Where TrustGraph stores the knowledge graph"
+    state_key: graph_store
+    input:
+      type: select
+      options:
+        - label: "Apache Cassandra"
+          value: "cassandra"
+          icon: "cassandra"
+          description: "NoSQL database with fast read/write at scale. TrustGraph integrates a graph schema."
+          recommended: true
+        # - label: "Neo4j"
+        #   value: "neo4j"
+        #   icon: "neo4j"
+        #   description: "Native graph database with Cypher query language"
+        # - label: "Memgraph"
+        #   value: "memgraph"
+        #   icon: "memgraph"
+        #   description: "In-memory graph database with Cypher query language. High performance for real-time analytics."
+        # - label: "FalkorDB"
+        #   value: "falkordb"
+        #   icon: "falkordb"
+        #   description: "High-performance graph database optimized for low-latency queries. Based on GraphBLAS."
+    transitions:
+      - next: vector-db
+
+  # ─────────────────────────────────────────────────────────────
+  # Vector Database
+  # ─────────────────────────────────────────────────────────────
+  vector-db:
+    title: "Which vector database?"
+    description: "Stores embeddings for semantic search and RAG"
+    state_key: vector_db
+    input:
+      type: select
+      options:
+        - label: "Qdrant"
+          value: "qdrant"
+          icon: "qdrant"
+          description: "High RPS, minimal latency, fast indexing with accuracy control"
+          recommended: true
+        # - label: "Milvus"
+        #   value: "milvus"
+        #   icon: "milvus"
+        #   description: "Open-source vector database built for scale"
+        # - label: "Pinecone"
+        #   value: "pinecone"
+        #   icon: "pinecone"
+        #   description: "Managed vector database service (requires API key)"
+    transitions:
+      - next: row-store
+
+  # ─────────────────────────────────────────────────────────────
+  # Row Store
+  # ─────────────────────────────────────────────────────────────
+  row-store:
+    title: "Which row data store?"
+    description: "Storage for row/tabular data"
+    state_key: row_store
+    input:
+      type: select
+      options:
+        - label: "Apache Cassandra"
+          value: "cassandra"
+          icon: "cassandra"
+          description: "NoSQL database with fast read/write performance at scale. Used for row storage in TrustGraph."
+    transitions:
+      - next: model-deployment
+
+  # ─────────────────────────────────────────────────────────────
+  # Model Deployment
+  # ─────────────────────────────────────────────────────────────
+  model-deployment:
+    title: "How will you run the LLM?"
+    description: "Choose where the language model runs"
+    state_key: model_deployment
+    input:
+      type: select
+      options:
+        # Local / Self-hosted
+        - label: "Ollama"
+          value: "ollama"
+          icon: "ollama"
+          description: "Run LLMs locally. Bundles model weights, configs, and data into a single package. No external API dependencies."
+        - label: "Llamafile"
+          value: "llamafile"
+          icon: "llamafile"
+          description: "Single-file LLM distribution with embedded inference server. Runs on most computers with no dependencies."
+        - label: "LM Studio"
+          value: "lm-studio"
+          icon: "lm-studio"
+          description: "Easy local LLM running. Very usable, great support. Commercial, free for personal use."
+        # Cloud API Providers
+        - label: "OpenAI"
+          value: "openai"
+          icon: "openai"
+          description: "Industry-leading models (GPT-4, etc). Requires API key."
+        - label: "Claude (Anthropic)"
+          value: "claude"
+          icon: "anthropic"
+          description: "Helpful, honest, and harmless AI models. Designed to be trustworthy and reliable. Requires API key."
+        - label: "Mistral"
+          value: "mistral"
+          icon: "mistral"
+          description: "Efficient models excelling in multilingual tasks, code generation, and reasoning. Strong performance relative to size. Requires API key."
+        - label: "Cohere"
+          value: "cohere"
+          icon: "cohere"
+          description: "Cloud-agnostic AI with high security, privacy, and customization. Supports on-premises and private cloud. Requires API key."
+        # Cloud Platform Services
+        - label: "Azure AI"
+          value: "azure"
+          icon: "azure"
+          description: "Azure Endpoint Services for building, deploying, and managing AI applications. Requires Azure subscription."
+        - label: "Azure OpenAI"
+          value: "azure-openai"
+          icon: "azure"
+          description: "OpenAI models hosted on Azure infrastructure. Requires Azure subscription."
+        - label: "Amazon Bedrock"
+          value: "bedrock"
+          icon: "aws"
+          description: "Fully managed service for generative AI on AWS. Multiple model providers available. Requires AWS account."
+        - label: "Google AI Studio"
+          value: "google-ai-studio"
+          icon: "google"
+          description: "Integrated environment to prototype and experiment with Google's generative AI models. Requires Google account."
+        - label: "Vertex AI"
+          value: "vertex-ai"
+          icon: "google-cloud"
+          description: "Google Cloud platform for training and deploying ML models. Requires GCP account."
+        # Self-hosted inference servers
+        - label: "vLLM"
+          value: "vllm"
+          icon: "vllm"
+          description: "High-throughput LLM serving engine. Self-hosted with OpenAI-compatible API."
+        - label: "Text Generation Inference (TGI)"
+          value: "tgi"
+          icon: "huggingface"
+          description: "Hugging Face's production-ready inference server. Self-hosted with high performance."
+    transitions:
+      - next: max-output-tokens
+
+  # ─────────────────────────────────────────────────────────────
+  # Max Output Tokens
+  # ─────────────────────────────────────────────────────────────
+  max-output-tokens:
+    title: "Maximum output tokens?"
+    description: "Limits the length of LLM responses"
+    state_key: max_output_tokens
+    input:
+      type: number
+      default: 4096
+      min: 256
+      max: 65536
+      step: 256
+    transitions:
+      - next: ocr-enabled
+
+  # ─────────────────────────────────────────────────────────────
+  # OCR Pipelines Toggle
+  # ─────────────────────────────────────────────────────────────
+  ocr-enabled:
+    title: "Enable OCR processing?"
+    description: "Replace standard PDF decoding with Optical Character Recognition for scanned documents and images"
+    state_key: ocr.enabled
+    input:
+      type: toggle
+      default: false
+    transitions:
+      - when: "ocr.enabled = true"
+        next: ocr-engine
+      - next: embeddings-enabled
+
+  # ─────────────────────────────────────────────────────────────
+  # OCR Engine (conditional)
+  # ─────────────────────────────────────────────────────────────
+  ocr-engine:
+    title: "Which OCR engine?"
+    state_key: ocr.engine
+    input:
+      type: select
+      options:
+        - label: "PDF Decode"
+          value: "pdf-decode"
+          description: "Default configuration. Extracts text from PDFs with structured text, but does not perform OCR on images or scanned documents."
+          recommended: true
+        - label: "Tesseract"
+          value: "tesseract"
+          description: "Free, open-source embedded OCR engine. Best-in-class for free/open-source. Use with PDF documents containing image scans."
+        - label: "Mistral"
+          value: "mistral"
+          description: "Best-in-class commercial OCR service. Requires a Mistral subscription. Use with PDF documents containing image scans."
+    transitions:
+      - next: embeddings-enabled
+
+  # ─────────────────────────────────────────────────────────────
+  # Embeddings Configuration Toggle
+  # ─────────────────────────────────────────────────────────────
+  embeddings-enabled:
+    title: "Configure embeddings engine?"
+    description: "Customize the embeddings model used for semantic search"
+    state_key: embeddings.enabled
+    input:
+      type: toggle
+      default: false
+    transitions:
+      # Version gate: embeddings config not available before 1.6.0
+      - when: "version < '1.6.0'"
+        next: review
+      - when: "embeddings.enabled = true"
+        next: embeddings-engine
+      - next: review
+
+  # ─────────────────────────────────────────────────────────────
+  # Embeddings Engine (conditional)
+  # ─────────────────────────────────────────────────────────────
+  embeddings-engine:
+    title: "Which embeddings engine?"
+    state_key: embeddings.engine
+    input:
+      type: select
+      options:
+        - label: "FastEmbed"
+          value: "fastembed"
+          icon: "fastembed"
+          description: "Lightweight, fast Python library for embedding generation. Small container image and quick start time."
+          recommended: true
+        - label: "HuggingFace sentence-transformers"
+          value: "huggingface-sentence-transformers"
+          icon: "huggingface"
+          description: "Support for a large number of open/community models. Use for non-standard models. Larger container image and longer start time due to PyTorch dependencies."
+        - label: "Ollama"
+          value: "ollama"
+          icon: "ollama"
+          description: "Use Ollama for embeddings. Requires Ollama to be running with an embedding model loaded."
+    transitions:
+      - next: review
+
+  # ─────────────────────────────────────────────────────────────
+  # Review & Generate (terminal)
+  # ─────────────────────────────────────────────────────────────
+  review:
+    title: "Review your configuration"
+    type: review
+    actions:
+      - id: generate
+        label: "Generate"
+        icon: "rocket"
+        description: "Generate the configuration package as a ZIP file"
+    transitions: []  # terminal state

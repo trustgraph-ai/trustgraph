@@ -1,0 +1,1 @@
+You need to have a Scaleway account, and a running Kubernetes Kapsule cluster. You also need to be authenticated with the cluster and be able to see the cluster state. See [Scaleway Kubernetes Kapsule](https://www.scaleway.com/en/kubernetes-kapsule/).

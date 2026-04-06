@@ -1,0 +1,28 @@
+<instructions>
+Study the following text and derive definitions for any discovered entities.
+Do not provide definitions for entities whose definitions are incomplete
+or unknown.
+
+Output each definition as a separate JSON object on its own line (JSONL format).
+Each object must have fields:
+- entity: the name of the entity
+- definition: English text which defines the entity
+</instructions>
+
+<text>
+{{text}}
+</text>
+
+<requirements>
+Output format: JSONL (one JSON object per line, no array wrapper)
+- Each line must be a complete, valid JSON object
+- No commas between lines
+- No [ ] array brackets
+- No markdown formatting or prefixes
+- Do not use special characters in the definition text
+- Do not include null or unknown definitions
+
+Example output format:
+{"entity": "photosynthesis", "definition": "The process by which plants convert sunlight into energy"}
+{"entity": "chlorophyll", "definition": "Green pigment in plants that absorbs light"}
+</requirements>

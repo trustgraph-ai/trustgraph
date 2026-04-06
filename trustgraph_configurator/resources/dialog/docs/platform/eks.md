@@ -1,0 +1,1 @@
+You need to have an AWS account, and a running EKS cluster. You also need to be authenticated with the cluster and be able to see the cluster state. See [Amazon Elastic Kubernetes Service](https://aws.amazon.com/eks/).

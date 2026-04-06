@@ -1,0 +1,80 @@
+{
+    "templates": [
+	{
+            "name": "1.8",
+            "description": "Pluggable messaging fabric, switched to Garage for object store",
+            "version": "1.8.21",
+            "status": "stable"
+        },
+	{
+            "name": "1.9",
+            "description": "Ontology extraction update, JSONL output from prompts",
+            "version": "1.9.4",
+            "status": "beta"
+        },
+        {
+            "name": "2.1",
+            "description": "End-to-end provenance tracking and explainability across the knowledge pipeline — from document ingestion through extraction to query-time retrieval - every answer traceable to its source evidence",
+            "version": "2.1.26",
+            "status": "stable"
+        },
+        {
+            "name": "2.2",
+            "description": "New agent orchestration engine, extended document processing to handle more document types include MS Office types",
+            "version": "2.2.16",
+            "status": "pre-release"
+        }
+    ],
+    "platforms": [
+        {
+            "name": "podman-compose",
+            "description": "Uses podman-compose to deploy a compose file to a local Podman environment"
+        },
+        {
+            "name": "docker-compose",
+            "description": "Uses docker-compose to deploy a compose file to a local Docker installation"
+        },
+        {
+            "name": "minikube-k8s",
+            "description": "Uses kubectl to deploy resources to a Minikube Kubernetes cluster"
+        },
+        {
+            "name": "scw-k8s",
+            "description": "Uses kubectl to deploy resources to a Kubernetes cluster running in Scaleway cloud"
+        },
+        {
+            "name": "ovh-k8s",
+            "description": "Uses kubectl to deploy resources to a Kubernetes cluster running in OVHCloud"
+        },
+        {
+            "name": "gcp-k8s",
+            "description": "Uses kubectl to deploy resources to a Kubernetes cluster on Google Cloud (e.g. GKE)"
+        },
+        {
+            "name": "aks-k8s",
+            "description": "Uses kubectl to deploy resources to a Kubernetes cluster in Azure (AKS)"
+        },
+        {
+            "name": "eks-k8s",
+            "description": "Uses kubectl to deploy resources to an Kubernetes cluster running in AWS (e.g. EKS)"
+        }
+    ],
+    "statuses": [
+        {
+            "name": "pre-release",
+            "description": "Pre-release"
+        },
+        {
+            "name": "alpha",
+            "description": "Alpha"
+        },
+        {
+            "name": "beta",
+            "description": "Beta"
+        },
+        {
+            "name": "stable",
+            "description": "Stable for production use"
+        }
+    ]
+}

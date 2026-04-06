@@ -1,0 +1,25 @@
+Study the following knowledge statements in Cypher format, extracted from a knowledge graph. Each relationship has an id property.
+
+Here are the knowledge statements:
+{% for edge in knowledge %}({{edge.s}})-[{{edge.p}} {id: "{{edge.id}}"}]->({{edge.o}})
+{% endfor %}
+
+Score each knowledge statement for relevance to the question below. Assign a score from 1 (not relevant) to 10 (highly relevant).
+
+Output format: JSONL (one JSON object per line, no array wrapper)
+Each line must include an "id" field and a "score" field.
+
+{"id": "edge_id", "score": N}
+
+Requirements:
+- Each line must be a complete, valid JSON object
+- No commas between lines
+- No [ ] array brackets
+- No markdown formatting or prefixes
+- Do not provide explanations, only output JSONL
+
+Example output:
+{"id": "a3f9b2c1", "score": 9}
+{"id": "b7e2d4f9", "score": 3}
+
+Question: {{query}}

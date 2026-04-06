@@ -1,0 +1,26 @@
+[
+    {
+        "name": "bedrock",
+        "parameters": {
+            "model": "anthropic.claude-3-sonnet-20240229-v1:0"
+        }
+    },
+    {
+        "name": "embeddings-hf",
+        "parameters": {
+            "embeddings-model": "sentence-transformers/all-MiniLM-L6-v2"
+        }
+    },
+    {
+        "name": "vector-store-qdrant",
+        "parameters": {}
+    },
+    {
+        "name": "trustgraph-base",
+        "parameters": {}
+    },
+    {
+        "name": "pulsar",
+        "parameters": {}
+    }
+]

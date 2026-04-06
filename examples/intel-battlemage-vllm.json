@@ -1,0 +1,59 @@
+[
+    {
+        "name": "triple-store-cassandra",
+        "parameters": {}
+    },
+    {
+        "name": "object-store-cassandra",
+        "parameters": {}
+    },
+    {
+        "name": "pulsar",
+        "parameters": {}
+    },
+    {
+        "name": "vector-store-qdrant",
+        "parameters": {}
+    },
+    {
+        "name": "grafana",
+        "parameters": {}
+    },
+    {
+        "name": "trustgraph-base",
+        "parameters": {
+	    "text-completion-concurrency": 16,
+	    "text-completion-rag-concurrency": 16,
+	    "prompt-concurrency": 16,
+	    "prompt-rag-concurrency": 16,
+	    "kg-extraction-concurrency": 16,
+	    "embeddings-concurrency": 16,
+        }
+    },
+    {
+        "name": "override-recursive-chunker",
+        "parameters": {
+            "chunk-size": 2000,
+            "chunk-overlap": 100
+        }
+    },
+    {
+        "name": "embeddings-fastembed",
+        "parameters": {}
+    },
+    {
+        "name": "vllm",
+        "parameters": {
+            "max-output-tokens": 8192
+        }
+    },
+    {
+	"name": "hosting-intel-battlemage-vllm",
+	"parameters": {
+	    "model": "mistralai/Mistral-Nemo-Instruct-2407",
+	    "cpus": "32.0",
+	    "memory": "48G",
+	    "hf-token": "<HFTOKEN-GOES-HERE>",
+	}
+    },
+]

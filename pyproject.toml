@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trustgraph-configurator"
+dynamic = ["version"]
+authors = [
+    {name = "trustgraph.ai", email = "security@trustgraph.ai"},
+]
+description = "Configuration creator for trustgraph.ai"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "Apache-2.0"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "aiohttp",
+    "gojsonnet",
+    "pyyaml",
+    "tabulate",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-xdist>=3.0",
+    "pytest-cov>=4.0",
+    "jsonschema>=4.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/trustgraph-ai/trustgraph-configurator"
+
+[project.scripts]
+tg-build-deployment = "trustgraph_configurator:run"
+tg-config-svc = "trustgraph_configurator:run_service"
+tg-show-config-params = "trustgraph_configurator:list"
+
+[tool.setuptools.packages.find]
+include = ["trustgraph_configurator*"]
+
+[tool.setuptools.package-data]
+trustgraph_configurator = ["templates/**", "resources/**"]
+
+[tool.setuptools.dynamic]
+version = {attr = "trustgraph_configurator.__version__"}
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "validation: Output validation tests",
+    "slow: Slow-running tests",
+]
+

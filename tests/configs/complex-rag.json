@@ -1,0 +1,42 @@
+[
+    {
+        "name": "openai",
+        "parameters": {
+            "model": "gpt-4",
+            "temperature": 0.7
+        }
+    },
+    {
+        "name": "embeddings-hf",
+        "parameters": {
+            "embeddings-model": "sentence-transformers/all-MiniLM-L6-v2"
+        }
+    },
+    {
+        "name": "vector-store-qdrant",
+        "parameters": {}
+    },
+    {
+        "name": "triple-store-neo4j",
+        "parameters": {}
+    },
+    {
+        "name": "triple-store-cassandra",
+        "parameters": {}
+    },
+    {
+        "name": "override-recursive-chunker",
+        "parameters": {
+            "chunk-size": 2000,
+            "chunk-overlap": 100
+        }
+    },
+    {
+        "name": "trustgraph-base",
+        "parameters": {}
+    },
+    {
+        "name": "pulsar",
+        "parameters": {}
+    }
+]
