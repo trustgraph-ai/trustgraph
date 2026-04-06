@@ -66,7 +66,7 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
             self.create_indexes(session)
 
         # Register for config push notifications
-        self.register_config_handler(self.on_collection_config)
+        self.register_config_handler(self.on_collection_config, types=["collection"])
 
     def create_indexes(self, session):
 

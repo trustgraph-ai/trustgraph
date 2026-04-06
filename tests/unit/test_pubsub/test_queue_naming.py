@@ -153,7 +153,7 @@ class TestQueueDefinitions:
 
     def test_config_push(self):
         from trustgraph.schema.services.config import config_push_queue
-        assert config_push_queue == 'state:tg:config'
+        assert config_push_queue == 'flow:tg:config'
 
     def test_librarian_request(self):
         from trustgraph.schema.services.library import librarian_request_queue

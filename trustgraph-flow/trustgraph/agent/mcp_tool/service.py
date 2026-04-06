@@ -24,7 +24,7 @@ class Service(ToolService):
             **params
         )
 
-        self.register_config_handler(self.on_mcp_config)
+        self.register_config_handler(self.on_mcp_config, types=["mcp-tool"])
 
         self.mcp_services = {}
 

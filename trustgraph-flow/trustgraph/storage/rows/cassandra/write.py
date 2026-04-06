@@ -75,8 +75,8 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         )
 
         # Register config handlers
-        self.register_config_handler(self.on_schema_config)
-        self.register_config_handler(self.on_collection_config)
+        self.register_config_handler(self.on_schema_config, types=["schema"])
+        self.register_config_handler(self.on_collection_config, types=["collection"])
 
         # Cache of known keyspaces and whether tables exist
         self.known_keyspaces: Set[str] = set()

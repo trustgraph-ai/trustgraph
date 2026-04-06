@@ -144,7 +144,7 @@ class Processor(CollectionConfigHandler, TriplesStoreService):
         self.tg = None
 
         # Register for config push notifications
-        self.register_config_handler(self.on_collection_config)
+        self.register_config_handler(self.on_collection_config, types=["collection"])
 
     async def store_triples(self, message):
 

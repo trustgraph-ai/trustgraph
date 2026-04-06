@@ -66,8 +66,8 @@ class Processor(CollectionConfigHandler, FlowProcessor):
         )
 
         # Register config handlers
-        self.register_config_handler(self.on_schema_config)
-        self.register_config_handler(self.on_collection_config)
+        self.register_config_handler(self.on_schema_config, types=["schema"])
+        self.register_config_handler(self.on_collection_config, types=["collection"])
 
         # Schema storage: name -> RowSchema
         self.schemas: Dict[str, RowSchema] = {}

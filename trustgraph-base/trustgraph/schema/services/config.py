@@ -58,11 +58,11 @@ class ConfigResponse:
 @dataclass
 class ConfigPush:
     version: int = 0
-    config: dict[str, dict[str, str]] = field(default_factory=dict)
+    types: list[str] = field(default_factory=list)
 
 config_request_queue = queue('config', cls='request')
 config_response_queue = queue('config', cls='response')
-config_push_queue = queue('config', cls='state')
+config_push_queue = queue('config', cls='flow')
 
 ############################################################################
 

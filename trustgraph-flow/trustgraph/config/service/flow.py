@@ -126,12 +126,12 @@ class FlowConfig:
 
         await self.config.inc_version()
 
-        await self.config.push()
+        await self.config.push(types=["flow-blueprint"])
 
         return FlowResponse(
             error = None,
         )
-    
+
     async def handle_delete_blueprint(self, msg):
 
         logger.debug(f"Flow config message: {msg}")
@@ -140,7 +140,7 @@ class FlowConfig:
 
         await self.config.inc_version()
 
-        await self.config.push()
+        await self.config.push(types=["flow-blueprint"])
 
         return FlowResponse(
             error = None,
@@ -270,7 +270,7 @@ class FlowConfig:
 
         await self.config.inc_version()
 
-        await self.config.push()
+        await self.config.push(types=["active-flow", "flow"])
 
         return FlowResponse(
             error = None,
@@ -332,12 +332,12 @@ class FlowConfig:
 
         await self.config.inc_version()
 
-        await self.config.push()
+        await self.config.push(types=["active-flow", "flow"])
 
         return FlowResponse(
             error = None,
         )
-    
+
     async def handle(self, msg):
 
         logger.debug(f"Handling flow message: {msg.operation}")
