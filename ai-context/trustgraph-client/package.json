@@ -1,0 +1,66 @@
+{
+  "name": "@trustgraph/client",
+  "version": "1.6.0",
+  "description": "TypeScript client for TrustGraph",
+  "type": "module",
+  "main": "dist/index.esm.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "prettify": "prettier --write .",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "trustgraph",
+    "websocket",
+    "typescript",
+    "client"
+  ],
+  "author": "KnowNext Limited",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@eslint/js": "^9.37.0",
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-typescript": "^11.1.6",
+    "@vitest/ui": "^3.2.4",
+    "eslint": "^9.39.3",
+    "globals": "^16.4.0",
+    "happy-dom": "^20.0.10",
+    "jiti": "^2.6.1",
+    "prettier": "^3.6.2",
+    "rollup": "^4.9.0",
+    "tslib": "^2.6.2",
+    "typescript": "^5.3.3",
+    "typescript-eslint": "^8.46.0",
+    "vitest": "^3.2.4"
+  },
+  "directories": {
+    "doc": "docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/trustgraph-ai/trustgraph-client.git"
+  },
+  "bugs": {
+    "url": "https://github.com/trustgraph-ai/trustgraph-client/issues"
+  },
+  "homepage": "https://github.com/trustgraph-ai/trustgraph-client#readme"
+}
