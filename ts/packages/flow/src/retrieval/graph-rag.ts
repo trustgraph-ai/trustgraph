@@ -12,19 +12,19 @@
  */
 
 import type {
-  RequestResponse,
-  TextCompletionRequest,
-  TextCompletionResponse,
   EmbeddingsRequest,
   EmbeddingsResponse,
   GraphEmbeddingsRequest,
   GraphEmbeddingsResponse,
-  TriplesQueryRequest,
-  TriplesQueryResponse,
   PromptRequest,
   PromptResponse,
+  RequestResponse,
   Term,
+  TextCompletionRequest,
+  TextCompletionResponse,
   Triple,
+  TriplesQueryRequest,
+  TriplesQueryResponse,
 } from "@trustgraph/base";
 
 export interface GraphRagConfig {
@@ -87,9 +87,11 @@ export class GraphRag {
     const scoredEdges = await this.scoreEdges(queryText, subgraph);
 
     // Step 6: Synthesize answer
-    const answer = await this.synthesize(queryText, scoredEdges, options?.chunkCallback);
-
-    return answer;
+    return await this.synthesize(
+      queryText,
+      scoredEdges,
+      options?.chunkCallback
+    );
   }
 
   private async extractConcepts(query: string): Promise<string[]> {

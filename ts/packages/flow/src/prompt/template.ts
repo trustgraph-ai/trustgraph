@@ -45,7 +45,7 @@ export interface PromptTemplateConfig extends ProcessorConfig {
 
 export class PromptTemplateService extends FlowProcessor {
   private templates = new Map<string, PromptTemplate>();
-  private configKey: string;
+  private readonly configKey: string;
 
   constructor(config: PromptTemplateConfig) {
     super(config);

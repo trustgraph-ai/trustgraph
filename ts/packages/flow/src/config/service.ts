@@ -35,7 +35,7 @@ interface ConfigPush {
 export class ConfigService extends AsyncProcessor {
   private store = new Map<string, Map<string, unknown>>();
   private version = 0;
-  private persistPath: string | null;
+  private readonly persistPath: string | null;
   private consumer: BackendConsumer<ConfigRequest> | null = null;
   private responseProducer: BackendProducer<ConfigResponse> | null = null;
   private pushProducer: BackendProducer<ConfigPush> | null = null;

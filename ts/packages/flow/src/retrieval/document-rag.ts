@@ -31,7 +31,7 @@ export class DocumentRag {
 
   async query(
     queryText: string,
-    options?: {
+    _options?: {
       collection?: string;
       streaming?: boolean;
       chunkCallback?: ChunkCallback;

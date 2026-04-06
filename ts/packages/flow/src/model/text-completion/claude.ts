@@ -9,9 +9,9 @@ import { LlmService, type ProcessorConfig, type LlmResult, type LlmChunk, TooMan
 
 export class ClaudeProcessor extends LlmService {
   private client: Anthropic;
-  private defaultModel: string;
-  private defaultTemperature: number;
-  private maxOutput: number;
+  private readonly defaultModel: string;
+  private readonly defaultTemperature: number;
+  private readonly maxOutput: number;
 
   constructor(config: ProcessorConfig & {
     model?: string;

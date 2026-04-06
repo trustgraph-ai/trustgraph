@@ -66,10 +66,10 @@ function topicName(name: string): string {
 // ---------- Manager ----------
 
 export class DispatcherManager {
-  private pubsub: PubSubBackend;
+  private readonly pubsub: PubSubBackend;
   private requestors = new Map<string, RequestResponse<unknown, unknown>>();
 
-  constructor(private readonly config: GatewayConfig) {
+  constructor(config: GatewayConfig) {
     this.pubsub = new NatsBackend(config.natsUrl ?? "nats://localhost:4222");
   }
 
