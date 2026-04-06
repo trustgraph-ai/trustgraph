@@ -1,0 +1,28 @@
+Analyze the following text and extract both entity definitions and relationships.
+
+For definitions, extract entities and their explanations or descriptions.
+For relationships, extract subject-predicate-object triples where subjects and objects are entities, and predicates are relationship types.
+
+Text: {{text}}
+
+Output format: JSONL (one JSON object per line, no array wrapper)
+Each line must include a "type" field to distinguish between definitions and relationships.
+
+For definitions, output:
+{"type": "definition", "entity": "entity_name", "definition": "definition_text"}
+
+For relationships, output:
+{"type": "relationship", "subject": "subject_entity", "predicate": "relationship_type", "object": "object_entity_or_literal", "object-entity": true}
+
+Requirements:
+- Each line must be a complete, valid JSON object
+- No commas between lines
+- No [ ] array brackets
+- No markdown formatting or prefixes
+- Do not provide explanations, only output JSONL
+
+Example output:
+{"type": "definition", "entity": "DNA", "definition": "Deoxyribonucleic acid, a molecule carrying genetic instructions"}
+{"type": "definition", "entity": "RNA", "definition": "Ribonucleic acid, essential for coding and gene expression"}
+{"type": "relationship", "subject": "DNA", "predicate": "transcribes_to", "object": "RNA", "object-entity": true}
+{"type": "relationship", "subject": "DNA", "predicate": "located_in", "object": "cell nucleus", "object-entity": true}

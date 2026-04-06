@@ -1,0 +1,76 @@
+
+name: Deploy to prod
+
+on:
+  workflow_dispatch:
+  push:
+    # Deploys on master branch
+    branches:
+      - master
+
+permissions:
+  contents: read
+  id-token: 'write'
+  packages: read
+
+jobs:
+
+  deploy:
+
+    name: Deploy to prod
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Get version
+        id: version
+        run: echo VERSION=sha-$(git rev-parse --short HEAD) >> $GITHUB_OUTPUT
+
+      # Python package version MUST be a semantic version, but also doesn't
+      # matter, so just setting to 0.0.0.
+      # The container version MUST change on every push to get Cloud Run
+      # to re-deploy, so is based on git hash.
+      - name: Build container
+        run: make PACKAGE_VERSION=0.0.0 VERSION=${{ steps.version.outputs.VERSION }}
+
+      - name: Log in to the container registry
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: auth
+        name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          workload_identity_provider: projects/351149249312/locations/global/workloadIdentityPools/deploy/providers/github
+          service_account: deploy@trustgraph-ai.iam.gserviceaccount.com
+          access_token_lifetime: 900s
+          create_credentials_file: true
+
+      - name: Login to Artifact Registry
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: europe-west1-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - name: Install Pulumi
+        run: cd pulumi && npm install
+
+      - name: Applying infrastructure 🚀🙏
+        uses: pulumi/actions@v3
+        with:
+          command: up
+          stack-name: prod
+          work-dir: pulumi
+          cloud-url: gs://trustgraph-ai-deploy/config-svc
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ""
+          IMAGE_VERSION: ${{ steps.version.outputs.VERSION }}
+

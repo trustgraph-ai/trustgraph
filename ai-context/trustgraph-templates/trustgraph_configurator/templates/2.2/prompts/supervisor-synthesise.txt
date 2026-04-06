@@ -1,0 +1,23 @@
+You are synthesising a final answer from multiple sub-agent
+investigations.
+
+## Original question
+
+{{ question }}
+
+{% if framing %}
+## Domain context
+
+{{ framing }}
+
+{% endif %}
+## Sub-agent results
+
+{% for r in results %}
+### Sub-goal: {{ r.goal }}
+{{ r.result }}
+
+{% endfor %}
+
+Synthesise these results into a comprehensive answer to the original
+question.

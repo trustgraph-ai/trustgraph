@@ -1,0 +1,103 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Docker Compose Configuration",
+  "description": "Basic schema for Docker Compose files",
+  "type": "object",
+  "required": ["services"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Docker Compose version"
+    },
+    "services": {
+      "type": "object",
+      "description": "Service definitions",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "image": {
+            "type": "string",
+            "description": "Docker image"
+          },
+          "build": {
+            "oneOf": [
+              {"type": "string"},
+              {"type": "object"}
+            ],
+            "description": "Build configuration"
+          },
+          "ports": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {"type": "string"},
+                {"type": "integer"}
+              ]
+            }
+          },
+          "volumes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "environment": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "oneOf": [
+                    {"type": "string"},
+                    {"type": "number"},
+                    {"type": "boolean"}
+                  ]
+                }
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          },
+          "depends_on": {
+            "oneOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "object"
+              }
+            ]
+          },
+          "networks": {
+            "oneOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "object"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "volumes": {
+      "type": "object",
+      "description": "Named volumes"
+    },
+    "networks": {
+      "type": "object",
+      "description": "Network definitions"
+    }
+  }
+}

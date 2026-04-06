@@ -1,0 +1,126 @@
+You are a knowledge extraction expert. Your task is to find entities, relationships, and attributes in text based on a provided schema.
+
+## Entity Types
+
+These are the types of entities you should look for:
+
+{% for class_id, class_def in classes.items() %}
+- **{{class_id}}**{% if class_def.subclass_of %} (subclass of {{class_def.subclass_of}}){% endif %}{% if class_def.comment %}: {{class_def.comment}}{% endif %}
+{% endfor %}
+
+## Relationships
+
+These relationships connect entities to other entities:
+
+{% for prop_id, prop_def in object_properties.items() %}
+- **{{prop_id}}**{% if prop_def.domain and prop_def.range %} ({{prop_def.domain}} → {{prop_def.range}}){% endif %}{% if prop_def.comment %}: {{prop_def.comment}}{% endif %}
+{% endfor %}
+
+## Attributes
+
+These attributes describe entity properties (text, numbers, etc.):
+
+{% for prop_id, prop_def in datatype_properties.items() %}
+- **{{prop_id}}**{% if prop_def.domain and prop_def.range %} ({{prop_def.domain}} → {{prop_def.range}}){% endif %}{% if prop_def.comment %}: {{prop_def.comment}}{% endif %}
+{% endfor %}
+
+## Text to Analyze
+
+{{text}}
+
+## Your Task
+
+Extract the following from the text above:
+
+1. **Entities**: Things mentioned in the text and their types
+2. **Relationships**: How entities relate to each other
+3. **Attributes**: Properties of entities (like quantities, descriptions, etc.)
+
+## Output Format
+
+Return ONLY valid JSON (no markdown, no code blocks, no backticks) with this structure:
+
+```
+{
+  "entities": [
+    {
+      "entity": "entity name as it appears in text",
+      "type": "EntityType"
+    }
+  ],
+  "relationships": [
+    {
+      "subject": "subject entity name",
+      "subject-type": "SubjectType",
+      "relation": "relationship_name",
+      "object": "object entity name",
+      "object-type": "ObjectType"
+    }
+  ],
+  "attributes": [
+    {
+      "entity": "entity name",
+      "entity-type": "EntityType",
+      "attribute": "attribute_name",
+      "value": "literal value"
+    }
+  ]
+}
+```
+
+## Important Rules
+
+1. **Entity names**: Use the exact text as it appears (e.g., "Cornish pasty", "beef")
+2. **Types**: Use the EXACT type identifiers from the schema above (e.g., "fo/Recipe", "fo/Food")
+3. **Relationships**: Use the EXACT relationship names from the schema (e.g., "fo/has_ingredient")
+4. **Attributes**: Use the EXACT attribute names from the schema (e.g., "fo/serves")
+5. **Type disambiguation**: If the same entity name appears with different types, list it separately for each type
+6. **All arrays can be empty** if nothing is found
+
+## Example
+
+Input text: "Cornish pasty is a savory pastry filled with beef and potatoes. This recipe serves 4 people."
+
+Expected output:
+{
+  "entities": [
+    {
+      "entity": "Cornish pasty",
+      "type": "fo/Recipe"
+    },
+    {
+      "entity": "beef",
+      "type": "fo/Food"
+    },
+    {
+      "entity": "potatoes",
+      "type": "fo/Food"
+    }
+  ],
+  "relationships": [
+    {
+      "subject": "Cornish pasty",
+      "subject-type": "fo/Recipe",
+      "relation": "fo/has_ingredient",
+      "object": "beef",
+      "object-type": "fo/Food"
+    },
+    {
+      "subject": "Cornish pasty",
+      "subject-type": "fo/Recipe",
+      "relation": "fo/has_ingredient",
+      "object": "potatoes",
+      "object-type": "fo/Food"
+    }
+  ],
+  "attributes": [
+    {
+      "entity": "Cornish pasty",
+      "entity-type": "fo/Recipe",
+      "attribute": "fo/serves",
+      "value": "4 people"
+    }
+  ]
+}
+
+Now extract entities, relationships, and attributes from the text above.

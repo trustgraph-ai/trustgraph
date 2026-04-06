@@ -1,0 +1,25 @@
+Study the following knowledge statements in Cypher format, extracted from a knowledge graph. Each relationship has an id property.
+
+Here are the knowledge statements:
+{% for edge in knowledge %}({{edge.s}})-[{{edge.p}} {id: "{{edge.id}}"}]->({{edge.o}})
+{% endfor %}
+
+For each knowledge statement, explain briefly (5-10 words) why it is relevant to answering the question below.
+
+Output format: JSONL (one JSON object per line, no array wrapper)
+Each line must include an "id" field and a "reasoning" field.
+
+{"id": "edge_id", "reasoning": "brief explanation of relevance"}
+
+Requirements:
+- Each line must be a complete, valid JSON object
+- No commas between lines
+- No [ ] array brackets
+- No markdown formatting or prefixes
+- Do not provide explanations, only output JSONL
+
+Example output:
+{"id": "a3f9b2c1", "reasoning": "Establishes employment relationship relevant to query"}
+{"id": "b7e2d4f9", "reasoning": "Identifies the organisation's sector"}
+
+Question: {{query}}

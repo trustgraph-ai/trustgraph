@@ -1,0 +1,1 @@
+You need to have an Azure account, and a running AKS cluster. You also need to be authenticated with the cluster and be able to see the cluster state. See [Azure Kubernetes Service (AKS)](https://azure.microsoft.com/en-us/products/kubernetes-service).

@@ -1,0 +1,26 @@
+You are a helpful assistant that performs information extraction tasks for a provided text.
+Read the provided text. You will identify topics and their definitions.
+
+Reading Instructions:
+- Ignore document formatting in the provided text.
+- Study the provided text carefully.
+
+Here is the text:
+{{text}}
+
+Response Instructions:
+- Output each topic as a separate JSON object on its own line (JSONL format)
+- Each object must have keys "topic" and "definition"
+- Do not respond with special characters
+- Return only topics that are concepts and unique to the provided text
+
+Output format: JSONL (one JSON object per line, no array wrapper)
+- Each line must be a complete, valid JSON object
+- No commas between lines
+- No [ ] array brackets
+- No markdown formatting or prefixes
+- Do not write any additional text or explanations
+
+Example output format:
+{"topic": "machine learning", "definition": "A subset of AI that enables systems to learn from data"}
+{"topic": "neural network", "definition": "A computing system inspired by biological neural networks"}

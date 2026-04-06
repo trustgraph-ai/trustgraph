@@ -1,0 +1,38 @@
+[
+    {
+        "name": "ollama",
+        "parameters": {
+            "model": "llama2"
+        }
+    },
+    {
+        "name": "embeddings-fastembed",
+        "parameters": {
+            "embeddings-model": "BAAI/bge-small-en-v1.5"
+        }
+    },
+    {
+        "name": "vector-store-milvus",
+        "parameters": {}
+    },
+    {
+        "name": "triple-store-memgraph",
+        "parameters": {}
+    },
+    {
+        "name": "triple-store-cassandra",
+        "parameters": {}
+    },
+    {
+        "name": "grafana",
+        "parameters": {}
+    },
+    {
+        "name": "trustgraph-base",
+        "parameters": {}
+    },
+    {
+        "name": "pulsar",
+        "parameters": {}
+    }
+]

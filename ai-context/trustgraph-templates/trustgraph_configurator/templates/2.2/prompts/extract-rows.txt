@@ -1,0 +1,27 @@
+<instructions>
+Study the following text and derive objects which match the schema provided.
+
+Output each discovered object as a separate JSON object on its own line (JSONL format).
+Each object's fields must carry the name field specified in the schema.
+</instructions>
+
+<schema>
+{{schema}}
+</schema>
+
+<text>
+{{text}}
+</text>
+
+<requirements>
+Output format: JSONL (one JSON object per line, no array wrapper)
+- Each line must be a complete, valid JSON object matching the schema
+- No commas between lines
+- No [ ] array brackets
+- No markdown formatting or prefixes
+- Do not provide explanations
+
+Example output format (assuming schema has fields: name, age, city):
+{"name": "Alice", "age": 30, "city": "London"}
+{"name": "Bob", "age": 25, "city": "Paris"}
+</requirements>

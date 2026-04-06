@@ -1,0 +1,14 @@
+encryptionsalt: v1:vQGk98eEeYI=:v1:tHg+f1b66tEydgA9:J1RGVNI0FssyjSXVhcKU7bfBofNFTg==
+config:
+  config-svc:artifact-name: config-svc
+  config-svc:artifact-repo: europe-west1-docker.pkg.dev/trustgraph-ai/config-svc
+  config-svc:artifact-repo-region: europe-west1
+  config-svc:cloud-run-region: europe-west1
+  config-svc:domain: app.trustgraph.ai
+  config-svc:environment: prod
+  config-svc:gcp-project: trustgraph-ai
+  config-svc:gcp-region: europe-west1
+  config-svc:hostname: config-svc.app.trustgraph.ai
+  config-svc:managed-zone: app
+  config-svc:max-scale: "1"
+  config-svc:min-scale: "0"

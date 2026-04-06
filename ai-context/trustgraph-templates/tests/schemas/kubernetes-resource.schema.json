@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Kubernetes Resource",
+  "description": "Basic schema for Kubernetes resources",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata"],
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "description": "Kubernetes API version"
+    },
+    "kind": {
+      "type": "string",
+      "description": "Resource kind",
+      "enum": ["Deployment", "Service", "ConfigMap", "Secret", "PersistentVolumeClaim", "PersistentVolume", "Namespace", "StorageClass"]
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Resource name"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Resource namespace"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "description": "Resource specification"
+    }
+  }
+}

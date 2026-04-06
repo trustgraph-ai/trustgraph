@@ -1,0 +1,14 @@
+Given the following user question, classify it into exactly one of the \
+available task types.
+
+## Available task types
+
+{% for tt in task_types %}
+- **{{ tt.name }}**: {{ tt.description }}
+{% endfor %}
+
+## Question
+
+{{ question }}
+
+Respond with just the task type name, nothing else.

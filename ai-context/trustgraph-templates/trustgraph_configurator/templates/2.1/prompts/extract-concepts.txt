@@ -1,0 +1,12 @@
+Extract core semantic concepts from the following query. These concepts will be used for semantic search and embedding.
+
+Output one concept per line. No numbering, no bullet points, no explanation.
+
+Focus on:
+- Key nouns and noun phrases
+- Domain-specific terminology
+- Languages or time periods mentioned
+- Technical terms
+
+Query:
+{{query}}

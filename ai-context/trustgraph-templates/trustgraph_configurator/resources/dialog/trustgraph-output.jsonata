@@ -1,0 +1,175 @@
+(
+  /*
+   * TrustGraph Configuration Output Transform
+   *
+   * Input: State object collected from wizard
+   * Output: Configuration object with version, platform, and templates array
+   *
+   * Example input:
+   * {
+   *   "version": "1.8.18",
+   *   "platform": "docker-compose",
+   *   "graph_store": "cassandra",
+   *   "vector_db": "qdrant",
+   *   "row_store": "cassandra",
+   *   "model_deployment": "ollama",
+   *   "max_output_tokens": 2048,
+   *   "ocr": { "enabled": true, "engine": "tesseract" },
+   *   "embeddings": { "enabled": true, "engine": "fastembed" },
+   *   "k8s": { "namespace": "trustgraph" }
+   * }
+   */
+
+  /* ─────────────────────────────────────────────────────────────
+   * Helper: Build a component object
+   * ───────────────────────────────────────────────────────────── */
+  $component := function($name, $params) {
+    {
+      "name": $name,
+      "parameters": $params ? $params : {}
+    }
+  };
+
+  /* ─────────────────────────────────────────────────────────────
+   * Core Infrastructure Components
+   * ───────────────────────────────────────────────────────────── */
+  $infrastructure := [
+    /* Graph store */
+    $component("triple-store-" & graph_store),
+
+    /* Row store */
+    $component("row-store-" & row_store),
+
+    /* Vector database */
+    $component("vector-store-" & vector_db),
+
+    /* Messaging - always included */
+    $component("pulsar"),
+
+    /* Monitoring - always included */
+    $component("grafana")
+  ];
+
+
+  /* ─────────────────────────────────────────────────────────────
+   * Model Deployment Components
+   * ───────────────────────────────────────────────────────────── */
+  $model_components := (
+    /* Map deployment choice to component name */
+    $deployment_map := {
+      "ollama": "ollama",
+      "llamafile": "llamafile",
+      "lm-studio": "lmstudio",
+      "openai": "openai",
+      "claude": "claude",
+      "mistral": "mistral",
+      "cohere": "cohere",
+      "azure": "azure",
+      "azure-openai": "azure-openai",
+      "bedrock": "bedrock",
+      "google-ai-studio": "googleaistudio",
+      "vertex-ai": "vertexai",
+      "vllm": "vllm",
+      "tgi": "tgi"
+    };
+
+    $component_name := $lookup($deployment_map, model_deployment);
+
+    [
+      $component($component_name, {
+        "max-output-tokens": max_output_tokens
+      })
+    ]
+  );
+
+  /* ─────────────────────────────────────────────────────────────
+   * OCR Components (conditional)
+   * ───────────────────────────────────────────────────────────── */
+  $ocr_map := {
+    "tesseract": "ocr",
+    "mistral": "mistral-ocr"
+  };
+
+  $ocr_components := (
+    ocr.enabled and ocr.engine != "pdf-decode"
+    ? [
+        $component($lookup($ocr_map, ocr.engine))
+      ]
+    : []
+  );
+
+  /* ─────────────────────────────────────────────────────────────
+   * Embeddings Components (conditional)
+   * ───────────────────────────────────────────────────────────── */
+  $embeddings_map := {
+    "fastembed": "fastembed",
+    "huggingface-sentence-transformers": "hf",
+    "ollama": "ollama"
+  };
+
+  $embeddings_components := (
+    embeddings.enabled
+    ? [
+        $component("embeddings-" & $lookup($embeddings_map, embeddings.engine))
+      ]
+    : [
+        /* Default embeddings if not customized */
+        $component("embeddings-fastembed")
+      ]
+  );
+
+  /* ─────────────────────────────────────────────────────────────
+   * Base Configuration
+   * ───────────────────────────────────────────────────────────── */
+  $base_components := [
+    $component("trustgraph-base")
+  ];
+
+  /* ─────────────────────────────────────────────────────────────
+   * Assemble Templates Array
+   * ───────────────────────────────────────────────────────────── */
+  $templates := $append(
+    $append(
+      $append(
+        $append(
+          $base_components,
+          $infrastructure
+        ),
+        $model_components
+      ),
+      $ocr_components
+    ),
+    $embeddings_components
+  );
+
+  /* ─────────────────────────────────────────────────────────────
+   * Platform Mapping (dialog values to API values)
+   * ───────────────────────────────────────────────────────────── */
+  $platform_map := {
+    "docker-compose": "docker-compose",
+    "podman-compose": "podman-compose",
+    "minikube": "minikube-k8s",
+    "gke": "gcp-k8s",
+    "eks": "eks-k8s",
+    "aks": "aks-k8s",
+    "scw": "scw-k8s",
+    "ovh": "ovh-k8s"
+  };
+  $api_platform := $lookup($platform_map, platform);
+
+  /* ─────────────────────────────────────────────────────────────
+   * API Configuration
+   * ───────────────────────────────────────────────────────────── */
+  $api_base := "https://config-ui.demo.trustgraph.ai/api/generate";
+  $api_url := $api_base & "/" & $api_platform & "/" & version;
+
+  /* ─────────────────────────────────────────────────────────────
+   * Final Output
+   * ───────────────────────────────────────────────────────────── */
+  {
+    "version": version,
+    "platform": $api_platform,
+    "api_url": $api_url,
+    "templates": $templates
+  }
+)

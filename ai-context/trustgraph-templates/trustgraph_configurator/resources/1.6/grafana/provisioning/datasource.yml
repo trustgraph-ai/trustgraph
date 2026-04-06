@@ -1,0 +1,21 @@
+apiVersion: 1
+
+prune: true
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    orgId: 1
+    # <string> Sets a custom UID to reference this
+    # data source in other parts of the configuration.
+    # If not specified, Grafana generates one.
+    uid: 'f6b18033-5918-4e05-a1ca-4cb30343b129'
+
+    url: http://prometheus:9090
+
+    basicAuth: false
+    withCredentials: false
+    isDefault: true
+    editable: true
+

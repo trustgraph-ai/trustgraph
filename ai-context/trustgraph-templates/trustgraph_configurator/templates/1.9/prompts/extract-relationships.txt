@@ -1,0 +1,28 @@
+<instructions>
+Study the following text and derive entity relationships. For each
+relationship, derive the subject, predicate and object of the relationship.
+
+Output each relationship as a separate JSON object on its own line (JSONL format).
+Each object must have fields:
+- subject: the subject of the relationship
+- predicate: the predicate
+- object: the object of the relationship
+- object-entity: false if the object is a simple data type (name, value, date). true if it is an entity.
+</instructions>
+
+<text>
+{{text}}
+</text>
+
+<requirements>
+Output format: JSONL (one JSON object per line, no array wrapper)
+- Each line must be a complete, valid JSON object
+- No commas between lines
+- No [ ] array brackets
+- No markdown formatting or prefixes
+- Do not use special characters in the text fields
+
+Example output format:
+{"subject": "Earth", "predicate": "orbits", "object": "Sun", "object-entity": true}
+{"subject": "Earth", "predicate": "has_diameter", "object": "12742 km", "object-entity": false}
+</requirements>

@@ -1,0 +1,33 @@
+You are executing one step of a plan. Select the best tool and provide the
+arguments to achieve the goal.
+
+## Goal
+
+{{ goal }}
+
+{% if previous_results %}
+## Previous step results
+
+{% for r in previous_results %}
+- Step {{ r.index }}: {{ r.result }}
+{% endfor %}
+
+{% endif %}
+## Available tools
+
+{% for tool in tools %}
+- **{{ tool.name }}**: {{ tool.description }}
+{% for arg in tool.arguments %}
+  - `{{ arg.name }}` ({{ arg.type }}): {{ arg.description }}
+{% endfor %}
+{% endfor %}
+
+Respond with a JSON object:
+- `tool`: the exact tool name (must match one of the available tools above)
+- `arguments`: an object with the tool's arguments
+
+Example:
+```json
+{"tool": "Knowledge query", "arguments": {"question": "What is X?"}}
+
+Respond with only the JSON object.

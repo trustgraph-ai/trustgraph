@@ -1,0 +1,1 @@
+You need to have an OVHcloud account, and a running Managed Kubernetes cluster. You also need to be authenticated with the cluster and be able to see the cluster state. See [OVHcloud Managed Kubernetes](https://www.ovhcloud.com/en/public-cloud/kubernetes/).
