@@ -1,6 +1,6 @@
 # TrustGraph TypeScript — Full Stack
 # Usage: docker compose up -d
-# Observability UI: http://localhost:3000 (Grafana)
+# Observability UI: http://localhost:3030 (Grafana)
 
 networks:
   trustgraph:
@@ -15,6 +15,7 @@ volumes:
   loki-data:
   tempo-data:
   grafana-data:
+  librarian-data:
 
 services:
   # ---------------------------------------------------------------------------
@@ -165,7 +166,7 @@ services:
   grafana:
     image: grafana/grafana:latest
     ports:
-      - "3000:3000"
+      - "3030:3000"
     volumes:
       - ./grafana/provisioning/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
       - ./grafana/provisioning/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
@@ -280,6 +281,44 @@ services:
       - "${WORKBENCH_PORT:-3001}:80"
     depends_on:
       - gateway
+    networks:
+      - trustgraph
+    restart: unless-stopped
+
+  agent:
+    image: trustgraph-ts:local
+    command: ["node", "entrypoints/agent.mjs"]
+    environment:
+      - NATS_URL=nats://nats:4222
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - trustgraph
+    restart: unless-stopped
+
+  librarian:
+    image: trustgraph-ts:local
+    command: ["node", "entrypoints/librarian.mjs"]
+    environment:
+      - NATS_URL=nats://nats:4222
+    volumes:
+      - librarian-data:/app/data
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - trustgraph
+    restart: unless-stopped
+
+  flow-manager:
+    image: trustgraph-ts:local
+    command: ["node", "entrypoints/flow-manager.mjs"]
+    environment:
+      - NATS_URL=nats://nats:4222
+    depends_on:
+      nats:
+        condition: service_healthy
     networks:
       - trustgraph
     restart: unless-stopped

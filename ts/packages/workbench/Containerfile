@@ -7,15 +7,17 @@ FROM node:22-slim AS builder
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json tsconfig.json ./
 COPY packages/base/package.json packages/base/tsconfig.json packages/base/
 COPY packages/client/package.json packages/client/tsconfig.json packages/client/
+COPY packages/flow/package.json packages/flow/tsconfig.json packages/flow/
+COPY packages/cli/package.json packages/cli/tsconfig.json packages/cli/
+COPY packages/mcp/package.json packages/mcp/tsconfig.json packages/mcp/
 COPY packages/workbench/package.json packages/workbench/tsconfig.json packages/workbench/vite.config.ts packages/workbench/
 
 RUN pnpm install --frozen-lockfile
 
 COPY packages/ packages/
-COPY tsconfig.json ./
 RUN pnpm build --filter=@trustgraph/workbench
 
 # ---------------------------------------------------------------------------

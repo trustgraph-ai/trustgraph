@@ -9,18 +9,18 @@ RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 WORKDIR /app
 
 # Copy workspace config first for layer caching
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json tsconfig.json ./
 COPY packages/base/package.json packages/base/tsconfig.json packages/base/
 COPY packages/client/package.json packages/client/tsconfig.json packages/client/
 COPY packages/flow/package.json packages/flow/tsconfig.json packages/flow/
 COPY packages/cli/package.json packages/cli/tsconfig.json packages/cli/
 COPY packages/mcp/package.json packages/mcp/tsconfig.json packages/mcp/
+COPY packages/workbench/package.json packages/workbench/tsconfig.json packages/workbench/
 
 RUN pnpm install --frozen-lockfile
 
 # Copy source and build
 COPY packages/ packages/
-COPY tsconfig.json ./
 RUN pnpm build
 
 # ---------------------------------------------------------------------------
