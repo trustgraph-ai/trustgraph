@@ -26,7 +26,9 @@ class FlowProcessor(AsyncProcessor):
         super(FlowProcessor, self).__init__(**params)
 
         # Register configuration handler
-        self.register_config_handler(self.on_configure_flows)
+        self.register_config_handler(
+            self.on_configure_flows, types=["active-flow"]
+        )
 
         # Initialise flow information state
         self.flows = {}

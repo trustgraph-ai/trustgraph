@@ -52,7 +52,7 @@ class Processor(CollectionConfigHandler, GraphEmbeddingsStoreService):
         self.qdrant = QdrantClient(url=store_uri, api_key=api_key)
 
         # Register for config push notifications
-        self.register_config_handler(self.on_collection_config)
+        self.register_config_handler(self.on_collection_config, types=["collection"])
 
     async def store_graph_embeddings(self, message):
 
