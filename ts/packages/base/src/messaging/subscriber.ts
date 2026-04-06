@@ -111,10 +111,13 @@ export class Subscriber<T> {
   }
 
   private async dispatchLoop(): Promise<void> {
+    let consecutiveErrors = 0;
     while (this.running) {
       try {
         const msg = await this.backend!.receive(2000);
         if (!msg) continue;
+
+        consecutiveErrors = 0;
 
         const props = msg.properties();
         const id = props.id;
@@ -136,7 +139,15 @@ export class Subscriber<T> {
         await this.backend!.acknowledge(msg);
       } catch (err) {
         if (!this.running) break;
-        console.error("[Subscriber] Error:", err);
+        consecutiveErrors++;
+        if (consecutiveErrors <= 3) {
+          console.error("[Subscriber] Error:", err);
+        } else if (consecutiveErrors === 4) {
+          console.error("[Subscriber] Suppressing further errors (will retry with backoff)");
+        }
+        // Exponential backoff: 1s, 2s, 4s, max 10s
+        const delay = Math.min(1000 * Math.pow(2, consecutiveErrors - 1), 10_000);
+        await new Promise((r) => setTimeout(r, delay));
       }
     }
   }

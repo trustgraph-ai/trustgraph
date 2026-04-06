@@ -42,7 +42,7 @@ services:
   falkordb:
     image: falkordb/falkordb:latest
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - falkordb-data:/data
     networks:
@@ -111,6 +111,7 @@ services:
 
   loki:
     image: grafana/loki:3.0.0
+    user: "0"
     ports:
       - "3100:3100"
     volumes:
@@ -128,12 +129,13 @@ services:
     restart: unless-stopped
 
   tempo:
-    image: grafana/tempo:latest
+    image: grafana/tempo:2.6.1
+    user: "0"
     ports:
       - "3200:3200"   # Tempo API
     volumes:
       - ./tempo/tempo-config.yml:/etc/tempo/config.yml:ro
-      - tempo-data:/tmp/tempo
+      - tempo-data:/var/tempo
     command: ["-config.file=/etc/tempo/config.yml"]
     networks:
       - trustgraph
@@ -148,8 +150,8 @@ services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
     ports:
-      - "4317:4317"   # OTLP gRPC (apps send traces/metrics here)
-      - "4318:4318"   # OTLP HTTP
+      - "4327:4317"   # OTLP gRPC (apps send traces/metrics here)
+      - "4328:4318"   # OTLP HTTP
       - "8889:8889"   # Prometheus exporter (scraped by Prometheus)
     volumes:
       - ./otel-collector/config.yml:/etc/otelcol-contrib/config.yaml:ro

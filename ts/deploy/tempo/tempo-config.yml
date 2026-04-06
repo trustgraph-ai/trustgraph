@@ -17,33 +17,10 @@ compactor:
   compaction:
     block_retention: 48h
 
-metrics_generator:
-  registry:
-    external_labels:
-      source: tempo
-      cluster: trustgraph-dev
-  storage:
-    path: /tmp/tempo/generator/wal
-    remote_write:
-      - url: http://prometheus:9090/api/v1/write
-        send_exemplars: true
-
 storage:
   trace:
     backend: local
     wal:
-      path: /tmp/tempo/wal
+      path: /var/tempo/wal
     local:
-      path: /tmp/tempo/blocks
-
-overrides:
-  defaults:
-    metrics_generator:
-      processors:
-        - service-graphs
-        - span-metrics
-
-search_enabled: true
-
-analytics:
-  reporting_enabled: false
+      path: /var/tempo/blocks

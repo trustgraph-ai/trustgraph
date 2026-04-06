@@ -6,9 +6,15 @@
     "dev": "turbo dev",
     "lint": "turbo lint",
     "test": "turbo test",
-    "clean": "turbo clean"
+    "clean": "turbo clean",
+    "gateway": "tsx scripts/run-gateway.ts",
+    "config-svc": "tsx scripts/run-config.ts",
+    "llm:claude": "tsx scripts/run-llm-claude.ts",
+    "llm:openai": "tsx scripts/run-llm-openai.ts",
+    "test:pipeline": "tsx scripts/test-pipeline.ts"
   },
   "devDependencies": {
+    "tsx": "^4.21.0",
     "turbo": "^2.5.0",
     "typescript": "^5.8.0"
   },

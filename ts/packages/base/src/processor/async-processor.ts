@@ -24,7 +24,7 @@ export type ConfigHandler = (
 export abstract class AsyncProcessor {
   protected pubsub: PubSubBackend;
   protected running = false;
-  private configHandlers: ConfigHandler[] = [];
+  protected configHandlers: ConfigHandler[] = [];
   private shutdownCallbacks: Array<() => Promise<void>> = [];
 
   constructor(protected readonly config: ProcessorConfig) {

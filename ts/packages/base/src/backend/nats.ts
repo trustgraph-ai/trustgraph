@@ -98,38 +98,28 @@ class NatsConsumer<T> implements BackendConsumer<T> {
     private readonly subject: string,
     private readonly subscription: string,
     private readonly initialPosition: "latest" | "earliest",
+    private readonly streamName: string,
   ) {}
 
   async init(): Promise<void> {
-    // Ensure stream exists
-    const streamName = this.streamNameFromSubject(this.subject);
-    try {
-      await this.jsm.streams.info(streamName);
-    } catch {
-      await this.jsm.streams.add({
-        name: streamName,
-        subjects: [this.subject],
-      });
-    }
-
+    // Stream is already ensured by NatsBackend.ensureStream().
     // Create or bind to durable consumer.
-    // Try to get an existing durable consumer first; if it doesn't exist, create it.
     try {
-      this.consumer = await this.js.consumers.get(streamName, this.subscription);
+      this.consumer = await this.js.consumers.get(this.streamName, this.subscription);
     } catch {
       const deliverPolicy =
         this.initialPosition === "earliest"
           ? DeliverPolicy.All
           : DeliverPolicy.New;
 
-      await this.jsm.consumers.add(streamName, {
+      await this.jsm.consumers.add(this.streamName, {
         durable_name: this.subscription,
         ack_policy: AckPolicy.Explicit,
         deliver_policy: deliverPolicy,
         filter_subject: this.subject,
       });
 
-      this.consumer = await this.js.consumers.get(streamName, this.subscription);
+      this.consumer = await this.js.consumers.get(this.streamName, this.subscription);
     }
   }
 
@@ -164,18 +154,13 @@ class NatsConsumer<T> implements BackendConsumer<T> {
   async close(): Promise<void> {
     this.consumer = null;
   }
-
-  private streamNameFromSubject(subject: string): string {
-    // Convert topic like "tg.flow.text-completion" to stream name "tg_flow"
-    const parts = subject.split(".");
-    return parts.slice(0, 2).join("_");
-  }
 }
 
 export class NatsBackend implements PubSubBackend {
   private connection: NatsConnection | null = null;
   private js: JetStreamClient | null = null;
   private jsm: JetStreamManager | null = null;
+  private initializedStreams = new Set<string>();
 
   constructor(private readonly url: string = "nats://localhost:4222") {}
 
@@ -187,19 +172,46 @@ export class NatsBackend implements PubSubBackend {
     }
   }
 
+  /**
+   * Ensure the stream for a given subject exists with a wildcard filter.
+   * E.g. subject "tg.flow.config-request" → stream "tg_flow" with subjects ["tg.flow.>"]
+   */
+  private async ensureStream(subject: string): Promise<string> {
+    const parts = subject.split(".");
+    const streamName = parts.slice(0, 2).join("_");
+
+    if (this.initializedStreams.has(streamName)) return streamName;
+
+    const wildcardSubject = `${parts.slice(0, 2).join(".")}.>`;
+
+    try {
+      await this.jsm!.streams.info(streamName);
+    } catch {
+      await this.jsm!.streams.add({
+        name: streamName,
+        subjects: [wildcardSubject],
+      });
+    }
+    this.initializedStreams.add(streamName);
+    return streamName;
+  }
+
   async createProducer<T>(options: CreateProducerOptions): Promise<BackendProducer<T>> {
     await this.ensureConnected();
+    await this.ensureStream(options.topic);
     return new NatsProducer<T>(this.js!, options.topic);
   }
 
   async createConsumer<T>(options: CreateConsumerOptions): Promise<BackendConsumer<T>> {
     await this.ensureConnected();
+    const streamName = await this.ensureStream(options.topic);
     const consumer = new NatsConsumer<T>(
       this.js!,
       this.jsm!,
       options.topic,
       options.subscription,
       options.initialPosition ?? "latest",
+      streamName,
     );
     await consumer.init();
     return consumer;

@@ -24,9 +24,6 @@ query_range:
         enabled: true
         max_size_mb: 100
 
-limits_config:
-  metric_aggregation_enabled: true
-
 schema_config:
   configs:
     - from: 2024-01-01
@@ -37,16 +34,8 @@ schema_config:
         prefix: index_
         period: 24h
 
-pattern_ingester:
-  enabled: true
-  metric_aggregation:
-    loki_address: localhost:3100
-
 ruler:
   alertmanager_url: http://localhost:9093
 
 frontend:
   encoding: protobuf
-
-analytics:
-  reporting_enabled: false
