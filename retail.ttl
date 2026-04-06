@@ -1,0 +1,310 @@
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix : <http://trustgraph.ai/retail#> .
+
+# Ontology declaration
+<http://trustgraph.ai/retail> a owl:Ontology ;
+    rdfs:label "TrustGraph Retail Intelligence Ontology" ;
+    rdfs:comment "Ontology for retail ecosystem modeling: consumers, brands, retail channels, and AI agents" .
+
+# =============================================================================
+# Classes
+# =============================================================================
+
+:Consumer a owl:Class ;
+    rdfs:label "Consumer" ;
+    rdfs:comment "Individuals and segments interacting with brands through retail channels" .
+
+:Brand a owl:Class ;
+    rdfs:label "Brand" ;
+    rdfs:comment "Product brands seeking to connect with consumers through retail experiences" .
+
+:Retail a owl:Class ;
+    rdfs:label "Retail" ;
+    rdfs:comment "Channels, touchpoints, and experiences where brands meet consumers" .
+
+:Agent a owl:Class ;
+    rdfs:label "Agent" ;
+    rdfs:comment "AI agents that orchestrate personalized brand-consumer connections" .
+
+# =============================================================================
+# Datatype Properties - Consumer
+# =============================================================================
+
+:segment a owl:DatatypeProperty ;
+    rdfs:label "segment" ;
+    rdfs:domain :Consumer ;
+    rdfs:range xsd:string .
+
+:preferences a owl:DatatypeProperty ;
+    rdfs:label "preferences" ;
+    rdfs:domain :Consumer ;
+    rdfs:range xsd:string .
+
+:journeyStage a owl:DatatypeProperty ;
+    rdfs:label "journey stage" ;
+    rdfs:domain :Consumer ;
+    rdfs:range xsd:string .
+
+:lifetimeValue a owl:DatatypeProperty ;
+    rdfs:label "lifetime value" ;
+    rdfs:domain :Consumer ;
+    rdfs:range xsd:decimal .
+
+:sentiment a owl:DatatypeProperty ;
+    rdfs:label "sentiment" ;
+    rdfs:domain :Consumer ;
+    rdfs:range xsd:decimal .
+
+:size a owl:DatatypeProperty ;
+    rdfs:label "size" ;
+    rdfs:domain :Consumer ;
+    rdfs:range xsd:string .
+
+:avgSpend a owl:DatatypeProperty ;
+    rdfs:label "average spend" ;
+    rdfs:domain :Consumer ;
+    rdfs:range xsd:string .
+
+:loyalty a owl:DatatypeProperty ;
+    rdfs:label "loyalty" ;
+    rdfs:domain :Consumer ;
+    rdfs:range xsd:decimal .
+
+# =============================================================================
+# Datatype Properties - Brand
+# =============================================================================
+
+:identity a owl:DatatypeProperty ;
+    rdfs:label "identity" ;
+    rdfs:domain :Brand ;
+    rdfs:range xsd:string .
+
+:positioning a owl:DatatypeProperty ;
+    rdfs:label "positioning" ;
+    rdfs:domain :Brand ;
+    rdfs:range xsd:string .
+
+:campaigns a owl:DatatypeProperty ;
+    rdfs:label "campaigns" ;
+    rdfs:domain :Brand ;
+    rdfs:range xsd:integer .
+
+:products a owl:DatatypeProperty ;
+    rdfs:label "products" ;
+    rdfs:domain :Brand ;
+    rdfs:range xsd:string .
+
+:partnerships a owl:DatatypeProperty ;
+    rdfs:label "partnerships" ;
+    rdfs:domain :Brand ;
+    rdfs:range xsd:string .
+
+:category a owl:DatatypeProperty ;
+    rdfs:label "category" ;
+    rdfs:domain :Brand ;
+    rdfs:range xsd:string .
+
+# =============================================================================
+# Datatype Properties - Retail
+# =============================================================================
+
+:channel a owl:DatatypeProperty ;
+    rdfs:label "channel" ;
+    rdfs:domain :Retail ;
+    rdfs:range xsd:string .
+
+:location a owl:DatatypeProperty ;
+    rdfs:label "location" ;
+    rdfs:domain :Retail ;
+    rdfs:range xsd:string .
+
+:traffic a owl:DatatypeProperty ;
+    rdfs:label "traffic" ;
+    rdfs:domain :Retail ;
+    rdfs:range xsd:string .
+
+:conversionRate a owl:DatatypeProperty ;
+    rdfs:label "conversion rate" ;
+    rdfs:domain :Retail ;
+    rdfs:range xsd:string .
+
+:experienceScore a owl:DatatypeProperty ;
+    rdfs:label "experience score" ;
+    rdfs:domain :Retail ;
+    rdfs:range xsd:decimal .
+
+# =============================================================================
+# Datatype Properties - Agent
+# =============================================================================
+
+:capability a owl:DatatypeProperty ;
+    rdfs:label "capability" ;
+    rdfs:domain :Agent ;
+    rdfs:range xsd:string .
+
+:contextSources a owl:DatatypeProperty ;
+    rdfs:label "context sources" ;
+    rdfs:domain :Agent ;
+    rdfs:range xsd:string .
+
+:accuracy a owl:DatatypeProperty ;
+    rdfs:label "accuracy" ;
+    rdfs:domain :Agent ;
+    rdfs:range xsd:string .
+
+:latency a owl:DatatypeProperty ;
+    rdfs:label "latency" ;
+    rdfs:domain :Agent ;
+    rdfs:range xsd:string .
+
+:decisionsPerDay a owl:DatatypeProperty ;
+    rdfs:label "decisions per day" ;
+    rdfs:domain :Agent ;
+    rdfs:range xsd:string .
+
+# =============================================================================
+# Object Properties - Consumer <-> Brand
+# =============================================================================
+
+:hasAffinityFor a owl:ObjectProperty ;
+    rdfs:label "has affinity for" ;
+    rdfs:domain :Consumer ;
+    rdfs:range :Brand .
+
+:frequents a owl:ObjectProperty ;
+    rdfs:label "frequents" ;
+    rdfs:domain :Consumer ;
+    rdfs:range :Brand .
+
+:purchasesFrom a owl:ObjectProperty ;
+    rdfs:label "purchases from" ;
+    rdfs:domain :Consumer ;
+    rdfs:range :Brand .
+
+:advocatesFor a owl:ObjectProperty ;
+    rdfs:label "advocates for" ;
+    rdfs:domain :Consumer ;
+    rdfs:range :Brand .
+
+:loyalTo a owl:ObjectProperty ;
+    rdfs:label "loyal to" ;
+    rdfs:domain :Consumer ;
+    rdfs:range :Brand .
+
+# =============================================================================
+# Object Properties - Consumer <-> Retail
+# =============================================================================
+
+:shopsVia a owl:ObjectProperty ;
+    rdfs:label "shops via" ;
+    rdfs:domain :Consumer ;
+    rdfs:range :Retail .
+
+:discoversThrough a owl:ObjectProperty ;
+    rdfs:label "discovers through" ;
+    rdfs:domain :Consumer ;
+    rdfs:range :Retail .
+
+:experiences a owl:ObjectProperty ;
+    rdfs:label "experiences" ;
+    rdfs:domain :Consumer ;
+    rdfs:range :Retail .
+
+:memberOf a owl:ObjectProperty ;
+    rdfs:label "member of" ;
+    rdfs:domain :Consumer ;
+    rdfs:range :Retail .
+
+# =============================================================================
+# Object Properties - Brand <-> Retail
+# =============================================================================
+
+:merchandisesIn a owl:ObjectProperty ;
+    rdfs:label "merchandises in" ;
+    rdfs:domain :Brand ;
+    rdfs:range :Retail .
+
+:activatesVia a owl:ObjectProperty ;
+    rdfs:label "activates via" ;
+    rdfs:domain :Brand ;
+    rdfs:range :Retail .
+
+:promotesOn a owl:ObjectProperty ;
+    rdfs:label "promotes on" ;
+    rdfs:domain :Brand ;
+    rdfs:range :Retail .
+
+:sellsThrough a owl:ObjectProperty ;
+    rdfs:label "sells through" ;
+    rdfs:domain :Brand ;
+    rdfs:range :Retail .
+
+:rewardsVia a owl:ObjectProperty ;
+    rdfs:label "rewards via" ;
+    rdfs:domain :Brand ;
+    rdfs:range :Retail .
+
+# =============================================================================
+# Object Properties - Agent <-> Consumer
+# =============================================================================
+
+:recommendsTo a owl:ObjectProperty ;
+    rdfs:label "recommends to" ;
+    rdfs:domain :Agent ;
+    rdfs:range :Consumer .
+
+:personalizesFor a owl:ObjectProperty ;
+    rdfs:label "personalizes for" ;
+    rdfs:domain :Agent ;
+    rdfs:range :Consumer .
+
+:monitorsSentimentOf a owl:ObjectProperty ;
+    rdfs:label "monitors sentiment of" ;
+    rdfs:domain :Agent ;
+    rdfs:range :Consumer .
+
+:optimizesJourneyFor a owl:ObjectProperty ;
+    rdfs:label "optimizes journey for" ;
+    rdfs:domain :Agent ;
+    rdfs:range :Consumer .
+
+# =============================================================================
+# Object Properties - Agent <-> Brand
+# =============================================================================
+
+:orchestratesCampaignFor a owl:ObjectProperty ;
+    rdfs:label "orchestrates campaign for" ;
+    rdfs:domain :Agent ;
+    rdfs:range :Brand .
+
+:analyzesPerceptionOf a owl:ObjectProperty ;
+    rdfs:label "analyzes perception of" ;
+    rdfs:domain :Agent ;
+    rdfs:range :Brand .
+
+:curatesProductsFor a owl:ObjectProperty ;
+    rdfs:label "curates products for" ;
+    rdfs:domain :Agent ;
+    rdfs:range :Brand .
+
+# =============================================================================
+# Object Properties - Agent <-> Retail
+# =============================================================================
+
+:tailorsExperienceAt a owl:ObjectProperty ;
+    rdfs:label "tailors experience at" ;
+    rdfs:domain :Agent ;
+    rdfs:range :Retail .
+
+:deploysCampaignAt a owl:ObjectProperty ;
+    rdfs:label "deploys campaign at" ;
+    rdfs:domain :Agent ;
+    rdfs:range :Retail .
+
+:optimizesFlowAt a owl:ObjectProperty ;
+    rdfs:label "optimizes flow at" ;
+    rdfs:domain :Agent ;
+    rdfs:range :Retail .
