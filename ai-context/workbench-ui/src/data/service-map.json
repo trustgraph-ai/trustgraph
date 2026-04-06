@@ -1,0 +1,304 @@
+{
+  "interfaces": {
+    "document-load": {
+      "description": "Document loader",
+      "kind": "flow",
+      "visible": true
+    },
+    "text-load": {
+      "description": "Text document loader",
+      "kind": "flow",
+      "visible": true
+    },
+    "entity-contexts-load": {
+      "description": "Entity contexts loader",
+      "kind": "flow"
+    },
+    "triples-store": {
+      "description": "Triples loader",
+      "kind": "flow"
+    },
+    "graph-embeddings-store": {
+      "description": "Graph embeddings loader",
+      "kind": "flow"
+    },
+    "document-embeddings-store": {
+      "description": "Document embeddings loader",
+      "kind": "flow"
+    },
+    "graph-rag": {
+      "description": "GraphRAG service",
+      "kind": "service"
+    },
+    "document-rag": {
+      "description": "ChunkRAG service",
+      "kind": "service"
+    },
+    "triples": {
+      "description": "Triples query service",
+      "kind": "service"
+    },
+    "graph-embeddings": {
+      "description": "Graph embeddings service",
+      "kind": "service"
+    },
+    "document-embeddings": {
+      "description": "Document embeddings service",
+      "kind": "service"
+    },
+    "prompt": {
+      "description": "Prompt service",
+      "kind": "service"
+    },
+    "agent": {
+      "description": "Agent service",
+      "kind": "service"
+    },
+    "text-completion": {
+      "description": "Text completion service",
+      "kind": "service"
+    },
+    "objects-store": {
+      "description": "Object store",
+      "kind": "service"
+    },
+    "objects": {
+      "description": "Object query service",
+      "kind": "service"
+    },
+    "nlp-query": {
+      "description": "NLP question to GraphQL service",
+      "kind": "service"
+    },
+    "structured-query": {
+      "description": "Structured query service",
+      "kind": "service"
+    },
+    "embeddings": {
+      "description": "Embeddings service",
+      "kind": "service"
+    },
+    "mcp-tool": {
+      "description": "MCP tool service",
+      "kind": "service"
+    }
+  },
+  "connection_types": {
+    "agent-service": { "kind": "service", "description": "Agent service requests/responses" },
+    "text-completion-service": { "kind": "service", "description": "Text completion service requests/responses" },
+    "embeddings-service": { "kind": "service", "description": "Embeddings generation service requests/responses" },
+    "document-embeddings-service": { "kind": "service", "description": "Document embeddings service requests/responses" },
+    "graph-embeddings-service": { "kind": "service", "description": "Graph embeddings service requests/responses" },
+    "prompt-service": { "kind": "service", "description": "Prompt processing service requests/responses" },
+    "document-rag-service": { "kind": "service", "description": "Document RAG service requests/responses" },
+    "graph-rag-service": { "kind": "service", "description": "Graph RAG service requests/responses" },
+    "mcp-tool-service": { "kind": "service", "description": "MCP tool service requests/responses" },
+    "nlp-query-service": { "kind": "service", "description": "NLP query service requests/responses" },
+    "objects-query-service": { "kind": "service", "description": "Objects query service requests/responses" },
+    "structured-query-service": { "kind": "service", "description": "Structured query service requests/responses" },
+    "triples-service": { "kind": "service", "description": "Triples query service requests/responses" },
+
+    "document": { "kind": "flow", "description": "Raw document data" },
+    "text-document": { "kind": "flow", "description": "Text-extracted document data" },
+    "chunk": { "kind": "flow", "description": "Document chunks data" },
+    "document-embeddings": { "kind": "flow", "description": "Document embeddings storage data" },
+    "graph-embeddings": { "kind": "flow", "description": "Graph embeddings storage data" },
+    "entity-contexts": { "kind": "flow", "description": "Entity context information" },
+    "triples": { "kind": "flow", "description": "Knowledge graph triples data" },
+    "objects": { "kind": "flow", "description": "Extracted objects data" },
+    "next-step": { "kind": "flow", "description": "Next processing step data" },
+
+    "text-completion-monitoring": { "kind": "passive", "description": "Passive monitoring of text completion responses" }
+  },
+  "processors": {
+    "agent-manager": {
+      "connections": [
+        { "name": "service", "type": "agent-service", "role": "provides", "direction": "in" },
+        { "name": "graph-rag", "type": "graph-rag-service", "role": "consumes", "direction": "out" },
+        { "name": "structured-query", "type": "structured-query-service", "role": "consumes", "direction": "out" },
+        { "name": "mcp-tool", "type": "mcp-tool-service", "role": "consumes", "direction": "out" },
+        { "name": "prompt", "type": "prompt-service", "role": "consumes", "direction": "out" },
+        { "name": "text-completion", "type": "text-completion-service", "role": "consumes", "direction": "out" },
+        { "name": "next", "type": "next-step", "role": "consumes", "direction": "out" }
+      ]
+    },
+    "chunker": {
+      "connections": [
+        { "name": "input", "type": "text-document", "role": "provides", "direction": "in" },
+        { "name": "output", "type": "chunk", "role": "consumes", "direction": "out" }
+      ]
+    },
+    "de-query": {
+      "connections": [
+        { "name": "service", "type": "document-embeddings-service", "role": "provides", "direction": "in" }
+      ]
+    },
+    "de-write": {
+      "connections": [
+        { "name": "input", "type": "document-embeddings", "role": "provides", "direction": "in" }
+      ]
+    },
+    "document-embeddings": {
+      "connections": [
+        { "name": "input", "type": "chunk", "role": "provides", "direction": "in" },
+        { "name": "output", "type": "document-embeddings", "role": "consumes", "direction": "out" },
+        { "name": "embeddings", "type": "embeddings-service", "role": "consumes", "direction": "out" }
+      ]
+    },
+    "document-rag": {
+      "connections": [
+        { "name": "service", "type": "document-rag-service", "role": "provides", "direction": "in" },
+        { "name": "document-embeddings", "type": "document-embeddings-service", "role": "consumes", "direction": "out" },
+        { "name": "embeddings", "type": "embeddings-service", "role": "consumes", "direction": "out" },
+        { "name": "prompt", "type": "prompt-service", "role": "consumes", "direction": "out" }
+      ]
+    },
+    "embeddings": {
+      "connections": [
+        { "name": "service", "type": "embeddings-service", "role": "provides", "direction": "in" }
+      ]
+    },
+    "ge-query": {
+      "connections": [
+        { "name": "service", "type": "graph-embeddings-service", "role": "provides", "direction": "in" }
+      ]
+    },
+    "ge-write": {
+      "connections": [
+        { "name": "input", "type": "graph-embeddings", "role": "provides", "direction": "in" }
+      ]
+    },
+    "graph-embeddings": {
+      "connections": [
+        { "name": "input", "type": "entity-contexts", "role": "provides", "direction": "in" },
+        { "name": "output", "type": "graph-embeddings", "role": "consumes", "direction": "out" },
+        { "name": "embeddings", "type": "embeddings-service", "role": "consumes", "direction": "out" }
+      ]
+    },
+    "graph-rag": {
+      "connections": [
+        { "name": "service", "type": "graph-rag-service", "role": "provides", "direction": "in" },
+        { "name": "embeddings", "type": "embeddings-service", "role": "consumes", "direction": "out" },
+        { "name": "graph-embeddings", "type": "graph-embeddings-service", "role": "consumes", "direction": "out" },
+        { "name": "prompt", "type": "prompt-service", "role": "consumes", "direction": "out" },
+        { "name": "triples", "type": "triples-service", "role": "consumes", "direction": "out" }
+      ]
+    },
+    "kg-extract-agent": {
+      "connections": [
+        { "name": "input", "type": "chunk", "role": "provides", "direction": "in" },
+        { "name": "triples", "type": "triples", "role": "consumes", "direction": "out" },
+        { "name": "entity-contexts", "type": "entity-contexts", "role": "consumes", "direction": "in" },
+        { "name": "agent", "type": "agent-service", "role": "consumes", "direction": "out" }
+      ]
+    },
+    "kg-extract-definitions": {
+      "connections": [
+        { "name": "input", "type": "chunk", "role": "provides", "direction": "in" },
+        { "name": "triples", "type": "triples", "role": "consumes", "direction": "out" },
+        { "name": "entity-contexts", "type": "entity-contexts", "role": "consumes", "direction": "out" },
+        { "name": "prompt", "type": "prompt-service", "role": "consumes", "direction": "out" }
+      ]
+    },
+    "kg-extract-objects": {
+      "connections": [
+        { "name": "input", "type": "chunk", "role": "provides", "direction": "in" },
+        { "name": "output", "type": "objects", "role": "consumes", "direction": "out" },
+        { "name": "entity-contexts", "type": "entity-contexts", "role": "consumes", "direction": "in" },
+        { "name": "prompt", "type": "prompt-service", "role": "consumes", "direction": "out" }
+      ]
+    },
+    "kg-extract-relationships": {
+      "connections": [
+        { "name": "input", "type": "chunk", "role": "provides", "direction": "in" },
+        { "name": "triples", "type": "triples", "role": "consumes", "direction": "out" },
+        { "name": "prompt", "type": "prompt-service", "role": "consumes", "direction": "out" }
+      ]
+    },
+    "kg-store": {
+      "connections": [
+        { "name": "triples-input", "type": "triples", "role": "provides", "direction": "in" },
+        { "name": "graph-embeddings-input", "type": "graph-embeddings", "role": "consumes", "direction": "in" }
+      ]
+    },
+    "mcp-tool": {
+      "connections": [
+        { "name": "service", "type": "mcp-tool-service", "role": "provides", "direction": "in" },
+        { "name": "text-completion", "type": "text-completion-service", "role": "consumes", "direction": "out" }
+      ]
+    },
+    "metering": {
+      "connections": [
+        { "name": "input", "type": "text-completion-monitoring", "role": "provides", "direction": "in" }
+      ]
+    },
+    "metering-rag": {
+      "connections": [
+        { "name": "input", "type": "text-completion-monitoring", "role": "provides", "direction": "in" }
+      ]
+    },
+    "nlp-query": {
+      "connections": [
+        { "name": "service", "type": "nlp-query-service", "role": "provides", "direction": "in" },
+        { "name": "prompt", "type": "prompt-service", "role": "consumes", "direction": "out" }
+      ]
+    },
+    "objects-query": {
+      "connections": [
+        { "name": "service", "type": "objects-query-service", "role": "provides", "direction": "in" }
+      ]
+    },
+    "objects-write": {
+      "connections": [
+        { "name": "input", "type": "objects", "role": "provides", "direction": "in" }
+      ]
+    },
+    "pdf-decoder": {
+      "connections": [
+        { "name": "input", "type": "document", "role": "provides", "direction": "in" },
+        { "name": "output", "type": "text-document", "role": "consumes", "direction": "out" }
+      ]
+    },
+    "prompt": {
+      "connections": [
+        { "name": "service", "type": "prompt-service", "role": "provides", "direction": "in" },
+        { "name": "text-completion", "type": "text-completion-service", "role": "consumes", "direction": "out" }
+      ]
+    },
+    "prompt-rag": {
+      "connections": [
+        { "name": "service", "type": "prompt-service", "role": "provides", "direction": "in" },
+        { "name": "text-completion", "type": "text-completion-service", "role": "consumes", "direction": "out" }
+      ]
+    },
+    "structured-query": {
+      "connections": [
+        { "name": "service", "type": "structured-query-service", "role": "provides", "direction": "in" },
+        { "name": "nlp-query", "type": "nlp-query-service", "role": "consumes", "direction": "out" },
+        { "name": "objects-query", "type": "objects-query-service", "role": "consumes", "direction": "out" }
+      ]
+    },
+    "text-completion": {
+      "connections": [
+        { "name": "service", "type": "text-completion-service", "role": "provides", "direction": "in" },
+        { "name": "response", "type": "text-completion-monitoring", "role": "consumes", "direction": "out" }
+      ]
+    },
+    "text-completion-rag": {
+      "connections": [
+        { "name": "service", "type": "text-completion-service", "role": "provides", "direction": "in" },
+        { "name": "response", "type": "text-completion-monitoring", "role": "consumes", "direction": "out" }
+      ]
+    },
+    "triples-query": {
+      "connections": [
+        { "name": "service", "type": "triples-service", "role": "provides", "direction": "in" }
+      ]
+    },
+    "triples-write": {
+      "connections": [
+        { "name": "input", "type": "triples", "role": "provides", "direction": "in" }
+      ]
+    }
+  }
+}

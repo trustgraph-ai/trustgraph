@@ -1,0 +1,14 @@
+encryptionsalt: v1:vQGk98eEeYI=:v1:tHg+f1b66tEydgA9:J1RGVNI0FssyjSXVhcKU7bfBofNFTg==
+config:
+  config-ui:artifact-name: config-ui-prod
+  config-ui:artifact-repo: us-central1-docker.pkg.dev/trustgraph-demo/config-ui-prod
+  config-ui:artifact-repo-region: us-central1
+  config-ui:cloud-run-region: us-central1
+  config-ui:domain: demo.trustgraph.ai
+  config-ui:environment: prod
+  config-ui:gcp-project: trustgraph-demo
+  config-ui:gcp-region: us-central1
+  config-ui:hostname: config-ui.demo.trustgraph.ai
+  config-ui:managed-zone: demo
+  config-ui:max-scale: "2"
+  config-ui:min-scale: "0"

@@ -1,0 +1,7 @@
+*.json
+*.yaml
+*.md
+pulumi
+**/node_modules
+env
+dist
