@@ -197,82 +197,89 @@ services:
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
-  # TrustGraph Services (placeholders — will be filled in later)
+  # TrustGraph Application Services
   # ---------------------------------------------------------------------------
-  #
-  # gateway:
-  #   build:
-  #     context: ../
-  #     dockerfile: packages/base/Dockerfile
-  #     target: gateway
-  #   ports:
-  #     - "${GATEWAY_PORT:-8088}:8000"
-  #   environment:
-  #     - NATS_URL=nats://nats:4222
-  #     - FALKORDB_URL=redis://falkordb:6379
-  #     - QDRANT_URL=http://qdrant:6333
-  #     - OPENAI_TOKEN=${OPENAI_TOKEN}
-  #     - CLAUDE_KEY=${CLAUDE_KEY}
-  #     - GATEWAY_SECRET=${GATEWAY_SECRET}
-  #     - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-  #     - OTEL_SERVICE_NAME=gateway
-  #   depends_on:
-  #     nats:
-  #       condition: service_healthy
-  #     falkordb:
-  #       condition: service_healthy
-  #     qdrant:
-  #       condition: service_healthy
-  #   networks:
-  #     - trustgraph
-  #
-  # text-completion:
-  #   build:
-  #     context: ../
-  #     dockerfile: packages/base/Dockerfile
-  #     target: text-completion
-  #   environment:
-  #     - NATS_URL=nats://nats:4222
-  #     - OPENAI_TOKEN=${OPENAI_TOKEN}
-  #     - CLAUDE_KEY=${CLAUDE_KEY}
-  #     - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-  #     - OTEL_SERVICE_NAME=text-completion
-  #   depends_on:
-  #     nats:
-  #       condition: service_healthy
-  #   networks:
-  #     - trustgraph
-  #
-  # graph-rag:
-  #   build:
-  #     context: ../
-  #     dockerfile: packages/base/Dockerfile
-  #     target: graph-rag
-  #   environment:
-  #     - NATS_URL=nats://nats:4222
-  #     - FALKORDB_URL=redis://falkordb:6379
-  #     - QDRANT_URL=http://qdrant:6333
-  #     - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-  #     - OTEL_SERVICE_NAME=graph-rag
-  #   depends_on:
-  #     nats:
-  #       condition: service_healthy
-  #     falkordb:
-  #       condition: service_healthy
-  #     qdrant:
-  #       condition: service_healthy
-  #   networks:
-  #     - trustgraph
-  #
-  # workbench:
-  #   build:
-  #     context: ../
-  #     dockerfile: packages/workbench/Dockerfile
-  #   ports:
-  #     - "3001:3000"
-  #   environment:
-  #     - GATEWAY_URL=http://gateway:8000
-  #   depends_on:
-  #     - gateway
-  #   networks:
-  #     - trustgraph
+
+  gateway:
+    image: trustgraph-ts:local
+    build:
+      context: ../
+      dockerfile: Containerfile
+    command: ["node", "entrypoints/gateway.mjs"]
+    ports:
+      - "${GATEWAY_PORT:-8088}:8088"
+    environment:
+      - NATS_URL=nats://nats:4222
+      - GATEWAY_PORT=8088
+      - GATEWAY_SECRET=${GATEWAY_SECRET:-}
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - trustgraph
+    restart: unless-stopped
+
+  config-service:
+    image: trustgraph-ts:local
+    command: ["node", "entrypoints/config.mjs"]
+    environment:
+      - NATS_URL=nats://nats:4222
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - trustgraph
+    restart: unless-stopped
+
+  text-completion:
+    image: trustgraph-ts:local
+    command: ["node", "entrypoints/text-completion-openai.mjs"]
+    environment:
+      - NATS_URL=nats://nats:4222
+      - OPENAI_TOKEN=${OPENAI_TOKEN:-}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-}
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - trustgraph
+    restart: unless-stopped
+
+  prompt:
+    image: trustgraph-ts:local
+    command: ["node", "entrypoints/prompt.mjs"]
+    environment:
+      - NATS_URL=nats://nats:4222
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - trustgraph
+    restart: unless-stopped
+
+  embeddings:
+    image: trustgraph-ts:local
+    command: ["node", "entrypoints/embeddings.mjs"]
+    environment:
+      - NATS_URL=nats://nats:4222
+      - OLLAMA_URL=http://ollama:11434
+    depends_on:
+      nats:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    networks:
+      - trustgraph
+    restart: unless-stopped
+
+  workbench:
+    build:
+      context: ../
+      dockerfile: packages/workbench/Containerfile
+    ports:
+      - "${WORKBENCH_PORT:-3001}:80"
+    depends_on:
+      - gateway
+    networks:
+      - trustgraph
+    restart: unless-stopped

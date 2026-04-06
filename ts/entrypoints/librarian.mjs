@@ -1,0 +1,7 @@
+// Will work once the librarian service is merged.
+import("../packages/flow/dist/librarian/service.js")
+  .then((m) => m.run())
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });

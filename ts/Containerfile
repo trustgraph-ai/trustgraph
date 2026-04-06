@@ -1,0 +1,44 @@
+# TrustGraph TypeScript — multi-stage build for all Node.js services.
+# A single image is built once; each service overrides CMD to pick its entrypoint.
+
+# ---------------------------------------------------------------------------
+# Stage 1: Build
+# ---------------------------------------------------------------------------
+FROM node:22-slim AS builder
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+WORKDIR /app
+
+# Copy workspace config first for layer caching
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+COPY packages/base/package.json packages/base/tsconfig.json packages/base/
+COPY packages/client/package.json packages/client/tsconfig.json packages/client/
+COPY packages/flow/package.json packages/flow/tsconfig.json packages/flow/
+COPY packages/cli/package.json packages/cli/tsconfig.json packages/cli/
+COPY packages/mcp/package.json packages/mcp/tsconfig.json packages/mcp/
+
+RUN pnpm install --frozen-lockfile
+
+# Copy source and build
+COPY packages/ packages/
+COPY tsconfig.json ./
+RUN pnpm build
+
+# ---------------------------------------------------------------------------
+# Stage 2: Runtime
+# ---------------------------------------------------------------------------
+FROM node:22-slim AS runtime
+WORKDIR /app
+
+# Copy built output and production deps
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/pnpm-workspace.yaml ./
+COPY entrypoints/ ./entrypoints/
+
+# Default env
+ENV NODE_ENV=production
+ENV NATS_URL=nats://nats:4222
+
+EXPOSE 8088
+CMD ["node", "entrypoints/gateway.mjs"]
