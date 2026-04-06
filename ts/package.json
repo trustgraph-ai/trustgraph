@@ -12,9 +12,11 @@
     "llm:claude": "tsx scripts/run-llm-claude.ts",
     "llm:openai": "tsx scripts/run-llm-openai.ts",
     "test:pipeline": "tsx scripts/test-pipeline.ts",
+    "seed": "tsx scripts/seed-config.ts",
     "agent": "tsx scripts/run-agent.ts",
     "librarian": "tsx scripts/run-librarian.ts",
-    "knowledge": "tsx scripts/run-knowledge.ts"
+    "knowledge": "tsx scripts/run-knowledge.ts",
+    "flow-manager": "tsx scripts/run-flow-manager.ts"
   },
   "devDependencies": {
     "tsx": "^4.21.0",

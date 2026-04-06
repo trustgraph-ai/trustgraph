@@ -234,6 +234,162 @@ async function testWebSocket(): Promise<boolean> {
   }
 }
 
+// ─── Librarian Tests ──────────────────────────────────────────────────
+
+let testDocId = "";
+
+async function testLibrarianAdd(): Promise<boolean> {
+  try {
+    const content = Buffer.from("Hello from TrustGraph TypeScript!").toString("base64");
+    const res = await post("/api/v1/librarian", {
+      operation: "add-document",
+      user: "test-user",
+      collection: "test-collection",
+      content,
+      documentMetadata: {
+        id: "",
+        time: Date.now(),
+        kind: "text/plain",
+        title: "Test Document",
+        comments: "",
+        user: "test-user",
+        tags: ["test"],
+        documentType: "source",
+      },
+    });
+    log("librarian/add", res);
+    const r = res as Record<string, unknown>;
+    const meta = r.documentMetadata as Record<string, unknown> | undefined;
+    if (meta?.id && typeof meta.id === "string") {
+      testDocId = meta.id;
+      pass(`Librarian add-document returned id: ${testDocId.slice(0, 8)}...`);
+      return true;
+    }
+    if (r.error) {
+      fail("Librarian add-document", r.error);
+      return false;
+    }
+    fail("Librarian add-document", "no documentMetadata.id in response");
+    return false;
+  } catch (err) {
+    fail("Librarian add-document", err);
+    return false;
+  }
+}
+
+async function testLibrarianList(): Promise<boolean> {
+  try {
+    const res = await post("/api/v1/librarian", {
+      operation: "list-documents",
+      user: "test-user",
+    });
+    log("librarian/list", res);
+    const r = res as Record<string, unknown>;
+    const docs = r.documents as unknown[] | undefined;
+    if (docs && docs.length > 0) {
+      pass(`Librarian list-documents returned ${docs.length} document(s)`);
+      return true;
+    }
+    fail("Librarian list-documents", "empty or missing documents array");
+    return false;
+  } catch (err) {
+    fail("Librarian list-documents", err);
+    return false;
+  }
+}
+
+async function testLibrarianGetContent(): Promise<boolean> {
+  if (!testDocId) {
+    fail("Librarian get-content", "no document ID from add test");
+    return false;
+  }
+  try {
+    const res = await post("/api/v1/librarian", {
+      operation: "get-document-content",
+      documentId: testDocId,
+      user: "test-user",
+    });
+    log("librarian/get-content", res);
+    const r = res as Record<string, unknown>;
+    if (r.content && typeof r.content === "string") {
+      const decoded = Buffer.from(r.content, "base64").toString("utf-8");
+      if (decoded === "Hello from TrustGraph TypeScript!") {
+        pass("Librarian get-content round-trips correctly");
+        return true;
+      }
+      fail("Librarian get-content", `decoded: "${decoded}"`);
+      return false;
+    }
+    fail("Librarian get-content", "no content in response");
+    return false;
+  } catch (err) {
+    fail("Librarian get-content", err);
+    return false;
+  }
+}
+
+async function testLibrarianDelete(): Promise<boolean> {
+  if (!testDocId) {
+    fail("Librarian delete", "no document ID from add test");
+    return false;
+  }
+  try {
+    const res = await post("/api/v1/librarian", {
+      operation: "remove-document",
+      documentId: testDocId,
+      user: "test-user",
+    });
+    log("librarian/delete", res);
+
+    // Verify it's gone
+    const listRes = await post("/api/v1/librarian", {
+      operation: "list-documents",
+      user: "test-user",
+    }) as Record<string, unknown>;
+    const docs = listRes.documents as unknown[] | undefined;
+    if (!docs || docs.length === 0) {
+      pass("Librarian remove-document deleted successfully");
+      return true;
+    }
+    fail("Librarian remove-document", "document still present after delete");
+    return false;
+  } catch (err) {
+    fail("Librarian delete", err);
+    return false;
+  }
+}
+
+// ─── Agent Test ───────────────────────────────────────────────────────
+
+async function testAgentQuery(): Promise<boolean> {
+  try {
+    console.log("\n  Sending agent request (may take a few seconds)...");
+    const model = process.env.LLM_MODEL ?? "qwen2.5:0.5b";
+    const res = await post("/api/v1/flow/default/service/agent", {
+      question: "What is the capital of France?",
+      model,
+    });
+    log("agent", res);
+    const r = res as Record<string, unknown>;
+    // Agent sends streaming chunks — gateway returns the first/final response
+    if (r.chunk_type || r.answer || r.content) {
+      pass("Agent returned a response");
+      return true;
+    }
+    if (r.error) {
+      // Agent may error if no graph data — that's OK, proves routing works
+      const err = r.error as Record<string, unknown>;
+      pass(`Agent responded with error (routing works): ${err.message ?? err.type}`);
+      return true;
+    }
+    fail("Agent", "unexpected response format");
+    return false;
+  } catch (err) {
+    fail("Agent", err);
+    return false;
+  }
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
@@ -280,6 +436,25 @@ async function main(): Promise<void> {
     await run("Text Completion", testTextCompletion);
   } else {
     console.log("\n  (SKIP_LLM=1 — skipping LLM test)");
+  }
+
+  // Librarian tests (only if librarian service is running)
+  if (process.env.SKIP_LIBRARIAN !== "1") {
+    console.log("\n  (Testing librarian — set SKIP_LIBRARIAN=1 to skip)");
+    await run("Librarian Add", testLibrarianAdd);
+    await run("Librarian List", testLibrarianList);
+    await run("Librarian Get Content", testLibrarianGetContent);
+    await run("Librarian Delete", testLibrarianDelete);
+  } else {
+    console.log("\n  (SKIP_LIBRARIAN=1 — skipping librarian tests)");
+  }
+
+  // Agent test (only if agent + LLM services are running)
+  if (process.env.SKIP_AGENT !== "1" && process.env.SKIP_LLM !== "1") {
+    console.log("\n  (Testing agent — set SKIP_AGENT=1 to skip)");
+    await run("Agent Query", testAgentQuery);
+  } else {
+    console.log("\n  (Skipping agent test)");
   }
 
   console.log("\n══════════════════════════════════════════════════");

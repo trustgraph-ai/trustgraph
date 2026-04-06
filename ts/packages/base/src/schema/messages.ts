@@ -287,15 +287,14 @@ export interface CollectionManagementResponse {
 
 // ---------- Flow management ----------
 
-export type FlowOperation = "list" | "get" | "start" | "stop";
-
+// Flow request/response use kebab-case wire format to match the client.
+// Access fields via bracket notation: request["flow-id"]
 export interface FlowRequest {
-  operation: FlowOperation;
-  id?: string;
-  blueprint?: string;
+  operation: string;
+  [key: string]: unknown;
 }
 
 export interface FlowResponse {
   error?: TgError;
-  flows?: { id: string; status: string; blueprint?: string }[];
+  [key: string]: unknown;
 }

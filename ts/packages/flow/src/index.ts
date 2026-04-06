@@ -61,3 +61,6 @@ export { KnowledgeExtractService } from "./extract/knowledge-extract.js";
 
 // Knowledge core service
 export { KnowledgeCoreService, type KnowledgeCoreServiceConfig } from "./cores/service.js";
+
+// Flow manager service
+export { FlowManagerService } from "./flow-manager/service.js";
