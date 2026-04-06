@@ -96,8 +96,6 @@ async function main(): Promise<void> {
     default: {
       topics: {
         // LLM text completion
-        "request": "tg.flow.text-completion-request",
-        "response": "tg.flow.text-completion-response",
         "text-completion-request": "tg.flow.text-completion-request",
         "text-completion-response": "tg.flow.text-completion-response",
         // Prompt service
@@ -112,6 +110,9 @@ async function main(): Promise<void> {
         // Triples
         "triples-request": "tg.flow.triples-request",
         "triples-response": "tg.flow.triples-response",
+        // Agent
+        "agent-request": "tg.flow.agent-request",
+        "agent-response": "tg.flow.agent-response",
         // Chunking pipeline
         "input": "tg.flow.chunk",
         "output": "tg.flow.chunk",

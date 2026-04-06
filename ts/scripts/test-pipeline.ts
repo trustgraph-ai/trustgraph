@@ -127,15 +127,29 @@ async function testConfigDelete(): Promise<boolean> {
 
 async function testPushFlowConfig(): Promise<boolean> {
   try {
-    // Push a flow definition that LLM services will pick up
+    // Push a full flow definition with all service topic mappings
     const res = await post("/api/v1/config", {
       operation: "put",
       keys: ["flows"],
       values: {
         default: {
           topics: {
-            request: "tg.flow.text-completion-request",
-            response: "tg.flow.text-completion-response",
+            "text-completion-request": "tg.flow.text-completion-request",
+            "text-completion-response": "tg.flow.text-completion-response",
+            "prompt-request": "tg.flow.prompt-request",
+            "prompt-response": "tg.flow.prompt-response",
+            "graph-rag-request": "tg.flow.graph-rag-request",
+            "graph-rag-response": "tg.flow.graph-rag-response",
+            "document-rag-request": "tg.flow.document-rag-request",
+            "document-rag-response": "tg.flow.document-rag-response",
+            "triples-request": "tg.flow.triples-request",
+            "triples-response": "tg.flow.triples-response",
+            "agent-request": "tg.flow.agent-request",
+            "agent-response": "tg.flow.agent-response",
+            "input": "tg.flow.chunk",
+            "output": "tg.flow.chunk",
+            "triples": "tg.flow.triples",
+            "entity-contexts": "tg.flow.entity-contexts",
           },
         },
       },

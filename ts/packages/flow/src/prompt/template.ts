@@ -54,11 +54,11 @@ export class PromptTemplateService extends FlowProcessor {
 
     this.registerSpecification(
       new ConsumerSpec<PromptRequest>(
-        "request",
+        "prompt-request",
         this.onRequest.bind(this),
       ),
     );
-    this.registerSpecification(new ProducerSpec<PromptResponse>("response"));
+    this.registerSpecification(new ProducerSpec<PromptResponse>("prompt-response"));
 
     this.registerConfigHandler(this.onPromptConfig.bind(this));
 
@@ -106,7 +106,7 @@ export class PromptTemplateService extends FlowProcessor {
     const requestId = properties.id;
     if (!requestId) return;
 
-    const responseProducer = flowCtx.flow.producer<PromptResponse>("response");
+    const responseProducer = flowCtx.flow.producer<PromptResponse>("prompt-response");
 
     try {
       const template = this.templates.get(msg.name);

@@ -47,11 +47,11 @@ export class AgentService extends FlowProcessor {
 
     // Consumer: agent requests
     this.registerSpecification(
-      new ConsumerSpec<AgentRequest>("request", this.onRequest.bind(this)),
+      new ConsumerSpec<AgentRequest>("agent-request", this.onRequest.bind(this)),
     );
 
     // Producer: agent responses (streaming chunks)
-    this.registerSpecification(new ProducerSpec<AgentResponse>("response"));
+    this.registerSpecification(new ProducerSpec<AgentResponse>("agent-response"));
 
     // Request-response clients for tool execution
     this.registerSpecification(
@@ -94,7 +94,7 @@ export class AgentService extends FlowProcessor {
     const requestId = properties.id;
     if (!requestId) return;
 
-    const responseProducer = flowCtx.flow.producer<AgentResponse>("response");
+    const responseProducer = flowCtx.flow.producer<AgentResponse>("agent-response");
 
     try {
       // Build tools from flow requestors

@@ -83,14 +83,14 @@ export class LibrarianService extends AsyncProcessor {
     while (this.running) {
       try {
         // Poll librarian requests
-        const libMsg = await this.libConsumer.receive(500);
+        const libMsg = await this.libConsumer.receive(2000);
         if (libMsg) {
           await this.handleLibrarianMessage(libMsg);
           await this.libConsumer.acknowledge(libMsg);
         }
 
         // Poll collection management requests
-        const colMsg = await this.colConsumer.receive(500);
+        const colMsg = await this.colConsumer.receive(2000);
         if (colMsg) {
           await this.handleCollectionMessage(colMsg);
           await this.colConsumer.acknowledge(colMsg);

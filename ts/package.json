@@ -13,12 +13,14 @@
     "llm:openai": "tsx scripts/run-llm-openai.ts",
     "test:pipeline": "tsx scripts/test-pipeline.ts",
     "seed": "tsx scripts/seed-config.ts",
+    "prompt": "tsx scripts/run-prompt.ts",
     "agent": "tsx scripts/run-agent.ts",
     "librarian": "tsx scripts/run-librarian.ts",
     "knowledge": "tsx scripts/run-knowledge.ts",
     "flow-manager": "tsx scripts/run-flow-manager.ts"
   },
   "devDependencies": {
+    "nats": "^2.29.0",
     "tsx": "^4.21.0",
     "turbo": "^2.5.0",
     "typescript": "^5.8.0"
