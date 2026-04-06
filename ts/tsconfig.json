@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "references": [
+    { "path": "packages/base" },
+    { "path": "packages/flow" },
+    { "path": "packages/cli" },
+    { "path": "packages/mcp" }
+  ]
+}

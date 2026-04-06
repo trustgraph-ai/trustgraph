@@ -1,0 +1,25 @@
+{
+  "name": "@trustgraph/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "tg": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@trustgraph/base": "workspace:*",
+    "@trustgraph/mcp": "workspace:*",
+    "commander": "^13.1.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.1.0"
+  }
+}

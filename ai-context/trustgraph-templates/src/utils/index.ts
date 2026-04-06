@@ -1,1 +1,0 @@
-export { getLocalName } from "./uri";

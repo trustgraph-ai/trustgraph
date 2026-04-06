@@ -1,0 +1,4 @@
+export type { Spec } from "./types.js";
+export { ConsumerSpec } from "./consumer-spec.js";
+export { ProducerSpec } from "./producer-spec.js";
+export { ParameterSpec } from "./parameter-spec.js";

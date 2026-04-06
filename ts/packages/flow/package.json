@@ -1,0 +1,26 @@
+{
+  "name": "@trustgraph/flow",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@trustgraph/base": "workspace:*",
+    "openai": "^4.85.0",
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@qdrant/js-client-rest": "^1.13.0",
+    "neo4j-driver": "^5.28.0",
+    "fastify": "^5.2.0",
+    "@fastify/websocket": "^11.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0",
+    "vitest": "^3.1.0"
+  }
+}
