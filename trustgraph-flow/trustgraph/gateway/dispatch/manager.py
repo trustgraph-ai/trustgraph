@@ -116,6 +116,7 @@ class DispatcherManager:
 
         self.flows = {}
         self.dispatchers = {}
+        self.dispatcher_lock = asyncio.Lock()
 
     async def start_flow(self, id, flow):
         logger.info(f"Starting flow {id}")
@@ -163,30 +164,28 @@ class DispatcherManager:
 
         key = (None, kind)
 
-        if key in self.dispatchers:
-            return await self.dispatchers[key].process(data, responder)
+        if key not in self.dispatchers:
+            async with self.dispatcher_lock:
+                if key not in self.dispatchers:
+                    request_queue = None
+                    response_queue = None
+                    if kind in self.queue_overrides:
+                        request_queue = self.queue_overrides[kind].get("request")
+                        response_queue = self.queue_overrides[kind].get("response")
 
-        # Get queue overrides if specified for this service
-        request_queue = None
-        response_queue = None
-        if kind in self.queue_overrides:
-            request_queue = self.queue_overrides[kind].get("request")
-            response_queue = self.queue_overrides[kind].get("response")
+                    dispatcher = global_dispatchers[kind](
+                        backend = self.backend,
+                        timeout = 120,
+                        consumer = f"{self.prefix}-{kind}-request",
+                        subscriber = f"{self.prefix}-{kind}-request",
+                        request_queue = request_queue,
+                        response_queue = response_queue,
+                    )
 
-        dispatcher = global_dispatchers[kind](
-            backend = self.backend,
-            timeout = 120,
-            consumer = f"{self.prefix}-{kind}-request",
-            subscriber = f"{self.prefix}-{kind}-request",
-            request_queue = request_queue,
-            response_queue = response_queue,
-        )
+                    await dispatcher.start()
+                    self.dispatchers[key] = dispatcher
 
-        await dispatcher.start()
-
-        self.dispatchers[key] = dispatcher
-
-        return await dispatcher.process(data, responder)
+        return await self.dispatchers[key].process(data, responder)
 
     def dispatch_flow_import(self):
         return self.process_flow_import
@@ -297,36 +296,35 @@ class DispatcherManager:
 
         key = (flow, kind)
 
-        if key in self.dispatchers:
-            return await self.dispatchers[key].process(data, responder)
+        if key not in self.dispatchers:
+            async with self.dispatcher_lock:
+                if key not in self.dispatchers:
+                    intf_defs = self.flows[flow]["interfaces"]
 
-        intf_defs = self.flows[flow]["interfaces"]
+                    if kind not in intf_defs:
+                        raise RuntimeError("This kind not supported by flow")
 
-        if kind not in intf_defs:
-            raise RuntimeError("This kind not supported by flow")
+                    qconfig = intf_defs[kind]
 
-        qconfig = intf_defs[kind]
+                    if kind in request_response_dispatchers:
+                        dispatcher = request_response_dispatchers[kind](
+                            backend = self.backend,
+                            request_queue = qconfig["request"],
+                            response_queue = qconfig["response"],
+                            timeout = 120,
+                            consumer = f"{self.prefix}-{flow}-{kind}-request",
+                            subscriber = f"{self.prefix}-{flow}-{kind}-request",
+                        )
+                    elif kind in sender_dispatchers:
+                        dispatcher = sender_dispatchers[kind](
+                            backend = self.backend,
+                            queue = qconfig,
+                        )
+                    else:
+                        raise RuntimeError("Invalid kind")
 
-        if kind in request_response_dispatchers:
-            dispatcher = request_response_dispatchers[kind](
-                backend = self.backend,
-                request_queue = qconfig["request"],
-                response_queue = qconfig["response"],
-                timeout = 120,
-                consumer = f"{self.prefix}-{flow}-{kind}-request",
-                subscriber = f"{self.prefix}-{flow}-{kind}-request",
-            )
-        elif kind in sender_dispatchers:
-            dispatcher = sender_dispatchers[kind](
-                backend = self.backend,
-                queue = qconfig,
-            )
-        else:
-            raise RuntimeError("Invalid kind")
-            
-        await dispatcher.start()
+                    await dispatcher.start()
+                    self.dispatchers[key] = dispatcher
 
-        self.dispatchers[key] = dispatcher
-
-        return await dispatcher.process(data, responder)
+        return await self.dispatchers[key].process(data, responder)
 
