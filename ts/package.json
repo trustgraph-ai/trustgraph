@@ -11,12 +11,18 @@
     "config-svc": "tsx scripts/run-config.ts",
     "llm:claude": "tsx scripts/run-llm-claude.ts",
     "llm:openai": "tsx scripts/run-llm-openai.ts",
-    "test:pipeline": "tsx scripts/test-pipeline.ts"
+    "test:pipeline": "tsx scripts/test-pipeline.ts",
+    "agent": "tsx scripts/run-agent.ts",
+    "librarian": "tsx scripts/run-librarian.ts",
+    "knowledge": "tsx scripts/run-knowledge.ts"
   },
   "devDependencies": {
     "tsx": "^4.21.0",
     "turbo": "^2.5.0",
     "typescript": "^5.8.0"
   },
-  "packageManager": "pnpm@9.15.0"
+  "packageManager": "pnpm@9.15.0",
+  "workspaces": [
+    "packages/*"
+  ]
 }

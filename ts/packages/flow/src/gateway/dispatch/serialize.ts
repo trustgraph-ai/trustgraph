@@ -229,6 +229,7 @@ function deepInternalToClient(value: unknown): unknown {
 const TERM_BEARING_REQUEST_SERVICES = new Set([
   "triples",
   "knowledge",
+  "librarian",
 ]);
 
 /**
@@ -238,6 +239,7 @@ const TERM_BEARING_RESPONSE_SERVICES = new Set([
   "triples",
   "graph-embeddings",
   "knowledge",
+  "librarian",
 ]);
 
 // ---------- Top-level request / response translators ----------

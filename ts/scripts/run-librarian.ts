@@ -1,0 +1,15 @@
+/**
+ * Start the librarian service.
+ *
+ * Usage: pnpm tsx scripts/run-librarian.ts
+ *
+ * Env:
+ *   NATS_URL           (default: nats://localhost:4222)
+ *   LIBRARIAN_DATA_DIR (optional, e.g., ./data/librarian)
+ */
+import { run } from "../packages/flow/src/librarian/service.js";
+
+run().catch((err) => {
+  console.error("Librarian service failed:", err);
+  process.exit(1);
+});

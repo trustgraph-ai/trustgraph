@@ -1,0 +1,269 @@
+/**
+ * Knowledge extraction service — extracts relationships and definitions from text chunks.
+ *
+ * A FlowProcessor that:
+ * 1. Consumes Chunk messages
+ * 2. Uses prompt service + LLM to extract relationships and definitions
+ * 3. Converts extractions into RDF triples and entity contexts
+ * 4. Emits Triples and EntityContexts messages
+ *
+ * Python reference: trustgraph-flow/trustgraph/extract/knowledge/service.py
+ */
+
+import {
+  FlowProcessor,
+  ConsumerSpec,
+  ProducerSpec,
+  RequestResponseSpec,
+  type ProcessorConfig,
+  type FlowContext,
+  type Chunk,
+  type Triples,
+  type EntityContexts,
+  type EntityContext,
+  type PromptRequest,
+  type PromptResponse,
+  type TextCompletionRequest,
+  type TextCompletionResponse,
+  type Triple,
+  type Term,
+} from "@trustgraph/base";
+
+// Well-known RDF/SKOS IRIs
+const RDFS_LABEL = "http://www.w3.org/2000/01/rdf-schema#label";
+const SKOS_DEFINITION = "http://www.w3.org/2004/02/skos/core#definition";
+
+interface ExtractedRelationship {
+  subject: string;
+  predicate: string;
+  object: string;
+}
+
+interface ExtractedDefinition {
+  entity: string;
+  definition: string;
+}
+
+export class KnowledgeExtractService extends FlowProcessor {
+  constructor(config: ProcessorConfig) {
+    super(config);
+
+    this.registerSpecification(
+      new ConsumerSpec<Chunk>("input", this.onMessage.bind(this)),
+    );
+    this.registerSpecification(new ProducerSpec<Triples>("triples"));
+    this.registerSpecification(new ProducerSpec<EntityContexts>("entity-contexts"));
+
+    this.registerSpecification(
+      new RequestResponseSpec<PromptRequest, PromptResponse>(
+        "prompt-client",
+        "prompt-request",
+        "prompt-response",
+      ),
+    );
+    this.registerSpecification(
+      new RequestResponseSpec<TextCompletionRequest, TextCompletionResponse>(
+        "llm-client",
+        "text-completion-request",
+        "text-completion-response",
+      ),
+    );
+
+    console.log("[KnowledgeExtract] Service initialized");
+  }
+
+  private async onMessage(
+    msg: Chunk,
+    properties: Record<string, string>,
+    flowCtx: FlowContext,
+  ): Promise<void> {
+    const requestId = properties.id;
+    if (!requestId) return;
+
+    const text = msg.chunk;
+    if (!text || text.trim().length === 0) return;
+
+    const promptClient = flowCtx.flow.requestor<PromptRequest, PromptResponse>("prompt-client");
+    const llmClient = flowCtx.flow.requestor<TextCompletionRequest, TextCompletionResponse>("llm-client");
+    const triplesProducer = flowCtx.flow.producer<Triples>("triples");
+    const entityContextsProducer = flowCtx.flow.producer<EntityContexts>("entity-contexts");
+
+    const allTriples: Triple[] = [];
+    const allEntityContexts: EntityContext[] = [];
+
+    // --- Extract relationships ---
+    try {
+      const relPrompt = await promptClient.request({
+        name: "extract-relationships",
+        variables: { text },
+      });
+
+      if (!relPrompt.error) {
+        const relCompletion = await llmClient.request({
+          system: relPrompt.system,
+          prompt: relPrompt.prompt,
+        });
+
+        if (!relCompletion.error && relCompletion.response) {
+          const relationships = parseJsonResponse<ExtractedRelationship[]>(relCompletion.response);
+
+          if (relationships) {
+            for (const rel of relationships) {
+              if (!rel.subject || !rel.predicate || !rel.object) continue;
+
+              const subjectIri = toEntityIri(rel.subject);
+              const predicateIri = toEntityIri(rel.predicate);
+              const objectIri = toEntityIri(rel.object);
+
+              // Main relationship triple
+              allTriples.push({ s: subjectIri, p: predicateIri, o: objectIri });
+
+              // rdfs:label triples for each entity
+              allTriples.push({
+                s: subjectIri,
+                p: iriTerm(RDFS_LABEL),
+                o: literalTerm(rel.subject),
+              });
+              allTriples.push({
+                s: predicateIri,
+                p: iriTerm(RDFS_LABEL),
+                o: literalTerm(rel.predicate),
+              });
+              allTriples.push({
+                s: objectIri,
+                p: iriTerm(RDFS_LABEL),
+                o: literalTerm(rel.object),
+              });
+
+              // Entity contexts for subject and object
+              allEntityContexts.push({
+                entity: subjectIri,
+                context: text,
+                chunkId: msg.documentId,
+              });
+              allEntityContexts.push({
+                entity: objectIri,
+                context: text,
+                chunkId: msg.documentId,
+              });
+            }
+
+            console.log(`[KnowledgeExtract] Extracted ${relationships.length} relationships`);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("[KnowledgeExtract] Relationship extraction failed:", err);
+    }
+
+    // --- Extract definitions ---
+    try {
+      const defPrompt = await promptClient.request({
+        name: "extract-definitions",
+        variables: { text },
+      });
+
+      if (!defPrompt.error) {
+        const defCompletion = await llmClient.request({
+          system: defPrompt.system,
+          prompt: defPrompt.prompt,
+        });
+
+        if (!defCompletion.error && defCompletion.response) {
+          const definitions = parseJsonResponse<ExtractedDefinition[]>(defCompletion.response);
+
+          if (definitions) {
+            for (const def of definitions) {
+              if (!def.entity || !def.definition) continue;
+
+              const entityIri = toEntityIri(def.entity);
+
+              // Definition triple
+              allTriples.push({
+                s: entityIri,
+                p: iriTerm(SKOS_DEFINITION),
+                o: literalTerm(def.definition),
+              });
+
+              // Label triple
+              allTriples.push({
+                s: entityIri,
+                p: iriTerm(RDFS_LABEL),
+                o: literalTerm(def.entity),
+              });
+
+              // Entity context
+              allEntityContexts.push({
+                entity: entityIri,
+                context: text,
+                chunkId: msg.documentId,
+              });
+            }
+
+            console.log(`[KnowledgeExtract] Extracted ${definitions.length} definitions`);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("[KnowledgeExtract] Definition extraction failed:", err);
+    }
+
+    // --- Emit results ---
+    if (allTriples.length > 0) {
+      await triplesProducer.send(requestId, {
+        metadata: msg.metadata,
+        triples: allTriples,
+      });
+    }
+
+    if (allEntityContexts.length > 0) {
+      await entityContextsProducer.send(requestId, {
+        metadata: msg.metadata,
+        entities: allEntityContexts,
+      });
+    }
+  }
+}
+
+// ---------- Helpers ----------
+
+function toEntityIri(name: string): Term {
+  const slug = encodeURIComponent(name.toLowerCase().replace(/\s+/g, "-"));
+  return {
+    type: "IRI",
+    iri: `http://trustgraph.ai/e/${slug}`,
+  };
+}
+
+function iriTerm(iri: string): Term {
+  return { type: "IRI", iri };
+}
+
+function literalTerm(value: string): Term {
+  return { type: "LITERAL", value };
+}
+
+/**
+ * Parse JSON from LLM output, handling markdown code fences and malformed output.
+ */
+function parseJsonResponse<T>(raw: string): T | null {
+  try {
+    // Strip markdown code fences
+    let cleaned = raw.trim();
+
+    // Remove ```json ... ``` or ``` ... ```
+    const fenceMatch = cleaned.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```$/);
+    if (fenceMatch) {
+      cleaned = fenceMatch[1].trim();
+    }
+
+    return JSON.parse(cleaned) as T;
+  } catch {
+    console.warn("[KnowledgeExtract] Failed to parse JSON from LLM response:", raw.slice(0, 200));
+    return null;
+  }
+}
+
+export async function run(): Promise<void> {
+  await KnowledgeExtractService.launch("knowledge-extract");
+}

@@ -44,3 +44,20 @@ export { PromptTemplateService, type PromptTemplate, type PromptTemplateConfig }
 
 // Config service
 export { ConfigService, type ConfigServiceConfig } from "./config/service.js";
+
+// ReAct agent
+export { AgentService } from "./agent/react/index.js";
+
+// Librarian service
+export { LibrarianService, type LibrarianServiceConfig } from "./librarian/service.js";
+export { CollectionManager, type CollectionEntry } from "./librarian/collection-manager.js";
+
+// Chunking service
+export { recursiveSplit } from "./chunking/recursive-splitter.js";
+export { ChunkingService } from "./chunking/service.js";
+
+// Knowledge extraction service
+export { KnowledgeExtractService } from "./extract/knowledge-extract.js";
+
+// Knowledge core service
+export { KnowledgeCoreService, type KnowledgeCoreServiceConfig } from "./cores/service.js";
