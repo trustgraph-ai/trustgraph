@@ -34,9 +34,9 @@ export class Flow {
       await spec.add(this, this.pubsub, this.definition);
     }
 
-    // Start all consumers
+    // Start all consumers, passing this Flow instance via FlowContext
     for (const consumer of this.consumers.values()) {
-      consumer.start({ id: this.processorId, name: this.name }).catch((err) => {
+      consumer.start({ id: this.processorId, name: this.name, flow: this }).catch((err) => {
         console.error(`[Flow:${this.name}] Consumer error:`, err);
       });
     }

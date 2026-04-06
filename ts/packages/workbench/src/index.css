@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+/*
+ * TrustGraph Workbench -- Dark-mode-first design tokens
+ *
+ * Tailwind CSS v4 uses CSS-first configuration.
+ * Custom theme values are declared as CSS custom properties.
+ */
+
+@theme {
+  /* Brand palette */
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #dce4ff;
+  --color-brand-200: #b9c9ff;
+  --color-brand-300: #8aa5ff;
+  --color-brand-400: #5b80ff;
+  --color-brand-500: #3b63ed;
+  --color-brand-600: #2d4ec4;
+  --color-brand-700: #213a9b;
+  --color-brand-800: #162872;
+  --color-brand-900: #0e1a4d;
+
+  /* Surface / background colors (dark-first) */
+  --color-surface-0: #09090b;
+  --color-surface-50: #111113;
+  --color-surface-100: #18181b;
+  --color-surface-200: #27272a;
+  --color-surface-300: #3f3f46;
+  --color-surface-400: #52525b;
+
+  /* Foreground / text colors */
+  --color-fg: #fafafa;
+  --color-fg-muted: #a1a1aa;
+  --color-fg-subtle: #71717a;
+
+  /* Border colors */
+  --color-border: #27272a;
+  --color-border-hover: #3f3f46;
+
+  /* Semantic: success / warning / error */
+  --color-success: #22c55e;
+  --color-warning: #eab308;
+  --color-error: #ef4444;
+
+  /* Sidebar width */
+  --spacing-sidebar: 16rem;
+  --spacing-sidebar-collapsed: 4rem;
+
+  /* Font families */
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* Base layer: dark background, light text by default */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-surface-0);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Scrollbar styling for dark mode */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--color-surface-100);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-surface-300);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-surface-400);
+  }
+}
+
+/* Loading bar slide animation */
+@keyframes slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+/* Prose overrides for dark mode markdown rendering */
+@layer base {
+  .prose-invert code {
+    color: var(--color-brand-300);
+  }
+
+  .prose-invert pre {
+    background: var(--color-surface-200);
+  }
+}
+
+/* Light mode overrides (activated by .light class on <html>) */
+html.light {
+  --color-surface-0: #ffffff;
+  --color-surface-50: #fafafa;
+  --color-surface-100: #f4f4f5;
+  --color-surface-200: #e4e4e7;
+  --color-surface-300: #d4d4d8;
+  --color-surface-400: #a1a1aa;
+
+  --color-fg: #18181b;
+  --color-fg-muted: #52525b;
+  --color-fg-subtle: #71717a;
+
+  --color-border: #e4e4e7;
+  --color-border-hover: #d4d4d8;
+}

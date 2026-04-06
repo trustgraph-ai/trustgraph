@@ -10,7 +10,6 @@ import { ProducerSpec } from "../spec/producer-spec.js";
 import { ParameterSpec } from "../spec/parameter-spec.js";
 import type { ProcessorConfig } from "../processor/async-processor.js";
 import type { FlowContext } from "../messaging/consumer.js";
-import type { Flow } from "../processor/flow.js";
 import type {
   TextCompletionRequest,
   TextCompletionResponse,
@@ -37,11 +36,10 @@ export abstract class LlmService extends FlowProcessor {
     properties: Record<string, string>,
     flowCtx: FlowContext,
   ): Promise<void> {
-    // We need the actual flow instance to access producers/parameters.
-    // In the full implementation, FlowContext would carry a flow reference.
-    // For now this shows the pattern.
     const requestId = properties.id;
     if (!requestId) return;
+
+    const responseProducer = flowCtx.flow.producer<TextCompletionResponse>("response");
 
     try {
       if (msg.streaming && this.supportsStreaming()) {
@@ -51,8 +49,13 @@ export abstract class LlmService extends FlowProcessor {
           msg.model,
           msg.temperature,
         )) {
-          // Send each chunk as a response with the same request ID
-          void chunk; // Producer send would go here
+          await responseProducer.send(requestId, {
+            response: chunk.text,
+            model: chunk.model,
+            inToken: chunk.inToken ?? undefined,
+            outToken: chunk.outToken ?? undefined,
+            endOfStream: chunk.isFinal,
+          });
         }
       } else {
         const result = await this.generateContent(
@@ -61,10 +64,24 @@ export abstract class LlmService extends FlowProcessor {
           msg.model,
           msg.temperature,
         );
-        void result; // Producer send would go here
+
+        await responseProducer.send(requestId, {
+          response: result.text,
+          model: result.model,
+          inToken: result.inToken,
+          outToken: result.outToken,
+          endOfStream: true,
+        });
       }
     } catch (err) {
       console.error(`[LlmService] Error processing request:`, err);
+
+      const message = err instanceof Error ? err.message : String(err);
+      await responseProducer.send(requestId, {
+        response: "",
+        error: { type: "llm-error", message },
+        endOfStream: true,
+      });
     }
   }
 

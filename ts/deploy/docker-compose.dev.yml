@@ -1,0 +1,52 @@
+# TrustGraph TypeScript — Dev Overrides
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+services:
+  # Live-edit dashboards without rebuilding
+  grafana:
+    volumes:
+      - ./grafana/provisioning/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ./grafana/provisioning/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_USERS_DEFAULT_THEME=dark
+      - GF_EXPLORE_ENABLED=true
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor tempoSearch tempoServiceGraph
+
+  # Prometheus config live reload
+  prometheus:
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+
+  # Loki config live reload
+  loki:
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/local-config.yaml
+      - loki-data:/tmp/loki
+
+  # NATS CLI tools for debugging
+  nats-cli:
+    image: natsio/nats-box:latest
+    networks:
+      - trustgraph
+    environment:
+      - NATS_URL=nats://nats:4222
+    entrypoint: ["/bin/sh", "-c", "echo 'NATS Box ready. Use: docker compose exec nats-cli nats ...' && sleep infinity"]
+    depends_on:
+      nats:
+        condition: service_healthy
+    profiles:
+      - debug
+
+volumes:
+  prometheus-data:
+  loki-data:
+
+networks:
+  trustgraph:
+    driver: bridge

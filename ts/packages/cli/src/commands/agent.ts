@@ -17,18 +17,32 @@ export function registerAgentCommands(program: Command): void {
       const socket = await createSocket(opts);
 
       try {
-        const resp = await socket.request("agent", { question }, {
-          flowId: opts.flow,
-          onChunk: (chunk) => {
-            const c = chunk as { answer?: string };
-            if (c.answer) process.stdout.write(c.answer);
-          },
-        });
+        const flow = socket.flow(opts.flow);
 
-        const r = resp as { answer?: string };
-        if (r.answer) console.log(r.answer);
+        await new Promise<void>((resolve, reject) => {
+          flow.agent(
+            question,
+            (chunk) => {
+              // think — show thought process
+              if (chunk) process.stderr.write(chunk);
+            },
+            (chunk) => {
+              // observe — show observations
+              if (chunk) process.stderr.write(chunk);
+            },
+            (chunk, complete) => {
+              // answer — print to stdout
+              if (chunk) process.stdout.write(chunk);
+              if (complete) {
+                process.stdout.write("\n");
+                resolve();
+              }
+            },
+            (err) => reject(new Error(err)),
+          );
+        });
       } finally {
-        await socket.close();
+        socket.close();
       }
     });
 }

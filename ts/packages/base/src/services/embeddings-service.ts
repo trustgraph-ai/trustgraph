@@ -29,16 +29,24 @@ export abstract class EmbeddingsService extends FlowProcessor {
   private async onRequest(
     msg: EmbeddingsRequest,
     properties: Record<string, string>,
-    _flowCtx: FlowContext,
+    flowCtx: FlowContext,
   ): Promise<void> {
     const requestId = properties.id;
     if (!requestId) return;
 
+    const responseProducer = flowCtx.flow.producer<EmbeddingsResponse>("response");
+
     try {
       const vectors = await this.onEmbeddings(msg.text, msg.model);
-      void vectors; // Producer send would go here
+      await responseProducer.send(requestId, { vectors });
     } catch (err) {
       console.error(`[EmbeddingsService] Error processing request:`, err);
+
+      const message = err instanceof Error ? err.message : String(err);
+      await responseProducer.send(requestId, {
+        vectors: [],
+        error: { type: "embeddings-error", message },
+      });
     }
   }
 

@@ -5,6 +5,7 @@
  */
 
 import type { PubSubBackend, BackendConsumer, Message } from "../backend/types.js";
+import type { Flow } from "../processor/flow.js";
 import { TooManyRequestsError } from "../errors.js";
 
 export type MessageHandler<T> = (
@@ -16,6 +17,8 @@ export type MessageHandler<T> = (
 export interface FlowContext {
   id: string;
   name: string;
+  /** Reference to the owning Flow instance, giving handlers access to producers and parameters. */
+  flow: Flow;
 }
 
 export interface ConsumerOptions<T> {

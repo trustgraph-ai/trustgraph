@@ -5,6 +5,7 @@
   },
   "references": [
     { "path": "packages/base" },
+    { "path": "packages/client" },
     { "path": "packages/flow" },
     { "path": "packages/cli" },
     { "path": "packages/mcp" }

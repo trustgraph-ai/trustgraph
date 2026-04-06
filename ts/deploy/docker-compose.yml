@@ -1,0 +1,276 @@
+# TrustGraph TypeScript — Full Stack
+# Usage: docker compose up -d
+# Observability UI: http://localhost:3000 (Grafana)
+
+networks:
+  trustgraph:
+    driver: bridge
+
+volumes:
+  nats-data:
+  falkordb-data:
+  qdrant-data:
+  ollama-models:
+  prometheus-data:
+  loki-data:
+  tempo-data:
+  grafana-data:
+
+services:
+  # ---------------------------------------------------------------------------
+  # Infrastructure
+  # ---------------------------------------------------------------------------
+
+  nats:
+    image: nats:2.10-alpine
+    command: ["--jetstream", "--http_port", "8222", "--store_dir", "/data"]
+    ports:
+      - "4222:4222"   # Client connections
+      - "8222:8222"   # Monitoring / metrics
+    volumes:
+      - nats-data:/data
+    networks:
+      - trustgraph
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  falkordb:
+    image: falkordb/falkordb:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - falkordb-data:/data
+    networks:
+      - trustgraph
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"   # REST API
+      - "6334:6334"   # gRPC
+    volumes:
+      - qdrant-data:/qdrant/storage
+    networks:
+      - trustgraph
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:6333/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    networks:
+      - trustgraph
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Observability
+  # ---------------------------------------------------------------------------
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=7d"
+      - "--web.enable-remote-write-receiver"
+      - "--enable-feature=exemplar-storage"
+    networks:
+      - trustgraph
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.0.0
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/tmp/loki
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    networks:
+      - trustgraph
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  tempo:
+    image: grafana/tempo:latest
+    ports:
+      - "3200:3200"   # Tempo API
+    volumes:
+      - ./tempo/tempo-config.yml:/etc/tempo/config.yml:ro
+      - tempo-data:/tmp/tempo
+    command: ["-config.file=/etc/tempo/config.yml"]
+    networks:
+      - trustgraph
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3200/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    ports:
+      - "4317:4317"   # OTLP gRPC (apps send traces/metrics here)
+      - "4318:4318"   # OTLP HTTP
+      - "8889:8889"   # Prometheus exporter (scraped by Prometheus)
+    volumes:
+      - ./otel-collector/config.yml:/etc/otelcol-contrib/config.yaml:ro
+    depends_on:
+      tempo:
+        condition: service_healthy
+    networks:
+      - trustgraph
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/provisioning/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ./grafana/provisioning/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-admin}
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_AUTH_DISABLE_LOGIN_FORM=false
+      - GF_USERS_DEFAULT_THEME=dark
+      - GF_EXPLORE_ENABLED=true
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor tempoSearch tempoServiceGraph
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+      tempo:
+        condition: service_healthy
+    networks:
+      - trustgraph
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # TrustGraph Services (placeholders — will be filled in later)
+  # ---------------------------------------------------------------------------
+  #
+  # gateway:
+  #   build:
+  #     context: ../
+  #     dockerfile: packages/base/Dockerfile
+  #     target: gateway
+  #   ports:
+  #     - "${GATEWAY_PORT:-8088}:8000"
+  #   environment:
+  #     - NATS_URL=nats://nats:4222
+  #     - FALKORDB_URL=redis://falkordb:6379
+  #     - QDRANT_URL=http://qdrant:6333
+  #     - OPENAI_TOKEN=${OPENAI_TOKEN}
+  #     - CLAUDE_KEY=${CLAUDE_KEY}
+  #     - GATEWAY_SECRET=${GATEWAY_SECRET}
+  #     - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+  #     - OTEL_SERVICE_NAME=gateway
+  #   depends_on:
+  #     nats:
+  #       condition: service_healthy
+  #     falkordb:
+  #       condition: service_healthy
+  #     qdrant:
+  #       condition: service_healthy
+  #   networks:
+  #     - trustgraph
+  #
+  # text-completion:
+  #   build:
+  #     context: ../
+  #     dockerfile: packages/base/Dockerfile
+  #     target: text-completion
+  #   environment:
+  #     - NATS_URL=nats://nats:4222
+  #     - OPENAI_TOKEN=${OPENAI_TOKEN}
+  #     - CLAUDE_KEY=${CLAUDE_KEY}
+  #     - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+  #     - OTEL_SERVICE_NAME=text-completion
+  #   depends_on:
+  #     nats:
+  #       condition: service_healthy
+  #   networks:
+  #     - trustgraph
+  #
+  # graph-rag:
+  #   build:
+  #     context: ../
+  #     dockerfile: packages/base/Dockerfile
+  #     target: graph-rag
+  #   environment:
+  #     - NATS_URL=nats://nats:4222
+  #     - FALKORDB_URL=redis://falkordb:6379
+  #     - QDRANT_URL=http://qdrant:6333
+  #     - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+  #     - OTEL_SERVICE_NAME=graph-rag
+  #   depends_on:
+  #     nats:
+  #       condition: service_healthy
+  #     falkordb:
+  #       condition: service_healthy
+  #     qdrant:
+  #       condition: service_healthy
+  #   networks:
+  #     - trustgraph
+  #
+  # workbench:
+  #   build:
+  #     context: ../
+  #     dockerfile: packages/workbench/Dockerfile
+  #   ports:
+  #     - "3001:3000"
+  #   environment:
+  #     - GATEWAY_URL=http://gateway:8000
+  #   depends_on:
+  #     - gateway
+  #   networks:
+  #     - trustgraph

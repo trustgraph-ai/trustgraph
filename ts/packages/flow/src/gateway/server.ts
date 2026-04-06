@@ -2,13 +2,17 @@
  * API Gateway — HTTP + WebSocket server.
  *
  * Replaces the Python aiohttp gateway with Fastify.
+ * Uses the Mux class for WebSocket multiplexing (queue-based request
+ * buffering, concurrency control, proper task lifecycle).
  *
  * Python reference: trustgraph-flow/trustgraph/gateway/service.py
  */
 
 import Fastify from "fastify";
 import websocketPlugin from "@fastify/websocket";
+import { registry } from "@trustgraph/base";
 import { DispatcherManager } from "./dispatch/manager.js";
+import { Mux, type MuxRequest, type MuxHandler } from "./dispatch/mux.js";
 
 export interface GatewayConfig {
   port: number;
@@ -27,7 +31,7 @@ export async function createGateway(config: GatewayConfig) {
   // Authentication middleware
   app.addHook("onRequest", async (request, reply) => {
     if (request.url === "/api/v1/metrics") return;
-    if (request.url === "/api/v1/socket") return; // Socket auth via query param
+    if (request.url.startsWith("/api/v1/socket")) return; // Socket auth via query param
 
     if (config.secret) {
       const auth = request.headers.authorization;
@@ -37,7 +41,7 @@ export async function createGateway(config: GatewayConfig) {
     }
   });
 
-  // REST endpoint: POST /api/v1/:kind
+  // REST endpoint: POST /api/v1/:kind  (global services)
   app.post<{ Params: { kind: string } }>("/api/v1/:kind", async (request, reply) => {
     const { kind } = request.params;
     const body = request.body as Record<string, unknown>;
@@ -50,7 +54,7 @@ export async function createGateway(config: GatewayConfig) {
     }
   });
 
-  // REST endpoint: POST /api/v1/flow/:flow/service/:kind
+  // REST endpoint: POST /api/v1/flow/:flow/service/:kind  (flow-scoped services)
   app.post<{ Params: { flow: string; kind: string } }>(
     "/api/v1/flow/:flow/service/:kind",
     async (request, reply) => {
@@ -67,6 +71,7 @@ export async function createGateway(config: GatewayConfig) {
   );
 
   // WebSocket endpoint: /api/v1/socket
+  // Uses Mux for queue-based request buffering and concurrency control.
   app.get("/api/v1/socket", { websocket: true }, (socket, request) => {
     // Auth via query param
     const url = new URL(request.url, `http://${request.headers.host}`);
@@ -76,26 +81,67 @@ export async function createGateway(config: GatewayConfig) {
       return;
     }
 
-    socket.on("message", async (data) => {
-      try {
-        const msg = JSON.parse(data.toString());
-        const { id, service, flow, request: req } = msg;
+    // Build the MuxHandler that dispatches to the DispatcherManager
+    const handler: MuxHandler = async (muxReq, respond) => {
+      if (muxReq.flow) {
+        await dispatcher.dispatchFlowServiceStreaming(
+          muxReq.flow,
+          muxReq.service,
+          muxReq.request,
+          respond,
+        );
+      } else {
+        await dispatcher.dispatchGlobalServiceStreaming(
+          muxReq.service,
+          muxReq.request,
+          respond,
+        );
+      }
+    };
 
-        const responder = async (response: unknown, complete: boolean) => {
-          socket.send(JSON.stringify({ id, response, complete }));
+    const mux = new Mux(handler);
+
+    // Start the Mux run loop — sends responses back over the socket
+    const runPromise = mux.run((data) => {
+      // Only send if the socket is still open (readyState 1 = OPEN)
+      if (socket.readyState === 1) {
+        socket.send(data);
+      }
+    });
+
+    // Incoming messages get queued into the Mux
+    socket.on("message", (data) => {
+      try {
+        const msg = JSON.parse(data.toString()) as {
+          id?: string;
+          service?: string;
+          flow?: string;
+          request?: Record<string, unknown>;
         };
 
-        if (flow) {
-          await dispatcher.dispatchFlowServiceStreaming(flow, service, req, responder);
-        } else {
-          await dispatcher.dispatchGlobalServiceStreaming(service, req, responder);
+        if (!msg.id || !msg.service || !msg.request) {
+          socket.send(
+            JSON.stringify({
+              id: msg.id ?? null,
+              error: { type: "bad-request", message: "Missing id, service, or request" },
+              complete: true,
+            }),
+          );
+          return;
         }
+
+        const muxReq: MuxRequest = {
+          id: msg.id,
+          service: msg.service,
+          flow: msg.flow,
+          request: msg.request,
+        };
+
+        mux.receive(muxReq);
       } catch (err) {
-        const msg = JSON.parse(data.toString());
         socket.send(
           JSON.stringify({
-            id: msg.id,
-            error: { type: "internal", message: String(err) },
+            error: { type: "parse-error", message: String(err) },
             complete: true,
           }),
         );
@@ -103,13 +149,26 @@ export async function createGateway(config: GatewayConfig) {
     });
 
     socket.on("close", () => {
-      // Cleanup
+      mux.stop();
+    });
+
+    socket.on("error", () => {
+      mux.stop();
+    });
+
+    // Ensure runPromise errors don't go unhandled
+    runPromise.catch((err) => {
+      console.error("[Gateway] Mux run loop error:", err);
+      mux.stop();
+      if (socket.readyState === 1) {
+        socket.close(1011, "Internal server error");
+      }
     });
   });
 
-  // Metrics endpoint
-  app.get("/api/v1/metrics", async () => {
-    const { registry } = await import("@trustgraph/base");
+  // Metrics endpoint — returns Prometheus metrics from prom-client
+  app.get("/api/v1/metrics", async (_, reply) => {
+    reply.header("content-type", registry.contentType);
     return registry.metrics();
   });
 

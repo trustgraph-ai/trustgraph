@@ -20,61 +20,73 @@ export function registerFlowCommands(program: Command): void {
       const socket = await createSocket(opts);
 
       try {
-        const resp = await socket.request("flow", { operation: "list" });
-        console.log(JSON.stringify(resp, null, 2));
+        const flows = socket.flows();
+        const ids = await flows.getFlows();
+        console.log(JSON.stringify(ids, null, 2));
       } finally {
-        await socket.close();
+        socket.close();
+      }
+    });
+
+  flow
+    .command("get")
+    .description("Get a flow definition")
+    .argument("<id>", "Flow ID")
+    .action(async (id: string, _opts, cmd) => {
+      const opts = getOpts(cmd);
+      const socket = await createSocket(opts);
+
+      try {
+        const flows = socket.flows();
+        const def = await flows.getFlow(id);
+        console.log(JSON.stringify(def, null, 2));
+      } finally {
+        socket.close();
       }
     });
 
   flow
     .command("start")
     .description("Start a flow")
-    .argument("<name>", "Flow name")
-    .action(async (name: string, _opts, cmd) => {
+    .argument("<id>", "Flow ID")
+    .requiredOption("-b, --blueprint <name>", "Blueprint name")
+    .option("-d, --description <text>", "Flow description", "")
+    .option("-p, --parameters <json>", "Parameters as JSON")
+    .action(async (id: string, cmdOpts, cmd) => {
       const opts = getOpts(cmd);
       const socket = await createSocket(opts);
 
       try {
-        const resp = await socket.request("flow", { operation: "start", name });
+        const flows = socket.flows();
+        const params = cmdOpts.parameters
+          ? JSON.parse(cmdOpts.parameters as string)
+          : undefined;
+        const resp = await flows.startFlow(
+          id,
+          cmdOpts.blueprint as string,
+          cmdOpts.description as string,
+          params as Record<string, unknown> | undefined,
+        );
         console.log(JSON.stringify(resp, null, 2));
       } finally {
-        await socket.close();
+        socket.close();
       }
     });
 
   flow
     .command("stop")
     .description("Stop a flow")
-    .argument("<name>", "Flow name")
-    .action(async (name: string, _opts, cmd) => {
+    .argument("<id>", "Flow ID")
+    .action(async (id: string, _opts, cmd) => {
       const opts = getOpts(cmd);
       const socket = await createSocket(opts);
 
       try {
-        const resp = await socket.request("flow", { operation: "stop", name });
+        const flows = socket.flows();
+        const resp = await flows.stopFlow(id);
         console.log(JSON.stringify(resp, null, 2));
       } finally {
-        await socket.close();
-      }
-    });
-
-  flow
-    .command("status")
-    .description("Show flow status")
-    .argument("[name]", "Flow name (all if omitted)")
-    .action(async (name: string | undefined, _opts, cmd) => {
-      const opts = getOpts(cmd);
-      const socket = await createSocket(opts);
-
-      try {
-        const resp = await socket.request("flow", {
-          operation: "status",
-          ...(name ? { name } : {}),
-        });
-        console.log(JSON.stringify(resp, null, 2));
-      } finally {
-        await socket.close();
+        socket.close();
       }
     });
 }

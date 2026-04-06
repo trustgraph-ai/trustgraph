@@ -1,0 +1,30 @@
+{
+  "name": "@trustgraph/client",
+  "version": "0.1.0",
+  "description": "Vendored TrustGraph WebSocket client (forked from trustgraph-client v1.6.0)",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "ws": "^8.0.0"
+  },
+  "peerDependenciesMeta": {
+    "ws": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.1.0",
+    "happy-dom": "^20.0.0"
+  },
+  "license": "Apache-2.0"
+}

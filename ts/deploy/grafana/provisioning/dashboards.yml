@@ -1,0 +1,14 @@
+apiVersion: 1
+
+providers:
+  - name: "TrustGraph"
+    orgId: 1
+    folder: "TrustGraph"
+    folderUid: "trustgraph-dashboards"
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false
