@@ -165,7 +165,7 @@ class Consumer:
             try:
                 msg = await asyncio.to_thread(
                     consumer.receive,
-                    timeout_millis=2000
+                    timeout_millis=100
                 )
             except Exception as e:
                 # Handle timeout from any backend
