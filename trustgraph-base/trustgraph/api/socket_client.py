@@ -366,19 +366,13 @@ class SocketClient:
         # Handle GraphRAG/DocRAG message format with message_type
         if message_type == "explain":
             if include_provenance:
-                return ProvenanceEvent(
-                    explain_id=resp.get("explain_id", ""),
-                    explain_graph=resp.get("explain_graph", "")
-                )
+                return self._build_provenance_event(resp)
             return None
 
         # Handle Agent message format with chunk_type="explain"
         if chunk_type == "explain":
             if include_provenance:
-                return ProvenanceEvent(
-                    explain_id=resp.get("explain_id", ""),
-                    explain_graph=resp.get("explain_graph", "")
-                )
+                return self._build_provenance_event(resp)
             return None
 
         if chunk_type == "thought":
@@ -412,6 +406,42 @@ class SocketClient:
                 end_of_stream=resp.get("end_of_stream", False),
                 error=None
             )
+
+    def _build_provenance_event(self, resp: Dict[str, Any]) -> ProvenanceEvent:
+        """Build a ProvenanceEvent from a response dict, parsing inline triples
+        into an ExplainEntity if available."""
+        explain_id = resp.get("explain_id", "")
+        explain_graph = resp.get("explain_graph", "")
+        raw_triples = resp.get("explain_triples", [])
+
+        entity = None
+        if raw_triples:
+            try:
+                from .explainability import ExplainEntity
+                # Convert wire-format triple dicts to (s, p, o) tuples
+                parsed = []
+                for t in raw_triples:
+                    s = t.get("s", {}).get("i", "") if t.get("s") else ""
+                    p = t.get("p", {}).get("i", "") if t.get("p") else ""
+                    o_term = t.get("o", {})
+                    if o_term:
+                        if o_term.get("t") == "i":
+                            o = o_term.get("i", "")
+                        else:
+                            o = o_term.get("v", "")
+                    else:
+                        o = ""
+                    parsed.append((s, p, o))
+                entity = ExplainEntity.from_triples(explain_id, parsed)
+            except Exception:
+                pass
+
+        return ProvenanceEvent(
+            explain_id=explain_id,
+            explain_graph=explain_graph,
+            entity=entity,
+            triples=raw_triples,
+        )
 
     def close(self) -> None:
         """Close the persistent WebSocket connection."""

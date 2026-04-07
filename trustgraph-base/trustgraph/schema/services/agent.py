@@ -2,7 +2,7 @@
 from dataclasses import dataclass, field
 from typing import Optional
 
-from ..core.primitives import Error
+from ..core.primitives import Error, Triple
 
 ############################################################################
 
@@ -57,8 +57,9 @@ class AgentResponse:
     end_of_dialog: bool = False    # Entire agent dialog is complete
 
     # Explainability fields
-    explain_id: str | None = None     # Provenance URI (announced as created)
-    explain_graph: str | None = None  # Named graph where explain was stored
+    explain_id: str | None = None     # Root URI for this explain step
+    explain_graph: str | None = None  # Named graph (e.g., urn:graph:retrieval)
+    explain_triples: list[Triple] = field(default_factory=list)  # Provenance triples for this step
 
     # Orchestration fields
     message_id: str = ""              # Unique ID for this response message

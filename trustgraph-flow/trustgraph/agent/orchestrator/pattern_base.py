@@ -243,6 +243,7 @@ class PatternBase:
             content="",
             explain_id=session_uri,
             explain_graph=GRAPH_RETRIEVAL,
+            explain_triples=triples,
         ))
 
     async def emit_iteration_triples(self, flow, session_id, iteration_num,
@@ -305,6 +306,7 @@ class PatternBase:
             content="",
             explain_id=iteration_uri,
             explain_graph=GRAPH_RETRIEVAL,
+            explain_triples=iter_triples,
         ))
 
     async def emit_observation_triples(self, flow, session_id, iteration_num,
@@ -360,6 +362,7 @@ class PatternBase:
             content="",
             explain_id=observation_entity_uri,
             explain_graph=GRAPH_RETRIEVAL,
+            explain_triples=obs_triples,
         ))
 
     async def emit_final_triples(self, flow, session_id, iteration_num,
@@ -416,6 +419,7 @@ class PatternBase:
             content="",
             explain_id=final_uri,
             explain_graph=GRAPH_RETRIEVAL,
+            explain_triples=final_triples,
         ))
 
     # ---- Orchestrator provenance helpers ------------------------------------
@@ -437,6 +441,7 @@ class PatternBase:
         await respond(AgentResponse(
             chunk_type="explain", content="",
             explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
+            explain_triples=triples,
         ))
 
     async def emit_finding_triples(
@@ -475,6 +480,7 @@ class PatternBase:
         await respond(AgentResponse(
             chunk_type="explain", content="",
             explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
+            explain_triples=triples,
         ))
 
     async def emit_plan_triples(
@@ -494,6 +500,7 @@ class PatternBase:
         await respond(AgentResponse(
             chunk_type="explain", content="",
             explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
+            explain_triples=triples,
         ))
 
     async def emit_step_result_triples(
@@ -526,6 +533,7 @@ class PatternBase:
         await respond(AgentResponse(
             chunk_type="explain", content="",
             explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
+            explain_triples=triples,
         ))
 
     async def emit_synthesis_triples(
@@ -557,6 +565,7 @@ class PatternBase:
         await respond(AgentResponse(
             chunk_type="explain", content="",
             explain_id=uri, explain_graph=GRAPH_RETRIEVAL,
+            explain_triples=triples,
         ))
 
     # ---- Response helpers ---------------------------------------------------

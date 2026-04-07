@@ -1,6 +1,7 @@
 from typing import Dict, Any, Tuple
 from ...schema import AgentRequest, AgentResponse
 from .base import MessageTranslator
+from .primitives import TripleTranslator
 
 
 class AgentRequestTranslator(MessageTranslator):
@@ -49,10 +50,13 @@ class AgentRequestTranslator(MessageTranslator):
 
 class AgentResponseTranslator(MessageTranslator):
     """Translator for AgentResponse schema objects"""
-    
+
+    def __init__(self):
+        self.triple_translator = TripleTranslator()
+
     def decode(self, data: Dict[str, Any]) -> AgentResponse:
         raise NotImplementedError("Response translation to Pulsar not typically needed")
-    
+
     def encode(self, obj: AgentResponse) -> Dict[str, Any]:
         result = {}
 
@@ -74,6 +78,13 @@ class AgentResponseTranslator(MessageTranslator):
         explain_graph = getattr(obj, "explain_graph", None)
         if explain_graph is not None:
             result["explain_graph"] = explain_graph
+
+        # Include explain_triples for explain messages
+        explain_triples = getattr(obj, "explain_triples", [])
+        if explain_triples:
+            result["explain_triples"] = [
+                self.triple_translator.encode(t) for t in explain_triples
+            ]
 
         # Always include error if present
         if hasattr(obj, 'error') and obj.error and obj.error.message:

@@ -182,16 +182,18 @@ def question_explainable(
                 print(item.content, end="", flush=True)
 
             elif isinstance(item, ProvenanceEvent):
-                # Process provenance event immediately
+                # Use inline entity if available, otherwise fetch from graph
                 prov_id = item.explain_id
                 explain_graph = item.explain_graph or "urn:graph:retrieval"
 
-                entity = explain_client.fetch_entity(
-                    prov_id,
-                    graph=explain_graph,
-                    user=user,
-                    collection=collection
-                )
+                entity = item.entity
+                if entity is None:
+                    entity = explain_client.fetch_entity(
+                        prov_id,
+                        graph=explain_graph,
+                        user=user,
+                        collection=collection
+                    )
 
                 if entity is None:
                     if debug:

@@ -473,6 +473,7 @@ class Processor(AgentService):
                     content="",
                     explain_id=session_uri,
                     explain_graph=GRAPH_RETRIEVAL,
+                    explain_triples=triples,
                 ))
 
             logger.info(f"Question: {request.question}")
@@ -640,6 +641,7 @@ class Processor(AgentService):
                     content="",
                     explain_id=iter_uri,
                     explain_graph=GRAPH_RETRIEVAL,
+                    explain_triples=iter_triples,
                 ))
 
             user_context = UserAwareContext(flow, request.user)
@@ -717,6 +719,7 @@ class Processor(AgentService):
                     content="",
                     explain_id=final_uri,
                     explain_graph=GRAPH_RETRIEVAL,
+                    explain_triples=final_triples,
                 ))
 
                 if streaming:
@@ -793,6 +796,7 @@ class Processor(AgentService):
                 content="",
                 explain_id=observation_entity_uri,
                 explain_graph=GRAPH_RETRIEVAL,
+                explain_triples=obs_triples,
             ))
 
             history.append(act)
