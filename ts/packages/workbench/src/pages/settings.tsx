@@ -51,7 +51,7 @@ function Section({
 // ---------------------------------------------------------------------------
 
 export default function SettingsPage() {
-  const { settings, updateSetting } = useSettings();
+  const { settings, updateSetting, updateFeatureSwitches } = useSettings();
   const connectionState = useConnectionState();
   const socket = useSocket();
   const { flows } = useFlows();
@@ -316,6 +316,32 @@ export default function SettingsPage() {
               />
             </button>
           </div>
+        </Section>
+
+        {/* Feature Switches */}
+        <Section
+          title="Feature Switches"
+          icon={<SettingsIcon className="h-4 w-4 text-fg-subtle" />}
+        >
+          {Object.entries(settings.featureSwitches).map(([key, enabled]) => (
+            <div key={key} className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-fg capitalize">{key.replace(/([A-Z])/g, " $1").trim()}</p>
+              </div>
+              <button
+                onClick={() => updateFeatureSwitches({ [key]: !enabled })}
+                className={cn(
+                  "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                  enabled ? "bg-brand-600" : "bg-surface-300",
+                )}
+              >
+                <span className={cn(
+                  "inline-block h-4 w-4 rounded-full bg-white transition-transform",
+                  enabled ? "translate-x-6" : "translate-x-1",
+                )} />
+              </button>
+            </div>
+          ))}
         </Section>
 
         {/* About */}

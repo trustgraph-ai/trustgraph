@@ -18,6 +18,7 @@
     "falkordb": "^5.0.0",
     "fastify": "^5.2.0",
     "ollama": "^0.6.3",
+    "@mistralai/mistralai": "^1.0.0",
     "openai": "^4.85.0",
     "pdfjs-dist": "^5.6.205"
   },

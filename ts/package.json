@@ -30,9 +30,13 @@
     "doc-embeddings-query": "tsx scripts/run-doc-embeddings-query.ts",
     "graph-rag": "tsx scripts/run-graph-rag.ts",
     "document-rag": "tsx scripts/run-document-rag.ts",
-    "create-test-pdf": "tsx scripts/create-test-pdf.ts"
+    "create-test-pdf": "tsx scripts/create-test-pdf.ts",
+    "llm:azure-openai": "tsx scripts/run-llm-azure-openai.ts",
+    "llm:openai-compat": "tsx scripts/run-llm-openai-compatible.ts",
+    "llm:mistral": "tsx scripts/run-llm-mistral.ts"
   },
   "devDependencies": {
+    "falkordb": "^5.0.0",
     "nats": "^2.29.0",
     "pdf-lib": "^1.17.1",
     "tsx": "^4.21.0",

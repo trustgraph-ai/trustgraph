@@ -1,0 +1,6 @@
+import("../packages/flow/dist/chunking/service.js")
+  .then((m) => m.run())
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });

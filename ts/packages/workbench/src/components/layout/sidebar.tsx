@@ -3,6 +3,9 @@ import {
   MessageSquareText,
   LibraryBig,
   Rotate3d,
+  MessageCircleCode,
+  Coins,
+  BrainCircuit,
   Workflow,
   Settings,
   TestTube2,
@@ -155,6 +158,9 @@ export function Sidebar() {
         <NavItem to="/chat" icon={MessageSquareText} label="Chat" />
         <NavItem to="/library" icon={LibraryBig} label="Library" />
         <NavItem to="/graph" icon={Rotate3d} label="Graph" />
+        <NavItem to="/prompts" icon={MessageCircleCode} label="Prompts" />
+        <NavItem to="/token-cost" icon={Coins} label="Token Cost" />
+        <NavItem to="/knowledge-cores" icon={BrainCircuit} label="Knowledge" />
         <NavItem to="/flows" icon={Workflow} label="Flows" />
         <NavItem to="/settings" icon={Settings} label="Settings" />
       </nav>

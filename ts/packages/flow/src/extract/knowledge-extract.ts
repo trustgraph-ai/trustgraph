@@ -93,63 +93,70 @@ export class KnowledgeExtractService extends FlowProcessor {
 
     // --- Extract relationships ---
     try {
-      const relPrompt = await promptClient.request({
-        name: "extract-relationships",
-        variables: { text },
-      });
+      const relPrompt = await promptClient.request(
+        { name: "extract-relationships", variables: { text } },
+        { timeoutMs: 10_000 },
+      );
 
       if (!relPrompt.error) {
-        const relCompletion = await llmClient.request({
-          system: relPrompt.system,
-          prompt: relPrompt.prompt,
-        });
+        let relationships: ExtractedRelationship[] | null = null;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const relCompletion = await llmClient.request(
+            { system: relPrompt.system, prompt: relPrompt.prompt },
+            { timeoutMs: 120_000 },
+          );
 
-        if (!relCompletion.error && relCompletion.response) {
-          const relationships = parseJsonResponse<ExtractedRelationship[]>(relCompletion.response);
-
-          if (relationships) {
-            for (const rel of relationships) {
-              if (!rel.subject || !rel.predicate || !rel.object) continue;
-
-              const subjectIri = toEntityIri(rel.subject);
-              const predicateIri = toEntityIri(rel.predicate);
-              const objectIri = toEntityIri(rel.object);
-
-              // Main relationship triple
-              allTriples.push({ s: subjectIri, p: predicateIri, o: objectIri });
-
-              // rdfs:label triples for each entity
-              allTriples.push({
-                s: subjectIri,
-                p: iriTerm(RDFS_LABEL),
-                o: literalTerm(rel.subject),
-              });
-              allTriples.push({
-                s: predicateIri,
-                p: iriTerm(RDFS_LABEL),
-                o: literalTerm(rel.predicate),
-              });
-              allTriples.push({
-                s: objectIri,
-                p: iriTerm(RDFS_LABEL),
-                o: literalTerm(rel.object),
-              });
-
-              // Entity contexts for subject and object
-              allEntityContexts.push({
-                entity: subjectIri,
-                context: text,
-                chunkId: msg.documentId,
-              });
-              allEntityContexts.push({
-                entity: objectIri,
-                context: text,
-                chunkId: msg.documentId,
-              });
-            }
-
-            console.log(`[KnowledgeExtract] Extracted ${relationships.length} relationships`);
+          if (!relCompletion.error && relCompletion.response) {
+            relationships = parseJsonResponse<ExtractedRelationship[]>(relCompletion.response);
+            if (relationships) break;
+            console.warn(`[KnowledgeExtract] Relationship parse failed, attempt ${attempt + 1}/3`);
+          } else {
+            break; // LLM error, don't retry
           }
+        }
+
+        if (relationships) {
+          for (const rel of relationships) {
+            if (!rel.subject || !rel.predicate || !rel.object) continue;
+
+            const subjectIri = toEntityIri(rel.subject);
+            const predicateIri = toEntityIri(rel.predicate);
+            const objectIri = toEntityIri(rel.object);
+
+            // Main relationship triple
+            allTriples.push({ s: subjectIri, p: predicateIri, o: objectIri });
+
+            // rdfs:label triples for each entity
+            allTriples.push({
+              s: subjectIri,
+              p: iriTerm(RDFS_LABEL),
+              o: literalTerm(rel.subject),
+            });
+            allTriples.push({
+              s: predicateIri,
+              p: iriTerm(RDFS_LABEL),
+              o: literalTerm(rel.predicate),
+            });
+            allTriples.push({
+              s: objectIri,
+              p: iriTerm(RDFS_LABEL),
+              o: literalTerm(rel.object),
+            });
+
+            // Entity contexts for subject and object
+            allEntityContexts.push({
+              entity: subjectIri,
+              context: text,
+              chunkId: msg.documentId,
+            });
+            allEntityContexts.push({
+              entity: objectIri,
+              context: text,
+              chunkId: msg.documentId,
+            });
+          }
+
+          console.log(`[KnowledgeExtract] Extracted ${relationships.length} relationships`);
         }
       }
     } catch (err) {
@@ -158,50 +165,57 @@ export class KnowledgeExtractService extends FlowProcessor {
 
     // --- Extract definitions ---
     try {
-      const defPrompt = await promptClient.request({
-        name: "extract-definitions",
-        variables: { text },
-      });
+      const defPrompt = await promptClient.request(
+        { name: "extract-definitions", variables: { text } },
+        { timeoutMs: 10_000 },
+      );
 
       if (!defPrompt.error) {
-        const defCompletion = await llmClient.request({
-          system: defPrompt.system,
-          prompt: defPrompt.prompt,
-        });
+        let definitions: ExtractedDefinition[] | null = null;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const defCompletion = await llmClient.request(
+            { system: defPrompt.system, prompt: defPrompt.prompt },
+            { timeoutMs: 120_000 },
+          );
 
-        if (!defCompletion.error && defCompletion.response) {
-          const definitions = parseJsonResponse<ExtractedDefinition[]>(defCompletion.response);
-
-          if (definitions) {
-            for (const def of definitions) {
-              if (!def.entity || !def.definition) continue;
-
-              const entityIri = toEntityIri(def.entity);
-
-              // Definition triple
-              allTriples.push({
-                s: entityIri,
-                p: iriTerm(SKOS_DEFINITION),
-                o: literalTerm(def.definition),
-              });
-
-              // Label triple
-              allTriples.push({
-                s: entityIri,
-                p: iriTerm(RDFS_LABEL),
-                o: literalTerm(def.entity),
-              });
-
-              // Entity context
-              allEntityContexts.push({
-                entity: entityIri,
-                context: text,
-                chunkId: msg.documentId,
-              });
-            }
-
-            console.log(`[KnowledgeExtract] Extracted ${definitions.length} definitions`);
+          if (!defCompletion.error && defCompletion.response) {
+            definitions = parseJsonResponse<ExtractedDefinition[]>(defCompletion.response);
+            if (definitions) break;
+            console.warn(`[KnowledgeExtract] Definition parse failed, attempt ${attempt + 1}/3`);
+          } else {
+            break; // LLM error, don't retry
           }
+        }
+
+        if (definitions) {
+          for (const def of definitions) {
+            if (!def.entity || !def.definition) continue;
+
+            const entityIri = toEntityIri(def.entity);
+
+            // Definition triple
+            allTriples.push({
+              s: entityIri,
+              p: iriTerm(SKOS_DEFINITION),
+              o: literalTerm(def.definition),
+            });
+
+            // Label triple
+            allTriples.push({
+              s: entityIri,
+              p: iriTerm(RDFS_LABEL),
+              o: literalTerm(def.entity),
+            });
+
+            // Entity context
+            allEntityContexts.push({
+              entity: entityIri,
+              context: text,
+              chunkId: msg.documentId,
+            });
+          }
+
+          console.log(`[KnowledgeExtract] Extracted ${definitions.length} definitions`);
         }
       }
     } catch (err) {
@@ -245,23 +259,49 @@ function literalTerm(value: string): Term {
 
 /**
  * Parse JSON from LLM output, handling markdown code fences and malformed output.
+ * Uses progressive fallback: direct parse, array extraction, truncated array repair, single object wrap.
  */
 function parseJsonResponse<T>(raw: string): T | null {
-  try {
-    // Strip markdown code fences
-    let cleaned = raw.trim();
-
-    // Remove ```json ... ``` or ``` ... ```
-    const fenceMatch = cleaned.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```$/);
-    if (fenceMatch) {
-      cleaned = fenceMatch[1].trim();
-    }
-
-    return JSON.parse(cleaned) as T;
-  } catch {
-    console.warn("[KnowledgeExtract] Failed to parse JSON from LLM response:", raw.slice(0, 200));
-    return null;
+  // Attempt 1: direct parse after stripping fences
+  let cleaned = raw.trim();
+  const fenceMatch = cleaned.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```$/);
+  if (fenceMatch) {
+    cleaned = fenceMatch[1].trim();
   }
+
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch { /* fall through */ }
+
+  // Attempt 2: extract first JSON array from the text
+  const arrayMatch = cleaned.match(/\[[\s\S]*\]/);
+  if (arrayMatch) {
+    try {
+      return JSON.parse(arrayMatch[0]) as T;
+    } catch { /* fall through */ }
+
+    // Attempt 3: try to fix truncated array by closing it after the last complete object
+    const partial = arrayMatch[0];
+    const lastBrace = partial.lastIndexOf('}');
+    if (lastBrace > 0) {
+      const truncated = partial.slice(0, lastBrace + 1) + ']';
+      try {
+        return JSON.parse(truncated) as T;
+      } catch { /* fall through */ }
+    }
+  }
+
+  // Attempt 4: extract first JSON object, wrap in array
+  const objMatch = cleaned.match(/\{[\s\S]*?\}/);
+  if (objMatch) {
+    try {
+      const obj = JSON.parse(objMatch[0]);
+      return [obj] as unknown as T;
+    } catch { /* fall through */ }
+  }
+
+  console.warn("[KnowledgeExtract] Failed to parse JSON from LLM response:", raw.slice(0, 300));
+  return null;
 }
 
 export async function run(): Promise<void> {

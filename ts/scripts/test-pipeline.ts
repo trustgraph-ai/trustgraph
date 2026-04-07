@@ -551,7 +551,12 @@ async function testFullPipeline(): Promise<boolean> {
         console.log(`  FalkorDB: no nodes found (count=${count})`);
       }
     } catch (err) {
-      console.log(`  FalkorDB check failed: ${err}`);
+      const errStr = String(err);
+      if (errStr.includes("Cannot find package") || errStr.includes("MODULE_NOT_FOUND")) {
+        console.log("  FalkorDB check skipped: falkordb package not available at workspace root");
+      } else {
+        console.log(`  FalkorDB check failed: ${err}`);
+      }
     }
 
     // 6. Verify embeddings in Qdrant

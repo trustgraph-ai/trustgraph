@@ -79,3 +79,12 @@ export { DocumentRagService } from "./retrieval/document-rag-service.js";
 
 // Flow manager service
 export { FlowManagerService } from "./flow-manager/service.js";
+
+// Azure OpenAI text completion
+export { AzureOpenAIProcessor } from "./model/text-completion/azure-openai.js";
+
+// OpenAI-compatible text completion
+export { OpenAICompatibleProcessor } from "./model/text-completion/openai-compatible.js";
+
+// Mistral text completion
+export { MistralProcessor } from "./model/text-completion/mistral.js";

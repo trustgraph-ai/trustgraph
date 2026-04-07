@@ -73,8 +73,9 @@ export class Consumer<T> {
 
   private async consumeLoop(flow: FlowContext): Promise<void> {
     while (this.running) {
+      let msg: Message<T> | null = null;
       try {
-        const msg = await this.backend!.receive(2000);
+        msg = await this.backend!.receive(2000);
         if (!msg) continue;
 
         await this.handleWithRetry(msg, flow);
@@ -82,7 +83,13 @@ export class Consumer<T> {
       } catch (err) {
         if (!this.running) break;
         console.error("[Consumer] Error in consume loop:", err);
-        // Brief pause before retry
+        if (msg) {
+          try {
+            await this.backend!.negativeAcknowledge(msg);
+          } catch (nakErr) {
+            console.error("[Consumer] Failed to nak message:", nakErr);
+          }
+        }
         await sleep(1000);
       }
     }
