@@ -1,6 +1,5 @@
 import { Triple, Term } from "./Triple.js";
 
-// FIXME: Better types?
 export type Request = object;
 export type Response = object;
 export type Error = object | string;

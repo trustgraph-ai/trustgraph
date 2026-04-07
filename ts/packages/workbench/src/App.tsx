@@ -25,6 +25,7 @@ export default function App() {
           <Route path="/knowledge-cores" element={<ErrorBoundary><KnowledgeCoresPage /></ErrorBoundary>} />
           <Route path="/flows" element={<ErrorBoundary><FlowsPage /></ErrorBoundary>} />
           <Route path="/settings" element={<ErrorBoundary><SettingsPage /></ErrorBoundary>} />
+          <Route path="*" element={<Navigate to="/chat" replace />} />
         </Route>
       </Routes>
 

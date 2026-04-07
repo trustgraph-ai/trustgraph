@@ -97,13 +97,13 @@
   }
 }
 
-/* Prose overrides for dark mode markdown rendering */
+/* Prose overrides for theme-aware markdown rendering */
 @layer base {
-  .prose-invert code {
+  .prose code {
     color: var(--color-brand-300);
   }
 
-  .prose-invert pre {
+  .prose pre {
     background: var(--color-surface-200);
   }
 }
@@ -123,4 +123,13 @@ html.light {
 
   --color-border: #e4e4e7;
   --color-border-hover: #d4d4d8;
+
+  /* Brand adjustments for light backgrounds */
+  --color-brand-300: #3b63ed;
+  --color-brand-400: #2d4ec4;
+
+  /* Semantic colors stay vivid but slightly darker for contrast */
+  --color-success: #16a34a;
+  --color-warning: #ca8a04;
+  --color-error: #dc2626;
 }

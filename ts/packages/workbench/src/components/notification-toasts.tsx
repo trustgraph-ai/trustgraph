@@ -19,7 +19,7 @@ export function NotificationToasts() {
   if (notifications.length === 0) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2" aria-live="polite">
       {notifications.map((n) => (
         <div
           key={n.id}
@@ -37,6 +37,7 @@ export function NotificationToasts() {
           <button
             onClick={() => removeNotification(n.id)}
             className="shrink-0 opacity-60 hover:opacity-100"
+            aria-label="Dismiss notification"
           >
             <X className="h-3.5 w-3.5" />
           </button>

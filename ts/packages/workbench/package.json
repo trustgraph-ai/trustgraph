@@ -11,7 +11,6 @@
   "dependencies": {
     "@tanstack/react-query": "^5.75.0",
     "@trustgraph/client": "workspace:*",
-    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.0",
     "lucide-react": "^0.513.0",
     "react": "^19.1.0",

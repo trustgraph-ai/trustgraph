@@ -153,7 +153,7 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
       {isUser ? (
         <p className="whitespace-pre-wrap">{msg.content}</p>
       ) : (
-        <div className="prose prose-invert prose-sm max-w-none prose-p:my-1 prose-pre:bg-surface-200 prose-pre:text-fg prose-code:text-brand-300">
+        <div className="prose prose-sm max-w-none text-fg prose-headings:text-fg prose-strong:text-fg prose-p:my-1 prose-a:text-brand-400 prose-pre:bg-surface-200 prose-pre:text-fg prose-code:text-brand-300">
           <Markdown>{msg.content || (msg.isStreaming ? "" : "(empty)")}</Markdown>
         </div>
       )}

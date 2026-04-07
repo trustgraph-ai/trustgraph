@@ -26,6 +26,7 @@ function UploadDialog({
   open,
   onClose,
   onUpload,
+  onError,
 }: {
   open: boolean;
   onClose: () => void;
@@ -36,6 +37,7 @@ function UploadDialog({
     comments: string,
     tags: string[],
   ) => Promise<void>;
+  onError?: (msg: string) => void;
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
@@ -78,7 +80,8 @@ function UploadDialog({
       await onUpload(base64, file.type || "application/octet-stream", title, comments, tagList);
       reset();
       onClose();
-    } catch {
+    } catch (err) {
+      onError?.(err instanceof Error ? err.message : "Upload failed");
       setUploading(false);
     }
   };
@@ -455,6 +458,7 @@ export default function LibraryPage() {
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}
         onUpload={handleUpload}
+        onError={(msg) => notify.error("Upload failed", msg)}
       />
 
       <ConfirmDeleteDialog

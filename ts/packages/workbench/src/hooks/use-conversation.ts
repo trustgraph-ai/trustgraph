@@ -95,10 +95,14 @@ export const useConversation = create<ConversationState>()(
     {
       name: "tg-conversation",
       // Only persist messages and chatMode, not input or transient state
-      partialize: (state) => ({
-        messages: state.messages.filter((m) => !m.isStreaming),
-        chatMode: state.chatMode,
-      }),
+      partialize: (state) => {
+        const MAX_PERSISTED_MESSAGES = 200;
+        const filtered = state.messages.filter((m) => !m.isStreaming);
+        return {
+          messages: filtered.slice(-MAX_PERSISTED_MESSAGES),
+          chatMode: state.chatMode,
+        };
+      },
     },
   ),
 );

@@ -40,6 +40,9 @@ export class FalkorDBTriplesStore {
     this.graph = new Graph(client, database);
     this.connectPromise = client.connect().then(() => {
       console.log(`[FalkorDBTriplesStore] Connected to ${url}, graph: ${database}`);
+    }).catch((err) => {
+      console.error(`[FalkorDBTriplesStore] Connection failed:`, err);
+      throw err;
     });
   }
 
@@ -56,6 +59,7 @@ export class FalkorDBTriplesStore {
   }
 
   async createLiteral(value: string, user: string, collection: string): Promise<void> {
+    await this.ensureConnected();
     await this.graph.query(
       "MERGE (n:Literal {value: $value, user: $user, collection: $collection})",
       { params: { value, user, collection } },
@@ -66,6 +70,7 @@ export class FalkorDBTriplesStore {
     src: string, uri: string, dest: string,
     user: string, collection: string,
   ): Promise<void> {
+    await this.ensureConnected();
     await this.graph.query(
       "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) " +
       "MATCH (dest:Node {uri: $dest, user: $user, collection: $collection}) " +
@@ -78,6 +83,7 @@ export class FalkorDBTriplesStore {
     src: string, uri: string, dest: string,
     user: string, collection: string,
   ): Promise<void> {
+    await this.ensureConnected();
     await this.graph.query(
       "MATCH (src:Node {uri: $src, user: $user, collection: $collection}) " +
       "MATCH (dest:Literal {value: $dest, user: $user, collection: $collection}) " +
@@ -109,6 +115,7 @@ export class FalkorDBTriplesStore {
   }
 
   async deleteCollection(user: string, collection: string): Promise<void> {
+    await this.ensureConnected();
     await this.graph.query(
       "MATCH (n:Node {user: $user, collection: $collection}) DETACH DELETE n",
       { params: { user, collection } },

@@ -46,6 +46,9 @@ export class FalkorDBTriplesQuery {
     this.graph = new Graph(client, database);
     this.connectPromise = client.connect().then(() => {
       console.log(`[FalkorDBTriplesQuery] Connected to ${url}, graph: ${database}`);
+    }).catch((err) => {
+      console.error(`[FalkorDBTriplesQuery] Connection failed:`, err);
+      throw err;
     });
   }
 

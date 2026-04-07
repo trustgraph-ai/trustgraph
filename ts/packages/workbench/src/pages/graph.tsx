@@ -1,4 +1,6 @@
 import {
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -28,12 +30,15 @@ import type { Triple, Term } from "@trustgraph/client";
 // Lazy-load ForceGraph2D to keep bundle size down
 // ---------------------------------------------------------------------------
 
-// react-force-graph-2d ships a default export
-import ForceGraph2D, {
-  type ForceGraphMethods,
-  type NodeObject,
-  type LinkObject,
+import type {
+  ForceGraphMethods,
+  NodeObject,
+  LinkObject,
+  ForceGraphProps,
 } from "react-force-graph-2d";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ForceGraph2D = lazy(() => import("react-force-graph-2d")) as unknown as React.ComponentType<ForceGraphProps<any, any> & { ref?: React.Ref<any> }>;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -226,6 +231,7 @@ function NodeDetailPanel({
         <button
           onClick={onClose}
           className="rounded p-1 text-fg-subtle hover:bg-surface-200 hover:text-fg"
+          aria-label="Close detail panel"
         >
           <X className="h-4 w-4" />
         </button>
@@ -401,7 +407,12 @@ export default function GraphPage() {
       ctx.font = `${fontSize}px Inter, sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
-      ctx.fillStyle = dim ? "rgba(100,100,100,0.3)" : "rgba(250,250,250,0.9)";
+      const isLight = document.documentElement.classList.contains("light");
+      ctx.fillStyle = dim
+        ? "rgba(100,100,100,0.3)"
+        : isLight
+          ? "rgba(24,24,27,0.9)"
+          : "rgba(250,250,250,0.9)";
       ctx.fillText(node.label, x, y + radius + 1);
     },
     [selectedNode, matchingIds],
@@ -456,6 +467,7 @@ export default function GraphPage() {
               <button
                 onClick={() => setSearchTerm("")}
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-fg-subtle hover:text-fg"
+                aria-label="Clear search"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -468,6 +480,7 @@ export default function GraphPage() {
               onClick={zoomIn}
               className="px-2 py-1.5 text-fg-muted hover:text-fg"
               title="Zoom in"
+              aria-label="Zoom in"
             >
               <ZoomIn className="h-3.5 w-3.5" />
             </button>
@@ -475,6 +488,7 @@ export default function GraphPage() {
               onClick={zoomOut}
               className="border-l border-r border-border px-2 py-1.5 text-fg-muted hover:text-fg"
               title="Zoom out"
+              aria-label="Zoom out"
             >
               <ZoomOut className="h-3.5 w-3.5" />
             </button>
@@ -482,6 +496,7 @@ export default function GraphPage() {
               onClick={zoomFit}
               className="px-2 py-1.5 text-fg-muted hover:text-fg"
               title="Fit to view"
+              aria-label="Fit to view"
             >
               <Maximize className="h-3.5 w-3.5" />
             </button>
@@ -532,6 +547,7 @@ export default function GraphPage() {
         <div className="flex flex-1 overflow-hidden rounded-lg border border-border">
           {/* Graph canvas */}
           <div className="relative flex-1 bg-surface-0">
+            <Suspense fallback={<div className="flex h-full items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-fg-subtle" /></div>}>
             <ForceGraph2D
               ref={fgRef}
               graphData={graphData}
@@ -558,6 +574,7 @@ export default function GraphPage() {
               width={undefined}
               height={undefined}
             />
+            </Suspense>
 
             {/* Search results badge overlay */}
             {searchTerm && matchingIds.size > 0 && (

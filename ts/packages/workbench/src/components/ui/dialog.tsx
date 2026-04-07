@@ -54,6 +54,9 @@ export function Dialog({
       onClick={handleBackdrop}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="dialog-title"
         className={cn(
           "relative w-full max-w-lg rounded-xl border border-border bg-surface-100 shadow-2xl",
           className,
@@ -61,7 +64,7 @@ export function Dialog({
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <h2 className="text-lg font-semibold text-fg">{title}</h2>
+          <h2 id="dialog-title" className="text-lg font-semibold text-fg">{title}</h2>
           <button
             onClick={onClose}
             className="rounded-md p-1 text-fg-subtle hover:bg-surface-200 hover:text-fg"
