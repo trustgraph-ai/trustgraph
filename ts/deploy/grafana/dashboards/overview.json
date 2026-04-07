@@ -32,7 +32,7 @@
       "id": 1,
       "targets": [
         {
-          "expr": "up",
+          "expr": "up{job=~\"prometheus|otel-collector|gateway\"}",
           "legendFormat": "{{job}}",
           "refId": "A"
         }

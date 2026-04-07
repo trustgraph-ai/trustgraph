@@ -160,7 +160,7 @@ export function Sidebar() {
         <NavItem to="/graph" icon={Rotate3d} label="Graph" />
         <NavItem to="/prompts" icon={MessageCircleCode} label="Prompts" />
         <NavItem to="/token-cost" icon={Coins} label="Token Cost" />
-        <NavItem to="/knowledge-cores" icon={BrainCircuit} label="Knowledge" />
+        <NavItem to="/knowledge-cores" icon={BrainCircuit} label="Knowledge Cores" />
         <NavItem to="/flows" icon={Workflow} label="Flows" />
         <NavItem to="/settings" icon={Settings} label="Settings" />
       </nav>

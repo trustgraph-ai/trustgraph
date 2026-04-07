@@ -21,7 +21,7 @@ RUN pnpm install --frozen-lockfile
 
 # Copy source and build
 COPY packages/ packages/
-RUN pnpm build
+RUN pnpm build --filter=@trustgraph/base --filter=@trustgraph/client --filter=@trustgraph/flow
 
 # ---------------------------------------------------------------------------
 # Stage 2: Runtime

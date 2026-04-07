@@ -1174,7 +1174,8 @@ export class FlowsApi {
         string,
         Record<string, Record<string, string>>
       >;
-      return JSON.parse(config.config.prompt["template-index"]);
+      const raw = config.config?.prompt?.["template-index"];
+      return raw ? JSON.parse(raw) : [];
     });
   }
 
@@ -1187,7 +1188,8 @@ export class FlowsApi {
         string,
         Record<string, Record<string, string>>
       >;
-      return JSON.parse(config.config.prompt[`template.${id}`]);
+      const raw = config.config?.prompt?.[`template.${id}`];
+      return raw ? JSON.parse(raw) : null;
     });
   }
 
@@ -1200,7 +1202,8 @@ export class FlowsApi {
         string,
         Record<string, Record<string, string>>
       >;
-      return JSON.parse(config.config.prompt.system);
+      const raw = config.config?.prompt?.system;
+      return raw ? JSON.parse(raw) : "";
     });
   }
 
@@ -1546,7 +1549,10 @@ export class FlowApi {
       60000,
       undefined,
       this.flowId,
-    );
+    ).catch((err) => {
+      const errorMessage = err instanceof Error ? err.message : err?.toString() || "Unknown error";
+      onError(`Graph RAG request failed: ${errorMessage}`);
+    });
   }
 
   /**
@@ -1617,7 +1623,10 @@ export class FlowApi {
       60000,
       undefined,
       this.flowId,
-    );
+    ).catch((err) => {
+      const errorMessage = err instanceof Error ? err.message : err?.toString() || "Unknown error";
+      onError(`Document RAG request failed: ${errorMessage}`);
+    });
   }
 
   /**

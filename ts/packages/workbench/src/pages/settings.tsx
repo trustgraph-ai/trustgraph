@@ -300,6 +300,9 @@ export default function SettingsPage() {
               <p className="text-xs text-fg-subtle">
                 Toggle between dark and light mode.
               </p>
+              <p className="text-xs text-fg-subtle">
+                Currently using {isDark ? "dark" : "light"} mode.
+              </p>
             </div>
             <button
               onClick={toggleTheme}

@@ -15,6 +15,7 @@ import {
   ChevronDown,
   ChevronRight,
   Loader2,
+  X,
 } from "lucide-react";
 import Markdown from "react-markdown";
 import { cn } from "@/lib/utils";
@@ -189,11 +190,22 @@ export default function ChatPage() {
   const setInput = useConversation((s) => s.setInput);
   const setChatMode = useConversation((s) => s.setChatMode);
   const clearMessages = useConversation((s) => s.clearMessages);
-  const { submitMessage } = useChat();
+  const { submitMessage, cancelRequest } = useChat();
   const collection = useSettings((s) => s.settings.collection);
   const isLoading = useProgressStore((s) => s.isLoading);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Elapsed time counter while loading
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!isLoading) {
+      setElapsed(0);
+      return;
+    }
+    const interval = setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => clearInterval(interval);
+  }, [isLoading]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -219,7 +231,7 @@ export default function ChatPage() {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <MessageSquareText className="h-6 w-6 text-brand-400" />
           <h1 className="text-2xl font-bold text-fg">Chat</h1>
@@ -228,7 +240,7 @@ export default function ChatPage() {
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Mode selector */}
           <div className="flex rounded-lg border border-border bg-surface-100 p-0.5">
             {MODES.map((mode) => (
@@ -279,7 +291,14 @@ export default function ChatPage() {
       {isLoading && (
         <div className="flex items-center gap-2 pb-2 text-xs text-fg-subtle">
           <Loader2 className="h-3 w-3 animate-spin" />
-          <span>Processing...</span>
+          <span>Processing... {elapsed}s</span>
+          <button
+            onClick={cancelRequest}
+            className="flex items-center gap-1 rounded-lg px-3 py-1 text-xs text-red-400 hover:bg-surface-200"
+          >
+            <X className="h-3 w-3" />
+            Cancel
+          </button>
         </div>
       )}
 

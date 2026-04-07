@@ -66,7 +66,7 @@ services:
     networks:
       - trustgraph
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:6333/healthz"]
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6333'"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -179,6 +179,7 @@ services:
       - GF_AUTH_DISABLE_LOGIN_FORM=false
       - GF_USERS_DEFAULT_THEME=dark
       - GF_EXPLORE_ENABLED=true
+      - GF_USERS_VIEWERS_CAN_EDIT=true
       - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor tempoSearch tempoServiceGraph
     depends_on:
       prometheus:
@@ -314,6 +315,18 @@ services:
   flow-manager:
     image: trustgraph-ts:local
     command: ["node", "entrypoints/flow-manager.mjs"]
+    environment:
+      - NATS_URL=nats://nats:4222
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - trustgraph
+    restart: unless-stopped
+
+  knowledge-cores:
+    image: trustgraph-ts:local
+    command: ["node", "entrypoints/cores.mjs"]
     environment:
       - NATS_URL=nats://nats:4222
     depends_on:

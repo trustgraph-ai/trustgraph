@@ -83,7 +83,13 @@ export default function KnowledgeCoresPage() {
     try {
       setLoading(true);
       setError(null);
-      const ids = await socket.knowledge().getKnowledgeCores();
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Request timed out")), 15000),
+      );
+      const ids = await Promise.race([
+        socket.knowledge().getKnowledgeCores(),
+        timeoutPromise,
+      ]);
       setCores(Array.isArray(ids) ? ids : []);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -144,13 +150,15 @@ export default function KnowledgeCoresPage() {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <BrainCircuit className="h-6 w-6 text-brand-400" />
           <h1 className="text-2xl font-bold text-fg">Knowledge Cores</h1>
-          <span className="ml-2 rounded bg-surface-200 px-2 py-0.5 text-xs text-fg-subtle">
-            {cores.length} core{cores.length !== 1 ? "s" : ""}
-          </span>
+          {!loading && (
+            <span className="ml-2 rounded bg-surface-200 px-2 py-0.5 text-xs text-fg-subtle">
+              {cores.length} core{cores.length !== 1 ? "s" : ""}
+            </span>
+          )}
         </div>
 
         <button

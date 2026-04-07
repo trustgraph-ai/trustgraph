@@ -52,7 +52,7 @@ export default function PromptsPage() {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <MessageCircleCode className="h-6 w-6 text-brand-400" />
           <h1 className="text-2xl font-bold text-fg">Prompts</h1>

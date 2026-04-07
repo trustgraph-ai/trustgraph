@@ -25,6 +25,9 @@ function termToValue(term: Term | undefined): string | null {
 }
 
 function createTerm(value: string): Term {
+  if (!value) {
+    return { type: "LITERAL", value: "" };
+  }
   if (value.startsWith("http://") || value.startsWith("https://")) {
     return { type: "IRI", iri: value };
   }
@@ -90,11 +93,14 @@ export class FalkorDBTriplesQuery {
       await this.matchAll(rawTriples, limit);
     }
 
-    return rawTriples.slice(0, limit).map(([s, p, o]) => ({
-      s: createTerm(s),
-      p: createTerm(p),
-      o: createTerm(o),
-    }));
+    return rawTriples
+      .filter(([s, p, o]) => s != null && p != null && o != null)
+      .slice(0, limit)
+      .map(([s, p, o]) => ({
+        s: createTerm(s),
+        p: createTerm(p),
+        o: createTerm(o),
+      }));
   }
 
   private async matchPattern(

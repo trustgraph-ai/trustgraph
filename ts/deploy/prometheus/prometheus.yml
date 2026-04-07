@@ -13,13 +13,10 @@ scrape_configs:
       - targets:
           - "prometheus:9090"
 
-  # NATS monitoring
-  - job_name: "nats"
-    scrape_interval: 15s
-    metrics_path: "/varz"
-    static_configs:
-      - targets:
-          - "nats:8222"
+  # NATS monitoring (uses nats-prometheus-exporter format)
+  # NATS exposes JSON at /varz, not Prometheus format.
+  # To get proper Prometheus metrics, deploy nats-exporter sidecar.
+  # For now, we rely on NATS healthcheck and JetStream monitoring via /jsz.
 
   # OpenTelemetry Collector (exposes Prometheus metrics from OTLP pipeline)
   - job_name: "otel-collector"
@@ -28,9 +25,10 @@ scrape_configs:
       - targets:
           - "otel-collector:8889"
 
-  # TrustGraph gateway (enabled when gateway container is running)
+  # TrustGraph gateway metrics (prom-client)
   - job_name: "gateway"
-    scrape_interval: 5s
+    scrape_interval: 15s
+    metrics_path: "/api/v1/metrics"
     static_configs:
       - targets:
-          - "gateway:8000"
+          - "gateway:8088"

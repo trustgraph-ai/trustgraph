@@ -47,7 +47,12 @@ export async function createGateway(config: GatewayConfig) {
     const body = request.body as Record<string, unknown>;
 
     try {
-      const result = await dispatcher.dispatchGlobalService(kind, body);
+      const result = await dispatcher.dispatchGlobalService(kind, body) as Record<string, unknown>;
+      const err = result?.error as { type?: string; message?: string } | undefined;
+      if (err) {
+        const statusCode = err.type === "not-found" ? 404 : 400;
+        return reply.code(statusCode).send(result);
+      }
       return result;
     } catch (err) {
       reply.code(500).send({ error: { type: "internal", message: String(err) } });
@@ -62,7 +67,12 @@ export async function createGateway(config: GatewayConfig) {
       const body = request.body as Record<string, unknown>;
 
       try {
-        const result = await dispatcher.dispatchFlowService(flow, kind, body);
+        const result = await dispatcher.dispatchFlowService(flow, kind, body) as Record<string, unknown>;
+        const err = result?.error as { type?: string; message?: string } | undefined;
+        if (err) {
+          const statusCode = err.type === "not-found" ? 404 : 400;
+          return reply.code(statusCode).send(result);
+        }
         return result;
       } catch (err) {
         reply.code(500).send({ error: { type: "internal", message: String(err) } });

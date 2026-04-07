@@ -43,6 +43,7 @@ function StartFlowDialog({
   const [paramsJson, setParamsJson] = useState("{}");
   const [submitting, setSubmitting] = useState(false);
   const [paramsError, setParamsError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
 
   // Fetch blueprints when dialog opens
   useEffect(() => {
@@ -70,9 +71,13 @@ function StartFlowDialog({
     setParamsJson("{}");
     setParamsError(null);
     setSubmitting(false);
+    setSubmitted(false);
   };
 
   const handleSubmit = async () => {
+    setSubmitted(true);
+    if (!isValid) return;
+
     let params: Record<string, unknown> = {};
     try {
       params = JSON.parse(paramsJson);
@@ -140,6 +145,9 @@ function StartFlowDialog({
           placeholder="my-flow-id"
           className="w-full rounded-lg border border-border bg-surface-100 px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
         />
+        {submitted && !id.trim() && (
+          <p className="mt-1 text-xs text-red-400">Flow ID is required</p>
+        )}
       </div>
 
       {/* Blueprint name */}
@@ -167,6 +175,9 @@ function StartFlowDialog({
             ))}
           </select>
         )}
+        {submitted && !blueprint && (
+          <p className="mt-1 text-xs text-red-400">Blueprint is required</p>
+        )}
       </div>
 
       {/* Description */}
@@ -181,6 +192,9 @@ function StartFlowDialog({
           placeholder="Human-readable description"
           className="w-full rounded-lg border border-border bg-surface-100 px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
         />
+        {submitted && !description.trim() && (
+          <p className="mt-1 text-xs text-red-400">Description is required</p>
+        )}
       </div>
 
       {/* Parameters (JSON) */}

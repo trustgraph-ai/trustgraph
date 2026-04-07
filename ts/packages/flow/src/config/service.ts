@@ -129,6 +129,9 @@ export class ConfigService extends AsyncProcessor {
       case "config":
         return this.handleConfigDump();
 
+      case "getvalues":
+        return this.handleGetValues(request);
+
       default:
         throw new Error(`Unknown config operation: ${op as string}`);
     }
@@ -235,6 +238,22 @@ export class ConfigService extends AsyncProcessor {
       version: this.version,
       directory: subMap ? [...subMap.keys()] : [],
     };
+  }
+
+  private handleGetValues(request: ConfigRequest): ConfigResponse {
+    const type = request.type ?? "";
+
+    const values: { key: string; value: unknown }[] = [];
+
+    for (const [namespace, subMap] of this.store) {
+      if (!type || namespace === type || namespace.startsWith(`${type}.`) || namespace.startsWith(`${type}/`)) {
+        for (const [k, v] of subMap) {
+          values.push({ key: `${namespace}.${k}`, value: v });
+        }
+      }
+    }
+
+    return { version: this.version, values: values as unknown as Record<string, unknown> };
   }
 
   private handleConfigDump(): ConfigResponse {

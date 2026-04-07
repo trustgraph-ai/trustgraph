@@ -126,12 +126,13 @@ export interface DocumentEmbeddingsResponse {
 }
 
 // Config
-export type ConfigOperation = "get" | "list" | "delete" | "put" | "config";
+export type ConfigOperation = "get" | "list" | "delete" | "put" | "config" | "getvalues";
 
 export interface ConfigRequest {
   operation: ConfigOperation;
   keys?: string[];
   values?: Record<string, unknown>;
+  type?: string;
 }
 
 export interface ConfigResponse {

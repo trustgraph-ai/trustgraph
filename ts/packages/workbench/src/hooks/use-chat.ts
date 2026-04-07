@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useSocket } from "@/providers/socket-provider";
 import {
   useConversation,
@@ -16,6 +16,7 @@ import type { StreamingMetadata } from "@trustgraph/client";
 
 export interface UseChatReturn {
   submitMessage: (opts: { input: string }) => void;
+  cancelRequest: () => void;
 }
 
 /**
@@ -33,9 +34,31 @@ export function useChat(): UseChatReturn {
   const addActivity = useProgressStore((s) => s.addActivity);
   const removeActivity = useProgressStore((s) => s.removeActivity);
 
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const cancelRequest = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    updateLastMessage((prev) => ({
+      ...prev,
+      content: prev.content || "(Cancelled)",
+      isStreaming: false,
+      activePhase: undefined,
+    }));
+    removeActivity("Chat request");
+  }, [updateLastMessage, removeActivity]);
+
   const submitMessage = useCallback(
     ({ input }: { input: string }) => {
       if (!input.trim()) return;
+
+      // Abort any in-flight request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
 
       const activityLabel = "Chat request";
 
@@ -101,6 +124,7 @@ export function useChat(): UseChatReturn {
           ...prev,
           content: prev.content || `Error: ${error}`,
           isStreaming: false,
+          activePhase: undefined,
         }));
         removeActivity(activityLabel);
       };
@@ -211,5 +235,5 @@ export function useChat(): UseChatReturn {
     ],
   );
 
-  return { submitMessage };
+  return { submitMessage, cancelRequest };
 }

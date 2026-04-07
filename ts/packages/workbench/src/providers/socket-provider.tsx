@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useRef,
@@ -112,14 +113,20 @@ export function useConnectionState(): ConnectionState {
     hasApiKey: false,
   });
 
-  const subscribe = (onStoreChange: () => void) => {
-    return api.onConnectionStateChange((next) => {
-      stateRef.current = next;
-      onStoreChange();
-    });
-  };
+  // subscribe must be stable across renders to prevent useSyncExternalStore
+  // from re-subscribing on every render (which would cause an infinite loop
+  // because onConnectionStateChange immediately calls the listener).
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      return api.onConnectionStateChange((next) => {
+        stateRef.current = next;
+        onStoreChange();
+      });
+    },
+    [api],
+  );
 
-  const getSnapshot = () => stateRef.current;
+  const getSnapshot = useCallback(() => stateRef.current, []);
 
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
