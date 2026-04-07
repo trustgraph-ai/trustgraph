@@ -68,5 +68,14 @@ export { OllamaProcessor } from "./model/text-completion/ollama.js";
 // PDF decoder
 export { PdfDecoderService } from "./decoding/pdf-decoder.js";
 
+// Query services (FlowProcessor wrappers)
+export { TriplesQueryService } from "./query/triples/falkordb-service.js";
+export { GraphEmbeddingsQueryService } from "./query/embeddings/qdrant-graph-service.js";
+export { DocEmbeddingsQueryService } from "./query/embeddings/qdrant-doc-service.js";
+
+// Retrieval services (FlowProcessor wrappers)
+export { GraphRagService } from "./retrieval/graph-rag-service.js";
+export { DocumentRagService } from "./retrieval/document-rag-service.js";
+
 // Flow manager service
 export { FlowManagerService } from "./flow-manager/service.js";

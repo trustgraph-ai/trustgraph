@@ -322,3 +322,150 @@ services:
     networks:
       - trustgraph
     restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Document Processing Pipeline
+  # ---------------------------------------------------------------------------
+
+  pdf-decoder:
+    image: trustgraph-ts:local
+    command: ["node", "entrypoints/pdf-decoder.mjs"]
+    environment:
+      - NATS_URL=nats://nats:4222
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - trustgraph
+    restart: unless-stopped
+
+  chunker:
+    image: trustgraph-ts:local
+    command: ["node", "entrypoints/chunker.mjs"]
+    environment:
+      - NATS_URL=nats://nats:4222
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - trustgraph
+    restart: unless-stopped
+
+  extractor:
+    image: trustgraph-ts:local
+    command: ["node", "entrypoints/extractor.mjs"]
+    environment:
+      - NATS_URL=nats://nats:4222
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - trustgraph
+    restart: unless-stopped
+
+  triples-store:
+    image: trustgraph-ts:local
+    command: ["node", "entrypoints/triples-store.mjs"]
+    environment:
+      - NATS_URL=nats://nats:4222
+      - FALKORDB_URL=redis://falkordb:6379
+    depends_on:
+      nats:
+        condition: service_healthy
+      falkordb:
+        condition: service_healthy
+    networks:
+      - trustgraph
+    restart: unless-stopped
+
+  graph-embeddings-store:
+    image: trustgraph-ts:local
+    command: ["node", "entrypoints/graph-embeddings-store.mjs"]
+    environment:
+      - NATS_URL=nats://nats:4222
+      - QDRANT_URL=http://qdrant:6333
+    depends_on:
+      nats:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    networks:
+      - trustgraph
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Query Services
+  # ---------------------------------------------------------------------------
+
+  triples-query:
+    image: trustgraph-ts:local
+    command: ["node", "entrypoints/triples-query.mjs"]
+    environment:
+      - NATS_URL=nats://nats:4222
+      - FALKORDB_URL=redis://falkordb:6379
+    depends_on:
+      nats:
+        condition: service_healthy
+      falkordb:
+        condition: service_healthy
+    networks:
+      - trustgraph
+    restart: unless-stopped
+
+  graph-embeddings-query:
+    image: trustgraph-ts:local
+    command: ["node", "entrypoints/graph-embeddings-query.mjs"]
+    environment:
+      - NATS_URL=nats://nats:4222
+      - QDRANT_URL=http://qdrant:6333
+    depends_on:
+      nats:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    networks:
+      - trustgraph
+    restart: unless-stopped
+
+  doc-embeddings-query:
+    image: trustgraph-ts:local
+    command: ["node", "entrypoints/doc-embeddings-query.mjs"]
+    environment:
+      - NATS_URL=nats://nats:4222
+      - QDRANT_URL=http://qdrant:6333
+    depends_on:
+      nats:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    networks:
+      - trustgraph
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Retrieval Services
+  # ---------------------------------------------------------------------------
+
+  graph-rag:
+    image: trustgraph-ts:local
+    command: ["node", "entrypoints/graph-rag.mjs"]
+    environment:
+      - NATS_URL=nats://nats:4222
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - trustgraph
+    restart: unless-stopped
+
+  document-rag:
+    image: trustgraph-ts:local
+    command: ["node", "entrypoints/document-rag.mjs"]
+    environment:
+      - NATS_URL=nats://nats:4222
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - trustgraph
+    restart: unless-stopped

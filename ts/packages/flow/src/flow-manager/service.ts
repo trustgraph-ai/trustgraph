@@ -82,6 +82,12 @@ const DEFAULT_BLUEPRINT: Blueprint = {
     // Embeddings
     "embeddings-request": "tg.flow.embeddings-request",
     "embeddings-response": "tg.flow.embeddings-response",
+    // Graph embeddings query
+    "graph-embeddings-request": "tg.flow.graph-embeddings-request",
+    "graph-embeddings-response": "tg.flow.graph-embeddings-response",
+    // Document embeddings query
+    "document-embeddings-request": "tg.flow.document-embeddings-request",
+    "document-embeddings-response": "tg.flow.document-embeddings-response",
     // Librarian RPC (for PDF decoder)
     "librarian-request": "tg.flow.librarian-request",
     "librarian-response": "tg.flow.librarian-response",

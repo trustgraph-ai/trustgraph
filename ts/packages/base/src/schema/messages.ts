@@ -113,6 +113,18 @@ export interface GraphEmbeddingsResponse {
   error?: TgError;
 }
 
+// Document embeddings query
+export interface DocumentEmbeddingsRequest {
+  vectors: number[][];
+  limit?: number;
+  collection?: string;
+}
+
+export interface DocumentEmbeddingsResponse {
+  chunks: Array<{ chunkId: string; score: number }>;
+  error?: TgError;
+}
+
 // Config
 export type ConfigOperation = "get" | "list" | "delete" | "put" | "config";
 

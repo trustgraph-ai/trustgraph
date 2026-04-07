@@ -88,6 +88,56 @@ async function main(): Promise<void> {
         "Question: {query}",
       ].join("\n"),
     },
+    "extract-concepts": {
+      system: "You extract key concepts and entities from questions.",
+      prompt: [
+        "Extract the key concepts and entities from the following question.",
+        "Return one concept per line, no numbering or bullets.",
+        "",
+        "Question: {query}",
+      ].join("\n"),
+    },
+    "kg-edge-scoring": {
+      system: "You are a knowledge graph expert that scores the relevance of graph edges to a query.",
+      prompt: [
+        "Given the following question and a list of knowledge graph edges,",
+        "score each edge for relevance to answering the question.",
+        "Return a JSON array of objects with 'id' and 'score' (0.0 to 1.0).",
+        "",
+        "Question: {query}",
+        "",
+        "Edges:",
+        "{knowledge}",
+        "",
+        "Requirements:",
+        "- Respond only with a valid JSON array.",
+        "- Example: [{\"id\": \"0\", \"score\": 0.9}, {\"id\": \"1\", \"score\": 0.2}]",
+      ].join("\n"),
+    },
+    "graph-rag-synthesize": {
+      system: "You are a helpful assistant that answers questions using knowledge graph data. Only use the provided context.",
+      prompt: [
+        "Use the following knowledge graph relationships to answer the question.",
+        "Do not speculate if the answer is not found in the context.",
+        "",
+        "Knowledge:",
+        "{context}",
+        "",
+        "Question: {query}",
+      ].join("\n"),
+    },
+    "document-rag-synthesize": {
+      system: "You are a helpful assistant. Use only the provided document context to answer questions.",
+      prompt: [
+        "Use the following document excerpts to answer the question.",
+        "Do not speculate if the answer is not found in the context.",
+        "",
+        "Documents:",
+        "{context}",
+        "",
+        "Question: {query}",
+      ].join("\n"),
+    },
   });
 
   // 2. Flow definitions (default flow with all topic mappings)
@@ -129,6 +179,12 @@ async function main(): Promise<void> {
         // Embeddings
         "embeddings-request": "tg.flow.embeddings-request",
         "embeddings-response": "tg.flow.embeddings-response",
+        // Graph embeddings query
+        "graph-embeddings-request": "tg.flow.graph-embeddings-request",
+        "graph-embeddings-response": "tg.flow.graph-embeddings-response",
+        // Document embeddings query
+        "document-embeddings-request": "tg.flow.document-embeddings-request",
+        "document-embeddings-response": "tg.flow.document-embeddings-response",
         // Librarian RPC (for PDF decoder)
         "librarian-request": "tg.flow.librarian-request",
         "librarian-response": "tg.flow.librarian-response",

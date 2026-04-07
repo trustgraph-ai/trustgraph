@@ -21,7 +21,15 @@
     "llm:ollama": "tsx scripts/run-ollama.ts",
     "pdf-decoder": "tsx scripts/run-pdf-decoder.ts",
     "triples-store": "tsx scripts/run-triples-store.ts",
-    "graph-embeddings-store": "tsx scripts/run-graph-embeddings-store.ts"
+    "graph-embeddings-store": "tsx scripts/run-graph-embeddings-store.ts",
+    "chunker": "tsx scripts/run-chunker.ts",
+    "extractor": "tsx scripts/run-extractor.ts",
+    "embeddings": "tsx scripts/run-embeddings.ts",
+    "triples-query": "tsx scripts/run-triples-query.ts",
+    "graph-embeddings-query": "tsx scripts/run-graph-embeddings-query.ts",
+    "doc-embeddings-query": "tsx scripts/run-doc-embeddings-query.ts",
+    "graph-rag": "tsx scripts/run-graph-rag.ts",
+    "document-rag": "tsx scripts/run-document-rag.ts"
   },
   "devDependencies": {
     "nats": "^2.29.0",
