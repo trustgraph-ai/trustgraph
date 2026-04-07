@@ -49,7 +49,8 @@ class TestDispatcherManager:
         assert manager.prefix == "api-gateway"  # default prefix
         assert manager.flows == {}
         assert manager.dispatchers == {}
-        
+        assert isinstance(manager.dispatcher_lock, asyncio.Lock)
+
         # Verify manager was added as handler to config receiver
         mock_config_receiver.add_handler.assert_called_once_with(manager)
 
@@ -543,18 +544,99 @@ class TestDispatcherManager:
         mock_backend = Mock()
         mock_config_receiver = Mock()
         manager = DispatcherManager(mock_backend, mock_config_receiver)
-        
+
         # Setup test flow with interface but unsupported kind
         manager.flows["test_flow"] = {
             "interfaces": {
                 "invalid-kind": {"request": "req", "response": "resp"}
             }
         }
-        
+
         with patch('trustgraph.gateway.dispatch.manager.request_response_dispatchers') as mock_rr_dispatchers, \
              patch('trustgraph.gateway.dispatch.manager.sender_dispatchers') as mock_sender_dispatchers:
             mock_rr_dispatchers.__contains__.return_value = False
             mock_sender_dispatchers.__contains__.return_value = False
-            
+
             with pytest.raises(RuntimeError, match="Invalid kind"):
                 await manager.invoke_flow_service("data", "responder", "test_flow", "invalid-kind")
+
+    @pytest.mark.asyncio
+    async def test_invoke_global_service_concurrent_calls_create_single_dispatcher(self):
+        """Concurrent calls for the same service must create exactly one dispatcher.
+
+        Before the fix, await dispatcher.start() yielded to the event loop and
+        multiple coroutines could all pass the 'key not in self.dispatchers' check
+        before any of them wrote the result back, creating duplicate Pulsar consumers.
+        """
+        mock_backend = Mock()
+        mock_config_receiver = Mock()
+        manager = DispatcherManager(mock_backend, mock_config_receiver)
+
+        async def slow_start():
+            # Yield to the event loop so other coroutines get a chance to run,
+            # reproducing the window that caused the original race condition.
+            await asyncio.sleep(0)
+
+        with patch('trustgraph.gateway.dispatch.manager.global_dispatchers') as mock_dispatchers:
+            mock_dispatcher_class = Mock()
+            mock_dispatcher = Mock()
+            mock_dispatcher.start = AsyncMock(side_effect=slow_start)
+            mock_dispatcher.process = AsyncMock(return_value="result")
+            mock_dispatcher_class.return_value = mock_dispatcher
+            mock_dispatchers.__getitem__.return_value = mock_dispatcher_class
+
+            results = await asyncio.gather(*[
+                manager.invoke_global_service("data", "responder", "config")
+                for _ in range(5)
+            ])
+
+        assert mock_dispatcher_class.call_count == 1, (
+            "Dispatcher class instantiated more than once — duplicate consumer bug"
+        )
+        assert mock_dispatcher.start.call_count == 1
+        assert manager.dispatchers[(None, "config")] is mock_dispatcher
+        assert all(r == "result" for r in results)
+
+    @pytest.mark.asyncio
+    async def test_invoke_flow_service_concurrent_calls_create_single_dispatcher(self):
+        """Concurrent calls for the same flow+kind must create exactly one dispatcher.
+
+        invoke_flow_service has the same check-then-create pattern as
+        invoke_global_service and is protected by the same dispatcher_lock.
+        """
+        mock_backend = Mock()
+        mock_config_receiver = Mock()
+        manager = DispatcherManager(mock_backend, mock_config_receiver)
+
+        manager.flows["test_flow"] = {
+            "interfaces": {
+                "agent": {
+                    "request": "agent_request_queue",
+                    "response": "agent_response_queue",
+                }
+            }
+        }
+
+        async def slow_start():
+            await asyncio.sleep(0)
+
+        with patch('trustgraph.gateway.dispatch.manager.request_response_dispatchers') as mock_rr_dispatchers:
+            mock_dispatcher_class = Mock()
+            mock_dispatcher = Mock()
+            mock_dispatcher.start = AsyncMock(side_effect=slow_start)
+            mock_dispatcher.process = AsyncMock(return_value="result")
+            mock_dispatcher_class.return_value = mock_dispatcher
+            mock_rr_dispatchers.__getitem__.return_value = mock_dispatcher_class
+            mock_rr_dispatchers.__contains__.return_value = True
+
+            results = await asyncio.gather(*[
+                manager.invoke_flow_service("data", "responder", "test_flow", "agent")
+                for _ in range(5)
+            ])
+
+        assert mock_dispatcher_class.call_count == 1, (
+            "Dispatcher class instantiated more than once — duplicate consumer bug"
+        )
+        assert mock_dispatcher.start.call_count == 1
+        assert manager.dispatchers[("test_flow", "agent")] is mock_dispatcher
+        assert all(r == "result" for r in results)
