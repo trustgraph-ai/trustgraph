@@ -71,9 +71,11 @@ export default function TokenCostPage() {
         <div className="flex items-center gap-3">
           <Coins className="h-6 w-6 text-brand-400" />
           <h1 className="text-2xl font-bold text-fg">Token Cost</h1>
-          <span className="ml-2 rounded bg-surface-200 px-2 py-0.5 text-xs text-fg-subtle">
-            {costs.length} model{costs.length !== 1 ? "s" : ""}
-          </span>
+          {!loading && (
+            <span className="ml-2 rounded bg-surface-200 px-2 py-0.5 text-xs text-fg-subtle">
+              {costs.length} model{costs.length !== 1 ? "s" : ""}
+            </span>
+          )}
         </div>
 
         <button

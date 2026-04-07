@@ -23,6 +23,22 @@ import { useNotification } from "@/providers/notification-provider";
 import { Badge } from "@/components/ui/badge";
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const ACRONYMS: Record<string, string> = { mcp: "MCP", llm: "LLM", api: "API" };
+
+/** Convert camelCase key to display label, preserving known acronyms. */
+function featureLabel(key: string): string {
+  return key
+    .replace(/([A-Z])/g, " $1")
+    .trim()
+    .split(" ")
+    .map((w) => ACRONYMS[w.toLowerCase()] ?? w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+// ---------------------------------------------------------------------------
 // Section wrapper
 // ---------------------------------------------------------------------------
 
@@ -66,9 +82,11 @@ export default function SettingsPage() {
   >([]);
   const [loadingCollections, setLoadingCollections] = useState(false);
 
-  // Dark mode toggle -- uses a class on <html> and persists to localStorage
+  // Dark mode toggle -- uses a class on <html>/<body> and persists to localStorage
   const [isDark, setIsDark] = useState(() => {
     if (typeof window === "undefined") return true;
+    const saved = localStorage.getItem("tg-theme");
+    if (saved) return saved === "dark";
     return !document.documentElement.classList.contains("light");
   });
 
@@ -77,9 +95,13 @@ export default function SettingsPage() {
     setIsDark(next);
     if (next) {
       document.documentElement.classList.remove("light");
+      document.body.classList.remove("light");
+      document.body.classList.add("dark");
       localStorage.setItem("tg-theme", "dark");
     } else {
       document.documentElement.classList.add("light");
+      document.body.classList.add("light");
+      document.body.classList.remove("dark");
       localStorage.setItem("tg-theme", "light");
     }
   }, [isDark]);
@@ -117,9 +139,10 @@ export default function SettingsPage() {
     connectionState.status === "authenticated" ||
     connectionState.status === "unauthenticated";
 
+  const isWarning = connectionState.status === "unauthenticated";
   const statusBadge = isConnected ? (
-    <Badge variant="success">
-      <Wifi className="h-3 w-3" /> {connectionState.status}
+    <Badge variant={isWarning ? "info" : "success"}>
+      <Wifi className="h-3 w-3" /> {isWarning ? "Connected (no auth)" : connectionState.status}
     </Badge>
   ) : (
     <Badge variant="error">
@@ -136,7 +159,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Form */}
-      <div className="max-w-2xl space-y-5">
+      <div className="max-w-2xl space-y-5 pb-8 overflow-y-auto">
         {/* Connection */}
         <Section
           title="Connection"
@@ -196,6 +219,7 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={() => setShowApiKey((p) => !p)}
+                aria-label={showApiKey ? "Hide API key" : "Show API key"}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-subtle hover:text-fg"
               >
                 {showApiKey ? (
@@ -305,6 +329,9 @@ export default function SettingsPage() {
               </p>
             </div>
             <button
+              role="switch"
+              aria-checked={isDark}
+              aria-label="Dark mode"
               onClick={toggleTheme}
               className={cn(
                 "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
@@ -329,9 +356,12 @@ export default function SettingsPage() {
           {Object.entries(settings.featureSwitches).map(([key, enabled]) => (
             <div key={key} className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-fg capitalize">{key.replace(/([A-Z])/g, " $1").trim()}</p>
+                <p className="text-sm text-fg">{featureLabel(key)}</p>
               </div>
               <button
+                role="switch"
+                aria-checked={enabled}
+                aria-label={featureLabel(key)}
                 onClick={() => updateFeatureSwitches({ [key]: !enabled })}
                 className={cn(
                   "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",

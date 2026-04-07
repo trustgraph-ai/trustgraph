@@ -260,9 +260,10 @@ export default function ChatPage() {
           </div>
 
           <button
-            onClick={clearMessages}
+            onClick={() => { cancelRequest(); clearMessages(); }}
             className="rounded-lg p-2 text-fg-subtle hover:bg-surface-200 hover:text-fg"
             title="Clear messages"
+            aria-label="Clear messages"
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -314,6 +315,7 @@ export default function ChatPage() {
         <button
           onClick={handleSubmit}
           disabled={!input.trim() || isLoading}
+          aria-label="Send message"
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white transition-colors hover:bg-brand-500 disabled:opacity-40"
         >
           <Send className="h-4 w-4" />

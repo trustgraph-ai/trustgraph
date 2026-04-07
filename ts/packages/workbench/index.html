@@ -7,6 +7,17 @@
     <title>TrustGraph Workbench</title>
   </head>
   <body class="dark">
+    <script>
+      // Restore theme preference before first paint to avoid flash
+      (function() {
+        var theme = localStorage.getItem('tg-theme');
+        if (theme === 'light') {
+          document.body.classList.remove('dark');
+          document.body.classList.add('light');
+          document.documentElement.classList.add('light');
+        }
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

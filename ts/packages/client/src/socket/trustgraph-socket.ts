@@ -2060,7 +2060,8 @@ export class ConfigApi {
         string,
         Record<string, Record<string, string>>
       >;
-      return JSON.parse(config.config.prompt["template-index"]);
+      const raw = config.config?.prompt?.["template-index"];
+      return raw ? JSON.parse(raw) : [];
     });
   }
 
@@ -2073,7 +2074,8 @@ export class ConfigApi {
         string,
         Record<string, Record<string, string>>
       >;
-      return JSON.parse(config.config.prompt[`template.${id}`]);
+      const raw = config.config?.prompt?.[`template.${id}`];
+      return raw ? JSON.parse(raw) : null;
     });
   }
 
@@ -2086,7 +2088,8 @@ export class ConfigApi {
         string,
         Record<string, Record<string, string>>
       >;
-      return JSON.parse(config.config.prompt.system);
+      const raw = config.config?.prompt?.system;
+      return raw ? JSON.parse(raw) : "";
     });
   }
 

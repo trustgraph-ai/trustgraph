@@ -62,17 +62,27 @@ function ConnectionBadge() {
     state.status === "authenticated" ||
     state.status === "unauthenticated";
 
+  const isWarning = state.status === "unauthenticated";
+
   return (
     <div
       className={cn(
         "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium",
-        isConnected ? "text-success" : "text-fg-subtle",
+        isWarning
+          ? "text-amber-400"
+          : isConnected
+            ? "text-success"
+            : "text-fg-subtle",
       )}
     >
       <span
         className={cn(
           "h-2 w-2 shrink-0 rounded-full",
-          isConnected ? "bg-success animate-pulse" : "bg-fg-subtle",
+          isWarning
+            ? "bg-amber-400 animate-pulse"
+            : isConnected
+              ? "bg-success animate-pulse"
+              : "bg-fg-subtle",
         )}
       />
       {isConnected ? (
@@ -80,7 +90,9 @@ function ConnectionBadge() {
       ) : (
         <WifiOff className="h-3.5 w-3.5" />
       )}
-      <span className="truncate capitalize">{state.status}</span>
+      <span className="truncate capitalize">
+        {isWarning ? "Connected (no auth)" : state.status}
+      </span>
     </div>
   );
 }

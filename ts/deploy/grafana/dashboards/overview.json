@@ -28,7 +28,7 @@
         "type": "prometheus",
         "uid": "tg-prometheus"
       },
-      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
       "id": 1,
       "targets": [
         {
@@ -74,7 +74,7 @@
         "type": "prometheus",
         "uid": "tg-prometheus"
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 4 },
       "id": 2,
       "targets": [
         {
@@ -131,7 +131,7 @@
         "type": "prometheus",
         "uid": "tg-prometheus"
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 4 },
       "id": 3,
       "targets": [
         {
@@ -195,7 +195,7 @@
         "type": "prometheus",
         "uid": "tg-prometheus"
       },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 },
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 10 },
       "id": 4,
       "targets": [
         {
@@ -263,6 +263,7 @@
   "templating": {
     "list": []
   },
+  "refresh": "30s",
   "time": {
     "from": "now-1h",
     "to": "now"
