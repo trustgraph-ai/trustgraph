@@ -246,7 +246,10 @@ class Processor(AsyncProcessor):
             taskgroup = self.taskgroup,
         )
 
-        self.register_config_handler(self.on_librarian_config, types=["librarian"])
+        self.register_config_handler(
+            self.on_librarian_config,
+            types=["flow", "active-flow"],
+        )
 
         self.flows = {}
 
