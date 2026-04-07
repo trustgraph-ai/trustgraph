@@ -294,9 +294,8 @@ class TestPollTimeout:
             raise type('Timeout', (Exception,), {})("timeout")
 
         mock_pulsar_consumer.receive = capture_receive
-        consumer.consumer = mock_pulsar_consumer
 
-        await consumer.consume_from_queue()
+        await consumer.consume_from_queue(mock_pulsar_consumer)
 
         assert received_kwargs.get("timeout_millis") == 100
 
