@@ -1,6 +1,7 @@
 from typing import Dict, Any, Tuple
 from ...schema import DocumentRagQuery, DocumentRagResponse, GraphRagQuery, GraphRagResponse
 from .base import MessageTranslator
+from .primitives import TripleTranslator
 
 
 class DocumentRagRequestTranslator(MessageTranslator):
@@ -28,6 +29,9 @@ class DocumentRagRequestTranslator(MessageTranslator):
 class DocumentRagResponseTranslator(MessageTranslator):
     """Translator for DocumentRagResponse schema objects"""
 
+    def __init__(self):
+        self.triple_translator = TripleTranslator()
+
     def decode(self, data: Dict[str, Any]) -> DocumentRagResponse:
         raise NotImplementedError("Response translation to Pulsar not typically needed")
 
@@ -52,6 +56,13 @@ class DocumentRagResponseTranslator(MessageTranslator):
         explain_graph = getattr(obj, "explain_graph", None)
         if explain_graph is not None:
             result["explain_graph"] = explain_graph
+
+        # Include explain_triples for explain messages
+        explain_triples = getattr(obj, "explain_triples", [])
+        if explain_triples:
+            result["explain_triples"] = [
+                self.triple_translator.encode(t) for t in explain_triples
+            ]
 
         # Include end_of_stream flag (LLM stream complete)
         result["end_of_stream"] = getattr(obj, "end_of_stream", False)
@@ -107,6 +118,9 @@ class GraphRagRequestTranslator(MessageTranslator):
 class GraphRagResponseTranslator(MessageTranslator):
     """Translator for GraphRagResponse schema objects"""
 
+    def __init__(self):
+        self.triple_translator = TripleTranslator()
+
     def decode(self, data: Dict[str, Any]) -> GraphRagResponse:
         raise NotImplementedError("Response translation to Pulsar not typically needed")
 
@@ -131,6 +145,13 @@ class GraphRagResponseTranslator(MessageTranslator):
         explain_graph = getattr(obj, "explain_graph", None)
         if explain_graph is not None:
             result["explain_graph"] = explain_graph
+
+        # Include explain_triples for explain messages
+        explain_triples = getattr(obj, "explain_triples", [])
+        if explain_triples:
+            result["explain_triples"] = [
+                self.triple_translator.encode(t) for t in explain_triples
+            ]
 
         # Include end_of_stream flag (LLM stream complete)
         result["end_of_stream"] = getattr(obj, "end_of_stream", False)

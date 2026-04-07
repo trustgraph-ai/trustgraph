@@ -162,12 +162,13 @@ class Processor(FlowProcessor):
                     triples=triples,
                 ))
 
-                # Send explain ID and graph to response queue
+                # Send explain data to response queue
                 await flow("response").send(
                     DocumentRagResponse(
                         response=None,
                         explain_id=explain_id,
                         explain_graph=GRAPH_RETRIEVAL,
+                        explain_triples=triples,
                         message_type="explain",
                     ),
                     properties={"id": id}
