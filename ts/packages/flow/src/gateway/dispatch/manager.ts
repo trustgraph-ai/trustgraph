@@ -235,6 +235,18 @@ export class DispatcherManager {
     });
   }
 
+  // ---------- Fire-and-forget publish ----------
+
+  /**
+   * Publish a single message to an arbitrary topic (no request/response).
+   * Used for injecting documents into the processing pipeline.
+   */
+  async publishToTopic(topic: string, message: unknown): Promise<void> {
+    const producer = await this.pubsub.createProducer<unknown>({ topic });
+    await producer.send(message);
+    await producer.close();
+  }
+
   // ---------- Static introspection ----------
 
   static get flowServiceNames(): readonly string[] {

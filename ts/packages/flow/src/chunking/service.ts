@@ -30,10 +30,10 @@ export class ChunkingService extends FlowProcessor {
     super(config);
 
     this.registerSpecification(
-      new ConsumerSpec<TextDocument>("input", this.onMessage.bind(this)),
+      new ConsumerSpec<TextDocument>("chunk-input", this.onMessage.bind(this)),
     );
-    this.registerSpecification(new ProducerSpec<Chunk>("output"));
-    this.registerSpecification(new ProducerSpec<Triples>("triples"));
+    this.registerSpecification(new ProducerSpec<Chunk>("chunk-output"));
+    this.registerSpecification(new ProducerSpec<Triples>("chunk-triples"));
     this.registerSpecification(new ParameterSpec("chunk-size"));
     this.registerSpecification(new ParameterSpec("chunk-overlap"));
 
@@ -75,7 +75,7 @@ export class ChunkingService extends FlowProcessor {
       `[ChunkingService] Split document ${msg.documentId} into ${chunks.length} chunks (size=${chunkSize}, overlap=${chunkOverlap})`,
     );
 
-    const outputProducer = flowCtx.flow.producer<Chunk>("output");
+    const outputProducer = flowCtx.flow.producer<Chunk>("chunk-output");
 
     for (const chunkText of chunks) {
       const chunk: Chunk = {

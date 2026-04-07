@@ -49,10 +49,10 @@ export class KnowledgeExtractService extends FlowProcessor {
     super(config);
 
     this.registerSpecification(
-      new ConsumerSpec<Chunk>("input", this.onMessage.bind(this)),
+      new ConsumerSpec<Chunk>("extract-input", this.onMessage.bind(this)),
     );
-    this.registerSpecification(new ProducerSpec<Triples>("triples"));
-    this.registerSpecification(new ProducerSpec<EntityContexts>("entity-contexts"));
+    this.registerSpecification(new ProducerSpec<Triples>("extract-triples"));
+    this.registerSpecification(new ProducerSpec<EntityContexts>("extract-entity-contexts"));
 
     this.registerSpecification(
       new RequestResponseSpec<PromptRequest, PromptResponse>(
@@ -85,8 +85,8 @@ export class KnowledgeExtractService extends FlowProcessor {
 
     const promptClient = flowCtx.flow.requestor<PromptRequest, PromptResponse>("prompt-client");
     const llmClient = flowCtx.flow.requestor<TextCompletionRequest, TextCompletionResponse>("llm-client");
-    const triplesProducer = flowCtx.flow.producer<Triples>("triples");
-    const entityContextsProducer = flowCtx.flow.producer<EntityContexts>("entity-contexts");
+    const triplesProducer = flowCtx.flow.producer<Triples>("extract-triples");
+    const entityContextsProducer = flowCtx.flow.producer<EntityContexts>("extract-entity-contexts");
 
     const allTriples: Triple[] = [];
     const allEntityContexts: EntityContext[] = [];

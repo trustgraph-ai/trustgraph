@@ -151,6 +151,12 @@ export interface PipelineMetadata {
   collection: string;
 }
 
+/** Document message — triggers the decode pipeline for a librarian document. */
+export interface Document {
+  metadata: PipelineMetadata;
+  documentId: string;
+}
+
 export interface TextDocument {
   metadata: PipelineMetadata;
   text: string;

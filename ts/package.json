@@ -17,7 +17,11 @@
     "agent": "tsx scripts/run-agent.ts",
     "librarian": "tsx scripts/run-librarian.ts",
     "knowledge": "tsx scripts/run-knowledge.ts",
-    "flow-manager": "tsx scripts/run-flow-manager.ts"
+    "flow-manager": "tsx scripts/run-flow-manager.ts",
+    "llm:ollama": "tsx scripts/run-ollama.ts",
+    "pdf-decoder": "tsx scripts/run-pdf-decoder.ts",
+    "triples-store": "tsx scripts/run-triples-store.ts",
+    "graph-embeddings-store": "tsx scripts/run-graph-embeddings-store.ts"
   },
   "devDependencies": {
     "nats": "^2.29.0",

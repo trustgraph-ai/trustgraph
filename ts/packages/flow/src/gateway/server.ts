@@ -70,6 +70,48 @@ export async function createGateway(config: GatewayConfig) {
     },
   );
 
+  // REST endpoint: POST /api/v1/flow/:flow/load  (trigger document processing)
+  app.post<{ Params: { flow: string } }>(
+    "/api/v1/flow/:flow/load",
+    async (request, reply) => {
+      const { flow } = request.params;
+      const body = request.body as {
+        documentId?: string;
+        user?: string;
+        collection?: string;
+      };
+
+      if (!body.documentId) {
+        return reply.code(400).send({
+          error: { type: "bad-request", message: "documentId is required" },
+        });
+      }
+
+      try {
+        const user = body.user ?? "default";
+        const collection = body.collection ?? "default";
+        const documentId = body.documentId;
+
+        // Publish Document message to the decode-input topic
+        const topic = "tg.flow.document";
+        const metadata = {
+          id: `load-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          root: documentId,
+          user,
+          collection,
+        };
+
+        await dispatcher.publishToTopic(topic, { metadata, documentId });
+
+        return { status: "processing", documentId, flow };
+      } catch (err) {
+        reply.code(500).send({
+          error: { type: "internal", message: String(err) },
+        });
+      }
+    },
+  );
+
   // WebSocket endpoint: /api/v1/socket
   // Uses Mux for queue-based request buffering and concurrency control.
   app.get("/api/v1/socket", { websocket: true }, (socket, request) => {

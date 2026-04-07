@@ -62,5 +62,11 @@ export { KnowledgeExtractService } from "./extract/knowledge-extract.js";
 // Knowledge core service
 export { KnowledgeCoreService, type KnowledgeCoreServiceConfig } from "./cores/service.js";
 
+// Ollama text completion
+export { OllamaProcessor } from "./model/text-completion/ollama.js";
+
+// PDF decoder
+export { PdfDecoderService } from "./decoding/pdf-decoder.js";
+
 // Flow manager service
 export { FlowManagerService } from "./flow-manager/service.js";

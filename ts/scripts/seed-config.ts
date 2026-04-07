@@ -95,6 +95,19 @@ async function main(): Promise<void> {
   await pushConfig(["flows"], {
     default: {
       topics: {
+        // Document processing pipeline
+        "decode-input": "tg.flow.document",
+        "decode-output": "tg.flow.text-document",
+        "decode-triples": "tg.flow.triples",
+        "chunk-input": "tg.flow.text-document",
+        "chunk-output": "tg.flow.chunk",
+        "chunk-triples": "tg.flow.triples",
+        "extract-input": "tg.flow.chunk",
+        "extract-triples": "tg.flow.triples",
+        "extract-entity-contexts": "tg.flow.entity-contexts",
+        // Storage consumers
+        "store-triples-input": "tg.flow.triples",
+        "store-graph-embeddings-input": "tg.flow.entity-contexts",
         // LLM text completion
         "text-completion-request": "tg.flow.text-completion-request",
         "text-completion-response": "tg.flow.text-completion-response",
@@ -107,17 +120,18 @@ async function main(): Promise<void> {
         // Document RAG
         "document-rag-request": "tg.flow.document-rag-request",
         "document-rag-response": "tg.flow.document-rag-response",
-        // Triples
+        // Triples query
         "triples-request": "tg.flow.triples-request",
         "triples-response": "tg.flow.triples-response",
         // Agent
         "agent-request": "tg.flow.agent-request",
         "agent-response": "tg.flow.agent-response",
-        // Chunking pipeline
-        "input": "tg.flow.chunk",
-        "output": "tg.flow.chunk",
-        "triples": "tg.flow.triples",
-        "entity-contexts": "tg.flow.entity-contexts",
+        // Embeddings
+        "embeddings-request": "tg.flow.embeddings-request",
+        "embeddings-response": "tg.flow.embeddings-response",
+        // Librarian RPC (for PDF decoder)
+        "librarian-request": "tg.flow.librarian-request",
+        "librarian-response": "tg.flow.librarian-response",
       },
     },
   });

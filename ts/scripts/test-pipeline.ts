@@ -134,22 +134,43 @@ async function testPushFlowConfig(): Promise<boolean> {
       values: {
         default: {
           topics: {
+            // Document processing pipeline
+            "decode-input": "tg.flow.document",
+            "decode-output": "tg.flow.text-document",
+            "decode-triples": "tg.flow.triples",
+            "chunk-input": "tg.flow.text-document",
+            "chunk-output": "tg.flow.chunk",
+            "chunk-triples": "tg.flow.triples",
+            "extract-input": "tg.flow.chunk",
+            "extract-triples": "tg.flow.triples",
+            "extract-entity-contexts": "tg.flow.entity-contexts",
+            // Storage consumers
+            "store-triples-input": "tg.flow.triples",
+            "store-graph-embeddings-input": "tg.flow.entity-contexts",
+            // LLM text completion
             "text-completion-request": "tg.flow.text-completion-request",
             "text-completion-response": "tg.flow.text-completion-response",
+            // Prompt service
             "prompt-request": "tg.flow.prompt-request",
             "prompt-response": "tg.flow.prompt-response",
+            // Graph RAG
             "graph-rag-request": "tg.flow.graph-rag-request",
             "graph-rag-response": "tg.flow.graph-rag-response",
+            // Document RAG
             "document-rag-request": "tg.flow.document-rag-request",
             "document-rag-response": "tg.flow.document-rag-response",
+            // Triples query
             "triples-request": "tg.flow.triples-request",
             "triples-response": "tg.flow.triples-response",
+            // Agent
             "agent-request": "tg.flow.agent-request",
             "agent-response": "tg.flow.agent-response",
-            "input": "tg.flow.chunk",
-            "output": "tg.flow.chunk",
-            "triples": "tg.flow.triples",
-            "entity-contexts": "tg.flow.entity-contexts",
+            // Embeddings
+            "embeddings-request": "tg.flow.embeddings-request",
+            "embeddings-response": "tg.flow.embeddings-response",
+            // Librarian RPC (for PDF decoder)
+            "librarian-request": "tg.flow.librarian-request",
+            "librarian-response": "tg.flow.librarian-response",
           },
         },
       },
@@ -373,6 +394,69 @@ async function testLibrarianDelete(): Promise<boolean> {
   }
 }
 
+// ─── Document Load Test ──────────────────────────────────────────────
+
+async function testDocumentLoad(): Promise<boolean> {
+  try {
+    // First upload a test document via librarian
+    const content = Buffer.from("Test document for pipeline processing.").toString("base64");
+    const addRes = await post("/api/v1/librarian", {
+      operation: "add-document",
+      user: "test-user",
+      collection: "test-collection",
+      content,
+      documentMetadata: {
+        id: "",
+        time: Date.now(),
+        kind: "application/pdf",
+        title: "Test Pipeline Document",
+        comments: "",
+        user: "test-user",
+        tags: ["test"],
+        documentType: "source",
+      },
+    }) as Record<string, unknown>;
+
+    const meta = addRes.documentMetadata as Record<string, unknown> | undefined;
+    if (!meta?.id) {
+      fail("Document load", "failed to upload test document");
+      return false;
+    }
+    const docId = meta.id as string;
+
+    // Trigger document processing via the load endpoint
+    const res = await fetch(`${GATEWAY_URL}/api/v1/flow/default/load`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        documentId: docId,
+        user: "test-user",
+        collection: "test-collection",
+      }),
+    });
+    const data = await res.json() as Record<string, unknown>;
+    log("document-load", data);
+
+    if (data.status === "processing") {
+      pass(`Document load triggered for ${docId.slice(0, 8)}...`);
+
+      // Clean up the test document
+      await post("/api/v1/librarian", {
+        operation: "remove-document",
+        documentId: docId,
+        user: "test-user",
+      });
+
+      return true;
+    }
+    fail("Document load", "unexpected response");
+    return false;
+  } catch (err) {
+    fail("Document load", err);
+    return false;
+  }
+}
+
 // ─── Agent Test ───────────────────────────────────────────────────────
 
 async function testAgentQuery(): Promise<boolean> {
@@ -443,6 +527,14 @@ async function main(): Promise<void> {
 
   // Flow config push
   await run("Push Flow Config", testPushFlowConfig);
+
+  // Document pipeline load test (requires librarian + gateway)
+  if (process.env.SKIP_PIPELINE !== "1" && process.env.SKIP_LIBRARIAN !== "1") {
+    console.log("\n  (Testing document load — set SKIP_PIPELINE=1 to skip)");
+    await run("Document Load", testDocumentLoad);
+  } else {
+    console.log("\n  (Skipping document pipeline load test)");
+  }
 
   // LLM test (only if a running LLM service is available)
   if (process.env.SKIP_LLM !== "1") {
