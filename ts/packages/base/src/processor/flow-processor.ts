@@ -23,7 +23,7 @@ export abstract class FlowProcessor extends AsyncProcessor {
   private flows = new Map<string, Flow>();
   private configConsumer: BackendConsumer<ConfigPush> | null = null;
 
-  constructor(config: ProcessorConfig) {
+  protected constructor(config: ProcessorConfig) {
     super(config);
   }
 

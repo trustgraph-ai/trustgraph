@@ -13,7 +13,7 @@ import type { FlowContext } from "../messaging/consumer.js";
 import type { EmbeddingsRequest, EmbeddingsResponse } from "../schema/messages.js";
 
 export abstract class EmbeddingsService extends FlowProcessor {
-  constructor(config: ProcessorConfig) {
+  protected constructor(config: ProcessorConfig) {
     super(config);
 
     this.registerSpecification(
