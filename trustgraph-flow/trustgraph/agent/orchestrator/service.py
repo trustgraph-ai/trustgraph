@@ -93,7 +93,9 @@ class Processor(AgentService):
         # Meta-router (initialised on first config load)
         self.meta_router = None
 
-        self.config_handlers.append(self.on_tools_config)
+        self.register_config_handler(
+            self.on_tools_config, types=["tool", "tool-service"]
+        )
 
         self.register_specification(
             TextCompletionClientSpec(

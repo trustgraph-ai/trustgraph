@@ -81,7 +81,9 @@ class Processor(AgentService):
         # Track active tool service clients for cleanup
         self.tool_service_clients = {}
 
-        self.config_handlers.append(self.on_tools_config)
+        self.register_config_handler(
+            self.on_tools_config, types=["tool", "tool-service"]
+        )
 
         self.register_specification(
             TextCompletionClientSpec(

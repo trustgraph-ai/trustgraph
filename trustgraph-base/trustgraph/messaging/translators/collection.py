@@ -79,7 +79,6 @@ class CollectionManagementResponseTranslator(MessageTranslator):
     def encode(self, obj: CollectionManagementResponse) -> Dict[str, Any]:
         result = {}
 
-        print("COLLECTIONMGMT", obj, flush=True)
 
         if obj.error is not None:
             result["error"] = {
@@ -98,7 +97,5 @@ class CollectionManagementResponseTranslator(MessageTranslator):
                     "description": coll.description,
                     "tags": list(coll.tags) if coll.tags else []
                 })
-
-        print("RESULT IS", result, flush=True)
 
         return result
