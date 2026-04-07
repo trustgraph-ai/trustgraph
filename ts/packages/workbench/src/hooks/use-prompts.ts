@@ -8,13 +8,17 @@ export function usePrompts() {
   const [prompts, setPrompts] = useState<Array<{ id: string; name?: string; description?: string }>>([]);
   const [systemPrompt, setSystemPrompt] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const loadPrompts = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       const list = await socket.config().getPrompts();
       setPrompts(Array.isArray(list) ? list : []);
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
       console.error("Failed to load prompts:", err);
     } finally {
       setLoading(false);
@@ -46,5 +50,5 @@ export function usePrompts() {
     }
   }, [connectionState.status, loadPrompts, loadSystemPrompt]);
 
-  return { prompts, systemPrompt, loading, loadPrompts, loadSystemPrompt, getPrompt };
+  return { prompts, systemPrompt, loading, error, loadPrompts, loadSystemPrompt, getPrompt };
 }

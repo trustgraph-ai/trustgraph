@@ -469,3 +469,81 @@ services:
     networks:
       - trustgraph
     restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Alternative LLM Providers (uncomment one to use instead of text-completion)
+  # ---------------------------------------------------------------------------
+
+  # text-completion-ollama:
+  #   image: trustgraph-ts:local
+  #   command: ["node", "entrypoints/text-completion-ollama.mjs"]
+  #   environment:
+  #     - NATS_URL=nats://nats:4222
+  #     - OLLAMA_URL=http://ollama:11434
+  #     - OLLAMA_MODEL=${OLLAMA_MODEL:-gemma3:4b}
+  #   depends_on:
+  #     nats:
+  #       condition: service_healthy
+  #     ollama:
+  #       condition: service_started
+  #   networks:
+  #     - trustgraph
+  #   restart: unless-stopped
+
+  # text-completion-claude:
+  #   image: trustgraph-ts:local
+  #   command: ["node", "entrypoints/text-completion-claude.mjs"]
+  #   environment:
+  #     - NATS_URL=nats://nats:4222
+  #     - CLAUDE_KEY=${CLAUDE_KEY:-}
+  #   depends_on:
+  #     nats:
+  #       condition: service_healthy
+  #   networks:
+  #     - trustgraph
+  #   restart: unless-stopped
+
+  # text-completion-azure-openai:
+  #   image: trustgraph-ts:local
+  #   command: ["node", "entrypoints/text-completion-azure-openai.mjs"]
+  #   environment:
+  #     - NATS_URL=nats://nats:4222
+  #     - AZURE_TOKEN=${AZURE_TOKEN:-}
+  #     - AZURE_ENDPOINT=${AZURE_ENDPOINT:-}
+  #     - AZURE_MODEL=${AZURE_MODEL:-gpt-4o}
+  #     - AZURE_API_VERSION=${AZURE_API_VERSION:-2024-02-15-preview}
+  #   depends_on:
+  #     nats:
+  #       condition: service_healthy
+  #   networks:
+  #     - trustgraph
+  #   restart: unless-stopped
+
+  # text-completion-openai-compatible:
+  #   image: trustgraph-ts:local
+  #   command: ["node", "entrypoints/text-completion-openai-compatible.mjs"]
+  #   environment:
+  #     - NATS_URL=nats://nats:4222
+  #     - OPENAI_COMPAT_URL=${OPENAI_COMPAT_URL:-http://localhost:1234/v1}
+  #     - OPENAI_COMPAT_MODEL=${OPENAI_COMPAT_MODEL:-default}
+  #     - OPENAI_COMPAT_KEY=${OPENAI_COMPAT_KEY:-}
+  #   depends_on:
+  #     nats:
+  #       condition: service_healthy
+  #   networks:
+  #     - trustgraph
+  #   restart: unless-stopped
+
+  # text-completion-mistral:
+  #   image: trustgraph-ts:local
+  #   command: ["node", "entrypoints/text-completion-mistral.mjs"]
+  #   environment:
+  #     - NATS_URL=nats://nats:4222
+  #     - MISTRAL_TOKEN=${MISTRAL_TOKEN:-}
+  #     - MISTRAL_MODEL=${MISTRAL_MODEL:-ministral-8b-latest}
+  #   depends_on:
+  #     nats:
+  #       condition: service_healthy
+  #   networks:
+  #     - trustgraph
+  #   restart: unless-stopped

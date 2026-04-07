@@ -261,7 +261,7 @@ function literalTerm(value: string): Term {
  * Parse JSON from LLM output, handling markdown code fences and malformed output.
  * Uses progressive fallback: direct parse, array extraction, truncated array repair, single object wrap.
  */
-function parseJsonResponse<T>(raw: string): T | null {
+export function parseJsonResponse<T>(raw: string): T | null {
   // Attempt 1: direct parse after stripping fences
   let cleaned = raw.trim();
   const fenceMatch = cleaned.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```$/);

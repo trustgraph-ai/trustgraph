@@ -18,7 +18,7 @@ import { usePrompts } from "@/hooks/use-prompts";
 type Tab = "templates" | "system";
 
 export default function PromptsPage() {
-  const { prompts, systemPrompt, loading, loadPrompts, loadSystemPrompt, getPrompt } = usePrompts();
+  const { prompts, systemPrompt, loading, error, loadPrompts, loadSystemPrompt, getPrompt } = usePrompts();
 
   const [activeTab, setActiveTab] = useState<Tab>("templates");
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null);
@@ -95,6 +95,13 @@ export default function PromptsPage() {
           System Prompt
         </button>
       </div>
+
+      {/* Error display */}
+      {error && (
+        <p className="mb-4 rounded-lg bg-error/10 px-4 py-2 text-sm text-error">
+          {error}
+        </p>
+      )}
 
       {/* Templates tab */}
       {activeTab === "templates" && (

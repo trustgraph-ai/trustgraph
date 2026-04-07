@@ -29,6 +29,19 @@ services:
       - ./loki/loki-config.yml:/etc/loki/local-config.yaml
       - loki-data:/tmp/loki
 
+  # Override text-completion to use Ollama (no API key needed for local dev)
+  text-completion:
+    command: ["node", "entrypoints/text-completion-ollama.mjs"]
+    environment:
+      - NATS_URL=nats://nats:4222
+      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-gemma3:4b}
+    depends_on:
+      nats:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+
   # NATS CLI tools for debugging
   nats-cli:
     image: natsio/nats-box:latest

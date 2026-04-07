@@ -1,7 +1,9 @@
 import { Outlet } from "react-router";
+import { WifiOff } from "lucide-react";
 import { Sidebar } from "./sidebar";
 import { FlowSelector } from "./flow-selector";
 import { useProgressStore } from "@/hooks/use-progress-store";
+import { useConnectionState } from "@/providers/socket-provider";
 
 /**
  * Top loading bar -- shown when any global activity is in progress.
@@ -22,6 +24,11 @@ function LoadingBar() {
  * Root layout: fixed sidebar + scrollable main content area with a top bar.
  */
 export function RootLayout() {
+  const connectionState = useConnectionState();
+  const isDisconnected =
+    connectionState.status === "failed" ||
+    connectionState.status === "reconnecting";
+
   return (
     <div className="relative flex h-screen w-full overflow-hidden bg-surface-0">
       {/* Global loading bar */}
@@ -34,6 +41,14 @@ export function RootLayout() {
         <header className="flex h-14 shrink-0 items-center justify-end border-b border-border bg-surface-50 px-6">
           <FlowSelector />
         </header>
+
+        {/* Connection lost banner */}
+        {isDisconnected && (
+          <div className="flex items-center gap-2 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs text-amber-400">
+            <WifiOff className="h-3.5 w-3.5" />
+            <span>Connection lost. Attempting to reconnect...</span>
+          </div>
+        )}
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto p-6">

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -66,26 +67,38 @@ export function nextMessageId(): string {
   return `msg-${++_nextMsgId}-${Date.now()}`;
 }
 
-export const useConversation = create<ConversationState>()((set) => ({
-  messages: [],
-  input: "",
-  chatMode: "graph-rag",
+export const useConversation = create<ConversationState>()(
+  persist(
+    (set) => ({
+      messages: [],
+      input: "",
+      chatMode: "graph-rag",
 
-  setInput: (value) => set({ input: value }),
-  setChatMode: (mode) => set({ chatMode: mode }),
+      setInput: (value) => set({ input: value }),
+      setChatMode: (mode) => set({ chatMode: mode }),
 
-  addMessage: (message) =>
-    set((state) => ({ messages: [...state.messages, message] })),
+      addMessage: (message) =>
+        set((state) => ({ messages: [...state.messages, message] })),
 
-  updateLastMessage: (updater) =>
-    set((state) => {
-      if (state.messages.length === 0) return state;
-      const last = state.messages[state.messages.length - 1]!;
-      const updated = updater(last);
-      return {
-        messages: [...state.messages.slice(0, -1), updated],
-      };
+      updateLastMessage: (updater) =>
+        set((state) => {
+          if (state.messages.length === 0) return state;
+          const last = state.messages[state.messages.length - 1]!;
+          const updated = updater(last);
+          return {
+            messages: [...state.messages.slice(0, -1), updated],
+          };
+        }),
+
+      clearMessages: () => set({ messages: [] }),
     }),
-
-  clearMessages: () => set({ messages: [] }),
-}));
+    {
+      name: "tg-conversation",
+      // Only persist messages and chatMode, not input or transient state
+      partialize: (state) => ({
+        messages: state.messages.filter((m) => !m.isStreaming),
+        chatMode: state.chatMode,
+      }),
+    },
+  ),
+);
