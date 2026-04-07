@@ -11,7 +11,7 @@ from .primitives import ValueTranslator
 class DocumentEmbeddingsRequestTranslator(MessageTranslator):
     """Translator for DocumentEmbeddingsRequest schema objects"""
 
-    def to_pulsar(self, data: Dict[str, Any]) -> DocumentEmbeddingsRequest:
+    def decode(self, data: Dict[str, Any]) -> DocumentEmbeddingsRequest:
         return DocumentEmbeddingsRequest(
             vector=data["vector"],
             limit=int(data.get("limit", 10)),
@@ -19,7 +19,7 @@ class DocumentEmbeddingsRequestTranslator(MessageTranslator):
             collection=data.get("collection", "default")
         )
 
-    def from_pulsar(self, obj: DocumentEmbeddingsRequest) -> Dict[str, Any]:
+    def encode(self, obj: DocumentEmbeddingsRequest) -> Dict[str, Any]:
         return {
             "vector": obj.vector,
             "limit": obj.limit,
@@ -31,10 +31,10 @@ class DocumentEmbeddingsRequestTranslator(MessageTranslator):
 class DocumentEmbeddingsResponseTranslator(MessageTranslator):
     """Translator for DocumentEmbeddingsResponse schema objects"""
 
-    def to_pulsar(self, data: Dict[str, Any]) -> DocumentEmbeddingsResponse:
+    def decode(self, data: Dict[str, Any]) -> DocumentEmbeddingsResponse:
         raise NotImplementedError("Response translation to Pulsar not typically needed")
 
-    def from_pulsar(self, obj: DocumentEmbeddingsResponse) -> Dict[str, Any]:
+    def encode(self, obj: DocumentEmbeddingsResponse) -> Dict[str, Any]:
         result = {}
 
         if obj.chunks is not None:
@@ -48,15 +48,15 @@ class DocumentEmbeddingsResponseTranslator(MessageTranslator):
 
         return result
 
-    def from_response_with_completion(self, obj: DocumentEmbeddingsResponse) -> Tuple[Dict[str, Any], bool]:
+    def encode_with_completion(self, obj: DocumentEmbeddingsResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
-        return self.from_pulsar(obj), True
+        return self.encode(obj), True
 
 
 class GraphEmbeddingsRequestTranslator(MessageTranslator):
     """Translator for GraphEmbeddingsRequest schema objects"""
 
-    def to_pulsar(self, data: Dict[str, Any]) -> GraphEmbeddingsRequest:
+    def decode(self, data: Dict[str, Any]) -> GraphEmbeddingsRequest:
         return GraphEmbeddingsRequest(
             vector=data["vector"],
             limit=int(data.get("limit", 10)),
@@ -64,7 +64,7 @@ class GraphEmbeddingsRequestTranslator(MessageTranslator):
             collection=data.get("collection", "default")
         )
 
-    def from_pulsar(self, obj: GraphEmbeddingsRequest) -> Dict[str, Any]:
+    def encode(self, obj: GraphEmbeddingsRequest) -> Dict[str, Any]:
         return {
             "vector": obj.vector,
             "limit": obj.limit,
@@ -79,16 +79,16 @@ class GraphEmbeddingsResponseTranslator(MessageTranslator):
     def __init__(self):
         self.value_translator = ValueTranslator()
 
-    def to_pulsar(self, data: Dict[str, Any]) -> GraphEmbeddingsResponse:
+    def decode(self, data: Dict[str, Any]) -> GraphEmbeddingsResponse:
         raise NotImplementedError("Response translation to Pulsar not typically needed")
 
-    def from_pulsar(self, obj: GraphEmbeddingsResponse) -> Dict[str, Any]:
+    def encode(self, obj: GraphEmbeddingsResponse) -> Dict[str, Any]:
         result = {}
 
         if obj.entities is not None:
             result["entities"] = [
                 {
-                    "entity": self.value_translator.from_pulsar(match.entity),
+                    "entity": self.value_translator.encode(match.entity),
                     "score": match.score
                 }
                 for match in obj.entities
@@ -96,15 +96,15 @@ class GraphEmbeddingsResponseTranslator(MessageTranslator):
 
         return result
 
-    def from_response_with_completion(self, obj: GraphEmbeddingsResponse) -> Tuple[Dict[str, Any], bool]:
+    def encode_with_completion(self, obj: GraphEmbeddingsResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
-        return self.from_pulsar(obj), True
+        return self.encode(obj), True
 
 
 class RowEmbeddingsRequestTranslator(MessageTranslator):
     """Translator for RowEmbeddingsRequest schema objects"""
 
-    def to_pulsar(self, data: Dict[str, Any]) -> RowEmbeddingsRequest:
+    def decode(self, data: Dict[str, Any]) -> RowEmbeddingsRequest:
         return RowEmbeddingsRequest(
             vector=data["vector"],
             limit=int(data.get("limit", 10)),
@@ -114,7 +114,7 @@ class RowEmbeddingsRequestTranslator(MessageTranslator):
             index_name=data.get("index_name")
         )
 
-    def from_pulsar(self, obj: RowEmbeddingsRequest) -> Dict[str, Any]:
+    def encode(self, obj: RowEmbeddingsRequest) -> Dict[str, Any]:
         result = {
             "vector": obj.vector,
             "limit": obj.limit,
@@ -130,10 +130,10 @@ class RowEmbeddingsRequestTranslator(MessageTranslator):
 class RowEmbeddingsResponseTranslator(MessageTranslator):
     """Translator for RowEmbeddingsResponse schema objects"""
 
-    def to_pulsar(self, data: Dict[str, Any]) -> RowEmbeddingsResponse:
+    def decode(self, data: Dict[str, Any]) -> RowEmbeddingsResponse:
         raise NotImplementedError("Response translation to Pulsar not typically needed")
 
-    def from_pulsar(self, obj: RowEmbeddingsResponse) -> Dict[str, Any]:
+    def encode(self, obj: RowEmbeddingsResponse) -> Dict[str, Any]:
         result = {}
 
         if obj.error is not None:
@@ -155,6 +155,6 @@ class RowEmbeddingsResponseTranslator(MessageTranslator):
 
         return result
 
-    def from_response_with_completion(self, obj: RowEmbeddingsResponse) -> Tuple[Dict[str, Any], bool]:
+    def encode_with_completion(self, obj: RowEmbeddingsResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
-        return self.from_pulsar(obj), True
+        return self.encode(obj), True

@@ -7,7 +7,7 @@ import json
 class RowsQueryRequestTranslator(MessageTranslator):
     """Translator for RowsQueryRequest schema objects"""
 
-    def to_pulsar(self, data: Dict[str, Any]) -> RowsQueryRequest:
+    def decode(self, data: Dict[str, Any]) -> RowsQueryRequest:
         return RowsQueryRequest(
             user=data.get("user", "trustgraph"),
             collection=data.get("collection", "default"),
@@ -16,7 +16,7 @@ class RowsQueryRequestTranslator(MessageTranslator):
             operation_name=data.get("operation_name", None)
         )
 
-    def from_pulsar(self, obj: RowsQueryRequest) -> Dict[str, Any]:
+    def encode(self, obj: RowsQueryRequest) -> Dict[str, Any]:
         result = {
             "user": obj.user,
             "collection": obj.collection,
@@ -33,10 +33,10 @@ class RowsQueryRequestTranslator(MessageTranslator):
 class RowsQueryResponseTranslator(MessageTranslator):
     """Translator for RowsQueryResponse schema objects"""
 
-    def to_pulsar(self, data: Dict[str, Any]) -> RowsQueryResponse:
+    def decode(self, data: Dict[str, Any]) -> RowsQueryResponse:
         raise NotImplementedError("Response translation to Pulsar not typically needed")
 
-    def from_pulsar(self, obj: RowsQueryResponse) -> Dict[str, Any]:
+    def encode(self, obj: RowsQueryResponse) -> Dict[str, Any]:
         result = {}
 
         # Handle GraphQL response data
@@ -74,6 +74,6 @@ class RowsQueryResponseTranslator(MessageTranslator):
 
         return result
 
-    def from_response_with_completion(self, obj: RowsQueryResponse) -> Tuple[Dict[str, Any], bool]:
+    def encode_with_completion(self, obj: RowsQueryResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
-        return self.from_pulsar(obj), True
+        return self.encode(obj), True

@@ -11,16 +11,16 @@ class LibraryRequestTranslator(MessageTranslator):
         self.doc_metadata_translator = DocumentMetadataTranslator()
         self.proc_metadata_translator = ProcessingMetadataTranslator()
     
-    def to_pulsar(self, data: Dict[str, Any]) -> LibrarianRequest:
+    def decode(self, data: Dict[str, Any]) -> LibrarianRequest:
         # Document metadata
         doc_metadata = None
         if "document-metadata" in data:
-            doc_metadata = self.doc_metadata_translator.to_pulsar(data["document-metadata"])
+            doc_metadata = self.doc_metadata_translator.decode(data["document-metadata"])
         
         # Processing metadata
         proc_metadata = None
         if "processing-metadata" in data:
-            proc_metadata = self.proc_metadata_translator.to_pulsar(data["processing-metadata"])
+            proc_metadata = self.proc_metadata_translator.decode(data["processing-metadata"])
         
         # Criteria
         criteria = []
@@ -61,7 +61,7 @@ class LibraryRequestTranslator(MessageTranslator):
             include_children=data.get("include-children", False),
         )
     
-    def from_pulsar(self, obj: LibrarianRequest) -> Dict[str, Any]:
+    def encode(self, obj: LibrarianRequest) -> Dict[str, Any]:
         result = {}
         
         if obj.operation:
@@ -71,9 +71,9 @@ class LibraryRequestTranslator(MessageTranslator):
         if obj.processing_id:
             result["processing-id"] = obj.processing_id
         if obj.document_metadata:
-            result["document-metadata"] = self.doc_metadata_translator.from_pulsar(obj.document_metadata)
+            result["document-metadata"] = self.doc_metadata_translator.encode(obj.document_metadata)
         if obj.processing_metadata:
-            result["processing-metadata"] = self.proc_metadata_translator.from_pulsar(obj.processing_metadata)
+            result["processing-metadata"] = self.proc_metadata_translator.encode(obj.processing_metadata)
         if obj.content:
             result["content"] = obj.content.decode("utf-8") if isinstance(obj.content, bytes) else obj.content
         if obj.user:
@@ -100,10 +100,10 @@ class LibraryResponseTranslator(MessageTranslator):
         self.doc_metadata_translator = DocumentMetadataTranslator()
         self.proc_metadata_translator = ProcessingMetadataTranslator()
     
-    def to_pulsar(self, data: Dict[str, Any]) -> LibrarianResponse:
+    def decode(self, data: Dict[str, Any]) -> LibrarianResponse:
         raise NotImplementedError("Response translation to Pulsar not typically needed")
     
-    def from_pulsar(self, obj: LibrarianResponse) -> Dict[str, Any]:
+    def encode(self, obj: LibrarianResponse) -> Dict[str, Any]:
         result = {}
 
         if obj.error:
@@ -113,20 +113,20 @@ class LibraryResponseTranslator(MessageTranslator):
             }
 
         if obj.document_metadata:
-            result["document-metadata"] = self.doc_metadata_translator.from_pulsar(obj.document_metadata)
+            result["document-metadata"] = self.doc_metadata_translator.encode(obj.document_metadata)
 
         if obj.content:
             result["content"] = obj.content.decode("utf-8") if isinstance(obj.content, bytes) else obj.content
 
         if obj.document_metadatas is not None:
             result["document-metadatas"] = [
-                self.doc_metadata_translator.from_pulsar(dm)
+                self.doc_metadata_translator.encode(dm)
                 for dm in obj.document_metadatas
             ]
 
         if obj.processing_metadatas is not None:
             result["processing-metadatas"] = [
-                self.proc_metadata_translator.from_pulsar(pm)
+                self.proc_metadata_translator.encode(pm)
                 for pm in obj.processing_metadatas
             ]
 
@@ -172,6 +172,6 @@ class LibraryResponseTranslator(MessageTranslator):
 
         return result
     
-    def from_response_with_completion(self, obj: LibrarianResponse) -> Tuple[Dict[str, Any], bool]:
+    def encode_with_completion(self, obj: LibrarianResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
-        return self.from_pulsar(obj), obj.is_final
+        return self.encode(obj), obj.is_final

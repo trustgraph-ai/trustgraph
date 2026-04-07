@@ -6,7 +6,7 @@ from .base import MessageTranslator
 class FlowRequestTranslator(MessageTranslator):
     """Translator for FlowRequest schema objects"""
     
-    def to_pulsar(self, data: Dict[str, Any]) -> FlowRequest:
+    def decode(self, data: Dict[str, Any]) -> FlowRequest:
         return FlowRequest(
             operation=data.get("operation"),
             blueprint_name=data.get("blueprint-name"),
@@ -16,7 +16,7 @@ class FlowRequestTranslator(MessageTranslator):
             parameters=data.get("parameters")
         )
     
-    def from_pulsar(self, obj: FlowRequest) -> Dict[str, Any]:
+    def encode(self, obj: FlowRequest) -> Dict[str, Any]:
         result = {}
 
         if obj.operation is not None:
@@ -38,10 +38,10 @@ class FlowRequestTranslator(MessageTranslator):
 class FlowResponseTranslator(MessageTranslator):
     """Translator for FlowResponse schema objects"""
     
-    def to_pulsar(self, data: Dict[str, Any]) -> FlowResponse:
+    def decode(self, data: Dict[str, Any]) -> FlowResponse:
         raise NotImplementedError("Response translation to Pulsar not typically needed")
     
-    def from_pulsar(self, obj: FlowResponse) -> Dict[str, Any]:
+    def encode(self, obj: FlowResponse) -> Dict[str, Any]:
         result = {}
 
         if obj.blueprint_names is not None:
@@ -59,6 +59,6 @@ class FlowResponseTranslator(MessageTranslator):
 
         return result
     
-    def from_response_with_completion(self, obj: FlowResponse) -> Tuple[Dict[str, Any], bool]:
+    def encode_with_completion(self, obj: FlowResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
-        return self.from_pulsar(obj), True
+        return self.encode(obj), True

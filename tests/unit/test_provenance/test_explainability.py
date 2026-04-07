@@ -16,6 +16,7 @@ from trustgraph.api.explainability import (
     Synthesis,
     Reflection,
     Analysis,
+    Observation,
     Conclusion,
     parse_edge_selection_triples,
     extract_term_value,
@@ -23,12 +24,12 @@ from trustgraph.api.explainability import (
     ExplainabilityClient,
     TG_QUERY, TG_EDGE_COUNT, TG_SELECTED_EDGE, TG_EDGE, TG_REASONING,
     TG_DOCUMENT, TG_CHUNK_COUNT, TG_CONCEPT, TG_ENTITY,
-    TG_THOUGHT, TG_ACTION, TG_ARGUMENTS, TG_OBSERVATION,
+    TG_THOUGHT, TG_ACTION, TG_ARGUMENTS,
     TG_QUESTION, TG_GROUNDING, TG_EXPLORATION, TG_FOCUS, TG_SYNTHESIS,
     TG_ANALYSIS, TG_CONCLUSION,
     TG_REFLECTION_TYPE, TG_THOUGHT_TYPE, TG_OBSERVATION_TYPE,
     TG_GRAPH_RAG_QUESTION, TG_DOC_RAG_QUESTION, TG_AGENT_QUESTION,
-    PROV_STARTED_AT_TIME, PROV_WAS_DERIVED_FROM, PROV_WAS_GENERATED_BY,
+    PROV_STARTED_AT_TIME, PROV_WAS_DERIVED_FROM,
     RDF_TYPE, RDFS_LABEL,
 )
 
@@ -180,14 +181,30 @@ class TestExplainEntityFromTriples:
             ("urn:ana:1", TG_ACTION, "graph-rag-query"),
             ("urn:ana:1", TG_ARGUMENTS, '{"query": "test"}'),
             ("urn:ana:1", TG_THOUGHT, "urn:ref:thought-1"),
-            ("urn:ana:1", TG_OBSERVATION, "urn:ref:obs-1"),
         ]
         entity = ExplainEntity.from_triples("urn:ana:1", triples)
         assert isinstance(entity, Analysis)
         assert entity.action == "graph-rag-query"
         assert entity.arguments == '{"query": "test"}'
         assert entity.thought == "urn:ref:thought-1"
-        assert entity.observation == "urn:ref:obs-1"
+
+    def test_observation(self):
+        triples = [
+            ("urn:obs:1", RDF_TYPE, TG_OBSERVATION_TYPE),
+            ("urn:obs:1", TG_DOCUMENT, "urn:doc:obs-content"),
+        ]
+        entity = ExplainEntity.from_triples("urn:obs:1", triples)
+        assert isinstance(entity, Observation)
+        assert entity.document == "urn:doc:obs-content"
+        assert entity.entity_type == "observation"
+
+    def test_observation_no_document(self):
+        triples = [
+            ("urn:obs:2", RDF_TYPE, TG_OBSERVATION_TYPE),
+        ]
+        entity = ExplainEntity.from_triples("urn:obs:2", triples)
+        assert isinstance(entity, Observation)
+        assert entity.document == ""
 
     def test_conclusion_with_document(self):
         triples = [
@@ -541,3 +558,96 @@ class TestExplainabilityClientDetectSessionType:
         mock_flow = MagicMock()
         client = ExplainabilityClient(mock_flow, retry_delay=0.0)
         assert client.detect_session_type("urn:trustgraph:docrag:abc") == "docrag"
+
+
+class TestChainWalkerFollowsSubTraceTerminal:
+    """Test that _follow_provenance_chain continues from a sub-trace's
+    Synthesis to find downstream entities like Observation."""
+
+    def test_observation_found_via_subtrace_synthesis(self):
+        """
+        DAG: Question -> Analysis -> GraphRAG Question -> Synthesis -> Observation
+        The walker should find Analysis, the sub-trace, then follow from
+        Synthesis to discover Observation.
+        """
+        # Entity triples (s, p, o)
+        entity_data = {
+            "urn:agent:q": [
+                ("urn:agent:q", RDF_TYPE, TG_AGENT_QUESTION),
+                ("urn:agent:q", TG_QUERY, "test"),
+            ],
+            "urn:agent:analysis": [
+                ("urn:agent:analysis", RDF_TYPE, TG_ANALYSIS),
+                ("urn:agent:analysis", PROV_WAS_DERIVED_FROM, "urn:agent:q"),
+            ],
+            "urn:graphrag:q": [
+                ("urn:graphrag:q", RDF_TYPE, TG_QUESTION),
+                ("urn:graphrag:q", RDF_TYPE, TG_GRAPH_RAG_QUESTION),
+                ("urn:graphrag:q", TG_QUERY, "test"),
+                ("urn:graphrag:q", PROV_WAS_DERIVED_FROM, "urn:agent:analysis"),
+            ],
+            "urn:graphrag:synth": [
+                ("urn:graphrag:synth", RDF_TYPE, TG_SYNTHESIS),
+                ("urn:graphrag:synth", PROV_WAS_DERIVED_FROM, "urn:graphrag:q"),
+            ],
+            "urn:agent:obs": [
+                ("urn:agent:obs", RDF_TYPE, TG_OBSERVATION_TYPE),
+                ("urn:agent:obs", PROV_WAS_DERIVED_FROM, "urn:graphrag:synth"),
+            ],
+            "urn:agent:conclusion": [
+                ("urn:agent:conclusion", RDF_TYPE, TG_CONCLUSION),
+                ("urn:agent:conclusion", PROV_WAS_DERIVED_FROM, "urn:agent:obs"),
+            ],
+        }
+
+        # Build a mock flow that answers triples queries
+        # Query by s= returns that entity's triples
+        # Query by p=wasDerivedFrom, o=X returns entities derived from X
+        def mock_triples_query(s=None, p=None, o=None, **kwargs):
+            if s and not p:
+                # Fetch entity triples
+                tuples = entity_data.get(s, [])
+                return _make_wire_triples(tuples)
+            elif p == PROV_WAS_DERIVED_FROM and o:
+                # Find entities derived from o
+                results = []
+                for uri, tuples in entity_data.items():
+                    for _, pred, obj in tuples:
+                        if pred == PROV_WAS_DERIVED_FROM and obj == o:
+                            results.append((uri, pred, obj))
+                return _make_wire_triples(results)
+            return []
+
+        mock_flow = MagicMock()
+        mock_flow.triples_query.side_effect = mock_triples_query
+
+        client = ExplainabilityClient(mock_flow, retry_delay=0.0, max_retries=2)
+
+        # Mock fetch_graphrag_trace to return a trace with a synthesis
+        synth_entity = Synthesis(uri="urn:graphrag:synth", entity_type="synthesis")
+        client.fetch_graphrag_trace = MagicMock(return_value={
+            "question": Question(uri="urn:graphrag:q", entity_type="question",
+                                 question_type="graph-rag"),
+            "synthesis": synth_entity,
+        })
+
+        trace = client.fetch_agent_trace(
+            "urn:agent:q",
+            graph="urn:graph:retrieval",
+        )
+
+        # Should have found all steps
+        step_types = [
+            type(s).__name__ if not isinstance(s, dict) else s.get("type")
+            for s in trace["steps"]
+        ]
+
+        assert "Analysis" in step_types, f"Missing Analysis in {step_types}"
+        assert "sub-trace" in step_types, f"Missing sub-trace in {step_types}"
+        assert "Observation" in step_types, f"Missing Observation in {step_types}"
+        assert "Conclusion" in step_types, f"Missing Conclusion in {step_types}"
+
+        # Observation should come after the sub-trace
+        subtrace_idx = step_types.index("sub-trace")
+        obs_idx = step_types.index("Observation")
+        assert obs_idx > subtrace_idx, "Observation should appear after sub-trace"

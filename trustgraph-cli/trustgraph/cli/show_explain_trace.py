@@ -26,7 +26,12 @@ from trustgraph.api import (
     Focus,
     Synthesis,
     Analysis,
+    Observation,
     Conclusion,
+    Decomposition,
+    Finding,
+    Plan,
+    StepResult,
 )
 
 default_url = os.getenv("TRUSTGRAPH_URL", 'http://localhost:8088/')
@@ -297,6 +302,23 @@ def print_docrag_text(trace, explain_client, api, user):
         print("No synthesis data found")
 
 
+def _print_document_content(explain_client, api, user, document_uri, label="Answer"):
+    """Fetch and print document content, or fall back to URI."""
+    if not document_uri:
+        return
+    content = ""
+    if api:
+        content = explain_client.fetch_document_content(
+            document_uri, api, user
+        )
+    if content:
+        print(f"{label}:")
+        for line in content.split("\n"):
+            print(f"  {line}")
+    else:
+        print(f"Document: {document_uri}")
+
+
 def print_agent_text(trace, explain_client, api, user):
     """Print Agent trace in text format."""
     question = trace.get("question")
@@ -310,82 +332,150 @@ def print_agent_text(trace, explain_client, api, user):
             print(f"Time: {question.timestamp}")
     print()
 
-    # Analysis steps
-    print("--- Analysis ---")
-    iterations = trace.get("iterations", [])
-    if iterations:
-        for i, analysis in enumerate(iterations, 1):
-            print(f"Analysis {i}:")
-            print(f"  Thought: {analysis.thought or 'N/A'}")
-            print(f"  Action: {analysis.action or 'N/A'}")
+    # Walk the steps list which contains all entity types
+    steps = trace.get("steps", [])
 
+    for step in steps:
 
-            if analysis.arguments:
-                # Try to pretty-print JSON arguments
+        if isinstance(step, Decomposition):
+            print("--- Decomposition ---")
+            print(f"Decomposed into {len(step.goals)} research threads:")
+            for i, goal in enumerate(step.goals):
+                print(f"  {i}: {goal}")
+            print()
+
+        elif isinstance(step, Finding):
+            print("--- Finding ---")
+            print(f"Goal: {step.goal}")
+            _print_document_content(
+                explain_client, api, user, step.document, "Result",
+            )
+            print()
+
+        elif isinstance(step, Plan):
+            print("--- Plan ---")
+            print(f"Plan with {len(step.steps)} steps:")
+            for i, s in enumerate(step.steps):
+                print(f"  {i}: {s}")
+            print()
+
+        elif isinstance(step, StepResult):
+            print("--- Step Result ---")
+            print(f"Step: {step.step}")
+            _print_document_content(
+                explain_client, api, user, step.document, "Result",
+            )
+            print()
+
+        elif isinstance(step, Analysis):
+            print("--- Analysis ---")
+            print(f"  Action: {step.action or 'N/A'}")
+
+            if step.arguments:
                 try:
-                    args_obj = json.loads(analysis.arguments)
+                    args_obj = json.loads(step.arguments)
                     args_str = json.dumps(args_obj, indent=4)
                     print(f"  Arguments:")
                     for line in args_str.split('\n'):
                         print(f"    {line}")
                 except Exception:
-                    print(f"  Arguments: {analysis.arguments}")
-            else:
-                print(f"  Arguments: N/A")
-
-            obs = analysis.observation or 'N/A'
-            if obs and len(obs) > 200:
-                obs = obs[:200] + "... [truncated]"
-            print(f"  Observation: {obs}")
+                    print(f"  Arguments: {step.arguments}")
             print()
-    else:
-        print("No analysis steps recorded")
-        print()
 
-    # Conclusion
-    print("--- Conclusion ---")
-    conclusion = trace.get("conclusion")
-    if conclusion:
-        content = ""
-        if conclusion.document and api:
-            content = explain_client.fetch_document_content(
-                conclusion.document, api, user
+        elif isinstance(step, Observation):
+            print("--- Observation ---")
+            _print_document_content(
+                explain_client, api, user, step.document, "Content",
             )
-        if content:
-            print("Answer:")
-            for line in content.split("\n"):
-                print(f"  {line}")
-        elif conclusion.document:
-            print(f"Document: {conclusion.document}")
-        else:
-            print("No conclusion recorded")
-    else:
-        print("No conclusion recorded")
+            print()
+
+        elif isinstance(step, Synthesis):
+            print("--- Synthesis ---")
+            _print_document_content(
+                explain_client, api, user, step.document, "Answer",
+            )
+            print()
+
+        elif isinstance(step, Conclusion):
+            print("--- Conclusion ---")
+            _print_document_content(
+                explain_client, api, user, step.document, "Answer",
+            )
+            print()
+
+    if not steps:
+        print("No trace steps recorded")
+        print()
 
 
 def trace_to_dict(trace, trace_type):
     """Convert trace entities to JSON-serializable dict."""
     if trace_type == "agent":
         question = trace.get("question")
+
+        def _step_to_dict(step):
+            if isinstance(step, Decomposition):
+                return {
+                    "type": "decomposition",
+                    "id": step.uri,
+                    "goals": step.goals,
+                }
+            elif isinstance(step, Finding):
+                return {
+                    "type": "finding",
+                    "id": step.uri,
+                    "goal": step.goal,
+                    "document": step.document,
+                }
+            elif isinstance(step, Plan):
+                return {
+                    "type": "plan",
+                    "id": step.uri,
+                    "steps": step.steps,
+                }
+            elif isinstance(step, StepResult):
+                return {
+                    "type": "step-result",
+                    "id": step.uri,
+                    "step": step.step,
+                    "document": step.document,
+                }
+            elif isinstance(step, Observation):
+                return {
+                    "type": "observation",
+                    "id": step.uri,
+                    "document": step.document,
+                }
+            elif isinstance(step, Analysis):
+                return {
+                    "type": "analysis",
+                    "id": step.uri,
+                    "action": step.action,
+                    "arguments": step.arguments,
+                    "thought": step.thought,
+                }
+            elif isinstance(step, Synthesis):
+                return {
+                    "type": "synthesis",
+                    "id": step.uri,
+                    "document": step.document,
+                }
+            elif isinstance(step, Conclusion):
+                return {
+                    "type": "conclusion",
+                    "id": step.uri,
+                    "document": step.document,
+                }
+            return {"type": step.entity_type, "id": step.uri}
+
+        steps = trace.get("steps", [])
+
         return {
             "type": "agent",
             "session_id": question.uri if question else None,
             "question": question.query if question else None,
             "time": question.timestamp if question else None,
-            "iterations": [
-                {
-                    "id": a.uri,
-                    "thought": a.thought,
-                    "action": a.action,
-                    "arguments": a.arguments,
-                    "observation": a.observation,
-                }
-                for a in trace.get("iterations", [])
-            ],
-            "conclusion": {
-                "id": trace["conclusion"].uri,
-                "document": trace["conclusion"].document,
-            } if trace.get("conclusion") else None,
+            "steps": [_step_to_dict(s) for s in steps],
         }
     elif trace_type == "docrag":
         question = trace.get("question")

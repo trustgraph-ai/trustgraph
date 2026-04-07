@@ -9,7 +9,7 @@ Following the TEST_STRATEGY.md approach for integration testing.
 
 import pytest
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, ANY, patch
 
 from trustgraph.agent.react.agent_manager import AgentManager
 from trustgraph.agent.react.tools import KnowledgeQueryImpl, TextCompletionImpl, McpToolImpl
@@ -187,7 +187,7 @@ Final Answer: Machine learning is a field of AI that enables computers to learn 
 
         # Verify tool was executed
         graph_rag_client = mock_flow_context("graph-rag-request")
-        graph_rag_client.rag.assert_called_once_with("What is machine learning?", collection="default")
+        graph_rag_client.rag.assert_called_once_with("What is machine learning?", collection="default", explain_callback=ANY, parent_uri=ANY)
 
     @pytest.mark.asyncio
     async def test_agent_manager_react_with_final_answer(self, agent_manager, mock_flow_context):
@@ -272,7 +272,7 @@ Args: {{
             
             # Verify correct service was called
             if tool_name == "knowledge_query":
-                mock_flow_context("graph-rag-request").rag.assert_called_with("test question", collection="default")
+                mock_flow_context("graph-rag-request").rag.assert_called_with("test question", collection="default", explain_callback=ANY, parent_uri=ANY)
             elif tool_name == "text_completion":
                 mock_flow_context("prompt-request").question.assert_called()
 
@@ -726,7 +726,7 @@ Final Answer: {
         
         # Assert
         graph_rag_client = mock_flow_context("graph-rag-request")
-        graph_rag_client.rag.assert_called_once_with("What is AI?", collection="default")
+        graph_rag_client.rag.assert_called_once_with("What is AI?", collection="default", explain_callback=ANY, parent_uri=ANY)
 
     @pytest.mark.asyncio
     async def test_knowledge_query_with_custom_collection(self, mock_flow_context):
@@ -739,7 +739,7 @@ Final Answer: {
         
         # Assert
         graph_rag_client = mock_flow_context("graph-rag-request")
-        graph_rag_client.rag.assert_called_once_with("What is machine learning?", collection="custom_collection")
+        graph_rag_client.rag.assert_called_once_with("What is machine learning?", collection="custom_collection", explain_callback=ANY, parent_uri=ANY)
 
     @pytest.mark.asyncio
     async def test_knowledge_query_with_none_collection(self, mock_flow_context):
@@ -752,7 +752,7 @@ Final Answer: {
         
         # Assert
         graph_rag_client = mock_flow_context("graph-rag-request")
-        graph_rag_client.rag.assert_called_once_with("Explain neural networks", collection="default")
+        graph_rag_client.rag.assert_called_once_with("Explain neural networks", collection="default", explain_callback=ANY, parent_uri=ANY)
 
     @pytest.mark.asyncio
     async def test_agent_manager_knowledge_query_collection_integration(self, mock_flow_context):
@@ -810,7 +810,7 @@ Args: {
         
         # Verify the custom collection was used
         graph_rag_client = mock_flow_context("graph-rag-request")
-        graph_rag_client.rag.assert_called_once_with("Latest AI research?", collection="research_papers")
+        graph_rag_client.rag.assert_called_once_with("Latest AI research?", collection="research_papers", explain_callback=ANY, parent_uri=ANY)
 
     @pytest.mark.asyncio
     async def test_knowledge_query_multiple_collections(self, mock_flow_context):
@@ -840,4 +840,4 @@ Args: {
             
             # Verify correct collection was used
             graph_rag_client = mock_flow_context("graph-rag-request")
-            graph_rag_client.rag.assert_called_once_with(question, collection=expected_collection)
+            graph_rag_client.rag.assert_called_once_with(question, collection=expected_collection, explain_callback=ANY, parent_uri=ANY)

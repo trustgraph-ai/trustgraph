@@ -6,7 +6,7 @@ from .base import MessageTranslator
 class ToolRequestTranslator(MessageTranslator):
     """Translator for ToolRequest schema objects"""
     
-    def to_pulsar(self, data: Dict[str, Any]) -> ToolRequest:
+    def decode(self, data: Dict[str, Any]) -> ToolRequest:
         # Handle both "name" and "parameters" input keys
         name = data.get("name", "")
         if "parameters" in data:
@@ -19,7 +19,7 @@ class ToolRequestTranslator(MessageTranslator):
             parameters = parameters,
         )
     
-    def from_pulsar(self, obj: ToolRequest) -> Dict[str, Any]:
+    def encode(self, obj: ToolRequest) -> Dict[str, Any]:
         result = {}
         
         if obj.name:
@@ -32,10 +32,10 @@ class ToolRequestTranslator(MessageTranslator):
 class ToolResponseTranslator(MessageTranslator):
     """Translator for ToolResponse schema objects"""
     
-    def to_pulsar(self, data: Dict[str, Any]) -> ToolResponse:
+    def decode(self, data: Dict[str, Any]) -> ToolResponse:
         raise NotImplementedError("Response translation to Pulsar not typically needed")
     
-    def from_pulsar(self, obj: ToolResponse) -> Dict[str, Any]:
+    def encode(self, obj: ToolResponse) -> Dict[str, Any]:
 
         result = {}
         
@@ -46,6 +46,6 @@ class ToolResponseTranslator(MessageTranslator):
         
         return result
     
-    def from_response_with_completion(self, obj: ToolResponse) -> Tuple[Dict[str, Any], bool]:
+    def encode_with_completion(self, obj: ToolResponse) -> Tuple[Dict[str, Any], bool]:
         """Returns (response_dict, is_final)"""
-        return self.from_pulsar(obj), True
+        return self.encode(obj), True

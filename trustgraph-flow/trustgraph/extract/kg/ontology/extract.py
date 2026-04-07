@@ -107,7 +107,7 @@ class Processor(FlowProcessor):
         )
 
         # Register config handler for ontology updates
-        self.register_config_handler(self.on_ontology_config)
+        self.register_config_handler(self.on_ontology_config, types=["ontology"])
 
         # Shared components (not flow-specific)
         self.ontology_loader = OntologyLoader()

@@ -63,7 +63,11 @@ Explainability events stream to client as the query executes:
 3. Edges selected with reasoning → event emitted
 4. Answer synthesized → event emitted
 
-Client receives `explain_id` and `explain_collection` to fetch full details.
+Client receives `explain_id`, `explain_graph`, and `explain_triples` inline
+in each explain message. The triples contain the full provenance data for
+that step — no follow-up graph query needed. The `explain_id` serves as
+the root entity URI within the triples. Data is also written to the
+knowledge graph for later audit/analysis.
 
 ## URI Structure
 
@@ -144,7 +148,8 @@ class GraphRagResponse:
     response: str = ""
     end_of_stream: bool = False
     explain_id: str | None = None
-    explain_collection: str | None = None
+    explain_graph: str | None = None
+    explain_triples: list[Triple] = field(default_factory=list)
     message_type: str = ""  # "chunk" or "explain"
     end_of_session: bool = False
 ```
@@ -154,7 +159,7 @@ class GraphRagResponse:
 | message_type | Purpose |
 |--------------|---------|
 | `chunk` | Response text (streaming or final) |
-| `explain` | Explainability event with IRI reference |
+| `explain` | Explainability event with inline provenance triples |
 
 ### Session Lifecycle
 

@@ -555,6 +555,7 @@ class GraphRag:
             streaming = False,
             chunk_callback = None,
             explain_callback = None, save_answer_callback = None,
+            parent_uri = "",
     ):
         """
         Execute a GraphRAG query with real-time explainability tracking.
@@ -593,7 +594,10 @@ class GraphRag:
         # Emit question explainability immediately
         if explain_callback:
             q_triples = set_graph(
-                question_triples(q_uri, query, timestamp),
+                question_triples(
+                    q_uri, query, timestamp,
+                    parent_uri=parent_uri or None,
+                ),
                 GRAPH_RETRIEVAL
             )
             await explain_callback(q_triples, q_uri)

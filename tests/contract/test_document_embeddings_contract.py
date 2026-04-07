@@ -38,7 +38,7 @@ class TestDocumentEmbeddingsRequestContract:
         assert request.user == "test_user"
         assert request.collection == "test_collection"
 
-    def test_request_translator_to_pulsar(self):
+    def test_request_translator_decode(self):
         """Test request translator converts dict to Pulsar schema"""
         translator = DocumentEmbeddingsRequestTranslator()
 
@@ -49,7 +49,7 @@ class TestDocumentEmbeddingsRequestContract:
             "collection": "custom_collection"
         }
 
-        result = translator.to_pulsar(data)
+        result = translator.decode(data)
 
         assert isinstance(result, DocumentEmbeddingsRequest)
         assert result.vector == [0.1, 0.2, 0.3, 0.4]
@@ -57,7 +57,7 @@ class TestDocumentEmbeddingsRequestContract:
         assert result.user == "custom_user"
         assert result.collection == "custom_collection"
 
-    def test_request_translator_to_pulsar_with_defaults(self):
+    def test_request_translator_decode_with_defaults(self):
         """Test request translator uses correct defaults"""
         translator = DocumentEmbeddingsRequestTranslator()
 
@@ -66,7 +66,7 @@ class TestDocumentEmbeddingsRequestContract:
             # No limit, user, or collection provided
         }
 
-        result = translator.to_pulsar(data)
+        result = translator.decode(data)
 
         assert isinstance(result, DocumentEmbeddingsRequest)
         assert result.vector == [0.1, 0.2]
@@ -74,7 +74,7 @@ class TestDocumentEmbeddingsRequestContract:
         assert result.user == "trustgraph"  # Default
         assert result.collection == "default"  # Default
 
-    def test_request_translator_from_pulsar(self):
+    def test_request_translator_encode(self):
         """Test request translator converts Pulsar schema to dict"""
         translator = DocumentEmbeddingsRequestTranslator()
 
@@ -85,7 +85,7 @@ class TestDocumentEmbeddingsRequestContract:
             collection="test_collection"
         )
 
-        result = translator.from_pulsar(request)
+        result = translator.encode(request)
 
         assert isinstance(result, dict)
         assert result["vector"] == [0.5, 0.6]
@@ -134,7 +134,7 @@ class TestDocumentEmbeddingsResponseContract:
         assert response.error == error
         assert response.chunks == []
 
-    def test_response_translator_from_pulsar_with_chunks(self):
+    def test_response_translator_encode_with_chunks(self):
         """Test response translator converts Pulsar schema with chunks to dict"""
         translator = DocumentEmbeddingsResponseTranslator()
 
@@ -147,7 +147,7 @@ class TestDocumentEmbeddingsResponseContract:
             ]
         )
 
-        result = translator.from_pulsar(response)
+        result = translator.encode(response)
 
         assert isinstance(result, dict)
         assert "chunks" in result
@@ -155,7 +155,7 @@ class TestDocumentEmbeddingsResponseContract:
         assert result["chunks"][0]["chunk_id"] == "doc1/c1"
         assert result["chunks"][0]["score"] == 0.95
 
-    def test_response_translator_from_pulsar_with_empty_chunks(self):
+    def test_response_translator_encode_with_empty_chunks(self):
         """Test response translator handles empty chunks list"""
         translator = DocumentEmbeddingsResponseTranslator()
 
@@ -164,25 +164,25 @@ class TestDocumentEmbeddingsResponseContract:
             chunks=[]
         )
 
-        result = translator.from_pulsar(response)
+        result = translator.encode(response)
 
         assert isinstance(result, dict)
         assert "chunks" in result
         assert result["chunks"] == []
 
-    def test_response_translator_from_pulsar_with_none_chunks(self):
+    def test_response_translator_encode_with_none_chunks(self):
         """Test response translator handles None chunks"""
         translator = DocumentEmbeddingsResponseTranslator()
 
         response = MagicMock()
         response.chunks = None
 
-        result = translator.from_pulsar(response)
+        result = translator.encode(response)
 
         assert isinstance(result, dict)
         assert "chunks" not in result or result.get("chunks") is None
 
-    def test_response_translator_from_response_with_completion(self):
+    def test_response_translator_encode_with_completion(self):
         """Test response translator with completion flag"""
         translator = DocumentEmbeddingsResponseTranslator()
 
@@ -194,7 +194,7 @@ class TestDocumentEmbeddingsResponseContract:
             ]
         )
 
-        result, is_final = translator.from_response_with_completion(response)
+        result, is_final = translator.encode_with_completion(response)
 
         assert isinstance(result, dict)
         assert "chunks" in result
@@ -202,12 +202,12 @@ class TestDocumentEmbeddingsResponseContract:
         assert result["chunks"][0]["chunk_id"] == "chunk1"
         assert is_final is True  # Document embeddings responses are always final
 
-    def test_response_translator_to_pulsar_not_implemented(self):
-        """Test that to_pulsar raises NotImplementedError for responses"""
+    def test_response_translator_decode_not_implemented(self):
+        """Test that decode raises NotImplementedError for responses"""
         translator = DocumentEmbeddingsResponseTranslator()
 
         with pytest.raises(NotImplementedError):
-            translator.to_pulsar({"chunks": [{"chunk_id": "test", "score": 0.9}]})
+            translator.decode({"chunks": [{"chunk_id": "test", "score": 0.9}]})
 
 
 class TestDocumentEmbeddingsMessageCompatibility:
@@ -225,7 +225,7 @@ class TestDocumentEmbeddingsMessageCompatibility:
 
         # Convert to Pulsar request
         req_translator = DocumentEmbeddingsRequestTranslator()
-        pulsar_request = req_translator.to_pulsar(request_data)
+        pulsar_request = req_translator.decode(request_data)
 
         # Simulate service processing and creating response
         response = DocumentEmbeddingsResponse(
@@ -238,7 +238,7 @@ class TestDocumentEmbeddingsMessageCompatibility:
 
         # Convert response back to dict
         resp_translator = DocumentEmbeddingsResponseTranslator()
-        response_data = resp_translator.from_pulsar(response)
+        response_data = resp_translator.encode(response)
 
         # Verify data integrity
         assert isinstance(pulsar_request, DocumentEmbeddingsRequest)
@@ -261,7 +261,7 @@ class TestDocumentEmbeddingsMessageCompatibility:
 
         # Convert response to dict
         translator = DocumentEmbeddingsResponseTranslator()
-        response_data = translator.from_pulsar(response)
+        response_data = translator.encode(response)
 
         # Verify error handling
         assert isinstance(response_data, dict)

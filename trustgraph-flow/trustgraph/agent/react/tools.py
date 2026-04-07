@@ -12,7 +12,7 @@ class KnowledgeQueryImpl:
     def __init__(self, context, collection=None):
         self.context = context
         self.collection = collection
-    
+
     @staticmethod
     def get_arguments():
         return [
@@ -22,13 +22,40 @@ class KnowledgeQueryImpl:
                 description="The question to ask the knowledge base"
             )
         ]
-    
+
     async def invoke(self, **arguments):
         client = self.context("graph-rag-request")
         logger.debug("Graph RAG question...")
+
+        # Build explain_callback to forward sub-trace explain events
+        # to the agent's response stream
+        explain_callback = None
+        parent_uri = ""
+
+        respond = getattr(self.context, 'respond', None)
+        streaming = getattr(self.context, 'streaming', False)
+        current_uri = getattr(self.context, 'current_explain_uri', None)
+
+        if respond:
+            from ... schema import AgentResponse
+
+            async def explain_callback(explain_id, explain_graph):
+                self.context.last_sub_explain_uri = explain_id
+                await respond(AgentResponse(
+                    chunk_type="explain",
+                    content="",
+                    explain_id=explain_id,
+                    explain_graph=explain_graph,
+                ))
+
+        if current_uri:
+            parent_uri = current_uri
+
         return await client.rag(
             arguments.get("question"),
-            collection=self.collection if self.collection else "default"
+            collection=self.collection if self.collection else "default",
+            explain_callback=explain_callback,
+            parent_uri=parent_uri,
         )
 
 # This tool implementation knows how to do text completion.  This uses
