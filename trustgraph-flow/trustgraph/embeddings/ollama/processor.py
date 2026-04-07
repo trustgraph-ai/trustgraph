@@ -7,6 +7,9 @@ from ... base import EmbeddingsService
 
 from ollama import Client
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 default_ident = "embeddings"
 
@@ -29,6 +32,28 @@ class Processor(EmbeddingsService):
 
         self.client = Client(host=ollama)
         self.default_model = model
+        self._checked_models = set()
+
+    def _ensure_model(self, model_name):
+        """Check if model exists locally, pull it if not."""
+        if model_name in self._checked_models:
+            return
+
+        try:
+            self.client.show(model_name)
+            self._checked_models.add(model_name)
+        except Exception as e:
+            status_code = getattr(e, 'status_code', None)
+            if status_code == 404 or "not found" in str(e).lower():
+                logger.info(f"Ollama model '{model_name}' not found locally. Pulling, this may take a while...")
+                try:
+                    self.client.pull(model_name)
+                    self._checked_models.add(model_name)
+                    logger.info(f"Successfully pulled Ollama model '{model_name}'.")
+                except Exception as pull_e:
+                    logger.error(f"Failed to pull Ollama model '{model_name}': {pull_e}")
+            else:
+                logger.warning(f"Failed to check Ollama model '{model_name}': {e}")
 
     async def on_embeddings(self, texts, model=None):
 
@@ -36,6 +61,9 @@ class Processor(EmbeddingsService):
             return []
 
         use_model = model or self.default_model
+
+        # Ensure the model exists/is pulled
+        self._ensure_model(use_model)
 
         # Ollama handles batch input efficiently
         embeds = self.client.embed(
