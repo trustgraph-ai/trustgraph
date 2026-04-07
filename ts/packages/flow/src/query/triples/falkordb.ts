@@ -33,6 +33,7 @@ function createTerm(value: string): Term {
 
 export class FalkorDBTriplesQuery {
   private graph: Graph;
+  private connectPromise: Promise<void>;
 
   constructor(config: FalkorDBQueryConfig = {}) {
     const url = config.url ?? process.env.FALKORDB_URL ?? "redis://localhost:6379";
@@ -40,6 +41,13 @@ export class FalkorDBTriplesQuery {
 
     const client = createClient({ url });
     this.graph = new Graph(client, database);
+    this.connectPromise = client.connect().then(() => {
+      console.log(`[FalkorDBTriplesQuery] Connected to ${url}, graph: ${database}`);
+    });
+  }
+
+  private async ensureConnected(): Promise<void> {
+    await this.connectPromise;
   }
 
   async queryTriples(
@@ -48,6 +56,7 @@ export class FalkorDBTriplesQuery {
     o?: Term,
     limit = 100,
   ): Promise<Triple[]> {
+    await this.ensureConnected();
     const sv = termToValue(s);
     const pv = termToValue(p);
     const ov = termToValue(o);

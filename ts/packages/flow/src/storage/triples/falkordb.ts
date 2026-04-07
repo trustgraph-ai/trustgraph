@@ -30,6 +30,7 @@ function getTermValue(term: Term): string {
 
 export class FalkorDBTriplesStore {
   private graph: Graph;
+  private connectPromise: Promise<void>;
 
   constructor(config: FalkorDBConfig = {}) {
     const url = config.url ?? process.env.FALKORDB_URL ?? "redis://localhost:6379";
@@ -37,9 +38,17 @@ export class FalkorDBTriplesStore {
 
     const client = createClient({ url });
     this.graph = new Graph(client, database);
+    this.connectPromise = client.connect().then(() => {
+      console.log(`[FalkorDBTriplesStore] Connected to ${url}, graph: ${database}`);
+    });
+  }
+
+  private async ensureConnected(): Promise<void> {
+    await this.connectPromise;
   }
 
   async createNode(uri: string, user: string, collection: string): Promise<void> {
+    await this.ensureConnected();
     await this.graph.query(
       "MERGE (n:Node {uri: $uri, user: $user, collection: $collection})",
       { params: { uri, user, collection } },

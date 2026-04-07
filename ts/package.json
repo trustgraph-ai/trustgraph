@@ -29,10 +29,12 @@
     "graph-embeddings-query": "tsx scripts/run-graph-embeddings-query.ts",
     "doc-embeddings-query": "tsx scripts/run-doc-embeddings-query.ts",
     "graph-rag": "tsx scripts/run-graph-rag.ts",
-    "document-rag": "tsx scripts/run-document-rag.ts"
+    "document-rag": "tsx scripts/run-document-rag.ts",
+    "create-test-pdf": "tsx scripts/create-test-pdf.ts"
   },
   "devDependencies": {
     "nats": "^2.29.0",
+    "pdf-lib": "^1.17.1",
     "tsx": "^4.21.0",
     "turbo": "^2.5.0",
     "typescript": "^5.8.0"
