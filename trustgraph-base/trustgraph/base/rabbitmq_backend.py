@@ -288,6 +288,7 @@ class RabbitMQBackend:
             port=port,
             virtual_host=vhost,
             credentials=pika.PlainCredentials(username, password),
+            heartbeat=0,
         )
         logger.info(f"RabbitMQ backend: {host}:{port} vhost={vhost}")
 

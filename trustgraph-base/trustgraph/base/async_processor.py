@@ -172,7 +172,8 @@ class AsyncProcessor:
 
             except Exception as e:
                 logger.warning(
-                    f"Config fetch failed: {e}, retrying in 2s..."
+                    f"Config fetch failed: {e}, retrying in 2s...",
+                    exc_info=True
                 )
                 await asyncio.sleep(2)
 
