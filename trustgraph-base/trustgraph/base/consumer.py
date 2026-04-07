@@ -12,6 +12,7 @@
 import asyncio
 import time
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 from .. exceptions import TooManyRequests
 
@@ -110,29 +111,37 @@ class Consumer:
                 logger.info(f"Starting {self.concurrency} receiver threads")
 
                 # Create one backend consumer per concurrent task.
-                # Each gets its own connection — required for backends
-                # like RabbitMQ where connections are not thread-safe.
+                # Each gets its own connection and dedicated thread —
+                # required for backends like RabbitMQ where connections
+                # are not thread-safe (pika BlockingConnection must be
+                # used from a single thread).
                 consumers = []
+                executors = []
                 for i in range(self.concurrency):
                     try:
                         logger.info(f"Subscribing to topic: {self.topic} (worker {i})")
-                        c = await asyncio.to_thread(
-                            self.backend.create_consumer,
-                            topic = self.topic,
-                            subscription = self.subscriber,
-                            schema = self.schema,
-                            initial_position = initial_pos,
-                            consumer_type = self.consumer_type,
+                        executor = ThreadPoolExecutor(max_workers=1)
+                        loop = asyncio.get_event_loop()
+                        c = await loop.run_in_executor(
+                            executor,
+                            lambda: self.backend.create_consumer(
+                                topic = self.topic,
+                                subscription = self.subscriber,
+                                schema = self.schema,
+                                initial_position = initial_pos,
+                                consumer_type = self.consumer_type,
+                            ),
                         )
                         consumers.append(c)
+                        executors.append(executor)
                         logger.info(f"Successfully subscribed to topic: {self.topic} (worker {i})")
                     except Exception as e:
                         logger.error(f"Consumer subscription exception (worker {i}): {e}", exc_info=True)
                         raise
 
                 async with asyncio.TaskGroup() as tg:
-                    for c in consumers:
-                        tg.create_task(self.consume_from_queue(c))
+                    for c, ex in zip(consumers, executors):
+                        tg.create_task(self.consume_from_queue(c, ex))
 
                 if self.metrics:
                     self.metrics.state("stopped")
@@ -146,7 +155,10 @@ class Consumer:
                         c.close()
                     except Exception:
                         pass
+                for ex in executors:
+                    ex.shutdown(wait=False)
                 consumers = []
+                executors = []
                 await asyncio.sleep(self.reconnect_time)
                 continue
 
@@ -157,15 +169,18 @@ class Consumer:
                         c.close()
                     except Exception:
                         pass
+                for ex in executors:
+                    ex.shutdown(wait=False)
 
-    async def consume_from_queue(self, consumer):
+    async def consume_from_queue(self, consumer, executor=None):
 
+        loop = asyncio.get_event_loop()
         while self.running:
 
             try:
-                msg = await asyncio.to_thread(
-                    consumer.receive,
-                    timeout_millis=100
+                msg = await loop.run_in_executor(
+                    executor,
+                    lambda: consumer.receive(timeout_millis=100),
                 )
             except Exception as e:
                 # Handle timeout from any backend
@@ -173,10 +188,11 @@ class Consumer:
                     continue
                 raise e
 
-            await self.handle_one_from_queue(msg, consumer)
+            await self.handle_one_from_queue(msg, consumer, executor)
 
-    async def handle_one_from_queue(self, msg, consumer):
+    async def handle_one_from_queue(self, msg, consumer, executor=None):
 
+        loop = asyncio.get_event_loop()
         expiry = time.time() + self.rate_limit_timeout
 
         # This loop is for retry on rate-limit / resource limits
@@ -187,8 +203,11 @@ class Consumer:
                 logger.warning("Gave up waiting for rate-limit retry")
 
                 # Message failed to be processed, this causes it to
-                # be retried
-                consumer.negative_acknowledge(msg)
+                # be retried.  Ack on the consumer's dedicated thread
+                # (pika is not thread-safe).
+                await loop.run_in_executor(
+                    executor, lambda: consumer.negative_acknowledge(msg)
+                )
 
                 if self.metrics:
                     self.metrics.process("error")
@@ -210,8 +229,11 @@ class Consumer:
 
                 logger.debug("Message processed successfully")
 
-                # Acknowledge successful processing of the message
-                consumer.acknowledge(msg)
+                # Acknowledge on the consumer's dedicated thread
+                # (pika is not thread-safe)
+                await loop.run_in_executor(
+                    executor, lambda: consumer.acknowledge(msg)
+                )
 
                 if self.metrics:
                     self.metrics.process("success")
@@ -237,8 +259,10 @@ class Consumer:
                 logger.error(f"Message processing exception: {e}", exc_info=True)
 
                 # Message failed to be processed, this causes it to
-                # be retried
-                consumer.negative_acknowledge(msg)
+                # be retried.  Ack on the consumer's dedicated thread.
+                await loop.run_in_executor(
+                    executor, lambda: consumer.negative_acknowledge(msg)
+                )
 
                 if self.metrics:
                     self.metrics.process("error")

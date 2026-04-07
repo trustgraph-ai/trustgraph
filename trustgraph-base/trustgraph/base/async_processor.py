@@ -94,7 +94,6 @@ class AsyncProcessor:
             metrics = config_consumer_metrics,
 
             start_of_messages = False,
-            consumer_type = 'exclusive',
         )
 
         self.running = True

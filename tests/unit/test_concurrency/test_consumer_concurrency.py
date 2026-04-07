@@ -81,9 +81,8 @@ class TestTaskGroupConcurrency:
 
         # Track how many consume_from_queue calls are made
         call_count = 0
-        original_running = True
 
-        async def mock_consume(backend_consumer):
+        async def mock_consume(backend_consumer, executor=None):
             nonlocal call_count
             call_count += 1
             # Wait a bit to let all tasks start, then signal stop
@@ -107,7 +106,7 @@ class TestTaskGroupConcurrency:
         consumer = _make_consumer(concurrency=1)
         call_count = 0
 
-        async def mock_consume(backend_consumer):
+        async def mock_consume(backend_consumer, executor=None):
             nonlocal call_count
             call_count += 1
             await asyncio.sleep(0.01)
@@ -294,9 +293,8 @@ class TestPollTimeout:
             raise type('Timeout', (Exception,), {})("timeout")
 
         mock_pulsar_consumer.receive = capture_receive
-        consumer.consumer = mock_pulsar_consumer
 
-        await consumer.consume_from_queue()
+        await consumer.consume_from_queue(mock_pulsar_consumer)
 
         assert received_kwargs.get("timeout_millis") == 100
 

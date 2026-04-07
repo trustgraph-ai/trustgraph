@@ -40,7 +40,7 @@ class Processor(FlowProcessor):
             }
         )
 
-        self.register_config_handler(self.on_cost_config, types=["token-costs"])
+        self.register_config_handler(self.on_cost_config, types=["token-cost"])
 
         self.register_specification(
             ConsumerSpec(
