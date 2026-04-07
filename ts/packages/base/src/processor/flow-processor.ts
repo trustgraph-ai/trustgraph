@@ -93,13 +93,18 @@ export abstract class FlowProcessor extends AsyncProcessor {
         continue;
       }
 
-      if (!this.flows.has(name)) {
-        console.log(`[${this.config.id}] Starting flow "${name}" with topics:`, defn.topics);
-        const flow = new Flow(name, this.config.id, this.pubsub, defn, this.specifications);
-        await flow.start();
-        this.flows.set(name, flow);
-        console.log(`[${this.config.id}] Flow "${name}" started`);
+      // Stop existing flow before (re)starting with new config
+      if (this.flows.has(name)) {
+        console.log(`[${this.config.id}] Restarting flow "${name}" with updated config`);
+        await this.flows.get(name)!.stop();
+        this.flows.delete(name);
       }
+
+      console.log(`[${this.config.id}] Starting flow "${name}" with topics:`, defn.topics);
+      const flow = new Flow(name, this.config.id, this.pubsub, defn, this.specifications);
+      await flow.start();
+      this.flows.set(name, flow);
+      console.log(`[${this.config.id}] Flow "${name}" started`);
     }
   }
 

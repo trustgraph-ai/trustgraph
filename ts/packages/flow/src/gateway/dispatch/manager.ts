@@ -241,9 +241,10 @@ export class DispatcherManager {
    * Publish a single message to an arbitrary topic (no request/response).
    * Used for injecting documents into the processing pipeline.
    */
-  async publishToTopic(topic: string, message: unknown): Promise<void> {
+  async publishToTopic(topic: string, message: unknown, id?: string): Promise<void> {
     const producer = await this.pubsub.createProducer<unknown>({ topic });
-    await producer.send(message);
+    const messageId = id ?? `pub-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    await producer.send(message, { id: messageId });
     await producer.close();
   }
 
