@@ -465,11 +465,18 @@ def exploration_triples(
     return triples
 
 
-def _quoted_triple(s: str, p: str, o: str) -> Term:
-    """Create a quoted triple term (RDF-star) from string values."""
+def _quoted_triple(s, p, o) -> Term:
+    """Create a quoted triple term (RDF-star).
+
+    Accepts either Term objects (preserving original types) or plain
+    strings (treated as IRIs for backward compatibility).
+    """
+    s_term = s if isinstance(s, Term) else _iri(s)
+    p_term = p if isinstance(p, Term) else _iri(p)
+    o_term = o if isinstance(o, Term) else _iri(o)
     return Term(
         type=TRIPLE,
-        triple=Triple(s=_iri(s), p=_iri(p), o=_iri(o))
+        triple=Triple(s=s_term, p=p_term, o=o_term)
     )
 
 
