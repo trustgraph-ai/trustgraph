@@ -43,7 +43,7 @@ class DocumentRagClient(BaseClient):
             user: User identifier
             collection: Collection identifier
             chunk_callback: Optional callback(text, end_of_stream) for text chunks
-            explain_callback: Optional callback(explain_id, explain_graph) for explain notifications
+            explain_callback: Optional callback(explain_id, explain_graph, explain_triples) for explain notifications
             timeout: Request timeout in seconds
 
         Returns:
@@ -55,7 +55,7 @@ class DocumentRagClient(BaseClient):
             # Handle explain notifications (response is None/empty, explain_id present)
             if x.explain_id and not x.response:
                 if explain_callback:
-                    explain_callback(x.explain_id, x.explain_graph)
+                    explain_callback(x.explain_id, x.explain_graph, x.explain_triples)
                 return False  # Continue receiving
 
             # Handle text chunks
