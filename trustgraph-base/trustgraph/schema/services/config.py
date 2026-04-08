@@ -62,7 +62,7 @@ class ConfigPush:
 
 config_request_queue = queue('config', cls='request')
 config_response_queue = queue('config', cls='response')
-config_push_queue = queue('config', cls='flow')
+config_push_queue = queue('config', cls='notify')
 
 ############################################################################
 

@@ -138,10 +138,10 @@ def init_pulsar(pulsar_admin_url, tenant):
         }
     })
 
-    ensure_namespace(pulsar_admin_url, tenant, "state", {
+    ensure_namespace(pulsar_admin_url, tenant, "notify", {
         "retention_policies": {
-            "retentionSizeInMB": 10,
-            "retentionTimeInMinutes": -1,
+            "retentionSizeInMB": -1,
+            "retentionTimeInMinutes": 3,
             "subscriptionExpirationTimeMinutes": 5,
         }
     })
