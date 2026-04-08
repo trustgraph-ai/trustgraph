@@ -39,13 +39,14 @@ class KnowledgeQueryImpl:
         if respond:
             from ... schema import AgentResponse
 
-            async def explain_callback(explain_id, explain_graph):
+            async def explain_callback(explain_id, explain_graph, explain_triples=None):
                 self.context.last_sub_explain_uri = explain_id
                 await respond(AgentResponse(
                     chunk_type="explain",
                     content="",
                     explain_id=explain_id,
                     explain_graph=explain_graph,
+                    explain_triples=explain_triples or [],
                 ))
 
         if current_uri:

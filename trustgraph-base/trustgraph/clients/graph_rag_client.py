@@ -47,7 +47,7 @@ class GraphRagClient(BaseClient):
             user: User identifier
             collection: Collection identifier
             chunk_callback: Optional callback(text, end_of_stream) for text chunks
-            explain_callback: Optional callback(explain_id, explain_graph) for explain notifications
+            explain_callback: Optional callback(explain_id, explain_graph, explain_triples) for explain notifications
             timeout: Request timeout in seconds
 
         Returns:
@@ -59,7 +59,7 @@ class GraphRagClient(BaseClient):
             # Handle explain notifications
             if x.message_type == 'explain':
                 if explain_callback and x.explain_id:
-                    explain_callback(x.explain_id, x.explain_graph)
+                    explain_callback(x.explain_id, x.explain_graph, x.explain_triples)
                 return False  # Continue receiving
 
             # Handle text chunks
