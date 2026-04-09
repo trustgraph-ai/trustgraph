@@ -311,14 +311,14 @@ class RabbitMQBackend:
 
         cls, topicspace, topic = parts
 
-        if cls in ('flow', 'state'):
+        if cls == 'flow':
             durable = True
-        elif cls in ('request', 'response'):
+        elif cls in ('request', 'response', 'notify'):
             durable = False
         else:
             raise ValueError(
                 f"Invalid queue class: {cls}, "
-                f"expected flow, request, response, or state"
+                f"expected flow, request, response, or notify"
             )
 
         # Exchange per topicspace, routing key includes class
@@ -345,26 +345,19 @@ class RabbitMQBackend:
 
     def create_consumer(self, topic: str, subscription: str, schema: type,
                         initial_position: str = 'latest',
-                        consumer_type: str = 'shared',
                         **options) -> BackendConsumer:
         """Create a consumer with a queue bound to the topic exchange.
 
-        consumer_type='shared': Named durable queue. Multiple consumers
-            with the same subscription compete (round-robin).
-        consumer_type='exclusive': Anonymous ephemeral queue. Each
-            consumer gets its own copy of every message (broadcast).
+        Behaviour is determined by the topic's class prefix:
+          - flow: named durable queue, competing consumers (round-robin)
+          - request: named non-durable queue, competing consumers
+          - response: anonymous ephemeral queue, per-subscriber (auto-delete)
+          - notify: anonymous ephemeral queue, per-subscriber (auto-delete)
         """
         exchange, routing_key, cls, durable = self._parse_queue_id(topic)
 
-        if consumer_type == 'exclusive' and cls == 'state':
-            # State broadcast: named durable queue per subscriber.
-            # Retains messages so late-starting processors see current state.
-            queue_name = f"{exchange}.{routing_key}.{subscription}"
-            queue_durable = True
-            exclusive = False
-            auto_delete = False
-        elif consumer_type == 'exclusive':
-            # Broadcast: anonymous queue, auto-deleted on disconnect
+        if cls in ('response', 'notify'):
+            # Per-subscriber: anonymous queue, auto-deleted on disconnect
             queue_name = ''
             queue_durable = False
             exclusive = True
@@ -379,7 +372,7 @@ class RabbitMQBackend:
         logger.debug(
             f"Creating consumer: exchange={exchange}, "
             f"routing_key={routing_key}, queue={queue_name or '(anonymous)'}, "
-            f"type={consumer_type}"
+            f"cls={cls}"
         )
 
         return RabbitMQBackendConsumer(

@@ -64,7 +64,6 @@ class LibrarianClient:
             schema=LibrarianResponse,
             handler=self._on_response,
             metrics=librarian_response_metrics,
-            consumer_type='exclusive',
         )
 
         # Single-response requests: request_id -> asyncio.Future

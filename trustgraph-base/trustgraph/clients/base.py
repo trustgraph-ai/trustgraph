@@ -42,7 +42,6 @@ class BaseClient:
             topic=output_queue,
             subscription=subscriber,
             schema=output_schema,
-            consumer_type='shared',
         )
 
         self.input_schema = input_schema

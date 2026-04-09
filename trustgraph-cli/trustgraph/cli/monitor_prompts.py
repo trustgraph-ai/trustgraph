@@ -123,7 +123,6 @@ async def monitor(flow, queue_type, max_lines, max_width, **config):
         topic=request_queue,
         subscription="prompt-monitor-req",
         schema=None,
-        consumer_type='shared',
         initial_position='latest',
     )
 
@@ -131,7 +130,6 @@ async def monitor(flow, queue_type, max_lines, max_width, **config):
         topic=response_queue,
         subscription="prompt-monitor-resp",
         schema=None,
-        consumer_type='shared',
         initial_position='latest',
     )
 
