@@ -1,5 +1,8 @@
 """
-Initialises Pulsar with Trustgraph tenant / namespaces & policy.
+Initialises TrustGraph pub/sub infrastructure and pushes initial config.
+
+For Pulsar: creates tenant, namespaces, and retention policies.
+For RabbitMQ: queues are auto-declared, so only config push is needed.
 """
 
 import requests
@@ -8,10 +11,11 @@ import argparse
 import json
 
 from trustgraph.clients.config_client import ConfigClient
+from trustgraph.base.pubsub import add_pubsub_args
 
 default_pulsar_admin_url = "http://pulsar:8080"
-default_pulsar_host = "pulsar://pulsar:6650"
-subscriber = "tg-init-pulsar"
+subscriber = "tg-init-pubsub"
+
 
 def get_clusters(url):
 
@@ -65,12 +69,11 @@ def ensure_namespace(url, tenant, namespace, config):
 
     print(f"Namespace {tenant}/{namespace} created.", flush=True)
 
-def ensure_config(config, pulsar_host, pulsar_api_key):
+def ensure_config(config, **pubsub_config):
 
     cli = ConfigClient(
         subscriber=subscriber,
-        pulsar_host=pulsar_host,
-        pulsar_api_key=pulsar_api_key,
+        **pubsub_config,
     )
 
     while True:
@@ -115,11 +118,9 @@ def ensure_config(config, pulsar_host, pulsar_api_key):
             time.sleep(2)
             print("Retrying...", flush=True)
             continue
-    
-def init(
-        pulsar_admin_url, pulsar_host, pulsar_api_key, tenant,
-        config, config_file,
-):
+
+def init_pulsar(pulsar_admin_url, tenant):
+    """Pulsar-specific setup: create tenant, namespaces, retention policies."""
 
     clusters = get_clusters(pulsar_admin_url)
 
@@ -137,7 +138,7 @@ def init(
         }
     })
 
-    ensure_namespace(pulsar_admin_url, tenant, "config", {
+    ensure_namespace(pulsar_admin_url, tenant, "state", {
         "retention_policies": {
             "retentionSizeInMB": 10,
             "retentionTimeInMinutes": -1,
@@ -145,17 +146,21 @@ def init(
         }
     })
 
-    if config is not None:
+
+def push_config(config_json, config_file, **pubsub_config):
+    """Push initial config if provided."""
+
+    if config_json is not None:
 
         try:
             print("Decoding config...", flush=True)
-            dec = json.loads(config)
+            dec = json.loads(config_json)
             print("Decoded.", flush=True)
         except Exception as e:
             print("Exception:", e, flush=True)
             raise e
 
-        ensure_config(dec, pulsar_host, pulsar_api_key)
+        ensure_config(dec, **pubsub_config)
 
     elif config_file is not None:
 
@@ -167,10 +172,11 @@ def init(
             print("Exception:", e, flush=True)
             raise e
 
-        ensure_config(dec, pulsar_host, pulsar_api_key)
+        ensure_config(dec, **pubsub_config)
 
     else:
         print("No config to update.", flush=True)
+
 
 def main():
 
@@ -180,20 +186,9 @@ def main():
     )
 
     parser.add_argument(
-        '-p', '--pulsar-admin-url',
+        '--pulsar-admin-url',
         default=default_pulsar_admin_url,
         help=f'Pulsar admin URL (default: {default_pulsar_admin_url})',
-    )
-
-    parser.add_argument(
-        '--pulsar-host',
-        default=default_pulsar_host,
-        help=f'Pulsar host (default: {default_pulsar_host})',
-    )
-
-    parser.add_argument(
-        '--pulsar-api-key',
-        help=f'Pulsar API key',
     )
 
     parser.add_argument(
@@ -212,18 +207,43 @@ def main():
         help=f'Tenant (default: tg)',
     )
 
+    add_pubsub_args(parser)
+
     args = parser.parse_args()
+
+    backend_type = args.pubsub_backend
+
+    # Extract pubsub config from args
+    pubsub_config = {
+        k: v for k, v in vars(args).items()
+        if k not in ('pulsar_admin_url', 'config', 'config_file', 'tenant')
+    }
 
     while True:
 
         try:
 
-            print(flush=True)
-            print(
-                f"Initialising with Pulsar {args.pulsar_admin_url}...",
-                flush=True
+            # Pulsar-specific setup (tenants, namespaces)
+            if backend_type == 'pulsar':
+                print(flush=True)
+                print(
+                    f"Initialising Pulsar at {args.pulsar_admin_url}...",
+                    flush=True,
+                )
+                init_pulsar(args.pulsar_admin_url, args.tenant)
+            else:
+                print(flush=True)
+                print(
+                    f"Using {backend_type} backend (no admin setup needed).",
+                    flush=True,
+                )
+
+            # Push config (works with any backend)
+            push_config(
+                args.config, args.config_file,
+                **pubsub_config,
             )
-            init(**vars(args))
+
             print("Initialisation complete.", flush=True)
             break
 

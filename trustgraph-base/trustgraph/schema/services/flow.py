@@ -1,7 +1,7 @@
 
 from dataclasses import dataclass, field
 
-from ..core.topic import topic
+from ..core.topic import queue
 from ..core.primitives import Error
 
 ############################################################################
@@ -61,12 +61,8 @@ class FlowResponse:
     # Everything
     error: Error | None = None
 
-flow_request_queue = topic(
-    'flow', qos='q0', namespace='request'
-)
-flow_response_queue = topic(
-    'flow', qos='q0', namespace='response'
-)
+flow_request_queue = queue('flow', cls='request')
+flow_response_queue = queue('flow', cls='response')
 
 ############################################################################
 

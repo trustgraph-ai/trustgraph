@@ -377,24 +377,14 @@ def main():
     print("=" * 60)
     print("TrustGraph System Status Verification")
     print("=" * 60)
-#    print(f"Global timeout: {args.global_timeout}s")
-#    print(f"Check timeout: {args.check_timeout}s")
-#    print(f"Retry delay: {args.retry_delay}s")
-#    print("=" * 60)
     print()
 
     # Phase 1: Infrastructure
     print("Phase 1: Infrastructure")
     print("-" * 60)
 
-    if not checker.run_check(
-        "Pulsar",
-        check_pulsar,
-        args.pulsar_url,
-        args.check_timeout
-    ):
-        print("\n⚠️  Pulsar is not responding - other checks may fail")
-        print()
+    # Pulsar check is skipped — not all deployments use Pulsar.
+    # The API Gateway check covers broker connectivity indirectly.
 
     checker.run_check(
         "API Gateway",

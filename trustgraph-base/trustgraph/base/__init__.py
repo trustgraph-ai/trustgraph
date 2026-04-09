@@ -1,5 +1,5 @@
 
-from . pubsub import PulsarClient, get_pubsub
+from . pubsub import get_pubsub, add_pubsub_args
 from . async_processor import AsyncProcessor
 from . consumer import Consumer
 from . producer import Producer
@@ -14,6 +14,7 @@ from . producer_spec import ProducerSpec
 from . subscriber_spec import SubscriberSpec
 from . request_response_spec import RequestResponseSpec
 from . llm_service import LlmService, LlmResult, LlmChunk
+from . librarian_client import LibrarianClient
 from . chunking_service import ChunkingService
 from . embeddings_service import EmbeddingsService
 from . embeddings_client import EmbeddingsClientSpec

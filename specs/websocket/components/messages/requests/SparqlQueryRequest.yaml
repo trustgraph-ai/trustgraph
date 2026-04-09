@@ -1,0 +1,46 @@
+type: object
+description: WebSocket request for sparql-query service (flow-hosted service)
+required:
+  - id
+  - service
+  - flow
+  - request
+properties:
+  id:
+    type: string
+    description: Unique request identifier
+  service:
+    type: string
+    const: sparql-query
+    description: Service identifier for sparql-query service
+  flow:
+    type: string
+    description: Flow ID
+  request:
+    type: object
+    required:
+      - query
+    properties:
+      query:
+        type: string
+        description: SPARQL 1.1 query string
+      user:
+        type: string
+        default: trustgraph
+        description: User/keyspace identifier
+      collection:
+        type: string
+        default: default
+        description: Collection identifier
+      limit:
+        type: integer
+        default: 10000
+        description: Safety limit on number of results
+examples:
+  - id: req-1
+    service: sparql-query
+    flow: my-flow
+    request:
+      query: "SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10"
+      user: trustgraph
+      collection: default

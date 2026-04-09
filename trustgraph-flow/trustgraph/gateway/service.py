@@ -10,7 +10,7 @@ import logging
 import os
 
 from trustgraph.base.logging import setup_logging
-from trustgraph.base.pubsub import get_pubsub
+from trustgraph.base.pubsub import get_pubsub, add_pubsub_args
 
 from . auth import Authenticator
 from . config.receiver import ConfigReceiver
@@ -18,7 +18,6 @@ from . dispatch.manager import DispatcherManager
 
 from . endpoint.manager import EndpointManager
 
-import pulsar
 from prometheus_client import start_http_server
 
 # Import default queue names
@@ -168,30 +167,7 @@ def run():
         help='Service identifier for logging and metrics (default: api-gateway)',
     )
 
-    # Pub/sub backend selection
-    parser.add_argument(
-        '--pubsub-backend',
-        default=os.getenv('PUBSUB_BACKEND', 'pulsar'),
-        choices=['pulsar', 'mqtt'],
-        help='Pub/sub backend (default: pulsar, env: PUBSUB_BACKEND)',
-    )
-
-    parser.add_argument(
-        '-p', '--pulsar-host',
-        default=default_pulsar_host,
-        help=f'Pulsar host (default: {default_pulsar_host})',
-    )
-    
-    parser.add_argument(
-        '--pulsar-api-key',
-        default=default_pulsar_api_key,
-        help=f'Pulsar API key',
-    )
-
-    parser.add_argument(
-        '--pulsar-listener',
-        help=f'Pulsar listener (default: none)',
-    )
+    add_pubsub_args(parser)
 
     parser.add_argument(
         '-m', '--prometheus-url',

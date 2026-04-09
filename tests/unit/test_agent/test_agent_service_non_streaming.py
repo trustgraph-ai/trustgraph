@@ -39,7 +39,7 @@ class TestAgentServiceNonStreaming:
         mock_agent_manager_class.return_value = mock_agent_instance
 
         # Mock react to call think and observe callbacks
-        async def mock_react(question, history, think, observe, answer, context, streaming):
+        async def mock_react(question, history, think, observe, answer, context, streaming, on_action=None):
             await think("I need to solve this.", is_final=True)
             await observe("The answer is 4.", is_final=True)
             return Final(thought="Final answer", final="4")
@@ -76,22 +76,33 @@ class TestAgentServiceNonStreaming:
         # Execute
         await processor.on_request(msg, consumer, flow)
 
-        # Verify: should have 3 responses (thought, observation, answer)
-        assert len(sent_responses) == 3, f"Expected 3 responses, got {len(sent_responses)}"
+        # Filter out explain events — those are always sent now
+        content_responses = [
+            r for r in sent_responses if r.chunk_type != "explain"
+        ]
+        explain_responses = [
+            r for r in sent_responses if r.chunk_type == "explain"
+        ]
+
+        # Should have explain events for session, iteration, observation, and final
+        assert len(explain_responses) >= 1, "Expected at least 1 explain event"
+
+        # Should have 3 content responses (thought, observation, answer)
+        assert len(content_responses) == 3, f"Expected 3 content responses, got {len(content_responses)}"
 
         # Check thought message
-        thought_response = sent_responses[0]
+        thought_response = content_responses[0]
         assert isinstance(thought_response, AgentResponse)
-        assert thought_response.thought == "I need to solve this."
-        assert thought_response.answer is None
+        assert thought_response.chunk_type == "thought"
+        assert thought_response.content == "I need to solve this."
         assert thought_response.end_of_message is True, "Thought message must have end_of_message=True"
         assert thought_response.end_of_dialog is False, "Thought message must have end_of_dialog=False"
 
         # Check observation message
-        observation_response = sent_responses[1]
+        observation_response = content_responses[1]
         assert isinstance(observation_response, AgentResponse)
-        assert observation_response.observation == "The answer is 4."
-        assert observation_response.answer is None
+        assert observation_response.chunk_type == "observation"
+        assert observation_response.content == "The answer is 4."
         assert observation_response.end_of_message is True, "Observation message must have end_of_message=True"
         assert observation_response.end_of_dialog is False, "Observation message must have end_of_dialog=False"
 
@@ -120,7 +131,7 @@ class TestAgentServiceNonStreaming:
         mock_agent_manager_class.return_value = mock_agent_instance
 
         # Mock react to return Final directly
-        async def mock_react(question, history, think, observe, answer, context, streaming):
+        async def mock_react(question, history, think, observe, answer, context, streaming, on_action=None):
             return Final(thought="Final answer", final="4")
 
         mock_agent_instance.react = mock_react
@@ -155,15 +166,25 @@ class TestAgentServiceNonStreaming:
         # Execute
         await processor.on_request(msg, consumer, flow)
 
-        # Verify: should have 1 response (final answer)
-        assert len(sent_responses) == 1, f"Expected 1 response, got {len(sent_responses)}"
+        # Filter out explain events — those are always sent now
+        content_responses = [
+            r for r in sent_responses if r.chunk_type != "explain"
+        ]
+        explain_responses = [
+            r for r in sent_responses if r.chunk_type == "explain"
+        ]
+
+        # Should have explain events for session and final
+        assert len(explain_responses) >= 1, "Expected at least 1 explain event"
+
+        # Should have 1 content response (final answer)
+        assert len(content_responses) == 1, f"Expected 1 content response, got {len(content_responses)}"
 
         # Check final answer message
-        answer_response = sent_responses[0]
+        answer_response = content_responses[0]
         assert isinstance(answer_response, AgentResponse)
-        assert answer_response.answer == "4"
-        assert answer_response.thought is None
-        assert answer_response.observation is None
+        assert answer_response.chunk_type == "answer"
+        assert answer_response.content == "4"
         assert answer_response.end_of_message is True, "Final answer must have end_of_message=True"
         assert answer_response.end_of_dialog is True, "Final answer must have end_of_dialog=True"
 

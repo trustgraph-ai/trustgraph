@@ -2,7 +2,6 @@ from dataclasses import dataclass, field
 
 from ..core.primitives import Term, Triple
 from ..core.metadata import Metadata
-from ..core.topic import topic
 
 ############################################################################
 

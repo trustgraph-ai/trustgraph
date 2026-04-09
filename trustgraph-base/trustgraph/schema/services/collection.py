@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from ..core.primitives import Error
-from ..core.topic import topic
+from ..core.topic import queue
 
 ############################################################################
 
@@ -50,10 +50,6 @@ class CollectionManagementResponse:
 
 # Topics
 
-collection_request_queue = topic(
-    'collection', qos='q0', namespace='request'
-)
-collection_response_queue = topic(
-    'collection', qos='q0', namespace='response'
-)
+collection_request_queue = queue('collection', cls='request')
+collection_response_queue = queue('collection', cls='response')
 

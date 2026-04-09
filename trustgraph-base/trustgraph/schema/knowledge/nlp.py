@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 
-from ..core.topic import topic
 
 ############################################################################
 

@@ -87,10 +87,11 @@ def sample_message_data():
             "history": []
         },
         "AgentResponse": {
-            "answer": "Machine learning is a subset of AI.",
+            "chunk_type": "answer",
+            "content": "Machine learning is a subset of AI.",
+            "end_of_message": True,
+            "end_of_dialog": True,
             "error": None,
-            "thought": "I need to provide information about machine learning.",
-            "observation": None
         },
         "Metadata": {
             "id": "test-doc-123",

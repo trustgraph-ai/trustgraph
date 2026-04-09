@@ -18,6 +18,11 @@ properties:
     type: string
     description: Named graph containing the explainability data
     example: urn:graph:retrieval
+  explain_triples:
+    type: array
+    description: Provenance triples for this explain event (inline, no follow-up query needed)
+    items:
+      $ref: '../common/Triple.yaml'
   end-of-stream:
     type: boolean
     description: Indicates LLM response stream is complete

@@ -27,6 +27,8 @@ from . namespaces import (
     TG_DOCUMENT_TYPE, TG_PAGE_TYPE, TG_CHUNK_TYPE, TG_SUBGRAPH_TYPE,
     TG_CONCEPT, TG_ENTITY, TG_GROUNDING,
     TG_ANSWER_TYPE, TG_REFLECTION_TYPE, TG_THOUGHT_TYPE, TG_OBSERVATION_TYPE,
+    TG_DECOMPOSITION, TG_FINDING, TG_PLAN_TYPE, TG_STEP_RESULT,
+    TG_SUBAGENT_GOAL, TG_PLAN_STEP,
 )
 
 
@@ -87,6 +89,10 @@ TG_CLASS_LABELS = [
     _label_triple(TG_REFLECTION_TYPE, "Reflection"),
     _label_triple(TG_THOUGHT_TYPE, "Thought"),
     _label_triple(TG_OBSERVATION_TYPE, "Observation"),
+    _label_triple(TG_DECOMPOSITION, "Decomposition"),
+    _label_triple(TG_FINDING, "Finding"),
+    _label_triple(TG_PLAN_TYPE, "Plan"),
+    _label_triple(TG_STEP_RESULT, "Step Result"),
 ]
 
 # TrustGraph predicate labels
@@ -109,6 +115,8 @@ TG_PREDICATE_LABELS = [
     _label_triple(TG_SOURCE_CHAR_LENGTH, "source character length"),
     _label_triple(TG_CONCEPT, "concept"),
     _label_triple(TG_ENTITY, "entity"),
+    _label_triple(TG_SUBAGENT_GOAL, "subagent goal"),
+    _label_triple(TG_PLAN_STEP, "plan step"),
 ]
 
 

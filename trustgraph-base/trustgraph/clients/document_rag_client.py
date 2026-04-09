@@ -1,21 +1,15 @@
 
-import _pulsar
 
 from .. schema import DocumentRagQuery, DocumentRagResponse
 from .. schema import document_rag_request_queue, document_rag_response_queue
 from . base import BaseClient
 
 # Ugly
-ERROR=_pulsar.LoggerLevel.Error
-WARN=_pulsar.LoggerLevel.Warn
-INFO=_pulsar.LoggerLevel.Info
-DEBUG=_pulsar.LoggerLevel.Debug
 
 class DocumentRagClient(BaseClient):
 
     def __init__(
             self,
-            log_level=ERROR,
             subscriber=None,
             input_queue=None,
             output_queue=None,
@@ -30,7 +24,6 @@ class DocumentRagClient(BaseClient):
             output_queue = document_rag_response_queue
   
         super(DocumentRagClient, self).__init__(
-            log_level=log_level,
             subscriber=subscriber,
             input_queue=input_queue,
             output_queue=output_queue,
@@ -50,7 +43,7 @@ class DocumentRagClient(BaseClient):
             user: User identifier
             collection: Collection identifier
             chunk_callback: Optional callback(text, end_of_stream) for text chunks
-            explain_callback: Optional callback(explain_id, explain_graph) for explain notifications
+            explain_callback: Optional callback(explain_id, explain_graph, explain_triples) for explain notifications
             timeout: Request timeout in seconds
 
         Returns:
@@ -62,7 +55,7 @@ class DocumentRagClient(BaseClient):
             # Handle explain notifications (response is None/empty, explain_id present)
             if x.explain_id and not x.response:
                 if explain_callback:
-                    explain_callback(x.explain_id, x.explain_graph)
+                    explain_callback(x.explain_id, x.explain_graph, x.explain_triples)
                 return False  # Continue receiving
 
             # Handle text chunks

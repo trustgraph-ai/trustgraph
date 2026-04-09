@@ -1,7 +1,7 @@
 
 from dataclasses import dataclass, field
 
-from ..core.topic import topic
+from ..core.topic import queue
 from ..core.primitives import Error
 
 ############################################################################
@@ -58,17 +58,11 @@ class ConfigResponse:
 @dataclass
 class ConfigPush:
     version: int = 0
-    config: dict[str, dict[str, str]] = field(default_factory=dict)
+    types: list[str] = field(default_factory=list)
 
-config_request_queue = topic(
-    'config', qos='q0', namespace='request'
-)
-config_response_queue = topic(
-    'config', qos='q0', namespace='response'
-)
-config_push_queue = topic(
-    'config', qos='q2', namespace='config'
-)
+config_request_queue = queue('config', cls='request')
+config_response_queue = queue('config', cls='response')
+config_push_queue = queue('config', cls='flow')
 
 ############################################################################
 
