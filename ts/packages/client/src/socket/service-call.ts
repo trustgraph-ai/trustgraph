@@ -76,9 +76,8 @@ export class ServiceCall {
    * @param resp - The response object received from the server
    */
   onReceived(resp: object) {
-    // Defensive check - this shouldn't happen but log if it does
-    if (this.complete == true)
-      console.log(this.mid, "should not happen, request is already complete");
+    // Guard: ignore duplicate responses after completion
+    if (this.complete) return;
 
     // Mark as complete to prevent duplicate processing
     this.complete = true;
@@ -151,12 +150,8 @@ export class ServiceCall {
    * Triggers another attempt if retries are available
    */
   onTimeout() {
-    // Defensive check - this shouldn't happen but log if it does
-    if (this.complete == true)
-      console.log(
-        this.mid,
-        "timeout should not happen, request is already complete",
-      );
+    // Guard: ignore timeout after completion
+    if (this.complete) return;
 
     console.log("Request", this.mid, "timed out");
 
@@ -184,12 +179,8 @@ export class ServiceCall {
    * Handles retries and waits for BaseApi to handle reconnection
    */
   attempt() {
-    // Defensive check - this shouldn't be called on completed requests
-    if (this.complete == true)
-      console.log(
-        this.mid,
-        "attempt should not be called, request is already complete",
-      );
+    // Guard: don't retry completed requests
+    if (this.complete) return;
 
     // Decrement retry counter
     this.retries--;

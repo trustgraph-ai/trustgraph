@@ -316,6 +316,30 @@ export default function GraphPage() {
   const fgRef = useRef<ForceGraphMethods<GraphNode, GraphLink> | undefined>(
     undefined,
   );
+  const [containerSize, setContainerSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const roRef = useRef<ResizeObserver | null>(null);
+
+  // Ref callback — attaches ResizeObserver when the container mounts
+  const containerRef = useCallback((el: HTMLDivElement | null) => {
+    // Disconnect previous observer
+    if (roRef.current) {
+      roRef.current.disconnect();
+      roRef.current = null;
+    }
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) {
+        const { width, height } = entry.contentRect;
+        setContainerSize({ width: Math.floor(width), height: Math.floor(height) });
+      }
+    });
+    ro.observe(el);
+    roRef.current = ro;
+  }, []);
 
   // Fetch triples
   const fetchTriples = useCallback(async () => {
@@ -370,6 +394,17 @@ export default function GraphPage() {
   const selectedLabel = selectedNode
     ? labelMap.get(selectedNode) ?? localName(selectedNode)
     : "";
+
+  // Auto-fit graph to view once data loads
+  const hasAutoFit = useRef(false);
+  useEffect(() => {
+    if (graphData.nodes.length > 0 && fgRef.current && !hasAutoFit.current) {
+      hasAutoFit.current = true;
+      // Wait for force simulation to settle briefly before fitting
+      const timer = setTimeout(() => fgRef.current?.zoomToFit(400, 40), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [graphData.nodes.length]);
 
   // Zoom helpers
   const zoomIn = () => fgRef.current?.zoom(2, 300);
@@ -447,16 +482,16 @@ export default function GraphPage() {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <Rotate3d className="h-6 w-6 text-brand-400" />
           <h1 className="text-2xl font-bold text-fg">Graph</h1>
-          <span className="ml-2 rounded bg-surface-200 px-2 py-0.5 text-xs text-fg-subtle">
+          <span className="ml-2 rounded bg-surface-200 px-2 py-0.5 text-xs text-fg-muted">
             {graphData.nodes.length} nodes, {graphData.links.length} edges
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-fg-subtle" />
@@ -548,9 +583,9 @@ export default function GraphPage() {
       )}
 
       {graphData.nodes.length > 0 && (
-        <div className="flex flex-1 overflow-hidden rounded-lg border border-border">
+        <div className="relative flex flex-1 overflow-hidden rounded-lg border border-border">
           {/* Graph canvas */}
-          <div className="relative flex-1 bg-surface-0">
+          <div ref={containerRef} className="relative min-w-0 flex-1 bg-surface-0">
             <Suspense fallback={<div className="flex h-full items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-fg-subtle" /></div>}>
             <ForceGraph2D
               ref={fgRef}
@@ -575,8 +610,8 @@ export default function GraphPage() {
               }}
               onBackgroundClick={() => setSelectedNode(null)}
               backgroundColor="transparent"
-              width={undefined}
-              height={undefined}
+              width={containerSize?.width}
+              height={containerSize?.height}
             />
             </Suspense>
 
@@ -590,15 +625,17 @@ export default function GraphPage() {
             )}
           </div>
 
-          {/* Detail panel */}
+          {/* Detail panel -- positioned absolutely so it overlays the graph */}
           {selectedNode && (
-            <NodeDetailPanel
-              nodeId={selectedNode}
-              label={selectedLabel}
-              triples={triples}
-              labelMap={labelMap}
-              onClose={() => setSelectedNode(null)}
-            />
+            <div className="absolute inset-y-0 right-0 z-10">
+              <NodeDetailPanel
+                nodeId={selectedNode}
+                label={selectedLabel}
+                triples={triples}
+                labelMap={labelMap}
+                onClose={() => setSelectedNode(null)}
+              />
+            </div>
           )}
         </div>
       )}

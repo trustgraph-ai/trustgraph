@@ -3,6 +3,8 @@ import {
   type MouseEvent,
   useCallback,
   useEffect,
+  useId,
+  useRef,
 } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -20,6 +22,7 @@ interface DialogProps {
 /**
  * Simple modal dialog built with Tailwind.
  * Renders a backdrop overlay + centered content panel.
+ * Includes focus trap, auto-focus, and Escape to close.
  */
 export function Dialog({
   open,
@@ -29,6 +32,9 @@ export function Dialog({
   footer,
   className,
 }: DialogProps) {
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+
   // Close on Escape key
   useEffect(() => {
     if (!open) return;
@@ -38,6 +44,63 @@ export function Dialog({
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [open, onClose]);
+
+  // Auto-focus first focusable element when dialog opens
+  useEffect(() => {
+    if (!open || !dialogRef.current) return;
+    const focusable = Array.from(
+      dialogRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      ),
+    ).filter(
+      (el) =>
+        !el.hidden &&
+        !(el as HTMLButtonElement).disabled &&
+        el.offsetParent !== null &&
+        window.getComputedStyle(el).display !== "none",
+    );
+    // Focus the first input/textarea if available, otherwise the close button
+    const firstInput = focusable.find(
+      (el) => el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT",
+    );
+    (firstInput ?? focusable[0])?.focus();
+  }, [open]);
+
+  // Focus trap — keep Tab within the dialog
+  useEffect(() => {
+    if (!open || !dialogRef.current) return;
+    const dialog = dialogRef.current;
+
+    const handleTab = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter(
+        (el) =>
+          !el.hidden &&
+          !(el as HTMLButtonElement).disabled &&
+          el.offsetParent !== null &&
+          window.getComputedStyle(el).display !== "none",
+      );
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleTab);
+    return () => window.removeEventListener("keydown", handleTab);
+  }, [open]);
 
   const handleBackdrop = useCallback(
     (e: MouseEvent) => {
@@ -54,9 +117,10 @@ export function Dialog({
       onClick={handleBackdrop}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="dialog-title"
+        aria-labelledby={titleId}
         className={cn(
           "relative w-full max-w-lg rounded-xl border border-border bg-surface-100 shadow-2xl",
           className,
@@ -64,9 +128,10 @@ export function Dialog({
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <h2 id="dialog-title" className="text-lg font-semibold text-fg">{title}</h2>
+          <h2 id={titleId} className="text-lg font-semibold text-fg">{title}</h2>
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             className="rounded-md p-1 text-fg-subtle hover:bg-surface-200 hover:text-fg"
           >
             <X className="h-4 w-4" />

@@ -69,8 +69,11 @@ export default function PromptsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="mb-4 flex gap-1 rounded-lg bg-surface-100 p-1">
+      <div role="tablist" aria-label="Prompt sections" className="mb-4 flex gap-1 rounded-lg bg-surface-100 p-1">
         <button
+          role="tab"
+          aria-selected={activeTab === "templates"}
+          aria-controls="panel-templates"
           onClick={() => setActiveTab("templates")}
           className={cn(
             "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors",
@@ -83,6 +86,9 @@ export default function PromptsPage() {
           Templates
         </button>
         <button
+          role="tab"
+          aria-selected={activeTab === "system"}
+          aria-controls="panel-system"
           onClick={() => setActiveTab("system")}
           className={cn(
             "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors",
@@ -105,7 +111,7 @@ export default function PromptsPage() {
 
       {/* Templates tab */}
       {activeTab === "templates" && (
-        <div className="flex flex-1 flex-col gap-4 overflow-hidden">
+        <div id="panel-templates" role="tabpanel" className="flex flex-1 flex-col gap-4 overflow-hidden">
           {loading && prompts.length === 0 && (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="mr-2 h-5 w-5 animate-spin text-fg-subtle" />
@@ -125,9 +131,9 @@ export default function PromptsPage() {
               {/* Prompt list */}
               <div className="w-80 shrink-0 overflow-y-auto rounded-lg border border-border">
                 <div className="border-b border-border bg-surface-100 px-4 py-3">
-                  <h3 className="text-xs font-medium uppercase tracking-wider text-fg-muted">
+                  <h2 className="text-xs font-medium uppercase tracking-wider text-fg-muted">
                     Templates ({prompts.length})
-                  </h3>
+                  </h2>
                 </div>
                 <div className="divide-y divide-border">
                   {prompts.map((p) => {
@@ -156,9 +162,9 @@ export default function PromptsPage() {
                 {selectedPromptId ? (
                   <>
                     <div className="flex items-center justify-between border-b border-border bg-surface-100 px-4 py-3">
-                      <h3 className="text-sm font-medium text-fg">
+                      <h2 className="text-sm font-medium text-fg">
                         <span className="font-mono">{selectedPromptId}</span>
-                      </h3>
+                      </h2>
                       <button
                         onClick={() => {
                           setSelectedPromptId(null);
@@ -195,11 +201,11 @@ export default function PromptsPage() {
 
       {/* System Prompt tab */}
       {activeTab === "system" && (
-        <div className="flex flex-1 flex-col overflow-hidden rounded-lg border border-border">
+        <div id="panel-system" role="tabpanel" className="flex flex-1 flex-col overflow-hidden rounded-lg border border-border">
           <div className="border-b border-border bg-surface-100 px-4 py-3">
-            <h3 className="text-xs font-medium uppercase tracking-wider text-fg-muted">
+            <h2 className="text-xs font-medium uppercase tracking-wider text-fg-muted">
               System Prompt
-            </h3>
+            </h2>
           </div>
           <div className="flex-1 overflow-y-auto p-4">
             {loading ? (

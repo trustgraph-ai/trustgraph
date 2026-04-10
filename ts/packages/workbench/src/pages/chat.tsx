@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Loader2,
   X,
+  AlertTriangle,
 } from "lucide-react";
 import Markdown from "react-markdown";
 import { cn } from "@/lib/utils";
@@ -113,6 +114,7 @@ function AgentPhaseBlock({
 function MessageBubble({ msg }: { msg: ChatMessage }) {
   const isUser = msg.role === "user";
   const hasAgentPhases = msg.agentPhases != null;
+  const isError = !isUser && msg.content.startsWith("Error:");
 
   return (
     <div
@@ -120,7 +122,9 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
         "rounded-lg px-4 py-3 text-sm leading-relaxed",
         isUser
           ? "ml-auto max-w-[80%] bg-brand-700/30 text-fg"
-          : "mr-auto max-w-[80%] bg-surface-100 text-fg",
+          : isError
+            ? "mr-auto max-w-[80%] border border-error/30 bg-error/10 text-error"
+            : "mr-auto max-w-[80%] bg-surface-100 text-fg",
       )}
     >
       {/* Agent phase blocks (only for agent messages) */}
@@ -152,6 +156,11 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
       {/* Main content (markdown for assistant, plain for user) */}
       {isUser ? (
         <p className="whitespace-pre-wrap">{msg.content}</p>
+      ) : isError ? (
+        <div className="flex items-start gap-2">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <p className="whitespace-pre-wrap">{msg.content}</p>
+        </div>
       ) : (
         <div className="prose prose-sm max-w-none text-fg prose-headings:text-fg prose-strong:text-fg prose-p:my-1 prose-a:text-brand-400 prose-pre:bg-surface-200 prose-pre:text-fg prose-code:text-brand-300">
           <Markdown>{msg.content || (msg.isStreaming ? "" : "(empty)")}</Markdown>
@@ -235,7 +244,7 @@ export default function ChatPage() {
         <div className="flex items-center gap-3">
           <MessageSquareText className="h-6 w-6 text-brand-400" />
           <h1 className="text-2xl font-bold text-fg">Chat</h1>
-          <span className="ml-2 rounded bg-surface-200 px-2 py-0.5 text-xs text-fg-subtle">
+          <span className="ml-2 rounded bg-surface-200 px-2 py-0.5 text-xs text-fg-muted">
             {collection}
           </span>
         </div>
@@ -310,6 +319,7 @@ export default function ChatPage() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
+          aria-label="Chat message"
           maxRows={6}
         />
         <button

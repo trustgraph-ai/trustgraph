@@ -31,6 +31,14 @@ export function RootLayout() {
 
   return (
     <div className="relative flex h-screen w-full overflow-hidden bg-surface-0">
+      {/* Skip to main content link (visible on focus for keyboard users) */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-brand-600 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:shadow-lg"
+      >
+        Skip to content
+      </a>
+
       {/* Global loading bar */}
       <LoadingBar />
 
@@ -44,14 +52,14 @@ export function RootLayout() {
 
         {/* Connection lost banner */}
         {isDisconnected && (
-          <div className="flex items-center gap-2 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs text-amber-400">
+          <div className="flex items-center gap-2 border-b border-warning/30 bg-warning/10 px-4 py-2 text-xs text-warning">
             <WifiOff className="h-3.5 w-3.5" />
             <span>Connection lost. Attempting to reconnect...</span>
           </div>
         )}
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main id="main-content" className="flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>
       </div>

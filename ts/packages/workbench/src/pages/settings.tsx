@@ -171,10 +171,11 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-fg-muted">
+            <label htmlFor="settings-gateway-url" className="block text-sm font-medium text-fg-muted">
               Gateway URL
             </label>
             <input
+              id="settings-gateway-url"
               type="text"
               value={settings.gatewayUrl}
               onChange={(e) => updateSetting("gatewayUrl", e.target.value)}
@@ -187,10 +188,11 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-fg-muted">
+            <label htmlFor="settings-user-id" className="block text-sm font-medium text-fg-muted">
               User ID
             </label>
             <input
+              id="settings-user-id"
               type="text"
               value={settings.user}
               onChange={(e) => updateSetting("user", e.target.value)}
@@ -205,11 +207,12 @@ export default function SettingsPage() {
           icon={<Key className="h-4 w-4 text-fg-subtle" />}
         >
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-fg-muted">
+            <label htmlFor="settings-api-key" className="block text-sm font-medium text-fg-muted">
               API Key
             </label>
             <div className="relative">
               <input
+                id="settings-api-key"
                 type={showApiKey ? "text" : "password"}
                 value={settings.apiKey}
                 onChange={(e) => updateSetting("apiKey", e.target.value)}
@@ -241,7 +244,7 @@ export default function SettingsPage() {
           icon={<Database className="h-4 w-4 text-fg-subtle" />}
         >
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-fg-muted">
+            <label htmlFor="settings-collection" className="block text-sm font-medium text-fg-muted">
               Active Collection
             </label>
             {loadingCollections ? (
@@ -251,6 +254,7 @@ export default function SettingsPage() {
               </div>
             ) : collections.length > 0 ? (
               <select
+                id="settings-collection"
                 value={settings.collection}
                 onChange={(e) => updateSetting("collection", e.target.value)}
                 className="w-full rounded-lg border border-border bg-surface-100 px-4 py-2 text-sm text-fg focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
@@ -266,6 +270,7 @@ export default function SettingsPage() {
               </select>
             ) : (
               <input
+                id="settings-collection"
                 type="text"
                 value={settings.collection}
                 onChange={(e) => updateSetting("collection", e.target.value)}
@@ -281,11 +286,12 @@ export default function SettingsPage() {
           icon={<Workflow className="h-4 w-4 text-fg-subtle" />}
         >
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-fg-muted">
+            <label htmlFor="settings-flow" className="block text-sm font-medium text-fg-muted">
               Flow
             </label>
             {flows.length > 0 ? (
               <select
+                id="settings-flow"
                 value={flowId}
                 onChange={(e) => setFlowId(e.target.value)}
                 className="w-full rounded-lg border border-border bg-surface-100 px-4 py-2 text-sm text-fg focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
@@ -300,6 +306,7 @@ export default function SettingsPage() {
               </select>
             ) : (
               <input
+                id="settings-flow"
                 type="text"
                 value={flowId}
                 onChange={(e) => setFlowId(e.target.value)}

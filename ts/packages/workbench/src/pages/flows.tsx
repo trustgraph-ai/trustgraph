@@ -135,10 +135,11 @@ function StartFlowDialog({
     >
       {/* Flow ID */}
       <div className="mb-3 space-y-1.5">
-        <label className="block text-sm font-medium text-fg-muted">
+        <label htmlFor="flow-id" className="block text-sm font-medium text-fg-muted">
           Flow ID <span className="text-error">*</span>
         </label>
         <input
+          id="flow-id"
           type="text"
           value={id}
           onChange={(e) => setId(e.target.value)}
@@ -152,7 +153,7 @@ function StartFlowDialog({
 
       {/* Blueprint name */}
       <div className="mb-3 space-y-1.5">
-        <label className="block text-sm font-medium text-fg-muted">
+        <label htmlFor="flow-blueprint" className="block text-sm font-medium text-fg-muted">
           Blueprint <span className="text-error">*</span>
         </label>
         {loadingBlueprints ? (
@@ -161,6 +162,7 @@ function StartFlowDialog({
           </div>
         ) : (
           <select
+            id="flow-blueprint"
             value={blueprint}
             onChange={(e) => setBlueprint(e.target.value)}
             className="w-full rounded-lg border border-border bg-surface-100 px-3 py-2 text-sm text-fg focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
@@ -182,10 +184,11 @@ function StartFlowDialog({
 
       {/* Description */}
       <div className="mb-3 space-y-1.5">
-        <label className="block text-sm font-medium text-fg-muted">
+        <label htmlFor="flow-description" className="block text-sm font-medium text-fg-muted">
           Description <span className="text-error">*</span>
         </label>
         <input
+          id="flow-description"
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
@@ -199,10 +202,11 @@ function StartFlowDialog({
 
       {/* Parameters (JSON) */}
       <div className="space-y-1.5">
-        <label className="block text-sm font-medium text-fg-muted">
+        <label htmlFor="flow-params" className="block text-sm font-medium text-fg-muted">
           Parameters (JSON)
         </label>
         <textarea
+          id="flow-params"
           value={paramsJson}
           onChange={(e) => {
             setParamsJson(e.target.value);
@@ -410,11 +414,11 @@ export default function FlowsPage() {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <Workflow className="h-6 w-6 text-brand-400" />
           <h1 className="text-2xl font-bold text-fg">Flows</h1>
-          <span className="ml-2 rounded bg-surface-200 px-2 py-0.5 text-xs text-fg-subtle">
+          <span className="ml-2 rounded bg-surface-200 px-2 py-0.5 text-xs text-fg-muted">
             {flows.length} active
           </span>
         </div>

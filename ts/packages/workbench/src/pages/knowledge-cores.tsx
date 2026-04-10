@@ -155,7 +155,7 @@ export default function KnowledgeCoresPage() {
           <BrainCircuit className="h-6 w-6 text-brand-400" />
           <h1 className="text-2xl font-bold text-fg">Knowledge Cores</h1>
           {!loading && (
-            <span className="ml-2 rounded bg-surface-200 px-2 py-0.5 text-xs text-fg-subtle">
+            <span className="ml-2 rounded bg-surface-200 px-2 py-0.5 text-xs text-fg-muted">
               {cores.length} core{cores.length !== 1 ? "s" : ""}
             </span>
           )}

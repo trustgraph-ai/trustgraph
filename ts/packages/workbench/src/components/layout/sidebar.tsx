@@ -69,7 +69,7 @@ function ConnectionBadge() {
       className={cn(
         "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium",
         isWarning
-          ? "text-amber-400"
+          ? "text-warning"
           : isConnected
             ? "text-success"
             : "text-fg-subtle",
@@ -79,7 +79,7 @@ function ConnectionBadge() {
         className={cn(
           "h-2 w-2 shrink-0 rounded-full",
           isWarning
-            ? "bg-amber-400 animate-pulse"
+            ? "bg-warning animate-pulse"
             : isConnected
               ? "bg-success animate-pulse"
               : "bg-fg-subtle",
@@ -111,12 +111,13 @@ function FlowSelectorDropdown() {
     <div className="space-y-2 px-3">
       {/* Flow selector */}
       <div className="space-y-1">
-        <label className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-fg-subtle">
+        <label htmlFor="sidebar-flow-select" className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-fg-subtle">
           <Workflow className="h-3 w-3" />
           Flow
         </label>
         <div className="relative">
           <select
+            id="sidebar-flow-select"
             value={flowId}
             onChange={(e) => setFlowId(e.target.value)}
             className="w-full appearance-none rounded-md border border-border bg-surface-100 py-1.5 pl-2.5 pr-7 text-xs text-fg focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"

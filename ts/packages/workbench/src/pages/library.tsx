@@ -55,18 +55,20 @@ function UploadDialog({
     setUploading(false);
   };
 
-  const handleFile = (f: File) => {
+  const titleRef = useRef(title);
+  titleRef.current = title;
+
+  const handleFile = useCallback((f: File) => {
     setFile(f);
-    if (!title) setTitle(f.name.replace(/\.[^/.]+$/, ""));
-  };
+    if (!titleRef.current) setTitle(f.name.replace(/\.[^/.]+$/, ""));
+  }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     const f = e.dataTransfer.files[0];
     if (f) handleFile(f);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [handleFile]);
 
   const handleSubmit = async () => {
     if (!file) return;
@@ -121,6 +123,8 @@ function UploadDialog({
     >
       {/* Drop zone */}
       <div
+        role="button"
+        tabIndex={0}
         onDragOver={(e) => {
           e.preventDefault();
           setDragOver(true);
@@ -128,6 +132,13 @@ function UploadDialog({
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        aria-label="Drop a file here or press Enter to browse"
         className={cn(
           "mb-4 flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-8 transition-colors",
           dragOver
@@ -172,9 +183,11 @@ function UploadDialog({
 
       {/* Title */}
       <div className="mb-3 space-y-1.5">
-        <label className="block text-sm font-medium text-fg-muted">Title</label>
+        <label htmlFor="upload-title" className="block text-sm font-medium text-fg-muted">Title</label>
         <input
+          id="upload-title"
           type="text"
+          required
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Document title"
@@ -184,8 +197,9 @@ function UploadDialog({
 
       {/* Comments */}
       <div className="mb-3 space-y-1.5">
-        <label className="block text-sm font-medium text-fg-muted">Comments</label>
+        <label htmlFor="upload-comments" className="block text-sm font-medium text-fg-muted">Comments</label>
         <input
+          id="upload-comments"
           type="text"
           value={comments}
           onChange={(e) => setComments(e.target.value)}
@@ -196,8 +210,9 @@ function UploadDialog({
 
       {/* Tags */}
       <div className="space-y-1.5">
-        <label className="block text-sm font-medium text-fg-muted">Tags</label>
+        <label htmlFor="upload-tags" className="block text-sm font-medium text-fg-muted">Tags</label>
         <input
+          id="upload-tags"
           type="text"
           value={tags}
           onChange={(e) => setTags(e.target.value)}
@@ -334,7 +349,7 @@ export default function LibraryPage() {
         <div className="flex items-center gap-3">
           <LibraryBig className="h-6 w-6 text-brand-400" />
           <h1 className="text-2xl font-bold text-fg">Library</h1>
-          <span className="ml-2 rounded bg-surface-200 px-2 py-0.5 text-xs text-fg-subtle">
+          <span className="ml-2 rounded bg-surface-200 px-2 py-0.5 text-xs text-fg-muted">
             {collection}
           </span>
         </div>
