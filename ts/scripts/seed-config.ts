@@ -188,9 +188,67 @@ async function main(): Promise<void> {
         // Librarian RPC (for PDF decoder)
         "librarian-request": "tg.flow.librarian-request",
         "librarian-response": "tg.flow.librarian-response",
+        // MCP tool invocation
+        "mcp-tool-request": "tg.flow.mcp-tool-request",
+        "mcp-tool-response": "tg.flow.mcp-tool-response",
       },
     },
   });
+
+  // 3. MCP server configuration (external tool providers)
+  console.log("\n── MCP Configuration ──");
+  const braveApiKey = process.env.BRAVE_API_KEY;
+  if (braveApiKey) {
+    await pushConfig(["mcp"], {
+      "brave-search": JSON.stringify({
+        url: "http://localhost:8383/mcp",
+        "remote-name": "brave_web_search",
+      }),
+    });
+    console.log("  Brave Search MCP service configured");
+  } else {
+    console.log("  Skipping MCP config (no BRAVE_API_KEY set)");
+  }
+
+  // 4. Agent tool configuration (maps tools to implementations)
+  console.log("\n── Tool Configuration ──");
+  const toolConfig: Record<string, string> = {
+    "knowledge-query": JSON.stringify({
+      type: "knowledge-query",
+      name: "KnowledgeQuery",
+      description: "Query the knowledge graph for information about entities and their relationships.",
+      group: ["default"],
+    }),
+    "document-query": JSON.stringify({
+      type: "document-query",
+      name: "DocumentQuery",
+      description: "Search the document library for relevant information using semantic search.",
+      group: ["default"],
+    }),
+    "triples-query": JSON.stringify({
+      type: "triples-query",
+      name: "TriplesQuery",
+      description: "Query for specific triples (subject-predicate-object relationships) in the knowledge graph.",
+      group: ["default"],
+    }),
+  };
+
+  // Add Brave Search tool if API key is available
+  if (braveApiKey) {
+    toolConfig["brave-search"] = JSON.stringify({
+      type: "mcp-tool",
+      name: "brave-search",
+      description: "Search the web using Brave Search. Returns web search results including titles, URLs, and descriptions.",
+      "mcp-tool": "brave-search",
+      group: ["default"],
+      arguments: [
+        { name: "query", type: "string", description: "The search query" },
+      ],
+    });
+    console.log("  Brave Search tool added");
+  }
+
+  await pushConfig(["tool"], toolConfig);
 
   console.log("\nConfiguration seeded successfully.");
 }

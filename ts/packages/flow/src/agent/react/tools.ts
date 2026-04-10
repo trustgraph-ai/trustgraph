@@ -13,10 +13,12 @@ import type {
   DocumentRagResponse,
   TriplesQueryRequest,
   TriplesQueryResponse,
+  ToolRequest,
+  ToolResponse,
   Term,
 } from "@trustgraph/base";
 
-import type { AgentTool } from "./types.js";
+import type { AgentTool, ToolArg } from "./types.js";
 
 /**
  * Format a Term to a human-readable string.
@@ -194,6 +196,32 @@ export function createTriplesQueryTool(
           `(${termToString(t.s)}) -[${termToString(t.p)}]-> (${termToString(t.o)})`,
       );
       return lines.join("\n");
+    },
+  };
+}
+
+/**
+ * Create an agent tool that delegates to the MCP tool service via NATS.
+ *
+ * The MCP tool service handles the actual MCP server connection;
+ * this function just wraps it as an AgentTool the ReAct agent can invoke.
+ */
+export function createMcpTool(
+  client: RequestResponse<ToolRequest, ToolResponse>,
+  toolName: string,
+  description: string,
+  args: ToolArg[],
+): AgentTool {
+  return {
+    name: toolName,
+    description,
+    args,
+    async execute(input: string): Promise<string> {
+      const res = await client.request({ name: toolName, parameters: input });
+      if (res.error) return `Error: ${res.error.message}`;
+      if (res.text) return res.text;
+      if (res.object) return res.object;
+      return "No content";
     },
   };
 }

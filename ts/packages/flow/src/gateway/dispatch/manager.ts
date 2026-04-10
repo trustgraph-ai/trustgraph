@@ -31,6 +31,7 @@ const FLOW_SERVICES: ReadonlyMap<string, { request: string; response: string }> 
   ["graph-embeddings",    { request: "graph-embeddings-request",    response: "graph-embeddings-response" }],
   ["document-embeddings", { request: "doc-embeddings-request",      response: "doc-embeddings-response" }],
   ["triples",             { request: "triples-request",             response: "triples-response" }],
+  ["mcp-tool",            { request: "mcp-tool-request",            response: "mcp-tool-response" }],
 ]);
 
 /**

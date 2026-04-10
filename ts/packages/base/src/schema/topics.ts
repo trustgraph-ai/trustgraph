@@ -60,6 +60,10 @@ export const topics = {
   promptRequest: topic("prompt-request"),
   promptResponse: topic("prompt-response"),
 
+  // MCP tool invocation
+  mcpToolRequest: topic("mcp-tool-request"),
+  mcpToolResponse: topic("mcp-tool-response"),
+
   // Librarian (document management)
   librarianRequest: topic("librarian-request"),
   librarianResponse: topic("librarian-response"),

@@ -32,6 +32,7 @@
     "document-rag": "tsx scripts/run-document-rag.ts",
     "create-test-pdf": "tsx scripts/create-test-pdf.ts",
     "seed:demo": "tsx scripts/seed-demo.ts",
+    "mcp-tool": "tsx scripts/run-mcp-tool.ts",
     "llm:azure-openai": "tsx scripts/run-llm-azure-openai.ts",
     "llm:openai-compat": "tsx scripts/run-llm-openai-compatible.ts",
     "llm:mistral": "tsx scripts/run-llm-mistral.ts"

@@ -13,6 +13,8 @@ export interface AgentTool {
   description: string;
   args: ToolArg[];
   execute: (input: string) => Promise<string>;
+  /** Full tool config from config-push (used by tool filtering). */
+  config?: Record<string, unknown>;
 }
 
 export type ReActState =

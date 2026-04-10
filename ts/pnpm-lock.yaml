@@ -104,6 +104,9 @@ importers:
       '@mistralai/mistralai':
         specifier: ^1.0.0
         version: 1.15.1
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.12.0
+        version: 1.29.0(zod@3.25.76)
       '@qdrant/js-client-rest':
         specifier: ^1.13.0
         version: 1.17.0(typescript@5.9.3)

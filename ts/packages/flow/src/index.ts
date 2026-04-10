@@ -48,6 +48,12 @@ export { ConfigService, type ConfigServiceConfig } from "./config/service.js";
 // ReAct agent
 export { AgentService } from "./agent/react/index.js";
 
+// MCP tool service
+export { McpToolService } from "./agent/mcp-tool/index.js";
+
+// Tool filtering
+export { filterToolsByGroupAndState, getNextState } from "./agent/tool-filter.js";
+
 // Librarian service
 export { LibrarianService, type LibrarianServiceConfig } from "./librarian/service.js";
 export { CollectionManager, type CollectionEntry } from "./librarian/collection-manager.js";

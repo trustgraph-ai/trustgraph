@@ -304,6 +304,19 @@ export interface CollectionManagementResponse {
   collections?: { user: string; collection: string; name: string; description: string; tags: string[] }[];
 }
 
+// ---------- Tool invocation (MCP tools) ----------
+
+export interface ToolRequest {
+  name: string;
+  parameters: string; // JSON-encoded
+}
+
+export interface ToolResponse {
+  error?: TgError;
+  text?: string;    // Plain text response
+  object?: string;  // JSON-encoded structured response
+}
+
 // ---------- Flow management ----------
 
 // Flow request/response use kebab-case wire format to match the client.

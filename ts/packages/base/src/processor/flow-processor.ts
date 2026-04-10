@@ -22,6 +22,7 @@ export abstract class FlowProcessor extends AsyncProcessor {
   private specifications: Spec[] = [];
   private flows = new Map<string, Flow>();
   private configConsumer: BackendConsumer<ConfigPush> | null = null;
+  private lastFlowsJson = "";
 
   protected constructor(config: ProcessorConfig) {
     super(config);
@@ -75,6 +76,16 @@ export abstract class FlowProcessor extends AsyncProcessor {
       console.log(`[${this.config.id}] No flows in config push, skipping`);
       return;
     }
+
+    // Skip flow restart if the flow definitions haven't changed.
+    // This prevents disrupting in-flight requests when non-flow config
+    // sections (prompts, tools, mcp) are updated.
+    const flowsJson = JSON.stringify(flowDefs);
+    if (this.lastFlowsJson && flowsJson === this.lastFlowsJson && this.flows.size > 0) {
+      console.log(`[${this.config.id}] Flow definitions unchanged, skipping restart`);
+      return;
+    }
+    this.lastFlowsJson = flowsJson;
 
     // Stop removed flows
     for (const [name, flow] of this.flows) {
