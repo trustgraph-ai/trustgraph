@@ -4,6 +4,7 @@ import json
 import math
 import os
 import re
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,7 +19,7 @@ import requests
 
 DEFAULT_OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
 DEFAULT_OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "translategemma:12b")
-DEFAULT_DOCS_DIR = os.getenv("DOCS_DIR", "docs/tech-specs")
+DEFAULT_DOCS_DIR = os.getenv("DOCS_DIR", "docs")
 
 # With chunked translation, a smaller ctx is usually faster and more reliable.
 DEFAULT_NUM_CTX = int(os.getenv("OLLAMA_NUM_CTX", "4096"))
@@ -754,6 +755,31 @@ def looks_incomplete(existing_translation: str, source: str) -> bool:
 # ----------------------------
 
 
+def get_git_mtime(filepath: str) -> int:
+    """Return the modification time of a file based on git history.
+    If the file has local uncommitted changes, returns its filesystem mtime.
+    If git is unavailable, falls back to filesystem mtime.
+    """
+    try:
+        # Check for uncommitted changes first
+        status = subprocess.check_output(["git", "status", "--porcelain", filepath], text=True).strip()
+        if status:
+            return int(os.path.getmtime(filepath))
+        
+        # Get the timestamp of the last commit that modified this file
+        out = subprocess.check_output(["git", "log", "-1", "--format=%ct", filepath], text=True).strip()
+        if out:
+            return int(out)
+    except Exception:
+        pass
+    
+    # Fallback to local filesystem mtime
+    try:
+        return int(os.path.getmtime(filepath))
+    except OSError:
+        return 0
+
+
 def _parse_langs(arg: Optional[str]) -> Dict[str, str]:
     if not arg:
         return dict(LANGUAGES)
@@ -841,10 +867,21 @@ def main() -> None:
             if os.path.exists(out_filepath) and os.path.getsize(out_filepath) > 0 and not args.force:
                 with open(out_filepath, "r", encoding="utf-8") as existing_f:
                     existing = existing_f.read()
-                if not looks_incomplete(existing, content):
-                    print(f"  [-] Skipping {lang_name} ({out_filename}) - already exists.")
+                
+                source_mtime = get_git_mtime(filepath)
+                dest_mtime = get_git_mtime(out_filepath)
+                
+                is_outdated = source_mtime > dest_mtime
+                is_inc = looks_incomplete(existing, content)
+
+                if not is_outdated and not is_inc:
+                    print(f"  [-] Skipping {lang_name} ({out_filename}) - already exists and up to date.")
                     continue
-                print(f"  [!] Existing {lang_name} looks incomplete; re-translating...")
+                
+                if is_outdated:
+                    print(f"  [!] Source file is newer than existing {lang_name} translation; re-translating...")
+                elif is_inc:
+                    print(f"  [!] Existing {lang_name} looks incomplete; re-translating...")
 
             print(f"  [+] Translating to {lang_name}...")
             translated = translate_markdown_document(
