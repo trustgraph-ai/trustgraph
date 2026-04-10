@@ -151,7 +151,7 @@ class TestConfigReceiver:
         mock_backend = Mock()
         config_receiver = ConfigReceiver(mock_backend)
 
-        # Mock config_client
+        # Mock _create_config_client to return a mock client
         mock_resp = Mock()
         mock_resp.error = None
         mock_resp.version = 5
@@ -164,7 +164,7 @@ class TestConfigReceiver:
 
         mock_client = AsyncMock()
         mock_client.request.return_value = mock_resp
-        config_receiver.config_client = mock_client
+        config_receiver._create_config_client = Mock(return_value=mock_client)
 
         start_flow_calls = []
         async def mock_start_flow(id, flow):
@@ -202,7 +202,7 @@ class TestConfigReceiver:
 
         mock_client = AsyncMock()
         mock_client.request.return_value = mock_resp
-        config_receiver.config_client = mock_client
+        config_receiver._create_config_client = Mock(return_value=mock_client)
 
         stop_flow_calls = []
         async def mock_stop_flow(id, flow):
@@ -229,7 +229,7 @@ class TestConfigReceiver:
 
         mock_client = AsyncMock()
         mock_client.request.return_value = mock_resp
-        config_receiver.config_client = mock_client
+        config_receiver._create_config_client = Mock(return_value=mock_client)
 
         await config_receiver.fetch_and_apply()
 
@@ -353,7 +353,7 @@ class TestConfigReceiver:
 
         mock_client = AsyncMock()
         mock_client.request.return_value = mock_resp
-        config_receiver.config_client = mock_client
+        config_receiver._create_config_client = Mock(return_value=mock_client)
 
         start_calls = []
         stop_calls = []

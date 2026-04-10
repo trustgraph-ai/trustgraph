@@ -24,10 +24,10 @@ class TestRabbitMQMapQueueName:
         assert durable is True
         assert name == 'tg.flow.text-completion-request'
 
-    def test_state_is_durable(self, backend):
-        name, durable = backend.map_queue_name('state:tg:config')
-        assert durable is True
-        assert name == 'tg.state.config'
+    def test_notify_is_not_durable(self, backend):
+        name, durable = backend.map_queue_name('notify:tg:config')
+        assert durable is False
+        assert name == 'tg.notify.config'
 
     def test_request_is_not_durable(self, backend):
         name, durable = backend.map_queue_name('request:tg:config')

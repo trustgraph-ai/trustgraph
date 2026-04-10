@@ -33,18 +33,16 @@ class Consumer:
             rate_limit_retry_time = 10, rate_limit_timeout = 7200,
             reconnect_time = 5,
             concurrency = 1, # Number of concurrent requests to handle
-            consumer_type = 'shared',
+            **kwargs,
     ):
 
         self.taskgroup = taskgroup
         self.flow = flow
-        self.backend = backend  # Changed from 'client' to 'backend'
+        self.backend = backend
         self.topic = topic
         self.subscriber = subscriber
         self.schema = schema
         self.handler = handler
-
-        self.consumer_type = consumer_type
 
         self.rate_limit_retry_time = rate_limit_retry_time
         self.rate_limit_timeout = rate_limit_timeout
@@ -129,7 +127,6 @@ class Consumer:
                                 subscription = self.subscriber,
                                 schema = self.schema,
                                 initial_position = initial_pos,
-                                consumer_type = self.consumer_type,
                             ),
                         )
                         consumers.append(c)

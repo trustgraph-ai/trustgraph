@@ -6,10 +6,10 @@ def queue(topic, cls='flow', topicspace='tg'):
     Args:
         topic: The logical queue name (e.g. 'config', 'librarian')
         cls: Queue class determining operational characteristics:
-             - 'flow' = persistent processing pipeline queue
-             - 'request' = non-persistent, short TTL request queue
-             - 'response' = non-persistent, short TTL response queue
-             - 'state' = persistent, last-value state broadcast
+             - 'flow' = persistent shared work queue (competing consumers)
+             - 'request' = non-persistent RPC request queue (shared)
+             - 'response' = non-persistent RPC response queue (per-subscriber)
+             - 'notify' = ephemeral broadcast (per-subscriber, auto-delete)
         topicspace: Deployment isolation prefix (default: 'tg')
 
     Returns:
@@ -20,7 +20,7 @@ def queue(topic, cls='flow', topicspace='tg'):
             # flow:tg:text-completion-request
         queue('config', cls='request')
             # request:tg:config
-        queue('config', cls='state')
-            # state:tg:config
+        queue('config', cls='notify')
+            # notify:tg:config
     """
     return f"{cls}:{topicspace}:{topic}"
