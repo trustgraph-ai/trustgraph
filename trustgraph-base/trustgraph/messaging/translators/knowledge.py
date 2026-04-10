@@ -39,7 +39,7 @@ class KnowledgeRequestTranslator(MessageTranslator):
                 entities=[
                     EntityEmbeddings(
                         entity=self.value_translator.decode(ent["entity"]),
-                        vectors=ent["vectors"],
+                        vector=ent["vector"],
                     )
                     for ent in data["graph-embeddings"]["entities"]
                 ]
