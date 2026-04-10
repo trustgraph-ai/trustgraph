@@ -443,7 +443,7 @@ class KnowledgeTableStore:
                 entities = [
                     EntityEmbeddings(
                         entity = tuple_to_term(ent[0][0], ent[0][1]),
-                        vectors = ent[1]
+                        vector = ent[1]
                     )
                     for ent in row[3]
                 ]
