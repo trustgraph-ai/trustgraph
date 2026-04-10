@@ -8,7 +8,7 @@ from ... schema import Metadata
 from ... schema import EntityContexts, EntityContext
 from ... base import Publisher
 
-from . serialize import to_subgraph, to_value
+from . serialize import to_value
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -48,7 +48,6 @@ class EntityContextsImport:
         elt = EntityContexts(
             metadata=Metadata(
                 id=data["metadata"]["id"],
-                metadata=to_subgraph(data["metadata"]["metadata"]),
                 user=data["metadata"]["user"],
                 collection=data["metadata"]["collection"],
             ),
