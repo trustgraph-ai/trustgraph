@@ -73,6 +73,31 @@ class ConfigReceiver:
                 f"Config notify processing exception: {e}", exc_info=True
             )
 
+    def _create_config_client(self):
+        """Create a short-lived config request/response client."""
+        id = str(uuid.uuid4())
+
+        config_req_metrics = ProducerMetrics(
+            processor="api-gateway", flow=None,
+            name="config-request",
+        )
+        config_resp_metrics = SubscriberMetrics(
+            processor="api-gateway", flow=None,
+            name="config-response",
+        )
+
+        return RequestResponse(
+            backend=self.backend,
+            subscription=f"api-gateway--config--{id}",
+            consumer_name="api-gateway",
+            request_topic=config_request_queue,
+            request_schema=ConfigRequest,
+            request_metrics=config_req_metrics,
+            response_topic=config_response_queue,
+            response_schema=ConfigResponse,
+            response_metrics=config_resp_metrics,
+        )
+
     async def fetch_and_apply(self, retry=False):
         """Fetch full config and apply flow changes.
         If retry=True, keeps retrying until successful."""
@@ -82,10 +107,15 @@ class ConfigReceiver:
             try:
                 logger.info("Fetching config from config service...")
 
-                resp = await self.config_client.request(
-                    ConfigRequest(operation="config"),
-                    timeout=10,
-                )
+                client = self._create_config_client()
+                try:
+                    await client.start()
+                    resp = await client.request(
+                        ConfigRequest(operation="config"),
+                        timeout=10,
+                    )
+                finally:
+                    await client.stop()
 
                 logger.info(f"Config response received")
 
@@ -169,32 +199,6 @@ class ConfigReceiver:
                 async with asyncio.TaskGroup() as tg:
 
                     id = str(uuid.uuid4())
-
-                    # Config request/response client
-                    config_req_metrics = ProducerMetrics(
-                        processor="api-gateway", flow=None,
-                        name="config-request",
-                    )
-                    config_resp_metrics = SubscriberMetrics(
-                        processor="api-gateway", flow=None,
-                        name="config-response",
-                    )
-
-                    self.config_client = RequestResponse(
-                        backend=self.backend,
-                        subscription=f"api-gateway--config--{id}",
-                        consumer_name="api-gateway",
-                        request_topic=config_request_queue,
-                        request_schema=ConfigRequest,
-                        request_metrics=config_req_metrics,
-                        response_topic=config_response_queue,
-                        response_schema=ConfigResponse,
-                        response_metrics=config_resp_metrics,
-                    )
-
-                    logger.info("Starting config request/response client...")
-                    await self.config_client.start()
-                    logger.info("Config request/response client started")
 
                     # Subscribe to notify queue
                     self.config_cons = Consumer(

@@ -124,18 +124,22 @@ class PubSubBackend(Protocol):
         subscription: str,
         schema: type,
         initial_position: str = 'latest',
-        consumer_type: str = 'shared',
         **options
     ) -> BackendConsumer:
         """
         Create a consumer for a topic.
 
+        Consumer behaviour is determined by the topic's class prefix:
+          - flow: shared competing consumers, durable named queue
+          - request: shared competing consumers, non-durable named queue
+          - response: exclusive per-subscriber, anonymous auto-delete queue
+          - notify: exclusive per-subscriber, anonymous auto-delete queue
+
         Args:
-            topic: Generic topic format (qos/tenant/namespace/queue)
+            topic: Queue identifier in class:topicspace:topic format
             subscription: Subscription/consumer group name
             schema: Dataclass type for messages
             initial_position: 'earliest' or 'latest' (some backends may ignore)
-            consumer_type: 'shared', 'exclusive', 'failover' (some backends may ignore)
             **options: Backend-specific options
 
         Returns:

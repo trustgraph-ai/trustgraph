@@ -84,7 +84,6 @@ class Subscriber:
                             topic=self.topic,
                             subscription=self.subscription,
                             schema=self.schema,
-                            consumer_type='exclusive',
                         ),
                     )
 

@@ -159,14 +159,16 @@ class PulsarBackend:
         cls, topicspace, topic = parts
 
         # Map class to Pulsar persistence and namespace
-        if cls in ('flow', 'state'):
+        if cls == 'flow':
             persistence = 'persistent'
         elif cls in ('request', 'response'):
+            persistence = 'non-persistent'
+        elif cls == 'notify':
             persistence = 'non-persistent'
         else:
             raise ValueError(
                 f"Invalid queue class: {cls}, "
-                f"expected flow, request, response, or state"
+                f"expected flow, request, response, or notify"
             )
 
         return f"{persistence}://{topicspace}/{cls}/{topic}"
@@ -205,18 +207,20 @@ class PulsarBackend:
         subscription: str,
         schema: type,
         initial_position: str = 'latest',
-        consumer_type: str = 'shared',
         **options
     ) -> BackendConsumer:
         """
         Create a Pulsar consumer.
 
+        Consumer type is derived from the topic's class prefix:
+          - flow/request: Shared (competing consumers)
+          - response/notify: Exclusive (per-subscriber)
+
         Args:
-            topic: Generic topic format (qos/tenant/namespace/queue)
+            topic: Queue identifier in class:topicspace:topic format
             subscription: Subscription name
             schema: Dataclass type for messages
             initial_position: 'earliest' or 'latest'
-            consumer_type: 'shared', 'exclusive', or 'failover'
             **options: Backend-specific options
 
         Returns:
@@ -224,17 +228,18 @@ class PulsarBackend:
         """
         pulsar_topic = self.map_topic(topic)
 
+        # Extract class from topic for consumer type mapping
+        cls = topic.split(':', 1)[0] if ':' in topic else 'flow'
+
         # Map initial position
         if initial_position == 'earliest':
             pos = pulsar.InitialPosition.Earliest
         else:
             pos = pulsar.InitialPosition.Latest
 
-        # Map consumer type
-        if consumer_type == 'exclusive':
+        # Map consumer type from class
+        if cls in ('response', 'notify'):
             ctype = pulsar.ConsumerType.Exclusive
-        elif consumer_type == 'failover':
-            ctype = pulsar.ConsumerType.Failover
         else:
             ctype = pulsar.ConsumerType.Shared
 

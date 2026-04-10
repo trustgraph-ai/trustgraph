@@ -21,8 +21,8 @@ class TestQueueFunction:
     def test_response_class(self):
         assert queue('config', cls='response') == 'response:tg:config'
 
-    def test_state_class(self):
-        assert queue('config', cls='state') == 'state:tg:config'
+    def test_notify_class(self):
+        assert queue('config', cls='notify') == 'notify:tg:config'
 
     def test_custom_topicspace(self):
         assert queue('config', cls='request', topicspace='prod') == 'request:prod:config'
@@ -44,9 +44,9 @@ class TestPulsarMapTopic:
         assert backend.map_topic('flow:tg:text-completion-request') == \
             'persistent://tg/flow/text-completion-request'
 
-    def test_state_maps_to_persistent(self, backend):
-        assert backend.map_topic('state:tg:config') == \
-            'persistent://tg/state/config'
+    def test_notify_maps_to_non_persistent(self, backend):
+        assert backend.map_topic('notify:tg:config') == \
+            'non-persistent://tg/notify/config'
 
     def test_request_maps_to_non_persistent(self, backend):
         assert backend.map_topic('request:tg:config') == \
@@ -153,7 +153,7 @@ class TestQueueDefinitions:
 
     def test_config_push(self):
         from trustgraph.schema.services.config import config_push_queue
-        assert config_push_queue == 'flow:tg:config'
+        assert config_push_queue == 'notify:tg:config'
 
     def test_librarian_request(self):
         from trustgraph.schema.services.library import librarian_request_queue
