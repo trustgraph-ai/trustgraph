@@ -18,11 +18,11 @@ export abstract class EmbeddingsService extends FlowProcessor {
 
     this.registerSpecification(
       new ConsumerSpec<EmbeddingsRequest>(
-        "request",
+        "embeddings-request",
         this.onRequest.bind(this),
       ),
     );
-    this.registerSpecification(new ProducerSpec<EmbeddingsResponse>("response"));
+    this.registerSpecification(new ProducerSpec<EmbeddingsResponse>("embeddings-response"));
     this.registerSpecification(new ParameterSpec("model"));
   }
 
@@ -34,7 +34,7 @@ export abstract class EmbeddingsService extends FlowProcessor {
     const requestId = properties.id;
     if (!requestId) return;
 
-    const responseProducer = flowCtx.flow.producer<EmbeddingsResponse>("response");
+    const responseProducer = flowCtx.flow.producer<EmbeddingsResponse>("embeddings-response");
 
     try {
       const vectors = await this.onEmbeddings(msg.text, msg.model);

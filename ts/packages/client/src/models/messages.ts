@@ -182,7 +182,9 @@ export interface TriplesQueryRequest {
 }
 
 export interface TriplesQueryResponse {
-  response: Triple[];
+  triples: Triple[];
+  /** @deprecated Use `triples` — kept for backward compatibility */
+  response?: Triple[];
 }
 
 export interface RowsQueryRequest {

@@ -154,8 +154,12 @@ function triplesToGraph(triples: Triple[]): {
     if (pVal === RDFS_LABEL) continue;
     if (pVal === RDF_TYPE) continue;
 
-    // Only build edges when both endpoints are IRIs (entity-to-entity)
-    if (!isIri(t.s) || !isIri(t.o)) continue;
+    // Build edges for entity-to-entity relationships.
+    // Include both IRIs and literals as valid entity nodes — plain-name
+    // knowledge graphs (e.g. seeded demo data) use literals for entities.
+    const sIsEntity = isIri(t.s) || t.s.t === "l";
+    const oIsEntity = isIri(t.o) || t.o.t === "l";
+    if (!sIsEntity || !oIsEntity) continue;
 
     ensureNode(sVal);
     ensureNode(oVal);
@@ -344,7 +348,7 @@ export default function GraphPage() {
 
   // Build graph
   const { data: graphData, labelMap } = useMemo(
-    () => triplesToGraph(triples),
+    () => triplesToGraph(Array.isArray(triples) ? triples : []),
     [triples],
   );
 

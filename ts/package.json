@@ -31,6 +31,7 @@
     "graph-rag": "tsx scripts/run-graph-rag.ts",
     "document-rag": "tsx scripts/run-document-rag.ts",
     "create-test-pdf": "tsx scripts/create-test-pdf.ts",
+    "seed:demo": "tsx scripts/seed-demo.ts",
     "llm:azure-openai": "tsx scripts/run-llm-azure-openai.ts",
     "llm:openai-compat": "tsx scripts/run-llm-openai-compatible.ts",
     "llm:mistral": "tsx scripts/run-llm-mistral.ts"

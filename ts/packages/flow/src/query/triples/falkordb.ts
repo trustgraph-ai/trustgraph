@@ -34,6 +34,11 @@ function createTerm(value: string): Term {
   return { type: "LITERAL", value };
 }
 
+/** Extract a string field from a FalkorDB result row (returns object with named keys). */
+function field(row: unknown, key: string): string {
+  return (row as Record<string, unknown>)?.[key] as string ?? "";
+}
+
 export class FalkorDBTriplesQuery {
   private graph: Graph;
   private connectPromise: Promise<void>;
@@ -117,7 +122,7 @@ export class FalkorDBTriplesQuery {
         `RETURN src.uri LIMIT ${limit}`,
         { params: { src: sv, rel: pv, dest: ov } },
       );
-      for (const _rec of (result.data ?? []) as unknown[][]) {
+      for (const _rec of (result.data ?? [])) {
         out.push([sv, pv, ov]);
       }
     }
@@ -133,8 +138,8 @@ export class FalkorDBTriplesQuery {
       `RETURN dest.value as dest LIMIT ${limit}`,
       { params: { src: sv, rel: pv } },
     );
-    for (const rec of (litResult.data ?? []) as string[][]) {
-      out.push([sv, pv, rec[0] as string]);
+    for (const rec of (litResult.data ?? [])) {
+      out.push([sv, pv, field(rec, "dest")]);
     }
     // Nodes
     const nodeResult = await this.graph.query(
@@ -142,8 +147,8 @@ export class FalkorDBTriplesQuery {
       `RETURN dest.uri as dest LIMIT ${limit}`,
       { params: { src: sv, rel: pv } },
     );
-    for (const rec of (nodeResult.data ?? []) as string[][]) {
-      out.push([sv, pv, rec[0] as string]);
+    for (const rec of (nodeResult.data ?? [])) {
+      out.push([sv, pv, field(rec, "dest")]);
     }
   }
 
@@ -157,8 +162,8 @@ export class FalkorDBTriplesQuery {
         `RETURN rel.uri as rel LIMIT ${limit}`,
         { params: { src: sv, dest: ov } },
       );
-      for (const rec of (result.data ?? []) as string[][]) {
-        out.push([sv, rec[0] as string, ov]);
+      for (const rec of (result.data ?? [])) {
+        out.push([sv, field(rec, "rel"), ov]);
       }
     }
   }
@@ -173,8 +178,8 @@ export class FalkorDBTriplesQuery {
         `RETURN src.uri as src LIMIT ${limit}`,
         { params: { rel: pv, dest: ov } },
       );
-      for (const rec of (result.data ?? []) as string[][]) {
-        out.push([rec[0] as string, pv, ov]);
+      for (const rec of (result.data ?? [])) {
+        out.push([field(rec, "src"), pv, ov]);
       }
     }
   }
@@ -188,16 +193,16 @@ export class FalkorDBTriplesQuery {
       `RETURN rel.uri as rel, dest.value as dest LIMIT ${limit}`,
       { params: { src: sv } },
     );
-    for (const rec of (litResult.data ?? []) as string[][]) {
-      out.push([sv, rec[0] as string, rec[1] as string]);
+    for (const rec of (litResult.data ?? [])) {
+      out.push([sv, field(rec, "rel"), field(rec, "dest")]);
     }
     const nodeResult = await this.graph.query(
       `MATCH (src:Node {uri: $src})-[rel:Rel]->(dest:Node) ` +
       `RETURN rel.uri as rel, dest.uri as dest LIMIT ${limit}`,
       { params: { src: sv } },
     );
-    for (const rec of (nodeResult.data ?? []) as string[][]) {
-      out.push([sv, rec[0] as string, rec[1] as string]);
+    for (const rec of (nodeResult.data ?? [])) {
+      out.push([sv, field(rec, "rel"), field(rec, "dest")]);
     }
   }
 
@@ -210,16 +215,16 @@ export class FalkorDBTriplesQuery {
       `RETURN src.uri as src, dest.value as dest LIMIT ${limit}`,
       { params: { rel: pv } },
     );
-    for (const rec of (litResult.data ?? []) as string[][]) {
-      out.push([rec[0] as string, pv, rec[1] as string]);
+    for (const rec of (litResult.data ?? [])) {
+      out.push([field(rec, "src"), pv, field(rec, "dest")]);
     }
     const nodeResult = await this.graph.query(
       `MATCH (src:Node)-[rel:Rel {uri: $rel}]->(dest:Node) ` +
       `RETURN src.uri as src, dest.uri as dest LIMIT ${limit}`,
       { params: { rel: pv } },
     );
-    for (const rec of (nodeResult.data ?? []) as string[][]) {
-      out.push([rec[0] as string, pv, rec[1] as string]);
+    for (const rec of (nodeResult.data ?? [])) {
+      out.push([field(rec, "src"), pv, field(rec, "dest")]);
     }
   }
 
@@ -233,8 +238,8 @@ export class FalkorDBTriplesQuery {
         `RETURN src.uri as src, rel.uri as rel LIMIT ${limit}`,
         { params: { dest: ov } },
       );
-      for (const rec of (result.data ?? []) as string[][]) {
-        out.push([rec[0] as string, rec[1] as string, ov]);
+      for (const rec of (result.data ?? [])) {
+        out.push([field(rec, "src"), field(rec, "rel"), ov]);
       }
     }
   }
@@ -247,15 +252,15 @@ export class FalkorDBTriplesQuery {
       `MATCH (src:Node)-[rel:Rel]->(dest:Literal) ` +
       `RETURN src.uri as src, rel.uri as rel, dest.value as dest LIMIT ${limit}`,
     );
-    for (const rec of (litResult.data ?? []) as string[][]) {
-      out.push([rec[0] as string, rec[1] as string, rec[2] as string]);
+    for (const rec of (litResult.data ?? [])) {
+      out.push([field(rec, "src"), field(rec, "rel"), field(rec, "dest")]);
     }
     const nodeResult = await this.graph.query(
       `MATCH (src:Node)-[rel:Rel]->(dest:Node) ` +
       `RETURN src.uri as src, rel.uri as rel, dest.uri as dest LIMIT ${limit}`,
     );
-    for (const rec of (nodeResult.data ?? []) as string[][]) {
-      out.push([rec[0] as string, rec[1] as string, rec[2] as string]);
+    for (const rec of (nodeResult.data ?? [])) {
+      out.push([field(rec, "src"), field(rec, "rel"), field(rec, "dest")]);
     }
   }
 }

@@ -1815,7 +1815,7 @@ export class FlowApi {
         undefined,
         this.flowId,
       )
-      .then((r) => r.response);
+      .then((r) => r.triples ?? r.response ?? []);
   }
 
   /**
